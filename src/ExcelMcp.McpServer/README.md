@@ -73,7 +73,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 **31 specialized tools with 387 operations** covering Power Query, Data Model/DAX, What-If Analysis, PivotTables, Excel Tables, Charts, Drawings, VBA, Ranges, Worksheets, Workbooks, QueryTables, XML Maps, Connections, Named Ranges, File/Session management, Calculation Mode, Slicers, Conditional Formatting, Screenshots, and Window Management.
 
-📚 **[Complete Feature Reference →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)** - Detailed documentation of all 387 operations, grouped by category
+📚 **[Feature Overview →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)** - Capabilities grouped by goal. Current actions and inputs for all 387 operations are described by the server's tools.
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot, Claude, or ChatGPT

@@ -1,100 +1,48 @@
 # Slicers
 
-PivotTable slicers filter their connected PivotTables. Table slicers filter one
-Excel Table. Filtering source-table rows does not automatically filter a
-separate PivotTable cache. Use the matching creation, listing, selection, and
-deletion actions for each type.
+A PivotTable slicer filters its connected PivotTables. A Table slicer filters
+one worksheet Table, not a separate PivotTable cache. A dashboard control does
+not automatically filter every chart.
 
-Use `list-slicers` and its `connectedPivotTables` field to check the actual
-scope. A slicer on a dashboard does not automatically control every chart.
-A live PivotChart follows its linked PivotTable, so a revenue-only connection
-does not filter unrelated margin or growth pivots/charts. These actions do not
-add a connection to another PivotTable; do not promise a shared dashboard filter.
+Current commands and inputs come from CLI help or MCP tool descriptions.
 
-## Required creation inputs
+## Plan the control {#required-creation-inputs}
 
-Every creation needs a session, a unique slicer name, a destination worksheet, and
-a cell position for its top-left corner. Names and positions are **not**
-generated automatically.
+Inspect source fields, existing control names, and the destination sheet before
+creating a control. Choose its location as part of the requested layout rather
+than assuming Excel will select a suitable name or position.
 
-PivotTable slicers additionally need the PivotTable name and field name.
-Table slicers need the Table name and column name. Inspect the relevant slicer
-list and source fields before creating one. The destination sheet must exist.
-
-These examples assume the session, `SalesPivot`, `SalesData`, and `Analysis` sheet
-already exist. Check each result before proceeding.
-
-```mcp
-slicer(action: 'create-slicer', session_id: sessionId, pivot_table_name: 'SalesPivot', field_name: 'Region', slicer_name: 'RegionSlicer', destination_sheet: 'Analysis', position: 'E2')
-slicer(action: 'set-slicer-selection', session_id: sessionId, slicer_name: 'RegionSlicer', selected_items: '["North"]')
-slicer(action: 'create-table-slicer', session_id: sessionId, table_name: 'SalesData', column_name: 'Product', slicer_name: 'ProductSlicer', destination_sheet: 'Analysis', position: 'H2')
-slicer(action: 'set-table-slicer-selection', session_id: sessionId, slicer_name: 'ProductSlicer', selected_items: '["Laptop"]')
-```
-
-```cli
-excelcli -q slicer create-slicer --session $sessionId --pivot-table-name SalesPivot --field-name Region --slicer-name RegionSlicer --destination-sheet Analysis --position E2
-excelcli -q slicer set-slicer-selection --session $sessionId --slicer-name RegionSlicer --selected-items '["North"]'
-excelcli -q slicer create-table-slicer --session $sessionId --table-name SalesData --column-name Product --slicer-name ProductSlicer --destination-sheet Analysis --position H2
-excelcli -q slicer set-table-slicer-selection --session $sessionId --slicer-name ProductSlicer --selected-items '["Laptop"]'
-```
+Use a date timeline for a PivotTable date field, not an ordinary Table column.
+A live PivotChart follows the connected PivotTable; a regular chart may not.
 
 ## Selection and verification
 
-Selections are JSON-array **text**, such as `'["North","South"]'`, not a native
-array argument in MCP. `'[]'` clears the filter. The default replaces the
-selection; disabling clear-first adds to it. The implementation compares names
-case-insensitively, but use the actual item names returned by Excel.
+Choose whether to replace the existing selection or add to it. Use actual
+returned items instead of guessing labels. Data Model captions can be ambiguous;
+use the discovered unique item name when needed. Adding to an unfiltered model
+slicer keeps it unfiltered, allowing new members after refresh.
 
-To switch an existing single-item filter, pass the replacement item to
-`set-slicer-selection` or `set-table-slicer-selection`. Leave `clear_first`
-omitted or set it to `true` in MCP; omit `--clear-first` or pass
-`--clear-first true` in CLI. The new selection replaces the old one, even when
-the items have no overlap.
+For regular and Table slicers, the resulting selection can differ from the
+request when items do not match or Excel will not deselect every item. Read both
+the selected items and the filtered rows or PivotTable results. Check combined
+filters together.
 
-Data Model/OLAP PivotTable slicers use the same PivotTable slicer actions.
-Create with the discovered hierarchy name, such as `[Quarters].[Quarter]`.
-For `create-slicer` and `list-slicers`, `availableItems` and `selectedItems`
-contain the displayed captions. `get-slicer` returns native item names instead,
-including MDX unique names for Data Model/OLAP items. Selection
-accepts those captions or MDX unique names; unknown or ambiguous values fail
-before changing the filter. An ambiguous-caption error includes the matching MDX
-unique names as a JSON array; retry with the intended name from that array.
-Adding to an unfiltered slicer validates the requested items but keeps the filter
-cleared, so new members introduced by a later Data Model refresh remain visible.
+Removing a slicer is not the same as clearing its filter. Clear the filter
+first when that is the intended outcome, then inspect the resulting data.
 
-For regular PivotTable and Table slicers, unmatched values are not individually
-rejected, and Excel may retain a selection when asked to deselect every item.
-Never infer success from the requested values:
-read the slicer selection and the filtered Table rows or PivotTable data.
-Check combined filters together. Deleting a slicer is not the same operation as
-clearing its filter; explicitly clear first if that is the intended result.
-
-Read [PivotTable guidance](pivottable.md) for source refresh and field setup.
+See [PivotTable guidance](pivottable.md) for source refresh and field setup.
 
 ## Timelines, shared connections, and layout
 
-`create-timeline` creates a native date control from a PivotTable date field, not
-from an ordinary Table column. Its required inputs match `create-slicer`.
-Use `get-slicer` for complete native control state: layout/style, all connections,
-item selections, and timeline date/view state. `list-slicers` identifies timelines
-with `isTimeline` and `timeline`; they do not have ordinary selected-item lists.
+A timeline filters an inclusive calendar-date range on every connected
+PivotTable. It uses date selection, not ordinary item selection. Clearing its
+date filter does not clear unrelated filters.
 
-`set-timeline-selection` takes MCP `timeline_selection` or CLI
-`--timeline-selection`, with nested `startDate` and `endDate` calendar dates.
-The inclusive range filters **every connected PivotTable**. Do not use ordinary
-item selection for a timeline. `clear-timeline-selection` clears this date
-filter; `delete-slicer` removes the visual control, not necessarily its filter.
+Shared controls can connect to PivotTables using the same existing compatible
+cache. Matching field names alone are not enough; connections do not rebuild
+incompatible caches. Table slicers cannot connect to PivotTables, and a
+PivotTable control must keep at least one source connection.
 
-`connect-pivottable` / `disconnect-pivottable` take MCP `slicer_name` /
-`pivot_table_name` or CLI `--slicer-name` / `--pivot-table-name`. Connections
-require the existing shared PivotCache; matching field names alone are not
-enough. Incompatible caches and Table slicers are rejected without rebuilding
-anything. Disconnecting keeps at least one source connection.
-
-`update-slicer` takes MCP `slicer_options` or CLI `--slicer-options`. Nested keys
-remain camelCase. Geometry uses points; omitted properties remain unchanged.
-Ordinary controls use `columnCount` / `displayHeader`; timelines use `granularity`
-and their `showHeader` / `showSelectionLabel` / `showTimeLevel` /
-`showHorizontalScrollbar` view settings. Use existing native style names.
-Read the resulting state rather than assuming Excel accepted the requested
-appearance.
+Inspect actual connections before promising a shared dashboard filter.
+After a layout/style change, read the control's resulting appearance and bounds
+instead of assuming that every requested setting was accepted by Excel.

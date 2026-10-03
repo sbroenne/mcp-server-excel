@@ -1,46 +1,29 @@
 # Screenshots and Visual Verification
 
-Use screenshots when appearance matters, such as chart placement or a report
-layout, and an interactive desktop is available. Do not add a screenshot step
-to an unrelated read or data-only task. A successful data operation does not
-depend on capturing an image.
+Use screenshots when appearance matters and an interactive desktop is available.
+They are optional for data-only tasks and are not a prerequisite for successful
+unattended work.
 
-## Actions
+Current capture commands, quality choices, and output options come from CLI
+help or MCP tool descriptions.
 
-| Action | Framing | Required context |
-|--------|---------|--------|
-| `capture` | Explicit cell range, default `A1:Z30` | Session; optional worksheet (active sheet by default), range, and quality |
-| `capture-sheet` | Used cells and embedded charts | Session; optional worksheet (active sheet by default) and quality |
+## Choose the capture scope {#actions}
 
-Use `session_id`, `sheet_name`, `range_address`, and `quality` in MCP;
-use `--session`, `--sheet`, `--range`, and `--quality` in CLI.
+Choose a bounded range for the requested layout, or inspect used cells and
+embedded charts together. Capture photographs the live Excel window, briefly
+showing it and bringing it forward. It requires an unlocked interactive desktop;
+disconnected Remote Desktop sessions can prevent capture.
 
-Capture photographs the live Excel window, briefly showing it and bringing it
-forward. It requires an unlocked interactive desktop; disconnected Remote
-Desktop sessions may prevent capture. Protected sheets and initially hidden
-windows are supported. The workbook and clipboard are not modified.
-
-Large ranges are zoomed, captured in passes, and stitched. If the result reports
-truncation, use a smaller range rather than claiming the whole area was checked.
-
-| Quality | Format | Scale |
-|---------|--------|-------|
-| `Medium` (default) | JPEG | 75% |
-| `Low` | JPEG | 50% |
-| `High` | PNG | 100% |
-
-MCP returns native image content and structured capture metadata. CLI can save
-an image directly; use a matching quality and extension:
-
-```cli
-excelcli -q screenshot capture --session $sessionId --sheet Sales --range A1:M25 --quality High --output screenshot.png
-```
+Protected sheets and initially hidden windows are supported without modifying
+the workbook or clipboard. Large ranges can be zoomed and stitched. If the
+result reports truncation, capture smaller areas rather than claiming that
+the whole sheet was checked.
 
 ## Layout Checks
 
-For a requested chart, inspect the used range, create or move the chart, and
-check returned overlap warnings. `target_range` (MCP) / `--target-range` (CLI) makes explicit layouts easier;
-omitting both it and point coordinates uses supported automatic positioning.
+For a requested chart, inspect its source and intended destination, create or
+move it, then check overlap warnings and the visible result. This example
+assumes the session and `Sales` sheet already exist and the placement is authorized:
 
 ```mcp
 chart(action: 'create-from-range', session_id: sessionId, sheet_name: 'Sales',
@@ -55,12 +38,10 @@ excelcli -q chart create-from-range --session $sessionId --sheet Sales --source-
 excelcli -q screenshot capture --session $sessionId --sheet Sales --range A1:M25 --quality High --output screenshot.png
 ```
 
-Use `pivottable_field` (MCP) / `pivottablefield` (CLI) to add row/value fields and refresh the PivotTable before
-checking its layout. For multiple charts, leave room between them and reposition
-with `chart fit-to-range` when needed. Check again after a meaningful layout fix,
-not after every routine write.
+Check each result. Leave room between charts and check again after meaningful
+layout fixes, not every routine write. Configure PivotTable fields and refresh
+its data before judging its layout.
 
-If capture is unavailable, inspect chart positions and sizes using `chart read`
-and explain that visual verification could not be completed. Do not repeatedly
-retry an unavailable desktop or prevent an authorized save/close solely because
-capture failed.
+If capture is unavailable, inspect chart bounds and data and state the visual
+limitation. Do not repeatedly retry an unavailable desktop or prevent an
+authorized save/close solely because capture failed.

@@ -157,7 +157,7 @@
     {% set _ = crumbs.append({"name": "Guides", "url": "https://excelmcpserver.dev/guides/"}) %}
   {% endif %}
   {% if page.url.startswith("reference/") and page.url != "reference/" %}
-    {% set _ = crumbs.append({"name": "Reference", "url": "https://excelmcpserver.dev/reference/"}) %}
+    {% set _ = crumbs.append({"name": "Workflow guidance", "url": "https://excelmcpserver.dev/reference/"}) %}
   {% endif %}
   {% if page.url in ["installation-cli/", "installation-mcp-server/"] %}
     {% set _ = crumbs.append({"name": "Installation", "url": "https://excelmcpserver.dev/installation/"}) %}

@@ -541,7 +541,7 @@ def audit_breadcrumbs(html_files: list[Path]) -> None:
     sections = {
         "features": ("Features", f"{SITE_URL}features/"),
         "guides": ("Guides", f"{SITE_URL}guides/"),
-        "reference": ("Reference", f"{SITE_URL}reference/"),
+        "reference": ("Workflow guidance", f"{SITE_URL}reference/"),
     }
     flat_sections = {
         "installation-cli/index.html": ("Installation", f"{SITE_URL}installation/"),

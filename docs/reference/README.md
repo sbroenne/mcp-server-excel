@@ -1,8 +1,13 @@
-# Excel workflow reference
+# Excel workflow guidance
 
-These guides document ExcelMcp workflows and limitations for both supported
-entry points. They are website documentation, not automatically loaded skills.
-Discover exact syntax through MCP schemas or `excelcli <command> --help`.
+These guides explain decisions, sequencing, recovery, and important limitations
+for both supported entry points. They are not a separate command reference or
+automatically loaded skills.
+
+Use the MCP tool descriptions or `excelcli --help` followed by
+`excelcli <command> --help` for current actions and inputs. The examples here
+illustrate workflows, not every supported option. For an overview of what you
+can accomplish, see [features](../../FEATURES.md).
 
 ## Working with agents
 

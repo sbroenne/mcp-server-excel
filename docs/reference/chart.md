@@ -1,8 +1,8 @@
 # Charts
 
-Chart lifecycle operations create, list, read, move, fit, and delete charts.
-Chart-configuration operations manage series, titles, axes, labels, styles, and
-trendlines. Reuse the returned chart name rather than assuming Excel's default.
+Build the chart from the intended data, then check its actual plotted results.
+Reuse the returned chart name rather than assuming Excel's default. Current
+commands and inputs come from CLI help or MCP tool descriptions.
 
 ## Choose the source before creating
 
@@ -43,9 +43,9 @@ excelcli -q chartconfig set-title --session $sessionId --chart-name MonthlySales
 excelcli -q chart read --session $sessionId --chart-name MonthlySales
 ```
 
-Check each result. Prefer a target cell range for an exact placement. Omit both
-target range and coordinates to auto-place below used cells and existing charts
-with padding. Manual coordinates use points (72 per inch); row and column sizes
+Check each result. Prefer a target cell range for an exact placement, or use
+supported automatic placement when a vertical stack suits the report.
+Manual coordinates use points; row and column sizes
 vary, so do not assume a fixed conversion from cells.
 
 Creation, move, and fit operations warn about overlapping data/charts. An
@@ -55,52 +55,34 @@ desktop is available; otherwise inspect bounds and state the visual limitation.
 
 ## Percentage data labels
 
-Percentage data labels are meaningful for pie and doughnut charts. MCP
-`chart_config` action `set-data-labels` uses `show_percentage`; CLI
-`excelcli chartconfig set-data-labels` uses `--show-percentage`. Excel can reject
+Percentage data labels are meaningful for pie and doughnut charts. Excel can reject
 the setting on other chart types; this is reported as an error, not a successful
 no-op. Label settings are applied in sequence, so earlier settings can already
 have changed when Excel rejects a later setting.
 
 ## Selected series, error bars and points
 
-Use `get-series-settings` before changing a selected series. `set-series-chart-type`
-changes its type; `set-series-axis-group` uses `axis_group` (MCP) /
-`--axis-group` (CLI) to select Primary or Secondary. `chart` `read` also returns
-each regular series' actual type and axis assignment. Axis titles, number
-formats, scales and gridlines distinguish Category/Value from their Secondary
-counterparts; select the intended axis explicitly.
+Inspect the intended series before changing its type or axis assignment.
+Primary and secondary axes can use different scales; identify the actual axis
+instead of treating similarly named selectors as interchangeable.
 
-`set-error-bars` takes `error_bar_options` / `--error-bar-options`, with camelCase
-nested keys. Custom bars require both `plusRange` and `minusRange`: contiguous
-one-dimensional numeric ranges with exactly one nonnegative value per point.
-They are on `sourceSheetName`, or the chart worksheet when omitted. `direction`
-is native Y (default) or X; X requires scatter/bubble. Y errors follow the value
-axis, so they appear horizontal on a bar chart. `enabled:false` removes both
-directions rather than clearing only the requested axis. Excel retains custom
-source references only for the signs displayed by `include`.
+Custom error bars need numeric source values aligned with every plotted point.
+Their orientation follows the native axes, which can differ from the visual
+direction suggested by a bar chart. Turning error bars off removes both
+directions, not just a selected direction.
 
-`get-error-bars` reports native presence and caps. Excel provides no getters
-for kind, direction, signs, amount or custom source references; `settingsReadable`
-is false and `readLimitations` explains this. Do not treat previously sent
-settings as native read-back.
+Excel cannot read back every error-bar setting it accepts. Previously sent
+settings are not native readback. The same caution applies to some point
+transparency and automatic/mixed colors: explicit inspection limitations are
+not zero values or proof that formatting failed.
 
-`set-point-format` takes `point_index` / `--point-index` and `point_options` /
-`--point-options`. Only the selected point changes. Marker points use their own
-background/foreground colors, style and size; per-point marker transparency and
-outline weight are rejected before mutation. Column-point transparency persists,
-but Excel can still return an invalid transparency getter: `get-point-format`
-reports `fillTransparencyAvailable:false` and an explicit read error, not a
-fabricated zero. Automatic/mixed native color values are also explicitly
-unavailable rather than converted into an invented RGB color.
+Selected-point formatting affects only that point, but supported properties
+depend on whether the point uses markers or a material fill. These per-series
+writes reject PivotCharts because their fields and refresh control the series.
 
-These per-series writes reject PivotCharts because their fields/refresh control
-the series. Native image export supports both regular charts and PivotCharts.
-Use `chart` `export-image` with `target_path` / `--target-path`; extensions must
-match the requested format and existing files require `overwrite:true` /
-`--overwrite true`. The operation checks Excel's native result and nonempty
-output, and does not silently replace an existing image on failure. Failed
-exports remove their newly created output, including empty or partial images.
+Native image export supports regular charts and PivotCharts. Replacing an
+existing image needs authorization; inspect the reported output rather than
+assuming that any file left behind is a complete successful export.
 
 ## Short labels without losing detail
 
@@ -250,50 +232,14 @@ an axis scaled to thousands does not establish that labels use the same scale.
 
 ## Configuration
 
-Accepted option names are generated from the shared contracts into MCP parameter
-descriptions and CLI help, including optional string-valued enum inputs.
-Use those exact names rather than guessing Excel COM constant names or numeric
-codes. The same values and case-insensitive validation apply to both entry points.
+Use current help for supported settings rather than copying Excel constants or
+an old option catalogue. Replacing a regular chart's source can change all
+series, so verify their names, values, and categories afterward.
 
-- Series indices are 1-based. Adding a series requires a values range; supply its
-  category range when the axis labels are not implicit.
-- Replacing the source range can change all series. Verify names, values, and
-  categories afterward.
-- Set per-series chart types for regular combo charts. Use plot options for
-  row/column orientation, blanks, and whether hidden cells are plotted.
-- Use Category and Value for primary axis titles. Use US number formats for
-  currency/percentage tick labels; do not assume an axis format also formats
-  data labels.
-- CategorySecondary and ValueSecondary target the secondary axis group, which
-  must already exist. The legacy Primary alias means Category, and Secondary
-  means Value in the primary group; use the explicit names to avoid ambiguity.
-- Built-in chart styles are 1-48. Area formatting controls chart/plot backgrounds;
-  series formatting controls fills, lines, and markers.
-- Placement 1 moves and sizes with cells, 2 moves only, 3 is free floating.
-- Trendlines include Linear, Exponential, Logarithmic, Polynomial, Power, and
-  MovingAverage. Polynomial order is 2-6; moving-average period is at least 2.
-  Respect Excel's data/domain requirements for the selected fit.
-
-For the existing `MonthlyRevenue` chart, use the owning chart controls:
-
-```mcp
-chart_config(action: 'show-legend', session_id: sessionId, chart_name: 'MonthlyRevenue', visible: true, legend_position: 'Bottom')
-chart_config(action: 'set-series-format', session_id: sessionId, chart_name: 'MonthlyRevenue', series_index: 1, marker_style: 'Circle', marker_size: 5, line_color: '#0073BB')
-chart_config(action: 'set-plot-options', session_id: sessionId, chart_name: 'MonthlyRevenue', plot_by: 'Columns', display_blanks_as: 'Gaps')
-chart_config(action: 'set-area-format', session_id: sessionId, chart_name: 'MonthlyRevenue', area: 'Plot', fill_color: '#FFFFFF')
-chart(action: 'read', session_id: sessionId, chart_name: 'MonthlyRevenue')
-```
-
-```cli
-excelcli -q chartconfig show-legend --session $sessionId --chart-name MonthlyRevenue --visible true --legend-position Bottom
-excelcli -q chartconfig set-series-format --session $sessionId --chart-name MonthlyRevenue --series-index 1 --marker-style Circle --marker-size 5 --line-color '#0073BB'
-excelcli -q chartconfig set-plot-options --session $sessionId --chart-name MonthlyRevenue --plot-by Columns --display-blanks-as Gaps
-excelcli -q chartconfig set-area-format --session $sessionId --chart-name MonthlyRevenue --area Plot --fill-color '#FFFFFF'
-excelcli -q chart read --session $sessionId --chart-name MonthlyRevenue
-```
-
-Check each result and the chart's actual data. Formatting a PivotChart does not
-authorize changing its field configuration or filter scope.
+Choose blank/hidden-cell behavior, axis scales, and any trendline according to
+the data's meaning. A different appearance must not imply unsupported
+conclusions. Formatting a PivotChart does not authorize changing its fields
+or filter scope.
 
 For multiple charts, use explicit non-overlapping cell ranges with consistent
 sizes and spacing. Auto-placement is suitable for a vertical stack. Read the
@@ -308,18 +254,14 @@ formulas or PivotTable totals. Compare representative amounts with the original
 rows; check category/value alignment, period order, and the treatment of totals,
 hidden rows, blanks, and errors.
 
-For both regular charts and PivotCharts, `series` includes the actual plotted
-names, `values`, and `categories` in point order. The listed `seriesCount` counts
-plotted series, not PivotTable value fields: one revenue measure can produce
-three provider series. Filtering the linked pivot changes those plotted series.
+The plotted series are not necessarily the same count as the PivotTable's
+Values fields: one measure can produce several provider series. Filtering
+changes the actual plotted names, categories, and values.
 
-For regular charts, `sourceRange` still contains the first series' `SERIES`
-formula, not a complete source rectangle. On read, `valuesRange` is empty and
-`categoryRange` is null rather than inventing cell addresses from Excel's value
-arrays. Series-creation operations can return the supplied ranges separately.
-Use the plotted arrays for data checks; a formula alone does not establish every
-binding. PivotCharts also report `isPivotChart` and `linkedPivotTable`; verify
-that link and the actual PivotTable fields, filters, and data.
+A regular chart's reported source formula is not a complete source rectangle.
+Use the plotted data and known source cells for verification rather than
+inventing addresses from value arrays. For a PivotChart, verify the actual
+linked PivotTable and its fields, filters, and results.
 
 Keep checks and changes within the request. Changing a title or unit display
 does not authorize replacing the source, rebuilding unrelated data, restyling
