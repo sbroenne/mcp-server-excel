@@ -14,13 +14,14 @@ resource controlRole 'Microsoft.Authorization/roleDefinitions@2022-04-01' = {
   name: guid(subscription().id, group.id, 'excel-runner-control')
   properties: {
     roleName: 'Excel runner control ${resourceGroupName}'
-    description: 'Only owned VM lifecycle, guest commands, vault policy inspection and shutdown scheduling.'
+    description: 'Dedicated-group VM lifecycle and settings required by shutdown scheduling, guest commands and vault policy inspection.'
     type: 'CustomRole'
     assignableScopes: [group.id]
     permissions: [{
       actions: [
         'Microsoft.Resources/subscriptions/resourceGroups/read'
         'Microsoft.Compute/virtualMachines/read'
+        'Microsoft.Compute/virtualMachines/write'
         'Microsoft.Compute/virtualMachines/instanceView/read'
         'Microsoft.Compute/virtualMachines/start/action'
         'Microsoft.Compute/virtualMachines/restart/action'
