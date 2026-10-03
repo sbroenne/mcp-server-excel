@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -334,53 +335,51 @@ public static class ComUtilities
     }
 
     /// <summary>
-    /// Safely gets a string property from a COM object, returning empty string if null
+    /// Reads a string property, preserving getter failures. A null property value becomes empty.
     /// </summary>
     /// <param name="obj">COM object</param>
     /// <param name="propertyName">Property name</param>
     /// <returns>Property value or empty string</returns>
     public static string SafeGetString(dynamic? obj, string propertyName)
     {
-        try
+        ArgumentNullException.ThrowIfNull((object?)obj, nameof(obj));
+        if (obj is string name && propertyName == "Name")
         {
-            var value = propertyName switch
-            {
-                "Name" => obj.Name,
-                "Formula" => obj.Formula,
-                "Description" => obj.Description,
-                "SourceName" => obj.SourceName,
-                _ => null
-            };
-            return value?.ToString() ?? string.Empty;
+            return name;
         }
-        catch (Exception)
+
+        var value = propertyName switch
         {
-            return string.Empty;
-        }
+            "Name" => obj.Name,
+            "NameLocal" => obj.NameLocal,
+            "Formula" => obj.Formula,
+            "Description" => obj.Description,
+            "SourceName" => obj.SourceName,
+            _ => throw new ArgumentOutOfRangeException(nameof(propertyName), propertyName, "Unsupported string property.")
+        };
+        return value?.ToString() ?? string.Empty;
     }
 
     /// <summary>
-    /// Safely gets an integer property from a COM object, returning 0 if null or invalid
+    /// Reads an integer property, preserving getter and conversion failures.
     /// </summary>
     /// <param name="obj">COM object</param>
     /// <param name="propertyName">Property name</param>
-    /// <returns>Property value or 0</returns>
+    /// <returns>Property value; zero only when Excel reports zero</returns>
     public static int SafeGetInt(dynamic? obj, string propertyName)
     {
-        try
+        ArgumentNullException.ThrowIfNull((object?)obj, nameof(obj));
+        var value = propertyName switch
         {
-            var value = propertyName switch
-            {
-                "RecordCount" => obj.RecordCount,
-                "Count" => obj.Count,
-                _ => 0
-            };
-            return Convert.ToInt32(value);
-        }
-        catch (Exception)
+            "RecordCount" => obj.RecordCount,
+            "Count" => obj.Count,
+            _ => throw new ArgumentOutOfRangeException(nameof(propertyName), propertyName, "Unsupported integer property.")
+        };
+        if (value is null)
         {
-            return 0;
+            throw new InvalidOperationException($"Excel returned no value for required integer property '{propertyName}'.");
         }
+        return Convert.ToInt32(value, CultureInfo.InvariantCulture);
     }
 
     [DllImport("kernel32.dll")]

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.DataModel;
@@ -73,11 +74,9 @@ public partial class DataModelCommands
                         {
                             model.Refresh();
                         }
-                        catch (Exception refreshEx)
+                        catch (COMException refreshEx)
                         {
-                            // Model.Refresh() may not be supported in all Excel versions
-                            // Fall back to refreshing tables individually
-                            throw new InvalidOperationException($"Model-level refresh not supported. Try refreshing tables individually. Error: {refreshEx.Message}", refreshEx);
+                            throw new InvalidOperationException(DataModelErrorMessages.RefreshFailed(refreshEx.Message), refreshEx);
                         }
                         finally
                         {
@@ -98,13 +97,11 @@ public partial class DataModelCommands
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }, timeoutCts.Token);
         }
-        catch (OperationCanceledException) when (timeoutCts.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (timeoutCts.IsCancellationRequested)
         {
             throw new TimeoutException(
-                $"Data Model refresh timed out after {effectiveTimeout.TotalSeconds:F0} seconds for '{Path.GetFileName(batch.WorkbookPath)}'.");
+                $"Data Model refresh timed out after {effectiveTimeout.TotalSeconds:F0} seconds for '{Path.GetFileName(batch.WorkbookPath)}'.", ex);
         }
     }
 }
-
-
 

@@ -179,6 +179,38 @@ public sealed partial class PersistentServicePowerQueryRefreshTests(
         Assert.True(result.Success, $"RefreshAll failed: {result.ErrorMessage}");
     }
 
+    [Fact]
+    public void RefreshAll_DefinitionOnlyStage_ReportsNamedRefreshRecoveryAndRefreshesLoadedDependent()
+    {
+        var stageName = UniqueName("Stage");
+        Assert.True(_queries.Create(
+            _fixture.BatchToken, stageName, ValidMCode,
+            PowerQueryLoadMode.ConnectionOnly).Success);
+        _fixture.RegisterPowerQueryForCleanup(stageName);
+        var loadedName = UniqueName("Loaded");
+        Assert.True(_queries.Create(
+            _fixture.BatchToken, loadedName, stageName,
+            PowerQueryLoadMode.LoadToTable, loadedName).Success);
+        _fixture.RegisterPowerQueryForCleanup(loadedName);
+        _fixture.RegisterSheetForCleanup(loadedName);
+        Assert.True(_queries.Update(
+            _fixture.BatchToken, stageName,
+            "let Source = #table({\"X\"}, {{42}}) in Source",
+            refresh: false).Success);
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            _queries.RefreshAll(_fixture.BatchToken, TimeSpan.FromMinutes(1)));
+        Assert.Contains(stageName, error.Message, StringComparison.Ordinal);
+        Assert.Contains("loaded dependent", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("powerquery refresh", error.Message, StringComparison.OrdinalIgnoreCase);
+        var values = _commands.GetValues(_fixture.BatchToken, loadedName, "A1:A2");
+        Assert.True(values.Success, values.ErrorMessage);
+        Assert.Equal("X", values.Values[0][0]);
+        Assert.Equal(42d, Convert.ToDouble(values.Values[1][0], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.True(_queries.Refresh(
+            _fixture.BatchToken, loadedName, TimeSpan.FromMinutes(1)).Success);
+    }
+
     private string CreateWorksheetQuery(string prefix)
     {
         var queryName = UniqueName(prefix);

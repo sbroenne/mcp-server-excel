@@ -24,7 +24,14 @@ excelcli -q datamodel evaluate --session $sessionId --dax-query 'EVALUATE ROW("T
 Measure names are unique across the model, not just their home table. Use update
 for an existing measure. Formats are General, Currency, Decimal, Percentage, or
 WholeNumber. On create, an omitted format defaults to General; on update it keeps
-the existing format. Supply native DAX with comma argument separators and decimal
+the existing format. Failure to obtain an explicitly requested format fails the
+operation; it does not silently substitute General. Update obtains that format
+before changing the formula or description. A later Excel write failure can
+still leave partial changes; no rollback is promised.
+Measure readback identifies the actual Excel format interface, so Decimal and
+Percentage remain distinct even though both expose decimal-place and separator
+properties. Failed format-property reads do not silently report General.
+Supply native DAX with comma argument separators and decimal
 points; create and update pass it to Excel without regional separator rewriting.
 Remote formatting requires explicit consent and remains off by default:
 MCP `format_dax: true` or CLI `--format-dax true`.
@@ -50,6 +57,12 @@ Refresh can target the whole model or one table and accepts a caller timeout.
 Other model query operations have their own limits (including a two-minute DMV
 query timeout); do not apply one blanket timeout to every action. Excel exposes
 no reliable live model-refresh status or per-table refresh timestamp here.
+Refresh failures preserve Excel's error details rather than assuming that
+model-level refresh is unsupported. Check the reported source or engine error
+before choosing recovery; refreshing individual tables is not a universal fix.
+
+Model metadata reads fail when a required property cannot be read. A reported
+row count of zero means Excel returned zero, not that its property getter failed.
 
 ## Relationships and unsupported features
 

@@ -91,11 +91,11 @@ public partial class ChartCommands
 
             dynamic? axes = null;
             dynamic? targetAxis = null;
+            Excel.AxisTitle? axisTitle = null;
 
             try
             {
                 axes = findResult.Chart.Axes;
-
                 var (axisType, axisGroup) = MapAxisType(axis);
                 targetAxis = axes.Item(axisType, axisGroup);
 
@@ -107,22 +107,15 @@ public partial class ChartCommands
                 else
                 {
                     targetAxis.HasTitle = true;
-                    Excel.AxisTitle? axisTitle = null;
-                    try
-                    {
-                        axisTitle = ((Excel.Axis)targetAxis).AxisTitle;
-                        axisTitle.Text = title;
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref axisTitle);
-                    }
+                    axisTitle = ((Excel.Axis)targetAxis).AxisTitle;
+                    axisTitle.Text = title;
                 }
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
             }
             finally
             {
+                ComUtilities.Release(ref axisTitle);
                 ComUtilities.Release(ref targetAxis!);
                 ComUtilities.Release(ref axes!);
                 if (findResult.Shape != null) ComUtilities.Release(ref findResult.Shape!);
@@ -418,7 +411,7 @@ public partial class ChartCommands
                             when (ex.HResult == unchecked((int)0x800A03EC))
                         {
                             throw new InvalidOperationException(
-                                $"ShowPercentage is not supported for this chart type. " +
+                                "Excel rejected the percentage-label setting. " +
                                 "Use show_percentage only with pie or doughnut chart types.", ex);
                         }
                     }
@@ -828,10 +821,10 @@ public partial class ChartCommands
             ChartAxisType.Category => (1, 1),           // xlCategory, xlPrimary
             ChartAxisType.Value => (2, 1),              // xlValue, xlPrimary
             ChartAxisType.Primary => (1, 1),            // xlCategory, xlPrimary
-            ChartAxisType.Secondary => (1, 2),          // xlCategory, xlSecondary
+            ChartAxisType.Secondary => (2, 1),          // xlValue, xlPrimary
             ChartAxisType.CategorySecondary => (1, 2),  // xlCategory, xlSecondary
             ChartAxisType.ValueSecondary => (2, 2),     // xlValue, xlSecondary
-            _ => throw new ArgumentOutOfRangeException(nameof(axis), axis, "Unknown chart axis.")
+            _ => throw new ArgumentOutOfRangeException(nameof(axis), axis, "Unsupported chart axis.")
         };
     }
 

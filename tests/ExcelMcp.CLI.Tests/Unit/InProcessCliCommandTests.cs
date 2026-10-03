@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
+using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Sbroenne.ExcelMcp.Generated;
 using Sbroenne.ExcelMcp.Service;
 using Xunit;
@@ -67,6 +68,72 @@ public sealed class InProcessCliCommandTests
         Assert.Empty(factory.Requests);
         Assert.Equal(string.Empty, error.ToString());
         Assert.Contains(option, output.ToString(), StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("--axis", typeof(ChartAxisType))]
+    [InlineData("--legend-position", typeof(LegendPosition))]
+    [InlineData("--marker-style", typeof(MarkerStyle))]
+    [InlineData("--plot-by", typeof(ChartPlotBy))]
+    [InlineData("--display-blanks-as", typeof(ChartDisplayBlanksAs))]
+    [InlineData("--area", typeof(ChartAreaTarget))]
+    public async Task ChartHelp_AdvertisesAcceptedEnumNamesWithoutConnecting(string option, Type enumType)
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "chartconfig", "--help"], CreateRuntime(factory, output, error));
+
+        Assert.Equal(0, exitCode);
+        Assert.Empty(factory.Requests);
+        Assert.Equal(string.Empty, error.ToString());
+        Assert.Contains(option, output.ToString(), StringComparison.Ordinal);
+        var help = Regex.Replace(output.ToString(), @"\s+", " ");
+        foreach (var name in Enum.GetNames(enumType))
+        {
+            Assert.Matches($@"\b{Regex.Escape(name)}\b", help);
+        }
+    }
+
+    [Theory]
+    [InlineData("chartconfig", "--show-percentage", "Excel can reject", "no visual effect")]
+    [InlineData("datamodel", "--format-type", "not substituted", "safe fallback")]
+    public async Task CommandHelp_ExplainsAuditedFailureWithoutConnecting(
+        string command, string option, string expected, string misleading)
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exitCode = await Program.RunAsync(
+            ["--quiet", command, "--help"], CreateRuntime(factory, output, error));
+        Assert.Equal(0, exitCode);
+        Assert.Empty(factory.Requests);
+        Assert.Equal(string.Empty, error.ToString());
+        var help = Regex.Replace(output.ToString(), @"\s+", " ");
+        Assert.Contains(option, help, StringComparison.Ordinal);
+        Assert.Contains(expected, help, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(misleading, help, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task ChartHelp_DoesNotAdvertiseReadOnlyLabelPosition()
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "chartconfig", "--help"], CreateRuntime(factory, output, error));
+        Assert.Equal(0, exitCode);
+        Assert.Empty(factory.Requests);
+        Assert.Equal(string.Empty, error.ToString());
+        var help = Regex.Replace(output.ToString(), @"\s+", " ");
+        Assert.Contains("--label-position", help);
+        foreach (var name in new[] { "BestFit", "Center", "Above", "Below", "Left", "Right", "InsideBase", "InsideEnd", "OutsideEnd" })
+        {
+            Assert.Matches($@"\b{Regex.Escape(name)}\b", help);
+        }
+        Assert.DoesNotContain("Mixed", help, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

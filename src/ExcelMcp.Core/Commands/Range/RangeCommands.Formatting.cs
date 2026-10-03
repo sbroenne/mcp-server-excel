@@ -57,6 +57,7 @@ public partial class RangeCommands
             dynamic? range = null;
             dynamic? styles = null;
             dynamic? style = null;
+            object? rangeStyle = null;
 
             try
             {
@@ -66,12 +67,16 @@ public partial class RangeCommands
 
                 range = sheet.Range[rangeAddress];
 
-                object? selectedStyle = range.Style;
-                if (selectedStyle is null or DBNull)
-                    throw new InvalidOperationException("The range has mixed cell styles. Use get-format to inspect each cell.");
-                if (selectedStyle is Microsoft.Office.Interop.Excel.Style)
-                    style = selectedStyle;
-                else if (selectedStyle is string name)
+                rangeStyle = range.Style;
+
+                if (rangeStyle is null or DBNull)
+                    rangeStyle = "Normal";
+                if (rangeStyle is Microsoft.Office.Interop.Excel.Style)
+                {
+                    style = rangeStyle;
+                    rangeStyle = null;
+                }
+                else if (rangeStyle is string name)
                 {
                     styles = ctx.Book.Styles;
                     style = styles.Item(name);
@@ -97,6 +102,7 @@ public partial class RangeCommands
             {
                 ComUtilities.Release(ref style!);
                 ComUtilities.Release(ref styles!);
+                ComUtilities.Release(ref rangeStyle);
                 ComUtilities.Release(ref range!);
                 ComUtilities.Release(ref sheet!);
             }

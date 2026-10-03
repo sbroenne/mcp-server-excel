@@ -14,7 +14,7 @@ public sealed class ChartAxisMappingTests
     [InlineData(ChartAxisType.Category, 1, 1)]
     [InlineData(ChartAxisType.Value, 2, 1)]
     [InlineData(ChartAxisType.Primary, 1, 1)]
-    [InlineData(ChartAxisType.Secondary, 1, 2)]
+    [InlineData(ChartAxisType.Secondary, 2, 1)]
     [InlineData(ChartAxisType.CategorySecondary, 1, 2)]
     [InlineData(ChartAxisType.ValueSecondary, 2, 2)]
     public void AxisSelector_MapsToDocumentedNativeAxis(ChartAxisType axis, int type, int group)

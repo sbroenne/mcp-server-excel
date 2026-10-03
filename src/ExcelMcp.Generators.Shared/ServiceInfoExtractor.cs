@@ -263,6 +263,20 @@ public static class ServiceInfoExtractor
             paramDescription = desc;
         }
 
+        if (enumTypeSymbol != null)
+        {
+            var acceptedNames = enumTypeSymbol.GetMembers()
+                .OfType<IFieldSymbol>()
+                .Where(field => field.HasConstantValue)
+                .Select(field => field.Name)
+                .Concat(enumAliases.Select(alias => alias.Alias))
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+            var acceptedValues = $"Accepted values (case-insensitive): {string.Join(", ", acceptedNames)}.";
+            paramDescription = string.IsNullOrWhiteSpace(paramDescription)
+                ? acceptedValues
+                : $"{paramDescription} {acceptedValues}";
+        }
+
         return new ParameterInfo(
             param.Name,
             TypeNameHelper.GetTypeName(param.Type, param.NullableAnnotation),

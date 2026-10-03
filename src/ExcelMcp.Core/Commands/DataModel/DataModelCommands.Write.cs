@@ -317,6 +317,11 @@ public partial class DataModelCommands
 
                     var updates = new List<string>();
 
+                    if (!string.IsNullOrEmpty(formatType))
+                    {
+                        formatObject = GetFormatObject(model!, formatType);
+                    }
+
                     // Update formula if provided
                     // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.modelmeasure (Formula property is Read/Write)
                     if (!string.IsNullOrEmpty(daxToSave))
@@ -326,14 +331,10 @@ public partial class DataModelCommands
                     }
 
                     // Update format if provided
-                    if (!string.IsNullOrEmpty(formatType))
+                    if (formatObject != null)
                     {
-                        formatObject = GetFormatObject(model!, formatType);
-                        if (formatObject != null)
-                        {
-                            measure.FormatInformation = formatObject;
-                            updates.Add($"Format changed to {formatType}");
-                        }
+                        measure.FormatInformation = formatObject;
+                        updates.Add($"Format changed to {formatType}");
                     }
 
                     // Update description if provided

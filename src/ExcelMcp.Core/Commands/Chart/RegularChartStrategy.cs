@@ -203,42 +203,7 @@ public class RegularChartStrategy : IChartStrategy
             ComUtilities.Release(ref chartArea);
         }
 
-        // Get series
-        dynamic? seriesCollection = null;
-        try
-        {
-            seriesCollection = chart.SeriesCollection();
-            int seriesCount = Convert.ToInt32(seriesCollection.Count);
-
-            for (int i = 1; i <= seriesCount; i++)
-            {
-                dynamic? series = null;
-                try
-                {
-                    series = seriesCollection.Item(i);
-                    var seriesInfo = new SeriesInfo
-                    {
-                        ChartType = (ChartType)Convert.ToInt32(series.ChartType),
-                        AxisGroup = (ChartAxisGroup)Convert.ToInt32(series.AxisGroup),
-                        Name = series.Name?.ToString() ?? string.Empty,
-                        ValuesRange = series.Values?.ToString() ?? string.Empty,
-                        CategoryRange = series.XValues?.ToString() ?? string.Empty
-                    };
-                    info.Series.Add(seriesInfo);
-                }
-                finally
-                {
-                    if (series != null)
-                    {
-                        ComUtilities.Release(ref series!);
-                    }
-                }
-            }
-        }
-        finally
-        {
-            ComUtilities.Release(ref seriesCollection!);
-        }
+        info.Series = ChartSeriesReader.Read(chart);
 
         return info;
     }

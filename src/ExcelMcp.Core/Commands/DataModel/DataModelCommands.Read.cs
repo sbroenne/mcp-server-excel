@@ -181,8 +181,7 @@ public partial class DataModelCommands
                     formatInfo = measure.FormatInformation;
                     if (formatInfo != null)
                     {
-                        // Reason: FormatInformation returns polymorphic ModelFormat* COM objects; property probing remains dynamic.
-                        result.FormatInfo = GetFormatInfo((dynamic)formatInfo);
+                        result.FormatInfo = GetFormatInfo(formatInfo);
                     }
                 }
                 finally

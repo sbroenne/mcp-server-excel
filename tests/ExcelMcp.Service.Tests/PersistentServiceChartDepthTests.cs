@@ -385,6 +385,17 @@ public sealed class PersistentServiceChartDepthTests(PersistentServiceWorkbookFi
         var response = _fixture.Send("chartconfig.get-series-settings", new { chartName, seriesIndex = 2 });
         using var state = JsonDocument.Parse(response.Result!);
         Assert.Equal("Secondary", state.RootElement.GetProperty("axisGroup").GetString());
+        var read = _fixture.Send("chart.read", new { chartName });
+        Assert.True(read.Success, read.ErrorMessage);
+        using var chartState = JsonDocument.Parse(read.Result!);
+        var series = chartState.RootElement.GetProperty("series");
+        Assert.Equal("Secondary", series[1].GetProperty("axisGroup").GetString());
+        Assert.Equal("ColumnClustered", series[1].GetProperty("chartType").GetString());
+        var values = series[1].GetProperty("values");
+        Assert.Equal(3, values.GetArrayLength());
+        Assert.Equal(100, values[0].GetInt32());
+        Assert.Equal(200, values[1].GetInt32());
+        Assert.Equal(300, values[2].GetInt32());
     }
 
     [Fact]
@@ -432,9 +443,11 @@ public sealed class PersistentServiceChartDepthTests(PersistentServiceWorkbookFi
     }
 
     [Theory]
-    [InlineData("Secondary")]
-    [InlineData("CategorySecondary")]
-    public void SecondaryHorizontalTitle_DoesNotChangePrimaryValueAxis(string axis)
+    [InlineData("Secondary", Excel.XlAxisType.xlValue, Excel.XlAxisGroup.xlPrimary, Excel.XlAxisType.xlCategory, Excel.XlAxisGroup.xlSecondary)]
+    [InlineData("CategorySecondary", Excel.XlAxisType.xlCategory, Excel.XlAxisGroup.xlSecondary, Excel.XlAxisType.xlValue, Excel.XlAxisGroup.xlPrimary)]
+    public void AxisTitle_LegacyAndExplicitSelectors_PreserveOtherAxis(
+        string axis, Excel.XlAxisType targetType, Excel.XlAxisGroup targetGroup,
+        Excel.XlAxisType otherType, Excel.XlAxisGroup otherGroup)
     {
         var (sheet, chartName) = CreateChart();
         _fixture.Send("chartconfig.set-series-axis-group", new { chartName, seriesIndex = 2, axisGroup = "Secondary" });
@@ -448,8 +461,8 @@ public sealed class PersistentServiceChartDepthTests(PersistentServiceWorkbookFi
             Excel.AxisTitle? title = null;
             try
             {
-                secondary = (Excel.Axis)chart.Axes(Excel.XlAxisType.xlCategory, Excel.XlAxisGroup.xlSecondary);
-                primary = (Excel.Axis)chart.Axes(Excel.XlAxisType.xlValue, Excel.XlAxisGroup.xlPrimary);
+                secondary = (Excel.Axis)chart.Axes(targetType, targetGroup);
+                primary = (Excel.Axis)chart.Axes(otherType, otherGroup);
                 Assert.True(secondary.HasTitle);
                 Assert.False(primary.HasTitle);
                 title = secondary.AxisTitle;

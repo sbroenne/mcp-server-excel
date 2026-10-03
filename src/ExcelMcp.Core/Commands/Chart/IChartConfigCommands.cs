@@ -32,7 +32,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 /// </summary>
 [ServiceCategory("chartconfig", "ChartConfig")]
 [McpTool("chart_config", Title = "Chart Configuration", Destructive = true, Category = "analysis",
-    Description = "Configure chart data, series, titles, axes, labels, legends, styling, and trendlines. Series/point indices are 1-based. get-series-settings inspects native type, axis assignment, formula, points and error-bar presence; set-series-axis-group assigns Primary/Secondary. get-error-bars/set-error-bars use typed error_bar_options; calculation/source getters are unavailable and settingsReadable is false, never cached request values. get-point-format/set-point-format use point_options and report native getter limitations explicitly; marker points support their own colors/style/size, not transparency/outline weight. New per-series writes reject PivotCharts; use pivottable_field for their fields. Axis selectors are Category, Value, CategorySecondary, and ValueSecondary. Placement: 1=move and size with cells, 2=move only, 3=free floating. Use chart for lifecycle and native image export.")]
+    Description = "Configure chart data, series, titles, axes, labels, legends, styling, and trendlines. Add-series requires valuesRange; series/point indices are 1-based. get-series-settings inspects native type, axis assignment, formula, points and error-bar presence; set-series-axis-group assigns Primary/Secondary. get-error-bars/set-error-bars use typed error_bar_options; calculation/source getters are unavailable and settingsReadable is false, never cached request values. get-point-format/set-point-format use point_options and report native getter limitations explicitly; marker points support their own colors/style/size, not transparency/outline weight. Per-series writes reject PivotCharts; use pivottable_field for their fields. Prefer explicit axis selectors Category, Value, CategorySecondary, and ValueSecondary. Legacy aliases Primary=Category and Secondary=Value both use the primary axis group. Placement: 1=move and size with cells, 2=move only, 3=free floating. Use chart for lifecycle and native image export.")]
 public interface IChartConfigCommands
 {
     /// <summary>Reads native error-bar presence and end caps. Excel exposes no getters for calculation kind, direction, include, amount or custom range references; settingsReadable is explicitly false.</summary>
@@ -164,7 +164,7 @@ public interface IChartConfigCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
-    /// <param name="axis">Which axis to set title for (Category, Value, SeriesAxis)</param>
+    /// <param name="axis">Axis selector: Category/Value for primary axes, CategorySecondary/ValueSecondary for secondary axes. Primary aliases Category; Secondary aliases Value on the primary group. The requested axis must exist.</param>
     /// <param name="title">Axis title text</param>
     [ServiceAction("set-axis-title")]
     OperationResult SetAxisTitle(
@@ -251,7 +251,7 @@ public interface IChartConfigCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
     /// <param name="showValue">Show data values on labels</param>
-    /// <param name="showPercentage">Show percentage values. Only meaningful for pie and doughnut chart types; setting to true on other chart types has no visual effect.</param>
+    /// <param name="showPercentage">Show percentage values for pie and doughnut charts. Excel can reject this setting on other chart types; rejection is an error, not a successful no-op.</param>
     /// <param name="showSeriesName">Show series name on labels</param>
     /// <param name="showCategoryName">Show category name on labels</param>
     /// <param name="showBubbleSize">Show bubble size (bubble charts)</param>

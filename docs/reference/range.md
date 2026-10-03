@@ -199,6 +199,20 @@ Saving remains explicit.
 
 ## Number formats and layout
 
+MCP `range_format(action: 'get-style')` and CLI `excelcli rangeformat get-style`
+retain the `Normal` fallback when Excel reports no single style for a mixed-style
+range. This is not a claim that each cell uses `Normal`; inspection does not
+change the cells. Use `get-format` to inspect each cell's distinct style.
+Native style-read failures remain errors rather than successful `Normal` results.
+
+For MCP `range_format` action `validate-range` and CLI
+`excelcli rangeformat validate-range`, invalid `validation_type` /
+`--validation-type`, `validation_operator` / `--validation-operator`, and
+`error_style` / `--error-style` inputs fail before deleting an existing rule.
+An accepted replacement removes the old rule before Excel applies the new one;
+a later Excel error, such as a rejected formula, has no rollback guarantee.
+Inspect the result and use `get-validation` to check the resulting rule.
+
 For inspecting existing visual formatting, use MCP `range_format` `get-format`
 or CLI `excelcli rangeformat get-format`. `view` / `--view` defaults to
 `stored`; `displayed` includes conditional formatting; `both` returns both
