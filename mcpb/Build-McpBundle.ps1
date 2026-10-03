@@ -57,7 +57,7 @@ else {
         SourceExecutable = "Sbroenne.ExcelMcp.McpServer"
         BundleExecutable = "excel-mcp-server"
         DisplayName = "Excel (Apple Silicon macOS - experimental beta)"
-        LongDescription = "Experimental beta for Apple Silicon macOS, not Windows feature parity. The capability-gated backend enables verified session, worksheet, basic range, named-range, calculation, Goal Seek, Data Table, and Python formula-write actions. Power Query and VBA are unavailable. Data Model/DAX/OLAP, Tables, PivotTables, charts, slicers, connections, QueryTables, XML Maps, screenshots, advanced visual formatting, and Python result reads are also unsupported. Unavailable actions fail explicitly; optional bridge installation does not enable them. Requires Excel for Mac 16.112 or later. Test on copies of important workbooks; see https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta."
+        LongDescription = "Experimental beta for Apple Silicon macOS, not Windows feature parity. The capability-gated backend enables verified session, worksheet, basic range, named-range, calculation, Goal Seek, Data Table, and Python formula-write actions. Power Query and VBA are unavailable. Data Model/DAX/OLAP, Tables, PivotTables, charts, slicers, connections, QueryTables, XML Maps, screenshots, advanced visual formatting, and Python result reads are also unsupported. Unavailable actions fail explicitly; optional bridge installation does not enable them. Requires Excel for Mac 16.112 or later. Failed or cancelled mutations can partly apply; reconcile the surviving session before retrying. See https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta."
     }
 }
 

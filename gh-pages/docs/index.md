@@ -29,7 +29,7 @@ setup instructions for your assistant or command-line workflow:
       *computed results* land right in your workbook.
     - **Excel owns file loading and saving.** ExcelMcp does not rewrite workbook
       internals. Requested edits and partial failures can still change a workbook;
-      keep backups and inspect results.
+      inspect the surviving session and workbook state before retrying.
 
     Other tools (openpyxl-based MCP servers and Agent Skills, including
     Anthropic's `xlsx` skill) read and rewrite the `.xlsx` file directly — which
@@ -43,7 +43,9 @@ setup instructions for your assistant or command-line workflow:
     Tables, PivotTables, charts, slicers, connections, QueryTables, screenshots,
     advanced visual formatting, window/Agent Mode control, and Python result
     reads are **not supported**. Intel Macs and headless hosts are unsupported.
-    Test on workbook copies; consult [macOS support and limitations](macos-support.md).
+    Failed or cancelled mutations can partly apply; consult
+    [macOS support and limitations](macos-support.md) and inspect the surviving
+    session before retrying.
     Windows retains the complete feature set.
 
 <div class="mcp-video" markdown>

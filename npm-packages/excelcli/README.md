@@ -41,7 +41,8 @@ Network access is needed for package downloads and update checks.
 Apple Silicon support is a limited beta, not Windows feature parity. Power
 Query, VBA, Data Model/DAX/OLAP, Tables, PivotTables, charts, slicers,
 connections, QueryTables, XML Maps, screenshots, advanced visual formatting,
-and Python result reads are unavailable. Test on copies of important workbooks.
+and Python result reads are unavailable. Failed or cancelled mutations can
+partly apply; inspect the surviving session before retrying.
 See [macOS beta limitations](https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta)
 and the [per-action inventory](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/MACOS-ACTION-INVENTORY.md).
 Windows retains the complete backend.

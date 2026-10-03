@@ -23,3 +23,11 @@ connections, QueryTables, XML Maps, screenshots, advanced visual formatting,
 and Python result reads remain unsupported. Windows retains its complete
 backend. Confirmed Mac sessions now save during normal shutdown, and
 concurrent close requests with conflicting save choices are rejected.
+The VS Code extension also rejects a non-executable bundled Mac server before
+launch. Distribution metadata consistently lists Windows x64/ARM64, and safety
+guidance describes recovery consequences without prescribing unsolicited
+workbook copies.
+Mac range reads now distinguish ordinary numeric values from Excel error codes
+using Excel's own error classification. Mac distribution packaging also uses
+the current report-formatting skill, and native Mac assets are included in the
+complete release checksum and build-input records.

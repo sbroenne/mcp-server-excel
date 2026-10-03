@@ -10,7 +10,8 @@ Power Query, VBA, Data Model/DAX/OLAP, Tables, PivotTables, charts, slicers,
 connections, QueryTables, XML Maps, screenshots, advanced visual formatting,
 and Python result reads are unsupported on Mac. See
 [the beta support reference](https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md);
-use copies of important workbooks.
+failed or cancelled mutations can partly apply, so inspect the surviving session
+before retrying.
 
 **VS Code Extension** (Recommended)
 - Search "ExcelMcp" in VS Code Marketplace and click Install
@@ -59,7 +60,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 - Or download `excel-skills-v{{VERSION}}.zip`
 
 ### Requirements
-- Windows x64 with desktop Excel 2016+, or Apple Silicon macOS with Excel for
+- Windows x64/ARM64 with desktop Excel 2016+, or Apple Silicon macOS with Excel for
   Mac 16.112+ (experimental beta)
 - An interactive desktop session; Intel Macs, Linux, and headless hosts are unsupported
 - Node.js 18+ with npm/npx for npm and the Windows MCPB installation

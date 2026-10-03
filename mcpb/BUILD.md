@@ -24,7 +24,7 @@ mcpb/
 
 - The .NET SDK selected by `global.json`
 - PowerShell 7
-- Windows x64 or Apple Silicon macOS to run matching executable verification
+- Windows x64/ARM64 or Apple Silicon macOS to run matching executable verification
 
 The Windows bundle is metadata-only and launches the public npm package at
 `@latest`. The Mac bundle contains its signed native runtime and must be built

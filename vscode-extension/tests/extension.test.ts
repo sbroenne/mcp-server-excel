@@ -1,4 +1,5 @@
 import type { ExecFileOptions } from 'node:child_process';
+import { constants } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as vscode from 'vscode';
@@ -166,7 +167,9 @@ describe('MCP registration and launch', () => {
 
 		await expect(resolveServer(provider)).resolves.toBeDefined();
 
-		expect(probes.access).toHaveBeenCalledOnce();
+		expect(probes.access).toHaveBeenCalledWith(
+			expect.any(String),
+			constants.R_OK | constants.X_OK);
 		expect(probes.query).not.toHaveBeenCalled();
 	});
 

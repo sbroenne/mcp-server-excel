@@ -5085,7 +5085,7 @@
     "windowsSemantics": "Creates a slicer for a PivotTable field. Slicers provide visual filtering for PivotTable data.",
     "windowsVariants": [
       "pivotTableName: string; required; Name of the PivotTable to create slicer for",
-      "fieldName: string; required; Name of the field to use for the slicer",
+      "fieldName: string; required; Name of the field to use for the slicer; Data Model/OLAP uses its discovered hierarchy name, e.g. [Quarters].[Quarter]",
       "slicerName: string; required; Name for the new slicer",
       "destinationSheet: string; required; Worksheet where slicer will be placed",
       "position: string; required; Top-left cell position for the slicer (e.g., \"H2\")"
@@ -5201,7 +5201,7 @@
     "windowsSemantics": "Sets the selection for a slicer, filtering the connected PivotTable(s).",
     "windowsVariants": [
       "slicerName: string; required; Name of the slicer to modify",
-      "selectedItems: System.Collections.Generic.List<string>; required; Items to select (show in PivotTable)",
+      "selectedItems: System.Collections.Generic.List<string>; required; Items to select (show in PivotTable); empty clears the filter. Data Model/OLAP accepts returned captions or MDX unique names; unknown or ambiguous items fail without changing the filter.",
       "clearFirst: bool; optional; default true; If true, clears existing selection before setting new items (default: true)"
     ],
     "tier": "Unsupported",

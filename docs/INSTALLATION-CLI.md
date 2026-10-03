@@ -13,7 +13,8 @@ beta**, not full Windows parity. Power Query, VBA, Data Model/DAX/OLAP, Tables,
 PivotTables, charts, slicers, connections, QueryTables, XML Maps, screenshots,
 advanced visual formatting, and Python result reads are unavailable. See
 [macOS beta limitations](../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta)
-before installing; test on copies of important workbooks.
+before installing. Failed or cancelled mutations can partly apply; inspect the
+surviving session before retrying.
 
 > **.NET runtime is NOT required** for npm or the standalone exe — both use the fully self-contained runtime.
 

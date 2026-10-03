@@ -44,6 +44,8 @@ public sealed class MacDistributionMetadataTests
         Assert.Contains("Test-DistributionPackages.ps1", macPackages, StringComparison.Ordinal);
         Assert.Contains("excelmcp-$Version-darwin-arm64.vsix", macPackages, StringComparison.Ordinal);
         Assert.Contains("Apple Silicon", macPackages, StringComparison.Ordinal);
+        Assert.Contains("Join-Path $SkillsDirectory 'excel-mcp-report-formatting'", macPackages, StringComparison.Ordinal);
+        Assert.DoesNotContain("'excel-mcp/VERSION'", macPackages, StringComparison.Ordinal);
         Assert.Contains("$configured = @(@(", notarization, StringComparison.Ordinal);
         Assert.Contains("submission.zip", notarization, StringComparison.Ordinal);
         Assert.Contains("\".zip\", \".pkg\", \".dmg\"", notarization, StringComparison.Ordinal);
@@ -132,7 +134,9 @@ public sealed class MacDistributionMetadataTests
         Assert.DoesNotContain("Generate-CliReference", buildScript, StringComparison.Ordinal);
         Assert.Contains("$OutputDir = 'artifacts/generated-skills'", buildScript, StringComparison.Ordinal);
         Assert.Contains("$OutputDir = 'artifacts/skills'", buildScript, StringComparison.Ordinal);
-        Assert.Contains("Join-Path (Join-Path $SkillsDir 'assets') $name", buildScript, StringComparison.Ordinal);
+        Assert.Contains("Join-Path $SkillsDir $name", buildScript, StringComparison.Ordinal);
+        Assert.Contains("Join-Path $RepoRoot 'artifacts/generated-skills'", buildScript, StringComparison.Ordinal);
+        Assert.Contains("excel-$component-report-formatting", buildScript, StringComparison.Ordinal);
     }
 
     [Fact]

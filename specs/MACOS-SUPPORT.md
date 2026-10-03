@@ -2,8 +2,9 @@
 
 **Status: Experimental beta.** Apple Silicon macOS support is a
 capability-gated subset, not full Windows parity or a production-support
-commitment. Test on copies of important workbooks. Windows retains the complete
-COM backend and is not reclassified as experimental. macOS combines a native
+commitment. Failed or cancelled mutations can partly apply; reconcile the
+surviving session before retrying. Windows retains the complete COM backend and
+is not reclassified as experimental. macOS combines a native
 Apple Events backend with optional Office.js and ScreenCaptureKit tiers.
 Unsupported or unproven actions fail with `PlatformNotSupported`; they never
 return success-shaped approximations.

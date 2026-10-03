@@ -93,7 +93,7 @@ public sealed class MacNamedRangeE2ETests(ITestOutputHelper output)
             Assert.True(date.TryGetProperty("value", out var dateValue), date.GetRawText());
             Assert.Equal(44927, dateValue.GetDouble());
             Success(await client.CallAsync("range", "set-values", session,
-                new() { ["sheet_name"] = "", ["range_address"] = createdName, ["values"] = new int[][] { [44928] } },
+                new() { ["sheet_name"] = "", ["range_address"] = createdName, ["values"] = new int[][] { [44928] }, ["overwrite_policy"] = "allow" },
                 deadline.Token));
             foreach (var (action, sheetName, address) in new[]
             {
@@ -115,7 +115,7 @@ public sealed class MacNamedRangeE2ETests(ITestOutputHelper output)
 
             Success(await Call("update", new() { ["name"] = createdName, ["reference"] = "==Data!$A$1:$B$2" }));
             Success(await client.CallAsync("range", "set-values", session,
-                new() { ["sheet_name"] = "Data", ["range_address"] = "A1:B2", ["values"] = MatrixValues },
+                new() { ["sheet_name"] = "Data", ["range_address"] = "A1:B2", ["values"] = MatrixValues, ["overwrite_policy"] = "allow" },
                 deadline.Token));
             var array = await Call("read", new() { ["name"] = createdName });
             Assert.Equal("Array", array.GetProperty("valueType").GetString());
@@ -124,7 +124,7 @@ public sealed class MacNamedRangeE2ETests(ITestOutputHelper output)
                 new() { ["sheet_name"] = "", ["range_address"] = createdName }, deadline.Token));
             Assert.Equal(4, bulk.GetProperty("values")[1][1].GetDouble());
             Success(await client.CallAsync("range", "set-values", session,
-                new() { ["sheet_name"] = "", ["range_address"] = createdName, ["values"] = MatrixValues },
+                new() { ["sheet_name"] = "", ["range_address"] = createdName, ["values"] = MatrixValues, ["overwrite_policy"] = "allow" },
                 deadline.Token));
             Assert.Equal(4, (await Call("read", new() { ["name"] = createdName })).GetProperty("value")[1][1].GetDouble());
             var names = Success(await Call("list", new())).GetProperty("namedRanges").EnumerateArray().ToArray();

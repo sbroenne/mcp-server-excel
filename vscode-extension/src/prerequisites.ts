@@ -26,9 +26,12 @@ function checkCancellation(signal: AbortSignal) {
 export async function checkLaunchPrerequisites(executable: string, signal: AbortSignal) {
 	checkCancellation(signal);
 	try {
-		await access(executable, constants.R_OK);
+		const mode = process.platform === 'darwin'
+			? constants.R_OK | constants.X_OK
+			: constants.R_OK;
+		await access(executable, mode);
 	} catch {
-		throw new LaunchSetupError('The bundled ExcelMcp server is missing or unreadable. Check access permissions or reinstall the extension.');
+		throw new LaunchSetupError('The bundled ExcelMcp server is missing, unreadable, or not executable. Check access permissions or reinstall the extension.');
 	}
 	checkCancellation(signal);
 	if (process.platform === 'darwin' && process.arch === 'arm64') {

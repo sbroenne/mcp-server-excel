@@ -43,7 +43,67 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
     private static readonly string[][] MergedTopLeftValue = [["Merged"]];
     private static readonly string[][] MergedNonTopLeftValue = [["Blocked"]];
     private static readonly string[][] FormulaError = [["=1/0"]];
+    private static readonly int[][] ErrorCodeNumbers = [[2000, 2007, 2015, 2023, 2029, 2036, 2042]];
+    private static readonly string[] RangeReadActions = ["get-values", "get-formulas"];
     private static readonly int[][] ShutdownValues = [[31415]];
+
+    [MacExcelTheory]
+    [InlineData("cli")]
+    [InlineData("mcp")]
+    [Trait("Category", "Integration")]
+    [Trait("RequiresExcel", "true")]
+    [Trait("Feature", "Range")]
+    public async Task RangeReads_PreserveNumbersMatchingClassicErrorCodes(string entryPoint)
+    {
+        Assert.Equal(0, MacAutomationAccess.Check());
+        using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(3));
+        await using var client = await EntryPointClient.CreateAsync(
+            FindRepository(), entryPoint, output, deadline.Token);
+        var directory = Directory.CreateTempSubdirectory("excelmcp-mac-error-numbers-");
+        var path = Path.Combine(directory.FullName, $"numbers-{Guid.NewGuid():N}.xlsx");
+        CreateBlankWorkbook(path);
+        string? session = null;
+        var completed = false;
+        try
+        {
+            session = SessionId(await client.CallAsync(
+                "file", "open", null, new() { ["path"] = path }, deadline.Token));
+            await InitializeWorkbookAsync(client, session, includeSpare: false, deadline.Token);
+            Success(await client.CallAsync("range", "set-values", session,
+                RangeArgs("D1:J1", ("values", ErrorCodeNumbers)), deadline.Token));
+            Success(await client.CallAsync("range", "set-formulas", session,
+                RangeArgs("L1", ("formulas", FormulaError)), deadline.Token));
+            foreach (var action in RangeReadActions)
+            {
+                var numbers = Success(await client.CallAsync(
+                    "range", action, session, RangeArgs("D1:J1"), deadline.Token));
+                Assert.Equal(ErrorCodeNumbers[0].Select(value => (double)value),
+                    numbers.GetProperty("values")[0].EnumerateArray().Select(value => value.GetDouble()));
+                Assert.Empty(numbers.GetProperty("cellErrors").EnumerateArray());
+                var error = Success(await client.CallAsync(
+                    "range", action, session, RangeArgs("L1"), deadline.Token));
+                Assert.Equal("#DIV/0!", error.GetProperty("values")[0][0].GetString());
+                var metadata = Assert.Single(error.GetProperty("cellErrors").EnumerateArray());
+                Assert.Equal(-2146826281, metadata.GetProperty("errorCode").GetInt32());
+            }
+            Success(await client.CallAsync("file", "close", session, new(), deadline.Token));
+            session = null;
+            completed = true;
+        }
+        finally
+        {
+            if (session is not null) await client.TryCloseAsync(session);
+            if (completed)
+            {
+                File.Delete(path);
+                directory.Delete();
+            }
+            else
+            {
+                output.WriteLine($"Failed error-number run retained its opaque fixture at {path}.");
+            }
+        }
+    }
 
     [MacExcelTheory]
     [InlineData("cli")]

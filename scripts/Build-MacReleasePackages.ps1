@@ -140,8 +140,8 @@ try {
     Copy-Item -LiteralPath (Join-Path $runtimeRoot 'Mcp/helpers') -Destination $extensionRuntime -Recurse
     $extensionSkills = Join-Path $extensionStage 'skills'
     New-Item -ItemType Directory -Path $extensionSkills -Force | Out-Null
-    Copy-Item (Join-Path $SkillsDirectory 'excel-mcp') $extensionSkills -Recurse
-    Set-Content (Join-Path $extensionSkills 'excel-mcp/VERSION') $Version -NoNewline
+    Copy-Item (Join-Path $SkillsDirectory 'excel-mcp-report-formatting') $extensionSkills -Recurse
+    Set-Content (Join-Path $extensionSkills 'excel-mcp-report-formatting/VERSION') $Version -NoNewline
     Copy-Item (Join-Path $root 'CHANGELOG.md') $extensionStage -Force
 
     $manifestPath = Join-Path $extensionStage 'package.json'

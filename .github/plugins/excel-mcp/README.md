@@ -8,12 +8,12 @@ Use natural language and native tool schemas for ordinary Excel automation;
 general workflows and recovery remain in the
 [documentation](https://excelmcpserver.dev/reference/).
 
-> **Apple Silicon macOS support is experimental beta.** Power Query, VBA,
-> Data Model/DAX/OLAP, Tables, PivotTables, charts, slicers, connections,
-> QueryTables, XML Maps, screenshots, advanced visual formatting, and Python
-> result reads are unsupported. See [macOS beta limitations](https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
-> The full feature list below describes Windows. Failed mutations can partly
-> apply; inspect the surviving session before retrying.
+> **macOS support is experimental beta.** Power Query, VBA, Data Model/DAX/OLAP,
+> Tables, PivotTables, charts, slicers, connections, QueryTables, XML Maps,
+> screenshots, advanced visual formatting, and Python result reads are not
+> supported. See [macOS beta limitations](https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+> The full feature list below describes Windows. Failed or cancelled Mac
+> mutations can partly apply; reconcile the surviving session before retrying.
 
 **Best for:** Conversational AI workflows (GitHub Copilot Chat, Claude Desktop, Cursor) where rich tool schemas and persistent connections matter more than token efficiency.
 
@@ -21,8 +21,8 @@ general workflows and recovery remain in the
 
 ## Prerequisites
 
-- **Windows x64** with Microsoft Excel 2016 or later, or **Apple Silicon macOS**
-  with Excel for Mac 16.112 or later
+- **Windows x64/ARM64** with Microsoft Excel 2016 or later, or **Apple Silicon
+  macOS** with Excel for Mac 16.112 or later; the Mac surface is experimental beta
 - **Node.js 18 or later** with `npx`
 - **GitHub Copilot extension** or other MCP-compatible client
 
@@ -69,8 +69,8 @@ npx -y @sbroenne/mcp-server-excel@latest
 
 The plugin supplies this configuration itself. No global helper or separate
 entry in `~/.copilot/mcp-config.json` is required.
-npm installs the matching Windows x64 or Darwin ARM64 runtime. Unsupported
-hosts, including Intel macOS, fail closed.
+npm installs the matching Windows x64/ARM64 or Darwin ARM64 runtime.
+Unsupported hosts, including Intel macOS, fail closed.
 
 ---
 
@@ -156,8 +156,8 @@ capability-gated Apple Events on Mac, not a file parser. The following full
 feature set describes Windows:
 
 - ✅ Run live operations — refresh Power Query, recalculate, refresh PivotTables and the Data Model, evaluate DAX, run VBA and Python `=PY()`
-- ✅ Let Excel open and save existing workbooks — use copies for important
-  files; failed or cancelled mutations are not guaranteed to roll back
+- ✅ Let Excel open and save existing workbooks — failed or cancelled mutations
+  are not guaranteed to roll back; inspect the surviving session before retrying
 - ✅ Show changes live in Excel as the AI works
 - ✅ Use native Excel validation and error handling
 

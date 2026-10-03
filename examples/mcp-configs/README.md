@@ -163,7 +163,7 @@ Create an Excel file called "test.xlsx"
 
 ### Excel Not Found
 
-- Ensure desktop Excel 2016+ on Windows x64, or Excel for Mac 16.112+ on Apple Silicon
+- Ensure desktop Excel 2016+ on Windows x64/ARM64, or Excel for Mac 16.112+ on Apple Silicon
 - Verify Excel starts normally in an interactive desktop session
 
 ### Permission Issues

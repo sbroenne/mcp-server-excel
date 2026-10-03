@@ -66,6 +66,6 @@ batch.Save();
 
 ## Platform Support
 
-- ✅ Windows x64
+- ✅ Windows x64/ARM64
 - ❌ Linux (Excel COM not available)
 - ❌ macOS (Excel COM not available)

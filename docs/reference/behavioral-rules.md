@@ -43,7 +43,8 @@ See [window management](window.md#visibility-and-placement).
 Apple Silicon macOS support is experimental beta. Use only the
 [enabled Mac actions](https://excelmcpserver.dev/macos-support/); Windows-only
 styling, model, refresh, and visual workflows below are not Mac workarounds.
-Test on copies of important workbooks.
+Failed or cancelled mutations can partly apply. Reconcile the surviving session
+and workbook state before retrying.
 
 ## Sessions and failures
 

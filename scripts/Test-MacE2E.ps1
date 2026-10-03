@@ -114,7 +114,7 @@ try {
     ) 1800 $environment
     Write-Host $test.stdout
     if (-not [string]::IsNullOrWhiteSpace($test.stderr)) { Write-Host $test.stderr }
-    $expectedPassed = 20
+    $expectedPassed = 22
     if ($IncludeNamedRanges) { $expectedPassed += 2 }
     $expectedSkipped = 0
     $expectedTotal = $expectedPassed + $expectedSkipped

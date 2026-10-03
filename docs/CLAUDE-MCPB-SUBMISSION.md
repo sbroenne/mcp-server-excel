@@ -37,7 +37,7 @@ Fill the Claude Directory submission form with:
 - Privacy policy: https://excelmcpserver.dev/privacy/
 - Support or repo link: https://github.com/sbroenne/mcp-server-excel
 - Icon: mcpb/icon-512.png
-- Platform notes: Windows x64 uses the complete COM backend; Apple Silicon
+- Platform notes: Windows x64/ARM64 uses the complete COM backend; Apple Silicon
   macOS is an **experimental beta**, not full parity. Include the
   [unsupported-feature reference](../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta);
   optional handlers do not constitute supported features

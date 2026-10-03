@@ -8,12 +8,12 @@ that helps agents discover that launcher for ordinary workbook requests, and the
 Ordinary Excel automation uses native CLI help; general workflows and recovery
 remain in the [documentation](https://excelmcpserver.dev/reference/).
 
-> **Apple Silicon macOS support is experimental beta.** Power Query, VBA,
-> Data Model/DAX/OLAP, Tables, PivotTables, charts, slicers, connections,
-> QueryTables, XML Maps, screenshots, advanced visual formatting, and Python
-> result reads are unsupported. See [macOS beta limitations](https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
-> The full feature list below describes Windows. Failed mutations can partly
-> apply; inspect the surviving session before retrying.
+> **macOS support is experimental beta.** Power Query, VBA, Data Model/DAX/OLAP,
+> Tables, PivotTables, charts, slicers, connections, QueryTables, XML Maps,
+> screenshots, advanced visual formatting, and Python result reads are not
+> supported. See [macOS beta limitations](https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+> The full feature list below describes Windows. Failed or cancelled Mac
+> mutations can partly apply; reconcile the surviving session before retrying.
 
 **Best for:** Coding agents (GitHub Copilot, Cursor, Windsurf) that need Excel automation without loading large tool schemas into context.
 
@@ -21,8 +21,8 @@ remain in the [documentation](https://excelmcpserver.dev/reference/).
 
 ## Prerequisites
 
-- **Windows x64** with Microsoft Excel 2016 or later, or **Apple Silicon macOS**
-  with Excel for Mac 16.112 or later
+- **Windows x64/ARM64** with Microsoft Excel 2016 or later, or **Apple Silicon
+  macOS** with Excel for Mac 16.112 or later
 - **Node.js 18 or later** with `npx`
 
 ---
@@ -166,8 +166,8 @@ excelcli -q session close --session <id> --save
 ## Key Features
 
 - **Real Excel Engine** — Uses COM on Windows and capability-gated Apple Events
-  on Mac. Excel performs the operations; use copies of important workbooks,
-  because failed or cancelled mutations are not guaranteed to roll back
+  on Mac. Excel performs the operations; failed or cancelled mutations are not
+  guaranteed to roll back, so inspect the surviving session before retrying
 - **Session Management** — Open once, run many operations, close cleanly
 - **Quiet Mode** (`-q`) — JSON output only, perfect for scripting
 - **Built-in Help** — `npx -y @sbroenne/excelcli@latest --help` and `npx -y @sbroenne/excelcli@latest <command> --help`

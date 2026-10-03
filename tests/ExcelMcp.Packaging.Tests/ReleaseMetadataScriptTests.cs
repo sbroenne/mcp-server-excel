@@ -76,7 +76,9 @@ public sealed class ReleaseMetadataScriptTests
             {
                 "ExcelMcp-CLI-1.2.3-windows.zip", "ExcelMcp-MCP-Server-1.2.3-windows.zip",
                 "excel-plugins-v1.2.3.zip", "excel-skills-v1.2.3.zip",
-                "excel-mcp-1.2.3.vsix", "excel-mcp-1.2.3-win32-arm64.vsix", "excel-mcp-1.2.3.mcpb"
+                "excel-mcp-1.2.3.vsix", "excel-mcp-1.2.3-win32-arm64.vsix", "excel-mcp-1.2.3.mcpb",
+                "ExcelMcp-CLI-1.2.3-macos-arm64.zip", "ExcelMcp-MCP-Server-1.2.3-macos-arm64.zip",
+                "excelmcp-1.2.3-darwin-arm64.vsix", "excel-mcp-1.2.3-macos-arm64.mcpb"
             })
             {
                 File.WriteAllText(Path.Combine(artifacts, name), name);
@@ -276,7 +278,7 @@ public sealed class ReleaseMetadataScriptTests
                 Assert.Equal(
                     Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(Path.Combine(sandbox, "metadata.patch")))),
                     inputs.RootElement.GetProperty("metadataPatchSha256").GetString());
-                Assert.Equal(7, inputs.RootElement.GetProperty("artifacts").GetArrayLength());
+                Assert.Equal(11, inputs.RootElement.GetProperty("artifacts").GetArrayLength());
                 foreach (var artifact in inputs.RootElement.GetProperty("artifacts").EnumerateArray())
                 {
                     var name = artifact.GetProperty("name").GetString()!;
@@ -285,7 +287,7 @@ public sealed class ReleaseMetadataScriptTests
                         artifact.GetProperty("sha256").GetString());
                 }
                 var checksumLines = File.ReadAllLines(Path.Combine(sandbox, "publish", "SHA256SUMS"));
-                Assert.Equal(9, checksumLines.Length);
+                Assert.Equal(13, checksumLines.Length);
                 foreach (var line in checksumLines)
                 {
                     var parts = line.Split("  ", StringSplitOptions.None);

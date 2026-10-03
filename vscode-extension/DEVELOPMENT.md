@@ -1,7 +1,7 @@
 # VS Code Extension Development
 
 The Excel MCP Server extension ships platform-targeted VSIX packages for
-Windows x64 and Apple Silicon macOS. Each package bundles the matching MCP
+Windows x64/ARM64 and Apple Silicon macOS. Each package bundles the matching MCP
 executable and one Agent Skill. Users do not need a separate .NET runtime or
 CLI installation.
 
@@ -88,7 +88,7 @@ manifest. Runtime skill discovery reads the matching frontmatter from
 
 ## Prerequisites
 
-- Windows x64 or Apple Silicon macOS
+- Windows x64/ARM64 or Apple Silicon macOS
 - The .NET SDK pinned by the repository `global.json`
 - Node.js and npm
 - PowerShell 7 for the packaging scripts
@@ -124,7 +124,7 @@ npm run package
 
 Windows packaging performs these steps automatically:
 
-1. Publishes the self-contained Windows x64 MCP runtime.
+1. Publishes the self-contained Windows x64 and ARM64 MCP runtimes.
 2. Copies and stamps the canonical Agent Skill.
 3. Copies the generated root changelog.
 4. Validates feature and Marketplace metadata and compiles TypeScript.

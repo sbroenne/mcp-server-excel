@@ -11,8 +11,9 @@
 > charts, slicers, connections, QueryTables, XML Maps, screenshots, advanced
 > visual formatting, and Python result reads are not supported on Mac. See
 > [macOS beta limitations](https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta)
-> and test on copies of important workbooks. The feature list and analytics
-> examples below describe Windows capabilities, not Mac beta availability.
+> before use. Failed or cancelled mutations can partly apply; inspect the
+> surviving session before retrying. The feature list and analytics examples
+> below describe Windows capabilities, not Mac beta availability.
 
 **MCP Server for Excel** enables AI assistants (GitHub Copilot, Claude, ChatGPT) to automate Excel through natural language commands. Automate Power Query, DAX measures, VBA macros, PivotTables, Charts, formatting, and data transformations - no Excel programming knowledge required.
 
@@ -20,8 +21,8 @@
 
 - **Runs live Excel operations** - Refresh Power Query to pull and reshape fresh data, recalculate with Excel's own engine, refresh PivotTables and the Data Model, evaluate DAX, and run VBA or Python `=PY()` — the real, *computed results* land right in your workbook.
 - **Uses Excel to open and save your files** - No file-parser rewrite of workbook
-  contents. Use copies of important workbooks: failed or cancelled mutations
-  are not guaranteed to roll back or preserve every object unchanged.
+  contents. Failed or cancelled mutations are not guaranteed to roll back or
+  preserve every object unchanged; inspect the surviving session before retrying.
 
 Other tools (openpyxl-based MCP servers and Agent Skills, including Anthropic's `xlsx` skill) read and rewrite the `.xlsx` file directly — which can quietly drop PivotTables, charts, and macros, and can't run Power Query, the Data Model, or DAX at all. Here, Excel does the work. Watch it live: just say *"Show me Excel while you work."*
 

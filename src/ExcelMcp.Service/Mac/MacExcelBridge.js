@@ -40,12 +40,32 @@ function workbookByPath(excel, filePath) {
     throw new Error("Workbook is not open in this ExcelMcp session.");
 }
 
+function normalizeSheetLookupName(sheetName) {
+    return String(sheetName).replace(/\s+/g, "").toLocaleLowerCase();
+}
+
 function worksheetByName(workbook, sheetName) {
     const sheets = workbook.worksheets;
     for (let index = 0; index < sheets.length; index++) {
         if (sheets[index].name() === sheetName) {
             return sheets[index];
         }
+    }
+
+    const normalized = normalizeSheetLookupName(sheetName);
+    const matches = [];
+    for (let index = 0; index < sheets.length; index++) {
+        const candidateName = sheets[index].name();
+        if (normalizeSheetLookupName(candidateName) === normalized) {
+            matches.push(sheets[index]);
+        }
+    }
+
+    if (matches.length === 1) {
+        return matches[0];
+    }
+    if (matches.length > 1) {
+        throw new Error(`Worksheet '${sheetName}' is ambiguous in this workbook; names differ only by whitespace.`);
     }
     throw new Error(`Worksheet '${sheetName}' does not exist.`);
 }
@@ -343,25 +363,6 @@ const excelErrors = {
     "2042": ["#N/A", "Value not available", "Check that the lookup value and source data are available."]
 };
 
-const excelErrorCodesByName = {
-    "#NULL!": -2146826288,
-    "#DIV/0!": -2146826281,
-    "#VALUE!": -2146826273,
-    "#REF!": -2146826265,
-    "#NAME?": -2146826259,
-    "#NUM!": -2146826252,
-    "#N/A": -2146826246,
-    "#GETTING_DATA": -2146826245,
-    "#SPILL!": -2146826243,
-    "#CONNECT!": -2146826242,
-    "#BLOCKED!": -2146826241,
-    "#UNKNOWN!": -2146826240,
-    "#FIELD!": -2146826239,
-    "#CALC!": -2146826238,
-    "#BUSY!": -2146826237,
-    "#PYTHON!": -2146826233
-};
-
 const excelErrorCodesByType = {
     "1": -2146826288,
     "2": -2146826281,
@@ -390,10 +391,9 @@ function formulaErrorCode(excel, externalPrefix, row, column) {
     return errorCode;
 }
 
-function normalizedRangeRead(excel, range, rawValues, rawFormulas, rawFallbackValues) {
+function normalizedRangeRead(excel, range, rawValues, rawFormulas) {
     const values = normalizeMatrix(rawValues);
     const formulas = normalizeMatrix(rawFormulas);
-    const fallbackValues = normalizeMatrix(rawFallbackValues);
     const start = rangeTopLeft(excel, range);
     let externalPrefix = null;
     const cellErrors = [];
@@ -404,30 +404,21 @@ function normalizedRangeRead(excel, range, rawValues, rawFormulas, rawFallbackVa
             const formula = typeof formulaValue === "string" && formulaValue.startsWith("=")
                 ? formulaValue
                 : null;
-            const fallbackValue = fallbackValues[row] && fallbackValues[row][column];
-            let errorCode = typeof currentValue === "number" && Number.isInteger(currentValue)
-                ? currentValue
-                : null;
-            if (errorCode == null && currentValue == null && formula) {
-                if (typeof fallbackValue === "number" && Number.isInteger(fallbackValue) &&
-                    excelErrors[String(fallbackValue)]) {
-                    errorCode = fallbackValue;
-                } else if (typeof fallbackValue === "string") {
-                    errorCode = excelErrorCodesByName[fallbackValue] || null;
-                }
-                if (errorCode == null) {
-                    if (externalPrefix == null) {
-                        const externalAddress = String(excel.getAddress(range, { external: true }));
-                        const separator = externalAddress.lastIndexOf("!");
-                        if (separator < 0) {
-                            throw new Error(
-                                `Excel did not return an external address for '${externalAddress}'.`);
-                        }
-                        externalPrefix = externalAddress.substring(0, separator + 1);
+            const numericErrorCandidate = typeof currentValue === "number" &&
+                Number.isInteger(currentValue) && excelErrors[String(currentValue)];
+            let errorCode = null;
+            if (numericErrorCandidate || (currentValue == null && formula)) {
+                if (externalPrefix == null) {
+                    const externalAddress = String(excel.getAddress(range, { external: true }));
+                    const separator = externalAddress.lastIndexOf("!");
+                    if (separator < 0) {
+                        throw new Error(
+                            `Excel did not return an external address for '${externalAddress}'.`);
                     }
-                    errorCode = formulaErrorCode(
-                        excel, externalPrefix, start.row + row, start.column + column);
+                    externalPrefix = externalAddress.substring(0, separator + 1);
                 }
+                errorCode = formulaErrorCode(
+                    excel, externalPrefix, start.row + row, start.column + column);
             }
             const error = errorCode == null ? null : excelErrors[String(errorCode)];
             if (!error) {
@@ -442,7 +433,7 @@ function normalizedRangeRead(excel, range, rawValues, rawFormulas, rawFallbackVa
                 formula,
                 row: cellRow,
                 column: cellColumn,
-                currentValue: currentValue == null ? errorCode : currentValue,
+                currentValue: errorCode,
                 errorCode,
                 errorMessage: `${error[0]} - ${error[1]}`,
                 suggestion: error[2]
@@ -456,7 +447,7 @@ function rangeValueResult(excel, filePath, sheetName, range, emptyAsNoCells) {
     const rawValue = range.value2();
     const read = emptyAsNoCells && rawValue == null
         ? { values: [], cellErrors: [] }
-        : normalizedRangeRead(excel, range, rawValue, range.formula(), range.value());
+        : normalizedRangeRead(excel, range, rawValue, range.formula());
     return {
         success: true,
         filePath,
@@ -954,7 +945,7 @@ function run(argv) {
             }
             if (command === "range.get-values") {
                 const read = normalizedRangeRead(
-                    excel, range, range.value2(), range.formula(), range.value());
+                    excel, range, range.value2(), range.formula());
                 return json({
                     success: true,
                     filePath: args.filePath,
@@ -977,7 +968,7 @@ function run(argv) {
             if (command === "range.get-formulas") {
                 const formulas = normalizeMatrix(range.formula());
                 const read = normalizedRangeRead(
-                    excel, range, range.value2(), formulas, range.value());
+                    excel, range, range.value2(), formulas);
                 return json({
                     success: true,
                     filePath: args.filePath,

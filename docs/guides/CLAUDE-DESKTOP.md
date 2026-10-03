@@ -7,11 +7,11 @@ or a manual stdio configuration below.
 
 ## Requirements
 
-- Windows x64 with desktop Excel 2016 or later, or
+- Windows x64/ARM64 with desktop Excel 2016 or later, or
 - Apple Silicon macOS with Excel for Mac 16.112 or later
 - An interactive desktop session; Intel Macs and headless hosts are unsupported
 
-The published Windows x64 and Apple Silicon macOS packages are self-contained;
+The published Windows x64/ARM64 and Apple Silicon macOS packages are self-contained;
 no .NET runtime is required.
 
 ## Recommended: MCPB Bundle
