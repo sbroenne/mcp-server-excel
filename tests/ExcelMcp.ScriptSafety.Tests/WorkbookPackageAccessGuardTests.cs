@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
+namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 
 [Trait("Category", "Integration")]
 [Trait("Feature", "PreCommit")]

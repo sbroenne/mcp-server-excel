@@ -63,6 +63,10 @@ The npm package at `npm-packages/mcp-server-excel/package.json` contains:
 The publishing process is automated by `.github/workflows/publish-mcp-registry.yml`,
 which the unified release workflow calls after NuGet and npm publication:
 
+Registry publication runs only as part of a release. There is no standalone
+manual retry. If registration fails, fix the cause and create a new patch
+release through the unified release workflow.
+
 ### 1. Version Update
 The workflow:
 - Parses `server.json`, updates the top-level version plus the NuGet and npm
@@ -79,8 +83,7 @@ The workflow:
   match the release version
 - Required runtimes come from the exact released source's launcher manifest,
   passed through `-NpmLauncherManifestPath`: x64 is required, and ARM64 is
-  required when declared. Historical x64-only releases can therefore still be
-  repaired without requiring an ARM64 package that did not exist
+  required when declared. Undeclared runtimes are not required
 - Polls up to 3 times with 10-minute intervals
 - Decodes the NuGet README response as UTF-8 when NuGet returns
   `application/octet-stream`
@@ -127,9 +130,9 @@ or `Published x64/arm64 npm runtime metadata is not ready`.
 - Check that each runtime required by that release's launcher manifest is
   published at the same version, and that the published launcher's matching
   `optionalDependencies` entries reference that version
-- Allow package metadata to propagate before retrying the repair workflow with
-  the exact existing release tag. Do not substitute the current branch's
-  launcher manifest when repairing an older release
+- Allow package metadata to propagate and resolve any metadata errors before
+  creating a new patch release. Registration uses that release's exact launcher
+  manifest, not a newer branch's manifest
 
 ### MCP Registry Publishing Fails
 
@@ -138,12 +141,10 @@ or `Published x64/arm64 npm runtime metadata is not ready`.
 **Solution**: 
 - Verify `id-token: write` permission is set in the workflow job
 - Ensure repository is configured for GitHub OIDC
-- Resolve the failure, then manually run **Publish MCP Registry** with the exact
-  existing release tag. The repair workflow validates that tag's immutable
-  source metadata, requires its commit to be reachable from protected `main`,
-  and validates the existing NuGet and npm packages before publishing
-  only the MCP Registry entry. It does not rebuild or republish any package,
-  GitHub release asset, extension, or plugin.
+- Resolve the failure, then create a new patch release through the unified
+  release workflow. Automatic registration verifies the release tag belongs
+  to protected `main` and validates its published NuGet and npm packages.
+  Existing releases and their tags are not modified.
 
 ### Version Not Updated
 
@@ -152,4 +153,4 @@ or `Published x64/arm64 npm runtime metadata is not ready`.
 **Solution**: 
 - Check the `publish-mcp-registry` job logs
 - Confirm the top-level, NuGet, and npm `server.json` versions were stamped with the release version
-  before rerunning the workflow or publishing manually
+  before creating a new patch release

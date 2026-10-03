@@ -305,11 +305,11 @@ GitHub CLI and public read access. No desktop Excel is needed for these scripts.
 
 ```powershell
 node --test --test-concurrency=3 `
-    tests\ExcelMcp.SkillGeneration.Tests\PluginPublication.test.mjs `
-    tests\ExcelMcp.SkillGeneration.Tests\PluginPublicationMarketplace.test.mjs `
-    tests\ExcelMcp.SkillGeneration.Tests\PluginPublicationHistory.test.mjs `
-    tests\ExcelMcp.SkillGeneration.Tests\PluginPublicationStaging.test.mjs
-dotnet test tests\ExcelMcp.SkillGeneration.Tests\ExcelMcp.SkillGeneration.Tests.csproj -c Release --filter "Feature=PluginPublication" --blame-hang-timeout 5m
+    tests\ExcelMcp.Packaging.Tests\PluginPublication.test.mjs `
+    tests\ExcelMcp.Packaging.Tests\PluginPublicationMarketplace.test.mjs `
+    tests\ExcelMcp.Packaging.Tests\PluginPublicationHistory.test.mjs `
+    tests\ExcelMcp.Packaging.Tests\PluginPublicationStaging.test.mjs
+dotnet test tests\ExcelMcp.Packaging.Tests\ExcelMcp.Packaging.Tests.csproj -c Release --filter "Feature=PluginPublication" --blame-hang-timeout 5m
 $env:PREVIEW='true'
 $env:AWESOME_COPILOT_UPDATES_ENABLED='false'
 $workRoot = Join-Path ([IO.Path]::GetTempPath()) "excel-listing-$([Guid]::NewGuid().ToString('N'))"
@@ -331,7 +331,7 @@ changes rather than discarding them. Existing upstream metadata warnings for
 other listings may appear; failures still stop the run.
 
 The Node regressions are also called by the repository's existing Excel-free
-SkillGeneration test project, including actual publication against disposable
+Packaging test project, including actual publication against disposable
 local Git repositories and remotes. CI exercises the suite; changed script/
 workflow paths select its focused local checks without requiring COM tests.
 

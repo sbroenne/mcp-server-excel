@@ -746,10 +746,12 @@ export function registerWorkflowPolicyTests() {
         for (const result of plans) {
             assert.equal(result.Build, true);
             assert.equal(result.Plugins, true);
+            assert.equal(result.PackagingTests, true);
             assert.equal(result.Excel, false);
         }
         const runner = fs.readFileSync(path.join(repoRoot, 'scripts', 'Invoke-ExcelFreeTests.ps1'), 'utf8');
-        assert.match(runner, /publish-plugins/);
+        assert.match(runner, /plan\.PackagingTests/);
+        assert.match(runner, /selections\['Packaging'\]/);
     });
 
 }

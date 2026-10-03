@@ -10,8 +10,8 @@
     <IsTestProject>true</IsTestProject>
 
     <!-- Assembly and Namespace Configuration -->
-    <AssemblyName>Sbroenne.ExcelMcp.SkillGeneration.Tests</AssemblyName>
-    <RootNamespace>Sbroenne.ExcelMcp.SkillGeneration.Tests</RootNamespace>
+    <AssemblyName>Sbroenne.ExcelMcp.Packaging.Tests</AssemblyName>
+    <RootNamespace>Sbroenne.ExcelMcp.Packaging.Tests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

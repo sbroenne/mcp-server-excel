@@ -116,7 +116,9 @@ The release shares prepared inputs instead of repeating builds in each package j
 9. **publish-plugins** → Calls the reusable publisher after GitHub assets exist, passing exact release identity and prepared plugins
 
 Registry propagation failures do not suppress plugin publication or GitHub assets.
-Each distribution reports its own result; repair only the failed destination.
+Each distribution reports its own result. For a registry-only failure, fix the
+cause and create a new patch release; there is no standalone registry retry.
+Other destinations retain their documented recovery procedures.
 
 ### GitHub asset integrity and replay
 
@@ -387,15 +389,15 @@ These smoke tests do not exercise Excel automation.
 ### MCP Registry Update Fails
 
 - MCP Registry update uses GitHub OIDC
-- Manually run the **Publish MCP Registry** workflow with the exact existing
-  release tag
-- The repair requires owner approval through the protected `mcp-registry`
-  environment, rejects tag commits not reachable from protected `main`, and
-  validates the source manifest plus published NuGet and npm metadata
+- Fix the failure, then create a new patch release through the unified release
+  workflow. There is no standalone **Publish MCP Registry** dispatch
+- Automatic registration requires owner approval through the protected
+  `mcp-registry` environment, rejects tag commits not reachable from protected
+  `main`, and validates the source manifest plus published NuGet and npm metadata
 - Repository settings for `mcp-registry` must retain a custom deployment branch
   policy of exactly `main` and the repository owner as a required reviewer
 - The workflow publishes only the MCP Registry entry
-- Do not rerun the unified release to repair a registry-only failure
+- Do not modify an existing release or tag to retry registration
 
 ### Publish Plugins Fails
 

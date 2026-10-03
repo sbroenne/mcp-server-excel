@@ -3,7 +3,7 @@ using System.IO.Compression;
 using System.Text.Json;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
+namespace Sbroenne.ExcelMcp.Packaging.Tests;
 
 /// <summary>
 /// Integration tests for MCPB packaging script behavior.

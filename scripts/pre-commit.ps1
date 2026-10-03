@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Validates staged source and local Excel behavior. Never creates release packages.
+    Validates staged source and local Excel behavior. Never prepares release artifacts for publication.
 #>
 $ErrorActionPreference = 'Stop'
 $rootDir = Split-Path -Parent $PSScriptRoot
@@ -59,8 +59,8 @@ try {
         Invoke-Check 'Building Release solution' {
             dotnet build Sbroenne.ExcelMcp.sln -c Release -p:NuGetAudit=false --verbosity minimal
         }
-        Invoke-Check 'Running focused non-packaging tests' {
-            & (Join-Path $PSScriptRoot 'Invoke-ExcelFreeTests.ps1') -Local -HookTests:$plan.HookTests -Contracts:$plan.Excel -SkillTests:$plan.SkillTests -ChangedPaths $paths
+        Invoke-Check 'Running focused Excel-free tests' {
+            & (Join-Path $PSScriptRoot 'Invoke-ExcelFreeTests.ps1') -Local -HookTests:$plan.HookTests -Contracts:$plan.Excel -SkillTests:$plan.SkillTests -PackagingTests:$plan.PackagingTests -ChangedPaths $paths
         }
     }
     if ($plan.Excel) {
@@ -68,7 +68,7 @@ try {
             & (Join-Path $PSScriptRoot 'Test-E2E.ps1') -SkipBuild
         }
     }
-    Write-Host 'All selected pre-commit checks passed. Package validation belongs to PR CI.' -ForegroundColor Green
+    Write-Host 'All selected pre-commit checks passed. Release artifact validation belongs to PR CI.' -ForegroundColor Green
 }
 catch {
     [Console]::Error.WriteLine($_.Exception.Message)

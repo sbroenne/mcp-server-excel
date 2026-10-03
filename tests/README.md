@@ -147,7 +147,8 @@ inputs form a union. Main and manual CI runs select complete validation.
 
 Hosted tests run in separate checkouts: `Fast` contains normal Excel-free
 tests except `AdapterTestKind=System`; `Process` contains the CLI system
-regressions; `Tooling` contains the selected SkillGeneration checks. These
+regressions; `Tooling` contains the selected skill-generation, packaging, and
+script-safety checks. These
 partitions cover the complete normal Excel-free selection without overlap.
 Package, npm launcher, and lockfile checks have their own selections.
 Changes to `doc-counts.json` or `scripts\check-doc-counts.ps1` select the
@@ -169,7 +170,8 @@ After a Release build, the hosted test partitions can also run locally:
 
 Use `-PlanFile <plan.json>` with an explicit `-Group` to reproduce a selected
 CI partition. Omitting the group retains the complete Excel-free run; existing
-`-Local`, `-Contracts`, `-HookTests`, and `-SkillTests` selections remain supported.
+`-Local`, `-Contracts`, `-HookTests`, `-SkillTests`, and `-PackagingTests`
+selections remain supported.
 
 Generated MCP parameter tests inspect our emitted method declarations directly.
 Protocol checks cover our names, descriptions, selected output fields, and
@@ -197,6 +199,20 @@ select Excel validation. Run the focused skill selection after a Release build:
 
 ```powershell
 & .\scripts\Invoke-ExcelFreeTests.ps1 -Local -SkillTests
+```
+
+Excel-free distribution and script checks have separate projects:
+`ExcelMcp.Packaging.Tests` owns release metadata, plugin publication, package
+contents, and launch wrappers; `ExcelMcp.ScriptSafety.Tests` owns commit hooks,
+validation selection, and script safety. `ExcelMcp.SkillGeneration.Tests` owns
+only skill preparation, references, native examples, and standalone skill ZIPs.
+Changed paths select the owning checks locally and in CI. Full validation runs
+all three projects. Changes to the shared packaging helpers select both skill
+and packaging checks, without unrelated runtime tests.
+
+```powershell
+& .\scripts\Invoke-ExcelFreeTests.ps1 -Local -PackagingTests
+& .\scripts\Invoke-ExcelFreeTests.ps1 -Local -HookTests
 ```
 
 ### Parallel collections
@@ -361,6 +377,8 @@ dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj @testArgs --filte
 dotnet test tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj @testArgs --filter 'RunType!=OnDemand&FullyQualifiedName!~VbaRun_OnMacroWorkbook' --logger 'trx;LogFileName=MCP-main.trx'
 dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=ComInterop-normal.trx'
 dotnet test tests\ExcelMcp.SkillGeneration.Tests\ExcelMcp.SkillGeneration.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=Skills-normal.trx'
+dotnet test tests\ExcelMcp.Packaging.Tests\ExcelMcp.Packaging.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=Packaging-normal.trx'
+dotnet test tests\ExcelMcp.ScriptSafety.Tests\ExcelMcp.ScriptSafety.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=ScriptSafety-normal.trx'
 dotnet test tests\ExcelMcp.Diagnostics.Tests\ExcelMcp.Diagnostics.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=Diagnostics-normal.trx'
 dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj @testArgs --filter 'RunType=OnDemand&FullyQualifiedName!~BeginBatch_RealIrmWorkbook&Locale!=ja-JP' --logger 'trx;LogFileName=ComInterop-infrastructure.trx'
 
@@ -417,7 +435,9 @@ tests/
 ├── ExcelMcp.McpServer.Tests/      # MCP protocol layer (Integration)
 ├── ExcelMcp.CLI.Tests/            # CLI wrapper (Integration)
 ├── ExcelMcp.ComInterop.Tests/     # COM utilities and session infrastructure
-└── ExcelMcp.SkillGeneration.Tests/ # Generated skill and plugin checks
+├── ExcelMcp.SkillGeneration.Tests/ # Skill preparation and standalone skill ZIPs
+├── ExcelMcp.Packaging.Tests/        # Packaging, releases, and plugin publication
+└── ExcelMcp.ScriptSafety.Tests/     # Commit hooks and script safety
 
 llm-tests/                          # LLM tool behavior validation (Manual)
 ```

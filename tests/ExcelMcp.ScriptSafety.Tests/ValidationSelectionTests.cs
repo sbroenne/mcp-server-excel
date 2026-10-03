@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
+namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 
 [Collection("Sequential")]
 [Trait("RequiresExcel", "false")]
@@ -24,7 +24,7 @@ public sealed class ValidationSelectionTests
     [InlineData("src/ExcelMcp.Core/Commands/PivotTable/PivotTableCommands.cs", "Fast,Process,Tooling", "Acceptance,Data,Reporting", true)]
     [InlineData("src/ExcelMcp.Core/Commands/DataModel/DataModelCommands.cs", "Fast,Process,Tooling", "Acceptance,Data,Editing,Reporting", true)]
     [InlineData("scripts/PluginContent.mjs", "Tooling", "", true)]
-    [InlineData("tests/ExcelMcp.SkillGeneration.Tests/PluginPublicationHistory.test.mjs", "Tooling", "", false)]
+    [InlineData("tests/ExcelMcp.Packaging.Tests/PluginPublicationHistory.test.mjs", "Tooling", "", false)]
     [InlineData("tests/ExcelMcp.CLI.Tests/Unit/ActionValidatorTests.cs", "Fast,Process", "", false)]
     [InlineData("tests/Shared/TestRunExcelLifetime.cs", "Fast,Process,Tooling", "Acceptance,Data,Desktop,Editing,Infrastructure,Lifecycle,Reporting,VBA", false)]
     [InlineData("unknown-build-input.config", "Fast,Process,Tooling", "Acceptance,Data,Desktop,Editing,Infrastructure,Lifecycle,Reporting,VBA", true)]
