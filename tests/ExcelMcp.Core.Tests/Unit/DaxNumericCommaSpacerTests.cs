@@ -18,6 +18,10 @@ public class DaxNumericCommaSpacerTests
     [InlineData("MAX(.5,2)", "MAX(.5 , 2)")]
     [InlineData("MAX(1,.5)", "MAX(1 , .5)")]
     [InlineData("IF(x,1,0)", "IF(x, 1 , 0)")]
+    [InlineData("DATEADD(T[Date], -1E3, MONTH)", "DATEADD(T[Date], -1E3 , MONTH)")]
+    [InlineData("MAX(1e3,2E+2)", "MAX(1e3 , 2E+2)")]
+    [InlineData("ROUND(1.25e-3,4)", "ROUND(1.25e-3 , 4)")]
+    [InlineData("MAX(.5E+2,1.e2)", "MAX(.5E+2 , 1.e2)")]
     public void AddSpaces_NumberTouchesComma_SeparatesThem(string input, string expected)
     {
         Assert.Equal(expected, DaxNumericCommaSpacer.AddSpaces(input));
@@ -28,6 +32,9 @@ public class DaxNumericCommaSpacerTests
     [InlineData("DIVIDE(SUM(T[A]), SUM(T[B]))")]
     [InlineData("IF(1=1 , 1.5 , 0)")]
     [InlineData("VAR x1 = 4 RETURN MAX(x1, x2)")]
+    [InlineData("MAX(x1E3, x2e4)")]
+    [InlineData("MAX(1E, x)")]
+    [InlineData("MAX(1e+, x)")]
     [InlineData("SUM(Table2[Col3])")]
     [InlineData("IF(\"1,2\" = \"1,2\", TRUE(), FALSE())")]
     [InlineData("IF(\"say \"\"1,2\"\"\" = \"x\", TRUE(), FALSE())")]

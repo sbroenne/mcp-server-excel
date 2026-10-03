@@ -92,6 +92,44 @@ public partial class PersistentServiceDataModelCommandsTests
         Assert.Equal(1.5m, Convert.ToDecimal(Assert.Single(Assert.Single(evaluated.Rows)),
             CultureInfo.InvariantCulture));
     }
+
+    [Theory]
+    [InlineData(false, "IF(TRUE(), -1E3, 0)", "IF(TRUE(), -1E3 , 0)", -1000)]
+    [InlineData(true, "IF(TRUE(), -1E3, 0)", "IF(TRUE(), -1E3 , 0)", -1000)]
+    [InlineData(false, "MAX(1e3,2E+2)", "MAX(1e3 , 2E+2)", 1000)]
+    [InlineData(true, "MAX(1e3,2E+2)", "MAX(1e3 , 2E+2)", 1000)]
+    [InlineData(false, "ROUND(1.25e-3,4)", "ROUND(1.25e-3 , 4)", 0.0013)]
+    [InlineData(true, "ROUND(1.25e-3,4)", "ROUND(1.25e-3 , 4)", 0.0013)]
+    public void WriteMeasure_ScientificNotation_PreservesFormulaAndEvaluates(
+        bool update, string formula, string decimalCommaFormula, double expected)
+    {
+        var batch = _fixture.BatchToken;
+        var measureName = $"Test_ExponentComma_{Guid.NewGuid():N}";
+        var created = CreateMeasure("SalesTable", measureName, update ? "0" : formula);
+        Assert.True(created.Success, created.ErrorMessage);
+        var written = created;
+        if (update)
+        {
+            Assert.Null(created.Message);
+            written = _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: formula);
+        }
+
+        AssertSpacingNote(written, formula, decimalCommaFormula);
+        var read = _dataModelCommands.Read(batch, measureName);
+        Assert.True(read.Success, read.ErrorMessage);
+        Assert.Equal(ExpectedStoredFormula(formula, decimalCommaFormula), read.DaxFormula);
+
+        var listed = _dataModelCommands.ListMeasures(batch, "SalesTable");
+        Assert.True(listed.Success, listed.ErrorMessage);
+        var info = Assert.Single(listed.Measures, m => m.Name == measureName);
+        Assert.Equal(ExpectedStoredFormula(formula, decimalCommaFormula), info.FormulaPreview);
+
+        var evaluated = _dataModelCommands.Evaluate(batch, $"EVALUATE ROW(\"Result\", [{measureName}])");
+        Assert.True(evaluated.Success, evaluated.ErrorMessage);
+        Assert.Equal(expected, Convert.ToDouble(Assert.Single(Assert.Single(evaluated.Rows)),
+            CultureInfo.InvariantCulture), precision: 10);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

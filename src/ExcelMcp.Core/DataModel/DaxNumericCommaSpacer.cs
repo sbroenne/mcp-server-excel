@@ -75,6 +75,26 @@ internal static class DaxNumericCommaSpacer
                     i++;
                 }
 
+                if (Peek(formula, i) is 'E' or 'e')
+                {
+                    int exponentStart = i + 1;
+                    if (Peek(formula, exponentStart) is '+' or '-')
+                    {
+                        exponentStart++;
+                    }
+
+                    int exponentEnd = exponentStart;
+                    while (char.IsAsciiDigit(Peek(formula, exponentEnd)))
+                    {
+                        exponentEnd++;
+                    }
+
+                    if (exponentEnd > exponentStart)
+                    {
+                        i = exponentEnd;
+                    }
+                }
+
                 result.Append(formula, start, i - start);
                 previousIsNumber = true;
                 continue;
