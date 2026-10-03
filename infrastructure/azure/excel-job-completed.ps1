@@ -27,6 +27,25 @@ function Stop-ExcelRunnerJobProcess {
     finally { $process.Dispose() }
 }
 
+function Remove-ExcelRunnerJobWorkspace {
+    param([string]$Path)
+    Assert-ExcelRunnerWorkspace $Path
+    if (-not (Test-Path -LiteralPath $Path)) { return }
+    $directories = [Collections.Generic.Stack[string]]::new()
+    $directories.Push($Path)
+    while ($directories.Count) {
+        foreach ($item in Get-ChildItem -LiteralPath $directories.Pop() -Force) {
+            if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Do not delete through a job workspace link.' }
+            if ($item.PSIsContainer) { $directories.Push($item.FullName) }
+        }
+    }
+    # Runner.Worker and this hook can still hold the checkout as their working directory.
+    foreach ($item in Get-ChildItem -LiteralPath $Path -Force) {
+        Remove-Item -LiteralPath $item.FullName -Recurse -Force
+    }
+    if (@(Get-ChildItem -LiteralPath $Path -Force).Count) { throw 'Job workspace contents remain after cleanup.' }
+}
+
 . (Join-Path $PSScriptRoot 'ExcelRunnerPolicy.ps1')
 $recordPath = Join-Path $env:LOCALAPPDATA "ExcelMcp\Jobs\$env:GITHUB_RUN_ID-$env:GITHUB_RUN_ATTEMPT.json"
 $record = Get-Content -LiteralPath $recordPath -Raw | ConvertFrom-Json
@@ -54,15 +73,5 @@ foreach ($entry in $snapshot) {
     catch { $failures.Add($_.Exception) }
 }
 if ($failures.Count) { throw [AggregateException]::new('Job cleanup failed; keep the runner quarantined.', $failures) }
-if (Test-Path -LiteralPath $env:GITHUB_WORKSPACE) {
-    $directories = [Collections.Generic.Stack[string]]::new()
-    $directories.Push($env:GITHUB_WORKSPACE)
-    while ($directories.Count) {
-        foreach ($item in Get-ChildItem -LiteralPath $directories.Pop() -Force) {
-            if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Do not delete through a job workspace link.' }
-            if ($item.PSIsContainer) { $directories.Push($item.FullName) }
-        }
-    }
-    Remove-Item -LiteralPath $env:GITHUB_WORKSPACE -Recurse -Force
-}
+Remove-ExcelRunnerJobWorkspace $env:GITHUB_WORKSPACE
 Remove-Item -LiteralPath $recordPath -Force
