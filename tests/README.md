@@ -194,6 +194,13 @@ against native worksheet formulas using independently calculated inputs, and
 check the complete stored formula separately. Do not change host locale to
 make a comparison pass.
 
+Avoid starting Excel repeatedly to verify different properties of the same
+saved workbook at one checkpoint. Reopen it once and check sheet order, marker
+values, calculated results and formulas within that owned batch, then dispose
+it. Combine unrelated seed writes within one setup batch as well. Keep separate
+reopens when an intervening operation or a save/reopen lifecycle is the subject;
+do not cache snapshots across operations or pool Excel between independent tests.
+
 Tests whose subject is process/session lifecycle, ownership, PID reuse,
 crash/timeout/abort behavior, transport, application-wide state, locale text,
 clipboard, protected files, concurrency, or raw COM capability keep that actual

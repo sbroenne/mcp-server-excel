@@ -15,12 +15,8 @@ public sealed partial class PersistentServiceSheetTests
 
         RequireSuccess(_sheetCommands.CopyToFile(sourceFile, "SourceSheet", targetFile, "CopiedSheet"));
 
-        Assert.Equal(["Sheet1", "CopiedSheet"], ReadSheetNames(targetFile));
-        Assert.Equal(["SourceSheet", "Sheet1"], ReadSheetNames(sourceFile));
-        AssertTransferredContent(targetFile, "CopiedSheet");
-        AssertTransferredContent(sourceFile, "SourceSheet");
-        AssertWorkbookMarker(targetFile);
-        AssertWorkbookMarker(sourceFile);
+        AssertWorkbookState(targetFile, ["Sheet1", "CopiedSheet"], "CopiedSheet");
+        AssertWorkbookState(sourceFile, ["SourceSheet", "Sheet1"], "SourceSheet");
     }
 
     [Fact]
@@ -31,12 +27,8 @@ public sealed partial class PersistentServiceSheetTests
 
         RequireSuccess(_sheetCommands.CopyToFile(sourceFile, "SourceSheet", targetFile));
 
-        Assert.Equal(["Sheet1", "SourceSheet"], ReadSheetNames(targetFile));
-        Assert.Equal(["SourceSheet", "Sheet1"], ReadSheetNames(sourceFile));
-        AssertTransferredContent(targetFile, "SourceSheet");
-        AssertTransferredContent(sourceFile, "SourceSheet");
-        AssertWorkbookMarker(targetFile);
-        AssertWorkbookMarker(sourceFile);
+        AssertWorkbookState(targetFile, ["Sheet1", "SourceSheet"], "SourceSheet");
+        AssertWorkbookState(sourceFile, ["SourceSheet", "Sheet1"], "SourceSheet");
     }
 
     [Fact]
@@ -47,13 +39,8 @@ public sealed partial class PersistentServiceSheetTests
 
         RequireSuccess(_sheetCommands.CopyToFile(sourceFile, "SourceSheet", targetFile, "Copied", beforeSheet: "Sheet1"));
 
-        var sheets = ReadSheetNames(targetFile);
-        Assert.Equal(["Copied", "Sheet1"], sheets);
-        AssertTransferredContent(targetFile, "Copied");
-        Assert.Equal(["SourceSheet", "Sheet1"], ReadSheetNames(sourceFile));
-        AssertTransferredContent(sourceFile, "SourceSheet");
-        AssertWorkbookMarker(targetFile);
-        AssertWorkbookMarker(sourceFile);
+        AssertWorkbookState(targetFile, ["Copied", "Sheet1"], "Copied");
+        AssertWorkbookState(sourceFile, ["SourceSheet", "Sheet1"], "SourceSheet");
     }
 
     [Fact]
@@ -64,13 +51,8 @@ public sealed partial class PersistentServiceSheetTests
 
         RequireSuccess(_sheetCommands.CopyToFile(sourceFile, "SourceSheet", targetFile, "Copied", afterSheet: "Sheet1"));
 
-        var sheets = ReadSheetNames(targetFile);
-        Assert.Equal(["Sheet1", "Copied"], sheets);
-        AssertTransferredContent(targetFile, "Copied");
-        Assert.Equal(["SourceSheet", "Sheet1"], ReadSheetNames(sourceFile));
-        AssertTransferredContent(sourceFile, "SourceSheet");
-        AssertWorkbookMarker(targetFile);
-        AssertWorkbookMarker(sourceFile);
+        AssertWorkbookState(targetFile, ["Sheet1", "Copied"], "Copied");
+        AssertWorkbookState(sourceFile, ["SourceSheet", "Sheet1"], "SourceSheet");
     }
 
     [Fact]
@@ -93,11 +75,8 @@ public sealed partial class PersistentServiceSheetTests
             "both beforeSheet and afterSheet",
             exception.Message,
             StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(["Sheet1"], ReadSheetNames(targetFile));
-        Assert.Equal(["SourceSheet", "Sheet1"], ReadSheetNames(sourceFile));
-        AssertTransferredContent(sourceFile, "SourceSheet");
-        AssertWorkbookMarker(targetFile);
-        AssertWorkbookMarker(sourceFile);
+        AssertWorkbookState(targetFile, ["Sheet1"]);
+        AssertWorkbookState(sourceFile, ["SourceSheet", "Sheet1"], "SourceSheet");
         Assert.Equal(sourceBytes, File.ReadAllBytes(sourceFile));
         Assert.Equal(targetBytes, File.ReadAllBytes(targetFile));
     }
@@ -111,8 +90,7 @@ public sealed partial class PersistentServiceSheetTests
         var exception = Assert.Throws<ArgumentException>(() =>
             _sheetCommands.CopyToFile(testFile, "Sheet1", testFile, "Copied"));
         Assert.Contains("same-file copy", exception.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(["Sheet1"], ReadSheetNames(testFile));
-        AssertWorkbookMarker(testFile);
+        AssertWorkbookState(testFile, ["Sheet1"]);
         Assert.Equal(before, File.ReadAllBytes(testFile));
     }
 
@@ -126,8 +104,7 @@ public sealed partial class PersistentServiceSheetTests
         var exception = Assert.Throws<FileNotFoundException>(() =>
             _sheetCommands.CopyToFile(nonExistentSource, "Sheet1", targetFile));
         Assert.Contains("Source file not found", exception.Message);
-        Assert.Equal(["Sheet1"], ReadSheetNames(targetFile));
-        AssertWorkbookMarker(targetFile);
+        AssertWorkbookState(targetFile, ["Sheet1"]);
         Assert.Equal(before, File.ReadAllBytes(targetFile));
         Assert.False(File.Exists(nonExistentSource));
     }
@@ -142,8 +119,7 @@ public sealed partial class PersistentServiceSheetTests
         var exception = Assert.Throws<FileNotFoundException>(() =>
             _sheetCommands.CopyToFile(sourceFile, "Sheet1", nonExistentTarget));
         Assert.Contains("Target file not found", exception.Message);
-        Assert.Equal(["Sheet1"], ReadSheetNames(sourceFile));
-        AssertWorkbookMarker(sourceFile);
+        AssertWorkbookState(sourceFile, ["Sheet1"]);
         Assert.Equal(before, File.ReadAllBytes(sourceFile));
         Assert.False(File.Exists(nonExistentTarget));
     }
@@ -168,11 +144,8 @@ public sealed partial class PersistentServiceSheetTests
             _sheetCommands.CopyToFile(sourceFile, "SourceSheet", targetFile, invalidName));
 
         Assert.Contains("Worksheet names must", error.Message, StringComparison.Ordinal);
-        Assert.Equal(["SourceSheet", "Sheet1"], ReadSheetNames(sourceFile));
-        Assert.Equal(["Sheet1"], ReadSheetNames(targetFile));
-        AssertTransferredContent(sourceFile, "SourceSheet");
-        AssertWorkbookMarker(sourceFile);
-        AssertWorkbookMarker(targetFile);
+        AssertWorkbookState(sourceFile, ["SourceSheet", "Sheet1"], "SourceSheet");
+        AssertWorkbookState(targetFile, ["Sheet1"]);
         Assert.Equal(sourceBytes, File.ReadAllBytes(sourceFile));
         Assert.Equal(targetBytes, File.ReadAllBytes(targetFile));
     }
@@ -186,8 +159,7 @@ public sealed partial class PersistentServiceSheetTests
             "SourceSheet");
         var targetFile = CreateMarkedWorkbook(
             nameof(CopyToFile_ExistingTargetSheetName_RejectsWithoutChangingEitherFile),
-            "Target");
-        AddNamedSheetWithContent(targetFile, "CopiedSheet");
+            "Target", "CopiedSheet", duplicateGuard: true);
         var sourceBytes = File.ReadAllBytes(sourceFile);
         var targetBytes = File.ReadAllBytes(targetFile);
 
@@ -195,11 +167,8 @@ public sealed partial class PersistentServiceSheetTests
             _sheetCommands.CopyToFile(sourceFile, "SourceSheet", targetFile, "CopiedSheet"));
 
         Assert.Contains("already exists", error.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(["SourceSheet", "Sheet1"], ReadSheetNames(sourceFile));
-        Assert.Equal(["CopiedSheet", "Sheet1"], ReadSheetNames(targetFile));
-        AssertTransferredContent(sourceFile, "SourceSheet");
-        AssertWorkbookMarker(targetFile);
-        AssertSheetCells(targetFile, "CopiedSheet", "duplicate guard", 12, 15, "=B1+3");
+        AssertWorkbookState(sourceFile, ["SourceSheet", "Sheet1"], "SourceSheet");
+        AssertWorkbookState(targetFile, ["CopiedSheet", "Sheet1"], "CopiedSheet", duplicateGuard: true);
         Assert.Equal(sourceBytes, File.ReadAllBytes(sourceFile));
         Assert.Equal(targetBytes, File.ReadAllBytes(targetFile));
     }
@@ -212,11 +181,8 @@ public sealed partial class PersistentServiceSheetTests
 
         RequireSuccess(_sheetCommands.MoveToFile(sourceFile, "MoveMe", targetFile));
 
-        Assert.Equal(["Sheet1", "MoveMe"], ReadSheetNames(targetFile));
-        Assert.Equal(["Sheet1"], ReadSheetNames(sourceFile));
-        AssertTransferredContent(targetFile, "MoveMe");
-        AssertWorkbookMarker(targetFile);
-        AssertWorkbookMarker(sourceFile);
+        AssertWorkbookState(targetFile, ["Sheet1", "MoveMe"], "MoveMe");
+        AssertWorkbookState(sourceFile, ["Sheet1"]);
     }
 
     [Fact]
@@ -227,12 +193,8 @@ public sealed partial class PersistentServiceSheetTests
 
         RequireSuccess(_sheetCommands.MoveToFile(sourceFile, "MoveMe", targetFile, beforeSheet: "Sheet1"));
 
-        var sheets = ReadSheetNames(targetFile);
-        Assert.Equal(["MoveMe", "Sheet1"], sheets);
-        AssertTransferredContent(targetFile, "MoveMe");
-        Assert.Equal(["Sheet1"], ReadSheetNames(sourceFile));
-        AssertWorkbookMarker(targetFile);
-        AssertWorkbookMarker(sourceFile);
+        AssertWorkbookState(targetFile, ["MoveMe", "Sheet1"], "MoveMe");
+        AssertWorkbookState(sourceFile, ["Sheet1"]);
     }
 
     [Fact]
@@ -243,12 +205,8 @@ public sealed partial class PersistentServiceSheetTests
 
         RequireSuccess(_sheetCommands.MoveToFile(sourceFile, "MoveMe", targetFile, afterSheet: "Sheet1"));
 
-        var sheets = ReadSheetNames(targetFile);
-        Assert.Equal(["Sheet1", "MoveMe"], sheets);
-        AssertTransferredContent(targetFile, "MoveMe");
-        Assert.Equal(["Sheet1"], ReadSheetNames(sourceFile));
-        AssertWorkbookMarker(targetFile);
-        AssertWorkbookMarker(sourceFile);
+        AssertWorkbookState(targetFile, ["Sheet1", "MoveMe"], "MoveMe");
+        AssertWorkbookState(sourceFile, ["Sheet1"]);
     }
 
     [Fact]
@@ -270,11 +228,8 @@ public sealed partial class PersistentServiceSheetTests
             "both beforeSheet and afterSheet",
             exception.Message,
             StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(["Sheet1"], ReadSheetNames(targetFile));
-        Assert.Equal(["MoveMe", "Sheet1"], ReadSheetNames(sourceFile));
-        AssertTransferredContent(sourceFile, "MoveMe");
-        AssertWorkbookMarker(targetFile);
-        AssertWorkbookMarker(sourceFile);
+        AssertWorkbookState(targetFile, ["Sheet1"]);
+        AssertWorkbookState(sourceFile, ["MoveMe", "Sheet1"], "MoveMe");
         Assert.Equal(sourceBytes, File.ReadAllBytes(sourceFile));
         Assert.Equal(targetBytes, File.ReadAllBytes(targetFile));
     }
@@ -288,47 +243,17 @@ public sealed partial class PersistentServiceSheetTests
         var exception = Assert.Throws<ArgumentException>(() =>
             _sheetCommands.MoveToFile(testFile, "Sheet1", testFile));
         Assert.Contains("same-file move", exception.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(["Sheet1"], ReadSheetNames(testFile));
-        AssertWorkbookMarker(testFile);
+        AssertWorkbookState(testFile, ["Sheet1"]);
         Assert.Equal(before, File.ReadAllBytes(testFile));
     }
 
     private string CreateWorkbookWithSheet(
         string scenario,
         string suffix,
-        string sheetName)
-    {
-        var path = CreateMarkedWorkbook(scenario, suffix);
-        using var batch = ExcelSession.BeginBatch(path);
-        batch.Execute((ctx, ct) =>
-        {
-            Excel.Sheets? sheets = null;
-            Excel.Worksheet? sheet = null;
-            Excel.Range? values = null;
-            Excel.Range? formula = null;
-            try
-            {
-                sheets = ctx.Book.Worksheets;
-                sheet = (Excel.Worksheet)sheets.Add();
-                sheet.Name = sheetName;
-                values = sheet.Range["A1:B1"];
-                values.Value2 = new object[,] { { "transferred marker", 3d } };
-                formula = sheet.Range["C1"];
-                formula.Formula = "=B1*2";
-            }
-            finally
-            {
-                ComUtilities.Release(ref formula);
-                ComUtilities.Release(ref values);
-                ComUtilities.Release(ref sheet);
-                ComUtilities.Release(ref sheets);
-            }
-        });
-        batch.Save();
-        return path;
-    }
+        string sheetName) => CreateMarkedWorkbook(scenario, suffix, sheetName);
 
-    private string CreateMarkedWorkbook(string scenario, string suffix)
+    private string CreateMarkedWorkbook(
+        string scenario, string suffix, string? additionalSheet = null, bool duplicateGuard = false)
     {
         var path = _fixture.CreateBlankWorkbook(scenario, suffix);
         using var batch = ExcelSession.BeginBatch(path);
@@ -346,6 +271,20 @@ public sealed partial class PersistentServiceSheetTests
                 values.Value2 = new object[,] { { "retained workbook marker", 71d } };
                 formula = sheet.Range["C1"];
                 formula.Formula = "=B1+8";
+                if (additionalSheet is not null)
+                {
+                    ComUtilities.Release(ref formula);
+                    ComUtilities.Release(ref values);
+                    ComUtilities.Release(ref sheet);
+                    sheet = (Excel.Worksheet)sheets.Add();
+                    sheet.Name = additionalSheet;
+                    values = sheet.Range["A1:B1"];
+                    values.Value2 = duplicateGuard
+                        ? new object[,] { { "duplicate guard", 12d } }
+                        : new object[,] { { "transferred marker", 3d } };
+                    formula = sheet.Range["C1"];
+                    formula.Formula = duplicateGuard ? "=B1+3" : "=B1*2";
+                }
             }
             finally
             {
@@ -359,86 +298,17 @@ public sealed partial class PersistentServiceSheetTests
         return path;
     }
 
-    private static void AddNamedSheetWithContent(string workbookPath, string sheetName)
+    private static void AssertWorkbookState(
+        string workbookPath, string[] expectedNames, string? additionalSheet = null, bool duplicateGuard = false)
     {
         using var batch = ExcelSession.BeginBatch(workbookPath);
         batch.Execute((context, _) =>
         {
             Excel.Sheets? sheets = null;
-            Excel.Worksheet? sheet = null;
-            Excel.Range? values = null;
-            Excel.Range? formula = null;
             try
             {
                 sheets = context.Book.Worksheets;
-                sheet = (Excel.Worksheet)sheets.Add();
-                sheet.Name = sheetName;
-                values = sheet.Range["A1:B1"];
-                values.Value2 = new object[,] { { "duplicate guard", 12d } };
-                formula = sheet.Range["C1"];
-                formula.Formula = "=B1+3";
-            }
-            finally
-            {
-                ComUtilities.Release(ref formula);
-                ComUtilities.Release(ref values);
-                ComUtilities.Release(ref sheet);
-                ComUtilities.Release(ref sheets);
-            }
-        });
-        batch.Save();
-    }
-
-    private static void AssertWorkbookMarker(string path) =>
-        AssertSheetCells(path, "Sheet1", "retained workbook marker", 71, 79, "=B1+8");
-
-    private static void AssertTransferredContent(string workbookPath, string sheetName)
-        => AssertSheetCells(workbookPath, sheetName, "transferred marker", 3, 6, "=B1*2");
-
-    private static void AssertSheetCells(
-        string workbookPath, string sheetName, string marker, double input, double calculated, string expectedFormula)
-    {
-        using var batch = ExcelSession.BeginBatch(workbookPath);
-        batch.Execute((context, _) =>
-        {
-            Excel.Sheets? sheets = null;
-            Excel.Worksheet? sheet = null;
-            Excel.Range? values = null;
-            Excel.Range? formula = null;
-            try
-            {
-                sheets = context.Book.Worksheets;
-                sheet = (Excel.Worksheet)sheets[sheetName];
-                values = sheet.Range["A1:C1"];
-                var cells = Assert.IsType<object[,]>(values.Value2);
-                Assert.Equal(1, cells.GetLength(0));
-                Assert.Equal(3, cells.GetLength(1));
-                Assert.Equal(marker, cells[1, 1]);
-                Assert.Equal(input, Convert.ToDouble(cells[1, 2], System.Globalization.CultureInfo.InvariantCulture));
-                Assert.Equal(calculated, Convert.ToDouble(cells[1, 3], System.Globalization.CultureInfo.InvariantCulture));
-                formula = sheet.Range["C1"];
-                Assert.Equal(expectedFormula, formula.Formula);
-            }
-            finally
-            {
-                ComUtilities.Release(ref formula);
-                ComUtilities.Release(ref values);
-                ComUtilities.Release(ref sheet);
-                ComUtilities.Release(ref sheets);
-            }
-        });
-    }
-
-    private static List<string> ReadSheetNames(string workbookPath)
-    {
-        using var batch = ExcelSession.BeginBatch(workbookPath);
-        return batch.Execute((ctx, ct) =>
-        {
-            var names = new List<string>();
-            Excel.Sheets? sheets = null;
-            try
-            {
-                sheets = ctx.Book.Worksheets;
+                var names = new List<string>();
                 for (var index = 1; index <= sheets.Count; index++)
                 {
                     Excel.Worksheet? sheet = null;
@@ -447,18 +317,50 @@ public sealed partial class PersistentServiceSheetTests
                         sheet = (Excel.Worksheet)sheets[index];
                         names.Add(sheet.Name);
                     }
-                    finally
+                    finally { ComUtilities.Release(ref sheet); }
+                }
+                Assert.Equal(expectedNames, names);
+                AssertSheetCells(sheets, "Sheet1", "retained workbook marker", 71, 79, "=B1+8");
+                if (additionalSheet is not null)
+                {
+                    if (duplicateGuard)
                     {
-                        ComUtilities.Release(ref sheet);
+                        AssertSheetCells(sheets, additionalSheet, "duplicate guard", 12, 15, "=B1+3");
+                    }
+                    else
+                    {
+                        AssertSheetCells(sheets, additionalSheet, "transferred marker", 3, 6, "=B1*2");
                     }
                 }
             }
-            finally
-            {
-                ComUtilities.Release(ref sheets);
-            }
-
-            return names;
+            finally { ComUtilities.Release(ref sheets); }
         });
+    }
+
+    private static void AssertSheetCells(
+        Excel.Sheets sheets, string sheetName, string marker, double input, double calculated, string expectedFormula)
+    {
+        Excel.Worksheet? sheet = null;
+        Excel.Range? values = null;
+        Excel.Range? formula = null;
+        try
+        {
+            sheet = (Excel.Worksheet)sheets[sheetName];
+            values = sheet.Range["A1:C1"];
+            var cells = Assert.IsType<object[,]>(values.Value2);
+            Assert.Equal(1, cells.GetLength(0));
+            Assert.Equal(3, cells.GetLength(1));
+            Assert.Equal(marker, cells[1, 1]);
+            Assert.Equal(input, Convert.ToDouble(cells[1, 2], System.Globalization.CultureInfo.InvariantCulture));
+            Assert.Equal(calculated, Convert.ToDouble(cells[1, 3], System.Globalization.CultureInfo.InvariantCulture));
+            formula = sheet.Range["C1"];
+            Assert.Equal(expectedFormula, formula.Formula);
+        }
+        finally
+        {
+            ComUtilities.Release(ref formula);
+            ComUtilities.Release(ref values);
+            ComUtilities.Release(ref sheet);
+        }
     }
 }
