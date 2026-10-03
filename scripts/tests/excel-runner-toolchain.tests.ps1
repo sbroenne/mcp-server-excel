@@ -44,6 +44,7 @@ function Get-FileHash {
     if ($Algorithm -ne 'SHA256') { throw 'Cloud tools must use SHA256.' }
     @{ Hash = $global:ExcelToolchainJqHash }
 }
+$hashFixture = ${function:Get-FileHash}
 Assert-RunnerJqPackage 'synthetic-jq.exe'
 $global:ExcelToolchainJqHash = '0' * 64
 $failed = $false
@@ -63,5 +64,50 @@ $failed = $false
 try { Assert-RequiredRunnerSdk -Required $required -Installed @('10.0.100 [synthetic]') }
 catch { $failed = $true }
 if (-not $failed) { throw 'An older SDK must not substitute for the requested SDK.' }
+
+$global:ExcelToolchainJqHash = (Get-RunnerJqRelease).sha256
+$global:ExcelToolchainBashExit = 0
+$global:ExcelToolchainBashVersion = 'GNU bash, version 5.3.15(2)-release (x86_64-pc-cygwin)'
+$bashPath = Join-Path $env:ProgramFiles 'Git\bin\bash.exe'
+$jqPath = Join-Path $env:ProgramFiles 'ExcelMcp\Tools\jq.exe'
+function Test-Path { param($LiteralPath, $PathType) return $true }
+function Get-Command {
+    param($Name, $CommandType, $ErrorAction)
+    switch ($Name) {
+        bash { @{ Source = $bashPath } }
+        jq { @{ Source = $jqPath } }
+        default { throw 'Unexpected cloud command lookup.' }
+    }
+}
+Set-Item -Path "Function:\$bashPath" -Value {
+    if ($args[0] -eq '--version') {
+        Write-Output $global:ExcelToolchainBashVersion
+        Write-Output 'Additional version output must be consumed before checking command completion.'
+        $global:LASTEXITCODE = $global:ExcelToolchainBashExit
+    }
+    else {
+        Write-Output 'jq-1.8.2'
+        $global:LASTEXITCODE = 0
+    }
+}
+Set-Item -Path Function:\Get-FileHash -Value $hashFixture
+try {
+    $global:LASTEXITCODE = 239
+    $cloud = Get-RunnerCloudToolState
+    if ($cloud.bash -ne $global:ExcelToolchainBashVersion -or $cloud.jq -ne 'jq-1.8.2') {
+        throw 'Cloud verification must drain complete Bash output before checking its result.'
+    }
+    foreach ($case in @(
+        @{ exit = 1; version = $global:ExcelToolchainBashVersion },
+        @{ exit = 0; version = 'Invalid Bash version output' }
+    )) {
+        $global:ExcelToolchainBashExit = $case.exit
+        $global:ExcelToolchainBashVersion = $case.version
+        $failed = $false
+        try { Get-RunnerCloudToolState | Out-Null } catch { $failed = $true }
+        if (-not $failed) { throw 'Unsuccessful or invalid Bash verification must still fail.' }
+    }
+}
+finally { Remove-Item -LiteralPath "Function:\$bashPath" }
 
 Write-Output 'Runner SDK and trusted installer tests passed.'
