@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -53,10 +54,12 @@ public sealed partial class ServiceFileCommandsTests
         Assert.False(File.Exists(testFile));
     }
 
-    [Fact]
-    public void Test_CorruptSupportedExtension_IsNotValidOrOpenable()
+    [Theory]
+    [InlineData(".xlsx")]
+    [InlineData(".xlsb")]
+    public void Test_CorruptSupportedExtension_IsNotValidOrOpenable(string extension)
     {
-        var testFile = Path.Join(_fixture.TempDir, $"Corrupt_{Guid.NewGuid():N}.xlsx");
+        var testFile = Path.Join(_fixture.TempDir, $"Corrupt_{Guid.NewGuid():N}{extension}");
         System.IO.File.WriteAllText(testFile, "not an Excel workbook");
         var bytes = File.ReadAllBytes(testFile);
 
@@ -70,6 +73,34 @@ public sealed partial class ServiceFileCommandsTests
         Assert.Contains("valid Excel workbook", info.Message, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("already open", info.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(bytes, File.ReadAllBytes(testFile));
+    }
+
+    [Theory]
+    [InlineData(".xlsb", Excel.XlFileFormat.xlExcel12)]
+    [InlineData(".xls", Excel.XlFileFormat.xlExcel8)]
+    public void Test_SavedBinaryOrLegacyWorkbook_IsValidWithoutChangingFile(
+        string extension, Excel.XlFileFormat format)
+    {
+        var source = _fixture.CreateTestFile();
+        var saved = Path.ChangeExtension(source, extension);
+        using (var batch = ExcelSession.BeginBatch(source))
+        {
+            batch.Execute((context, _) => context.Book.SaveAs(saved, format));
+        }
+        var bytes = File.ReadAllBytes(saved);
+        var lastWriteTime = File.GetLastWriteTimeUtc(saved);
+
+        var info = _fileCommands.Test(saved);
+
+        Assert.True(info.Success, info.Message);
+        Assert.True(info.Exists);
+        Assert.True(info.IsValid);
+        Assert.True(info.CanOpen);
+        Assert.Equal(extension, info.Extension);
+        Assert.Null(info.Message);
+        Assert.Equal(bytes, File.ReadAllBytes(saved));
+        Assert.Equal(lastWriteTime, File.GetLastWriteTimeUtc(saved));
+        Assert.Equal(0, _fixture.SessionCount);
     }
 
     [Theory]
@@ -131,7 +162,7 @@ public sealed partial class ServiceFileCommandsTests
     }
 
     [Theory]
-    [InlineData("TestFile.xls", ".xls")]
+    [InlineData("TestFile.xltx", ".xltx")]
     [InlineData("TestFile.csv", ".csv")]
     [InlineData("TestFile.txt", ".txt")]
     public void Test_InvalidExtension_ReturnsFailure(string fileName, string expectedExt)

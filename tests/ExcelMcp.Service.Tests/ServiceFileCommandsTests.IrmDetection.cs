@@ -101,8 +101,6 @@ public sealed partial class ServiceFileCommandsTests
 
         // Assert
         Assert.True(info.Exists);
-        // Note: .xls is not in the Test() valid-extension list (.xlsx/.xlsm only),
-        // so IsValid is false. The key assertion is IRM detection.
         Assert.False(info.IsIrmProtected, "Legacy .xls (OLE2) must not be flagged as IRM-protected");
     }
 
