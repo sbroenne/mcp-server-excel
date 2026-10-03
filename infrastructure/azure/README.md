@@ -267,12 +267,24 @@ and attempt deallocation only when complete-job and guest-idle checks allow it.
 
 ### Enablement and acceptance
 
-All new workflows are opt-in. `EXCEL_RUNNER_ENABLED=true` enables hosted
-control, maintenance, daily health and owner-only validation.
-`EXCEL_COPILOT_ENABLED=true` separately selects `excel-copilot` for the matching
-dynamic cloud-agent setup. Without that second opt-in, existing hosted
-`windows-latest` setup remains selected. Ordinary setup workflow events do
-not use the Excel runner.
+All new workflows are opt-in. The **Actions** variable
+`EXCEL_RUNNER_ENABLED=true` enables hosted control, maintenance, daily health
+and owner-only validation. The separate repository **Agents** variable
+`EXCEL_COPILOT_ENABLED=true` selects `excel-copilot` for cloud-agent setup.
+Copilot does not receive Actions variables. Keep the **Actions** variable
+`EXCEL_COPILOT_ENABLED=false` so ordinary setup workflow events continue to use
+`windows-latest`; the same name belongs to two distinct variable stores.
+The setup runner expression uses only the applicable variable, not generated
+workflow display names or event contexts. Without the Agents opt-in, cloud
+setup also retains the existing hosted Windows runner.
+
+Operators can read the actual firewall state through
+`GET /repos/{owner}/{repo}/copilot/cloud-agent/configuration` and manage the
+Agents switch through `POST /repos/{owner}/{repo}/agents/variables` or
+`PATCH /repos/{owner}/{repo}/agents/variables/EXCEL_COPILOT_ENABLED`.
+Use the documented `X-GitHub-Api-Version: 2026-03-10` header. Confirm
+`is_firewall_enabled=false` before Windows routing; an old Actions firewall
+variable is not evidence of the current Copilot setting.
 
 The `excel-runner-control` environment must allow only the default branch.
 Bootstrap refuses an existing broader environment rather than overwriting
