@@ -77,7 +77,22 @@ Write-Output 'EXCELMCP_CONTROL={"state":"patched"}'
         $repo = Invoke-ExcelRunnerGithub "repos/$Repository"
         $runId = "$($next[0].excelRunId)"
         if ($runId -notmatch '^\d+$') { throw 'Invalid admitted workflow run ID.' }
-        $null = Invoke-ExcelRunnerGuest @"
+        $jobId = "$($next[0].id)"
+        if ($jobId -notmatch '^\d+$') { throw 'Invalid admitted workflow job ID.' }
+        $currentJob = Invoke-ExcelRunnerGithub "repos/$Repository/actions/jobs/$jobId"
+        if ("$($currentJob.id)" -ne $jobId -or "$($currentJob.run_id)" -ne $runId -or
+            $currentJob.name -ne $jobName -or -not (Test-ExcelRunnerJobTarget $currentJob)) {
+            throw 'The selected job identity changed during desktop preparation; refuse admission.'
+        }
+        if ($currentJob.status -eq 'completed') {
+            Write-Output 'Selected work completed or was cancelled during preparation; no listener started.'
+            if (@(Get-ExcelRunnerActiveJobs $Repository | Where-Object { Test-ExcelRunnerJobTarget $_ }).Count) {
+                Write-Output 'Other complete-job demand remains; leaving admission to the next control check.'
+                return
+            }
+        }
+        elseif ($currentJob.status -eq 'queued') {
+            $null = Invoke-ExcelRunnerGuest @"
 `$state = @{ state = 'admitted'; runId = '$runId'; job = '$jobName'; kind = '$kind'; defaultBranch = '$($repo.default_branch)'
     bootTime = (Get-CimInstance Win32_OperatingSystem).LastBootUpTime.ToUniversalTime().ToString('o')
     expiresAt = [DateTime]::UtcNow.AddMinutes(10).ToString('o') }
@@ -85,16 +100,18 @@ Write-Output 'EXCELMCP_CONTROL={"state":"patched"}'
 Start-ScheduledTask -TaskName 'ExcelMcp-GitHub-Runner'
 Write-Output 'EXCELMCP_CONTROL={"state":"admitted"}'
 "@
-        $until = [DateTime]::UtcNow.AddMinutes(2)
-        do {
-            Start-Sleep -Seconds 10
-            $activity = Get-ExcelRunnerGuestActivity
-            if ($activity.listeners -gt 0 -and $activity.taskRunning) {
-                Write-Output "Interactive one-job listener admitted workflow $runId."
-                return
-            }
-        } while ([DateTime]::UtcNow -lt $until)
-        throw 'The admitted interactive listener did not start.'
+            $until = [DateTime]::UtcNow.AddMinutes(2)
+            do {
+                Start-Sleep -Seconds 10
+                $activity = Get-ExcelRunnerGuestActivity
+                if ($activity.listeners -gt 0 -and $activity.taskRunning) {
+                    Write-Output "Interactive one-job listener admitted workflow $runId."
+                    return
+                }
+            } while ([DateTime]::UtcNow -lt $until)
+            throw 'The admitted interactive listener did not start.'
+        }
+        else { throw 'The selected job is no longer queued; its complete-job ownership needs inspection.' }
     }
     Start-Sleep -Seconds 30
     Assert-ExcelRunnerIdle @(Get-ExcelRunnerActiveJobs $Repository) (Get-ExcelRunnerGuestActivity)

@@ -2,6 +2,9 @@
 
 - Keep workflow SDK setup compatible with `global.json`. Preserve analyzer and
   warning-as-error settings in `Directory.Build.props` and `.editorconfig`.
+- CLI pre-build cleanup remains enabled on self-hosted desktops even when
+  `CI=true`; live owned daemons can otherwise lock rebuild output. Hosted CI
+  still skips it, and isolated cleanup-client builds retain their recursion guard.
 - `ci.yml` has Excel-free runtime and documentation gates. Local pre-commit
   selects checks by changed paths; preserve runtime/non-runtime and merge-parent
   handling so imported changes do not trigger unrelated Excel E2E.
