@@ -84,8 +84,9 @@ the final release commit was the untouched original build checkout.
 - App UI-only project instructions and trust state could not be read through
   the available session API. Verify the native review-and-accept flow locally;
   do not assume YAML parsing proves that it was exercised.
-- Migrated instructions have a shared task map and standalone VS Code review
-  checklist. Verify loaded instructions in the actual VS Code/Claude/app
+- The inspected baseline used a standalone VS Code review checklist. Current
+  shared instruction discovery and review guidance are documented in
+  [agent development](development.md). Verify loaded files in the actual
   clients; their presence alone does not establish adherence.
 
 The inspected main branch had 16 dependency alerts in `llm-tests/uv.lock`.

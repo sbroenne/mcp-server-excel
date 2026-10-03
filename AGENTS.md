@@ -1,15 +1,17 @@
-# ExcelMcp repository rules
+# ExcelMcp agent instructions
 
-Windows and PowerShell; use the SDK selected by `global.json`. Desktop Excel
-is required for COM tests. GitHub-hosted runners do not have Excel.
+ExcelMcp automates installed desktop Excel through COM on Windows. Use
+PowerShell and the SDK selected by `global.json`. Desktop Excel is required
+for COM tests; GitHub-hosted runners do not have Excel.
 
 MCP Server and `excelcli` are equal entry points: behavior, defaults, validation,
 results, and documentation must agree.
 
-Before exploring code, read `CONTEXT.md` and relevant decisions matching
-`docs/ADR-*.md`. Use the context glossary and the current decision status; if a
-proposal conflicts with an accepted decision, state the conflict rather than
-silently overriding it.
+For an unfamiliar area, start with [CONTEXT.md](CONTEXT.md) for the system map
+and terminology. [Architecture decisions](docs/DECISIONS.md) explain current
+choices and tradeoffs; read the records relevant to an architectural change,
+not the entire collection for every task. Surface conflicts before changing a
+decision. Actionable rules belong here and in the applicable guides below.
 
 Work requests are tracked in GitHub Issues; see
 [issue tracker](docs/agents/issue-tracker.md). Contributor setup and client
@@ -17,9 +19,10 @@ instruction discovery are in [agent development](docs/agents/development.md).
 
 ## Task-specific guidance
 
-Before changing files, read only the matching guides below. Paths are relative
-to the repository root. These are explicit reading requirements even when a
-client does not automatically discover nested `AGENTS.md` files.
+Before changing files, read the matching guides below, including nested
+`AGENTS.md` files. Native discovery differs between Copilot, Claude Code, and
+Codex; launching at the root does not guarantee every nested file is loaded.
+Paths are relative to the repository root.
 
 | Work | Required guidance |
 | --- | --- |
@@ -100,12 +103,31 @@ Run applicable existing checks, not replacement audits:
 `-SkipBuild` requires a successful Release solution build in this worktree.
 Otherwise omit it. PRs record the root cause, affected contracts, and validation.
 
-## Code review
+## Code Review Rules
 
-For review tasks, use the standalone [review checklist](.github/copilot-instructions.md).
-It retains its filename because VS Code's built-in Copilot review reads it.
-The implementation guides above do not require reviewers to install dependencies,
-run builds, or edit code.
+Report high-confidence defects introduced by the change, not style or unrelated
+cleanup. These checks apply to review tasks; they do not require installing
+dependencies, running builds, or editing code unless requested.
+
+- Typed PIAs first, except documented runtime gaps (`Application.Run`, VBE,
+  Office-core). Do not reintroduce unavailable dependencies. Dynamic COM numeric
+  values need `Convert.*`, not direct casts.
+- Acquired COM references require `finally` cleanup, excluding session-owned
+  objects. Process cleanup uses PID/start-time identity, never process names.
+- `0x800A03EC` is not a unique diagnosis. Preserve batch/Service error context,
+  cancellation, and session recovery; a timeout must not become success.
+- Core contracts must agree across generated Service, CLI options/batch JSON,
+  MCP schemas, and manual tool exceptions, including defaults and timeouts.
+- MCP stdout, including bootstrap output, is JSON-RPC only.
+- Agent-facing descriptions, server instructions, skills, and recovery messages
+  must agree with actual defaults and advertised capabilities. Flag stale input
+  names, nonexistent actions, missing parameter documentation, emojis, forced
+  unrequested work, and screenshots required without an interactive desktop.
+  Consent advice is not proof that server-side elicitation is implemented.
+  Distinguish MCP input names from nested JSON keys, outputs, and CLI batch keys.
+- Tests establish actual Excel state and returned fields, not only `Success`.
+  Generated artifacts must change through their source; use code-derived counts
+  rather than copied literals.
 
 ## Git and release
 

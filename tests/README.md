@@ -1,8 +1,8 @@
 # ExcelMcp Tests
 
 Excel-dependent behavior uses real Excel integration tests. Parsing, mapping,
-serialization, and generation can use focused tests without Excel. The former
-blanket ban on unit tests is [superseded](../docs/ADR-001-NO-UNIT-TESTS.md).
+serialization, and generation can use focused tests without Excel.
+[ADR-001](../docs/ADR-001-TESTING-STRATEGY.md) explains this split.
 
 ## Quick Start
 
