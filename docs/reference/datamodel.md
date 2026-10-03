@@ -32,15 +32,19 @@ Measure readback identifies the actual Excel format interface, so Decimal and
 Percentage remain distinct even though both expose decimal-place and separator
 properties. Failed format-property reads do not silently report General.
 Supply native DAX with comma argument separators and decimal
-points; create and update pass it to Excel without regional separator rewriting.
+points; create and update do not translate separators to regional settings.
 Remote formatting requires explicit consent and remains off by default:
 MCP `format_dax: true` or CLI `--format-dax true`.
 
-On the tested decimal-comma Excel installation, native measure writes still reject
-some numeric arguments followed by commas, including `DATEADD(..., -1, MONTH)`
-and `IF(..., 1.5, 0)`, even when the same DAX evaluates successfully as a query.
-Report the Excel error instead of rewriting the supplied formula, changing
-regional settings, or enabling remote formatting as a workaround.
+When Windows uses a comma as the decimal mark, Excel misreads a comma that
+touches a number in a measure formula, for example turning `IF(..., 1.5, 0)`
+into an invalid formula or `DATEADD(..., -1, MONTH)` into `-1.`. Create and
+update then add one space on each side of such commas (`IF(..., 1.5 , 0)`,
+`DATEADD(..., -1 , MONTH)`). Text, quoted names, column references, and comments
+are left alone. The DAX meaning is unchanged, and the result `message` says
+spaces were added. Do not change regional settings or enable remote formatting
+as a workaround. Measure readback (`read`, `list-measures`) returns the DAX that
+the model stores, with decimal points, including after the workbook is reopened.
 
 ## Refresh is not calculation
 
