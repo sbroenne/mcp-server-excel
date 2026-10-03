@@ -102,7 +102,9 @@ if ((Get-FileHash -LiteralPath (Join-Path `$directory '$name') -Algorithm SHA256
         $state.tools.sdk -notmatch '^\d+\.\d+\.\d+$' -or
         $state.tools.git -notmatch '^git version \d+\.\d+\.\d+\.windows\.\d+$' -or
         $state.tools.powershell -notmatch '^7\.\d+\.\d+$' -or
-        $state.tools.node -notmatch '^v22\.\d+\.\d+$' -or $state.runnerRegistered -ne $false) {
+        $state.tools.node -notmatch '^v22\.\d+\.\d+$' -or
+        $state.tools.bash -notmatch '^GNU bash, version \d+\.\d+' -or
+        $state.tools.jq -ne 'jq-1.8.2' -or $state.runnerRegistered -ne $false) {
         throw "Toolchain installation failed or returned incomplete/mismatched tool versions: $($state.error)"
     }
     . (Join-Path $root 'infrastructure\azure\install-excel-toolchain.ps1') -SdkVersion $sdk -RollForward $rollForward

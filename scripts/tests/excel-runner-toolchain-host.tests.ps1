@@ -34,9 +34,13 @@ function Receive-Job {
             $sdk = if ($global:ExcelToolchainHostMode -eq 'sdk-mismatch') { '1.0.0' } else { $global:ExcelToolchainHostSdk }
             $prefix = if ($global:ExcelToolchainHostMode -eq 'spoofed') { 'unexpected=' } else { 'EXCELMCP_TOOLCHAIN=' }
             $tools = @{ sdk = $sdk; requiredSdk = $global:ExcelToolchainHostSdk; rollForward = 'latestFeature'
-                git = 'git version 2.56.0.windows.1'; powershell = '7.6.6'; node = 'v22.23.3' }
+                git = 'git version 2.56.0.windows.1'; powershell = '7.6.6'; node = 'v22.23.3'
+                bash = 'GNU bash, version 5.2.37(1)-release (x86_64-pc-msys)'; jq = 'jq-1.8.2' }
             if ($global:ExcelToolchainHostMode -eq 'missing-tools') { $tools.Remove('git') }
             if ($global:ExcelToolchainHostMode -eq 'wrong-node') { $tools.node = 'v24.0.0' }
+            if ($global:ExcelToolchainHostMode -eq 'missing-bash') { $tools.Remove('bash') }
+            if ($global:ExcelToolchainHostMode -eq 'missing-jq') { $tools.Remove('jq') }
+            if ($global:ExcelToolchainHostMode -eq 'wrong-jq') { $tools.jq = 'jq-0.0.0' }
             $message = $prefix + (@{ state = 'installed'; tools = $tools; runnerRegistered = $false } | ConvertTo-Json -Compress)
             if ($global:ExcelToolchainHostMode -eq 'guest-failure') { $message = 'Synthetic guest upload failure.' }
             return (@{ value = @(@{ message = $message }) } | ConvertTo-Json -Depth 5 -Compress)
@@ -61,7 +65,7 @@ foreach ($mode in @('unowned', 'running')) {
         throw 'A running or unowned VM must be rejected without changing resources.'
     }
 }
-foreach ($mode in @('sdk-mismatch', 'missing-tools', 'wrong-node', 'spoofed', 'guest-failure')) {
+foreach ($mode in @('sdk-mismatch', 'missing-tools', 'wrong-node', 'missing-bash', 'missing-jq', 'wrong-jq', 'spoofed', 'guest-failure')) {
     $global:ExcelToolchainHostCalls.Clear()
     $global:ExcelToolchainHostMode = $mode
     $global:ExcelToolchainHostCleanupFails = $mode -eq 'guest-failure'

@@ -71,7 +71,7 @@ try {
     $null = Invoke-RunnerAzure @('vm', 'start', '--resource-group', $ResourceGroup, '--name', $VmName) 900
     Wait-ExcelRunnerGuestAgent
     Assert-ExcelRunnerIdle @() (Get-ExcelRunnerGuestActivity)
-    Send-ExcelRunnerFiles Desktop @('configure-excel-runner.ps1', 'start-excel-runner.ps1', 'test-excel-desktop.ps1', 'excel-job-started.ps1', 'excel-job-completed.ps1', 'recover-excel-jobs.ps1', 'ExcelRunnerPolicy.ps1', 'global.json')
+    Send-ExcelRunnerFiles Desktop @('configure-excel-runner.ps1', 'start-excel-runner.ps1', 'install-excel-toolchain.ps1', 'test-excel-desktop.ps1', 'excel-job-started.ps1', 'excel-job-completed.ps1', 'recover-excel-jobs.ps1', 'ExcelRunnerPolicy.ps1', 'global.json')
     $null = Invoke-ExcelRunnerDesktopHealth
     $url = $assets[0].browser_download_url
     $hash = $assets[0].digest.Substring(7)

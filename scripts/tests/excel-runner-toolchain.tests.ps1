@@ -38,6 +38,18 @@ Assert-ToolchainInstallerSignature 'synthetic.msi' Node
 $global:ExcelToolchainSignatureSubject = 'CN=Open Source Developer, Johannes Schindelin, O=Open Source Developer'
 Assert-ToolchainInstallerSignature 'synthetic.exe' Git
 
+$global:ExcelToolchainJqHash = (Get-RunnerJqRelease).sha256
+function Get-FileHash {
+    param($LiteralPath, $Algorithm)
+    if ($Algorithm -ne 'SHA256') { throw 'Cloud tools must use SHA256.' }
+    @{ Hash = $global:ExcelToolchainJqHash }
+}
+Assert-RunnerJqPackage 'synthetic-jq.exe'
+$global:ExcelToolchainJqHash = '0' * 64
+$failed = $false
+try { Assert-RunnerJqPackage 'synthetic-jq.exe' } catch { $failed = $true }
+if (-not $failed) { throw 'Unverified cloud jq binaries must be rejected before execution.' }
+
 $required = (Get-Content (Join-Path $root 'global.json') -Raw | ConvertFrom-Json).sdk.version
 Assert-RequiredRunnerSdk -Required $required -Installed @("$required [synthetic]")
 $requiredVersion = [version]$required

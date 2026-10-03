@@ -290,6 +290,13 @@ The coding job's runtime `GITHUB_ACTOR` is `copilot-swe-agent[bot]`, not the
 REST API's `Copilot` display login. Hosted admission still verifies the
 platform bot ID, dynamic workflow path and repository, then binds the exact
 run/job and current boot; the guest must match the actual runtime bot identity.
+The protected toolchain includes Git Bash and checksum-pinned Windows x64
+jq, with both directories first on the machine PATH. GitHub's generated
+initialization uses `bash` and `jq` before repository setup steps, even on
+Windows; adding them in `copilot-setup-steps.yml` is too late. Qualification
+must resolve the protected binaries and execute jq through Git Bash before
+admitting a listener. Existing registered desktops can run the same cloud
+prerequisite helper only during guarded, idle administrative maintenance.
 
 Operators can read the actual firewall state through
 `GET /repos/{owner}/{repo}/copilot/cloud-agent/configuration` and manage the

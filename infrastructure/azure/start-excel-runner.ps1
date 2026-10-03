@@ -31,6 +31,8 @@ if (@(Get-Process -Name Runner.Listener, Runner.Worker, EXCEL -ErrorAction Silen
 }
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
     [Environment]::GetEnvironmentVariable('Path', 'User')
+. (Join-Path $PSScriptRoot 'install-excel-toolchain.ps1')
+$null = Get-RunnerCloudToolState
 Set-Location 'C:\actions-runner'
 & 'C:\actions-runner\run.cmd' --once
 if ($LASTEXITCODE -ne 0) { throw "The one-job runner exited with code $LASTEXITCODE." }
