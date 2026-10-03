@@ -1,183 +1,38 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands.Filtering;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
-/// <summary>
-/// Table filter operations (NEW)
-/// </summary>
 public partial class TableCommands
 {
     /// <inheritdoc />
-    public OperationResult ApplyFilter(IExcelBatch batch, string tableName, string columnName, string criteria)
+    public OperationResult ApplyFilter(IExcelBatch batch, string tableName, string columnName, FilterOptions options)
     {
         ValidateRequiredTableName(tableName);
-
-        return batch.Execute((ctx, ct) =>
+        ArgumentException.ThrowIfNullOrWhiteSpace(columnName);
+        NativeFilterHelpers.Validate(options);
+        return batch.Execute((ctx, token) =>
         {
-            dynamic? table = null;
-            dynamic? autoFilter = null;
-            dynamic? filterRange = null;
+            Excel.ListObject? table = null;
+            Excel.ListColumn? column = null;
+            Excel.Range? range = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
-
-                // Find column index
-                int columnIndex = -1;
-                dynamic? listColumns = null;
-                try
-                {
-                    listColumns = table.ListColumns;
-                    for (int i = 1; i <= listColumns.Count; i++)
-                    {
-                        dynamic? column = null;
-                        try
-                        {
-                            column = listColumns.Item(i);
-                            if (column.Name == columnName)
-                            {
-                                columnIndex = i;
-                                break;
-                            }
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref column);
-                        }
-                    }
-                }
-                finally
-                {
-                    ComUtilities.Release(ref listColumns);
-                }
-
-                if (columnIndex == -1)
-                {
-                    throw new InvalidOperationException($"Column '{columnName}' not found in table '{tableName}'");
-                }
-
-                // Apply filter
-                autoFilter = table.AutoFilter;
-                if (autoFilter == null)
-                {
-                    // AutoFilter not enabled - enable it first
-                    dynamic? range = null;
-                    try
-                    {
-                        range = table.Range;
-                        range.AutoFilter(Field: 1); // Enable with default
-                        autoFilter = table.AutoFilter;
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref range);
-                    }
-                }
-
-                // Apply filter to specific field
-                // xlFilterValues = 7, xlAnd = 1
-                int xlFilterValues = 7;
-                filterRange = autoFilter.Range;
-                filterRange.AutoFilter(
-                    Field: columnIndex,
-                    Criteria1: criteria,
-                    Operator: xlFilterValues
-                );
-
-                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+                column = FindColumn(table, columnName);
+                if (column is null)
+                    throw new InvalidOperationException($"Column '{columnName}' not found in table '{tableName}'.");
+                range = table.Range;
+                NativeFilterHelpers.Apply(ctx.Book, range, column.Index, options, token);
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath, Action = "apply-filter" };
             }
             finally
             {
-                ComUtilities.Release(ref filterRange);
-                ComUtilities.Release(ref autoFilter);
-                ComUtilities.Release(ref table);
-            }
-        });
-    }
-
-    /// <inheritdoc />
-    public OperationResult ApplyFilterValues(IExcelBatch batch, string tableName, string columnName, List<string> values)
-    {
-        ValidateRequiredTableName(tableName);
-
-        return batch.Execute((ctx, ct) =>
-        {
-            dynamic? table = null;
-            dynamic? autoFilter = null;
-            dynamic? filterRange = null;
-            try
-            {
-                table = FindTable(ctx.Book, tableName);
-
-                // Find column index
-                int columnIndex = -1;
-                dynamic? listColumns = null;
-                try
-                {
-                    listColumns = table.ListColumns;
-                    for (int i = 1; i <= listColumns.Count; i++)
-                    {
-                        dynamic? column = null;
-                        try
-                        {
-                            column = listColumns.Item(i);
-                            if (column.Name == columnName)
-                            {
-                                columnIndex = i;
-                                break;
-                            }
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref column);
-                        }
-                    }
-                }
-                finally
-                {
-                    ComUtilities.Release(ref listColumns);
-                }
-
-                if (columnIndex == -1)
-                {
-                    throw new InvalidOperationException($"Column '{columnName}' not found in table '{tableName}'");
-                }
-
-                // Apply filter
-                autoFilter = table.AutoFilter;
-                if (autoFilter == null)
-                {
-                    // AutoFilter not enabled - enable it first
-                    dynamic? range = null;
-                    try
-                    {
-                        range = table.Range;
-                        range.AutoFilter(Field: 1); // Enable with default
-                        autoFilter = table.AutoFilter;
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref range);
-                    }
-                }
-
-                // Apply filter with multiple values
-                // Convert List<string> to string array for COM interop
-                string[] valuesArray = values.ToArray();
-                filterRange = autoFilter.Range;
-                filterRange.AutoFilter(
-                    Field: columnIndex,
-                    Criteria1: valuesArray,
-                    Operator: 7 // xlFilterValues
-                );
-
-                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
-            }
-            finally
-            {
-                ComUtilities.Release(ref filterRange);
-                ComUtilities.Release(ref autoFilter);
+                ComUtilities.Release(ref range);
+                ComUtilities.Release(ref column);
                 ComUtilities.Release(ref table);
             }
         });
@@ -187,26 +42,22 @@ public partial class TableCommands
     public OperationResult ClearFilters(IExcelBatch batch, string tableName)
     {
         ValidateRequiredTableName(tableName);
-
-        return batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, token) =>
         {
-            dynamic? table = null;
-            dynamic? autoFilter = null;
+            Excel.ListObject? table = null;
+            Excel.AutoFilter? filter = null;
             try
             {
+                token.ThrowIfCancellationRequested();
                 table = FindTable(ctx.Book, tableName);
-
-                autoFilter = table.AutoFilter;
-                if (autoFilter != null)
-                {
-                    autoFilter.ShowAllData();
-                }
-
-                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+                filter = table.AutoFilter;
+                if (filter is not null && filter.FilterMode)
+                    filter.ShowAllData();
+                return new OperationResult { Success = true, FilePath = batch.WorkbookPath, Action = "clear-filters" };
             }
             finally
             {
-                ComUtilities.Release(ref autoFilter);
+                ComUtilities.Release(ref filter);
                 ComUtilities.Release(ref table);
             }
         });
@@ -216,93 +67,50 @@ public partial class TableCommands
     public TableFilterResult GetFilters(IExcelBatch batch, string tableName)
     {
         ValidateRequiredTableName(tableName);
-
-        var result = new TableFilterResult { FilePath = batch.WorkbookPath, TableName = tableName };
-        return batch.Execute((ctx, ct) =>
+        return batch.Execute((ctx, token) =>
         {
-            dynamic? table = null;
-            dynamic? autoFilter = null;
+            Excel.ListObject? table = null;
+            Excel.ListColumns? columns = null;
+            Excel.AutoFilter? filter = null;
             try
             {
+                token.ThrowIfCancellationRequested();
                 table = FindTable(ctx.Book, tableName);
-
-                autoFilter = table.AutoFilter;
-                if (autoFilter == null)
+                columns = table.ListColumns;
+                var names = new List<string>(columns.Count);
+                for (int index = 1; index <= columns.Count; index++)
                 {
-                    result.Success = true;
-                    result.HasActiveFilters = false;
-                    return result;
-                }
-
-                // Check each column for filters
-                dynamic? filters = null;
-                try
-                {
-                    filters = autoFilter.Filters;
-                    dynamic? listColumns = null;
+                    token.ThrowIfCancellationRequested();
+                    Excel.ListColumn? column = null;
                     try
                     {
-                        listColumns = table.ListColumns;
-                        for (int i = 1; i <= listColumns.Count; i++)
-                        {
-                            dynamic? column = null;
-                            dynamic? filter = null;
-                            try
-                            {
-                                column = listColumns.Item(i);
-                                string columnName = column.Name;
-
-                                filter = filters.Item(i);
-                                bool isFiltered = filter.On;
-
-                                if (isFiltered)
-                                {
-                                    result.HasActiveFilters = true;
-                                    result.ColumnFilters.Add(new ColumnFilter
-                                    {
-                                        ColumnName = columnName,
-                                        ColumnIndex = i,
-                                        IsFiltered = true,
-                                        Criteria = filter.Criteria1?.ToString() ?? "",
-                                        FilterValues = [] // Could extract from Criteria1 if array
-                                    });
-                                }
-                                else
-                                {
-                                    result.ColumnFilters.Add(new ColumnFilter
-                                    {
-                                        ColumnName = columnName,
-                                        ColumnIndex = i,
-                                        IsFiltered = false
-                                    });
-                                }
-                            }
-                            finally
-                            {
-                                ComUtilities.Release(ref filter);
-                                ComUtilities.Release(ref column);
-                            }
-                        }
+                        column = columns[index];
+                        names.Add(column.Name);
                     }
                     finally
                     {
-                        ComUtilities.Release(ref listColumns);
+                        ComUtilities.Release(ref column);
                     }
                 }
-                finally
+                filter = table.AutoFilter;
+                var read = filter is null
+                    ? names.Select((name, index) => new ColumnFilter { ColumnName = name, ColumnIndex = index + 1 }).ToList()
+                    : NativeFilterHelpers.Read(filter, names, token);
+                return new TableFilterResult
                 {
-                    ComUtilities.Release(ref filters);
-                }
-
-                result.Success = true;
-                return result;
+                    Success = true,
+                    FilePath = batch.WorkbookPath,
+                    TableName = tableName,
+                    ColumnFilters = read,
+                    HasActiveFilters = read.Any(column => column.IsFiltered)
+                };
             }
             finally
             {
-                ComUtilities.Release(ref autoFilter);
+                ComUtilities.Release(ref filter);
+                ComUtilities.Release(ref columns);
                 ComUtilities.Release(ref table);
             }
         });
     }
 }
-

@@ -41,8 +41,9 @@ left. Freeze the header when scrolling is useful; freeze counts include all
 rows above the header, not just the header itself. See [worksheet views](window.md).
 
 Avoid adding merged cells inside sortable data. Do not automatically unmerge an
-existing template. Do not invent a "center across selection" alignment: the
-range-format interface does not expose it. Meaningful sheet names help new
+existing template. Use `formatOptions.horizontalAlignment` set to
+`centerAcrossSelection` when that native alignment fits the requested layout.
+Meaningful sheet names help new
 reports, but do not rename existing sheets or add cover sheets without need.
 
 ## Apply number formats without rewriting values
@@ -74,19 +75,19 @@ The user wants readable report formatting, and there is no template to preserve.
 Check each result before the next step; a failed sequence is not rolled back.
 
 ```mcp
-range_format(action: 'format-range', session_id: sessionId, sheet_name: 'Report', range_address: 'A1:C1', bold: true, fill_color: '#4472C4', font_color: '#FFFFFF')
+range_format(action: 'format', session_id: sessionId, sheet_name: 'Report', range_addresses: ['A1:C1'], format_options: {bold: true, fillColor: '#4472C4', fontColor: '#FFFFFF'})
 range(action: 'set-number-format', session_id: sessionId, sheet_name: 'Report', range_address: 'B2:B21', format_code: '$#,##0.00')
 range(action: 'set-number-format', session_id: sessionId, sheet_name: 'Report', range_address: 'C2:C21', format_code: '0.0%')
-range_format(action: 'format-range', session_id: sessionId, sheet_name: 'Report', range_address: 'B2:C21', horizontal_alignment: 'right')
+range_format(action: 'format', session_id: sessionId, sheet_name: 'Report', range_addresses: ['B2:C21'], format_options: {horizontalAlignment: 'right'})
 range_format(action: 'auto-fit-columns', session_id: sessionId, sheet_name: 'Report', range_address: 'A:C')
 window(action: 'freeze-panes', session_id: sessionId, sheet_name: 'Report', frozen_rows: 1)
 ```
 
 ```cli
-excelcli -q rangeformat format-range --session $sessionId --sheet Report --range A1:C1 --bold true --fill-color '#4472C4' --font-color '#FFFFFF'
+excelcli -q rangeformat format --session $sessionId --sheet Report --range-addresses A1:C1 --format-options '{"bold":true,"fillColor":"#4472C4","fontColor":"#FFFFFF"}'
 excelcli -q range set-number-format --session $sessionId --sheet Report --range B2:B21 --format-code '$#,##0.00'
 excelcli -q range set-number-format --session $sessionId --sheet Report --range C2:C21 --format-code '0.0%'
-excelcli -q rangeformat format-range --session $sessionId --sheet Report --range B2:C21 --horizontal-alignment right
+excelcli -q rangeformat format --session $sessionId --sheet Report --range-addresses B2:C21 --format-options '{"horizontalAlignment":"right"}'
 excelcli -q rangeformat auto-fit-columns --session $sessionId --sheet Report --range A:C
 excelcli -q window freeze-panes --session $sessionId --sheet Report --frozen-rows 1
 ```

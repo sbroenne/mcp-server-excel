@@ -12,48 +12,34 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 public sealed class RangeFormatRangesContractTests
 {
     [Fact]
-    public void FormatRanges_PublicInterfaceAndImplementation_KeepExpectedSignature()
+    public void Format_PublicInterfaceAndImplementation_UseOneTypedRequestWithoutObsoleteActions()
     {
         var parameterTypes = new[]
         {
             typeof(IExcelBatch),
             typeof(string),
             typeof(string[]),
-            typeof(string),
-            typeof(double?),
-            typeof(bool?),
-            typeof(bool?),
-            typeof(bool?),
-            typeof(string),
-            typeof(string),
-            typeof(string),
-            typeof(string),
-            typeof(string),
-            typeof(string),
-            typeof(string),
-            typeof(bool?),
-            typeof(int?),
-            typeof(string)
+            typeof(CellFormatOptions)
         };
         var expectedNames = new[]
         {
-            "batch", "sheetName", "rangeAddresses", "fontName", "fontSize",
-            "bold", "italic", "underline", "fontColor", "fillColor",
-            "borderStyle", "borderColor", "borderWeight",
-            "horizontalAlignment", "verticalAlignment", "wrapText",
-            "orientation", "numberFormat"
+            "batch", "sheetName", "rangeAddresses", "formatOptions"
         };
 
         var interfaceMethod = typeof(IRangeFormatCommands)
-            .GetMethod("FormatRanges", parameterTypes);
+            .GetMethod("Format", parameterTypes);
         Assert.NotNull(interfaceMethod);
         Assert.Equal(
             expectedNames,
             interfaceMethod.GetParameters().Select(parameter => parameter.Name));
 
         var implementationMethod = typeof(RangeCommands)
-            .GetMethod("FormatRanges", parameterTypes);
+            .GetMethod("Format", parameterTypes);
         Assert.NotNull(implementationMethod);
         Assert.Equal(typeof(OperationResult), implementationMethod.ReturnType);
+        Assert.Null(typeof(IRangeFormatCommands).GetMethod("FormatRange"));
+        Assert.Null(typeof(IRangeFormatCommands).GetMethod("FormatRanges"));
+        Assert.Null(typeof(RangeCommands).GetMethod("FormatRange"));
+        Assert.Null(typeof(RangeCommands).GetMethod("FormatRanges"));
     }
 }

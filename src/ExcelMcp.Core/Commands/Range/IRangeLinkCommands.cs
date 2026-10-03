@@ -16,14 +16,14 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// - 'get-hyperlink': Get hyperlink details for a specific cell
 ///
 /// CELL PROTECTION:
-/// - 'set-cell-lock': Lock or unlock cells (only effective when sheet protection is enabled)
-/// - 'get-cell-lock': Check if cells are locked
+/// - 'set-cell-protection': Change supplied lock/formula-hiding flags in an exact scope
+/// - 'get-cell-protection': Read both flags for every requested cell without a cap
 ///
 /// Note: Cell locking only takes effect when the worksheet is protected.
 /// </summary>
 [ServiceCategory("rangelink", "RangeLink")]
 [McpTool("range_link", Title = "Range Link Operations", Destructive = true, Category = "data",
-    Description = "Hyperlink, threaded comment, and cell protection operations. THREADED COMMENTS: add-threaded-comment, list-threaded-comments, add-threaded-comment-reply, delete-threaded-comment use the local Excel PIA. Cloud mentions, assignments, reactions, presence, and coauthoring state are not exposed by local Excel COM. HYPERLINKS: add-hyperlink creates external links with url or internal workbook links with subAddress; update-hyperlink changes an existing target, display text, or tooltip; remove-hyperlink keeps cell content; list-hyperlinks returns all worksheet links; get-hyperlink reads a specific cell. At least url or subAddress is required when adding. CELL PROTECTION: set-cell-lock/get-cell-lock only take effect when sheet protection is enabled.")]
+    Description = "Hyperlink, threaded comment, and cell protection operations. THREADED COMMENTS: add-threaded-comment, list-threaded-comments, add-threaded-comment-reply, delete-threaded-comment use the local Excel PIA. Cloud mentions, assignments, reactions, presence, and coauthoring state are not exposed by local Excel COM. HYPERLINKS: add-hyperlink creates external links with url or internal workbook links with subAddress; update-hyperlink changes an existing target, display text, or tooltip; remove-hyperlink keeps cell content; list-hyperlinks returns all worksheet links; get-hyperlink reads a specific cell. At least url or subAddress is required when adding. CELL PROTECTION: set-cell-protection changes only supplied locked/formula_hidden flags in the exact scope; get-cell-protection reads every cell without a cap or mixed-state defaults. Enforcement needs sheet protection; formula hiding affects Excel UI, not tool inspection or file encryption. Former cell-lock actions are removed.")]
 public interface IRangeLinkCommands
 {
     // === HYPERLINK OPERATIONS ===
@@ -145,21 +145,24 @@ public interface IRangeLinkCommands
     // === CELL PROTECTION OPERATIONS ===
 
     /// <summary>
-    /// Locks or unlocks cells (requires worksheet protection to take effect).
-    /// Excel COM: Range.Locked
+    /// Sets supplied Locked/FormulaHidden flags in the exact scope; at least one is required.
+    /// Enforcement needs worksheet protection. Formula hiding affects Excel UI, not tool reads.
+    /// Named and disjoint scopes preserve gaps; native failures do not promise rollback.
     /// </summary>
-    /// <param name="sheetName">Name of the worksheet</param>
+    /// <param name="sheetName">Worksheet name; empty for named ranges</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
-    /// <param name="locked">Lock status: true = locked (protected when sheet protection enabled), false = unlocked (editable)</param>
-    [ServiceAction("set-cell-lock")]
-    OperationResult SetCellLock(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] bool locked);
+    /// <param name="locked">Optional native lock flag; omitted leaves it unchanged</param>
+    /// <param name="formulaHidden">Optional native formula-hiding flag; omitted leaves it unchanged</param>
+    [ServiceAction("set-cell-protection")]
+    OperationResult SetCellProtection(IExcelBatch batch, [AllowEmptyString] string sheetName,
+        [RequiredParameter] string rangeAddress, bool? locked = null, bool? formulaHidden = null);
 
     /// <summary>
-    /// Gets lock status of first cell in range.
-    /// Excel COM: Range.Locked
+    /// Reads both native protection flags for every unique requested cell, without a cap or selection change.
     /// </summary>
-    /// <param name="sheetName">Name of the worksheet</param>
+    /// <param name="sheetName">Worksheet name; empty for named ranges</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
-    [ServiceAction("get-cell-lock")]
-    RangeLockInfoResult GetCellLock(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
+    [ServiceAction("get-cell-protection")]
+    RangeCellProtectionResult GetCellProtection(IExcelBatch batch, [AllowEmptyString] string sheetName,
+        [RequiredParameter] string rangeAddress);
 }

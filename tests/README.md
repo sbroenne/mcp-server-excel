@@ -79,6 +79,31 @@ expected error as a substitute for intended success, or infer that a whole
 feature is unsupported from one rejected input. Keep invalid-input behavior in
 separate negative tests and identify unavailable prerequisites explicitly.
 
+### Checking exact feature outcomes
+
+For new workbook operations, assert the exact changed state and the unchanged
+surrounding state, not only counts or matching writer/getter responses. Filter
+tests should identify the visible records; layout tests should check expected
+coordinates, identities, sizes, and unselected objects. Partial formatting
+updates should check every supplied field and every omitted setting using
+distinct initial values. Use raw COM or saved-file inspection when a shared
+writer/getter mistake could otherwise pass.
+
+Keep success, invalid-input, cancellation, output/cleanup failure, and
+save/reopen cases separate where each applies. Adapter tests check exact
+requests, defaults, and failure output; real Excel tests establish workbook
+behavior. For high-risk changes, temporarily introduce a specific wrong
+mapping, selection, omitted-field reset, or missing cleanup and confirm the
+intended test fails. Restore the change and rerun the final source before
+delivery; retain these fault-check results with the run evidence.
+
+Before PR delivery, include affected existing callers as well as new feature
+tests. Run the full existing Excel-free selection with
+`scripts\Invoke-ExcelFreeTests.ps1` (without `-Local`), including packaged-plugin
+validation, and `npx --no-install changeset status --since=origin/main`.
+These complement focused native tests and normal hooked runtime E2E; they do
+not replace either.
+
 ### CLI and MCP coverage
 
 CLI and MCP tests concentrate on argument/name/default mapping,
@@ -243,6 +268,10 @@ execution deadline. Empty selections, skipped tests, failures, and assembly
 cleanup failures fail the run. `-Stages Cli`, `-Stages Rebuild`, or `-Stages Mcp`
 is a focused run, not complete runtime acceptance. `Test-CliWorkflow.ps1` is a
 compatible wrapper for the CLI stage, including `-PipeName` and `-KeepFile`.
+The CLI stage also retains the expanded native API workflow in
+`Test-CliApiCoverage.ps1`, hosted by its own acceptance case with a private pipe
+and a hard deadline. MCP native formatting/style and report-depth assertions
+remain part of their independently reported acceptance scenarios.
 
 Reports and ownership journals go into a new `TestResults` directory by default.
 `-ResultsDirectory` can select another new directory. Reusing an existing
@@ -436,10 +465,10 @@ dotnet test tests/ExcelMcp.Diagnostics.Tests/ --filter "Feature=PowerQuery&RunTy
 # Test specific feature only
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=PowerQuery&RunType!=OnDemand"
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=DataModel&RunType!=OnDemand"
-dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=Tables&RunType!=OnDemand"
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "(Feature=Table|Feature=Tables)&RunType!=OnDemand"
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=PivotTables&RunType!=OnDemand"
-dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=Ranges&RunType!=OnDemand"
-dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=Connections&RunType!=OnDemand"
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "(Feature=Range|Feature=Ranges)&RunType!=OnDemand"
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=Connection&RunType!=OnDemand"
 ```
 
 ## When to Run Which Tests

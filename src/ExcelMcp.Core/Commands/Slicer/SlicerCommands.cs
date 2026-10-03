@@ -8,7 +8,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Slicer;
 /// <summary>
 /// Slicer commands bridging PivotTable and Table slicer operations.
 /// </summary>
-public sealed class SlicerCommands : ISlicerCommands
+public sealed partial class SlicerCommands : ISlicerCommands
 {
     private readonly PivotTableCommands _pivotTableCommands = new();
     private readonly TableCommands _tableCommands = new();

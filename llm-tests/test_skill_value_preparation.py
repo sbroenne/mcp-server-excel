@@ -40,9 +40,12 @@ class SkillValuePreparation(unittest.TestCase):
                 with self.assertRaises(AssertionError):
                     check_snapshot("financial-formatting", task.before, task.before)
                 task.session = task.cli("session", "open", str(task.path))["sessionId"]
-                task.command("rangeformat", "format-range", "--sheet", "Sheet1", "--range", "A1:C1", "--bold", "true")
-                task.command("rangeformat", "format-range", "--sheet", "Sheet1", "--range", "B2:C4", "--font-color", "#0000FF")
-                task.command("rangeformat", "format-range", "--sheet", "Sheet1", "--range", "B5:C5", "--font-color", "#000000")
+                task.command("rangeformat", "format", "--sheet", "Sheet1", "--range-addresses", "A1:C1",
+                             "--format-options", '{"bold":true}')
+                task.command("rangeformat", "format", "--sheet", "Sheet1", "--range-addresses", "B2:C4",
+                             "--format-options", '{"fontColor":"#0000FF"}')
+                task.command("rangeformat", "format", "--sheet", "Sheet1", "--range-addresses", "B5:C5",
+                             "--format-options", '{"fontColor":"#000000"}')
                 task.command("range", "set-number-format", "--sheet", "Sheet1", "--range", "B2:B5",
                              "--format-code", '$#,##0.00;($#,##0.00);"-"')
                 task.command("range", "set-number-format", "--sheet", "Sheet1", "--range", "C2:C5", "--format-code", "0.0%")
@@ -74,7 +77,7 @@ class SkillValuePreparation(unittest.TestCase):
                         self.assertEqual(task.before["sheets"][0]["sourceValues"][4][2], 1450)
                         self.assertEqual(task.before["sheets"][0]["sourceFormulas"][4][2], "=SUM(C2:C3)")
                         task.session = task.cli("session", "open", str(task.path))["sessionId"]
-                        task.command("calculationmode", "set-mode", "--mode", "manual")
+                        task.command("calculationmode", "set-settings", "--mode", "manual")
                         task.values("Sheet1", "B7", [["Unsaved user note"]])
                         values = task.command("range", "get-values", "--sheet", "Sheet1", "--range", "A1:C8")
                         call = ToolCall(
@@ -109,7 +112,7 @@ class SkillValuePreparation(unittest.TestCase):
                                      "--format-code", "0.00")
                     elif name == "bulk-update":
                         task.values("Sheet1", "B2:B61", [[100 + i * 2] for i in range(1, 61)])
-                        task.command("calculationmode", "calculate", "--scope", "workbook")
+                        task.command("calculationmode", "calculate", "--scope", "application")
                     elif name == "query-recovery":
                         path = str(task.path.parent / "orders.csv").replace('"', '""')
                         code = (

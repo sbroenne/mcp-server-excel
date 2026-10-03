@@ -105,7 +105,7 @@ public class Program
                     For bulk writes where repeated recalculation is costly, read the calculation mode, switch to manual,
                     write, calculate, and restore the prior mode, including after failure. One rectangular write is already batched.
                     After timeout or cancellation, inspect file list before restoring.
-                    If the session was removed or invalidated, do not call set-mode; report that restoration could not be completed.
+                    If the session was removed or invalidated, do not call set-settings; report that restoration could not be completed.
                     Writes do not force calculation in every mode; manual mode needs explicit calculation.
                     Execute clear authorized work without repeated approval. Discover facts with tools; ask a focused question
                     only when the target, essential result, or destructive permission remains unclear.

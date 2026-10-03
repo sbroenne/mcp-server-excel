@@ -14,7 +14,48 @@ public enum DrawingObjectKind
     /// <summary>Straight, elbow, or curved connector.</summary>
     Connector = 4,
     /// <summary>Worksheet Forms control.</summary>
-    FormControl = 5
+    FormControl = 5,
+    /// <summary>Grouped worksheet drawing objects.</summary>
+    Group = 6
+}
+
+/// <summary>Alignment within the selected drawing objects' bounding box.</summary>
+public enum DrawingAlignment
+{
+    /// <summary>Align left edges.</summary>
+    Left = 0,
+    /// <summary>Align horizontal centers.</summary>
+    Center = 1,
+    /// <summary>Align right edges.</summary>
+    Right = 2,
+    /// <summary>Align top edges.</summary>
+    Top = 3,
+    /// <summary>Align vertical centers.</summary>
+    Middle = 4,
+    /// <summary>Align bottom edges.</summary>
+    Bottom = 5
+}
+
+/// <summary>Spacing direction for selected drawing objects.</summary>
+public enum DrawingDistribution
+{
+    /// <summary>Equal horizontal gaps between objects.</summary>
+    Horizontal = 0,
+    /// <summary>Equal vertical gaps between objects.</summary>
+    Vertical = 1
+}
+
+/// <summary>Native front-to-back drawing order changes.</summary>
+public enum DrawingZOrder
+{
+    /// <summary>Move ahead of all other objects.</summary>
+    BringToFront = 0,
+    /// <summary>Move behind all other objects.</summary>
+    SendToBack = 1,
+    /// <summary>Move forward one position.</summary>
+    BringForward = 2,
+    /// <summary>Move backward one position.</summary>
+    SendBackward = 3
 }
 
 /// <summary>Supported Excel AutoShape types.</summary>

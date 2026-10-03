@@ -93,20 +93,36 @@ Use US number-format codes; Excel displays them in the user's locale. Preserve
 existing formats and fixed layouts unless a change is requested. See
 [ranges and formatting](range.md) for examples.
 
-For costly bulk writes, get the current calculation mode with `get-mode`, switch
+For costly bulk writes, get the current calculation mode with `get-settings`, switch
 to manual, calculate after writing, and **restore the prior mode** in `finally`.
 After a timeout or cancellation, inspect the session listing before attempting
-restoration. If the session was removed or invalidated, do not call `set-mode`;
+restoration. If the session was removed or invalidated, do not call `set-settings`;
 report that restoration could not be completed. Do not blindly reopen the
 workbook or repeat writes.
 Reads and operations needing intermediate results do not need manual mode.
 Value/formula writes attempt to restore the prior mode rather than always
 forcing calculation. Restoration can fail without failing the write; use
-`get-mode` when subsequent work depends on the mode. Automatic normally
+`get-settings` when subsequent work depends on the mode. Automatic normally
 recalculates dependent formulas after restoration; manual needs explicit
 calculation. Semi-automatic excludes what-if data tables, not ordinary worksheet
 Tables. Successful writes do not establish completion of asynchronous refreshes
 or Python calculations; check the owning operation's completion state.
+
+Calculation mode and iteration settings affect all workbooks in the session's
+owned Excel application, not other Excel processes. `calculate` with MCP
+`scope: 'application'` or CLI `--scope application` affects all its open workbooks.
+MCP `kind: 'full'` / CLI `--kind full` recalculates every formula; `rebuild`
+also rebuilds dependencies. Both require application scope.
+
+`set-settings` changes only supplied values. MCP iteration inputs are
+`iteration_enabled`, `maximum_iterations`, `maximum_change`, and
+`calculate_before_save`; CLI flags are `--iteration-enabled`,
+`--maximum-iterations`, `--maximum-change`, and `--calculate-before-save`.
+Do not enable workbook precision-as-displayed to change formatting:
+`set-precision` with MCP `precision_as_displayed: true` or CLI
+`--precision-as-displayed true` permanently rounds stored numbers across the
+workbook and requires MCP `allow_precision_loss: true` or CLI
+`--allow-precision-loss true`. Disabling it does not recover lost digits.
 
 ## Inputs and errors
 

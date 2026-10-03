@@ -40,7 +40,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
 
     [Theory]
     [InlineData(
-        "calculationmode calculate --session missing-session --scope workbook --mode manual",
+        "calculationmode calculate --session missing-session --scope application --mode manual",
         "mode",
         "calculate")]
     [InlineData(
@@ -101,7 +101,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
 
     [Theory]
     [InlineData(
-        """{"command":"calculation.calculate","sessionId":"missing-session","args":{"scope":"workbook","mode":"manual"}}""",
+        """{"command":"calculation.calculate","sessionId":"missing-session","args":{"scope":"application","mode":"manual"}}""",
         "mode",
         "calculate")]
     [InlineData(

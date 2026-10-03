@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
+using Sbroenne.ExcelMcp.Service;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
@@ -23,20 +25,25 @@ public sealed class RangeFormatFormatRangesTests(
             "range_format",
             new Dictionary<string, object?>
             {
-                ["action"] = "format-ranges",
+                ["action"] = "format",
                 ["session_id"] = sessionId,
                 ["sheet_name"] = "Formatting",
                 ["range_addresses"] = TargetRanges,
-                ["number_format"] = "0.00%"
+                ["format_options"] = new { numberFormat = "0.00%" }
             },
             RecordingToolTest.Success(
                 """{"success":true,"rangeCount":2,"numberFormat":"0.00%"}"""),
-            "rangeformat.format-ranges",
-            """{"sheetName":"Formatting","rangeAddresses":["A1:A2","C1:C2"],"numberFormat":"0.00%"}""");
+            "rangeformat.format",
+            JsonSerializer.Serialize(new
+            {
+                sheetName = "Formatting",
+                rangeAddresses = TargetRanges,
+                formatOptions = new CellFormatOptions { NumberFormat = "0.00%" }
+            }, ServiceProtocol.JsonOptions));
 
         using var args = RecordingToolTest.ParseArgs(
             call.Request,
-            "rangeformat.format-ranges",
+            "rangeformat.format",
             sessionId);
         var root = args.RootElement;
         Assert.Equal("Formatting", root.GetProperty("sheetName").GetString());
@@ -44,7 +51,7 @@ public sealed class RangeFormatFormatRangesTests(
         Assert.Equal(2, ranges.GetArrayLength());
         Assert.Equal("A1:A2", ranges[0].GetString());
         Assert.Equal("C1:C2", ranges[1].GetString());
-        Assert.Equal("0.00%", root.GetProperty("numberFormat").GetString());
+        Assert.Equal("0.00%", root.GetProperty("formatOptions").GetProperty("numberFormat").GetString());
 
         using var result = JsonDocument.Parse(call.JsonResult);
         Assert.Equal(2, result.RootElement.GetProperty("rangeCount").GetInt32());

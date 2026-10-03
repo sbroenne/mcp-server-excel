@@ -218,6 +218,8 @@ public class RegularChartStrategy : IChartStrategy
                     series = seriesCollection.Item(i);
                     var seriesInfo = new SeriesInfo
                     {
+                        ChartType = (ChartType)Convert.ToInt32(series.ChartType),
+                        AxisGroup = (ChartAxisGroup)Convert.ToInt32(series.AxisGroup),
                         Name = series.Name?.ToString() ?? string.Empty,
                         ValuesRange = series.Values?.ToString() ?? string.Empty,
                         CategoryRange = series.XValues?.ToString() ?? string.Empty
@@ -322,4 +324,3 @@ public class RegularChartStrategy : IChartStrategy
         }
     }
 }
-

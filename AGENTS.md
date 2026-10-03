@@ -79,6 +79,13 @@ Runtime changes in Core, ComInterop, Service, CLI, MCP, or their generators also
 require `scripts\Test-E2E.ps1` locally with Excel. Report it as not run when
 Excel is unavailable; build-only checks do not cover COM.
 
+The Python evaluation suite under `llm-tests/` is on-demand only, not part of the
+normal development lifecycle. This includes offline checks, Excel fixture checks,
+SDK discovery, and live agent comparisons. Run it and install its dependencies
+only when the user explicitly requests evaluation work. Unrun evaluations or
+unavailable Python/SDK dependencies are not implementation, commit, PR, or merge blockers.
+This does not waive required .NET/COM/E2E validation or normal Git hooks.
+
 Run applicable existing checks, not replacement audits:
 
 ```powershell

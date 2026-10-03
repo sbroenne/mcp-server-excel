@@ -48,10 +48,13 @@ The MCP Server and `excelcli` are equal user entry points. They expose the same 
 
 - `AGENTS.md`, nested `AGENTS.md` files, and `docs/agents/rules/` define coding, testing, COM safety, and release rules. The standalone review checklist remains in `.github/copilot-instructions.md` for VS Code review compatibility.
 - `docs/ARCHITECTURE.md` explains the public architecture.
-- `specs/` defines feature contracts and intended behavior.
+- Annotated Core interfaces and their implementations define operation contracts and behavior.
 - `docs/features/` documents user-facing behavior.
 - `docs/reference/` owns general workflows, limitations, and recovery documentation.
 - `skills/` contains only the CLI and MCP report-formatting skills; packaging
   selects their formatting reference from `docs/reference/report-formatting.md`.
 
 When these sources disagree, confirm the current implementation and update the stale source instead of creating another competing definition.
+
+Track proposed feature requirements in GitHub issues. Do not maintain separate
+specification copies of contracts or shipped feature documentation.

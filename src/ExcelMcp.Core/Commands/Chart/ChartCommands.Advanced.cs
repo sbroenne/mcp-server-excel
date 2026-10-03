@@ -17,6 +17,8 @@ public partial class ChartCommands
         int seriesIndex,
         ChartType chartType)
     {
+        ValidateSeriesIndex(seriesIndex);
+        if (!Enum.IsDefined(chartType)) throw new ArgumentOutOfRangeException(nameof(chartType));
         return batch.Execute((ctx, ct) =>
         {
             var findResult = FindChart(ctx.Book, chartName);

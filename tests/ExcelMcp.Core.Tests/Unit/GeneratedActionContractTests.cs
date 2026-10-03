@@ -25,6 +25,29 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 public sealed class GeneratedActionContractTests
 {
     [Fact]
+    public void VisibilityForward_RequiredEnumAndBooleanHaveNoOptionalSignatureDefaults()
+    {
+        var method = typeof(ServiceRegistry.RangeFormat)
+            .GetMethod(nameof(ServiceRegistry.RangeFormat.ForwardSetVisibility));
+        Assert.NotNull(method);
+        Assert.False(Assert.Single(method.GetParameters(), parameter => parameter.Name == "axis").IsOptional);
+        Assert.False(Assert.Single(method.GetParameters(), parameter => parameter.Name == "hidden").IsOptional);
+    }
+
+    [Theory]
+    [InlineData(null, true)]
+    [InlineData("rows", null)]
+    public void VisibilityForward_MissingRequiredValuesDoNotDispatch(string? axis, bool? hidden)
+    {
+        bool dispatched = false;
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.RangeFormat.ForwardSetVisibility<object?>(
+                "session-1", (_, _, _) => { dispatched = true; return null; },
+                sheetName: "Sheet1", rangeAddress: "A1", axis: axis, hidden: hidden));
+        Assert.False(dispatched);
+    }
+
+    [Fact]
     public void AnnotatedCategories_MatchGeneratedServiceAndCliActions()
     {
         var contracts = typeof(IPowerQueryCommands).Assembly.GetTypes()
@@ -124,7 +147,7 @@ public sealed class GeneratedActionContractTests
     }
 
     [Theory]
-    [InlineData("set-mode", """{"mode":"not-a-mode"}""")]
+    [InlineData("set-settings", """{"mode":"not-a-mode"}""")]
     [InlineData("calculate", """{"scope":"not-a-scope"}""")]
     public void CalculationDispatch_RejectsUnknownEnumsBeforeCoreDispatch(string action, string argsJson)
     {
@@ -184,7 +207,7 @@ public sealed class GeneratedActionContractTests
 
     [Theory]
     [InlineData("calculate", "mode", "manual")]
-    [InlineData("get-mode", "mode", "manual")]
+    [InlineData("get-settings", "mode", "manual")]
     public void CalculationCliRoute_RejectsParametersFromOtherActions(
         string action,
         string parameterName,

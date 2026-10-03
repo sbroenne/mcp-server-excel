@@ -122,14 +122,17 @@ public sealed partial class PersistentServiceRangeSpecializedTests
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
 
         var response = _fixture.Send(
-            "rangeformat.format-range",
+            "rangeformat.format",
             new
             {
                 sheetName,
-                rangeAddress = "A1:J1",
-                bold = true,
-                fillColor = "#1F4E79",
-                fontColor = "#FFFFFF"
+                rangeAddresses = (string[])["A1:J1"],
+                formatOptions = new
+                {
+                    bold = true,
+                    fillColor = "#1F4E79",
+                    fontColor = "#FFFFFF"
+                }
             });
 
         Assert.True(response.Success, response.ErrorMessage);
@@ -156,12 +159,15 @@ public sealed partial class PersistentServiceRangeSpecializedTests
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
 
         var response = await _fixture.SendForFailureAsync(
-            "rangeformat.format-range",
+            "rangeformat.format",
             new
             {
                 sheetName,
-                rangeAddress = "A1:J1",
-                fillColor = "not-a-color"
+                rangeAddresses = (string[])["A1:J1"],
+                formatOptions = new
+                {
+                    fillColor = "not-a-color"
+                }
             });
 
         Assert.Equal("InvalidInput", response.ErrorCategory);
@@ -173,23 +179,26 @@ public sealed partial class PersistentServiceRangeSpecializedTests
     }
 
     [Fact]
-    public async Task FormatRange_MissingSheet_ReturnsComInteropFailure()
+    public async Task FormatRange_MissingSheet_ReturnsNotFoundFailure()
     {
         var response = await _fixture.SendForFailureAsync(
-            "rangeformat.format-range",
+            "rangeformat.format",
             new
             {
                 sheetName = $"Missing_{Guid.NewGuid():N}",
-                rangeAddress = "A1:J1",
-                bold = true,
-                fillColor = "#1F4E79",
-                fontColor = "#FFFFFF"
+                rangeAddresses = (string[])["A1:J1"],
+                formatOptions = new
+                {
+                    bold = true,
+                    fillColor = "#1F4E79",
+                    fontColor = "#FFFFFF"
+                }
             });
 
-        Assert.Equal("ComInterop", response.ErrorCategory);
-        Assert.Equal("COMException", response.ExceptionType);
+        Assert.Equal("NotFound", response.ErrorCategory);
+        Assert.Equal("OperationFailureException", response.ExceptionType);
         Assert.Contains(
-            "Invalid index",
+            "not found",
             response.ErrorMessage,
             StringComparison.OrdinalIgnoreCase);
     }
@@ -213,25 +222,35 @@ public sealed partial class PersistentServiceRangeSpecializedTests
         bool? wrapText = null,
         int? orientation = null,
         string? numberFormat = null) =>
-        _commands.FormatRanges(
+        _commands.Format(
             batch,
             sheetName,
             rangeAddresses,
-            fontName,
-            fontSize,
-            bold,
-            italic,
-            underline,
-            fontColor,
-            fillColor,
-            borderStyle,
-            borderColor,
-            borderWeight,
-            horizontalAlignment,
-            verticalAlignment,
-            wrapText,
-            orientation,
-            numberFormat);
+            new()
+            {
+                FontName = fontName,
+                FontSize = fontSize,
+                Bold = bold,
+                Italic = italic,
+                Underline = underline is null ? null : underline.Value ? "single" : "none",
+                FontColor = fontColor,
+                FillColor = fillColor,
+                Borders = borderStyle is null && borderColor is null && borderWeight is null ? null :
+                    new[] { Core.Commands.Range.CellBorderPosition.Left, Core.Commands.Range.CellBorderPosition.Top,
+                        Core.Commands.Range.CellBorderPosition.Bottom, Core.Commands.Range.CellBorderPosition.Right }
+                        .Select(position => new Core.Commands.Range.CellBorderOptions
+                        {
+                            Position = position,
+                            LineStyle = borderStyle,
+                            Color = borderColor,
+                            Weight = borderWeight
+                        }).ToList(),
+                HorizontalAlignment = horizontalAlignment,
+                VerticalAlignment = verticalAlignment,
+                WrapText = wrapText,
+                Orientation = orientation,
+                NumberFormat = numberFormat
+            });
 
     private CellFormattingState ReadCellFormattingState(
         string sheetName,

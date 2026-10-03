@@ -15,12 +15,83 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Workbook;
 /// </summary>
 [ServiceCategory("workbook", "Workbook")]
 [McpTool("workbook", Title = "Workbook Operations", Destructive = true, Category = "structure",
-    Description = "Manage workbook metadata, document properties, Save As/copy operations, fixed-format PDF/XPS exports, and external Excel links. BREAK-EXTERNAL-LINK HAS NO TOOL-LEVEL UNDO: replaces linked formulas with their current values. SAVE-AS formats: auto, xlsx, xlsm, xlsb, xls; the active session follows the new path. DOCUMENT PROPERTIES: built-in properties can be read/updated; custom properties can be created, updated, and deleted. EXTERNAL LINKS: list, update, or permanently break Excel workbook links. Printing and print preview are excluded because default-printer output and modal preview are unsafe for unattended automation.")]
+    Description = "TABLE STYLES: list-table-styles discovers every native name/status/availability; get-table-style returns all native table/Pivot/slicer/timeline elements. create-table-style clones source_style_name without applying it; update-table-style takes a table_style_options object with native elementType names and differential formatting; delete-table-style can remove formatting from existing users. Font name/size, scripts and diagonal borders are unsupported. Built-in styles are read-only. Apply separately with table set-style, pivottable_calc set-layout-options, or slicer set-layout. "
+        + "Manage workbook metadata, document properties, Save As/copy operations, fixed-format PDF/XPS exports, external Excel links, native themes, and cell styles. CELL STYLES: list-cell-styles returns every name and built-in/custom status; get-cell-style reads a complete native definition. create-cell-style captures exactly one visible source cell without modifying it; temporarily activates its worksheet and restores the prior view. Hidden source sheets are rejected without changing visibility. update-cell-style changes a custom definition and can affect all existing users throughout the workbook; omitted inclusion flags are preserved. delete-cell-style removes the custom name from existing users; Excel determines retained formatting. Built-in styles are read-only. Apply styles separately with range_format set-style. THEME: get-theme returns all 12 colors and major/minor font definitions; empty script fonts remain empty, with no fallback font invented. apply-theme takes an existing absolute-path .thmx file and changes theme-sensitive formatting throughout the workbook; fixed RGB remains fixed. Saving stays explicit. BREAK-EXTERNAL-LINK HAS NO TOOL-LEVEL UNDO: replaces linked formulas with their current values. SAVE-AS formats: auto, xlsx, xlsm, xlsb, xls; the active session follows the new path. DOCUMENT PROPERTIES: built-in properties can be read/updated; custom properties can be created, updated, and deleted. EXTERNAL LINKS: list, update, or permanently break Excel workbook links. Printing and print preview are excluded because default-printer output and modal preview are unsafe for unattended automation.")]
 public interface IWorkbookCommands
 {
+    /// <summary>Lists every native table/Pivot/slicer/timeline style name, built-in/custom status, and availability flags without a cap.</summary>
+    [ServiceAction("list-table-styles")]
+    TableStyleListResult ListTableStyles(IExcelBatch batch);
+
+    /// <summary>Reads all native elements of the selected table style, including unformatted elements, differential formatting, stripe sizes, and availability. Built-in styles are inspectable but read-only.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="styleName">Native cell or table style name. Discover existing names with list-cell-styles or list-table-styles; create actions require a new name.</param>
+    [ServiceAction("get-table-style")]
+    TableStyleResult GetTableStyle(IExcelBatch batch, [RequiredParameter] string styleName);
+
+    /// <summary>Creates a custom table style by cloning an existing native definition. It is not applied automatically. Existing names are rejected.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="styleName">New custom style name.</param>
+    /// <param name="sourceStyleName">Existing native table/Pivot/slicer/timeline style to clone.</param>
+    [ServiceAction("create-table-style")]
+    TableStyleResult CreateTableStyle(IExcelBatch batch, [RequiredParameter] string styleName,
+        [RequiredParameter] string sourceStyleName);
+
+    /// <summary>Updates custom table/Pivot/slicer/timeline style elements and availability. Omitted settings are preserved; changes can affect existing users throughout the workbook. Built-in styles are read-only. Native failures do not promise rollback.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="styleName">Existing custom style name.</param>
+    /// <param name="tableStyleOptions">Typed object: availability flags and elements, each with elementType (native xl name), clear, stripeSize, bold/italic/underline/strikethrough/themeFont, font/fill color/theme/tint, and borders. Only row/column stripes accept stripeSize. No font name/size, script, alignment, number format or diagonals.</param>
+    [ServiceAction("update-table-style")]
+    TableStyleResult UpdateTableStyle(IExcelBatch batch, [RequiredParameter] string styleName,
+        [RequiredParameter] TableStyleOptions tableStyleOptions);
+
+    /// <summary>Deletes a custom table style. Existing tables/Pivots/slicers/timelines can lose its formatting; Excel determines the fallback. Built-in styles cannot be deleted. No tool-level undo.</summary>
+    [ServiceAction("delete-table-style")]
+    OperationResult DeleteTableStyle(IExcelBatch batch, [RequiredParameter] string styleName);
+
+    /// <summary>Lists every native workbook cell-style name, localized name, and built-in/custom status without a cap. Use get-cell-style for a complete definition.</summary>
+    [ServiceAction("list-cell-styles")]
+    CellStyleListResult ListCellStyles(IExcelBatch batch);
+
+    /// <summary>Reads the selected cell style's complete native formatting and inclusion flags. Built-in styles are inspectable but not mutable through style lifecycle operations.</summary>
+    [ServiceAction("get-cell-style")]
+    CellStyleResult GetCellStyle(IExcelBatch batch, [RequiredParameter] string styleName);
+
+    /// <summary>Creates a custom cell style from exactly one visible source cell's stored formatting, without modifying that cell. Temporarily activates its worksheet and restores the prior view; hidden sheets are rejected without changing visibility. Existing names are rejected. Apply it separately with range_format set-style.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="styleName">New custom cell-style name; must not already exist.</param>
+    /// <param name="sourceSheetName">Visible source worksheet name.</param>
+    /// <param name="sourceCellAddress">Exactly one source cell in the selected workbook.</param>
+    [ServiceAction("create-cell-style")]
+    CellStyleResult CreateCellStyle(IExcelBatch batch, [RequiredParameter] string styleName,
+        [RequiredParameter] string sourceSheetName, [RequiredParameter] string sourceCellAddress);
+
+    /// <summary>Updates a custom cell style. Changes can affect all existing cells using it throughout the workbook. Omitted settings remain unchanged; inclusion flags control which properties applying the style uses. Built-in styles are read-only. Native failures do not promise rollback.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="styleName">Existing custom cell style.</param>
+    /// <param name="styleOptions">Typed object: formatOptions (same nested keys as range_format format, except inside borders are range-only), includeFont/includeNumber/includeAlignment/includeBorder/includePatterns/includeProtection, locked, formulaHidden. Omitted inclusion flags are preserved.</param>
+    [ServiceAction("update-cell-style")]
+    CellStyleResult UpdateCellStyle(IExcelBatch batch, [RequiredParameter] string styleName,
+        [RequiredParameter] CellStyleOptions styleOptions);
+
+    /// <summary>Deletes a custom cell style from the workbook. Existing users lose that named style; Excel determines retained cell formatting. Built-in styles cannot be deleted. No tool-level undo.</summary>
+    [ServiceAction("delete-cell-style")]
+    OperationResult DeleteCellStyle(IExcelBatch batch, [RequiredParameter] string styleName);
+
     /// <summary>Gets metadata for the active workbook.</summary>
     [ServiceAction("get-info")]
     WorkbookInfoResult GetInfo(IExcelBatch batch);
+
+    /// <summary>Reads all 12 native workbook theme colors and major/minor Latin, East Asian, and complex-script font definitions. Empty script font names remain empty; no fallback font is invented.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    [ServiceAction("get-theme")]
+    WorkbookThemeResult GetTheme(IExcelBatch batch);
+
+    /// <summary>Applies an existing Office .thmx theme through Excel and returns all native theme colors/fonts. This changes theme-sensitive formatting throughout the workbook; fixed RGB colors remain fixed. Saving remains explicit.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="themePath">Absolute path of the existing .thmx file. No theme file is created or copied.</param>
+    [ServiceAction("apply-theme")]
+    WorkbookThemeResult ApplyTheme(IExcelBatch batch, [RequiredParameter] string themePath);
 
     /// <summary>Lists built-in and/or custom workbook document properties.</summary>
     /// <param name="batch">Excel batch session</param>

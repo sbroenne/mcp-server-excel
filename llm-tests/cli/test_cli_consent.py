@@ -35,7 +35,7 @@ async def test_cli_audit_preserves_existing_unsaved_session(
     """CLI-only: its private daemon can have a user session before the agent starts."""
     workbook = consent_workbook
     session = workbook.cli("session", "open", str(workbook.path))["sessionId"]
-    workbook.cli("calculationmode", "set-mode", "--session", session, "--mode", "manual")
+    workbook.cli("calculationmode", "set-settings", "--session", session, "--mode", "manual")
     workbook.cli("range", "set-values", "--session", session, "--sheet", "Sheet1",
                  "--range", "B7", "--values", '[["Unsaved user note"]]')
     questions = []
@@ -52,7 +52,7 @@ async def test_cli_audit_preserves_existing_unsaved_session(
     assert len(sessions) == 1 and sessions[0]["sessionId"] == session, sessions
     assert workbook.cli("range", "get-values", "--session", session, "--sheet", "Sheet1", "--range", "B7")["values"] == [["Unsaved user note"]]
     assert workbook.cli("range", "get-formulas", "--session", session, "--sheet", "Sheet1", "--range", "C5")["formulas"] == [["=SUM(C2:C3)"]]
-    assert workbook.cli("calculationmode", "get-mode", "--session", session)["mode"] == "manual"
+    assert workbook.cli("calculationmode", "get-settings", "--session", session)["mode"] == "manual"
     assert workbook.cli("window", "get-info", "--session", session)["isVisible"] is False
     assert workbook.cli("workbook", "get-info", "--session", session)["saved"] is False
     assert hashlib.sha256(workbook.path.read_bytes()).hexdigest() == workbook.original_hash

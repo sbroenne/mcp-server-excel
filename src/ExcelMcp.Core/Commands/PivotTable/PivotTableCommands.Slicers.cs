@@ -192,6 +192,8 @@ public partial class PivotTableCommands
                     };
                 }
 
+                if (targetCache.SlicerCacheType == Excel.XlSlicerCacheType.xlTimeline)
+                    throw new ArgumentException("Use set-timeline-selection or clear-timeline-selection for a date timeline.");
                 // If no items specified, select all (clear filter)
                 bool selectAll = selectedItems.Count == 0;
 
@@ -294,6 +296,12 @@ public partial class PivotTableCommands
             try
             {
                 cache = slicerCaches.Item(i);
+                Excel.SlicerCache nativeCache = cache;
+                if (nativeCache.SlicerCacheType != Excel.XlSlicerCacheType.xlSlicer)
+                {
+                    ComUtilities.Release(ref cache);
+                    continue;
+                }
 
                 // Check if cache is for the same field
                 string cacheFieldName = GetSlicerCacheFieldName(cache);
@@ -431,12 +439,15 @@ public partial class PivotTableCommands
     /// </summary>
     private static SlicerInfo BuildSlicerInfo(dynamic slicer, dynamic cache, CancellationToken ct)
     {
+        Excel.SlicerCache nativeCache = cache;
+        bool isTimeline = nativeCache.SlicerCacheType == Excel.XlSlicerCacheType.xlTimeline;
         var info = new SlicerInfo
         {
             Name = slicer.Name?.ToString() ?? string.Empty,
             Caption = slicer.Caption?.ToString() ?? string.Empty,
             FieldName = GetSlicerCacheFieldName(cache),
-            ColumnCount = Convert.ToInt32(slicer.NumberOfColumns)
+            ColumnCount = isTimeline ? 0 : Convert.ToInt32(slicer.NumberOfColumns),
+            IsTimeline = isTimeline
         };
 
         // Get sheet name and position
@@ -468,9 +479,14 @@ public partial class PivotTableCommands
         }
 
         // Get selected and available items from cache
-        SlicerItemsResult items = GetSlicerItems((Excel.Slicer)slicer, (Excel.SlicerCache)cache, ct);
-        info.SelectedItems = items.Selected;
-        info.AvailableItems = items.Available;
+        if (isTimeline)
+            info.Timeline = SlicerCommands.ReadTimelineDetails(slicer, nativeCache);
+        else
+        {
+            var items = GetSlicerItems((Excel.Slicer)slicer, nativeCache, ct);
+            info.SelectedItems = items.Selected;
+            info.AvailableItems = items.Available;
+        }
 
         // Get connected PivotTables
         info.ConnectedPivotTables = GetConnectedPivotTableNames(cache, ct);

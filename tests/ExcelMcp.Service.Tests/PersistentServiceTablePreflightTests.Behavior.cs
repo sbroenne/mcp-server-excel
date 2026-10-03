@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Commands.Filtering;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -211,7 +212,8 @@ public sealed partial class PersistentServiceTablePreflightTests
         var batch = _fixture.BatchToken;
 
         // Apply filter so only North region remains visible
-        _tableCommands.ApplyFilterValues(batch, "SalesTable", "Region", ["North"]);
+        _tableCommands.ApplyFilter(batch, "SalesTable", "Region",
+            new FilterOptions { FilterOperator = FilterOperator.Values, Values = ["North"] });
 
         var result = _tableCommands.GetData(batch, "SalesTable", visibleOnly: true);
 
@@ -246,7 +248,8 @@ public sealed partial class PersistentServiceTablePreflightTests
     {
 
         var batch = _fixture.BatchToken;
-        _tableCommands.ApplyFilterValues(batch, "SalesTable", "Region", ["North"]);
+        _tableCommands.ApplyFilter(batch, "SalesTable", "Region",
+            new FilterOptions { FilterOperator = FilterOperator.Values, Values = ["North"] });
         // ApplyFilter throws on error, so reaching here means success
     }
 
@@ -261,7 +264,8 @@ public sealed partial class PersistentServiceTablePreflightTests
         var batch = _fixture.BatchToken;
 
         // Apply filter first
-        _tableCommands.ApplyFilterValues(batch, "SalesTable", "Region", ["North"]);
+        _tableCommands.ApplyFilter(batch, "SalesTable", "Region",
+            new FilterOptions { FilterOperator = FilterOperator.Values, Values = ["North"] });
 
         // Clear filters
         _tableCommands.ClearFilters(batch, "SalesTable");

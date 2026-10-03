@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Service;
 using Xunit;
 
@@ -23,41 +24,32 @@ public sealed class RangeFormatIssue585RegressionTests(
             "range_format",
             new Dictionary<string, object?>
             {
-                ["action"] = "format-range",
+                ["action"] = "format",
                 ["session_id"] = sessionId,
                 ["sheet_name"] = "Formatting",
-                ["range_address"] = "A1:J1",
-                ["font_name"] = null,
-                ["font_size"] = null,
-                ["bold"] = true,
-                ["italic"] = null,
-                ["underline"] = null,
-                ["font_color"] = "#FFFFFF",
-                ["fill_color"] = "#1F4E79",
-                ["border_style"] = null,
-                ["border_color"] = null,
-                ["border_weight"] = null,
-                ["horizontal_alignment"] = null,
-                ["vertical_alignment"] = null,
-                ["wrap_text"] = null,
-                ["orientation"] = null
+                ["range_addresses"] = (string[])["A1:J1"],
+                ["format_options"] = new { bold = true, fontColor = "#FFFFFF", fillColor = "#1F4E79", fontName = (string?)null, orientation = (int?)null }
             },
             RecordingToolTest.Success("""{"success":true}"""),
-            "rangeformat.format-range",
-            """{"sheetName":"Formatting","rangeAddress":"A1:J1","bold":true,"fontColor":"#FFFFFF","fillColor":"#1F4E79"}""");
+            "rangeformat.format",
+            JsonSerializer.Serialize(new
+            {
+                sheetName = "Formatting",
+                rangeAddresses = (string[])["A1:J1"],
+                formatOptions = new CellFormatOptions { Bold = true, FontColor = "#FFFFFF", FillColor = "#1F4E79" }
+            }, ServiceProtocol.JsonOptions));
 
         using var args = RecordingToolTest.ParseArgs(
             call.Request,
-            "rangeformat.format-range",
+            "rangeformat.format",
             sessionId);
         var root = args.RootElement;
         Assert.Equal("Formatting", root.GetProperty("sheetName").GetString());
-        Assert.Equal("A1:J1", root.GetProperty("rangeAddress").GetString());
-        Assert.True(root.GetProperty("bold").GetBoolean());
-        Assert.Equal("#FFFFFF", root.GetProperty("fontColor").GetString());
-        Assert.Equal("#1F4E79", root.GetProperty("fillColor").GetString());
-        Assert.False(root.TryGetProperty("fontName", out _));
-        Assert.False(root.TryGetProperty("orientation", out _));
+        Assert.Equal("A1:J1", root.GetProperty("rangeAddresses")[0].GetString());
+        var options = root.GetProperty("formatOptions");
+        Assert.True(options.GetProperty("bold").GetBoolean());
+        Assert.Equal("#FFFFFF", options.GetProperty("fontColor").GetString());
+        Assert.Equal("#1F4E79", options.GetProperty("fillColor").GetString());
     }
 
     [Fact]
@@ -68,30 +60,35 @@ public sealed class RangeFormatIssue585RegressionTests(
             "range_format",
             new Dictionary<string, object?>
             {
-                ["action"] = "format-range",
+                ["action"] = "format",
                 ["session_id"] = sessionId,
                 ["sheet_name"] = "Formatting",
-                ["range_address"] = "A1:J1",
-                ["fill_color"] = "not-a-color"
+                ["range_addresses"] = (string[])["A1:J1"],
+                ["format_options"] = new { fillColor = "not-a-color" }
             },
             new ServiceResponse
             {
                 Success = false,
-                Command = "rangeformat.format-range",
+                Command = "rangeformat.format",
                 SessionId = sessionId,
                 ErrorMessage = "Invalid color format: not-a-color",
                 ErrorCategory = "InvalidInput",
                 ExceptionType = "ArgumentException"
             },
-            "rangeformat.format-range",
-            """{"sheetName":"Formatting","rangeAddress":"A1:J1","fillColor":"not-a-color"}""");
+            "rangeformat.format",
+            JsonSerializer.Serialize(new
+            {
+                sheetName = "Formatting",
+                rangeAddresses = (string[])["A1:J1"],
+                formatOptions = new CellFormatOptions { FillColor = "not-a-color" }
+            }, ServiceProtocol.JsonOptions));
 
         using var result = JsonDocument.Parse(call.JsonResult);
         var root = result.RootElement;
         Assert.False(root.GetProperty("success").GetBoolean());
         Assert.Equal("ArgumentException", root.GetProperty("exceptionType").GetString());
         Assert.Equal("InvalidInput", root.GetProperty("errorCategory").GetString());
-        Assert.Equal("rangeformat.format-range", root.GetProperty("command").GetString());
+        Assert.Equal("rangeformat.format", root.GetProperty("command").GetString());
         Assert.Equal(sessionId, root.GetProperty("session_id").GetString());
         Assert.Contains(
             "not-a-color",

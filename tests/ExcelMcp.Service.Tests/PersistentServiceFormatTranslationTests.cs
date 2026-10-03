@@ -192,8 +192,8 @@ public sealed class PersistentServiceFormatTranslationTests(
                 var cellAddress = $"A{index + 1}";
                 var written = action == "single"
                     ? _rangeCommands.SetNumberFormat(batch, sheetName, cellAddress, formats[index])
-                    : _rangeCommands.FormatRanges(batch, sheetName, [cellAddress],
-                        null, null, null, null, null, null, null, null, null, null, null, null, null, null, formats[index]);
+                    : _rangeCommands.Format(batch, sheetName, [cellAddress],
+                        new() { NumberFormat = formats[index] });
                 Assert.True(written.Success, written.ErrorMessage);
             }
         }

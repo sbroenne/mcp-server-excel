@@ -20,7 +20,7 @@ public sealed class PersistentServiceCalculationTests(
     [Fact]
     public void GetMode_ReturnsAutomaticByDefault()
     {
-        var result = _calculation.GetMode(_fixture.BatchToken);
+        var result = _calculation.GetSettings(_fixture.BatchToken);
 
         Assert.True(result.Success);
         Assert.Equal("automatic", result.Mode);
@@ -38,26 +38,26 @@ public sealed class PersistentServiceCalculationTests(
         CalculationMode mode,
         bool writeFormula)
     {
-        var previous = _calculation.GetMode(_fixture.BatchToken);
+        var previous = _calculation.GetSettings(_fixture.BatchToken);
         Assert.True(previous.Success, previous.ErrorMessage);
         var range = _fixture.CreateCommands<IRangeCommands>();
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
         try
         {
-            Assert.True(_calculation.SetMode(_fixture.BatchToken, CalculationMode.Manual).Success);
+            Assert.True(_calculation.SetSettings(_fixture.BatchToken, CalculationMode.Manual).Success);
             var seed = range.SetFormulas(_fixture.BatchToken, sheetName, "A1:B1", [["=2", "=A1*2"]]);
             Assert.True(seed.Success, seed.ErrorMessage);
-            Assert.True(_calculation.Calculate(_fixture.BatchToken, CalculationScope.Workbook).Success);
+            Assert.True(_calculation.Calculate(_fixture.BatchToken, CalculationScope.Application).Success);
             var baseline = range.GetValues(_fixture.BatchToken, sheetName, "B1");
             Assert.True(baseline.Success, baseline.ErrorMessage);
             Assert.Equal(4d, Convert.ToDouble(baseline.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
 
-            Assert.True(_calculation.SetMode(_fixture.BatchToken, mode).Success);
+            Assert.True(_calculation.SetSettings(_fixture.BatchToken, mode).Success);
             var write = writeFormula
                 ? range.SetFormulas(_fixture.BatchToken, sheetName, "A1", [["=3"]], overwritePolicy: OverwritePolicy.Allow)
                 : range.SetValues(_fixture.BatchToken, sheetName, "A1", [[3]], overwritePolicy: OverwritePolicy.Allow);
             Assert.True(write.Success, write.ErrorMessage);
-            var retainedMode = _calculation.GetMode(_fixture.BatchToken);
+            var retainedMode = _calculation.GetSettings(_fixture.BatchToken);
             Assert.True(retainedMode.Success, retainedMode.ErrorMessage);
             Assert.Equal((int)mode, retainedMode.ModeValue);
             var beforeExplicitCalculation = range.GetValues(_fixture.BatchToken, sheetName, "B1");
@@ -65,14 +65,14 @@ public sealed class PersistentServiceCalculationTests(
             Assert.Equal(mode == CalculationMode.Manual ? 4d : 6d,
                 Convert.ToDouble(beforeExplicitCalculation.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
 
-            Assert.True(_calculation.Calculate(_fixture.BatchToken, CalculationScope.Workbook).Success);
+            Assert.True(_calculation.Calculate(_fixture.BatchToken, CalculationScope.Application).Success);
             var calculated = range.GetValues(_fixture.BatchToken, sheetName, "B1");
             Assert.True(calculated.Success, calculated.ErrorMessage);
             Assert.Equal(6d, Convert.ToDouble(calculated.Values[0][0], System.Globalization.CultureInfo.InvariantCulture));
         }
         finally
         {
-            var restored = _calculation.SetMode(_fixture.BatchToken, (CalculationMode)previous.ModeValue);
+            var restored = _calculation.SetSettings(_fixture.BatchToken, (CalculationMode)previous.ModeValue);
             Assert.True(restored.Success, restored.ErrorMessage);
         }
     }
@@ -90,18 +90,18 @@ public sealed class PersistentServiceCalculationTests(
     }
 
     [Theory]
-    [InlineData(CalculationScope.Workbook, 9d, 6d, 9d)]
+    [InlineData(CalculationScope.Application, 9d, 6d, 9d)]
     [InlineData(CalculationScope.Sheet, 9d, 4d, 6d)]
     [InlineData(CalculationScope.Range, 6d, 4d, 6d)]
     public void Calculate_UpdatesOnlyTheRequestedIndependentScope(
         CalculationScope scope, double targetOtherCell, double otherSheetCell, double otherSheetOtherCell)
     {
-        var previous = _calculation.GetMode(_fixture.BatchToken);
+        var previous = _calculation.GetSettings(_fixture.BatchToken);
         Assert.True(previous.Success, previous.ErrorMessage);
         var range = _fixture.CreateCommands<IRangeCommands>();
         var failure = Record.Exception(() =>
         {
-            var manual = _calculation.SetMode(_fixture.BatchToken, CalculationMode.Manual);
+            var manual = _calculation.SetSettings(_fixture.BatchToken, CalculationMode.Manual);
             Assert.True(manual.Success, manual.ErrorMessage);
             var target = _fixture.CreateTestSheet(_fixture.BatchToken);
             var other = _fixture.CreateTestSheet(_fixture.BatchToken);
@@ -114,7 +114,7 @@ public sealed class PersistentServiceCalculationTests(
                 var second = range.SetFormulas(_fixture.BatchToken, sheet, "D1", [["=A1*3"]]);
                 Assert.True(second.Success, second.ErrorMessage);
             }
-            var baseline = _calculation.Calculate(_fixture.BatchToken, CalculationScope.Workbook);
+            var baseline = _calculation.Calculate(_fixture.BatchToken, CalculationScope.Application);
             Assert.True(baseline.Success, baseline.ErrorMessage);
             foreach (var sheet in new[] { target, other })
             {
@@ -125,7 +125,7 @@ public sealed class PersistentServiceCalculationTests(
             }
 
             var calculated = _calculation.Calculate(_fixture.BatchToken, scope,
-                scope == CalculationScope.Workbook ? null : target,
+                scope == CalculationScope.Application ? null : target,
                 scope == CalculationScope.Range ? "B1" : null);
             Assert.True(calculated.Success, calculated.ErrorMessage);
             AssertCells(target, 6d, targetOtherCell);
@@ -141,7 +141,7 @@ public sealed class PersistentServiceCalculationTests(
         });
         var restoration = Record.Exception(() =>
         {
-            var restored = _calculation.SetMode(_fixture.BatchToken, (CalculationMode)previous.ModeValue);
+            var restored = _calculation.SetSettings(_fixture.BatchToken, (CalculationMode)previous.ModeValue);
             Assert.True(restored.Success, restored.ErrorMessage);
         });
         if (restoration != null)
@@ -184,7 +184,8 @@ public sealed class PersistentServiceCalculationTests(
                 CalculationScope.Sheet,
                 "MissingSheet"));
 
-        Assert.Contains("ComInterop/", exception.Message);
+        Assert.Contains("MissingSheet", exception.Message);
+        Assert.Contains("was not found", exception.Message);
         Assert.DoesNotContain(
             "Calculation failed",
             exception.Message,
@@ -198,16 +199,16 @@ public sealed class PersistentServiceCalculationTests(
     {
         try
         {
-            var setResult = _calculation.SetMode(_fixture.BatchToken, mode);
+            var setResult = _calculation.SetSettings(_fixture.BatchToken, mode);
             Assert.True(setResult.Success, setResult.ErrorMessage);
 
-            var getResult = _calculation.GetMode(_fixture.BatchToken);
+            var getResult = _calculation.GetSettings(_fixture.BatchToken);
             Assert.Equal(expectedName, getResult.Mode);
             Assert.Equal(expectedValue, getResult.ModeValue);
         }
         finally
         {
-            _calculation.SetMode(_fixture.BatchToken, CalculationMode.Automatic);
+            _calculation.SetSettings(_fixture.BatchToken, CalculationMode.Automatic);
         }
     }
 }

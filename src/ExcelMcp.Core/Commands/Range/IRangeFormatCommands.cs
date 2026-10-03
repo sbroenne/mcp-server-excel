@@ -10,14 +10,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 ///
 /// set-style: Apply a named Excel style (Heading 1, Good, Bad, Neutral, Normal).
 /// Best for semantic status labels (Good/Bad/Neutral have fill colours and are theme-aware) and document hierarchy (Heading 1/2/3).
-/// NOTE: Heading styles do NOT apply a fill colour — use format-range when you need a coloured header row.
+/// NOTE: Heading styles do NOT apply a fill colour — use format when you need a coloured header row.
 ///
-/// format-range: Apply any combination of bold, fillColor, fontColor, alignment, borders.
-/// Required whenever you need a fill colour or custom branding.
-/// Pass ALL desired properties in a SINGLE call — do not call format-range multiple times for the same range.
-///
-/// format-ranges: Apply one shared formatting payload to multiple ranges on the same worksheet.
-/// Prefer this over repeated format-range calls when the same styling applies to multiple non-contiguous targets.
+/// format: Apply one typed formatOptions payload to one or more rangeAddresses.
+/// Includes independent borders, theme colors/tints, font settings, and indentation.
 /// All target ranges are validated before formatting begins. If any target range is invalid, nothing is formatted.
 ///
 /// COLORS: Hex '#RRGGBB' (e.g., '#FF0000' for red, '#00FF00' for green)
@@ -33,10 +29,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 [ServiceCategory("rangeformat", "RangeFormat")]
 [McpTool("range_format", Title = "Range Format Operations", Destructive = true, Category = "data",
     Description = "Range formatting: styles, custom visual formatting, data validation, merge, auto-fit. " +
+        "get-format: Read every requested cell's stored, displayed (including conditional formatting), or both formatting snapshots; no preview limit and no selection changes. " +
+        "get-visibility: Read every unique intersecting whole row or column, native current size, outline level and worksheet AutoFilter context; hidden cause is undetermined. " +
+        "set-visibility: Required axis rows/columns and hidden true/false. Preserve stored dimensions; do not remove filter criteria or groups. Disjoint gaps remain unchanged. " +
         "set-style: Named styles (Good/Bad/Neutral have fills and are theme-aware; Heading 1/2/3 for document hierarchy; Normal to reset). " +
-        "NOTE: Heading styles do NOT include a fill colour — use format-range for coloured header rows. " +
-        "format-range: Custom formatting (bold, fillColor, fontColor, alignment, borders) — pass ALL properties IN ONE CALL, do not call multiple times for same range. " +
-        "format-ranges: Apply one shared formatting payload to multiple ranges on the same worksheet. Validate all target ranges first; if any target is invalid, nothing is formatted. " +
+        "NOTE: Heading styles do NOT include a fill colour — use format for coloured header rows. " +
+        "format: One format_options JSON object for one or more range_addresses. Includes independent edge/inside/diagonal borders, font settings, theme colors/tints, indentation, alignment and number format. Omitted settings preserve existing state. " +
+        "All targets and known invalid options are checked before mutation. Native failures do not promise rollback. Fixed RGB and theme colors are mutually exclusive for each component. " +
         "COLORS: Hex #RRGGBB. FONT: size in points, alignment left/center/right, top/middle/bottom. " +
         "DATA VALIDATION: Types list/whole/decimal/date/time/textLength/custom. For list: formula1 is source (=$A$1:$A$10 or \"A,B,C\"). " +
         "MERGE: Only top-left cell value preserved. " +
@@ -44,10 +43,55 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
         "PIVOTTABLES: Do not apply range_format to PivotTable cells — formatting is overwritten on the next refresh.")]
 public interface IRangeFormatCommands
 {
+    /// <summary>
+    /// Reads every unique whole row or column intersecting the exact requested scope.
+    /// Includes Hidden, native current size, outline level, and worksheet AutoFilter context.
+    /// Hidden cause is undetermined: COM has no reliable flag separating manual hiding,
+    /// filtering, zero size, or collapsed groups. Does not change selection or activation.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name; empty for named ranges</param>
+    /// <param name="rangeAddress">Exact scope; whole intersecting dimensions are returned without a cap</param>
+    /// <param name="axis">rows or columns</param>
+    [ServiceAction("get-visibility")]
+    RangeVisibilityResult GetVisibility(IExcelBatch batch, [AllowEmptyString] string sheetName,
+        [RequiredParameter] string rangeAddress, [RequiredParameter][FromString] VisibilityAxis axis);
+
+    /// <summary>
+    /// Sets native Hidden for every whole row or column intersecting the exact scope,
+    /// preserving Excel's stored dimensions. Disjoint gaps remain unchanged. Does not
+    /// remove filter criteria or outline groups; they can affect visibility again.
+    /// Does not bypass protection or promise rollback after a native failure.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name; empty for named ranges</param>
+    /// <param name="rangeAddress">Exact scope selecting whole intersecting rows or columns</param>
+    /// <param name="axis">rows or columns</param>
+    /// <param name="hidden">Required true to hide or false to show; native stored dimensions are retained</param>
+    [ServiceAction("set-visibility")]
+    OperationResult SetVisibility(IExcelBatch batch, [AllowEmptyString] string sheetName,
+        [RequiredParameter] string rangeAddress, [RequiredParameter][FromString] VisibilityAxis axis,
+        [RequiredParameter] bool hidden);
+
+    /// <summary>
+    /// Reads complete per-cell formatting in the exact requested scope.
+    /// Stored reads report workbook formatting; displayed reads include conditional
+    /// formatting. Both returns the two snapshots without changing cells or selection.
+    /// Mixed rich-text properties are identified explicitly, not replaced with defaults.
+    /// There is no preview limit. Use get-style only when the style name is sufficient.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="sheetName">Worksheet name, or empty string for a named range</param>
+    /// <param name="rangeAddress">Exact range or named range to inspect completely</param>
+    /// <param name="view">stored (default), displayed, or both formatting snapshots</param>
+    [ServiceAction("get-format")]
+    RangeFormatReadResult GetFormat(IExcelBatch batch, [AllowEmptyString] string sheetName,
+        [RequiredParameter] string rangeAddress, [FromString] FormatView view = FormatView.Stored);
+
     // === STYLE OPERATIONS ===
 
     /// <summary>
-    /// Applies built-in Excel cell style to range (recommended for consistency).
+    /// Applies an existing built-in or custom Excel cell style to a range.
     /// Excel COM: Range.Style = styleName
     /// </summary>
     /// <param name="batch">Excel batch context</param>
@@ -58,7 +102,8 @@ public interface IRangeFormatCommands
     OperationResult SetStyle(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] string styleName);
 
     /// <summary>
-    /// Gets the current built-in style name applied to a range.
+    /// Gets the native cell style applied to a range, including built-in/custom status.
+    /// Mixed styles require get-format rather than an invented Normal default.
     /// Excel COM: Range.Style.Name property
     /// </summary>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
@@ -67,93 +112,21 @@ public interface IRangeFormatCommands
     RangeStyleResult GetStyle(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
     /// <summary>
-    /// Applies custom visual formatting to a range (font, fill, border, alignment).
-    /// Use when built-in styles (set-style) don't meet your needs.
-    /// Excel COM: Range.Font, Range.Interior, Range.Borders, Range.HorizontalAlignment, etc.
-    /// Pass ALL desired properties in a SINGLE call — do not call format-range multiple times for the same range.
+    /// Applies one typed visual-formatting payload to one or more ranges.
+    /// Validates all target addresses, protection, and known invalid settings before
+    /// writing. Omitted properties preserve native state. Each selected border is
+    /// independent; lineStyle none removes it. Theme colors follow workbook themes;
+    /// fixed RGB remains fixed. A native failure does not promise rollback.
     /// </summary>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
-    /// <param name="rangeAddress">Cell range address to format (e.g., 'A1:D10')</param>
-    /// <param name="fontName">Font family name (e.g., 'Arial', 'Calibri', 'Times New Roman')</param>
-    /// <param name="fontSize">Font size in points (e.g., 10, 11, 12, 14, 16)</param>
-    /// <param name="bold">Whether to apply bold formatting</param>
-    /// <param name="italic">Whether to apply italic formatting</param>
-    /// <param name="underline">Whether to apply underline formatting</param>
-    /// <param name="fontColor">Font (foreground) color as hex '#RRGGBB' (e.g., '#FF0000' for red)</param>
-    /// <param name="fillColor">Cell fill (background) color as hex '#RRGGBB' (e.g., '#FFFF00' for yellow)</param>
-    /// <param name="borderStyle">Border line style: 'continuous', 'dash', 'dot', 'dashdot', 'dashdotdot', 'double', 'slantdashdot', 'none'</param>
-    /// <param name="borderColor">Border color as hex '#RRGGBB'</param>
-    /// <param name="borderWeight">Border weight: 'hairline', 'thin', 'medium', 'thick'</param>
-    /// <param name="horizontalAlignment">Horizontal text alignment: 'left', 'center', 'right', 'justify', 'fill'</param>
-    /// <param name="verticalAlignment">Vertical text alignment: 'top', 'center' (or 'middle'), 'bottom', 'justify'</param>
-    /// <param name="wrapText">Whether to wrap text within cells</param>
-    /// <param name="orientation">Text rotation in degrees (-90 to 90, or 255 for vertical)</param>
-    /// <remarks>
-    /// For consistent, professional formatting, prefer SetStyle with built-in styles.
-    /// Use FormatRange only when built-in styles don't meet your needs.
-    /// </remarks>
-    [ServiceAction("format-range")]
-    OperationResult FormatRange(
+    /// <param name="rangeAddresses">One or more target range addresses; all are validated before writing</param>
+    /// <param name="formatOptions">Typed JSON object: fontName, fontSize, bold, italic, underline (none/single/double/singleAccounting/doubleAccounting), strikethrough, subscript, superscript, themeFont (0 none/1 major/2 minor), fontColor/fontThemeColor/fontTintAndShade, fillColor/fillThemeColor/fillTintAndShade, borders (position, lineStyle, weight, color/themeColor/tintAndShade), horizontalAlignment, verticalAlignment, wrapText, shrinkToFit, indentLevel (0-15), readingOrder (context/leftToRight/rightToLeft), orientation, numberFormat. Theme-color indices 1-12; tints -1 to 1. Border positions Left/Top/Bottom/Right/InsideHorizontal/InsideVertical/DiagonalUp/DiagonalDown. Nested keys remain camelCase.</param>
+    [ServiceAction("format")]
+    OperationResult Format(
         IExcelBatch batch,
-        string sheetName,
-        [RequiredParameter] string rangeAddress,
-        string? fontName,
-        double? fontSize,
-        bool? bold,
-        bool? italic,
-        bool? underline,
-        string? fontColor,
-        string? fillColor,
-        string? borderStyle,
-        string? borderColor,
-        string? borderWeight,
-        string? horizontalAlignment,
-        string? verticalAlignment,
-        bool? wrapText,
-        int? orientation);
-
-    /// <summary>
-    /// Applies one shared custom visual formatting payload to multiple ranges on the same sheet.
-    /// Validates every target range before applying any formatting so invalid input fails fast without partially formatting earlier targets.
-    /// Reuses the same property set and formatting behavior as format-range.
-    /// </summary>
-    /// <param name="sheetName">Name of the worksheet containing the target ranges</param>
-    /// <param name="rangeAddresses">Cell range addresses to format (e.g., 'A1:D1', 'A3:D3')</param>
-    /// <param name="fontName">Font family name (e.g., 'Arial', 'Calibri', 'Times New Roman')</param>
-    /// <param name="fontSize">Font size in points (e.g., 10, 11, 12, 14, 16)</param>
-    /// <param name="bold">Whether to apply bold formatting</param>
-    /// <param name="italic">Whether to apply italic formatting</param>
-    /// <param name="underline">Whether to apply underline formatting</param>
-    /// <param name="fontColor">Font (foreground) color as hex '#RRGGBB' (e.g., '#FF0000' for red)</param>
-    /// <param name="fillColor">Cell fill (background) color as hex '#RRGGBB' (e.g., '#FFFF00' for yellow)</param>
-    /// <param name="borderStyle">Border line style: 'continuous', 'dash', 'dot', 'dashdot', 'dashdotdot', 'double', 'slantdashdot', 'none'</param>
-    /// <param name="borderColor">Border color as hex '#RRGGBB'</param>
-    /// <param name="borderWeight">Border weight: 'hairline', 'thin', 'medium', 'thick'</param>
-    /// <param name="horizontalAlignment">Horizontal text alignment: 'left', 'center', 'right', 'justify', 'fill'</param>
-    /// <param name="verticalAlignment">Vertical text alignment: 'top', 'center' (or 'middle'), 'bottom', 'justify'</param>
-    /// <param name="wrapText">Whether to wrap text within cells</param>
-    /// <param name="orientation">Text rotation in degrees (-90 to 90, or 255 for vertical)</param>
-    /// <param name="numberFormat">Excel number format code applied to all target ranges (e.g., '0.00%' for percentage, '$#,##0.00' for currency, 'm/d/yyyy' for date). LLMs know Excel format codes natively.</param>
-    [ServiceAction("format-ranges")]
-    OperationResult FormatRanges(
-        IExcelBatch batch,
-        string sheetName,
+        [AllowEmptyString] string sheetName,
         [RequiredParameter] string[] rangeAddresses,
-        string? fontName,
-        double? fontSize,
-        bool? bold,
-        bool? italic,
-        bool? underline,
-        string? fontColor,
-        string? fillColor,
-        string? borderStyle,
-        string? borderColor,
-        string? borderWeight,
-        string? horizontalAlignment,
-        string? verticalAlignment,
-        bool? wrapText,
-        int? orientation,
-        string? numberFormat = null);
+        [RequiredParameter] CellFormatOptions formatOptions);
 
     // === VALIDATION OPERATIONS ===
 
@@ -270,7 +243,7 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Column range to set width (e.g., 'A:A' or 'A1:D100')</param>
-    /// <param name="columnWidth">Width in points (1 point = 1/72 inch, approx 0.35mm). Standard width ~8.43 points. Range: 0.25-409 points.</param>
+    /// <param name="columnWidth">Width in Excel character-width units, not points. Standard width is approximately 8.43. Range: 0.25-409.</param>
     [ServiceAction("set-column-width")]
     OperationResult SetColumnWidth(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] double columnWidth);
 

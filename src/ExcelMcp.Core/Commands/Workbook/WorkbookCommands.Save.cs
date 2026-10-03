@@ -165,7 +165,7 @@ public partial class WorkbookCommands
         }
     }
 
-    private static string ValidateOutputPath(string outputPath, bool overwrite)
+    internal static string ValidateOutputPath(string outputPath, bool overwrite)
     {
         if (string.IsNullOrWhiteSpace(outputPath))
         {
@@ -190,7 +190,7 @@ public partial class WorkbookCommands
         return normalizedPath;
     }
 
-    private static string GetWritePath(string normalizedPath, bool overwrite)
+    internal static string GetWritePath(string normalizedPath, bool overwrite)
     {
         if (!overwrite || !File.Exists(normalizedPath))
         {
@@ -203,7 +203,7 @@ public partial class WorkbookCommands
         return Path.Combine(directory, $".{fileName}.{Guid.NewGuid():N}.tmp{extension}");
     }
 
-    private static void CommitOutput(string writePath, string normalizedPath)
+    internal static void CommitOutput(string writePath, string normalizedPath)
     {
         if (!string.Equals(writePath, normalizedPath, StringComparison.OrdinalIgnoreCase))
         {
@@ -211,7 +211,7 @@ public partial class WorkbookCommands
         }
     }
 
-    private static void DeleteTemporaryOutput(string writePath, string normalizedPath)
+    internal static void DeleteTemporaryOutput(string writePath, string normalizedPath)
     {
         if (!string.Equals(writePath, normalizedPath, StringComparison.OrdinalIgnoreCase) &&
             File.Exists(writePath))

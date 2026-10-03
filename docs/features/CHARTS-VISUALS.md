@@ -6,7 +6,7 @@ Create charts, slicers, conditional formatting, screenshots, drawing objects, an
 
 ---
 
-## 📉 Charts (33 operations)
+## 📉 Charts (40 operations)
 
 Create and format charts and PivotCharts, with full control over series, axes, labels, and trendlines.
 
@@ -23,6 +23,10 @@ Create and format charts and PivotCharts, with full control over series, axes, l
 - **Remove Series:** Remove a data series
 - **Update Series Data:** Change the data range for a series
 - **Set Series Chart Type:** Build combo charts by assigning a type to one series
+- **Read Series / Axis Assignment:** Inspect native type, source formula, point count and axis assignment; move regular series to primary or secondary axes
+- **Read / Set Error Bars:** Native fixed, percentage, statistical and custom-range bars with explicit unsupported getter limitations
+- **Read / Set Point Format:** Change one point's material or supported marker colors/style/size without changing its neighbors
+- **Export Image:** Export real PNG, JPEG or GIF output with explicit permission before replacing existing images
 
 **Configuration:**
 - **Set Data Source:** Change the chart's source range
@@ -78,12 +82,12 @@ Create and format charts and PivotCharts, with full control over series, axes, l
 
 ---
 
-## 🔪 Slicers (8 operations)
+## 🔪 Slicers (15 operations)
 
 Add interactive slicers to filter PivotTables and Excel Tables visually.
 
 **PivotTable Slicers:**
-- **Create Slicer:** Add slicer for PivotTable field with optional position
+- **Create Slicer:** Add slicer for PivotTable field with required name, destination sheet and anchor position
 - **List Slicers:** List all PivotTable slicers in workbook
 - **Set Selection:** Filter PivotTable by slicer selection (single or multi-select)
 - **Delete Slicer:** Remove PivotTable slicer
@@ -94,21 +98,44 @@ Add interactive slicers to filter PivotTables and Excel Tables visually.
 - **Set Table Selection:** Filter Table by slicer selection
 - **Delete Table Slicer:** Remove Table slicer
 
+**Timelines and Shared Controls:**
+- **Create Timeline:** Add a native date timeline for a PivotTable date field
+- **Get Slicer:** Read complete native geometry, style, connections, item selections and timeline state
+- **Update Slicer:** Patch dimensions, coordinates, caption, style, ordinary columns/header or timeline display level/view flags
+- **Set Timeline Selection:** Set an inclusive calendar-date range on every connected PivotTable
+- **Clear Timeline Selection:** Clear this timeline's date filter without clearing unrelated field filters
+- **Connect / Disconnect PivotTable:** Change links to compatible shared-cache PivotTables without rebuilding caches; keep at least one source connection
+
+Timeline state is also included in slicer listings. Connections require an
+existing shared PivotCache, not merely matching fields. Table slicers cannot
+connect to PivotTables. Coordinates and dimensions use points. Ordinary item
+selection is not applicable to timelines; deleting a control need not clear
+its filter.
+
 **Notes:**
 - **Use cases:** Interactive data filtering without modifying PivotTable/Table structure, dashboard creation with visual filter controls, and multi-slicer filtering for complex data analysis.
 - **Data Model slicers:** The same PivotTable slicer actions support Data Model/OLAP fields such as `[Quarters].[Quarter]`. Available and selected items return displayed captions; selection accepts captions or MDX unique names. Unknown or ambiguous items fail before changing the filter. An empty selection clears the filter; selection replaces by default, or adds when MCP `clear_first: false` / CLI `--clear-first false` is supplied. Read the selected items and PivotTable data to verify the result.
 
 ---
 
-## 🌈 Conditional Formatting (4 operations)
+## 🌈 Conditional Formatting (7 operations)
 
 Apply rule-based formatting that highlights cells based on their values.
 
 **Operations:**
-- **Add Rule:** Create a conditional formatting rule — cell value comparison (>, <, =, etc.), expression-based formula (custom DAX/Excel formula), or color scale/data bar/icon set
+- **Add Rule:** Create a conditional formatting rule — cell value comparison (>, <, =, etc.), expression-based Excel worksheet formula, or color scale/data bar/icon set
 - **Clear Rules:** Remove formatting from ranges
 - **List Rules:** Read existing conditional formatting rules for a range — returns rule type, operator, formulas, applies-to range, priority, and formatting (interior/font/borders) with colors as #RRGGBB hex
 - **List Worksheet Rules:** Read all conditional formatting rules across an entire worksheet, each with its applies-to range, in priority order
+- **Update Rule:** Change only supplied, applicable settings on an existing rule, including formulas, visual thresholds, formatting, applies-to range, and stop-if-true; retain its type and other rules
+- **Delete Rule:** Remove only the selected rule without clearing unrelated formatting
+- **Set Rule Priority:** Set a selected rule's native worksheet-wide priority and return fresh rule descriptors
+
+Selected edits use the current worksheet-wide priority and fingerprint from a
+rule listing, not a range collection index or permanent rule ID. Stale selections
+fail before writes. Native priorities may have gaps for disjoint rules. Creation
+also accepts explicit priority and stop-if-true; scales, bars, and icons do not
+support stop-if-true. Native failures do not promise rollback.
 
 ---
 
@@ -122,14 +149,22 @@ Capture ranges or worksheets as images by photographing the live Excel window.
 
 ---
 
-## 🖼️ Drawing Objects & Sparklines (14 operations)
+## 🖼️ Drawing Objects & Sparklines (20 operations)
 
 Create and manage worksheet visuals without replacing the workbook file.
 
 - **List / Get / Update / Delete Objects:** Manage geometry, text, colors, placement, accessibility text, and safe control bindings
 - **Add Image / Shape / Text Box / Connector:** Create and format worksheet drawing objects
+- **Group / Ungroup:** Group named worksheet objects or expose a group's direct members; read complete native membership
+- **Align / Distribute:** Align edges or centers and distribute equal gaps within the selected objects' extent
+- **Duplicate / Stacking Order:** Duplicate native objects with point offsets or move them front/back or one position; return actual names and positions
 - **Add Form Control:** Add safe Forms controls such as buttons, check boxes, option buttons, lists, and drop-downs
 - **List / Get / Add / Update / Delete Sparklines:** Manage line, column, and win/loss sparkline groups
+
+Drawing layout requires distinct top-level names on one worksheet and rejects
+protected drawing objects, charts, ActiveX/OLE and unknown types. Duplication
+does not copy macro-bound objects or group members. Excel may flatten groups
+when regrouping; returned membership describes the actual native result.
 
 ActiveX/OLE controls and macro assignment are intentionally excluded because they cannot be automated safely and reliably across Excel security configurations.
 

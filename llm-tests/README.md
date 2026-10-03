@@ -1,5 +1,14 @@
 # ExcelMcp agent evaluations
 
+**This entire Python suite is on-demand only, not part of the normal development
+lifecycle**, including its offline, Excel fixture, SDK-discovery, and live-agent
+checks. It is not required for ordinary product validation, commits, PRs, or
+merges. Follow the
+[repository's on-demand evaluation policy](../AGENTS.md#build-and-validation):
+use the setup and commands below only for explicitly requested evaluation work.
+Missing evaluation dependencies do not block product delivery; required .NET,
+Excel, and normal Git-hook checks remain unchanged.
+
 These manual tests ask real agents to use the MCP Server and `excelcli`. They
 answer a different question from integration tests: can an agent discover the
 right workflow, complete it correctly, and respect the user's permissions?
@@ -60,7 +69,7 @@ copies or edit generated `SKILL.md` files.
 Checks of the harness and transport need neither Excel nor model access:
 
 ```powershell
-uv run python -m unittest test_eval_harness.py test_cli_mcp_server.py test_cli_result_assertions.py test_consent_scenarios.py test_skill_value_checks.py test_spreadsheetbench.py test_aggregate_skill_value.py test_formatting_value.py -v
+uv run python -m unittest test_eval_harness.py test_cli_mcp_server.py test_cli_result_assertions.py test_consent_scenarios.py test_skill_value_checks.py test_skill_value_contracts.py test_spreadsheetbench.py test_aggregate_skill_value.py test_formatting_value.py -v
 ```
 
 Checks of the independent workbook reader and experiment fixtures need Excel

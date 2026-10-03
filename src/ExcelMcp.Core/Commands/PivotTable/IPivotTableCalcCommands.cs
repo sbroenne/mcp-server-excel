@@ -167,6 +167,19 @@ public interface IPivotTableCalcCommands
     [ServiceAction("set-layout")]
     OperationResult SetLayout(IExcelBatch batch, string pivotTableName, int rowLayout);
 
+    /// <summary>Reads native PivotTable style/refresh formatting and the complete per-row-field layout, including repeated labels.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="pivotTableName">Selected PivotTable.</param>
+    [ServiceAction("get-layout-options")]
+    PivotLayoutResult GetLayoutOptions(IExcelBatch batch, string pivotTableName);
+
+    /// <summary>Updates selected native layout/style options; omitted settings remain unchanged. Repeated labels require noncompact row layout.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="pivotTableName">Selected PivotTable.</param>
+    /// <param name="layoutOptions">Typed row layout, repeated labels, style name, preserveFormatting, and header/banding options.</param>
+    [ServiceAction("set-layout-options")]
+    PivotLayoutResult SetLayoutOptions(IExcelBatch batch, string pivotTableName, PivotLayoutOptions layoutOptions);
+
     /// <summary>
     /// Shows or hides subtotals for a specific row field.
     /// </summary>

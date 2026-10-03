@@ -55,7 +55,7 @@ Write and read `=PY()` formulas that run in Excel's cloud Python engine.
 
 ---
 
-## 🪧 Window Management (15 operations)
+## 🪧 Window Management (16 operations)
 
 Show, position, and arrange the Excel window — great for watching the AI work in real time.
 
@@ -71,6 +71,7 @@ Show, position, and arrange the Excel window — great for watching the AI work 
 - **Arrange:** Arrange the Excel window using preset layouts
 
 **Workbook View & Panes:**
+- **Get Context:** Read every owned workbook window's active sheet, selection, active cell, and chart without activation, selection, or visibility changes; unavailable and unsupported selections are explicit
 - **Get View:** Read zoom, pane state, and display options, including formula display
 - **Freeze / Unfreeze Panes:** Freeze rows/columns at a worksheet boundary or remove frozen panes
 - **Set Split:** Configure movable horizontal and vertical panes

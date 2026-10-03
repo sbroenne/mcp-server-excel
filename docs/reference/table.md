@@ -18,6 +18,35 @@ permission to clear excluded cells.
 rows. Use `visible_only: true` (MCP) / `--visible-only true` (CLI) for visible
 rows. Append uses existing column order.
 
+## Native filtering
+
+MCP `table_column` / CLI `tablecolumn` `apply-filter` uses typed `options` /
+`--options`. The former `apply-filter-values` action is removed, not an alias.
+Other column filters are preserved. `clear-filters` affects the selected Table,
+not every worksheet filter.
+
+```mcp
+table_column(action: 'apply-filter', session_id: sessionId, table_name: 'Sales', column_name: 'Amount', options: {filterOperator: 'And', criteria1: '>=100', criteria2: '<=500'})
+table_column(action: 'apply-filter', session_id: sessionId, table_name: 'Sales', column_name: 'Region', options: {filterOperator: 'Values', values: ['North','West','Central']})
+```
+
+```cli
+excelcli -q tablecolumn apply-filter --session $sessionId --table-name Sales --column-name Amount --options '{"filterOperator":"And","criteria1":">=100","criteria2":"<=500"}'
+excelcli -q tablecolumn apply-filter --session $sessionId --table-name Sales --column-name Region --options '{"filterOperator":"Values","values":["North","West","Central"]}'
+```
+
+Nested option keys stay camelCase. Native date groups select a year/month/day,
+not a text-only date comparison. Color, icon, top/bottom, and dynamic operators
+require only their applicable typed fields; unrelated settings fail before writes.
+`get-filters` returns every column, native operators, and both criterion slots.
+Arrays stay arrays. Excel can normalize two selected values into an OR condition;
+reads report native state, not a reconstruction of the original request.
+Criterion getter failures include their HRESULT and `readError`, not invented
+blank criteria. A native empty variant has `emptyVariant: true`.
+
+Use ordinary-range filtering and criteria-range filtering through
+[range operations](range.md), not Table creation as a prerequisite.
+
 ## Styling
 
 Use `table_style` (MCP) / `--table-style` (CLI) at creation or `set-style`

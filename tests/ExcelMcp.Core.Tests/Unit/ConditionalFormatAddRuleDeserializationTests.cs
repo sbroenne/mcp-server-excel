@@ -145,6 +145,16 @@ public sealed class ConditionalFormatAddRuleDeserializationTests
 
     private sealed class CapturingConditionalFormattingCommands : IConditionalFormattingCommands
     {
+        public ConditionalFormatListResult UpdateRule(IExcelBatch batch, string sheetName,
+            int rulePriority, string expectedFingerprint, ConditionalRuleUpdateOptions options) =>
+            throw new NotSupportedException();
+
+        public ConditionalFormatListResult DeleteRule(IExcelBatch batch, string sheetName,
+            int rulePriority, string expectedFingerprint) => throw new NotSupportedException();
+
+        public ConditionalFormatListResult SetRulePriority(IExcelBatch batch, string sheetName,
+            int rulePriority, string expectedFingerprint, int newPriority) => throw new NotSupportedException();
+
         public bool AddRuleCalled { get; private set; }
         public bool ClearRulesCalled { get; private set; }
         public bool ListRulesCalled { get; private set; }
@@ -205,7 +215,9 @@ public sealed class ConditionalFormatAddRuleDeserializationTests
             bool? top10Percent = null,
             string? topBottom = null,
             string? aboveBelow = null,
-            string? datePeriod = null)
+            string? datePeriod = null,
+            int? priority = null,
+            bool? stopIfTrue = null)
         {
             AddRuleCalled = true;
             SheetName = sheetName;

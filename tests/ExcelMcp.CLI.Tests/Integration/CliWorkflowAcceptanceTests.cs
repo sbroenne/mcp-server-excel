@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
@@ -74,9 +76,9 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
     public async Task Formatting_TypedAndRepeatedArgumentsRoundTrip()
     {
         await SendAsync("sheet", "create", "--session", Session, "--sheet-name", "Data");
-        await SendAsync("rangeformat", "format-ranges", "--session", Session, "--sheet-name", "Data",
-            "--range-addresses", "A1:A2", "--range-addresses", "C1:C2", "--bold", "true",
-            "--fill-color", "#FFFF00", "--number-format", "0.00");
+        await SendAsync("rangeformat", "format", "--session", Session, "--sheet-name", "Data",
+            "--range-addresses", "A1:A2", "--range-addresses", "C1:C2",
+            "--format-options", """{"bold":true,"fillColor":"#FFFF00","numberFormat":"0.00"}""");
         foreach (var address in new[] { "A1", "C1" })
         {
             var formats = await SendAsync("range", "get-number-formats", "--session", Session,
@@ -91,6 +93,58 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
         var rule = Assert.Single(rules.GetProperty("rules").EnumerateArray());
         Assert.Equal(7, rule.GetProperty("top10").GetProperty("rank").GetInt32());
         Assert.True(rule.GetProperty("top10").GetProperty("percent").GetBoolean());
+    }
+
+    [Fact]
+    public async Task NativeApiCoverage_OperationsAndSavedStateRoundTrip()
+    {
+        await SendAsync("session", "close", "--session", Session, "--save", "false");
+        _session = null;
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
+        var startInfo = new ProcessStartInfo("pwsh")
+        {
+            WorkingDirectory = root,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+        foreach (var argument in new[]
+        {
+            "-NoProfile", "-File", Path.Combine(root, "scripts", "Test-CliApiCoverage.ps1"),
+            "-PipeName", _environment["EXCELMCP_CLI_PIPE"]
+        })
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
+        if (Environment.GetEnvironmentVariable("EXCELMCP_CLI_WORKFLOW_KEEP_FILE") == "true")
+        {
+            startInfo.ArgumentList.Add("-KeepFile");
+        }
+        using var process = Process.Start(startInfo)
+            ?? throw new InvalidOperationException("Native CLI coverage process did not start.");
+        var stdout = process.StandardOutput.ReadToEndAsync();
+        var stderr = process.StandardError.ReadToEndAsync();
+        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(8));
+        try
+        {
+            await process.WaitForExitAsync(timeout.Token);
+        }
+        catch (OperationCanceledException exception) when (timeout.IsCancellationRequested)
+        {
+            try { process.Kill(entireProcessTree: true); }
+            catch (InvalidOperationException) when (process.HasExited) { }
+            await process.WaitForExitAsync();
+            throw new TimeoutException(
+                $"Native CLI coverage exceeded eight minutes.\n{await stdout}\n{await stderr}", exception);
+        }
+        var result = await stdout;
+        var errors = await stderr;
+        output.WriteLine(result);
+        Assert.True(process.ExitCode == 0, $"{result}\n{errors}");
+        var count = Regex.Match(result, @"(?m)^Passed: (\d+)\r?$").Groups[1].Value;
+        Assert.True(int.TryParse(count, out var passed) && passed >= 120, result);
+        Assert.Contains("Failed: 0", result, StringComparison.Ordinal);
     }
 
     public async Task DisposeAsync()
