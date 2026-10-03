@@ -125,7 +125,9 @@ function Get-ValidationPlan {
             [void]$fast.Add($project)
             if ($project -eq 'CLI') { [void]$process.Add($project) }
         }
-        if ($path -match '^tests/Shared/|^tests/.*\.csproj$|^tests/.*xunit\.runner\.json$') {
+        if (($path -match '^tests/Shared/' -and
+             $path -notmatch '^tests/Shared/(GeneratedAssetsFixture|PackagingScriptTestHelper)\.cs$') -or
+            $path -match '^tests/.*\.csproj$|^tests/.*xunit\.runner\.json$') {
             foreach ($project in $allProjects) { [void]$fast.Add($project) }
             [void]$process.Add('CLI')
             $fullTooling = $true
@@ -144,6 +146,11 @@ function Get-ValidationPlan {
         if ($kind -eq 'skills') {
             [void]$toolingOwners.Add('SkillGeneration')
             [void]$tooling.Add('Feature=SkillGeneration')
+        }
+        if ($path -match '^tests/Shared/(GeneratedAssetsFixture|PackagingScriptTestHelper)\.cs$') {
+            [void]$toolingOwners.Add('SkillGeneration')
+            [void]$toolingOwners.Add('Packaging')
+            [void]$tooling.Add('RequiresExcel=false')
         }
         if ($kind -eq 'safety') {
             [void]$toolingOwners.Add('ScriptSafety')

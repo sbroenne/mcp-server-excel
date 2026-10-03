@@ -37,6 +37,13 @@ public sealed class TestSelectionTests
             )
             if (($projects -join ',') -ne '{{expected}}') { throw "Wrong test projects: $projects" }
             if ($plan.Excel) { throw 'Excel selected for Excel-free changes.' }
+            if ($plan.FastProjects.Count -or $plan.ProcessProjects.Count -or $plan.ExcelGroups.Count) {
+                throw 'Unrelated runtime tests selected.'
+            }
+            if ((($plan.ToolingProjects | Sort-Object) -join ',') -ne
+                (('{{expected}}'.Split(',') | Sort-Object) -join ',')) {
+                throw "Wrong hosted tooling projects: $($plan.ToolingProjects)"
+            }
             """);
         Assert.True(result.ExitCode == 0, result.Output);
     }
@@ -67,11 +74,32 @@ public sealed class TestSelectionTests
     {
         var result = await RunRunnerAsync("-Local -SkillTests -PackagingTests", true);
         Assert.NotEqual(0, result.ExitCode);
-        Assert.Contains("SkillGeneration tests failed with exit code 23", result.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain("selected=SkillGeneration,Packaging", result.Output, StringComparison.Ordinal);
+        Assert.Contains("SkillGeneration failed with exit code 23", result.Output, StringComparison.Ordinal);
+        Assert.Contains("started=SkillGeneration", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("started=Packaging", result.Output, StringComparison.Ordinal);
     }
 
-    private static Task<(int ExitCode, string Output)> RunRunnerAsync(string arguments, bool fail) =>
+    [Theory]
+    [InlineData("'scripts/Build-AgentSkills.ps1'", "SkillGeneration", "Feature=SkillGeneration")]
+    [InlineData("'scripts/Build-Plugins.ps1'", "Packaging", "Feature=PluginBootstrap")]
+    [InlineData("'scripts/check-workbook-package-access.ps1'", "ScriptSafety", "Feature=PreCommit")]
+    [InlineData("'doc-counts.json'", "Packaging", "FullyQualifiedName~DocumentationCounts")]
+    [InlineData("'mcpb/manifest.json'", "Packaging", "Feature=McpbPackaging")]
+    [InlineData("'tests/ExcelMcp.Packaging.Tests/Example.cs'", "Packaging", "RequiresExcel=false")]
+    [InlineData("'tests/ExcelMcp.ScriptSafety.Tests/Example.cs'", "ScriptSafety", "RequiresExcel=false")]
+    [InlineData("'tests/Shared/GeneratedAssetsFixture.cs'", "Packaging,SkillGeneration", "RequiresExcel=false")]
+    [InlineData("'tests/Shared/PackagingScriptTestHelper.cs'", "Packaging,SkillGeneration", "RequiresExcel=false")]
+    [InlineData("'scripts/Build-AgentSkills.ps1','scripts/check-workbook-package-access.ps1'", "ScriptSafety,SkillGeneration", "Feature=SkillGeneration")]
+    [InlineData("'doc-counts.json','tests/ExcelMcp.ScriptSafety.Tests/Example.cs'", "Packaging,ScriptSafety", "FullyQualifiedName~DocumentationCounts")]
+    public async Task Runner_HostedToolingSelectsOwningProjectsAndFilters(string paths, string expected, string filter)
+    {
+        var result = await RunRunnerAsync("-Group Tooling -PlanFile $planFile", false, paths);
+        Assert.True(result.ExitCode == 0, result.Output);
+        Assert.Contains($"selected={expected}", result.Output, StringComparison.Ordinal);
+        Assert.Contains(filter, result.Output, StringComparison.Ordinal);
+    }
+
+    private static Task<(int ExitCode, string Output)> RunRunnerAsync(string arguments, bool fail, string? paths = null) =>
         RunAsync($$"""
             $script = Get-Content (Join-Path $root 'scripts\Invoke-ExcelFreeTests.ps1') -Raw
             $runnerDirectory = Join-Path $sandbox 'scripts'
@@ -85,7 +113,7 @@ public sealed class TestSelectionTests
             Set-Content $runner $script
             . (Join-Path $runnerDirectory 'Get-ValidationPlan.ps1')
             $planFile = Join-Path $sandbox 'plan.json'
-            Get-ValidationPlan -Full | ConvertTo-Json -Depth 10 | Set-Content $planFile
+            Get-ValidationPlan {{(paths is null ? "-Full" : $"-Paths @({paths})")}} | ConvertTo-Json -Depth 10 | Set-Content $planFile
             $global:selected = [Collections.Generic.List[string]]::new()
             function Start-TestProcess($info) {
                 $arguments = @($info.ArgumentList)
@@ -93,6 +121,7 @@ public sealed class TestSelectionTests
                 $project = [regex]::Match($arguments[1], 'ExcelMcp\.(\w+)\.Tests\.csproj$').Groups[1].Value
                 if (-not $project) { throw 'Invalid project path.' }
                 $global:selected.Add($project)
+                Write-Host "started=$project"
                 $filter = $arguments[[Array]::IndexOf($arguments, '--filter') + 1]
                 if ($filter -notmatch 'RequiresExcel=false&RunType!=OnDemand') { throw 'Classification filter lost.' }
                 $results = $arguments[[Array]::IndexOf($arguments, '--results-directory') + 1]

@@ -147,7 +147,8 @@ inputs form a union. Main and manual CI runs select complete validation.
 
 Hosted tests run in separate checkouts: `Fast` contains normal Excel-free
 tests except `AdapterTestKind=System`; `Process` contains the CLI system
-regressions; `Tooling` contains the selected SkillGeneration checks. These
+regressions; `Tooling` contains the selected skill-generation, packaging, and
+script-safety checks. These
 partitions cover the complete normal Excel-free selection without overlap.
 Package, npm launcher, and lockfile checks have their own selections.
 Changes to `doc-counts.json` or `scripts\check-doc-counts.ps1` select the
@@ -169,7 +170,8 @@ After a Release build, the hosted test partitions can also run locally:
 
 Use `-PlanFile <plan.json>` with an explicit `-Group` to reproduce a selected
 CI partition. Omitting the group retains the complete Excel-free run; existing
-`-Local`, `-Contracts`, `-HookTests`, and `-SkillTests` selections remain supported.
+`-Local`, `-Contracts`, `-HookTests`, `-SkillTests`, and `-PackagingTests`
+selections remain supported.
 
 Generated MCP parameter tests inspect our emitted method declarations directly.
 Protocol checks cover our names, descriptions, selected output fields, and
@@ -204,7 +206,9 @@ Excel-free distribution and script checks have separate projects:
 contents, and launch wrappers; `ExcelMcp.ScriptSafety.Tests` owns commit hooks,
 validation selection, and script safety. `ExcelMcp.SkillGeneration.Tests` owns
 only skill preparation, references, native examples, and standalone skill ZIPs.
-Changed paths select the owning checks locally; CI runs all three projects.
+Changed paths select the owning checks locally and in CI. Full validation runs
+all three projects. Changes to the shared packaging helpers select both skill
+and packaging checks, without unrelated runtime tests.
 
 ```powershell
 & .\scripts\Invoke-ExcelFreeTests.ps1 -Local -PackagingTests
