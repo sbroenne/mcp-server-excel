@@ -227,6 +227,10 @@ or code executes. Setup completion does not authorize shutdown.
 Control rechecks the exact GitHub job after desktop preparation, before starting
 a listener. Work already cancelled or completed is not admitted; an idle VM is
 parked rather than left waiting for a job that no longer exists.
+After admission, a short job or cancellation can finish before the first
+listener check. Control rechecks the same job identity and completion instead
+of reporting a false startup timeout. It still leaves active guest cleanup
+undisturbed and requires idle recovery and desktop qualification before parking.
 
 The hosted control workflow checks complete GitHub jobs and guest listeners,
 workers, workbooks and cleanup records. It keeps active work undisturbed,

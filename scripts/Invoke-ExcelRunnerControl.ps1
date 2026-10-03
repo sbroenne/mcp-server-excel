@@ -17,6 +17,14 @@ if (-not $PSCmdlet.ShouldProcess($VmName, 'Check complete GitHub jobs and safely
 $deadline = [DateTime]::UtcNow.AddMinutes(25)
 $subscriptionArguments = if ($SubscriptionId) { @('--subscription', $SubscriptionId) } else { @() }
 . (Join-Path $PSScriptRoot 'ExcelRunnerHost.ps1')
+function Assert-SelectedExcelRunnerJob {
+    param($Job, [string]$JobId, [string]$RunId, [string]$JobName)
+    if ("$($Job.id)" -ne $JobId -or "$($Job.run_id)" -ne $RunId -or
+        $Job.name -ne $JobName -or -not (Test-ExcelRunnerJobTarget $Job)) {
+        throw 'The selected job identity changed during control; refuse admission or completion.'
+    }
+}
+
 $jobs = @(Get-ExcelRunnerActiveJobs $Repository)
 $target = @($jobs | Where-Object { Test-ExcelRunnerJobTarget $_ } | Sort-Object id -Unique)
 if (@($target | Where-Object { -not $_.trustedCloudRun -and -not $_.trustedValidationRun }).Count) {
@@ -80,10 +88,7 @@ Write-Output 'EXCELMCP_CONTROL={"state":"patched"}'
         $jobId = "$($next[0].id)"
         if ($jobId -notmatch '^\d+$') { throw 'Invalid admitted workflow job ID.' }
         $currentJob = Invoke-ExcelRunnerGithub "repos/$Repository/actions/jobs/$jobId"
-        if ("$($currentJob.id)" -ne $jobId -or "$($currentJob.run_id)" -ne $runId -or
-            $currentJob.name -ne $jobName -or -not (Test-ExcelRunnerJobTarget $currentJob)) {
-            throw 'The selected job identity changed during desktop preparation; refuse admission.'
-        }
+        Assert-SelectedExcelRunnerJob $currentJob $jobId $runId $jobName
         if ($currentJob.status -eq 'completed') {
             Write-Output 'Selected work completed or was cancelled during preparation; no listener started.'
             if (@(Get-ExcelRunnerActiveJobs $Repository | Where-Object { Test-ExcelRunnerJobTarget $_ }).Count) {
@@ -101,6 +106,7 @@ Start-ScheduledTask -TaskName 'ExcelMcp-GitHub-Runner'
 Write-Output 'EXCELMCP_CONTROL={"state":"admitted"}'
 "@
             $until = [DateTime]::UtcNow.AddMinutes(2)
+            $completedBeforeObservation = $false
             do {
                 Start-Sleep -Seconds 10
                 $activity = Get-ExcelRunnerGuestActivity
@@ -108,8 +114,24 @@ Write-Output 'EXCELMCP_CONTROL={"state":"admitted"}'
                     Write-Output "Interactive one-job listener admitted workflow $runId."
                     return
                 }
+                $observedJob = Invoke-ExcelRunnerGithub "repos/$Repository/actions/jobs/$jobId"
+                Assert-SelectedExcelRunnerJob $observedJob $jobId $runId $jobName
+                if ($observedJob.status -eq 'completed') {
+                    if ($activity.workers -gt 0 -or $activity.listeners -gt 0 -or $activity.taskRunning) {
+                        Write-Output 'Admitted job completed; its guest cleanup is still active. Leaving the VM undisturbed.'
+                        return
+                    }
+                    if ($activity.cleanupPending) { Invoke-ExcelRunnerJobRecovery }
+                    if (@(Get-ExcelRunnerActiveJobs $Repository | Where-Object { Test-ExcelRunnerJobTarget $_ }).Count) {
+                        Write-Output 'Admitted job completed; other demand remains for the next control check.'
+                        return
+                    }
+                    $completedBeforeObservation = $true
+                    break
+                }
             } while ([DateTime]::UtcNow -lt $until)
-            throw 'The admitted interactive listener did not start.'
+            if (-not $completedBeforeObservation) { throw 'The admitted interactive listener did not start.' }
+            Write-Output 'Admitted job completed before listener observation; qualifying idle cleanup before parking.'
         }
         else { throw 'The selected job is no longer queued; its complete-job ownership needs inspection.' }
     }
