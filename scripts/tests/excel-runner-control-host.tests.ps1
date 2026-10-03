@@ -8,7 +8,8 @@ $controller = [scriptblock]::Create($source.Replace($import, ''))
 $script:Calls = [Collections.Generic.List[string]]::new()
 function Start-Sleep { param($Seconds) }
 function Get-ExcelRunnerActiveJobs {
-    if ($script:Mode -eq 'parked' -or ($script:Mode -eq 'cancelled' -and $script:JobRefreshed)) { return @() }
+    if ($script:Mode -eq 'parked' -or ($script:Mode -eq 'cancelled' -and $script:JobRefreshed) -or
+        ($script:Mode -like 'short-*' -and $script:Admitted)) { return @() }
     return @(@{
         id = 1; excelRunId = 123; labels = @('excel-copilot'); runner_name = ''
         status = 'queued'; trustedCloudRun = $script:Mode -ne 'untrusted'; trustedValidationRun = $false
@@ -24,9 +25,12 @@ function Invoke-RunnerAzure {
 function Wait-ExcelRunnerGuestAgent { $script:Calls.Add('wait-agent') }
 function Get-ExcelRunnerGuestActivity {
     $script:Calls.Add('guest-activity')
+    $finished = $script:Mode -like 'short-*' -and $script:Admitted
     return @{
-        listeners = [int]$script:Admitted; workers = [int]($script:Mode -eq 'busy'); excel = 0
-        taskRunning = $script:Admitted; cleanupPending = $false
+        listeners = [int]($script:Admitted -and -not $finished)
+        workers = [int]($script:Mode -eq 'busy' -or ($finished -and $script:Mode -eq 'short-cleaning')); excel = 0
+        taskRunning = $script:Admitted -and (-not $finished -or $script:Mode -eq 'short-cleaning')
+        cleanupPending = $finished -and $script:Mode -eq 'short-recovery' -and -not $script:Recovered
     }
 }
 function Invoke-ExcelRunnerGithub {
@@ -35,9 +39,9 @@ function Invoke-ExcelRunnerGithub {
         $script:Calls.Add('refresh-job')
         $script:JobRefreshed = $true
         return @{
-            id = 1; run_id = $(if ($script:Mode -eq 'changed-job') { 999 } else { 123 })
+            id = 1; run_id = $(if ($script:Mode -eq 'changed-job' -or ($script:Mode -eq 'short-changed-job' -and $script:Admitted)) { 999 } else { 123 })
             name = 'copilot'; labels = @('excel-copilot')
-            status = $(if ($script:Mode -eq 'cancelled') { 'completed' } else { 'queued' })
+            status = $(if ($script:Mode -eq 'cancelled' -or ($script:Mode -like 'short-*' -and $script:Admitted)) { 'completed' } else { 'queued' })
         }
     }
     if ($Endpoint -match '/runs\?') {
@@ -60,10 +64,13 @@ function Invoke-ExcelRunnerGuest {
     return @{ state = 'patched' }
 }
 function Invoke-ExcelRunnerDesktopHealth { $script:Calls.Add('desktop-health') }
-foreach ($mode in @('parked', 'untrusted', 'busy', 'stale-history', 'stale-patch', 'admit', 'cancelled', 'changed-job')) {
+function Invoke-ExcelRunnerJobRecovery { $script:Calls.Add('recover-jobs'); $script:Recovered = $true }
+foreach ($mode in @('parked', 'untrusted', 'busy', 'stale-history', 'stale-patch', 'admit', 'cancelled', 'changed-job',
+    'short-completed', 'short-cleaning', 'short-recovery', 'short-changed-job')) {
     $script:Mode = $mode
     $script:Admitted = $false
     $script:JobRefreshed = $false
+    $script:Recovered = $false
     $script:Calls.Clear()
     $failure = $null
     try { & $controller -ResourceGroup synthetic -VmName synthetic -Repository synthetic/repository }
@@ -83,6 +90,15 @@ foreach ($mode in @('parked', 'untrusted', 'busy', 'stale-history', 'stale-patch
         -not $script:JobRefreshed)) { throw 'Work cancelled during desktop preparation must not start a listener and must park when idle.' }
     if ($mode -eq 'changed-job' -and (-not $failure -or $starts -ne 1 -or $parks -ne 1 -or $script:Admitted)) {
         throw 'A changed selected job identity must fail without admitting work.'
+    }
+    if ($mode -in @('short-completed', 'short-recovery') -and ($failure -or $starts -ne 1 -or $parks -ne 1 -or
+        -not $script:Admitted -or @($script:Calls | Where-Object { $_ -eq 'desktop-health' }).Count -ne 2)) {
+        throw 'An admitted job completed before listener observation must qualify cleanup and park without a false startup failure.'
+    }
+    if ($mode -eq 'short-recovery' -and -not $script:Calls.Contains('recover-jobs')) { throw 'Completed work still requires its pending owned cleanup.' }
+    if ($mode -eq 'short-cleaning' -and ($failure -or $parks -or -not $script:Admitted)) { throw 'A completed GitHub job with guest cleanup still active must remain undisturbed.' }
+    if ($mode -eq 'short-changed-job' -and (-not $failure -or $parks -ne 1 -or -not $script:Admitted)) {
+        throw 'A changed job identity after admission must not be accepted as the admitted job completing.'
     }
 }
 Write-Output 'Actual hosted control preserves active jobs, refuses stale repeated wakes and parks failed admission.'
