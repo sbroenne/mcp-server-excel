@@ -22,8 +22,9 @@ tool disambiguation, server-specific semantics, pitfalls, and recovery.
 No enum catalogs, generic Excel tutorials, duplicated CLI help, or emojis.
 Keep server instructions minimal and task-focused; do not present optional
 guides as required server instructions.
-Rebuild Release after source edits; run affected evaluations when discovery or
-workflow selection changes.
+Rebuild Release after source edits; use existing .NET discovery and generated
+skill tests for affected guidance. Run Python evaluations only when explicitly
+requested, following `llm-tests/AGENTS.md`.
 Do not require unnecessary formatting, Tables, questions, or presentation menus.
 Discover existing state where useful; ask rather than guess when the intended
 workbook, destructive change, or requested result is unclear.

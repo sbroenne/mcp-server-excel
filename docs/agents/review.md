@@ -1,7 +1,7 @@
 # ExcelMcp review priorities
 
 These instructions apply to code review, not implementation tasks.
-Coding instructions are maintained in [AGENTS.md](../AGENTS.md).
+Coding instructions are maintained in [AGENTS.md](../../AGENTS.md).
 
 Report high-confidence defects introduced by the PR, not style or unrelated
 cleanup. Retain these independent checks:

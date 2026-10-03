@@ -1,7 +1,7 @@
 # Testing strategy
 
 Follow the [repository rules](../AGENTS.md). These are implementation
-instructions; review tasks use the shared review checklist.
+instructions; review tasks use the [shared review checks](../docs/agents/review.md).
 
 ## Commands
 

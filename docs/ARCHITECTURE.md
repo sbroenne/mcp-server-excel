@@ -38,6 +38,9 @@ workflow.
 
 ## Core layers
 
+The [current decision records](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/DECISIONS.md)
+explain the reasons and tradeoffs behind these boundaries.
+
 1. **ComInterop** (`src/ExcelMcp.ComInterop`) provides reusable STA threading,
    session management, COM cleanup, write guards, and OLE message filtering.
 2. **Core** (`src/ExcelMcp.Core`) implements Excel operations for Power Query,

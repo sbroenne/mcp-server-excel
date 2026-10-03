@@ -46,7 +46,8 @@ The MCP Server and `excelcli` are equal user entry points. They expose the same 
 
 ## Sources of truth
 
-- `AGENTS.md`, nested `AGENTS.md` files, and `docs/agents/rules/` define coding, testing, COM safety, and release rules. The standalone review checklist remains in `.github/copilot-instructions.md` for VS Code review compatibility.
+- `AGENTS.md`, nested `AGENTS.md` files, and `docs/agents/rules/` define shared coding, testing, COM safety, and release rules. [Review checks](docs/agents/review.md) cover review tasks.
+- [Architecture decisions](docs/DECISIONS.md) explain the reasons and tradeoffs behind current choices, without duplicating those instructions.
 - `docs/ARCHITECTURE.md` explains the public architecture.
 - Annotated Core interfaces and their implementations define operation contracts and behavior.
 - `docs/features/` documents user-facing behavior.

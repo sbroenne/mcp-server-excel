@@ -1,7 +1,7 @@
 # Extension constraints
 
 Follow the [repository rules](../AGENTS.md). These are implementation
-instructions; review tasks use the shared review checklist.
+instructions; review tasks use the [shared review checks](../docs/agents/review.md).
 Excel usage guidance comes from native MCP descriptions and repository docs.
 The optional report-formatting skill is authored under `skills`; do not maintain
 a separate tool reference in this extension.
@@ -14,6 +14,7 @@ a separate tool reference in this extension.
 - Do not bump versions for local tests: `npm version` can create commits/tags.
   The unified release workflow owns versions.
 - Run `npm run compile` (includes metadata validation) and `npm run lint`.
+  For code or test changes, also run `npm test` and `npm run typecheck:tests`.
   Packaging changes also require `npm run package` and VSIX content inspection.
 
 Build, activation testing, and packaging procedures:

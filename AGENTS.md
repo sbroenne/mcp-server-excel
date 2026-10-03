@@ -1,15 +1,17 @@
-# ExcelMcp repository rules
+# ExcelMcp agent instructions
 
-Windows and PowerShell; use the SDK selected by `global.json`. Desktop Excel
-is required for COM tests. GitHub-hosted runners do not have Excel.
+ExcelMcp automates installed desktop Excel through COM on Windows. Use
+PowerShell and the SDK selected by `global.json`. Desktop Excel is required
+for COM tests; GitHub-hosted runners do not have Excel.
 
 MCP Server and `excelcli` are equal entry points: behavior, defaults, validation,
 results, and documentation must agree.
 
-Before exploring code, read `CONTEXT.md` and relevant decisions matching
-`docs/ADR-*.md`. Use the context glossary and the current decision status; if a
-proposal conflicts with an accepted decision, state the conflict rather than
-silently overriding it.
+For an unfamiliar area, start with [CONTEXT.md](CONTEXT.md) for the system map
+and terminology. [Architecture decisions](docs/DECISIONS.md) explain current
+choices and tradeoffs; read the records relevant to an architectural change,
+not the entire collection for every task. Surface conflicts before changing a
+decision. Actionable rules belong here and in the applicable guides below.
 
 Work requests are tracked in GitHub Issues; see
 [issue tracker](docs/agents/issue-tracker.md). Contributor setup and client
@@ -17,9 +19,10 @@ instruction discovery are in [agent development](docs/agents/development.md).
 
 ## Task-specific guidance
 
-Before changing files, read only the matching guides below. Paths are relative
-to the repository root. These are explicit reading requirements even when a
-client does not automatically discover nested `AGENTS.md` files.
+Before changing files, read the matching guides below, including nested
+`AGENTS.md` files. Native discovery differs between Copilot, Claude Code, and
+Codex; launching at the root does not guarantee every nested file is loaded.
+Paths are relative to the repository root.
 
 | Work | Required guidance |
 | --- | --- |
@@ -100,12 +103,12 @@ Run applicable existing checks, not replacement audits:
 `-SkipBuild` requires a successful Release solution build in this worktree.
 Otherwise omit it. PRs record the root cause, affected contracts, and validation.
 
-## Code review
+## Code Review Rules
 
-For review tasks, use the standalone [review checklist](.github/copilot-instructions.md).
-It retains its filename because VS Code's built-in Copilot review reads it.
-The implementation guides above do not require reviewers to install dependencies,
-run builds, or edit code.
+Report high-confidence defects introduced by the change, not style or unrelated
+cleanup. Read the applicable [review checks](docs/agents/review.md).
+Review tasks do not require installing dependencies, running builds, or editing
+code unless requested.
 
 ## Git and release
 
