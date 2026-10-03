@@ -1,45 +1,59 @@
 # Development with coding agents
 
 [AGENTS.md](../../AGENTS.md) owns the common repository rules and links the
-task-specific guides. Read [CONTEXT.md](../../CONTEXT.md) and the current ADRs
-before working on an unfamiliar area.
+task-specific guides. [CONTEXT.md](../../CONTEXT.md) provides the system map;
+the [decision index](../DECISIONS.md) links architectural reasons and tradeoffs.
+Read only the decisions relevant to the work. ADRs are ordinary documentation,
+not a special instruction format that agents are guaranteed to load.
 
 ## Instruction discovery
 
-| Client | Repository instructions |
+Use current Copilot, Claude Code, and Codex versions with native `AGENTS.md`
+support. Keep rules in the shared root/nested files, not copied into separate
+Copilot or Claude instruction sets. This repository does not provide
+older-version compatibility wrappers or a VS Code built-in review configuration.
+
+| Client | Discovery and verification |
 | --- | --- |
-| Copilot CLI (`copilot`) and cloud agent | Root AGENTS.md and relevant nested guidance |
-| Copilot app | AGENTS.md; accepted `.github/github-app.yml` adds pointers and manual commands |
-| VS Code Copilot chat | Root AGENTS.md with `chat.useAgentsMdFile` enabled |
-| VS Code Local agent, nested guidance | `chat.useNestedAgentsMdFiles` enables discovery; it is disabled by default |
-| VS Code Agent Host sessions | Follow the selected agent's discovery rules |
-| VS Code built-in Copilot review | Standalone `.github/copilot-instructions.md` review checklist |
-| GitHub.com Copilot PR reviews | AGENTS.md and the same standalone review checklist |
-| Claude Code | AGENTS.md natively in supported versions, subject to the conditions below |
-| GitHub CLI (`gh`) | Repository administration commands; not an instruction-reading coding agent |
+| Copilot CLI (`copilot`) | Discovers root and applicable nested AGENTS.md files. Use `/instructions` to inspect discovered/enabled files; restart or start a new session after instruction changes. |
+| Copilot cloud agent | Supports root/nested AGENTS.md. Check its session evidence rather than assuming every linked guide was read. |
+| Copilot app | Uses its selected agent's discovery; accepted `.github/github-app.yml` adds pointers and manual commands. |
+| VS Code Local agent | Root AGENTS.md support is controlled by `chat.useAgentsMdFile`. Nested discovery has a separate `chat.useNestedAgentsMdFiles` setting, disabled by default. Check the Agent Customizations editor and response References for the files used. |
+| VS Code Agent Host | Follows the selected agent harness's working-directory and nested-file discovery rules, not the Local agent's settings. Select the intended harness before inspecting its customizations. |
+| Claude Code | Reads AGENTS.md natively under the conditions below. Use `/context` to inspect memory files and `/config` to check Project instructions. |
+| Codex | Builds a root-to-working-directory instruction chain at session startup. Start a fresh session in the intended directory and ask which instruction sources were loaded. |
 
-The root task map explicitly tells agents which guides to read, including when
-nested discovery is disabled. Instructions are guidance, not technical
-enforcement or permission to publish.
+The root task map explicitly tells agents to read relevant nested/shared guides.
+This matters for Codex started at the repository root: its startup walk does not
+automatically include instructions in every descendant directory. Codex prefers
+`AGENTS.override.md` over `AGENTS.md` in the same directory and limits combined
+project instructions to 32 KiB by default. Do not change user configuration to
+compensate for unnecessarily large repository instructions.
 
-Claude Code's native AGENTS.md support requires v2.1.277 or later and the
-built-in `agents-md` plugin. By default, a project or ancestor `CLAUDE.md`,
-`.claude/CLAUDE.md`, or `CLAUDE.local.md` takes priority instead. User-wide
-`~/.claude/CLAUDE.md` does not prevent the project fallback. Check the
-**Project instructions** setting and loaded files in your session.
-For a session without native support, a `CLAUDE.md` containing `@AGENTS.md`
-imports the shared file without maintaining another rule book. Do not add
-a plain-text pointer and assume it is automatically imported.
-The video subproject retains its explicit import of its own AGENTS.md.
+Claude Code native support requires v2.1.277 or later and the built-in
+`agents-md` plugin; use a current version, since early versions had additional
+loading exceptions. By default, a project or ancestor `CLAUDE.md`,
+`.claude/CLAUDE.md`, or `CLAUDE.local.md` takes priority over AGENTS.md.
+User-wide `~/.claude/CLAUDE.md` does not suppress that fallback. If personal
+project files affect discovery, the user can select **claude-md-and-agents-md**
+in **Project instructions**. Do not edit their settings or add a repository
+wrapper automatically.
 
-Other agents can use the same ordinary Markdown guides, but not every client
-automatically reads AGENTS.md. Do not assume that a file being present proves
-the client loaded or followed it.
+GitHub also supports `.github/copilot-instructions.md` and path-specific
+`.github/instructions/*.instructions.md`. They are not required to duplicate
+AGENTS.md. Copilot CLI combines applicable instructions without defining a
+general precedence order between all files; do not apply another client's
+precedence rules to it. A Markdown link is not an automatic file import.
+
+Instructions guide behavior; they do not enforce permissions or prove adherence.
+The checks above inspect loading, not task quality. Shared
+[review checks](../../AGENTS.md#code-review-rules) are included directly in
+AGENTS.md so reviews do not depend on opening another document.
 
 ## Windows setup
 
-Install PowerShell 7, the .NET SDK selected by `global.json`, Node.js 22,
-Python 3.13, and uv. Use the checked-in lockfiles:
+Install PowerShell 7, the .NET SDK selected by `global.json`, and Node.js 22.
+Website work also needs Python 3.13. Use the checked-in lockfiles:
 
 ```powershell
 $ErrorActionPreference = 'Stop'
@@ -48,11 +62,13 @@ dotnet restore Sbroenne.ExcelMcp.sln
 npm ci
 npm --prefix vscode-extension ci
 npm --prefix npm-packages/shared ci
-python -m pip install -r gh-pages\requirements.txt
-uv sync --project llm-tests --locked
 dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore
 & .\scripts\Invoke-ExcelFreeTests.ps1 -Local -Contracts
 ```
+
+For website setup, use its [virtual-environment instructions](../../gh-pages/README.md#setup-one-time).
+Install uv and the evaluation dependencies only for explicitly requested
+[evaluation work](../../llm-tests/README.md); they are not ordinary setup steps.
 
 Use the smallest applicable checks in [AGENTS.md](../../AGENTS.md#build-and-validation).
 Builds and Excel-free checks do not prove Excel COM behavior.
@@ -112,11 +128,19 @@ available through the inspected session API; this file does not establish
 that the app's trust flow has been exercised or that earlier UI instruction
 text has been preserved. Automation/browser fields are deliberately omitted.
 
+The app's existing **Setup** command includes website and evaluation dependency
+installation. It is broader than the ordinary setup above; use the narrower
+commands for non-evaluation work. This documentation change does not alter the
+app's executable commands or its acceptance state.
+
 ## Sources
 
 - [GitHub instruction support](https://docs.github.com/en/copilot/reference/custom-instructions-support)
-- [VS Code instruction discovery](https://code.visualstudio.com/docs/agent-customization/custom-instructions)
+- [GitHub instruction writing guidance](https://docs.github.com/en/copilot/concepts/prompting/response-customization)
+- [Copilot CLI discovery](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-custom-instructions)
+- [VS Code Local and Agent Host discovery](https://code.visualstudio.com/docs/agent-customization/custom-instructions)
 - [Claude Code instructions](https://code.claude.com/docs/en/memory)
+- [Codex instruction discovery](https://developers.openai.com/codex/guides/agents-md)
 - [App configuration and trust](https://docs.github.com/en/copilot/reference/github-copilot-app-reference/repository-configuration)
 - [Cloud setup](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/customize-cloud-agent/customize-the-agent-environment)
 - [Agent secrets and variables](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/customize-cloud-agent/configure-secrets-and-variables)

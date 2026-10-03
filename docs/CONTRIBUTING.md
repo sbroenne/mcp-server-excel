@@ -280,7 +280,9 @@ There is no fixed README length or requirement to edit every README.
 Before shortening or moving a page, identify where each substantive caveat,
 example, installation option, and workflow will remain. Update that destination
 first, then replace duplicate material with a link. Permanent guides belong in
-`docs/` and decisions in `docs/ADR-*.md`. Track proposed feature requirements and
+`docs/`; the [decision index](DECISIONS.md) explains when to add or update an
+ADR. Shared agent instructions and native Copilot/Claude Code/Codex discovery
+are covered in [agent development](agents/development.md). Track proposed feature requirements and
 temporary investigations in GitHub issues or PR discussions, not separate
 specification or SUMMARY/FIX files. Core contracts and implementations define
 operation behavior; keep the feature guides and shared guidance aligned with them.
