@@ -203,6 +203,7 @@ MCP `range_format(action: 'get-style')` and CLI `excelcli rangeformat get-style`
 retain the `Normal` fallback when Excel reports no single style for a mixed-style
 range. This is not a claim that each cell uses `Normal`; inspection does not
 change the cells. Use `get-format` to inspect each cell's distinct style.
+Native style-read failures remain errors rather than successful `Normal` results.
 
 For MCP `range_format` action `validate-range` and CLI
 `excelcli rangeformat validate-range`, invalid `validation_type` /

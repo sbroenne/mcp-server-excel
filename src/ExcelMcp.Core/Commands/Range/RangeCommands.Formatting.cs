@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -68,14 +67,7 @@ public partial class RangeCommands
 
                 range = sheet.Range[rangeAddress];
 
-                try
-                {
-                    rangeStyle = range.Style;
-                }
-                catch (COMException)
-                {
-                    rangeStyle = "Normal";
-                }
+                rangeStyle = range.Style;
 
                 if (rangeStyle is null or DBNull)
                     rangeStyle = "Normal";

@@ -11,3 +11,5 @@ Identify the actual measure format during readback instead of misreporting Decim
 Advertise only writable chart data-label positions in CLI help and MCP discovery; Excel's read-only Mixed state is not an input option.
 
 Keep mixed-style range inspection working when Excel reports no single style, without changing individual cell styles. Required metadata helpers still reject missing objects with explicit argument errors.
+
+Propagate native cell-style read failures through normal error handling instead of hiding them as successful Normal results; only null/DBNull mixed-style values use the existing fallback.
