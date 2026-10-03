@@ -284,6 +284,12 @@ reuses the cloud-agent setup, which would direct reviews to the Excel label.
 Reviews are not admitted by the coding-job controller; keep their existing
 hosted tooling separate rather than weakening the trusted cloud-job policy.
 The review setup does not install or run the on-demand LLM evaluations.
+Rejected guest admission reports only the GitHub run, attempt, job, actor
+and event fields, never the full environment or personal desktop identity.
+The coding job's runtime `GITHUB_ACTOR` is `copilot-swe-agent[bot]`, not the
+REST API's `Copilot` display login. Hosted admission still verifies the
+platform bot ID, dynamic workflow path and repository, then binds the exact
+run/job and current boot; the guest must match the actual runtime bot identity.
 
 Operators can read the actual firewall state through
 `GET /repos/{owner}/{repo}/copilot/cloud-agent/configuration` and manage the
