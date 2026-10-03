@@ -7,7 +7,7 @@ if ($env:GITHUB_REPOSITORY -ne 'sbroenne/mcp-server-excel' -or
     $permit.state -ne 'admitted' -or (ConvertTo-ExcelRunnerUtc $permit.bootTime) -ne $boot -or
     $env:GITHUB_RUN_ID -notmatch '^\d+$' -or $env:GITHUB_RUN_ATTEMPT -notmatch '^\d+$' -or
     (ConvertTo-ExcelRunnerUtc $permit.expiresAt) -lt [DateTime]::UtcNow -or
-    ($permit.kind -eq 'cloud' -and ($env:GITHUB_ACTOR -ne 'Copilot' -or $env:GITHUB_EVENT_NAME -ne 'dynamic')) -or
+    ($permit.kind -eq 'cloud' -and ($env:GITHUB_ACTOR -ne 'copilot-swe-agent[bot]' -or $env:GITHUB_EVENT_NAME -ne 'dynamic')) -or
     ($permit.kind -eq 'validation' -and ($env:GITHUB_ACTOR -ne 'sbroenne' -or
         $env:GITHUB_EVENT_NAME -ne 'workflow_dispatch' -or $env:GITHUB_REF -ne "refs/heads/$($permit.defaultBranch)")) -or
     $permit.kind -notin @('cloud', 'validation')) {
