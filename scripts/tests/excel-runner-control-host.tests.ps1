@@ -8,7 +8,7 @@ $controller = [scriptblock]::Create($source.Replace($import, ''))
 $script:Calls = [Collections.Generic.List[string]]::new()
 function Start-Sleep { param($Seconds) }
 function Get-ExcelRunnerActiveJobs {
-    if ($script:Mode -eq 'parked') { return @() }
+    if ($script:Mode -eq 'parked' -or ($script:Mode -eq 'cancelled' -and $script:JobRefreshed)) { return @() }
     return @(@{
         id = 1; excelRunId = 123; labels = @('excel-copilot'); runner_name = ''
         status = 'queued'; trustedCloudRun = $script:Mode -ne 'untrusted'; trustedValidationRun = $false
@@ -31,6 +31,15 @@ function Get-ExcelRunnerGuestActivity {
 }
 function Invoke-ExcelRunnerGithub {
     param($Endpoint)
+    if ($Endpoint -match '/actions/jobs/1$') {
+        $script:Calls.Add('refresh-job')
+        $script:JobRefreshed = $true
+        return @{
+            id = 1; run_id = $(if ($script:Mode -eq 'changed-job') { 999 } else { 123 })
+            name = 'copilot'; labels = @('excel-copilot')
+            status = $(if ($script:Mode -eq 'cancelled') { 'completed' } else { 'queued' })
+        }
+    }
     if ($Endpoint -match '/runs\?') {
         return @{ workflow_runs = @(@{
             head_branch = 'main'; head_repository = @{ full_name = 'synthetic/repository' }
@@ -51,9 +60,10 @@ function Invoke-ExcelRunnerGuest {
     return @{ state = 'patched' }
 }
 function Invoke-ExcelRunnerDesktopHealth { $script:Calls.Add('desktop-health') }
-foreach ($mode in @('parked', 'untrusted', 'busy', 'stale-history', 'stale-patch', 'admit')) {
+foreach ($mode in @('parked', 'untrusted', 'busy', 'stale-history', 'stale-patch', 'admit', 'cancelled', 'changed-job')) {
     $script:Mode = $mode
     $script:Admitted = $false
+    $script:JobRefreshed = $false
     $script:Calls.Clear()
     $failure = $null
     try { & $controller -ResourceGroup synthetic -VmName synthetic -Repository synthetic/repository }
@@ -69,5 +79,10 @@ foreach ($mode in @('parked', 'untrusted', 'busy', 'stale-history', 'stale-patch
     }
     if ($mode -eq 'admit' -and ($failure -or $starts -ne 1 -or $parks -or -not $script:Admitted -or
         -not $script:Calls.Contains('desktop-health'))) { throw 'Trusted queued demand must qualify the desktop before one-job admission.' }
+    if ($mode -eq 'cancelled' -and ($failure -or $starts -ne 1 -or $parks -ne 1 -or $script:Admitted -or
+        -not $script:JobRefreshed)) { throw 'Work cancelled during desktop preparation must not start a listener and must park when idle.' }
+    if ($mode -eq 'changed-job' -and (-not $failure -or $starts -ne 1 -or $parks -ne 1 -or $script:Admitted)) {
+        throw 'A changed selected job identity must fail without admitting work.'
+    }
 }
 Write-Output 'Actual hosted control preserves active jobs, refuses stale repeated wakes and parks failed admission.'

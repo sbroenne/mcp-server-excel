@@ -224,6 +224,9 @@ registration. Protected admission identifies one approved cloud-agent or
 owner-dispatched validation run, its job, the current boot and a ten-minute
 start deadline. The job-start hook refuses a different job before its setup
 or code executes. Setup completion does not authorize shutdown.
+Control rechecks the exact GitHub job after desktop preparation, before starting
+a listener. Work already cancelled or completed is not admitted; an idle VM is
+parked rather than left waiting for a job that no longer exists.
 
 The hosted control workflow checks complete GitHub jobs and guest listeners,
 workers, workbooks and cleanup records. It keeps active work undisturbed,

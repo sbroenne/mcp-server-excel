@@ -75,11 +75,11 @@
     processes tracked for the selected pipe. Restricting this target to the CLI
     project prevents parallel solution builds from launching cleanup clients
     that lock the CLI output.
-    Skipped in CI (no Excel/Service there).
+    Skipped on hosted CI, but retained on self-hosted desktops with live daemons.
   -->
   <Target Name="StopExcelMcpProcesses"
           BeforeTargets="BeforeBuild"
-          Condition="'$(MSBuildProjectName)' == 'ExcelMcp.CLI' AND '$(CI)' != 'true' AND '$(ExcelMcpSkipCleanup)' != 'true'">
+          Condition="'$(MSBuildProjectName)' == 'ExcelMcp.CLI' AND ('$(CI)' != 'true' OR '$(RUNNER_ENVIRONMENT)' == 'self-hosted') AND '$(ExcelMcpSkipCleanup)' != 'true'">
     <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\Stop-ExcelMcpProcesses.ps1&quot;"
           StandardOutputImportance="low" />
   </Target>
