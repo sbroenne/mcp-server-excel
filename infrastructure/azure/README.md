@@ -278,6 +278,13 @@ The setup runner expression uses only the applicable variable, not generated
 workflow display names or event contexts. Without the Agents opt-in, cloud
 setup also retains the existing hosted Windows runner.
 
+Copilot code review uses its separate `copilot-code-review.yml` setup on
+`windows-latest`, regardless of the Agents switch. Without that file GitHub
+reuses the cloud-agent setup, which would direct reviews to the Excel label.
+Reviews are not admitted by the coding-job controller; keep their existing
+hosted tooling separate rather than weakening the trusted cloud-job policy.
+The review setup does not install or run the on-demand LLM evaluations.
+
 Operators can read the actual firewall state through
 `GET /repos/{owner}/{repo}/copilot/cloud-agent/configuration` and manage the
 Agents switch through `POST /repos/{owner}/{repo}/agents/variables` or

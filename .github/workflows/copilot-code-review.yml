@@ -1,0 +1,71 @@
+name: Copilot Code Review Setup
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-code-review.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-code-review.yml
+
+jobs:
+  copilot-setup-steps:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            vscode-extension/package-lock.json
+            npm-packages/shared/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: gh-pages/requirements.txt
+
+      - name: Restore .NET dependencies
+        run: dotnet restore Sbroenne.ExcelMcp.sln
+
+      - name: Install repository tooling
+        run: npm ci
+
+      - name: Install VS Code extension dependencies
+        working-directory: vscode-extension
+        run: npm ci
+
+      - name: Install documentation dependencies
+        run: python -m pip install -r gh-pages/requirements.txt
+
+      - name: Install shared npm tooling
+        working-directory: npm-packages/shared
+        run: npm ci
+
+      - name: Verify review tools and Excel-free boundary
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          dotnet --version
+          node --version
+          python --version
+          Write-Output 'Hosted review setup complete. Desktop Excel is unavailable; no COM behavior was verified. LLM evaluations remain on demand.'
