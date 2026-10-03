@@ -103,10 +103,10 @@ public interface IRangeFormatCommands
 
     /// <summary>
     /// Gets the native cell style applied to a range, including built-in/custom status.
-    /// Mixed styles require get-format rather than an invented Normal default.
     /// Excel COM: Range.Style.Name property
     /// When Excel reports no single style for a mixed-style range, returns the
-    /// existing Normal fallback without changing individual cell styles.
+    /// existing Normal fallback without changing individual cell styles. This does
+    /// not mean every cell uses Normal; use get-format to inspect each cell's distinct style.
     /// </summary>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
