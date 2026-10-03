@@ -18,6 +18,8 @@ older-version compatibility wrappers or a VS Code built-in review configuration.
 | Copilot CLI (`copilot`) | Discovers root and applicable nested AGENTS.md files. Use `/instructions` to inspect discovered/enabled files; restart or start a new session after instruction changes. |
 | Copilot cloud agent | Supports root/nested AGENTS.md. Check its session evidence rather than assuming every linked guide was read. |
 | Copilot app | Uses its selected agent's discovery; accepted `.github/github-app.yml` adds pointers and manual commands. |
+| VS Code Local agent | Root AGENTS.md support is controlled by `chat.useAgentsMdFile`. Nested discovery has a separate `chat.useNestedAgentsMdFiles` setting, disabled by default. Check the Agent Customizations editor and response References for the files used. |
+| VS Code Agent Host | Follows the selected agent harness's working-directory and nested-file discovery rules, not the Local agent's settings. Select the intended harness before inspecting its customizations. |
 | Claude Code | Reads AGENTS.md natively under the conditions below. Use `/context` to inspect memory files and `/config` to check Project instructions. |
 | Codex | Builds a root-to-working-directory instruction chain at session startup. Start a fresh session in the intended directory and ask which instruction sources were loaded. |
 
@@ -135,6 +137,7 @@ app's executable commands or its acceptance state.
 - [GitHub instruction support](https://docs.github.com/en/copilot/reference/custom-instructions-support)
 - [GitHub instruction writing guidance](https://docs.github.com/en/copilot/concepts/prompting/response-customization)
 - [Copilot CLI discovery](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-custom-instructions)
+- [VS Code Local and Agent Host discovery](https://code.visualstudio.com/docs/agent-customization/custom-instructions)
 - [Claude Code instructions](https://code.claude.com/docs/en/memory)
 - [Codex instruction discovery](https://developers.openai.com/codex/guides/agents-md)
 - [App configuration and trust](https://docs.github.com/en/copilot/reference/github-copilot-app-reference/repository-configuration)
