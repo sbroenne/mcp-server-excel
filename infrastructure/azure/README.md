@@ -195,6 +195,9 @@ one reused Windows VM. There is no second controller VM. GitHub controls Azure
 through short-lived workload identity, not a stored Azure password. Control
 permissions are limited to the dedicated resource group, except read-only
 subscription role-assignment metadata needed to reject a privileged VM identity.
+Azure shutdown scheduling also checks write permission on its linked VM, so
+the dedicated-group role includes VM settings write access. It grants neither
+role-assignment writes nor password-vault data access.
 The coding desktop receives neither the control identity nor a GitHub
 administration token.
 
