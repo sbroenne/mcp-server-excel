@@ -25,7 +25,7 @@ on:
 
 jobs:
   copilot-setup-steps:
-    runs-on: ${{ vars.EXCEL_COPILOT_ENABLED == 'true' && github.event_name == 'dynamic' && github.workflow == 'Copilot cloud agent' && 'excel-copilot' || 'windows-latest' }}
+    runs-on: ${{ vars.EXCEL_COPILOT_ENABLED == 'true' && 'excel-copilot' || 'windows-latest' }}
     timeout-minutes: 20
     permissions:
       contents: read
