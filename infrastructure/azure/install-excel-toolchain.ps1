@@ -84,10 +84,11 @@ function Get-RunnerCloudToolState {
         (Get-Command jq -CommandType Application -ErrorAction Stop).Source -ine $jq) {
         throw 'The runner PATH must resolve the protected Git Bash and pinned jq executables.'
     }
-    $bashVersion = (& $bash --version | Select-Object -First 1) -join ''
-    if ($LASTEXITCODE -ne 0 -or $bashVersion -notmatch '^GNU bash, version \d+\.\d+') {
+    $bashOutput = @(& $bash --version)
+    if ($LASTEXITCODE -ne 0 -or -not $bashOutput.Count -or $bashOutput[0] -notmatch '^GNU bash, version \d+\.\d+') {
         throw 'Git Bash verification failed.'
     }
+    $bashVersion = $bashOutput[0]
     $jqVersion = (& $bash --noprofile --norc -c 'jq --version') -join ''
     if ($LASTEXITCODE -ne 0 -or $jqVersion -ne (Get-RunnerJqRelease).version) {
         throw 'The cloud initialization Bash shell cannot execute the required jq version.'
