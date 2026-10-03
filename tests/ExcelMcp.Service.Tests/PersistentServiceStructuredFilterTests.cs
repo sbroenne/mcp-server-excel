@@ -162,6 +162,62 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
     }
 
     [Fact]
+    public async Task OrdinaryFilter_RequiresExplicitClearingOfAnExistingAdvancedFilter()
+    {
+        var sheet = CreateData();
+        Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "H1:H2", [["Amount"], [">=30"]]).Success);
+        var original = _commands.GetValues(_fixture.BatchToken, sheet, "A1:B6");
+        Assert.True(original.Success, original.ErrorMessage);
+        _fixture.Send("rangeedit.advanced-filter", new
+        {
+            sheetName = sheet,
+            rangeAddress = "A1:B6",
+            criteriaRange = "H1:H2",
+            mode = "InPlace"
+        });
+        AssertVisibleRows(sheet, 4, 5, 6);
+        var before = _fixture.Send("rangeedit.get-filters", new { sheetName = sheet, rangeAddress = "A1:B6" });
+        using (var state = JsonDocument.Parse(before.Result!))
+        {
+            Assert.True(state.RootElement.GetProperty("worksheetFilterMode").GetBoolean());
+            Assert.False(state.RootElement.GetProperty("filterEnabled").GetBoolean());
+            Assert.False(state.RootElement.GetProperty("advancedCriteriaAvailable").GetBoolean());
+        }
+        var rejected = await _fixture.SendForFailureAsync("rangeedit.apply-filter", new
+        {
+            sheetName = sheet,
+            rangeAddress = "A1:B6",
+            columnIndex = 2,
+            filterOptions = new { criteria1 = "<=20" }
+        });
+        Assert.False(rejected.Success);
+        Assert.Contains("clear_advanced", rejected.ErrorMessage);
+        Assert.Contains("--clear-advanced", rejected.ErrorMessage);
+        AssertVisibleRows(sheet, 4, 5, 6);
+        var after = _fixture.Send("rangeedit.get-filters", new { sheetName = sheet, rangeAddress = "A1:B6" });
+        Assert.Equal(before.Result, after.Result);
+        var unchanged = _commands.GetValues(_fixture.BatchToken, sheet, "A1:B6");
+        Assert.True(unchanged.Success, unchanged.ErrorMessage);
+        Assert.Equal(JsonSerializer.Serialize(original.Values), JsonSerializer.Serialize(unchanged.Values));
+        var criteria = _commands.GetValues(_fixture.BatchToken, sheet, "H1:H2");
+        Assert.True(criteria.Success, criteria.ErrorMessage);
+        Assert.Equal("Amount", criteria.Values[0][0]);
+        Assert.Equal(">=30", criteria.Values[1][0]);
+
+        _fixture.Send("rangeedit.clear-filters",
+            new { sheetName = sheet, rangeAddress = "A1:B6", clearAdvanced = true });
+        AssertVisibleRows(sheet, 2, 3, 4, 5, 6);
+        Apply(sheet, null, 2, new { criteria1 = "<=20" });
+        AssertVisibleRows(sheet, 2, 3);
+        var applied = _fixture.Send("rangeedit.get-filters", new { sheetName = sheet, rangeAddress = "A1:B6" });
+        using var ordinary = JsonDocument.Parse(applied.Result!);
+        Assert.True(ordinary.RootElement.GetProperty("filterEnabled").GetBoolean());
+        Assert.True(ordinary.RootElement.GetProperty("advancedCriteriaAvailable").GetBoolean());
+        Assert.Equal("<=20", ordinary.RootElement.GetProperty("columnFilters")[1]
+            .GetProperty("criteria1").GetProperty("value").GetString());
+    }
+
+    [Fact]
     public void AdvancedFilter_CopiesMatchingRecordsWithoutModifyingSource()
     {
         var sheet = CreateData();

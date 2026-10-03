@@ -29,6 +29,10 @@ public partial class RangeCommands
                 sheet = range.Worksheet;
                 RejectTableFilterScope(ctx, sheet, range);
                 filter = ResolveMatchingWorksheetFilter(sheet, range);
+                if (filter is null && sheet.FilterMode)
+                    throw new InvalidOperationException("An existing worksheet-wide advanced row filter has no inspectable scope. " +
+                        "Use clear-filters with clear_advanced=true (CLI: --clear-advanced true) only when clearing it is authorized, " +
+                        "before applying an ordinary filter.");
                 NativeFilterHelpers.Apply(ctx.Book, range, columnIndex, filterOptions, token);
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath, Action = "apply-filter" };
             }

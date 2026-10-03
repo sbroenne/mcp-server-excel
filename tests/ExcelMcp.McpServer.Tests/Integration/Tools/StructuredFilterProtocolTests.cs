@@ -60,6 +60,9 @@ public sealed class StructuredFilterProtocolTests(RecordingProgramTransportFixtu
         Assert.True(properties.TryGetProperty("clear_advanced", out _));
         Assert.True(properties.TryGetProperty("criteria_range", out _));
         Assert.True(properties.TryGetProperty("copy_to_range", out _));
+        Assert.Contains("advanced row filter must be explicitly cleared before apply-filter",
+            range.Description, StringComparison.Ordinal);
+        Assert.Contains("do not retry or clear it without authorization", range.Description, StringComparison.Ordinal);
         var table = Assert.Single(tools, tool => tool.Name == "table_column");
         Assert.Contains("apply-filter-values is removed", table.Description, StringComparison.Ordinal);
     }

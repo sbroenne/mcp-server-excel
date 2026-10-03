@@ -287,7 +287,10 @@ Excel does not expose the original advanced row-filter criteria/scope.
 `advancedCriteriaAvailable: false`; it does not invent a faithful advanced
 criteria read. Clearing that state requires explicit MCP `clear_advanced: true`
 / CLI `--clear-advanced true`, authorizing worksheet-wide native row-filter
-clearing. No automatic retry, scope substitution, or protection bypass is allowed.
+clearing. `apply-filter` rejects that existing state without changing hidden
+rows or enabling an ordinary AutoFilter. Clear it explicitly with `clear-filters`
+only when authorized, before applying a new ordinary filter. No automatic retry,
+scope substitution, or protection bypass is allowed.
 
 ## Native data cleanup
 
