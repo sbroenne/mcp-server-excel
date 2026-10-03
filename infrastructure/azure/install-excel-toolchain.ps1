@@ -58,6 +58,69 @@ function Assert-RequiredRunnerSdk {
     }
 }
 
+function Get-RunnerJqRelease {
+    @{
+        version = 'jq-1.8.2'
+        uri = 'https://github.com/jqlang/jq/releases/download/jq-1.8.2/jq-windows-amd64.exe'
+        sha256 = 'a6fc67fedaf9128a3309a1e2ebb8b986aeccf70122ee46d2cb4849e423f0c627'
+    }
+}
+
+function Assert-RunnerJqPackage {
+    param([string]$Path)
+    if ((Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash -ne (Get-RunnerJqRelease).sha256) {
+        throw 'The jq executable must match the pinned official Windows x64 release checksum.'
+    }
+}
+
+function Get-RunnerCloudToolState {
+    $bash = Join-Path $env:ProgramFiles 'Git\bin\bash.exe'
+    $jq = Join-Path $env:ProgramFiles 'ExcelMcp\Tools\jq.exe'
+    foreach ($path in @($bash, $jq)) {
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw 'A required cloud initialization tool is missing.' }
+    }
+    Assert-RunnerJqPackage $jq
+    if ((Get-Command bash -CommandType Application -ErrorAction Stop).Source -ine $bash -or
+        (Get-Command jq -CommandType Application -ErrorAction Stop).Source -ine $jq) {
+        throw 'The runner PATH must resolve the protected Git Bash and pinned jq executables.'
+    }
+    $bashVersion = (& $bash --version | Select-Object -First 1) -join ''
+    if ($LASTEXITCODE -ne 0 -or $bashVersion -notmatch '^GNU bash, version \d+\.\d+') {
+        throw 'Git Bash verification failed.'
+    }
+    $jqVersion = (& $bash --noprofile --norc -c 'jq --version') -join ''
+    if ($LASTEXITCODE -ne 0 -or $jqVersion -ne (Get-RunnerJqRelease).version) {
+        throw 'The cloud initialization Bash shell cannot execute the required jq version.'
+    }
+    return @{ bash = $bashVersion; jq = $jqVersion }
+}
+
+function Install-RunnerCloudPrerequisites {
+    $bashDirectory = Join-Path $env:ProgramFiles 'Git\bin'
+    if (-not (Test-Path -LiteralPath (Join-Path $bashDirectory 'bash.exe') -PathType Leaf)) {
+        throw 'Install the verified Git for Windows package before cloud initialization tools.'
+    }
+    $toolsDirectory = Join-Path $env:ProgramFiles 'ExcelMcp\Tools'
+    New-Item -ItemType Directory -Path $toolsDirectory -Force | Out-Null
+    $jq = Join-Path $toolsDirectory 'jq.exe'
+    if (-not (Test-Path -LiteralPath $jq -PathType Leaf)) {
+        $download = Join-Path $toolsDirectory "jq-download-$([Guid]::NewGuid().ToString('N')).exe"
+        try {
+            Invoke-WebRequest -Uri (Get-RunnerJqRelease).uri -OutFile $download -UseBasicParsing -TimeoutSec 180
+            Assert-RunnerJqPackage $download
+            [IO.File]::Move($download, $jq)
+        }
+        finally { if (Test-Path -LiteralPath $download) { Remove-Item -LiteralPath $download -Force } }
+    }
+    Assert-RunnerJqPackage $jq
+    $existing = @([Environment]::GetEnvironmentVariable('Path', 'Machine') -split ';' |
+        Where-Object { $_ -and $_.TrimEnd('\') -ine $bashDirectory -and $_.TrimEnd('\') -ine $toolsDirectory })
+    [Environment]::SetEnvironmentVariable('Path', (@($bashDirectory, $toolsDirectory) + $existing) -join ';', 'Machine')
+    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
+        [Environment]::GetEnvironmentVariable('Path', 'User')
+    Get-RunnerCloudToolState
+}
+
 function Get-RunnerToolchainState {
     $dotnet = Join-Path $env:ProgramFiles 'dotnet\dotnet.exe'
     $git = Join-Path $env:ProgramFiles 'Git\cmd\git.exe'
@@ -82,9 +145,11 @@ function Get-RunnerToolchainState {
     if ($LASTEXITCODE -ne 0 -or $powershellVersion -notmatch '^7\.') { throw 'PowerShell 7 verification failed.' }
     $nodeVersion = (& $node --version) -join ''
     if ($LASTEXITCODE -ne 0 -or $nodeVersion -notmatch '^v22\.') { throw 'Node.js 22 verification failed.' }
+    $cloud = Get-RunnerCloudToolState
     return @{
         sdk = $selectedSdk; requiredSdk = $SdkVersion; rollForward = $RollForward
         git = $gitVersion; powershell = $powershellVersion; node = $nodeVersion
+        bash = $cloud.bash; jq = $cloud.jq
     }
 }
 
@@ -194,6 +259,7 @@ switch ($Action) {
                 Install-RunnerPrerequisite "https://nodejs.org/dist/$($release.version)/node-$($release.version)-x64.msi" `
                     'node.msi' Node '' -Msi
             }
+            $null = Install-RunnerCloudPrerequisites
             Write-ToolchainState @{
                 state = 'installed'; tools = (Get-RunnerToolchainState); rebootRequired = $script:toolchainRebootRequired
                 runnerRegistered = $false
