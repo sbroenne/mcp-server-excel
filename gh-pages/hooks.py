@@ -1439,14 +1439,15 @@ def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
 
 
 def _write_tools_json(config) -> None:
-    """Emit /tools.json: every tool and operation as structured JSON.
+    """Emit /tools.json: capability summaries with tool and operation totals.
 
-    The machine-readable catalogue and operation total are derived from the
-    canonical ``docs/features/*.md`` references. The tool total comes from the
+    Summaries describe grouped capabilities, not individual commands. The
+    summaries and operation total come from the canonical ``docs/features/*.md``
+    pages. The tool total comes from the
     single generated ``doc-counts.json`` include file.
     """
     heading = re.compile(r"^## (?:\W+\s+)?(?P<name>.+?) \((?P<count>\d+) operations\)$")
-    operation = re.compile(r"^- \*\*(?P<name>[^:*]+):\*\*\s*(?P<desc>.+)$")
+    capability = re.compile(r"^- \*\*(?P<name>[^:*]+):\*\*\s*(?P<desc>.+)$")
 
     headline_tools, _ = _read_release_headline_counts()
 
@@ -1463,18 +1464,18 @@ def _write_tools_json(config) -> None:
                 current = {
                     "name": match.group("name").strip(),
                     "operationCount": int(match.group("count")),
-                    "operations": [],
+                    "capabilities": [],
                 }
                 groups.append(current)
                 continue
             if current is None:
                 continue
-            op = operation.match(line)
-            if op:
-                current["operations"].append(
+            summary = capability.match(line)
+            if summary:
+                current["capabilities"].append(
                     {
-                        "name": op.group("name").strip(),
-                        "description": op.group("desc").strip(),
+                        "name": summary.group("name").strip(),
+                        "description": summary.group("desc").strip(),
                     }
                 )
 
@@ -1495,7 +1496,8 @@ def _write_tools_json(config) -> None:
         "description": (
             "Automates the real Microsoft Excel application through its COM API, "
             "exposing Excel to AI assistants over the Model Context Protocol and "
-            "to scripts through the excelcli command line."
+            "to scripts through the excelcli command line. "
+            "Feature groups describe capabilities, not individual commands."
         ),
         "requirements": {
             "operatingSystem": "Windows",

@@ -66,6 +66,10 @@ These are generated, not separately maintained. `tools.json` derives its
 capability summaries and operation total from the feature groups and operation counts in
 `docs/features/`, while its tool total comes from `doc-counts.json` (repo
 root) - the single generated include file every count consumer reads.
+Each `featureGroups` entry contains `capabilities` with names and descriptions,
+not an `operations` command inventory. Its `operationCount` is the number of
+supported operations, not the number of capability summaries. Current command
+specifications come from CLI help and MCP tool descriptions.
 `llms.txt` reads its advertised summary from that same file. Contributors run
 `scripts\check-doc-counts.ps1 -Update` and review `doc-counts.json` and managed
 headline changes in the source PR. CI rejects stale counts before merge;
