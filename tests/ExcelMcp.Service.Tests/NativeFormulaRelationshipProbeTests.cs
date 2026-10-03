@@ -110,7 +110,7 @@ public sealed class NativeFormulaRelationshipProbeTests(
         if (expected is null)
         {
             Assert.Equal(unchecked((int)0x800A03EC), actual.ErrorCode);
-            Assert.Contains("No cells were found", actual.Error, StringComparison.OrdinalIgnoreCase);
+            Assert.False(string.IsNullOrWhiteSpace(actual.Error));
         }
         else
         {

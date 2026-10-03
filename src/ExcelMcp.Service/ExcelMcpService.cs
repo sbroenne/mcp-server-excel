@@ -450,7 +450,7 @@ public sealed class ExcelMcpService : IDisposable
         {
             var result = _fileCommands.Test(args.FilePath);
             if (result.Exists
-                && result.Extension is ".xlsx" or ".xlsm"
+                && result.Extension is ".xlsx" or ".xlsm" or ".xlsb" or ".xls"
                 && !result.IsIrmProtected
                 && result.Message == null)
             {
