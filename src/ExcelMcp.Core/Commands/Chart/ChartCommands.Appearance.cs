@@ -107,7 +107,7 @@ public partial class ChartCommands
                 else
                 {
                     targetAxis.HasTitle = true;
-                    axisTitle = targetAxis.AxisTitle;
+                    axisTitle = ((Excel.Axis)targetAxis).AxisTitle;
                     axisTitle.Text = title;
                 }
 

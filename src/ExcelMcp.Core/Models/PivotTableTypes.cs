@@ -472,6 +472,9 @@ public class PivotFieldListResult : ResultBase
     /// List of all fields in the PivotTable
     /// </summary>
     public List<PivotFieldInfo> Fields { get; set; } = [];
+
+    /// <summary>Every displayed Values instance, including repeated sources and native additional calculations.</summary>
+    public List<Commands.PivotTable.PivotFieldCalculationResult> ValueFields { get; set; } = [];
 }
 
 /// <summary>
@@ -907,6 +910,10 @@ public class CalculatedMemberResult : ResultBase
 /// </summary>
 public class SlicerInfo
 {
+    /// <summary>Whether this visual is a native date timeline rather than an item slicer.</summary>
+    public bool IsTimeline { get; set; }
+    /// <summary>Native timeline date and display state; ordinary controls omit this property.</summary>
+    public Sbroenne.ExcelMcp.Core.Commands.Slicer.TimelineDetails? Timeline { get; set; }
     /// <summary>
     /// Name of the slicer
     /// </summary>
@@ -1039,4 +1046,3 @@ public class SlicerResult : ResultBase
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? WorkflowHint { get; set; }
 }
-

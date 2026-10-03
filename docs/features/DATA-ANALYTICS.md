@@ -84,7 +84,7 @@ Build a Power Pivot Data Model — manage tables, DAX measures, and relationship
 
 ---
 
-## 📇 Excel Tables (ListObjects) (28 operations)
+## 📇 Excel Tables (ListObjects) (27 operations)
 
 Create and manage Excel Tables (ListObjects) — structured ranges with styling, filtering, and sorting.
 
@@ -113,10 +113,9 @@ Create and manage Excel Tables (ListObjects) — structured ranges with styling,
 - **Get DAX:** Retrieve the DAX query info from a table
 
 **Filter Operations:**
-- **Apply Filter (Criteria):** Filter a column using comparison criteria
-- **Apply Filter (Values):** Filter a column to a specific set of values
+- **Apply Filter:** Typed comparison/AND/OR, value/date groups, top/bottom, color, icon, and dynamic native criteria
 - **Clear Filters:** Remove all active filters
-- **Get Filter State:** Read current filter criteria
+- **Get Filter State:** Read every column, native operators, both criterion slots and arrays, with explicit getter failures
 
 **Column Management:**
 - **Add Column:** Insert a new column
@@ -136,7 +135,7 @@ Create and manage Excel Tables (ListObjects) — structured ranges with styling,
 
 ---
 
-## 📈 PivotTables (35 operations)
+## 📈 PivotTables (45 operations)
 
 Create and configure PivotTables from ranges, Excel Tables, or the Data Model.
 
@@ -146,15 +145,18 @@ Create and configure PivotTables from ranges, Excel Tables, or the Data Model.
 - **Create from Data Model:** Build an OLAP PivotTable from the Data Model
 
 **Field Management:**
-- **List Fields:** List all fields across row, column, value, and filter areas
+- **List Fields:** List all fields and every displayed Values instance, including repeated source fields, aggregation, additional calculation, and applicable base settings without a cap
 - **Add Row Field / Column Field / Value Field / Filter Field:** Add a field to the given area
 - **Remove Field:** Remove a field from the PivotTable
 
 **Field Configuration:**
 - **Set Field Function:** Set aggregation function (Sum, Average, Count, Min, Max, etc.)
+- **Set Field Calculation:** Set native Show Values As for one exact displayed Values name, independently of aggregation; reset with Normal. Base-dependent calculations require an explicit row/column field and, where applicable, a Named/Previous/Next item. OLAP/Data Model native base settings are unavailable.
 - **Set Field Name:** Set a custom display name for a field
 - **Set Field Number Format:** Apply a number format to a value field
 - **Set Field Filter:** Apply filter criteria to a field
+- **Get/Add/Clear Field Filters:** Inspect every native calculated filter or add typed label/value/date/top-bottom criteria on a regular PivotTable. Clearing removes only that field's calculated filters, not manual item visibility.
+- **Get/Set Item Expansion:** Read or expand/collapse one exact parent item in a regular row/column hierarchy; innermost fields and OLAP/provider-dependent expansion are rejected.
 - **Sort Field:** Sort a field ascending/descending
 
 **Grouping:**
@@ -174,6 +176,7 @@ Create and configure PivotTables from ranges, Excel Tables, or the Data Model.
 
 **Layout & Formatting:**
 - **Set Layout:** Switch between table and outline layout
+- **Get/Set Layout Options:** Read every row field's native layout/repeated-label setting; update native PivotTable styles, preserve-formatting, headers, banding, and multiple-filter permission. Omitted settings remain unchanged.
 - **Set Subtotals Display:** Show/hide subtotals
 - **Set Grand Totals Display:** Show/hide grand totals
 
@@ -184,7 +187,9 @@ Create and configure PivotTables from ranges, Excel Tables, or the Data Model.
 
 **PivotCache Configuration:**
 - **Get Cache Options:** Read refresh, retained-item, optimization, and saved-source settings
-- **Set Cache Options:** Configure supported regular-cache options; unsupported OLAP/OLE DB mutations are rejected
+- **Set Cache Options:** Configure supported cache options after complete validation; cache-wide changes that affect other shared-cache PivotTables are rejected. Saved-source data is table-specific.
+- **Get Source:** Read the worksheet-backed source, cache index, record count, all shared PivotTables, and connected slicer/timeline caches.
+- **Set Source:** Isolate only the selected regular PivotTable onto a new range/table cache with the same field schema, preserving unrelated cache users. Connected slicers/timelines must first be disconnected; external/OLAP source changes are unsupported.
 
 **Lifecycle:**
 - **List:** List PivotTables in a worksheet or workbook

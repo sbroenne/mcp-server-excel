@@ -22,7 +22,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// </summary>
 [ServiceCategory("pivottable", "PivotTable")]
 [McpTool("pivottable", Title = "PivotTable Operations", Destructive = true, Category = "analysis",
-    Description = "PivotTable lifecycle: create from various sources, list, read, refresh, delete. BEST PRACTICE: Use list before creating. Prefer refresh over delete+recreate to preserve field configs. REFRESH: Call after configuring fields with pivottable_field. LAYOUT: 0=Compact (default), 1=Tabular (best for export), 2=Outline. CREATE: create-from-range, create-from-table, create-from-datamodel. TIMEOUT: 5 min for DataModel. STYLING: PivotTable visual styles are not supported by this API. Do not apply range_format to PivotTable cells — cell formatting is overwritten on the next refresh. Use pivottable_field for field management, pivottable_calc for calculated fields.")]
+    Description = "PivotTable lifecycle: create from various sources, list, read, refresh, delete. BEST PRACTICE: Use list before creating. Prefer refresh over delete+recreate to preserve field configs. REFRESH: Call after configuring fields with pivottable_field. CREATE: create-from-range, create-from-table, create-from-datamodel. TIMEOUT: 5 min for DataModel. SOURCE: get-source/set-source inspect and isolate worksheet-backed caches; connected slicers/timelines must first be disconnected. Shared cache options cannot change unrelated PivotTables. STYLING: Use pivottable_calc set-layout-options for native styles and preserveFormatting. Use pivottable_field for field management.")]
 public interface IPivotTableCommands
 {
     // === LIFECYCLE OPERATIONS ===
@@ -109,6 +109,22 @@ public interface IPivotTableCommands
     [ServiceAction("refresh")]
     PivotTableRefreshResult Refresh(IExcelBatch batch, string pivotTableName, TimeSpan? timeout = null);
 
+    /// <summary>Reads native worksheet-backed source, record count, shared cache users, and connected slicer/timeline caches. External/OLAP sources are unsupported here.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="pivotTableName">Selected regular PivotTable.</param>
+    [ServiceAction("get-source")]
+    PivotSourceResult GetSource(IExcelBatch batch, string pivotTableName);
+
+    /// <summary>Changes only the selected regular PivotTable to a new worksheet-backed cache and refreshes it. Preserves field schema and unrelated shared-cache users. Connected slicers/timelines must first be disconnected; no dashboard cache is silently rebuilt.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="pivotTableName">Selected worksheet-backed PivotTable.</param>
+    /// <param name="sourceSheetName">New source worksheet.</param>
+    /// <param name="sourceRangeAddress">One contiguous header/data range with the same field names; mutually exclusive with tableName.</param>
+    /// <param name="tableName">Existing Excel table on sourceSheetName; mutually exclusive with sourceRangeAddress.</param>
+    [ServiceAction("set-source")]
+    PivotSourceResult SetSource(IExcelBatch batch, string pivotTableName, string sourceSheetName,
+        string? sourceRangeAddress = null, string? tableName = null);
+
     /// <summary>
     /// Gets refresh, retention, and source-data settings for a PivotTable and its PivotCache.
     /// </summary>
@@ -122,6 +138,7 @@ public interface IPivotTableCommands
     /// Configures refresh, retention, and source-data settings for a PivotTable and its PivotCache.
     /// Omitted parameters keep their current values. Missing-item retention applies only to regular
     /// PivotTables; OLAP/Data Model caches manage retained members at the source.
+    /// Cache-wide changes are rejected when other PivotTables share the cache; saveSourceData is table-specific.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>

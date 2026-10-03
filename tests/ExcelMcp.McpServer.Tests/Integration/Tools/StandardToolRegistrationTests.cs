@@ -30,7 +30,8 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
 
     [Theory]
     [InlineData("range", "values")]
-    [InlineData("range_format", "font_size")]
+    [InlineData("range_format", "format_options")]
+    [InlineData("workbook", "style_name")]
     [InlineData("chart", "target_range")]
     [InlineData("screenshot", "range_address")]
     [InlineData("screenshot", "quality")]

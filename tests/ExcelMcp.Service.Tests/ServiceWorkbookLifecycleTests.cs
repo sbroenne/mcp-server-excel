@@ -363,13 +363,16 @@ public sealed class ServiceWorkbookLifecycleTests
     {
         var response = await service.ProcessAsync(new ServiceRequest
         {
-            Command = "rangeformat.format-range",
+            Command = "rangeformat.format",
             SessionId = sessionId,
             Args = JsonSerializer.Serialize(new
             {
                 sheetName,
-                rangeAddress = "A1:A2",
-                bold = true
+                rangeAddresses = (string[])["A1:A2"],
+                formatOptions = new
+                {
+                    bold = true
+                }
             }, ServiceProtocol.JsonOptions)
         });
         Assert.True(response.Success, response.ErrorMessage);

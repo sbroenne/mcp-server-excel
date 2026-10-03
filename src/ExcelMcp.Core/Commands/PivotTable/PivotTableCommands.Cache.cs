@@ -41,6 +41,8 @@ public partial class PivotTableCommands
         bool? optimizeCache = null,
         bool? saveSourceData = null)
     {
+        if (missingItemsLimit.HasValue && !Enum.IsDefined(missingItemsLimit.Value))
+            throw new ArgumentOutOfRangeException(nameof(missingItemsLimit));
         return batch.Execute((ctx, ct) =>
         {
             Excel.PivotTable? pivot = null;
@@ -59,6 +61,24 @@ public partial class PivotTableCommands
                         "Configure retained members in the external model or source.");
                 }
 
+                if (optimizeCache.HasValue && isExternal && optimizeCache.Value != cache.OptimizeCache)
+                    throw new InvalidOperationException("OptimizeCache is read-only for external OLE DB/OLAP PivotCaches.");
+                if (saveSourceData == true && isOlap)
+                    throw new InvalidOperationException("OLAP/Data Model PivotTables cannot save source records in the workbook.");
+                bool changesCache =
+                    (enableRefresh.HasValue && enableRefresh.Value != cache.EnableRefresh) ||
+                    (refreshOnFileOpen.HasValue && refreshOnFileOpen.Value != cache.RefreshOnFileOpen) ||
+                    (missingItemsLimit.HasValue && (Excel.XlPivotTableMissingItems)missingItemsLimit.Value != cache.MissingItemsLimit) ||
+                    (optimizeCache.HasValue && optimizeCache.Value != cache.OptimizeCache);
+                if (changesCache)
+                {
+                    var shared = ReadSharedPivotTables(ctx.Book, pivot.CacheIndex, ct);
+                    if (shared.Count > 1)
+                        throw new InvalidOperationException(
+                            $"Cache options cannot change a shared PivotCache used by: {string.Join(", ", shared)}. " +
+                            "Use set-source to isolate a selected worksheet-backed PivotTable when source replacement is intended.");
+                }
+
                 if (enableRefresh.HasValue)
                 {
                     cache.EnableRefresh = enableRefresh.Value;
@@ -74,25 +94,12 @@ public partial class PivotTableCommands
                     cache.MissingItemsLimit = (Excel.XlPivotTableMissingItems)missingItemsLimit.Value;
                 }
 
-                if (optimizeCache.HasValue && isExternal)
-                {
-                    if (optimizeCache.Value != cache.OptimizeCache)
-                    {
-                        throw new InvalidOperationException(
-                            "OptimizeCache is read-only for external OLE DB/OLAP PivotCaches.");
-                    }
-                }
-                else if (optimizeCache.HasValue)
+                if (optimizeCache.HasValue && !isExternal && optimizeCache.Value != cache.OptimizeCache)
                 {
                     cache.OptimizeCache = optimizeCache.Value;
                 }
 
-                if (saveSourceData == true && isOlap)
-                {
-                    throw new InvalidOperationException(
-                        "OLAP/Data Model PivotTables cannot save source records in the workbook.");
-                }
-                else if (saveSourceData.HasValue && !isOlap)
+                if (saveSourceData.HasValue && !isOlap)
                 {
                     pivot.SaveData = saveSourceData.Value;
                 }

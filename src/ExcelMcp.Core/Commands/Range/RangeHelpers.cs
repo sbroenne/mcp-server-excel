@@ -14,6 +14,63 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 public static class RangeHelpers
 {
+    /// <summary>
+    /// Visits every unique cell in an already-resolved native range.
+    /// The callback borrows the cell; this method owns and releases its reference.
+    /// </summary>
+    internal static void VisitCells(Excel.Range range, CancellationToken ct, Action<Excel.Range> visit)
+    {
+        Excel.Areas? areas = null;
+        try
+        {
+            areas = range.Areas;
+            for (int index = 1; index <= areas.Count; index++)
+            {
+                Excel.Range? area = null;
+                Excel.Range? cells = null;
+                Excel.Range? rows = null;
+                Excel.Range? columns = null;
+                try
+                {
+                    area = areas[index];
+                    cells = area.Cells;
+                    rows = area.Rows;
+                    columns = area.Columns;
+                    int rowCount = rows.Count;
+                    int columnCount = columns.Count;
+                    for (int row = 1; row <= rowCount; row++)
+                    {
+                        for (int column = 1; column <= columnCount; column++)
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            Excel.Range? cell = null;
+                            try
+                            {
+                                cell = cells[row, column];
+                                visit(cell);
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref cell);
+                            }
+                        }
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref columns);
+                    ComUtilities.Release(ref rows);
+                    ComUtilities.Release(ref cells);
+                    ComUtilities.Release(ref area);
+                }
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref areas);
+        }
+    }
+
     private const int ExcelMaxRows = 1_048_576;
     private const int ExcelMaxColumns = 16_384;
 
@@ -76,7 +133,8 @@ public static class RangeHelpers
             }
 
             // Sheet exists, now try to get the range
-            if (!IsSupportedRangeAddress(rangeAddress))
+            var areaAddresses = ParseSupportedRangeAreas(rangeAddress);
+            if (areaAddresses is null)
             {
                 specificError = $"Sheet '{sheetName}' exists, but range '{rangeAddress}' is invalid. " +
                                $"Verify the range address format (e.g., 'A1:E10', 'A1', 'A:A').";
@@ -85,7 +143,7 @@ public static class RangeHelpers
                     specificError);
             }
 
-            return sheet.Range[rangeAddress];
+            return ResolveRangeAreas(sheet, areaAddresses);
         }
         finally
         {
@@ -190,13 +248,63 @@ public static class RangeHelpers
                 StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool IsSupportedRangeAddress(string rangeAddress)
+    private static Excel.Range ResolveRangeAreas(
+        Excel.Worksheet sheet, List<string> areaAddresses)
+    {
+        Excel.Application? app = null;
+        Excel.Range? result = null;
+        try
+        {
+            if (areaAddresses.Count > 1)
+            {
+                app = sheet.Application;
+            }
+            foreach (var address in areaAddresses)
+            {
+                Excel.Range? area = null;
+                Excel.Range? combined = null;
+                try
+                {
+                    // Native unions avoid Excel's locale-dependent address separator.
+                    area = sheet.Range[address];
+                    if (result is null)
+                    {
+                        result = area;
+                        area = null;
+                    }
+                    else
+                    {
+                        combined = app!.Union(result, area);
+                        ComUtilities.Release(ref result);
+                        result = combined;
+                        combined = null;
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref combined);
+                    ComUtilities.Release(ref area);
+                }
+            }
+            var resolved = result ?? throw new InvalidOperationException("No range areas were resolved.");
+            result = null;
+            return resolved;
+        }
+        finally
+        {
+            ComUtilities.Release(ref result);
+            ComUtilities.Release(ref app);
+        }
+    }
+
+    private static List<string>? ParseSupportedRangeAreas(string rangeAddress)
     {
         if (string.IsNullOrWhiteSpace(rangeAddress))
         {
-            return false;
+            return null;
         }
 
+        List<string> areas = [];
         int areaStart = 0;
         int bracketDepth = 0;
         for (int index = 0; index < rangeAddress.Length; index++)
@@ -216,22 +324,28 @@ public static class RangeHelpers
             {
                 if (--bracketDepth < 0)
                 {
-                    return false;
+                    return null;
                 }
             }
             else if (character == ',' && bracketDepth == 0)
             {
-                if (!IsSupportedRangeArea(rangeAddress[areaStart..index].Trim()))
+                var area = rangeAddress[areaStart..index].Trim();
+                if (!IsSupportedRangeArea(area))
                 {
-                    return false;
+                    return null;
                 }
-
+                areas.Add(area);
                 areaStart = index + 1;
             }
         }
 
-        return bracketDepth == 0
-            && IsSupportedRangeArea(rangeAddress[areaStart..].Trim());
+        var lastArea = rangeAddress[areaStart..].Trim();
+        if (bracketDepth != 0 || !IsSupportedRangeArea(lastArea))
+        {
+            return null;
+        }
+        areas.Add(lastArea);
+        return areas;
     }
 
     private static bool IsSupportedRangeArea(string area)
@@ -458,55 +572,139 @@ public partial class RangeCommands
     /// <summary>
     /// Helper for copy operations (resolve source + target ranges, apply copy action, release both)
     /// </summary>
-    private static OperationResult CopyRange(
+    private static RangeCopyResult CopyRange(
         IExcelBatch batch,
         string sourceSheet,
         string sourceRange,
         string targetSheet,
         string targetRange,
-        string action,
-        Action<dynamic, dynamic> copyAction,
+        PasteKind pasteKind,
+        bool transpose,
+        bool skipBlanks,
         OverwritePolicy overwritePolicy)
     {
         ValidateOverwritePolicy(overwritePolicy);
-        var result = new OperationResult { FilePath = batch.WorkbookPath, Action = action };
+        var pasteType = pasteKind switch
+        {
+            PasteKind.All => Excel.XlPasteType.xlPasteAll,
+            PasteKind.Values => Excel.XlPasteType.xlPasteValues,
+            PasteKind.Formulas => Excel.XlPasteType.xlPasteFormulas,
+            PasteKind.Formats => Excel.XlPasteType.xlPasteFormats,
+            PasteKind.Validation => Excel.XlPasteType.xlPasteValidation,
+            _ => throw new ArgumentOutOfRangeException(nameof(pasteKind))
+        };
+        var result = new RangeCopyResult
+        {
+            FilePath = batch.WorkbookPath,
+            Action = "copy",
+            SourceSheet = sourceSheet,
+            TargetSheet = targetSheet,
+            PasteKind = pasteKind,
+            Transpose = transpose,
+            SkipBlanks = skipBlanks
+        };
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? srcRange = null;
-            dynamic? tgtRange = null;
+            Excel.Range? srcRange = null;
+            Excel.Range? tgtRange = null;
             Excel.Range? destination = null;
+            Excel.Range? sourceCells = null;
+            bool copyStarted = false;
+            Exception? primaryFailure = null;
             try
             {
-                srcRange = RangeHelpers.ResolveRange(ctx.Book, sourceSheet, sourceRange, out string? srcError);
-                if (srcRange == null)
+                srcRange = RangeHelpers.ResolveRange(ctx.Book, sourceSheet, sourceRange);
+                tgtRange = RangeHelpers.ResolveRange(ctx.Book, targetSheet, targetRange);
+                destination = ResolveCopyDestination(srcRange!, tgtRange!, transpose);
+                result.SourceAddress = srcRange!.Address;
+                result.DestinationAddress = destination.Address;
+                if (pasteKind is PasteKind.All or PasteKind.Values or PasteKind.Formulas
+                    && overwritePolicy == OverwritePolicy.RejectNonempty)
                 {
-                    throw new InvalidOperationException(srcError ?? RangeHelpers.GetResolveError(sourceSheet, sourceRange));
-                }
-
-                tgtRange = RangeHelpers.ResolveRange(ctx.Book, targetSheet, targetRange, out string? tgtError);
-                if (tgtRange == null)
-                {
-                    throw new InvalidOperationException(tgtError ?? RangeHelpers.GetResolveError(targetSheet, targetRange));
-                }
-
-                if (overwritePolicy == OverwritePolicy.RejectNonempty)
-                {
-                    destination = ResolveProtectedCopyDestination((Excel.Range)srcRange, (Excel.Range)tgtRange);
-                    EnsureDestinationWritable(ctx, destination, overwritePolicy, ct);
+                    if (skipBlanks)
+                    {
+                        sourceCells = srcRange.Cells;
+                        var sourceSize = GetContentDimensions(srcRange);
+                        Dictionary<(int Row, int Column), bool> content = [];
+                        EnsureDestinationWritable(ctx, destination, overwritePolicy, ct, (row, column) =>
+                        {
+                            var key = transpose
+                                ? (column % sourceSize.Rows, row % sourceSize.Columns)
+                                : (row % sourceSize.Rows, column % sourceSize.Columns);
+                            if (!content.TryGetValue(key, out bool writes))
+                            {
+                                Excel.Range? sourceCell = null;
+                                try
+                                {
+                                    sourceCell = sourceCells[key.Item1 + 1, key.Item2 + 1];
+                                    object? value = sourceCell.Value2;
+                                    object hasFormula = sourceCell.HasFormula;
+                                    if (hasFormula is not bool formula)
+                                    {
+                                        throw new InvalidOperationException(
+                                            "Cannot inspect source blanks: Excel returned an indeterminate formula state. No write was attempted.");
+                                    }
+                                    writes = value is not null || formula;
+                                    content.Add(key, writes);
+                                }
+                                finally
+                                {
+                                    ComUtilities.Release(ref sourceCell);
+                                }
+                            }
+                            return writes;
+                        });
+                    }
+                    else
+                    {
+                        EnsureDestinationWritable(ctx, destination, overwritePolicy, ct);
+                    }
                 }
 
                 ct.ThrowIfCancellationRequested();
-                copyAction(srcRange, tgtRange);
-                result.Success = true;
-                return result;
+                copyStarted = true;
+                srcRange.Copy();
+                destination.PasteSpecial(pasteType, Excel.XlPasteSpecialOperation.xlPasteSpecialOperationNone,
+                    skipBlanks, transpose);
+            }
+            catch (Exception ex)
+            {
+                primaryFailure = ex;
             }
             finally
             {
-                ComUtilities.Release(ref destination);
-                ComUtilities.Release(ref tgtRange);
-                ComUtilities.Release(ref srcRange);
+                try
+                {
+                    if (copyStarted)
+                    {
+                        try
+                        {
+                            ctx.App.CutCopyMode = (Excel.XlCutCopyMode)0;
+                        }
+                        catch (Exception cleanupFailure)
+                        {
+                            primaryFailure = primaryFailure is null
+                                ? cleanupFailure
+                                : new AggregateException("Copy failed and Excel's copy mode could not be cleared.",
+                                    primaryFailure, cleanupFailure);
+                        }
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref sourceCells);
+                    ComUtilities.Release(ref destination);
+                    ComUtilities.Release(ref tgtRange);
+                    ComUtilities.Release(ref srcRange);
+                }
             }
+            if (primaryFailure is not null)
+            {
+                ExceptionDispatchInfo.Capture(primaryFailure).Throw();
+            }
+            result.Success = true;
+            return result;
         });
     }
 

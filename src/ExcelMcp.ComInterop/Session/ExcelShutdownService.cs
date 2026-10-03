@@ -16,6 +16,17 @@ public static class ExcelShutdownService
     private static readonly ResiliencePipeline _quitPipeline = ResiliencePipelines.CreateExcelQuitPipeline();
 
     /// <summary>
+    /// Closes an internally owned, unsaved calculation workbook on the calling STA.
+    /// Unlike application shutdown, failure to close is an operation failure.
+    /// The caller retains responsibility for releasing the workbook reference.
+    /// </summary>
+    /// <param name="workbook">Internally owned workbook; never the session workbook</param>
+    public static void CloseTemporaryWorkbook(Excel.Workbook workbook)
+    {
+        _quitPipeline.Execute(() => workbook.Close(SaveChanges: false));
+    }
+
+    /// <summary>
     /// Saves an Excel workbook on the calling STA thread.
     /// Must be called from within <c>ExcelBatch.Execute()</c> so the Save() COM call
     /// runs on the correct STA thread. Timeout protection is provided by the surrounding

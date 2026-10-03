@@ -9,10 +9,24 @@ from unittest.mock import patch
 
 from pytest_skill_engineering.copilot.result import CopilotResult, ToolCall, Turn
 
-from consent_scenarios import ConsentWorkbook, _BASE_VALUES, assert_consent_outcome
+from consent_scenarios import ConsentWorkbook, _BASE_VALUES, assert_consent_outcome, assert_read_only
 
 
 class ConsentOutcomeTests(unittest.TestCase):
+    def test_canonical_calculation_reads_are_allowed_for_both_entry_points(self):
+        calls = [
+            ToolCall("excel_execute", {"args": "calculationmode get-settings --session test"}),
+            ToolCall("excel-mcp-calculation_mode", {"action": "get-settings", "session_id": "test"}),
+        ]
+        for call in calls:
+            with self.subTest(call=call):
+                assert_read_only(CopilotResult(turns=[Turn("assistant", "", [call])]), require_read=False)
+
+    def test_calculation_settings_writes_are_not_read_only(self):
+        call = ToolCall("excel-mcp-calculation_mode", {"action": "set-settings", "session_id": "test", "mode": "manual"})
+        with self.assertRaisesRegex(AssertionError, "State-changing call"):
+            assert_read_only(CopilotResult(turns=[Turn("assistant", "", [call])]), require_read=False)
+
     def setUp(self):
         self.workbook = ConsentWorkbook(Path("budget.xlsx"), "test", Path("excelcli.exe"))
         values = copy.deepcopy(_BASE_VALUES)

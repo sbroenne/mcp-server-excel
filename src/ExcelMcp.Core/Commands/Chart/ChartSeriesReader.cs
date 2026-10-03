@@ -1,3 +1,4 @@
+using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -37,6 +38,8 @@ internal static class ChartSeriesReader
                     var categories = series.XValues;
                     result.Add(new SeriesInfo
                     {
+                        ChartType = (ChartType)Convert.ToInt32(series.ChartType, CultureInfo.InvariantCulture),
+                        AxisGroup = (ChartAxisGroup)Convert.ToInt32(series.AxisGroup, CultureInfo.InvariantCulture),
                         Name = series.Name,
                         Values = ToList(values),
                         Categories = ToList(categories)

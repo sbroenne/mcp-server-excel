@@ -257,23 +257,37 @@ public sealed class AutomationSafetyTests
     [Theory]
     [InlineData(23, true)]
     [InlineData(0, false)]
-    public async Task CliWorkflow_CannotPassFailedCommands(int exitCode, bool success)
+    [InlineData(0, true)]
+    public async Task CliWorkflow_ForwardsFocusedAcceptanceAndPropagatesFailure(int exitCode, bool success)
     {
         var root = NewSandbox();
         try
         {
             var script = Path.Combine(RepoRoot, "scripts", "Test-CliWorkflow.ps1");
-            var result = await RunAsync(root, $$"""
-                $ast = [Management.Automation.Language.Parser]::ParseFile('{{Quote(script)}}', [ref]$null, [ref]$null)
-                $function = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Test-Step' }, $true)
-                . ([scriptblock]::Create($function.Extent.Text))
-                $script:passed=0
-                $script:failed=0
-                Test-Step 'fake command' { $global:LASTEXITCODE={{exitCode}}; [pscustomobject]@{ success=${{success.ToString().ToLowerInvariant()}} } } -Verify { $true } | Out-Null
-                if ($script:failed -ne 1 -or $script:passed -ne 0) { throw 'Failed command was accepted.' }
-                $global:LASTEXITCODE=0
+            File.Copy(script, Path.Combine(root, "Test-CliWorkflow.ps1"));
+            var captured = Path.Combine(root, "captured.json");
+            File.WriteAllText(Path.Combine(root, "Test-E2E.ps1"), $$"""
+                [CmdletBinding()]
+                param([switch]$SkipBuild, [string[]]$Stages, [string]$PipeName,
+                    [string]$ResultsDirectory, [switch]$KeepCliFiles)
+                @{
+                    skipBuild = [bool]$SkipBuild; stages = @($Stages); pipe = $PipeName
+                    results = $ResultsDirectory; keep = [bool]$KeepCliFiles
+                } | ConvertTo-Json | Set-Content -LiteralPath '{{Quote(captured)}}'
+                if (-not ${{success.ToString().ToLowerInvariant()}}) { throw 'Simulated acceptance failure.' }
+                $global:LASTEXITCODE = {{exitCode}}
                 """);
-            Assert.True(result.ExitCode == 0, result.Output);
+            var result = await RunAsync(root, """
+                & .\Test-CliWorkflow.ps1 -PipeName fixture-pipe -ResultsDirectory fixture-results -KeepFile
+                """);
+            Assert.Equal(success && exitCode == 0, result.ExitCode == 0);
+            using var arguments = System.Text.Json.JsonDocument.Parse(File.ReadAllText(captured));
+            Assert.True(arguments.RootElement.GetProperty("skipBuild").GetBoolean());
+            Assert.True(arguments.RootElement.GetProperty("keep").GetBoolean());
+            Assert.Equal("Cli", arguments.RootElement.GetProperty("stages")[0].GetString());
+            Assert.Equal(1, arguments.RootElement.GetProperty("stages").GetArrayLength());
+            Assert.Equal("fixture-pipe", arguments.RootElement.GetProperty("pipe").GetString());
+            Assert.Equal("fixture-results", arguments.RootElement.GetProperty("results").GetString());
         }
         finally { Directory.Delete(root, true); }
     }

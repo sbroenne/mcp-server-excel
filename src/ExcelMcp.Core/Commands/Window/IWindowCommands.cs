@@ -53,9 +53,19 @@ public class WindowInfoResult : OperationResult
 /// </summary>
 [ServiceCategory("window", "Window")]
 [McpTool("window", Title = "Window Management", Destructive = false, Category = "settings",
-    Description = "Control Excel window visibility, position, state, status bar, and worksheet-specific views. VIEW: get-view, freeze-panes, unfreeze-panes, set-split, set-zoom, and set-display-options for gridlines, headings, outline symbols, and formulas. freeze-panes uses row/column counts above and left of the pane boundary. set-split creates movable panes and disables frozen panes. Zoom range: 10-400. VISIBILITY: show makes Excel visible and brings it to front; hide hides it. WINDOW STATE: normal, minimized, maximized. ARRANGE presets: left-half, right-half, top-half, bottom-half, center, full-screen.")]
+    Description = "Control Excel window visibility, position, state, status bar, and worksheet-specific views. get-context: Read every owned workbook window's active sheet, actual selection, active cell and chart without activation or selection; hidden sessions stay hidden, unsupported/unavailable selections are explicit, never borrowed from another workbook. VIEW: get-view, freeze-panes, unfreeze-panes, set-split, set-zoom, and set-display-options for gridlines, headings, outline symbols, and formulas. freeze-panes uses row/column counts above and left of the pane boundary. set-split creates movable panes and disables frozen panes. Zoom range: 10-400. VISIBILITY: show makes Excel visible and brings it to front; hide hides it. WINDOW STATE: normal, minimized, maximized. ARRANGE presets: left-half, right-half, top-half, bottom-half, center, full-screen.")]
 public interface IWindowCommands
 {
+    /// <summary>
+    /// Reads every window belonging to the session workbook, without activation or selection.
+    /// Reports native active worksheet/chart, actual range selection and active cell where available.
+    /// Hidden sessions are inspected without being shown; unavailable or unsupported selections
+    /// are explicit, never replaced by the application's last selected range or another workbook.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    [ServiceAction("get-context")]
+    WindowContextResult GetContext(IExcelBatch batch);
+
     /// <summary>
     /// Makes the Excel window visible and brings it to the foreground.
     /// </summary>

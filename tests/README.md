@@ -79,6 +79,31 @@ expected error as a substitute for intended success, or infer that a whole
 feature is unsupported from one rejected input. Keep invalid-input behavior in
 separate negative tests and identify unavailable prerequisites explicitly.
 
+### Checking exact feature outcomes
+
+For new workbook operations, assert the exact changed state and the unchanged
+surrounding state, not only counts or matching writer/getter responses. Filter
+tests should identify the visible records; layout tests should check expected
+coordinates, identities, sizes, and unselected objects. Partial formatting
+updates should check every supplied field and every omitted setting using
+distinct initial values. Use raw COM or saved-file inspection when a shared
+writer/getter mistake could otherwise pass.
+
+Keep success, invalid-input, cancellation, output/cleanup failure, and
+save/reopen cases separate where each applies. Adapter tests check exact
+requests, defaults, and failure output; real Excel tests establish workbook
+behavior. For high-risk changes, temporarily introduce a specific wrong
+mapping, selection, omitted-field reset, or missing cleanup and confirm the
+intended test fails. Restore the change and rerun the final source before
+delivery; retain these fault-check results with the run evidence.
+
+Before PR delivery, include affected existing callers as well as new feature
+tests. Run the full existing Excel-free selection with
+`scripts\Invoke-ExcelFreeTests.ps1` (without `-Local`), including packaged-plugin
+validation, and `npx --no-install changeset status --since=origin/main`.
+These complement focused native tests and normal hooked runtime E2E; they do
+not replace either.
+
 ### CLI and MCP coverage
 
 CLI and MCP tests concentrate on argument/name/default mapping,
@@ -111,6 +136,40 @@ dotnet test tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj -c Re
 The quick groups are not acceptance gates. Complete normal validation still
 uses `RunType!=OnDemand`, including the separately classified real Excel,
 process, deadline, crash, rebuild, and ownership cases below.
+
+### Changed-path CI selection
+
+`scripts\Get-ValidationPlan.ps1` owns the selections used by CI and the local
+hook. Pull requests compare their head with the base branch's merge base.
+Documentation and repository configuration changes avoid unrelated .NET test
+and package jobs. Runtime and shared inputs select conservatively; multiple
+inputs form a union. Main and manual CI runs select complete validation.
+
+Hosted tests run in separate checkouts: `Fast` contains normal Excel-free
+tests except `AdapterTestKind=System`; `Process` contains the CLI system
+regressions; `Tooling` contains the selected SkillGeneration checks. These
+partitions cover the complete normal Excel-free selection without overlap.
+Package, npm launcher, and lockfile checks have their own selections.
+Changes to `doc-counts.json` or `scripts\check-doc-counts.ps1` select the
+`Tooling` documentation-count regressions and source correctness checks,
+without unrelated runtime tests or packages. Source checks run once in `Fast`
+when selected, otherwise in `Tooling` for these count inputs. Preparatory CI
+builds disable build servers so rebuild regressions do not inherit assembly locks.
+`Docs Site` always runs. The required `CI Gate` always reports and rejects
+failed detection, cancelled or failed work, and unexpectedly skipped jobs.
+Hosted runners do not run real-Excel tests.
+
+After a Release build, the hosted test partitions can also run locally:
+
+```powershell
+& .\scripts\Invoke-ExcelFreeTests.ps1 -Group Fast
+& .\scripts\Invoke-ExcelFreeTests.ps1 -Group Process
+& .\scripts\Invoke-ExcelFreeTests.ps1 -Group Tooling
+```
+
+Use `-PlanFile <plan.json>` with an explicit `-Group` to reproduce a selected
+CI partition. Omitting the group retains the complete Excel-free run; existing
+`-Local`, `-Contracts`, `-HookTests`, and `-SkillTests` selections remain supported.
 
 Generated MCP parameter tests inspect our emitted method declarations directly.
 Protocol checks cover our names, descriptions, selected output fields, and
@@ -174,6 +233,50 @@ speed promise before collecting comparable evidence. Keep temporary ledgers
 and result artifacts outside committed instructions.
 
 ## Complete normal-suite verification
+
+### Focused real-Excel groups and acceptance
+
+Build the Release solution first. `Invoke-ExcelTests.ps1` obtains its inventory
+from the built test assemblies and runs groups and projects sequentially.
+Class fixtures stay together; multi-feature classes use one group rather than
+overlapping feature filters.
+
+```powershell
+& .\scripts\Invoke-ExcelTests.ps1 -Groups Editing,Data -ListTests
+& .\scripts\Invoke-ExcelTests.ps1 -Groups Editing,Data
+& .\scripts\Invoke-ExcelTests.ps1 -Groups Infrastructure -IncludeInfrastructureDiagnostics
+& .\scripts\Test-E2E.ps1 -SkipBuild
+```
+
+The available groups are `Editing`, `Reporting`, `Data`, `Lifecycle`,
+`Infrastructure`, `Acceptance`, `VBA`, and `Desktop`. No `-Groups` selects all
+normal groups. VBA and desktop tests require their actual prerequisites.
+`-IncludeInfrastructureDiagnostics` adds ComInterop OnDemand probes except
+configured IRM and Japanese-locale probes; those require separate configured
+runs. Other OnDemand diagnostics and external-service evaluations remain separate.
+
+`Acceptance` runs the complete required E2E stages, then the remaining normal
+adapter acceptance cases without repeating required cases. Local commit checks
+retain their existing scope: selected Excel-free checks and complete E2E for
+runtime paths, not the full workbook-feature suite. Run affected real-Excel
+groups separately, including when changing Excel-dependent tests.
+
+`Test-E2E.ps1` defaults to three sequential stages: independent executable CLI
+scenarios, the linked stale-build save/rebuild/reopen regression, and independent
+real-protocol MCP scenarios. Each stage has a separate TRX report and a hard
+execution deadline. Empty selections, skipped tests, failures, and assembly
+cleanup failures fail the run. `-Stages Cli`, `-Stages Rebuild`, or `-Stages Mcp`
+is a focused run, not complete runtime acceptance. `Test-CliWorkflow.ps1` is a
+compatible wrapper for the CLI stage, including `-PipeName` and `-KeepFile`.
+The CLI stage also retains the expanded native API workflow in
+`Test-CliApiCoverage.ps1`, hosted by its own acceptance case with a private pipe
+and a hard deadline. MCP native formatting/style and report-depth assertions
+remain part of their independently reported acceptance scenarios.
+
+Reports and ownership journals go into a new `TestResults` directory by default.
+`-ResultsDirectory` can select another new directory. Reusing an existing
+stage report is rejected so stale evidence cannot turn a failed run green.
+`-ListTests` discovers cases without starting workbook operations.
 
 For a full validation pass, run all seven test projects with
 `RunType!=OnDemand`. This filter includes normal Service VBA and screenshot
@@ -362,10 +465,10 @@ dotnet test tests/ExcelMcp.Diagnostics.Tests/ --filter "Feature=PowerQuery&RunTy
 # Test specific feature only
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=PowerQuery&RunType!=OnDemand"
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=DataModel&RunType!=OnDemand"
-dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=Tables&RunType!=OnDemand"
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "(Feature=Table|Feature=Tables)&RunType!=OnDemand"
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=PivotTables&RunType!=OnDemand"
-dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=Ranges&RunType!=OnDemand"
-dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=Connections&RunType!=OnDemand"
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "(Feature=Range|Feature=Ranges)&RunType!=OnDemand"
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=Connection&RunType!=OnDemand"
 ```
 
 ## When to Run Which Tests

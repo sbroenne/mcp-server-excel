@@ -24,7 +24,7 @@ public partial class RangeCommands : IRangeCommands, IRangeEditCommands, IRangeF
     // - RangeCommands.Formatting.cs (SetStyle, GetStyle, FormatRange)
     // - RangeCommands.Validation.cs (ValidateRange, GetValidation, RemoveValidation)
     // - RangeCommands.AutoFit.cs (AutoFitColumns, AutoFitRows)
-    // - RangeCommands.Advanced.cs (MergeCells, UnmergeCells, GetMergeInfo, SetCellLock, GetCellLock)
+    // - RangeCommands.Advanced.cs (MergeCells, UnmergeCells, GetMergeInfo)
+    // - RangeCommands.Protection.cs (SetCellProtection, GetCellProtection)
 }
-
 

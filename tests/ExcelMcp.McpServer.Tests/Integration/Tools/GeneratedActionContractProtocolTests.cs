@@ -35,7 +35,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
         };
         if (action == "calculate")
         {
-            arguments["scope"] = "workbook";
+            arguments["scope"] = "application";
         }
         else
         {
@@ -63,7 +63,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
             {
                 ["action"] = "calculate",
                 ["session_id"] = "missing-session",
-                ["scope"] = "workbook",
+                ["scope"] = "application",
                 ["mode"] = null
             });
 

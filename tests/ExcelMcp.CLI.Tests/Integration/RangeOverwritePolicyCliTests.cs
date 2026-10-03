@@ -23,15 +23,15 @@ public sealed class RangeOverwritePolicyCliTests
     [InlineData("copy", null)]
     [InlineData("copy", "reject-nonempty")]
     [InlineData("copy", "allow")]
-    [InlineData("copy-values", null)]
-    [InlineData("copy-values", "reject-nonempty")]
-    [InlineData("copy-values", "allow")]
-    [InlineData("copy-formulas", null)]
-    [InlineData("copy-formulas", "reject-nonempty")]
-    [InlineData("copy-formulas", "allow")]
-    public async Task ContentAction_MapsOptionalPolicy(string action, string? policy)
+    [InlineData("copy", null, "values")]
+    [InlineData("copy", "reject-nonempty", "values")]
+    [InlineData("copy", "allow", "values")]
+    [InlineData("copy", null, "formulas")]
+    [InlineData("copy", "reject-nonempty", "formulas")]
+    [InlineData("copy", "allow", "formulas")]
+    public async Task ContentAction_MapsOptionalPolicy(string action, string? policy, string pasteKind = "all")
     {
-        var arguments = Arguments(action);
+        var arguments = Arguments(action, pasteKind);
         if (policy is not null)
         {
             arguments.Add("--overwrite-policy");
@@ -95,11 +95,11 @@ public sealed class RangeOverwritePolicyCliTests
         Assert.Contains("reject-nonempty", result.Stdout, StringComparison.Ordinal);
     }
 
-    private static List<string> Arguments(string action)
+    private static List<string> Arguments(string action, string pasteKind = "all")
     {
         List<string> arguments = ["range", action, "--session", "session-1"];
         if (action.StartsWith("copy", StringComparison.Ordinal))
-            arguments.AddRange(["--source-sheet", "Sheet1", "--source-range", "A1:B2", "--target-sheet", "Sheet1", "--target-range", "D1"]);
+            arguments.AddRange(["--source-sheet", "Sheet1", "--source-range", "A1:B2", "--target-sheet", "Sheet1", "--target-range", "D1", "--paste-kind", pasteKind]);
         else
         {
             arguments.AddRange(["--sheet-name", "Sheet1", "--range-address", "A1"]);

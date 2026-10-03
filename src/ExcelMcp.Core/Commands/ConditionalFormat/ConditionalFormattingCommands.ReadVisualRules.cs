@@ -300,11 +300,11 @@ public partial class ConditionalFormattingCommands
         return aboveBelow switch
         {
             0 => "aboveAverage",       // xlAboveAverage
-            1 => "aboveStdDev",        // xlAboveStdDev
-            2 => "belowAverage",       // xlBelowAverage
-            3 => "belowStdDev",        // xlBelowStdDev
-            4 => "equalAboveAverage",  // xlEqualAboveAverage
-            5 => "equalBelowAverage",  // xlEqualBelowAverage
+            1 => "belowAverage",       // xlBelowAverage
+            2 => "equalAboveAverage",  // xlEqualAboveAverage
+            3 => "equalBelowAverage",  // xlEqualBelowAverage
+            4 => "aboveStdDev",        // xlAboveStdDev
+            5 => "belowStdDev",        // xlBelowStdDev
             _ => $"unknown({aboveBelow})"
         };
     }

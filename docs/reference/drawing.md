@@ -6,6 +6,33 @@ Object names are worksheet-local. Call `list-objects` before updates or deletion
 
 Positions use points, not cells; use the schema/help for styles and placement.
 
+## Drawing layout
+
+`group-objects`, `align-objects`, and `distribute-objects` take `object_names`
+(MCP) / `--object-names` (CLI), a JSON array string of distinct top-level names on the
+specified worksheet. Grouping and alignment need at least two objects;
+distribution needs three. Alignment and equal-gap spacing use the selected
+extent, not the worksheet or printed page, and leave unselected objects alone.
+
+`ungroup-object`, `duplicate-object`, and `set-z-order` use `object_name`
+(MCP) / `--object-name` (CLI). Grouping and duplication return Excel's actual
+new name unless `group_name` / `--group-name` or `new_name` / `--new-name` is
+supplied. Supplied names must be unique on the worksheet. Duplication offsets
+use `offset_left` / `--offset-left` and `offset_top` / `--offset-top`, in points
+from the original position; both default to 10.
+
+These actions return `drawingObjects`, including real positions, stacking
+positions and complete group `children`. Ungrouping returns the newly exposed
+direct members, not every other worksheet object. Excel can flatten an existing
+group when regrouping; inspect the returned members rather than assuming the
+old hierarchy survives. `get-object` and `list-objects` also inspect complete
+native membership. Stacking positions on top-level objects start at one at the
+back; member positions are Excel's native values.
+
+Layout rejects protected drawing objects, charts, ActiveX/OLE and unknown types.
+Use the chart tools for chart changes. Duplication also rejects any macro-bound
+object or group member, rather than copying a macro assignment.
+
 ## Safe Forms controls
 
 - `linked_cell` (MCP) / `--linked-cell` (CLI): CheckBox, DropDown, ListBox, OptionButton, ScrollBar, and Spinner

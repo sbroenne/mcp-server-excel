@@ -20,7 +20,7 @@ public partial class ConditionalFormattingCommands
 
     // === colorScale ===
 
-    private static void AddColorScaleRule(
+    private static object AddColorScaleRule(
         dynamic formatConditions,
         string? minType, string? minValue, string? minColor,
         string? midType, string? midValue, string? midColor,
@@ -50,6 +50,9 @@ public partial class ConditionalFormattingCommands
             {
                 SetColorScaleCriterion(criteria, 2, maxType, maxValue, maxColor, defaultType: 2 /* highest */);
             }
+            object created = colorScale;
+            colorScale = null;
+            return created;
         }
         finally
         {
@@ -93,7 +96,7 @@ public partial class ConditionalFormattingCommands
 
     // === dataBar ===
 
-    private static void AddDataBarRule(
+    private static object AddDataBarRule(
         dynamic formatConditions,
         string? fillColor, string? negativeColor, string? direction, bool? showValue,
         string? minType, string? minValue, string? maxType, string? maxValue)
@@ -143,6 +146,9 @@ public partial class ConditionalFormattingCommands
 
             if (!string.IsNullOrEmpty(maxType) || !string.IsNullOrEmpty(maxValue))
                 ModifyConditionValue(dataBar, "MaxPoint", maxType, maxValue);
+            object created = dataBar;
+            dataBar = null;
+            return created;
         }
         finally
         {
@@ -173,7 +179,7 @@ public partial class ConditionalFormattingCommands
 
     // === iconSet ===
 
-    private static void AddIconSetRule(
+    private static object AddIconSetRule(
         dynamic workbook,
         dynamic formatConditions,
         string? iconSetId,
@@ -230,6 +236,9 @@ public partial class ConditionalFormattingCommands
                     ComUtilities.Release(ref criterion!);
                 }
             }
+            object created = iconSetCondition;
+            iconSetCondition = null;
+            return created;
         }
         finally
         {
@@ -242,7 +251,7 @@ public partial class ConditionalFormattingCommands
 
     // === top10 ===
 
-    private static void AddTop10Rule(
+    private static object AddTop10Rule(
         dynamic formatConditions,
         int? rank, bool? percent, string? topBottom,
         string? interiorColor, string? interiorPattern, string? fontColor,
@@ -260,6 +269,9 @@ public partial class ConditionalFormattingCommands
                 fc.TopBottom = ParseTopBottom(topBottom);
 
             ApplyRuleFormatting(fc, interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+            object created = fc;
+            fc = null;
+            return created;
         }
         finally
         {
@@ -269,7 +281,7 @@ public partial class ConditionalFormattingCommands
 
     // === aboveAverage ===
 
-    private static void AddAboveAverageRule(
+    private static object AddAboveAverageRule(
         dynamic formatConditions,
         string? aboveBelow,
         string? interiorColor, string? interiorPattern, string? fontColor,
@@ -283,6 +295,9 @@ public partial class ConditionalFormattingCommands
                 fc.AboveBelow = ParseAboveBelow(aboveBelow);
 
             ApplyRuleFormatting(fc, interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+            object created = fc;
+            fc = null;
+            return created;
         }
         finally
         {
@@ -292,7 +307,7 @@ public partial class ConditionalFormattingCommands
 
     // === uniqueValues ===
 
-    private static void AddUniqueValuesRule(
+    private static object AddUniqueValuesRule(
         dynamic formatConditions,
         bool duplicate,
         string? interiorColor, string? interiorPattern, string? fontColor,
@@ -305,6 +320,9 @@ public partial class ConditionalFormattingCommands
             fc.DupeUnique = duplicate ? 1 /* xlDuplicate */ : 0 /* xlUnique */;
 
             ApplyRuleFormatting(fc, interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+            object created = fc;
+            fc = null;
+            return created;
         }
         finally
         {
@@ -314,7 +332,7 @@ public partial class ConditionalFormattingCommands
 
     // === timePeriod ===
 
-    private static void AddTimePeriodRule(
+    private static object AddTimePeriodRule(
         dynamic formatConditions,
         string? datePeriod,
         string? interiorColor, string? interiorPattern, string? fontColor,
@@ -328,6 +346,9 @@ public partial class ConditionalFormattingCommands
         {
             fc = formatConditions.Add(Type: 11 /* xlTimePeriod */, DateOperator: ParseTimePeriod(datePeriod));
             ApplyRuleFormatting(fc, interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+            object created = fc;
+            fc = null;
+            return created;
         }
         finally
         {
@@ -337,7 +358,7 @@ public partial class ConditionalFormattingCommands
 
     // === blanksCondition and other simple type-only rules ===
 
-    private static void AddSimpleRule(
+    private static object AddSimpleRule(
         dynamic formatConditions,
         int xlType,
         string? interiorColor, string? interiorPattern, string? fontColor,
@@ -348,6 +369,9 @@ public partial class ConditionalFormattingCommands
         {
             fc = formatConditions.Add(Type: xlType);
             ApplyRuleFormatting(fc, interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+            object created = fc;
+            fc = null;
+            return created;
         }
         finally
         {
@@ -445,11 +469,11 @@ public partial class ConditionalFormattingCommands
         return aboveBelow.ToLowerInvariant().Replace("-", "").Replace(" ", "") switch
         {
             "aboveaverage" or "above" => 0,  // xlAboveAverage
-            "abovestddev" => 1,              // xlAboveStdDev
-            "belowaverage" or "below" => 2,  // xlBelowAverage
-            "belowstddev" => 3,              // xlBelowStdDev
-            "equalaboveaverage" => 4,        // xlEqualAboveAverage
-            "equalbelowaverage" => 5,        // xlEqualBelowAverage
+            "abovestddev" => 4,              // xlAboveStdDev
+            "belowaverage" or "below" => 1,  // xlBelowAverage
+            "belowstddev" => 5,              // xlBelowStdDev
+            "equalaboveaverage" => 2,        // xlEqualAboveAverage
+            "equalbelowaverage" => 3,        // xlEqualBelowAverage
             _ => throw new ArgumentException(
                 $"Invalid aboveBelow value: '{aboveBelow}'. Valid values: aboveAverage, belowAverage, aboveStdDev, belowStdDev, equalAboveAverage, equalBelowAverage")
         };

@@ -10,7 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Slicer;
 /// PIVOTTABLE SLICERS: create-slicer, list-slicers, set-slicer-selection, delete-slicer.
 /// TABLE SLICERS: create-table-slicer, list-table-slicers, set-table-slicer-selection, delete-table-slicer.
 ///
-/// NAMING: Supply unique descriptive names like {FieldName}Slicer (e.g., RegionSlicer).
+/// NAMING: Caller supplies a unique name, destination worksheet, and anchor cell.
 ///
 /// SELECTION: selectedItems as list of strings. Data Model/OLAP slicers return item captions
 /// and accept captions or MDX unique names; unknown or ambiguous items fail before changing the filter.
@@ -18,9 +18,61 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Slicer;
 /// </summary>
 [ServiceCategory("slicer", "Slicer")]
 [McpTool("slicer", Title = "Slicer Operations", Destructive = true, Category = "analysis",
-    Description = "Slicer management for PivotTables and Tables. Creation requires a unique slicerName, an existing destinationSheet, and a position; names and positions are not generated. A PivotTable slicer filters only its connected PivotTables, not every dashboard chart; list-slicers reports those connections. A Table slicer filters its Table, not a separate PivotTable cache. selectedItems is JSON-array text; '[]' clears the filter. Selection replaces by default; clearFirst=false adds. Data Model/OLAP lists return captions; selection accepts captions or MDX unique names and rejects unknown/ambiguous items before changing the filter. Adding to a cleared Data Model filter keeps it cleared. Use the matching Table or PivotTable actions.")]
+    Description = "Slicer management: create, list, configure, delete visual filtering controls for PivotTables and Tables. Creation requires a unique slicer_name, an existing destination_sheet, and a position; names and positions are not generated. TIMELINES: create-timeline, set-timeline-selection, clear-timeline-selection; use calendar dates, not ordinary item selection. get-slicer reads complete layout, native item names, selections, timeline state and connections. update-slicer patches typed appearance settings in points. connect-pivottable/disconnect-pivottable require the existing shared PivotCache and do not rebuild it. A PivotTable slicer filters only its connected PivotTables, not every dashboard chart; list-slicers reports those connections. A Table slicer filters its Table, not a separate PivotTable cache. PIVOTTABLE SLICERS: create-slicer, list-slicers, set-slicer-selection, delete-slicer. TABLE SLICERS: create-table-slicer, list-table-slicers, set-table-slicer-selection, delete-table-slicer. SELECTION: selected_items is JSON-array text; '[]' clears the filter. Selection replaces by default; clear_first=false adds. Data Model/OLAP create-slicer and list-slicers return captions; selection accepts captions or MDX unique names and rejects unknown/ambiguous items before changing the filter. Adding to a cleared Data Model filter keeps it cleared.")]
 public interface ISlicerCommands
 {
+    /// <summary>Creates a native date timeline for a PivotTable date field. Does not rebuild the source or alter existing caches. Use get-slicer for native date/layout state and delete-slicer for its lifecycle.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="pivotTableName">Source PivotTable</param>
+    /// <param name="fieldName">Native date field</param>
+    /// <param name="slicerName">Unique timeline name</param>
+    /// <param name="destinationSheet">Destination worksheet</param>
+    /// <param name="position">Single top-left anchor cell</param>
+    [ServiceAction("create-timeline")]
+    SlicerStateResult CreateTimeline(IExcelBatch batch, [RequiredParameter] string pivotTableName,
+        [RequiredParameter] string fieldName, [RequiredParameter] string slicerName,
+        [RequiredParameter] string destinationSheet, [RequiredParameter] string position);
+
+    /// <summary>Reads complete native layout, cache connections, selection and timeline state for one PivotTable/Table slicer or date timeline.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="slicerName">Visual control name</param>
+    [ServiceAction("get-slicer")]
+    SlicerStateResult GetSlicer(IExcelBatch batch, [RequiredParameter] string slicerName);
+
+    /// <summary>Updates only supplied native layout/style settings. Timeline view settings apply only to timelines; columns/header layout settings apply only to ordinary slicers. Coordinates and dimensions use points.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="slicerName">Visual control name</param>
+    /// <param name="slicerOptions">Typed native layout settings; nested JSON keys use camelCase</param>
+    [ServiceAction("update-slicer")]
+    SlicerStateResult UpdateSlicer(IExcelBatch batch, [RequiredParameter] string slicerName, [RequiredParameter] SlicerUpdateOptions slicerOptions);
+
+    /// <summary>Sets an inclusive native timeline date range, filtering every connected PivotTable. Dates are calendar dates; time components are rejected.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="slicerName">Timeline name, not an ordinary slicer</param>
+    /// <param name="timelineSelection">Required startDate and endDate calendar dates, in ascending order</param>
+    [ServiceAction("set-timeline-selection")]
+    SlicerStateResult SetTimelineSelection(IExcelBatch batch, [RequiredParameter] string slicerName, [RequiredParameter] TimelineSelectionOptions timelineSelection);
+
+    /// <summary>Clears this timeline's native date filter on every connected PivotTable, without clearing unrelated field filters.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="slicerName">Timeline name</param>
+    [ServiceAction("clear-timeline-selection")]
+    SlicerStateResult ClearTimelineSelection(IExcelBatch batch, [RequiredParameter] string slicerName);
+
+    /// <summary>Connects a PivotTable sharing the control's existing native PivotCache. Rejects incompatible caches and table slicers without rebuilding anything. Shared selection affects every connected PivotTable.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="slicerName">PivotTable slicer or timeline</param>
+    /// <param name="pivotTableName">Compatible PivotTable to connect</param>
+    [ServiceAction("connect-pivottable")]
+    SlicerStateResult ConnectPivotTable(IExcelBatch batch, [RequiredParameter] string slicerName, [RequiredParameter] string pivotTableName);
+
+    /// <summary>Disconnects one currently connected PivotTable; keeps at least one PivotTable connection. Does not reset other connected tables or their filters.</summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="slicerName">PivotTable slicer or timeline</param>
+    /// <param name="pivotTableName">Connected PivotTable to disconnect</param>
+    [ServiceAction("disconnect-pivottable")]
+    SlicerStateResult DisconnectPivotTable(IExcelBatch batch, [RequiredParameter] string slicerName, [RequiredParameter] string pivotTableName);
+
     /// <summary>
     /// Creates a slicer for a PivotTable field.
     /// Slicers provide visual filtering for PivotTable data.

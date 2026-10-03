@@ -62,13 +62,20 @@ public sealed class CalculationGuidanceContractTests : McpIntegrationTestBase
                 {
                     var namedArgument = Regex.Match(
                         argument,
-                        @"^(?<name>[a-z][a-z0-9_]*)\s*:\s*(?:['""](?<value>[^'""]+)['""]|(?<variable>[a-zA-Z_][a-zA-Z0-9_]*))$");
+                        @"^(?<name>[a-z][a-z0-9_]*)\s*:\s*(?:['""](?<value>[^'""]+)['""]|(?<boolean>true|false)|(?<variable>[a-zA-Z_][a-zA-Z0-9_]*))$");
                     Assert.True(
                         namedArgument.Success,
                         $"Use named MCP arguments in `{example.Value}` from {sourcePath}.");
 
                     var parameterName = namedArgument.Groups["name"].Value;
                     Assert.Contains(parameterName, schemaParameterNames);
+                    if (namedArgument.Groups["boolean"].Success)
+                    {
+                        var type = properties.GetProperty(parameterName).GetProperty("type");
+                        Assert.True(type.ValueKind == JsonValueKind.Array
+                            ? type.EnumerateArray().Any(value => value.GetString() == "boolean")
+                            : type.GetString() == "boolean");
+                    }
                     if (namedArgument.Groups["variable"].Success)
                     {
                         Assert.True(parameterName is "session_id" or "mode",

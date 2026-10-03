@@ -25,6 +25,10 @@ public sealed class DrawingObjectInfo
     public double Height { get; set; }
     /// <summary>Rotation in degrees.</summary>
     public double Rotation { get; set; }
+    /// <summary>Native stacking position; one is the backmost top-level object. Member positions are Excel's native values.</summary>
+    public int ZOrderPosition { get; set; }
+    /// <summary>Complete direct members of a group, including nested group members.</summary>
+    public List<DrawingObjectInfo> Children { get; set; } = [];
     /// <summary>Whether the object is visible.</summary>
     public bool Visible { get; set; }
     /// <summary>Whether the object is locked on protected sheets.</summary>

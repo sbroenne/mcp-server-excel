@@ -62,6 +62,46 @@ the setting on other chart types; this is reported as an error, not a successful
 no-op. Label settings are applied in sequence, so earlier settings can already
 have changed when Excel rejects a later setting.
 
+## Selected series, error bars and points
+
+Use `get-series-settings` before changing a selected series. `set-series-chart-type`
+changes its type; `set-series-axis-group` uses `axis_group` (MCP) /
+`--axis-group` (CLI) to select Primary or Secondary. `chart` `read` also returns
+each regular series' actual type and axis assignment. Axis titles, number
+formats, scales and gridlines distinguish Category/Value from their Secondary
+counterparts; select the intended axis explicitly.
+
+`set-error-bars` takes `error_bar_options` / `--error-bar-options`, with camelCase
+nested keys. Custom bars require both `plusRange` and `minusRange`: contiguous
+one-dimensional numeric ranges with exactly one nonnegative value per point.
+They are on `sourceSheetName`, or the chart worksheet when omitted. `direction`
+is native Y (default) or X; X requires scatter/bubble. Y errors follow the value
+axis, so they appear horizontal on a bar chart. `enabled:false` removes both
+directions rather than clearing only the requested axis. Excel retains custom
+source references only for the signs displayed by `include`.
+
+`get-error-bars` reports native presence and caps. Excel provides no getters
+for kind, direction, signs, amount or custom source references; `settingsReadable`
+is false and `readLimitations` explains this. Do not treat previously sent
+settings as native read-back.
+
+`set-point-format` takes `point_index` / `--point-index` and `point_options` /
+`--point-options`. Only the selected point changes. Marker points use their own
+background/foreground colors, style and size; per-point marker transparency and
+outline weight are rejected before mutation. Column-point transparency persists,
+but Excel can still return an invalid transparency getter: `get-point-format`
+reports `fillTransparencyAvailable:false` and an explicit read error, not a
+fabricated zero. Automatic/mixed native color values are also explicitly
+unavailable rather than converted into an invented RGB color.
+
+These per-series writes reject PivotCharts because their fields/refresh control
+the series. Native image export supports both regular charts and PivotCharts.
+Use `chart` `export-image` with `target_path` / `--target-path`; extensions must
+match the requested format and existing files require `overwrite:true` /
+`--overwrite true`. The operation checks Excel's native result and nonempty
+output, and does not silently replace an existing image on failure. Failed
+exports remove their newly created output, including empty or partial images.
+
 ## Short labels without losing detail
 
 Use this only when the existing labels are too long. Keep full descriptions and

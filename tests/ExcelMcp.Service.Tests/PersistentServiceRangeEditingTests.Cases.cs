@@ -1,3 +1,4 @@
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -67,7 +68,7 @@ public sealed partial class PersistentServiceRangeEditingTests
         _commands.SetValues(batch, sheetName, "A1:B2", sourceData);
 
         // Act
-        var result = _commands.Copy(batch, sheetName, "A1:B2", sheetName, "D1:E2");
+        var result = _commands.Copy(batch, sheetName, "A1:B2", sheetName, "D1:E2", PasteKind.All);
         // Assert
         Assert.True(result.Success);
 
@@ -87,7 +88,7 @@ public sealed partial class PersistentServiceRangeEditingTests
         _commands.SetFormulas(batch, sheetName, "B1", [["=A1*2"]]);
 
         // Act
-        var result = _commands.CopyValues(batch, sheetName, "B1", sheetName, "C1");
+        var result = _commands.Copy(batch, sheetName, "B1", sheetName, "C1", PasteKind.Values);
         // Assert
         Assert.True(result.Success);
 
@@ -99,7 +100,6 @@ public sealed partial class PersistentServiceRangeEditingTests
 
     // === INSERT/DELETE OPERATIONS TESTS ===
 }
-
 
 
 

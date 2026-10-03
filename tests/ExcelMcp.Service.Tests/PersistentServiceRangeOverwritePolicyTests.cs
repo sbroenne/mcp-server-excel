@@ -41,10 +41,10 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
     }
 
     [Theory]
-    [InlineData("copy")]
-    [InlineData("copy-values")]
-    [InlineData("copy-formulas")]
-    public async Task DefaultPolicy_CopyAnchor_ChecksExpandedDestination(string action)
+    [InlineData("all")]
+    [InlineData("values")]
+    [InlineData("formulas")]
+    public async Task DefaultPolicy_CopyAnchor_ChecksExpandedDestination(string pasteKind)
     {
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
@@ -52,8 +52,8 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
         Assert.True(_commands.SetValues(batch, sheetName, "E2", [["Original"]]).Success);
 
         var response = await _fixture.SendForFailureAsync(
-            $"range.{action}",
-            new { sourceSheet = sheetName, sourceRange = "A1:B2", targetSheet = sheetName, targetRange = "D1" });
+            "range.copy",
+            new { sourceSheet = sheetName, sourceRange = "A1:B2", targetSheet = sheetName, targetRange = "D1", pasteKind });
 
         Assert.Equal("Conflict", response.ErrorCategory);
         Assert.Contains("$E$2", response.ErrorMessage);
@@ -117,22 +117,23 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
     }
 
     [Theory]
-    [InlineData("copy")]
-    [InlineData("copy-values")]
-    [InlineData("copy-formulas")]
-    public void Allow_CopyReplacesContentAndSourceBlanks(string action)
+    [InlineData("all")]
+    [InlineData("values")]
+    [InlineData("formulas")]
+    public void Allow_CopyReplacesContentAndSourceBlanks(string pasteKind)
     {
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
         Assert.True(_commands.SetValues(batch, sheetName, "A1:B1", [[42, null]]).Success);
         Assert.True(_commands.SetValues(batch, sheetName, "D1:E1", [["Old", "Old"]]).Success);
 
-        var response = _fixture.Send($"range.{action}", new
+        var response = _fixture.Send("range.copy", new
         {
             sourceSheet = sheetName,
             sourceRange = "A1:B1",
             targetSheet = sheetName,
             targetRange = "D1",
+            pasteKind,
             overwritePolicy = "allow"
         });
 
@@ -198,23 +199,23 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
     }
 
     [Theory]
-    [InlineData("copy")]
-    [InlineData("copy-values")]
-    [InlineData("copy-formulas")]
-    public async Task ProtectedCopy_RepetitionChecksAllCellsAndOutsideCellsAreIgnored(string action)
+    [InlineData("all")]
+    [InlineData("values")]
+    [InlineData("formulas")]
+    public async Task ProtectedCopy_RepetitionChecksAllCellsAndOutsideCellsAreIgnored(string pasteKind)
     {
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
         Assert.True(_commands.SetValues(batch, sheetName, "A1:B1", [[1, 2]]).Success);
         Assert.True(_commands.SetValues(batch, sheetName, "G2", [[99]]).Success);
-        var args = new { sourceSheet = sheetName, sourceRange = "A1:B1", targetSheet = sheetName, targetRange = "D1:G2" };
+        var args = new { sourceSheet = sheetName, sourceRange = "A1:B1", targetSheet = sheetName, targetRange = "D1:G2", pasteKind };
 
-        var rejected = await _fixture.SendForFailureAsync($"range.{action}", args);
+        var rejected = await _fixture.SendForFailureAsync("range.copy", args);
         Assert.Equal("Conflict", rejected.ErrorCategory);
         Assert.Contains("$G$2", rejected.ErrorMessage);
         Assert.True(_commands.ClearContents(batch, sheetName, "G2").Success);
         Assert.True(_commands.SetValues(batch, sheetName, "H2", [[99]]).Success);
-        var copied = _fixture.Send($"range.{action}", args);
+        var copied = _fixture.Send("range.copy", args);
         Assert.True(copied.Success, copied.ErrorMessage);
         var read = _commands.GetValues(batch, sheetName, "D1:H2");
         Assert.True(read.Success, read.ErrorMessage);
@@ -223,21 +224,22 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
     }
 
     [Theory]
-    [InlineData("copy")]
-    [InlineData("copy-values")]
-    [InlineData("copy-formulas")]
-    public async Task ProtectedCopy_SourceBlankWouldClearContent_Rejects(string action)
+    [InlineData("all")]
+    [InlineData("values")]
+    [InlineData("formulas")]
+    public async Task ProtectedCopy_SourceBlankWouldClearContent_Rejects(string pasteKind)
     {
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
         Assert.True(_commands.SetValues(batch, sheetName, "A1", [[42]]).Success);
         Assert.True(_commands.SetValues(batch, sheetName, "E1", [["Keep"]]).Success);
-        var rejected = await _fixture.SendForFailureAsync($"range.{action}", new
+        var rejected = await _fixture.SendForFailureAsync("range.copy", new
         {
             sourceSheet = sheetName,
             sourceRange = "A1:B1",
             targetSheet = sheetName,
-            targetRange = "D1"
+            targetRange = "D1",
+            pasteKind
         });
         Assert.Equal("Conflict", rejected.ErrorCategory);
         var read = _commands.GetValues(batch, sheetName, "D1:E1");
@@ -249,7 +251,7 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
     [Theory]
     [InlineData("D1:F1", "InvalidInput")]
     [InlineData("XFD1048576", "InvalidInput")]
-    [InlineData("D1,D3", "ComInterop")]
+    [InlineData("D1,D3", "InvalidInput")]
     public async Task ProtectedCopy_UninspectableDestination_StopsWithoutMutation(string targetRange, string expectedCategory)
     {
         var batch = _fixture.BatchToken;
@@ -260,7 +262,8 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
             sourceSheet = sheetName,
             sourceRange = "A1:B1",
             targetSheet = sheetName,
-            targetRange
+            targetRange,
+            pasteKind = "all"
         });
         Assert.Equal(expectedCategory, rejected.ErrorCategory);
         var read = _commands.GetValues(batch, sheetName, "D1:F3");
@@ -277,12 +280,13 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
         Assert.True(_commands.SetValues(batch, sheetName, "A1:B1", [[1, 2]]).Success);
-        var rejected = await _fixture.SendForFailureAsync("range.copy-values", new
+        var rejected = await _fixture.SendForFailureAsync("range.copy", new
         {
             sourceSheet = sheetName,
             sourceRange = "A1:B1",
             targetSheet = sheetName,
-            targetRange = "B1"
+            targetRange = "B1",
+            pasteKind = "values"
         });
         Assert.Equal("Conflict", rejected.ErrorCategory);
         var read = _commands.GetValues(batch, sheetName, "A1:C1");
@@ -414,7 +418,8 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
             sourceSheet = sheetName,
             sourceRange = "D1",
             targetSheet = sheetName,
-            targetRange = "A1"
+            targetRange = "A1",
+            pasteKind = "all"
         });
         Assert.Equal("Conflict", copied.ErrorCategory);
         Assert.Contains("merged", copied.ErrorMessage);
@@ -479,21 +484,21 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
         Assert.True(_commands.SetValues(batch, sheetName, "A1", [[42]]).Success);
-        var previous = calculation.GetMode(batch);
+        var previous = calculation.GetSettings(batch);
         Assert.True(previous.Success, previous.ErrorMessage);
         try
         {
-            Assert.True(calculation.SetMode(batch, mode).Success);
+            Assert.True(calculation.SetSettings(batch, mode).Success);
             var rejected = await _fixture.SendForFailureAsync("range.set-values",
                 new { sheetName, rangeAddress = "A1", values = SingleValue(1) });
             Assert.Equal("Conflict", rejected.ErrorCategory);
-            var retained = calculation.GetMode(batch);
+            var retained = calculation.GetSettings(batch);
             Assert.True(retained.Success, retained.ErrorMessage);
             Assert.Equal((int)mode, retained.ModeValue);
         }
         finally
         {
-            Assert.True(calculation.SetMode(batch, (CalculationMode)previous.ModeValue).Success);
+            Assert.True(calculation.SetSettings(batch, (CalculationMode)previous.ModeValue).Success);
         }
     }
 
@@ -529,7 +534,8 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
             sourceSheet = sheetName,
             sourceRange = "A1:B1",
             targetSheet = sheetName,
-            targetRange = "D1"
+            targetRange = "D1",
+            pasteKind = "all"
         });
         Assert.Equal("Conflict", rejected.ErrorCategory);
         var formats = _commands.GetNumberFormats(batch, sheetName, "D1:E1");

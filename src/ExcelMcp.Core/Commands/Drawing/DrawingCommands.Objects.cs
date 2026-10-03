@@ -31,7 +31,8 @@ public sealed partial class DrawingCommands
                     try
                     {
                         shape = shapes.Item(index);
-                        result.DrawingObjects.Add(ReadDrawingObject(shape, sheetName));
+                        ct.ThrowIfCancellationRequested();
+                        result.DrawingObjects.Add(ReadDrawingObject(shape, sheetName, ct));
                     }
                     finally
                     {
@@ -61,9 +62,9 @@ public sealed partial class DrawingCommands
             {
                 sheet = GetSheet(ctx.Book, sheetName);
                 shapes = sheet.Shapes;
-                shape = FindShape(shapes, objectName)
+                shape = FindShape(shapes, objectName, ct)
                     ?? throw new InvalidOperationException($"Drawing object '{objectName}' not found on sheet '{sheetName}'.");
-                return CreateDrawingObjectResult(batch.WorkbookPath, ReadDrawingObject(shape, sheetName));
+                return CreateDrawingObjectResult(batch.WorkbookPath, ReadDrawingObject(shape, sheetName, ct));
             }
             finally
             {
@@ -467,10 +468,11 @@ public sealed partial class DrawingCommands
             ?? throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
     }
 
-    private static Excel.Shape? FindShape(Excel.Shapes shapes, string objectName)
+    private static Excel.Shape? FindShape(Excel.Shapes shapes, string objectName, CancellationToken ct = default)
     {
         for (var index = 1; index <= shapes.Count; index++)
         {
+            ct.ThrowIfCancellationRequested();
             Excel.Shape? shape = null;
             try
             {
@@ -491,7 +493,7 @@ public sealed partial class DrawingCommands
         return null;
     }
 
-    private static DrawingObjectInfo ReadDrawingObject(Excel.Shape shape, string sheetName)
+    private static DrawingObjectInfo ReadDrawingObject(Excel.Shape shape, string sheetName, CancellationToken ct = default)
     {
         var kind = ReadKind(shape);
         var result = new DrawingObjectInfo
@@ -504,6 +506,7 @@ public sealed partial class DrawingCommands
             Width = shape.Width,
             Height = shape.Height,
             Rotation = shape.Rotation,
+            ZOrderPosition = shape.ZOrderPosition,
             Visible = ReadVisible(shape),
             Locked = shape.Locked,
             Placement = Convert.ToInt32(shape.Placement, System.Globalization.CultureInfo.InvariantCulture),
@@ -528,7 +531,36 @@ public sealed partial class DrawingCommands
             ReadControlProperties(shape, controlType, result);
         }
 
-        ReadTextProperties(shape, result);
+        if (kind == DrawingObjectKind.Group)
+        {
+            Excel.GroupShapes? members = null;
+            try
+            {
+                members = shape.GroupItems;
+                for (var i = 1; i <= members.Count; i++)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    Excel.Shape? child = null;
+                    try
+                    {
+                        child = members.Item(i);
+                        result.Children.Add(ReadDrawingObject(child, sheetName, ct));
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref child);
+                    }
+                }
+            }
+            finally
+            {
+                ComUtilities.Release(ref members);
+            }
+        }
+        else
+        {
+            ReadTextProperties(shape, result);
+        }
         return result;
     }
 
@@ -545,6 +577,7 @@ public sealed partial class DrawingCommands
         return shapeType switch
         {
             1 => DrawingObjectKind.AutoShape,
+            6 => DrawingObjectKind.Group,
             8 => DrawingObjectKind.FormControl,
             11 or 13 => DrawingObjectKind.Image,
             17 => DrawingObjectKind.TextBox,
