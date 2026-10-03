@@ -232,8 +232,10 @@ The hosted control workflow checks complete GitHub jobs and guest listeners,
 workers, workbooks and cleanup records. It keeps active work undisturbed,
 recovers cancelled jobs through the limited account, checks desktop recovery
 and then deallocates the VM. Process cleanup uses retained handles, PID/start-time
-identity and account ownership. Workspace deletion is restricted to the exact
-runner checkout and rejects directory links. An expired idle listener may be
+identity and account ownership. Workspace cleanup removes all contents of the
+exact runner checkout and rejects directory links. It retains the empty checkout
+directory because the completing runner can still hold it as its working
+directory. An expired idle listener may be
 drained only when no active whole job or worker is found.
 
 Weekly maintenance installs approved Windows security, critical, definition
