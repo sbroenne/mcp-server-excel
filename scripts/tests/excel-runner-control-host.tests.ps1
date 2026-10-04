@@ -9,14 +9,14 @@ $script:Calls = [Collections.Generic.List[string]]::new()
 function Start-Sleep { param($Seconds) }
 function Get-ExcelRunnerActiveJobs {
     $script:DiscoveryChecks++
-    if ($script:Mode -eq 'follow-next' -and $script:JobCompleted) {
+    if ($script:Mode -in @('follow-next', 'short-follow-next') -and $script:JobCompleted) {
         if ($script:NextJob) { return @() }
         $script:NextJob = $true
         $script:JobCompleted = $false
         $script:Admitted = $false
         $script:JobQueries = 0
     }
-    if ($script:Mode -eq 'follow-next' -and $script:NextJob) {
+    if ($script:Mode -in @('follow-next', 'short-follow-next') -and $script:NextJob) {
         return @(@{ id = 2; excelRunId = 124; labels = @('excel-copilot'); runner_name = ''
             status = 'queued'; trustedCloudRun = $true; trustedValidationRun = $false })
     }
@@ -59,6 +59,7 @@ function Invoke-ExcelRunnerGithub {
         if ($script:Mode -like 'follow-*' -and $script:Admitted -and $script:JobQueries -ge 3) {
             $script:JobCompleted = $true
         }
+        if ($script:Mode -eq 'short-follow-next' -and $script:Admitted) { $script:JobCompleted = $true }
         $script:JobRefreshed = $true
         return @{
             id = $jobId; run_id = $(if ($script:Mode -eq 'changed-job' -or ($script:Mode -eq 'short-changed-job' -and $script:Admitted)) { 999 } elseif ($jobId -eq 2) { 124 } else { 123 })
@@ -129,7 +130,7 @@ foreach ($mode in @('parked', 'untrusted', 'busy', 'stale-history', 'stale-patch
         throw 'A changed job identity after admission must not be accepted as the admitted job completing.'
     }
 }
-foreach ($mode in @('follow-delayed', 'follow-changed', 'follow-cleaning', 'follow-recovery', 'follow-next')) {
+foreach ($mode in @('follow-delayed', 'follow-changed', 'follow-cleaning', 'follow-recovery', 'follow-next', 'short-follow-next')) {
     $script:Mode = $mode
     $script:Admitted = $false
     $script:JobRefreshed = $false
@@ -159,7 +160,7 @@ foreach ($mode in @('follow-delayed', 'follow-changed', 'follow-cleaning', 'foll
     }
     if ($mode -eq 'follow-recovery' -and -not $script:Recovered) { throw 'Following work must recover pending owned cleanup.' }
     if ($mode -eq 'follow-cleaning' -and -not $script:CleanupObserved) { throw 'Following work must wait for active guest cleanup.' }
-    if ($mode -eq 'follow-next' -and ($failure -or $parks -ne 1 -or -not $script:JobCompleted -or
+    if ($mode -in @('follow-next', 'short-follow-next') -and ($failure -or $parks -ne 1 -or -not $script:JobCompleted -or
         @($script:Calls | Where-Object { $_ -eq 'admit-listener' }).Count -ne 2)) {
         throw 'Following work must drain successive approved jobs without losing queued owner demand.'
     }

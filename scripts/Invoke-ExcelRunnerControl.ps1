@@ -27,6 +27,15 @@ function Assert-SelectedExcelRunnerJob {
     }
 }
 
+function Select-ApprovedExcelRunnerTargets {
+    param([object[]]$Jobs)
+    $targets = @($Jobs | Where-Object { Test-ExcelRunnerJobTarget $_ } | Sort-Object id -Unique)
+    if (@($targets | Where-Object { -not $_.trustedCloudRun -and -not $_.trustedValidationRun }).Count) {
+        throw 'Unapproved work requests this runner; do not start its listener.'
+    }
+    return $targets
+}
+
 function Wait-SelectedExcelRunnerJobCompletion {
     param([string]$JobId, [string]$RunId, [string]$JobName)
     do {
@@ -47,13 +56,10 @@ function Wait-SelectedExcelRunnerJobCompletion {
 $demandDeadline = [DateTime]::UtcNow.AddSeconds($WaitForDemandSeconds)
 do {
     $jobs = @(Get-ExcelRunnerActiveJobs $Repository)
-    $target = @($jobs | Where-Object { Test-ExcelRunnerJobTarget $_ } | Sort-Object id -Unique)
+    $target = @(Select-ApprovedExcelRunnerTargets $jobs)
     if ($target.Count -gt 0 -or [DateTime]::UtcNow -ge $demandDeadline) { break }
     Start-Sleep -Seconds 10
 } while ([DateTime]::UtcNow -lt $demandDeadline)
-if (@($target | Where-Object { -not $_.trustedCloudRun -and -not $_.trustedValidationRun }).Count) {
-    throw 'Unapproved work requests this runner; do not start its listener.'
-}
 $vm = Assert-ExcelRunnerOwnedVm
 $power = @($vm.instanceView.statuses | Where-Object code -Like 'PowerState/*')
 if ($power.Count -ne 1) { throw 'VM power state is uncertain.' }
@@ -95,7 +101,7 @@ try {
     if ($activity.excel -gt 0 -or $activity.cleanupPending) {
         throw 'Previous work left an unowned workbook or incomplete cleanup; keep coding admission quarantined.'
     }
-    while ($true) {
+    :admittedWork while ($true) {
         if ($target.Count -gt 0) {
             $next = @($target | Where-Object status -EQ 'queued' | Sort-Object id | Select-Object -First 1)
             if ($next.Count -ne 1) { throw 'GitHub reports active work but no listener; recovery needs inspection.' }
@@ -116,7 +122,14 @@ try {
             Assert-SelectedExcelRunnerJob $currentJob $jobId $runId $jobName
             if ($currentJob.status -eq 'completed') {
                 Write-Output 'Selected work completed or was cancelled during preparation; no listener started.'
-                if (@(Get-ExcelRunnerActiveJobs $Repository | Where-Object { Test-ExcelRunnerJobTarget $_ }).Count) {
+                $jobs = @(Get-ExcelRunnerActiveJobs $Repository)
+                $target = @(Select-ApprovedExcelRunnerTargets $jobs)
+                if ($target.Count) {
+                    if ($FollowAdmittedJob) {
+                        Assert-ExcelRunnerIdle $jobs (Get-ExcelRunnerGuestActivity) -AllowQueued
+                        $null = Invoke-ExcelRunnerDesktopHealth
+                        continue admittedWork
+                    }
                     Write-Output 'Other complete-job demand remains; leaving admission to the next control check.'
                     return
                 }
@@ -160,7 +173,14 @@ try {
                             return
                         }
                         if ($activity.cleanupPending) { Invoke-ExcelRunnerJobRecovery }
-                        if (@(Get-ExcelRunnerActiveJobs $Repository | Where-Object { Test-ExcelRunnerJobTarget $_ }).Count) {
+                        $jobs = @(Get-ExcelRunnerActiveJobs $Repository)
+                        $target = @(Select-ApprovedExcelRunnerTargets $jobs)
+                        if ($target.Count) {
+                            if ($FollowAdmittedJob) {
+                                Assert-ExcelRunnerIdle $jobs (Get-ExcelRunnerGuestActivity) -AllowQueued
+                                $null = Invoke-ExcelRunnerDesktopHealth
+                                continue admittedWork
+                            }
                             Write-Output 'Admitted job completed; other demand remains for the next control check.'
                             return
                         }
@@ -171,15 +191,12 @@ try {
                 if ($FollowAdmittedJob -and $listenerObserved) {
                     Wait-SelectedExcelRunnerJobCompletion $jobId $runId $jobName
                     $jobs = @(Get-ExcelRunnerActiveJobs $Repository)
-                    $target = @($jobs | Where-Object { Test-ExcelRunnerJobTarget $_ } | Sort-Object id -Unique)
-                    if (@($target | Where-Object { -not $_.trustedCloudRun -and -not $_.trustedValidationRun }).Count) {
-                        throw 'Unapproved subsequent work requests this runner; do not start its listener.'
-                    }
+                    $target = @(Select-ApprovedExcelRunnerTargets $jobs)
                     if ($target.Count) {
                         Assert-ExcelRunnerIdle $jobs (Get-ExcelRunnerGuestActivity) -AllowQueued
                         $null = Invoke-ExcelRunnerDesktopHealth
                         Write-Output 'Admitted work and cleanup completed; qualifying the next approved queued job.'
-                        continue
+                        continue admittedWork
                     }
                     $completedBeforeObservation = $true
                 }
