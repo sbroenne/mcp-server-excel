@@ -1,4 +1,4 @@
-"""Sitemap data: real git ``<lastmod>`` dates and the home-page video entry.
+"""Sitemap data: real git ``<lastmod>`` dates and per-page video entries.
 
 ``overrides/sitemap.xml`` renders both. MkDocs' stock sitemap stamps every URL
 with the *build* date, a false freshness signal on every page in every deploy.
@@ -16,22 +16,35 @@ from sitegen.sources import MIRROR_SOURCES, REPO_ROOT
 
 log = logging.getLogger("mkdocs.hooks.generate")
 
-# Home-page intro video. A plain URL sitemap has no notion of embedded media, so
-# overrides/sitemap.xml renders a Google video-sitemap <video:video> block into
-# the home page's <url> entry. Keep these fields in sync with the VideoObject
-# JSON-LD in docs/index.md.
-VIDEO = {
-    "thumbnail": "https://i.ytimg.com/vi/wbw3-hPcE2o/maxresdefault.jpg",
-    "title": "Excel MCP Server: Real Excel Automation for AI Agents",
-    "description": (
-        "Learn what Excel MCP Server is, when to use it, and how AI agents automate "
-        "Power Query, DAX, PivotTables, VBA, Python, and calculations through real "
-        "Microsoft Excel."
-    ),
-    "player_loc": "https://www.youtube.com/embed/wbw3-hPcE2o",
-    "duration": "121",
-    "publication_date": "2026-09-12T07:07:06-07:00",
-}
+# Preserve the homepage introduction and its matching VideoObject in docs/index.md.
+VIDEOS = [
+    {
+        "page_path": "",
+        "thumbnail": "https://i.ytimg.com/vi/wbw3-hPcE2o/maxresdefault.jpg",
+        "title": "Excel MCP Server: Real Excel Automation for AI Agents",
+        "description": (
+            "Learn what Excel MCP Server is, when to use it, and how AI agents automate "
+            "Power Query, DAX, PivotTables, VBA, Python, and calculations through real "
+            "Microsoft Excel."
+        ),
+        "player_loc": "https://www.youtube.com/embed/wbw3-hPcE2o",
+        "duration": "121",
+        "publication_date": "2026-09-12T07:07:06-07:00",
+    },
+    {
+        "page_path": "samples/world-in-motion/",
+        "thumbnail": "https://i.ytimg.com/vi/47HJPZbcta4/maxresdefault.jpg",
+        "title": "AI-Built Excel Dashboards | ExcelMCP in Action",
+        "description": (
+            "See a real Excel workbook built by GPT-6 Astra through ExcelMCP, "
+            "using World Bank data, Power Query, a Data Model, DAX, PivotTables "
+            "and interactive dashboards. Excel powers the workbook. Download "
+            "the sample and ask your agent to adapt it."
+        ),
+        "player_loc": "https://www.youtube.com/embed/47HJPZbcta4",
+        "duration": "154",
+    },
+]
 
 # Matches the snippet includes in the wrapper pages, e.g.
 #     --8<-- "_generated/features-data.md"

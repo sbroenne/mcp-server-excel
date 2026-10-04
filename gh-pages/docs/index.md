@@ -63,6 +63,19 @@ setup instructions for your assistant or command-line workflow:
 }
 </script>
 
+## See what AI can build in Excel
+
+**AI-Built Excel Dashboards | ExcelMCP in Action** shows a working workbook
+created by GPT-6 Astra through ExcelMCP. Excel runs the connected data,
+calculations and interactive dashboards.
+
+<div class="mcp-video" markdown>
+[![Watch AI-Built Excel Dashboards: built by AI, run by Excel](https://img.youtube.com/vi/47HJPZbcta4/maxresdefault.jpg){ width="1920" height="1080" loading="lazy" }](https://youtu.be/47HJPZbcta4)
+
+[Watch the dashboard demo (2:33)](https://youtu.be/47HJPZbcta4){ .md-button .md-button--primary }
+[Get the workbook and ask your agent to adapt it](samples/world-in-motion.md){ .md-button }
+</div>
+
 !!! tip "Also building PowerPoint decks?"
     Check out [PowerPoint MCP Server](https://powerpointmcpserver.dev/) — the
     sister project, built the same way.

@@ -27,6 +27,8 @@ watch:
   - ../skills
   - ../src/ExcelMcp.CLI/README.md
   - ../src/ExcelMcp.McpServer/README.md
+  - ../samples/world-bank-dashboard
+  - ../videos/world-in-motion-demo/capture/assets
 
 # Raw generated includes live in gh-pages/_generated/ (outside docs_dir, so
 # `mkdocs serve` does not retrigger itself) and are pulled into the thin wrapper
@@ -150,6 +152,7 @@ nav:
       - Optional report formatting: reference/report-formatting.md
       - Dashboard guidance links: reference/dashboard.md
   - Resources:
+    - Downloadable dashboard: samples/world-in-motion.md
     - Usage analytics: usage-analytics.md
     - Examples & use cases: use-cases.md
     - Agent Skills: skills.md

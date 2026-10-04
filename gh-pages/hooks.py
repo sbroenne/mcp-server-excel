@@ -6,7 +6,7 @@ docs. This file only wires MkDocs events to the helpers in ``sitegen/``:
 
 * ``sitegen/sources.py`` - the single ``PAGES`` list of published documents and
   how each is adapted (written to ``_generated/``, pulled into the thin wrapper
-  pages under ``docs/`` via ``--8<--`` includes);
+  pages under ``docs/`` via ``--8<--`` includes), plus sample downloads;
 * ``sitegen/analytics.py`` - the usage-analytics page;
 * ``sitegen/sitemap.py`` - git-derived ``<lastmod>`` and video data for
   ``overrides/sitemap.xml``;
@@ -20,10 +20,15 @@ makes the ``sitegen`` import below resolve.
 from __future__ import annotations
 
 from pathlib import Path
+from urllib.parse import urljoin
 
-from sitegen import llm, sitemap
+from sitegen import llm, sitemap, sources
 from sitegen.analytics import render_usage_analytics
 from sitegen.sources import PAGES, adapt, read, write
+
+
+def on_files(files, config, **kwargs):
+    return sources.add_sample_assets(files, config)
 
 
 def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
@@ -49,7 +54,10 @@ def on_page_markdown(markdown, page, config, **kwargs):  # noqa: D401 - MkDocs h
 def on_env(env, config, files, **kwargs):  # noqa: D401 - MkDocs hook signature
     """Expose sitemap data to overrides/sitemap.xml."""
     env.globals["page_lastmod"] = sitemap.page_lastmod(files)
-    env.globals["video"] = {**sitemap.VIDEO, "page_url": config["site_url"]}
+    env.globals["videos"] = [
+        {**video, "page_url": urljoin(config["site_url"], video["page_path"])}
+        for video in sitemap.VIDEOS
+    ]
     return env
 
 

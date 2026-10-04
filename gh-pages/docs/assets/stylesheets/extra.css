@@ -92,7 +92,7 @@
   height: 20px;
 }
 
-/* Centered intro video block */
+/* Centered video blocks */
 .mcp-video {
   text-align: center;
   margin: 2rem 0;
@@ -101,6 +101,15 @@
 .mcp-video img {
   border-radius: 0.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.mcp-video iframe {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: 0.5rem;
 }
 
 /* Contextual links remain identifiable without relying on color alone. */

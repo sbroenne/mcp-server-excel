@@ -12,9 +12,9 @@ It only wires MkDocs build events; the work lives in the `sitegen/` package:
 
 | Module | Job |
 | --- | --- |
-| `sitegen/sources.py` | `PAGES`, the one table of published documents, plus link rewriting and snippet writing |
+| `sitegen/sources.py` | `PAGES`, the one table of published documents, plus sample downloads, link rewriting and snippet writing |
 | `sitegen/llm.py` | `llms.txt`, `llms-full.txt`, Markdown mirrors, `tools.json`, FAQ structured data |
-| `sitegen/sitemap.py` | Git-based sitemap dates and the homepage video metadata |
+| `sitegen/sitemap.py` | Git-based sitemap dates and per-page video metadata |
 | `sitegen/analytics.py` | The usage analytics page |
 
 `mkdocs serve` loads `sitegen/` once; restart it after editing that code.
@@ -91,7 +91,7 @@ do not substitute manual file or folder counts.
 
 | File | Why |
 | --- | --- |
-| `sitemap.xml` | Adds a real `<lastmod>` (the git commit date behind each page, supplied by `sitegen/sitemap.py`) and the home page's `<video:video>` block. The stock template stamps the *build* date on every URL, which told crawlers all 52 pages changed on every deploy. |
+| `sitemap.xml` | Adds a real `<lastmod>` (the git commit date behind each page, supplied by `sitegen/sitemap.py`) and video details for the homepage introduction and sample-page dashboard demo. The stock template stamps the *build* date on every URL, which told crawlers all 52 pages changed on every deploy. |
 | `partials/logo.html` | Upstream renders `alt="logo"` with no dimensions - a WCAG 1.1.1 failure and an unsized image. |
 | `partials/progress.html` | Upstream's `role="progressbar"` has no accessible name (WCAG 4.1.2). |
 
@@ -134,8 +134,20 @@ These run in the `Docs Site` CI job on every pull request, and can be run locall
 cd gh-pages
 .\.venv\Scripts\python.exe audit_site.py           # SEO / a11y / LLM-discoverability audit
 .\.venv\Scripts\python.exe check_deploy_paths.py   # deploy paths: filter covers every mirrored source
-.\.venv\Scripts\python.exe -m unittest discover -s tests   # sitegen unit tests
+.\.venv\Scripts\python.exe -m unittest discover -s tests   # sitegen, sample packaging and video sitemap
 ```
+
+The World in Motion sample page mirrors `samples/world-bank-dashboard/README.md`.
+`SAMPLE_ASSETS` in `sitegen/sources.py` adds the original workbook, attribution files, and
+verified dashboard stills to the build without keeping another workbook in
+`docs/`. The packaging check confirms those files are copied unchanged and
+missing sources fail the build. The sample page is available under
+`/samples/world-in-motion/` after deployment; preparing or building it locally
+does not publish it or replace the homepage video.
+The sitemap describes the new video under that sample-page URL, including its
+title, description, thumbnail, player link and duration. The homepage keeps the
+original introduction's video entry. The packaging test also renders the sitemap
+template and checks that both videos remain associated with the correct pages.
 
 Both workflows that build the site check out with `fetch-depth: 0`, because the
 sitemap dates come from `git log`. On a shallow clone every page would claim the

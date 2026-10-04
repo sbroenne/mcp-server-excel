@@ -1,0 +1,90 @@
+{
+  "dataset": "World Development Indicators",
+  "publisher": "World Bank",
+  "source": "https://databankfiles.worldbank.org/public/ddpext_download/WDI_CSV.zip",
+  "catalogue": "https://datacatalog.worldbank.org/search/dataset/0037712/world-development-indicators",
+  "terms": "https://datacatalog.worldbank.org/public-licenses#cc-by",
+  "license": "https://creativecommons.org/licenses/by/4.0/",
+  "attribution": "Source: World Bank, World Development Indicators (CC BY 4.0). Selected and reshaped for this sample; no World Bank endorsement.",
+  "retrieved": "2026-10-03",
+  "archiveSha256": "adb1776ac4ef13de68d1af56572f99fa083b7d08c5174f259a2ff46fa6c1e2b5",
+  "years": [
+    2000,
+    2024
+  ],
+  "countries": 25,
+  "indicators": 9,
+  "observations": 5625,
+  "missing": 46,
+  "coverage": {
+    "Income": {
+      "2000": 25,
+      "2010": 25,
+      "2020": 25,
+      "2023": 25,
+      "2024": 25
+    },
+    "GDP": {
+      "2000": 25,
+      "2010": 25,
+      "2020": 25,
+      "2023": 25,
+      "2024": 25
+    },
+    "Growth": {
+      "2000": 25,
+      "2010": 25,
+      "2020": 25,
+      "2023": 25,
+      "2024": 25
+    },
+    "Inflation": {
+      "2000": 24,
+      "2010": 24,
+      "2020": 25,
+      "2023": 25,
+      "2024": 25
+    },
+    "Population": {
+      "2000": 25,
+      "2010": 25,
+      "2020": 25,
+      "2023": 25,
+      "2024": 25
+    },
+    "Life": {
+      "2000": 25,
+      "2010": 25,
+      "2020": 25,
+      "2023": 25,
+      "2024": 25
+    },
+    "Electricity": {
+      "2000": 25,
+      "2010": 25,
+      "2020": 25,
+      "2023": 25,
+      "2024": 25
+    },
+    "Internet": {
+      "2000": 25,
+      "2010": 25,
+      "2020": 25,
+      "2023": 25,
+      "2024": 25
+    },
+    "Trade": {
+      "2000": 24,
+      "2010": 24,
+      "2020": 24,
+      "2023": 24,
+      "2024": 24
+    }
+  },
+  "notes": [
+    "Country region and income-group labels reflect the downloaded metadata, not historical classifications.",
+    "Rates are percentages as supplied, not decimal fractions.",
+    "Missing values remain missing. No interpolation or zero replacement.",
+    "The sample countries are not the whole world. No country average is labelled as a World Bank regional aggregate."
+  ]
+}

@@ -14,6 +14,8 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from mkdocs.structure.files import File
+
 log = logging.getLogger("mkdocs.hooks.generate")
 
 GH_PAGES = Path(__file__).resolve().parent.parent
@@ -88,6 +90,7 @@ _REFERENCE_PAGES = {
 }
 
 PAGES: tuple[Page, ...] = (
+    Page("world-in-motion.md", "samples/world-bank-dashboard/README.md", "/samples/world-in-motion/"),
     Page("usage-analytics.md", ".github/usage-analytics.json", "/usage-analytics/", header="rendered"),
     Page("features.md", "FEATURES.md", "/features/", demote_h1=False),
     _feature("features-data.md", "docs/features/DATA-ANALYTICS.md",
@@ -130,6 +133,16 @@ PAGES: tuple[Page, ...] = (
     Page("privacy.md", "PRIVACY.md", "/privacy/", header="keep"),
 )
 
+SAMPLE_ASSETS = {
+    "downloads/world-in-motion.xlsx": "samples/world-bank-dashboard/world-in-motion.xlsx",
+    "downloads/world-bank-sources.json": "samples/world-bank-dashboard/data/sources.json",
+    "downloads/world-bank-indicators.csv": "samples/world-bank-dashboard/data/indicators.csv",
+    "assets/images/world-in-motion/overview.png": "videos/world-in-motion-demo/capture/assets/overview.png",
+    "assets/images/world-in-motion/growth.png": "videos/world-in-motion-demo/capture/assets/growth.png",
+    "assets/images/world-in-motion/progress.png": "videos/world-in-motion-demo/capture/assets/progress.png",
+}
+SITE_ASSET_MAP = {source: "/" + destination for destination, source in SAMPLE_ASSETS.items()}
+
 # Repo-relative source -> site path, for rewriting links into published pages.
 SITE_PAGE_MAP = {page.source: page.url for page in PAGES}
 # Generated snippet name -> canonical source, for dating sitemap entries.
@@ -138,7 +151,18 @@ MIRROR_SOURCES = {page.output: page.source for page in PAGES}
 FEATURE_SOURCES = {page.output: page.source for page in PAGES if page.feature_title}
 # Every repository file the build reads; check_deploy_paths.py keeps the deploy
 # workflow's paths filter in step with it.
-SOURCE_FILES = frozenset({*SITE_PAGE_MAP, DOC_COUNTS})
+SOURCE_FILES = frozenset({*SITE_PAGE_MAP, *SAMPLE_ASSETS.values(), DOC_COUNTS})
+
+
+def add_sample_assets(files, config):
+    for destination, source in SAMPLE_ASSETS.items():
+        path = REPO_ROOT / source
+        if not path.is_file():
+            raise FileNotFoundError(f"Sample asset not found: {path}")
+        if files.get_file_from_path(destination) is not None:
+            raise ValueError(f"Duplicate sample asset destination: {destination}")
+        files.append(File.generated(config, destination, abs_src_path=str(path)))
+    return files
 
 
 _MD_LINK = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)\s]+)\)")
@@ -180,8 +204,9 @@ def rewrite_links(text: str, source_rel: str, repo_url: str) -> str:
                 remainder = url[len(prefix) :]
                 target, _, anchor = remainder.partition("#")
                 anchor = f"#{anchor}" if anchor else ""
-                if target.rstrip("/") in SITE_PAGE_MAP:
-                    return f"[{label}]({SITE_PAGE_MAP[target.rstrip('/')]}{anchor})"
+                published = SITE_PAGE_MAP.get(target.rstrip("/")) or SITE_ASSET_MAP.get(target.rstrip("/"))
+                if published:
+                    return f"[{label}]({published}{anchor})"
                 return match.group(0)
 
         if url.startswith(("http://", "https://", "#", "/", "mailto:", "<")):
@@ -196,8 +221,9 @@ def rewrite_links(text: str, source_rel: str, repo_url: str) -> str:
         if resolved.startswith(".."):
             return match.group(0)  # points outside the repo; leave as-is
 
-        if resolved in SITE_PAGE_MAP:
-            return f"[{label}]({SITE_PAGE_MAP[resolved]}{anchor})"
+        published = SITE_PAGE_MAP.get(resolved) or SITE_ASSET_MAP.get(resolved)
+        if published:
+            return f"[{label}]({published}{anchor})"
 
         base = github_tree if url.endswith("/") else github_blob
         return f"[{label}]({base}{resolved}{anchor})"

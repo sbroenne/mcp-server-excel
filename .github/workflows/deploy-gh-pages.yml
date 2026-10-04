@@ -6,6 +6,8 @@ on:
       - main
     paths:
       - 'gh-pages/**'
+      - 'samples/world-bank-dashboard/**'
+      - 'videos/world-in-motion-demo/capture/assets/**'
       - 'FEATURES.md'
       - 'doc-counts.json'
       - 'docs/features/**'
@@ -118,6 +120,13 @@ jobs:
       - name: Build with MkDocs
         working-directory: gh-pages
         run: mkdocs build --strict --clean
+
+      - name: Unit test site generator and sample packaging
+        working-directory: gh-pages
+        run: python -m unittest discover -s tests
+
+      - name: Check sample data and build scripts
+        run: python -m unittest discover -s samples/world-bank-dashboard -p "test_*.py"
 
       - name: Audit built site
         working-directory: gh-pages
