@@ -2,6 +2,11 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 . (Join-Path $root 'infrastructure\azure\install-excel-toolchain.ps1')
 
+$nativePython = @(Get-Command python -CommandType Application -ErrorAction Stop)[0].Source
+if ((Get-RunnerPythonArchitecture $nativePython) -ne '64') {
+    throw 'The actual native Python architecture probe must survive both supported shells without losing quoted arguments.'
+}
+
 $global:ExcelToolchainSignatureStatus = 'Valid'
 $global:ExcelToolchainSignatureSubject = 'CN=Microsoft Corporation, O=Microsoft Corporation'
 function Get-AuthenticodeSignature {
@@ -86,6 +91,7 @@ $global:ExcelToolchainPythonArchitecture = '64'
 $global:ExcelToolchainPythonPip = 'pip 26.2 from synthetic (python 3.13)'
 $global:ExcelToolchainPythonExit = 0
 $global:ExcelToolchainPythonPathMatches = $true
+$global:ExcelToolchainDuplicatePythonCommands = $false
 $bashPath = Join-Path $env:ProgramFiles 'Git\bin\bash.exe'
 $jqPath = Join-Path $env:ProgramFiles 'ExcelMcp\Tools\jq.exe'
 $pythonPath = Join-Path $env:ProgramFiles 'Python313\python.exe'
@@ -107,6 +113,7 @@ function Get-Command {
         jq { @{ Source = $jqPath } }
         python {
             @{ Source = $(if ($global:ExcelToolchainPythonPathMatches) { $pythonPath } else { 'unprotected-python.exe' }) }
+            if ($global:ExcelToolchainDuplicatePythonCommands) { @{ Source = 'later-python-alias.exe' } }
         }
         default { throw 'Unexpected cloud command lookup.' }
     }
@@ -172,6 +179,12 @@ try {
     $global:ExcelToolchainPythonPip = 'pip 26.2 from synthetic (python 3.13)'
     $global:ExcelToolchainPythonExit = 0
     $global:ExcelToolchainPythonPathMatches = $true
+    $global:ExcelToolchainDuplicatePythonCommands = $true
+    $cloud = Get-RunnerCloudToolState
+    if ($cloud.python -ne $global:ExcelToolchainPythonVersion) {
+        throw 'A later Python alias must not override the first protected application on PATH.'
+    }
+    $global:ExcelToolchainDuplicatePythonCommands = $false
     $global:ExcelToolchainPythonInstalls = 0
     function Install-RunnerPrerequisite {
         param($Uri, $FileName, $Publisher, $Arguments, [switch]$Msi)

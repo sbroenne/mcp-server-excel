@@ -85,6 +85,14 @@ function Get-RunnerPythonRelease {
     }
 }
 
+function Get-RunnerPythonArchitecture {
+    param([string]$Path)
+    # Windows PowerShell removes embedded quotes from native command arguments.
+    $architecture = (& $Path -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)') -join ''
+    if ($LASTEXITCODE -ne 0 -or $architecture -ne '64') { throw 'The runner requires 64-bit Python.' }
+    return $architecture
+}
+
 function Get-RunnerPythonVersion {
     $python = Join-Path $env:ProgramFiles 'Python313\python.exe'
     if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
@@ -95,8 +103,7 @@ function Get-RunnerPythonVersion {
         [version]$version.Substring(7) -lt [version](Get-RunnerPythonRelease).version) {
         throw 'The installed Python interpreter does not satisfy the qualified Python 3.13 release.'
     }
-    $architecture = (& $python -c 'import struct; print(struct.calcsize("P") * 8)') -join ''
-    if ($LASTEXITCODE -ne 0 -or $architecture -ne '64') { throw 'The runner requires 64-bit Python.' }
+    $null = Get-RunnerPythonArchitecture $python
     $pip = (& $python -m pip --version) -join ''
     if ($LASTEXITCODE -ne 0 -or $pip -notmatch '^pip \d+.*\(python 3\.13\)$') {
         throw 'The protected Python interpreter must provide pip for repository documentation dependencies.'
@@ -125,9 +132,9 @@ function Get-RunnerCloudToolState {
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw 'A required cloud initialization tool is missing.' }
     }
     Assert-RunnerJqPackage $jq
-    if ((Get-Command bash -CommandType Application -ErrorAction Stop).Source -ine $bash -or
-        (Get-Command jq -CommandType Application -ErrorAction Stop).Source -ine $jq -or
-        (Get-Command python -CommandType Application -ErrorAction Stop).Source -ine (Join-Path $env:ProgramFiles 'Python313\python.exe')) {
+    if ((Get-Command bash -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source -ine $bash -or
+        (Get-Command jq -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source -ine $jq -or
+        (Get-Command python -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source -ine (Join-Path $env:ProgramFiles 'Python313\python.exe')) {
         throw 'The runner PATH must resolve the protected Git Bash, pinned jq and Python executables.'
     }
     $bashOutput = @(& $bash --version)

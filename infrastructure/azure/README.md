@@ -300,6 +300,9 @@ machine PATH. Python and pip are installed administratively before registration;
 the limited coding account must not run `actions/setup-python`'s first-time
 all-users installation. Hosted setup retains that action.
 Readiness verifies Python's version, architecture, pip and protected PATH.
+The native architecture probe works in both PowerShell versions. PATH checks
+require the protected application first; a later Windows Python alias is not
+an override.
 Complete development-tool provisioning before registration; the regular
 Windows/Excel maintenance worker does not install or update these tools.
 GitHub's generated
