@@ -13,6 +13,7 @@ public sealed class ValidationSelectionTests
     [InlineData("README.md", "", "", false)]
     [InlineData("tests/README.md", "", "", false)]
     [InlineData("scripts/Install-ExcelAgentToolchain.ps1", "Tooling", "", false)]
+    [InlineData("scripts/Invoke-CopilotSetupNpm.ps1", "Tooling", "", false)]
     [InlineData("scripts/tests/excel-runner-maintenance.tests.ps1", "Tooling", "", false)]
     [InlineData("infrastructure/azure/update-excel-runner.ps1", "Tooling", "", false)]
     [InlineData("doc-counts.json", "Tooling", "", false)]
@@ -57,6 +58,20 @@ public sealed class ValidationSelectionTests
             if ('{{group}}' -eq 'Tooling' -and $plan.ToolingFilter -cne 'FullyQualifiedName~DocumentationCounts') {
                 throw 'Documentation-count regressions were not selected.'
             }
+            """);
+        Assert.True(result.ExitCode == 0, result.Output);
+    }
+
+    [Fact]
+    public async Task CopilotNpmSetup_SelectsSafetyWithoutExcel()
+    {
+        var result = await RunAsync("""
+            $plan = Get-ValidationPlan -Paths 'scripts\Invoke-CopilotSetupNpm.ps1'
+            if (-not $plan.Build -or -not $plan.HookTests) { throw 'Script safety validation missing.' }
+            if ($plan.Excel -or $plan.ExcelGroups.Count -or $plan.FastProjects.Count -or $plan.ProcessProjects.Count) {
+                throw 'Setup-only npm selection must not require Excel or runtime validation.'
+            }
+            if (($plan.CiTestGroups -join ',') -ne 'Tooling') { throw 'Wrong setup validation group.' }
             """);
         Assert.True(result.ExitCode == 0, result.Output);
     }

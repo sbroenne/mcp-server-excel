@@ -57,6 +57,7 @@ function Get-ValidationPlan {
             '^\.github/workflows/ci\.yml$' { 'pipeline'; break }
             '^scripts/(Build-Changelog|Update-(ReleaseVersion|McpRegistry)Metadata|Resolve-McpRegistryRelease|Test-McpRegistryPublication)\.ps1$' { 'packages'; break }
             '^scripts/(Update|Restore|Persist|Test)-StarHistory\.ps1$|^scripts/.*UsageAnalytics.*\.ps1$' { 'maintenance'; break }
+            '^scripts/Invoke-CopilotSetupNpm\.ps1$' { 'safety'; break }
             '^scripts/(AzureRunnerHost|ExcelRunner(Host|Policy)|Invoke-ExcelRunner(Control|Maintenance))\.ps1$|^scripts/(Deploy|Initialize|Install|Open|Register)-ExcelAgent(Runner|Desktop|Office|Toolchain|Activation)\.ps1$|^scripts/tests/[^/]+\.tests\.ps1$|^infrastructure/azure/[^/]+\.ps1$|^infrastructure/azure/excel[^/]*\.bicep$|^\.github/workflows/excel-runner[^/]*\.yml$' { 'safety'; break }
             '^infrastructure/azure/(configure-analytics-oidc|deploy-appinsights)\.ps1$|^videos/excel-mcp-intro/Capture-Evidence\.ps1$' { 'safety'; break }
             '^docs/|^gh-pages/|^videos/|^infrastructure/|^\.changeset/|^\.github/|\.md$|^\.(gitignore|gitattributes)$' { 'documentation'; break }
