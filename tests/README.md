@@ -38,6 +38,11 @@ and repeated names. Missing/invalid reports, empty focused selections, omitted,
 duplicated, failed, or skipped required cases fail the run. Full-mode partitions
 must cover each project's normal discovery without overlap.
 
+Windows/Azure runner setup and administration scripts are not part of the
+automated test suite. Product checks remain, including COM-reference safety,
+owned pre-build cleanup, test-result reporting, and real Excel acceptance.
+The retained PowerShell script tests run with PowerShell 7.
+
 Use `-Full -ContinueOnFailure` when collecting all stage results despite a
 completed stage's failing tests. Each failure remains recorded and the command
 still fails overall. Build/discovery failures and hard deadlines still stop the

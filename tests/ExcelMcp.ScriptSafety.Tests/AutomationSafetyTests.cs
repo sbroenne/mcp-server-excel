@@ -13,6 +13,9 @@ public sealed partial class AutomationSafetyTests
 
     [Theory]
     [InlineData("check-com-leaks.ps1", "var count = worksheet.Rows.Count;")]
+    [InlineData("check-com-leaks.ps1", "int row = table.Range.Row;")]
+    [InlineData("check-com-leaks.ps1", "int column = table.Range.Column;")]
+    [InlineData("check-com-leaks.ps1", "namesCollection.Add(\"Example\", \"=Sheet1!A1\");")]
     [InlineData("check-success-flag.ps1", "result.Success = true;\nresult.ErrorMessage = \"failure\";")]
     [InlineData("check-dynamic-casts.ps1", "var item = ((dynamic)source).Item;")]
     public async Task SourceGuards_RejectEmptyDiscoveryAndIgnoreGeneratedFiles(string script, string suspicious)
@@ -36,7 +39,21 @@ public sealed partial class AutomationSafetyTests
             var invalid = await RunAsync(root, command);
             Assert.NotEqual(0, invalid.ExitCode);
 
-            File.WriteAllText(source, "class Example {}");
+            File.WriteAllText(source, script == "check-com-leaks.ps1" ? """
+                dynamic? rows = null;
+                dynamic? name = null;
+                try
+                {
+                    rows = range.Rows;
+                    int count = rows.Count;
+                    name = namesCollection.Add("Example", "=Sheet1!A1");
+                }
+                finally
+                {
+                    ComUtilities.Release(ref name);
+                    ComUtilities.Release(ref rows);
+                }
+                """ : "class Example {}");
             var generated = Directory.CreateDirectory(Path.Combine(commands, "obj")).FullName;
             File.WriteAllText(Path.Combine(generated, "Generated.cs"), suspicious);
             var valid = await RunAsync(root, command);

@@ -84,12 +84,6 @@ replacement for GitHub's agent firewall. The reused persistent machine must
 not run arbitrary untrusted contributor code. No additional Linux VM or
 managed Azure Firewall is provisioned.
 
-Deployment safety checks run without contacting Azure:
-
-```powershell
-& .\scripts\tests\deploy-excel-runner.tests.ps1
-```
-
 ### Retail Excel installation and desktop preparation
 
 After verifying the entitlement is specifically `Excel2024Retail`, use:
@@ -132,13 +126,6 @@ The desktop check requires that account's Explorer session and a successful
 profile task during the current boot. It does not yet establish Excel
 activation or COM behavior. Actual workbook and CLI/MCP acceptance checks remain
 required before the runner can accept work.
-
-```powershell
-& .\scripts\tests\install-excel-runner-office.tests.ps1
-& .\scripts\tests\setup-excel-desktop.tests.ps1
-& .\scripts\tests\runner-identity.tests.ps1
-& .\scripts\tests\open-excel-activation.tests.ps1
-```
 
 ### One-time private activation access
 
@@ -381,14 +368,6 @@ HTTP/HTTPS outbound access is not a destination allowlist. Retail activation
 does not itself establish unattended-use or Windows development/test rights.
 No personal account sign-in, activation reset or workbook copying is part
 of normal maintenance.
-
-Run its offline checks with:
-
-```powershell
-& .\scripts\tests\excel-runner-toolchain.tests.ps1
-& .\scripts\tests\excel-runner-toolchain-host.tests.ps1
-& .\scripts\tests\copilot-setup-npm.tests.ps1
-```
 
 ### Qualification and account privacy
 

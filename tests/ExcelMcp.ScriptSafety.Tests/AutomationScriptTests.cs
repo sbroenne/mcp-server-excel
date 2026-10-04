@@ -7,32 +7,19 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 [Trait("RequiresExcel", "false")]
 [Trait("Category", "Integration")]
 [Trait("Feature", "AutomationSafety")]
-public sealed class ExcelRunnerSafetyTests
+public sealed class AutomationScriptTests
 {
-    public static IEnumerable<object[]> Scripts()
+    [Fact]
+    public async Task PreBuildCleanupCondition_Passes()
     {
-        var directory = Path.Combine(FindRoot(), "scripts", "tests");
-        var scripts = Directory.GetFiles(directory, "*.tests.ps1").Order(StringComparer.Ordinal).ToArray();
-        if (scripts.Length == 0) { throw new InvalidOperationException("Runner safety scripts were not discovered."); }
-        foreach (var script in scripts)
-        {
-            yield return [script, "pwsh"];
-            if (OperatingSystem.IsWindows()) { yield return [script, "powershell"]; }
-        }
-    }
-
-    [Theory]
-    [MemberData(nameof(Scripts))]
-    public async Task OfflineRunnerSafety_Passes(string script, string shell)
-    {
-        var info = new ProcessStartInfo(shell)
+        var script = Path.Combine(FindRoot(), "scripts", "tests", "excel-runner-build-cleanup.tests.ps1");
+        var info = new ProcessStartInfo("pwsh")
         {
             WorkingDirectory = FindRoot(),
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false
         };
-        if (shell == "powershell") { info.Environment.Remove("PSModulePath"); }
         foreach (var argument in new[] { "-NoProfile", "-NonInteractive", "-File", script }) { info.ArgumentList.Add(argument); }
         using var process = Process.Start(info);
         Assert.NotNull(process);
@@ -44,7 +31,7 @@ public sealed class ExcelRunnerSafetyTests
         {
             process.Kill(entireProcessTree: true);
             await process.WaitForExitAsync();
-            throw new TimeoutException("Offline runner safety test exceeded its deadline.");
+            throw new TimeoutException("Product safety script test exceeded its deadline.");
         }
         Assert.True(process.ExitCode == 0, await output + await errors);
     }
