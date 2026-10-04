@@ -29,7 +29,7 @@ class SampleDownloadTests(unittest.TestCase):
                 ("samples/world-in-motion.md", "https://excelmcpserver.dev/samples/world-in-motion/"),
             ]
         ]
-        env = Environment(loader=FileSystemLoader(GH_PAGES / "overrides"))
+        env = Environment(loader=FileSystemLoader(GH_PAGES / "overrides"), autoescape=True)
         with patch.object(sitemap, "page_lastmod", return_value={}):
             hooks.on_env(env, {"site_url": "https://excelmcpserver.dev/"}, Files([]))
         root = ET.fromstring(env.get_template("sitemap.xml").render(pages=pages))
@@ -68,7 +68,7 @@ class SampleDownloadTests(unittest.TestCase):
         self.assertTrue(set(sources.SAMPLE_ASSETS.values()).issubset(sources.SOURCE_FILES))
 
     def test_sitemap_uses_the_configured_site_root(self):
-        env = Environment()
+        env = Environment(autoescape=True)
         with patch.object(sitemap, "page_lastmod", return_value={}):
             hooks.on_env(env, {"site_url": "https://example.test/docs/"}, Files([]))
         self.assertEqual(

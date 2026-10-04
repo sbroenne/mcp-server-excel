@@ -724,7 +724,8 @@ def main():
             agent_instructions(excel)
         save = True
     finally:
-        excel.close(save)
+        if excel.session is not None:
+            excel.close(save)
     print(f"Saved {args.output}", flush=True)
 
 

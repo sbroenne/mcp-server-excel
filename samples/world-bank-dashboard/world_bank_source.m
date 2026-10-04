@@ -43,6 +43,7 @@ let
     LicenseData = Table.PromoteHeaders(Csv.Document(ReadMember("WDISeries.csv"), [Delimiter=",", Encoding=65001, QuoteStyle=QuoteStyle.Csv])),
     SelectedLicenses = Table.SelectRows(LicenseData, each List.Contains(IndicatorCodes, [Series Code])),
     LicensesOK = Table.RowCount(SelectedLicenses) = List.Count(IndicatorCodes)
+        and List.Count(List.Distinct(SelectedLicenses[Series Code])) = List.Count(IndicatorCodes)
         and List.AllTrue(List.Transform(SelectedLicenses[License Type], each _ = "CC BY-4.0")),
     Raw = if LicensesOK
         then Table.PromoteHeaders(Csv.Document(ReadMember("WDICSV.csv"), [Delimiter=",", Encoding=65001, QuoteStyle=QuoteStyle.Csv]))

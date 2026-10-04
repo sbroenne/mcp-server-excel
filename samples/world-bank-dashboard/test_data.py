@@ -5,10 +5,12 @@ import json
 import math
 from pathlib import Path
 import re
+import tempfile
 import unittest
+from unittest.mock import patch
 
 from prepare_data import COUNTRIES, INDICATORS
-from build_workbook import redesign_overview, REGION_COLORS
+from build_workbook import main, redesign_overview, REGION_COLORS
 
 ROOT = Path(__file__).parent
 
@@ -108,6 +110,25 @@ class OverviewDesignTests(unittest.TestCase):
                   if c["command"] == "chartconfig.set-series-format"]
         countries = read_csv("countries.csv")
         self.assertEqual(colors, [REGION_COLORS[c["Region"]] for c in countries])
+
+
+class BuildLifecycleTests(unittest.TestCase):
+    def test_failed_reopen_keeps_original_error_and_does_not_close_again(self):
+        with tempfile.TemporaryDirectory() as directory:
+            args = ["build_workbook.py", "--cli", "excelcli.exe",
+                    "--output", str(Path(directory) / "sample.xlsx"),
+                    "--logs", str(Path(directory) / "logs")]
+            responses = [
+                {"sessionId": "created"},
+                {"sessions": [{"sessionId": "created", "canClose": True}]},
+                {"success": True},
+                RuntimeError("Cannot reopen saved model"),
+            ]
+            with patch("sys.argv", args), patch("build_workbook.build_model"), \
+                    patch("build_workbook.Excel.invoke", side_effect=responses) as invoke:
+                with self.assertRaisesRegex(RuntimeError, "Cannot reopen saved model"):
+                    main()
+                self.assertEqual(invoke.call_count, 4)
 
 
 if __name__ == "__main__":

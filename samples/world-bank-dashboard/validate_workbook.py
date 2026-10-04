@@ -28,6 +28,31 @@ def values(excel, sheet, address):
     return result["values"]
 
 
+def validate_live_licences(excel):
+    source = (ROOT / "world_bank_source.m").read_text(encoding="utf-8")
+    indicators = re.search(r"IndicatorCodes = (\{.*?\}),", source, re.DOTALL).group(1)
+    guard = source.split("LicensesOK = ", 1)[1].split(",\n    Raw = ", 1)[0]
+    query = f"""
+let
+    IndicatorCodes = {indicators},
+    GoodRows = List.Transform(IndicatorCodes, each {{_, "CC BY-4.0"}}),
+    Check = (rows as list) as logical =>
+        let SelectedLicenses = Table.FromRows(rows, {{"Series Code", "License Type"}})
+        in {guard},
+    Checks = {{
+        [Case="Complete", Passed=Check(GoodRows)],
+        [Case="Duplicate replaces missing", Passed=not Check(List.RemoveLastN(GoodRows, 1) & {{GoodRows{{0}}}})],
+        [Case="Missing", Passed=not Check(List.RemoveLastN(GoodRows, 1))],
+        [Case="Restricted", Passed=not Check(List.RemoveLastN(GoodRows, 1) & {{{{List.Last(IndicatorCodes), "Restricted"}}}})]
+    }},
+    Result = if List.AllTrue(List.Transform(Checks, each [Passed]))
+        then Table.FromRecords(Checks)
+        else error "Live licence guard accepted missing, duplicate or restricted metadata."
+in Result
+"""
+    excel.call("powerquery.evaluate", mCode=query)
+
+
 def validate_overview(excel, expected, countries, year=2024):
     def matched(metric):
         return [(expected[(country["Code"], year, metric)], expected[(country["Code"], 2000, metric)])
@@ -81,6 +106,7 @@ def validate_overview_chart(excel, expected, countries):
 
 
 def validate(excel, logs, live):
+    validate_live_licences(excel)
     with (ROOT / "data" / "observations.csv").open(encoding="utf-8", newline="") as source:
         expected = {(r["CountryCode"], int(r["Year"]), r["Metric"]):
                     float(r["Value"]) if r["Value"] else None for r in csv.DictReader(source)}
