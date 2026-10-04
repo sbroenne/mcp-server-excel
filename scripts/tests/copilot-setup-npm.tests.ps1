@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $workflow = Get-Content -LiteralPath (Join-Path $root '.github\workflows\copilot-setup-steps.yml') -Raw
-$match = [regex]::Match($workflow, '(?m)- name: Install repository tooling\r?\n\s+run: (?<command>[^\r\n]+)')
+$match = [regex]::Match($workflow, '(?m)- name: Install repository tooling\r?\n(?:\s+shell: [^\r\n]+\r?\n)?\s+run: (?<command>[^\r\n]+)')
 if (-not $match.Success) { throw 'The repository npm setup step was not found.' }
 $command = $match.Groups['command'].Value.Trim().Trim("'")
 $fixture = Join-Path ([IO.Path]::GetTempPath()) "copilot-npm-$([Guid]::NewGuid().ToString('N'))"
@@ -33,8 +33,11 @@ exit /b 0
     $helper = Join-Path $root 'scripts\Invoke-CopilotSetupNpm.ps1'
     $npmSteps = @('Install repository tooling', 'Install VS Code extension dependencies', 'Install shared npm tooling')
     foreach ($name in $npmSteps) {
-        $step = [regex]::Match($workflow, "(?m)- name: $([regex]::Escape($name))\r?\n(?:\s+working-directory: (?<directory>[^\r\n]+)\r?\n)?\s+run: (?<command>[^\r\n]+)")
+        $step = [regex]::Match($workflow, "(?m)- name: $([regex]::Escape($name))\r?\n(?:\s+working-directory: (?<directory>[^\r\n]+)\r?\n)?(?:\s+shell: (?<shell>[^\r\n]+)\r?\n)?\s+run: (?<command>[^\r\n]+)")
         if (-not $step.Success) { throw "The npm setup step is missing: $name" }
+        if ($step.Groups['shell'].Value.Trim() -ne 'pwsh') {
+            throw "The cloud agent ignores job-level shell defaults; the PowerShell npm helper needs an explicit pwsh step: $name"
+        }
         $directory = if ($step.Groups['directory'].Success) {
             Join-Path $root $step.Groups['directory'].Value.Trim().Replace('/', '\')
         } else { $root }

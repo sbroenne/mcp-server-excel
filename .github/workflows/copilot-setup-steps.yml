@@ -74,10 +74,12 @@ jobs:
           cache-dependency-glob: llm-tests/uv.lock
 
       - name: Install repository tooling
+        shell: pwsh
         run: .\scripts\Invoke-CopilotSetupNpm.ps1
 
       - name: Install VS Code extension dependencies
         working-directory: vscode-extension
+        shell: pwsh
         run: ..\scripts\Invoke-CopilotSetupNpm.ps1
 
       - name: Install documentation dependencies
@@ -85,6 +87,7 @@ jobs:
 
       - name: Install shared npm tooling
         working-directory: npm-packages/shared
+        shell: pwsh
         run: ..\..\scripts\Invoke-CopilotSetupNpm.ps1
 
       - name: Install LLM evaluation dependencies without running evaluations
