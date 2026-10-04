@@ -210,6 +210,20 @@ export function validatePublication(tree, options = {}) {
         repairs.push(...validated.repairs);
     }
     if (versions.size !== 1) throw new Error('Published marketplace must have one release version.');
+    const claudeFile = tree.get('.claude-plugin/marketplace.json');
+    if (claudeFile) {
+        const claude = parseJson(claudeFile.bytes);
+        if (!Array.isArray(claude.plugins) || claude.plugins.length !== pluginNames.length) {
+            throw new Error('Expected exactly two Claude Code marketplace plugins.');
+        }
+        for (const name of pluginNames) {
+            const entries = claude.plugins.filter(plugin => plugin.name === name);
+            const canonicalEntry = marketplace.plugins.find(plugin => plugin.name === name);
+            if (entries.length !== 1 || entries[0].source !== canonicalEntry.source || entries[0].version !== canonicalEntry.version) {
+                throw new Error(`Claude Code marketplace entry for ${name} must match the canonical source and version.`);
+            }
+        }
+    }
     return { version: [...versions][0], marketplacePath, repairs };
 }
 
@@ -226,7 +240,7 @@ function normalized(tree, { publication = true, plugin, repairStamps = false } =
         if (name.endsWith('.json')) {
             const json = parseJson(bytes);
             if (pluginNames.some(value => name === `plugins/${value}/plugin.json`)) delete json.version;
-            if (publication && ['.github/plugin/marketplace.json', 'marketplace.json'].includes(name)) {
+            if (publication && ['.github/plugin/marketplace.json', '.claude-plugin/marketplace.json', 'marketplace.json'].includes(name)) {
                 for (const entry of json.plugins) if (pluginNames.includes(entry.name)) delete entry.version;
             }
             bytes = Buffer.from(canonical(json));
