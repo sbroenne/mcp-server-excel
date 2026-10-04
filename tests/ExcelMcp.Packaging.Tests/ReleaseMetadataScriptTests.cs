@@ -50,6 +50,11 @@ public sealed class ReleaseMetadataScriptTests
     [Theory]
     [InlineData("absent", false, true)]
     [InlineData("draft", false, true)]
+    [InlineData("draft-later-page", false, true)]
+    [InlineData("duplicate-draft", false, false)]
+    [InlineData("invalid-draft", false, false)]
+    [InlineData("published-list", false, false)]
+    [InlineData("list-api-error", false, false)]
     [InlineData("published", false, true)]
     [InlineData("immutable", false, true)]
     [InlineData("missing", false, false)]
@@ -94,10 +99,26 @@ public sealed class ReleaseMetadataScriptTests
                             'gh: Forbidden (HTTP 403)'
                             return
                         }
-                        if ('{{mode}}' -eq 'absent' -and -not $global:releaseFixtureCreated) {
+                        $isList = $Arguments[1] -eq 'repos/owner/repo/releases'
+                        $isAbsent = '{{mode}}' -eq 'absent' -and -not $global:releaseFixtureCreated
+                        $isDraft = '{{mode}}' -in @('absent', 'draft', 'draft-later-page',
+                            'duplicate-draft', 'invalid-draft', 'published-list', 'list-api-error') `
+                            -and -not $global:releaseFixturePublished
+                        if (-not $isList -and ($isAbsent -or $isDraft)) {
                             $global:LASTEXITCODE = 1
                             'gh: Not Found (HTTP 404)'
                             return
+                        }
+                        if ($isList) {
+                            if ('--paginate' -notin $Arguments -or '--slurp' -notin $Arguments) {
+                                throw 'Draft lookup must request all release pages.'
+                            }
+                            if ('{{mode}}' -eq 'list-api-error') {
+                                $global:LASTEXITCODE = 1
+                                'gh: Forbidden (HTTP 403)'
+                                return
+                            }
+                            if ($isAbsent) { '[[]]'; return }
                         }
                         $assets = @(Get-ChildItem publish -File | ForEach-Object {
                             @{ name = $_.Name; digest = 'sha256:' + (Get-FileHash $_.FullName).Hash.ToLowerInvariant() }
@@ -106,12 +127,25 @@ public sealed class ReleaseMetadataScriptTests
                             $assets = @($assets | Where-Object name -ne 'SHA256SUMS')
                         }
                         if ('{{mode}}' -eq 'mismatch') { $assets[0].digest = 'sha256:' + ('0' * 64) }
-                        @{
+                        $release = @{
                             tag_name = 'v1.2.3'
-                            draft = '{{mode}}' -in @('absent', 'draft') -and -not $global:releaseFixturePublished
+                            draft = $isDraft
                             immutable = '{{mode}}' -like 'immutable*'
                             assets = $assets
-                        } | ConvertTo-Json -Depth 5
+                        }
+                        if ($isList) {
+                            $pages = @(@($release))
+                            if ('{{mode}}' -eq 'draft-later-page') {
+                                $pages = @(@(@{ tag_name = 'V1.2.3'; draft = $true; immutable = $false }),
+                                    @($release))
+                            }
+                            if ('{{mode}}' -eq 'duplicate-draft') { $pages = @(@($release), @($release)) }
+                            if ('{{mode}}' -eq 'invalid-draft') { $release.immutable = 'false' }
+                            if ('{{mode}}' -eq 'published-list') { $release.draft = $false }
+                            ConvertTo-Json -InputObject $pages -Depth 7
+                        } else {
+                            $release | ConvertTo-Json -Depth 5
+                        }
                     } elseif ($Arguments[1] -eq 'create') {
                         $global:releaseFixtureCreated = $true
                     } elseif ($Arguments[1] -eq 'upload') {
@@ -137,17 +171,21 @@ public sealed class ReleaseMetadataScriptTests
                 {
                     "missing" or "immutable-missing" => "Published assets are missing",
                     "mismatch" => "Missing or mismatched GitHub SHA-256 digest",
-                    "api-error" => "GitHub command failed",
+                    "api-error" or "list-api-error" => "GitHub command failed",
+                    "duplicate-draft" => "multiple releases",
+                    "invalid-draft" or "published-list" => "invalid release identity or state",
                     _ => throw new InvalidOperationException($"Unexpected failure fixture: {mode}")
                 };
                 Assert.Contains(expectedError, result.CombinedOutput, StringComparison.Ordinal);
             }
             var calls = File.ReadAllText(Path.Combine(sandbox, "calls.json"));
-            if (mode is "absent" or "draft")
+            if (mode is "absent" or "draft" or "draft-later-page")
             {
                 Assert.Contains("release upload", calls, StringComparison.Ordinal);
                 Assert.Contains("--clobber", calls, StringComparison.Ordinal);
                 Assert.Contains("release edit", calls, StringComparison.Ordinal);
+                Assert.Contains("api repos/owner/repo/releases --paginate --slurp", calls, StringComparison.Ordinal);
+                Assert.Contains("Published v1.2.3 after verifying every draft asset", result.CombinedOutput, StringComparison.Ordinal);
                 if (mode == "absent")
                 {
                     Assert.Contains("--draft", calls, StringComparison.Ordinal);
@@ -167,6 +205,10 @@ public sealed class ReleaseMetadataScriptTests
                 {
                     Assert.DoesNotContain("release upload", calls, StringComparison.Ordinal);
                 }
+            }
+            if (mode is "published" or "immutable" or "missing" or "immutable-missing" or "mismatch" or "api-error")
+            {
+                Assert.DoesNotContain("api repos/owner/repo/releases --paginate", calls, StringComparison.Ordinal);
             }
             if (succeeds)
             {

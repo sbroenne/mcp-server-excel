@@ -128,6 +128,11 @@ assets before creating a draft. It includes the exact metadata patch and
 Only draft assets may be replaced. Before publishing, every expected GitHub
 asset digest must match; unexpected draft assets block publication.
 
+The publisher first looks up a published release by tag. If that endpoint
+returns HTTP 404, it searches all authenticated release-list pages for the
+exact, case-sensitive draft tag. Duplicate matches or invalid release state
+block publication; other API failures are not treated as a missing release.
+
 Replaying an already published release verifies matching assets and does not
 replace them or edit notes. Missing or mismatched immutable assets fail visibly.
 Older mutable releases are a separate repair case: explicitly authorized

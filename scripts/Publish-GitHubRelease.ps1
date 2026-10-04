@@ -28,10 +28,24 @@ function Invoke-Gh {
 
 function Get-Release {
     $json = Invoke-Gh -Arguments @('api', "repos/$Repository/releases/tags/$tag") -AllowNotFound
-    if ($null -eq $json) { return $null }
-    $release = $json | ConvertFrom-Json
+    $fromList = $null -eq $json
+    if ($fromList) {
+        $json = Invoke-Gh -Arguments @('api', "repos/$Repository/releases", '--paginate', '--slurp')
+        $matches = @(
+            foreach ($page in ($json | ConvertFrom-Json)) {
+                foreach ($candidate in $page) {
+                    if ($candidate.tag_name -ceq $tag) { $candidate }
+                }
+            }
+        )
+        if ($matches.Count -eq 0) { return $null }
+        if ($matches.Count -ne 1) { throw "GitHub returned multiple releases for tag $tag." }
+        $release = $matches[0]
+    } else {
+        $release = $json | ConvertFrom-Json
+    }
     if ($release.tag_name -cne $tag -or $release.draft -isnot [bool] -or
-        $release.immutable -isnot [bool]) {
+        $release.immutable -isnot [bool] -or ($fromList -and -not $release.draft)) {
         throw 'GitHub returned an invalid release identity or state.'
     }
     return $release
