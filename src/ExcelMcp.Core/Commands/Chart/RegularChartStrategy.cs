@@ -230,7 +230,8 @@ public class RegularChartStrategy : IChartStrategy
     /// <inheritdoc />
     public SeriesInfo AddSeries(dynamic chart, string seriesName, string valuesRange, string? categoryRange)
     {
-        Excel.Application? app = null;
+        Excel.ChartObject? chartObject = null;
+        Excel.Worksheet? chartSheet = null;
         Excel.Range? valuesSource = null;
         Excel.Range? categorySource = null;
         Excel.SeriesCollection? seriesCollection = null;
@@ -238,11 +239,12 @@ public class RegularChartStrategy : IChartStrategy
 
         try
         {
-            app = (Excel.Application)chart.Application;
-            valuesSource = app.Range[valuesRange];
+            chartObject = (Excel.ChartObject)chart.Parent;
+            chartSheet = (Excel.Worksheet)chartObject.Parent;
+            valuesSource = ResolveSeriesRange(chartSheet, valuesRange);
             if (!string.IsNullOrWhiteSpace(categoryRange))
             {
-                categorySource = app.Range[categoryRange];
+                categorySource = ResolveSeriesRange(chartSheet, categoryRange);
             }
 
             seriesCollection = (Excel.SeriesCollection)chart.SeriesCollection();
@@ -268,7 +270,40 @@ public class RegularChartStrategy : IChartStrategy
             ComUtilities.Release(ref seriesCollection);
             ComUtilities.Release(ref categorySource);
             ComUtilities.Release(ref valuesSource);
-            ComUtilities.Release(ref app);
+            ComUtilities.Release(ref chartSheet);
+            ComUtilities.Release(ref chartObject);
+        }
+    }
+
+    private static Excel.Range ResolveSeriesRange(Excel.Worksheet chartSheet, string reference)
+    {
+        var separator = reference.LastIndexOf('!');
+        if (separator < 0)
+        {
+            return chartSheet.Range[reference];
+        }
+
+        var sheetName = reference[..separator].Trim();
+        if (sheetName.Length >= 2 && sheetName[0] == '\'' && sheetName[^1] == '\'')
+        {
+            sheetName = sheetName[1..^1].Replace("''", "'", StringComparison.Ordinal);
+        }
+
+        Excel.Workbook? book = null;
+        Excel.Sheets? sheets = null;
+        Excel.Worksheet? sourceSheet = null;
+        try
+        {
+            book = (Excel.Workbook)chartSheet.Parent;
+            sheets = book.Worksheets;
+            sourceSheet = (Excel.Worksheet)sheets[sheetName];
+            return sourceSheet.Range[reference[(separator + 1)..]];
+        }
+        finally
+        {
+            ComUtilities.Release(ref sourceSheet);
+            ComUtilities.Release(ref sheets);
+            ComUtilities.Release(ref book);
         }
     }
 

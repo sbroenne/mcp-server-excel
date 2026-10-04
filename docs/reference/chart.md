@@ -14,6 +14,10 @@ and an optional `category_range` / `--category-range` must resolve to existing
 Excel ranges. A missing sheet or invalid range is rejected before a series is
 added, preserving the existing chart. The added series retains live references
 to those ranges; changes to their cells update the plotted values.
+Unqualified addresses use the chart's worksheet. Sheet-qualified addresses use
+the named worksheet in the chart's workbook, not whichever workbook or worksheet
+is active. Quote sheet names containing spaces or apostrophes, for example
+`'Series'' Inputs'!B2:B10`.
 
 Axis number formats use US codes, including named colors such as `[Red]`.
 Excel's chart format properties have different regional rules from worksheet

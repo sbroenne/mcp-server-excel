@@ -1,6 +1,8 @@
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -132,6 +134,124 @@ public sealed partial class PersistentServiceChartFormattingTests
         RequireSuccess(_commands.SetValues(batch, _sheetName, "C3", [[26]], overwritePolicy: OverwritePolicy.Allow));
         AssertSeriesData(createResult.ChartName, 2, "NewSeries", ["A", "B", "C"], [20, 26, 30]);
         AssertSeriesData(createResult.ChartName, 1, "Series1", ["A", "B", "C"], [10, 15, 20]);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void AddSeries_DifferentActiveContext_UsesChartWorkbook(
+        bool otherWorkbook, bool qualified)
+    {
+        var batch = _fixture.BatchToken;
+        var created = RequireSuccess(_chartCommands.CreateFromRange(
+            batch, _sheetName, "A1:B4", ChartType.Line));
+        var sourceSheet = _sheetName;
+        if (qualified)
+        {
+            sourceSheet = _fixture.CreateNamedTestSheet(
+                batch, $"Series' Inputs {Guid.NewGuid():N}"[..31]);
+            RequireSuccess(_commands.SetValues(batch, sourceSheet, "A1:C4",
+            [
+                ["Category", "Original", "Added"],
+                ["A", 10, 120],
+                ["B", 15, 125],
+                ["C", 20, 130]
+            ]));
+        }
+
+        var decoySheet = otherWorkbook ? sourceSheet : _fixture.CreateTestSheet(batch);
+        string? decoyWorkbook = null;
+        PersistentServiceCleanupFailures.Run(() =>
+        {
+            _fixture.ExecuteRawVerification((context, _) =>
+            {
+                Excel.Workbooks? books = null;
+                Excel.Workbook? book = null;
+                Excel.Sheets? sheets = null;
+                Excel.Worksheet? sheet = null;
+                Excel.Range? cells = null;
+                Excel.Workbook? activeBook = null;
+                try
+                {
+                    if (otherWorkbook)
+                    {
+                        books = context.App.Workbooks;
+                        book = books.Add(Excel.XlWBATemplate.xlWBATWorksheet);
+                        decoyWorkbook = book.Name;
+                        sheets = book.Worksheets;
+                        sheet = (Excel.Worksheet)sheets[1];
+                        sheet.Name = decoySheet;
+                    }
+                    else
+                    {
+                        sheet = ComUtilities.FindSheet(context.Book, decoySheet);
+                        Assert.NotNull(sheet);
+                    }
+                    cells = sheet.Range["A1:C4"];
+                    cells.Value2 = new object[,]
+                    {
+                        { "Category", "Original", "Added" },
+                        { "Wrong A", 900d, 990d },
+                        { "Wrong B", 901d, 991d },
+                        { "Wrong C", 902d, 992d }
+                    };
+                    sheet.Activate();
+                    activeBook = context.App.ActiveWorkbook;
+                    Assert.Equal(otherWorkbook ? decoyWorkbook : context.Book.Name, activeBook.Name);
+                    if (otherWorkbook)
+                        Assert.NotEqual(context.Book.Name, activeBook.Name);
+                    else
+                        Assert.NotEqual(_sheetName, sheet.Name);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref activeBook);
+                    ComUtilities.Release(ref cells);
+                    ComUtilities.Release(ref sheet);
+                    ComUtilities.Release(ref sheets);
+                    ComUtilities.Release(ref book);
+                    ComUtilities.Release(ref books);
+                }
+            });
+
+            var prefix = qualified ? $"'{sourceSheet.Replace("'", "''", StringComparison.Ordinal)}'!" : "";
+            var added = _chartCommands.AddSeries(
+                batch, created.ChartName, "ContextSeries", $"{prefix}C2:C4", $"{prefix}A2:A4");
+            Assert.Equal("ContextSeries", added.Name);
+            double[] expectedValues = qualified ? [120, 125, 130] : [20, 25, 30];
+            object[] expectedCategories = ["A", "B", "C"];
+            var read = RequireSuccess(_chartCommands.Read(batch, created.ChartName));
+            Assert.Equal(2, read.Series.Count);
+            AssertSeriesData(created.ChartName, 1, "Series1", ["A", "B", "C"], [10, 15, 20]);
+            AssertSeriesData(created.ChartName, 2, "ContextSeries", expectedCategories, expectedValues);
+
+            expectedValues[1]++;
+            RequireSuccess(_commands.SetValues(
+                batch, sourceSheet, "C3", [[expectedValues[1]]], overwritePolicy: OverwritePolicy.Allow));
+            AssertSeriesData(created.ChartName, 2, "ContextSeries", expectedCategories, expectedValues);
+            AssertSeriesData(created.ChartName, 1, "Series1", ["A", "B", "C"], [10, 15, 20]);
+        }, () =>
+        {
+            if (decoyWorkbook is null) return;
+            _fixture.ExecuteRawVerification((context, _) =>
+            {
+                Excel.Workbooks? books = null;
+                Excel.Workbook? book = null;
+                try
+                {
+                    books = context.App.Workbooks;
+                    book = books[decoyWorkbook];
+                    book.Close(SaveChanges: false);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref book);
+                    ComUtilities.Release(ref books);
+                }
+            });
+        });
     }
 
     [Fact]
