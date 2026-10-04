@@ -8,9 +8,17 @@
 - `ci.yml` has Excel-free runtime and documentation gates. Local pre-commit
   selects checks by changed paths; preserve runtime/non-runtime and merge-parent
   handling so imported changes do not trigger unrelated Excel E2E.
-- `Get-ValidationPlan.ps1` is the shared selection source. Keep the required
-  completion check always reporting; detection failure, cancellation, and
-  unexpected skips must fail it. Main/manual runs retain complete coverage.
+- `Get-ValidationPlan.ps1` is the shared CI, CodeQL, and local selection source.
+  Distinguish shipped documentation from developer instructions, and keep each
+  tooling project's filter separate. Preserve binary-package dependencies;
+  runtime edits must not automatically select unrelated publication checks.
+  Keep required completion checks always reporting; detection failure,
+  cancellation, and unexpected skips must fail them. Main/manual CI and
+  main/merge-group/scheduled/manual CodeQL retain complete coverage.
+  C# CodeQL keeps traced compilation for generated code.
+  `Build-CiInputs.ps1` builds selected test projects, but source/count checks
+  still require a complete Release solution build. Cache dependency downloads,
+  not writable compiled outputs. Packages build their own required binaries.
   Hosted test partitions use separate checkouts so rebuild tests cannot race
   packaging. Selection and local Excel group commands: `tests/README.md`.
 - Local CLI builds invoke `scripts\Stop-ExcelMcpProcesses.ps1`. Preserve its
