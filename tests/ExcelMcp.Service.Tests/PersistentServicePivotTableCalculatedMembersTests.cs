@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
@@ -52,6 +53,8 @@ public class PersistentServicePivotTableCalculatedMembersTests(
         Assert.True(_creationResult.Success, "Data Model fixture must be created successfully");
 
         var batch = _fixture.BatchToken;
+        CreateGuardSet();
+        var before = ReadState();
         var result = _pivotCommands.CreateCalculatedMember(
             batch,
             "DataModelPivot",
@@ -63,6 +66,7 @@ public class PersistentServicePivotTableCalculatedMembersTests(
         Assert.Contains(
             "Invalid formula syntax for calculated Measure",
             result.ErrorMessage);
+        Assert.Equal(before, ReadState());
     }
 
     /// <summary>
@@ -77,6 +81,8 @@ public class PersistentServicePivotTableCalculatedMembersTests(
         var batch = _fixture.BatchToken;
 
         const string setName = "[ToBeDeletedSet]";
+        CreateGuardSet();
+        var before = ReadState();
 
         var createResult = _pivotCommands.CreateCalculatedMember(
             batch,
@@ -116,6 +122,7 @@ public class PersistentServicePivotTableCalculatedMembersTests(
         Assert.DoesNotContain(
             listAfter.CalculatedMembers,
             member => member.Name == setName);
+        Assert.Equal(before, ReadState());
     }
 
     /// <summary>
@@ -129,12 +136,15 @@ public class PersistentServicePivotTableCalculatedMembersTests(
 
         // Act
         var batch = _fixture.BatchToken;
+        CreateGuardSet();
+        var before = ReadState();
         var result = _pivotCommands.DeleteCalculatedMember(batch, "DataModelPivot", "[Measures].[NonExistent]");
 
         // Assert
         Assert.False(result.Success);
         Assert.Contains("not found", result.ErrorMessage);
         Assert.Contains("list-calculated-members", result.ErrorMessage);
+        Assert.Equal(before, ReadState());
     }
 
     /// <summary>
@@ -172,5 +182,29 @@ public class PersistentServicePivotTableCalculatedMembersTests(
                 member.Name == setName &&
                 member.Type == CalculatedMemberType.Set &&
                 member.IsValid);
+    }
+
+    private void CreateGuardSet()
+    {
+        const string name = "[RetainedRegionsSet]";
+        var result = RequireSuccess(_pivotCommands.CreateCalculatedMember(_fixture.BatchToken,
+            "DataModelPivot", name, "'{[RegionalSalesTable].[Region].Members}'", CalculatedMemberType.Set));
+        _fixture.RegisterCalculatedMemberForCleanup("DataModelPivot", name);
+        Assert.Equal(name, result.Name);
+        var member = Assert.Single(RequireSuccess(_pivotCommands.ListCalculatedMembers(
+            _fixture.BatchToken, "DataModelPivot")).CalculatedMembers, member => member.Name == name);
+        Assert.Equal(CalculatedMemberType.Set, member.Type);
+        Assert.True(member.IsValid);
+        Assert.False(string.IsNullOrWhiteSpace(member.Formula));
+    }
+
+    private string ReadState()
+    {
+        var batch = _fixture.BatchToken;
+        var members = RequireSuccess(_pivotCommands.ListCalculatedMembers(batch, "DataModelPivot"));
+        var fields = RequireSuccess(_pivotCommands.ListFields(batch, "DataModelPivot"));
+        var data = RequireSuccess(_pivotCommands.GetData(batch, "DataModelPivot"));
+        Assert.NotEmpty(data.Values);
+        return JsonSerializer.Serialize(new { members.CalculatedMembers, fields.Fields, fields.ValueFields, data });
     }
 }

@@ -8,7 +8,7 @@ serialization, and generation can use focused tests without Excel.
 
 ```powershell
 # One ordinary workbook feature through Service
-dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=PowerQuery&RunType!=OnDemand"
+& .\scripts\Test-ExcelBehavior.ps1 -Project Service -Filter 'Feature=PowerQuery&RunType!=OnDemand'
 
 # Excel-independent parsing
 dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "FullyQualifiedName~ServiceRegistryJsonParsingTests"
@@ -19,6 +19,132 @@ dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj --f
 # VBA behavior (requires VBA trust enabled)
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=VBA&RunType!=OnDemand"
 ```
+
+### Behavior validation and saved evidence
+
+The required local behavior command is `scripts\Test-ExcelBehavior.ps1`.
+Focused mode requires both `-Project` and `-Filter`; `-Full` uses the ordered
+acceptance partitions below, including separate VBA/desktop groups and the
+supported ComInterop infrastructure selection. It supplements, not replaces,
+`Test-E2E.ps1`. It does not expand the commit hook or change trust/locale settings.
+
+Every run writes to a fresh directory beneath `-ResultsDirectory` (by default
+`TestResults\ExcelBehavior`). It retains source and binary identities, exact
+commands, exact child-process identities, discovery output, ownership journals,
+TRX files, and `summary.json`.
+Execution has per-test hang protection and a hard deadline per stage.
+Discovery and executed names are compared as multisets, including theory rows
+and repeated names. Missing/invalid reports, empty focused selections, omitted,
+duplicated, failed, or skipped required cases fail the run. Full-mode partitions
+must cover each project's normal discovery without overlap.
+
+Windows/Azure runner setup and administration scripts are not part of the
+automated test suite. Product checks remain, including COM-reference safety,
+owned pre-build cleanup, test-result reporting, and real Excel acceptance.
+The retained PowerShell script tests run with PowerShell 7.
+
+Use `-Full -ContinueOnFailure` when collecting all stage results despite a
+completed stage's failing tests. Each failure remains recorded and the command
+still fails overall. Build/discovery failures and hard deadlines still stop the
+run; continuing is not permission to start another stage while Excel is busy.
+
+`-DiscoverOnly` saves the same selection/discovery evidence without executing
+tests; its summary explicitly says `discovery-only`, not passed. Neither
+discovery nor a passing subgroup proves that every test contains strong
+assertions. Keep the case-by-case source review separate and record unreviewed
+cases honestly. Missing Excel, VBA trust, desktop, or other prerequisites mean
+incomplete validation; do not manufacture a pass by skipping tests or changing
+host settings. Explicit on-demand locale/IRM probes need their own focused run.
+
+### Verify the outcome before cleanup
+
+Establish the relevant initial state, check the operation's response, then
+compare the actual Excel outcome with independently determined expected state.
+Check untouched cells/objects when preservation is promised. Use public reads
+where sufficient and controlled raw COM for state not exposed by them.
+Verification belongs inside each test before its objects are cleaned up; a
+generic after-test callback cannot determine what that test intended.
+
+Examples of meaningful checks:
+
+| Behavior | Required evidence |
+| --- | --- |
+| Write or replace | Exact destination values; a replacement differs from the original |
+| Formula | Formula text and calculated meaning when both are part of the contract |
+| Refresh | Baseline data, changed source while destination is still old, then exact new destination |
+| Filter and clear | Exact visible records after filtering, complete restored records after clearing |
+| Settings | Requested setting on the target and preserved untargeted state |
+| Save/reopen | One changed marker survives reopening; a filename alone does not prove saving |
+| Rejected input | Intended error and unchanged state where validation promises no mutation |
+| Real timeout | Reached the blocked operation, rejected poisoned session, safe recovery |
+
+Select negatives by risk: missing objects, bad dimensions/addresses, bounds,
+name conflicts, merged/protected destinations, invalid options, cancellation,
+partial failures, and documented unsupported operations. Not every operation
+needs every category. Do not promise rollback where it is not supported.
+Use known pre-failure state and inspect it after the failure.
+
+Check rejected destinations before clearing a guard or retrying. Otherwise a
+partial write can be hidden by the test's own cleanup. For calculation tests,
+establish a calculated baseline, change its input in manual mode, and prove
+the old result is still present before requesting recalculation. For native
+dimensions that Excel rounds, compare the effective size before and after
+the operation instead of assuming the requested size is stored exactly.
+Expected records and dependency edges must come from the seeded scenario,
+not agreement between a returned count and the operation's own output.
+
+Test behavior owned by our code, not Excel's general reliability. Save checks
+need one persisted marker and the requested save/discard behavior, not repeated
+checks of every cell, formula, and format after reopening. Check those features
+in their own operation tests.
+
+Keep one test for each distinct owned scenario. When tests repeat the same
+setup, operation and expected outcome, merge any unique assertions into the
+retained test instead of running the scenario again under another name.
+Preserve distinct inputs, regressions, native controls, entry-point behavior
+and cleanup responsibilities. Similar-looking bodies or shared helpers alone
+do not establish duplication; inspect their data and actual call targets.
+Check theory rows and acceptance selections as well as test definitions.
+
+For Power Query, check complete records in every requested destination, not
+just agreement between `list`, `view`, and `get-load-config`. Loading to both
+a worksheet and the Data Model creates separate connections; identify them
+by exact mashup `Location` and check the model table's source connection.
+Give model seed columns explicit M types before testing numeric DAX measures.
+A stored measure is not proof that it can calculate. Check its result before
+and after source or schema changes; removing a referenced column must establish
+the resulting calculation failure and recovery, rather than allow any outcome.
+For worksheet schema changes, verify the complete native table shape, removed
+cells and any calculated columns or neighbors, not only the expected rectangle
+within the result. Reading two requested columns can miss an unwanted third
+column. Native refresh controls established that `PreserveColumnInfo=false`
+leaves synthetic extra headers when source columns disappear; the corrected
+setting must also work on existing tables and retain calculated columns.
+For DAX-backed worksheet Tables, compare the complete independently expected
+records, native start cell and dimensions, exact connection command and retained
+model source. A rejected query update can retain the new command and old rows;
+check that concrete partial state and successful recovery instead of promising
+rollback. Unsupported model renames must preserve query sources, connection
+settings, complete model records, relationships and actual measure calculations.
+XML rejection tests should retain an existing mapped value, its native XPath,
+exported structure and neighboring cells, not only an empty map list.
+
+Setting updates must start with a different effective setting, verified before
+the update; setting Percentage to Percentage cannot catch a missing update.
+Assertions about a required field must fail when that field is absent, not sit
+inside an optional branch. Cancellation tests must establish where execution
+reached before cancellation; a timer alone cannot prove the intended boundary.
+Seed guards on isolated test sheets, and normalize existing line endings before
+comparing complete VBA source so the test does not introduce double carriage
+returns. The VBA editor can change identifier casing using project symbols;
+allow that native change without ignoring changes to string literals or comments.
+Restoration checks must run after disposal, outside another automatic guard that
+would hide the restored state.
+
+During review, ask: **would this test fail if the operation did nothing, changed
+the wrong target, or made a partial change before reporting an error?**
+No exception, `Success`, existence, a loose count, or an unchecked read does
+not answer that question. Do not require screenshots for ordinary verification.
 
 Set a hard execution timeout for every Excel-dependent run. Run only the
 relevant project and filter, not the full integration suite during iteration.
@@ -56,11 +182,29 @@ uses the shared assembly exit gate. Cleanup still runs after a primary failure,
 and reports both the primary and cleanup failures. A failed shared session
 fails explicitly; do not silently recreate it.
 
+Remove dependent measures before deleting their query-backed model tables.
+Deleting the table first can remove the measure implicitly and make later
+cleanup fail, hiding the original test outcome.
+
 Fresh workbook/process, desktop, registry, or per-test Service isolation is
 independent from the operation boundary and is not by itself a reason to call
 Core directly. Direct Core coverage needs a specific internal contract that
 Service cannot expose. Raw COM may prepare or verify state, but must not replace
 the Service call under test.
+
+Locale-sensitive native comparisons must use the equivalent Excel API.
+For example, `WorksheetFunction.Text` and a worksheet `TEXT` formula can
+interpret the same quoted format differently. Verify formula calculations
+against native worksheet formulas using independently calculated inputs, and
+check the complete stored formula separately. Do not change host locale to
+make a comparison pass.
+
+Avoid starting Excel repeatedly to verify different properties of the same
+saved workbook at one checkpoint. Reopen it once and check sheet order, marker
+values, calculated results and formulas within that owned batch, then dispose
+it. Combine unrelated seed writes within one setup batch as well. Keep separate
+reopens when an intervening operation or a save/reopen lifecycle is the subject;
+do not cache snapshots across operations or pool Excel between independent tests.
 
 Tests whose subject is process/session lifecycle, ownership, PID reuse,
 crash/timeout/abort behavior, transport, application-wide state, locale text,
@@ -92,7 +236,12 @@ writer/getter mistake could otherwise pass.
 Keep success, invalid-input, cancellation, output/cleanup failure, and
 save/reopen cases separate where each applies. Adapter tests check exact
 requests, defaults, and failure output; real Excel tests establish workbook
-behavior. For high-risk changes, temporarily introduce a specific wrong
+behavior. A cancellation timer alone does not prove which execution phase was
+interrupted. Establish the claimed boundary first; for example, cancel after
+Excel requests a controlled local M data source but before it receives the
+response. Do not reuse a forcibly aborted COM context to prove recovery: test
+the actual session's rejection and disposal contract instead. For high-risk
+changes, temporarily introduce a specific wrong
 mapping, selection, omitted-field reset, or missing cleanup and confirm the
 intended test fails. Restore the change and rerun the final source before
 delivery; retain these fault-check results with the run evidence.
@@ -103,6 +252,11 @@ tests. Run the full existing Excel-free selection with
 validation, and `npx --no-install changeset status --since=origin/main`.
 These complement focused native tests and normal hooked runtime E2E; they do
 not replace either.
+Preserve documented response shapes. For example, MCP `file` action `test`
+returns a file assessment: `success=false` can mean a missing or protected
+file, not a failed tool request. Check its complete diagnostic fields and the
+protocol error flag separately; do not treat that assessment as successful
+workbook opening or apply its exception to ordinary operation envelopes.
 
 ### CLI and MCP coverage
 
@@ -329,7 +483,7 @@ Reports and ownership journals go into a new `TestResults` directory by default.
 stage report is rejected so stale evidence cannot turn a failed run green.
 `-ListTests` discovers cases without starting workbook operations.
 
-For a full validation pass, run all seven test projects with
+For a full validation pass, run all solution test projects with
 `RunType!=OnDemand`. This filter includes normal Service VBA and screenshot
 tests; their prerequisites must be satisfied, not silently skipped. Run
 screenshots separately from other Excel tests when investigating them because
@@ -523,7 +677,7 @@ dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter 
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "(Feature=Table|Feature=Tables)&RunType!=OnDemand"
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=PivotTables&RunType!=OnDemand"
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "(Feature=Range|Feature=Ranges)&RunType!=OnDemand"
-dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=Connection&RunType!=OnDemand"
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "(Feature=Connection|Feature=Connections)&RunType!=OnDemand"
 ```
 
 ## When to Run Which Tests

@@ -24,6 +24,43 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 [Trait("RequiresExcel", "false")]
 public sealed class GeneratedActionContractTests
 {
+    [Theory]
+    [InlineData("rename", "oldName", "")]
+    [InlineData("rename", "oldName", "   ")]
+    [InlineData("copy", "sourceName", "")]
+    [InlineData("copy", "sourceName", "   ")]
+    [InlineData("copy-to-file", "sourceSheet", "")]
+    [InlineData("copy-to-file", "sourceSheet", "   ")]
+    [InlineData("move-to-file", "sourceSheet", "")]
+    [InlineData("move-to-file", "sourceSheet", "   ")]
+    public void SheetDispatch_RejectsBlankSourceBeforeCoreDispatch(
+        string action, string parameter, string value)
+    {
+        var (commands, proxy) = CreateProxy<ISheetCommands>();
+        Assert.True(ServiceRegistry.Sheet.TryParseAction(action, out var parsedAction));
+        var arguments = new Dictionary<string, string> { [parameter] = value };
+        switch (action)
+        {
+            case "rename":
+                arguments["newName"] = "Destination";
+                break;
+            case "copy":
+                arguments["targetName"] = "Destination";
+                break;
+            default:
+                arguments["sourceFile"] = @"C:\source.xlsx";
+                arguments["targetFile"] = @"C:\target.xlsx";
+                break;
+        }
+
+        var exception = Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Sheet.DispatchToCore(
+                commands, parsedAction, null!, JsonSerializer.Serialize(arguments)));
+
+        Assert.Contains(parameter, exception.Message, StringComparison.Ordinal);
+        Assert.Equal(0, proxy.CallCount);
+    }
+
     [Fact]
     public void VisibilityForward_RequiredEnumAndBooleanHaveNoOptionalSignatureDefaults()
     {

@@ -3,7 +3,11 @@
 
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
+using System.Globalization;
+using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -35,6 +39,15 @@ public class PersistentServiceDataModelRenameTableTests(
         fixture.CreateCommands<IDataModelCommands>();
     private readonly IPowerQueryCommands _powerQueryCommands =
         fixture.CreateCommands<IPowerQueryCommands>();
+    private readonly IDataModelRelCommands _relationships =
+        fixture.CreateCommands<IDataModelRelCommands>();
+    private readonly List<QueryState> _states = [];
+    private string _baseline = "";
+    private string _guardSheet = "";
+    private string _measure = "";
+    private int _expectedTotal;
+
+    private sealed record QueryState(string Name, string Source, string[] Columns, object[][] Rows);
 
     /// <summary>
     /// Creates a test file with a PQ-backed Data Model table that can be renamed.
@@ -52,12 +65,15 @@ in
     Source";
 
         // Create PQ with LoadToDataModel - this creates the "Query - {tableName}" connection
-        _powerQueryCommands.Create(
+        RequireSuccess(_powerQueryCommands.Create(
             _fixture.BatchToken,
             tableName,
             mCode,
-            PowerQueryLoadMode.LoadToDataModel);
+            PowerQueryLoadMode.LoadToDataModel));
         _fixture.RegisterPowerQueryForCleanup(tableName);
+        _states.Add(new(tableName, mCode, ["ID", "Value", "Category"],
+            [[1, 100, "A"], [2, 200, "B"], [3, 300, "A"]]));
+        SeedDependencies(tableName, 600);
     }
 
     /// <summary>
@@ -75,12 +91,13 @@ in
     )
 in
     Source";
-        _powerQueryCommands.Create(
+        RequireSuccess(_powerQueryCommands.Create(
             _fixture.BatchToken,
             table1Name,
             mCode1,
-            PowerQueryLoadMode.LoadToDataModel);
+            PowerQueryLoadMode.LoadToDataModel));
         _fixture.RegisterPowerQueryForCleanup(table1Name);
+        _states.Add(new(table1Name, mCode1, ["ID", "Value"], [[1, 100], [2, 200]]));
 
         // Create second Power Query → Data Model
         string mCode2 = $@"let
@@ -90,12 +107,14 @@ in
     )
 in
     Source";
-        _powerQueryCommands.Create(
+        RequireSuccess(_powerQueryCommands.Create(
             _fixture.BatchToken,
             table2Name,
             mCode2,
-            PowerQueryLoadMode.LoadToDataModel);
+            PowerQueryLoadMode.LoadToDataModel));
         _fixture.RegisterPowerQueryForCleanup(table2Name);
+        _states.Add(new(table2Name, mCode2, ["Category", "Name"], [["A", "Alpha"], ["B", "Beta"]]));
+        SeedDependencies(table1Name, 300);
     }
 
     // ==========================================
@@ -118,7 +137,7 @@ in
         var batch = _fixture.BatchToken;
 
         // Verify table exists in Data Model
-        var listBefore = _dataModelCommands.ListTables(batch);
+        var listBefore = RequireSuccess(_dataModelCommands.ListTables(batch));
         Assert.True(listBefore.Success);
         Assert.Contains(listBefore.Tables, t => t.Name == "OriginalTable");
 
@@ -133,10 +152,11 @@ in
         Assert.Equal("RenamedTable", result.NewName);
 
         // Verify original table is preserved (rollback worked)
-        var listAfter = _dataModelCommands.ListTables(batch);
+        var listAfter = RequireSuccess(_dataModelCommands.ListTables(batch));
         Assert.True(listAfter.Success);
         Assert.Contains(listAfter.Tables, t => t.Name == "OriginalTable");
         Assert.DoesNotContain(listAfter.Tables, t => t.Name == "RenamedTable");
+        AssertPreserved();
     }
 
     /// <summary>
@@ -161,8 +181,9 @@ in
         Assert.Equal("TrimmedName", result.NormalizedNewName);    // Normalized (trimmed)
 
         // Verify original table is preserved
-        var list = _dataModelCommands.ListTables(batch);
+        var list = RequireSuccess(_dataModelCommands.ListTables(batch));
         Assert.Contains(list.Tables, t => t.Name == "TestTable");
+        AssertPreserved();
     }
 
     // ==========================================
@@ -185,8 +206,10 @@ in
 
         // Assert - should be success (no-op)
         Assert.True(result.Success, $"No-op should succeed: {result.ErrorMessage}");
+        Assert.True(string.IsNullOrEmpty(result.ErrorMessage));
         Assert.Equal("TestTable", result.NormalizedOldName);
         Assert.Equal("TestTable", result.NormalizedNewName);  // Same after normalization
+        AssertPreserved();
     }
 
     // ==========================================
@@ -216,8 +239,9 @@ in
         Assert.Equal("TestTable", result.NewName);
 
         // Verify original table is preserved
-        var list = _dataModelCommands.ListTables(batch);
+        var list = RequireSuccess(_dataModelCommands.ListTables(batch));
         Assert.Contains(list.Tables, t => t.Name.Equals("testtable", StringComparison.OrdinalIgnoreCase));
+        AssertPreserved();
     }
 
     // ==========================================
@@ -241,6 +265,7 @@ in
         // Assert
         Assert.False(result.Success);
         Assert.Contains("already exists", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        AssertPreserved();
     }
 
     /// <summary>
@@ -260,6 +285,7 @@ in
         // Assert
         Assert.False(result.Success);
         Assert.Contains("already exists", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        AssertPreserved();
     }
 
     // ==========================================
@@ -283,6 +309,7 @@ in
         // Assert
         Assert.False(result.Success);
         Assert.Contains("not found", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        AssertPreserved();
     }
 
     // ==========================================
@@ -305,6 +332,7 @@ in
             _dataModelCommands.RenameTable(batch, "TestTable", ""));
 
         Assert.Contains("required", exception.Message, StringComparison.OrdinalIgnoreCase);
+        AssertPreserved();
     }
 
     /// <summary>
@@ -323,6 +351,7 @@ in
             _dataModelCommands.RenameTable(batch, "TestTable", "   "));
 
         Assert.Contains("required", exception.Message, StringComparison.OrdinalIgnoreCase);
+        AssertPreserved();
     }
 
     /// <summary>
@@ -341,6 +370,7 @@ in
             _dataModelCommands.RenameTable(batch, "", "NewName"));
 
         Assert.Contains("required", exception.Message, StringComparison.OrdinalIgnoreCase);
+        AssertPreserved();
     }
 
     // ==========================================
@@ -367,14 +397,121 @@ in
             "immutable",
             result.ErrorMessage,
             StringComparison.OrdinalIgnoreCase);
+        AssertPreserved();
         await _fixture.SaveAndReopenAsync();
 
         // Assert - Reopen and verify original table is preserved
         var batch2 = _fixture.BatchToken;
-        var list = _dataModelCommands.ListTables(batch2);
+        var list = RequireSuccess(_dataModelCommands.ListTables(batch2));
         Assert.True(list.Success);
         Assert.Contains(list.Tables, t => t.Name == "OriginalName");  // Original preserved
         Assert.DoesNotContain(list.Tables, t => t.Name == "PersistedName");  // New name not present
+        AssertPreserved();
+    }
+
+    private void SeedDependencies(string tableName, int expectedTotal)
+    {
+        const string source = """
+            let Source = #table(type table [ID = Int64.Type, Label = text],
+                {{1, "Lookup one"}, {2, "Lookup two"}, {3, "Lookup three"}})
+            in Source
+            """;
+        var lookup = $"RenameLookup_{Guid.NewGuid():N}"[..26];
+        RequireSuccess(_powerQueryCommands.Create(_fixture.BatchToken, lookup, source,
+            PowerQueryLoadMode.LoadToDataModel));
+        _fixture.RegisterPowerQueryForCleanup(lookup);
+        _states.Add(new(lookup, source, ["ID", "Label"],
+            [[1, "Lookup one"], [2, "Lookup two"], [3, "Lookup three"]]));
+        RequireSuccess(_relationships.CreateRelationship(_fixture.BatchToken, tableName, "ID", lookup, "ID"));
+        _measure = $"RenameTotal_{Guid.NewGuid():N}"[..26];
+        RequireSuccess(_dataModelCommands.CreateMeasure(_fixture.BatchToken, tableName, _measure,
+            $"SUM('{tableName}'[Value])", formatType: "WholeNumber"));
+        _fixture.RegisterDataModelMeasureForCleanup(_measure);
+        _expectedTotal = expectedTotal;
+        _guardSheet = _fixture.CreateTestSheet(_fixture.BatchToken);
+        RequireSuccess(_commands.SetValues(_fixture.BatchToken, _guardSheet, "A1:B2",
+            [["Rename guard", 37], ["Retained cells", 91]]));
+        _baseline = CaptureState();
+    }
+
+    private void AssertPreserved() => Assert.Equal(_baseline, CaptureState());
+
+    private string CaptureState()
+    {
+        var batch = _fixture.BatchToken;
+        foreach (var state in _states)
+        {
+            PowerQueryStateAssertions.AssertStored(_fixture, state.Name, state.Source,
+                PowerQueryLoadMode.LoadToDataModel, null, state.Columns, state.Rows);
+        }
+        var queries = RequireSuccess(_powerQueryCommands.List(batch)).Queries;
+        var tables = RequireSuccess(_dataModelCommands.ListTables(batch)).Tables;
+        Assert.Equal(_states.Count, queries.Count);
+        Assert.Equal(_states.Count, tables.Count);
+        var relationships = RequireSuccess(_relationships.ListRelationships(batch)).Relationships;
+        Assert.Single(relationships);
+        var measures = RequireSuccess(_dataModelCommands.ListMeasures(batch)).Measures;
+        Assert.Equal(_measure, Assert.Single(measures).Name);
+        var total = RequireSuccess(_dataModelCommands.Evaluate(batch, $"EVALUATE ROW(\"Total\", [{_measure}])"));
+        PowerQueryStateAssertions.AssertRows([[_expectedTotal]], total.Rows);
+        var cells = RequireSuccess(_commands.GetValues(batch, _guardSheet, "A1:B2")).Values;
+        PowerQueryStateAssertions.AssertRows([["Rename guard", 37], ["Retained cells", 91]], cells);
+        var connections = _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Connections? collection = null;
+            try
+            {
+                collection = context.Book.Connections;
+                var snapshots = new List<object>();
+                for (var index = 1; index <= collection.Count; index++)
+                {
+                    Excel.WorkbookConnection? connection = null;
+                    Excel.OLEDBConnection? oledb = null;
+                    try
+                    {
+                        connection = collection.Item(index);
+                        if (connection.Type == Excel.XlConnectionType.xlConnectionTypeOLEDB)
+                        {
+                            oledb = connection.OLEDBConnection;
+                            Assert.False(oledb.Refreshing);
+                            snapshots.Add(new
+                            {
+                                connection.Name,
+                                connection.Description,
+                                connection.Type,
+                                connection.InModel,
+                                Source = Convert.ToString(oledb.Connection, CultureInfo.InvariantCulture),
+                                Command = JsonSerializer.Serialize(oledb.CommandText),
+                                oledb.CommandType,
+                                oledb.BackgroundQuery,
+                                oledb.RefreshOnFileOpen,
+                                oledb.RefreshPeriod
+                            });
+                        }
+                        else
+                        {
+                            snapshots.Add(new { connection.Name, connection.Description, connection.Type });
+                        }
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref oledb);
+                        ComUtilities.Release(ref connection);
+                    }
+                }
+                return snapshots;
+            }
+            finally { ComUtilities.Release(ref collection); }
+        });
+        return JsonSerializer.Serialize(new
+        {
+            Queries = queries,
+            Tables = tables,
+            Columns = tables.Select(table => RequireSuccess(_dataModelCommands.ListColumns(batch, table.Name))).ToList(),
+            Relationships = relationships,
+            Measure = RequireSuccess(_dataModelCommands.Read(batch, _measure)),
+            Connections = connections,
+            Cells = cells
+        });
     }
 }
-

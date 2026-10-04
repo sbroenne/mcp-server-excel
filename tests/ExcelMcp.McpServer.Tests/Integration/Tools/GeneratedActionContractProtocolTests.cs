@@ -159,6 +159,32 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
     }
 
     [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task ToolCall_RejectsBlankWorksheetNameBeforeSessionDispatch(string sheetName)
+    {
+        var result = await CallToolAsync(
+            "worksheet",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "create",
+                ["session_id"] = "missing-session",
+                ["sheet_name"] = sheetName
+            });
+
+        using var document = ParseJsonResult(result, "worksheet.create");
+        AssertFailureEnvelope(
+            document.RootElement,
+            "worksheet.create",
+            nameof(ArgumentException),
+            expectedErrorCategory: "InvalidInput");
+        var error = document.RootElement.GetProperty("errorMessage").GetString();
+        Assert.Contains("sheetName", error, StringComparison.Ordinal);
+        Assert.DoesNotContain("session", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+
+    [Theory]
     [InlineData("powerquery", "load-to", "load_destination", "loadDestination", "not-a-destination")]
     [InlineData("powerquery", "load-to", "load_destination", "loadDestination", "work_sheet")]
     [InlineData("powerquery", "load-to", "load_destination", "loadDestination", "work-sheet")]

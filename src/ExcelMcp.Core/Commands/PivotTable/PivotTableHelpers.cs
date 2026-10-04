@@ -240,4 +240,3 @@ internal static class PivotTableHelpers
         return values;
     }
 }
-

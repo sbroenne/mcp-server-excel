@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Tests.Helpers;
@@ -57,6 +58,8 @@ public sealed class IrmProtectedWorkbookRegressionTests : IDisposable
     [Trait("RunType", "OnDemand")]
     public async Task SessionOpen_IrmSignatureFile_WithoutShow_FailsFastWithInteractiveGuidance()
     {
+        var original = File.ReadAllBytes(_fakeIrmFile);
+        var sessionsBefore = await ReadSessionsAsync();
         var stopwatch = Stopwatch.StartNew();
 
         var (result, json) = await CliProcessHelper.RunJsonAsync(
@@ -78,6 +81,8 @@ public sealed class IrmProtectedWorkbookRegressionTests : IDisposable
         Assert.Contains("show=true", error, StringComparison.OrdinalIgnoreCase);
         Assert.True(stopwatch.Elapsed < TimeSpan.FromSeconds(20),
             "CLI session open must fail fast for protected workbooks when --show is omitted.");
+        Assert.Equal(original, File.ReadAllBytes(_fakeIrmFile));
+        Assert.Equal(sessionsBefore, await ReadSessionsAsync());
     }
 
     [ConfiguredIrmFact]
@@ -92,6 +97,7 @@ public sealed class IrmProtectedWorkbookRegressionTests : IDisposable
 
         var stopwatch = Stopwatch.StartNew();
         string? sessionId = null;
+        Exception? failure = null;
 
         try
         {
@@ -122,36 +128,48 @@ public sealed class IrmProtectedWorkbookRegressionTests : IDisposable
                 Assert.DoesNotContain("show=true", error, StringComparison.OrdinalIgnoreCase);
             }
         }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
         finally
         {
             if (!string.IsNullOrWhiteSpace(sessionId))
             {
-                var closeResult = await CliProcessHelper.RunAsync(
-                    ["session", "close", "--session", sessionId],
-                    timeoutMs: 30000,
-                    diagnosticLabel: "irm-session-close-visible");
-
-                _output.WriteLine($"[irm-session-close-visible] Stdout: {closeResult.Stdout}");
-                _output.WriteLine($"[irm-session-close-visible] Stderr: {closeResult.Stderr}");
+                var cleanup = await Record.ExceptionAsync(async () =>
+                {
+                    var closeResult = await CliProcessHelper.RunAsync(
+                        ["session", "close", "--session", sessionId, "--save", "false"],
+                        timeoutMs: 30000,
+                        diagnosticLabel: "irm-session-close-visible");
+                    Assert.True(closeResult.ExitCode == 0, closeResult.Stdout + closeResult.Stderr);
+                });
+                if (cleanup is not null)
+                    failure = failure is null ? cleanup : new AggregateException(failure, cleanup);
             }
         }
+        if (failure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
     public void Dispose()
     {
         if (File.Exists(_fakeIrmFile))
         {
-#pragma warning disable CA1031
-            try
-            {
-                File.Delete(_fakeIrmFile);
-            }
-            catch
-            {
-            }
-#pragma warning restore CA1031
+            File.Delete(_fakeIrmFile);
         }
 
         GC.SuppressFinalize(this);
+    }
+
+    private static async Task<string[]> ReadSessionsAsync()
+    {
+        var result = await CliProcessHelper.RunAsync(["session", "list"]);
+        Assert.True(result.ExitCode == 0, result.Stdout + result.Stderr);
+        using var document = JsonDocument.Parse(result.Stdout);
+        Assert.True(document.RootElement.GetProperty("success").GetBoolean());
+        return document.RootElement.GetProperty("sessions").EnumerateArray()
+            .Select(session => session.GetProperty("sessionId").GetString()!)
+            .Order(StringComparer.Ordinal).ToArray();
     }
 }

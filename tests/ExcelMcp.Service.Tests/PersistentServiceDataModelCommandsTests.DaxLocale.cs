@@ -24,7 +24,7 @@ public partial class PersistentServiceDataModelCommandsTests
 
     private static void AssertSpacingNote(OperationResult result, string formula, string decimalCommaFormula)
     {
-        Assert.True(result.Success, result.ErrorMessage);
+        RequireSuccess(result);
         if (WindowsUsesDecimalComma && formula != decimalCommaFormula)
         {
             Assert.NotNull(result.Message);
@@ -133,12 +133,127 @@ public partial class PersistentServiceDataModelCommandsTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void Evaluate_InvalidStoredFormula_PreservesMeasureDefinitions(bool update)
+    {
+        var batch = _fixture.BatchToken;
+        var name = $"Test_RetainedSyntax_{Guid.NewGuid():N}";
+        const string formula = "IF(TRUE(), 1.5, 0)";
+        RequireSuccess(CreateMeasure("SalesTable", name, formula,
+            formatType: "Decimal", description: "Retained measure"));
+        var rejectedName = $"Test_InvalidSyntax_{Guid.NewGuid():N}";
+        const string invalidFormula = "NOT_A_DAX_FUNCTION(1.5, 0)";
+        var expectedInvalidFormula = ExpectedStoredFormula(invalidFormula, "NOT_A_DAX_FUNCTION(1.5 , 0)");
+        RequireSuccess(CreateMeasure("SalesTable", rejectedName, update ? "0" : invalidFormula));
+        if (update)
+        {
+            RequireSuccess(_dataModelCommands.UpdateMeasure(batch, rejectedName, daxFormula: invalidFormula));
+        }
+        Assert.Equal(expectedInvalidFormula, RequireSuccess(_dataModelCommands.Read(batch, rejectedName)).DaxFormula);
+        var before = RequireSuccess(_dataModelCommands.Read(batch, name));
+        var listed = System.Text.Json.JsonSerializer.Serialize(
+            RequireSuccess(_dataModelCommands.ListMeasures(batch)).Measures);
+        var failure = Assert.Throws<InvalidOperationException>(() => _dataModelCommands.Evaluate(
+            batch, $"EVALUATE ROW(\"Rejected\", [{rejectedName}])"));
+        Assert.Contains("DAX evaluation failed", failure.Message);
+        var after = RequireSuccess(_dataModelCommands.Read(batch, name));
+        Assert.Equal(before.DaxFormula, after.DaxFormula);
+        Assert.Equal(before.Description, after.Description);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(before.FormatInfo),
+            System.Text.Json.JsonSerializer.Serialize(after.FormatInfo));
+        Assert.Equal(before.MeasureName, after.MeasureName);
+        Assert.Equal(before.TableName, after.TableName);
+        Assert.Equal(before.CharacterCount, after.CharacterCount);
+        Assert.Equal(listed, System.Text.Json.JsonSerializer.Serialize(
+            RequireSuccess(_dataModelCommands.ListMeasures(batch)).Measures));
+        Assert.Equal(expectedInvalidFormula, RequireSuccess(_dataModelCommands.Read(batch, rejectedName)).DaxFormula);
+        var evaluated = RequireSuccess(_dataModelCommands.Evaluate(batch,
+            $"EVALUATE ROW(\"Result\", [{name}])"));
+        Assert.Equal(1.5, Convert.ToDouble(Assert.Single(Assert.Single(evaluated.Rows)),
+            System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Theory]
+    [InlineData("SUMX({1.5, 2.5}, [Value])", "SUMX({1.5 , 2.5}, [Value])", 4)]
+    [InlineData("VAR rate = 1.5 /* literal 9.9, */ RETURN IF(rate > 0, rate, 0)",
+        "VAR rate = 1.5 /* literal 9.9, */ RETURN IF(rate > 0 , rate, 0)", 1.5)]
+    [InlineData("VAR rate = 1.5 // literal 9.9,\nRETURN IF(rate > 0, rate, 0)",
+        "VAR rate = 1.5 // literal 9.9,\nRETURN IF(rate > 0 , rate, 0)", 1.5)]
+    [InlineData("IF(TRUE(), 1.5E-2, 0)", "IF(TRUE(), 1.5E-2 , 0)", 0.015)]
+    public void WriteMeasure_NumericTokensAndComments_PreservesAndEvaluates(
+        string formula, string decimalCommaFormula, double expected)
+    {
+        var name = $"Test_Syntax_{Guid.NewGuid():N}";
+        AssertSpacingNote(CreateMeasure("SalesTable", name, formula), formula, decimalCommaFormula);
+        var expectedFormula = ExpectedStoredFormula(formula, decimalCommaFormula);
+        Assert.Equal(expectedFormula, RequireSuccess(_dataModelCommands.Read(_fixture.BatchToken, name)).DaxFormula);
+        RequireSuccess(_dataModelCommands.UpdateMeasure(_fixture.BatchToken, name, daxFormula: "0"));
+        Assert.Equal("0", RequireSuccess(_dataModelCommands.Read(_fixture.BatchToken, name)).DaxFormula);
+        AssertSpacingNote(_dataModelCommands.UpdateMeasure(_fixture.BatchToken, name, daxFormula: formula),
+            formula, decimalCommaFormula);
+        Assert.Equal(expectedFormula, RequireSuccess(_dataModelCommands.Read(_fixture.BatchToken, name)).DaxFormula);
+        var result = RequireSuccess(_dataModelCommands.Evaluate(
+            _fixture.BatchToken, $"EVALUATE ROW(\"Result\", [{name}])"));
+        Assert.Equal(expected, Convert.ToDouble(Assert.Single(Assert.Single(result.Rows)),
+            System.Globalization.CultureInfo.InvariantCulture), precision: 12);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void WriteMeasure_NativeSpacedSyntax_PreservesAndEvaluates(bool quoted)
+    {
+        var name = $"Test_NativeCulture_{Guid.NewGuid():N}";
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Microsoft.Office.Interop.Excel.Model? model = null;
+            Microsoft.Office.Interop.Excel.ModelTables? tables = null;
+            Microsoft.Office.Interop.Excel.ModelTable? table = null;
+            Microsoft.Office.Interop.Excel.ModelMeasures? measures = null;
+            Microsoft.Office.Interop.Excel.ModelMeasure? measure = null;
+            Microsoft.Office.Interop.Excel.ModelFormatGeneral? format = null;
+            try
+            {
+                var condition = quoted ? "\"North, \"\"South\"\"\" = \"North, \"\"South\"\"\"" : "1=1";
+                var formula = $"IF({condition} , 1.5 , 0)";
+                model = context.Book.Model;
+                tables = model.ModelTables;
+                table = tables.Item("SalesTable");
+                measures = model.ModelMeasures;
+                format = model.ModelFormatGeneral;
+                measure = measures.Add(name, table, formula, format, Type.Missing);
+                _fixture.RegisterDataModelMeasureForCleanup(name);
+                Assert.Equal(formula, measure.Formula);
+                measure.Formula = "0";
+                measure.Formula = formula;
+                Assert.Equal(formula, measure.Formula);
+            }
+            finally
+            {
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref measure);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref format);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref measures);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref table);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref tables);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref model);
+            }
+        });
+        var expectedCondition = quoted ? "\"North, \"\"South\"\"\" = \"North, \"\"South\"\"\"" : "1=1";
+        Assert.Equal($"IF({expectedCondition} , 1.5 , 0)",
+            RequireSuccess(_dataModelCommands.Read(_fixture.BatchToken, name)).DaxFormula);
+        var evaluated = RequireSuccess(_dataModelCommands.Evaluate(
+            _fixture.BatchToken, $"EVALUATE ROW(\"Result\", [{name}])"));
+        Assert.Equal(1.5, Convert.ToDouble(Assert.Single(Assert.Single(evaluated.Rows)),
+            System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void WriteMeasure_CommaArguments_PreservesFormulaAndEvaluates(bool update)
     {
         var batch = _fixture.BatchToken;
-        var baseline = _dataModelCommands.Evaluate(batch,
-            "EVALUATE ROW(\"Total\", SUM(SalesTable[Amount]))");
-        Assert.True(baseline.Success, baseline.ErrorMessage);
+        var baseline = RequireSuccess(_dataModelCommands.Evaluate(batch,
+            "EVALUATE ROW(\"Total\", SUM(SalesTable[Amount]))"));
         var total = Convert.ToDecimal(Assert.Single(Assert.Single(baseline.Rows)),
             System.Globalization.CultureInfo.InvariantCulture);
 
@@ -146,22 +261,22 @@ public partial class PersistentServiceDataModelCommandsTests
         const string formula = "DIVIDE(SUM(SalesTable[Amount]), 1000)";
         var created = CreateMeasure("SalesTable", measureName,
             update ? "SUM(SalesTable[Amount])" : formula);
-        Assert.True(created.Success, created.ErrorMessage);
+        RequireSuccess(created);
         Assert.Null(created.Message);
         if (update)
         {
             var updated = _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: formula);
-            Assert.True(updated.Success, updated.ErrorMessage);
+            RequireSuccess(updated);
             Assert.Null(updated.Message);
         }
 
         var read = _dataModelCommands.Read(batch, measureName);
-        Assert.True(read.Success, read.ErrorMessage);
+        RequireSuccess(read);
         Assert.Equal(formula, read.DaxFormula);
 
         var evaluated = _dataModelCommands.Evaluate(batch,
             $"EVALUATE ROW(\"Result\", [{measureName}])");
-        Assert.True(evaluated.Success, evaluated.ErrorMessage);
+        RequireSuccess(evaluated);
         Assert.Equal(total / 1000m,
             Convert.ToDecimal(Assert.Single(Assert.Single(evaluated.Rows)),
                 System.Globalization.CultureInfo.InvariantCulture));
@@ -177,11 +292,11 @@ public partial class PersistentServiceDataModelCommandsTests
         const string formula = "IF(\"North, \"\"South\"\"\" = \"North, \"\"South\"\"\", 1.5, 0)";
         const string decimalCommaFormula = "IF(\"North, \"\"South\"\"\" = \"North, \"\"South\"\"\", 1.5 , 0)";
         var baseline = _dataModelCommands.Evaluate(batch, $"EVALUATE ROW(\"Expected\", {formula})");
-        Assert.True(baseline.Success, baseline.ErrorMessage);
+        RequireSuccess(baseline);
         Assert.Equal(1.5m, Convert.ToDecimal(Assert.Single(Assert.Single(baseline.Rows)),
             System.Globalization.CultureInfo.InvariantCulture));
         var created = CreateMeasure("SalesTable", measureName, update ? "0" : formula);
-        Assert.True(created.Success, created.ErrorMessage);
+        RequireSuccess(created);
         var written = created;
         if (update)
         {
@@ -189,10 +304,10 @@ public partial class PersistentServiceDataModelCommandsTests
         }
         AssertSpacingNote(written, formula, decimalCommaFormula);
         var read = _dataModelCommands.Read(batch, measureName);
-        Assert.True(read.Success, read.ErrorMessage);
+        RequireSuccess(read);
         Assert.Equal(ExpectedStoredFormula(formula, decimalCommaFormula), read.DaxFormula);
         var evaluated = _dataModelCommands.Evaluate(batch, $"EVALUATE ROW(\"Result\", [{measureName}])");
-        Assert.True(evaluated.Success, evaluated.ErrorMessage);
+        RequireSuccess(evaluated);
         Assert.Equal(1.5m, Convert.ToDecimal(Assert.Single(Assert.Single(evaluated.Rows)),
             System.Globalization.CultureInfo.InvariantCulture));
     }
@@ -218,11 +333,11 @@ public partial class PersistentServiceDataModelCommandsTests
         AssertSpacingNote(created, daxFormula, decimalCommaFormula);
 
         // Verify measure was created
-        var listResult = _dataModelCommands.ListMeasures(batch);
+        var listResult = RequireSuccess(_dataModelCommands.ListMeasures(batch));
         Assert.Contains(listResult.Measures, m => m.Name == measureName);
 
         var readResult = _dataModelCommands.Read(batch, measureName);
-        Assert.True(readResult.Success, $"Read measure failed: {readResult.ErrorMessage}");
+        RequireSuccess(readResult);
         Assert.NotNull(readResult.DaxFormula);
         Assert.Contains("DATEADD", readResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("CALCULATE", readResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
@@ -241,13 +356,12 @@ public partial class PersistentServiceDataModelCommandsTests
         var daxFormula = "CALCULATE(SUM(SalesTable[Amount]), FILTER(ALL(SalesTable), SalesTable[Amount] > 100))";
 
         var batch = _fixture.BatchToken;
-        _ = CreateMeasure("SalesTable", measureName, daxFormula);
+        RequireSuccess(CreateMeasure("SalesTable", measureName, daxFormula));
 
         // Verify measure was created and formula is valid
         var readResult = _dataModelCommands.Read(batch, measureName);
-        Assert.True(readResult.Success, $"Read measure failed: {readResult.ErrorMessage}");
-        Assert.Contains("CALCULATE", readResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("FILTER", readResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
+        RequireSuccess(readResult);
+        Assert.Equal(daxFormula, readResult.DaxFormula);
     }
 
     /// <summary>
@@ -267,14 +381,15 @@ public partial class PersistentServiceDataModelCommandsTests
 
         // Create measure with simple formula
         var created = CreateMeasure("SalesTable", measureName, originalFormula);
-        Assert.True(created.Success, created.ErrorMessage);
+        RequireSuccess(created);
+        Assert.Equal(originalFormula, RequireSuccess(_dataModelCommands.Read(batch, measureName)).DaxFormula);
 
         var updated = _dataModelCommands.UpdateMeasure(batch, measureName, daxFormula: updatedFormula);
         AssertSpacingNote(updated, updatedFormula, decimalCommaFormula);
 
         // Verify the formula was updated
         var readResult = _dataModelCommands.Read(batch, measureName);
-        Assert.True(readResult.Success, $"Read measure failed: {readResult.ErrorMessage}");
+        RequireSuccess(readResult);
         Assert.Contains("AVERAGEX", readResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("DATESINPERIOD", readResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(ExpectedStoredFormula(updatedFormula, decimalCommaFormula), readResult.DaxFormula);
@@ -298,7 +413,7 @@ public partial class PersistentServiceDataModelCommandsTests
 
         // Verify measure was created
         var readResult = _dataModelCommands.Read(batch, measureName);
-        Assert.True(readResult.Success, $"Read measure failed: {readResult.ErrorMessage}");
+        RequireSuccess(readResult);
         Assert.Contains("IF", readResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(ExpectedStoredFormula(daxFormula, decimalCommaFormula), readResult.DaxFormula);
     }
@@ -314,11 +429,11 @@ public partial class PersistentServiceDataModelCommandsTests
         var daxFormula = "SUM(SalesTable[Amount])";
 
         var batch = _fixture.BatchToken;
-        _ = CreateMeasure("SalesTable", measureName, daxFormula);
+        RequireSuccess(CreateMeasure("SalesTable", measureName, daxFormula));
 
         var readResult = _dataModelCommands.Read(batch, measureName);
-        Assert.True(readResult.Success, $"Read measure failed: {readResult.ErrorMessage}");
-        Assert.Contains("SUM", readResult.DaxFormula, StringComparison.OrdinalIgnoreCase);
+        RequireSuccess(readResult);
+        Assert.Equal(daxFormula, readResult.DaxFormula);
     }
 
     #endregion

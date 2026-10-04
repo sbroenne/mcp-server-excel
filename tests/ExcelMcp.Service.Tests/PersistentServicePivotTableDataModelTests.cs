@@ -1,11 +1,13 @@
-using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
+using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.ComInterop;
+using Excel = Microsoft.Office.Interop.Excel;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
 /// <summary>
 /// Integration tests for PivotTable creation from Power Pivot Data Model tables.
-/// Uses DataModelPivotTableFixture which creates ONE comprehensive Data Model + PivotTable workbook (shared via collection fixture).
+/// Uses a class-scoped Data Model fixture and test-owned destination sheets.
 /// </summary>
 [Collection("ServiceWorkflow")]
 [Trait("Layer", "Service")]
@@ -19,8 +21,11 @@ public class PersistentServicePivotTableDataModelTests(
     PersistentServiceWorkbookTestBase(fixture),
     IClassFixture<PersistentServiceDataModelFixture>
 {
-    private readonly IPivotTableCommands _pivotCommands =
-        fixture.CreateCommands<IPivotTableCommands>();
+    private static readonly string[] SalesFields = ["SalesID", "Date", "CustomerID", "ProductID", "Amount", "Quantity"];
+    private static readonly string[] CustomerFields = ["CustomerID", "Name", "Region", "Country"];
+    private static readonly string[] CustomerNames = ["Acme Corp", "Beta Inc", "Delta Co", "Epsilon Ltd", "Gamma LLC"];
+    private readonly IPersistentPivotTableCommands _pivotCommands =
+        fixture.CreateCommands<IPersistentPivotTableCommands>();
 
     /// <summary>
     /// Tests creating PivotTable from Data Model table.
@@ -33,27 +38,27 @@ public class PersistentServicePivotTableDataModelTests(
             PersistentServiceDataModelFixture.CreationResult.Success,
             "Data Model fixture must be created successfully");
 
-        // Act - Create PivotTable from Data Model table
+        var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);
         var result = _pivotCommands.CreateFromDataModel(
             _fixture.BatchToken,
             "SalesTable",  // Data Model table name from fixture
-            "SalesData",   // Destination sheet (exists in fixture)
+            sheet,
             "H1",          // Destination cell
             "SalesDataModelPivot");
 
         // Assert
-        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        RequireSuccess(result);
         Assert.Equal("SalesDataModelPivot", result.PivotTableName);
-        Assert.Equal("SalesData", result.SheetName);
+        Assert.Equal(sheet, result.SheetName);
         Assert.NotEmpty(result.Range);
-        Assert.Contains("ThisWorkbookDataModel", result.SourceData);
-        Assert.True(result.SourceRowCount > 0, "Should have rows in source Data Model table");
-        Assert.NotEmpty(result.AvailableFields);
-
-        // Verify expected fields from SalesTable in Data Model
-        Assert.Contains("SalesID", result.AvailableFields);
-        Assert.Contains("CustomerID", result.AvailableFields);
-        Assert.Contains("Amount", result.AvailableFields);
+        Assert.Equal("ThisWorkbookDataModel[SalesTable]", result.SourceData);
+        Assert.Equal(10, result.SourceRowCount);
+        Assert.Equal(SalesFields,
+            result.AvailableFields);
+        RequireSuccess(_pivotCommands.AddValueField(_fixture.BatchToken, result.PivotTableName,
+            "[Measures].[Total Sales]", AggregationFunction.Sum, "Sales"));
+        RequireSuccess(_pivotCommands.Refresh(_fixture.BatchToken, result.PivotTableName, null));
+        AssertNativeData(sheet, result.PivotTableName, 2455);
     }
 
     /// <summary>
@@ -67,16 +72,26 @@ public class PersistentServicePivotTableDataModelTests(
             PersistentServiceDataModelFixture.CreationResult.Success,
             "Data Model fixture must be created successfully");
 
-        // Act & Assert - Try to create PivotTable from non-existent table (should throw)
+        var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);
+        RequireSuccess(_commands.SetValues(_fixture.BatchToken, sheet, "H1", [["retained"]]));
+        var pivotsBefore = RequireSuccess(_pivotCommands.List(_fixture.BatchToken));
+        var model = _fixture.Send("datamodel.evaluate", new { daxQuery = "EVALUATE SalesTable" });
+        Assert.True(model.Success, model.ErrorMessage);
         var exception = Assert.Throws<InvalidOperationException>(() =>
             _pivotCommands.CreateFromDataModel(
                 _fixture.BatchToken,
                 "NonExistentTable",
-                "SalesData",
+                sheet,
                 "H1",
                 "FailedPivot"));
 
         Assert.Contains("not found in Data Model", exception.Message);
+        Assert.Equal("retained", RequireSuccess(_commands.GetValues(_fixture.BatchToken, sheet, "H1")).Values[0][0]);
+        var pivotsAfter = RequireSuccess(_pivotCommands.List(_fixture.BatchToken));
+        Assert.Equal(pivotsBefore.PivotTables.Select(p => p.Name), pivotsAfter.PivotTables.Select(p => p.Name));
+        var unchanged = _fixture.Send("datamodel.evaluate", new { daxQuery = "EVALUATE SalesTable" });
+        Assert.True(unchanged.Success, unchanged.ErrorMessage);
+        Assert.Equal(model.Result, unchanged.Result);
     }
 
     /// <summary>
@@ -90,23 +105,58 @@ public class PersistentServicePivotTableDataModelTests(
             PersistentServiceDataModelFixture.CreationResult.Success,
             "Data Model fixture must be created successfully");
 
-        // Act - Create PivotTable and verify all fields are discovered
+        var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);
         var result = _pivotCommands.CreateFromDataModel(
             _fixture.BatchToken,
             "CustomersTable",  // Has 4 columns: CustomerID, Name, Region, Country
-            "Customers",
+            sheet,
             "H1",
             "CustomersPivot");
 
         // Assert
-        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
-        Assert.Equal(4, result.AvailableFields.Count);
-        Assert.Contains("CustomerID", result.AvailableFields);
-        Assert.Contains("Name", result.AvailableFields);
-        Assert.Contains("Region", result.AvailableFields);
-        Assert.Contains("Country", result.AvailableFields);
+        RequireSuccess(result);
+        Assert.Equal(5, result.SourceRowCount);
+        Assert.Equal("ThisWorkbookDataModel[CustomersTable]", result.SourceData);
+        Assert.Equal(CustomerFields, result.AvailableFields);
+        RequireSuccess(_pivotCommands.AddRowField(_fixture.BatchToken, result.PivotTableName,
+            "[CustomersTable].[Name]", null));
+        var data = RequireSuccess(_pivotCommands.GetData(_fixture.BatchToken, result.PivotTableName));
+        Assert.Equal(CustomerNames,
+            data.Values.Skip(1).Take(5).Select(row => row[0]));
+    }
+
+    private void AssertNativeData(string sheetName, string pivotName, double expected)
+    {
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.PivotTables? pivots = null;
+            Excel.PivotTable? pivot = null;
+            Excel.PivotCache? cache = null;
+            Excel.Range? data = null;
+            try
+            {
+                sheets = context.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[sheetName];
+                pivots = (Excel.PivotTables)sheet.PivotTables();
+                pivot = pivots.Item(pivotName);
+                cache = pivot.PivotCache();
+                Assert.True(cache.OLAP);
+                data = pivot.DataBodyRange;
+                Assert.Equal(expected, Convert.ToDouble(data.Value2,
+                    System.Globalization.CultureInfo.InvariantCulture), 8);
+            }
+            finally
+            {
+                ComUtilities.Release(ref data);
+                ComUtilities.Release(ref cache);
+                ComUtilities.Release(ref pivot);
+                ComUtilities.Release(ref pivots);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
     }
 }
-
-
 

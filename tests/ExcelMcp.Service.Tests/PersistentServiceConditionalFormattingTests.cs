@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -13,6 +14,8 @@ public sealed partial class PersistentServiceConditionalFormattingTests :
     IClassFixture<PersistentServiceWorkbookFixture>
 {
     private readonly IConditionalFormattingCommands _conditionalFormattingCommands;
+    private readonly IRangeCommands _rangeCommands;
+    private readonly string _sheetName;
 
     public PersistentServiceConditionalFormattingTests(
         PersistentServiceWorkbookFixture fixture) :
@@ -20,6 +23,10 @@ public sealed partial class PersistentServiceConditionalFormattingTests :
     {
         _conditionalFormattingCommands =
             ServiceCommandProxy.Create<IConditionalFormattingCommands>(fixture);
-        _fixture.CreateTestSheet(_fixture.BatchToken);
+        _sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        _rangeCommands = ServiceCommandProxy.Create<IRangeCommands>(fixture);
+        RequireSuccess(_rangeCommands.SetValues(_fixture.BatchToken, _sheetName, "A1:G41",
+            Enumerable.Range(0, 41).Select(index => new List<object?>
+                { index * 10 - 10, 1, 2, 3, 4, 5, index + 999 }).ToList()));
     }
 }

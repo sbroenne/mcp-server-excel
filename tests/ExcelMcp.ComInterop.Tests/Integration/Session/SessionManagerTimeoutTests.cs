@@ -30,6 +30,7 @@ public class SessionManagerTimeoutTests : IDisposable
     private readonly ITestOutputHelper _output;
     private readonly string _tempDir;
     private readonly List<string> _testFiles = [];
+    private readonly OwnedExcelProcessScope _owned = new();
 
     private static readonly string TemplateFilePath = Path.Combine(
         Path.GetDirectoryName(typeof(SessionManagerTimeoutTests).Assembly.Location)!,
@@ -46,19 +47,7 @@ public class SessionManagerTimeoutTests : IDisposable
     {
         GC.SuppressFinalize(this);
 
-        foreach (var file in _testFiles.Where(File.Exists))
-        {
-#pragma warning disable CA1031 // Intentional: best-effort test cleanup
-            try { File.Delete(file); } catch (Exception) { /* best effort */ }
-#pragma warning restore CA1031
-        }
-
-        if (Directory.Exists(_tempDir))
-        {
-#pragma warning disable CA1031
-            try { Directory.Delete(_tempDir, recursive: true); } catch (Exception) { /* best effort */ }
-#pragma warning restore CA1031
-        }
+        SessionTestCleanup.AssertExitedAndDelete(_owned, _testFiles, _tempDir);
     }
 
     private string CreateTestFile(string testName)
@@ -93,7 +82,7 @@ public class SessionManagerTimeoutTests : IDisposable
         Assert.NotNull(batch);
 
         // Warm up
-        batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets[1]; return 0; });
+        SessionWorkbookAssertions.AssertIdentity(batch, testFile);
 
         // Trigger timeout
         var ex = Assert.Throws<TimeoutException>(() =>
@@ -105,6 +94,8 @@ public class SessionManagerTimeoutTests : IDisposable
             });
         });
         _output.WriteLine($"Timeout triggered: {ex.Message}");
+        Assert.Contains("timed out", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.True(batch.HasTimedOutOperation);
 
         // Act — simulate what WithSessionAsync does: force-close the session
         var closed = manager.CloseSession(sessionId, save: false, force: true);
@@ -113,6 +104,8 @@ public class SessionManagerTimeoutTests : IDisposable
         Assert.True(closed, "CloseSession should succeed after timeout");
         Assert.Equal(0, manager.ActiveSessionCount);
         Assert.Null(manager.GetSession(sessionId));
+        Assert.Empty(manager.ActiveSessionIds);
+        _owned.AssertAllExited();
 
         _output.WriteLine("✓ Session cleaned up after timeout");
     }
@@ -134,12 +127,13 @@ public class SessionManagerTimeoutTests : IDisposable
             show: false,
             operationTimeout: TimeSpan.FromSeconds(3),
             startupTimeout: ComInteropConstants.DefaultOperationTimeout);
-        var batch = manager.GetSession(sessionId)!;
+        var batch = Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(sessionId));
         int? excelPid = batch.ExcelProcessId;
+        Assert.NotNull(excelPid);
         _output.WriteLine($"Session {sessionId}, Excel PID: {excelPid}");
 
         // Warm up
-        batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets[1]; return 0; });
+        SessionWorkbookAssertions.AssertIdentity(batch, testFile);
 
         // Trigger timeout
         Assert.Throws<TimeoutException>(() =>
@@ -153,33 +147,14 @@ public class SessionManagerTimeoutTests : IDisposable
 
         // Act — force close (this triggers Dispose → pre-emptive kill)
         var sw = Stopwatch.StartNew();
-        manager.CloseSession(sessionId, save: false, force: true);
+        Assert.True(manager.CloseSession(sessionId, save: false, force: true));
         sw.Stop();
         _output.WriteLine($"CloseSession took {sw.Elapsed.TotalSeconds:F1}s");
 
-        // Wait for process cleanup
-        Thread.Sleep(2000);
-
-        // Assert — Excel process should be dead
-        if (excelPid.HasValue)
-        {
-            bool processAlive;
-            try
-            {
-                using var process = Process.GetProcessById(excelPid.Value);
-                processAlive = !process.HasExited;
-            }
-            catch (ArgumentException)
-            {
-                processAlive = false;
-            }
-
-            Assert.False(processAlive,
-                $"REGRESSION: Excel process {excelPid.Value} still alive after timeout + force close. " +
-                "The pre-emptive kill in Dispose() may not be working.");
-
-            _output.WriteLine($"✓ Excel process {excelPid.Value} terminated");
-        }
+        Assert.Equal(0, manager.ActiveSessionCount);
+        Assert.Empty(manager.ActiveSessionIds);
+        Assert.Null(manager.GetSession(sessionId));
+        _owned.AssertAllExited();
     }
 
     /// <summary>
@@ -193,18 +168,15 @@ public class SessionManagerTimeoutTests : IDisposable
         using var manager = new SessionManager();
 
         var sessionId = manager.CreateSession(testFile, operationTimeout: TimeSpan.FromSeconds(30));
-        var batch = manager.GetSession(sessionId)!;
+        var batch = Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(sessionId));
 
         // Act — quick operation should succeed
-        var result = batch.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[1];
-            return sheet.Name?.ToString() ?? "unknown";
-        });
-
-        // Assert
-        Assert.NotNull(result);
-        Assert.NotEmpty(result);
-        _output.WriteLine($"✓ Normal operation succeeded: sheet name = {result}");
+        SessionWorkbookAssertions.AssertIdentity(batch, testFile);
+        SessionWorkbookAssertions.WriteMarker(batch, "within-timeout");
+        Assert.Equal("within-timeout", SessionWorkbookAssertions.ReadMarker(batch));
+        Assert.False(batch.HasTimedOutOperation);
+        Assert.True(manager.CloseSession(sessionId));
+        Assert.Empty(manager.ActiveSessionIds);
+        _owned.AssertAllExited();
     }
 }

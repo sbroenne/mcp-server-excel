@@ -145,36 +145,38 @@ public sealed class ExcelFileToolExcelTests(ITestOutputHelper output) : McpInteg
     [Fact]
     public async Task Create_ValidPath_ReturnsSuccessWithSessionId()
     {
-        var tempPath = Path.Join(
-            Path.GetTempPath(),
-            $"ExcelFileToolTest_{Guid.NewGuid():N}.xlsx");
-        string? sessionId = null;
-
-        try
+        var tempPath = Path.Join(CreateTempDirectory("FileCreation"), "Created.xlsx");
+        var sessionId = await CreateWorkbookSessionAsync(tempPath);
+        Assert.True(File.Exists(tempPath));
+        var listed = await CallToolAsync("file", new() { ["action"] = "list" });
+        AssertSuccess(listed, "file.list after creation");
+        using (var document = JsonDocument.Parse(listed))
         {
-            var result = await CallToolAsync("file", new() { ["action"] = "create", ["path"] = tempPath, ["timeout_seconds"] = 300 });
-
-            Output.WriteLine($"Result: {result}");
-
-            Assert.NotNull(result);
-            var json = JsonDocument.Parse(result).RootElement;
-            Assert.True(json.GetProperty("success").GetBoolean());
-            Assert.True(File.Exists(tempPath), "File should have been created");
-            Assert.True(json.TryGetProperty("session_id", out var sessionIdElement));
-            sessionId = sessionIdElement.GetString();
-            Assert.NotNull(sessionId);
+            var session = Assert.Single(document.RootElement.GetProperty("sessions").EnumerateArray(),
+                item => item.GetProperty("session_id").GetString() == sessionId);
+            Assert.Equal(tempPath, session.GetProperty("filePath").GetString());
         }
-        finally
+
+        AssertSuccess(await CallToolAsync("range", new()
         {
-            if (!string.IsNullOrEmpty(sessionId))
-            {
-                await CloseSessionAsync(sessionId, save: false);
-            }
-
-            if (File.Exists(tempPath))
-            {
-                File.Delete(tempPath);
-            }
+            ["action"] = "set-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Sheet1",
+            ["range_address"] = "A1",
+            ["values"] = new List<List<object?>> { new() { "created-session" } }
+        }), "range.set-values on created session");
+        var read = await CallToolAsync("range", new()
+        {
+            ["action"] = "get-values",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Sheet1",
+            ["range_address"] = "A1"
+        });
+        AssertSuccess(read, "range.get-values on created session");
+        using (var document = JsonDocument.Parse(read))
+        {
+            Assert.Equal("created-session", document.RootElement.GetProperty("values")[0][0].GetString());
         }
+        await CloseSessionAsync(sessionId, save: false);
     }
 }

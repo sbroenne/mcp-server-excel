@@ -110,8 +110,8 @@ public interface IChartConfigCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
     /// <param name="seriesName">Display name for the series</param>
-    /// <param name="valuesRange">Range containing series values (e.g., B2:B10)</param>
-    /// <param name="categoryRange">Optional range for category labels (e.g., A2:A10)</param>
+    /// <param name="valuesRange">Series values on the chart worksheet (e.g., B2:B10), or a sheet-qualified range in the chart workbook (e.g., Sheet1!B2:B10)</param>
+    /// <param name="categoryRange">Optional category labels on the chart worksheet (e.g., A2:A10), or a sheet-qualified range in the chart workbook</param>
     [ServiceAction("add-series")]
     SeriesInfo AddSeries(
         IExcelBatch batch,

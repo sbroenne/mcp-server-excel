@@ -9,30 +9,22 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Layer", "CLI")]
 [Trait("RequiresExcel", "true")]
 [Trait("Speed", "Medium")]
-public sealed class PowerQueryReadContractTests : IDisposable
+public sealed class PowerQueryReadContractTests : IAsyncLifetime
 {
-    private readonly string _testFile =
-        Path.Combine(Path.GetTempPath(), $"PqReadContract_{Guid.NewGuid():N}.xlsx");
-    private string? _sessionId;
+    private readonly CliWorkbookSessionFixture _workbook = new();
+
+    public Task InitializeAsync() => _workbook.InitializeAsync();
+    public Task DisposeAsync() => _workbook.DisposeAsync();
 
     [Fact]
     public async Task List_IsCompactAndViewReturnsFullM_ViaCliProtocol()
     {
         const string queryName = "CliCompactRead";
         var mCode = BuildLongMCode();
-        var (sessionResult, sessionJson) = await CliProcessHelper.RunJsonAsync(
-            ["session", "create", _testFile],
-            timeoutMs: 60_000,
-            diagnosticLabel: "pq-read-contract-session-create");
-
-        Assert.Equal(0, sessionResult.ExitCode);
-        _sessionId = sessionJson.RootElement.GetProperty("sessionId").GetString();
-        Assert.False(string.IsNullOrWhiteSpace(_sessionId));
-
         var (createResult, createJson) = await CliProcessHelper.RunJsonAsync(
             [
                 "powerquery", "create",
-                "--session", _sessionId!,
+                "--session", _workbook.SessionId,
                 "--query-name", queryName,
                 "--m-code", mCode,
                 "--load-destination", "connection-only"
@@ -44,7 +36,7 @@ public sealed class PowerQueryReadContractTests : IDisposable
         Assert.True(createJson.RootElement.GetProperty("success").GetBoolean());
 
         var (listResult, listJson) = await CliProcessHelper.RunJsonAsync(
-            ["powerquery", "list", "--session", _sessionId!],
+            ["powerquery", "list", "--session", _workbook.SessionId],
             timeoutMs: 60_000,
             diagnosticLabel: "pq-read-contract-list");
 
@@ -62,7 +54,7 @@ public sealed class PowerQueryReadContractTests : IDisposable
         var (viewResult, viewJson) = await CliProcessHelper.RunJsonAsync(
             [
                 "powerquery", "view",
-                "--session", _sessionId!,
+                "--session", _workbook.SessionId,
                 "--query-name", queryName
             ],
             timeoutMs: 60_000,
@@ -72,22 +64,6 @@ public sealed class PowerQueryReadContractTests : IDisposable
         Assert.True(viewJson.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal(mCode, viewJson.RootElement.GetProperty("mCode").GetString());
         Assert.Equal("connection-only", viewJson.RootElement.GetProperty("loadMode").GetString());
-    }
-
-    public void Dispose()
-    {
-        if (!string.IsNullOrWhiteSpace(_sessionId))
-        {
-            CliProcessHelper.RunAsync(
-                ["session", "close", "--session", _sessionId, "--save", "false"],
-                timeoutMs: 60_000,
-                diagnosticLabel: "pq-read-contract-close").GetAwaiter().GetResult();
-        }
-
-        if (File.Exists(_testFile))
-        {
-            File.Delete(_testFile);
-        }
     }
 
     private static string BuildLongMCode()

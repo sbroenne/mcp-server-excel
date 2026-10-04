@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 
@@ -229,19 +230,31 @@ public class RegularChartStrategy : IChartStrategy
     /// <inheritdoc />
     public SeriesInfo AddSeries(dynamic chart, string seriesName, string valuesRange, string? categoryRange)
     {
-        dynamic? seriesCollection = null;
-        dynamic? newSeries = null;
+        Excel.ChartObject? chartObject = null;
+        Excel.Worksheet? chartSheet = null;
+        Excel.Range? valuesSource = null;
+        Excel.Range? categorySource = null;
+        Excel.SeriesCollection? seriesCollection = null;
+        Excel.Series? newSeries = null;
 
         try
         {
-            seriesCollection = chart.SeriesCollection();
-            newSeries = seriesCollection.NewSeries();
-            newSeries.Name = seriesName;
-            newSeries.Values = valuesRange;
-
+            chartObject = (Excel.ChartObject)chart.Parent;
+            chartSheet = (Excel.Worksheet)chartObject.Parent;
+            valuesSource = ResolveSeriesRange(chartSheet, valuesRange);
             if (!string.IsNullOrWhiteSpace(categoryRange))
             {
-                newSeries.XValues = categoryRange;
+                categorySource = ResolveSeriesRange(chartSheet, categoryRange);
+            }
+
+            seriesCollection = (Excel.SeriesCollection)chart.SeriesCollection();
+            newSeries = seriesCollection.NewSeries();
+            newSeries.Name = seriesName;
+            newSeries.Values = valuesSource;
+
+            if (categorySource != null)
+            {
+                newSeries.XValues = categorySource;
             }
 
             return new SeriesInfo
@@ -253,14 +266,44 @@ public class RegularChartStrategy : IChartStrategy
         }
         finally
         {
-            if (newSeries != null)
-            {
-                ComUtilities.Release(ref newSeries!);
-            }
-            if (seriesCollection != null)
-            {
-                ComUtilities.Release(ref seriesCollection!);
-            }
+            ComUtilities.Release(ref newSeries);
+            ComUtilities.Release(ref seriesCollection);
+            ComUtilities.Release(ref categorySource);
+            ComUtilities.Release(ref valuesSource);
+            ComUtilities.Release(ref chartSheet);
+            ComUtilities.Release(ref chartObject);
+        }
+    }
+
+    private static Excel.Range ResolveSeriesRange(Excel.Worksheet chartSheet, string reference)
+    {
+        var separator = reference.LastIndexOf('!');
+        if (separator < 0)
+        {
+            return chartSheet.Range[reference];
+        }
+
+        var sheetName = reference[..separator].Trim();
+        if (sheetName.Length >= 2 && sheetName[0] == '\'' && sheetName[^1] == '\'')
+        {
+            sheetName = sheetName[1..^1].Replace("''", "'", StringComparison.Ordinal);
+        }
+
+        Excel.Workbook? book = null;
+        Excel.Sheets? sheets = null;
+        Excel.Worksheet? sourceSheet = null;
+        try
+        {
+            book = (Excel.Workbook)chartSheet.Parent;
+            sheets = book.Worksheets;
+            sourceSheet = (Excel.Worksheet)sheets[sheetName];
+            return sourceSheet.Range[reference[(separator + 1)..]];
+        }
+        finally
+        {
+            ComUtilities.Release(ref sourceSheet);
+            ComUtilities.Release(ref sheets);
+            ComUtilities.Release(ref book);
         }
     }
 

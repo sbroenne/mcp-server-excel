@@ -53,6 +53,12 @@ public partial class ConnectionCommands
         bool? backgroundQuery = null, bool? refreshOnFileOpen = null,
         bool? savePassword = null, int? refreshPeriod = null)
     {
+        if (refreshPeriod is < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(refreshPeriod), refreshPeriod,
+                "Refresh period must be nonnegative; use 0 to disable automatic refresh.");
+        }
+
         return batch.Execute((ctx, ct) =>
         {
             Excel.WorkbookConnection? conn = null;

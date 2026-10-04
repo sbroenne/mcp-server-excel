@@ -6,9 +6,8 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 
 /// <summary>
 /// Integration tests for PivotTable commands.
-/// Uses DataModelPivotTableFixture for all tests (shared across ALL test classes via collection fixture).
-/// Fixture initialization IS the test for data preparation.
-/// Each test gets its own batch for isolation.
+/// Uses a saved Data Model template and a shared workbook session.
+/// Each field test creates an isolated PivotTable; preparation checks verify the saved template.
 /// </summary>
 [Collection("ServiceWorkflow")]
 [Trait("Layer", "Service")]
@@ -49,11 +48,32 @@ public partial class PersistentServicePivotTableOlapFieldTests :
             $"Data preparation failed during fixture initialization: {_creationResult.ErrorMessage}");
 
         Assert.True(_creationResult.FileCreated, "File creation failed");
-        Assert.True(_creationResult.TablesCreated > 0, "No tables were created");
+        Assert.Equal(5, _creationResult.TablesCreated);
         Assert.True(_creationResult.CreationTimeMs > 0);
 
-        // This test appears in test results as proof that creation was tested
-        Console.WriteLine($"? Data prepared successfully in {_creationResult.CreationTimeMs}ms");
+        var data = _commands.GetValues(_fixture.BatchToken, "RegionalData", "A1:D9");
+        Assert.True(data.Success, data.ErrorMessage);
+        Assert.Equal(9, data.RowCount);
+        Assert.Equal(4, data.ColumnCount);
+        Assert.Equal(["Quarter", "Region", "Sales", "Units"],
+            data.Values[0].Select(value => value?.ToString()));
+        (string Quarter, string Region, double Sales, double Units)[] expected =
+        [
+            ("Q1", "North", 5000, 100), ("Q1", "South", 6000, 120),
+            ("Q1", "East", 5500, 110), ("Q1", "West", 7000, 140),
+            ("Q2", "North", 5500, 110), ("Q2", "South", 6500, 130),
+            ("Q2", "East", 6000, 120), ("Q2", "West", 7500, 150)
+        ];
+        Assert.Equal(expected.Length + 1, data.Values.Count);
+        for (var index = 0; index < expected.Length; index++)
+        {
+            var row = data.Values[index + 1];
+            Assert.Equal(4, row.Count);
+            Assert.Equal(expected[index].Quarter, row[0]);
+            Assert.Equal(expected[index].Region, row[1]);
+            Assert.Equal(expected[index].Sales, Convert.ToDouble(row[2], System.Globalization.CultureInfo.InvariantCulture));
+            Assert.Equal(expected[index].Units, Convert.ToDouble(row[3], System.Globalization.CultureInfo.InvariantCulture));
+        }
     }
 
     /// <summary>
@@ -62,30 +82,20 @@ public partial class PersistentServicePivotTableOlapFieldTests :
     /// </summary>
     [Fact]
     [Trait("Speed", "Medium")]
-    public void DataPreparation_Persists_AfterReopenFile()
+    public async Task DataPreparation_Persists_AfterReopenFile()
     {
+        await _fixture.SaveAndReopenAsync();
         var batch = _fixture.BatchToken;
-
-        // Verify data persisted by reading range (SalesData sheet from DataModel fixture)
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets["SalesData"];
-
-            // Verify headers match DataModel fixture's SalesTable columns
-            Assert.Equal("SalesID", sheet.Range["A1"].Value2?.ToString());
-            Assert.Equal("Date", sheet.Range["B1"].Value2?.ToString());
-            Assert.Equal("CustomerID", sheet.Range["C1"].Value2?.ToString());
-            Assert.Equal("ProductID", sheet.Range["D1"].Value2?.ToString());
-
-            // Verify first data row
-            Assert.Equal(1.0, Convert.ToDouble(sheet.Range["A2"].Value2));
-            Assert.Equal(101.0, Convert.ToDouble(sheet.Range["C2"].Value2));
-            Assert.Equal(1001.0, Convert.ToDouble(sheet.Range["D2"].Value2));
-
-            return 0;
-        });
-
-        // This proves data creation + save worked correctly
+        var data = _commands.GetValues(batch, "SalesData", "A1:F2");
+        Assert.True(data.Success, data.ErrorMessage);
+        Assert.Equal(["SalesID", "Date", "CustomerID", "ProductID", "Amount", "Quantity"],
+            data.Values[0].Select(value => value?.ToString()));
+        Assert.Equal(1, Convert.ToInt32(data.Values[1][0], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(new DateTime(2024, 1, 15), DateTime.FromOADate(
+            Convert.ToDouble(data.Values[1][1], System.Globalization.CultureInfo.InvariantCulture)));
+        Assert.Equal(101, Convert.ToInt32(data.Values[1][2], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(1001, Convert.ToInt32(data.Values[1][3], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(150d, Convert.ToDouble(data.Values[1][4], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(2, Convert.ToInt32(data.Values[1][5], System.Globalization.CultureInfo.InvariantCulture));
     }
 }
-

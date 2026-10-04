@@ -53,6 +53,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
     private readonly CancellationTokenSource _cts = new();
     private McpClient? _client;
     private Task? _serverTask;
+    private bool _disposed;
 
     public McpServerSmokeTests(ITestOutputHelper output)
     {
@@ -118,7 +119,8 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
                 ["session_id"] = session,
                 ["table_name"] = "SalesTable",
                 ["measure_name"] = name,
-                ["dax_formula"] = update ? "SUM(SalesTable[Amount])" : formula
+                ["dax_formula"] = update ? "SUM(SalesTable[Amount])" : formula,
+                ["format_type"] = update ? "Percentage" : "Decimal"
             });
             AssertSuccess(written, "Create comma measure");
             if (update)
@@ -128,7 +130,8 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
                     ["action"] = "update-measure",
                     ["session_id"] = session,
                     ["measure_name"] = name,
-                    ["dax_formula"] = formula
+                    ["dax_formula"] = formula,
+                    ["format_type"] = "Decimal"
                 });
                 AssertSuccess(updated, "Update comma measure");
             }
@@ -140,6 +143,11 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             });
             AssertSuccess(read, "Read comma measure");
             Assert.Equal(formula, GetJsonProperty(read, "daxFormula"));
+            using var readDocument = JsonDocument.Parse(read);
+            Assert.Equal(name, readDocument.RootElement.GetProperty("measureName").GetString());
+            Assert.Equal("SalesTable", readDocument.RootElement.GetProperty("tableName").GetString());
+            Assert.Equal(formula.Length, readDocument.RootElement.GetProperty("characterCount").GetInt32());
+            Assert.Equal("Decimal", readDocument.RootElement.GetProperty("formatInfo").GetProperty("type").GetString());
             var evaluated = await CallToolAsync("datamodel", new()
             {
                 ["action"] = "evaluate",
@@ -168,30 +176,41 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
 
     private async Task DisposeAsyncCore()
     {
+        if (_disposed)
+            return;
+        _disposed = true;
+
         // Flush telemetry before shutdown to ensure test telemetry is sent
         ExcelMcpTelemetry.Flush();
-
-        await ProgramTransportTestHost.StopAsync(
-            _client,
-            _clientToServerPipe,
-            _serverToClientPipe,
-            _serverTask,
-            _output);
-
-        _cts.Dispose();
-
-        // Clean up temp files
-        if (Directory.Exists(_tempDir))
+        var failures = new List<Exception>();
+        try
         {
+            await ProgramTransportTestHost.StopAsync(
+                _client,
+                _clientToServerPipe,
+                _serverToClientPipe,
+                _serverTask,
+                _output);
+        }
+        catch (Exception ex)
+        {
+            failures.Add(ex);
+        }
+        finally
+        {
+            _cts.Dispose();
             try
             {
-                Directory.Delete(_tempDir, recursive: true);
+                if (Directory.Exists(_tempDir))
+                    Directory.Delete(_tempDir, recursive: true);
             }
-            catch
+            catch (Exception cleanupFailure)
             {
-                // Ignore cleanup errors
+                failures.Add(cleanupFailure);
             }
         }
+        if (failures.Count != 0)
+            throw new AggregateException("MCP shutdown or file cleanup failed.", failures);
     }
 
     /// <summary>
@@ -203,7 +222,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
     public async Task Smoke_WorkbookLifecycle_PersistsValues()
     {
         _output.WriteLine("=== MCP SERVER E2E SMOKE TEST (SDK CLIENT) ===");
-        _output.WriteLine("Testing all tools via MCP protocol with real Excel...\n");
+        _output.WriteLine("Testing selected operations via MCP protocol with real Excel...\n");
 
         // =====================================================================
         // STEP 1: CREATE AND OPEN SESSION
@@ -371,7 +390,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "A1",
-            ["values"] = new List<List<string>> { new() { "Name" } },
+            ["values"] = new List<List<string>> { new() { "Product" } },
             ["overwrite_policy"] = "allow"
         });
         AssertSuccess(intentionalUpdate, "Explicitly allowed header replacement");
@@ -384,10 +403,16 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["range_address"] = "A1:C3"
         });
         AssertSuccess(getValuesResult, "Get values");
-        using (var read = JsonDocument.Parse(getValuesResult))
+        Assert.Equal("Product", GetFirstCellValue(getValuesResult));
+        using (var valuesJson = JsonDocument.Parse(getValuesResult))
         {
-            Assert.Equal("Name", read.RootElement.GetProperty("values")[0][0].GetString());
-            Assert.Equal(100, read.RootElement.GetProperty("values")[1][1].GetInt32());
+            var rows = valuesJson.RootElement.GetProperty("values");
+            Assert.Equal(3, rows.GetArrayLength());
+            Assert.Equal(3, rows[0].GetArrayLength());
+            Assert.Equal("Item1", rows[1][0].GetString());
+            Assert.Equal(100, rows[1][1].GetDouble());
+            Assert.Equal("Item2", rows[2][0].GetString());
+            Assert.Equal(200, rows[2][1].GetDouble());
         }
         _output.WriteLine("  ✓ range: SetValues and GetValues passed");
         await CloseSmokeWorkbookAsync(sessionId);
@@ -491,6 +516,16 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             Assert.Equal("WorkflowHighlight", styleJson.RootElement.GetProperty("styleName").GetString());
             Assert.False(styleJson.RootElement.GetProperty("isBuiltInStyle").GetBoolean());
         }
+        var styledCell = await CallSuccessfulToolAsync("range_format", new()
+        {
+            ["action"] = "get-format",
+            ["session_id"] = sessionId,
+            ["sheet_name"] = "Data",
+            ["range_address"] = "AD10"
+        });
+        using (var cellJson = JsonDocument.Parse(styledCell))
+            Assert.True(cellJson.RootElement.GetProperty("cells")[0].GetProperty("stored")
+                .GetProperty("font").GetProperty("bold").GetBoolean());
         var styleDelete = await CallToolAsync("workbook", new Dictionary<string, object?>
         {
             ["action"] = "delete-cell-style",
@@ -498,6 +533,14 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["style_name"] = "WorkflowHighlight"
         });
         AssertSuccess(styleDelete, "Delete native custom style");
+        var cellStyles = await CallSuccessfulToolAsync("workbook", new()
+        {
+            ["action"] = "list-cell-styles",
+            ["session_id"] = sessionId
+        });
+        using (var stylesJson = JsonDocument.Parse(cellStyles))
+            Assert.DoesNotContain(stylesJson.RootElement.GetProperty("styles").EnumerateArray(),
+                style => style.GetProperty("name").GetString() == "WorkflowHighlight");
         AssertSuccess(await CallToolAsync("workbook", new Dictionary<string, object?>
         {
             ["action"] = "create-table-style",
@@ -519,24 +562,46 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             Assert.Equal(43, elements.GetArrayLength());
             var header = Assert.Single(elements.EnumerateArray(), item => item.GetProperty("elementType").GetString() == "xlHeaderRow");
             Assert.Equal("#123456", header.GetProperty("fill").GetProperty("color").GetProperty("rgb").GetString());
+            Assert.False(header.GetProperty("font").GetProperty("bold").GetBoolean());
         }
-        AssertSuccess(await CallToolAsync("workbook", new Dictionary<string, object?>
+        var tableStyleRead = await CallSuccessfulToolAsync("workbook", new Dictionary<string, object?>
         {
             ["action"] = "get-table-style",
             ["session_id"] = sessionId,
             ["style_name"] = "WorkflowTableStyle"
-        }), "Read complete native table-style definition");
-        AssertSuccess(await CallToolAsync("workbook", new Dictionary<string, object?>
+        });
+        using (var definition = JsonDocument.Parse(tableStyleRead))
+        {
+            var style = definition.RootElement.GetProperty("style");
+            Assert.Equal("WorkflowTableStyle", style.GetProperty("name").GetString());
+            Assert.False(style.GetProperty("builtIn").GetBoolean());
+            var header = Assert.Single(style.GetProperty("elements").EnumerateArray(),
+                item => item.GetProperty("elementType").GetString() == "xlHeaderRow");
+            Assert.Equal("#123456", header.GetProperty("fill").GetProperty("color").GetProperty("rgb").GetString());
+            Assert.False(header.GetProperty("font").GetProperty("bold").GetBoolean());
+        }
+        var tableStyles = await CallSuccessfulToolAsync("workbook", new Dictionary<string, object?>
         {
             ["action"] = "list-table-styles",
             ["session_id"] = sessionId
-        }), "List native table-style catalogue");
+        });
+        using (var catalogue = JsonDocument.Parse(tableStyles))
+            Assert.Single(catalogue.RootElement.GetProperty("styles").EnumerateArray(),
+                style => style.GetProperty("name").GetString() == "WorkflowTableStyle");
         AssertSuccess(await CallToolAsync("workbook", new Dictionary<string, object?>
         {
             ["action"] = "delete-table-style",
             ["session_id"] = sessionId,
             ["style_name"] = "WorkflowTableStyle"
         }), "Delete native custom table style");
+        var afterDeletion = await CallSuccessfulToolAsync("workbook", new()
+        {
+            ["action"] = "list-table-styles",
+            ["session_id"] = sessionId
+        });
+        using (var catalogue = JsonDocument.Parse(afterDeletion))
+            Assert.DoesNotContain(catalogue.RootElement.GetProperty("styles").EnumerateArray(),
+                style => style.GetProperty("name").GetString() == "WorkflowTableStyle");
         var formatReadResult = await CallToolAsync("range_format", new Dictionary<string, object?>
         {
             ["action"] = "get-format",
@@ -1199,7 +1264,14 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["session_id"] = sessionId,
             ["name"] = "ReportDate"
         });
-        AssertSuccess(readParamResult, "Read named range");
+        using (var namedRange = JsonDocument.Parse(readParamResult))
+        {
+            var root = namedRange.RootElement;
+            Assert.Equal("ReportDate", root.GetProperty("name").GetString());
+            Assert.Equal("=Data!$C$2", root.GetProperty("refersTo").GetString());
+            Assert.Equal("Double", root.GetProperty("valueType").GetString());
+            Assert.Equal(new DateTime(2024, 1, 1).ToOADate(), root.GetProperty("value").GetDouble());
+        }
         _output.WriteLine("  ✓ namedrange: Create and Read passed");
         await VerifyReportsAsync(sessionId);
         await CloseSmokeWorkbookAsync(sessionId);
@@ -1221,10 +1293,11 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         await File.WriteAllTextAsync(_testCsvFile, csvContent);
 
         var mCode = $@"let
-    Source = Csv.Document(File.Contents(""{_testCsvFile.Replace("\\", "\\\\")}""),[Delimiter="","", Columns=2, Encoding=1252, QuoteStyle=QuoteStyle.None]),
-    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true])
+    Source = Csv.Document(File.Contents(""{_testCsvFile.Replace("\"", "\"\"")}""),[Delimiter="","", Columns=2, Encoding=1252, QuoteStyle=QuoteStyle.None]),
+    PromotedHeaders = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+    TypedColumns = Table.TransformColumnTypes(PromotedHeaders, {{ {{""Product"", type text}}, {{""Quantity"", Int64.Type}} }})
 in
-    PromotedHeaders";
+    TypedColumns";
 
         var createQueryResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
@@ -1242,6 +1315,12 @@ in
             ["session_id"] = sessionId
         });
         AssertSuccess(listQueriesResult, "List Power Queries");
+        using (var queries = JsonDocument.Parse(listQueriesResult))
+        {
+            var query = Assert.Single(queries.RootElement.GetProperty("queries").EnumerateArray());
+            Assert.Equal("CsvData", query.GetProperty("name").GetString());
+            Assert.True(query.GetProperty("isConnectionOnly").GetBoolean());
+        }
 
         // Rename the query (US1: Power Query rename)
         var renameQueryResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
@@ -1252,7 +1331,6 @@ in
             ["new_name"] = "ProductData"
         });
         AssertSuccess(renameQueryResult, "Rename Power Query");
-        Assert.Contains("ProductData", renameQueryResult);
 
         // Verify rename by listing again
         var listAfterRenameResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
@@ -1261,8 +1339,20 @@ in
             ["session_id"] = sessionId
         });
         AssertSuccess(listAfterRenameResult, "List Power Queries after rename");
-        Assert.Contains("ProductData", listAfterRenameResult);
-        Assert.DoesNotContain("CsvData", listAfterRenameResult);
+        using (var queries = JsonDocument.Parse(listAfterRenameResult))
+        {
+            var query = Assert.Single(queries.RootElement.GetProperty("queries").EnumerateArray());
+            Assert.Equal("ProductData", query.GetProperty("name").GetString());
+            Assert.True(query.GetProperty("isConnectionOnly").GetBoolean());
+        }
+        var renamedCode = await CallSuccessfulToolAsync("powerquery", new()
+        {
+            ["action"] = "view",
+            ["session_id"] = sessionId,
+            ["query_name"] = "ProductData"
+        });
+        Assert.Equal(mCode.Replace("\r\n", "\n", StringComparison.Ordinal),
+            GetJsonProperty(renamedCode, "mCode")!.Replace("\r\n", "\n", StringComparison.Ordinal));
 
         _output.WriteLine("  ✓ powerquery: Create, List, and Rename passed");
 
@@ -1277,6 +1367,10 @@ in
             ["session_id"] = sessionId
         });
         AssertSuccess(listConnectionsResult, "List connections");
+        using (var connections = JsonDocument.Parse(listConnectionsResult))
+        {
+            Assert.Empty(connections.RootElement.GetProperty("connections").EnumerateArray());
+        }
         _output.WriteLine("  ✓ connection: List passed");
 
         await VerifyModelAsync(sessionId);
@@ -1430,7 +1524,14 @@ in
             ["session_id"] = sessionId
         });
         AssertSuccess(listPivotsResult, "List PivotTables");
-        Assert.Contains("SalesPivot", listPivotsResult, StringComparison.Ordinal);
+        using (var pivots = JsonDocument.Parse(listPivotsResult))
+        {
+            var pivot = Assert.Single(pivots.RootElement.GetProperty("pivotTables").EnumerateArray());
+            Assert.Equal("SalesPivot", pivot.GetProperty("name").GetString());
+            Assert.Equal("Data", pivot.GetProperty("sheetName").GetString());
+            Assert.Equal(1, pivot.GetProperty("rowFieldCount").GetInt32());
+            Assert.Equal(1, pivot.GetProperty("valueFieldCount").GetInt32());
+        }
         _output.WriteLine("  ✓ pivottable: Create and List passed");
 
         // =====================================================================
@@ -1452,6 +1553,14 @@ in
             ["chart_name"] = "DataChart"
         });
         AssertSuccess(createChartResult, "Create Chart");
+        var createdChartRead = await CallSuccessfulToolAsync("chart", new()
+        {
+            ["action"] = "read",
+            ["session_id"] = sessionId,
+            ["chart_name"] = "DataChart"
+        });
+        using (var chart = JsonDocument.Parse(createdChartRead))
+            Assert.Equal("ColumnClustered", chart.RootElement.GetProperty("chartType").GetString());
 
         var secondarySeries = await CallToolAsync("chart_config", new Dictionary<string, object?>
         {
@@ -1505,7 +1614,30 @@ in
             ["session_id"] = sessionId
         });
         AssertSuccess(listChartsResult, "List Charts");
-        Assert.Contains("DataChart", listChartsResult);
+        using (var charts = JsonDocument.Parse(listChartsResult))
+        {
+            var chart = Assert.Single(charts.RootElement.GetProperty("charts").EnumerateArray());
+            Assert.Equal("DataChart", chart.GetProperty("name").GetString());
+            Assert.Equal("Data", chart.GetProperty("sheetName").GetString());
+            Assert.False(chart.GetProperty("isPivotChart").GetBoolean());
+            Assert.Equal(400d, chart.GetProperty("width").GetDouble(), 2);
+            Assert.Equal(300d, chart.GetProperty("height").GetDouble(), 2);
+        }
+        var changedChart = await CallSuccessfulToolAsync("chart", new()
+        {
+            ["action"] = "read",
+            ["session_id"] = sessionId,
+            ["chart_name"] = "DataChart"
+        });
+        using (var chart = JsonDocument.Parse(changedChart))
+        {
+            var series = chart.RootElement.GetProperty("series");
+            Assert.Equal(2, series.GetArrayLength());
+            Assert.Equal("Secondary", series[0].GetProperty("axisGroup").GetString());
+            Assert.Equal("Value", series[0].GetProperty("name").GetString());
+            Assert.Equal(100d, series[0].GetProperty("values")[0].GetDouble());
+            Assert.Equal(200d, series[0].GetProperty("values")[1].GetDouble());
+        }
         _output.WriteLine("  ✓ chart: Create and List passed");
 
     }
@@ -1523,6 +1655,8 @@ in
             ["session_id"] = sessionId
         });
         AssertSuccess(listDataModelResult, "List Data Model tables");
+        using (var model = JsonDocument.Parse(listDataModelResult))
+            Assert.Empty(model.RootElement.GetProperty("tables").EnumerateArray());
 
         // Test rename-table returns expected failure due to Excel limitation (not a crash)
         // First, we need a PQ-backed table in the Data Model
@@ -1543,7 +1677,13 @@ in
             ["session_id"] = sessionId
         });
         AssertSuccess(listAfterLoadResult, "List Data Model tables after load");
-        Assert.Contains("ProductData", listAfterLoadResult);
+        using (var model = JsonDocument.Parse(listAfterLoadResult))
+        {
+            var table = Assert.Single(model.RootElement.GetProperty("tables").EnumerateArray());
+            Assert.Equal("ProductData", table.GetProperty("name").GetString());
+            Assert.Equal(2, table.GetProperty("recordCount").GetInt32());
+        }
+        var beforeRename = await ReadProductModelStateAsync(sessionId);
 
         var readModelConnectionResult = await CallToolAsync("datamodel", new Dictionary<string, object?>
         {
@@ -1567,19 +1707,15 @@ in
             ["session_id"] = sessionId,
             ["old_name"] = "ProductData",
             ["new_name"] = "RenamedProductData"
-        });
+        }, expectedError: true);
         // Expect JSON with success=false (not a crash)
-        var renameJson = JsonDocument.Parse(renameTableResult);
+        using var renameJson = JsonDocument.Parse(renameTableResult);
         Assert.True(renameJson.RootElement.TryGetProperty("success", out var renameSuccess));
         Assert.False(renameSuccess.GetBoolean(), "Rename-table should fail due to Excel limitation");
         Assert.True(renameJson.RootElement.TryGetProperty("errorMessage", out var renameError));
         var renameErrorText = renameError.GetString() ?? "";
-        // Error could be "immutable", "cannot be renamed", or "not found" (Power Query issue)
-        Assert.True(
-            renameErrorText.Contains("immutable", StringComparison.OrdinalIgnoreCase) ||
-            renameErrorText.Contains("cannot be renamed", StringComparison.OrdinalIgnoreCase) ||
-            renameErrorText.Contains("not found", StringComparison.OrdinalIgnoreCase),
-            $"Expected error about rename limitation but got: {renameErrorText}");
+        Assert.Contains("immutable", renameErrorText, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(beforeRename, await ReadProductModelStateAsync(sessionId));
         _output.WriteLine("  ✓ datamodel: RenameTable correctly returns error (Excel limitation)");
 
         _output.WriteLine("  ✓ datamodel: ListTables passed");
@@ -1602,7 +1738,7 @@ in
             ["session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "B2:B3",
-            ["rule_type"] = "cellvalue",  // Note: no hyphen - Core expects "cellvalue" not "cell-value"
+            ["rule_type"] = "cellvalue",
             ["operator_type"] = "greater",
             ["formula1"] = "100",
             ["interior_color"] = "#00FF00"
@@ -1638,6 +1774,9 @@ in
             var typedRule = Assert.Single(typedRuleJson.RootElement.GetProperty("rules").EnumerateArray());
             Assert.Equal(7, typedRule.GetProperty("top10").GetProperty("rank").GetInt32());
             Assert.True(typedRule.GetProperty("top10").GetProperty("percent").GetBoolean());
+            Assert.True(typedRule.GetProperty("fontBold").GetBoolean());
+            Assert.False(typedRule.GetProperty("fontItalic").GetBoolean());
+            Assert.Equal("$C$2:$C$3", typedRule.GetProperty("appliesTo").GetString());
             var updatedRuleResult = await CallToolAsync("conditionalformat", new Dictionary<string, object?>
             {
                 ["action"] = "update-rule",
@@ -1654,6 +1793,8 @@ in
             Assert.Equal(5, updated.GetProperty("top10").GetProperty("rank").GetInt32());
             Assert.False(updated.GetProperty("stopIfTrue").GetBoolean());
             Assert.Equal("$C$2:$C$4", updated.GetProperty("appliesTo").GetString());
+            Assert.True(updated.GetProperty("fontBold").GetBoolean());
+            Assert.False(updated.GetProperty("fontItalic").GetBoolean());
             var reorderedRuleResult = await CallToolAsync("conditionalformat", new Dictionary<string, object?>
             {
                 ["action"] = "set-rule-priority",
@@ -1668,6 +1809,9 @@ in
             var moved = Assert.Single(reorderedRules.RootElement.GetProperty("rules").EnumerateArray(),
                 rule => rule.GetProperty("type").GetString() == "top10");
             Assert.Equal(1, moved.GetProperty("priority").GetInt32());
+            Assert.Equal("$C$2:$C$4", moved.GetProperty("appliesTo").GetString());
+            Assert.True(moved.GetProperty("fontBold").GetBoolean());
+            Assert.False(moved.GetProperty("fontItalic").GetBoolean());
             var deletedRuleResult = await CallToolAsync("conditionalformat", new Dictionary<string, object?>
             {
                 ["action"] = "delete-rule",
@@ -1694,7 +1838,7 @@ in
         {
             ["action"] = "list",
             ["session_id"] = sessionId
-        });
+        }, expectedError: true);
         using (var listVbaJson = JsonDocument.Parse(listVbaResult))
         {
             Assert.False(listVbaJson.RootElement.GetProperty("success").GetBoolean());
@@ -1737,8 +1881,9 @@ in
         });
         AssertSuccess(verifyOpenResult, "Re-open for verification");
         var verifySessionId = GetJsonProperty(verifyOpenResult, "session_id");
+        Assert.NotNull(verifySessionId);
 
-        try
+        await VerifyAndCloseAsync(verifySessionId, async () =>
         {
             var finalSheetsResult = await CallToolAsync("worksheet", new Dictionary<string, object?>
             {
@@ -1747,8 +1892,11 @@ in
             });
             AssertSuccess(finalSheetsResult, "Final worksheet list");
 
-            // Verify Data sheet exists
-            Assert.Contains("Data", finalSheetsResult);
+            using (var sheetsJson = JsonDocument.Parse(finalSheetsResult))
+            {
+                Assert.Contains(sheetsJson.RootElement.GetProperty("worksheets").EnumerateArray(),
+                    sheet => sheet.GetProperty("name").GetString() == "Data");
+            }
             var values = await CallSuccessfulToolAsync("range", new()
             {
                 ["action"] = "get-values",
@@ -1757,17 +1905,8 @@ in
                 ["range_address"] = "A1"
             });
             Assert.Equal(expectedValue, GetFirstCellValue(values));
-            _output.WriteLine("  ✓ All changes persisted correctly");
-        }
-        finally
-        {
-            await CallToolAsync("file", new Dictionary<string, object?>
-            {
-                ["action"] = "close",
-                ["session_id"] = verifySessionId,
-                ["save"] = false
-            });
-        }
+            _output.WriteLine("  Saved worksheet value survived reopening.");
+        });
 
     }
 
@@ -1832,12 +1971,12 @@ in
         {
             ["action"] = "close",
             ["session_id"] = "nonexistent-session-id"
-        });
+        }, expectedError: true);
 
         _output.WriteLine($"Result: {result[..Math.Min(300, result.Length)]}...");
 
         // Should have success=false
-        var json = JsonDocument.Parse(result);
+        using var json = JsonDocument.Parse(result);
         Assert.True(json.RootElement.TryGetProperty("success", out var success));
         Assert.False(success.GetBoolean());
 
@@ -1876,11 +2015,19 @@ in
         AssertSuccess(createSource, "create source workbook");
         var sourceSessionId = GetJsonProperty(createSource, "session_id");
         Assert.NotNull(sourceSessionId);
+        AssertSuccess(await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "set-values",
+            ["session_id"] = sourceSessionId,
+            ["sheet_name"] = "Sheet1",
+            ["range_address"] = "A1",
+            ["values"] = new List<List<string>> { new() { "copied-content" } }
+        }), "Write source worksheet content");
         AssertSuccess(await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "close",
             ["session_id"] = sourceSessionId,
-            ["save"] = false
+            ["save"] = true
         }), "close source workbook");
 
         // Step 2: Create target file (empty, will receive the copied sheet)
@@ -1915,6 +2062,29 @@ in
         });
 
         AssertSuccess(copyResult, "worksheet.copy-to-file");
+        var openedTarget = await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "open",
+            ["path"] = targetFile
+        });
+        AssertSuccess(openedTarget, "Open copied worksheet destination");
+        var copiedSession = GetJsonProperty(openedTarget, "session_id");
+        Assert.NotNull(copiedSession);
+        var copiedValues = await CallToolAsync("range", new Dictionary<string, object?>
+        {
+            ["action"] = "get-values",
+            ["session_id"] = copiedSession,
+            ["sheet_name"] = "CopiedSheet",
+            ["range_address"] = "A1"
+        });
+        AssertSuccess(copiedValues, "Read copied worksheet contents");
+        Assert.Equal("copied-content", GetFirstCellValue(copiedValues));
+        AssertSuccess(await CallToolAsync("file", new Dictionary<string, object?>
+        {
+            ["action"] = "close",
+            ["session_id"] = copiedSession,
+            ["save"] = false
+        }), "Close copied worksheet destination");
         _output.WriteLine("  ✓ copy-to-file succeeded WITHOUT session_id!");
         _output.WriteLine("✓ Atomic operation (copy-to-file) correctly works without session requirement!");
     }
@@ -1983,87 +2153,121 @@ End Sub
         var reopenedSessionId = GetJsonProperty(reopenedResult, "session_id");
         Assert.NotNull(reopenedSessionId);
 
-        var persistedValueResult = await CallToolAsync("range", new Dictionary<string, object?>
+        await VerifyAndCloseAsync(reopenedSessionId, async () =>
         {
-            ["action"] = "get-values",
-            ["session_id"] = reopenedSessionId,
-            ["sheet_name"] = "Sheet1",
-            ["range_address"] = "A1"
+            var persistedValueResult = await CallSuccessfulToolAsync("range", new Dictionary<string, object?>
+            {
+                ["action"] = "get-values",
+                ["session_id"] = reopenedSessionId,
+                ["sheet_name"] = "Sheet1",
+                ["range_address"] = "A1"
+            });
+            Assert.Equal("mcp-vba-run-ok", GetFirstCellValue(persistedValueResult));
         });
-        AssertSuccess(persistedValueResult, "Read persisted VBA side effect");
-        Assert.Equal("mcp-vba-run-ok", GetFirstCellValue(persistedValueResult));
+    }
 
-        await CallToolAsync("file", new Dictionary<string, object?>
+    private async Task VerifyAndCloseAsync(string sessionId, Func<Task> verify)
+    {
+        var failures = new List<Exception>();
+        try
         {
-            ["action"] = "close",
-            ["session_id"] = reopenedSessionId,
-            ["save"] = false
+            await verify();
+        }
+        catch (Exception ex)
+        {
+            failures.Add(ex);
+        }
+        finally
+        {
+            try
+            {
+                await CloseSmokeWorkbookAsync(sessionId);
+            }
+            catch (Exception cleanupFailure)
+            {
+                failures.Add(cleanupFailure);
+            }
+        }
+        if (failures.Count != 0)
+            throw new AggregateException("MCP verification or session close failed.", failures);
+    }
+
+    private async Task<(string Code, string Queries, string Tables, string Connections)> ReadProductModelStateAsync(string sessionId)
+    {
+        var code = await CallSuccessfulToolAsync("powerquery", new()
+        {
+            ["action"] = "view",
+            ["session_id"] = sessionId,
+            ["query_name"] = "ProductData"
         });
+        var queries = await CallSuccessfulToolAsync("powerquery", new()
+        {
+            ["action"] = "list",
+            ["session_id"] = sessionId
+        });
+        var tables = await CallSuccessfulToolAsync("datamodel", new()
+        {
+            ["action"] = "list-tables",
+            ["session_id"] = sessionId
+        });
+        var connections = await CallSuccessfulToolAsync("connection", new()
+        {
+            ["action"] = "list",
+            ["session_id"] = sessionId
+        });
+        var rows = await CallSuccessfulToolAsync("datamodel", new()
+        {
+            ["action"] = "evaluate",
+            ["session_id"] = sessionId,
+            ["dax_query"] = "EVALUATE SELECTCOLUMNS(ProductData, \"Product\", ProductData[Product], \"Quantity\", ProductData[Quantity]) ORDER BY [Product]"
+        });
+        using var queryJson = JsonDocument.Parse(queries);
+        var query = Assert.Single(queryJson.RootElement.GetProperty("queries").EnumerateArray());
+        Assert.Equal("ProductData", query.GetProperty("name").GetString());
+        Assert.True(query.GetProperty("isLoadedToDataModel").GetBoolean());
+        using var tableJson = JsonDocument.Parse(tables);
+        var table = Assert.Single(tableJson.RootElement.GetProperty("tables").EnumerateArray());
+        Assert.Equal("ProductData", table.GetProperty("name").GetString());
+        Assert.Equal(2, table.GetProperty("recordCount").GetInt32());
+        using var connectionJson = JsonDocument.Parse(connections);
+        var identities = connectionJson.RootElement.GetProperty("connections").EnumerateArray()
+            .Select(item => new
+            {
+                Name = item.GetProperty("name").GetString(),
+                Type = item.GetProperty("type").GetString(),
+                IsPowerQuery = item.GetProperty("isPowerQuery").GetBoolean()
+            })
+            .OrderBy(item => item.Name, StringComparer.Ordinal).ToArray();
+        Assert.Equal("Query - ProductData", Assert.Single(identities, item => item.IsPowerQuery).Name);
+        Assert.DoesNotContain(identities, item => item.Name?.Contains("RenamedProductData", StringComparison.Ordinal) == true);
+        using var rowJson = JsonDocument.Parse(rows);
+        var values = rowJson.RootElement.GetProperty("rows");
+        Assert.Equal(2, values.GetArrayLength());
+        Assert.Equal("Gadget", values[0][0].GetString());
+        Assert.Equal(20, values[0][1].GetInt32());
+        Assert.Equal("Widget", values[1][0].GetString());
+        Assert.Equal(10, values[1][1].GetInt32());
+        return (GetJsonProperty(code, "mCode")!, query.GetRawText(), table.GetRawText(),
+            JsonSerializer.Serialize(identities));
     }
 
     /// <summary>
     /// Calls a tool via the MCP protocol and returns the text response.
     /// </summary>
-    private async Task<string> CallToolAsync(string toolName, Dictionary<string, object?> arguments)
+    private async Task<string> CallToolAsync(
+        string toolName,
+        Dictionary<string, object?> arguments,
+        bool expectedError = false)
     {
         var result = await _client!.CallToolAsync(toolName, arguments, cancellationToken: _cts.Token);
-
-        Assert.NotNull(result);
-        Assert.NotNull(result.Content);
-        Assert.NotEmpty(result.Content);
-
-        var textBlock = result.Content.OfType<TextContentBlock>().FirstOrDefault();
-        Assert.NotNull(textBlock);
-
-        return textBlock.Text;
+        return McpResponseAssertions.ReadText(result, expectedError);
     }
 
     /// <summary>
     /// Asserts the JSON response indicates success.
     /// </summary>
-    private static void AssertSuccess(string jsonResult, string operationName)
-    {
-        Assert.NotNull(jsonResult);
-
-        try
-        {
-            var json = JsonDocument.Parse(jsonResult);
-
-            // Check for error property
-            if (json.RootElement.TryGetProperty("error", out var error))
-            {
-                var errorMsg = error.GetString();
-                Assert.Fail($"{operationName} failed with error: {errorMsg}");
-            }
-
-            // Check for Success property (PascalCase)
-            if (json.RootElement.TryGetProperty("Success", out var successPascal))
-            {
-                if (!successPascal.GetBoolean())
-                {
-                    var errorMsg = json.RootElement.TryGetProperty("ErrorMessage", out var errProp)
-                        ? errProp.GetString()
-                        : "Unknown error";
-                    Assert.Fail($"{operationName} returned Success=false: {errorMsg}");
-                }
-            }
-            // Check for success property (camelCase)
-            else if (json.RootElement.TryGetProperty("success", out var successCamel))
-            {
-                if (!successCamel.GetBoolean())
-                {
-                    var errorMsg = json.RootElement.TryGetProperty("errorMessage", out var errProp)
-                        ? errProp.GetString()
-                        : "Unknown error";
-                    Assert.Fail($"{operationName} returned success=false: {errorMsg}");
-                }
-            }
-        }
-        catch (JsonException ex)
-        {
-            Assert.Fail($"{operationName} returned invalid JSON: {ex.Message}\nResponse: {jsonResult}");
-        }
-    }
+    private static void AssertSuccess(string jsonResult, string operationName) =>
+        McpResponseAssertions.AssertSuccess(jsonResult, operationName);
 
     private static string? GetFirstCellValue(string jsonResult)
     {
@@ -2078,7 +2282,7 @@ End Sub
     /// </summary>
     private static string? GetJsonProperty(string jsonResult, string propertyName)
     {
-        var json = JsonDocument.Parse(jsonResult);
+        using var json = JsonDocument.Parse(jsonResult);
         return json.RootElement.TryGetProperty(propertyName, out var prop) ? prop.GetString() : null;
     }
 }

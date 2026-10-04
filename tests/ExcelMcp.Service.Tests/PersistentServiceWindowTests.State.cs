@@ -19,6 +19,10 @@ public sealed partial class PersistentServiceWindowTests
     {
         // Arrange
         var batch = _fixture.BatchToken;
+        var baseline = state == "normal" ? "maximized" : "normal";
+        RequireSuccess(_commands.SetState(batch, baseline));
+        Assert.Equal(baseline, RequireSuccess(_commands.GetInfo(batch)).WindowState);
+        RequireSuccess(_commands.Hide(batch));
 
         // Act
         var result = _commands.SetState(batch, state);
@@ -27,9 +31,13 @@ public sealed partial class PersistentServiceWindowTests
         Assert.True(result.Success, $"SetState '{state}' failed: {result.ErrorMessage}");
         Assert.Equal("set-state", result.Action);
         Assert.Contains(state, result.Message, StringComparison.OrdinalIgnoreCase);
+        var actual = _commands.GetInfo(batch);
+        Assert.True(actual.Success, actual.ErrorMessage);
+        Assert.Equal(state, actual.WindowState);
+        Assert.True(actual.IsVisible);
 
         // Cleanup
-        _commands.Hide(batch);
+        RequireSuccess(_commands.Hide(batch));
     }
 
     [Fact]
@@ -37,9 +45,17 @@ public sealed partial class PersistentServiceWindowTests
     {
         // Arrange
         var batch = _fixture.BatchToken;
+        Assert.True(_commands.Hide(batch).Success);
+        var before = _commands.GetInfo(batch);
+        Assert.True(before.Success, before.ErrorMessage);
 
         // Act & Assert
-        Assert.ThrowsAny<Exception>(() => _commands.SetState(batch, "invalid-state"));
+        var exception = Assert.Throws<ArgumentException>(() => _commands.SetState(batch, "invalid-state"));
+        Assert.Contains("Unknown window state", exception.Message, StringComparison.Ordinal);
+        var after = _commands.GetInfo(batch);
+        Assert.True(after.Success, after.ErrorMessage);
+        Assert.Equal(before.IsVisible, after.IsVisible);
+        Assert.Equal(before.WindowState, after.WindowState);
     }
 
     [Fact]
@@ -47,6 +63,23 @@ public sealed partial class PersistentServiceWindowTests
     {
         // Arrange
         var batch = _fixture.BatchToken;
+        (double Left, double Top, double Width, double Height) expected = default;
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            context.App.Visible = true;
+            context.App.WindowState = Microsoft.Office.Interop.Excel.XlWindowState.xlNormal;
+            context.App.Left = 100;
+            context.App.Top = 50;
+            context.App.Width = 800;
+            context.App.Height = 600;
+            // Excel rounds window coordinates and may adjust them while resizing.
+            expected = (context.App.Left, context.App.Top, context.App.Width, context.App.Height);
+            context.App.Left = 20;
+            context.App.Top = 20;
+            context.App.Width = 400;
+            context.App.Height = 300;
+        });
+        Assert.True(_commands.Hide(batch).Success);
 
         // Act
         var result = _commands.SetPosition(batch, left: 100, top: 50, width: 800, height: 600);
@@ -57,10 +90,15 @@ public sealed partial class PersistentServiceWindowTests
 
         // Verify position via GetInfo
         var info = _commands.GetInfo(batch);
+        Assert.True(info.Success, info.ErrorMessage);
         Assert.True(info.IsVisible, "SetPosition should make Excel visible");
+        Assert.Equal(expected.Left, info.Left, 1d);
+        Assert.Equal(expected.Top, info.Top, 1d);
+        Assert.Equal(expected.Width, info.Width, 1d);
+        Assert.Equal(expected.Height, info.Height, 1d);
 
         // Cleanup
-        _commands.Hide(batch);
+        RequireSuccess(_commands.Hide(batch));
     }
 
     [Fact]
@@ -68,8 +106,11 @@ public sealed partial class PersistentServiceWindowTests
     {
         // Arrange
         var batch = _fixture.BatchToken;
-        _commands.Show(batch);
-        _commands.SetState(batch, "normal");
+        RequireSuccess(_commands.Show(batch));
+        RequireSuccess(_commands.SetState(batch, "normal"));
+        RequireSuccess(_commands.SetPosition(batch, left: 20));
+        var beforeInfo = _commands.GetInfo(batch);
+        Assert.True(beforeInfo.Success, beforeInfo.ErrorMessage);
 
         // Act - only change left position
         var result = _commands.SetPosition(batch, left: 200);
@@ -78,10 +119,14 @@ public sealed partial class PersistentServiceWindowTests
         Assert.True(result.Success);
 
         var afterInfo = _commands.GetInfo(batch);
+        Assert.True(afterInfo.Success, afterInfo.ErrorMessage);
         Assert.Equal(200, afterInfo.Left, 1.0); // Allow small floating-point tolerance
+        Assert.Equal(beforeInfo.Top, afterInfo.Top, 1d);
+        Assert.Equal(beforeInfo.Width, afterInfo.Width, 1d);
+        Assert.Equal(beforeInfo.Height, afterInfo.Height, 1d);
 
         // Cleanup
-        _commands.Hide(batch);
+        RequireSuccess(_commands.Hide(batch));
     }
 
     [Fact]
@@ -89,10 +134,13 @@ public sealed partial class PersistentServiceWindowTests
     {
         // Arrange
         var batch = _fixture.BatchToken;
-        _commands.Hide(batch);
+        RequireSuccess(_commands.SetState(batch, "maximized"));
+        Assert.Equal("maximized", RequireSuccess(_commands.GetInfo(batch)).WindowState);
+        RequireSuccess(_commands.Hide(batch));
 
         // Verify hidden
         var beforeInfo = _commands.GetInfo(batch);
+        Assert.True(beforeInfo.Success, beforeInfo.ErrorMessage);
         Assert.False(beforeInfo.IsVisible);
 
         // Act
@@ -101,9 +149,11 @@ public sealed partial class PersistentServiceWindowTests
         // Assert - should auto-show
         Assert.True(result.Success);
         var afterInfo = _commands.GetInfo(batch);
+        Assert.True(afterInfo.Success, afterInfo.ErrorMessage);
         Assert.True(afterInfo.IsVisible);
+        Assert.Equal("normal", afterInfo.WindowState);
 
         // Cleanup
-        _commands.Hide(batch);
+        RequireSuccess(_commands.Hide(batch));
     }
 }

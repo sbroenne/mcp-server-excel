@@ -11,10 +11,11 @@ public sealed partial class PersistentServiceConnectionTests
     public void Delete_OrphanedPowerQueryConnection_GenericName_Succeeds()
     {
         const string connectionName = "Connection";
+        var retained = SeedRetainedConnection();
         AddMashupConnection(connectionName, $"Missing_{Guid.NewGuid():N}");
         _fixture.RegisterConnectionForCleanup(connectionName);
 
-        var before = _connections.List(_fixture.BatchToken);
+        var before = RequireSuccess(_connections.List(_fixture.BatchToken));
         var orphaned = Assert.Single(
             before.Connections,
             connection => connection.Name == connectionName);
@@ -26,9 +27,11 @@ public sealed partial class PersistentServiceConnectionTests
         _fixture.ForgetConnection(connectionName);
 
         Assert.True(result.Success);
+        RequireSuccess(result);
         Assert.DoesNotContain(
-            _connections.List(_fixture.BatchToken).Connections,
+            RequireSuccess(_connections.List(_fixture.BatchToken)).Connections,
             connection => connection.Name == connectionName);
+        AssertRetainedConnection(retained);
     }
 
     [Fact]
@@ -36,10 +39,11 @@ public sealed partial class PersistentServiceConnectionTests
     {
         var missingQueryName = $"Missing_{Guid.NewGuid():N}"[..24];
         var connectionName = $"Query - {missingQueryName}";
+        var retained = SeedRetainedConnection();
         AddMashupConnection(connectionName, missingQueryName);
         _fixture.RegisterConnectionForCleanup(connectionName);
 
-        var before = _connections.List(_fixture.BatchToken);
+        var before = RequireSuccess(_connections.List(_fixture.BatchToken));
         var orphaned = Assert.Single(
             before.Connections,
             connection => connection.Name == connectionName);
@@ -51,9 +55,11 @@ public sealed partial class PersistentServiceConnectionTests
         _fixture.ForgetConnection(connectionName);
 
         Assert.True(result.Success);
+        RequireSuccess(result);
         Assert.DoesNotContain(
-            _connections.List(_fixture.BatchToken).Connections,
+            RequireSuccess(_connections.List(_fixture.BatchToken)).Connections,
             connection => connection.Name == connectionName);
+        AssertRetainedConnection(retained);
     }
 
     [Fact]
@@ -62,20 +68,24 @@ public sealed partial class PersistentServiceConnectionTests
         var queryName = $"Valid_{Guid.NewGuid():N}"[..24];
         var powerQueries = _fixture.CreateCommands<IPowerQueryCommands>();
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
-        powerQueries.Create(
+        RequireSuccess(powerQueries.Create(
             _fixture.BatchToken,
             queryName,
             "let Source = #table({\"Value\"}, {{1}}) in Source",
             PowerQueryLoadMode.LoadToTable,
-            sheetName);
+            sheetName));
         _fixture.RegisterPowerQueryForCleanup(queryName);
         var connectionName = $"Query - {queryName}";
 
-        var before = _connections.List(_fixture.BatchToken);
+        var before = RequireSuccess(_connections.List(_fixture.BatchToken));
         var validConnection = Assert.Single(
             before.Connections,
             connection => connection.Name == connectionName);
         Assert.True(validConnection.IsPowerQuery);
+        var nativeBefore = ReadNativeConnection(connectionName);
+        var cellsBefore = RequireSuccess(_commands.GetValues(_fixture.BatchToken, sheetName, "A1:A2")).Values;
+        Assert.Equal("Value", Assert.Single(cellsBefore[0]));
+        Assert.Equal(1, Convert.ToInt32(Assert.Single(cellsBefore[1]), System.Globalization.CultureInfo.InvariantCulture));
 
         var exception = Assert.Throws<InvalidOperationException>(() =>
             _connections.Delete(
@@ -86,6 +96,15 @@ public sealed partial class PersistentServiceConnectionTests
             "powerquery",
             exception.Message,
             StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(nativeBefore, ReadNativeConnection(connectionName));
+        Assert.Equal(PowerQueryLoadMode.LoadToTable,
+            RequireSuccess(powerQueries.GetLoadConfig(_fixture.BatchToken, queryName)).LoadMode);
+        var cellsAfter = RequireSuccess(_commands.GetValues(_fixture.BatchToken, sheetName, "A1:A2")).Values;
+        Assert.Equal(cellsBefore.Count, cellsAfter.Count);
+        for (var index = 0; index < cellsBefore.Count; index++)
+        {
+            Assert.Equal(cellsBefore[index], cellsAfter[index]);
+        }
     }
 
     private void AddMashupConnection(
@@ -93,8 +112,8 @@ public sealed partial class PersistentServiceConnectionTests
         string location) =>
         _fixture.ExecuteRawVerification((ctx, ct) =>
         {
-            dynamic? connections = null;
-            dynamic? connection = null;
+            Microsoft.Office.Interop.Excel.Connections? connections = null;
+            Microsoft.Office.Interop.Excel.WorkbookConnection? connection = null;
             try
             {
                 connections = ctx.Book.Connections;

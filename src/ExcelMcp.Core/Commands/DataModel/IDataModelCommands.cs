@@ -20,7 +20,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// - Create with DAX formulas like 'SUM(Sales[Amount])'
 /// - DAX formulas are preserved exactly by default
 /// - Set formatDax=true only with user consent; it sends formulas to daxformatter.com
-/// - Read operations return raw DAX as stored
+/// - Inputs and measure read/list use comma separators and decimal points regardless of Excel locale
 ///
 /// DAX EVALUATE QUERIES:
 /// - Use evaluate to execute DAX EVALUATE queries against the Data Model
@@ -94,7 +94,7 @@ public interface IDataModelCommands
 
     /// <summary>
     /// Gets complete measure details and DAX formula.
-    /// Returns the raw DAX formula as stored in the Data Model.
+    /// Returns DAX with comma argument separators and decimal points.
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="measureName">Name of the measure to get</param>

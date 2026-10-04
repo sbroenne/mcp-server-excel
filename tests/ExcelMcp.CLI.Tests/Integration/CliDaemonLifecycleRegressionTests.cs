@@ -42,13 +42,28 @@ public sealed class CliDaemonLifecycleRegressionTests : IAsyncLifetime, IClassFi
 
     public async Task DisposeAsync()
     {
+        var failures = new List<Exception>();
         foreach (var (sessionId, pipeName) in _activeSessions)
         {
-            await CloseSessionBestEffortAsync(sessionId, save: false, EnvironmentForPipe(pipeName), $"cleanup-close-{sessionId}");
+            await CaptureAsync(() => CloseSessionAsync(sessionId, save: false,
+                EnvironmentForPipe(pipeName), $"cleanup-close-{sessionId}"));
         }
 
-        await StopServiceAsync(environmentVariables: null, "cleanup-default-stop");
-        await StopServiceAsync(UniquePipeEnv, "cleanup-unique-stop");
+        await CaptureAsync(() => StopServiceAsync(environmentVariables: null, "cleanup-default-stop"));
+        await CaptureAsync(() => StopServiceAsync(UniquePipeEnv, "cleanup-unique-stop"));
+        if (failures.Count > 0)
+        {
+            throw new AggregateException("CLI daemon lifecycle cleanup failed.", failures);
+        }
+
+        async Task CaptureAsync(Func<Task> action)
+        {
+            var failure = await Record.ExceptionAsync(action);
+            if (failure is not null)
+            {
+                failures.Add(failure);
+            }
+        }
     }
 
     [Fact(Timeout = 300000)]
@@ -67,9 +82,10 @@ public sealed class CliDaemonLifecycleRegressionTests : IAsyncLifetime, IClassFi
                 await WriteMarkerAsync(sessionId, sheetName, marker, environmentVariables: null, $"default-{iteration}-write");
                 await CloseSessionAsync(sessionId, save: true, environmentVariables: null, $"default-{iteration}-close-save");
             }
-            catch
+            catch (Exception primary)
             {
-                await CloseSessionBestEffortAsync(sessionId, save: false, environmentVariables: null, $"default-{iteration}-best-effort-close-created");
+                await CloseAfterFailureAsync(primary, sessionId, environmentVariables: null,
+                    $"default-{iteration}-close-created-after-failure");
                 throw;
             }
 
@@ -82,9 +98,10 @@ public sealed class CliDaemonLifecycleRegressionTests : IAsyncLifetime, IClassFi
                 Assert.Equal(marker, persisted);
                 await CloseSessionAsync(reopenedSessionId, save: false, environmentVariables: null, $"default-{iteration}-close-reopened");
             }
-            catch
+            catch (Exception primary)
             {
-                await CloseSessionBestEffortAsync(reopenedSessionId, save: false, environmentVariables: null, $"default-{iteration}-best-effort-close-reopened");
+                await CloseAfterFailureAsync(primary, reopenedSessionId, environmentVariables: null,
+                    $"default-{iteration}-close-reopened-after-failure");
                 throw;
             }
 
@@ -102,7 +119,11 @@ public sealed class CliDaemonLifecycleRegressionTests : IAsyncLifetime, IClassFi
             {
                 var workbookPath = CreateNewWorkbookPath(nameof(ConcurrentSessionCreate_OnColdUniquePipe_LeavesSingleResponsiveDaemon), index);
                 var sessionId = await OpenSessionAsync(["session", "create", workbookPath], environmentVariables, $"concurrent-create-{index}");
-                return new CreatedSession(sessionId, workbookPath);
+                var marker = $"concurrent-session-{index}";
+                await AssertSuccessAsync(["sheet", "create", "--session", sessionId, "--sheet-name", "Data"],
+                    environmentVariables, $"concurrent-sheet-{index}", timeoutMs: 30000);
+                await WriteMarkerAsync(sessionId, "Data", marker, environmentVariables, $"concurrent-write-{index}");
+                return new CreatedSession(sessionId, workbookPath, marker);
             })
             .ToArray();
 
@@ -113,8 +134,21 @@ public sealed class CliDaemonLifecycleRegressionTests : IAsyncLifetime, IClassFi
 
         foreach (var session in createdSessions)
         {
+            Assert.Equal(session.Marker, await ReadMarkerAsync(session.SessionId, "Data",
+                environmentVariables, $"concurrent-read-{session.SessionId}"));
+        }
+
+        var survivors = createdSessions.ToList();
+        foreach (var session in createdSessions)
+        {
             await CloseSessionAsync(session.SessionId, save: true, environmentVariables, $"concurrent-close-{session.SessionId}");
             Assert.True(File.Exists(session.WorkbookPath), $"Workbook should exist after close/save: {session.WorkbookPath}");
+            survivors.Remove(session);
+            foreach (var survivor in survivors)
+            {
+                Assert.Equal(survivor.Marker, await ReadMarkerAsync(survivor.SessionId, "Data",
+                    environmentVariables, $"concurrent-survivor-{survivor.SessionId}"));
+            }
         }
 
         await AssertServiceHealthyAsync(environmentVariables, expectedSessionCount: 0, "concurrent-status-after-close");
@@ -153,6 +187,8 @@ public sealed class CliDaemonLifecycleRegressionTests : IAsyncLifetime, IClassFi
             environmentVariables,
             diagnosticLabel,
             timeoutMs: 30000);
+        Assert.Equal(marker, await ReadMarkerAsync(sessionId, sheetName, environmentVariables,
+            $"{diagnosticLabel}-verify"));
     }
 
     private async Task<string> ReadMarkerAsync(
@@ -187,19 +223,17 @@ public sealed class CliDaemonLifecycleRegressionTests : IAsyncLifetime, IClassFi
         _activeSessions.TryRemove(sessionId, out _);
     }
 
-    private async Task CloseSessionBestEffortAsync(
+    private async Task CloseAfterFailureAsync(
+        Exception primary,
         string sessionId,
-        bool save,
         Dictionary<string, string>? environmentVariables,
         string diagnosticLabel)
     {
-        try
+        var cleanup = await Record.ExceptionAsync(() =>
+            CloseSessionAsync(sessionId, save: false, environmentVariables, diagnosticLabel));
+        if (cleanup is not null)
         {
-            await CloseSessionAsync(sessionId, save, environmentVariables, diagnosticLabel);
-        }
-        catch (Exception ex)
-        {
-            _output.WriteLine($"[{diagnosticLabel}] best-effort close failed: {ex.GetType().Name}: {ex.Message}");
+            throw new AggregateException("CLI operation and session cleanup both failed.", primary, cleanup);
         }
     }
 
@@ -253,6 +287,7 @@ public sealed class CliDaemonLifecycleRegressionTests : IAsyncLifetime, IClassFi
         _output.WriteLine($"[{diagnosticLabel}] Exit: {result.ExitCode}");
         _output.WriteLine($"[{diagnosticLabel}] Stdout: {result.Stdout}");
         _output.WriteLine($"[{diagnosticLabel}] Stderr: {result.Stderr}");
+        Assert.Equal(0, result.ExitCode);
     }
 
     private static string PipeNameFor(Dictionary<string, string>? environmentVariables)
@@ -269,5 +304,5 @@ public sealed class CliDaemonLifecycleRegressionTests : IAsyncLifetime, IClassFi
             : new Dictionary<string, string> { ["EXCELMCP_CLI_PIPE"] = pipeName };
     }
 
-    private sealed record CreatedSession(string SessionId, string WorkbookPath);
+    private sealed record CreatedSession(string SessionId, string WorkbookPath, string Marker);
 }

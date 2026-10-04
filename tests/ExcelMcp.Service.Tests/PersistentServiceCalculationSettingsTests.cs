@@ -33,7 +33,7 @@ public sealed class PersistentServiceCalculationSettingsTests(
     {
         var previous = _fixture.Send("calculation.get-settings", new { });
         using var original = JsonDocument.Parse(previous.Result!);
-        try
+        var failure = Record.Exception(() =>
         {
             _fixture.Send("calculation.set-settings", new
             {
@@ -48,16 +48,8 @@ public sealed class PersistentServiceCalculationSettingsTests(
             Assert.Equal(0.0002, result.RootElement.GetProperty("maximumChange").GetDouble());
             Assert.Equal(original.RootElement.GetProperty("modeValue").GetInt32(),
                 result.RootElement.GetProperty("modeValue").GetInt32());
-        }
-        finally
-        {
-            _fixture.Send("calculation.set-settings", new
-            {
-                iterationEnabled = original.RootElement.GetProperty("iterationEnabled").GetBoolean(),
-                maximumIterations = original.RootElement.GetProperty("maximumIterations").GetInt32(),
-                maximumChange = original.RootElement.GetProperty("maximumChange").GetDouble()
-            });
-        }
+        });
+        RestoreSettingsAndThrowFailure(original.RootElement, failure);
     }
 
     [Theory]
@@ -67,25 +59,32 @@ public sealed class PersistentServiceCalculationSettingsTests(
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
         var calculation = _fixture.CreateCommands<ICalculationModeCommands>();
-        var previous = calculation.GetSettings(_fixture.BatchToken);
-        Assert.True(previous.Success);
-        try
+        var previous = _fixture.Send("calculation.get-settings", new { });
+        using var original = JsonDocument.Parse(previous.Result!);
+        var failure = Record.Exception(() =>
         {
             Assert.True(calculation.SetSettings(_fixture.BatchToken, CalculationMode.Manual).Success);
-            Assert.True(_commands.SetFormulas(_fixture.BatchToken, sheetName, "A1:B1",
-                [["=7", "=A1*3"]]).Success);
+            RequireSuccess(_commands.SetValues(_fixture.BatchToken, sheetName, "A1", [[7d]]));
+            RequireSuccess(_commands.SetFormulas(_fixture.BatchToken, sheetName, "B1", [["=A1*3"]]));
+            _fixture.Send("calculation.calculate", new { scope = "application" });
+            AssertValue(21d);
+            RequireSuccess(_commands.SetValues(_fixture.BatchToken, sheetName, "A1", [[11d]],
+                overwritePolicy: OverwritePolicy.Allow));
+            AssertValue(21d);
             _fixture.Send("calculation.calculate", new { scope = "application", kind });
-            var values = _commands.GetValues(_fixture.BatchToken, sheetName, "B1");
-            Assert.True(values.Success);
-            Assert.Equal(21d, Convert.ToDouble(values.Values[0][0],
-                System.Globalization.CultureInfo.InvariantCulture));
+            AssertValue(33d);
             var retained = calculation.GetSettings(_fixture.BatchToken);
             Assert.True(retained.Success);
             Assert.Equal((int)CalculationMode.Manual, retained.ModeValue);
-        }
-        finally
+        });
+        RestoreSettingsAndThrowFailure(original.RootElement, failure);
+
+        void AssertValue(double expected)
         {
-            Assert.True(calculation.SetSettings(_fixture.BatchToken, (CalculationMode)previous.ModeValue).Success);
+            var values = _commands.GetValues(_fixture.BatchToken, sheetName, "B1");
+            RequireSuccess(values);
+            Assert.Equal(expected, Convert.ToDouble(values.Values[0][0],
+                System.Globalization.CultureInfo.InvariantCulture));
         }
     }
 
@@ -101,16 +100,25 @@ public sealed class PersistentServiceCalculationSettingsTests(
         var rejected = await _fixture.SendForFailureAsync("calculation.set-settings", new
         {
             mode = "manual",
+            iterationEnabled = !original.RootElement.GetProperty("iterationEnabled").GetBoolean(),
             maximumIterations = iterations,
             maximumChange = change
         });
         Assert.False(rejected.Success);
+        Assert.Equal("InvalidInput", rejected.ErrorCategory);
+        Assert.Equal(nameof(ArgumentOutOfRangeException), rejected.ExceptionType);
+        Assert.Contains(iterations is < 1 or > 32767 ? "maximumIterations" : "maximumChange",
+            rejected.ErrorMessage, StringComparison.Ordinal);
         var retained = _fixture.Send("calculation.get-settings", new { });
         using var result = JsonDocument.Parse(retained.Result!);
         Assert.Equal(original.RootElement.GetProperty("modeValue").GetInt32(),
             result.RootElement.GetProperty("modeValue").GetInt32());
         Assert.Equal(original.RootElement.GetProperty("maximumIterations").GetInt32(),
             result.RootElement.GetProperty("maximumIterations").GetInt32());
+        Assert.Equal(original.RootElement.GetProperty("iterationEnabled").GetBoolean(),
+            result.RootElement.GetProperty("iterationEnabled").GetBoolean());
+        Assert.Equal(original.RootElement.GetProperty("maximumChange").GetDouble(),
+            result.RootElement.GetProperty("maximumChange").GetDouble());
     }
 
     [Theory]
@@ -129,7 +137,7 @@ public sealed class PersistentServiceCalculationSettingsTests(
         var targetSheet = _fixture.CreateTestSheet(_fixture.BatchToken);
         var previous = _fixture.Send("calculation.get-settings", new { });
         using var original = JsonDocument.Parse(previous.Result!);
-        try
+        var failure = await Record.ExceptionAsync(async () =>
         {
             _fixture.Send("calculation.set-settings", new { mode = "manual" });
             Assert.True(_commands.SetValues(_fixture.BatchToken, targetSheet, "A1", [[10d]]).Success);
@@ -162,14 +170,8 @@ public sealed class PersistentServiceCalculationSettingsTests(
             Assert.True(afterValues.Success);
             Assert.Equal(15d, Convert.ToDouble(afterValues.Values[0][0],
                 System.Globalization.CultureInfo.InvariantCulture));
-        }
-        finally
-        {
-            _fixture.Send("calculation.set-settings", new
-            {
-                mode = original.RootElement.GetProperty("mode").GetString()
-            });
-        }
+        });
+        RestoreSettingsAndThrowFailure(original.RootElement, failure);
     }
 
     [Fact]
@@ -187,7 +189,7 @@ public sealed class PersistentServiceCalculationSettingsTests(
         Assert.True(unchanged.Success);
         Assert.Equal(1.2345, Convert.ToDouble(unchanged.Values[0][0],
             System.Globalization.CultureInfo.InvariantCulture));
-        try
+        var failure = Record.Exception(() =>
         {
             var enabled = _fixture.Send("calculation.set-precision", new
             {
@@ -201,11 +203,10 @@ public sealed class PersistentServiceCalculationSettingsTests(
             Assert.True(rounded.Success);
             Assert.Equal(1.23, Convert.ToDouble(rounded.Values[0][0],
                 System.Globalization.CultureInfo.InvariantCulture));
-        }
-        finally
-        {
-            _fixture.Send("calculation.set-precision", new { precisionAsDisplayed = false });
-        }
+        });
+        var cleanup = Record.Exception(() =>
+            _fixture.Send("calculation.set-precision", new { precisionAsDisplayed = false }));
+        ThrowCombinedFailure(failure, cleanup);
     }
 
     [Fact]
@@ -214,7 +215,7 @@ public sealed class PersistentServiceCalculationSettingsTests(
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
         var previous = _fixture.Send("calculation.get-settings", new { });
         using var original = JsonDocument.Parse(previous.Result!);
-        try
+        var failure = Record.Exception(() =>
         {
             _fixture.Send("calculation.set-settings", new
             {
@@ -230,23 +231,32 @@ public sealed class PersistentServiceCalculationSettingsTests(
             Assert.True(values.Success);
             Assert.Equal(5d, Convert.ToDouble(values.Values[0][0],
                 System.Globalization.CultureInfo.InvariantCulture));
-        }
-        finally
-        {
-            try
+        });
+        var cleanup = Record.Exception(() =>
+            _fixture.Send("range.clear-contents", new { sheetName, rangeAddress = "A1" }));
+        if (cleanup is not null)
+            failure = PersistentServiceCleanupFailures.Combine(failure, cleanup);
+        RestoreSettingsAndThrowFailure(original.RootElement, failure);
+    }
+
+    private void RestoreSettingsAndThrowFailure(JsonElement original, Exception? failure)
+    {
+        var cleanup = Record.Exception(() =>
+            _fixture.Send("calculation.set-settings", new
             {
-                _fixture.Send("range.clear-contents", new { sheetName, rangeAddress = "A1" });
-            }
-            finally
-            {
-                _fixture.Send("calculation.set-settings", new
-                {
-                    mode = original.RootElement.GetProperty("mode").GetString(),
-                    iterationEnabled = original.RootElement.GetProperty("iterationEnabled").GetBoolean(),
-                    maximumIterations = original.RootElement.GetProperty("maximumIterations").GetInt32(),
-                    maximumChange = original.RootElement.GetProperty("maximumChange").GetDouble()
-                });
-            }
-        }
+                mode = original.GetProperty("mode").GetString(),
+                iterationEnabled = original.GetProperty("iterationEnabled").GetBoolean(),
+                maximumIterations = original.GetProperty("maximumIterations").GetInt32(),
+                maximumChange = original.GetProperty("maximumChange").GetDouble()
+            }));
+        ThrowCombinedFailure(failure, cleanup);
+    }
+
+    private static void ThrowCombinedFailure(Exception? failure, Exception? cleanup)
+    {
+        if (cleanup is not null)
+            failure = PersistentServiceCleanupFailures.Combine(failure, cleanup);
+        if (failure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 }

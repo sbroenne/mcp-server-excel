@@ -8,6 +8,32 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 /// </summary>
 public sealed partial class PersistentServicePivotTableTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void CreateFromRange_MissingSheet_PreservesExistingPivot(bool missingSource)
+    {
+        RequireSuccess(_pivotCommands.CreateFromRange(
+            _fixture.BatchToken, _salesSheetName, "A1:D6", _salesSheetName, "F1", "TestPivot"));
+        RequireSuccess(_pivotCommands.AddRowField(_fixture.BatchToken, "TestPivot", "Region"));
+        RequireSuccess(_pivotCommands.AddValueField(_fixture.BatchToken, "TestPivot", "Sales"));
+        AssertPivotSales(325, 325);
+        var before = SnapshotPivot();
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            _pivotCommands.CreateFromRange(
+                _fixture.BatchToken, missingSource ? "MissingSheet" : _salesSheetName, "A1:D6",
+                missingSource ? _salesSheetName : "MissingSheet", "L1", "RejectedPivot"));
+
+        Assert.Contains("pivottable.create-from-range failed [ComInterop/COMException]",
+            error.Message, StringComparison.Ordinal);
+        Assert.Equal(before, SnapshotPivot());
+        Assert.Equal("TestPivot", Assert.Single(
+            RequireSuccess(_pivotCommands.List(_fixture.BatchToken)).PivotTables).Name);
+        AssertPivotSales(325, 325);
+        AssertOriginalSales();
+    }
+
     /// <inheritdoc/>
     [Fact]
     public void CreateFromRange_PopulatedRangeWithHeaders_CreatesCorrectPivotStructure()
@@ -23,10 +49,12 @@ public sealed partial class PersistentServicePivotTableTests
             "TestPivot");
 
         // Assert
-        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        RequireSuccess(result);
         Assert.Equal("TestPivot", result.PivotTableName);
         Assert.Equal(_salesSheetName, result.SheetName);
         Assert.Equal(4, result.AvailableFields.Count);
+        Assert.Equal($"'{_salesSheetName}'!A1:D6", result.SourceData);
+        AssertCreatedPivot(result, _salesSheetName, "F1");
     }
     /// <inheritdoc/>
 
@@ -39,7 +67,7 @@ public sealed partial class PersistentServicePivotTableTests
         var batch = _fixture.BatchToken;
 
         // Create table first
-        _tableCommands.Create(batch, _salesSheetName, "SalesTable", "A1:D6", true, TableStylePresets.Medium2);  // Create throws on error
+        RequireSuccess(_tableCommands.Create(batch, _salesSheetName, "SalesTable", "A1:D6", true, TableStylePresets.Medium2));
 
         // Create pivot from table
         var result = _pivotCommands.CreateFromTable(
@@ -49,10 +77,12 @@ public sealed partial class PersistentServicePivotTableTests
             "TablePivot");
 
         // Assert
-        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        RequireSuccess(result);
         Assert.Equal("TablePivot", result.PivotTableName);
         Assert.Equal(_salesSheetName, result.SheetName);
         Assert.Equal(4, result.AvailableFields.Count);
+        Assert.Equal($"{_salesSheetName}!SalesTable", result.SourceData);
+        AssertCreatedPivot(result, _salesSheetName, "F1");
     }
     /// <inheritdoc/>
 
@@ -63,6 +93,9 @@ public sealed partial class PersistentServicePivotTableTests
 
         // Act & Assert - expects exception when Data Model is empty
         var batch = _fixture.BatchToken;
+        RequireSuccess(_pivotCommands.CreateFromRange(
+            batch, _salesSheetName, "A1:D6", _salesSheetName, "F1", "TestPivot"));
+        var before = SnapshotPivot();
         var ex = Assert.Throws<InvalidOperationException>(() => _pivotCommands.CreateFromDataModel(
             batch,
             "AnyTable",
@@ -70,6 +103,9 @@ public sealed partial class PersistentServicePivotTableTests
             "F1",
             "FailedPivot"));
         Assert.Contains("Data Model does not contain any tables", ex.Message);
+        Assert.Equal(before, SnapshotPivot());
+        Assert.Equal("TestPivot", Assert.Single(RequireSuccess(_pivotCommands.List(batch)).PivotTables).Name);
+        AssertOriginalSales();
     }
     /// <inheritdoc/>
 
@@ -84,14 +120,17 @@ public sealed partial class PersistentServicePivotTableTests
         // Create pivot
         var createResult = _pivotCommands.CreateFromRange(
             batch, _salesSheetName, "A1:D6", _salesSheetName, "F1", "TestPivot");
-        Assert.True(createResult.Success);
+        RequireSuccess(createResult);
 
         // Add row field
         var result = _pivotCommands.AddRowField(batch, "TestPivot", "Region");
 
         // Assert
-        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        RequireSuccess(result);
         Assert.Equal("Region", result.FieldName);
+        RequireSuccess(result);
+        AssertNativeField("TestPivot", "Region", PivotFieldArea.Row);
+        AssertOriginalSales();
     }
     /// <inheritdoc/>
 
@@ -106,17 +145,18 @@ public sealed partial class PersistentServicePivotTableTests
         // Create pivot
         var createResult = _pivotCommands.CreateFromRange(
             batch, _salesSheetName, "A1:D6", _salesSheetName, "F1", "TestPivot");
-        Assert.True(createResult.Success);
+        RequireSuccess(createResult);
 
         // List fields
         var result = _pivotCommands.ListFields(batch, "TestPivot");
 
         // Assert
-        Assert.True(result.Success, $"Expected success but got error: {result.ErrorMessage}");
+        RequireSuccess(result);
         Assert.NotNull(result.Fields);
-        Assert.True(result.Fields.Count >= 4); // Region, Product, Sales, Date
+        RequireSuccess(result);
+        Assert.Equal(["Date", "Product", "Region", "Sales"],
+            result.Fields.Select(field => field.Name).Order(StringComparer.Ordinal));
+        Assert.All(result.Fields, field => Assert.Equal(PivotFieldArea.Hidden, field.Area));
+        AssertOriginalSales();
     }
 }
-
-
-

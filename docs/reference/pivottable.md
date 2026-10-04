@@ -64,6 +64,17 @@ Refresh sources before their summaries. Worksheet-source edits may need a model
 refresh, followed by PivotTable refresh; Power Query refresh updates its model
 load but does not replace the dependent PivotTable refresh.
 
+- `sort-field` orders the selected field's labels in ascending or descending
+  order, including Data Model fields identified by their exact CubeField name.
+- `set-field-name` updates the displayed value-field caption when the selected
+  source field is in Values; it does not rename the source worksheet column.
+  Use MCP `field_name` / `custom_name` or CLI `--field-name` / `--custom-name`.
+- `set-field-format` accepts invariant Excel number formats. A bare dollar sign
+  remains a literal dollar sign, not the machine's regional currency. Escaped or
+  quoted literals and bracketed currency/locale codes remain intact. Excel may
+  return a normalized format with an escaped dollar sign. Use MCP `number_format`
+  or CLI `--number-format`.
+
 Choose Compact for a nested view or Tabular/Outline when separate field columns
 and repeated labels suit the output. Use the PivotTable's own styles and field
 number formats, not plain-cell styling that refresh can overwrite.

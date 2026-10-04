@@ -15,25 +15,31 @@ public sealed partial class PersistentServiceConnectionTests
         var sheetName = _fixture.CreateTestSheet(batch);
         var sourceFile = CreateTextSource();
         var queryTables = _fixture.CreateCommands<IQueryTableCommands>();
-        _connections.Create(
+        RequireSuccess(_connections.Create(
             batch,
             connectionName,
-            "ODBC;DSN=DeleteIdentityTest");
+            "ODBC;DSN=DeleteIdentityTest"));
         _fixture.RegisterConnectionForCleanup(connectionName);
-        queryTables.CreateText(
+        RequireSuccess(queryTables.CreateText(
             batch,
             queryTableName,
             sourceFile,
             sheetName,
-            "A1");
+            "A1"));
+        AssertPreservedTextData(sheetName);
+        var textBefore = RequireSuccess(queryTables.View(batch, sheetName, queryTableName));
 
         var result = _connections.Delete(batch, connectionName);
         _fixture.ForgetConnection(connectionName);
 
         Assert.True(result.Success);
+        RequireSuccess(result);
         Assert.Contains(
-            queryTables.List(batch).QueryTables,
+            RequireSuccess(queryTables.List(batch)).QueryTables,
             queryTable => queryTable.Name == queryTableName);
+        AssertPreservedTextData(sheetName);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(textBefore),
+            System.Text.Json.JsonSerializer.Serialize(RequireSuccess(queryTables.View(batch, sheetName, queryTableName))));
     }
 
     [Fact]
@@ -51,20 +57,22 @@ public sealed partial class PersistentServiceConnectionTests
         var queryTables = _fixture.CreateCommands<IQueryTableCommands>();
         Sbroenne.ExcelMcp.Core.Tests.Helpers.AceOleDbTestHelper
             .CreateExcelDataSource(aceSourceFile);
-        _connections.Create(
+        RequireSuccess(_connections.Create(
             batch,
             connectionName,
             Sbroenne.ExcelMcp.Core.Tests.Helpers.AceOleDbTestHelper
                 .GetExcelConnectionString(aceSourceFile),
             commandText: Sbroenne.ExcelMcp.Core.Tests.Helpers.AceOleDbTestHelper
-                .GetDefaultCommandText());
+                .GetDefaultCommandText()));
         _fixture.RegisterConnectionForCleanup(connectionName);
-        queryTables.CreateText(
+        RequireSuccess(queryTables.CreateText(
             batch,
             queryTableName,
             textSourceFile,
             textSheetName,
-            "A1");
+            "A1"));
+        AssertPreservedTextData(textSheetName);
+        var textBefore = RequireSuccess(queryTables.View(batch, textSheetName, queryTableName));
 
         try
         {
@@ -75,24 +83,32 @@ public sealed partial class PersistentServiceConnectionTests
             _fixture.RegisterSheetForCleanup(loadSheetName);
 
             Assert.True(result.Success);
-            var loaded = queryTables.List(batch);
+            RequireSuccess(result);
+            var loaded = RequireSuccess(queryTables.List(batch));
             Assert.Contains(
                 loaded.QueryTables,
                 queryTable => queryTable.Name == queryTableName);
             Assert.Contains(
                 loaded.QueryTables,
                 queryTable => queryTable.Name == connectionName);
+            AssertAceData(loadSheetName, 19.99);
+            AssertPreservedTextData(textSheetName);
+            Assert.Equal(System.Text.Json.JsonSerializer.Serialize(textBefore),
+                System.Text.Json.JsonSerializer.Serialize(RequireSuccess(queryTables.View(batch, textSheetName, queryTableName))));
 
-            _connections.Delete(batch, connectionName);
+            RequireSuccess(_connections.Delete(batch, connectionName));
             _fixture.ForgetConnection(connectionName);
 
-            var afterDelete = queryTables.List(batch);
+            var afterDelete = RequireSuccess(queryTables.List(batch));
             Assert.Contains(
                 afterDelete.QueryTables,
                 queryTable => queryTable.Name == queryTableName);
             Assert.DoesNotContain(
                 afterDelete.QueryTables,
                 queryTable => queryTable.Name == connectionName);
+            AssertPreservedTextData(textSheetName);
+            Assert.Equal(System.Text.Json.JsonSerializer.Serialize(textBefore),
+                System.Text.Json.JsonSerializer.Serialize(RequireSuccess(queryTables.View(batch, textSheetName, queryTableName))));
         }
         finally
         {
@@ -109,29 +125,38 @@ public sealed partial class PersistentServiceConnectionTests
         var powerQueries = _fixture.CreateCommands<IPowerQueryCommands>();
         const string mCode =
             "let Source = #table({\"Value\"}, {{1}}) in Source";
-        powerQueries.Create(
+        RequireSuccess(powerQueries.Create(
             batch,
             name,
             mCode,
             PowerQueryLoadMode.LoadToTable,
-            sheetName);
+            sheetName));
         _fixture.RegisterPowerQueryForCleanup(name);
-        _connections.Create(
+        RequireSuccess(_connections.Create(
             batch,
             name,
-            "ODBC;DSN=ExactConnectionTest");
+            "ODBC;DSN=ExactConnectionTest"));
         _fixture.RegisterConnectionForCleanup(name);
+        var queryBefore = RequireSuccess(powerQueries.View(batch, name));
+        var sourceBefore = ReadNativeConnection($"Query - {name}");
 
         var result = _connections.Delete(batch, name);
         _fixture.ForgetConnection(name);
 
         Assert.True(result.Success);
+        RequireSuccess(result);
         Assert.Contains(
-            _connections.List(batch).Connections,
+            RequireSuccess(_connections.List(batch)).Connections,
             connection => connection.Name == $"Query - {name}");
         Assert.Equal(
             PowerQueryLoadMode.LoadToTable,
-            powerQueries.GetLoadConfig(batch, name).LoadMode);
+            RequireSuccess(powerQueries.GetLoadConfig(batch, name)).LoadMode);
+        Assert.Equal(sourceBefore, ReadNativeConnection($"Query - {name}"));
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(queryBefore),
+            System.Text.Json.JsonSerializer.Serialize(RequireSuccess(powerQueries.View(batch, name))));
+        var values = RequireSuccess(_commands.GetValues(batch, sheetName, "A1:A2")).Values;
+        Assert.Equal("Value", Assert.Single(values[0]));
+        Assert.Equal(1, Convert.ToInt32(Assert.Single(values[1]), System.Globalization.CultureInfo.InvariantCulture));
     }
 
     private string CreateTextSource() =>

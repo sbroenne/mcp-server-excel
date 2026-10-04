@@ -15,22 +15,22 @@ public sealed partial class PersistentServiceSheetTests
         _fixture.CreateNamedTestSheet(batch, sheetName);
 
         var initialComment = _sheetCommands.GetComment(batch, sheetName, "A1");
-        Assert.True(initialComment.Success);
+        RequireSuccess(initialComment);
         Assert.False(initialComment.HasComment);
 
         var setResult = _sheetCommands.SetComment(batch, sheetName, "A1", "Quarterly update");
-        Assert.True(setResult.Success, $"Expected comment set to succeed but got error: {setResult.ErrorMessage}");
+        RequireSuccess(setResult);
 
         var readResult = _sheetCommands.GetComment(batch, sheetName, "A1");
-        Assert.True(readResult.Success);
+        RequireSuccess(readResult);
         Assert.True(readResult.HasComment);
         Assert.Equal("Quarterly update", readResult.Text);
 
         var clearResult = _sheetCommands.ClearComment(batch, sheetName, "A1");
-        Assert.True(clearResult.Success, $"Expected comment clear to succeed but got error: {clearResult.ErrorMessage}");
+        RequireSuccess(clearResult);
 
         var clearedResult = _sheetCommands.GetComment(batch, sheetName, "A1");
-        Assert.True(clearedResult.Success);
+        RequireSuccess(clearedResult);
         Assert.False(clearedResult.HasComment);
         Assert.Null(clearedResult.Text);
     }

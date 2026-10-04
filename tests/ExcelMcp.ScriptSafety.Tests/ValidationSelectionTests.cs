@@ -12,11 +12,14 @@ public sealed class ValidationSelectionTests
     [InlineData(".github/dependabot.yml", "", "", false)]
     [InlineData("README.md", "Tooling", "", true)]
     [InlineData("tests/README.md", "", "", false)]
-    [InlineData("scripts/Install-ExcelAgentToolchain.ps1", "Tooling", "", false)]
-    [InlineData("scripts/Invoke-CopilotSetupNpm.ps1", "Tooling", "", false)]
-    [InlineData(".github/workflows/copilot-setup-steps.yml", "Tooling", "", false)]
-    [InlineData("scripts/tests/excel-runner-maintenance.tests.ps1", "Tooling", "", false)]
-    [InlineData("infrastructure/azure/update-excel-runner.ps1", "Tooling", "", false)]
+    [InlineData("scripts/Install-ExcelAgentToolchain.ps1", "", "", false)]
+    [InlineData("scripts/Invoke-CopilotSetupNpm.ps1", "", "", false)]
+    [InlineData(".github/workflows/copilot-setup-steps.yml", "", "", false)]
+    [InlineData("scripts/Register-ExcelAgentRunner.ps1", "", "", false)]
+    [InlineData("infrastructure/azure/update-excel-runner.ps1", "", "", false)]
+    [InlineData(".github/workflows/excel-runner-control.yml", "", "", false)]
+    [InlineData("scripts/tests/excel-runner-build-cleanup.tests.ps1", "Tooling", "", false)]
+    [InlineData("scripts/check-com-leaks.ps1", "Tooling", "", false)]
     [InlineData("doc-counts.json", "Tooling", "", false)]
     [InlineData("scripts/check-doc-counts.ps1", "Tooling", "", false)]
     [InlineData("vscode-extension/package-lock.json", "", "", true)]
@@ -66,15 +69,16 @@ public sealed class ValidationSelectionTests
     [Theory]
     [InlineData("scripts\\Invoke-CopilotSetupNpm.ps1")]
     [InlineData(".github\\workflows\\copilot-setup-steps.yml")]
-    public async Task CopilotNpmSetup_SelectsSafetyWithoutExcel(string path)
+    public async Task CopilotNpmSetup_DoesNotSelectAutomatedValidation(string path)
     {
         var result = await RunAsync($$"""
             $plan = Get-ValidationPlan -Paths '{{path}}'
-            if (-not $plan.Build -or -not $plan.HookTests) { throw 'Script safety validation missing.' }
+            if ($plan.Build -or $plan.HookTests -or $plan.CiTestGroups.Count) {
+                throw 'Setup-only changes must not select automated validation.'
+            }
             if ($plan.Excel -or $plan.ExcelGroups.Count -or $plan.FastProjects.Count -or $plan.ProcessProjects.Count) {
                 throw 'Setup-only npm selection must not require Excel or runtime validation.'
             }
-            if (($plan.CiTestGroups -join ',') -ne 'Tooling') { throw 'Wrong setup validation group.' }
             """);
         Assert.True(result.ExitCode == 0, result.Output);
     }

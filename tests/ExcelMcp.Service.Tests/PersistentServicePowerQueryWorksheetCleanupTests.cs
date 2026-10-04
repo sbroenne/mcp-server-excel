@@ -5,18 +5,6 @@ using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
-/// <summary>
-/// Tests for Power Query worksheet loading cleanup operations.
-///
-/// These tests validate that:
-/// - LoadToTable creates properly named connections (Query - {name})
-/// - Delete of loaded query removes query, connection, AND table (clean slate)
-/// - No orphaned connections remain after operations
-/// </summary>
-/// <remarks>
-/// Created to address bug: LoadQueryToWorksheet was creating orphaned connections
-/// with generic names like "Connection", "Connection1" instead of "Query - {name}"
-/// </remarks>
 [Trait("Layer", "Service")]
 [Trait("Category", "Integration")]
 [Trait("Feature", "PowerQuery")]
@@ -28,865 +16,236 @@ public class PersistentServicePowerQueryWorksheetCleanupTests(
     PersistentServiceWorkbookTestBase(fixture),
     IClassFixture<PersistentServiceWorkbookFixture>
 {
-    private readonly IPowerQueryCommands _powerQueryCommands =
+    private readonly IPowerQueryCommands _queries =
         fixture.CreateCommands<IPowerQueryCommands>();
-    private readonly IDataModelCommands _dataModelCommands =
-        fixture.CreateCommands<IDataModelCommands>();
-    private readonly IConnectionCommands _connectionCommands =
+    private readonly IConnectionCommands _connections =
         fixture.CreateCommands<IConnectionCommands>();
-    private readonly ITableCommands _tableCommands =
+    private readonly ITableCommands _tables =
         fixture.CreateCommands<ITableCommands>();
 
-    #region Connection Naming Tests - Verify Add2 Fix
-
-    /// <summary>
-    /// Verifies that LoadToTable creates a properly named connection following
-    /// the "Query - {queryName}" pattern, not a generic name like "Connection".
-    ///
-    /// This is a regression test for the bug where ListObjects.Add() was creating
-    /// connections with generic names instead of proper Power Query naming.
-    /// </summary>
     [Fact]
-    public void Create_LoadToTable_CreatesProperlyNamedConnection()
-    {
-        // Arrange
-        var queryName = "PQ_ProperName_" + Guid.NewGuid().ToString("N")[..8];
-        var mCode = @"let Source = #table({""Value""}, {{1}, {2}, {3}}) in Source";
+    public void Create_LoadToTable_CreatesProperlyNamedConnection() =>
+        AssertLoaded(CreateQuery(PowerQueryLoadMode.LoadToTable, [11, 23, 37]));
 
-        var batch = _fixture.BatchToken;
-
-        // Act - Create query with LoadToTable
-        CreateQuery(queryName, mCode, PowerQueryLoadMode.LoadToTable);
-
-        // Assert - Connection should follow "Query - {name}" pattern
-        var connections = _connectionCommands.List(batch);
-        Assert.True(connections.Success, $"List connections failed: {connections.ErrorMessage}");
-
-        // Should have exactly one connection with proper naming
-        var expectedConnectionName = $"Query - {queryName}";
-        Assert.Contains(connections.Connections, c => c.Name == expectedConnectionName);
-
-        // Should NOT have generic-named connections
-        Assert.DoesNotContain(connections.Connections, c => c.Name == "Connection");
-        Assert.DoesNotContain(connections.Connections, c => c.Name == "Connection1");
-    }
-
-    /// <summary>
-    /// Verifies that multiple LoadToTable operations each create properly named
-    /// connections without any generic "Connection", "Connection1" etc. orphans.
-    /// </summary>
     [Fact]
     public void Create_MultipleLoadToTable_NoOrphanedConnections()
     {
-        // Arrange
-        var suffix = Guid.NewGuid().ToString("N")[..6];
-        var queryName1 = "PQ_Multi1_" + suffix;
-        var queryName2 = "PQ_Multi2_" + suffix;
-        var queryName3 = "PQ_Multi3_" + suffix;
-        var mCode = @"let Source = #table({""Val""}, {{1}}) in Source";
-
-        var batch = _fixture.BatchToken;
-
-        // Act - Create multiple queries with LoadToTable
-        CreateQuery(queryName1, mCode, PowerQueryLoadMode.LoadToTable, "Sheet1");
-        CreateQuery(queryName2, mCode, PowerQueryLoadMode.LoadToTable, "Sheet2");
-        CreateQuery(queryName3, mCode, PowerQueryLoadMode.LoadToTable, "Sheet3");
-
-        // Assert
-        var connections = _connectionCommands.List(batch);
-        Assert.True(connections.Success);
-
-        // Should have exactly 3 properly named connections
-        Assert.Contains(connections.Connections, c => c.Name == $"Query - {queryName1}");
-        Assert.Contains(connections.Connections, c => c.Name == $"Query - {queryName2}");
-        Assert.Contains(connections.Connections, c => c.Name == $"Query - {queryName3}");
-
-        // Count connections - should be exactly 3 (no orphans)
-        var pqConnections = connections.Connections.Where(c => c.IsPowerQuery).ToList();
-        Assert.Equal(3, pqConnections.Count);
-
-        // Should NOT have any generic-named connections
-        Assert.DoesNotContain(connections.Connections, c => c.Name == "Connection");
-        Assert.DoesNotContain(connections.Connections, c => c.Name.StartsWith("Connection", StringComparison.Ordinal) && char.IsDigit(c.Name.Last()));
+        var first = CreateQuery(PowerQueryLoadMode.LoadToTable, [11, 12]);
+        var second = CreateQuery(PowerQueryLoadMode.LoadToTable, [23, 24]);
+        var third = CreateQuery(PowerQueryLoadMode.LoadToTable, [37, 38]);
+        AssertLoaded(first);
+        AssertLoaded(second);
+        AssertLoaded(third);
+        var connections = RequireSuccess(_connections.List(_fixture.BatchToken)).Connections;
+        Assert.Equal(3, connections.Count(connection => connection.IsPowerQuery));
+        Assert.DoesNotContain(connections, connection => connection.Name == "Connection" ||
+            connection.Name == "Connection1");
     }
 
-    #endregion
-
-    #region Worksheet Table Naming Tests
-
-    /// <summary>
-    /// REGRESSION TEST: LoadToTable must name the worksheet ListObject/table after the query.
-    ///
-    /// Without the fix, Excel auto-assigns a generic name like "Table1" or
-    /// "Table_ExternalData_1", which breaks M-code lookups such as:
-    ///     Excel.CurrentWorkbook(){[Name = queryName]}[Content]
-    ///
-    /// With the fix, <c>listObject.Name = queryName</c> is called after the QueryTable
-    /// refresh, ensuring the table name always matches the query name.
-    ///
-    /// Discovered while migrating CP Toolkit workbooks where
-    /// <c>Excel.CurrentWorkbook(){[Name="Milestones"]}[Content]</c> failed because
-    /// the table was still named "Table_ExternalData_1".
-    /// </summary>
     [Fact]
-    public void Create_LoadToTable_WorksheetTableNamedAfterQuery()
-    {
-        // Arrange
-        var queryName = "PQ_TableName_" + Guid.NewGuid().ToString("N")[..8];
-        var mCode = @"let Source = #table({""Value""}, {{1}, {2}, {3}}) in Source";
+    public void Delete_OneOfMultipleLoadedQueries_OnlyRemovesItsOwnResources() =>
+        AssertRemoval(PowerQueryLoadMode.LoadToTable, delete: true);
 
-        var batch = _fixture.BatchToken;
-
-        // Act - Create query with LoadToTable
-        CreateQuery(queryName, mCode, PowerQueryLoadMode.LoadToTable);
-
-        // Assert - The worksheet ListObject must be named after the query
-        var tables = _tableCommands.List(batch);
-        Assert.True(tables.Success, $"List tables failed: {tables.ErrorMessage}");
-        Assert.True(tables.Tables.Count > 0, "Expected at least one worksheet table after LoadToTable");
-
-        // Primary assertion: table is named after the query (not "Table1", "Table_ExternalData_1", etc.)
-        Assert.True(
-            tables.Tables.Any(t => t.Name == queryName),
-            $"Expected worksheet table named '{queryName}' but found: [{string.Join(", ", tables.Tables.Select(t => t.Name))}]");
-
-        // Tables with generic names should NOT exist
-        Assert.DoesNotContain(tables.Tables, t => t.Name.StartsWith("Table1", StringComparison.Ordinal));
-        Assert.DoesNotContain(tables.Tables, t => t.Name.StartsWith("Table_ExternalData", StringComparison.Ordinal));
-    }
-
-    /// <summary>
-    /// Verifies that LoadTo (change destination) also names the table after the query.
-    /// </summary>
     [Fact]
-    public void LoadTo_ConnectionOnlyToTable_WorksheetTableNamedAfterQuery()
-    {
-        // Arrange
-        var queryName = "PQ_LoadToName_" + Guid.NewGuid().ToString("N")[..8];
-        var mCode = @"let Source = #table({""Val""}, {{42}}) in Source";
+    public void Delete_ConnectionOnly_CleanSlate() =>
+        AssertRemoval(PowerQueryLoadMode.ConnectionOnly, delete: true);
 
-        var batch = _fixture.BatchToken;
-
-        // Create initially as connection-only
-        CreateQuery(queryName, mCode, PowerQueryLoadMode.ConnectionOnly);
-
-        // Act - change destination to worksheet table
-        LoadQueryTo(queryName, PowerQueryLoadMode.LoadToTable);
-        _powerQueryCommands.Refresh(batch, queryName, TimeSpan.FromMinutes(5));
-
-        // Assert - worksheet table is named after the query
-        var tables = _tableCommands.List(batch);
-        Assert.True(tables.Success, $"List tables failed: {tables.ErrorMessage}");
-        Assert.True(
-            tables.Tables.Any(t => t.Name == queryName),
-            $"Expected table '{queryName}' but found: [{string.Join(", ", tables.Tables.Select(t => t.Name))}]");
-    }
-
-    #endregion
-
-    #region Delete Clean Slate Tests - Query + Connection + Table
-
-    /// <summary>
-    /// Verifies that deleting a query loaded to worksheet results in a clean slate:
-    /// - Query is removed from queries list
-    /// - Connection is removed (no orphans)
-    /// - Table/ListObject is removed from worksheet
-    /// </summary>
     [Fact]
-    public void Delete_LoadedToWorksheet_CleanSlate()
-    {
-        // Arrange
-        var queryName = "PQ_CleanSlate_" + Guid.NewGuid().ToString("N")[..8];
-        var mCode = @"let Source = #table({""Val""}, {{1}, {2}}) in Source";
+    public void Unload_LoadedToWorksheet_RemovesTableAndConnectionKeepsQuery() =>
+        AssertRemoval(PowerQueryLoadMode.LoadToTable, delete: false);
 
-        var batch = _fixture.BatchToken;
-
-        // Create query loaded to worksheet
-        CreateQuery(queryName, mCode, PowerQueryLoadMode.LoadToTable);
-
-        // Verify everything exists before delete
-        var queriesBefore = _powerQueryCommands.List(batch);
-        Assert.Contains(queriesBefore.Queries, q => q.Name == queryName);
-
-        var connectionsBefore = _connectionCommands.List(batch);
-        Assert.Contains(connectionsBefore.Connections, c => c.Name == $"Query - {queryName}");
-
-        var tablesBefore = _tableCommands.List(batch);
-        // Table name typically matches query name
-        Assert.True(tablesBefore.Success);
-        var tableCountBefore = tablesBefore.Tables.Count;
-        Assert.True(tableCountBefore > 0, "Expected at least one table after LoadToTable");
-
-        // Act - Delete the query
-        DeleteQuery(queryName);
-
-        // Assert - CLEAN SLATE
-
-        // 1. Query is gone
-        var queriesAfter = _powerQueryCommands.List(batch);
-        Assert.True(queriesAfter.Success);
-        Assert.DoesNotContain(queriesAfter.Queries, q => q.Name == queryName);
-
-        // 2. Connection is gone (no orphans)
-        var connectionsAfter = _connectionCommands.List(batch);
-        Assert.True(connectionsAfter.Success);
-        Assert.DoesNotContain(connectionsAfter.Connections, c => c.Name == $"Query - {queryName}");
-        Assert.DoesNotContain(connectionsAfter.Connections, c => c.Name == "Connection");
-        Assert.DoesNotContain(connectionsAfter.Connections, c => c.Name.StartsWith("Connection", StringComparison.Ordinal) && char.IsDigit(c.Name.Last()));
-
-        // 3. No Power Query connections remain (clean workbook)
-        var pqConnections = connectionsAfter.Connections.Where(c => c.IsPowerQuery).ToList();
-        Assert.Empty(pqConnections);
-    }
-
-    /// <summary>
-    /// Verifies that deleting one of multiple loaded queries only removes that query's
-    /// connection and table, leaving others intact.
-    /// </summary>
-    [Fact]
-    public void Delete_OneOfMultipleLoadedQueries_OnlyRemovesItsOwnResources()
-    {
-        // Arrange
-        var suffix = Guid.NewGuid().ToString("N")[..6];
-        var queryToDelete = "PQ_Delete_" + suffix;
-        var queryToKeep = "PQ_Keep_" + suffix;
-        var mCode = @"let Source = #table({""Val""}, {{1}}) in Source";
-
-        var batch = _fixture.BatchToken;
-
-        // Create two queries loaded to worksheet
-        CreateQuery(queryToDelete, mCode, PowerQueryLoadMode.LoadToTable, "Sheet1");
-        CreateQuery(queryToKeep, mCode, PowerQueryLoadMode.LoadToTable, "Sheet2");
-
-        // Verify both exist
-        var queriesBefore = _powerQueryCommands.List(batch);
-        Assert.Contains(queriesBefore.Queries, q => q.Name == queryToDelete);
-        Assert.Contains(queriesBefore.Queries, q => q.Name == queryToKeep);
-
-        var connectionsBefore = _connectionCommands.List(batch);
-        Assert.Contains(connectionsBefore.Connections, c => c.Name == $"Query - {queryToDelete}");
-        Assert.Contains(connectionsBefore.Connections, c => c.Name == $"Query - {queryToKeep}");
-
-        // Act - Delete only one query
-        DeleteQuery(queryToDelete);
-
-        // Assert
-
-        // 1. Deleted query is gone, kept query remains
-        var queriesAfter = _powerQueryCommands.List(batch);
-        Assert.DoesNotContain(queriesAfter.Queries, q => q.Name == queryToDelete);
-        Assert.Contains(queriesAfter.Queries, q => q.Name == queryToKeep);
-
-        // 2. Deleted query's connection is gone, kept query's connection remains
-        var connectionsAfter = _connectionCommands.List(batch);
-        Assert.DoesNotContain(connectionsAfter.Connections, c => c.Name == $"Query - {queryToDelete}");
-        Assert.Contains(connectionsAfter.Connections, c => c.Name == $"Query - {queryToKeep}");
-
-        // 3. No orphaned connections
-        Assert.DoesNotContain(connectionsAfter.Connections, c => c.Name == "Connection");
-
-        // 4. Exactly 1 Power Query connection remains
-        var pqConnections = connectionsAfter.Connections.Where(c => c.IsPowerQuery).ToList();
-        Assert.Single(pqConnections);
-    }
-
-    /// <summary>
-    /// Verifies clean slate when deleting a ConnectionOnly query (no table involved).
-    /// </summary>
-    [Fact]
-    public void Delete_ConnectionOnly_CleanSlate()
-    {
-        // Arrange
-        var queryName = "PQ_ConnOnly_" + Guid.NewGuid().ToString("N")[..8];
-        var mCode = @"let Source = #table({""Val""}, {{1}}) in Source";
-
-        var batch = _fixture.BatchToken;
-
-        // Create ConnectionOnly query (no worksheet loading)
-        CreateQuery(queryName, mCode, PowerQueryLoadMode.ConnectionOnly);
-
-        // Verify query exists
-        var queriesBefore = _powerQueryCommands.List(batch);
-        Assert.Contains(queriesBefore.Queries, q => q.Name == queryName);
-
-        // ConnectionOnly may or may not create a connection depending on implementation
-        // The key is that after delete, there are no orphans
-
-        // Act
-        DeleteQuery(queryName);
-
-        // Assert - Clean slate
-        var queriesAfter = _powerQueryCommands.List(batch);
-        Assert.DoesNotContain(queriesAfter.Queries, q => q.Name == queryName);
-
-        var connectionsAfter = _connectionCommands.List(batch);
-        Assert.DoesNotContain(connectionsAfter.Connections, c => c.Name.Contains(queryName));
-        Assert.DoesNotContain(connectionsAfter.Connections, c => c.Name == "Connection");
-    }
-
-    #endregion
-
-    #region Unload Clean Slate Tests
-
-    /// <summary>
-    /// Verifies that unloading a query from worksheet removes table and connection
-    /// but keeps the query definition.
-    /// </summary>
-    [Fact]
-    public void Unload_LoadedToWorksheet_RemovesTableAndConnectionKeepsQuery()
-    {
-        // Arrange
-        var queryName = "PQ_UnloadWS_" + Guid.NewGuid().ToString("N")[..8];
-        var mCode = @"let Source = #table({""Val""}, {{1}}) in Source";
-
-        var batch = _fixture.BatchToken;
-
-        // Create query loaded to worksheet
-        CreateQuery(queryName, mCode, PowerQueryLoadMode.LoadToTable);
-
-        // Verify connection exists
-        var connectionsBefore = _connectionCommands.List(batch);
-        Assert.Contains(connectionsBefore.Connections, c => c.Name == $"Query - {queryName}");
-
-        // Act - Unload
-        var unloadResult = _powerQueryCommands.Unload(batch, queryName);
-        Assert.True(unloadResult.Success, $"Unload failed: {unloadResult.ErrorMessage}");
-
-        // Assert
-
-        // 1. Query still exists
-        var queriesAfter = _powerQueryCommands.List(batch);
-        Assert.Contains(queriesAfter.Queries, q => q.Name == queryName);
-
-        // 2. Query is now ConnectionOnly
-        var loadConfig = _powerQueryCommands.GetLoadConfig(batch, queryName);
-        Assert.True(loadConfig.Success);
-        Assert.Equal(PowerQueryLoadMode.ConnectionOnly, loadConfig.LoadMode);
-
-        // 3. Connection is removed (no active load = no connection needed)
-        var connectionsAfter = _connectionCommands.List(batch);
-        Assert.DoesNotContain(connectionsAfter.Connections, c => c.Name == $"Query - {queryName}");
-
-        // 4. No orphaned connections
-        Assert.DoesNotContain(connectionsAfter.Connections, c => c.Name == "Connection");
-    }
-
-    #endregion
-
-    #region Edge Cases
-
-    /// <summary>
-    /// Verifies that the original bug test case (that would have created orphaned
-    /// connections) now works correctly with proper connection naming.
-    /// </summary>
     [Fact]
     public void Delete_ExistingQuery_VerifiesCleanSlate()
     {
-        // This is the improved version of the original Delete_ExistingQuery_ReturnsSuccess test
-        // that actually verifies cleanup, not just success
-
-        // Arrange
-        var queryName = "PQ_Delete_" + Guid.NewGuid().ToString("N")[..8];
-        var mCode = @"let
-    Source = #table(
-        {""Column1"", ""Column2"", ""Column3""},
-        {
-            {""Value1"", ""Value2"", ""Value3""},
-            {""A"", ""B"", ""C""},
-            {""X"", ""Y"", ""Z""}
-        }
-    )
-in
-    Source";
-
-        var batch = _fixture.BatchToken;
-
-        // Act
-        CreateQuery(queryName, mCode);  // Default is LoadToTable
-        DeleteQuery(queryName);
-
-        // Assert - CLEAN SLATE (not just "reaching here means success")
-        var queries = _powerQueryCommands.List(batch);
-        Assert.DoesNotContain(queries.Queries, q => q.Name == queryName);
-
-        var connections = _connectionCommands.List(batch);
-        Assert.DoesNotContain(connections.Connections, c => c.Name == $"Query - {queryName}");
-        Assert.DoesNotContain(connections.Connections, c => c.Name == "Connection");
-        Assert.DoesNotContain(connections.Connections, c => c.IsPowerQuery);
+        var name = UniqueName();
+        const string code =
+            "let Source = #table({\"First\", \"Second\", \"Third\"}, " +
+            "{{\"A\", \"B\", \"C\"}, {\"D\", \"E\", \"F\"}, {\"G\", \"H\", \"I\"}}) in Source";
+        var state = new QueryState(name, code, PowerQueryLoadMode.LoadToTable, name,
+            ["First", "Second", "Third"], [["A", "B", "C"], ["D", "E", "F"], ["G", "H", "I"]]);
+        RequireSuccess(_queries.Create(_fixture.BatchToken, name, code,
+            PowerQueryLoadMode.LoadToTable, name));
+        _fixture.RegisterPowerQueryForCleanup(name);
+        _fixture.RegisterSheetForCleanup(name);
+        AssertLoaded(state);
+        var neighbor = CreateQuery(PowerQueryLoadMode.LoadToBoth, [47, 83], name + "A");
+        RequireSuccess(_queries.Delete(_fixture.BatchToken, name));
+        _fixture.ForgetPowerQuery(name);
+        AssertRemoved(state, delete: true);
+        AssertLoaded(neighbor);
     }
 
-    /// <summary>
-    /// Verifies LoadTo operation on an existing ConnectionOnly query creates proper connection.
-    /// Scenario: Create as ConnectionOnly → LoadTo Table → verify proper naming.
-    /// </summary>
     [Fact]
-    public void LoadTo_ExistingConnectionOnlyQuery_CreatesProperlyNamedConnection()
-    {
-        // Arrange
-        var queryName = "PQ_LoadToExisting_" + Guid.NewGuid().ToString("N")[..8];
-        var mCode = @"let Source = #table({""Val""}, {{1}, {2}}) in Source";
+    public void LoadTo_ExistingConnectionOnlyQuery_CreatesProperlyNamedConnection() =>
+        AssertTransition(PowerQueryLoadMode.ConnectionOnly, PowerQueryLoadMode.LoadToTable);
 
-        var batch = _fixture.BatchToken;
-
-        // Create as ConnectionOnly first
-        CreateQuery(queryName, mCode, PowerQueryLoadMode.ConnectionOnly);
-
-        // Verify no connections initially
-        var connsBefore = _connectionCommands.List(batch);
-        Assert.DoesNotContain(connsBefore.Connections, c => c.IsPowerQuery);
-
-        // Act - LoadTo Table
-        LoadQueryTo(queryName, PowerQueryLoadMode.LoadToTable, "Sheet1");
-
-        // Assert - Connection should be properly named
-        var connsAfter = _connectionCommands.List(batch);
-        Assert.Contains(connsAfter.Connections, c => c.Name == $"Query - {queryName}");
-        Assert.DoesNotContain(connsAfter.Connections, c => c.Name == "Connection");
-
-        // Cleanup works
-        DeleteQuery(queryName);
-        var connsFinal = _connectionCommands.List(batch);
-        Assert.Empty(connsFinal.Connections);
-    }
-
-    /// <summary>
-    /// Verifies Refresh operation maintains proper connection naming and doesn't create orphans.
-    /// </summary>
     [Fact]
     public void Refresh_LoadedQuery_MaintainsProperConnectionNaming()
     {
-        // Arrange
-        var queryName = "PQ_Refresh_" + Guid.NewGuid().ToString("N")[..8];
-        var mCode = @"let Source = #table({""Val""}, {{1}}) in Source";
-
-        var batch = _fixture.BatchToken;
-
-        // Create query with LoadToTable
-        CreateQuery(queryName, mCode, PowerQueryLoadMode.LoadToTable);
-
-        var connsBefore = _connectionCommands.List(batch);
-        var connectionCountBefore = connsBefore.Connections.Count;
-
-        // Act - Refresh the query
-        _powerQueryCommands.Refresh(batch, queryName, TimeSpan.FromMinutes(2));
-
-        // Assert - Same connection count (no new orphans)
-        var connsAfter = _connectionCommands.List(batch);
-        Assert.Equal(connectionCountBefore, connsAfter.Connections.Count);
-        Assert.Contains(connsAfter.Connections, c => c.Name == $"Query - {queryName}");
-        Assert.DoesNotContain(connsAfter.Connections, c => c.Name == "Connection");
+        var state = CreateQuery(PowerQueryLoadMode.LoadToTable, [17, 29]);
+        var neighbor = CreateQuery(PowerQueryLoadMode.LoadToBoth, [47, 83], state.Name + "A");
+        var updated = state with { Code = Code("Val", [61, 73, 89]), Rows = [[61], [73], [89]] };
+        RequireSuccess(_queries.Update(_fixture.BatchToken, state.Name, updated.Code, refresh: false));
+        AssertLoaded(state with { Code = updated.Code });
+        RequireSuccess(_queries.Refresh(_fixture.BatchToken, state.Name, TimeSpan.FromMinutes(2)));
+        AssertLoaded(updated);
+        AssertLoaded(neighbor);
     }
 
-    /// <summary>
-    /// Verifies Update operation maintains proper connection naming and doesn't create orphans.
-    /// </summary>
     [Fact]
     public void Update_LoadedQuery_MaintainsProperConnectionNaming()
     {
-        // Arrange
-        var queryName = "PQ_Update_" + Guid.NewGuid().ToString("N")[..8];
-        var mCode1 = @"let Source = #table({""Val""}, {{1}}) in Source";
-        var mCode2 = @"let Source = #table({""NewVal""}, {{2}, {3}}) in Source";
-
-        var batch = _fixture.BatchToken;
-
-        // Create query with LoadToTable
-        CreateQuery(queryName, mCode1, PowerQueryLoadMode.LoadToTable);
-
-        var connsBefore = _connectionCommands.List(batch);
-        var connectionCountBefore = connsBefore.Connections.Count;
-
-        // Act - Update the query's M code
-        _powerQueryCommands.Update(batch, queryName, mCode2);
-
-        // Assert - Same connection count (no new orphans), proper naming
-        var connsAfter = _connectionCommands.List(batch);
-        Assert.Equal(connectionCountBefore, connsAfter.Connections.Count);
-        Assert.Contains(connsAfter.Connections, c => c.Name == $"Query - {queryName}");
-        Assert.DoesNotContain(connsAfter.Connections, c => c.Name == "Connection");
-
-        // Cleanup still works
-        DeleteQuery(queryName);
-        var connsFinal = _connectionCommands.List(batch);
-        Assert.DoesNotContain(connsFinal.Connections, c => c.IsPowerQuery);
+        var state = CreateQuery(PowerQueryLoadMode.LoadToTable, [17, 29]);
+        var neighbor = CreateQuery(PowerQueryLoadMode.LoadToBoth, [47, 83], state.Name + "A");
+        var updated = state with
+        {
+            Code = Code("NewVal", [61, 73, 89]),
+            Columns = ["NewVal"],
+            Rows = [[61], [73], [89]]
+        };
+        RequireSuccess(_queries.Update(_fixture.BatchToken, state.Name, updated.Code));
+        AssertLoaded(updated);
+        AssertLoaded(neighbor);
+        RequireSuccess(_queries.Delete(_fixture.BatchToken, state.Name));
+        _fixture.ForgetPowerQuery(state.Name);
+        AssertRemoved(updated, delete: true);
+        AssertLoaded(neighbor);
     }
 
-    /// <summary>
-    /// Verifies that mode transition from ConnectionOnly to LoadToBoth creates proper dual connections.
-    /// </summary>
     [Fact]
-    public void LoadTo_ConnectionOnlyToBoth_CreatesDualConnectionsProperly()
-    {
-        // Arrange
-        var queryName = "PQ_ConnToBoth_" + Guid.NewGuid().ToString("N")[..8];
-        var mCode = @"let Source = #table({""Val""}, {{42}}) in Source";
+    public void LoadTo_ConnectionOnlyToBoth_CreatesDualConnectionsProperly() =>
+        AssertTransition(PowerQueryLoadMode.ConnectionOnly, PowerQueryLoadMode.LoadToBoth);
 
-        var batch = _fixture.BatchToken;
-
-        // Create as ConnectionOnly
-        _ = CreateQuery(queryName, mCode, PowerQueryLoadMode.ConnectionOnly);
-
-        // Verify no Power Query connections
-        var connsBefore = _connectionCommands.List(batch);
-        Assert.DoesNotContain(connsBefore.Connections, c => c.IsPowerQuery);
-
-        // Act - LoadTo Both
-        _ = LoadQueryTo(queryName, PowerQueryLoadMode.LoadToBoth, "BothSheet");
-
-        // Assert - Should have TWO connections with proper naming
-        var connsAfter = _connectionCommands.List(batch);
-        var pqConns = connsAfter.Connections.Where(c => c.IsPowerQuery).ToList();
-
-        // Should have exactly 2 Power Query connections
-        Assert.Equal(2, pqConns.Count);
-
-        // One for worksheet, one for Data Model
-        Assert.Contains(pqConns, c => c.Name == $"Query - {queryName}");
-        Assert.Contains(pqConns, c => c.Name == $"Query - {queryName} (Data Model)");
-
-        // No orphans
-        Assert.DoesNotContain(connsAfter.Connections, c => c.Name == "Connection");
-
-        // Data Model table should exist
-        var tables = _dataModelCommands.ListTables(batch);
-        Assert.Contains(tables.Tables, t => t.Name == queryName);
-
-        // Cleanup
-        _ = DeleteQuery(queryName);
-        var connsFinal = _connectionCommands.List(batch);
-        Assert.DoesNotContain(connsFinal.Connections, c => c.IsPowerQuery);
-    }
-
-    /// <summary>
-    /// Verifies LoadToBoth creates exactly 2 connections and both are properly cleaned up.
-    /// </summary>
     [Fact]
     public void Create_LoadToBoth_ExactlyTwoConnectionsWithProperNaming()
     {
-        // Arrange
-        var queryName = "PQ_BothDual_" + Guid.NewGuid().ToString("N")[..8];
-        var mCode = @"let Source = #table({""Val""}, {{1}}) in Source";
-
-        var batch = _fixture.BatchToken;
-
-        // Act
-        _ = CreateQuery(queryName, mCode, PowerQueryLoadMode.LoadToBoth, "Sheet1");
-
-        // Assert - Exactly 2 Power Query connections
-        var connections = _connectionCommands.List(batch);
-        var pqConns = connections.Connections.Where(c => c.IsPowerQuery).ToList();
-
-        Assert.Equal(2, pqConns.Count);
-
-        // Verify exact naming pattern
-        Assert.Contains(pqConns, c => c.Name == $"Query - {queryName}");
-        Assert.Contains(pqConns, c => c.Name == $"Query - {queryName} (Data Model)");
-
-        // Verify worksheet table exists
-        var tables = _tableCommands.List(batch);
-        Assert.True(tables.Tables.Count > 0);
-
-        // Verify Data Model table exists
-        var dmTables = _dataModelCommands.ListTables(batch);
-        Assert.Contains(dmTables.Tables, t => t.Name == queryName);
-
-        // Cleanup removes both
-        _ = DeleteQuery(queryName);
-        var connsFinal = _connectionCommands.List(batch);
-        Assert.DoesNotContain(connsFinal.Connections, c => c.IsPowerQuery);
+        var state = CreateQuery(PowerQueryLoadMode.LoadToBoth, [17, 29]);
+        var neighbor = CreateQuery(PowerQueryLoadMode.LoadToTable, [47, 83], state.Name + "A");
+        AssertLoaded(state);
+        RequireSuccess(_queries.Delete(_fixture.BatchToken, state.Name));
+        _fixture.ForgetPowerQuery(state.Name);
+        AssertRemoved(state, delete: true);
+        AssertLoaded(neighbor);
     }
 
-    /// <summary>
-    /// Verifies Unload then re-LoadTo works correctly without creating orphans.
-    /// Scenario: Create LoadToTable → Unload → LoadTo Table again
-    /// </summary>
     [Fact]
     public void UnloadThenReload_NoOrphanedConnections()
     {
-        // Arrange
-        var queryName = "PQ_ReloadTest_" + Guid.NewGuid().ToString("N")[..8];
-        var mCode = @"let Source = #table({""Val""}, {{1}}) in Source";
-
-        var batch = _fixture.BatchToken;
-
-        // Create with LoadToTable
-        CreateQuery(queryName, mCode, PowerQueryLoadMode.LoadToTable);
-
-        var connsAfterCreate = _connectionCommands.List(batch);
-        Assert.Single(connsAfterCreate.Connections, c => c.IsPowerQuery);
-
-        // Unload
-        _powerQueryCommands.Unload(batch, queryName);
-
-        var connsAfterUnload = _connectionCommands.List(batch);
-        Assert.DoesNotContain(connsAfterUnload.Connections, c => c.IsPowerQuery);
-
-        // Re-LoadTo Table
-        LoadQueryTo(queryName, PowerQueryLoadMode.LoadToTable, "NewSheet");
-
-        // Assert - Should have exactly 1 properly named connection, no orphans
-        var connsAfterReload = _connectionCommands.List(batch);
-        var pqConns = connsAfterReload.Connections.Where(c => c.IsPowerQuery).ToList();
-
-        Assert.Single(pqConns);
-        Assert.Equal($"Query - {queryName}", pqConns[0].Name);
-        Assert.DoesNotContain(connsAfterReload.Connections, c => c.Name == "Connection");
-
-        // Cleanup
-        DeleteQuery(queryName);
-        var connsFinal = _connectionCommands.List(batch);
-        Assert.DoesNotContain(connsFinal.Connections, c => c.IsPowerQuery);
+        var state = CreateQuery(PowerQueryLoadMode.LoadToTable, [17, 29]);
+        var neighbor = CreateQuery(PowerQueryLoadMode.LoadToBoth, [47, 83], state.Name + "A");
+        RequireSuccess(_queries.Unload(_fixture.BatchToken, state.Name));
+        AssertRemoved(state, delete: false);
+        AssertLoaded(neighbor);
+        var reloaded = ChangeMode(state, PowerQueryLoadMode.LoadToTable, state.Name + "New");
+        AssertLoaded(reloaded);
+        AssertClearedSheet(state);
+        AssertLoaded(neighbor);
+        RequireSuccess(_queries.Delete(_fixture.BatchToken, state.Name));
+        _fixture.ForgetPowerQuery(state.Name);
+        AssertRemoved(reloaded, delete: true);
+        AssertLoaded(neighbor);
     }
 
-    #endregion
-
-    #region State Transition Tests - Loaded → Other
-
-    /// <summary>
-    /// Regression test for Bug #2: LoadTo(ConnectionOnly) on an already-loaded query was a no-op.
-    /// Scenario: Create as LoadToTable → LoadTo(ConnectionOnly)
-    /// Expected: ListObject removed, connection removed, GetLoadConfig returns ConnectionOnly.
-    /// </summary>
     [Fact]
-    public void LoadTo_LoadedToTable_ThenConnectionOnly_RemovesTableAndConnection()
-    {
-        // Arrange
-        var queryName = "PQ_WsToConn_" + Guid.NewGuid().ToString("N")[..8];
-        var mCode = @"let Source = #table({""Val""}, {{1}, {2}}) in Source";
+    public void LoadTo_LoadedToTable_ThenConnectionOnly_RemovesTableAndConnection() =>
+        AssertTransition(PowerQueryLoadMode.LoadToTable, PowerQueryLoadMode.ConnectionOnly);
 
-        var batch = _fixture.BatchToken;
-
-        // Create as LoadToTable first
-        CreateQuery(queryName, mCode, PowerQueryLoadMode.LoadToTable);
-
-        // Verify baseline: has worksheet table and connection
-        var connsBefore = _connectionCommands.List(batch);
-        Assert.Contains(connsBefore.Connections, c => c.Name == $"Query - {queryName}");
-        var tablesBefore = _tableCommands.List(batch);
-        Assert.True(tablesBefore.Tables.Count > 0, "Expected a table after LoadToTable");
-        var configBefore = _powerQueryCommands.GetLoadConfig(batch, queryName);
-        Assert.Equal(PowerQueryLoadMode.LoadToTable, configBefore.LoadMode);
-
-        // Act - transition to ConnectionOnly
-        var result = LoadQueryTo(queryName, PowerQueryLoadMode.ConnectionOnly);
-        Assert.True(result.Success, $"LoadTo failed: {result.ErrorMessage}");
-
-        // Assert: table removed
-        var tablesAfter = _tableCommands.List(batch);
-        Assert.Empty(tablesAfter.Tables);
-
-        // Assert: connection removed
-        var connsAfter = _connectionCommands.List(batch);
-        Assert.DoesNotContain(connsAfter.Connections, c => c.Name == $"Query - {queryName}");
-        Assert.DoesNotContain(connsAfter.Connections, c => c.IsPowerQuery);
-
-        // Assert: load mode is now ConnectionOnly
-        var configAfter = _powerQueryCommands.GetLoadConfig(batch, queryName);
-        Assert.True(configAfter.Success, $"GetLoadConfig failed: {configAfter.ErrorMessage}");
-        Assert.Equal(PowerQueryLoadMode.ConnectionOnly, configAfter.LoadMode);
-
-        // Assert: query still exists
-        var queries = _powerQueryCommands.List(batch);
-        Assert.Contains(queries.Queries, q => q.Name == queryName);
-    }
-
-    /// <summary>
-    /// State transition: LoadToTable → LoadToDataModel.
-    /// Expected: old ListObject + worksheet connection removed; Data Model connection added.
-    /// </summary>
     [Fact]
-    public void LoadTo_LoadedToTable_ThenLoadToDataModel_RemovesTableAddsDataModel()
-    {
-        // Arrange
-        var queryName = "PQ_WsToDm_" + Guid.NewGuid().ToString("N")[..8];
-        var mCode = @"let Source = #table({""Val""}, {{1}, {2}}) in Source";
+    public void LoadTo_LoadedToTable_ThenLoadToDataModel_RemovesTableAddsDataModel() =>
+        AssertTransition(PowerQueryLoadMode.LoadToTable, PowerQueryLoadMode.LoadToDataModel);
 
-        var batch = _fixture.BatchToken;
-
-        // Create as LoadToTable
-        _ = CreateQuery(queryName, mCode, PowerQueryLoadMode.LoadToTable);
-
-        var tablesBefore = _tableCommands.List(batch);
-        Assert.True(tablesBefore.Tables.Count > 0, "Expected a table after LoadToTable");
-
-        // Act - transition to DataModel
-        var result = LoadQueryTo(queryName, PowerQueryLoadMode.LoadToDataModel);
-        Assert.True(result.Success, $"LoadTo(DataModel) failed: {result.ErrorMessage}");
-
-        // Assert: worksheet table removed (no orphaned ListObject)
-        var tablesAfter = _tableCommands.List(batch);
-        Assert.Empty(tablesAfter.Tables);
-
-        // Assert: exactly 1 PQ connection (old worksheet connection replaced by DM connection, same name)
-        // Note: both worksheet and Data Model connections are named "Query - {queryName}";
-        // the proof of correct mode is: no ListObject + DM table present + exactly 1 PQ connection (not 2)
-        var connsAfter = _connectionCommands.List(batch);
-        var pqConns = connsAfter.Connections.Where(c => c.IsPowerQuery).ToList();
-        Assert.Single(pqConns);
-        Assert.Equal($"Query - {queryName}", pqConns[0].Name);
-
-        // Assert: Data Model table present
-        var dmTablesAfter = _dataModelCommands.ListTables(batch);
-        Assert.Contains(dmTablesAfter.Tables, t => t.Name == queryName);
-    }
-
-    /// <summary>
-    /// State transition: LoadToDataModel → LoadToTable.
-    /// Expected: old Data Model connection removed; worksheet ListObject + connection added.
-    /// </summary>
     [Fact]
-    public void LoadTo_LoadedToDataModel_ThenLoadToTable_RemovesDataModelAddsTable()
-    {
-        // Arrange
-        var queryName = "PQ_DmToWs_" + Guid.NewGuid().ToString("N")[..8];
-        var mCode = @"let Source = #table({""Val""}, {{1}, {2}}) in Source";
+    public void LoadTo_LoadedToDataModel_ThenLoadToTable_RemovesDataModelAddsTable() =>
+        AssertTransition(PowerQueryLoadMode.LoadToDataModel, PowerQueryLoadMode.LoadToTable);
 
-        var batch = _fixture.BatchToken;
-
-        // Create as LoadToDataModel
-        _ = CreateQuery(queryName, mCode, PowerQueryLoadMode.LoadToDataModel);
-
-        // Verify: Data Model table exists, no worksheet table
-        var dmTablesBefore = _dataModelCommands.ListTables(batch);
-        Assert.Contains(dmTablesBefore.Tables, t => t.Name == queryName);
-        var tablesBefore = _tableCommands.List(batch);
-        Assert.Empty(tablesBefore.Tables);
-
-        // Act - transition to LoadToTable
-        var result = LoadQueryTo(queryName, PowerQueryLoadMode.LoadToTable, queryName);
-        Assert.True(result.Success, $"LoadTo(Table) failed: {result.ErrorMessage}");
-
-        // Assert: worksheet table now exists
-        var tablesAfter = _tableCommands.List(batch);
-        Assert.True(tablesAfter.Tables.Count > 0, "Expected a worksheet table after LoadToTable");
-
-        // Assert: worksheet connection present and properly named
-        var connsAfter = _connectionCommands.List(batch);
-        Assert.Contains(connsAfter.Connections, c => c.Name == $"Query - {queryName}");
-
-        // Assert: Data Model connection removed (no orphaned DM connection)
-        var pqConns = connsAfter.Connections.Where(c => c.IsPowerQuery).ToList();
-        Assert.Single(pqConns); // exactly 1 (worksheet only, not DM)
-        Assert.Equal($"Query - {queryName}", pqConns[0].Name);
-
-        // Assert: Data Model table removed
-        var dmTablesAfter = _dataModelCommands.ListTables(batch);
-        Assert.DoesNotContain(dmTablesAfter.Tables, t => t.Name == queryName);
-    }
-
-    /// <summary>
-    /// State transition: LoadToBoth → ConnectionOnly.
-    /// Expected: both ListObject and Data Model connection removed; clean slate.
-    /// </summary>
     [Fact]
-    public void LoadTo_LoadedToBoth_ThenConnectionOnly_RemovesBothDestinations()
+    public void LoadTo_LoadedToBoth_ThenConnectionOnly_RemovesBothDestinations() =>
+        AssertTransition(PowerQueryLoadMode.LoadToBoth, PowerQueryLoadMode.ConnectionOnly);
+
+    private void AssertRemoval(PowerQueryLoadMode mode, bool delete)
     {
-        // Arrange
-        var queryName = "PQ_BothToConn_" + Guid.NewGuid().ToString("N")[..8];
-        var mCode = @"let Source = #table({""Val""}, {{1}, {2}}) in Source";
-
-        var batch = _fixture.BatchToken;
-
-        // Create as LoadToBoth
-        _ = CreateQuery(queryName, mCode, PowerQueryLoadMode.LoadToBoth, queryName);
-
-        // Verify baseline: worksheet table + 2 PQ connections + DM table
-        var tablesBefore = _tableCommands.List(batch);
-        Assert.True(tablesBefore.Tables.Count > 0, "Expected worksheet table after LoadToBoth");
-        var connsBefore = _connectionCommands.List(batch);
-        Assert.Equal(2, connsBefore.Connections.Count(c => c.IsPowerQuery));
-        var dmTablesBefore = _dataModelCommands.ListTables(batch);
-        Assert.Contains(dmTablesBefore.Tables, t => t.Name == queryName);
-
-        // Act - transition to ConnectionOnly
-        var result = LoadQueryTo(queryName, PowerQueryLoadMode.ConnectionOnly);
-        Assert.True(result.Success, $"LoadTo(ConnectionOnly) failed: {result.ErrorMessage}");
-
-        // Assert: worksheet table removed
-        var tablesAfter = _tableCommands.List(batch);
-        Assert.Empty(tablesAfter.Tables);
-
-        // Assert: all PQ connections removed
-        var connsAfter = _connectionCommands.List(batch);
-        Assert.DoesNotContain(connsAfter.Connections, c => c.IsPowerQuery);
-
-        // Assert: Data Model table removed
-        var dmTablesAfter = _dataModelCommands.ListTables(batch);
-        Assert.DoesNotContain(dmTablesAfter.Tables, t => t.Name == queryName);
-
-        // Assert: load mode is ConnectionOnly
-        var configAfter = _powerQueryCommands.GetLoadConfig(batch, queryName);
-        Assert.True(configAfter.Success, $"GetLoadConfig failed: {configAfter.ErrorMessage}");
-        Assert.Equal(PowerQueryLoadMode.ConnectionOnly, configAfter.LoadMode);
-
-        // Assert: query still exists
-        var queries = _powerQueryCommands.List(batch);
-        Assert.Contains(queries.Queries, q => q.Name == queryName);
-    }
-
-    private OperationResult CreateQuery(
-        string queryName,
-        string mCode,
-        PowerQueryLoadMode loadMode = PowerQueryLoadMode.LoadToTable,
-        string? targetSheet = null,
-        string? targetCellAddress = null,
-        bool formatMCode = false)
-    {
-        var result = _powerQueryCommands.Create(
-            _fixture.BatchToken,
-            queryName,
-            mCode,
-            loadMode,
-            targetSheet,
-            targetCellAddress,
-            formatMCode);
-        _fixture.RegisterPowerQueryForCleanup(queryName);
-        RegisterLoadedSheet(queryName, loadMode, targetSheet);
-        return result;
-    }
-
-    private OperationResult DeleteQuery(string queryName)
-    {
-        var result = _powerQueryCommands.Delete(_fixture.BatchToken, queryName);
-        _fixture.ForgetPowerQuery(queryName);
-        return result;
-    }
-
-    private OperationResult LoadQueryTo(
-        string queryName,
-        PowerQueryLoadMode loadMode,
-        string? targetSheet = null,
-        string? targetCellAddress = null)
-    {
-        var result = _powerQueryCommands.LoadTo(
-            _fixture.BatchToken,
-            queryName,
-            loadMode,
-            targetSheet,
-            targetCellAddress);
-        RegisterLoadedSheet(queryName, loadMode, targetSheet);
-        return result;
-    }
-
-    private void RegisterLoadedSheet(
-        string queryName,
-        PowerQueryLoadMode loadMode,
-        string? targetSheet)
-    {
-        if (loadMode is not (
-                PowerQueryLoadMode.LoadToTable
-                or PowerQueryLoadMode.LoadToBoth))
+        var state = CreateQuery(mode, [17, 29]);
+        var neighbor = CreateQuery(PowerQueryLoadMode.LoadToBoth, [47, 83], state.Name + "A");
+        if (delete)
         {
-            return;
+            RequireSuccess(_queries.Delete(_fixture.BatchToken, state.Name));
+            _fixture.ForgetPowerQuery(state.Name);
         }
+        else { RequireSuccess(_queries.Unload(_fixture.BatchToken, state.Name)); }
+        AssertRemoved(state, delete);
+        AssertLoaded(neighbor);
+    }
 
-        var loadedSheet = targetSheet ?? queryName;
-        if (!string.Equals(loadedSheet, "Sheet1", StringComparison.Ordinal))
+    private void AssertTransition(PowerQueryLoadMode before, PowerQueryLoadMode after)
+    {
+        var state = CreateQuery(before, [17, 29]);
+        var neighbor = CreateQuery(PowerQueryLoadMode.LoadToBoth, [47, 83], state.Name + "A");
+        var updated = ChangeMode(state, after, state.Name + "New");
+        AssertLoaded(updated);
+        if (state.Sheet is not null && state.Sheet != updated.Sheet) { AssertClearedSheet(state); }
+        AssertLoaded(neighbor);
+    }
+
+    private QueryState CreateQuery(PowerQueryLoadMode mode, int[] values, string? name = null)
+    {
+        name ??= UniqueName();
+        var sheet = mode is PowerQueryLoadMode.LoadToTable or PowerQueryLoadMode.LoadToBoth ? name : null;
+        var state = new QueryState(name, Code("Val", values), mode, sheet, ["Val"],
+            values.Select(value => new object[] { value }).ToArray());
+        RequireSuccess(_queries.Create(_fixture.BatchToken, name, state.Code, mode, sheet));
+        _fixture.RegisterPowerQueryForCleanup(name);
+        if (sheet is not null) { _fixture.RegisterSheetForCleanup(sheet); }
+        AssertLoaded(state);
+        return state;
+    }
+
+    private QueryState ChangeMode(QueryState state, PowerQueryLoadMode mode, string sheet)
+    {
+        var target = mode is PowerQueryLoadMode.LoadToTable or PowerQueryLoadMode.LoadToBoth ? sheet : null;
+        RequireSuccess(_queries.LoadTo(_fixture.BatchToken, state.Name, mode, target));
+        if (target is not null) { _fixture.RegisterSheetForCleanup(target); }
+        return state with { Mode = mode, Sheet = target };
+    }
+
+    private void AssertLoaded(QueryState state)
+    {
+        PowerQueryStateAssertions.AssertStored(_fixture, state.Name, state.Code,
+            state.Mode, state.Sheet, state.Columns, state.Rows);
+        var tables = RequireSuccess(_tables.List(_fixture.BatchToken)).Tables;
+        if (state.Sheet is not null) { Assert.Single(tables, table => table.Name == state.Name); }
+        else { Assert.DoesNotContain(tables, table => table.Name == state.Name); }
+        var connections = RequireSuccess(_connections.List(_fixture.BatchToken)).Connections;
+        if (state.Mode != PowerQueryLoadMode.ConnectionOnly)
         {
-            _fixture.RegisterSheetForCleanup(loadedSheet);
+            Assert.Single(connections, connection => connection.Name == $"Query - {state.Name}");
+        }
+        if (state.Mode == PowerQueryLoadMode.LoadToBoth)
+        {
+            Assert.Single(connections,
+                connection => connection.Name == $"Query - {state.Name} (Data Model)");
         }
     }
 
-    #endregion
+    private void AssertRemoved(QueryState state, bool delete)
+    {
+        if (delete) { PowerQueryStateAssertions.AssertRemoved(_fixture, state.Name); }
+        else { AssertLoaded(state with { Mode = PowerQueryLoadMode.ConnectionOnly, Sheet = null }); }
+        Assert.DoesNotContain(RequireSuccess(_tables.List(_fixture.BatchToken)).Tables,
+            table => table.Name == state.Name);
+        if (state.Sheet is not null) { AssertClearedSheet(state); }
+    }
+
+    private void AssertClearedSheet(QueryState state) =>
+        Assert.All(RequireSuccess(_commands.GetValues(_fixture.BatchToken, state.Sheet!,
+            $"A1:{(char)('A' + state.Columns.Length - 1)}{state.Rows.Length + 1}")).Values,
+            row => Assert.All(row, Assert.Null));
+
+    private static string Code(string column, int[] values) =>
+        $"let Source = #table(type table [{column} = Int64.Type], " +
+        $"{{{string.Join(", ", values.Select(value => $"{{{value}}}"))}}}) in Source";
+
+    private static string UniqueName() => "PQ_Clean_" + Guid.NewGuid().ToString("N")[..8];
+
+    private sealed record QueryState(string Name, string Code, PowerQueryLoadMode Mode,
+        string? Sheet, string[] Columns, object[][] Rows);
 }
-

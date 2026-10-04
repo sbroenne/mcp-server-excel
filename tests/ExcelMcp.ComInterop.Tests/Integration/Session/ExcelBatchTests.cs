@@ -7,6 +7,7 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 
@@ -23,8 +24,8 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 /// NOTE: ExcelBatch.Dispose() handles all GC cleanup automatically.
 /// Tests only need to wait for async disposal and process termination timing.
 ///
-/// IMPORTANT: These tests spawn and terminate Excel processes (side effects).
-/// They run OnDemand only to avoid interference with normal test runs.
+/// These tests run sequentially and verify only their owned Excel processes.
+/// Startup-hook and configured native-capability controls run OnDemand.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Slow")]
@@ -32,11 +33,14 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 [Trait("Feature", "ExcelBatch")]
 [Collection("Sequential")] // Disable parallelization to avoid COM interference
 [Trait("RequiresExcel", "true")]
-public class ExcelBatchTests : IAsyncLifetime
+public class ExcelBatchTests : IAsyncLifetime, IDisposable
 {
     private readonly ITestOutputHelper _output;
     private static string? _staticTestFile;
     private string? _testFileCopy;
+    private readonly OwnedExcelProcessScope _owned = new();
+    private readonly List<string> _temporaryFiles = new();
+    private readonly List<ExcelProcessIdentity> _startupIdentities = new();
 
     private static string? GetConfiguredIrmTestFilePath()
     {
@@ -69,27 +73,39 @@ public class ExcelBatchTests : IAsyncLifetime
 
         // Create a fresh copy for this test instance (in temp folder)
         _testFileCopy = Path.Join(Path.GetTempPath(), $"batch-test-{Guid.NewGuid():N}.xlsx");
+        _temporaryFiles.Add(_testFileCopy);
         File.Copy(_staticTestFile, _testFileCopy, overwrite: true);
 
-        // Wait for any Excel processes from file creation to terminate
-        return Task.Delay(500);
+        return Task.CompletedTask;
     }
 
     public Task DisposeAsync()
     {
-        // Clean up this test's copy
-        if (_testFileCopy != null && File.Exists(_testFileCopy))
-        {
-            File.Delete(_testFileCopy);
-        }
+        Dispose();
         return Task.CompletedTask;
     }
 
-    private static void CleanupStaticFile()
+    public void Dispose()
     {
-        if (_staticTestFile != null && File.Exists(_staticTestFile))
+        GC.SuppressFinalize(this);
+        var failures = new List<Exception>();
+        foreach (var identity in _startupIdentities)
         {
-            File.Delete(_staticTestFile);
+            var failure = Record.Exception(() =>
+            {
+                Assert.True(ExcelBatch.TryTerminateOwnedProcess(identity,
+                    TimeSpan.Zero, TimeSpan.FromSeconds(5)));
+                Assert.True(OwnedProcessGuard.TryConfirmExited(identity));
+                SessionManager.UntrackExcelProcess(identity);
+            });
+            if (failure is not null) { failures.Add(failure); }
+        }
+        var cleanup = Record.Exception(() =>
+            SessionTestCleanup.AssertExitedAndDelete(_owned, _temporaryFiles));
+        if (cleanup is not null) { failures.Add(cleanup); }
+        if (failures.Count > 0)
+        {
+            throw new AggregateException("ExcelBatch test cleanup failed.", failures);
         }
     }
 
@@ -101,6 +117,10 @@ public class ExcelBatchTests : IAsyncLifetime
 
         // Act - Use batching for multiple operations
         using var batch = ExcelSession.BeginBatch(_testFileCopy!);
+        SessionWorkbookAssertions.AssertIdentity(batch, _testFileCopy!);
+        var originalIdentity = ReadNativeIdentity(batch);
+        var originalProcessId = batch.ExcelProcessId;
+        SessionWorkbookAssertions.WriteMarker(batch, "initial");
 
         for (int i = 0; i < 5; i++)
         {
@@ -109,12 +129,13 @@ public class ExcelBatchTests : IAsyncLifetime
                 operationCount++;
                 _output.WriteLine($"Batch operation {operationCount}");
 
-                // Verify we have the same context
-                Assert.NotNull(ctx.App);
-                Assert.NotNull(ctx.Book);
-
                 return operationCount;
             });
+            Assert.Equal(originalIdentity, ReadNativeIdentity(batch));
+            Assert.Equal(originalProcessId, batch.ExcelProcessId);
+            Assert.Equal(i == 0 ? "initial" : $"operation-{i}",
+                SessionWorkbookAssertions.ReadMarker(batch));
+            SessionWorkbookAssertions.WriteMarker(batch, $"operation-{i + 1}");
         }
 
         // Assert
@@ -126,21 +147,13 @@ public class ExcelBatchTests : IAsyncLifetime
     public void Dispose_CleansUpComObjects_NoProcessLeak()
     {
         // Arrange
-        using var owned = new OwnedExcelProcessScope();
-
-        // Act
-        var batch = ExcelSession.BeginBatch(_testFileCopy!);
-
-        batch.Execute((ctx, ct) =>
+        using (var batch = ExcelSession.BeginBatch(_testFileCopy!))
         {
-            dynamic sheet = ctx.Book.Worksheets[1];
-            _ = sheet.Range["A1"].Value2;
-            return 0;
-        });
+            SessionWorkbookAssertions.AssertIdentity(batch, _testFileCopy!);
+            SessionWorkbookAssertions.WriteMarker(batch, "disposed-workbook");
+        }
 
-        batch.Dispose();
-
-        owned.AssertAllExited();
+        _owned.AssertAllExited();
     }
 
     [Fact]
@@ -152,30 +165,20 @@ public class ExcelBatchTests : IAsyncLifetime
         // Act - Write and save
         using (var batch = ExcelSession.BeginBatch(_testFileCopy!))
         {
-            batch.Execute((ctx, ct) =>
-            {
-                dynamic sheet = ctx.Book.Worksheets[1];
-                sheet.Range["A1"].Value2 = testValue;
-                return 0;
-            });
+            SessionWorkbookAssertions.AssertIdentity(batch, _testFileCopy!);
+            SessionWorkbookAssertions.WriteMarker(batch, testValue);
 
             batch.Save();
         }
 
-        // Wait for file to be released
-        Thread.Sleep(1000);
+        _owned.AssertAllExited();
 
         // Verify - Read back the value in a new batch session
         string readValue;
         using (var batch = ExcelSession.BeginBatch(_testFileCopy!))
         {
-            readValue = batch.Execute((ctx, ct) =>
-            {
-                dynamic sheet = ctx.Book.Worksheets[1];
-                var value = sheet.Range["A1"].Value2;
-                string result = value?.ToString() ?? "";
-                return result;
-            });
+            SessionWorkbookAssertions.AssertIdentity(batch, _testFileCopy!);
+            readValue = Assert.IsType<string>(SessionWorkbookAssertions.ReadMarker(batch));
         }
 
         // Assert
@@ -190,26 +193,17 @@ public class ExcelBatchTests : IAsyncLifetime
     public void OpenAndSave_JapaneseTableDateFormat_PreservesTableColumnDxf()
     {
         string workbookPath = Path.Join(Path.GetTempPath(), $"table-dxf-{Guid.NewGuid():N}.xlsx");
-        try
-        {
-            CreateJapaneseTableWorkbook(workbookPath);
-            string expectedFormat = ReadTableColumnFormatCode(workbookPath, "Date");
-            Assert.Equal("yyyy/m/d", expectedFormat);
+        _temporaryFiles.Add(workbookPath);
+        CreateJapaneseTableWorkbook(workbookPath);
+        string expectedFormat = ReadTableColumnFormatCode(workbookPath, "Date");
+        Assert.Equal("yyyy/m/d", expectedFormat);
 
-            using (var batch = ExcelSession.BeginBatch(workbookPath))
-            {
-                batch.Save();
-            }
-
-            Assert.Equal(expectedFormat, ReadTableColumnFormatCode(workbookPath, "Date"));
-        }
-        finally
+        using (var batch = ExcelSession.BeginBatch(workbookPath))
         {
-            if (File.Exists(workbookPath))
-            {
-                File.Delete(workbookPath);
-            }
+            batch.Save();
         }
+
+        Assert.Equal(expectedFormat, ReadTableColumnFormatCode(workbookPath, "Date"));
     }
 
     [Fact]
@@ -219,135 +213,149 @@ public class ExcelBatchTests : IAsyncLifetime
         using var batch = ExcelSession.BeginBatch(_testFileCopy!);
 
         // Assert
-        Assert.Equal(_testFileCopy, batch.WorkbookPath);
+        SessionWorkbookAssertions.AssertIdentity(batch, _testFileCopy!);
     }
 
     [Fact]
-    public void CompleteWorkflow_CreateModifyReadSave_AllOperationsSucceed()
+    public void Execute_DependentOperations_RetainCreatedWorksheetAndNamedRange()
     {
-        // Arrange
-        string sheetName = "TestData";
-        string testValue1 = "Header1";
-        string testValue2 = "Value1";
-        string namedRangeName = "TestRange";
-
-        // Act - Execute complete workflow in single batch
-        using (var batch = ExcelSession.BeginBatch(_testFileCopy!))
+        const string sheetName = "TestData";
+        const string namedRangeName = "TestRange";
+        using var batch = ExcelSession.BeginBatch(_testFileCopy!);
+        var identity = ReadNativeIdentity(batch);
+        batch.Execute((context, _) =>
         {
-            // Step 1: Create new worksheet
-            batch.Execute((ctx, ct) =>
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            try
             {
-                dynamic sheets = ctx.Book.Worksheets;
-                dynamic newSheet = sheets.Add();
-                newSheet.Name = sheetName;
-                _output.WriteLine($"✓ Created worksheet: {sheetName}");
-                return 0;
-            });
-
-            // Step 2: Write data to cells
-            batch.Execute((ctx, ct) =>
+                sheets = context.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets.Add();
+                sheet.Name = sheetName;
+                Assert.Equal(sheetName, sheet.Name);
+            }
+            finally
             {
-                dynamic sheet = ctx.Book.Worksheets[sheetName];
-                sheet.Range["A1"].Value2 = testValue1;
-                sheet.Range["A2"].Value2 = testValue2;
-                sheet.Range["B1"].Value2 = "Header2";
-                sheet.Range["B2"].Formula = "=LEN(A2)";
-                _output.WriteLine($"✓ Wrote data to cells A1, A2, B1, B2");
-                return 0;
-            });
-
-            // Step 3: Create named range
-            batch.Execute((ctx, ct) =>
-            {
-                dynamic sheet = ctx.Book.Worksheets[sheetName];
-                ctx.Book.Names.Add(namedRangeName, $"={sheetName}!$A$1:$B$2");
-                _output.WriteLine($"✓ Created named range: {namedRangeName}");
-                return 0;
-            });
-
-            // Step 4: Read data back to verify
-            var readData = batch.Execute((ctx, ct) =>
-            {
-                dynamic sheet = ctx.Book.Worksheets[sheetName];
-                string a1 = sheet.Range["A1"].Value2?.ToString() ?? "";
-                string a2 = sheet.Range["A2"].Value2?.ToString() ?? "";
-                string b1 = sheet.Range["B1"].Value2?.ToString() ?? "";
-                double b2 = Convert.ToDouble(sheet.Range["B2"].Value2); // Formula result
-                _output.WriteLine($"✓ Read back: A1={a1}, A2={a2}, B1={b1}, B2={b2}");
-                return (a1, a2, b1, b2);
-            });
-
-            // Verify intermediate state
-            Assert.Equal(testValue1, readData.a1);
-            Assert.Equal(testValue2, readData.a2);
-            Assert.Equal("Header2", readData.b1);
-            Assert.Equal(6.0, Convert.ToDouble(readData.b2)); // LEN("Value1") = 6
-
-            // Step 5: Modify existing data
-            batch.Execute((ctx, ct) =>
-            {
-                dynamic sheet = ctx.Book.Worksheets[sheetName];
-                sheet.Range["A2"].Value2 = "Modified";
-                _output.WriteLine("✓ Modified A2 cell");
-                return 0;
-            });
-
-            // Step 6: Save all changes
-            batch.Save();
-            _output.WriteLine("✓ Saved workbook");
-        }
-
-        // Wait for file to be released
-        Thread.Sleep(1000);
-
-        // Verify - Open in new batch and check all changes persisted
-        using (var batch = ExcelSession.BeginBatch(_testFileCopy!))
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
+        WithWorksheet(batch, sheetName, sheet =>
         {
-            var verifyData = batch.Execute((ctx, ct) =>
+            Excel.Range? values = null;
+            Excel.Range? formula = null;
+            try
             {
-                // Check worksheet exists
-                bool sheetExists = false;
-                dynamic sheets = ctx.Book.Worksheets;
-                for (int i = 1; i <= sheets.Count; i++)
+                values = sheet.Range["A1:B2"];
+                values.Value2 = new object[,] { { "Header1", "Header2" }, { "Value1", 0 } };
+                formula = sheet.Range["B2"];
+                formula.Formula = "=LEN(A2)";
+            }
+            finally
+            {
+                ComUtilities.Release(ref formula);
+                ComUtilities.Release(ref values);
+            }
+        });
+        AssertWorkflowValues("Value1", 6);
+        batch.Execute((context, _) =>
+        {
+            Excel.Names? names = null;
+            Excel.Name? name = null;
+            try
+            {
+                names = context.Book.Names;
+                name = names.Add(namedRangeName, $"={sheetName}!$A$1:$B$2");
+                Assert.Equal(namedRangeName, name.Name);
+                Assert.Equal($"={sheetName}!$A$1:$B$2", name.RefersTo);
+            }
+            finally
+            {
+                ComUtilities.Release(ref name);
+                ComUtilities.Release(ref names);
+            }
+        });
+        WithWorksheet(batch, sheetName, sheet =>
+        {
+            Excel.Range? cell = null;
+            try
+            {
+                cell = sheet.Range["A2"];
+                cell.Value2 = "Modified";
+            }
+            finally { ComUtilities.Release(ref cell); }
+        });
+        AssertWorkflowValues("Modified", 8);
+        batch.Execute((context, _) =>
+        {
+            Excel.Names? names = null;
+            Excel.Name? name = null;
+            Excel.Range? target = null;
+            try
+            {
+                names = context.Book.Names;
+                name = names.Item(namedRangeName);
+                target = name.RefersToRange;
+                Assert.Equal($"={sheetName}!$A$1:$B$2", name.RefersTo);
+                Assert.Equal("$A$1:$B$2", target.Address);
+                var values = Assert.IsType<object[,]>(target.Value2);
+                Assert.Equal("Modified", values[2, 1]);
+                Assert.Equal(8d, values[2, 2]);
+            }
+            finally
+            {
+                ComUtilities.Release(ref target);
+                ComUtilities.Release(ref name);
+                ComUtilities.Release(ref names);
+            }
+        });
+        Assert.Equal(identity, ReadNativeIdentity(batch));
+
+        void AssertWorkflowValues(string expectedValue, double expectedLength)
+        {
+            WithWorksheet(batch, sheetName, sheet =>
+            {
+                Excel.Range? range = null;
+                try
                 {
-                    dynamic sheet = sheets[i];
-                    if (sheet.Name == sheetName)
-                    {
-                        sheetExists = true;
-                        break;
-                    }
+                    range = sheet.Range["A1:B2"];
+                    var values = Assert.IsType<object[,]>(range.Value2);
+                    Assert.Equal("Header1", values[1, 1]);
+                    Assert.Equal("Header2", values[1, 2]);
+                    Assert.Equal(expectedValue, values[2, 1]);
+                    Assert.Equal(expectedLength, values[2, 2]);
                 }
-
-                // Read cell values
-                dynamic dataSheet = ctx.Book.Worksheets[sheetName];
-                string a1 = dataSheet.Range["A1"].Value2?.ToString() ?? "";
-                string a2 = dataSheet.Range["A2"].Value2?.ToString() ?? "";
-                double b2 = Convert.ToDouble(dataSheet.Range["B2"].Value2);
-
-                // Check named range exists
-                bool namedRangeExists = false;
-                dynamic names = ctx.Book.Names;
-                for (int i = 1; i <= names.Count; i++)
-                {
-                    dynamic name = names[i];
-                    if (name.Name == namedRangeName)
-                    {
-                        namedRangeExists = true;
-                        break;
-                    }
-                }
-
-                return (sheetExists, a1, a2, b2, namedRangeExists);
+                finally { ComUtilities.Release(ref range); }
             });
-
-            // Assert - All changes persisted
-            Assert.True(verifyData.sheetExists, "Worksheet should exist after save");
-            Assert.Equal(testValue1, verifyData.a1);
-            Assert.Equal("Modified", verifyData.a2);
-            Assert.Equal(8.0, verifyData.b2); // LEN("Modified") = 8
-            Assert.True(verifyData.namedRangeExists, "Named range should exist after save");
-            _output.WriteLine("✓ All workflow changes persisted correctly");
         }
+    }
+
+    private static (int Window, IntPtr Workbook) ReadNativeIdentity(IExcelBatch batch) =>
+        batch.Execute((context, _) =>
+        {
+            var workbook = Marshal.GetIUnknownForObject(context.Book);
+            try { return (context.App.Hwnd, workbook); }
+            finally { Marshal.Release(workbook); }
+        });
+
+    private static void WithWorksheet(IExcelBatch batch, object identifier, Action<Excel.Worksheet> action)
+    {
+        batch.Execute((context, _) =>
+        {
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            try
+            {
+                sheets = context.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[identifier];
+                action(sheet);
+            }
+            finally
+            {
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
     }
 
     [Fact]
@@ -361,56 +369,66 @@ public class ExcelBatchTests : IAsyncLifetime
         for (int i = 0; i < batchCount; i++)
         {
             string copy = Path.Join(Path.GetTempPath(), $"batch-test-parallel-{i}-{Guid.NewGuid():N}.xlsx");
+            _temporaryFiles.Add(copy);
             File.Copy(_staticTestFile!, copy, overwrite: true);
             testFileCopies.Add(copy);
         }
 
-        using var owned = new OwnedExcelProcessScope();
-
-        try
+        var tasks = testFileCopies.Select((testFile, index) =>
         {
-            // Act - Run 2 batches in parallel
-            var tasks = testFileCopies.Select((testFile, index) =>
+            return Task.Run(() =>
             {
-                return Task.Run(() =>
+                using var batch = ExcelSession.BeginBatch(testFile);
+                SessionWorkbookAssertions.AssertIdentity(batch, testFile);
+                var identity = ReadNativeIdentity(batch);
+
+                // Perform multiple operations per batch
+                for (int op = 0; op < 3; op++)
                 {
-                    using var batch = ExcelSession.BeginBatch(testFile);
-
-                    // Perform multiple operations per batch
-                    for (int op = 0; op < 3; op++)
+                    WithWorksheet(batch, 1, sheet =>
                     {
-                        batch.Execute((ctx, ct) =>
+                        Excel.Range? cell = null;
+                        try
                         {
-                            dynamic sheet = ctx.Book.Worksheets[1];
-                            sheet.Range[$"A{op + 1}"].Value2 = $"Batch{index}-Op{op}";
-                            return 0;
-                        });
+                            cell = sheet.Range[$"A{op + 1}"];
+                            cell.Value2 = $"Batch{index}-Op{op}";
+                            Assert.Equal($"Batch{index}-Op{op}", cell.Value2);
+                        }
+                        finally { ComUtilities.Release(ref cell); }
+                    });
+                    Assert.Equal(identity, ReadNativeIdentity(batch));
+                }
+                WithWorksheet(batch, 1, sheet =>
+                {
+                    Excel.Range? cells = null;
+                    try
+                    {
+                        cells = sheet.Range["A1:A3"];
+                        var values = Assert.IsType<object[,]>(cells.Value2);
+                        for (int row = 1; row <= 3; row++)
+                        {
+                            Assert.Equal($"Batch{index}-Op{row - 1}", values[row, 1]);
+                        }
                     }
-
-                    _output.WriteLine($"✓ Batch {index} completed");
-
-                    return index;
+                    finally { ComUtilities.Release(ref cells); }
                 });
-            }).ToArray();
 
-            // Wait for all batches to complete
-            var results = await Task.WhenAll(tasks);
+                _output.WriteLine($"✓ Batch {index} completed");
 
-            Assert.Equal(batchCount, results.Length);
-            _output.WriteLine($"✓ All {batchCount} parallel batches completed");
+                return (Index: index, ProcessId: batch.ExcelProcessId);
+            });
+        }).ToArray();
 
-            owned.AssertAllExited();
-        }
-        finally
-        {
-            // Cleanup parallel test files
-            foreach (var testFile in testFileCopies.Where(File.Exists))
-            {
-#pragma warning disable CA1031 // Intentional: best-effort test cleanup
-                try { File.Delete(testFile); } catch (Exception) { /* Best effort cleanup */ }
-#pragma warning restore CA1031
-            }
-        }
+        // Wait for all batches to complete
+        var results = await Task.WhenAll(tasks);
+
+        Assert.Equal(batchCount, results.Length);
+        Assert.Equal([0, 1], results.Select(result => result.Index).Order());
+        Assert.All(results, result => Assert.NotNull(result.ProcessId));
+        Assert.Equal(batchCount, results.Select(result => result.ProcessId).Distinct().Count());
+        _output.WriteLine($"✓ All {batchCount} parallel batches completed");
+
+        _owned.AssertAllExited();
     }
 
     [Fact]
@@ -418,7 +436,9 @@ public class ExcelBatchTests : IAsyncLifetime
     public void BeginBatch_IrmWorkbook_ShowFalse_FailsFastBeforeOpen()
     {
         string fakeIrmFile = Path.Join(Path.GetTempPath(), $"batch-irm-headless-{Guid.NewGuid():N}.xlsx");
+        _temporaryFiles.Add(fakeIrmFile);
         OleDataSpaceTestFile.Write(fakeIrmFile, "\tDRMDataSpace");
+        var originalBytes = File.ReadAllBytes(fakeIrmFile);
 
         bool openAttempted = false;
         ExcelBatch.BeforeWorkbookOpenHook = (_, _) => openAttempted = true;
@@ -431,14 +451,12 @@ public class ExcelBatchTests : IAsyncLifetime
             Assert.False(openAttempted);
             Assert.Contains("IRM/AIP-protected workbook", ex.Message, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("show=true", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(originalBytes, File.ReadAllBytes(fakeIrmFile));
         }
         finally
         {
             ExcelBatch.BeforeWorkbookOpenHook = null;
 
-#pragma warning disable CA1031 // Intentional: best-effort test cleanup
-            try { File.Delete(fakeIrmFile); } catch (Exception) { }
-#pragma warning restore CA1031
         }
     }
 
@@ -448,7 +466,11 @@ public class ExcelBatchTests : IAsyncLifetime
     public void BeginBatch_StartupFailureWithConfirmedExit_UntracksExactIdentity()
     {
         ExcelProcessIdentity? capturedIdentity = null;
-        void CaptureIdentity(ExcelProcessIdentity identity) => capturedIdentity = identity;
+        void CaptureIdentity(ExcelProcessIdentity identity)
+        {
+            capturedIdentity = identity;
+            _startupIdentities.Add(identity);
+        }
 
         SessionManager.ExcelProcessIdentityTracked += CaptureIdentity;
         ExcelBatch.BeforeWorkbookOpenHook = (_, _) =>
@@ -470,14 +492,6 @@ public class ExcelBatchTests : IAsyncLifetime
             ExcelBatch.BeforeWorkbookOpenHook = null;
             ExcelBatch.FailedStartupTerminationHook = null;
             ExcelBatch.FailedStartupExitConfirmationHook = null;
-            if (capturedIdentity is { } identity)
-            {
-                _ = ExcelBatch.TryTerminateOwnedProcess(
-                    identity,
-                    TimeSpan.Zero,
-                    TimeSpan.FromSeconds(5));
-                SessionManager.UntrackExcelProcess(identity);
-            }
         }
     }
 
@@ -512,7 +526,11 @@ public class ExcelBatchTests : IAsyncLifetime
     public void BeginBatch_StartupFailureWithUnconfirmedLiveIdentity_RetainsOwnership()
     {
         ExcelProcessIdentity? capturedIdentity = null;
-        void CaptureIdentity(ExcelProcessIdentity identity) => capturedIdentity = identity;
+        void CaptureIdentity(ExcelProcessIdentity identity)
+        {
+            capturedIdentity = identity;
+            _startupIdentities.Add(identity);
+        }
 
         SessionManager.ExcelProcessIdentityTracked += CaptureIdentity;
         ExcelBatch.BeforeWorkbookOpenHook = (_, _) =>
@@ -538,14 +556,6 @@ public class ExcelBatchTests : IAsyncLifetime
             ExcelBatch.BeforeWorkbookOpenHook = null;
             ExcelBatch.FailedStartupTerminationHook = null;
             ExcelBatch.FailedStartupExitConfirmationHook = null;
-            if (capturedIdentity is { } identity)
-            {
-                _ = ExcelBatch.TryTerminateOwnedProcess(
-                    identity,
-                    TimeSpan.Zero,
-                    TimeSpan.FromSeconds(5));
-                SessionManager.UntrackExcelProcess(identity);
-            }
         }
     }
 
@@ -561,84 +571,90 @@ public class ExcelBatchTests : IAsyncLifetime
 
         var stopwatch = Stopwatch.StartNew();
         IExcelBatch? batch = null;
-
-        try
+        var openTask = Task.Run(() =>
+            ExcelSession.BeginBatch(show: true, operationTimeout: TimeSpan.FromSeconds(15), irmTestFile));
+        var primary = await Record.ExceptionAsync(async () =>
         {
-            var openTask = Task.Run(() => ExcelSession.BeginBatch(show: true, operationTimeout: TimeSpan.FromSeconds(15), irmTestFile));
-
-            try
-            {
-                batch = await openTask.WaitAsync(TimeSpan.FromSeconds(20));
-            }
-            catch (TimeoutException)
-            {
-                owned.AssertAllExited();
-                Assert.Fail(
-                    "Opening the configured IRM workbook did not complete within 20 seconds. " +
-                    "This is the hang regression surface for protected-workbook startup.");
-            }
+            batch = await openTask.WaitAsync(TimeSpan.FromSeconds(20));
+            stopwatch.Stop();
+            SessionWorkbookAssertions.AssertIdentity(batch, irmTestFile);
+            Assert.True(batch.Execute((context, _) => context.App.Visible));
+            Assert.True(batch.Execute((context, _) => context.Book.ReadOnly));
+            Assert.True(stopwatch.Elapsed <= TimeSpan.FromSeconds(20));
             _output.WriteLine($"Opened IRM workbook in {stopwatch.Elapsed.TotalSeconds:F1}s");
-        }
-        finally
+        });
+        var completion = await Record.ExceptionAsync(async () =>
         {
-            batch?.Dispose();
+            if (batch is null && !openTask.IsFaulted && !openTask.IsCanceled)
+            {
+                batch = await openTask.WaitAsync(TimeSpan.FromSeconds(60));
+            }
+        });
+        var disposal = Record.Exception(() => batch?.Dispose());
+        var exit = Record.Exception(() => owned.AssertAllExited());
+        var failures = new[] { primary, completion, disposal, exit }.OfType<Exception>().ToArray();
+        if (failures.Length > 0)
+        {
+            throw new AggregateException("Configured IRM startup or cleanup failed.", failures);
         }
     }
 
     private static void CreateJapaneseTableWorkbook(string workbookPath)
     {
-        object? excel = null;
-        object? workbooks = null;
-        object? workbook = null;
-        object? worksheets = null;
-        object? worksheet = null;
-        object? sourceRange = null;
-        object? listObjects = null;
-        object? table = null;
-        object? listColumns = null;
-        object? dateColumn = null;
-        object? dataBodyRange = null;
+        Excel.Application? excel = null;
+        Excel.Workbooks? workbooks = null;
+        Excel.Workbook? workbook = null;
+        Excel.Sheets? worksheets = null;
+        Excel.Worksheet? worksheet = null;
+        Excel.Range? sourceRange = null;
+        Excel.ListObjects? listObjects = null;
+        Excel.ListObject? table = null;
+        Excel.ListColumns? listColumns = null;
+        Excel.ListColumn? dateColumn = null;
+        Excel.Range? dataBodyRange = null;
+        Exception? primary = null;
+        Exception? cleanup = null;
 
         try
         {
-            var excelType = Type.GetTypeFromProgID("Excel.Application")
-                ?? throw new InvalidOperationException("Microsoft Excel is not installed.");
-            excel = Activator.CreateInstance(excelType)
-                ?? throw new InvalidOperationException("Could not start Microsoft Excel.");
-            dynamic excelDispatch = excel;
-            excelDispatch.DisplayAlerts = false;
-
-            workbooks = excelDispatch.Workbooks;
-            dynamic workbooksDispatch = workbooks;
-            workbook = workbooksDispatch.Add();
-            dynamic workbookDispatch = workbook;
-            worksheets = workbookDispatch.Worksheets;
-            dynamic worksheetsDispatch = worksheets;
-            worksheet = worksheetsDispatch[1];
-            dynamic worksheetDispatch = worksheet;
-            sourceRange = worksheetDispatch.Range["A1:B3"];
-            dynamic sourceRangeDispatch = sourceRange;
-            sourceRangeDispatch.Value2 = new object[,] { { "Amount", "Date" }, { 1, 46000 }, { 2, 46001 } };
-
-            listObjects = worksheetDispatch.ListObjects;
-            dynamic listObjectsDispatch = listObjects;
-            table = listObjectsDispatch.Add(1, sourceRange, Type.Missing, 1);
-            dynamic tableDispatch = table;
-            listColumns = tableDispatch.ListColumns;
-            dynamic listColumnsDispatch = listColumns;
-            dateColumn = listColumnsDispatch["Date"];
-            dynamic dateColumnDispatch = dateColumn;
-            dataBodyRange = dateColumnDispatch.DataBodyRange;
-            dynamic dataBodyRangeDispatch = dataBodyRange;
-            dataBodyRangeDispatch.NumberFormatLocal = "yyyy/m/d";
-
-            workbookDispatch.SaveAs(workbookPath, 51);
+            primary = Record.Exception(() =>
+            {
+                excel = new Excel.Application { DisplayAlerts = false };
+                workbooks = excel.Workbooks;
+                workbook = workbooks.Add();
+                worksheets = workbook.Worksheets;
+                worksheet = (Excel.Worksheet)worksheets[1];
+                sourceRange = worksheet.Range["A1:B3"];
+                sourceRange.Value2 = new object[,] { { "Amount", "Date" }, { 1, 46000 }, { 2, 46001 } };
+                listObjects = worksheet.ListObjects;
+                table = listObjects.Add(Excel.XlListObjectSourceType.xlSrcRange, sourceRange,
+                    Type.Missing, Excel.XlYesNoGuess.xlYes);
+                listColumns = table.ListColumns;
+                dateColumn = listColumns["Date"];
+                dataBodyRange = dateColumn.DataBodyRange;
+                dataBodyRange.NumberFormatLocal = "yyyy/m/d";
+                workbook.SaveAs(workbookPath, Excel.XlFileFormat.xlOpenXMLWorkbook);
+            });
+            cleanup = Record.Exception(() => CloseWorkbookAndQuitExcel(workbook, excel));
         }
         finally
         {
-            CloseWorkbookAndQuitExcel(workbook, excel);
-            ReleaseComObjects(dataBodyRange, dateColumn, listColumns, table, listObjects, sourceRange,
-                worksheet, worksheets, workbook, workbooks, excel);
+            ComUtilities.Release(ref dataBodyRange);
+            ComUtilities.Release(ref dateColumn);
+            ComUtilities.Release(ref listColumns);
+            ComUtilities.Release(ref table);
+            ComUtilities.Release(ref listObjects);
+            ComUtilities.Release(ref sourceRange);
+            ComUtilities.Release(ref worksheet);
+            ComUtilities.Release(ref worksheets);
+            ComUtilities.Release(ref workbook);
+            ComUtilities.Release(ref workbooks);
+            ComUtilities.Release(ref excel);
+        }
+        var failures = new[] { primary, cleanup }.OfType<Exception>().ToArray();
+        if (failures.Length > 0)
+        {
+            throw new AggregateException("Japanese native fixture creation or cleanup failed.", failures);
         }
     }
 
@@ -646,7 +662,8 @@ public class ExcelBatchTests : IAsyncLifetime
     {
         using var archive = ZipFile.OpenRead(workbookPath);
         var tableEntry = archive.Entries.Single(entry => entry.FullName.StartsWith("xl/tables/", StringComparison.OrdinalIgnoreCase));
-        var tableDocument = XDocument.Load(tableEntry.Open());
+        using var tableStream = tableEntry.Open();
+        var tableDocument = XDocument.Load(tableStream);
         XNamespace spreadsheetNamespace = "http://schemas.openxmlformats.org/spreadsheetml/2006/main";
         var column = tableDocument.Descendants(spreadsheetNamespace + "tableColumn")
             .Single(element => element.Attribute("name")?.Value == columnName);
@@ -654,7 +671,8 @@ public class ExcelBatchTests : IAsyncLifetime
 
         var stylesEntry = archive.GetEntry("xl/styles.xml")
             ?? throw new InvalidOperationException("Workbook styles were not found.");
-        var stylesDocument = XDocument.Load(stylesEntry.Open());
+        using var stylesStream = stylesEntry.Open();
+        var stylesDocument = XDocument.Load(stylesStream);
         return stylesDocument.Root!
             .Element(spreadsheetNamespace + "dxfs")!
             .Elements(spreadsheetNamespace + "dxf")
@@ -664,41 +682,23 @@ public class ExcelBatchTests : IAsyncLifetime
             .Value;
     }
 
-    private static void CloseWorkbookAndQuitExcel(object? workbook, object? excel)
+    private static void CloseWorkbookAndQuitExcel(Excel.Workbook? workbook, Excel.Application? excel)
     {
+        var failures = new List<Exception>();
         if (workbook != null)
         {
-            try
-            {
-                ((dynamic)workbook).Close(false);
-            }
-            catch (Exception)
-            {
-                // Best-effort cleanup - the workbook may already be closed.
-            }
+            var failure = Record.Exception(() => workbook.Close(false));
+            if (failure is not null) { failures.Add(failure); }
         }
 
         if (excel != null)
         {
-            try
-            {
-                ((dynamic)excel).Quit();
-            }
-            catch (Exception)
-            {
-                // Best-effort cleanup - Excel may already have exited.
-            }
+            var failure = Record.Exception(excel.Quit);
+            if (failure is not null) { failures.Add(failure); }
         }
-    }
-
-    private static void ReleaseComObjects(params object?[] comObjects)
-    {
-        foreach (var comObject in comObjects)
+        if (failures.Count > 0)
         {
-            if (comObject != null && Marshal.IsComObject(comObject))
-            {
-                Marshal.FinalReleaseComObject(comObject);
-            }
+            throw new AggregateException("Native Excel fixture shutdown failed.", failures);
         }
     }
 
@@ -709,9 +709,10 @@ public class ExcelBatchTests : IAsyncLifetime
     {
         // Arrange - Create a separate test file for locking test
         var lockedTestFile = Path.Join(Path.GetTempPath(), $"batch-test-locked-{Guid.NewGuid():N}.xlsx");
+        _temporaryFiles.Add(lockedTestFile);
         File.Copy(_staticTestFile!, lockedTestFile, overwrite: true);
+        var originalBytes = File.ReadAllBytes(lockedTestFile);
 
-        try
         {
             // Lock the file by opening with exclusive access (simulating Excel or another process)
             using var fileLock = new FileStream(
@@ -735,16 +736,10 @@ public class ExcelBatchTests : IAsyncLifetime
             _output.WriteLine($"✓ File locking detected successfully");
             _output.WriteLine($"Error message: {ex.Message}");
         }
-        finally
-        {
-            // Cleanup
-            if (File.Exists(lockedTestFile))
-            {
-#pragma warning disable CA1031 // Intentional: best-effort test cleanup
-                try { File.Delete(lockedTestFile); } catch (Exception) { /* Best effort - file may be locked */ }
-#pragma warning restore CA1031
-            }
-        }
+        Assert.Equal(originalBytes, File.ReadAllBytes(lockedTestFile));
+        using var recovered = ExcelSession.BeginBatch(lockedTestFile);
+        SessionWorkbookAssertions.AssertIdentity(recovered, lockedTestFile);
+        SessionWorkbookAssertions.WriteMarker(recovered, "recovered-after-file-lock");
     }
 
     [Fact]
@@ -753,11 +748,12 @@ public class ExcelBatchTests : IAsyncLifetime
     public void Constructor_FileLockedByAnotherProcess_DoesNotLeakExcelProcess()
     {
         var lockedTestFile = Path.Join(Path.GetTempPath(), $"batch-test-locked-leak-{Guid.NewGuid():N}.xlsx");
+        _temporaryFiles.Add(lockedTestFile);
         File.Copy(_staticTestFile!, lockedTestFile, overwrite: true);
+        var originalBytes = File.ReadAllBytes(lockedTestFile);
 
         using var owned = new OwnedExcelProcessScope();
 
-        try
         {
             using var fileLock = new FileStream(
                 lockedTestFile,
@@ -774,29 +770,6 @@ public class ExcelBatchTests : IAsyncLifetime
 
             owned.AssertAllExited(expectProcess: false);
         }
-        finally
-        {
-            if (File.Exists(lockedTestFile))
-            {
-#pragma warning disable CA1031
-                try { File.Delete(lockedTestFile); } catch (Exception) { }
-#pragma warning restore CA1031
-            }
-        }
+        Assert.Equal(originalBytes, File.ReadAllBytes(lockedTestFile));
     }
-
-    // Note: Testing file-already-open scenario is complex because:
-    // 1. Excel's behavior when opening an already-open file can vary (hang, prompt, or succeed)
-    // 2. The error detection code in ExcelBatch.cs catches COM Error 0x800A03EC
-    // 3. This test would require simulating Excel having the file open externally
-    //
-    // The error handling code is verified through:
-    // - Manual testing: Open file in Excel UI, then try automation
-    // - Real-world usage: Users will encounter this if they forget to close files
-    // - Code review: Error message is clear and actionable
-    //
-    // UPDATE: We now have a test (Constructor_FileLockedByAnotherProcess_ThrowsInvalidOperationException)
-    // that verifies the OS-level file locking check without requiring Excel to be running.
-    //
-    // Keeping this comment as documentation that the scenario is handled in production code.
 }

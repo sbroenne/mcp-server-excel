@@ -155,6 +155,7 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
             var response = await _fixture.SendForFailureAsync("range.set-values",
                 new { sheetName, rangeAddress = "A1", values = new[] { new[] { incoming } } });
             Assert.Equal("Conflict", response.ErrorCategory);
+            AssertNumericRow(sheetName, "A1", 42);
         }
 
         var read = _commands.GetValues(batch, sheetName, "A1");
@@ -168,9 +169,15 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
         Assert.True(_commands.SetValues(batch, sheetName, "A1", [[42]]).Success);
+        var before = _commands.GetFormulas(batch, sheetName, "A1");
+        Assert.True(before.Success, before.ErrorMessage);
         var rejected = await _fixture.SendForFailureAsync("range.set-values",
             new { sheetName, rangeAddress = "A1", values = SingleValue("=21*2") });
         Assert.Equal("Conflict", rejected.ErrorCategory);
+        var retained = _commands.GetFormulas(batch, sheetName, "A1");
+        Assert.True(retained.Success, retained.ErrorMessage);
+        Assert.Equal(before.Formulas[0][0], retained.Formulas[0][0]);
+        Assert.Equal(before.Values[0][0], retained.Values[0][0]);
 
         var allowed = _commands.SetValues(batch, sheetName, "A1", [["=21*2"]], overwritePolicy: OverwritePolicy.Allow);
         Assert.True(allowed.Success, allowed.ErrorMessage);
@@ -193,9 +200,13 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
         Assert.Null(empty.Values[0][0]);
         Assert.True(_commands.SetValues(batch, sheetName, "B1", [[1]]).Success);
         Assert.True(_commands.SetNumberFormat(batch, sheetName, "A1", "0").Success);
-        var read = _commands.GetValues(batch, sheetName, "A1");
+        var read = _commands.GetValues(batch, sheetName, "A1:B1");
         Assert.True(read.Success, read.ErrorMessage);
         Assert.Equal(42.0, Number(read.Values[0][0]));
+        Assert.Equal(1.0, Number(read.Values[0][1]));
+        var formats = _commands.GetNumberFormats(batch, sheetName, "A1");
+        Assert.True(formats.Success, formats.ErrorMessage);
+        Assert.Equal("0", Assert.Single(Assert.Single(formats.Formats)));
     }
 
     [Theory]
@@ -213,6 +224,9 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
         var rejected = await _fixture.SendForFailureAsync("range.copy", args);
         Assert.Equal("Conflict", rejected.ErrorCategory);
         Assert.Contains("$G$2", rejected.ErrorMessage);
+        AssertNumericRow(sheetName, "D1:G1", null, null, null, null);
+        AssertNumericRow(sheetName, "D2:G2", null, null, null, 99);
+        AssertNumericRow(sheetName, "A1:B1", 1, 2);
         Assert.True(_commands.ClearContents(batch, sheetName, "G2").Success);
         Assert.True(_commands.SetValues(batch, sheetName, "H2", [[99]]).Success);
         var copied = _fixture.Send("range.copy", args);
@@ -325,9 +339,12 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
             new { sheetName, rangeAddress = "A1:A16385", values = payload });
         Assert.Equal("Conflict", rejected.ErrorCategory);
         Assert.Contains("$A$16385", rejected.ErrorMessage);
-        var first = _commands.GetValues(batch, sheetName, "A1");
-        Assert.True(first.Success, first.ErrorMessage);
-        Assert.Null(first.Values[0][0]);
+        var retained = _commands.GetValues(batch, sheetName, "A1:A16385");
+        Assert.True(retained.Success, retained.ErrorMessage);
+        Assert.Equal(payload.Count, retained.RowCount);
+        Assert.Equal(payload.Count, retained.Values.Count);
+        Assert.All(retained.Values.Take(payload.Count - 1), row => Assert.Null(Assert.Single(row)));
+        Assert.Equal(42, Number(Assert.Single(retained.Values[^1])));
     }
 
     [Theory]
@@ -366,6 +383,7 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
             overwritePolicy
         });
         Assert.Equal("Conflict", rejected.ErrorCategory);
+        AssertNumericRow(sheetName, "A1", 42);
     }
 
     [Fact]
@@ -382,7 +400,11 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
             formulasFile = _fixture.CreateInputFile(".json", """[["=42"]]""")
         });
         Assert.Equal("Conflict", rejected.ErrorCategory);
-        Assert.True(_commands.SetValues(batch, sheetName, "A1", valuesFile: file, overwritePolicy: OverwritePolicy.Allow).Success);
+        AssertNumericRow(sheetName, "A1", 42);
+        var replacement = _fixture.CreateInputFile(".json", "[[43]]");
+        var allowed = _commands.SetValues(batch, sheetName, "A1", valuesFile: replacement, overwritePolicy: OverwritePolicy.Allow);
+        Assert.True(allowed.Success, allowed.ErrorMessage);
+        AssertNumericRow(sheetName, "A1", 43);
     }
 
     [Fact]
@@ -399,6 +421,8 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
         Assert.Equal("Conflict", rejected.ErrorCategory);
         Assert.Contains(sheetName, rejected.ErrorMessage);
         Assert.Contains("$A$1", rejected.ErrorMessage);
+        AssertNumericRow(sheetName, "A1", 42);
+        AssertNumericRow("", name, 42);
     }
 
     [Fact]
@@ -411,7 +435,9 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
         var rejected = await _fixture.SendForFailureAsync("range.set-values",
             new { sheetName, rangeAddress = "A1", values = SingleValue(1) });
         Assert.Equal("Conflict", rejected.ErrorCategory);
+        AssertNumericRow(sheetName, "A1:B1", 42, null);
         Assert.True(_commands.SetValues(batch, sheetName, "A1", [[43]], overwritePolicy: OverwritePolicy.Allow).Success);
+        AssertNumericRow(sheetName, "A1:B1", 43, null);
         Assert.True(_commands.SetValues(batch, sheetName, "D1", [[1]]).Success);
         var copied = await _fixture.SendForFailureAsync("range.copy", new
         {
@@ -453,7 +479,7 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
             }
         });
         Protect(true);
-        try
+        var failure = await Record.ExceptionAsync(async () =>
         {
             var rejected = await _fixture.SendForFailureAsync("range.set-values", new
             {
@@ -467,11 +493,14 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
             var read = _commands.GetValues(batch, sheetName, "A1");
             Assert.True(read.Success, read.ErrorMessage);
             Assert.Null(read.Values[0][0]);
-        }
-        finally
-        {
-            Protect(false);
-        }
+        });
+        PersistentServiceCleanupFailures.Run(
+            () =>
+            {
+                if (failure is not null)
+                    System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+            },
+            () => Protect(false));
     }
 
     [Theory]
@@ -486,7 +515,7 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
         Assert.True(_commands.SetValues(batch, sheetName, "A1", [[42]]).Success);
         var previous = calculation.GetSettings(batch);
         Assert.True(previous.Success, previous.ErrorMessage);
-        try
+        var failure = await Record.ExceptionAsync(async () =>
         {
             Assert.True(calculation.SetSettings(batch, mode).Success);
             var rejected = await _fixture.SendForFailureAsync("range.set-values",
@@ -495,11 +524,15 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
             var retained = calculation.GetSettings(batch);
             Assert.True(retained.Success, retained.ErrorMessage);
             Assert.Equal((int)mode, retained.ModeValue);
-        }
-        finally
-        {
-            Assert.True(calculation.SetSettings(batch, (CalculationMode)previous.ModeValue).Success);
-        }
+            AssertNumericRow(sheetName, "A1", 42);
+        });
+        PersistentServiceCleanupFailures.Run(
+            () =>
+            {
+                if (failure is not null)
+                    System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+            },
+            () => RequireSuccess(calculation.SetSettings(batch, (CalculationMode)previous.ModeValue)));
     }
 
     [Theory]
@@ -541,6 +574,17 @@ public sealed class PersistentServiceRangeOverwritePolicyTests(
         var formats = _commands.GetNumberFormats(batch, sheetName, "D1:E1");
         Assert.True(formats.Success, formats.ErrorMessage);
         Assert.All(formats.Formats, row => Assert.All(row, format => Assert.Equal("0%", format)));
+        AssertNumericRow(sheetName, "D1:E1", null, 42);
+        AssertNumericRow(sheetName, "A1:B1", 1, 2);
+    }
+
+    private void AssertNumericRow(string sheetName, string rangeAddress, params double?[] expected)
+    {
+        var retained = _commands.GetValues(_fixture.BatchToken, sheetName, rangeAddress);
+        Assert.True(retained.Success, retained.ErrorMessage);
+        Assert.Equal(1, retained.RowCount);
+        Assert.Equal(expected.Length, retained.ColumnCount);
+        Assert.Equal(expected, Assert.Single(retained.Values).Select(Number));
     }
 
     private static List<List<object?>> SingleValue(object? value) => [[value]];

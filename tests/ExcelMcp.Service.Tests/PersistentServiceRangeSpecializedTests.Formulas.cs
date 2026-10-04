@@ -28,13 +28,13 @@ public sealed partial class PersistentServiceRangeSpecializedTests
             (ctx, ct) => ctx.Capabilities.SupportsFormula2);
 
         // Set up data first
-        _commands.SetValues(batch, sheetName, "A1:C4",
+        RequireSuccess(_commands.SetValues(batch, sheetName, "A1:C4",
         [
             ["Name", "Value", "Doubled"],
             ["Alpha", 10, null],
             ["Beta", 20, null],
             ["Gamma", 30, null]
-        ]);
+        ]));
 
         // Create an Excel Table over the data
         var tableCommands = _fixture.CreateCommands<ITableCommands>();
@@ -90,21 +90,21 @@ public sealed partial class PersistentServiceRangeSpecializedTests
         bool supportsFormula2 = _fixture.ExecuteRawVerification(
             (ctx, ct) => ctx.Capabilities.SupportsFormula2);
 
-        _commands.SetValues(batch, sheetName, "A1:C4",
+        RequireSuccess(_commands.SetValues(batch, sheetName, "A1:C4",
         [
             ["X", "Y", "Sum"],
             [1, 2, null],
             [3, 4, null],
             [5, 6, null]
-        ]);
+        ]));
 
         // Set formulas before creating the table, using the session's selected API.
-        _commands.SetFormulas(batch, sheetName, "C2:C4",
+        RequireSuccess(_commands.SetFormulas(batch, sheetName, "C2:C4",
         [
             ["=A2+B2"],
             ["=A3+B3"],
             ["=A4+B4"]
-        ]);
+        ]));
 
         // Create Excel Table around the data including formula column
         var tableCommands = _fixture.CreateCommands<ITableCommands>();
@@ -161,5 +161,4 @@ public sealed partial class PersistentServiceRangeSpecializedTests
             }
         });
 }
-
 

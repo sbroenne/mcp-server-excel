@@ -68,6 +68,7 @@ public interface IWindowCommands
 
     /// <summary>
     /// Makes the Excel window visible and brings it to the foreground.
+    /// Restores a minimized window to its previous normal or maximized state.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     [ServiceAction("show")]
@@ -82,6 +83,7 @@ public interface IWindowCommands
 
     /// <summary>
     /// Brings the Excel window to the foreground without changing visibility.
+    /// Restores a visible minimized window to its previous normal or maximized state.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     [ServiceAction("bring-to-front")]

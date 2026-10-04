@@ -2,6 +2,7 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 using Xunit.Abstractions;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -32,6 +33,8 @@ public class PersistentServicePivotTableOlapDisambiguationTests :
 {
     private readonly IPersistentPivotTableCommands _pivotCommands;
     private readonly ITestOutputHelper _output;
+    private string _pivotName = string.Empty;
+    private string _pivotSheet = string.Empty;
 
     public PersistentServicePivotTableOlapDisambiguationTests(
         PersistentServiceDataModelFixture fixture,
@@ -60,11 +63,12 @@ public class PersistentServicePivotTableOlapDisambiguationTests :
         // Arrange - Use the shared fixture file
         Assert.True(PersistentServiceDataModelFixture.CreationResult.Success, $"Fixture creation failed: {PersistentServiceDataModelFixture.CreationResult.ErrorMessage}");
         var batch = _fixture.BatchToken;
+        PreparePivot();
 
         // Act - Try to add the DAX measure using [Measures].[Name] syntax
         var result = _pivotCommands.AddValueField(
             batch,
-            "DisambiguationTest",
+            _pivotName,
             "[Measures].[ACR]",  // Should match DAX measure, NOT [DisambiguationTable].[ACRTypeKey]
             AggregationFunction.Sum,
             null);
@@ -83,6 +87,7 @@ public class PersistentServicePivotTableOlapDisambiguationTests :
 
         // The area should be Value (xlDataField)
         Assert.Equal(PivotFieldArea.Value, result.Area);
+        AssertNativeMeasure("ACR", 8800);
     }
 
     /// <summary>
@@ -102,11 +107,12 @@ public class PersistentServicePivotTableOlapDisambiguationTests :
         // Arrange
         Assert.True(PersistentServiceDataModelFixture.CreationResult.Success, $"Fixture creation failed: {PersistentServiceDataModelFixture.CreationResult.ErrorMessage}");
         var batch = _fixture.BatchToken;
+        PreparePivot();
 
         // Act - Try to add the DAX measure using exact name (no [Measures]. prefix)
         var result = _pivotCommands.AddValueField(
             batch,
-            "DisambiguationTest",
+            _pivotName,
             "Discount",  // Should match DAX measure, NOT [DisambiguationTable].[DiscountCode]
             AggregationFunction.Sum,
             null);
@@ -121,6 +127,7 @@ public class PersistentServicePivotTableOlapDisambiguationTests :
         Assert.Equal("Discount", result.FieldName);
         Assert.DoesNotContain("DiscountCode", result.CustomName ?? "", StringComparison.OrdinalIgnoreCase);
         Assert.Equal(PivotFieldArea.Value, result.Area);
+        AssertNativeMeasure("Discount", 880);
     }
 
     /// <summary>
@@ -141,37 +148,43 @@ public class PersistentServicePivotTableOlapDisambiguationTests :
 
         _fixture.ExecuteRawVerification((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets["DisambiguationPivot"];
-            dynamic pivotTable = sheet.PivotTables("DisambiguationTest");
-            dynamic cubeFields = pivotTable.CubeFields;
-
-            for (int i = 1; i <= cubeFields.Count; i++)
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.PivotTables? pivots = null;
+            Excel.PivotTable? pivotTable = null;
+            Excel.CubeFields? cubeFields = null;
+            try
             {
-                dynamic? cf = null;
-                try
+                sheets = ctx.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets["DisambiguationPivot"];
+                pivots = (Excel.PivotTables)sheet.PivotTables();
+                pivotTable = pivots.Item("DisambiguationTest");
+                cubeFields = pivotTable.CubeFields;
+                for (int i = 1; i <= cubeFields.Count; i++)
                 {
-                    cf = cubeFields[i];
-                    string name = cf.Name?.ToString() ?? "";
-                    int cubeFieldType = Convert.ToInt32(cf.CubeFieldType);
-
-                    // xlMeasure = 2, xlHierarchy = 1
-                    if (cubeFieldType == 2) // xlMeasure
+                    Excel.CubeField? field = null;
+                    try
                     {
-                        measureFields.Add((name, cubeFieldType));
+                        field = cubeFields[i];
+                        if (field.CubeFieldType == Excel.XlCubeFieldType.xlMeasure)
+                            measureFields.Add((field.Name, (int)field.CubeFieldType));
+                        else if (field.CubeFieldType == Excel.XlCubeFieldType.xlHierarchy)
+                            hierarchyFields.Add((field.Name, (int)field.CubeFieldType));
                     }
-                    else if (cubeFieldType == 1) // xlHierarchy
+                    finally
                     {
-                        hierarchyFields.Add((name, cubeFieldType));
+                        ComUtilities.Release(ref field);
                     }
-                }
-                finally
-                {
-                    if (cf != null)
-                        ComUtilities.Release(ref cf!);
                 }
             }
-
-            ComUtilities.Release(ref cubeFields!);
+            finally
+            {
+                ComUtilities.Release(ref cubeFields);
+                ComUtilities.Release(ref pivotTable);
+                ComUtilities.Release(ref pivots);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
             return 0;
         });
 
@@ -191,8 +204,10 @@ public class PersistentServicePivotTableOlapDisambiguationTests :
         Assert.NotEmpty(measureFields);
 
         // Our created measures should be in the measure list
-        Assert.Contains(measureFields, m => m.Name.Contains("ACR", StringComparison.OrdinalIgnoreCase));
-        Assert.Contains(measureFields, m => m.Name.Contains("Discount", StringComparison.OrdinalIgnoreCase));
+        Assert.Contains(("[Measures].[ACR]", 2), measureFields);
+        Assert.Contains(("[Measures].[Discount]", 2), measureFields);
+        Assert.Contains(hierarchyFields, field => field.Name == "[DisambiguationTable].[ACRTypeKey]");
+        Assert.Contains(hierarchyFields, field => field.Name == "[DisambiguationTable].[DiscountCode]");
 
         // Table columns (ACRTypeKey, DiscountCode) should NOT be measures
         Assert.DoesNotContain(measureFields, m => m.Name.Contains("ACRTypeKey", StringComparison.OrdinalIgnoreCase));
@@ -211,20 +226,21 @@ public class PersistentServicePivotTableOlapDisambiguationTests :
         // Arrange
         Assert.True(PersistentServiceDataModelFixture.CreationResult.Success, $"Fixture creation failed: {PersistentServiceDataModelFixture.CreationResult.ErrorMessage}");
         var batch = _fixture.BatchToken;
+        PreparePivot();
 
         // First, add the measure to values area (use unambiguous measure name)
         var addResult = _pivotCommands.AddValueField(
             batch,
-            "DisambiguationTest",
+            _pivotName,
             "[Measures].[ACR]",
             AggregationFunction.Sum,
             null);
 
-        // Even if add fails due to bug, let's check ListFields
+        RequireSuccess(addResult);
         _output.WriteLine($"AddValueField result: Success={addResult.Success}, FieldName={addResult.FieldName}");
 
         // Act - List all fields
-        var listResult = _pivotCommands.ListFields(batch, "DisambiguationTest");
+        var listResult = _pivotCommands.ListFields(batch, _pivotName);
 
         // Assert
         Assert.True(listResult.Success, $"ListFields failed: {listResult.ErrorMessage}");
@@ -235,23 +251,66 @@ public class PersistentServicePivotTableOlapDisambiguationTests :
             _output.WriteLine($"  - {field.Name}: Area={field.Area}");
         }
 
-        // Find ACR in the field list (could be measure or incorrectly matched column)
-        var acrFields = listResult.Fields.Where(f =>
-            f.Name.Contains("ACR", StringComparison.OrdinalIgnoreCase)).ToList();
+        var measureField = Assert.Single(listResult.Fields,
+            field => field.Name == "[Measures].[ACR]");
+        Assert.Equal(PivotFieldArea.Value, measureField.Area);
+        AssertNativeMeasure("ACR", 8800);
+    }
 
-        Assert.NotEmpty(acrFields);
+    private void PreparePivot()
+    {
+        _pivotSheet = _fixture.CreateTestSheet(_fixture.BatchToken);
+        _pivotName = $"Disambiguation_{Guid.NewGuid():N}";
+        RequireSuccess(_pivotCommands.CreateFromDataModel(
+            _fixture.BatchToken, "DisambiguationTable", _pivotSheet, "A1", _pivotName));
+    }
 
-        // If fix is applied: ACR measure should be in Value area
-        // If bug exists: ACRTypeKey column might be matched instead
-        var measureField = acrFields.FirstOrDefault(f =>
-            f.Name.Contains("[Measures]", StringComparison.OrdinalIgnoreCase));
-
-        if (measureField != null)
+    private void AssertNativeMeasure(string measureName, double expectedValue)
+    {
+        RequireSuccess(_pivotCommands.Refresh(_fixture.BatchToken, _pivotName, null));
+        _fixture.ExecuteRawVerification((context, _) =>
         {
-            Assert.Equal(PivotFieldArea.Value, measureField.Area);
-        }
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.PivotTables? pivots = null;
+            Excel.PivotTable? pivot = null;
+            Excel.PivotCache? cache = null;
+            Excel.PivotFields? fields = null;
+            Excel.PivotField? field = null;
+            Excel.CubeField? cubeField = null;
+            Excel.Range? data = null;
+            try
+            {
+                sheets = context.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[_pivotSheet];
+                pivots = (Excel.PivotTables)sheet.PivotTables();
+                pivot = pivots.Item(_pivotName);
+                cache = pivot.PivotCache();
+                Assert.True(cache.OLAP);
+                fields = (Excel.PivotFields)pivot.DataFields;
+                Assert.Equal(1, fields.Count);
+                field = fields.Item(1);
+                cubeField = field.CubeField;
+                Assert.Equal($"[Measures].[{measureName}]", cubeField.Name);
+                Assert.Equal(Excel.XlCubeFieldType.xlMeasure, cubeField.CubeFieldType);
+                Assert.Equal(Excel.XlPivotFieldOrientation.xlDataField, field.Orientation);
+                data = pivot.DataBodyRange;
+                Assert.NotNull(data);
+                Assert.Equal(expectedValue, Convert.ToDouble(data.Value2,
+                    System.Globalization.CultureInfo.InvariantCulture), 8);
+            }
+            finally
+            {
+                ComUtilities.Release(ref data);
+                ComUtilities.Release(ref cubeField);
+                ComUtilities.Release(ref field);
+                ComUtilities.Release(ref fields);
+                ComUtilities.Release(ref cache);
+                ComUtilities.Release(ref pivot);
+                ComUtilities.Release(ref pivots);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
     }
 }
-
-
-

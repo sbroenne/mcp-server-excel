@@ -55,18 +55,21 @@ public partial class SheetCommands
     /// <inheritdoc />
     public OperationResult Create(IExcelBatch batch, string sheetName, string? filePath = null)
     {
+        ValidateNewSheetName(sheetName);
         return batch.Execute((ctx, ct) =>
         {
             // Get the workbook to create sheet in
-            dynamic workbook = filePath != null ? batch.GetWorkbook(filePath) : ctx.Book;
+            Excel.Workbook workbook = filePath != null ? batch.GetWorkbook(filePath) : ctx.Book;
 
-            dynamic? sheets = null;
-            dynamic? newSheet = null;
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? newSheet = null;
             try
             {
+                EnsureSheetNameAvailable(workbook, sheetName, ct);
                 sheets = workbook.Worksheets;
-                newSheet = sheets.Add();
-                newSheet.Name = sheetName;
+                newSheet = (Excel.Worksheet)sheets.Add();
+                var addedSheetCurrentName = newSheet.Name;
+                SetSheetNameWithContext(newSheet, sheetName, addedSheetCurrentName, isNewSheet: true);
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
@@ -80,6 +83,7 @@ public partial class SheetCommands
     /// <inheritdoc />
     public OperationResult Rename(IExcelBatch batch, string oldName, string newName)
     {
+        ValidateNewSheetName(newName);
         return batch.Execute((ctx, ct) =>
         {
             Excel.Worksheet? sheet = null;
@@ -90,7 +94,8 @@ public partial class SheetCommands
                 {
                     throw new InvalidOperationException($"Sheet '{oldName}' not found.");
                 }
-                sheet.Name = newName;
+                EnsureSheetNameAvailable(ctx.Book, newName, ct, sheet.Name);
+                SetSheetNameWithContext(sheet, newName, sheet.Name, isNewSheet: false);
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
@@ -103,12 +108,13 @@ public partial class SheetCommands
     /// <inheritdoc />
     public OperationResult Copy(IExcelBatch batch, string sourceName, string targetName)
     {
+        ValidateNewSheetName(targetName);
         return batch.Execute((ctx, ct) =>
         {
             Excel.Worksheet? sourceSheet = null;
-            dynamic? sheets = null;
-            dynamic? lastSheet = null;
-            dynamic? copiedSheet = null;
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? lastSheet = null;
+            Excel.Worksheet? copiedSheet = null;
             try
             {
                 sourceSheet = ComUtilities.FindSheet(ctx.Book, sourceName);
@@ -116,11 +122,13 @@ public partial class SheetCommands
                 {
                     throw new InvalidOperationException($"Sheet '{sourceName}' not found.");
                 }
+                EnsureSheetNameAvailable(ctx.Book, targetName, ct);
                 sheets = ctx.Book.Worksheets;
-                lastSheet = sheets.Item(sheets.Count);
+                lastSheet = (Excel.Worksheet)sheets.Item[sheets.Count];
                 sourceSheet.Copy(After: lastSheet);
-                copiedSheet = sheets.Item(sheets.Count);
-                copiedSheet.Name = targetName;
+                copiedSheet = (Excel.Worksheet)sheets.Item[sheets.Count];
+                var copiedSheetCurrentName = copiedSheet.Name;
+                SetSheetNameWithContext(copiedSheet, targetName, copiedSheetCurrentName, isNewSheet: true);
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
@@ -131,6 +139,70 @@ public partial class SheetCommands
                 ComUtilities.Release(ref sourceSheet);
             }
         });
+    }
+
+    private static void SetSheetNameWithContext(
+        Excel.Worksheet sheet, string name, string existingName, bool isNewSheet)
+    {
+        try
+        {
+            sheet.Name = name;
+        }
+        catch (System.Runtime.InteropServices.COMException namingError)
+        {
+            var message = isNewSheet
+                ? $"Excel rejected worksheet name '{name}'. The new worksheet '{existingName}' remains in the workbook; inspect it and remove it if appropriate."
+                : $"Excel rejected worksheet name '{name}'. Worksheet '{existingName}' was not renamed.";
+            throw new InvalidOperationException(message, namingError);
+        }
+    }
+
+    private static void ValidateNewSheetName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name) ||
+            name.Length > 31 ||
+            name.AsSpan().IndexOfAny(":\\/?*[]".AsSpan()) >= 0 ||
+            name.StartsWith('\'') ||
+            name.EndsWith('\'') ||
+            string.Equals(name, "History", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                "Worksheet names must be nonblank, contain at most 31 characters, not be 'History', " +
+                "not contain : \\ / ? * [ ], and not begin or end with an apostrophe.",
+                nameof(name));
+        }
+    }
+
+    private static void EnsureSheetNameAvailable(
+        Excel.Workbook workbook, string name, CancellationToken cancellationToken, string? currentName = null)
+    {
+        Excel.Sheets? sheets = null;
+        try
+        {
+            sheets = workbook.Sheets;
+            for (var index = 1; index <= sheets.Count; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                object? candidate = null;
+                try
+                {
+                    candidate = sheets.Item[index];
+                    var existingName = candidate switch
+                    {
+                        Excel.Worksheet worksheet => worksheet.Name,
+                        Excel.Chart chart => chart.Name,
+                        _ => throw new InvalidOperationException("Excel returned an unsupported sheet type during name validation.")
+                    };
+                    if (string.Equals(existingName, name, StringComparison.OrdinalIgnoreCase) &&
+                        !string.Equals(existingName, currentName, StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException($"Sheet '{name}' already exists.");
+                    }
+                }
+                finally { ComUtilities.Release(ref candidate); }
+            }
+        }
+        finally { ComUtilities.Release(ref sheets); }
     }
 
     /// <inheritdoc />
@@ -223,6 +295,11 @@ public partial class SheetCommands
     /// <inheritdoc />
     public OperationResult CopyToFile(string sourceFile, string sourceSheet, string targetFile, string? targetSheetName = null, string? beforeSheet = null, string? afterSheet = null)
     {
+        if (targetSheetName is not null)
+        {
+            ValidateNewSheetName(targetSheetName);
+        }
+
         // Validate positioning parameters
         if (!string.IsNullOrWhiteSpace(beforeSheet) && !string.IsNullOrWhiteSpace(afterSheet))
         {
@@ -257,7 +334,7 @@ public partial class SheetCommands
             Excel.Worksheet? sourceSheetObj = null;
             dynamic? targetSheets = null;
             Excel.Worksheet? targetPositionSheet = null;
-            dynamic? copiedSheet = null;
+            Excel.Worksheet? copiedSheet = null;
 
             try
             {
@@ -275,6 +352,12 @@ public partial class SheetCommands
                 // Handle positioning
                 targetSheets = targetWb.Worksheets;
                 int? copiedSheetPosition = null;
+
+                if (targetSheetName is not null)
+                {
+                    EnsureSheetNameAvailable(
+                        (Excel.Workbook)targetWb, targetSheetName, ct);
+                }
 
                 if (!string.IsNullOrWhiteSpace(beforeSheet))
                 {
@@ -315,10 +398,11 @@ public partial class SheetCommands
                 }
 
                 // Rename if requested - use correct position based on where sheet was copied
-                if (!string.IsNullOrWhiteSpace(targetSheetName) && copiedSheetPosition.HasValue)
+                if (targetSheetName is not null && copiedSheetPosition.HasValue)
                 {
-                    copiedSheet = targetSheets.Item(copiedSheetPosition.Value);
-                    copiedSheet.Name = targetSheetName;
+                    copiedSheet = (Excel.Worksheet)targetSheets.Item(copiedSheetPosition.Value);
+                    var copiedSheetCurrentName = copiedSheet.Name;
+                    SetSheetNameWithContext(copiedSheet, targetSheetName, copiedSheetCurrentName, isNewSheet: true);
                 }
 
                 // Save the target workbook (source unchanged, only target modified)
@@ -437,5 +521,3 @@ public partial class SheetCommands
         });
     }
 }
-
-

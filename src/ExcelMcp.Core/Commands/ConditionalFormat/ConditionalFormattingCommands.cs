@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -66,6 +67,19 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
             throw new ArgumentOutOfRangeException(nameof(priority));
         if (stopIfTrue.HasValue && normalizedType is "colorscale" or "databar" or "iconset")
             throw new ArgumentException("StopIfTrue is not available for color-scale, data-bar, or icon-set rules.", nameof(stopIfTrue));
+        string?[] colors = normalizedType switch
+        {
+            "colorscale" => [colorScaleMinColor, colorScaleMidColor, colorScaleMaxColor],
+            "databar" => [dataBarColor, dataBarNegativeColor],
+            "cellvalue" or "expression" or "top10" or "aboveaverage" or "uniquevalues"
+                or "timeperiod" or "blankscondition" => [interiorColor, fontColor, borderColor],
+            _ => []
+        };
+        foreach (var color in colors)
+        {
+            if (!string.IsNullOrEmpty(color)) { _ = FormattingHelpers.ParseColor(color); }
+        }
+
         return batch.Execute((ctx, ct) =>
         {
             dynamic? sheet = null;
@@ -448,7 +462,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
             dynamic? fc = null;
             dynamic? appliesTo = null;
             dynamic? interior = null;
-            dynamic? font = null;
+            Excel.Font? font = null;
             dynamic? borders = null;
             dynamic? edgeBorder = null;
 
@@ -493,14 +507,19 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 try
                 {
                     font = fc.Font;
-                    int fontColorIndex = Convert.ToInt32(font.ColorIndex, System.Globalization.CultureInfo.InvariantCulture);
-                    if (fontColorIndex != -4105 && fontColorIndex != -4142) // not Automatic/None
+                    object? bold = font.Bold;
+                    object? italic = font.Italic;
+                    rule.FontBold = bold is null ? null : Convert.ToBoolean(bold, System.Globalization.CultureInfo.InvariantCulture);
+                    rule.FontItalic = italic is null ? null : Convert.ToBoolean(italic, System.Globalization.CultureInfo.InvariantCulture);
+                    try
                     {
-                        try { rule.FontColor = FormattingHelpers.ColorToHex(Convert.ToInt32(font.Color, System.Globalization.CultureInfo.InvariantCulture)); }
-                        catch (Exception ex) when (IsComOrBinderException(ex)) { }
+                        int fontColorIndex = Convert.ToInt32(font.ColorIndex, System.Globalization.CultureInfo.InvariantCulture);
+                        if (fontColorIndex != -4105 && fontColorIndex != -4142) // not Automatic/None
+                        {
+                            rule.FontColor = FormattingHelpers.ColorToHex(Convert.ToInt32(font.Color, System.Globalization.CultureInfo.InvariantCulture));
+                        }
                     }
-                    rule.FontBold = ReadRuleBool(font, "Bold");
-                    rule.FontItalic = ReadRuleBool(font, "Italic");
+                    catch (Exception ex) when (IsComOrBinderException(ex)) { }
                 }
                 catch (Exception ex) when (IsComOrBinderException(ex)) { }
 
@@ -552,7 +571,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
             {
                 ComUtilities.Release(ref edgeBorder!);
                 ComUtilities.Release(ref borders!);
-                ComUtilities.Release(ref font!);
+                ComUtilities.Release(ref font);
                 ComUtilities.Release(ref interior!);
                 ComUtilities.Release(ref appliesTo!);
                 ComUtilities.Release(ref fc!);

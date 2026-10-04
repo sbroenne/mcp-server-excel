@@ -35,6 +35,7 @@ internal static class ProgramTransportTestHost
         ITestOutputHelper output,
         CancellationTokenSource? cancellationTokenSource = null)
     {
+        var failures = new List<Exception>();
         if (client != null)
         {
             try
@@ -43,70 +44,90 @@ internal static class ProgramTransportTestHost
             }
             catch (Exception ex)
             {
-                output.WriteLine($"Warning: Failed to dispose MCP client cleanly: {ex.Message}");
+                failures.Add(new InvalidOperationException("Failed to dispose MCP client.", ex));
             }
         }
 
         if (serverTask == null)
         {
-            await TryCompleteAsync(clientToServerPipe.Writer, output, nameof(clientToServerPipe) + ".Writer");
-            await TryCompleteAsync(serverToClientPipe.Reader, output, nameof(serverToClientPipe) + ".Reader");
-            await TryCompleteAsync(clientToServerPipe.Reader, output, nameof(clientToServerPipe) + ".Reader");
-            await TryCompleteAsync(serverToClientPipe.Writer, output, nameof(serverToClientPipe) + ".Writer");
+            await TryCompleteAsync(clientToServerPipe.Writer, failures, nameof(clientToServerPipe) + ".Writer");
+            await TryCompleteAsync(serverToClientPipe.Reader, failures, nameof(serverToClientPipe) + ".Reader");
+            await TryCompleteAsync(clientToServerPipe.Reader, failures, nameof(clientToServerPipe) + ".Reader");
+            await TryCompleteAsync(serverToClientPipe.Writer, failures, nameof(serverToClientPipe) + ".Writer");
+            ThrowCleanupFailures(failures);
             return;
         }
 
         if (cancellationTokenSource is not null)
-            await cancellationTokenSource.CancelAsync();
-        await TryCompleteAsync(clientToServerPipe.Writer, output, nameof(clientToServerPipe) + ".Writer");
-        await TryCompleteAsync(serverToClientPipe.Reader, output, nameof(serverToClientPipe) + ".Reader");
+            await TryCancelAsync(cancellationTokenSource, failures);
+        await TryCompleteAsync(clientToServerPipe.Writer, failures, nameof(clientToServerPipe) + ".Writer");
+        await TryCompleteAsync(serverToClientPipe.Reader, failures, nameof(serverToClientPipe) + ".Reader");
 
         try
         {
             await serverTask.WaitAsync(ServerShutdownTimeout);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (serverTask.IsCanceled)
         {
         }
-        catch (TimeoutException)
+        catch (TimeoutException ex)
         {
-            output.WriteLine("Warning: MCP test host did not stop within timeout; forcing cancellation.");
+            failures.Add(ex);
+            output.WriteLine("MCP test host exceeded its shutdown deadline; attempting final cleanup.");
 
             if (cancellationTokenSource is not null && !cancellationTokenSource.IsCancellationRequested)
             {
-                await cancellationTokenSource.CancelAsync();
+                await TryCancelAsync(cancellationTokenSource, failures);
             }
 
             try
             {
-                await TryCompleteAsync(clientToServerPipe.Reader, output, nameof(clientToServerPipe) + ".Reader");
-                await TryCompleteAsync(serverToClientPipe.Writer, output, nameof(serverToClientPipe) + ".Writer");
+                await TryCompleteAsync(clientToServerPipe.Reader, failures, nameof(clientToServerPipe) + ".Reader");
+                await TryCompleteAsync(serverToClientPipe.Writer, failures, nameof(serverToClientPipe) + ".Writer");
                 await serverTask.WaitAsync(ServerShutdownTimeout);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (serverTask.IsCanceled)
             {
             }
-            catch (TimeoutException)
+            catch (Exception cleanupFailure)
             {
-                output.WriteLine("Warning: MCP test host still did not stop after forced cancellation.");
+                failures.Add(cleanupFailure);
             }
         }
         catch (Exception ex)
         {
-            output.WriteLine($"Warning: MCP test host faulted during shutdown: {ex.Message}");
+            failures.Add(ex);
         }
 
-        await TryCompleteAsync(clientToServerPipe.Reader, output, nameof(clientToServerPipe) + ".Reader");
-        await TryCompleteAsync(serverToClientPipe.Writer, output, nameof(serverToClientPipe) + ".Writer");
+        await TryCompleteAsync(clientToServerPipe.Reader, failures, nameof(clientToServerPipe) + ".Reader");
+        await TryCompleteAsync(serverToClientPipe.Writer, failures, nameof(serverToClientPipe) + ".Writer");
 
         if (!serverTask.IsCompleted)
         {
-            throw new TimeoutException("MCP test host did not stop after shutdown, forced cancellation, and pipe completion.");
+            failures.Add(new TimeoutException("MCP test host did not stop after shutdown, forced cancellation, and pipe completion."));
         }
-
+        ThrowCleanupFailures(failures);
     }
 
-    private static async Task TryCompleteAsync(PipeWriter writer, ITestOutputHelper output, string pipeName)
+    private static void ThrowCleanupFailures(List<Exception> failures)
+    {
+        if (failures.Count != 0)
+            throw new AggregateException("MCP test host cleanup failed.", failures);
+    }
+
+    private static async Task TryCancelAsync(CancellationTokenSource source, List<Exception> failures)
+    {
+        try
+        {
+            await source.CancelAsync();
+        }
+        catch (Exception ex)
+        {
+            failures.Add(new InvalidOperationException("Failed to cancel MCP test host.", ex));
+        }
+    }
+
+    private static async Task TryCompleteAsync(PipeWriter writer, List<Exception> failures, string pipeName)
     {
         try
         {
@@ -114,11 +135,11 @@ internal static class ProgramTransportTestHost
         }
         catch (Exception ex)
         {
-            output.WriteLine($"Warning: Failed to complete {pipeName}: {ex.Message}");
+            failures.Add(new InvalidOperationException($"Failed to complete {pipeName}.", ex));
         }
     }
 
-    private static async Task TryCompleteAsync(PipeReader reader, ITestOutputHelper output, string pipeName)
+    private static async Task TryCompleteAsync(PipeReader reader, List<Exception> failures, string pipeName)
     {
         try
         {
@@ -126,7 +147,7 @@ internal static class ProgramTransportTestHost
         }
         catch (Exception ex)
         {
-            output.WriteLine($"Warning: Failed to complete {pipeName}: {ex.Message}");
+            failures.Add(new InvalidOperationException($"Failed to complete {pipeName}.", ex));
         }
     }
 

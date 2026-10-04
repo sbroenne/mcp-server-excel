@@ -137,19 +137,34 @@ public sealed partial class PersistentServiceRangeDiscoveryTests
     public async Task SpecialCells_InvalidKindIsNotAnEmptySuccess()
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        RequireSuccess(_commands.SetValues(_fixture.BatchToken, sheetName, "A1:B1", [[42, "Keep"]]));
         var response = await _fixture.SendForFailureAsync("range.get-special-cells",
             new { sheetName, rangeAddress = "A1:A3", cellKind = "unknown-kind" });
 
         Assert.Contains("cellKind", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        var retained = _commands.GetValues(_fixture.BatchToken, sheetName, "A1:B1");
+        RequireSuccess(retained);
+        Assert.Equal([42, "Keep"], Assert.Single(retained.Values));
+        using var recovered = Discover(sheetName, "A1:A3", "constants");
+        Assert.Equal(1, recovered.RootElement.GetProperty("cellCount").GetInt64());
+        Assert.Equal(["$A$1"], ReadAreas(recovered));
     }
 
     [Fact]
     public async Task SpecialCells_MissingSheetIsNotAnEmptySuccess()
     {
+        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        RequireSuccess(_commands.SetValues(_fixture.BatchToken, sheetName, "A1:B1", [[42, "Keep"]]));
         var response = await _fixture.SendForFailureAsync("range.get-special-cells",
             new { sheetName = "MissingSheet", rangeAddress = "A1:A3", cellKind = "constants" });
 
         Assert.Equal("NotFound", response.ErrorCategory);
+        var retained = _commands.GetValues(_fixture.BatchToken, sheetName, "A1:B1");
+        RequireSuccess(retained);
+        Assert.Equal([42, "Keep"], Assert.Single(retained.Values));
+        using var recovered = Discover(sheetName, "A1:A3", "constants");
+        Assert.Equal(1, recovered.RootElement.GetProperty("cellCount").GetInt64());
+        Assert.Equal(["$A$1"], ReadAreas(recovered));
     }
 
     [Theory]

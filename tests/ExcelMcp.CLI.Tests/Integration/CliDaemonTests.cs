@@ -170,7 +170,9 @@ public sealed class CliDaemonTests : IAsyncLifetime
         Assert.Equal(1, result.ExitCode);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
         Assert.Contains("ready", json.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
-        Assert.InRange(stopwatch.Elapsed, TimeSpan.Zero, TimeSpan.FromSeconds(36));
+        Assert.InRange(stopwatch.Elapsed, TimeSpan.FromSeconds(29), TimeSpan.FromSeconds(36));
+        Assert.False(DaemonAutoStart.IsDaemonMutexHeld(_testPipeName));
+        Assert.False(DaemonAutoStart.IsDaemonStartupInProgress(_testPipeName));
     }
 
     [Fact]
