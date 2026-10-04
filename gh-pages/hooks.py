@@ -92,7 +92,18 @@ SITE_PAGE_MAP = {
     "src/ExcelMcp.McpServer/README.md": "/mcp-server/",
     "src/ExcelMcp.CLI/README.md": "/cli/",
     "docs/AGENT-SKILLS.md": "/skills/",
+    "samples/world-bank-dashboard/README.md": "/samples/world-in-motion/",
 }
+
+SAMPLE_ASSETS = {
+    "downloads/world-in-motion.xlsx": "samples/world-bank-dashboard/world-in-motion.xlsx",
+    "downloads/world-bank-sources.json": "samples/world-bank-dashboard/data/sources.json",
+    "downloads/world-bank-indicators.csv": "samples/world-bank-dashboard/data/indicators.csv",
+    "assets/images/world-in-motion/overview.png": "videos/world-in-motion-demo/capture/assets/overview.png",
+    "assets/images/world-in-motion/growth.png": "videos/world-in-motion-demo/capture/assets/growth.png",
+    "assets/images/world-in-motion/progress.png": "videos/world-in-motion-demo/capture/assets/progress.png",
+}
+SITE_PAGE_MAP.update({source: "/" + destination for destination, source in SAMPLE_ASSETS.items()})
 
 _MD_LINK = re.compile(r"(?<!!)\[([^\]]+)\]\(([^)\s]+)\)")
 
@@ -1292,7 +1303,25 @@ def _write_llm_outputs(config) -> None:
 
 
 
+def on_files(files, config, **kwargs):
+    from mkdocs.structure.files import File
+
+    for destination, source in SAMPLE_ASSETS.items():
+        path = REPO_ROOT / source
+        if not path.is_file():
+            raise FileNotFoundError(f"Sample asset not found: {path}")
+        if files.get_file_from_path(destination) is not None:
+            raise ValueError(f"Duplicate sample asset destination: {destination}")
+        files.append(File.generated(config, destination, abs_src_path=str(path)))
+    return files
+
+
 def on_pre_build(config, **kwargs):  # noqa: D401 - MkDocs hook signature
+    _write(
+        "world-in-motion.md",
+        "samples/world-bank-dashboard/README.md",
+        _strip_header(_read("samples/world-bank-dashboard/README.md"), end_on_blank=True),
+    )
     _write(
         "usage-analytics.md",
         ".github/usage-analytics.json",

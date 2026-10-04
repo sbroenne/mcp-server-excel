@@ -63,6 +63,10 @@ jobs:
         working-directory: gh-pages
         run: mkdocs build --strict --clean
 
+      - name: Check sample download packaging
+        working-directory: gh-pages
+        run: python -m unittest discover -p test_sample_download.py
+
       - name: Audit built site
         working-directory: gh-pages
         run: python audit_site.py

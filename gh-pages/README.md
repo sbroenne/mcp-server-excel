@@ -118,7 +118,16 @@ after a build:
 cd gh-pages
 .\.venv\Scripts\python.exe audit_site.py           # SEO / a11y / LLM-discoverability audit
 .\.venv\Scripts\python.exe check_deploy_paths.py   # deploy paths: filter covers every mirrored source
+.\.venv\Scripts\python.exe -m unittest discover -p test_sample_download.py
 ```
+
+The World in Motion sample page mirrors `samples/world-bank-dashboard/README.md`.
+`SAMPLE_ASSETS` in `hooks.py` adds the original workbook, attribution files, and
+verified dashboard stills to the build without keeping another workbook in
+`docs/`. The packaging check confirms those files are copied unchanged and
+missing sources fail the build. The sample page is available under
+`/samples/world-in-motion/` after deployment; preparing or building it locally
+does not publish it or replace the homepage video.
 
 Both workflows that build the site check out with `fetch-depth: 0`, because the
 sitemap dates come from `git log`. On a shallow clone every page would claim the
