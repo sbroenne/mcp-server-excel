@@ -20,7 +20,7 @@ remain in the [documentation](https://excelmcpserver.dev/reference/).
 
 ## Installation
 
-### Step 1: Register Plugin Marketplace and Install
+### Step 1: Install the Plugin
 
 Install from [Awesome Copilot](https://github.com/github/awesome-copilot), the
 default marketplace in current Copilot clients:
