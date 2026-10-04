@@ -43,6 +43,7 @@ function Receive-Job {
             if ($global:ExcelToolchainHostMode -eq 'wrong-jq') { $tools.jq = 'jq-0.0.0' }
             if ($global:ExcelToolchainHostMode -eq 'missing-development-mode') { $tools.Remove('developmentMode') }
             if ($global:ExcelToolchainHostMode -eq 'disabled-development-mode') { $tools.developmentMode = $false }
+            if ($global:ExcelToolchainHostMode -eq 'nonboolean-development-mode') { $tools.developmentMode = 'true' }
             $message = $prefix + (@{ state = 'installed'; tools = $tools; runnerRegistered = $false } | ConvertTo-Json -Compress)
             if ($global:ExcelToolchainHostMode -eq 'guest-failure') { $message = 'Synthetic guest upload failure.' }
             return (@{ value = @(@{ message = $message }) } | ConvertTo-Json -Depth 5 -Compress)
@@ -67,7 +68,7 @@ foreach ($mode in @('unowned', 'running')) {
         throw 'A running or unowned VM must be rejected without changing resources.'
     }
 }
-foreach ($mode in @('sdk-mismatch', 'missing-tools', 'wrong-node', 'missing-bash', 'missing-jq', 'wrong-jq', 'missing-development-mode', 'disabled-development-mode', 'spoofed', 'guest-failure')) {
+foreach ($mode in @('sdk-mismatch', 'missing-tools', 'wrong-node', 'missing-bash', 'missing-jq', 'wrong-jq', 'missing-development-mode', 'disabled-development-mode', 'nonboolean-development-mode', 'spoofed', 'guest-failure')) {
     $global:ExcelToolchainHostCalls.Clear()
     $global:ExcelToolchainHostMode = $mode
     $global:ExcelToolchainHostCleanupFails = $mode -eq 'guest-failure'
@@ -77,6 +78,10 @@ foreach ($mode in @('sdk-mismatch', 'missing-tools', 'wrong-node', 'missing-bash
     if ($failure -isnot [AggregateException] -or
         @($global:ExcelToolchainHostCalls | Where-Object { $_ -like 'vm deallocate *' }).Count -ne 1) {
         throw 'Invalid results must fail and attempt owned deallocation.'
+    }
+    if ($mode -like '*development-mode' -and
+        ($failure.ToString() -notmatch 'Developer Mode' -or $failure.ToString() -notmatch 'symbolic-link')) {
+        throw 'Missing, disabled and non-boolean development mode must identify the failed link prerequisite.'
     }
     if ($mode -eq 'guest-failure' -and
         ($failure.ToString() -notmatch 'Synthetic guest upload failure' -or

@@ -99,6 +99,16 @@ function Get-RunnerCloudToolState {
     return @{ bash = $bashVersion; jq = $jqVersion; developmentMode = $true }
 }
 
+function Set-RunnerCloudToolPath {
+    $bashDirectory = Join-Path $env:ProgramFiles 'Git\bin'
+    $toolsDirectory = Join-Path $env:ProgramFiles 'ExcelMcp\Tools'
+    $existing = @([Environment]::GetEnvironmentVariable('Path', 'Machine') -split ';' |
+        Where-Object { $_ -and $_.TrimEnd('\') -ine $bashDirectory -and $_.TrimEnd('\') -ine $toolsDirectory })
+    [Environment]::SetEnvironmentVariable('Path', (@($bashDirectory, $toolsDirectory) + $existing) -join ';', 'Machine')
+    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
+        [Environment]::GetEnvironmentVariable('Path', 'User')
+}
+
 function Install-RunnerCloudPrerequisites {
     $bashDirectory = Join-Path $env:ProgramFiles 'Git\bin'
     if (-not (Test-Path -LiteralPath (Join-Path $bashDirectory 'bash.exe') -PathType Leaf)) {
@@ -121,11 +131,7 @@ function Install-RunnerCloudPrerequisites {
     New-Item -Path $developmentSettings -Force | Out-Null
     New-ItemProperty -LiteralPath $developmentSettings -Name AllowDevelopmentWithoutDevLicense `
         -PropertyType DWord -Value 1 -Force | Out-Null
-    $existing = @([Environment]::GetEnvironmentVariable('Path', 'Machine') -split ';' |
-        Where-Object { $_ -and $_.TrimEnd('\') -ine $bashDirectory -and $_.TrimEnd('\') -ine $toolsDirectory })
-    [Environment]::SetEnvironmentVariable('Path', (@($bashDirectory, $toolsDirectory) + $existing) -join ';', 'Machine')
-    $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
-        [Environment]::GetEnvironmentVariable('Path', 'User')
+    Set-RunnerCloudToolPath
     Get-RunnerCloudToolState
 }
 
