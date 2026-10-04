@@ -227,8 +227,11 @@ public sealed partial class PersistentServiceRangeValidationTests
         Assert.Equal(JsonSerializer.Serialize(cellsBefore.Values), JsonSerializer.Serialize(cellsAfter.Values));
     }
 
-    [Fact]
-    public void ValidateRange_OmittedFlags_UsesDocumentedDefaults()
+    [Theory]
+    [InlineData(null)]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ValidateRange_DefaultOptions_StoresErrorAlertTextWhenEnabled(bool? showErrorAlert)
     {
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
@@ -240,7 +243,7 @@ public sealed partial class PersistentServiceRangeValidationTests
 
         var applied = _commands.ValidateRange(batch, sheetName, "A1", "list", null,
             "=$B$1:$B$3", null, null, null, null,
-            null, null, null, null, null, null);
+            showErrorAlert, null, "Custom error title", "Custom error message", null, null);
 
         Assert.True(applied.Success, applied.ErrorMessage);
         var result = _commands.GetValidation(batch, sheetName, "A1");
@@ -249,7 +252,9 @@ public sealed partial class PersistentServiceRangeValidationTests
         Assert.Equal("list", result.ValidationType);
         Assert.Equal("=$B$1:$B$3", result.Formula1);
         Assert.False(result.ShowInputMessage);
-        Assert.True(result.ShowErrorAlert);
+        Assert.Equal(showErrorAlert ?? true, result.ShowErrorAlert);
+        Assert.Equal(showErrorAlert is false ? "" : "Custom error title", result.ErrorTitle);
+        Assert.Equal(showErrorAlert is false ? "" : "Custom error message", result.ValidationErrorMessage);
         Assert.True(result.IgnoreBlank);
         Assert.Equal("stop", result.ErrorStyle);
         Assert.True(ReadDropdown(sheetName, "A1"));
@@ -276,4 +281,3 @@ public sealed partial class PersistentServiceRangeValidationTests
             }
         });
 }
-

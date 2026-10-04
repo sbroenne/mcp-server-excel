@@ -32,6 +32,7 @@ public partial class RangeCommands
         var xlType = ParseValidationType(validationType);
         var xlOperator = ParseValidationOperator(validationOperator ?? "between");
         var xlAlertStyle = ParseErrorStyle(errorStyle ?? "stop");
+        var effectiveShowErrorAlert = showErrorAlert ?? true;
 
         return batch.Execute((ctx, ct) =>
         {
@@ -72,12 +73,12 @@ public partial class RangeCommands
                 }
 
                 // Configure error alert
-                if (showErrorAlert is true)
+                if (effectiveShowErrorAlert)
                 {
                     validation.ErrorTitle = errorTitle ?? "";
                     validation.ErrorMessage = errorMessage ?? "";
                 }
-                validation.ShowError = showErrorAlert ?? true;
+                validation.ShowError = effectiveShowErrorAlert;
 
                 // Configure additional options
                 validation.IgnoreBlank = ignoreBlank ?? true;
@@ -314,4 +315,3 @@ public partial class RangeCommands
         };
     }
 }
-
