@@ -10,19 +10,19 @@ public sealed class ValidationSelectionTests
 {
     [Theory]
     [InlineData(".github/dependabot.yml", "", "", false)]
-    [InlineData("README.md", "", "", false)]
+    [InlineData("README.md", "Tooling", "", true)]
     [InlineData("tests/README.md", "", "", false)]
     [InlineData("doc-counts.json", "Tooling", "", false)]
     [InlineData("scripts/check-doc-counts.ps1", "Tooling", "", false)]
     [InlineData("vscode-extension/package-lock.json", "", "", true)]
-    [InlineData("src/ExcelMcp.CLI/Program.cs", "Fast,Process,Tooling", "Acceptance,Lifecycle", true)]
-    [InlineData("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", "Fast,Process,Tooling", "Acceptance,Editing", true)]
-    [InlineData("src/ExcelMcp.Core/Commands/PowerQuery/PowerQueryCommands.cs", "Fast,Process,Tooling", "Acceptance,Data", true)]
-    [InlineData("src/ExcelMcp.Core/Commands/PythonInExcel/PythonInExcelCommands.cs", "Fast,Process,Tooling", "Acceptance,Data", true)]
-    [InlineData("src/ExcelMcp.Core/Commands/Calculation/CalculationModeCommands.cs", "Fast,Process,Tooling", "Acceptance,Reporting", true)]
-    [InlineData("src/ExcelMcp.Core/Commands/Table/TableCommands.cs", "Fast,Process,Tooling", "Acceptance,Data,Editing", true)]
-    [InlineData("src/ExcelMcp.Core/Commands/PivotTable/PivotTableCommands.cs", "Fast,Process,Tooling", "Acceptance,Data,Reporting", true)]
-    [InlineData("src/ExcelMcp.Core/Commands/DataModel/DataModelCommands.cs", "Fast,Process,Tooling", "Acceptance,Data,Editing,Reporting", true)]
+    [InlineData("src/ExcelMcp.CLI/Program.cs", "Fast,Process", "Acceptance,Lifecycle", true)]
+    [InlineData("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", "Fast,Process", "Acceptance,Editing", true)]
+    [InlineData("src/ExcelMcp.Core/Commands/PowerQuery/PowerQueryCommands.cs", "Fast,Process", "Acceptance,Data", true)]
+    [InlineData("src/ExcelMcp.Core/Commands/PythonInExcel/PythonInExcelCommands.cs", "Fast,Process", "Acceptance,Data", true)]
+    [InlineData("src/ExcelMcp.Core/Commands/Calculation/CalculationModeCommands.cs", "Fast,Process", "Acceptance,Reporting", true)]
+    [InlineData("src/ExcelMcp.Core/Commands/Table/TableCommands.cs", "Fast,Process", "Acceptance,Data,Editing", true)]
+    [InlineData("src/ExcelMcp.Core/Commands/PivotTable/PivotTableCommands.cs", "Fast,Process", "Acceptance,Data,Reporting", true)]
+    [InlineData("src/ExcelMcp.Core/Commands/DataModel/DataModelCommands.cs", "Fast,Process", "Acceptance,Data,Editing,Reporting", true)]
     [InlineData("scripts/PluginContent.mjs", "Tooling", "", true)]
     [InlineData("tests/ExcelMcp.Packaging.Tests/PluginPublicationHistory.test.mjs", "Tooling", "", false)]
     [InlineData("tests/ExcelMcp.CLI.Tests/Unit/ActionValidatorTests.cs", "Fast,Process", "", false)]
@@ -43,7 +43,7 @@ public sealed class ValidationSelectionTests
     [InlineData("doc-counts.json", "Tooling")]
     [InlineData("scripts/check-doc-counts.ps1", "Tooling")]
     [InlineData("src/ExcelMcp.CLI/Program.cs", "Fast")]
-    [InlineData("tests/ExcelMcp.CLI.Tests/Unit/ActionValidatorTests.cs", "Fast")]
+    [InlineData("tests/ExcelMcp.CLI.Tests/Unit/ActionValidatorTests.cs", "")]
     [InlineData("README.md", "")]
     public async Task SourceChecks_RunInExactlyOneSelectedGroup(string path, string group)
     {
@@ -51,7 +51,7 @@ public sealed class ValidationSelectionTests
             $plan = Get-ValidationPlan -Paths '{{path}}'
             if ($plan.SourceChecksGroup -cne '{{group}}') { throw "Wrong source-check group: $($plan.SourceChecksGroup)" }
             if ($plan.SourceChecksGroup -and $plan.SourceChecksGroup -notin $plan.CiTestGroups) { throw 'Source checks have no selected job.' }
-            if ('{{group}}' -eq 'Tooling' -and $plan.ToolingFilter -cne 'FullyQualifiedName~DocumentationCounts') {
+            if ('{{group}}' -eq 'Tooling' -and $plan.ToolingFilters.Packaging -cne 'FullyQualifiedName~DocumentationCounts') {
                 throw 'Documentation-count regressions were not selected.'
             }
             """);
@@ -86,7 +86,9 @@ public sealed class ValidationSelectionTests
         var result = await RunAsync("""
             $plan = Get-ValidationPlan -Full
             if (($plan.CiTestGroups -join ',') -ne 'Fast,Process,Tooling') { throw 'Full groups missing.' }
-            if ($plan.ToolingFilter -ne 'RequiresExcel=false') { throw 'Full tooling selection narrowed.' }
+            foreach ($project in $plan.ToolingProjects) {
+                if ($plan.ToolingFilters.$project -ne 'RequiresExcel=false') { throw 'Full tooling selection narrowed.' }
+            }
             foreach ($component in @('Cli','Mcp','Extension','Mcpb','Skills','Plugins')) {
                 if (-not $plan.$component) { throw "Missing $component package." }
             }
@@ -100,7 +102,7 @@ public sealed class ValidationSelectionTests
         var result = await RunAsync("""
             $plan = Get-ValidationPlan -Paths 'scripts/Publish-PreparedPlugins.ps1'
             if ($plan.FastProjects.Count -or $plan.ProcessProjects.Count -or $plan.ExcelGroups.Count) { throw 'Unrelated tests selected.' }
-            if ($plan.ToolingFilter -notmatch 'PluginPublication') { throw 'Publication regressions missing.' }
+            if ($plan.ToolingFilters.Packaging -notmatch 'PluginPublication') { throw 'Publication regressions missing.' }
             """);
         Assert.True(result.ExitCode == 0, result.Output);
     }

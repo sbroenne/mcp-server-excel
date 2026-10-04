@@ -28,6 +28,8 @@ node_modules/**
 package-lock.json
 
 # Development documentation (not needed by users)
+**/AGENTS.md
+**/CLAUDE.md
 DEVELOPMENT.md
 MARKETPLACE-PUBLISHING.md
 PUBLISHER-GUIDE.md

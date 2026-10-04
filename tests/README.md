@@ -141,24 +141,50 @@ process, deadline, crash, rebuild, and ownership cases below.
 
 `scripts\Get-ValidationPlan.ps1` owns the selections used by CI and the local
 hook. Pull requests compare their head with the base branch's merge base.
-Documentation and repository configuration changes avoid unrelated .NET test
-and package jobs. Runtime and shared inputs select conservatively; multiple
+Ordinary documentation and developer instructions, including nested `AGENTS.md`
+and `CLAUDE.md`, avoid unrelated .NET tests and package jobs. Shipped documentation
+is different: root, product, and npm-package READMEs, `LICENSE`, `CHANGELOG.md`, and
+`docs\AGENT-SKILLS.md` select their consuming packages and owning tooling checks,
+not runtime tests. Authored skill and plugin template trees remain package inputs,
+including instruction files that their copy steps have not excluded. The extension
+excludes developer instructions from its VSIX. Runtime and shared inputs select conservatively; multiple
 inputs form a union. Main and manual CI runs select complete validation.
 
 Hosted tests run in separate checkouts: `Fast` contains normal Excel-free
 tests except `AdapterTestKind=System`; `Process` contains the CLI system
 regressions; `Tooling` contains the selected skill-generation, packaging, and
-script-safety checks. These
-partitions cover the complete normal Excel-free selection without overlap.
+script-safety checks. Each Tooling project has its own filter, so a script-safety
+change cannot broaden a documentation-count or publication selection in another
+project. Runtime source changes retain runtime/contract and process coverage,
+but do not automatically select publication tests, metadata-only MCPB/plugins,
+or authored skill ZIPs. Binary changes still select their consuming packages,
+including the extension when its bundled server changes. Standalone tooling
+test-project changes select their owning project, not every runtime project.
+The full partitions cover the complete normal Excel-free selection without overlap.
 Package, npm launcher, and lockfile checks have their own selections.
 Changes to `doc-counts.json` or `scripts\check-doc-counts.ps1` select the
 `Tooling` documentation-count regressions and source correctness checks,
 without unrelated runtime tests or packages. Source checks run once in `Fast`
 when selected, otherwise in `Tooling` for these count inputs. Preparatory CI
-builds disable build servers so rebuild regressions do not inherit assembly locks.
+builds restore and build only selected test projects and their dependencies.
+The group owning source/count checks still builds the full Release solution,
+as required by `check-doc-counts.ps1 -SkipBuild`. All preparatory builds disable
+build servers so rebuild regressions do not inherit assembly locks. Package
+commands build their own required binaries without a preceding solution build;
+metadata-only packages do not require .NET setup. NuGet and npm caches hold
+dependency downloads, not shared compiled outputs.
 `Docs Site` always runs. The required `CI Gate` always reports and rejects
 failed detection, cancelled or failed work, and unexpectedly skipped jobs.
 Hosted runners do not run real-Excel tests.
+
+CodeQL uses the same planner, selecting actual C#, JavaScript/TypeScript,
+Python, and GitHub Actions source or dependency/configuration inputs rather
+than every file in a language directory. Publication `.mjs` scripts and tests
+are included; Markdown alone does not select a language. Each selected analysis
+still scans the complete language, with a traced manual C# build to include
+generated code. Main, merge-group, scheduled, and manual CodeQL runs analyze
+all languages. The required `CodeQL Completion` check reports even when no
+analysis is selected, and rejects failed detection or incomplete selected work.
 
 After a Release build, the hosted test partitions can also run locally:
 
@@ -169,7 +195,16 @@ After a Release build, the hosted test partitions can also run locally:
 ```
 
 Use `-PlanFile <plan.json>` with an explicit `-Group` to reproduce a selected
-CI partition. Omitting the group retains the complete Excel-free run; existing
+CI partition. To prepare just its build inputs:
+
+```powershell
+& .\scripts\Get-CiValidationPlan.ps1 -BaseRef origin/main -OutputPath artifacts\ci-plan.json
+& .\scripts\Build-CiInputs.ps1 -PlanFile artifacts\ci-plan.json -Group Tooling
+& .\scripts\Invoke-ExcelFreeTests.ps1 -PlanFile artifacts\ci-plan.json -Group Tooling
+```
+
+Choose a group listed in the saved plan; an unselected or empty group is an error.
+Omitting the group retains the complete Excel-free run; existing
 `-Local`, `-Contracts`, `-HookTests`, `-SkillTests`, and `-PackagingTests`
 selections remain supported.
 

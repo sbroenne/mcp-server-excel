@@ -253,7 +253,8 @@ try {
                 }
                 foreach ($entry in $vsix.Entries) {
                     if ($entry.FullName -match '^extension/(node_modules|tests|scripts|\.vitest|coverage|out/tests)/' -or
-                        $entry.FullName -match '^extension/(vitest\.config\.|tsconfig(?:\.test)?\.json$|bin/excelcli)') {
+                        $entry.FullName -match '^extension/(vitest\.config\.|tsconfig(?:\.test)?\.json$|bin/excelcli)' -or
+                        $entry.FullName -match '^extension/(.*/)?(AGENTS|CLAUDE)\.md$') {
                         throw "VSIX contains development files or the CLI: $($entry.FullName)"
                     }
                 }

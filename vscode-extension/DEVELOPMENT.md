@@ -121,7 +121,8 @@ npm run lint
 Vitest runs once with `vitest run`. It exercises the extension's actual
 registration and setup code with test-only VS Code API and prerequisite
 replacements. It does not establish Excel COM behavior. Tests, mocks, test
-configuration, caches, and reports do not ship.
+configuration, caches, reports, and developer-only `AGENTS.md`/`CLAUDE.md`
+instructions do not ship, including nested instruction files.
 
 `npm run compile` validates Marketplace assets and feature metadata before
 compiling production TypeScript. It needs the generated skill inputs present
@@ -145,7 +146,8 @@ Packaging performs these steps automatically:
    `--target win32-arm64` invocation.
 7. Inspects both VSIX targets, versions, all skill files, the actual bundled
    executable's CPU architecture, compiled source, and exclusions for development
-   files and the CLI. A mislabeled server fails packaging.
+   files, developer instructions, and the CLI. A mislabeled server or leaked
+   instruction file fails packaging.
 
 To prepare and inspect the bundled executable through the shared package path,
 run these commands from the repository root:

@@ -68,14 +68,16 @@ public sealed class McpbPackagingScriptTests
     }
 
     [Theory]
-    [InlineData(false, true)]
-    [InlineData(true, true)]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
+    [InlineData(false, true, null)]
+    [InlineData(true, true, null)]
+    [InlineData(false, false, null)]
+    [InlineData(true, false, null)]
+    [InlineData(false, true, "AGENTS.md")]
+    [InlineData(false, true, "CLAUDE.md")]
     [Trait("Category", "Integration")]
     [Trait("Feature", "Packaging")]
     public async Task AggregatePackaging_VsixTargetsRequireMatchingBundledRuntime(
-        bool corruptArm64Payload, bool reuseArm64Runtime)
+        bool corruptArm64Payload, bool reuseArm64Runtime, string? developerFile)
     {
         var sandbox = CreateSandbox();
         try
@@ -89,6 +91,10 @@ public sealed class McpbPackagingScriptTests
             var runtimePayload = File.ReadAllBytes(assemblyPath);
             var headerOffset = BitConverter.ToInt32(runtimePayload, 0x3c);
             var extension = Directory.CreateDirectory(Path.Combine(sandbox, "vscode-extension")).FullName;
+            if (developerFile is not null)
+            {
+                File.WriteAllText(Path.Combine(extension, developerFile), "Developer-only instructions");
+            }
             File.WriteAllText(Path.Combine(extension, "package.json"), $$$"""
                 {"version":"{{{fixtureVersion}}}","extensionKind":["ui"],"os":["win32"],"scripts":{"vscode:prepublish":"npm run compile"}}
                 """);
@@ -189,7 +195,13 @@ public sealed class McpbPackagingScriptTests
                     }
                 }
                 """);
-            if (corruptArm64Payload)
+            if (developerFile is not null)
+            {
+                Assert.NotEqual(0, result.ExitCode);
+                Assert.Contains($"VSIX contains development files or the CLI: extension/{developerFile}",
+                    result.CombinedOutput, StringComparison.Ordinal);
+            }
+            else if (corruptArm64Payload)
             {
                 Assert.NotEqual(0, result.ExitCode);
                 Assert.Contains("Runtime machine type 0x8664 does not match arm64", result.CombinedOutput, StringComparison.Ordinal);

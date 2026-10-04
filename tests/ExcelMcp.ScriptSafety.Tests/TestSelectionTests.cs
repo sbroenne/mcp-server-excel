@@ -99,6 +99,18 @@ public sealed class TestSelectionTests
         Assert.Contains(filter, result.Output, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task Runner_MixedToolingOwnersUseTheirOwnFilters()
+    {
+        var result = await RunRunnerAsync("-Group Tooling -PlanFile $planFile", false,
+            "'doc-counts.json','tests/ExcelMcp.ScriptSafety.Tests/Example.cs'");
+        Assert.True(result.ExitCode == 0, result.Output);
+        Assert.Contains("Packaging : RequiresExcel=false&RunType!=OnDemand&(FullyQualifiedName~DocumentationCounts)",
+            result.Output, StringComparison.Ordinal);
+        Assert.Contains("ScriptSafety : RequiresExcel=false&RunType!=OnDemand&(RequiresExcel=false)",
+            result.Output, StringComparison.Ordinal);
+    }
+
     private static Task<(int ExitCode, string Output)> RunRunnerAsync(string arguments, bool fail, string? paths = null) =>
         RunAsync($$"""
             $script = Get-Content (Join-Path $root 'scripts\Invoke-ExcelFreeTests.ps1') -Raw
