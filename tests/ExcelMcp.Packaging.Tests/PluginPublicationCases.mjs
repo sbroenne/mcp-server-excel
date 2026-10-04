@@ -722,7 +722,7 @@ export function registerWorkflowPolicyTests() {
         assert.match(precheck, /runs-on: ubuntu-(slim|latest)/);
         assert.match(precheck, /Update-AwesomeCopilot\.mjs discover/);
         assert.equal(precheck.includes('secrets.AWESOME_COPILOT_PR_TOKEN'), false);
-        assert.match(writer, /runs-on: ubuntu-latest/);
+        assert.match(writer, /runs-on: ubuntu-26\.04/);
         assert.match(writer, /needs:[\s\S]*- agent/);
         assert.match(agent, /needs:[\s\S]*- activation[\s\S]*- build/);
         const activation = workflow.split('\n  activation:')[1].split(/\n {2}[a-z_]+:/)[0];
