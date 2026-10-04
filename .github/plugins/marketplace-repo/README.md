@@ -33,6 +33,17 @@ The canonical marketplace manifest lives at `.github/plugin/marketplace.json`. T
 
 ## Install
 
+The plugins are listed in
+[Awesome Copilot](https://github.com/github/awesome-copilot), the default
+marketplace in current Copilot clients:
+
+```powershell
+copilot plugin install excel-mcp@awesome-copilot
+copilot plugin install excel-cli@awesome-copilot
+```
+
+Alternatively, register this direct marketplace:
+
 ```powershell
 # Register this marketplace
 copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
@@ -41,6 +52,9 @@ copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 copilot plugin install excel-mcp@mcp-server-excel-plugins
 copilot plugin install excel-cli@mcp-server-excel-plugins
 ```
+
+Choose one marketplace per plugin; do not install duplicate copies. Existing
+direct-marketplace installations do not need to move.
 
 Both plugins use the public npm packages through `npx`. Node.js 18 or later is
 required.
