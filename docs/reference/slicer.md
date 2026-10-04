@@ -18,7 +18,7 @@ a cell position for its top-left corner. Names and positions are **not**
 generated automatically.
 
 Creation and selection results, and listed slicers, identify the source with
-`SourceType` (`"PivotTable"` or `"Table"`). Returned `Position` is Excel's
+`sourceType` (`"PivotTable"` or `"Table"`). Returned `position` is Excel's
 actual `Shape.TopLeftCell`, not an echo of the requested position. Excel rounds
 shape coordinates, so a shape aligned with a cell boundary can report the
 preceding cell. Verify placement using the native coordinates as well as the
