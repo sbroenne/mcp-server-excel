@@ -1,7 +1,9 @@
 # Claude Desktop Configuration
 
-Excel MCP Server works with Claude Desktop on Windows through the MCPB bundle
-or a manual stdio configuration.
+Connect Claude Desktop to installed Microsoft Excel on Windows with Excel MCP
+Server. Ask Claude to read workbook data, update cells, refresh Power Query, or
+work with PivotTables through the real Excel application. Use the MCPB bundle
+or a manual stdio configuration below.
 
 ## Requirements
 
@@ -69,6 +71,21 @@ This method does not require Node.js, but executable updates are manual.
 ```
 
 Restart Claude Desktop after saving the configuration.
+
+## Try Your First Excel Request
+
+After restarting Claude Desktop, try a read-only request using the full path
+of an existing workbook. Replace this example path with your workbook's path:
+
+```text
+Open C:\Work\sales.xlsx and list its worksheet names. Do not change or save
+the workbook.
+```
+
+Approve server or tool access if Claude prompts you. A response listing the
+workbook's actual worksheets confirms that Claude can access desktop Excel,
+not just read a spreadsheet file. For more tasks, see
+[Excel automation examples](../USE-CASES.md).
 
 ## Recommended Workflow
 
