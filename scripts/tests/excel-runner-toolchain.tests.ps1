@@ -37,6 +37,17 @@ $global:ExcelToolchainSignatureSubject = 'CN=OpenJS Foundation, O=OpenJS Foundat
 Assert-ToolchainInstallerSignature 'synthetic.msi' Node
 $global:ExcelToolchainSignatureSubject = 'CN=Open Source Developer, Johannes Schindelin, O=Open Source Developer'
 Assert-ToolchainInstallerSignature 'synthetic.exe' Git
+$global:ExcelToolchainSignatureSubject = 'CN=Python Software Foundation, O=Python Software Foundation, C=US'
+Assert-ToolchainInstallerSignature 'synthetic.exe' Python
+foreach ($subject in @(
+    'CN=Python Software Foundation, O=Unrelated Publisher, C=US',
+    'CN=Unrelated Publisher, O=Python Software Foundation, C=US'
+)) {
+    $global:ExcelToolchainSignatureSubject = $subject
+    $failed = $false
+    try { Assert-ToolchainInstallerSignature 'synthetic.exe' Python } catch { $failed = $true }
+    if (-not $failed) { throw 'Python installers require the verified foundation publisher and organization.' }
+}
 
 $global:ExcelToolchainJqHash = (Get-RunnerJqRelease).sha256
 function Get-FileHash {
@@ -69,9 +80,20 @@ $global:ExcelToolchainJqHash = (Get-RunnerJqRelease).sha256
 $global:ExcelToolchainBashExit = 0
 $global:ExcelToolchainBashVersion = 'GNU bash, version 5.3.15(2)-release (x86_64-pc-cygwin)'
 $global:ExcelToolchainDevelopmentMode = 1
+$global:ExcelToolchainPythonPresent = $true
+$global:ExcelToolchainPythonVersion = 'Python ' + (Get-RunnerPythonRelease).version
+$global:ExcelToolchainPythonArchitecture = '64'
+$global:ExcelToolchainPythonPip = 'pip 26.2 from synthetic (python 3.13)'
+$global:ExcelToolchainPythonExit = 0
+$global:ExcelToolchainPythonPathMatches = $true
 $bashPath = Join-Path $env:ProgramFiles 'Git\bin\bash.exe'
 $jqPath = Join-Path $env:ProgramFiles 'ExcelMcp\Tools\jq.exe'
-function Test-Path { param($LiteralPath, $PathType) return $true }
+$pythonPath = Join-Path $env:ProgramFiles 'Python313\python.exe'
+function Test-Path {
+    param($LiteralPath, $PathType)
+    if ($LiteralPath -eq $pythonPath) { return $global:ExcelToolchainPythonPresent }
+    return $true
+}
 function Get-ItemPropertyValue {
     param($LiteralPath, $Name, $ErrorAction)
     if ($LiteralPath -ne 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' -or
@@ -83,6 +105,9 @@ function Get-Command {
     switch ($Name) {
         bash { @{ Source = $bashPath } }
         jq { @{ Source = $jqPath } }
+        python {
+            @{ Source = $(if ($global:ExcelToolchainPythonPathMatches) { $pythonPath } else { 'unprotected-python.exe' }) }
+        }
         default { throw 'Unexpected cloud command lookup.' }
     }
 }
@@ -97,12 +122,21 @@ Set-Item -Path "Function:\$bashPath" -Value {
         $global:LASTEXITCODE = 0
     }
 }
+Set-Item -Path "Function:\$pythonPath" -Value {
+    switch ($args[0]) {
+        --version { Write-Output $global:ExcelToolchainPythonVersion }
+        -c { Write-Output $global:ExcelToolchainPythonArchitecture }
+        -m { Write-Output $global:ExcelToolchainPythonPip }
+        default { throw 'Unexpected Python verification invocation.' }
+    }
+    $global:LASTEXITCODE = $global:ExcelToolchainPythonExit
+}
 Set-Item -Path Function:\Get-FileHash -Value $hashFixture
 try {
     $global:LASTEXITCODE = 239
     $cloud = Get-RunnerCloudToolState
     if ($cloud.bash -ne $global:ExcelToolchainBashVersion -or $cloud.jq -ne 'jq-1.8.2' -or
-        $cloud.developmentMode -ne $true) {
+        $cloud.developmentMode -ne $true -or $cloud.python -ne $global:ExcelToolchainPythonVersion) {
         throw 'Cloud verification must drain complete Bash output before checking its result.'
     }
     foreach ($case in @(
@@ -117,6 +151,43 @@ try {
     }
     $global:ExcelToolchainBashExit = 0
     $global:ExcelToolchainBashVersion = 'GNU bash, version 5.3.15(2)-release (x86_64-pc-cygwin)'
+    foreach ($case in @('missing', 'wrong-version', 'outdated-version', 'wrong-architecture', 'missing-pip', 'failed-command', 'unprotected-path')) {
+        $global:ExcelToolchainPythonPresent = $case -ne 'missing'
+        $global:ExcelToolchainPythonVersion = switch ($case) {
+            wrong-version { 'Python 3.12.13' }
+            outdated-version { 'Python 3.13.0' }
+            default { 'Python ' + (Get-RunnerPythonRelease).version }
+        }
+        $global:ExcelToolchainPythonArchitecture = if ($case -eq 'wrong-architecture') { '32' } else { '64' }
+        $global:ExcelToolchainPythonPip = if ($case -eq 'missing-pip') { 'No module named pip' } else { 'pip 26.2 from synthetic (python 3.13)' }
+        $global:ExcelToolchainPythonExit = if ($case -eq 'failed-command') { 1 } else { 0 }
+        $global:ExcelToolchainPythonPathMatches = $case -ne 'unprotected-path'
+        $failed = $false
+        try { Get-RunnerCloudToolState | Out-Null } catch { $failed = $true }
+        if (-not $failed) { throw "Python readiness must reject $case." }
+    }
+    $global:ExcelToolchainPythonPresent = $true
+    $global:ExcelToolchainPythonVersion = 'Python ' + (Get-RunnerPythonRelease).version
+    $global:ExcelToolchainPythonArchitecture = '64'
+    $global:ExcelToolchainPythonPip = 'pip 26.2 from synthetic (python 3.13)'
+    $global:ExcelToolchainPythonExit = 0
+    $global:ExcelToolchainPythonPathMatches = $true
+    $global:ExcelToolchainPythonInstalls = 0
+    function Install-RunnerPrerequisite {
+        param($Uri, $FileName, $Publisher, $Arguments, [switch]$Msi)
+        if ($Uri -ne (Get-RunnerPythonRelease).uri -or $FileName -ne 'python.exe' -or $Publisher -ne 'Python' -or $Msi -or
+            $Arguments -notmatch '/quiet InstallAllUsers=1' -or
+            -not $Arguments.Contains(('TargetDir="' + (Split-Path -Parent $pythonPath) + '"')) -or
+            $Arguments -notmatch 'Include_launcher=0') {
+            throw 'Python must use the bounded, verified all-users installer in protected Program Files.'
+        }
+        $global:ExcelToolchainPythonInstalls++
+        $global:ExcelToolchainPythonPresent = $true
+    }
+    $global:ExcelToolchainPythonPresent = $false
+    Install-RunnerPythonPrerequisite
+    Install-RunnerPythonPrerequisite
+    if ($global:ExcelToolchainPythonInstalls -ne 1) { throw 'Missing Python must be installed exactly once and verified on reuse.' }
     $global:ExcelToolchainDevelopmentMode = 0
     $failed = $false
     try { Get-RunnerCloudToolState | Out-Null } catch { $failed = $true }
@@ -152,6 +223,14 @@ try {
         }
     }
 }
-finally { Remove-Item -LiteralPath "Function:\$bashPath" }
+finally {
+    Remove-Item -LiteralPath "Function:\$bashPath"
+    Remove-Item -LiteralPath "Function:\$pythonPath"
+}
+
+$setup = Get-Content (Join-Path $root '.github\workflows\copilot-setup-steps.yml') -Raw
+if ($setup -notmatch '(?m)^      - name: Setup Python\r?\n        if: runner.environment != ''self-hosted''\r?\n        uses: actions/setup-python@') {
+    throw 'Only hosted setup may invoke the first-time administrative setup-python installer.'
+}
 
 Write-Output 'Runner SDK and trusted installer tests passed.'

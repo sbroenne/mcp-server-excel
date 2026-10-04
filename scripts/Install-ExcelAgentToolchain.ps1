@@ -103,6 +103,7 @@ if ((Get-FileHash -LiteralPath (Join-Path `$directory '$name') -Algorithm SHA256
         $state.tools.git -notmatch '^git version \d+\.\d+\.\d+\.windows\.\d+$' -or
         $state.tools.powershell -notmatch '^7\.\d+\.\d+$' -or
         $state.tools.node -notmatch '^v22\.\d+\.\d+$' -or
+        $state.tools.python -notmatch '^Python 3\.13\.\d+$' -or
         $state.tools.bash -notmatch '^GNU bash, version \d+\.\d+' -or
         $state.tools.jq -ne 'jq-1.8.2' -or $state.runnerRegistered -ne $false) {
         throw "Toolchain installation failed or returned incomplete/mismatched tool versions: $($state.error)"
@@ -112,6 +113,9 @@ if ((Get-FileHash -LiteralPath (Join-Path `$directory '$name') -Algorithm SHA256
     }
     . (Join-Path $root 'infrastructure\azure\install-excel-toolchain.ps1') -SdkVersion $sdk -RollForward $rollForward
     Assert-RequiredRunnerSdk -Required $sdk -Installed @("$($state.tools.sdk) [resolved]") -RollForward $rollForward
+    if ([version]$state.tools.python.Substring(7) -lt [version](Get-RunnerPythonRelease).version) {
+        throw 'Toolchain installation returned a Python release below the qualified minimum.'
+    }
     $state.tools | ConvertTo-Json -Compress
     if ($state.rebootRequired) { Write-Output 'A restart is required before desktop qualification.' }
 }
