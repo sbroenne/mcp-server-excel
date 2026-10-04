@@ -11,6 +11,16 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.2.1] - 2026-10-04
+
+### Patch Changes
+
+- [#1044](https://github.com/sbroenne/mcp-server-excel/pull/1044) [`7b1c095`](https://github.com/sbroenne/mcp-server-excel/commit/7b1c095b4c01d05343644161663411566533709e) Thanks [@sbroenne](https://github.com/sbroenne)! - **Install the Excel plugins in Claude Code**: the plugin repository now also publishes a Claude Code marketplace. Run `claude plugin marketplace add sbroenne/mcp-server-excel-plugins`, then `claude plugin install excel-mcp@mcp-server-excel-plugins` (or `excel-cli@mcp-server-excel-plugins`).
+
+- [#1049](https://github.com/sbroenne/mcp-server-excel/pull/1049) [`10c368e`](https://github.com/sbroenne/mcp-server-excel/commit/10c368ea1807401d8d1a9f08c8e02262ab7dfa77) Thanks [@sbroenne](https://github.com/sbroenne)! - Restore a small Excel CLI plugin skill that helps coding agents find and launch
+  the npx wrapper for ordinary workbook requests. Command details still come from
+  native CLI help; the former large skill reference collection is not restored.
+
 ## [2.2.0] - 2026-10-04
 
 ### Major Changes
