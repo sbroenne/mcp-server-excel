@@ -18,16 +18,21 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 
 function Assert-ToolchainInstallerSignature {
-    param([string]$Path, [ValidateSet('Microsoft', 'DotNet', 'Git', 'Node')][string]$Publisher)
+    param([string]$Path, [ValidateSet('Microsoft', 'DotNet', 'Git', 'Node', 'Python')][string]$Publisher)
     $signature = Get-AuthenticodeSignature -LiteralPath $Path
     $subject = switch ($Publisher) {
         Microsoft { '^CN=Microsoft Corporation,' }
         DotNet { '^CN=(\.NET|Microsoft Corporation),' }
         Git { '^CN=(Open Source Developer, )?Johannes Schindelin,' }
         Node { '^CN=OpenJS Foundation,' }
+        Python { '^CN=Python Software Foundation,' }
     }
     $publisherMatches = $signature.SignerCertificate.Subject -match $subject
-    if ($Publisher -eq 'DotNet') {
+    if ($Publisher -eq 'Python') {
+        $publisherMatches = $publisherMatches -and
+            $signature.SignerCertificate.Subject -match '(^|, )O=Python Software Foundation(,|$)'
+    }
+    elseif ($Publisher -eq 'DotNet') {
         $publisherMatches = $publisherMatches -and
             $signature.SignerCertificate.Subject -match '(^|, )O=Microsoft Corporation(,|$)'
     }
@@ -73,19 +78,57 @@ function Assert-RunnerJqPackage {
     }
 }
 
+function Get-RunnerPythonRelease {
+    @{
+        version = '3.13.13'
+        uri = 'https://www.python.org/ftp/python/3.13.13/python-3.13.13-amd64.exe'
+    }
+}
+
+function Get-RunnerPythonVersion {
+    $python = Join-Path $env:ProgramFiles 'Python313\python.exe'
+    if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
+        throw 'The protected Python 3.13 interpreter must be installed before limited-user repository setup.'
+    }
+    $version = (& $python --version) -join ''
+    if ($LASTEXITCODE -ne 0 -or $version -notmatch '^Python 3\.13\.\d+$' -or
+        [version]$version.Substring(7) -lt [version](Get-RunnerPythonRelease).version) {
+        throw 'The installed Python interpreter does not satisfy the qualified Python 3.13 release.'
+    }
+    $architecture = (& $python -c 'import struct; print(struct.calcsize("P") * 8)') -join ''
+    if ($LASTEXITCODE -ne 0 -or $architecture -ne '64') { throw 'The runner requires 64-bit Python.' }
+    $pip = (& $python -m pip --version) -join ''
+    if ($LASTEXITCODE -ne 0 -or $pip -notmatch '^pip \d+.*\(python 3\.13\)$') {
+        throw 'The protected Python interpreter must provide pip for repository documentation dependencies.'
+    }
+    return $version
+}
+
+function Install-RunnerPythonPrerequisite {
+    $pythonDirectory = Join-Path $env:ProgramFiles 'Python313'
+    if (-not (Test-Path -LiteralPath (Join-Path $pythonDirectory 'python.exe') -PathType Leaf)) {
+        Install-RunnerPrerequisite (Get-RunnerPythonRelease).uri 'python.exe' Python (
+            "/quiet InstallAllUsers=1 TargetDir=`"$pythonDirectory`" PrependPath=0 Include_launcher=0 Include_test=0 Shortcuts=0"
+        )
+    }
+    $null = Get-RunnerPythonVersion
+}
+
 function Get-RunnerCloudToolState {
     $developmentMode = Get-ItemPropertyValue -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' `
         -Name AllowDevelopmentWithoutDevLicense -ErrorAction Stop
     if ($developmentMode -ne 1) { throw 'Windows Developer Mode is required for limited-user runtime symbolic-link extraction.' }
     $bash = Join-Path $env:ProgramFiles 'Git\bin\bash.exe'
     $jq = Join-Path $env:ProgramFiles 'ExcelMcp\Tools\jq.exe'
+    $python = Get-RunnerPythonVersion
     foreach ($path in @($bash, $jq)) {
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw 'A required cloud initialization tool is missing.' }
     }
     Assert-RunnerJqPackage $jq
     if ((Get-Command bash -CommandType Application -ErrorAction Stop).Source -ine $bash -or
-        (Get-Command jq -CommandType Application -ErrorAction Stop).Source -ine $jq) {
-        throw 'The runner PATH must resolve the protected Git Bash and pinned jq executables.'
+        (Get-Command jq -CommandType Application -ErrorAction Stop).Source -ine $jq -or
+        (Get-Command python -CommandType Application -ErrorAction Stop).Source -ine (Join-Path $env:ProgramFiles 'Python313\python.exe')) {
+        throw 'The runner PATH must resolve the protected Git Bash, pinned jq and Python executables.'
     }
     $bashOutput = @(& $bash --version)
     if ($LASTEXITCODE -ne 0 -or -not $bashOutput.Count -or $bashOutput[0] -notmatch '^GNU bash, version \d+\.\d+') {
@@ -96,15 +139,17 @@ function Get-RunnerCloudToolState {
     if ($LASTEXITCODE -ne 0 -or $jqVersion -ne (Get-RunnerJqRelease).version) {
         throw 'The cloud initialization Bash shell cannot execute the required jq version.'
     }
-    return @{ bash = $bashVersion; jq = $jqVersion; developmentMode = $true }
+    return @{ bash = $bashVersion; jq = $jqVersion; developmentMode = $true; python = $python }
 }
 
 function Set-RunnerCloudToolPath {
     $bashDirectory = Join-Path $env:ProgramFiles 'Git\bin'
     $toolsDirectory = Join-Path $env:ProgramFiles 'ExcelMcp\Tools'
+    $pythonDirectory = Join-Path $env:ProgramFiles 'Python313'
+    $protectedPaths = @($bashDirectory, $toolsDirectory, $pythonDirectory, (Join-Path $pythonDirectory 'Scripts'))
     $existing = @([Environment]::GetEnvironmentVariable('Path', 'Machine') -split ';' |
-        Where-Object { $_ -and $_.TrimEnd('\') -ine $bashDirectory -and $_.TrimEnd('\') -ine $toolsDirectory })
-    [Environment]::SetEnvironmentVariable('Path', (@($bashDirectory, $toolsDirectory) + $existing) -join ';', 'Machine')
+        Where-Object { $_ -and $protectedPaths -inotcontains $_.TrimEnd('\') })
+    [Environment]::SetEnvironmentVariable('Path', ($protectedPaths + $existing) -join ';', 'Machine')
     $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
         [Environment]::GetEnvironmentVariable('Path', 'User')
 }
@@ -114,6 +159,7 @@ function Install-RunnerCloudPrerequisites {
     if (-not (Test-Path -LiteralPath (Join-Path $bashDirectory 'bash.exe') -PathType Leaf)) {
         throw 'Install the verified Git for Windows package before cloud initialization tools.'
     }
+    Install-RunnerPythonPrerequisite
     $toolsDirectory = Join-Path $env:ProgramFiles 'ExcelMcp\Tools'
     New-Item -ItemType Directory -Path $toolsDirectory -Force | Out-Null
     $jq = Join-Path $toolsDirectory 'jq.exe'
@@ -164,6 +210,7 @@ function Get-RunnerToolchainState {
         sdk = $selectedSdk; requiredSdk = $SdkVersion; rollForward = $RollForward
         git = $gitVersion; powershell = $powershellVersion; node = $nodeVersion
         bash = $cloud.bash; jq = $cloud.jq; developmentMode = $cloud.developmentMode
+        python = $cloud.python
     }
 }
 

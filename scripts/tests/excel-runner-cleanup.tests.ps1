@@ -25,8 +25,12 @@ if ($script:Stopped.Count -ne 1 -or $script:Stopped[0] -ne 777 -or $script:Dispo
 $script:Stopped.Clear()
 $script:Disposed = 0
 $script:Owner.User = 'unrelated-user'
+$script:Process.Handle = $null
+$script:Process.StartTime = $null
 Stop-ExcelRunnerJobProcess $entry 'synthetic-machine'
 if ($script:Stopped.Count -or $script:Disposed -ne 1) { throw 'An unrelated process must remain untouched, with its handle disposed.' }
+$script:Process.Handle = 1
+$script:Process.StartTime = $created
 $script:Owner.User = 'excelrunner'
 $script:Owner.ReturnValue = 2
 $failed = $false
@@ -36,6 +40,20 @@ $script:Owner.ReturnValue = 0
 $script:Process.StartTime = $created.AddSeconds(1)
 Stop-ExcelRunnerJobProcess $entry 'synthetic-machine'
 if ($script:Stopped.Count -or $script:Disposed -ne 3) { throw 'A reused PID must not be stopped.' }
+$script:Process.StartTime = $null
+$before = $script:Disposed
+$failure = $null
+try { Stop-ExcelRunnerJobProcess $entry 'synthetic-machine' } catch { $failure = $_.Exception }
+if (-not $failure -or $failure.Message -notmatch 'start time could not be established' -or
+    $script:Stopped.Count -or $script:Disposed -ne $before + 1) {
+    throw 'Unreadable owned process identity must quarantine explicitly without stopping it or leaking a handle.'
+}
+$script:Owner.User = $null
+$failure = $null
+try { Stop-ExcelRunnerJobProcess $entry 'synthetic-machine' } catch { $failure = $_.Exception }
+if (-not $failure -or $failure.Message -notmatch 'owner could not be established' -or $script:Stopped.Count) {
+    throw 'An empty successful ownership response is not proof of an unrelated account.'
+}
 $script:Process = $null
 Stop-ExcelRunnerJobProcess $entry 'synthetic-machine'
 Write-Output 'Owned process cleanup, timestamp precision, handle lifetime and exit races passed.'

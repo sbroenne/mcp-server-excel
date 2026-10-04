@@ -236,7 +236,11 @@ The hosted control workflow checks complete GitHub jobs and guest listeners,
 workers, workbooks and cleanup records. It keeps active work undisturbed,
 recovers cancelled jobs through the limited account, checks desktop recovery
 and then deallocates the VM. Process cleanup uses retained handles, PID/start-time
-identity and account ownership. Workspace cleanup removes all contents of the
+identity and account ownership. Cleanup establishes account
+ownership before accessing a process handle or start time: unrelated system
+processes may be visible in the desktop session but unreadable by the limited
+account. Unknown ownership still quarantines the runner, and stopping an owned
+process still requires its exact PID/start-time identity. Workspace cleanup removes all contents of the
 exact runner checkout and rejects directory links. It retains the empty checkout
 directory because the completing runner can still hold it as its working
 directory. An expired idle listener may be
@@ -290,8 +294,14 @@ The coding job's runtime `GITHUB_ACTOR` is `copilot-swe-agent[bot]`, not the
 REST API's `Copilot` display login. Hosted admission still verifies the
 platform bot ID, dynamic workflow path and repository, then binds the exact
 run/job and current boot; the guest must match the actual runtime bot identity.
-The protected toolchain includes Git Bash and checksum-pinned Windows x64
-jq, with both directories first on the machine PATH. GitHub's generated
+The protected toolchain includes Git Bash, checksum-pinned Windows x64
+jq and signed 64-bit Python 3.13, with their protected directories first on the
+machine PATH. Python and pip are installed administratively before registration;
+the limited coding account must not run `actions/setup-python`'s first-time
+all-users installation. Hosted setup retains that action. Existing desktops use
+the same bounded, signature-verified installer during guarded idle maintenance;
+readiness verifies Python's version, architecture, pip and protected PATH.
+GitHub's generated
 initialization uses `bash` and `jq` before repository setup steps, even on
 Windows; adding them in `copilot-setup-steps.yml` is too late. Qualification
 must resolve the protected binaries and execute jq through Git Bash before

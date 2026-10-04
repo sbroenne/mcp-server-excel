@@ -5,20 +5,22 @@ function Stop-ExcelRunnerJobProcess {
     $process = Get-Process -Id $Entry.ProcessId -ErrorAction SilentlyContinue
     if (-not $process) { return }
     try {
+        $owner = Invoke-CimMethod $Entry -MethodName GetOwner
+        if ($owner.ReturnValue -ne 0 -or [string]::IsNullOrWhiteSpace($owner.User) -or
+            [string]::IsNullOrWhiteSpace($owner.Domain)) {
+            if ($process.HasExited) { return }
+            throw 'A remaining process owner could not be established.'
+        }
+        if ($owner.User -ine 'excelrunner' -or $owner.Domain -ine $ComputerName) { return }
         try { $null = $process.Handle }
         catch {
             if ($process.HasExited) { return }
             throw
         }
         if ($process.HasExited) { return }
+        if ($process.StartTime -isnot [DateTime]) { throw 'A job-owned process start time could not be established.' }
         $ticks = $process.StartTime.ToUniversalTime().Ticks
         if (($ticks - $ticks % 10) -ne $Entry.CreationDate.ToUniversalTime().Ticks) { return }
-        $owner = Invoke-CimMethod $Entry -MethodName GetOwner
-        if ($owner.ReturnValue -ne 0) {
-            if ($process.HasExited) { return }
-            throw 'A remaining process owner could not be established.'
-        }
-        if ($owner.User -ine 'excelrunner' -or $owner.Domain -ine $ComputerName) { return }
         if (-not $process.HasExited) {
             Stop-Process -Id $process.Id -Force
             if (-not $process.WaitForExit(10000)) { throw 'A job-owned process did not stop.' }
