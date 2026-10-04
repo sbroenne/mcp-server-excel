@@ -14,6 +14,7 @@ public sealed class ValidationSelectionTests
     [InlineData("tests/README.md", "", "", false)]
     [InlineData("scripts/Install-ExcelAgentToolchain.ps1", "Tooling", "", false)]
     [InlineData("scripts/Invoke-CopilotSetupNpm.ps1", "Tooling", "", false)]
+    [InlineData(".github/workflows/copilot-setup-steps.yml", "Tooling", "", false)]
     [InlineData("scripts/tests/excel-runner-maintenance.tests.ps1", "Tooling", "", false)]
     [InlineData("infrastructure/azure/update-excel-runner.ps1", "Tooling", "", false)]
     [InlineData("doc-counts.json", "Tooling", "", false)]
@@ -62,11 +63,13 @@ public sealed class ValidationSelectionTests
         Assert.True(result.ExitCode == 0, result.Output);
     }
 
-    [Fact]
-    public async Task CopilotNpmSetup_SelectsSafetyWithoutExcel()
+    [Theory]
+    [InlineData("scripts\\Invoke-CopilotSetupNpm.ps1")]
+    [InlineData(".github\\workflows\\copilot-setup-steps.yml")]
+    public async Task CopilotNpmSetup_SelectsSafetyWithoutExcel(string path)
     {
-        var result = await RunAsync("""
-            $plan = Get-ValidationPlan -Paths 'scripts\Invoke-CopilotSetupNpm.ps1'
+        var result = await RunAsync($$"""
+            $plan = Get-ValidationPlan -Paths '{{path}}'
             if (-not $plan.Build -or -not $plan.HookTests) { throw 'Script safety validation missing.' }
             if ($plan.Excel -or $plan.ExcelGroups.Count -or $plan.FastProjects.Count -or $plan.ProcessProjects.Count) {
                 throw 'Setup-only npm selection must not require Excel or runtime validation.'
