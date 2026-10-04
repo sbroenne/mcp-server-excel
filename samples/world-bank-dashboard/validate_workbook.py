@@ -107,6 +107,15 @@ def validate_overview_chart(excel, expected, countries):
 
 def validate(excel, logs, live):
     validate_live_licences(excel)
+    with (ROOT / "data" / "indicators.csv").open(encoding="utf-8", newline="") as source:
+        expected_units = {row["Code"]: row["Unit"] for row in csv.DictReader(source)}
+    model_units = excel.call("datamodel.evaluate", daxQuery=(
+        'EVALUATE SELECTCOLUMNS(Indicators, "Code", Indicators[Code], "Unit", Indicators[Unit])'
+    ))["result"]["rows"]
+    require(dict(model_units) == expected_units, "Data Model indicator units differ from the source metadata")
+    for sheet in ("Indicators", "Indicator Notes"):
+        require({row[0]: row[3] for row in values(excel, sheet, "A2:D10")} == expected_units,
+                f"{sheet} units differ from the source metadata")
     with (ROOT / "data" / "observations.csv").open(encoding="utf-8", newline="") as source:
         expected = {(r["CountryCode"], int(r["Year"]), r["Metric"]):
                     float(r["Value"]) if r["Value"] else None for r in csv.DictReader(source)}

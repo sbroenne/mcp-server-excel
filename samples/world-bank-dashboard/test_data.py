@@ -52,6 +52,12 @@ class SnapshotTests(unittest.TestCase):
         self.assertEqual({row["Code"] for row in countries}, set(COUNTRIES))
         self.assertTrue(all(row["Region"] and row["Country"] for row in countries))
 
+    def test_growth_and_inflation_units_are_annual_percent_changes(self):
+        metadata = {row["Code"]: row for row in read_csv("indicators.csv")}
+        for code in ("NY.GDP.MKTP.KD.ZG", "FP.CPI.TOTL.ZG"):
+            self.assertEqual(INDICATORS[code][1], "Annual percent change")
+            self.assertEqual(metadata[code]["Unit"], "Annual percent change")
+
     def test_public_query_matches_extraction_scope(self):
         code = (ROOT / "world_bank_source.m").read_text(encoding="utf-8")
         countries = re.search(r'CountryCodes = Text.Split\("([^"]+)"', code).group(1).split()

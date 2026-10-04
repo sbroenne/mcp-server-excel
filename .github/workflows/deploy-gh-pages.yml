@@ -125,6 +125,9 @@ jobs:
         working-directory: gh-pages
         run: python -m unittest discover -s tests
 
+      - name: Check sample data and build scripts
+        run: python -m unittest discover -s samples/world-bank-dashboard -p "test_*.py"
+
       - name: Audit built site
         working-directory: gh-pages
         run: python audit_site.py

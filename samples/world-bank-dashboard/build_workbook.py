@@ -638,7 +638,7 @@ def documentation(excel):
         ["Income", "GDP per capita at purchasing-power parity, in constant 2021 international dollars. This is NOT salary or household disposable income."],
         ["Median income", "Unweighted median of the selected countries' GDP per capita, not population-weighted and not an official World Bank regional estimate."],
         ["GDP index", "Each country's constant-2015-US-dollar GDP divided by its own 2000 GDP, multiplied by 100. Measures growth, not economic size."],
-        ["Growth and inflation", "Annual percent change is stored in percentage-point units: 5 means 5%, not 500%."],
+        ["Growth and inflation", "Annual percent change is stored as a percentage: 5 means 5%, not 500%."],
         ["Population", "Country populations are summed only within one year. The chart's bubble areas use population in millions."],
         ["Life expectancy", "Period life expectancy at birth, in years. Cross-country association with income does not establish causation."],
         ["Internet and electricity", "Population shares in percent. Availability and definitions vary; inspect indicator metadata."],

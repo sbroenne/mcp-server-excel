@@ -83,7 +83,7 @@
   },
   "notes": [
     "Country region and income-group labels reflect the downloaded metadata, not historical classifications.",
-    "Rates are percentage-point values as supplied, not decimal fractions.",
+    "Rates are percentages as supplied, not decimal fractions.",
     "Missing values remain missing. No interpolation or zero replacement.",
     "The sample countries are not the whole world. No country average is labelled as a World Bank regional aggregate."
   ]

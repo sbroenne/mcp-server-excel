@@ -16,8 +16,8 @@ COUNTRIES = (
 INDICATORS = {
     "NY.GDP.PCAP.PP.KD": ("Income", "Constant 2021 international $ per person"),
     "NY.GDP.MKTP.KD": ("GDP", "Constant 2015 US$"),
-    "NY.GDP.MKTP.KD.ZG": ("Growth", "Annual percentage points"),
-    "FP.CPI.TOTL.ZG": ("Inflation", "Annual percentage points"),
+    "NY.GDP.MKTP.KD.ZG": ("Growth", "Annual percent change"),
+    "FP.CPI.TOTL.ZG": ("Inflation", "Annual percent change"),
     "SP.POP.TOTL": ("Population", "People"),
     "SP.DYN.LE00.IN": ("Life", "Years"),
     "EG.ELC.ACCS.ZS": ("Electricity", "Percent of population"),
@@ -121,7 +121,7 @@ def prepare(archive_path, output, retrieved):
         "coverage": coverage,
         "notes": [
             "Country region and income-group labels reflect the downloaded metadata, not historical classifications.",
-            "Rates are percentage-point values as supplied, not decimal fractions.",
+            "Rates are percentages as supplied, not decimal fractions.",
             "Missing values remain missing. No interpolation or zero replacement.",
             "The sample countries are not the whole world. No country average is labelled as a World Bank regional aggregate.",
         ],
