@@ -2,9 +2,12 @@
 
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
+import xml.etree.ElementTree as ET
 
+from jinja2 import Environment, FileSystemLoader
 from mkdocs.config import load_config
 from mkdocs.structure.files import Files
 
@@ -12,6 +15,44 @@ import hooks
 
 
 class SampleDownloadTests(unittest.TestCase):
+    def test_sitemap_describes_both_videos_on_their_own_pages(self):
+        pages = [
+            SimpleNamespace(
+                src_uri=source,
+                page=SimpleNamespace(is_link=False, canonical_url=url, abs_url=url),
+            )
+            for source, url in [
+                ("index.md", "https://excelmcpserver.dev/"),
+                ("samples/world-in-motion.md", "https://excelmcpserver.dev/samples/world-in-motion/"),
+            ]
+        ]
+        env = Environment(loader=FileSystemLoader(Path(__file__).parent / "overrides"))
+        with patch.object(hooks, "_page_lastmod", return_value={}):
+            hooks.on_env(env, None, Files([]))
+        root = ET.fromstring(env.get_template("sitemap.xml").render(pages=pages))
+        ns = {
+            "s": "http://www.sitemaps.org/schemas/sitemap/0.9",
+            "v": "http://www.google.com/schemas/sitemap-video/1.1",
+        }
+        entries = {entry.findtext("s:loc", namespaces=ns): entry for entry in root}
+        expected = {
+            "https://excelmcpserver.dev/": ("wbw3-hPcE2o", "121"),
+            "https://excelmcpserver.dev/samples/world-in-motion/": ("47HJPZbcta4", "154"),
+        }
+        for url, (video_id, duration) in expected.items():
+            with self.subTest(url=url):
+                videos = entries[url].findall("v:video", ns)
+                self.assertEqual(len(videos), 1)
+                video = videos[0]
+                self.assertEqual(
+                    video.findtext("v:player_loc", namespaces=ns),
+                    f"https://www.youtube.com/embed/{video_id}",
+                )
+                self.assertEqual(video.findtext("v:duration", namespaces=ns), duration)
+                self.assertTrue(video.findtext("v:thumbnail_loc", namespaces=ns))
+                self.assertTrue(video.findtext("v:title", namespaces=ns))
+                self.assertTrue(video.findtext("v:description", namespaces=ns))
+
     def test_workbook_link_points_to_built_download(self):
         text = hooks._rewrite_links(
             "[Download](world-in-motion.xlsx)",

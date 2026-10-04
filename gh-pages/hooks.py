@@ -16,7 +16,7 @@ Two smaller jobs live here as well:
 
 * ``on_env`` hands ``overrides/sitemap.xml`` the git commit date behind every
   page, so ``<lastmod>`` reflects real content changes rather than the build
-  date, plus the home page's video metadata.
+  date, plus the homepage introduction and sample-page video metadata.
 * ``on_post_page`` gives Material's search dialog an accessible name. The logo
   and progress-bar equivalents are declarative partials under ``overrides/``;
   ``audit_site.py`` fails the build if any of the three stops applying.
@@ -35,23 +35,36 @@ from pathlib import Path
 
 log = logging.getLogger("mkdocs.hooks.generate")
 
-# Home-page intro video. MkDocs' built-in sitemap is a plain URL sitemap and has
-# no notion of embedded media, so overrides/sitemap.xml renders a Google
-# video-sitemap <video:video> block into the home page's <url> entry. Keep these
-# fields in sync with the VideoObject JSON-LD in docs/index.md.
-VIDEO = {
-    "page_url": "https://excelmcpserver.dev/",
-    "thumbnail": "https://i.ytimg.com/vi/wbw3-hPcE2o/maxresdefault.jpg",
-    "title": "Excel MCP Server: Real Excel Automation for AI Agents",
-    "description": (
-        "Learn what Excel MCP Server is, when to use it, and how AI agents automate "
-        "Power Query, DAX, PivotTables, VBA, Python, and calculations through real "
-        "Microsoft Excel."
-    ),
-    "player_loc": "https://www.youtube.com/embed/wbw3-hPcE2o",
-    "duration": "121",
-    "publication_date": "2026-09-12T07:07:06-07:00",
-}
+# Each video belongs to its main watch page. Preserve the homepage introduction
+# and its matching VideoObject JSON-LD in docs/index.md.
+VIDEOS = [
+    {
+        "page_url": "https://excelmcpserver.dev/",
+        "thumbnail": "https://i.ytimg.com/vi/wbw3-hPcE2o/maxresdefault.jpg",
+        "title": "Excel MCP Server: Real Excel Automation for AI Agents",
+        "description": (
+            "Learn what Excel MCP Server is, when to use it, and how AI agents automate "
+            "Power Query, DAX, PivotTables, VBA, Python, and calculations through real "
+            "Microsoft Excel."
+        ),
+        "player_loc": "https://www.youtube.com/embed/wbw3-hPcE2o",
+        "duration": "121",
+        "publication_date": "2026-09-12T07:07:06-07:00",
+    },
+    {
+        "page_url": "https://excelmcpserver.dev/samples/world-in-motion/",
+        "thumbnail": "https://i.ytimg.com/vi/47HJPZbcta4/maxresdefault.jpg",
+        "title": "AI-Built Excel Dashboards | ExcelMCP in Action",
+        "description": (
+            "See a real Excel workbook built by GPT-6 Astra through ExcelMCP, "
+            "using World Bank data, Power Query, a Data Model, DAX, PivotTables "
+            "and interactive dashboards. Excel powers the workbook. Download "
+            "the sample and ask your agent to adapt it."
+        ),
+        "player_loc": "https://www.youtube.com/embed/47HJPZbcta4",
+        "duration": "154",
+    },
+]
 
 # gh-pages/hooks.py -> gh-pages/ -> repo root
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -1034,7 +1047,7 @@ def _page_lastmod(files) -> dict[str, str]:
 def on_env(env, config, files, **kwargs):  # noqa: D401 - MkDocs hook signature
     """Expose sitemap data to overrides/sitemap.xml."""
     env.globals["page_lastmod"] = _page_lastmod(files)
-    env.globals["video"] = VIDEO
+    env.globals["videos"] = VIDEOS
     return env
 
 

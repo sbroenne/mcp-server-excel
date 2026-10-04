@@ -75,7 +75,7 @@ do not substitute manual file or folder counts.
 
 | File | Why |
 | --- | --- |
-| `sitemap.xml` | Adds a real `<lastmod>` (the git commit date behind each page, supplied by `hooks.py`) and the home page's `<video:video>` block. The stock template stamps the *build* date on every URL, which told crawlers all 52 pages changed on every deploy. |
+| `sitemap.xml` | Adds a real `<lastmod>` (the git commit date behind each page, supplied by `hooks.py`) and video details for the homepage introduction and sample-page dashboard demo. The stock template stamps the *build* date on every URL, which told crawlers all 52 pages changed on every deploy. |
 | `partials/logo.html` | Upstream renders `alt="logo"` with no dimensions - a WCAG 1.1.1 failure and an unsized image. |
 | `partials/progress.html` | Upstream's `role="progressbar"` has no accessible name (WCAG 4.1.2). |
 
@@ -128,6 +128,10 @@ verified dashboard stills to the build without keeping another workbook in
 missing sources fail the build. The sample page is available under
 `/samples/world-in-motion/` after deployment; preparing or building it locally
 does not publish it or replace the homepage video.
+The sitemap describes the new video under that sample-page URL, including its
+title, description, thumbnail, player link and duration. The homepage keeps the
+original introduction's video entry. The packaging test also renders the sitemap
+template and checks that both videos remain associated with the correct pages.
 
 Both workflows that build the site check out with `fetch-depth: 0`, because the
 sitemap dates come from `git log`. On a shallow clone every page would claim the
