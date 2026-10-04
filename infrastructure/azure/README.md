@@ -201,6 +201,22 @@ role-assignment writes nor password-vault data access.
 The coding desktop receives neither the control identity nor a GitHub
 administration token.
 
+Automatic issue-based development starts when the repository owner assigns an
+open issue to the platform Copilot bot. The default-branch hosted controller
+waits up to five minutes for approved runner demand, then keeps its shared
+control slot through the exact admitted job and owned cleanup. It qualifies
+the idle desktop between successive approved jobs, drains queued demand within
+the same bounded control deadline, and parks the VM without needing a bot-triggered completion
+workflow. Other actors, assignees and pull-request assignment events cannot
+use this owner-only path. Existing coding-job identity and admission checks
+still apply; assigning an issue does not authorize arbitrary runner work.
+GitHub's workflow-approval policy is unchanged.
+
+Standalone cloud Task/API starts do not emit the owner issue-assignment event.
+They retain scheduled discovery and operator dispatch; scheduled GitHub Actions
+can be delayed and are not a reliable immediate-start guarantee. Use owner
+issue assignment for the automatic start/work/shutdown route.
+
 Operator commands, run by an approved agent or maintainer rather than assigned
 to the end user:
 
@@ -262,7 +278,14 @@ blocks repeated VM wakes for stale queued work. Control failures use a
 deduplicated alert. Shared queued workflow concurrency keeps pending
 maintenance from being replaced by frequent control checks.
 
-The hosted control deadline is 25 minutes; maintenance has a 175-minute
+The usual hosted control deadline is 25 minutes. Owner issue-assignment control
+has an 85-minute deadline and a 110-minute workflow limit, including room for
+the separate 15-minute failure-cleanup budget. Its demand wait is bounded to
+five minutes, and active work is never reported as successful on timeout.
+The generated Copilot job uses the supported 59-minute timeout so repository
+setup does not consume a short development session's entire budget.
+The six-hour coding shutdown backstop is refreshed before each admitted job.
+Maintenance has a 175-minute
 operation budget and a separate 15-minute cleanup budget. Guest update tasks
 and host polling are bounded independently. Shutdown schedules provide
 four-hour maintenance and six-hour coding backstops; these are hard protection
