@@ -29,6 +29,11 @@ safe restarts and updates for each method.
 
 > **Tip:** The **VS Code Extension** bundles the MCP Server only (install the CLI separately if you need it for scripting). The **GitHub Copilot plugins** are separate — install `excel-mcp` and/or `excel-cli` depending on which entry point you need — see the MCP Server guide's Quick Start for the one-click paths.
 
+The Copilot plugins are also listed in
+[Awesome Copilot](https://github.com/github/awesome-copilot), the default
+marketplace in current Copilot clients. Each installation guide includes that
+install route and our direct marketplace alternative.
+
 ---
 
 ## Agent Skills Installation (Cross-Platform)
