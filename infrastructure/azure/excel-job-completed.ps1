@@ -5,7 +5,11 @@ function Stop-ExcelRunnerJobProcess {
     $process = Get-Process -Id $Entry.ProcessId -ErrorAction SilentlyContinue
     if (-not $process) { return }
     try {
-        $owner = Invoke-CimMethod $Entry -MethodName GetOwner
+        try { $owner = Invoke-CimMethod $Entry -MethodName GetOwner }
+        catch {
+            if ($process.HasExited) { return }
+            throw
+        }
         if ($owner.ReturnValue -ne 0 -or [string]::IsNullOrWhiteSpace($owner.User) -or
             [string]::IsNullOrWhiteSpace($owner.Domain)) {
             if ($process.HasExited) { return }

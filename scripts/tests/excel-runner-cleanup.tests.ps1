@@ -10,12 +10,17 @@ if ($helpers.Count -ne 1) { throw 'Job process cleanup requires a callable, isol
 $script:Stopped = [Collections.Generic.List[int]]::new()
 $script:Disposed = 0
 $script:Owner = @{ ReturnValue = 0; User = 'excelrunner'; Domain = 'synthetic-machine' }
+$script:OwnerThrows = $false
 $created = [DateTime]::UtcNow
 $script:Process = [pscustomobject]@{ Id = 777; Handle = 1; StartTime = $created; HasExited = $false }
 $script:Process | Add-Member ScriptMethod WaitForExit { param($Timeout) return $true }
 $script:Process | Add-Member ScriptMethod Dispose { $script:Disposed++ }
 function Get-Process { param($Id, $ErrorAction) return $script:Process }
-function Invoke-CimMethod { param($InputObject, $MethodName) return $script:Owner }
+function Invoke-CimMethod {
+    param($InputObject, $MethodName)
+    if ($script:OwnerThrows) { throw 'Synthetic CIM owner lookup failure.' }
+    return $script:Owner
+}
 function Stop-Process { param($Id, [switch]$Force) $script:Stopped.Add($Id) }
 $entry = @{ ProcessId = 777; CreationDate = [DateTime]::new($created.Ticks - $created.Ticks % 10, [DateTimeKind]::Utc) }
 Stop-ExcelRunnerJobProcess $entry 'synthetic-machine'
@@ -53,6 +58,20 @@ $failure = $null
 try { Stop-ExcelRunnerJobProcess $entry 'synthetic-machine' } catch { $failure = $_.Exception }
 if (-not $failure -or $failure.Message -notmatch 'owner could not be established' -or $script:Stopped.Count) {
     throw 'An empty successful ownership response is not proof of an unrelated account.'
+}
+$script:Owner.User = 'excelrunner'
+$script:OwnerThrows = $true
+$script:Process.HasExited = $true
+$before = $script:Disposed
+Stop-ExcelRunnerJobProcess $entry 'synthetic-machine'
+if ($script:Stopped.Count -or $script:Disposed -ne $before + 1) {
+    throw 'A CIM failure after observed process exit must release the handle without quarantining or stopping anything.'
+}
+$script:Process.HasExited = $false
+$failure = $null
+try { Stop-ExcelRunnerJobProcess $entry 'synthetic-machine' } catch { $failure = $_.Exception }
+if (-not $failure -or $failure.Message -ne 'Synthetic CIM owner lookup failure.' -or $script:Stopped.Count) {
+    throw 'A live-process CIM failure must retain its exact error and quarantine, not become cleanup success.'
 }
 $script:Process = $null
 Stop-ExcelRunnerJobProcess $entry 'synthetic-machine'

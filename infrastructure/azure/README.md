@@ -16,7 +16,7 @@ telemetry development and validation, and the dedicated Excel development VM.
 | `configure-analytics-oidc.ps1` | Read-only GitHub Actions workload identity setup |
 | `excel-runner.bicep` | Dedicated Windows Excel development VM, network, password vault and shutdown protection |
 | `install-excel-office.ps1` | SYSTEM worker for current 64-bit Excel 2024 Retail installation |
-| `install-excel-toolchain.ps1` | SYSTEM worker for the repository SDK, Git, PowerShell 7 and Node.js 22 |
+| `install-excel-toolchain.ps1` | SYSTEM worker for the repository SDK, Git, PowerShell 7, Node.js 22 and Python 3.13/pip |
 | `setup-excel-desktop.ps1` | Dedicated non-admin desktop account, secure automatic logon and profile initialization |
 | `excel-desktop-access.bicep` | Free Developer Bastion for temporary private activation access |
 | `update-excel-runner.ps1` | Bounded Windows Update and separate Click-to-Run Excel servicing |
@@ -167,8 +167,8 @@ It does not install or activate Excel. Activation remains a user sign-in step.
 Run `scripts\Install-ExcelAgentToolchain.ps1` after desktop preparation, with the
 VM deallocated. It follows the upstream prerequisite installer and SYSTEM worker
 pattern and the SDK version and roll-forward policy in `global.json`. It installs
-Git for Windows, PowerShell 7 and Node.js 22, and verifies their actual executables
-and versions.
+Git for Windows, PowerShell 7, Node.js 22 and signed 64-bit Python 3.13 with pip,
+and verifies their actual executables and versions.
 Downloads require a valid signature from the expected publisher. Installer
 processes have bounded deadlines and retain their real exit codes. The worker
 runs from an administrator-protected directory. Reruns retain matching tools
@@ -298,9 +298,10 @@ The protected toolchain includes Git Bash, checksum-pinned Windows x64
 jq and signed 64-bit Python 3.13, with their protected directories first on the
 machine PATH. Python and pip are installed administratively before registration;
 the limited coding account must not run `actions/setup-python`'s first-time
-all-users installation. Hosted setup retains that action. Existing desktops use
-the same bounded, signature-verified installer during guarded idle maintenance;
-readiness verifies Python's version, architecture, pip and protected PATH.
+all-users installation. Hosted setup retains that action.
+Readiness verifies Python's version, architecture, pip and protected PATH.
+Complete development-tool provisioning before registration; the regular
+Windows/Excel maintenance worker does not install or update these tools.
 GitHub's generated
 initialization uses `bash` and `jq` before repository setup steps, even on
 Windows; adding them in `copilot-setup-steps.yml` is too late. Qualification
