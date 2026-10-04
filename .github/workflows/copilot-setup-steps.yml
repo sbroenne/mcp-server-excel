@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - .github/workflows/copilot-setup-steps.yml
+      - scripts/Invoke-CopilotSetupNpm.ps1
       - global.json
       - Directory.Packages.props
       - '**/*.csproj'
@@ -15,6 +16,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/copilot-setup-steps.yml
+      - scripts/Invoke-CopilotSetupNpm.ps1
       - global.json
       - Directory.Packages.props
       - '**/*.csproj'
@@ -72,18 +74,18 @@ jobs:
           cache-dependency-glob: llm-tests/uv.lock
 
       - name: Install repository tooling
-        run: npm ci
+        run: .\scripts\Invoke-CopilotSetupNpm.ps1
 
       - name: Install VS Code extension dependencies
         working-directory: vscode-extension
-        run: npm ci
+        run: ..\scripts\Invoke-CopilotSetupNpm.ps1
 
       - name: Install documentation dependencies
         run: python -m pip install -r gh-pages/requirements.txt
 
       - name: Install shared npm tooling
         working-directory: npm-packages/shared
-        run: npm ci
+        run: ..\..\scripts\Invoke-CopilotSetupNpm.ps1
 
       - name: Install LLM evaluation dependencies without running evaluations
         if: runner.environment != 'self-hosted'

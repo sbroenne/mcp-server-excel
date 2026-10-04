@@ -303,6 +303,13 @@ Readiness verifies Python's version, architecture, pip and protected PATH.
 The native architecture probe works in both PowerShell versions. PATH checks
 require the protected application first; a later Windows Python alias is not
 an override.
+Repository, extension and shared npm setup use
+`scripts\Invoke-CopilotSetupNpm.ps1`. On this desktop it calls the protected
+Node.js installation's `npm.cmd`, retaining each step's working directory.
+GitHub's downloaded agent runtime can prepend its own incomplete npm shim
+to PATH; that shim must not replace the provisioned dependency installer.
+Hosted setup retains the npm selected by `actions/setup-node`. A missing
+protected command or failed installation stops setup explicitly.
 Complete development-tool provisioning before registration; the regular
 Windows/Excel maintenance worker does not install or update these tools.
 GitHub's generated
@@ -354,6 +361,7 @@ Run its offline checks with:
 ```powershell
 & .\scripts\tests\excel-runner-toolchain.tests.ps1
 & .\scripts\tests\excel-runner-toolchain-host.tests.ps1
+& .\scripts\tests\copilot-setup-npm.tests.ps1
 ```
 
 ### Qualification and account privacy
