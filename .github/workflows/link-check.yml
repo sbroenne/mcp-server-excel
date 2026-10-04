@@ -70,9 +70,11 @@ jobs:
           # before they are deployed.
           #
           # npmjs.com answers automated clients with 403 even when the package
-          # exists, and powerqueryformatter.com times out from GitHub-hosted
-          # runners while answering normally elsewhere, so their links can't
-          # be checked this way. The MCP Registry API is slow at times, so
+          # exists, while powerqueryformatter.com (timeouts) and YouTube (500s)
+          # reject GitHub-hosted runners but answer normally elsewhere, so
+          # their links can't be checked this way. star-history.svg is
+          # rendered only by the deploy workflow, so it is absent from this
+          # build. The MCP Registry API is slow at times, so
           # allow more time before giving up. Retries wait long enough to ride
           # out short GitHub/CDN 5xx bursts.
           # GitHub's HTML pages can return 503/504 to automated clients. Check
@@ -94,6 +96,8 @@ jobs:
             --exclude 'example\.com'
             --exclude '^https://www\.npmjs\.com/'
             --exclude '^https://(www\.)?powerqueryformatter\.com/'
+            --exclude '^https://(www\.)?youtube\.com/'
+            --exclude 'star-history\.svg$'
             --remap '^https://excelmcpserver\.dev/([^?#]*)(?:[?#].*)?$ file://${{ github.workspace }}/gh-pages/_site/$1'
             --remap '^https://github\.com/sbroenne/mcp-server-excel/blob/main/(.*)$ https://raw.githubusercontent.com/sbroenne/mcp-server-excel/main/$1'
             --remap '^https://github\.com/sbroenne/mcp-server-excel/commit/([0-9a-f]{40})(?:[?#].*)?$ https://api.github.com/repos/sbroenne/mcp-server-excel/git/commits/$1'
