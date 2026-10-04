@@ -191,6 +191,10 @@ public sealed class ReleaseMetadataScriptTests
                     Assert.Contains("--draft", calls, StringComparison.Ordinal);
                     Assert.Contains("--verify-tag", calls, StringComparison.Ordinal);
                 }
+                else
+                {
+                    Assert.DoesNotContain("release create", calls, StringComparison.Ordinal);
+                }
             }
             else
             {
