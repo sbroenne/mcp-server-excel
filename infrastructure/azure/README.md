@@ -333,6 +333,9 @@ GitHub's downloaded agent runtime can prepend its own incomplete npm shim
 to PATH; that shim must not replace the provisioned dependency installer.
 Hosted setup retains the npm selected by `actions/setup-node`. A missing
 protected command or failed installation stops setup explicitly.
+Each helper step explicitly selects `shell: pwsh`: the cloud agent does not
+inherit job-level shell defaults and otherwise runs these commands in Bash,
+which cannot execute their Windows PowerShell paths.
 Complete development-tool provisioning before registration; the regular
 Windows/Excel maintenance worker does not install or update these tools.
 GitHub's generated
