@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -43,6 +44,9 @@ public class PersistentServicePivotTableCalculatedFieldsDataModelTests(
 
         var valueResult = _pivotCommands.AddValueField(batch, "OlapSalesCalcTest", "[SalesTable].[Amount]");
         Assert.True(valueResult.Success, $"AddValueField failed: {valueResult.ErrorMessage}");
+        var dataBefore = RequireSuccess(_pivotCommands.GetData(batch, "OlapSalesCalcTest"));
+        var fieldsBefore = RequireSuccess(_pivotCommands.ListFields(batch, "OlapSalesCalcTest"));
+        Assert.NotEmpty(dataBefore.Values);
 
         // Act - Attempt to create calculated field on OLAP PivotTable
         var result = _pivotCommands.CreateCalculatedField(batch, "OlapSalesCalcTest", "TestField", "=Amount*2");
@@ -57,6 +61,9 @@ public class PersistentServicePivotTableCalculatedFieldsDataModelTests(
         Assert.NotNull(result.WorkflowHint);
         Assert.Contains("datamodel", result.WorkflowHint);
         Assert.Contains("DAX", result.WorkflowHint);
+        Assert.Equal(JsonSerializer.Serialize(dataBefore),
+            JsonSerializer.Serialize(RequireSuccess(_pivotCommands.GetData(batch, "OlapSalesCalcTest"))));
+        Assert.Equal(JsonSerializer.Serialize(fieldsBefore),
+            JsonSerializer.Serialize(RequireSuccess(_pivotCommands.ListFields(batch, "OlapSalesCalcTest"))));
     }
 }
-

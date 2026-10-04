@@ -5,94 +5,68 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class PersistentServiceSheetTests
 {
     [Fact]
-    public void Move_WithBeforeSheet_RepositionsSheet()
-    {
-        var batch = _fixture.BatchToken;
-        _fixture.CreateNamedTestSheet(batch, "MoveMe");
-        _fixture.CreateNamedTestSheet(batch, "Target");
-
-        _sheetCommands.Move(batch, "MoveMe", beforeSheet: "Sheet1");
-
-        var sheets = _sheetCommands.List(batch).Worksheets.ToList();
-        var movedIndex = sheets.FindIndex(sheet => sheet.Name == "MoveMe");
-        var sheet1Index = sheets.FindIndex(sheet => sheet.Name == "Sheet1");
-        Assert.True(
-            movedIndex < sheet1Index,
-            $"Expected MoveMe (index {movedIndex}) before Sheet1 (index {sheet1Index}).");
-    }
+    public void Move_WithBeforeSheet_RepositionsSheet() => AssertMove("before");
 
     [Fact]
-    public void Move_WithAfterSheet_RepositionsSheet()
-    {
-        var batch = _fixture.BatchToken;
-        _fixture.CreateNamedTestSheet(batch, "MoveMe");
-        _fixture.CreateNamedTestSheet(batch, "Target");
-
-        _sheetCommands.Move(batch, "MoveMe", afterSheet: "Target");
-
-        var sheets = _sheetCommands.List(batch).Worksheets.ToList();
-        var movedIndex = sheets.FindIndex(sheet => sheet.Name == "MoveMe");
-        var targetIndex = sheets.FindIndex(sheet => sheet.Name == "Target");
-        Assert.True(
-            movedIndex > targetIndex,
-            $"Expected MoveMe (index {movedIndex}) after Target (index {targetIndex}).");
-    }
+    public void Move_WithAfterSheet_RepositionsSheet() => AssertMove("after");
 
     [Fact]
-    public void Move_NoPositionSpecified_MovesToEnd()
+    public void Move_NoPositionSpecified_MovesToEnd() => AssertMove("end");
+
+    private void AssertMove(string position)
     {
-        var batch = _fixture.BatchToken;
-        _fixture.CreateNamedTestSheet(batch, "Sheet2");
-        _fixture.CreateNamedTestSheet(batch, "Sheet3");
-
-        _sheetCommands.Move(batch, "Sheet1");
-
-        var result = _sheetCommands.List(batch);
-        Assert.True(result.Success);
-        Assert.Equal("Sheet1", result.Worksheets[^1].Name);
+        var source = CreateSeededSheet("Move");
+        var target = CreateSeededSheet("Target");
+        var before = ReadCurrentSheetNames();
+        var sourceState = CaptureSheet(source);
+        var targetState = CaptureSheet(target);
+        var expected = before.Where(name => name != source).ToList();
+        var index = position == "end" ? expected.Count : expected.IndexOf(target) + (position == "after" ? 1 : 0);
+        Assert.InRange(index, 0, expected.Count);
+        expected.Insert(index, source);
+        RequireSuccess(_sheetCommands.Move(_fixture.BatchToken, source,
+            beforeSheet: position == "before" ? target : null,
+            afterSheet: position == "after" ? target : null));
+        Assert.Equal(expected, ReadCurrentSheetNames());
+        Assert.Equal(sourceState, CaptureSheet(source));
+        Assert.Equal(targetState, CaptureSheet(target));
     }
 
     [Fact]
     public void Move_BothBeforeAndAfter_ThrowsException()
     {
-        var batch = _fixture.BatchToken;
-        _fixture.CreateNamedTestSheet(batch, "Sheet2");
-        _fixture.CreateNamedTestSheet(batch, "Sheet3");
-
-        var exception = Assert.Throws<ArgumentException>(() =>
-            _sheetCommands.Move(
-                batch,
-                "Sheet1",
-                beforeSheet: "Sheet2",
-                afterSheet: "Sheet3"));
-
-        Assert.Contains(
-            "both beforeSheet and afterSheet",
-            exception.Message,
-            StringComparison.OrdinalIgnoreCase);
+        var source = CreateSeededSheet("Move");
+        var target = CreateSeededSheet("Target");
+        var names = ReadCurrentSheetNames();
+        var sourceState = CaptureSheet(source);
+        var targetState = CaptureSheet(target);
+        var error = Assert.Throws<ArgumentException>(() =>
+            _sheetCommands.Move(_fixture.BatchToken, source, beforeSheet: target, afterSheet: target));
+        Assert.Contains("both beforeSheet and afterSheet", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(names, ReadCurrentSheetNames());
+        Assert.Equal(sourceState, CaptureSheet(source));
+        Assert.Equal(targetState, CaptureSheet(target));
     }
 
     [Fact]
-    public void Move_NonExistentSheet_ThrowsException()
-    {
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            _sheetCommands.Move(
-                _fixture.BatchToken,
-                "NonExistent",
-                afterSheet: "Sheet1"));
-
-        Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
-    }
+    public void Move_NonExistentSheet_ThrowsException() => AssertMissingMove(missingSource: true);
 
     [Fact]
-    public void Move_NonExistentTargetSheet_ThrowsException()
+    public void Move_NonExistentTargetSheet_ThrowsException() => AssertMissingMove(missingSource: false);
+
+    private void AssertMissingMove(bool missingSource)
     {
-        var batch = _fixture.BatchToken;
-        _fixture.CreateNamedTestSheet(batch, "Sheet2");
-
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            _sheetCommands.Move(batch, "Sheet2", beforeSheet: "NonExistent"));
-
-        Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
+        var source = CreateSeededSheet("Move");
+        var target = CreateSeededSheet("Target");
+        var names = ReadCurrentSheetNames();
+        var sourceState = CaptureSheet(source);
+        var targetState = CaptureSheet(target);
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            _sheetCommands.Move(_fixture.BatchToken, missingSource ? "MissingSheet" : source,
+                beforeSheet: missingSource ? target : "MissingSheet"));
+        Assert.Contains("not found", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(names, ReadCurrentSheetNames());
+        Assert.Equal(sourceState, CaptureSheet(source));
+        Assert.Equal(targetState, CaptureSheet(target));
     }
 }

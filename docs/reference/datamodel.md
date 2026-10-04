@@ -3,6 +3,7 @@
 Worksheet Tables and Data Model tables are separate. Add an existing Excel Table
 to the model, or load a Power Query to `data-model`/`both`, before creating
 relationships or measures. Use model table listings to discover exact names.
+Current commands and inputs come from CLI help or MCP tool descriptions.
 
 ## Creating a measure
 
@@ -21,20 +22,14 @@ excelcli -q datamodel create-measure --session $sessionId --table-name Sales --m
 excelcli -q datamodel evaluate --session $sessionId --dax-query 'EVALUATE ROW("Total", [Total Sales])'
 ```
 
-Measure names are unique across the model, not just their home table. Use update
-for an existing measure. Formats are General, Currency, Decimal, Percentage, or
-WholeNumber. On create, an omitted format defaults to General; on update it keeps
-the existing format. Failure to obtain an explicitly requested format fails the
-operation; it does not silently substitute General. Update obtains that format
-before changing the formula or description. A later Excel write failure can
-still leave partial changes; no rollback is promised.
-Measure readback identifies the actual Excel format interface, so Decimal and
-Percentage remain distinct even though both expose decimal-place and separator
-properties. Failed format-property reads do not silently report General.
-Supply native DAX with comma argument separators and decimal
-points; create and update do not translate separators to regional settings.
-Remote formatting requires explicit consent and remains off by default:
-MCP `format_dax: true` or CLI `--format-dax true`.
+Measure names are unique across the model, not just their home table. Update
+an existing measure rather than trying to create it again. Choose its display
+format from the result's meaning; percentages and decimals are not interchangeable.
+Read back the actual definition and result, especially after failure, because
+a write can leave partial changes.
+
+Supply native DAX with comma argument separators and decimal points. Remote
+formatting is optional, sends code to an external service, and requires consent.
 
 When Windows uses a comma as the decimal mark, Excel misreads a comma that
 touches a number in a measure formula, for example turning `IF(..., 1.5, 0)`
@@ -43,8 +38,13 @@ update then add one space on each side of such commas (`IF(..., 1.5 , 0)`,
 `DATEADD(..., -1 , MONTH)`). Text, quoted names, column references, and comments
 are left alone. The DAX meaning is unchanged, and the result `message` says
 spaces were added. Do not change regional settings or enable remote formatting
-as a workaround. Measure readback (`read`, `list-measures`) returns the DAX that
+as a workaround. Measure readback returns the DAX that
 the model stores, with decimal points, including after the workbook is reopened.
+
+No machine or Excel regional settings are changed.
+Measure writes store a definition; Excel may defer validation of an unknown
+function until evaluation. A successful write is not proof of a successful
+calculation. Evaluate the measure in the intended context and inspect its value.
 
 ## Refresh is not calculation
 
@@ -57,9 +57,8 @@ not reload source data. A changed external rate/lookup table still needs a sourc
 refresh. Put stored transformations and computed columns in Power Query; use
 measures for calculations over current model data.
 
-Refresh can target the whole model or one table and accepts a caller timeout.
-Other model query operations have their own limits (including a two-minute DMV
-query timeout); do not apply one blanket timeout to every action. Excel exposes
+Refresh and querying have different completion limits; use their current help
+rather than applying one blanket timeout to every operation. Excel exposes
 no reliable live model-refresh status or per-table refresh timestamp here.
 Refresh failures preserve Excel's error details rather than assuming that
 model-level refresh is unsupported. Check the reported source or engine error
@@ -82,19 +81,22 @@ reading or mutation. Use Power Query computed columns or measures instead.
 
 ## Querying and displaying results
 
-`evaluate` runs DAX `EVALUATE` queries. `execute-dmv` reads model metadata using
-SQL-like schema-rowset queries. Both require the Microsoft Analysis Services
+DAX queries return analytical results; DMV queries inspect model metadata.
+Both require the Microsoft Analysis Services
 OLE DB provider (MSOLAP). If it is missing, report the prerequisite; see
 [Microsoft's client libraries](https://learn.microsoft.com/analysis-services/client-libraries).
 Do not diagnose every Excel error as missing MSOLAP.
+Date columns returned by `evaluate` may appear as Excel date-serial numbers,
+not formatted date strings. Check the returned values and types before using
+them as display-ready dates.
 
 Use [DMV guidance](dmv-reference.md) for supported rowsets and Excel limitations.
 Some rowsets return no rows even when a model exists.
 
 | Desired result | Approach |
 |----------------|----------|
-| Query results in a worksheet | DAX-backed Table via `create-from-dax` |
-| Query results returned to the caller | DAX `evaluate` |
+| Query results in a worksheet | DAX-backed worksheet Table |
+| Query results returned to the caller | DAX query evaluation |
 | Interactive grouping and filtering | Model-backed PivotTable |
 | Chart linked to PivotTable fields | Verified live PivotChart |
 

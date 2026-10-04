@@ -24,7 +24,7 @@ public sealed partial class PersistentServiceSheetTests
 
         // Verify color was actually set by reading it back
         var getResult = _sheetCommands.GetTabColor(batch, sheetName);
-        Assert.True(getResult.Success);
+        RequireSuccess(getResult);
         Assert.True(getResult.HasColor);
         Assert.Equal(255, getResult.Red);
         Assert.Equal(0, getResult.Green);
@@ -55,18 +55,21 @@ public sealed partial class PersistentServiceSheetTests
 
         // Assert - Verify each color
         var redColor = _sheetCommands.GetTabColor(batch, redSheet);
+        RequireSuccess(redColor);
         Assert.True(redColor.HasColor);
         Assert.Equal(255, redColor.Red);
         Assert.Equal(0, redColor.Green);
         Assert.Equal(0, redColor.Blue);
 
         var greenColor = _sheetCommands.GetTabColor(batch, greenSheet);
+        RequireSuccess(greenColor);
         Assert.True(greenColor.HasColor);
         Assert.Equal(0, greenColor.Red);
         Assert.Equal(255, greenColor.Green);
         Assert.Equal(0, greenColor.Blue);
 
         var blueColor = _sheetCommands.GetTabColor(batch, blueSheet);
+        RequireSuccess(blueColor);
         Assert.True(blueColor.HasColor);
         Assert.Equal(0, blueColor.Red);
         Assert.Equal(0, blueColor.Green);
@@ -86,7 +89,7 @@ public sealed partial class PersistentServiceSheetTests
         var result = _sheetCommands.GetTabColor(batch, sheetName);
 
         // Assert
-        Assert.True(result.Success);
+        RequireSuccess(result);
         Assert.False(result.HasColor);
         Assert.Null(result.Red);
         Assert.Null(result.Green);
@@ -106,7 +109,11 @@ public sealed partial class PersistentServiceSheetTests
 
         // Verify color is set
         var beforeClear = _sheetCommands.GetTabColor(batch, sheetName);
+        RequireSuccess(beforeClear);
         Assert.True(beforeClear.HasColor);
+        Assert.Equal("#FFA500", beforeClear.HexColor);
+        var untouchedName = _fixture.CreateTestSheet(batch);
+        _sheetCommands.SetTabColor(batch, untouchedName, 12, 34, 56);
 
         // Act - Clear color
         _sheetCommands.ClearTabColor(batch, sheetName);  // ClearTabColor throws on error
@@ -114,8 +121,15 @@ public sealed partial class PersistentServiceSheetTests
         // Assert - reaching here means clear succeeded
 
         var afterClear = _sheetCommands.GetTabColor(batch, sheetName);
-        Assert.True(afterClear.Success);
+        RequireSuccess(afterClear);
         Assert.False(afterClear.HasColor);
+        Assert.Null(afterClear.HexColor);
+        Assert.Null(afterClear.Red);
+        Assert.Null(afterClear.Green);
+        Assert.Null(afterClear.Blue);
+        var untouched = _sheetCommands.GetTabColor(batch, untouchedName);
+        RequireSuccess(untouched);
+        Assert.Equal("#0C2238", untouched.HexColor);
     }
     /// <inheritdoc/>
 
@@ -126,15 +140,36 @@ public sealed partial class PersistentServiceSheetTests
         var batch = _fixture.BatchToken;
         var sheetName = $"Inv_{Guid.NewGuid():N}"[..31];
         _fixture.CreateNamedTestSheet(batch, sheetName);
+        _sheetCommands.SetTabColor(batch, sheetName, 12, 34, 56);
+        var before = _sheetCommands.GetTabColor(batch, sheetName);
+        RequireSuccess(before);
+        Assert.Equal("#0C2238", before.HexColor);
 
         // Act & Assert - Should throw ArgumentException for invalid RGB values
         var exception1 = Assert.Throws<ArgumentException>(
             () => _sheetCommands.SetTabColor(batch, sheetName, 256, 0, 0)); // Red too high
         Assert.Contains("must be between 0 and 255", exception1.Message);
+        AssertTabColorPreserved();
 
         var exception2 = Assert.Throws<ArgumentException>(
             () => _sheetCommands.SetTabColor(batch, sheetName, 0, -1, 0)); // Green negative
         Assert.Contains("must be between 0 and 255", exception2.Message);
+        AssertTabColorPreserved();
+        var exception3 = Assert.Throws<ArgumentException>(
+            () => _sheetCommands.SetTabColor(batch, sheetName, 0, 0, 256));
+        Assert.Contains("must be between 0 and 255", exception3.Message);
+        AssertTabColorPreserved();
+
+        void AssertTabColorPreserved()
+        {
+            var after = _sheetCommands.GetTabColor(batch, sheetName);
+            RequireSuccess(after);
+            Assert.True(after.HasColor);
+            Assert.Equal(before.Red, after.Red);
+            Assert.Equal(before.Green, after.Green);
+            Assert.Equal(before.Blue, after.Blue);
+            Assert.Equal(before.HexColor, after.HexColor);
+        }
     }
     /// <inheritdoc/>
 
@@ -165,7 +200,7 @@ public sealed partial class PersistentServiceSheetTests
 
         // Assert - Verify conversion accuracy
         var result = _sheetCommands.GetTabColor(batch, sheetName);
-        Assert.True(result.Success);
+        RequireSuccess(result);
         Assert.True(result.HasColor);
         Assert.Equal(128, result.Red);
         Assert.Equal(0, result.Green);
@@ -173,7 +208,6 @@ public sealed partial class PersistentServiceSheetTests
         Assert.Equal("#800080", result.HexColor);
     }
 }
-
 
 
 

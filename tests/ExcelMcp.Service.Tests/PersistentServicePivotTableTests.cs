@@ -34,7 +34,7 @@ public sealed partial class PersistentServicePivotTableTests :
             ServiceCommandProxy.Create<IPersistentTableCommands>(fixture);
         var batch = _fixture.BatchToken;
         _fixture.CreateNamedTestSheet(batch, _salesSheetName);
-        _commands.SetValues(
+        RequireSuccess(_commands.SetValues(
             batch,
             _salesSheetName,
             "A1:D6",
@@ -45,11 +45,11 @@ public sealed partial class PersistentServicePivotTableTests :
                 ["South", "Gadget", 200, "2025-02-10"],
                 ["North", "Gadget", 75, "2025-02-15"],
                 ["South", "Widget", 125, "2025-03-05"],
-            ]);
-        _commands.SetNumberFormat(
+            ]));
+        RequireSuccess(_commands.SetNumberFormat(
             batch,
             _salesSheetName,
             "D2:D6",
-            "m/d/yyyy");
+            "m/d/yyyy"));
     }
 }

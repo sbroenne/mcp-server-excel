@@ -72,15 +72,16 @@ public sealed class ServiceClient : IDisposable
 
         var startedAt = _timeProvider.GetTimestamp();
         using var pipe = ServiceSecurity.CreateClient(_pipeName);
-        var connectTimeout = GetStepTimeout(
-            _connectTimeout,
-            totalTimeout,
-            startedAt,
-            _timeProvider);
         var connected = false;
 
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            var connectTimeout = GetStepTimeout(
+                _connectTimeout,
+                totalTimeout,
+                startedAt,
+                _timeProvider);
             using (var connectTimeoutCts = new CancellationTokenSource(
                 connectTimeout,
                 _timeProvider))

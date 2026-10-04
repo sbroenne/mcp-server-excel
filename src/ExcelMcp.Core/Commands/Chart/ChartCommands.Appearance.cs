@@ -151,7 +151,12 @@ public partial class ChartCommands
                 targetAxis = axes.Item(axisType, axisGroup);
                 tickLabels = targetAxis.TickLabels;
 
-                return ctx.FormatTranslator.TranslateFromLocale(((Excel.TickLabels)tickLabels).NumberFormatLocal ?? "General");
+                var labels = (Excel.TickLabels)tickLabels;
+                var invariantKeywords = labels.NumberFormat ?? "General";
+                var storedFormat = Sbroenne.ExcelMcp.ComInterop.Formatting.NumberFormatTranslator.ContainsNamedColor(invariantKeywords)
+                    ? invariantKeywords
+                    : labels.NumberFormatLocal ?? "General";
+                return ctx.FormatTranslator.TranslateFromLocale(storedFormat);
             }
             finally
             {
@@ -193,7 +198,15 @@ public partial class ChartCommands
                 tickLabels = targetAxis.TickLabels;
 
                 // Set the number format for axis tick labels
-                ((Excel.TickLabels)tickLabels).NumberFormatLocal = ctx.FormatTranslator.TranslateToLocale(numberFormat);
+                if (Sbroenne.ExcelMcp.ComInterop.Formatting.NumberFormatTranslator.ContainsNamedColor(numberFormat))
+                {
+                    ((Excel.TickLabels)tickLabels).NumberFormat = ctx.FormatTranslator.TranslateForChart(
+                        NumberFormatLiterals.PreserveCurrencyLiterals(numberFormat));
+                }
+                else
+                {
+                    ((Excel.TickLabels)tickLabels).NumberFormatLocal = ctx.FormatTranslator.TranslateToLocale(numberFormat);
+                }
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
             }
@@ -358,13 +371,13 @@ public partial class ChartCommands
                 throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
             }
 
-            dynamic? seriesCollection = null;
-            dynamic? series = null;
-            dynamic? dataLabels = null;
+            Excel.SeriesCollection? seriesCollection = null;
+            Excel.Series? series = null;
+            Excel.DataLabels? dataLabels = null;
 
             try
             {
-                seriesCollection = findResult.Chart.SeriesCollection();
+                seriesCollection = (Excel.SeriesCollection)findResult.Chart.SeriesCollection();
                 int seriesCount = seriesCollection.Count;
 
                 if (seriesCount == 0)
@@ -384,6 +397,28 @@ public partial class ChartCommands
                     throw new ArgumentException($"Series index {seriesIndex.Value} is out of range. Chart has {seriesCount} series (1-based).");
                 }
 
+                // Validate every target before changing any series in a combination chart.
+                if (labelPosition is DataLabelPosition.InsideEnd or DataLabelPosition.InsideBase or DataLabelPosition.OutsideEnd)
+                {
+                    for (int i = startIndex; i <= endIndex; i++)
+                    {
+                        series = seriesCollection.Item(i);
+                        var chartType = series.ChartType;
+                        if (chartType is Excel.XlChartType.xlLine or Excel.XlChartType.xlLineMarkers
+                            or Excel.XlChartType.xlLineStacked or Excel.XlChartType.xlLineStacked100
+                            or Excel.XlChartType.xlLineMarkersStacked or Excel.XlChartType.xlLineMarkersStacked100
+                            or Excel.XlChartType.xl3DLine or Excel.XlChartType.xlXYScatter
+                            or Excel.XlChartType.xlXYScatterLines or Excel.XlChartType.xlXYScatterLinesNoMarkers
+                            or Excel.XlChartType.xlXYScatterSmooth or Excel.XlChartType.xlXYScatterSmoothNoMarkers)
+                        {
+                            throw new InvalidOperationException(
+                                $"Label position '{labelPosition.Value}' is not supported for series {i} ({chartType}). " +
+                                "Use Above, Below, Left, Right, or Center for line and scatter charts.");
+                        }
+                        ComUtilities.Release(ref series);
+                    }
+                }
+
                 for (int i = startIndex; i <= endIndex; i++)
                 {
                     series = seriesCollection.Item(i);
@@ -395,7 +430,7 @@ public partial class ChartCommands
                         series.HasDataLabels = true;
                     }
 
-                    dataLabels = series.DataLabels;
+                    dataLabels = (Excel.DataLabels)series.DataLabels();
 
                     // Apply each property if specified
                     if (showValue.HasValue)
@@ -432,7 +467,7 @@ public partial class ChartCommands
                     {
                         try
                         {
-                            dataLabels.Position = (int)labelPosition.Value;
+                            dataLabels.Position = (Excel.XlDataLabelPosition)labelPosition.Value;
                         }
                         catch (System.Runtime.InteropServices.COMException ex)
                         {

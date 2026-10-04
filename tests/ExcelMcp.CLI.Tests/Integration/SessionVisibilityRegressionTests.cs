@@ -28,6 +28,7 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
     {
         var workbookPath = CreateExistingWorkbookPath("session-open-visible");
         string? sessionId = null;
+        Exception? failure = null;
 
         try
         {
@@ -49,10 +50,18 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
             await AssertSessionVisibilityAsync(sessionId!, expectedVisible: true, "session-open-visible-list");
             await AssertLiveExcelVisibilityAsync(sessionId!, expectedVisible: true, "session-open-visible-window");
         }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
         finally
         {
-            await CloseSessionIfNeededAsync(sessionId, "session-open-visible-close");
+            var cleanup = await Record.ExceptionAsync(() => CloseSessionIfNeededAsync(sessionId, "session-open-visible-close"));
+            if (cleanup is not null)
+                failure = failure is null ? cleanup : new AggregateException(failure, cleanup);
         }
+        if (failure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
     [ConfiguredIrmFact]
@@ -63,6 +72,7 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
             ?? throw new InvalidOperationException("Configured IRM test fixture was unavailable after test discovery.");
 
         string? sessionId = null;
+        Exception? failure = null;
         try
         {
             var stopwatch = Stopwatch.StartNew();
@@ -102,10 +112,18 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
             Assert.Equal(0, listResult.ExitCode);
             Assert.True(listJson.RootElement.GetProperty("success").GetBoolean());
         }
+        catch (Exception exception)
+        {
+            failure = exception;
+        }
         finally
         {
-            await CloseSessionIfNeededAsync(sessionId, "session-open-irm-show-close");
+            var cleanup = await Record.ExceptionAsync(() => CloseSessionIfNeededAsync(sessionId, "session-open-irm-show-close"));
+            if (cleanup is not null)
+                failure = failure is null ? cleanup : new AggregateException(failure, cleanup);
         }
+        if (failure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
     public void Dispose()
@@ -117,15 +135,7 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
                 continue;
             }
 
-#pragma warning disable CA1031
-            try
-            {
-                File.Delete(file);
-            }
-            catch
-            {
-            }
-#pragma warning restore CA1031
+            File.Delete(file);
         }
 
         GC.SuppressFinalize(this);
@@ -187,6 +197,7 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
 
         _output.WriteLine($"[{diagnosticLabel}] Stdout: {closeResult.Stdout}");
         _output.WriteLine($"[{diagnosticLabel}] Stderr: {closeResult.Stderr}");
+        Assert.True(closeResult.ExitCode == 0, closeResult.Stdout + closeResult.Stderr);
     }
 
     private string CreateExistingWorkbookPath(string prefix)

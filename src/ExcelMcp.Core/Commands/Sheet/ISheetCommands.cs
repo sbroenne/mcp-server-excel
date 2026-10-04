@@ -34,7 +34,7 @@ public interface ISheetCommands
     /// Throws exception on error.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
-    /// <param name="sheetName">Name for the new worksheet</param>
+    /// <param name="sheetName">Exact name for the new worksheet. Names are not trimmed; blank or whitespace-only names are rejected.</param>
     /// <param name="filePath">Optional file path when batch contains multiple workbooks. If omitted, creates in primary workbook.</param>
     [ServiceAction("create")]
     OperationResult Create(IExcelBatch batch, [RequiredParameter] string sheetName, string? filePath = null);
@@ -45,9 +45,9 @@ public interface ISheetCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="oldName">Current name of the worksheet</param>
-    /// <param name="newName">New name for the worksheet</param>
+    /// <param name="newName">Exact new worksheet name. Names are not trimmed; blank or whitespace-only names are rejected.</param>
     [ServiceAction("rename")]
-    OperationResult Rename(IExcelBatch batch, [RequiredParameter] string oldName, [RequiredParameter] string newName);
+    OperationResult Rename(IExcelBatch batch, [RequiredParameter] string oldName, [RequiredParameter, AllowEmptyString] string newName);
 
     /// <summary>
     /// Copies a worksheet.
@@ -55,9 +55,9 @@ public interface ISheetCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sourceName">Name of the source worksheet</param>
-    /// <param name="targetName">Name for the copied worksheet</param>
+    /// <param name="targetName">Exact name for the copied worksheet. Names are not trimmed; blank or whitespace-only names are rejected.</param>
     [ServiceAction("copy")]
-    OperationResult Copy(IExcelBatch batch, [RequiredParameter] string sourceName, [RequiredParameter] string targetName);
+    OperationResult Copy(IExcelBatch batch, [RequiredParameter] string sourceName, [RequiredParameter, AllowEmptyString] string targetName);
 
     /// <summary>
     /// Deletes a worksheet.

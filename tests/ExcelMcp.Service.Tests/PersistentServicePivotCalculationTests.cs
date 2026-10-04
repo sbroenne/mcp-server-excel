@@ -26,6 +26,7 @@ public sealed class PersistentServicePivotCalculationTests(
             Assert.Equal("PercentOfTotal", set.RootElement.GetProperty("calculation").GetString());
         var data = _pivot.GetData(_fixture.BatchToken, name);
         Assert.True(data.Success, data.ErrorMessage);
+        AssertRegionRows(data.Values);
         Assert.NotNull(data.Values[1][1]);
         Assert.NotNull(data.Values[2][1]);
         Assert.Equal(0.25d, Convert.ToDouble(data.Values[1][1], CultureInfo.InvariantCulture));
@@ -34,6 +35,7 @@ public sealed class PersistentServicePivotCalculationTests(
             Assert.Equal("Normal", reset.RootElement.GetProperty("calculation").GetString());
         var normal = _pivot.GetData(_fixture.BatchToken, name);
         Assert.True(normal.Success, normal.ErrorMessage);
+        AssertRegionRows(normal.Values);
         Assert.NotNull(normal.Values[1][1]);
         Assert.NotNull(normal.Values[2][1]);
         Assert.Equal(100d, Convert.ToDouble(normal.Values[1][1], CultureInfo.InvariantCulture));
@@ -53,6 +55,7 @@ public sealed class PersistentServicePivotCalculationTests(
         Assert.Equal("Region", set.RootElement.GetProperty("baseFieldName").GetString());
         var data = _pivot.GetData(_fixture.BatchToken, name);
         Assert.True(data.Success, data.ErrorMessage);
+        AssertRegionRows(data.Values);
         Assert.NotNull(data.Values[1][1]);
         Assert.NotNull(data.Values[2][1]);
         Assert.Equal(100d, Convert.ToDouble(data.Values[1][1], CultureInfo.InvariantCulture));
@@ -88,6 +91,7 @@ public sealed class PersistentServicePivotCalculationTests(
         Assert.Equal("North", set.RootElement.GetProperty("baseItemName").GetString());
         var data = _pivot.GetData(_fixture.BatchToken, name);
         Assert.True(data.Success, data.ErrorMessage);
+        AssertRegionRows(data.Values);
         if (north.HasValue)
         {
             Assert.NotNull(data.Values[1][1]);
@@ -147,6 +151,7 @@ public sealed class PersistentServicePivotCalculationTests(
         Assert.False(set.RootElement.TryGetProperty("baseItemName", out _));
         var data = _pivot.GetData(_fixture.BatchToken, name);
         Assert.True(data.Success, data.ErrorMessage);
+        AssertRegionRows(data.Values);
         Assert.NotNull(data.Values[valueRow][1]);
         Assert.Equal(expected, Convert.ToDouble(data.Values[valueRow][1], CultureInfo.InvariantCulture));
     }
@@ -169,6 +174,16 @@ public sealed class PersistentServicePivotCalculationTests(
         Assert.Equal("Normal", average.GetProperty("calculation").GetString());
         Assert.Equal("Average", average.GetProperty("function").GetString());
         Assert.All(fields, field => Assert.Equal("Sales", field.GetProperty("sourceName").GetString()));
+        var data = _pivot.GetData(_fixture.BatchToken, name);
+        RequireSuccess(data);
+        AssertRegionRows(data.Values, 3);
+        Assert.Equal("Total Sales", data.Values[0][1]);
+        Assert.Equal("Average Sales", data.Values[0][2]);
+        Assert.Equal(0.25d, Convert.ToDouble(data.Values[1][1], CultureInfo.InvariantCulture));
+        Assert.Equal(0.75d, Convert.ToDouble(data.Values[2][1], CultureInfo.InvariantCulture));
+        Assert.Equal(100d, Convert.ToDouble(data.Values[1][2], CultureInfo.InvariantCulture));
+        Assert.Equal(300d, Convert.ToDouble(data.Values[2][2], CultureInfo.InvariantCulture));
+        Assert.Equal(200d, Convert.ToDouble(data.Values[^1][2], CultureInfo.InvariantCulture));
     }
 
     [Theory]
@@ -218,10 +233,19 @@ public sealed class PersistentServicePivotCalculationTests(
     {
         var data = _pivot.GetData(_fixture.BatchToken, name);
         Assert.True(data.Success, data.ErrorMessage);
+        AssertRegionRows(data.Values);
         Assert.NotNull(data.Values[1][1]);
         Assert.NotNull(data.Values[2][1]);
         Assert.Equal(north, Convert.ToDouble(data.Values[1][1], CultureInfo.InvariantCulture), precision: 8);
         Assert.Equal(south, Convert.ToDouble(data.Values[2][1], CultureInfo.InvariantCulture), precision: 8);
+    }
+
+    private static void AssertRegionRows(List<List<object?>> values, int columns = 2)
+    {
+        Assert.Equal(4, values.Count);
+        Assert.All(values, row => Assert.Equal(columns, row.Count));
+        Assert.Equal("North", values[1][0]);
+        Assert.Equal("South", values[2][0]);
     }
 
     private string CreatePivot(bool withValue = true)

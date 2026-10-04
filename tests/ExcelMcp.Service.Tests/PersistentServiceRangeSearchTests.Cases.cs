@@ -31,6 +31,7 @@ public sealed partial class PersistentServiceRangeSearchTests
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal(10, result.MatchingCells.Count);
         AssertFindCoverage(result, 25, 10);
+        AssertReturnedAppleCells(result, 25);
     }
 
     [Theory]
@@ -146,7 +147,17 @@ public sealed partial class PersistentServiceRangeSearchTests
         }, maxMatches: 1);
 
         AssertFindCoverage(result, totalCount, 1);
-        Assert.All(result.MatchingCells, cell => Assert.InRange(cell.Row, 1, 3));
+        var cell = Assert.Single(result.MatchingCells);
+        Assert.InRange(cell.Row, 1, 3);
+        Assert.Equal(1, cell.Column);
+        Assert.Equal($"$A${cell.Row}", cell.Address);
+        var sourceValues = new[] { "Apple", "apple", "Apple pie" };
+        var actual = Assert.IsType<string>(cell.Value);
+        Assert.Equal(sourceValues[cell.Row - 1], actual);
+        var comparison = matchCase ? StringComparison.Ordinal : StringComparison.OrdinalIgnoreCase;
+        Assert.True(matchEntireCell
+            ? actual.Equals("Apple", comparison)
+            : actual.Contains("Apple", comparison));
     }
 
     [Theory]
@@ -169,7 +180,15 @@ public sealed partial class PersistentServiceRangeSearchTests
         }, maxMatches: 1);
 
         AssertFindCoverage(result, totalCount, 1);
-        Assert.Equal(2, Assert.Single(result.MatchingCells).Value);
+        var cell = Assert.Single(result.MatchingCells);
+        Assert.InRange(cell.Row, 1, 2);
+        Assert.Equal(1, cell.Column);
+        Assert.Equal($"$A${cell.Row}", cell.Address);
+        Assert.Equal(2, cell.Value);
+        if (searchFormulas && !searchValues)
+        {
+            Assert.Equal(1, cell.Row);
+        }
     }
 
     private static void AssertFindCoverage(RangeFindResult result, long totalCount, int returnedCount)
@@ -201,11 +220,11 @@ public sealed partial class PersistentServiceRangeSearchTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        _commands.SetValues(batch, sheetName, "A1:C2",
+        Assert.True(_commands.SetValues(batch, sheetName, "A1:C2",
         [
             ["Apple", "Banana", "Apple"],
             ["Cherry", "Apple", "Banana"]
-        ]);
+        ]).Success);
 
         // Act
         var result = _commands.Find(batch, sheetName, "A1:C2", "Apple", new FindOptions
@@ -218,6 +237,11 @@ public sealed partial class PersistentServiceRangeSearchTests
         Assert.True(result.Success);
         Assert.Equal(3, result.MatchingCells.Count); // Should find 3 "Apple" cells
         AssertFindCoverage(result, 3, 3);
+        var matches = result.MatchingCells.OrderBy(cell => cell.Row).ThenBy(cell => cell.Column).ToArray();
+        Assert.Equal(["$A$1", "$C$1", "$B$2"], matches.Select(cell => cell.Address));
+        Assert.Equal([1, 1, 2], matches.Select(cell => cell.Row));
+        Assert.Equal([1, 3, 2], matches.Select(cell => cell.Column));
+        Assert.All(matches, cell => Assert.Equal("Apple", cell.Value));
     }
 
     [Fact]
@@ -227,24 +251,30 @@ public sealed partial class PersistentServiceRangeSearchTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        _commands.SetValues(batch, sheetName, "A1:A3",
+        Assert.True(_commands.SetValues(batch, sheetName, "A1:A3",
         [
             ["cat"],
             ["dog"],
             ["cat"]
-        ]);
+        ]).Success);
+        Assert.True(_commands.SetValues(batch, sheetName, "B1", [["cat"]]).Success);
 
         // Act
-        _commands.Replace(batch, sheetName, "A1:A3", "cat", "bird", new ReplaceOptions
+        var replaced = _commands.Replace(batch, sheetName, "A1:A3", "cat", "bird", new ReplaceOptions
         {
             ReplaceAll = true
         });
+        Assert.True(replaced.Success, replaced.ErrorMessage);
 
         // Assert - void method throws on failure, succeeds silently
-        var readResult = _commands.GetValues(batch, sheetName, "A1:A3");
-        Assert.Equal("bird", readResult.Values[0][0]);
-        Assert.Equal("dog", readResult.Values[1][0]);
-        Assert.Equal("bird", readResult.Values[2][0]);
+        var readResult = _commands.GetValues(batch, sheetName, "A1:B3");
+        Assert.True(readResult.Success, readResult.ErrorMessage);
+        Assert.Equal(3, readResult.RowCount);
+        Assert.Equal(2, readResult.ColumnCount);
+        Assert.Collection(readResult.Values,
+            row => Assert.Equal(["bird", "cat"], row),
+            row => Assert.Equal(["dog", null], row),
+            row => Assert.Equal(["bird", null], row));
     }
 
     // === SORT OPERATIONS TESTS ===
@@ -256,26 +286,37 @@ public sealed partial class PersistentServiceRangeSearchTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        _commands.SetValues(batch, sheetName, "A1:B4",
+        Assert.True(_commands.SetValues(batch, sheetName, "A1:B4",
         [
             ["Name", "Age"],
             ["Charlie", 30],
             ["Alice", 25],
             ["Bob", 35]
-        ]);
+        ]).Success);
+        Assert.True(_commands.SetValues(batch, sheetName, "C1", [["Untouched"]]).Success);
 
         // Act - Sort by first column (Name) ascending
-        _commands.Sort(batch, sheetName, "A1:B4",
+        var sorted = _commands.Sort(batch, sheetName, "A1:B4",
         [
             new() { ColumnIndex = 1, Ascending = true }
         ], hasHeaders: true);
+        Assert.True(sorted.Success, sorted.ErrorMessage);
 
         // Assert - void method throws on failure, succeeds silently
-        var readResult = _commands.GetValues(batch, sheetName, "A2:A4");
-        Assert.Equal("Alice", readResult.Values[0][0]);
-        Assert.Equal("Bob", readResult.Values[1][0]);
-        Assert.Equal("Charlie", readResult.Values[2][0]);
+        var readResult = _commands.GetValues(batch, sheetName, "A1:C4");
+        Assert.True(readResult.Success, readResult.ErrorMessage);
+        Assert.Collection(readResult.Values,
+            row => Assert.Equal(["Name", "Age", "Untouched"], row),
+            row => AssertPersonRow(row, "Alice", 25),
+            row => AssertPersonRow(row, "Bob", 35),
+            row => AssertPersonRow(row, "Charlie", 30));
+    }
+
+    private static void AssertPersonRow(List<object?> row, string name, double age)
+    {
+        Assert.Equal(3, row.Count);
+        Assert.Equal(name, row[0]);
+        Assert.Equal(age, Convert.ToDouble(row[1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Null(row[2]);
     }
 }
-
-

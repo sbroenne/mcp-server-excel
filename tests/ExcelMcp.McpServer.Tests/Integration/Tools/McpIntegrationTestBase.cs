@@ -1,7 +1,6 @@
 using System.IO.Pipelines;
 using System.Text.Json;
 using ModelContextProtocol.Client;
-using ModelContextProtocol.Protocol;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -221,33 +220,11 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
             ? await callTask.WaitAsync(timeout.Value, TestCancellationToken)
             : await callTask;
 
-        Assert.NotNull(result);
-        Assert.NotNull(result.Content);
-        Assert.NotEmpty(result.Content);
-
-        var textBlock = result.Content.OfType<TextContentBlock>().FirstOrDefault();
-        Assert.NotNull(textBlock);
-
-        return textBlock.Text;
+        return McpResponseAssertions.ReadText(result);
     }
 
-    protected static void AssertSuccess(string jsonResult, string operationName)
-    {
-        Assert.True(
-            jsonResult.TrimStart().StartsWith('{'),
-            $"{operationName} returned a non-JSON response. Response: {jsonResult}");
-
-        using var json = JsonDocument.Parse(jsonResult);
-        var root = json.RootElement;
-
-        if (root.TryGetProperty("Success", out var successPascal))
-        {
-            Assert.True(successPascal.GetBoolean(), $"{operationName} failed: {jsonResult}");
-            return;
-        }
-
-        Assert.True(root.GetProperty("success").GetBoolean(), $"{operationName} failed: {jsonResult}");
-    }
+    protected static void AssertSuccess(string jsonResult, string operationName) =>
+        McpResponseAssertions.AssertSuccess(jsonResult, operationName);
 
     protected static void AssertSetupSuccess(string jsonResult, string operationName)
     {

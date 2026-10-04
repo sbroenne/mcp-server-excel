@@ -33,16 +33,26 @@ if ($Group) {
             }
         }
         'Tooling' {
-            foreach ($project in $plan.ToolingProjects) { $selections[$project] = $plan.ToolingFilter }
+            foreach ($project in $plan.ToolingProjects) {
+                $filter = $plan.ToolingFilters.$project
+                if (-not $filter) { throw "Missing filter for $project." }
+                $selections[$project] = $filter
+            }
         }
     }
 }
 elseif ($PlanFile) { throw 'PlanFile requires an explicit Group.' }
 elseif ($Local) {
     $plan = Get-ValidationPlan -Paths $ChangedPaths
-    if ($HookTests -or $plan.HookTests) { $selections['ScriptSafety'] = 'RequiresExcel=false' }
-    if ($SkillTests -or $plan.SkillTests) { $selections['SkillGeneration'] = 'Feature=SkillGeneration' }
-    if ($PackagingTests -or $plan.PackagingTests) { $selections['Packaging'] = 'RequiresExcel=false' }
+    if ($HookTests -or $plan.HookTests) {
+        $selections['ScriptSafety'] = if ($plan.ToolingFilters.ScriptSafety) { $plan.ToolingFilters.ScriptSafety } else { 'RequiresExcel=false' }
+    }
+    if ($SkillTests -or $plan.SkillTests) {
+        $selections['SkillGeneration'] = if ($plan.ToolingFilters.SkillGeneration) { $plan.ToolingFilters.SkillGeneration } else { 'Feature=SkillGeneration' }
+    }
+    if ($PackagingTests -or $plan.PackagingTests) {
+        $selections['Packaging'] = if ($plan.ToolingFilters.Packaging) { $plan.ToolingFilters.Packaging } else { 'RequiresExcel=false' }
+    }
     if ($Contracts) {
         $selections['Core'] = 'Feature=GeneratedContracts'
         $selections['CLI'] = 'FullyQualifiedName~GeneratedActionContractCliTests'

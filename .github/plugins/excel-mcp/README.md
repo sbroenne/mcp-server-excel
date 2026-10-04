@@ -28,10 +28,21 @@ Install the [Excel MCP VS Code extension](https://marketplace.visualstudio.com/i
 
 ### Option 2: Plugin Marketplace
 
+Install from [Awesome Copilot](https://github.com/github/awesome-copilot), the
+default marketplace in current Copilot clients:
+
+```powershell
+copilot plugin install excel-mcp@awesome-copilot
+```
+
+Alternatively, install from our direct marketplace:
+
 ```powershell
 copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 copilot plugin install excel-mcp@mcp-server-excel-plugins
 ```
+
+Choose one marketplace for this plugin; do not install both copies.
 
 ### Option 3: Manual Installation
 

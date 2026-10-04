@@ -138,6 +138,12 @@ public sealed class PersistentServiceRangePasteTests(
         var rejected = await _fixture.SendForFailureAsync("range.copy", arguments);
         Assert.Equal("Conflict", rejected.ErrorCategory);
         Assert.Contains("$E$3", rejected.ErrorMessage);
+        var preserved = _commands.GetValues(_fixture.BatchToken, sheetName, "A1:E3");
+        RequireSuccess(preserved);
+        object?[][] expectedBefore = [[1, 2, 3, null, null], [4, 5, 6, null, null], [null, null, null, null, "keep"]];
+        for (int row = 0; row < expectedBefore.Length; row++)
+            Assert.Equal(expectedBefore[row], preserved.Values[row]);
+        AssertClipboardReleased();
         Assert.True(_commands.ClearContents(_fixture.BatchToken, sheetName, "E3").Success);
         var response = _fixture.Send("range.copy", arguments);
         using var copied = JsonDocument.Parse(response.Result!);
@@ -268,7 +274,7 @@ public sealed class PersistentServiceRangePasteTests(
             }
         });
         Protect(true);
-        try
+        var failure = await Record.ExceptionAsync(async () =>
         {
             var response = await _fixture.SendForFailureAsync("range.copy", new
             {
@@ -280,15 +286,17 @@ public sealed class PersistentServiceRangePasteTests(
             });
             Assert.False(response.Success);
             Assert.False(string.IsNullOrWhiteSpace(response.ErrorMessage));
+            Assert.Equal("range.copy", response.Command);
             AssertClipboardReleased();
-            var read = _commands.GetValues(_fixture.BatchToken, sheetName, "D1");
+            var read = _commands.GetValues(_fixture.BatchToken, sheetName, "A1:D1");
             Assert.True(read.Success);
-            Assert.Null(read.Values[0][0]);
-        }
-        finally
-        {
-            Protect(false);
-        }
+            Assert.Equal([5, null, null, null], read.Values[0]);
+        });
+        var cleanup = Record.Exception(() => Protect(false));
+        if (cleanup is not null)
+            failure = PersistentServiceCleanupFailures.Combine(failure, cleanup);
+        if (failure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
     [Fact]

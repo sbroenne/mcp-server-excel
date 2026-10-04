@@ -1,58 +1,53 @@
-# drawing - Server Quirks
+# Drawing objects and sparklines
 
-Use `drawing` for worksheet images, AutoShapes, text boxes, connectors, safe Forms controls, and sparklines.
-
-Object names are worksheet-local. Call `list-objects` before updates or deletion when the exact name is unknown.
-
-Positions use points, not cells; use the schema/help for styles and placement.
+Discover the intended worksheet objects before updating or deleting them.
+Names belong to a worksheet, not the whole workbook. Use current CLI help or
+MCP tool descriptions for supported object settings and inputs.
 
 ## Drawing layout
 
-`group-objects`, `align-objects`, and `distribute-objects` take `object_names`
-(MCP) / `--object-names` (CLI), a JSON array string of distinct top-level names on the
-specified worksheet. Grouping and alignment need at least two objects;
-distribution needs three. Alignment and equal-gap spacing use the selected
-extent, not the worksheet or printed page, and leave unselected objects alone.
+Alignment and distribution use the selected objects' extent, not the page or
+whole worksheet. Leave unselected objects alone, and keep enough space for
+labels, tables, and charts.
 
-`ungroup-object`, `duplicate-object`, and `set-z-order` use `object_name`
-(MCP) / `--object-name` (CLI). Grouping and duplication return Excel's actual
-new name unless `group_name` / `--group-name` or `new_name` / `--new-name` is
-supplied. Supplied names must be unique on the worksheet. Duplication offsets
-use `offset_left` / `--offset-left` and `offset_top` / `--offset-top`, in points
-from the original position; both default to 10.
+Grouping, ungrouping, and duplication can change native names and membership.
+Excel can flatten groups when regrouping. Inspect returned names, members,
+positions, and stacking order instead of assuming the old hierarchy survived.
 
-These actions return `drawingObjects`, including real positions, stacking
-positions and complete group `children`. Ungrouping returns the newly exposed
-direct members, not every other worksheet object. Excel can flatten an existing
-group when regrouping; inspect the returned members rather than assuming the
-old hierarchy survives. `get-object` and `list-objects` also inspect complete
-native membership. Stacking positions on top-level objects start at one at the
-back; member positions are Excel's native values.
+Geometry uses points. Cell widths and heights vary, so do not assume a fixed
+conversion between cells and object coordinates.
 
-Layout rejects protected drawing objects, charts, ActiveX/OLE and unknown types.
-Use the chart tools for chart changes. Duplication also rejects any macro-bound
-object or group member, rather than copying a macro assignment.
+Drawing layout rejects protected drawing objects, charts, ActiveX/OLE, and
+unknown types. Use [chart guidance](chart.md) for charts. Duplication does not
+copy macro-bound objects or group members as a workaround.
+
+## Rejected input
+
+Malformed `font_color`, `fill_color`, or `line_color` values (CLI:
+`--font-color`, `--fill-color`, `--line-color`) are rejected before objects are
+created or changed. Invalid sparkline colors do not change existing sources,
+types, or markers or leave newly created groups behind.
+
+For `update-object`, `linked_cell` and `input_range` (CLI: `--linked-cell` and
+`--input-range`) on a non-Forms object are rejected before changing its name,
+position, text, or formatting. This input validation is not a general rollback
+guarantee for failures while Excel applies valid settings.
+
+Bindings unsupported by a Forms-control subtype are also rejected before
+`add-form-control` creates an object or `update-object` changes it.
 
 ## Safe Forms controls
 
-- `linked_cell` (MCP) / `--linked-cell` (CLI): CheckBox, DropDown, ListBox, OptionButton, ScrollBar, and Spinner
-- `input_range` (MCP) / `--input-range` (CLI): DropDown and ListBox only
-- Button, GroupBox, and Label return explicit nulls for both binding properties
+Choose a supported Forms control only when the task needs worksheet interaction.
+Some controls can link to a cell or list range; others cannot. Inspect actual
+bindings instead of assuming the control has written its intended value.
 
-ActiveX/OLE controls and macro assignment are intentionally unavailable. Do not try to create them through VBA as a workaround.
+ActiveX/OLE and macro assignment are intentionally unavailable. Do not bypass
+that boundary through VBA.
 
 ## Sparklines
 
-- `source_range` (MCP) / `--source-range` (CLI): data to visualize
-- `location_range` (MCP) / `--location-range` (CLI): cells that host the sparklines
-- Line sparklines can show markers
-
-```mcp
-drawing(action: 'add-shape', session_id: sessionId, sheet_name: 'Dashboard', shape_type: 'RoundedRectangle', name: 'Status', text: 'Ready', fill_color: '#70AD47')
-drawing(action: 'add-sparkline', session_id: sessionId, sheet_name: 'Dashboard', source_range: 'B2:E2', location_range: 'F2', sparkline_type: 'Line')
-```
-
-```cli
-excelcli -q drawing add-shape --session $sessionId --sheet Dashboard --shape-type RoundedRectangle --name Status --text Ready --fill-color '#70AD47'
-excelcli -q drawing add-sparkline --session $sessionId --sheet Dashboard --source-range B2:E2 --location-range F2 --sparkline-type Line
-```
+Keep source data and destination cells aligned. Sparklines show compact trends,
+not a replacement for labeled charts when units or comparisons need explanation.
+Preserve neighboring content when choosing their locations, and inspect the
+result after source or layout changes.

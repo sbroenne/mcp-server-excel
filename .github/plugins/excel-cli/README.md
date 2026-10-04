@@ -20,12 +20,23 @@ remain in the [documentation](https://excelmcpserver.dev/reference/).
 
 ## Installation
 
-### Step 1: Register Plugin Marketplace and Install
+### Step 1: Install the Plugin
+
+Install from [Awesome Copilot](https://github.com/github/awesome-copilot), the
+default marketplace in current Copilot clients:
+
+```powershell
+copilot plugin install excel-cli@awesome-copilot
+```
+
+Alternatively, install from our direct marketplace:
 
 ```powershell
 copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 copilot plugin install excel-cli@mcp-server-excel-plugins
 ```
+
+Choose one marketplace for this plugin; do not install both copies.
 
 ### Step 2: Run `excelcli` through npm
 
@@ -107,8 +118,11 @@ put that command on PATH: replace it with `npx -y @sbroenne/excelcli@latest`
 unless you installed a standalone CLI. For quoted JSON arguments in Windows
 PowerShell, use the plugin's `bin\start-cli.ps1` wrapper as the command instead:
 
+Use your client's installed plugin directory rather than assuming a
+marketplace-specific path. Replace the example directory below:
+
 ```powershell
-& "$env:USERPROFILE\.copilot\installed-plugins\mcp-server-excel-plugins\excel-cli\bin\start-cli.ps1" --help
+& "C:\Path\To\Installed\excel-cli\bin\start-cli.ps1" --help
 ```
 
 ```powershell

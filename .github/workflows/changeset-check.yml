@@ -23,7 +23,7 @@ permissions:
 jobs:
   changeset-check:
     name: Verify changeset present
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Record intentional changelog exemption
         if: contains(github.event.pull_request.labels.*.name, 'skip-changelog')

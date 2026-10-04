@@ -44,6 +44,51 @@ public sealed class ServiceClientDeadlineTests
     }
 
     [Fact]
+    public async Task SendAsync_TotalBudgetExpiresBeforeConnection_ReturnsContextualTimeout()
+    {
+        using var client = new ServiceClient(
+            $"excelmcp-expired-{Guid.NewGuid():N}",
+            connectTimeout: TimeSpan.FromSeconds(5),
+            requestTimeout: TimeSpan.FromSeconds(10),
+            new ExpiringBeforeConnectTimeProvider());
+        var request = new ServiceRequest
+        {
+            Command = "service.ping",
+            SessionId = "retained-request-context"
+        };
+
+        var response = await client.SendAsync(request, TimeSpan.FromSeconds(1));
+
+        Assert.False(response.Success);
+        Assert.Equal(request.Command, response.Command);
+        Assert.Equal(request.SessionId, response.SessionId);
+        Assert.Equal("Timeout", response.ErrorCategory);
+        Assert.Equal(nameof(TimeoutException), response.ExceptionType);
+        Assert.Equal("Service connection timed out", response.ErrorMessage);
+        Assert.True(string.IsNullOrEmpty(response.Result));
+    }
+
+    [Fact]
+    public async Task SendAsync_CancelledCallerWithExpiredBudget_PreservesCancellation()
+    {
+        using var client = new ServiceClient(
+            $"excelmcp-cancelled-expired-{Guid.NewGuid():N}",
+            connectTimeout: TimeSpan.FromSeconds(5),
+            requestTimeout: TimeSpan.FromSeconds(10),
+            new ExpiringBeforeConnectTimeProvider());
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        var exception = await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            client.SendAsync(
+                new ServiceRequest { Command = "service.ping" },
+                TimeSpan.FromSeconds(1),
+                cancellation.Token));
+
+        Assert.Equal(cancellation.Token, exception.CancellationToken);
+    }
+
+    [Fact]
     public async Task SendAsync_PendingConnectionUsesControlledTimeout()
     {
         var clock = new ManualTimerTimeProvider();
@@ -138,6 +183,18 @@ public sealed class ServiceClientDeadlineTests
         responseSource.TrySetResult(new ServiceResponse { Success = true });
         host.RequestShutdown();
         await hostTask.WaitAsync(TimeSpan.FromSeconds(5));
+    }
+
+    private sealed class ExpiringBeforeConnectTimeProvider : TimeProvider
+    {
+        private int _timestampReads;
+
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+
+        public override long GetTimestamp() =>
+            Interlocked.Increment(ref _timestampReads) == 1
+                ? 0
+                : TimeSpan.FromSeconds(1).Ticks;
     }
 
     private class AdvancingTimeProvider : TimeProvider

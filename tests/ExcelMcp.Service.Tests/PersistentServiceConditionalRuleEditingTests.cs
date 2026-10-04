@@ -39,8 +39,7 @@ public sealed class PersistentServiceConditionalRuleEditingTests(
         Assert.True(listed.Success, listed.ErrorMessage);
         var updated = Assert.Single(listed.Rules, rule => rule.Formula1 == "=15");
         Assert.True(updated.StopIfTrue);
-        Assert.Contains("$A$1:$A$2", updated.AppliesTo);
-        Assert.Contains("$A$4:$A$5", updated.AppliesTo);
+        Assert.Equal("$A$1:$A$2,$A$4:$A$5", updated.AppliesTo);
     }
 
     [Fact]
@@ -48,6 +47,7 @@ public sealed class PersistentServiceConditionalRuleEditingTests(
     {
         var sheet = CreateRules();
         var first = ReadRule(sheet, "=10");
+        var unrelated = ReadRule(sheet, "=20");
         var updated = _fixture.Send("conditionalformat.update-rule", new
         {
             sheetName = sheet,
@@ -69,6 +69,7 @@ public sealed class PersistentServiceConditionalRuleEditingTests(
         Assert.True(listed.Success, listed.ErrorMessage);
         Assert.Equal(2, listed.Rules.Count);
         Assert.Contains(listed.Rules, rule => rule.Formula1 == "=15");
+        Assert.Equal(unrelated, ReadRule(sheet, "=20"));
     }
 
     [Fact]
@@ -141,8 +142,7 @@ public sealed class PersistentServiceConditionalRuleEditingTests(
         var listed = _conditional.ListWorksheetRules(_fixture.BatchToken, sheet);
         Assert.True(listed.Success, listed.ErrorMessage);
         var updated = Assert.Single(listed.Rules, rule => rule.Formula1 == "=10");
-        Assert.Contains("$A$1:$A$2", updated.AppliesTo);
-        Assert.Contains("$A$4:$A$5", updated.AppliesTo);
+        Assert.Equal("$A$1:$A$2,$A$4:$A$5", updated.AppliesTo);
     }
 
     [Fact]
@@ -225,11 +225,13 @@ public sealed class PersistentServiceConditionalRuleEditingTests(
                 Assert.NotNull(rule.IconSet.Criteria);
                 Assert.Equal(4, rule.IconSet.Criteria.Count);
                 Assert.Equal("80", rule.IconSet.Criteria[3].Value);
+                Assert.Equal("percent", rule.IconSet.Criteria[3].Type);
                 break;
             case "top10":
                 Assert.NotNull(rule.Top10);
                 Assert.Equal(5, rule.Top10.Rank);
                 Assert.Equal("bottom", rule.Top10.TopBottom);
+                Assert.False(rule.Top10.Percent);
                 Assert.False(rule.StopIfTrue);
                 break;
             case "aboveAverage":

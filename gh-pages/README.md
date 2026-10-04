@@ -4,13 +4,25 @@ Source for [excelmcpserver.dev](https://excelmcpserver.dev/), built with MkDocs 
 Most pages under `docs/` are thin wrappers that include canonical content from elsewhere in
 the repo (root `README.md`, `FEATURES.md`, `docs/features/`, package READMEs,
 `CHANGELOG.md`, etc.) so there is a single source of truth for documentation content.
-The canonical feature reference is organized into intent-based pages under `docs/features/`;
-`hooks.py` adapts those pages for the website without copying operation details.
+Capability summaries live in `docs/features/`; workflow decisions and recovery
+guidance live in `docs/reference/`. Current command specifications come from
+CLI help and MCP tool descriptions, not a second hand-maintained reference.
+`hooks.py` adapts the shared pages for the website without duplicating their prose.
+It only wires MkDocs build events; the work lives in the `sitegen/` package:
+
+| Module | Job |
+| --- | --- |
+| `sitegen/sources.py` | `PAGES`, the one table of published documents, plus sample downloads, link rewriting and snippet writing |
+| `sitegen/llm.py` | `llms.txt`, `llms-full.txt`, Markdown mirrors, `tools.json`, FAQ structured data |
+| `sitegen/sitemap.py` | Git-based sitemap dates and per-page video metadata |
+| `sitegen/analytics.py` | The usage analytics page |
+
+`mkdocs serve` loads `sitegen/` once; restart it after editing that code.
 
 The feature overview is authored only in root `FEATURES.md`. Its website
 wrapper, `docs/features.md`, keeps the page metadata, title, and illustration,
 then includes `_generated/features.md`. Edit the root file to change categories,
-tool-selection guidance, task links, or headline counts. The site audit rejects
+capability navigation, task links, or headline counts. The site audit rejects
 duplicate overview prose in the wrapper and checks the published Markdown copy.
 
 ## Publishing canonical documentation
@@ -23,13 +35,13 @@ destination before shortening or moving a page.
 To add or move a published document:
 
 1. Update the canonical source and links pointing to it.
-2. Register it in the appropriate source map or `_write()` step in `hooks.py`.
-3. Add its repository path to `SITE_PAGE_MAP`, so repository-relative links
-   become local website links.
-4. Create a thin wrapper under `gh-pages/docs/` with metadata, one H1, and the
+2. Add a `Page(...)` entry to `PAGES` in `sitegen/sources.py`. That one entry
+   generates the snippet and turns repository links to it into local website
+   links.
+3. Create a thin wrapper under `gh-pages/docs/` with metadata, one H1, and the
    generated snippet.
-5. Update `nav` in `mkdocs.yml` and the deploy workflow's source path filters.
-6. Run the strict build and both checks described below.
+4. Update `nav` in `mkdocs.yml` and the deploy workflow's source path filters.
+5. Run the strict build and the checks described below.
 
 Example wrapper:
 
@@ -57,13 +69,17 @@ code, issues, or documents without a site page.
 | `llms.txt` | Navigation-ordered page index and descriptions |
 | `llms-full.txt` | Full Markdown with snippet content resolved |
 | Page `index.md` mirrors | Markdown alternatives to rendered HTML |
-| `tools.json` | Tool/operation catalogue derived from canonical feature references |
+| `tools.json` | Feature-group counts and capability summaries derived from the feature pages |
 | FAQ structured data | Troubleshooting question blocks |
 
 These are generated, not separately maintained. `tools.json` derives its
-catalogue and operation total from the feature groups and operation counts in
+capability summaries and operation total from the feature groups and operation counts in
 `docs/features/`, while its tool total comes from `doc-counts.json` (repo
 root) - the single generated include file every count consumer reads.
+Each `featureGroups` entry contains `capabilities` with names and descriptions,
+not an `operations` command inventory. Its `operationCount` is the number of
+supported operations, not the number of capability summaries. Current command
+specifications come from CLI help and MCP tool descriptions.
 `llms.txt` reads its advertised summary from that same file. Contributors run
 `scripts\check-doc-counts.ps1 -Update` and review `doc-counts.json` and managed
 headline changes in the source PR. CI rejects stale counts before merge;
@@ -75,7 +91,7 @@ do not substitute manual file or folder counts.
 
 | File | Why |
 | --- | --- |
-| `sitemap.xml` | Adds a real `<lastmod>` (the git commit date behind each page, supplied by `hooks.py`) and video details for the homepage introduction and sample-page dashboard demo. The stock template stamps the *build* date on every URL, which told crawlers all 52 pages changed on every deploy. |
+| `sitemap.xml` | Adds a real `<lastmod>` (the git commit date behind each page, supplied by `sitegen/sitemap.py`) and video details for the homepage introduction and sample-page dashboard demo. The stock template stamps the *build* date on every URL, which told crawlers all 52 pages changed on every deploy. |
 | `partials/logo.html` | Upstream renders `alt="logo"` with no dimensions - a WCAG 1.1.1 failure and an unsized image. |
 | `partials/progress.html` | Upstream's `role="progressbar"` has no accessible name (WCAG 4.1.2). |
 
@@ -111,18 +127,18 @@ cd gh-pages
 
 ## Checks
 
-Both run in the `Docs Site` CI job on every pull request, and can be run locally
-after a build:
+These run in the `Docs Site` CI job on every pull request, and can be run locally
+(the first two after a build):
 
 ```powershell
 cd gh-pages
 .\.venv\Scripts\python.exe audit_site.py           # SEO / a11y / LLM-discoverability audit
 .\.venv\Scripts\python.exe check_deploy_paths.py   # deploy paths: filter covers every mirrored source
-.\.venv\Scripts\python.exe -m unittest discover -p test_sample_download.py
+.\.venv\Scripts\python.exe -m unittest discover -s tests   # sitegen, sample packaging and video sitemap
 ```
 
 The World in Motion sample page mirrors `samples/world-bank-dashboard/README.md`.
-`SAMPLE_ASSETS` in `hooks.py` adds the original workbook, attribution files, and
+`SAMPLE_ASSETS` in `sitegen/sources.py` adds the original workbook, attribution files, and
 verified dashboard stills to the build without keeping another workbook in
 `docs/`. The packaging check confirms those files are copied unchanged and
 missing sources fail the build. The sample page is available under

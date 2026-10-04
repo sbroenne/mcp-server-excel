@@ -5,6 +5,7 @@ using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
 
@@ -38,12 +39,14 @@ public sealed class PowerQueryOrphanIdentityTests(
         var testFile = fixture.CreateTestFile();
         using var batch = ExcelSession.BeginBatch(testFile);
         var queryName = $"Valid_{Guid.NewGuid():N}"[..24];
-        new PowerQueryCommands(new DataModelCommands()).Create(
+        var created = new PowerQueryCommands(new DataModelCommands()).Create(
             batch,
             queryName,
             "let Source = #table({\"Value\"}, {{1}}) in Source",
             PowerQueryLoadMode.LoadToTable,
             "Sheet1");
+        Assert.True(created.Success, created.ErrorMessage);
+        Assert.True(string.IsNullOrEmpty(created.ErrorMessage));
 
         var result = IsOrphaned(batch, $"Query - {queryName}");
 
@@ -55,10 +58,13 @@ public sealed class PowerQueryOrphanIdentityTests(
         string connectionName) =>
         batch.Execute((ctx, ct) =>
         {
-            dynamic? connection = null;
+            Excel.Connections? connections = null;
+            Excel.WorkbookConnection? connection = null;
             try
             {
-                connection = ctx.Book.Connections[connectionName];
+                connections = ctx.Book.Connections;
+                connection = connections.Item(connectionName);
+                Assert.Equal(connectionName, connection.Name);
                 return PowerQueryHelpers.IsOrphanedPowerQueryConnection(
                     ctx.Book,
                     connection);
@@ -66,6 +72,7 @@ public sealed class PowerQueryOrphanIdentityTests(
             finally
             {
                 ComUtilities.Release(ref connection);
+                ComUtilities.Release(ref connections);
             }
         });
 
@@ -75,8 +82,8 @@ public sealed class PowerQueryOrphanIdentityTests(
         string location) =>
         batch.Execute((ctx, ct) =>
         {
-            dynamic? connections = null;
-            dynamic? connection = null;
+            Excel.Connections? connections = null;
+            Excel.WorkbookConnection? connection = null;
             try
             {
                 connections = ctx.Book.Connections;
@@ -88,9 +95,11 @@ public sealed class PowerQueryOrphanIdentityTests(
                         $"Data Source=$Workbook$;Location={location};" +
                         "Extended Properties=\"\"",
                     CommandText: $"SELECT * FROM [{location}]",
-                    lCmdtype: 2,
+                    lCmdtype: Excel.XlCmdType.xlCmdSql,
                     CreateModelConnection: false,
                     ImportRelationships: false);
+                Assert.Equal(connectionName, connection.Name);
+                Assert.Equal(Excel.XlConnectionType.xlConnectionTypeOLEDB, connection.Type);
             }
             finally
             {

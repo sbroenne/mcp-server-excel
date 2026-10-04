@@ -10,6 +10,127 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class PersistentServiceChartFormattingTests
 {
     [Theory]
+    [InlineData("[Red]0.00")]
+    [InlineData("[>=1.5]0.00;[Red]0.00")]
+    [InlineData("General")]
+    [InlineData("$#,##0.00")]
+    [InlineData("mmm-yy")]
+    [InlineData("yyyy-mm-dd hh:mm:ss")]
+    [InlineData("0.00,,\"M\"")]
+    [InlineData("[h]:mm:ss")]
+    public void AxisNumberFormat_NativeInvariantColorControl_PreservesCodeAndDisplay(string format)
+    {
+        var created = RequireSuccess(_chartCommands.CreateFromRange(
+            _fixture.BatchToken, _sheetName, "A1:B4", ChartType.ColumnClustered));
+        var translated = _fixture.ExecuteRawVerification((context, _) =>
+            context.FormatTranslator.TranslateForChart(format));
+        var local = InspectChart(created.ChartName, chart =>
+        {
+            Microsoft.Office.Interop.Excel.Axis? axis = null;
+            Microsoft.Office.Interop.Excel.TickLabels? labels = null;
+            try
+            {
+                axis = (Microsoft.Office.Interop.Excel.Axis)chart.Axes(
+                    Microsoft.Office.Interop.Excel.XlAxisType.xlValue);
+                labels = axis.TickLabels;
+                labels.NumberFormat = translated;
+                Assert.Equal(translated, labels.NumberFormat);
+                return labels.NumberFormat;
+            }
+            finally
+            {
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref labels);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref axis);
+            }
+        });
+        if (!format.Contains("[Red]", StringComparison.Ordinal))
+        {
+            return;
+        }
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Microsoft.Office.Interop.Excel.Sheets? sheets = null;
+            Microsoft.Office.Interop.Excel.Worksheet? sheet = null;
+            Microsoft.Office.Interop.Excel.Range? cell = null;
+            Microsoft.Office.Interop.Excel.DisplayFormat? display = null;
+            Microsoft.Office.Interop.Excel.Font? font = null;
+            try
+            {
+                sheets = context.Book.Worksheets;
+                sheet = (Microsoft.Office.Interop.Excel.Worksheet)sheets[_sheetName];
+                cell = sheet.Range["Z1"];
+                cell.Value2 = 1.25;
+                cell.NumberFormat = context.FormatTranslator.TranslateFromLocale(local);
+                Assert.Equal($"1{context.FormatTranslator.DecimalSeparator}25", cell.Text);
+                display = cell.DisplayFormat;
+                font = display.Font;
+                Assert.Equal(255, Convert.ToInt32(font.Color, System.Globalization.CultureInfo.InvariantCulture));
+            }
+            finally
+            {
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref font);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref display);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref cell);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref sheet);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref sheets);
+            }
+        });
+    }
+
+    [Theory]
+    [InlineData("[Red]$0.00")]
+    [InlineData("[Red]\"$\"0.00")]
+    public void AxisNumberFormat_NamedColorWithDollar_PreservesCurrency(string format)
+    {
+        var created = RequireSuccess(_chartCommands.CreateFromRange(
+            _fixture.BatchToken, _sheetName, "A1:B4", ChartType.ColumnClustered));
+        RequireSuccess(_chartCommands.SetAxisNumberFormat(
+            _fixture.BatchToken, created.ChartName, ChartAxisType.Value, format));
+        Assert.Equal("[Red]\\$0.00", _chartCommands.GetAxisNumberFormat(
+            _fixture.BatchToken, created.ChartName, ChartAxisType.Value));
+        var actualCode = InspectChart(created.ChartName, chart =>
+        {
+            Microsoft.Office.Interop.Excel.Axis? axis = null;
+            Microsoft.Office.Interop.Excel.TickLabels? labels = null;
+            try
+            {
+                axis = (Microsoft.Office.Interop.Excel.Axis)chart.Axes(
+                    Microsoft.Office.Interop.Excel.XlAxisType.xlValue);
+                labels = axis.TickLabels;
+                return labels.NumberFormat;
+            }
+            finally
+            {
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref labels);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref axis);
+            }
+        });
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Microsoft.Office.Interop.Excel.Sheets? sheets = null;
+            Microsoft.Office.Interop.Excel.Worksheet? sheet = null;
+            Microsoft.Office.Interop.Excel.Range? cell = null;
+            try
+            {
+                Assert.Equal($"[Red]\\$0{context.FormatTranslator.DecimalSeparator}00", actualCode);
+                sheets = context.Book.Worksheets;
+                sheet = (Microsoft.Office.Interop.Excel.Worksheet)sheets[_sheetName];
+                cell = sheet.Range["Z1"];
+                cell.Value2 = 1.25;
+                cell.NumberFormat = "[Red]\\$0.00";
+                Assert.Equal($"$1{context.FormatTranslator.DecimalSeparator}25", cell.Text);
+                Assert.Equal(1.25, Assert.IsType<double>(cell.Value2));
+            }
+            finally
+            {
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref cell);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref sheet);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref sheets);
+            }
+        });
+    }
+
+    [Theory]
     [InlineData("$#,##0.00", 1234.56, "$1{group}234{decimal}56")]
     [InlineData("0.00,,\"M\"", 1250000, "1{decimal}25M")]
     [InlineData("[>=1.5]\"high\";\"low\"", 1.25, "low")]
@@ -22,9 +143,9 @@ public sealed partial class PersistentServiceChartFormattingTests
     {
         var batch = _fixture.BatchToken;
         var created = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered);
-        Assert.True(created.Success, created.ErrorMessage);
+        RequireSuccess(created);
         var written = _chartCommands.SetAxisNumberFormat(batch, created.ChartName, ChartAxisType.Value, format);
-        Assert.True(written.Success, written.ErrorMessage);
+        RequireSuccess(written);
         Assert.Equal(format, _chartCommands.GetAxisNumberFormat(batch, created.ChartName, ChartAxisType.Value));
         _fixture.ExecuteRawVerification((ctx, _) =>
         {
@@ -45,7 +166,7 @@ public sealed partial class PersistentServiceChartFormattingTests
                 chart = chartObject.Chart;
                 axis = (Microsoft.Office.Interop.Excel.Axis)chart.Axes(Microsoft.Office.Interop.Excel.XlAxisType.xlValue);
                 labels = axis.TickLabels;
-                Assert.Equal(ctx.FormatTranslator.TranslateToLocale(format), labels.NumberFormatLocal);
+                Assert.Equal(format, ctx.FormatTranslator.TranslateFromLocale(labels.NumberFormatLocal));
                 // Excel's own cell renderer checks the meaning of the actual local axis code.
                 cell = sheet.Range["Z1"];
                 cell.ColumnWidth = 40;
@@ -77,14 +198,14 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50));
         Assert.Equal(ChartType.ColumnClustered, createResult.ChartType);
 
         // Act - Change to Line chart
-        _chartCommands.SetChartType(batch, createResult.ChartName, ChartType.Line);
+        RequireSuccess(_chartCommands.SetChartType(batch, createResult.ChartName, ChartType.Line));
 
         // Assert - Verify type changed
-        var readResult = _chartCommands.Read(batch, createResult.ChartName);
+        var readResult = RequireSuccess(_chartCommands.Read(batch, createResult.ChartName));
         Assert.Equal(ChartType.Line, readResult.ChartType);
     }
 
@@ -94,13 +215,13 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B3", ChartType.Pie, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B3", ChartType.Pie, 50, 50));
 
         // Act
-        _chartCommands.SetTitle(batch, createResult.ChartName, "Sales by Quarter");
+        RequireSuccess(_chartCommands.SetTitle(batch, createResult.ChartName, "Sales by Quarter"));
 
         // Assert - Verify title set
-        var readResult = _chartCommands.Read(batch, createResult.ChartName);
+        var readResult = RequireSuccess(_chartCommands.Read(batch, createResult.ChartName));
         Assert.Equal("Sales by Quarter", readResult.Title);
     }
 
@@ -115,14 +236,16 @@ public sealed partial class PersistentServiceChartFormattingTests
             ChartType.BarClustered,
             50,
             50);
-        _chartCommands.SetTitle(
+        RequireSuccess(createResult);
+        RequireSuccess(_chartCommands.SetTitle(
             batch,
             createResult.ChartName,
-            "Initial Title");
+            "Initial Title"));
+        Assert.Equal("Initial Title", RequireSuccess(_chartCommands.Read(batch, createResult.ChartName)).Title);
 
-        _chartCommands.SetTitle(batch, createResult.ChartName, "");
+        RequireSuccess(_chartCommands.SetTitle(batch, createResult.ChartName, ""));
 
-        var readResult = _chartCommands.Read(batch, createResult.ChartName);
+        var readResult = RequireSuccess(_chartCommands.Read(batch, createResult.ChartName));
         Assert.Null(readResult.Title);
     }
 
@@ -137,6 +260,10 @@ public sealed partial class PersistentServiceChartFormattingTests
             ChartType.ColumnClustered,
             50,
             50);
+        RequireSuccess(createResult);
+        RequireSuccess(_chartCommands.SetPlacement(batch, createResult.ChartName, 2,
+            printObject: false, locked: false, roundedCorners: true));
+        var before = ReadChartObjectProperties(createResult.ChartName);
 
         var exception = Assert.Throws<ArgumentException>(() =>
             _chartCommands.SetPlacement(batch, createResult.ChartName, 5));
@@ -145,6 +272,7 @@ public sealed partial class PersistentServiceChartFormattingTests
             "placement",
             exception.Message,
             StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(before, ReadChartObjectProperties(createResult.ChartName));
     }
 
     [Fact]
@@ -157,6 +285,7 @@ public sealed partial class PersistentServiceChartFormattingTests
             "A1:C6",
             ChartType.Line,
             chartName: $"Plot_{Guid.NewGuid():N}"[..20]);
+        RequireSuccess(createResult);
 
         var setResult = _chartCommands.SetPlotOptions(
             batch,
@@ -165,11 +294,11 @@ public sealed partial class PersistentServiceChartFormattingTests
             displayBlanksAs: ChartDisplayBlanksAs.Zero,
             plotVisibleOnly: false);
 
-        Assert.True(setResult.Success, setResult.ErrorMessage);
+        RequireSuccess(setResult);
         var getResult = _chartCommands.GetPlotOptions(
             batch,
             createResult.ChartName);
-        Assert.True(getResult.Success, getResult.ErrorMessage);
+        RequireSuccess(getResult);
         Assert.Equal(ChartPlotBy.Rows, getResult.PlotBy);
         Assert.Equal(ChartDisplayBlanksAs.Zero, getResult.DisplayBlanksAs);
         Assert.False(getResult.PlotVisibleOnly);
@@ -181,10 +310,11 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50));
 
-        // Act & Assert - void operation, no exception means success
-        _chartCommands.SetAxisTitle(batch, createResult.ChartName, ChartAxisType.Category, "Months");
+        RequireSuccess(_chartCommands.SetAxisTitle(batch, createResult.ChartName, ChartAxisType.Category, "Months"));
+        Assert.Equal("Months", ReadAxisTitle(createResult.ChartName, ChartAxisType.Category));
+        Assert.Equal("", ReadAxisTitle(createResult.ChartName, ChartAxisType.Value));
     }
 
     [Fact]
@@ -193,10 +323,11 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.BarClustered, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.BarClustered, 50, 50));
 
-        // Act & Assert - void operation, no exception means success
-        _chartCommands.SetAxisTitle(batch, createResult.ChartName, ChartAxisType.Value, "Revenue ($)");
+        RequireSuccess(_chartCommands.SetAxisTitle(batch, createResult.ChartName, ChartAxisType.Value, "Revenue ($)"));
+        Assert.Equal("Revenue ($)", ReadAxisTitle(createResult.ChartName, ChartAxisType.Value));
+        Assert.Equal("", ReadAxisTitle(createResult.ChartName, ChartAxisType.Category));
     }
 
     [Fact]
@@ -206,23 +337,24 @@ public sealed partial class PersistentServiceChartFormattingTests
         var batch = _fixture.BatchToken;
 
         // Create test data and chart
-        _commands.SetValues(
+        RequireSuccess(_commands.SetValues(
             batch,
             _sheetName,
             "A1:C4",
             [["X", "Series1", "Series2"],
              ["A", 10, 20],
              ["B", 15, 25],
-             ["C", 20, 30]], overwritePolicy: OverwritePolicy.Allow);
+             ["C", 20, 30]], overwritePolicy: OverwritePolicy.Allow));
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:C4", ChartType.Line, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:C4", ChartType.Line, 50, 50));
 
         // Act - Show legend at bottom
-        _chartCommands.ShowLegend(batch, createResult.ChartName, true, LegendPosition.Bottom);
+        RequireSuccess(_chartCommands.ShowLegend(batch, createResult.ChartName, true, LegendPosition.Bottom));
 
         // Assert - Verify legend visible
-        var readResult = _chartCommands.Read(batch, createResult.ChartName);
+        var readResult = RequireSuccess(_chartCommands.Read(batch, createResult.ChartName));
         Assert.True(readResult.HasLegend);
+        Assert.Equal((int)LegendPosition.Bottom, ReadLegendPosition(createResult.ChartName));
     }
 
     [Fact]
@@ -231,14 +363,15 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B3", ChartType.Area, 50, 50);
-        _chartCommands.ShowLegend(batch, createResult.ChartName, true, LegendPosition.Right); // Show first
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B3", ChartType.Area, 50, 50));
+        RequireSuccess(_chartCommands.ShowLegend(batch, createResult.ChartName, true, LegendPosition.Right));
+        Assert.True(RequireSuccess(_chartCommands.Read(batch, createResult.ChartName)).HasLegend);
 
         // Act - Hide legend
-        _chartCommands.ShowLegend(batch, createResult.ChartName, false);
+        RequireSuccess(_chartCommands.ShowLegend(batch, createResult.ChartName, false));
 
         // Assert - Verify legend hidden
-        var readResult = _chartCommands.Read(batch, createResult.ChartName);
+        var readResult = RequireSuccess(_chartCommands.Read(batch, createResult.ChartName));
         Assert.False(readResult.HasLegend);
     }
 
@@ -248,10 +381,11 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50));
 
-        // Act & Assert - void operation, no exception means success
-        _chartCommands.SetStyle(batch, createResult.ChartName, 10);
+        RequireSuccess(_chartCommands.SetStyle(batch, createResult.ChartName, 10));
+        Assert.Equal(10, InspectChart(createResult.ChartName,
+            chart => Convert.ToInt32(chart.ChartStyle, System.Globalization.CultureInfo.InvariantCulture)));
     }
 
     [Fact]
@@ -260,12 +394,16 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B3", ChartType.Pie, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B3", ChartType.Pie, 50, 50));
+        var before = InspectChart(createResult.ChartName,
+            chart => Convert.ToInt32(chart.ChartStyle, System.Globalization.CultureInfo.InvariantCulture));
 
         // Act & Assert - Invalid style ID should throw exception
         var exception = Assert.Throws<ArgumentException>(() =>
             _chartCommands.SetStyle(batch, createResult.ChartName, 999));
         Assert.Contains("between 1 and 48", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(before, InspectChart(createResult.ChartName,
+            chart => Convert.ToInt32(chart.ChartStyle, System.Globalization.CultureInfo.InvariantCulture)));
     }
 
     [Fact]
@@ -274,15 +412,15 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B5", ChartType.ColumnClustered, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B5", ChartType.ColumnClustered, 50, 50));
 
         // Act & Assert - Test multiple chart type changes
         var chartTypes = new[] { ChartType.Line, ChartType.Area, ChartType.BarClustered, ChartType.XYScatter, ChartType.Pie };
 
         foreach (var chartType in chartTypes)
         {
-            _chartCommands.SetChartType(batch, createResult.ChartName, chartType);
-            var readResult = _chartCommands.Read(batch, createResult.ChartName);
+            RequireSuccess(_chartCommands.SetChartType(batch, createResult.ChartName, chartType));
+            var readResult = RequireSuccess(_chartCommands.Read(batch, createResult.ChartName));
             Assert.Equal(chartType, readResult.ChartType);
         }
     }
@@ -293,7 +431,7 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:C4", ChartType.ColumnClustered, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:C4", ChartType.ColumnClustered, 50, 50));
 
         // Act & Assert - Test all legend positions
         var positions = new[] {
@@ -305,7 +443,10 @@ public sealed partial class PersistentServiceChartFormattingTests
         };
 
         foreach (var position in positions)
-            _chartCommands.ShowLegend(batch, createResult.ChartName, true, position);
+        {
+            RequireSuccess(_chartCommands.ShowLegend(batch, createResult.ChartName, true, position));
+            Assert.Equal((int)position, ReadLegendPosition(createResult.ChartName));
+        }
     }
 
     [Fact]
@@ -314,13 +455,14 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50));
 
         // Act
+        RequireSuccess(createResult);
+        RequireSuccess(_chartCommands.SetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Value, "0.000"));
         var format = _chartCommands.GetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Value);
 
-        // Assert - Default format is typically "General"
-        Assert.NotNull(format);
+        Assert.Equal("0.000", format);
     }
 
     [Fact]
@@ -329,10 +471,10 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50));
 
         // Act - Set millions format
-        _chartCommands.SetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Value, "$#,##0,,\"M\"");
+        RequireSuccess(_chartCommands.SetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Value, "$#,##0,,\"M\""));
 
         // Assert - Verify format was set
         var format = _chartCommands.GetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Value);
@@ -346,19 +488,19 @@ public sealed partial class PersistentServiceChartFormattingTests
         var batch = _fixture.BatchToken;
 
         // Create test data with dates
-        _commands.SetValues(
+        RequireSuccess(_commands.SetValues(
             batch,
             _sheetName,
             "A1:B4",
             [["Date", "Sales"],
              [45658, 100],
              [45689, 150],
-             [45717, 200]], overwritePolicy: OverwritePolicy.Allow);
+             [45717, 200]], overwritePolicy: OverwritePolicy.Allow));
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.Line, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.Line, 50, 50));
 
         // Act - Set date format on category axis
-        _chartCommands.SetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Category, "mmm-yy");
+        RequireSuccess(_chartCommands.SetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Category, "mmm-yy"));
 
         // Assert - Verify format was set
         var format = _chartCommands.GetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Category);
@@ -372,19 +514,19 @@ public sealed partial class PersistentServiceChartFormattingTests
         var batch = _fixture.BatchToken;
 
         // Create test data
-        _commands.SetValues(
+        RequireSuccess(_commands.SetValues(
             batch,
             _sheetName,
             "A1:B4",
             [["Item", "Rate"],
              ["A", 0.25],
              ["B", 0.50],
-             ["C", 0.75]], overwritePolicy: OverwritePolicy.Allow);
+             ["C", 0.75]], overwritePolicy: OverwritePolicy.Allow));
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.BarClustered, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.BarClustered, 50, 50));
 
         // Act - Set percentage format
-        _chartCommands.SetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Value, "0%");
+        RequireSuccess(_chartCommands.SetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Value, "0%"));
 
         // Assert - Verify format was set
         var format = _chartCommands.GetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Value);
@@ -396,11 +538,13 @@ public sealed partial class PersistentServiceChartFormattingTests
     {
         // Arrange
         var batch = _fixture.BatchToken;
+        var before = CreateFormattingGuard();
 
         // Act & Assert - Non-existent chart should throw
         var exception = Assert.Throws<InvalidOperationException>(() =>
             _chartCommands.SetAxisNumberFormat(batch, "NonExistentChart", ChartAxisType.Value, "#,##0"));
         Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
+        AssertFormattingGuard(before);
     }
 
     [Fact]
@@ -408,11 +552,13 @@ public sealed partial class PersistentServiceChartFormattingTests
     {
         // Arrange
         var batch = _fixture.BatchToken;
+        var before = CreateFormattingGuard();
 
         // Act & Assert - Non-existent chart should throw
         var exception = Assert.Throws<InvalidOperationException>(() =>
             _chartCommands.GetAxisNumberFormat(batch, "NonExistentChart", ChartAxisType.Value));
         Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
+        AssertFormattingGuard(before);
     }
 
     [Fact]
@@ -421,14 +567,14 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50));
 
         // Act & Assert - Test multiple format changes
         var formats = new[] { "#,##0", "$#,##0", "#,##0.00", "$#,##0,,\"M\"", "0.0E+0" };
 
         foreach (var fmt in formats)
         {
-            _chartCommands.SetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Value, fmt);
+            RequireSuccess(_chartCommands.SetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Value, fmt));
             var result = _chartCommands.GetAxisNumberFormat(batch, createResult.ChartName, ChartAxisType.Value);
             Assert.Equal(fmt, result);
         }
@@ -441,9 +587,9 @@ public sealed partial class PersistentServiceChartFormattingTests
     public void SetAxisNumberFormat_KeywordsAndConditions_RoundTripsInvariantCode(string format)
     {
         var batch = _fixture.BatchToken;
-        var chart = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50);
+        var chart = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50));
 
-        _chartCommands.SetAxisNumberFormat(batch, chart.ChartName, ChartAxisType.Value, format);
+        RequireSuccess(_chartCommands.SetAxisNumberFormat(batch, chart.ChartName, ChartAxisType.Value, format));
 
         Assert.Equal(format, _chartCommands.GetAxisNumberFormat(batch, chart.ChartName, ChartAxisType.Value));
     }
@@ -460,11 +606,12 @@ public sealed partial class PersistentServiceChartFormattingTests
             50,
             50);
 
-        _chartCommands.SetAxisNumberFormat(
+        RequireSuccess(chart);
+        RequireSuccess(_chartCommands.SetAxisNumberFormat(
             batch,
             chart.ChartName,
             ChartAxisType.Value,
-            "0.00 \"Total\"");
+            "0.00 \"Total\""));
 
         Assert.Equal(
             "0.00 \"Total\"",
@@ -479,13 +626,15 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50));
 
         // Act - Set placement to MoveAndSize (1 = xlMoveAndSizeWithCells)
-        _chartCommands.SetPlacement(batch, createResult.ChartName, 1);
+        RequireSuccess(_chartCommands.SetPlacement(batch, createResult.ChartName, 3));
+        Assert.Equal(3, ReadChartObjectProperties(createResult.ChartName).Placement);
+        RequireSuccess(_chartCommands.SetPlacement(batch, createResult.ChartName, 1));
 
         // Assert - Verify placement changed
-        var readResult = _chartCommands.Read(batch, createResult.ChartName);
+        var readResult = RequireSuccess(_chartCommands.Read(batch, createResult.ChartName));
         Assert.Equal(1, readResult.Placement);
     }
 
@@ -495,13 +644,15 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.Line, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.Line, 50, 50));
 
         // Act - Set placement to Move (2 = xlMove)
-        _chartCommands.SetPlacement(batch, createResult.ChartName, 2);
+        RequireSuccess(_chartCommands.SetPlacement(batch, createResult.ChartName, 3));
+        Assert.Equal(3, ReadChartObjectProperties(createResult.ChartName).Placement);
+        RequireSuccess(_chartCommands.SetPlacement(batch, createResult.ChartName, 2));
 
         // Assert - Verify placement changed
-        var readResult = _chartCommands.Read(batch, createResult.ChartName);
+        var readResult = RequireSuccess(_chartCommands.Read(batch, createResult.ChartName));
         Assert.Equal(2, readResult.Placement);
     }
 
@@ -511,13 +662,15 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.Pie, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.Pie, 50, 50));
 
         // Act - Set placement to FreeFloating (3 = xlFreeFloating)
-        _chartCommands.SetPlacement(batch, createResult.ChartName, 3);
+        RequireSuccess(_chartCommands.SetPlacement(batch, createResult.ChartName, 1));
+        Assert.Equal(1, ReadChartObjectProperties(createResult.ChartName).Placement);
+        RequireSuccess(_chartCommands.SetPlacement(batch, createResult.ChartName, 3));
 
         // Assert - Verify placement changed
-        var readResult = _chartCommands.Read(batch, createResult.ChartName);
+        var readResult = RequireSuccess(_chartCommands.Read(batch, createResult.ChartName));
         Assert.Equal(3, readResult.Placement);
     }
 
@@ -526,11 +679,13 @@ public sealed partial class PersistentServiceChartFormattingTests
     {
         // Arrange
         var batch = _fixture.BatchToken;
+        var before = CreateFormattingGuard();
 
         // Act & Assert - Non-existent chart should throw
         var exception = Assert.Throws<InvalidOperationException>(() =>
             _chartCommands.SetPlacement(batch, "NonExistentChart", 1));
         Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
+        AssertFormattingGuard(before);
     }
 
     // === FIT TO RANGE TESTS ===
@@ -541,36 +696,34 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50, 400, 300);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50, 400, 300));
 
         // Act - Fit chart to a specific range
-        _chartCommands.FitToRange(batch, createResult.ChartName, _sheetName, "E5:J15");
+        RequireSuccess(_chartCommands.FitToRange(batch, createResult.ChartName, _sheetName, "E5:J15"));
 
-        // Assert - Verify chart position/size changed (can verify via Read that chart still exists)
-        var readResult = _chartCommands.Read(batch, createResult.ChartName);
-        Assert.NotNull(readResult);
-
-        // TopLeftCell should now be E5 (or close to it, depending on exact positioning)
-        Assert.NotNull(readResult.TopLeftCell);
+        AssertFitsRange(createResult.ChartName, _sheetName, "E5:J15");
+        var readResult = RequireSuccess(_chartCommands.Read(batch, createResult.ChartName));
+        Assert.Equal("$E$5", readResult.TopLeftCell);
+        AssertSeriesData(createResult.ChartName, 1, "Series1", ["A", "B", "C"], [10, 15, 20]);
     }
 
     [Fact]
-    public void FitToRange_DifferentSheet_ThrowsOrMovesChart()
+    public void FitToRange_DifferentSheet_UsesTargetGeometryWithoutMovingChartSheet()
     {
         // Arrange
         var batch = _fixture.BatchToken;
 
         // Create test data, chart, and a second sheet
-        _fixture.CreateNamedTestSheet(batch, "Sheet2");
+        var targetSheet = _fixture.CreateTestSheet(batch);
+        RequireSuccess(_commands.SetColumnWidth(batch, targetSheet, "E:H", 20));
+        RequireSuccess(_commands.SetRowHeight(batch, targetSheet, "1:10", 25));
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50));
 
-        // Act - Try to fit chart to range on same sheet
-        _chartCommands.FitToRange(batch, createResult.ChartName, _sheetName, "E5:H10");
+        RequireSuccess(_chartCommands.FitToRange(batch, createResult.ChartName, targetSheet, "E5:H10"));
 
-        // Assert - Verify chart moved
-        var readResult = _chartCommands.Read(batch, createResult.ChartName);
-        Assert.NotNull(readResult);
+        AssertFitsRange(createResult.ChartName, targetSheet, "E5:H10");
+        AssertSeriesData(createResult.ChartName, 1, "Series1", ["A", "B", "C"], [10, 15, 20]);
     }
 
     [Fact]
@@ -578,11 +731,13 @@ public sealed partial class PersistentServiceChartFormattingTests
     {
         // Arrange
         var batch = _fixture.BatchToken;
+        var before = CreateFormattingGuard();
 
         // Act & Assert - Non-existent chart should throw
         var exception = Assert.Throws<InvalidOperationException>(() =>
             _chartCommands.FitToRange(batch, "NonExistentChart", _sheetName, "A1:D10"));
         Assert.Contains("not found", exception.Message, StringComparison.OrdinalIgnoreCase);
+        AssertFormattingGuard(before);
     }
 
     [Fact]
@@ -591,11 +746,15 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50));
+        var before = RequireSuccess(_chartCommands.Read(batch, createResult.ChartName));
 
         // Act & Assert - Invalid range should throw
-        Assert.ThrowsAny<Exception>(() =>
+        var exception = Assert.Throws<InvalidOperationException>(() =>
             _chartCommands.FitToRange(batch, createResult.ChartName, _sheetName, "InvalidRange!!!"));
+        Assert.Contains("chart.fit-to-range failed [ComInterop/COMException]", exception.Message);
+        AssertChartUnchanged(before);
+        AssertSeriesData(createResult.ChartName, 1, "Series1", ["A", "B", "C"], [10, 15, 20]);
     }
 
     // === ANCHOR CELLS TESTS ===
@@ -607,18 +766,16 @@ public sealed partial class PersistentServiceChartFormattingTests
         var batch = _fixture.BatchToken;
 
         // Create chart at position left=50, top=50
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50, 400, 300);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50, 400, 300));
 
         // Act
-        var readResult = _chartCommands.Read(batch, createResult.ChartName);
+        var readResult = RequireSuccess(_chartCommands.Read(batch, createResult.ChartName));
 
-        // Assert - Anchor cells should be populated
-        Assert.NotNull(readResult.TopLeftCell);
-        Assert.NotNull(readResult.BottomRightCell);
-
-        // TopLeftCell should be a valid cell address (e.g., "$A$1", "$B$2", etc.)
-        Assert.Matches(@"\$[A-Z]+\$\d+", readResult.TopLeftCell);
-        Assert.Matches(@"\$[A-Z]+\$\d+", readResult.BottomRightCell);
+        Assert.Equal(50, readResult.Left);
+        Assert.Equal(50, readResult.Top);
+        Assert.Equal(400, readResult.Width);
+        Assert.Equal(300, readResult.Height);
+        AssertAnchorCells(readResult);
     }
 
     [Fact]
@@ -627,22 +784,23 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50));
 
         // Get initial anchor cells
-        var initialRead = _chartCommands.Read(batch, createResult.ChartName);
+        var initialRead = RequireSuccess(_chartCommands.Read(batch, createResult.ChartName));
+        AssertAnchorCells(initialRead);
         var initialTopLeft = initialRead.TopLeftCell;
 
         // Act - Fit chart to a different range
-        _chartCommands.FitToRange(batch, createResult.ChartName, _sheetName, "F10:K20");
+        RequireSuccess(_chartCommands.FitToRange(batch, createResult.ChartName, _sheetName, "F10:K20"));
 
         // Assert - Anchor cells should have changed
-        var afterRead = _chartCommands.Read(batch, createResult.ChartName);
+        var afterRead = RequireSuccess(_chartCommands.Read(batch, createResult.ChartName));
         Assert.NotEqual(initialTopLeft, afterRead.TopLeftCell);
 
-        // The new TopLeftCell should reflect the new position (around F10)
-        Assert.NotNull(afterRead.TopLeftCell);
-        Assert.NotNull(afterRead.BottomRightCell);
+        Assert.Equal("$F$10", afterRead.TopLeftCell);
+        AssertAnchorCells(afterRead);
+        AssertFitsRange(createResult.ChartName, _sheetName, "F10:K20");
     }
 
     [Fact]
@@ -651,13 +809,13 @@ public sealed partial class PersistentServiceChartFormattingTests
         // Arrange
         var batch = _fixture.BatchToken;
 
-        var createResult = _chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50);
+        var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B4", ChartType.ColumnClustered, 50, 50));
+        RequireSuccess(_chartCommands.SetPlacement(batch, createResult.ChartName, 3));
 
         // Act
-        var readResult = _chartCommands.Read(batch, createResult.ChartName);
+        var readResult = RequireSuccess(_chartCommands.Read(batch, createResult.ChartName));
 
-        // Assert - Placement should be populated with a valid value (1, 2, or 3)
-        Assert.NotNull(readResult.Placement);
-        Assert.InRange(readResult.Placement.Value, 1, 3);
+        Assert.Equal(3, readResult.Placement);
+        Assert.Equal(3, ReadChartObjectProperties(createResult.ChartName).Placement);
     }
 }

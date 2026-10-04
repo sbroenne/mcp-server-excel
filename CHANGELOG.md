@@ -11,6 +11,255 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.2.0] - 2026-10-04
+
+### Major Changes
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Replace `copy`, `copy-values`, and `copy-formulas` with one `range` `copy` action
+  requiring `paste_kind` (CLI `--paste-kind`, batch JSON `pasteKind`).
+  Select all, values, formulas, formats, or validation, with native transpose
+  and skip-blank options. Formatting/validation paste preserves cell content;
+  content overwrite checks cover the actual expanded/repeated destination and
+  exclude skipped source blanks. All copy kinds require unmerged rectangular
+  geometry under either overwrite policy. Return resolved paste bounds and
+  clear the owned application's copy mode after success or failure.
+
+- [#974](https://github.com/sbroenne/mcp-server-excel/pull/974) [`2520d40`](https://github.com/sbroenne/mcp-server-excel/commit/2520d4084899170e014fb160b442a770f08f8156) Thanks [@sbroenne](https://github.com/sbroenne)! - **Latest-server launches from Claude Desktop**: The MCPB now configures `npx -y @sbroenne/mcp-server-excel@latest` directly instead of bundling a fixed executable. Node.js with npm/npx must be available on PATH; no separate .NET installation is needed. Existing binary-bundle users must install the new bundle once. Server versions are resolved on launch using normal npm caching; running workbook sessions are not automatically restarted.
+
+  Installation guides and ready-to-use MCP configurations now consistently use `@latest` and explain requirements, updates, removal, and safe CLI service restarts.
+
+### Minor Changes
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - **Find cells by kind:** `range get-special-cells` finds all formulas, constants,
+  blank cells, errors, or visible cells in the requested range. It returns complete
+  matching areas and an exact cell count, without a preview limit, through both
+  Excel MCP and excelcli.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Add `range_format` `get-format` (`excelcli rangeformat get-format`) to inspect
+  every requested cell's stored formatting, displayed conditional formatting,
+  or both. Results preserve individual fonts, colors and themes, gradient stops,
+  borders, alignment, number formats, protection, and dimensions, and identify
+  mixed properties without sampling or changing selection.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Configure and inspect native worksheet protection permissions, protected
+  components, and selection restrictions. Report UI-only automation permission
+  as runtime-only. Replace cell-lock actions with exact-scope protection writes
+  and complete per-cell lock/formula-hiding inspection, without mixed-state defaults.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Replace mode-only calculation actions with native settings read/write, iteration
+  controls, and explicit workbook precision-as-displayed permission. Add full
+  recalculation and dependency rebuild. Rename the former workbook scope to
+  application to accurately describe all open workbooks in the owned Excel process.
+  Report actual native calculation state without assuming unavailable state is done.
+  Reject missing or blank sheet/range calculation targets as `InvalidInput` failures
+  instead of successful requests containing a nested failure.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Add workbook cell-style listing, complete native inspection, creation from one
+  stored source cell, and custom-style updates/deletion. Updates can affect all
+  existing users; omitted inclusion flags are preserved. Built-in styles are
+  inspectable but read-only. Cell styles expose six native border positions;
+  inside borders remain a range-formatting operation.
+
+  Correct range `get-style` to report Excel's actual built-in/custom status instead
+  of assuming every registered style is built-in.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Add selected-series reads and primary/secondary axis assignment, native error
+  bars, per-point material and marker formatting, and actual chart image export
+  through MCP and CLI. Fix secondary axis titles and number formats targeting a
+  primary axis. Report unavailable native getters explicitly and reject unsupported
+  marker transparency/outline-weight edits and PivotChart per-series mutations.
+  Failed image exports remove new empty or partial output while preserving an
+  existing destination image.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Add native duplicate removal with explicit key columns, header handling, and
+  blank-aware counts. Add native delimited and fixed-width text splitting with
+  qualifiers, field conversions, number separators, and full destination checks
+  before replacing existing content, including trailing empty fields.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Add native drawing grouping, ungrouping, selected-object alignment and equal-gap
+  distribution, duplication with point offsets, and front-to-back order changes
+  through MCP and CLI. Read actual names, geometry, stacking positions and complete
+  group membership. Reject unsupported drawing types, protected drawing edits and
+  duplication of macro-bound objects.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Add native directional filling, AutoFill patterns, and DataSeries generation
+  with protected destinations to MCP and CLI. Formula reads and writes now
+  support explicit native R1C1 notation while retaining A1 as the default.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Replace `range_format` / `rangeformat` actions `format-range` and `format-ranges`
+  with one `format` action taking `rangeAddresses` and typed `formatOptions`.
+  The old actions and scalar formatting inputs are removed.
+
+  Add independent edge, inside, and diagonal borders; theme colors and tints;
+  native underline kinds, font effects and theme fonts; indentation, shrink-to-fit,
+  reading order, fill alignment, and center-across-selection. Validate all targets,
+  protection, and known invalid options before writing. Omitted settings preserve
+  native state; native failures do not promise rollback.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Add native precedent/dependent graph inspection to MCP and CLI. Return all
+  reachable native worksheet relationships, current formulas/values, cycles,
+  and unresolved lookups without changing selection or opening external files.
+  Explicit coverage explains missing cross-sheet, external, and dynamic references;
+  an ambiguous native lookup is never reported as proven empty coverage.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Extend worksheet page setup with native print areas, repeated titles, point
+  margins, headers/footers, paper, page order, fixed zoom and printing options.
+  Add complete current-print-scope page-break reads and explicit replacement of
+  all manual worksheet breaks. Both entry points support these settings; no
+  physical printing or modal preview is performed.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Add native PivotTable Show Values As calculations independently of aggregation,
+  with explicit base-field/item selection and complete per-instance Values reads
+  through Excel MCP and excelcli.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Add native PivotTable label/value/date/top-bottom filters, selected parent-item
+  expansion, complete layout and repeated-label reads, PivotTable style controls,
+  and isolated worksheet range/table source replacement through MCP and CLI.
+  Protect unrelated PivotTables and slicers sharing caches, and reject unsupported
+  external/OLAP mutations before changing data.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Add `range` `get-spill-info` to inspect every requested cell's native
+  dynamic-array source, result, ordinary, or blocked state through both the MCP
+  Server and `excelcli`. Include actual source formulas and established result
+  extents without recalculating, changing selection, sampling, or inventing
+  blocked extents. Unsupported Excel sessions fail explicitly.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Add native workbook table-style listing, complete element inspection, cloning,
+  custom updates, and deletion through both entry points. Inspect all native
+  table/Pivot/slicer/timeline elements, including unset formats. Change supported
+  font emphasis, theme colors, solid fills, outer/inside borders, stripe sizes,
+  availability, or clear selected elements without replacing other definitions.
+  Built-in styles are read-only; custom changes can affect existing users.
+
+  Cell-style capture now works from an inactive visible worksheet and restores
+  the previous view. Hidden source sheets are rejected without changing visibility.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Add native date timelines, complete selected-control reads, shared-PivotCache
+  connections, and typed layout/style updates for slicers and timelines. Date
+  selections affect all connected PivotTables. Preserve separate ordinary/timeline
+  caches and include timeline date state in existing slicer listings.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Add complete native workbook theme color/font inspection and Office theme
+  application through MCP and CLI, with explicit native read limitations and
+  workbook-wide theme-sensitive formatting consequences.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Read active sheet, selection, cell, and chart context from every window owned by
+  the session workbook without changing activation or showing hidden sessions.
+  Inspect or change visibility of exact whole-row and whole-column scopes while
+  preserving stored dimensions. Visibility reads include native size, outline,
+  and worksheet filter context without guessing why a dimension is hidden.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Add selected conditional-formatting rule updates, deletion, and native priority
+  controls with stale-selection checks through Excel MCP and excelcli. Updates
+  retain the rule type and unrelated rules. Creation supports priority and
+  stop-if-true. Correct native above/below-average comparison mappings.
+
+- [#981](https://github.com/sbroenne/mcp-server-excel/pull/981) [`2cbab76`](https://github.com/sbroenne/mcp-server-excel/commit/2cbab7630d06034d80d98983bfb1629d344d1069) Thanks [@sbroenne](https://github.com/sbroenne)! - Replace separate Table comparison/value filters with shared typed native filter
+  options, preserving native operators, arrays, both criteria and inactive columns.
+  Add ordinary-range filters and native advanced criteria-range filtering with
+  protected copy output and explicit worksheet-wide advanced-filter clearing.
+  Ordinary filters reject existing advanced row filtering until it is explicitly
+  cleared with authorization, preserving the original hidden rows and filter state.
+
+### Patch Changes
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Reject bar-only label positions on line and scatter series before changing any targeted series, including combination charts. Invalid requests no longer leave labels enabled or earlier series partially changed through MCP or excelcli.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Apply and read chart-axis number formats containing English named colors on
+  regional Excel installations, preserving decimal conditions and literal dollars.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Resolve chart series source ranges before adding a series. Missing sheets and invalid ranges now fail without adding a partial series or treating the reference as a literal chart value through MCP or excelcli.
+
+  Resolve unqualified series sources from the chart worksheet and sheet-qualified sources from the chart workbook, independent of the active worksheet or workbook.
+
+- [#999](https://github.com/sbroenne/mcp-server-excel/pull/999) [`f03a948`](https://github.com/sbroenne/mcp-server-excel/commit/f03a94818ca60c62ea2cec81a759899eb61d967d) Thanks [@sbroenne](https://github.com/sbroenne)! - Make accepted chart settings discoverable in CLI help and MCP descriptions, return actual plotted series and values when reading regular charts or PivotCharts, and target secondary axes correctly for titles and number formats. Clarify slicer scope and provide actionable recovery when definition-only Power Query stages prevent batch refresh.
+
+  Preserve existing validation rules when type, operator, or error-style inputs are invalid. Report failed Data Model metadata reads and requested measure-format failures instead of inventing empty results or substituting General. Keep model-refresh error details without misdiagnosing unsupported functionality, and correct percentage-label and legacy axis-selector guidance.
+
+  Identify the actual measure format during readback instead of misreporting Decimal as Percentage or hiding format-read failures as General.
+
+  Advertise only writable chart data-label positions in CLI help and MCP discovery; Excel's read-only Mixed state is not an input option.
+
+  Keep mixed-style range inspection working when Excel reports no single style, without changing individual cell styles. Required metadata helpers still reject missing objects with explicit argument errors.
+
+  Propagate native cell-style read failures through normal error handling instead of hiding them as successful Normal results; only null/DBNull mixed-style values use the existing fallback.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Return conditional-format bold and italic settings even when Excel cannot
+  read the rule's unset font color, through both MCP and excelcli.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Reject invalid conditional-formatting colors before creating a rule. Ordinary rule, color-scale and data-bar color errors no longer leave partially created rules behind through MCP or excelcli.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Reject negative connection refresh intervals before changing other connection settings.
+
+- [#982](https://github.com/sbroenne/mcp-server-excel/pull/982) [`180722b`](https://github.com/sbroenne/mcp-server-excel/commit/180722b914905b6836b917d5ff34f5ef4e8643dd) Thanks [@sbroenne](https://github.com/sbroenne)! - **Data Model slicers** ([#980](https://github.com/sbroenne/mcp-server-excel/issues/980)): Creating and listing slicers now shows their actual items and selections. Select items by their displayed captions to filter connected PivotTables, replace or add to a selection, or clear the filter; invalid items return an error without changing the selection.
+
+  Slicer creation checks cancellation before creating each cache or visual, and connected-PivotTable scans observe cancellation. Cancellation stops further work; it does not undo changes already made.
+
+  Regular PivotTable and Table slicers also replace an existing single-item filter correctly, without accidentally selecting extra items.
+
+- [#1003](https://github.com/sbroenne/mcp-server-excel/pull/1003) [`b9e8352`](https://github.com/sbroenne/mcp-server-excel/commit/b9e8352347e4deb6c472917b45194a2f8afdf7ce) Thanks [@sbroenne](https://github.com/sbroenne)! - **DAX measures on decimal-comma computers** ([#978](https://github.com/sbroenne/mcp-server-excel/issues/978)): Creating or updating a Data Model measure no longer fails or silently changes numbers such as `-1, MONTH` into `-1.` when Windows uses a comma as the decimal mark. Spaces are added around commas that touch numbers, which keeps the DAX meaning, and the result message says so. Measure readback now returns the DAX stored in the model, with decimal points, after a workbook is reopened.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Validate drawing and sparkline colors before creating or changing objects, and reject Forms-control bindings on other objects or unsupported control subtypes before creation or updates. Invalid MCP and excelcli requests no longer leave orphaned objects or partially changed names, geometry, text, or sparkline sources.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Report Data Model measure formats using Excel's actual format type. Decimal
+  measures are no longer incorrectly reported as percentages when reading their
+  format details through the MCP Server or CLI.
+
+- [#1026](https://github.com/sbroenne/mcp-server-excel/pull/1026) [`0364d61`](https://github.com/sbroenne/mcp-server-excel/commit/0364d61ec7f8c85d90c8de1cf62b186e0ca79174) Thanks [@sbroenne](https://github.com/sbroenne)! - VS Code extension packages no longer include developer-only instruction files.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Report an expired service connection budget as a contextual timeout instead of an unhandled generic timeout during CLI daemon startup, and preserve caller cancellation.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Reject unsupported window layout presets before changing Excel's visibility,
+  window state, or position.
+
+- [#985](https://github.com/sbroenne/mcp-server-excel/pull/985) [`02f0b61`](https://github.com/sbroenne/mcp-server-excel/commit/02f0b61aba225d69f4096ad320286a11bf7202ad) Thanks [@sbroenne](https://github.com/sbroenne)! - Replace broad Excel agent skills with separate MCP and CLI report-formatting
+  skills. Preserve optional presentation conventions and move general workflows
+  and recovery guides into documentation without changing existing website URLs.
+  Plugin identities remain unchanged; standalone old skills require replacement
+  after the updated packages are published.
+
+- [#970](https://github.com/sbroenne/mcp-server-excel/pull/970) [`fbd9f26`](https://github.com/sbroenne/mcp-server-excel/commit/fbd9f26513cde53156c22aece977cc4409b06240) Thanks [@sbroenne](https://github.com/sbroenne)! - The VS Code extension now includes a native ARM64 Excel server in its Windows ARM64 package instead of the x64 server. Its welcome message also explains automatic server startup, without requiring a manual start command.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Fix Data Model PivotTable label sorting through MCP and excelcli. Sorting now uses the underlying Excel level's unique name instead of reporting success while leaving labels in their original order.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Include the source type in PivotTable slicer creation, selection, and listing results.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Correct regular PivotTable value-field renaming to update the displayed value caption rather than the hidden source field. Preserve literal dollar signs in PivotTable number formats instead of substituting the regional currency.
+
+- [#973](https://github.com/sbroenne/mcp-server-excel/pull/973) [`803deff`](https://github.com/sbroenne/mcp-server-excel/commit/803deffcea54070a3af1ee67a43c07329a1921d7) Thanks [@sbroenne](https://github.com/sbroenne)! - **Protected range writes by default** ([#950](https://github.com/sbroenne/mcp-server-excel/issues/950)): Value/formula writes and content copies now refuse to replace occupied cells, including formulas displaying blank, and report up to 10 conflicting addresses before making any writes. Intentional updates must explicitly select MCP `overwrite_policy: "allow"` or CLI `--overwrite-policy allow`; existing update scripts need this option.
+
+  Protected copies check their complete expanded or repeated destination and stop if it cannot be safely inspected. This safeguard does not provide undo, rollback, or protection against interactive Excel edits.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Remove obsolete source columns when refreshing or updating worksheet-loaded Power Queries, while preserving calculated table columns and neighboring cells. Existing tables loaded by earlier versions receive the corrected refresh setting too.
+
+- [#969](https://github.com/sbroenne/mcp-server-excel/pull/969) [`1875610`](https://github.com/sbroenne/mcp-server-excel/commit/1875610a07bdb40a9a9ddc43a14a4eb093118980) Thanks [@sbroenne](https://github.com/sbroenne)! - **Accurate range search results** ([#949](https://github.com/sbroenne/mcp-server-excel/issues/949)): Find now returns at most 10 matching cells by default, with the exact total, the number returned, and an explicit indication when matches were left out. Both MCP and CLI support a configurable positive match limit; exact counting still searches all matches.
+
+  CLI search and replace options now correctly accept JSON objects.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Allow saved `.xlsb` workbooks to be reopened through MCP and the CLI. Previously, Save As supported the binary format but opening its output rejected the file extension. File validation now also accepts `.xlsb` and `.xls` workbooks and checks their openability through a read-only Excel open.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Restore Excel's default status bar instead of displaying the literal text FALSE.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Restore minimized Excel windows to their previous normal or maximized state
+  when showing or bringing them to the foreground. Report refused foreground
+  activation instead of returning success without the requested result.
+
+- [#976](https://github.com/sbroenne/mcp-server-excel/pull/976) [`e74376e`](https://github.com/sbroenne/mcp-server-excel/commit/e74376e98a717629e3d5d404bfd9591f8df72bba) Thanks [@sbroenne](https://github.com/sbroenne)! - Remove regional separator rewriting when creating and updating DAX measures, fixing expressions such as DIVIDE(SUM(SalesTable[Amount]), 1000). Native DAX separators are preserved. On decimal-comma Windows, spaces are added around commas that touch numbers so Excel keeps the formula's meaning, and the result message reports the adjustment. Remote formatting remains opt-in. Fix General and named-date formats for cells, and preserve chart-axis currency symbols and date/time meaning when applying US format codes through MCP or excelcli.
+
+- [#971](https://github.com/sbroenne/mcp-server-excel/pull/971) [`9204af0`](https://github.com/sbroenne/mcp-server-excel/commit/9204af0b7931d49bf5cf4ce0258ccfbe14209cd7) Thanks [@sbroenne](https://github.com/sbroenne)! - List every valid action in native CLI command help. Keep separate CLI and MCP
+  skills focused on workflows and recovery, remove duplicated command catalogs
+  and overlapping guides, and preserve optional report and financial-model
+  formatting advice. Clarify when temporary manual calculation is useful and
+  restore the workbook's prior mode after success or failure.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Validate every appended table row against the table's column count before writing cells. MCP and excelcli now reject incomplete or oversized rows without silently dropping values, expanding the table, or changing calculation mode.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Reject invalid cell validation types, operators, and error styles before removing existing rules. Honor explicit false message settings and use the documented defaults when validation flags are omitted, including retaining custom error titles and messages when error alerts are enabled by default.
+
+- [#1016](https://github.com/sbroenne/mcp-server-excel/pull/1016) [`7e6c1a0`](https://github.com/sbroenne/mcp-server-excel/commit/7e6c1a0d10347d13d388c87bd8f6781a56afb804) Thanks [@sbroenne](https://github.com/sbroenne)! - Validate worksheet names against Microsoft's documented restrictions before mutation. If Excel rejects a name beyond those checks after creating or copying a sheet, return an error identifying the sheet left in the workbook rather than removing it.
+
+  Reject blank existing worksheet names as invalid input before dispatching rename, copy, copy-to-file, or move-to-file operations.
+
 ## [2.1.2] - 2026-10-01
 
 ### Patch Changes

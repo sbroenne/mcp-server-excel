@@ -1,5 +1,7 @@
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -18,30 +20,46 @@ public partial class PersistentServicePivotTableOlapFieldTests
     {
         Assert.True(_creationResult.Success, _creationResult.ErrorMessage);
         var batch = _fixture.BatchToken;
-        var current = _pivotCommands.GetCacheOptions(batch, "DataModelPivot");
+        var (_, pivotName) = CreateIsolatedPivot();
+        var current = _pivotCommands.GetCacheOptions(batch, pivotName);
         Assert.True(current.Success, current.ErrorMessage);
         Assert.True(current.IsOlap);
 
         var exception = Assert.Throws<InvalidOperationException>(() =>
             _pivotCommands.SetCacheOptions(
                 batch,
-                "DataModelPivot",
+                pivotName,
                 missingItemsLimit: PivotMissingItemsLimit.None));
         Assert.Contains("not available for OLAP", exception.Message);
+        AssertCachePreserved();
 
         exception = Assert.Throws<InvalidOperationException>(() =>
             _pivotCommands.SetCacheOptions(
                 batch,
-                "DataModelPivot",
+                pivotName,
                 optimizeCache: !current.OptimizeCache));
         Assert.Contains("read-only for external OLE DB/OLAP", exception.Message);
+        AssertCachePreserved();
 
         exception = Assert.Throws<InvalidOperationException>(() =>
             _pivotCommands.SetCacheOptions(
                 batch,
-                "DataModelPivot",
+                pivotName,
                 saveSourceData: true));
         Assert.Contains("cannot save source records", exception.Message);
+        AssertCachePreserved();
+
+        void AssertCachePreserved()
+        {
+            var retained = _pivotCommands.GetCacheOptions(batch, pivotName);
+            Assert.True(retained.Success, retained.ErrorMessage);
+            Assert.True(retained.IsOlap);
+            Assert.Equal(current.SaveSourceData, retained.SaveSourceData);
+            Assert.Equal(current.OptimizeCache, retained.OptimizeCache);
+            Assert.Equal(current.MissingItemsLimit, retained.MissingItemsLimit);
+            Assert.Equal(current.RefreshOnFileOpen, retained.RefreshOnFileOpen);
+            Assert.Equal(current.EnableRefresh, retained.EnableRefresh);
+        }
     }
 
     /// <summary>
@@ -56,17 +74,22 @@ public partial class PersistentServicePivotTableOlapFieldTests
     {
         // Arrange - Create OLAP test file with data model
         var batch = _fixture.BatchToken;
+        var (sheetName, pivotName) = CreateIsolatedPivot();
 
-        // Act - Remove existing Region field first, then add Quarter
-        // Use exact CubeField names (LLM discovers via ListFields)
-        _pivotCommands.RemoveField(batch, "DataModelPivot", "[RegionalSalesTable].[Quarter]");
-        _pivotCommands.RemoveField(batch, "DataModelPivot", "[RegionalSalesTable].[Region]");
-        var result = _pivotCommands.AddRowField(batch, "DataModelPivot", "[RegionalSalesTable].[Quarter]", null);
+        var placed = _pivotCommands.AddColumnField(batch, pivotName, "[RegionalSalesTable].[Quarter]", null);
+        Assert.True(placed.Success, placed.ErrorMessage);
+        AssertCubeFieldOrientation(sheetName, pivotName, "[RegionalSalesTable].[Quarter]", PivotFieldArea.Column);
+        var removed = _pivotCommands.RemoveField(batch, pivotName, "[RegionalSalesTable].[Quarter]");
+        Assert.True(removed.Success, removed.ErrorMessage);
+        AssertCubeFieldOrientation(sheetName, pivotName, "[RegionalSalesTable].[Quarter]", PivotFieldArea.Hidden);
+        var result = _pivotCommands.AddRowField(batch, pivotName, "[RegionalSalesTable].[Quarter]", null);
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
         Assert.Equal("[RegionalSalesTable].[Quarter]", result.FieldName);
         Assert.Equal(PivotFieldArea.Row, result.Area);
+        Assert.True(_pivotCommands.Refresh(batch, pivotName).Success);
+        AssertCubeFieldOrientation(sheetName, pivotName, "[RegionalSalesTable].[Quarter]", PivotFieldArea.Row);
     }
 
     [Fact]
@@ -76,17 +99,22 @@ public partial class PersistentServicePivotTableOlapFieldTests
     {
         // Arrange - Create OLAP test file with data model
         var batch = _fixture.BatchToken;
+        var (sheetName, pivotName) = CreateIsolatedPivot();
 
-        // Act - Remove existing Region field first to make room for Quarter
-        // Use exact CubeField names (LLM discovers via ListFields)
-        _pivotCommands.RemoveField(batch, "DataModelPivot", "[RegionalSalesTable].[Quarter]");
-        _pivotCommands.RemoveField(batch, "DataModelPivot", "[RegionalSalesTable].[Region]");
-        var result = _pivotCommands.AddColumnField(batch, "DataModelPivot", "[RegionalSalesTable].[Quarter]", null);
+        var placed = _pivotCommands.AddRowField(batch, pivotName, "[RegionalSalesTable].[Quarter]", null);
+        Assert.True(placed.Success, placed.ErrorMessage);
+        AssertCubeFieldOrientation(sheetName, pivotName, "[RegionalSalesTable].[Quarter]", PivotFieldArea.Row);
+        var removed = _pivotCommands.RemoveField(batch, pivotName, "[RegionalSalesTable].[Quarter]");
+        Assert.True(removed.Success, removed.ErrorMessage);
+        AssertCubeFieldOrientation(sheetName, pivotName, "[RegionalSalesTable].[Quarter]", PivotFieldArea.Hidden);
+        var result = _pivotCommands.AddColumnField(batch, pivotName, "[RegionalSalesTable].[Quarter]", null);
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
         Assert.Equal("[RegionalSalesTable].[Quarter]", result.FieldName);
         Assert.Equal(PivotFieldArea.Column, result.Area);
+        Assert.True(_pivotCommands.Refresh(batch, pivotName).Success);
+        AssertCubeFieldOrientation(sheetName, pivotName, "[RegionalSalesTable].[Quarter]", PivotFieldArea.Column);
     }
 
     [Fact]
@@ -94,31 +122,70 @@ public partial class PersistentServicePivotTableOlapFieldTests
     [Trait("Category", "OLAP")]
     public void SortField_OlapPivot_SortsFieldSuccessfully()
     {
-        // Arrange - Create OLAP test file with data model
         var batch = _fixture.BatchToken;
+        var sheetName = _fixture.CreateTestSheet(batch);
+        const string pivotName = "SortVerificationPivot";
+        var created = _pivotCommands.CreateFromDataModel(
+            batch, "RegionalSalesTable", sheetName, "A1", pivotName);
+        Assert.True(created.Success, created.ErrorMessage);
+        var row = _pivotCommands.AddRowField(
+            batch, pivotName, "[RegionalSalesTable].[Region]", null);
+        Assert.True(row.Success, row.ErrorMessage);
+        var value = _pivotCommands.AddValueField(
+            batch, pivotName, "[Measures].[TotalRevenue]", AggregationFunction.Sum, null);
+        Assert.True(value.Success, value.ErrorMessage);
+        Assert.True(_pivotCommands.Refresh(batch, pivotName).Success);
+        var original = _pivotCommands.GetData(batch, pivotName);
+        Assert.True(original.Success, original.ErrorMessage);
+        Assert.Equal(["East", "North", "South", "West"],
+            original.Values.Select(row => row[0]?.ToString())
+                .Where(value => value is "West" or "South" or "North" or "East"));
 
-        // Act - Region row field exists in fixture
-        // Use exact CubeField name (LLM discovers via ListFields)
         var result = _pivotCommands.SortField(
             batch,
-            "DataModelPivot",
+            pivotName,
             "[RegionalSalesTable].[Region]",
             SortDirection.Descending);
 
         // Assert
         Assert.True(result.Success, $"Failed: {result.ErrorMessage}");
         Assert.Equal("[RegionalSalesTable].[Region]", result.FieldName);
+        var sorted = _pivotCommands.GetData(batch, pivotName);
+        Assert.True(sorted.Success, sorted.ErrorMessage);
+        Assert.Equal(["West", "South", "North", "East"],
+            sorted.Values.Select(row => row[0]?.ToString())
+                .Where(value => value is "West" or "South" or "North" or "East"));
+        Assert.True(_pivotCommands.Refresh(batch, pivotName).Success);
+        var data = _pivotCommands.GetData(batch, pivotName);
+        Assert.True(data.Success, data.ErrorMessage);
+        Assert.Equal(["West", "South", "North", "East"],
+            data.Values.Select(row => row[0]?.ToString())
+                .Where(value => value is "West" or "South" or "North" or "East"));
+        var ascending = _pivotCommands.SortField(
+            batch, pivotName, "[RegionalSalesTable].[Region]", SortDirection.Ascending);
+        Assert.True(ascending.Success, ascending.ErrorMessage);
+        var restored = _pivotCommands.GetData(batch, pivotName);
+        Assert.True(restored.Success, restored.ErrorMessage);
+        Assert.Equal(["East", "North", "South", "West"],
+            restored.Values.Select(row => row[0]?.ToString())
+                .Where(value => value is "West" or "South" or "North" or "East"));
+        var rejected = _pivotCommands.SortField(
+            batch, pivotName, "[RegionalSalesTable].[MissingRegion]", SortDirection.Descending);
+        Assert.False(rejected.Success);
+        Assert.Contains("not found in OLAP PivotTable", rejected.ErrorMessage);
+        var retained = _pivotCommands.GetData(batch, pivotName);
+        Assert.True(retained.Success, retained.ErrorMessage);
+        Assert.Equal(restored.Values.Count, retained.Values.Count);
+        for (var index = 0; index < restored.Values.Count; index++)
+        {
+            Assert.Equal(restored.Values[index], retained.Values[index]);
+        }
     }
 
     /// <summary>
     /// Regression test for Issue #217: Auto-create DAX measures when adding value fields to OLAP PivotTables.
     ///
-    /// CURRENT BEHAVIOR: AddValueField on OLAP PivotTable always fails with:
-    ///   "Cannot add value field to OLAP PivotTable. OLAP measures must be pre-defined..."
-    ///
-    /// EXPECTED BEHAVIOR: AddValueField should auto-create DAX measure and add to values area.
-    ///
-    /// This test is expected to FAIL initially, then PASS after implementing auto-DAX-creation.
+    /// AddValueField creates a DAX measure and places it in Values.
     /// </summary>
     [Fact]
     [Trait("Speed", "Medium")]
@@ -127,6 +194,7 @@ public partial class PersistentServicePivotTableOlapFieldTests
     {
         // Arrange - Create OLAP test file with Data Model PivotTable
         var batch = _fixture.BatchToken;
+        var (sheetName, pivotName) = CreateIsolatedPivot();
 
         // Act - Try to add Sales field as a Sum value field
         // Use exact CubeField name format [TableName].[ColumnName]
@@ -134,7 +202,7 @@ public partial class PersistentServicePivotTableOlapFieldTests
         // NOTE: Use unique name to avoid conflict with fixture's "Total Sales" measure on SalesTable
         var result = _pivotCommands.AddValueField(
             batch,
-            "DataModelPivot",
+            pivotName,
             "[RegionalSalesTable].[Sales]",
             AggregationFunction.Sum,
             "Regional Sales Total");
@@ -150,10 +218,11 @@ public partial class PersistentServicePivotTableOlapFieldTests
         var measuresResult = dataModelCommands.ListMeasures(batch, "RegionalSalesTable");
         Assert.True(measuresResult.Success, $"Failed to list measures: {measuresResult.ErrorMessage}");
 
-        // Should contain either the auto-created measure or use the custom name
-        var hasMeasure = measuresResult.Measures.Any(m =>
-            m.Name.Contains("Regional Sales Total", StringComparison.OrdinalIgnoreCase));
-        Assert.True(hasMeasure, "Auto-created DAX measure should exist in Data Model");
+        var measure = Assert.Single(measuresResult.Measures, m => m.Name == "Regional Sales Total");
+        Assert.Equal("SUM('RegionalSalesTable'[Sales])", measure.FormulaPreview);
+        AssertMeasureValue("Regional Sales Total", 49000);
+        Assert.True(_pivotCommands.Refresh(batch, pivotName).Success);
+        AssertCubeFieldOrientation(sheetName, pivotName, "[Measures].[Regional Sales Total]", PivotFieldArea.Value);
     }
 
     /// <summary>
@@ -167,13 +236,14 @@ public partial class PersistentServicePivotTableOlapFieldTests
     {
         // Arrange
         var batch = _fixture.BatchToken;
+        var (sheetName, pivotName) = CreateIsolatedPivot();
 
         // Act - Add Quarter field with Count aggregation
         // Use exact CubeField name format [TableName].[ColumnName]
         // Should auto-create: [Number of Quarters] = COUNT('RegionalSalesTable'[Quarter])
         var result = _pivotCommands.AddValueField(
             batch,
-            "DataModelPivot",
+            pivotName,
             "[RegionalSalesTable].[Quarter]",
             AggregationFunction.Count,
             "Number of Quarters");
@@ -188,10 +258,11 @@ public partial class PersistentServicePivotTableOlapFieldTests
         var dataModelCommands = _dataModelCommands;
         var measuresResult = dataModelCommands.ListMeasures(batch, "RegionalSalesTable");
         Assert.True(measuresResult.Success, $"Failed to list measures: {measuresResult.ErrorMessage}");
-        var hasCountMeasure = measuresResult.Measures.Any(m =>
-            m.Name.Contains("Quarter", StringComparison.OrdinalIgnoreCase) &&
-            (m.FormulaPreview?.Contains("COUNT", StringComparison.OrdinalIgnoreCase) ?? false));
-        Assert.True(hasCountMeasure, "Auto-created COUNT measure should exist in Data Model");
+        var measure = Assert.Single(measuresResult.Measures, m => m.Name == "Number of Quarters");
+        Assert.Equal("COUNT('RegionalSalesTable'[Quarter])", measure.FormulaPreview);
+        AssertMeasureValue("Number of Quarters", 8);
+        Assert.True(_pivotCommands.Refresh(batch, pivotName).Success);
+        AssertCubeFieldOrientation(sheetName, pivotName, "[Measures].[Number of Quarters]", PivotFieldArea.Value);
     }
 
     /// <summary>
@@ -206,6 +277,7 @@ public partial class PersistentServicePivotTableOlapFieldTests
     {
         // Arrange - Create OLAP test file and add a measure first
         var batch = _fixture.BatchToken;
+        var (sheetName, pivotName) = CreateIsolatedPivot();
 
         // First, create a measure in the Data Model (not in PivotTable yet)
         var dataModelCommands = _dataModelCommands;
@@ -217,13 +289,14 @@ public partial class PersistentServicePivotTableOlapFieldTests
             null);  // CreateMeasure throws on error
 
         // Refresh PivotTable to pick up the new measure in CubeFields
-        _pivotCommands.Refresh(batch, "DataModelPivot", null);
+        Assert.True(_pivotCommands.Refresh(batch, pivotName, null).Success);
+        AssertCubeFieldOrientation(sheetName, pivotName, "[Measures].[Total ACR]", PivotFieldArea.Hidden);
 
         // Act - Add the pre-existing measure to PivotTable values area
         // Should detect it's an existing measure and just set Orientation = xlDataField
         var result = _pivotCommands.AddValueField(
             batch,
-            "DataModelPivot",
+            pivotName,
             "Total ACR", // Can use measure name directly
             AggregationFunction.Sum, // Ignored for pre-existing measures
             null);
@@ -238,6 +311,9 @@ public partial class PersistentServicePivotTableOlapFieldTests
         Assert.True(measuresResult.Success, $"Failed to list measures: {measuresResult.ErrorMessage}");
         var measureCount = measuresResult.Measures.Count(m => m.Name == "Total ACR");
         Assert.Equal(1, measureCount); // Should still be 1, not 2
+        AssertMeasureValue("Total ACR", 49000);
+        Assert.True(_pivotCommands.Refresh(batch, pivotName).Success);
+        AssertCubeFieldOrientation(sheetName, pivotName, "[Measures].[Total ACR]", PivotFieldArea.Value);
     }
 
     /// <summary>
@@ -251,6 +327,7 @@ public partial class PersistentServicePivotTableOlapFieldTests
     {
         // Arrange - Create measure first
         var batch = _fixture.BatchToken;
+        var (sheetName, pivotName) = CreateIsolatedPivot();
 
         var dataModelCommands = _dataModelCommands;
         dataModelCommands.CreateMeasure(
@@ -260,12 +337,13 @@ public partial class PersistentServicePivotTableOlapFieldTests
             "SUM('RegionalSalesTable'[Sales])",
             null);  // CreateMeasure throws on error
 
-        _pivotCommands.Refresh(batch, "DataModelPivot", null);
+        Assert.True(_pivotCommands.Refresh(batch, pivotName, null).Success);
+        AssertCubeFieldOrientation(sheetName, pivotName, "[Measures].[Revenue Total]", PivotFieldArea.Hidden);
 
         // Act - Use [Measures].[Name] format (common in OLAP contexts)
         var result = _pivotCommands.AddValueField(
             batch,
-            "DataModelPivot",
+            pivotName,
             "[Measures].[Revenue Total]", // MDX-style format
             AggregationFunction.Sum,
             null);
@@ -274,6 +352,9 @@ public partial class PersistentServicePivotTableOlapFieldTests
         Assert.True(result.Success, $"Should handle [Measures].[Name] format but failed: {result.ErrorMessage}");
         Assert.Equal("Revenue Total", result.FieldName);
         Assert.Equal(PivotFieldArea.Value, result.Area);
+        AssertMeasureValue("Revenue Total", 49000);
+        Assert.True(_pivotCommands.Refresh(batch, pivotName).Success);
+        AssertCubeFieldOrientation(sheetName, pivotName, "[Measures].[Revenue Total]", PivotFieldArea.Value);
     }
 
     /// <summary>
@@ -287,21 +368,23 @@ public partial class PersistentServicePivotTableOlapFieldTests
     {
         // Arrange - Create measure with SUM first
         var batch = _fixture.BatchToken;
+        var (sheetName, pivotName) = CreateIsolatedPivot();
 
         // Use exact CubeField name format [TableName].[ColumnName]
         var addResult = _pivotCommands.AddValueField(
             batch,
-            "DataModelPivot",
+            pivotName,
             "[RegionalSalesTable].[Sales]",
             AggregationFunction.Sum,
             "Sales Measure");
         Assert.True(addResult.Success, $"Setup failed: {addResult.ErrorMessage}");
+        AssertMeasureValue("Sales Measure", 49000);
 
         // Act - Change from SUM to COUNT
         // After the measure is created, reference it by its measure name or [Measures].[Name]
         var updateResult = _pivotCommands.SetFieldFunction(
             batch,
-            "DataModelPivot",
+            pivotName,
             "[Measures].[Sales Measure]",
             AggregationFunction.Count);
 
@@ -315,10 +398,11 @@ public partial class PersistentServicePivotTableOlapFieldTests
         var measuresResult = dataModelCommands.ListMeasures(batch, "RegionalSalesTable");
         Assert.True(measuresResult.Success, $"Failed to list measures: {measuresResult.ErrorMessage}");
 
-        var measure = measuresResult.Measures.FirstOrDefault(m => m.Name == "Sales Measure");
-        Assert.NotNull(measure);
-        Assert.Contains("COUNT", measure.FormulaPreview, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("SUM", measure.FormulaPreview, StringComparison.OrdinalIgnoreCase);
+        var measure = Assert.Single(measuresResult.Measures, m => m.Name == "Sales Measure");
+        Assert.Equal("COUNT('RegionalSalesTable'[Sales])", measure.FormulaPreview);
+        AssertMeasureValue("Sales Measure", 8);
+        Assert.True(_pivotCommands.Refresh(batch, pivotName).Success);
+        AssertCubeFieldOrientation(sheetName, pivotName, "[Measures].[Sales Measure]", PivotFieldArea.Value);
     }
 
     /// <summary>
@@ -332,11 +416,12 @@ public partial class PersistentServicePivotTableOlapFieldTests
     {
         // Arrange - Create measure first
         var batch = _fixture.BatchToken;
+        var (sheetName, pivotName) = CreateIsolatedPivot();
 
         // Use exact CubeField name format [TableName].[ColumnName]
         var addResult = _pivotCommands.AddValueField(
             batch,
-            "DataModelPivot",
+            pivotName,
             "[RegionalSalesTable].[Sales]",
             AggregationFunction.Sum,
             "Sales Total");
@@ -347,7 +432,7 @@ public partial class PersistentServicePivotTableOlapFieldTests
         // Use "0%" which is locale-independent
         var updateResult = _pivotCommands.SetFieldFormat(
             batch,
-            "DataModelPivot",
+            pivotName,
             "[Measures].[Sales Total]",
             "0%");
 
@@ -355,6 +440,8 @@ public partial class PersistentServicePivotTableOlapFieldTests
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
         Assert.Contains("Sales Total", updateResult.FieldName);
         Assert.Equal("0%", updateResult.NumberFormat);
+        AssertPivotFieldFormat(sheetName, pivotName, "Sales Total", "0%");
+        AssertMeasureValue("Sales Total", 49000);
     }
 
     /// <summary>
@@ -376,12 +463,13 @@ public partial class PersistentServicePivotTableOlapFieldTests
         // This measure was created via dataModelCommands.CreateMeasure() during fixture init
         // NOT via AddValueField in this test - simulating real-world scenario
         var batch = _fixture.BatchToken;
+        var (sheetName, pivotName) = CreateIsolatedPivot("DisambiguationTable");
 
         // First, add the pre-existing ACR measure to the DisambiguationTest PivotTable
         // The measure exists in Data Model but needs to be added to PivotTable's Values area
         var addResult = _pivotCommands.AddValueField(
             batch,
-            "DisambiguationTest",
+            pivotName,
             "[Measures].[ACR]",  // Pre-existing measure from fixture
             AggregationFunction.Sum,  // Ignored for existing measures
             null);  // Keep existing name
@@ -391,7 +479,7 @@ public partial class PersistentServicePivotTableOlapFieldTests
         // Use "0%" format which is locale-independent
         var formatResult = _pivotCommands.SetFieldFormat(
             batch,
-            "DisambiguationTest",
+            pivotName,
             "[Measures].[ACR]",
             "0%");
 
@@ -399,5 +487,93 @@ public partial class PersistentServicePivotTableOlapFieldTests
         Assert.True(formatResult.Success, $"SetFieldFormat failed: {formatResult.ErrorMessage}");
         Assert.Contains("ACR", formatResult.FieldName);
         Assert.Equal("0%", formatResult.NumberFormat);
+        AssertPivotFieldFormat(sheetName, pivotName, "ACR", "0%");
     }
+
+    private (string SheetName, string PivotName) CreateIsolatedPivot(string tableName = "RegionalSalesTable")
+    {
+        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        var pivotName = $"FieldVerification_{Guid.NewGuid():N}";
+        var created = _pivotCommands.CreateFromDataModel(
+            _fixture.BatchToken, tableName, sheetName, "A1", pivotName);
+        Assert.True(created.Success, created.ErrorMessage);
+        return (sheetName, pivotName);
+    }
+
+    private void AssertPivotFieldFormat(string sheetName, string pivotName, string measureName, string expected) =>
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.PivotTables? pivots = null;
+            Excel.PivotTable? pivot = null;
+            Excel.CubeFields? cubes = null;
+            Excel.CubeField? cube = null;
+            Excel.PivotFields? fields = null;
+            Excel.PivotField? field = null;
+            try
+            {
+                sheets = context.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[sheetName];
+                pivots = (Excel.PivotTables)sheet.PivotTables();
+                pivot = pivots.Item(pivotName);
+                cubes = pivot.CubeFields;
+                cube = cubes[$"[Measures].[{measureName}]"];
+                fields = cube.PivotFields;
+                field = fields.Item(1);
+                Assert.Equal(expected, field.NumberFormat);
+            }
+            finally
+            {
+                ComUtilities.Release(ref field);
+                ComUtilities.Release(ref fields);
+                ComUtilities.Release(ref cube);
+                ComUtilities.Release(ref cubes);
+                ComUtilities.Release(ref pivot);
+                ComUtilities.Release(ref pivots);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
+
+    private void AssertMeasureValue(string measureName, double expected)
+    {
+        var result = _dataModelCommands.Evaluate(
+            _fixture.BatchToken, $"EVALUATE ROW(\"Value\", [{measureName}])");
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal("[Value]", Assert.Single(result.Columns));
+        Assert.Equal(expected, Convert.ToDouble(
+            Assert.Single(Assert.Single(result.Rows)), System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    private void AssertCubeFieldOrientation(
+        string sheetName, string pivotName, string fieldName, PivotFieldArea expected) =>
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.PivotTables? pivots = null;
+            Excel.PivotTable? pivot = null;
+            Excel.CubeFields? cubes = null;
+            Excel.CubeField? cube = null;
+            try
+            {
+                sheets = context.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[sheetName];
+                pivots = (Excel.PivotTables)sheet.PivotTables();
+                pivot = pivots.Item(pivotName);
+                cubes = pivot.CubeFields;
+                cube = cubes[fieldName];
+                Assert.Equal((int)expected, (int)cube.Orientation);
+            }
+            finally
+            {
+                ComUtilities.Release(ref cube);
+                ComUtilities.Release(ref cubes);
+                ComUtilities.Release(ref pivot);
+                ComUtilities.Release(ref pivots);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
 }

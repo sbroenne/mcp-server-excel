@@ -1,9 +1,9 @@
 ---
-title: MCP Server Documentation
-description: Complete Model Context Protocol (MCP) server reference for Excel automation — tools, actions and examples for Claude Desktop, VS Code and other MCP clients.
+title: Excel MCP Server Setup and Reference
+description: Use Excel MCP Server tools to read and write cells, refresh Power Query, manage PivotTables, and run VBA. Find usage examples, configuration, and troubleshooting.
 keywords: "Excel MCP server, Model Context Protocol, MCP tools, Claude Excel, VS Code MCP"
 ---
 
-# MCP Server Documentation
+# Excel MCP Server Setup and Reference { #mcp-server-documentation }
 
 --8<-- "_generated/mcp-server.md"

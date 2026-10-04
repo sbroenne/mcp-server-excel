@@ -342,6 +342,8 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
         var sheet = CreateData();
         Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "H1:H2", [["Amount"], [">=30"]]).Success);
         Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "E6", [["keep"]]).Success);
+        var before = _commands.GetValues(_fixture.BatchToken, sheet, "A1:H6");
+        RequireSuccess(before);
         var response = await _fixture.SendForFailureAsync("rangeedit.advanced-filter", new
         {
             sheetName = sheet,
@@ -351,11 +353,16 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
             copyToRange = "D1"
         });
         Assert.False(response.Success);
+        Assert.Equal("Conflict", response.ErrorCategory);
         Assert.Contains("$E$6", response.ErrorMessage);
         var read = _commands.GetValues(_fixture.BatchToken, sheet, "D1:E6");
         Assert.True(read.Success, read.ErrorMessage);
         Assert.Null(read.Values[0][0]);
         Assert.Equal("keep", read.Values[5][1]);
+        var after = _commands.GetValues(_fixture.BatchToken, sheet, "A1:H6");
+        RequireSuccess(after);
+        for (int row = 0; row < before.Values.Count; row++)
+            Assert.Equal(before.Values[row], after.Values[row]);
     }
 
     [Theory]
@@ -372,6 +379,7 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
     {
         var sheet = CreateData();
         Apply(sheet, null, 2, new { criteria1 = ">=30" });
+        var before = _fixture.Send("rangeedit.get-filters", new { sheetName = sheet, rangeAddress = "A1:B6" });
         using var options = JsonDocument.Parse(json);
         var response = await _fixture.SendForFailureAsync("rangeedit.apply-filter", new
         {
@@ -381,6 +389,9 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
             filterOptions = options.RootElement
         });
         Assert.False(response.Success);
+        Assert.Equal("InvalidInput", response.ErrorCategory);
+        Assert.Equal(before.Result,
+            _fixture.Send("rangeedit.get-filters", new { sheetName = sheet, rangeAddress = "A1:B6" }).Result);
         AssertVisibleRows(sheet, 4, 5, 6);
     }
 

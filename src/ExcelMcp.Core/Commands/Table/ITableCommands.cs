@@ -27,7 +27,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 /// </summary>
 [ServiceCategory("table", "Table")]
 [McpTool("table", Title = "Table Operations", Destructive = true, Category = "data",
-    Description = "Excel Tables (ListObjects) - lifecycle and data operations. SAFE CREATION: Use preflight to inspect merged cells, headers, excluded contiguous columns, formula-sort risks, and the effective range without changing the workbook. Create runs the same checks and rejects deterministic blockers; heuristic warnings remain advisory. Formula risk analysis is skipped with an explicit warning when the proposed range exceeds 100,000 cells. CONVERT TO TABLE: Write data to a range, then use create. STYLING: Pass tableStyle on create or use set-style later; never apply range_format to table headers or data rows. Prefer append/resize/rename over delete+recreate. Deleting tables used by PivotTables or the Data Model breaks those objects. Use table_column for filtering, sorting, and columns.")]
+    Description = "Excel Tables (ListObjects) - lifecycle and data operations. SAFE CREATION: Use preflight to inspect merged cells, headers, excluded contiguous columns, formula-sort risks, and the effective range without changing the workbook. Create runs the same checks and rejects deterministic blockers; heuristic warnings remain advisory. Formula risk analysis is skipped with an explicit warning when the proposed range exceeds 100,000 cells. CONVERT TO TABLE: Write data to a range, then use create. APPEND: Every input row must match the table's column count; mismatched rows are rejected before writing. STYLING: Pass tableStyle on create or use set-style later; never apply range_format to table headers or data rows. Prefer append/resize/rename over delete+recreate. Deleting tables used by PivotTables or the Data Model breaks those objects. Use table_column for filtering, sorting, and columns.")]
 public interface ITableCommands
 {
     /// <summary>
@@ -116,10 +116,11 @@ public interface ITableCommands
     /// <summary>
     /// Appends rows to an Excel Table (table auto-expands).
     /// Provide EITHER rows (inline JSON 2D array) OR rowsFile (path to .json or .csv file), not both.
+    /// Every row must match the table's column count. All row widths are checked before writing cells.
     /// </summary>
     /// <param name="tableName">Name of the table to append to (table auto-expands)</param>
-    /// <param name="rows">2D array of row data to append - column order must match table columns. Optional if rowsFile is provided.</param>
-    /// <param name="rowsFile">Path to a JSON or CSV file containing the rows to append. JSON: 2D array. CSV: rows/columns. Alternative to inline rows parameter.</param>
+    /// <param name="rows">2D array of row data to append - every row must match the table's column count and column order. Optional if rowsFile is provided.</param>
+    /// <param name="rowsFile">Path to a JSON or CSV file containing the rows to append. Every row must match the table's column count. JSON: 2D array. CSV: rows/columns. Alternative to inline rows parameter.</param>
     /// <exception cref="InvalidOperationException">Table not found or append failed</exception>
     [ServiceAction("append")]
     OperationResult Append(IExcelBatch batch, string tableName, List<List<object?>>? rows = null, string? rowsFile = null);

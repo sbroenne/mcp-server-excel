@@ -335,10 +335,11 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// <inheritdoc/>
     public PivotFieldResult SetFieldName(dynamic pivot, string fieldName, string customName, string workbookPath)
     {
-        dynamic? field = null;
+        Excel.PivotField? field = null;
         try
         {
-            field = GetFieldForManipulation(pivot, fieldName);
+            field = FindDataField((Excel.PivotTable)pivot, fieldName)
+                ?? (Excel.PivotField)GetFieldForManipulation(pivot, fieldName);
             field.Caption = customName;
 
             // NOTE: No RefreshTable() needed - Caption is a visual-only property
@@ -347,8 +348,8 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             {
                 Success = true,
                 FieldName = fieldName,
-                CustomName = customName,
-                Area = (PivotFieldArea)field.Orientation,
+                CustomName = field.Caption,
+                Area = (PivotFieldArea)(int)field.Orientation,
                 FilePath = workbookPath
             };
         }
@@ -364,30 +365,8 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
         dynamic? field = null;
         try
         {
-            // Find field in DataFields collection (value fields)
-            bool foundInDataFields = false;
-            for (int i = 1; i <= pivot.DataFields.Count; i++)
-            {
-                dynamic? dataField = null;
-                try
-                {
-                    dataField = pivot.DataFields.Item(i);
-                    string sourceName = dataField.SourceName?.ToString() ?? "";
-                    if (sourceName == fieldName)
-                    {
-                        field = dataField;
-                        foundInDataFields = true;
-                        break;
-                    }
-                }
-                finally
-                {
-                    if (!foundInDataFields && dataField != null)
-                        ComUtilities.Release(ref dataField);
-                }
-            }
-
-            if (!foundInDataFields)
+            field = FindDataField((Excel.PivotTable)pivot, fieldName);
+            if (field is null)
             {
                 field = GetFieldForManipulation(pivot, fieldName);
                 int orientation = Convert.ToInt32(field.Orientation);
@@ -436,30 +415,8 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
         dynamic? field = null;
         try
         {
-            // Find field in DataFields collection
-            bool foundInDataFields = false;
-            for (int i = 1; i <= pivot.DataFields.Count; i++)
-            {
-                dynamic? dataField = null;
-                try
-                {
-                    dataField = pivot.DataFields.Item(i);
-                    string sourceName = dataField.SourceName?.ToString() ?? "";
-                    if (sourceName == fieldName)
-                    {
-                        field = dataField;
-                        foundInDataFields = true;
-                        break;
-                    }
-                }
-                finally
-                {
-                    if (!foundInDataFields && dataField != null)
-                        ComUtilities.Release(ref dataField);
-                }
-            }
-
-            if (!foundInDataFields)
+            field = FindDataField((Excel.PivotTable)pivot, fieldName);
+            if (field is null)
             {
                 field = GetFieldForManipulation(pivot, fieldName);
                 int orientation = Convert.ToInt32(field.Orientation);
@@ -498,6 +455,38 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
         finally
         {
             ComUtilities.Release(ref field);
+        }
+    }
+
+    private static Excel.PivotField? FindDataField(Excel.PivotTable pivot, string fieldName)
+    {
+        Excel.PivotFields? fields = null;
+        try
+        {
+            fields = (Excel.PivotFields)pivot.DataFields;
+            for (var index = 1; index <= fields.Count; index++)
+            {
+                Excel.PivotField? field = null;
+                try
+                {
+                    field = fields.Item(index);
+                    if (string.Equals(field.SourceName, fieldName, StringComparison.Ordinal))
+                    {
+                        var found = field;
+                        field = null;
+                        return found;
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref field);
+                }
+            }
+            return null;
+        }
+        finally
+        {
+            ComUtilities.Release(ref fields);
         }
     }
 

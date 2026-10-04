@@ -55,7 +55,8 @@ while automating them.
 - **[Automation & advanced](https://excelmcpserver.dev/features/automation-advanced/):**
   VBA, Python in Excel, Goal Seek, scenarios, data tables, windows, and XML Maps.
 
-Explore the [complete reference for all 387 operations](https://excelmcpserver.dev/features/).
+Explore the [capabilities behind all 387 operations](https://excelmcpserver.dev/features/).
+Current command details come from CLI help or the MCP tool descriptions.
 
 ## See It in Action
 

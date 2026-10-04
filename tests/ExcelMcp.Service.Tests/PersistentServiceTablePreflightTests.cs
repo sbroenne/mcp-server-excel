@@ -31,16 +31,16 @@ public sealed partial class PersistentServiceTablePreflightTests :
 
         var batch = _fixture.BatchToken;
         _fixture.CreateNamedTestSheet(batch, "Sales");
-        _rangeCommands.SetValues(
+        RequireSuccess(_rangeCommands.SetValues(
             batch,
             "Sales",
             "A1:D5",
             [["Region", "Product", "Amount", "Date"],
-             ["North", "Widget", 100, new DateTime(2025, 1, 15)],
-             ["South", "Gadget", 250, new DateTime(2025, 2, 20)],
-             ["East", "Widget", 150, new DateTime(2025, 3, 10)],
-             ["West", "Gadget", 300, new DateTime(2025, 1, 25)]]);
-        _tableCommands.Create(
-            batch, "Sales", "SalesTable", "A1:D5", true, "TableStyleMedium2");
+             ["North", "Widget", 100, "2025-01-15"],
+             ["South", "Gadget", 250, "2025-02-20"],
+             ["East", "Widget", 150, "2025-03-10"],
+             ["West", "Gadget", 300, "2025-01-25"]]));
+        RequireSuccess(_tableCommands.Create(
+            batch, "Sales", "SalesTable", "A1:D5", true, "TableStyleMedium2"));
     }
 }

@@ -9,7 +9,10 @@ ExcelMcp is published as **two complementary plugins** in the GitHub Copilot plu
 - **`excel-mcp`** — MCP Server with 31 tools (387 operations) for conversational AI (Claude Desktop, Copilot chat)
 - **`excel-cli`** — CLI-only skill for coding agents (token-efficient, `--help` discoverable)
 
-Both plugins are maintained in a separate published repository and auto-synced from this source repo.
+Both plugins are maintained in a separate published repository and published
+from this source repo when their distributed content changes. They are also
+listed in [Awesome Copilot](https://github.com/github/awesome-copilot), the
+default marketplace in current Copilot clients.
 
 ## Distribution Architecture
 
@@ -60,7 +63,14 @@ before comparing complete prepared publication output.
 
 ## Installation
 
-Users install the two plugins directly from the GitHub Copilot CLI marketplace:
+Users can install either plugin from the default Awesome Copilot marketplace:
+
+```powershell
+copilot plugin install excel-mcp@awesome-copilot
+copilot plugin install excel-cli@awesome-copilot
+```
+
+Alternatively, install from our direct marketplace:
 
 ```powershell
 # Register the marketplace (one-time)
@@ -71,12 +81,15 @@ copilot plugin install excel-mcp@mcp-server-excel-plugins
 copilot plugin install excel-cli@mcp-server-excel-plugins
 ```
 
+Choose one marketplace per plugin. Existing direct-marketplace installations
+do not need to move; avoid duplicate installations of the same plugin.
+
 ### Excel MCP Plugin
 
 Provides the full MCP Server with 31 tools (387 operations) for conversational AI:
 
 ```powershell
-copilot plugin install excel-mcp@mcp-server-excel-plugins
+copilot plugin install excel-mcp@awesome-copilot
 ```
 
 Best for: Claude Desktop, Copilot chat, conversational interfaces.
@@ -86,7 +99,7 @@ Best for: Claude Desktop, Copilot chat, conversational interfaces.
 Provides the argument-safe npx wrapper plus skill guidance for coding agents:
 
 ```powershell
-copilot plugin install excel-cli@mcp-server-excel-plugins
+copilot plugin install excel-cli@awesome-copilot
 ```
 
 Best for: CI/CD, scripts, token-efficient coding agents.
@@ -99,7 +112,8 @@ changes beyond known release bookkeeping:
 1. **Source release** → `.github/workflows/release.yml` builds all components
 2. **Plugin comparison** → `.github/workflows/publish-plugins.yml` publishes real
    changes, or skips commit/push/tag entirely and retains the prior plugin version
-3. **Marketplace sync** → GitHub Copilot CLI discovers both plugins
+3. **Direct marketplace sync** → GitHub Copilot CLI can install current published plugins from our marketplace
+4. **Awesome Copilot listing** → An optional upstream update moves its pinned snapshots after review; publication alone does not update those listings
 
 See [Plugin Publishing Workflow Setup](../.github/workflows/docs/publish-plugins-setup.md) for maintainer details.
 Product/npm releases continue when plugins are unchanged. Plugin tags are sparse:

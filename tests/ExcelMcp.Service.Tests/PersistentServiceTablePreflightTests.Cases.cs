@@ -17,14 +17,16 @@ public sealed partial class PersistentServiceTablePreflightTests
             ["Widget", "North", 10],
             ["Gadget", "South", 20]
         ]);
+        var before = GetSourceState("Sales", "F1:H3");
 
         var result = _tableCommands.Preflight(batch, "Sales", "ExpandedTable", "G2");
 
-        Assert.True(result.Success, result.ErrorMessage);
+        RequireSuccess(result);
         Assert.True(result.SafeToCreate);
         Assert.Equal("G2", result.RequestedRange);
         Assert.Equal("$F$1:$H$3", result.EffectiveRange);
         Assert.Empty(result.Findings);
+        AssertPreflightPreserved(before, "F1:H3");
     }
 
     [Fact]
@@ -37,10 +39,13 @@ public sealed partial class PersistentServiceTablePreflightTests
             ["Widget", "North", 10],
             ["Gadget", "South", 20]
         ]);
-        _rangeCommands.MergeCells(batch, "Sales", "G2:H2");
+        RequireSuccess(_rangeCommands.MergeCells(batch, "Sales", "G2:H2"));
+        var before = GetSourceState("Sales", "F1:H3");
 
         var result = _tableCommands.Preflight(batch, "Sales", "MergedTable", "F1:H3");
 
+        RequireSuccess(result);
+        AssertPreflightPreserved(before, "F1:H3");
         Assert.False(result.SafeToCreate);
         var finding = Assert.Single(result.Findings, item => item.Kind == TablePreflightFindingKind.MergedCells);
         Assert.Equal(TablePreflightSeverity.Blocker, finding.Severity);
@@ -51,8 +56,9 @@ public sealed partial class PersistentServiceTablePreflightTests
         var exception = Assert.Throws<InvalidOperationException>(
             () => _tableCommands.Create(batch, "Sales", "MergedTable", "F1:H3"));
         Assert.Contains("merged", exception.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain(_tableCommands.List(batch).Tables, table => table.Name == "MergedTable");
-        Assert.True(_rangeCommands.GetMergeInfo(batch, "Sales", "G2:H2").IsMerged);
+        AssertPreflightPreserved(before, "F1:H3");
+        var merge = RequireSuccess(_rangeCommands.GetMergeInfo(batch, "Sales", "G2:H2"));
+        Assert.True(merge.IsMerged);
     }
 
     [Fact]
@@ -64,9 +70,12 @@ public sealed partial class PersistentServiceTablePreflightTests
             [null, "Name", " name "],
             [1, "Widget", "Duplicate"]
         ]);
+        var before = GetSourceState("Sales", "F1:H2");
 
         var result = _tableCommands.Preflight(batch, "Sales", "HeaderTable", "F1:H2");
 
+        RequireSuccess(result);
+        AssertPreflightPreserved(before, "F1:H2");
         Assert.False(result.SafeToCreate);
         var blank = Assert.Single(result.Findings, item => item.Kind == TablePreflightFindingKind.BlankHeaders);
         Assert.Equal(TablePreflightSeverity.Blocker, blank.Severity);
@@ -78,7 +87,7 @@ public sealed partial class PersistentServiceTablePreflightTests
 
         Assert.Throws<InvalidOperationException>(
             () => _tableCommands.Create(batch, "Sales", "HeaderTable", "F1:H2"));
-        Assert.DoesNotContain(_tableCommands.List(batch).Tables, table => table.Name == "HeaderTable");
+        AssertPreflightPreserved(before, "F1:H2");
     }
 
     [Fact]
@@ -91,9 +100,12 @@ public sealed partial class PersistentServiceTablePreflightTests
             ["Widget", "North", 10],
             ["Gadget", "South", 20]
         ]);
+        var before = GetSourceState("Sales", "F1:H3");
 
         var result = _tableCommands.Preflight(batch, "Sales", "NarrowTable", "F1:G3");
 
+        RequireSuccess(result);
+        AssertPreflightPreserved(before, "F1:H3");
         Assert.True(result.SafeToCreate);
         var finding = Assert.Single(
             result.Findings,
@@ -102,8 +114,15 @@ public sealed partial class PersistentServiceTablePreflightTests
         Assert.True(finding.IsHeuristic);
         Assert.Equal(["$H$1:$H$3"], finding.Addresses);
 
-        _tableCommands.Create(batch, "Sales", "NarrowTable", "F1:G3");
-        Assert.Equal("$F$1:$G$3", _tableCommands.Read(batch, "NarrowTable").Table!.Range);
+        RequireSuccess(_tableCommands.Create(batch, "Sales", "NarrowTable", "F1:G3"));
+        Assert.Equal("$F$1:$G$3", RequireSuccess(_tableCommands.Read(batch, "NarrowTable")).Table!.Range);
+        var data = RequireSuccess(_tableCommands.GetData(batch, "NarrowTable"));
+        Assert.Equal(["Name", "Region"], data.Headers);
+        Assert.Equal(["Widget", "North"], data.Data[0]);
+        Assert.Equal(["Gadget", "South"], data.Data[1]);
+        Assert.Equal(2, data.Data.Count);
+        Assert.Equal(before.Formulas.Cast<object>(), GetSourceState("Sales", "F1:H3").Formulas.Cast<object>());
+        AssertSalesData(RequireSuccess(_tableCommands.GetData(batch, "SalesTable")));
     }
 
     [Fact]
@@ -116,7 +135,7 @@ public sealed partial class PersistentServiceTablePreflightTests
             [10, null],
             [20, 40]
         ]);
-        _rangeCommands.SetFormulas(
+        RequireSuccess(_rangeCommands.SetFormulas(
             batch,
             "Sales",
             "G2:G3",
@@ -124,10 +143,13 @@ public sealed partial class PersistentServiceTablePreflightTests
                 ["=$F$2*2"],
                 ["=I3*2"]
             ],
-            overwritePolicy: OverwritePolicy.Allow);
+            overwritePolicy: OverwritePolicy.Allow));
+        var before = GetSourceState("Sales", "F1:I3");
 
         var result = _tableCommands.Preflight(batch, "Sales", "FormulaTable", "F1:G3");
 
+        RequireSuccess(result);
+        AssertPreflightPreserved(before, "F1:I3");
         Assert.True(result.SafeToCreate);
         var finding = Assert.Single(
             result.Findings,
@@ -136,8 +158,14 @@ public sealed partial class PersistentServiceTablePreflightTests
         Assert.True(finding.IsHeuristic);
         Assert.Equal(["$G$2", "$G$3"], finding.Addresses);
 
-        _tableCommands.Create(batch, "Sales", "FormulaTable", "F1:G3");
-        Assert.Contains(_tableCommands.List(batch).Tables, table => table.Name == "FormulaTable");
+        RequireSuccess(_tableCommands.Create(batch, "Sales", "FormulaTable", "F1:G3"));
+        Assert.Equal("$F$1:$G$3", RequireSuccess(_tableCommands.Read(batch, "FormulaTable")).Table!.Range);
+        var formulas = RequireSuccess(_rangeCommands.GetFormulas(batch, "Sales", "G2:G3"));
+        Assert.Equal("=$F$2*2", formulas.Formulas[0][0]);
+        Assert.Equal("=I3*2", formulas.Formulas[1][0]);
+        var values = RequireSuccess(_rangeCommands.GetValues(batch, "Sales", "G2:G3"));
+        Assert.Equal([20d, 0d], values.Values.Select(row => Convert.ToDouble(row[0], System.Globalization.CultureInfo.InvariantCulture)));
+        AssertSalesData(RequireSuccess(_tableCommands.GetData(batch, "SalesTable")));
     }
 
     [Fact]
@@ -149,9 +177,12 @@ public sealed partial class PersistentServiceTablePreflightTests
             ["Name", "Amount"],
             ["Widget", 10]
         ]);
+        var before = GetSourceState("Sales", "F1:G2");
 
         var result = _tableCommands.Preflight(batch, "Sales", "SalesTable", "F1:G2");
 
+        RequireSuccess(result);
+        AssertPreflightPreserved(before, "F1:G2");
         Assert.False(result.SafeToCreate);
         var finding = Assert.Single(
             result.Findings,
@@ -159,6 +190,8 @@ public sealed partial class PersistentServiceTablePreflightTests
         Assert.Equal(TablePreflightSeverity.Blocker, finding.Severity);
         Assert.Empty(finding.Addresses);
         Assert.Contains("already exists", finding.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Throws<InvalidOperationException>(() => _tableCommands.Create(batch, "Sales", "SalesTable", "F1:G2"));
+        AssertPreflightPreserved(before, "F1:G2");
     }
 
     [Fact]
@@ -170,7 +203,8 @@ public sealed partial class PersistentServiceTablePreflightTests
             [10, null],
             [20, 40]
         ]);
-        _rangeCommands.SetFormulas(batch, "Sales", "G1", [["=$F$1*2"]]);
+        RequireSuccess(_rangeCommands.SetFormulas(batch, "Sales", "G1", [["=$F$1*2"]]));
+        var before = GetSourceState("Sales", "F1:G2");
 
         var result = _tableCommands.Preflight(
             batch,
@@ -179,6 +213,8 @@ public sealed partial class PersistentServiceTablePreflightTests
             "F1:G2",
             hasHeaders: false);
 
+        RequireSuccess(result);
+        AssertPreflightPreserved(before, "F1:G2");
         Assert.True(result.SafeToCreate);
         Assert.DoesNotContain(
             result.Findings,
@@ -194,6 +230,7 @@ public sealed partial class PersistentServiceTablePreflightTests
     public void Preflight_OversizedRange_ReturnsExplicitFormulaScanSkippedWarning()
     {
         var batch = _fixture.BatchToken;
+        var before = GetSourceState("Sales", "A1:H5");
 
         var result = _tableCommands.Preflight(
             batch,
@@ -202,7 +239,7 @@ public sealed partial class PersistentServiceTablePreflightTests
             "A1:CV1001",
             hasHeaders: false);
 
-        Assert.True(result.Success, result.ErrorMessage);
+        RequireSuccess(result);
         Assert.True(result.SafeToCreate);
         var finding = Assert.Single(
             result.Findings,
@@ -213,10 +250,22 @@ public sealed partial class PersistentServiceTablePreflightTests
         Assert.Contains("100,100", finding.Message, StringComparison.Ordinal);
         Assert.Contains("100,000", finding.Message, StringComparison.Ordinal);
         Assert.Contains("smaller range", finding.Remediation, StringComparison.OrdinalIgnoreCase);
+        AssertPreflightPreserved(before, "A1:H5");
     }
 
     private void SetValues(IExcelBatch batch, string address, List<List<object?>> values)
     {
-        _rangeCommands.SetValues(batch, "Sales", address, values);
+        RequireSuccess(_rangeCommands.SetValues(batch, "Sales", address, values));
+    }
+
+    private void AssertPreflightPreserved(
+        (object[,] Formulas, string[] Formats, int WorkbookCount) before, string address)
+    {
+        var after = GetSourceState("Sales", address);
+        Assert.Equal(before.Formulas.Cast<object>(), after.Formulas.Cast<object>());
+        Assert.Equal(before.Formats, after.Formats);
+        Assert.Equal(before.WorkbookCount, after.WorkbookCount);
+        AssertSalesTableInfo(Assert.Single(RequireSuccess(_tableCommands.List(_fixture.BatchToken)).Tables));
+        AssertSalesData(RequireSuccess(_tableCommands.GetData(_fixture.BatchToken, "SalesTable")));
     }
 }

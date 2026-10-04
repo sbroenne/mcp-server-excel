@@ -57,10 +57,14 @@ public sealed class PersistentServiceNativeCleanupTests(PersistentServiceWorkboo
         });
         Assert.False(rejected.Success);
         Assert.Contains("$F$1", rejected.ErrorMessage);
+        var source = _commands.GetValues(_fixture.BatchToken, sheet, "A1:A2");
+        RequireSuccess(source);
+        Assert.Equal(["x,,"], source.Values[0]);
+        Assert.Equal(["\"x,y\",z"], source.Values[1]);
         var unchanged = _commands.GetValues(_fixture.BatchToken, sheet, "D1:F2");
         Assert.True(unchanged.Success, unchanged.ErrorMessage);
-        Assert.Null(unchanged.Values[0][0]);
-        Assert.Equal("protected", unchanged.Values[0][2]);
+        Assert.Equal([null, null, "protected"], unchanged.Values[0]);
+        Assert.All(unchanged.Values[1], Assert.Null);
         var response = _fixture.Send("rangeedit.text-to-columns", new
         {
             sheetName = sheet,
@@ -137,11 +141,13 @@ public sealed class PersistentServiceNativeCleanupTests(PersistentServiceWorkboo
     }
 
     [Theory]
-    [InlineData("x", "x,y,z", 3)]
-    [InlineData("x,,", "y,,", 3)]
-    [InlineData("\"x,y\",z", "\"a,b\",c", 2)]
-    [InlineData("x", "y", 1)]
-    public void TextToColumns_UsesTheCompleteNativeOutputWidth(string first, string second, int width)
+    [InlineData("x", "x,y,z", 3, "x", null, null, "x", "y", "z")]
+    [InlineData("x,,", "y,,", 3, "x", null, null, "y", null, null)]
+    [InlineData("\"x,y\",z", "\"a,b\",c", 2, "x,y", "z", null, "a,b", "c", null)]
+    [InlineData("x", "y", 1, "x", null, null, "y", null, null)]
+    public void TextToColumns_UsesTheCompleteNativeOutputWidth(string first, string second, int width,
+        string firstField, string? secondField, string? thirdField,
+        string nextFirstField, string? nextSecondField, string? nextThirdField)
     {
         var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);
         Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "A1:A2", [[first], [second]]).Success);
@@ -157,6 +163,10 @@ public sealed class PersistentServiceNativeCleanupTests(PersistentServiceWorkboo
         Assert.Equal(width, result.RootElement.GetProperty("outputColumns").GetInt32());
         var read = _commands.GetValues(_fixture.BatchToken, sheet, "D1:G2");
         Assert.True(read.Success, read.ErrorMessage);
+        string?[][] expected = [[firstField, secondField, thirdField, null],
+            [nextFirstField, nextSecondField, nextThirdField, null]];
+        for (int row = 0; row < expected.Length; row++)
+            Assert.Equal(expected[row], read.Values[row].Select(value => value is null or "" ? null : value));
         Assert.Null(read.Values[0][width]);
         Assert.Null(read.Values[1][width]);
     }
@@ -273,9 +283,11 @@ public sealed class PersistentServiceNativeCleanupTests(PersistentServiceWorkboo
         var read = _commands.GetValues(_fixture.BatchToken, sheet, $"A1:C{values.Count}");
         Assert.True(read.Success, read.ErrorMessage);
         int start = hasHeaders ? 1 : 0;
-        Assert.Equal("first", read.Values[start][2]);
-        Assert.Equal("second", read.Values[start + 1][2]);
-        Assert.Null(read.Values[start + 2][0]);
+        if (hasHeaders)
+            Assert.Equal(["One", "Two", "Keep"], read.Values[0]);
+        Assert.Equal([1, "a", "first"], read.Values[start]);
+        Assert.Equal([1, "b", "second"], read.Values[start + 1]);
+        Assert.All(read.Values[start + 2], Assert.Null);
     }
 
     [Fact]
@@ -373,10 +385,16 @@ public sealed class PersistentServiceNativeCleanupTests(PersistentServiceWorkboo
     public void RemoveDuplicates_PreviewMatchesNativeNumberFormats(string firstFormat, string secondFormat)
     {
         var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);
-        Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "A1:B3",
-            [[1.01, "first"], [1.02, "second"], [1.01, "third"]]).Success);
-        _fixture.Send("range.set-number-format", new { sheetName = sheet, rangeAddress = "A1", formatCode = firstFormat });
-        _fixture.Send("range.set-number-format", new { sheetName = sheet, rangeAddress = "A2:A3", formatCode = secondFormat });
+        var control = _fixture.CreateTestSheet(_fixture.BatchToken);
+        foreach (var target in new[] { sheet, control })
+        {
+            RequireSuccess(_commands.SetValues(_fixture.BatchToken, target, "A1:B3",
+                [[1.01, "first"], [1.02, "second"], [1.01, "third"]]));
+            _fixture.Send("range.set-number-format", new { sheetName = target, rangeAddress = "A1", formatCode = firstFormat });
+            _fixture.Send("range.set-number-format", new { sheetName = target, rangeAddress = "A2:A3", formatCode = secondFormat });
+        }
+        int expectedCount = firstFormat == secondFormat ? 2 : 3;
+        AssertNativeDuplicateSurvivors(control, "first", "second", expectedCount == 3 ? "third" : null);
         int[] keyColumns = [1];
         var response = _fixture.Send("rangeedit.remove-duplicates", new
         {
@@ -386,11 +404,16 @@ public sealed class PersistentServiceNativeCleanupTests(PersistentServiceWorkboo
             hasHeaders = false
         });
         using var result = JsonDocument.Parse(response.Result!);
-        var remaining = _commands.GetValues(_fixture.BatchToken, sheet, "B1:B3");
+        var remaining = _commands.GetValues(_fixture.BatchToken, sheet, "A1:B3");
         Assert.True(remaining.Success, remaining.ErrorMessage);
-        Assert.Equal(remaining.Values.Count(row => row[0] is not null),
-            result.RootElement.GetProperty("remainingRows").GetInt32());
-        Assert.Equal("first", remaining.Values[0][0]);
+        Assert.Equal(expectedCount, result.RootElement.GetProperty("remainingRows").GetInt32());
+        Assert.Equal(3 - expectedCount, result.RootElement.GetProperty("removedRows").GetInt32());
+        Assert.Equal([1.01d, "first"], remaining.Values[0]);
+        Assert.Equal([1.02d, "second"], remaining.Values[1]);
+        if (expectedCount == 3)
+            Assert.Equal([1.01d, "third"], remaining.Values[2]);
+        else
+            Assert.All(remaining.Values[2], Assert.Null);
     }
 
     [Theory]
@@ -456,10 +479,13 @@ public sealed class PersistentServiceNativeCleanupTests(PersistentServiceWorkboo
         Assert.False(response.Success);
         Assert.Equal("Conflict", response.ErrorCategory);
         Assert.Contains("$F$1", response.ErrorMessage);
+        var source = _commands.GetFormulas(_fixture.BatchToken, sheet, "A1");
+        RequireSuccess(source);
+        Assert.Equal("=SUBSTITUTE(\"x,y\",\",\",\"\")", source.Formulas[0][0]);
+        Assert.Equal("xy", source.Values[0][0]);
         var read = _commands.GetValues(_fixture.BatchToken, sheet, "D1:F1");
         Assert.True(read.Success, read.ErrorMessage);
-        Assert.Null(read.Values[0][0]);
-        Assert.Equal("protected", read.Values[0][2]);
+        Assert.Equal([null, null, "protected"], Assert.Single(read.Values));
     }
 
     [Theory]
@@ -476,9 +502,14 @@ public sealed class PersistentServiceNativeCleanupTests(PersistentServiceWorkboo
             "empty-formula" => [[null, "first"], [null, "second"], [null, "third"]],
             _ => throw new ArgumentOutOfRangeException(nameof(kind))
         };
-        Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "A1:B3", values).Success);
-        if (kind == "empty-formula")
-            Assert.True(_commands.SetFormulas(_fixture.BatchToken, sheet, "A2:A3", [["=\"\""], ["=\"\""]]).Success);
+        var control = _fixture.CreateTestSheet(_fixture.BatchToken);
+        foreach (var target in new[] { sheet, control })
+        {
+            RequireSuccess(_commands.SetValues(_fixture.BatchToken, target, "A1:B3", values));
+            if (kind == "empty-formula")
+                RequireSuccess(_commands.SetFormulas(_fixture.BatchToken, target, "A2:A3", [["=\"\""], ["=\"\""]]));
+        }
+        AssertNativeDuplicateSurvivors(control, "first", "second", null);
         int[] keyColumns = [1];
         var response = _fixture.Send("rangeedit.remove-duplicates", new
         {
@@ -488,11 +519,25 @@ public sealed class PersistentServiceNativeCleanupTests(PersistentServiceWorkboo
             hasHeaders = false
         });
         using var result = JsonDocument.Parse(response.Result!);
-        var remaining = _commands.GetValues(_fixture.BatchToken, sheet, "B1:B3");
+        var remaining = _commands.GetValues(_fixture.BatchToken, sheet, "A1:B3");
         Assert.True(remaining.Success, remaining.ErrorMessage);
-        Assert.Equal(remaining.Values.Count(row => row[0] is not null),
-            result.RootElement.GetProperty("remainingRows").GetInt32());
-        Assert.Equal("first", remaining.Values[0][0]);
+        const int expectedCount = 2;
+        Assert.Equal(expectedCount, result.RootElement.GetProperty("remainingRows").GetInt32());
+        Assert.Equal(3 - expectedCount, result.RootElement.GetProperty("removedRows").GetInt32());
+        Assert.Equal("first", remaining.Values[0][1]);
+        Assert.Equal(kind switch { "quoted" => "'abc", "numeric-text" => "01", _ => null },
+            remaining.Values[0][0]);
+        Assert.Equal("second", remaining.Values[1][1]);
+        if (kind == "empty-formula")
+        {
+            var formulas = _commands.GetFormulas(_fixture.BatchToken, sheet, "A2");
+            RequireSuccess(formulas);
+            Assert.Equal("=\"\"", formulas.Formulas[0][0]);
+        }
+        else
+            Assert.Equal(kind == "quoted" ? (object)"abc" : 1, remaining.Values[1][0]);
+        foreach (var row in remaining.Values.Skip(expectedCount))
+            Assert.All(row, Assert.Null);
     }
 
     [Theory]
@@ -516,10 +561,10 @@ public sealed class PersistentServiceNativeCleanupTests(PersistentServiceWorkboo
         });
         Assert.False(response.Success);
         Assert.Equal(before, ReadNativeView());
-        var read = _commands.GetValues(_fixture.BatchToken, sheet, "B1:B2");
+        var read = _commands.GetValues(_fixture.BatchToken, sheet, "A1:B2");
         Assert.True(read.Success, read.ErrorMessage);
-        Assert.Equal("first", read.Values[0][0]);
-        Assert.Equal("second", read.Values[1][0]);
+        Assert.Equal([1, "first"], read.Values[0]);
+        Assert.Equal([1, "second"], read.Values[1]);
     }
 
     [Fact]
@@ -569,5 +614,33 @@ public sealed class PersistentServiceNativeCleanupTests(PersistentServiceWorkboo
             }
         });
         return result;
+    }
+
+    private void AssertNativeDuplicateSurvivors(string sheetName, params string?[] expectedLabels)
+    {
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Worksheet? sheet = null;
+            Excel.Range? records = null;
+            Excel.Range? labels = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(sheet);
+                records = sheet.Range["A1:B3"];
+                object[] columns = [1];
+                records.RemoveDuplicates(columns, Excel.XlYesNoGuess.xlNo);
+                labels = sheet.Range["B1:B3"];
+                var values = Assert.IsType<object[,]>(labels.Value2);
+                for (int index = 0; index < expectedLabels.Length; index++)
+                    Assert.Equal(expectedLabels[index], values[index + 1, 1]);
+            }
+            finally
+            {
+                ComUtilities.Release(ref labels);
+                ComUtilities.Release(ref records);
+                ComUtilities.Release(ref sheet);
+            }
+        });
     }
 }

@@ -110,13 +110,26 @@ fetching a newer npm server does not update the installed `.mcpb`.
 
 **Best for:** GitHub Copilot CLI users who want plugin marketplace installation
 
+The plugin is listed in [Awesome Copilot](https://github.com/github/awesome-copilot),
+the default marketplace in current Copilot clients:
+
 ```powershell
-# Register the plugin marketplace (one-time)
+# Install from the default marketplace
+copilot plugin install excel-mcp@awesome-copilot
+```
+
+Alternatively, install from our direct marketplace:
+
+```powershell
+# Register our direct marketplace (one-time)
 copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 
 # Install the MCP Server plugin
 copilot plugin install excel-mcp@mcp-server-excel-plugins
 ```
+
+Choose one marketplace for `excel-mcp`; do not install both copies. Existing
+direct-marketplace installations do not need to move.
 
 **Note:** Plugin updates are published only when distributed plugin content changes.
 The plugin version can lag the product release; its npx launcher uses the latest npm runtime.
@@ -523,7 +536,7 @@ Remove the server entry from your client's configuration as well.
 |---|---|
 | Claude Desktop MCPB | Remove Excel from Claude's Settings > Extensions |
 | VS Code extension | Uninstall ExcelMcp through VS Code Extensions |
-| Copilot plugin | `copilot plugin uninstall excel-mcp@mcp-server-excel-plugins` |
+| Copilot plugin | `copilot plugin uninstall excel-mcp@awesome-copilot`; use `excel-mcp@mcp-server-excel-plugins` instead if installed from the direct marketplace |
 | npm through npx | Remove the client configuration; no global installation to uninstall |
 | Standalone ZIP / NuGet | Use the commands below |
 
@@ -557,7 +570,7 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.McpServer
 After installation:
 
 1. **Learn the basics:** Try simple commands like creating worksheets, setting values
-2. **Explore features:** See the [Feature Reference](../FEATURES.md) for the complete tool list
+2. **Explore features:** See the [feature overview](../FEATURES.md) for capabilities; the MCP tool descriptions provide current actions and inputs.
 3. **Read the guides:**
    - [CLI Installation Guide](INSTALLATION-CLI.md) - for scripting, RPA, and CI/CD
    - [Agent Skills](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-mcp/skills/excel-mcp-report-formatting) - cross-platform AI guidance

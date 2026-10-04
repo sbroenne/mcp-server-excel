@@ -34,16 +34,35 @@ public sealed class PersistentServiceChartDepthTests(PersistentServiceWorkbookFi
     [InlineData("StandardError", null, "NoCap")]
     public void ErrorBars_AllCalculatedKindsAndClearRoundTrip(string kind, double? amount, string endStyle)
     {
-        var (_, chartName) = CreateChart();
+        var (sheet, chartName) = CreateChart();
         _fixture.Send("chartconfig.set-error-bars", new { chartName, seriesIndex = 1, errorBarOptions = new { kind, amount, endStyle } });
         var response = _fixture.Send("chartconfig.get-error-bars", new { chartName, seriesIndex = 1 });
         using var state = JsonDocument.Parse(response.Result!);
         Assert.True(state.RootElement.GetProperty("hasErrorBars").GetBoolean());
         Assert.Equal(endStyle, state.RootElement.GetProperty("endStyle").GetString());
+        XNamespace charts = "http://schemas.openxmlformats.org/drawingml/2006/chart";
+        var bars = Assert.Single(ReadSavedChartXml(sheet).Descendants(charts + "errBars"));
+        Assert.Equal(kind switch
+        {
+            "Fixed" => "fixedVal",
+            "Percent" => "percentage",
+            "StandardDeviation" => "stdDev",
+            "StandardError" => "stdErr",
+            _ => throw new ArgumentOutOfRangeException(nameof(kind))
+        }, bars.Element(charts + "errValType")!.Attribute("val")!.Value);
+        Assert.Equal("both", bars.Element(charts + "errBarType")!.Attribute("val")!.Value);
+        // Excel omits direction for column charts, which only support vertical error bars.
+        Assert.Null(bars.Element(charts + "errDir"));
+        Assert.Equal(endStyle == "NoCap", (bool?)bars.Element(charts + "noEndCap")?.Attribute("val") ?? false);
+        if (amount.HasValue)
+            Assert.Equal(amount.Value, (double)bars.Element(charts + "val")!.Attribute("val")!);
+        else
+            Assert.Null(bars.Element(charts + "val"));
         _fixture.Send("chartconfig.set-error-bars", new { chartName, seriesIndex = 1, errorBarOptions = new { enabled = false } });
         var cleared = _fixture.Send("chartconfig.get-error-bars", new { chartName, seriesIndex = 1 });
         using var clear = JsonDocument.Parse(cleared.Result!);
         Assert.False(clear.RootElement.GetProperty("hasErrorBars").GetBoolean());
+        Assert.Empty(ReadSavedChartXml(sheet).Descendants(charts + "errBars"));
     }
 
     [Theory]
@@ -78,7 +97,7 @@ public sealed class PersistentServiceChartDepthTests(PersistentServiceWorkbookFi
     [Fact]
     public void HorizontalErrorBars_WorkForNativeScatterSeries()
     {
-        var (_, chartName) = CreateChart();
+        var (sheet, chartName) = CreateChart();
         _fixture.Send("chartconfig.set-chart-type", new { chartName, chartType = "XYScatter" });
         var response = _fixture.Send("chartconfig.set-error-bars", new
         {
@@ -88,6 +107,11 @@ public sealed class PersistentServiceChartDepthTests(PersistentServiceWorkbookFi
         });
         using var state = JsonDocument.Parse(response.Result!);
         Assert.True(state.RootElement.GetProperty("hasErrorBars").GetBoolean());
+        XNamespace charts = "http://schemas.openxmlformats.org/drawingml/2006/chart";
+        var bars = Assert.Single(ReadSavedChartXml(sheet).Descendants(charts + "errBars"));
+        Assert.Equal("x", bars.Element(charts + "errDir")!.Attribute("val")!.Value);
+        Assert.Equal("fixedVal", bars.Element(charts + "errValType")!.Attribute("val")!.Value);
+        Assert.Equal(2d, (double)bars.Element(charts + "val")!.Attribute("val")!);
     }
 
     [Fact]
@@ -99,6 +123,7 @@ public sealed class PersistentServiceChartDepthTests(PersistentServiceWorkbookFi
         using var state = JsonDocument.Parse(response.Result!);
         Assert.Equal("#FF0000", state.RootElement.GetProperty("fillColor").GetString());
         Assert.Equal("#0000FF", state.RootElement.GetProperty("lineColor").GetString());
+        Assert.Equal(2d, state.RootElement.GetProperty("lineWeight").GetDouble());
         var other = _fixture.Send("chartconfig.get-point-format", new { chartName, seriesIndex = 1, pointIndex = 1 });
         using var unchanged = JsonDocument.Parse(other.Result!);
         Assert.NotEqual("#FF0000", unchanged.RootElement.GetProperty("fillColor").GetString());

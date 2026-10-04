@@ -16,14 +16,11 @@ public sealed partial class PersistentServicePowerQueryFormattingTests
         var batch = _fixture.BatchToken;
 
         // Create query without remote formatting opt-in
-        _queries.Create(batch, queryName, unformattedMCode, PowerQueryLoadMode.ConnectionOnly);
+        RequireSuccess(_queries.Create(batch, queryName, unformattedMCode, PowerQueryLoadMode.ConnectionOnly));
         _fixture.RegisterPowerQueryForCleanup(queryName);
 
         // Retrieve and verify
-        var viewResult = _queries.View(batch, queryName);
-        Assert.True(viewResult.Success, $"View failed: {viewResult.ErrorMessage}");
-
-        Assert.Equal(unformattedMCode, viewResult.MCode);
+        AssertStoredM(queryName, unformattedMCode);
     }
 
     /// <summary>
@@ -45,17 +42,17 @@ in
         var batch = _fixture.BatchToken;
 
         // Create query
-        _queries.Create(batch, queryName, originalMCode, PowerQueryLoadMode.ConnectionOnly);
+        RequireSuccess(_queries.Create(batch, queryName, originalMCode, PowerQueryLoadMode.ConnectionOnly));
         _fixture.RegisterPowerQueryForCleanup(queryName);
+        AssertStoredM(queryName, originalMCode);
 
         // Update without remote formatting opt-in
-        _queries.Update(batch, queryName, unformattedUpdate, refresh: false);
+        RequireSuccess(_queries.Update(batch, queryName, unformattedUpdate, refresh: false));
 
         // Retrieve and verify
-        var viewResult = _queries.View(batch, queryName);
-        Assert.True(viewResult.Success, $"View failed: {viewResult.ErrorMessage}");
-
-        Assert.Equal(unformattedUpdate, viewResult.MCode);
+        AssertStoredM(queryName, unformattedUpdate);
+        AssertEvaluatedM(unformattedUpdate, ["A", "B"], [[3, 4]]);
+        AssertStoredM(queryName, unformattedUpdate);
     }
 
     /// <summary>
@@ -81,14 +78,14 @@ in
         var batch = _fixture.BatchToken;
 
         // Create query with pre-formatted M code
-        _queries.Create(batch, queryName, preformattedMCode, PowerQueryLoadMode.ConnectionOnly);
+        RequireSuccess(_queries.Create(batch, queryName, preformattedMCode, PowerQueryLoadMode.ConnectionOnly));
         _fixture.RegisterPowerQueryForCleanup(queryName);
 
         // Retrieve and verify
-        var viewResult = _queries.View(batch, queryName);
-        Assert.True(viewResult.Success, $"View failed: {viewResult.ErrorMessage}");
-
-        Assert.Equal(preformattedMCode, viewResult.MCode);
+        AssertStoredM(queryName, preformattedMCode);
+        AssertEvaluatedM(preformattedMCode, ["ProductID", "ProductName", "Price"],
+            [[1, "Widget", 10.99], [2, "Gadget", 25.50]]);
+        AssertStoredM(queryName, preformattedMCode);
     }
 
     /// <summary>
@@ -101,14 +98,36 @@ in
         var queryName = $"Test_Empty_{Guid.NewGuid():N}"[..30];
 
         var batch = _fixture.BatchToken;
-
-        // Empty M code should fail validation (not reach formatter)
-        Assert.Throws<ArgumentException>(() =>
-            _queries.Create(batch, queryName, "", PowerQueryLoadMode.ConnectionOnly));
-
-        // Whitespace-only M code should also fail
-        Assert.Throws<ArgumentException>(() =>
-            _queries.Create(batch, queryName, "   ", PowerQueryLoadMode.ConnectionOnly));
+        var guardName = $"FormatGuard_{Guid.NewGuid():N}"[..30];
+        const string guardM = "#table(type table [A = number, B = number], {{7,14},{9,18}})";
+        RequireSuccess(_queries.Create(batch, guardName, guardM,
+            PowerQueryLoadMode.LoadToTable, guardName));
+        _fixture.RegisterPowerQueryForCleanup(guardName);
+        _fixture.RegisterSheetForCleanup(guardName);
+        Assert.Equal(guardM, RequireSuccess(_queries.View(batch, guardName)).MCode);
+        var expectedCells = new List<List<object?>> { new() { "A", "B" }, new() { 7, 14 }, new() { 9, 18 } };
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(expectedCells),
+            System.Text.Json.JsonSerializer.Serialize(
+                RequireSuccess(_commands.GetValues(batch, guardName, "A1:B3")).Values));
+        var before = System.Text.Json.JsonSerializer.Serialize(
+            RequireSuccess(_queries.List(batch)).Queries);
+        var loadBefore = System.Text.Json.JsonSerializer.Serialize(
+            RequireSuccess(_queries.GetLoadConfig(batch, guardName)));
+        foreach (var invalidM in new[] { "", "   " })
+        {
+            var error = Assert.Throws<ArgumentException>(() =>
+                _queries.Create(batch, queryName, invalidM, PowerQueryLoadMode.ConnectionOnly));
+            Assert.Contains("mCode", error.Message, StringComparison.Ordinal);
+            Assert.Contains("InvalidInput/ArgumentException", error.Message, StringComparison.Ordinal);
+            Assert.Equal(before, System.Text.Json.JsonSerializer.Serialize(
+                RequireSuccess(_queries.List(batch)).Queries));
+            Assert.Equal(guardM, RequireSuccess(_queries.View(batch, guardName)).MCode);
+            Assert.Equal(loadBefore, System.Text.Json.JsonSerializer.Serialize(
+                RequireSuccess(_queries.GetLoadConfig(batch, guardName))));
+            Assert.Equal(System.Text.Json.JsonSerializer.Serialize(expectedCells),
+                System.Text.Json.JsonSerializer.Serialize(
+                    RequireSuccess(_commands.GetValues(batch, guardName, "A1:B3")).Values));
+        }
     }
 
     /// <summary>
@@ -126,48 +145,12 @@ in
         var batch = _fixture.BatchToken;
 
         // Create query
-        _queries.Create(batch, queryName, mCode, PowerQueryLoadMode.ConnectionOnly);
+        RequireSuccess(_queries.Create(batch, queryName, mCode, PowerQueryLoadMode.ConnectionOnly));
         _fixture.RegisterPowerQueryForCleanup(queryName);
 
         // View twice - should return same result each time
-        var viewResult1 = _queries.View(batch, queryName);
-        var viewResult2 = _queries.View(batch, queryName);
-
-        Assert.True(viewResult1.Success);
-        Assert.True(viewResult2.Success);
-
-        // M code should be identical on both reads (no re-formatting on read)
-        Assert.Equal(viewResult1.MCode, viewResult2.MCode);
-    }
-
-    /// <summary>
-    /// Tests that List returns queries with M code intact.
-    /// Verifies that list operation doesn't affect stored M code.
-    /// </summary>
-    [Fact]
-    public void List_AfterCreate_ReturnsQueryWithMCode()
-    {
-        var queryName = $"Test_ListQuery_{Guid.NewGuid():N}"[..30];
-
-        // Unformatted M code
-        var unformattedMCode = "let Source=1,Result=Source+1 in Result";
-
-        var batch = _fixture.BatchToken;
-
-        // Create query
-        _queries.Create(batch, queryName, unformattedMCode, PowerQueryLoadMode.ConnectionOnly);
-        _fixture.RegisterPowerQueryForCleanup(queryName);
-
-        // List queries
-        var listResult = _queries.List(batch);
-        Assert.True(listResult.Success, $"List failed: {listResult.ErrorMessage}");
-
-        // Find our query
-        var query = listResult.Queries.FirstOrDefault(q => q.Name == queryName);
-        Assert.NotNull(query);
-
-        // Verify query has M code preview
-        Assert.False(string.IsNullOrEmpty(query.FormulaPreview));
+        AssertStoredM(queryName, mCode);
+        AssertStoredM(queryName, mCode);
     }
 
     /// <summary>
@@ -185,18 +168,13 @@ in
         var batch = _fixture.BatchToken;
 
         // Create query without remote formatting opt-in
-        _queries.Create(batch, queryName, complexMCode, PowerQueryLoadMode.ConnectionOnly);
+        RequireSuccess(_queries.Create(batch, queryName, complexMCode, PowerQueryLoadMode.ConnectionOnly));
         _fixture.RegisterPowerQueryForCleanup(queryName);
 
         // Retrieve and verify
-        var viewResult = _queries.View(batch, queryName);
-        Assert.True(viewResult.Success, $"View failed: {viewResult.ErrorMessage}");
-
-        Assert.Equal(complexMCode, viewResult.MCode);
-
-        // Verify the query can still be viewed without errors (formatting didn't corrupt it)
-        var verifyResult = _queries.View(batch, queryName);
-        Assert.True(verifyResult.Success);
+        AssertStoredM(queryName, complexMCode);
+        AssertEvaluatedM(complexMCode, ["A", "B", "C", "Sum"], [[4, 5, 6, 15], [7, 8, 9, 24]]);
+        AssertStoredM(queryName, complexMCode);
     }
 
     /// <summary>
@@ -217,18 +195,84 @@ in
         var batch = _fixture.BatchToken;
 
         // Create query
-        _queries.Create(batch, queryName, createMCode, PowerQueryLoadMode.ConnectionOnly);
+        RequireSuccess(_queries.Create(batch, queryName, createMCode, PowerQueryLoadMode.ConnectionOnly));
         _fixture.RegisterPowerQueryForCleanup(queryName);
 
-        var afterCreate = _queries.View(batch, queryName);
-        Assert.True(afterCreate.Success);
-        Assert.Equal(createMCode, afterCreate.MCode);
+        AssertStoredM(queryName, createMCode);
 
         // Update query
-        _queries.Update(batch, queryName, updateMCode, refresh: false);
+        RequireSuccess(_queries.Update(batch, queryName, updateMCode, refresh: false));
 
-        var afterUpdate = _queries.View(batch, queryName);
-        Assert.True(afterUpdate.Success);
-        Assert.Equal(updateMCode, afterUpdate.MCode);
+        AssertStoredM(queryName, updateMCode);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Update_WithEmptyMCode_PreservesStoredQuery(string invalidM)
+    {
+        var name = $"FormatReject_{Guid.NewGuid():N}"[..30];
+        const string mCode = "#table({\"Value\"}, {{17},{29}})";
+        RequireSuccess(_queries.Create(_fixture.BatchToken, name, mCode, PowerQueryLoadMode.ConnectionOnly));
+        _fixture.RegisterPowerQueryForCleanup(name);
+        AssertStoredM(name, mCode);
+        var before = System.Text.Json.JsonSerializer.Serialize(
+            RequireSuccess(_queries.List(_fixture.BatchToken)).Queries);
+        var error = Assert.Throws<ArgumentException>(() =>
+            _queries.Update(_fixture.BatchToken, name, invalidM, refresh: false));
+        Assert.Contains("mCode", error.Message, StringComparison.Ordinal);
+        Assert.Contains("InvalidInput/ArgumentException", error.Message, StringComparison.Ordinal);
+        Assert.Equal(before, System.Text.Json.JsonSerializer.Serialize(
+            RequireSuccess(_queries.List(_fixture.BatchToken)).Queries));
+        AssertStoredM(name, mCode);
+        AssertEvaluatedM(mCode, ["Value"], [[17], [29]]);
+        AssertStoredM(name, mCode);
+    }
+
+    private void AssertStoredM(string name, string mCode)
+    {
+        var view = RequireSuccess(_queries.View(_fixture.BatchToken, name));
+        Assert.Equal(name, view.QueryName);
+        Assert.Equal(mCode, view.MCode);
+        Assert.Equal(mCode.Length, view.CharacterCount);
+        Assert.Equal(PowerQueryLoadMode.ConnectionOnly, view.LoadMode);
+        Assert.True(view.IsConnectionOnly);
+        Assert.False(view.HasConnection);
+        Assert.False(view.IsLoadedToDataModel);
+        Assert.Null(view.TargetSheet);
+        var listed = Assert.Single(RequireSuccess(_queries.List(_fixture.BatchToken)).Queries,
+            query => query.Name == name);
+        Assert.Equal(mCode.Length > 80 ? mCode[..77] + "..." : mCode, listed.FormulaPreview);
+        Assert.Equal(mCode.Length, listed.CharacterCount);
+        Assert.Equal(PowerQueryLoadMode.ConnectionOnly, listed.LoadMode);
+        Assert.True(listed.IsConnectionOnly);
+        Assert.False(listed.IsLoadedToDataModel);
+        Assert.Null(listed.TargetSheet);
+    }
+
+    private void AssertEvaluatedM(string mCode, string[] columns, object[][] rows)
+    {
+        var result = RequireSuccess(_queries.Evaluate(_fixture.BatchToken, mCode));
+        Assert.Equal(mCode, result.MCode);
+        Assert.Equal(columns, result.Columns);
+        Assert.Equal(columns.Length, result.ColumnCount);
+        Assert.Equal(rows.Length, result.RowCount);
+        Assert.Equal(rows.Length, result.Rows.Count);
+        for (var row = 0; row < rows.Length; row++)
+        {
+            Assert.Equal(columns.Length, result.Rows[row].Count);
+            for (var column = 0; column < columns.Length; column++)
+            {
+                if (rows[row][column] is string text)
+                {
+                    Assert.Equal(text, Assert.IsType<string>(result.Rows[row][column]));
+                }
+                else
+                {
+                    Assert.Equal(Convert.ToDecimal(rows[row][column], System.Globalization.CultureInfo.InvariantCulture),
+                        Convert.ToDecimal(result.Rows[row][column], System.Globalization.CultureInfo.InvariantCulture));
+                }
+            }
+        }
     }
 }

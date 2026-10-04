@@ -2,9 +2,9 @@
 
   <PropertyGroup>
     <!-- Common properties for all projects -->
-    <Version>2.1.3</Version>
-    <AssemblyVersion>2.1.3.0</AssemblyVersion>
-    <FileVersion>2.1.3.0</FileVersion>
+    <Version>2.2.0</Version>
+    <AssemblyVersion>2.2.0.0</AssemblyVersion>
+    <FileVersion>2.2.0.0</FileVersion>
     <Authors>Stefan Broenner</Authors>
     <Company>Open Source Developer</Company>
     <Product>Sbroenne.ExcelMcp</Product>
@@ -75,11 +75,11 @@
     processes tracked for the selected pipe. Restricting this target to the CLI
     project prevents parallel solution builds from launching cleanup clients
     that lock the CLI output.
-    Skipped in CI (no Excel/Service there).
+    Skipped on hosted CI, but retained on self-hosted desktops with live daemons.
   -->
   <Target Name="StopExcelMcpProcesses"
           BeforeTargets="BeforeBuild"
-          Condition="'$(MSBuildProjectName)' == 'ExcelMcp.CLI' AND '$(CI)' != 'true' AND '$(ExcelMcpSkipCleanup)' != 'true'">
+          Condition="'$(MSBuildProjectName)' == 'ExcelMcp.CLI' AND ('$(CI)' != 'true' OR '$(RUNNER_ENVIRONMENT)' == 'self-hosted') AND '$(ExcelMcpSkipCleanup)' != 'true'">
     <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\Stop-ExcelMcpProcesses.ps1&quot;"
           StandardOutputImportance="low" />
   </Target>

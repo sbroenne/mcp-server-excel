@@ -1,0 +1,82 @@
+name: Excel Runner Control
+
+on:
+  issues:
+    types: [assigned]
+  workflow_run:
+    workflows: [Copilot cloud agent, Excel Runner Validation]
+    types: [requested, completed]
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: excel-runner-control
+  queue: max
+  cancel-in-progress: false
+
+jobs:
+  control:
+    if: >-
+      vars.EXCEL_RUNNER_ENABLED == 'true' &&
+      (github.event_name != 'issues' ||
+       (github.actor == github.event.repository.owner.login &&
+        github.event.assignee.id == 198982749 &&
+        github.event.assignee.type == 'Bot' &&
+        github.event.issue.state == 'open' &&
+        !github.event.issue.pull_request))
+    runs-on: ubuntu-26.04
+    timeout-minutes: ${{ github.event_name == 'issues' && 110 || 35 }}
+    environment: excel-runner-control
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: azure/login@935127ca5bb3c4b02c9c2c10060028383878f33f # v3
+        with:
+          client-id: ${{ vars.EXCEL_RUNNER_AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.EXCEL_RUNNER_AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.EXCEL_RUNNER_AZURE_SUBSCRIPTION_ID }}
+      - name: Protect the entire coding job and control the VM
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $arguments = @{ Confirm = $false }
+          if ($env:GITHUB_EVENT_NAME -eq 'issues') {
+              $arguments.WaitForDemandSeconds = 300
+              $arguments.FollowAdmittedJob = $true
+          }
+          & .\scripts\Invoke-ExcelRunnerControl.ps1 @arguments
+
+  alert:
+    if: failure() && vars.EXCEL_RUNNER_ENABLED == 'true'
+    needs: control
+    runs-on: ubuntu-26.04
+    permissions:
+      issues: write
+    steps:
+      - name: Report unsafe admission or failed cleanup
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $raw = gh issue list --state open --search '"Excel runner control needs attention" in:title' --json number
+          if ($LASTEXITCODE -ne 0) { throw 'Control alert discovery failed.' }
+          $alerts = $raw | ConvertFrom-Json
+          if (@($alerts).Count -eq 0) {
+            gh issue create --title 'Excel runner control needs attention' `
+              --body "Hosted control failed. Keep unsafe admission disabled. Logs: $env:RUN_URL"
+            if ($LASTEXITCODE -ne 0) { throw 'Control alert creation failed.' }
+          }

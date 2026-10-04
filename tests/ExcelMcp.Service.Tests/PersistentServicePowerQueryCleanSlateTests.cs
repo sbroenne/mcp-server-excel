@@ -29,18 +29,23 @@ public sealed class PersistentServicePowerQueryCleanSlateTests(
         const string mCode =
             "let Source = #table({\"Val\"}, {{1}}) in Source";
 
-        _queries.Create(
+        RequireSuccess(_queries.Create(
             _fixture.BatchToken,
             queryName,
             mCode,
-            PowerQueryLoadMode.LoadToTable);
+            PowerQueryLoadMode.LoadToTable));
         _fixture.RegisterPowerQueryForCleanup(queryName);
         _fixture.RegisterSheetForCleanup(queryName);
-        _queries.Delete(_fixture.BatchToken, queryName);
+        PowerQueryStateAssertions.AssertStored(_fixture, queryName, mCode,
+            PowerQueryLoadMode.LoadToTable, queryName, ["Val"], [[1]]);
+        RequireSuccess(_queries.Delete(_fixture.BatchToken, queryName));
         _fixture.ForgetPowerQuery(queryName);
 
-        Assert.Empty(_queries.List(_fixture.BatchToken).Queries);
-        Assert.Empty(_connections.List(_fixture.BatchToken).Connections);
-        Assert.Empty(_tables.List(_fixture.BatchToken).Tables);
+        PowerQueryStateAssertions.AssertRemoved(_fixture, queryName);
+        Assert.Empty(RequireSuccess(_queries.List(_fixture.BatchToken)).Queries);
+        Assert.Empty(RequireSuccess(_connections.List(_fixture.BatchToken)).Connections);
+        Assert.Empty(RequireSuccess(_tables.List(_fixture.BatchToken)).Tables);
+        Assert.All(RequireSuccess(_commands.GetValues(_fixture.BatchToken, queryName, "A1:A2")).Values,
+            row => Assert.All(row, Assert.Null));
     }
 }

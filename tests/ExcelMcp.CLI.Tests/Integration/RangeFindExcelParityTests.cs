@@ -54,6 +54,16 @@ public sealed class RangeFindExcelParityTests : IAsyncLifetime
             Assert.Equal(limit ?? 10, root.GetProperty("returnedCount").GetInt32());
             Assert.Equal(limit ?? 10, root.GetProperty("matchingCells").GetArrayLength());
             Assert.True(root.GetProperty("truncated").GetBoolean());
+            var matches = root.GetProperty("matchingCells").EnumerateArray().ToArray();
+            Assert.Equal(matches.Length, matches.Select(cell => cell.GetProperty("address").GetString()).Distinct().Count());
+            foreach (var cell in matches)
+            {
+                int row = cell.GetProperty("row").GetInt32();
+                Assert.InRange(row, 1, 25);
+                Assert.Equal(1, cell.GetProperty("column").GetInt32());
+                Assert.Equal($"$A${row}", cell.GetProperty("address").GetString());
+                Assert.Equal("Apple", cell.GetProperty("value").GetString());
+            }
         }
     }
 }

@@ -396,16 +396,42 @@ export function writesEnabled(env) {
         env.PREVIEW === 'false' && env.GH_AW_SAFE_OUTPUTS_STAGED !== 'true';
 }
 
+const templateElements = /^#{1,6} .+$|^- \[[ xX]\] .+$|<!--[\s\S]*?-->/gm;
+
 export function assertTemplate(template, body) {
     template = template.replace(/\r\n/g, '\n');
     body = body.replace(/\r\n/g, '\n').replace(/^(- \[)[xX](\] .*)$/gm, '$1 $2');
-    const elements = template.match(/^#{1,6} .+$|^- \[[ xX]\] .+$|<!--[\s\S]*?-->/gm) ?? [];
+    const elements = template.match(templateElements) ?? [];
     let position = 0;
     for (const element of elements) {
         const found = body.indexOf(element.replace(/^(- \[)[xX](\] .*)$/gm, '$1 $2'), position);
         if (found < 0) throw new Error('PR body must preserve upstream template headings, comments, checklist items and order.');
         position = found + element.length;
     }
+}
+
+export function restoreTemplateComments(template, body) {
+    template = template.replace(/\r\n/g, '\n');
+    body = body.replace(/\r\n/g, '\n');
+    assertTemplate(template.replace(/<!--[\s\S]*?-->/g, comment => body.includes(comment) ? comment : ''), body);
+    let position = 0;
+    for (const element of template.match(templateElements) ?? []) {
+        const normalizedBody = body.replace(/^(- \[)[xX](\] .*)$/gm, '$1 $2');
+        const found = normalizedBody.indexOf(element.replace(/^(- \[)[xX](\] .*)$/gm, '$1 $2'), position);
+        if (found < 0) {
+            if (!element.startsWith('<!--')) {
+                throw new Error('PR body must preserve upstream template headings, comments, checklist items and order.');
+            }
+            // Safe-output sanitization removes HTML comments; restore only the trusted upstream template's comments.
+            const insertion = `\n\n${element}\n`;
+            body = body.slice(0, position) + insertion + body.slice(position);
+            position += insertion.length;
+        } else {
+            position = found + element.length;
+        }
+    }
+    assertTemplate(template, body);
+    return body;
 }
 
 function verifyLive(plan) {
@@ -491,14 +517,14 @@ export function submit({ trustedPlan, output, workDirectory, env = process.env }
     safeUpdaterPath(templatePath);
     const templateMode = git(upstream, ['ls-tree', 'HEAD', '--', '.github/pull_request_template.md']).toString();
     if (!/^100(644|755) blob /.test(templateMode)) throw new Error('Unsafe upstream PR template Git mode.');
-    assertTemplate(fs.readFileSync(safeUpdaterPath(templatePath), 'utf8'), request.body);
+    const templateBody = restoreTemplateComments(fs.readFileSync(safeUpdaterPath(templatePath), 'utf8'), request.body).trimEnd();
     git(upstream, ['config', 'user.name', 'Excel Plugin Updates']);
     git(upstream, ['config', 'user.email', '3026464+sbroenne@users.noreply.github.com']);
     git(upstream, ['add', '--', ...allowedPaths]);
     git(upstream, ['commit', '--quiet', '-m', `Update Excel plugin listings (${fresh.state.proposalFingerprint})`]);
     const head = resolveCommit(upstream, 'HEAD');
-    const state = { ...fresh.state, head, bodyFingerprint: hash(request.body.trimEnd()) };
-    const body = `${request.body.trimEnd()}\n\n${stateMarker(state)}`;
+    const state = { ...fresh.state, head, bodyFingerprint: hash(templateBody) };
+    const body = `${templateBody}\n\n${stateMarker(state)}`;
     verifyLive(fresh);
     const receipt = createSubmissionReceipt(fresh, head, body);
     const receiptFile = path.join(workDirectory, 'submission-receipt.json');

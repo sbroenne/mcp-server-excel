@@ -180,9 +180,6 @@ public partial class DataModelCommands
                 result.CharacterCount = result.DaxFormula.Length;
                 result.TableName = GetMeasureTableName(model!, measureName) ?? "";
 
-                // Try to get format information - FormatInformation returns ModelFormat* objects
-                // (ModelFormatGeneral, ModelFormatCurrency, ModelFormatDecimalNumber, etc.)
-                // These don't have a FormatString property - they have type-specific properties
                 object? formatInfo = null;
                 try
                 {

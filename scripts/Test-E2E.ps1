@@ -10,6 +10,7 @@
     3. Independent MCP workflow scenarios.
 
     Defaults to all stages. A focused -Stages run is not complete acceptance.
+    The script fails if any gate fails or if a required filter matches no tests.
 
 .EXAMPLE
     & .\scripts\Test-E2E.ps1

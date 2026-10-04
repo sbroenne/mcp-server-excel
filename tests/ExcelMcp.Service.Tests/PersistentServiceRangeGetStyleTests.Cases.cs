@@ -27,7 +27,7 @@ public sealed partial class PersistentServiceRangeGetStyleTests
         var sheetName = _fixture.CreateTestSheet(batch);
 
         // Set a style first
-        _commands.SetStyle(batch, sheetName, "A1", "Heading 1");
+        RequireSuccess(_commands.SetStyle(batch, sheetName, "A1", "Heading 1"));
 
         // Now get the style
         var getResult = _commands.GetStyle(batch, sheetName, "A1");
@@ -47,9 +47,9 @@ public sealed partial class PersistentServiceRangeGetStyleTests
         var sheetName = _fixture.CreateTestSheet(batch);
 
         // Set different styles on different cells
-        _commands.SetStyle(batch, sheetName, "A1", "Heading 1");
-        _commands.SetStyle(batch, sheetName, "B1", "Accent1");
-        _commands.SetStyle(batch, sheetName, "C1", "Currency");
+        RequireSuccess(_commands.SetStyle(batch, sheetName, "A1", "Heading 1"));
+        RequireSuccess(_commands.SetStyle(batch, sheetName, "B1", "Accent1"));
+        RequireSuccess(_commands.SetStyle(batch, sheetName, "C1", "Currency"));
 
         // Get the styles
         var getHeading1 = _commands.GetStyle(batch, sheetName, "A1");
@@ -78,7 +78,7 @@ public sealed partial class PersistentServiceRangeGetStyleTests
         var sheetName = _fixture.CreateTestSheet(batch);
 
         // Set style on entire range (this applies to all cells in the range)
-        _commands.SetStyle(batch, sheetName, "A1:C3", "Good");
+        RequireSuccess(_commands.SetStyle(batch, sheetName, "A1:C3", "Good"));
 
         // Get style for entire range (should return first cell's style)
         var getResult = _commands.GetStyle(batch, sheetName, "A1:C3");
@@ -95,14 +95,19 @@ public sealed partial class PersistentServiceRangeGetStyleTests
         // Arrange & Act & Assert - Should throw when Excel COM rejects invalid range
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
-        var exception = Assert.ThrowsAny<Exception>(
+        RequireSuccess(_commands.SetValues(batch, sheetName, "A1", [["retained"]]));
+        RequireSuccess(_commands.SetStyle(batch, sheetName, "A1", "Good"));
+        var before = PersistentServiceRangeVerification.ReadFormat(_fixture, sheetName, "A1");
+        var exception = Assert.Throws<InvalidOperationException>(
             () => _commands.GetStyle(batch, sheetName, "InvalidRange"));
 
-        // Verify exception is related to range access
-        Assert.NotNull(exception.Message);
+        Assert.Contains("rangeformat.get-style failed [ComInterop/", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(before, PersistentServiceRangeVerification.ReadFormat(_fixture, sheetName, "A1"));
+        Assert.Equal("Good", RequireSuccess(_commands.GetStyle(batch, sheetName, "A1")).StyleName);
+        Assert.Equal("retained", Assert.Single(Assert.Single(
+            RequireSuccess(_commands.GetValues(batch, sheetName, "A1")).Values)));
     }
 }
-
 
 
 

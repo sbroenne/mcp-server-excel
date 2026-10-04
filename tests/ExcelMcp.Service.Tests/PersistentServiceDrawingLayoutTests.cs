@@ -143,7 +143,16 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
     public void Distribution_UsesEqualGapsWithDifferentObjectSizes(string distribution, string position, string size)
     {
         var sheet = CreateObjects();
-        _fixture.Send("drawing.update-object", new { sheetName = sheet, objectName = "Second", width = 60d, height = 10d });
+        _fixture.Send("drawing.update-object", new
+        {
+            sheetName = sheet,
+            objectName = "Second",
+            left = 130d,
+            top = 75d,
+            width = 60d,
+            height = 10d
+        });
+        var before = ReadNativeGeometry(sheet);
         var response = _fixture.Send("drawing.distribute-objects", new
         {
             sheetName = sheet,
@@ -159,6 +168,31 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
         Assert.Equal(firstGap, secondGap, 2);
         Assert.Equal(20d, objects[0].GetProperty(position).GetDouble(), 2);
         Assert.Equal(distribution == "Horizontal" ? 200d : 90d, objects[2].GetProperty(position).GetDouble(), 2);
+        var after = ReadNativeGeometry(sheet);
+        Assert.Equal(before.Keys.Order(), after.Keys.Order());
+        bool horizontal = distribution == "Horizontal";
+        double expectedGap = horizontal
+            ? (before["Third"].Left - before["First"].Left - before["First"].Width - before["Second"].Width) / 2
+            : (before["Third"].Top - before["First"].Top - before["First"].Height - before["Second"].Height) / 2;
+        Assert.NotEqual(horizontal ? before["Second"].Left : before["Second"].Top,
+            horizontal ? after["Second"].Left : after["Second"].Top);
+        Assert.Equal(expectedGap, horizontal
+            ? after["Second"].Left - after["First"].Left - after["First"].Width
+            : after["Second"].Top - after["First"].Top - after["First"].Height, 2);
+        Assert.Equal(expectedGap, horizontal
+            ? after["Third"].Left - after["Second"].Left - after["Second"].Width
+            : after["Third"].Top - after["Second"].Top - after["Second"].Height, 2);
+        foreach (var name in before.Keys)
+        {
+            Assert.Equal(before[name].Width, after[name].Width, 2);
+            Assert.Equal(before[name].Height, after[name].Height, 2);
+            Assert.Equal(horizontal ? before[name].Top : before[name].Left,
+                horizontal ? after[name].Top : after[name].Left, 2);
+        }
+        Assert.Equal(horizontal ? before["First"].Left : before["First"].Top,
+            horizontal ? after["First"].Left : after["First"].Top, 2);
+        Assert.Equal(horizontal ? before["Third"].Left : before["Third"].Top,
+            horizontal ? after["Third"].Left : after["Third"].Top, 2);
     }
 
     [Theory]
@@ -174,6 +208,7 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
         using var document = JsonDocument.Parse(response.Result!);
         var result = Assert.Single(document.RootElement.GetProperty("drawingObjects").EnumerateArray());
         Assert.Equal(expected, result.GetProperty("zOrderPosition").GetInt32());
+        Assert.Equal(expected, ReadNativeOrderAndAction(sheet, name).Position);
     }
 
     [Fact]
@@ -259,14 +294,22 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
         var sheet = CreateObjects();
         var before = _fixture.Send("drawing.list-objects", new { sheetName = sheet }).Result;
         _fixture.Send("sheet.set-protection", new { sheetName = sheet, isProtected = true });
-        using var input = JsonDocument.Parse(args);
-        var values = input.RootElement.EnumerateObject().ToDictionary(property => property.Name, property => (object?)property.Value);
-        values["sheetName"] = sheet;
-        var response = await _fixture.SendForFailureAsync($"drawing.{action}", values);
-        Assert.False(response.Success);
-        Assert.Contains("protected", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-        _fixture.Send("sheet.set-protection", new { sheetName = sheet, isProtected = false });
-        Assert.Equal(before, _fixture.Send("drawing.list-objects", new { sheetName = sheet }).Result);
+        var failure = await Record.ExceptionAsync(async () =>
+        {
+            using var input = JsonDocument.Parse(args);
+            var values = input.RootElement.EnumerateObject().ToDictionary(property => property.Name, property => (object?)property.Value);
+            values["sheetName"] = sheet;
+            var response = await _fixture.SendForFailureAsync($"drawing.{action}", values);
+            Assert.False(response.Success);
+            Assert.Contains("protected", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(before, _fixture.Send("drawing.list-objects", new { sheetName = sheet }).Result);
+        });
+        var cleanup = Record.Exception(() =>
+            _fixture.Send("sheet.set-protection", new { sheetName = sheet, isProtected = false }));
+        if (cleanup is not null)
+            failure = PersistentServiceCleanupFailures.Combine(failure, cleanup);
+        if (failure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
     [Fact]
@@ -295,12 +338,16 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
                 ComUtilities.Release(ref sheets);
             }
         });
+        var before = _fixture.Send("drawing.list-objects", new { sheetName = sheet }).Result;
+        var actionBefore = ReadNativeOrderAndAction(sheet, "First");
         var response = await _fixture.SendForFailureAsync("drawing.duplicate-object", new { sheetName = sheet, objectName = "First" });
         Assert.False(response.Success);
         Assert.Contains("macro", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         var list = _fixture.Send("drawing.list-objects", new { sheetName = sheet });
         using var document = JsonDocument.Parse(list.Result!);
         Assert.Equal(3, document.RootElement.GetProperty("drawingObjects").GetArrayLength());
+        Assert.Equal(before, list.Result);
+        Assert.Equal(actionBefore, ReadNativeOrderAndAction(sheet, "First"));
     }
 
     private string CreateObjects()
@@ -318,6 +365,28 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
         var drawing = result.RootElement.GetProperty("drawingObject");
         return (drawing.GetProperty("left").GetDouble(), drawing.GetProperty("top").GetDouble());
     }
+
+    private (int Position, string Action) ReadNativeOrderAndAction(string sheetName, string name) =>
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Worksheet? sheet = null;
+            Excel.Shapes? shapes = null;
+            Excel.Shape? shape = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(sheet);
+                shapes = sheet.Shapes;
+                shape = shapes.Item(name);
+                return (shape.ZOrderPosition, shape.OnAction);
+            }
+            finally
+            {
+                ComUtilities.Release(ref shape);
+                ComUtilities.Release(ref shapes);
+                ComUtilities.Release(ref sheet);
+            }
+        });
 
     private Dictionary<string, (double Left, double Top, double Width, double Height)> ReadNativeGeometry(string sheet) =>
         _fixture.ExecuteRawVerification((context, _) =>

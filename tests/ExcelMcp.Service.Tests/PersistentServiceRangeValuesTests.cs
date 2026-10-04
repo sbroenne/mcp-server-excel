@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Commands.Range;
+using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -22,6 +23,13 @@ public abstract class PersistentServiceWorkbookTestBase(
         fixture.CreateScope();
 
     public Task InitializeAsync() => Task.CompletedTask;
+
+    protected static T RequireSuccess<T>(T result) where T : ResultBase
+    {
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.True(string.IsNullOrEmpty(result.ErrorMessage), result.ErrorMessage);
+        return result;
+    }
 
     public async Task DisposeAsync() => await _fixture.DisposeAsync();
 }

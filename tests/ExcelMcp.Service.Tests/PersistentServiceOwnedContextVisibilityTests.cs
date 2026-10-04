@@ -46,6 +46,25 @@ public sealed class PersistentServiceOwnedContextVisibilityTests(
         Assert.Equal("range", window.GetProperty("selectionKind").GetString());
         Assert.Equal("$C$5", window.GetProperty("selectedRangeAddress").GetString());
         Assert.Equal("$C$5", window.GetProperty("activeCellAddress").GetString());
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Worksheet? sheet = null;
+            Excel.Range? selection = null;
+            try
+            {
+                sheet = context.Book.ActiveSheet as Excel.Worksheet;
+                selection = context.App.Selection as Excel.Range;
+                Assert.NotNull(sheet);
+                Assert.NotNull(selection);
+                Assert.Equal(sheetName, sheet.Name);
+                Assert.Equal("$C$5", selection.Address);
+            }
+            finally
+            {
+                ComUtilities.Release(ref selection);
+                ComUtilities.Release(ref sheet);
+            }
+        });
     }
 
     [Theory]
@@ -59,6 +78,12 @@ public sealed class PersistentServiceOwnedContextVisibilityTests(
             _fixture.Send("rangeformat.set-row-height", new { sheetName, rangeAddress, rowHeight = size });
         else
             _fixture.Send("rangeformat.set-column-width", new { sheetName, rangeAddress, columnWidth = size });
+        var baseline = _fixture.Send("rangeformat.get-visibility", new { sheetName, rangeAddress = inspect, axis });
+        using var original = JsonDocument.Parse(baseline.Result!);
+        var dimensions = original.RootElement.GetProperty("items").EnumerateArray()
+            .Select(item => (Index: item.GetProperty("index").GetInt32(), Size: item.GetProperty("size").GetDouble()))
+            .ToArray();
+        Assert.Equal(2, dimensions.Length);
         _fixture.Send("rangeformat.set-visibility", new { sheetName, rangeAddress, axis, hidden = true });
         var hidden = _fixture.Send("rangeformat.get-visibility", new { sheetName, rangeAddress = inspect, axis });
         using (var read = JsonDocument.Parse(hidden.Result!))
@@ -73,10 +98,11 @@ public sealed class PersistentServiceOwnedContextVisibilityTests(
         _fixture.Send("rangeformat.set-visibility", new { sheetName, rangeAddress, axis, hidden = false });
         var shown = _fixture.Send("rangeformat.get-visibility", new { sheetName, rangeAddress = inspect, axis });
         using var result = JsonDocument.Parse(shown.Result!);
+        Assert.Equal(dimensions, result.RootElement.GetProperty("items").EnumerateArray()
+            .Select(item => (Index: item.GetProperty("index").GetInt32(), Size: item.GetProperty("size").GetDouble())));
         Assert.All(result.RootElement.GetProperty("items").EnumerateArray(), item =>
         {
             Assert.False(item.GetProperty("hidden").GetBoolean());
-            Assert.Equal(size, item.GetProperty("size").GetDouble(), precision: 1);
         });
     }
 
@@ -155,7 +181,7 @@ public sealed class PersistentServiceOwnedContextVisibilityTests(
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
         Excel.Workbook? foreign = null;
-        try
+        PersistentServiceCleanupFailures.Run(() =>
         {
             _fixture.ExecuteRawVerification((context, _) =>
             {
@@ -209,22 +235,18 @@ public sealed class PersistentServiceOwnedContextVisibilityTests(
                     ComUtilities.Release(ref selected);
                 }
             });
-        }
-        finally
+        }, () =>
         {
             _fixture.ExecuteRawVerification((context, _) =>
             {
-                try
-                {
-                    foreign?.Close(SaveChanges: false);
-                }
-                finally
-                {
-                    ComUtilities.Release(ref foreign);
-                    context.Book.Activate();
-                }
+                PersistentServiceCleanupFailures.Run(() => { }, () =>
+                    {
+                        try { foreign?.Close(SaveChanges: false); }
+                        finally { ComUtilities.Release(ref foreign); }
+                    },
+                    () => context.Book.Activate());
             });
-        }
+        });
     }
 
     [Fact]
@@ -312,6 +334,7 @@ public sealed class PersistentServiceOwnedContextVisibilityTests(
     public async Task Visibility_ProtectionFailureLeavesDimensionsUnchanged()
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        _fixture.Send("rangeformat.set-row-height", new { sheetName, rangeAddress = "A2:A4", rowHeight = 29d });
         _fixture.ExecuteRawVerification((context, _) =>
         {
             Excel.Worksheet? sheet = null;
@@ -326,17 +349,18 @@ public sealed class PersistentServiceOwnedContextVisibilityTests(
                 ComUtilities.Release(ref sheet);
             }
         });
-        try
+        var before = _fixture.Send("rangeformat.get-visibility", new { sheetName, rangeAddress = "A1:A5", axis = "rows" });
+        var failure = await Record.ExceptionAsync(async () =>
         {
-            var failure = await _fixture.SendForFailureAsync("rangeformat.set-visibility", new
+            var rejected = await _fixture.SendForFailureAsync("rangeformat.set-visibility", new
             {
                 sheetName,
                 rangeAddress = "A2:A4",
                 axis = "rows",
                 hidden = true
             });
-            Assert.False(failure.Success);
-            Assert.False(string.IsNullOrEmpty(failure.ErrorMessage));
+            Assert.False(rejected.Success);
+            Assert.False(string.IsNullOrEmpty(rejected.ErrorMessage));
             var response = _fixture.Send("rangeformat.get-visibility", new
             {
                 sheetName,
@@ -344,10 +368,11 @@ public sealed class PersistentServiceOwnedContextVisibilityTests(
                 axis = "rows"
             });
             using var result = JsonDocument.Parse(response.Result!);
+            Assert.Equal(before.Result, response.Result);
             Assert.All(result.RootElement.GetProperty("items").EnumerateArray(),
                 item => Assert.False(item.GetProperty("hidden").GetBoolean()));
-        }
-        finally
+        });
+        var cleanup = Record.Exception(() =>
         {
             _fixture.ExecuteRawVerification((context, _) =>
             {
@@ -363,7 +388,11 @@ public sealed class PersistentServiceOwnedContextVisibilityTests(
                     ComUtilities.Release(ref sheet);
                 }
             });
-        }
+        });
+        if (cleanup is not null)
+            failure = PersistentServiceCleanupFailures.Combine(failure, cleanup);
+        if (failure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
     [Fact]
@@ -429,7 +458,7 @@ public sealed class PersistentServiceOwnedContextVisibilityWindowLifecycleTests(
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
         Excel.Window? second = null;
         bool originalVisibility = false;
-        try
+        PersistentServiceCleanupFailures.Run(() =>
         {
             _fixture.ExecuteRawVerification((context, _) =>
             {
@@ -464,21 +493,39 @@ public sealed class PersistentServiceOwnedContextVisibilityWindowLifecycleTests(
             Assert.Equal(originalVisibility, result.RootElement.GetProperty("isApplicationVisible").GetBoolean());
             _fixture.ExecuteRawVerification((context, _) =>
             {
+                Excel.Windows? ownedWindows = null;
+                Excel.Window? ownedWindow = null;
                 Excel.Range? selected = null;
                 try
                 {
                     Assert.Equal(originalVisibility, context.App.Visible);
-                    selected = second!.Selection as Excel.Range;
-                    Assert.NotNull(selected);
-                    Assert.Equal("$D$7", selected.Address);
+                    ownedWindows = context.Book.Windows;
+                    var addresses = new List<string>();
+                    for (var index = 1; index <= ownedWindows.Count; index++)
+                    {
+                        try
+                        {
+                            ownedWindow = ownedWindows.Item[index];
+                            selected = ownedWindow.Selection as Excel.Range;
+                            Assert.NotNull(selected);
+                            addresses.Add(selected.Address);
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref selected);
+                            ComUtilities.Release(ref ownedWindow);
+                        }
+                    }
+                    Assert.Equal(["$C$5", "$D$7"], addresses.Order(StringComparer.Ordinal));
                 }
                 finally
                 {
                     ComUtilities.Release(ref selected);
+                    ComUtilities.Release(ref ownedWindow);
+                    ComUtilities.Release(ref ownedWindows);
                 }
             });
-        }
-        finally
+        }, () =>
         {
             _fixture.ExecuteRawVerification((context, _) =>
             {
@@ -491,7 +538,7 @@ public sealed class PersistentServiceOwnedContextVisibilityWindowLifecycleTests(
                     ComUtilities.Release(ref second);
                 }
             });
-        }
+        });
     }
 
     [Fact]
@@ -528,6 +575,7 @@ public sealed class PersistentServiceOwnedContextVisibilityWindowLifecycleTests(
             axis = "rows"
         });
         using var result = JsonDocument.Parse(response.Result!);
+        Assert.Equal(2, result.RootElement.GetProperty("items").GetArrayLength());
         Assert.All(result.RootElement.GetProperty("items").EnumerateArray(), item =>
         {
             Assert.True(item.GetProperty("hidden").GetBoolean());

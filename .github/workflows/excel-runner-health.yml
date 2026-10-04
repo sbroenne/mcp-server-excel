@@ -1,0 +1,50 @@
+name: Excel Runner Maintenance Health
+
+on:
+  schedule:
+    - cron: '43 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  issues: write
+
+jobs:
+  check:
+    if: vars.EXCEL_RUNNER_ENABLED == 'true'
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Require recent successful maintenance and report failures
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $raw = gh api "repos/$env:GH_REPO/actions/workflows/excel-runner-maintenance.yml/runs?per_page=20"
+          if ($LASTEXITCODE -ne 0) { throw 'Maintenance history is unavailable.' }
+          $runs = ($raw | ConvertFrom-Json).workflow_runs
+          $last = @($runs | Where-Object { $_.status -eq 'completed' -and $_.conclusion -eq 'success' } | Select-Object -First 1)
+          $active = @($runs | Where-Object status -NE 'completed')
+          $newest = @($runs | Select-Object -First 1)
+          $failedLatest = $newest.Count -eq 1 -and $newest[0].status -eq 'completed' -and $newest[0].conclusion -ne 'success'
+          if (-not $failedLatest -and $last.Count -eq 1 -and [DateTime]::Parse($last[0].updated_at).ToUniversalTime() -ge [DateTime]::UtcNow.AddDays(-8)) {
+            Write-Output 'Maintenance is current.'
+            exit 0
+          }
+          $raw = gh issue list --repo $env:GH_REPO --state open --search '"Excel runner maintenance overdue" in:title' --json number,title
+          if ($LASTEXITCODE -ne 0) { throw 'Alert discovery failed.' }
+          $alerts = $raw | ConvertFrom-Json
+          if (@($alerts).Count -eq 0) {
+            gh issue create --repo $env:GH_REPO --title 'Excel runner maintenance overdue' `
+              --body 'Windows/Excel maintenance failed or is overdue. Admission stays blocked until maintenance and desktop checks succeed. Daily health makes at most one retry a day; do not reset activation or bypass readiness.'
+            if ($LASTEXITCODE -ne 0) { throw 'Could not create the maintenance alert.' }
+          }
+          $recentAttempt = $newest.Count -eq 1 -and [DateTime]::Parse($newest[0].created_at).ToUniversalTime() -gt [DateTime]::UtcNow.AddHours(-24)
+          if ($active.Count -eq 0 -and -not $recentAttempt) {
+            gh workflow run excel-runner-maintenance.yml --repo $env:GH_REPO --ref $env:DEFAULT_BRANCH
+            if ($LASTEXITCODE -ne 0) { throw 'Automatic maintenance retry could not be scheduled.' }
+            Write-Output 'One protected maintenance retry scheduled.'
+          }
+          throw 'Excel runner maintenance is overdue or has not succeeded.'

@@ -1,4 +1,7 @@
+using System.Globalization;
+using Sbroenne.ExcelMcp.ComInterop;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -33,27 +36,14 @@ public sealed partial class PersistentServiceRangeSpecializedTests
         var sheetName = _fixture.CreateTestSheet(batch);
 
         // Set test value
-        _commands.SetValues(batch, sheetName, "A1", [[1234.56]]);
+        RequireSuccess(_commands.SetValues(batch, sheetName, "A1", [[1234.56]]));
 
         // Apply LCID-based currency format
-        _commands.SetNumberFormat(batch, sheetName, "A1", FormatCurrencyLCID);
+        RequireSuccess(_commands.SetNumberFormat(batch, sheetName, "A1", FormatCurrencyLCID));
 
         // Act - Read the displayed text and stored format directly from Excel
-        string displayedText = string.Empty;
-        string storedFormat = string.Empty;
-        string storedFormatLocal = string.Empty;
-        string expectedText = string.Empty;
-        object rawValue = null!;
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[sheetName];
-            dynamic cell = sheet.Range["A1"];
-            displayedText = cell.Text?.ToString() ?? string.Empty;
-            storedFormat = cell.NumberFormat?.ToString() ?? string.Empty;
-            storedFormatLocal = cell.NumberFormatLocal?.ToString() ?? string.Empty;
-            rawValue = cell.Value2;
-            expectedText = $"$1{ctx.FormatTranslator.ThousandsSeparator}234{ctx.FormatTranslator.DecimalSeparator}56";
-        });
+        var (displayedText, storedFormat, storedFormatLocal, rawValue) = ReadNumberDisplay(sheetName);
+        var expectedText = ExpectedCurrencyDisplay();
 
         // Diagnostics
         _output.WriteLine($"Format applied: {FormatCurrencyLCID}");
@@ -78,30 +68,30 @@ public sealed partial class PersistentServiceRangeSpecializedTests
         var sheetName = _fixture.CreateTestSheet(batch);
 
         // Set test value
-        _commands.SetValues(batch, sheetName, "A1", [[1234.56]]);
+        RequireSuccess(_commands.SetValues(batch, sheetName, "A1", [[1234.56]]));
 
         // Apply format using NumberFormatLocal directly (locale-specific separators)
         // In German locale: , is decimal separator, . is thousands separator
         _fixture.ExecuteRawVerification((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets[sheetName];
-            dynamic cell = sheet.Range["A1"];
-            // Use NumberFormatLocal with German-style separators (matching system locale)
-            cell.NumberFormatLocal = "$#.##0,00";  // German style: . = thousands, , = decimal
+            Excel.Worksheet? sheet = null;
+            Excel.Range? cell = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
+                cell = sheet.Range["A1"];
+                cell.NumberFormatLocal =
+                    $"$#{ctx.FormatTranslator.ThousandsSeparator}##0{ctx.FormatTranslator.DecimalSeparator}00";
+            }
+            finally
+            {
+                ComUtilities.Release(ref cell);
+                ComUtilities.Release(ref sheet);
+            }
         });
 
         // Act - Read the displayed text
-        string displayedText = string.Empty;
-        string storedFormat = string.Empty;
-        string storedFormatLocal = string.Empty;
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[sheetName];
-            dynamic cell = sheet.Range["A1"];
-            displayedText = cell.Text?.ToString() ?? string.Empty;
-            storedFormat = cell.NumberFormat?.ToString() ?? string.Empty;
-            storedFormatLocal = cell.NumberFormatLocal?.ToString() ?? string.Empty;
-        });
+        var (displayedText, storedFormat, storedFormatLocal, rawValue) = ReadNumberDisplay(sheetName);
 
         // Diagnostics
         _output.WriteLine($"Format applied (NumberFormatLocal): $#.##0,00");
@@ -110,9 +100,8 @@ public sealed partial class PersistentServiceRangeSpecializedTests
         _output.WriteLine($"Displayed text: '{displayedText}'");
 
         // Assert
-        Assert.False(string.IsNullOrEmpty(displayedText), "Cell should display formatted text");
-        Assert.Contains("$", displayedText); // Currency symbol
-        // Should have thousands separator and 2 decimal places
+        Assert.Equal(ExpectedCurrencyDisplay(), displayedText);
+        Assert.Equal(1234.56, rawValue);
     }
 
     /// <summary>
@@ -126,25 +115,18 @@ public sealed partial class PersistentServiceRangeSpecializedTests
         var sheetName = _fixture.CreateTestSheet(batch);
 
         // Set test value (0.25 should display as 25.00%)
-        _commands.SetValues(batch, sheetName, "A1", [[0.25]]);
-        _commands.SetNumberFormat(batch, sheetName, "A1", FormatPercentage);
+        RequireSuccess(_commands.SetValues(batch, sheetName, "A1", [[0.25]]));
+        RequireSuccess(_commands.SetNumberFormat(batch, sheetName, "A1", FormatPercentage));
 
         // Act - Read the displayed text
-        string displayedText = string.Empty;
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[sheetName];
-            dynamic cell = sheet.Range["A1"];
-            displayedText = cell.Text?.ToString() ?? string.Empty;
-        });
+        var (displayedText, _, _, rawValue) = ReadNumberDisplay(sheetName);
 
         // Assert
         _output.WriteLine($"Value: 0.25, Format: {FormatPercentage}");
         _output.WriteLine($"Displayed text: '{displayedText}'");
 
-        Assert.False(string.IsNullOrEmpty(displayedText), "Cell should display formatted text");
-        Assert.Contains("%", displayedText); // Percentage symbol displayed
-        Assert.Contains("25", displayedText); // Value multiplied by 100
+        Assert.Equal($"25{ReadDecimalSeparator()}00%", displayedText);
+        Assert.Equal(0.25, rawValue);
     }
 
     /// <summary>
@@ -159,31 +141,44 @@ public sealed partial class PersistentServiceRangeSpecializedTests
         var sheetName = _fixture.CreateTestSheet(batch);
 
         // Set large value to test thousands separator
-        _commands.SetValues(batch, sheetName, "A1", [[1234567.89]]);
-        _commands.SetNumberFormat(batch, sheetName, "A1", FormatNumber);
+        RequireSuccess(_commands.SetValues(batch, sheetName, "A1", [[1234567.89]]));
+        RequireSuccess(_commands.SetNumberFormat(batch, sheetName, "A1", FormatNumber));
 
         // Act - Read the displayed text
-        string displayedText = string.Empty;
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[sheetName];
-            dynamic cell = sheet.Range["A1"];
-            displayedText = cell.Text?.ToString() ?? string.Empty;
-        });
+        var (displayedText, _, _, rawValue) = ReadNumberDisplay(sheetName);
 
         // Assert
         _output.WriteLine($"Value: 1234567.89, Format: {FormatNumber}");
         _output.WriteLine($"Displayed text: '{displayedText}'");
 
-        Assert.False(string.IsNullOrEmpty(displayedText), "Cell should display formatted text");
-        // Formatted number includes thousands separator (comma or period depending on locale)
-        Assert.True(
-            displayedText.Contains("1234567") || displayedText.Contains("1,234,567") || displayedText.Contains("1.234.567"),
-            $"Number portion should be present, got: {displayedText}");
-        // Decimal separator depends on locale (. or ,)
-        Assert.True(
-            displayedText.Contains("89") || displayedText.Contains(",89") || displayedText.Contains(".89"),
-            $"Decimal portion should be displayed, got: {displayedText}");
+        var thousands = _fixture.ExecuteRawVerification((ctx, _) => ctx.FormatTranslator.ThousandsSeparator);
+        Assert.Equal($"1{thousands}234{thousands}567{ReadDecimalSeparator()}89", displayedText);
+        Assert.Equal(1234567.89, rawValue);
     }
-}
 
+    private string ExpectedCurrencyDisplay() =>
+        _fixture.ExecuteRawVerification((ctx, _) =>
+            $"$1{ctx.FormatTranslator.ThousandsSeparator}234{ctx.FormatTranslator.DecimalSeparator}56");
+
+    private (string Text, string Format, string LocalFormat, double Value) ReadNumberDisplay(string sheetName) =>
+        _fixture.ExecuteRawVerification((ctx, _) =>
+        {
+            Excel.Worksheet? sheet = null;
+            Excel.Range? cell = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
+                cell = sheet.Range["A1"];
+                string text = Convert.ToString(cell.Text, CultureInfo.InvariantCulture) ?? string.Empty;
+                string format = Convert.ToString(cell.NumberFormat, CultureInfo.InvariantCulture) ?? string.Empty;
+                string localFormat = Convert.ToString(cell.NumberFormatLocal, CultureInfo.InvariantCulture) ?? string.Empty;
+                double value = Convert.ToDouble(cell.Value2, CultureInfo.InvariantCulture);
+                return (text, format, localFormat, value);
+            }
+            finally
+            {
+                ComUtilities.Release(ref cell);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+}

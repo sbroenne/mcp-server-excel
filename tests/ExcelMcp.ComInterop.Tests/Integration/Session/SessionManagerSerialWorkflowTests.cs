@@ -26,8 +26,8 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 /// - These tests: SessionManager API (like CLI daemon uses)
 /// - Focus: Session lifecycle, reopen, metadata cleanup
 ///
-/// EXPECTED OUTCOME (if bug still exists):
-/// - These tests should FAIL (RED) because SessionManager recovery path has gaps
+/// A timed-out batch remains registered while its process is alive. It rejects
+/// further work until force-close removes it and permits reopening the file.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Slow")]
@@ -41,6 +41,7 @@ public class SessionManagerSerialWorkflowTests : IDisposable
     private readonly ITestOutputHelper _output;
     private readonly string _tempDir;
     private readonly List<string> _testFiles = [];
+    private readonly OwnedExcelProcessScope _owned = new();
 
     private static readonly string TemplateFilePath = Path.Combine(
         Path.GetDirectoryName(typeof(SessionManagerSerialWorkflowTests).Assembly.Location)!,
@@ -57,19 +58,7 @@ public class SessionManagerSerialWorkflowTests : IDisposable
     {
         GC.SuppressFinalize(this);
 
-        foreach (var file in _testFiles.Where(File.Exists))
-        {
-#pragma warning disable CA1031 // Intentional: best-effort test cleanup
-            try { File.Delete(file); } catch (Exception) { /* best effort */ }
-#pragma warning restore CA1031
-        }
-
-        if (Directory.Exists(_tempDir))
-        {
-#pragma warning disable CA1031
-            try { Directory.Delete(_tempDir, recursive: true); } catch (Exception) { /* best effort */ }
-#pragma warning restore CA1031
-        }
+        SessionTestCleanup.AssertExitedAndDelete(_owned, _testFiles, _tempDir);
     }
 
     private string CreateTestFile(string testName)
@@ -81,29 +70,13 @@ public class SessionManagerSerialWorkflowTests : IDisposable
     }
 
     /// <summary>
-    /// REGRESSION TEST: After timeout, subsequent GetSession on same session ID should handle poisoned state.
-    ///
-    /// WORKFLOW:
-    /// 1. CreateSession → sessionId
-    /// 2. GetSession(sessionId) → batch
-    /// 3. batch.Execute → timeout
-    /// 4. GetSession(sessionId) again → what happens?
-    ///
-    /// EXPECTED (if bug exists): Test FAILS because:
-    /// - GetSession returns the poisoned batch that keeps failing
-    /// - OR GetSession returns null but session isn't cleaned from ActiveSessionCount
-    /// - Caller has no clear recovery path
-    ///
-    /// EXPECTED (if bug fixed): Test PASSES because:
-    /// - GetSession returns null after timeout (session auto-cleaned)
-    /// - OR GetSession returns batch but operations fail fast with useful errors
-    /// - ActiveSessionCount is accurate
+    /// A live but poisoned batch stays registered and rejects follow-up callbacks.
     /// </summary>
     [Fact]
-    public void SerialWorkflow_GetSessionAfterTimeout_ReturnsNullOrFailsFast()
+    public void SerialWorkflow_GetSessionAfterTimeout_RetainsPoisonedBatchAndRejectsFollowUp()
     {
         // Arrange
-        var testFile = CreateTestFile(nameof(SerialWorkflow_GetSessionAfterTimeout_ReturnsNullOrFailsFast));
+        var testFile = CreateTestFile(nameof(SerialWorkflow_GetSessionAfterTimeout_RetainsPoisonedBatchAndRejectsFollowUp));
         using var manager = new SessionManager();
 
         var sessionId = manager.CreateSessionWithTimeouts(
@@ -117,7 +90,7 @@ public class SessionManagerSerialWorkflowTests : IDisposable
         Assert.NotNull(batch);
 
         // Warm up
-        batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets[1]; return 0; });
+        SessionWorkbookAssertions.AssertIdentity(batch, testFile);
 
         // Trigger timeout
         _output.WriteLine("Triggering timeout...");
@@ -134,36 +107,26 @@ public class SessionManagerSerialWorkflowTests : IDisposable
         _output.WriteLine("Getting session after timeout...");
         var batchAfterTimeout = manager.GetSession(sessionId);
 
-        // Assert: Either null (cleaned) or still present but operations fail fast
-        if (batchAfterTimeout == null)
+        Assert.Same(batch, batchAfterTimeout);
+        Assert.Equal(sessionId, Assert.Single(manager.ActiveSessionIds));
+        Assert.True(batch.HasTimedOutOperation);
+        var callbackRan = false;
+        var sw = Stopwatch.StartNew();
+        var ex = Assert.Throws<TimeoutException>(() => batch.Execute((_, _) =>
         {
-            _output.WriteLine("  Session returned null — session was auto-cleaned");
-            Assert.Equal(0, manager.ActiveSessionCount);
-        }
-        else
-        {
-            _output.WriteLine("  Session still exists — testing if operations fail fast");
-
-            var sw = Stopwatch.StartNew();
-            var ex = Assert.Throws<TimeoutException>(() =>
-            {
-                batchAfterTimeout.Execute((ctx, ct) =>
-                {
-                    dynamic sheet = ctx.Book.Worksheets[1];
-                    return sheet.Name?.ToString() ?? "unknown";
-                });
-            });
-            sw.Stop();
-
-            _output.WriteLine($"  Operation threw in {sw.Elapsed.TotalMilliseconds:F0}ms: {ex.Message}");
-
-            // REGRESSION ASSERTION: If session still exists, operations must fail FAST
-            Assert.True(sw.Elapsed < TimeSpan.FromSeconds(1),
-                $"REGRESSION: Operation after timeout took {sw.Elapsed.TotalSeconds:F1}s. " +
-                "Expected < 1s. Session is poisoned but not failing fast.");
-        }
+            callbackRan = true;
+            return 42;
+        }));
+        sw.Stop();
+        Assert.Contains("previous operation", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.False(callbackRan);
+        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(1),
+            $"Follow-up rejection took {sw.Elapsed.TotalSeconds:F1}s; expected < 1s.");
 
         Assert.True(manager.CloseSession(sessionId, save: false, force: true));
+        Assert.Empty(manager.ActiveSessionIds);
+        Assert.Null(manager.GetSession(sessionId));
+        _owned.AssertAllExited();
         _output.WriteLine("✓ GetSession after timeout test passed");
     }
 
@@ -199,9 +162,8 @@ public class SessionManagerSerialWorkflowTests : IDisposable
             show: false,
             operationTimeout: TimeSpan.FromSeconds(3),
             startupTimeout: ComInteropConstants.DefaultOperationTimeout);
-        var sessionA = manager.GetSession(sessionAId)!;
-
-        sessionA.Execute((ctx, ct) => { _ = ctx.Book.Worksheets[1]; return 0; });
+        var sessionA = Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(sessionAId));
+        SessionWorkbookAssertions.AssertIdentity(sessionA, testFile);
 
         _output.WriteLine("  Triggering timeout in Session A...");
         Assert.Throws<TimeoutException>(() =>
@@ -218,8 +180,9 @@ public class SessionManagerSerialWorkflowTests : IDisposable
         Assert.True(closeResult, "CloseSession should succeed");
         Assert.Equal(0, manager.ActiveSessionCount);
 
-        // Wait for cleanup
-        Thread.Sleep(2000);
+        Assert.Null(manager.GetSession(sessionAId));
+        Assert.Empty(manager.ActiveSessionIds);
+        _owned.AssertAllExited();
 
         // Session B: Create on same file immediately
         _output.WriteLine("Session B: Creating on SAME file immediately...");
@@ -240,17 +203,16 @@ public class SessionManagerSerialWorkflowTests : IDisposable
         var sessionB = manager.GetSession(sessionBId);
         Assert.NotNull(sessionB);
 
-        var sheetName = sessionB.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[1];
-            return sheet.Name?.ToString() ?? "unknown";
-        });
-
-        _output.WriteLine($"  ✓ Session B read succeeded: {sheetName}");
+        Assert.NotEqual(sessionAId, sessionBId);
+        SessionWorkbookAssertions.AssertIdentity(sessionB, testFile);
+        SessionWorkbookAssertions.WriteMarker(sessionB, "recovered-session");
+        Assert.Equal("recovered-session", SessionWorkbookAssertions.ReadMarker(sessionB));
         Assert.Equal(1, manager.ActiveSessionCount);
 
         // Cleanup
-        manager.CloseSession(sessionBId, save: false, force: false);
+        Assert.True(manager.CloseSession(sessionBId, save: false, force: false));
+        Assert.Empty(manager.ActiveSessionIds);
+        _owned.AssertAllExited();
 
         _output.WriteLine("✓ CreateSession after timeout cleanup test passed");
     }
@@ -294,7 +256,7 @@ public class SessionManagerSerialWorkflowTests : IDisposable
         Assert.NotNull(batch);
 
         // Warm up
-        batch.Execute((ctx, ct) => { _ = ctx.Book.Worksheets[1]; return 0; });
+        SessionWorkbookAssertions.AssertIdentity(batch, testFile);
 
         // Timeout
         _output.WriteLine("Triggering timeout...");
@@ -321,6 +283,8 @@ public class SessionManagerSerialWorkflowTests : IDisposable
 
         // REGRESSION ASSERTION: GetSession should return null
         Assert.Null(manager.GetSession(sessionId));
+        Assert.Empty(manager.ActiveSessionIds);
+        _owned.AssertAllExited();
 
         _output.WriteLine("✓ ActiveSessionCount remained accurate through timeout workflow");
     }
@@ -356,13 +320,9 @@ public class SessionManagerSerialWorkflowTests : IDisposable
         // Session A: Normal timeout
         _output.WriteLine("Session A: Creating (file A, normal timeout)");
         var sessionAId = manager.CreateSession(fileA, operationTimeout: TimeSpan.FromSeconds(30));
-        var sessionA = manager.GetSession(sessionAId)!;
-        var sheetA1 = sessionA.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[1];
-            return sheet.Name?.ToString() ?? "unknown";
-        });
-        _output.WriteLine($"  ✓ Session A read: {sheetA1}");
+        var sessionA = Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(sessionAId));
+        SessionWorkbookAssertions.AssertIdentity(sessionA, fileA);
+        SessionWorkbookAssertions.WriteMarker(sessionA, "workbook-A");
 
         // Session B: Short timeout (will timeout)
         _output.WriteLine("Session B: Creating (file B, short timeout)");
@@ -371,8 +331,8 @@ public class SessionManagerSerialWorkflowTests : IDisposable
             show: false,
             operationTimeout: TimeSpan.FromSeconds(3),
             startupTimeout: ComInteropConstants.DefaultOperationTimeout);
-        var sessionB = manager.GetSession(sessionBId)!;
-        sessionB.Execute((ctx, ct) => { _ = ctx.Book.Worksheets[1]; return 0; }); // warmup
+        var sessionB = Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(sessionBId));
+        SessionWorkbookAssertions.AssertIdentity(sessionB, fileB);
 
         _output.WriteLine("  Triggering timeout in Session B...");
         Assert.Throws<TimeoutException>(() =>
@@ -388,33 +348,31 @@ public class SessionManagerSerialWorkflowTests : IDisposable
         // Session C: Normal timeout (created after B timeout)
         _output.WriteLine("Session C: Creating (file C, normal timeout, AFTER B timeout)");
         var sessionCId = manager.CreateSession(fileC, operationTimeout: TimeSpan.FromSeconds(30));
-        var sessionC = manager.GetSession(sessionCId)!;
-        var sheetC1 = sessionC.Execute((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[1];
-            return sheet.Name?.ToString() ?? "unknown";
-        });
-        _output.WriteLine($"  ✓ Session C read: {sheetC1}");
+        var sessionC = Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(sessionCId));
+        SessionWorkbookAssertions.AssertIdentity(sessionC, fileC);
+        SessionWorkbookAssertions.WriteMarker(sessionC, "workbook-C");
 
         // Session A again: Should still work
         _output.WriteLine("Session A: Reading again (AFTER B timeout)");
-        var sheetA2 = sessionA.Execute((ctx, ct) =>
+        SessionWorkbookAssertions.AssertIdentity(sessionA, fileA);
+        Assert.Equal("workbook-A", SessionWorkbookAssertions.ReadMarker(sessionA));
+        Assert.Equal("workbook-C", SessionWorkbookAssertions.ReadMarker(sessionC));
+        Assert.True(sessionB.HasTimedOutOperation);
+        var rejectedCallbackRan = false;
+        Assert.Throws<TimeoutException>(() => sessionB.Execute((_, _) =>
         {
-            dynamic sheet = ctx.Book.Worksheets[1];
-            return sheet.Name?.ToString() ?? "unknown";
-        });
-        _output.WriteLine($"  ✓ Session A read again: {sheetA2}");
-
-        // REGRESSION ASSERTION: Sessions A and C should have worked normally
-        Assert.NotEmpty(sheetA1);
-        Assert.NotEmpty(sheetA2);
-        Assert.NotEmpty(sheetC1);
+            rejectedCallbackRan = true;
+            return 42;
+        }));
+        Assert.False(rejectedCallbackRan);
         Assert.Equal(3, manager.ActiveSessionCount);
 
         // Cleanup
-        manager.CloseSession(sessionAId, save: false, force: false);
-        manager.CloseSession(sessionBId, save: false, force: true);
-        manager.CloseSession(sessionCId, save: false, force: false);
+        Assert.True(manager.CloseSession(sessionAId, save: false, force: false));
+        Assert.True(manager.CloseSession(sessionBId, save: false, force: true));
+        Assert.True(manager.CloseSession(sessionCId, save: false, force: false));
+        Assert.Empty(manager.ActiveSessionIds);
+        _owned.AssertAllExited();
 
         _output.WriteLine("✓ Multiple sessions test passed: Session B timeout didn't affect A or C");
     }

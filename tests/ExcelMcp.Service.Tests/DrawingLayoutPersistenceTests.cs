@@ -53,17 +53,41 @@ public sealed class DrawingLayoutPersistenceTests
                 Assert.Equal("Group", copy.GetProperty("kind").GetString());
                 Assert.Equal(45d, copy.GetProperty("left").GetDouble(), 2);
                 Assert.Equal(80d, copy.GetProperty("top").GetDouble(), 2);
+                Assert.Equal(100d, copy.GetProperty("width").GetDouble(), 2);
+                Assert.Equal(20d, copy.GetProperty("height").GetDouble(), 2);
                 Assert.Equal(1, copy.GetProperty("zOrderPosition").GetInt32());
                 Assert.Equal(2, copy.GetProperty("children").GetArrayLength());
                 Assert.Equal(MemberTexts, copy.GetProperty("children").EnumerateArray().Select(item => item.GetProperty("text").GetString()).Order(StringComparer.Ordinal));
             }
             using (var members = await Send(service, session, "drawing.ungroup-object", new { sheetName = "Sheet1", objectName = "Copy" }))
-                Assert.Equal(2, members.RootElement.GetProperty("drawingObjects").GetArrayLength());
+            {
+                var shapes = members.RootElement.GetProperty("drawingObjects").EnumerateArray()
+                    .OrderBy(item => item.GetProperty("left").GetDouble()).ToArray();
+                Assert.Equal(2, shapes.Length);
+                for (var index = 0; index < shapes.Length; index++)
+                {
+                    Assert.Equal(MemberTexts[index], shapes[index].GetProperty("text").GetString());
+                    Assert.Equal(45d + index * 60d, shapes[index].GetProperty("left").GetDouble(), 2);
+                    Assert.Equal(80d, shapes[index].GetProperty("top").GetDouble(), 2);
+                    Assert.Equal(40d, shapes[index].GetProperty("width").GetDouble(), 2);
+                    Assert.Equal(20d, shapes[index].GetProperty("height").GetDouble(), 2);
+                }
+            }
             using (var objects = await Send(service, session, "drawing.list-objects", new { sheetName = "Sheet1" }))
             {
                 Assert.Equal(3, objects.RootElement.GetProperty("drawingObjects").GetArrayLength());
                 Assert.Contains(objects.RootElement.GetProperty("drawingObjects").EnumerateArray(), item =>
                     item.GetProperty("name").GetString() == "Original" && item.GetProperty("children").GetArrayLength() == 2);
+            }
+            using (var state = await Send(service, session, "drawing.get-object", new { sheetName = "Sheet1", objectName = "Original" }))
+            {
+                var original = state.RootElement.GetProperty("drawingObject");
+                Assert.Equal(20d, original.GetProperty("left").GetDouble(), 2);
+                Assert.Equal(30d, original.GetProperty("top").GetDouble(), 2);
+                Assert.Equal(100d, original.GetProperty("width").GetDouble(), 2);
+                Assert.Equal(20d, original.GetProperty("height").GetDouble(), 2);
+                Assert.Equal(MemberTexts, original.GetProperty("children").EnumerateArray()
+                    .Select(item => item.GetProperty("text").GetString()).Order(StringComparer.Ordinal));
             }
         }
         catch (Exception exception)

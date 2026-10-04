@@ -45,6 +45,7 @@ public sealed class NativeDataCleanupProbeTests(
                     ConsecutiveDelimiter: false,
                     Tab: false, Semicolon: false, Comma: true, Space: false, Other: false,
                     DecimalSeparator: ".", ThousandsSeparator: ",", TrailingMinusNumbers: true);
+                Assert.IsType<bool>(outcome);
                 output.WriteLine($"input={input}; returned type={outcome?.GetType().FullName ?? "null"}; " +
                     $"returned range={(outcome as Excel.Range)?.Address ?? "not a range"}");
             }
@@ -57,7 +58,17 @@ public sealed class NativeDataCleanupProbeTests(
             }
         });
         var read = _commands.GetValues(_fixture.BatchToken, sheetName, "D1:F1");
-        Assert.True(read.Success);
+        Assert.True(read.Success, read.ErrorMessage);
+        object?[] expected = input switch
+        {
+            "x,," => ["x", null, null],
+            "\"x,y\",z" => ["x,y", "z", "sentinel"],
+            _ => ["x", "y", "z"]
+        };
+        Assert.Equal(expected, Assert.Single(read.Values));
+        var sourceRead = _commands.GetValues(_fixture.BatchToken, sheetName, "A1");
+        Assert.True(sourceRead.Success, sourceRead.ErrorMessage);
+        Assert.Equal(input, Assert.Single(Assert.Single(sourceRead.Values)));
         output.WriteLine(string.Join(" | ", read.Values[0].Select(value =>
             Convert.ToString(value, CultureInfo.InvariantCulture) ?? "<null>")));
     }
@@ -88,9 +99,11 @@ public sealed class NativeDataCleanupProbeTests(
             }
         });
         var read = _commands.GetValues(_fixture.BatchToken, sheetName, "A1:B6");
-        Assert.True(read.Success);
-        Assert.Equal("below", read.Values[5][0]);
-        Assert.Equal("keep", read.Values[5][1]);
+        Assert.True(read.Success, read.ErrorMessage);
+        Assert.Equal(6, read.Values.Count);
+        object?[][] expected = [["Key", "Amount"], [1, 10], [2, 30], [null, null], [null, null], ["below", "keep"]];
+        for (var row = 0; row < expected.Length; row++)
+            Assert.Equal(expected[row], read.Values[row]);
         foreach (var row in read.Values)
             output.WriteLine(string.Join(" | ", row.Select(value =>
                 Convert.ToString(value, CultureInfo.InvariantCulture) ?? "<null>")));
@@ -132,8 +145,8 @@ public sealed class NativeDataCleanupProbeTests(
         foreach (var row in read.Values)
             output.WriteLine(string.Join(" | ", row.Select(value =>
                 Convert.ToString(value, CultureInfo.InvariantCulture) ?? "<null>")));
-        Assert.Null(read.Values[0][1]);
-        Assert.Null(read.Values[0][2]);
-        Assert.Equal("marker", read.Values[0][3]);
+        Assert.Equal(2, read.Values.Count);
+        Assert.Equal(["x", null, null, "marker"], read.Values[0]);
+        Assert.Equal(["x", "y", "z", "marker"], read.Values[1]);
     }
 }

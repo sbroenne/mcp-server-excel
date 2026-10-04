@@ -32,9 +32,8 @@ public sealed class PersistentServiceFormatTranslationTests(
     {
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
-        Assert.True(_rangeCommands.SetValues(batch, sheetName, "A1:B1", [[45000.75, 45000.75]]).Success);
-        var written = _rangeCommands.SetNumberFormat(batch, sheetName, "A1", format);
-        Assert.True(written.Success, written.ErrorMessage);
+        RequireSuccess(_rangeCommands.SetValues(batch, sheetName, "A1:B1", [[45000.75, 45000.75]]));
+        RequireSuccess(_rangeCommands.SetNumberFormat(batch, sheetName, "A1", format));
         _fixture.ExecuteRawVerification((ctx, _) =>
         {
             Microsoft.Office.Interop.Excel.Sheets? sheets = null;
@@ -49,8 +48,25 @@ public sealed class PersistentServiceFormatTranslationTests(
                 native = sheet.Range["B1"];
                 actual.ColumnWidth = native.ColumnWidth = 50;
                 native.NumberFormat = format;
-                Assert.Equal(native.Text, actual.Text);
-                Assert.Equal(native.NumberFormat, actual.NumberFormat);
+                _output.WriteLine($"Requested '{format}': native '{native.NumberFormat}' = '{native.Text}', service '{actual.NumberFormat}' = '{actual.Text}'");
+                if (format == "mmm-yy")
+                {
+                    // Excel's built-in month/year format substitutes regional punctuation.
+                    // Render each date component independently to check the requested hyphen.
+                    native.NumberFormat = "mmm";
+                    var month = Assert.IsType<string>(native.Text);
+                    native.NumberFormat = "yy";
+                    var year = Assert.IsType<string>(native.Text);
+                    Assert.Equal($"{month}-{year}", actual.Text);
+                }
+                else
+                {
+                    Assert.Equal(native.Text, actual.Text);
+                    Assert.Equal(native.NumberFormat, actual.NumberFormat);
+                }
+                Assert.Equal(format, actual.NumberFormat);
+                Assert.Equal(45000.75, Assert.IsType<double>(actual.Value2));
+                Assert.Equal(45000.75, Assert.IsType<double>(native.Value2));
             }
             finally
             {
@@ -108,16 +124,12 @@ public sealed class PersistentServiceFormatTranslationTests(
     {
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
-        Assert.True(_rangeCommands.SetValues(batch, sheetName, "A1:B1", [[1234.56, 1234.56]]).Success);
-        var written = _rangeCommands.SetNumberFormat(batch, sheetName, "A1", "$#,##0.00");
-        Assert.True(written.Success, written.ErrorMessage);
-        var read = _rangeCommands.GetNumberFormats(batch, sheetName, "A1");
-        Assert.True(read.Success, read.ErrorMessage);
+        RequireSuccess(_rangeCommands.SetValues(batch, sheetName, "A1:B1", [[1234.56, 1234.56]]));
+        RequireSuccess(_rangeCommands.SetNumberFormat(batch, sheetName, "A1", "$#,##0.00"));
+        var read = RequireSuccess(_rangeCommands.GetNumberFormats(batch, sheetName, "A1"));
         var returnedFormat = Assert.Single(Assert.Single(read.Formats));
-        var rewritten = _rangeCommands.SetNumberFormat(batch, sheetName, "A1", returnedFormat);
-        Assert.True(rewritten.Success, rewritten.ErrorMessage);
-        var reread = _rangeCommands.GetNumberFormats(batch, sheetName, "A1");
-        Assert.True(reread.Success, reread.ErrorMessage);
+        RequireSuccess(_rangeCommands.SetNumberFormat(batch, sheetName, "A1", returnedFormat));
+        var reread = RequireSuccess(_rangeCommands.GetNumberFormats(batch, sheetName, "A1"));
         Assert.Equal(returnedFormat, Assert.Single(Assert.Single(reread.Formats)));
         _fixture.ExecuteRawVerification((ctx, _) =>
         {
@@ -179,11 +191,11 @@ public sealed class PersistentServiceFormatTranslationTests(
             .Select(row => Enumerable.Range(0, columns).Select(col => (object?)values[row * columns + col]).ToList()).ToList();
         var codes = Enumerable.Range(0, rows)
             .Select(row => Enumerable.Range(0, columns).Select(col => formats[row * columns + col]).ToList()).ToList();
-        Assert.True(_rangeCommands.SetValues(batch, sheetName, address, data).Success);
+        RequireSuccess(_rangeCommands.SetValues(batch, sheetName, address, data));
         if (action is "column" or "grid")
         {
             var written = _rangeCommands.SetNumberFormats(batch, sheetName, address, codes);
-            Assert.True(written.Success, written.ErrorMessage);
+            RequireSuccess(written);
         }
         else
         {
@@ -194,11 +206,10 @@ public sealed class PersistentServiceFormatTranslationTests(
                     ? _rangeCommands.SetNumberFormat(batch, sheetName, cellAddress, formats[index])
                     : _rangeCommands.Format(batch, sheetName, [cellAddress],
                         new() { NumberFormat = formats[index] });
-                Assert.True(written.Success, written.ErrorMessage);
+                RequireSuccess(written);
             }
         }
-        var read = _rangeCommands.GetNumberFormats(batch, sheetName, address);
-        Assert.True(read.Success, read.ErrorMessage);
+        var read = RequireSuccess(_rangeCommands.GetNumberFormats(batch, sheetName, address));
         _fixture.ExecuteRawVerification((ctx, _) =>
         {
             Microsoft.Office.Interop.Excel.Sheets? sheets = null;
@@ -255,9 +266,9 @@ public sealed class PersistentServiceFormatTranslationTests(
             CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo(cultureName);
             var batch = _fixture.BatchToken;
             var sheetName = _fixture.CreateTestSheet(batch);
-            _rangeCommands.SetValues(batch, sheetName, "A1", [[0.125]]);
-            _rangeCommands.SetNumberFormat(batch, sheetName, "A1", "0.00%");
-            var result = _rangeCommands.GetNumberFormats(batch, sheetName, "A1");
+            RequireSuccess(_rangeCommands.SetValues(batch, sheetName, "A1", [[0.125]]));
+            RequireSuccess(_rangeCommands.SetNumberFormat(batch, sheetName, "A1", "0.00%"));
+            var result = RequireSuccess(_rangeCommands.GetNumberFormats(batch, sheetName, "A1"));
             Assert.Equal("0.00%", result.Formats[0][0]);
             _fixture.ExecuteRawVerification((ctx, _) =>
             {
@@ -291,8 +302,8 @@ public sealed class PersistentServiceFormatTranslationTests(
     {
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
-        _rangeCommands.SetValues(batch, sheetName, "A1:A2", [[1.25], [1.75]]);
-        _rangeCommands.SetNumberFormat(batch, sheetName, "A1:A2", "[>=1.5]\"high\";\"low\"");
+        RequireSuccess(_rangeCommands.SetValues(batch, sheetName, "A1:A2", [[1.25], [1.75]]));
+        RequireSuccess(_rangeCommands.SetNumberFormat(batch, sheetName, "A1:A2", "[>=1.5]\"high\";\"low\""));
 
         _fixture.ExecuteRawVerification((ctx, _) =>
         {
@@ -324,246 +335,161 @@ public sealed class PersistentServiceFormatTranslationTests(
     [Fact]
     public void SetNumberFormat_USDateFormat_DisplaysCorrectly()
     {
-        // Arrange
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
-
-        // Log translator info
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            _output.WriteLine($"FormatTranslator: {ctx.FormatTranslator}");
-        });
-
-        // Set a date value (45000 = March 15, 2023)
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[sheetName];
-            dynamic cell = sheet.Range["A1"];
-            cell.Value2 = 45000; // March 15, 2023
-        });
-
-        // Act - Set format using US format code "m/d/yyyy"
-        var result = _rangeCommands.SetNumberFormat(batch, sheetName, "A1", "m/d/yyyy");
-
-        // Assert
-        Assert.True(result.Success, $"SetNumberFormat failed: {result.ErrorMessage}");
-
-        // Verify the display is correct (not "0/d/yyyy" or other broken formats)
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[sheetName];
-            dynamic cell = sheet.Range["A1"];
-
-            string displayedText = cell.Text?.ToString() ?? "null";
-            string appliedFormat = cell.NumberFormat?.ToString() ?? "null";
-            string localFormat = cell.NumberFormatLocal?.ToString() ?? "null";
-
-            _output.WriteLine($"Set US format 'm/d/yyyy':");
-            _output.WriteLine($"  Applied NumberFormat: '{appliedFormat}'");
-            _output.WriteLine($"  NumberFormatLocal: '{localFormat}'");
-            _output.WriteLine($"  Displayed text: '{displayedText}'");
-
-            // The display should contain the date parts (3, 15, 2023 or 15, 3, 2023)
-            // NOT "0/d/yyyy" which happens when 'm' is misinterpreted as minutes (=0)
-            Assert.DoesNotContain("0/", displayedText);
-            Assert.DoesNotContain("/0/", displayedText);
-
-            // Should contain year 2023 (45000 = March 15, 2023)
-            Assert.Contains("2023", displayedText);
-        });
+        RequireSuccess(_rangeCommands.SetValues(batch, sheetName, "A1", [[45000]]));
+        RequireSuccess(_rangeCommands.SetNumberFormat(batch, sheetName, "A1", "m/d/yyyy"));
+        AssertFormattedCells(sheetName, ["A1"], ["3/15/2023"], [45000]);
     }
 
     [Fact]
     public void SetNumberFormat_ISODateFormat_DisplaysCorrectly()
     {
-        // Arrange
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
-
-        // Set a date value (45000 = March 15, 2023)
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[sheetName];
-            dynamic cell = sheet.Range["A1"];
-            cell.Value2 = 45000; // March 15, 2023
-        });
-
-        // Act - Set format using ISO format "yyyy-mm-dd"
-        var result = _rangeCommands.SetNumberFormat(batch, sheetName, "A1", "yyyy-mm-dd");
-
-        // Assert
-        Assert.True(result.Success, $"SetNumberFormat failed: {result.ErrorMessage}");
-
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[sheetName];
-            dynamic cell = sheet.Range["A1"];
-
-            string displayedText = cell.Text?.ToString() ?? "null";
-
-            _output.WriteLine($"Set ISO format 'yyyy-mm-dd':");
-            _output.WriteLine($"  Displayed text: '{displayedText}'");
-
-            // Should display as ISO format: 2023-03-15
-            Assert.Equal("2023-03-15", displayedText);
-        });
+        RequireSuccess(_rangeCommands.SetValues(batch, sheetName, "A1", [[45000]]));
+        RequireSuccess(_rangeCommands.SetNumberFormat(batch, sheetName, "A1", "yyyy-mm-dd"));
+        AssertFormattedCells(sheetName, ["A1"], ["2023-03-15"], [45000]);
     }
 
     [Fact]
     public void SetNumberFormat_MultipleDates_AllDisplayCorrectly()
     {
-        // Arrange
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
-
-        // Set date values in A1:A3
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[sheetName];
-            sheet.Range["A1"].Value2 = 45000; // March 15, 2023
-            sheet.Range["A2"].Value2 = 45001; // March 16, 2023
-            sheet.Range["A3"].Value2 = 45002; // March 17, 2023
-        });
-
-        // Act - Set all three cells with different date formats
-        var formats = new List<List<string>>
-        {
-            new() { "m/d/yyyy" },
-            new() { "mm/dd/yyyy" },
-            new() { "d-mmm-yyyy" }
-        };
-
-        var result = _rangeCommands.SetNumberFormats(batch, sheetName, "A1:A3", formats);
-
-        // Assert
-        Assert.True(result.Success, $"SetNumberFormats failed: {result.ErrorMessage}");
-
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[sheetName];
-
-            var texts = new[]
-            {
-                sheet.Range["A1"].Text?.ToString() ?? "null",
-                sheet.Range["A2"].Text?.ToString() ?? "null",
-                sheet.Range["A3"].Text?.ToString() ?? "null"
-            };
-
-            _output.WriteLine($"A1 (m/d/yyyy): '{texts[0]}'");
-            _output.WriteLine($"A2 (mm/dd/yyyy): '{texts[1]}'");
-            _output.WriteLine($"A3 (d-mmm-yyyy): '{texts[2]}'");
-
-            // All should contain the year 2023, not broken format codes
-            foreach (var text in texts)
-            {
-                Assert.Contains("2023", text);
-                Assert.DoesNotContain("0/d", text);
-            }
-        });
+        RequireSuccess(_rangeCommands.SetValues(batch, sheetName, "A1:A3", [[45000], [45001], [45002]]));
+        RequireSuccess(_rangeCommands.SetNumberFormat(batch, sheetName, "Z1", "mmm"));
+        RequireSuccess(_rangeCommands.SetValues(batch, sheetName, "Z1", [[45002]]));
+        var month = Assert.Single(ReadFormattedCells(sheetName, ["Z1"])).Text;
+        RequireSuccess(_rangeCommands.SetNumberFormats(batch, sheetName, "A1:A3",
+            [["m/d/yyyy"], ["mm/dd/yyyy"], ["d-mmm-yyyy"]]));
+        AssertFormattedCells(sheetName, ["A1", "A2", "A3"],
+            ["3/15/2023", "03/16/2023", $"17-{month}-2023"], [45000, 45001, 45002]);
     }
 
     [Fact]
     public void SetNumberFormat_CurrencyFormat_NotAffected()
     {
-        // Currency formats should NOT be affected by date translation
-
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
-
-        // Set a currency value
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[sheetName];
-            sheet.Range["A1"].Value2 = 1234.56;
-        });
-
-        // Act - Set currency format
-        var result = _rangeCommands.SetNumberFormat(batch, sheetName, "A1", "$#,##0.00");
-
-        // Assert
-        Assert.True(result.Success, $"SetNumberFormat failed: {result.ErrorMessage}");
-
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[sheetName];
-            string displayedText = sheet.Range["A1"].Text?.ToString() ?? "null";
-
-            _output.WriteLine($"Currency format '$#,##0.00': '{displayedText}'");
-
-            // Should contain the dollar sign and proper formatting
-            Assert.Equal(
-                $"$1{ctx.FormatTranslator.ThousandsSeparator}234{ctx.FormatTranslator.DecimalSeparator}56",
-                displayedText);
-            Assert.Equal(1234.56, Convert.ToDouble(sheet.Range["A1"].Value2));
-        });
+        RequireSuccess(_rangeCommands.SetValues(batch, sheetName, "A1", [[1234.56]]));
+        RequireSuccess(_rangeCommands.SetNumberFormat(batch, sheetName, "A1", "$#,##0.00"));
+        AssertFormattedCells(sheetName, ["A1"], ["$1{group}234{decimal}56"], [1234.56]);
     }
 
     [Fact]
     public void SetNumberFormat_TimeFormat_DisplaysCorrectly()
     {
-        // Arrange
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
-
-        // Set a time value (0.75 = 6:00 PM / 18:00)
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[sheetName];
-            sheet.Range["A1"].Value2 = 0.75; // 18:00
-        });
-
-        // Act - Set time format
-        var result = _rangeCommands.SetNumberFormat(batch, sheetName, "A1", "h:mm");
-
-        // Assert
-        Assert.True(result.Success, $"SetNumberFormat failed: {result.ErrorMessage}");
-
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            dynamic sheet = ctx.Book.Worksheets[sheetName];
-            string displayedText = sheet.Range["A1"].Text?.ToString() ?? "null";
-
-            _output.WriteLine($"Time format 'h:mm': '{displayedText}'");
-
-            // Should show time (18:00 or 6:00 PM depending on locale)
-            Assert.True(displayedText.Contains("18:00") || displayedText.Contains("6:00"),
-                $"Expected time display, got '{displayedText}'");
-        });
+        RequireSuccess(_rangeCommands.SetValues(batch, sheetName, "A1", [[0.75]]));
+        RequireSuccess(_rangeCommands.SetNumberFormat(batch, sheetName, "A1", "h:mm"));
+        AssertFormattedCells(sheetName, ["A1"], ["18:00"], [0.75]);
     }
 
     [Fact]
     public void SetNumberFormat_DateTimeFormat_DisplaysCorrectly()
     {
-        // Test combined date+time format
-
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
+        RequireSuccess(_rangeCommands.SetValues(batch, sheetName, "A1", [[45000.75]]));
+        RequireSuccess(_rangeCommands.SetNumberFormat(batch, sheetName, "A1", "m/d/yyyy h:mm"));
+        AssertFormattedCells(sheetName, ["A1"], ["3/15/2023 18:00"], [45000.75]);
+    }
 
-        // Set a date+time value (45000.75 = March 15, 2023 at 18:00)
-        _fixture.ExecuteRawVerification((ctx, ct) =>
+    [Theory]
+    [InlineData("[NotAColor]0.00")]
+    public void SetNumberFormat_InvalidCode_PreservesFormatsValuesAndDisplay(string format)
+    {
+        var batch = _fixture.BatchToken;
+        var sheet = _fixture.CreateTestSheet(batch);
+        RequireSuccess(_rangeCommands.SetValues(batch, sheet, "A1:B1", [[12.5, 99.9]]));
+        RequireSuccess(_rangeCommands.SetNumberFormat(batch, sheet, "A1:B1", "0.000"));
+        var before = ReadFormattedCells(sheet, ["A1", "B1"]);
+        var failure = Assert.Throws<InvalidOperationException>(() =>
+            _rangeCommands.SetNumberFormat(batch, sheet, "A1", format));
+        Assert.Contains("range.set-number-format failed", failure.Message);
+        Assert.Equal(before, ReadFormattedCells(sheet, ["A1", "B1"]));
+    }
+
+    [Fact]
+    public void SetNumberFormat_NonNumericCondition_MatchesNativeInterpretation()
+    {
+        var batch = _fixture.BatchToken;
+        var sheetName = _fixture.CreateTestSheet(batch);
+        RequireSuccess(_rangeCommands.SetValues(batch, sheetName, "A1:B1", [[12.5, 12.5]]));
+        RequireSuccess(_rangeCommands.SetNumberFormat(batch, sheetName, "A1", "[>=not-number]0.00"));
+        _fixture.ExecuteRawVerification((context, _) =>
         {
-            dynamic sheet = ctx.Book.Worksheets[sheetName];
-            sheet.Range["A1"].Value2 = 45000.75;
+            Microsoft.Office.Interop.Excel.Sheets? sheets = null;
+            Microsoft.Office.Interop.Excel.Worksheet? sheet = null;
+            Microsoft.Office.Interop.Excel.Range? native = null;
+            try
+            {
+                sheets = context.Book.Worksheets;
+                sheet = (Microsoft.Office.Interop.Excel.Worksheet)sheets[sheetName];
+                native = sheet.Range["B1"];
+                native.NumberFormatLocal = $"[>=not-number]0{context.FormatTranslator.DecimalSeparator}00";
+            }
+            finally
+            {
+                ComUtilities.Release(ref native);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
         });
+        var state = ReadFormattedCells(sheetName, ["A1", "B1"]);
+        Assert.Equal(state[1], state[0]);
+        Assert.Equal(12.5, state[0].Value);
+    }
 
-        // Act - Set date+time format
-        var result = _rangeCommands.SetNumberFormat(batch, sheetName, "A1", "m/d/yyyy h:mm");
+    private readonly record struct FormattedCell(string Format, string Text, double Value);
 
-        // Assert
-        Assert.True(result.Success, $"SetNumberFormat failed: {result.ErrorMessage}");
-
-        _fixture.ExecuteRawVerification((ctx, ct) =>
+    private FormattedCell[] ReadFormattedCells(string sheetName, string[] addresses)
+    {
+        var reported = addresses.Select(address => Assert.Single(Assert.Single(
+            RequireSuccess(_rangeCommands.GetNumberFormats(
+                _fixture.BatchToken, sheetName, address)).Formats))).ToArray();
+        var native = _fixture.ExecuteRawVerification((context, _) =>
         {
-            dynamic sheet = ctx.Book.Worksheets[sheetName];
-            string displayedText = sheet.Range["A1"].Text?.ToString() ?? "null";
-
-            _output.WriteLine($"DateTime format 'm/d/yyyy h:mm': '{displayedText}'");
-
-            // Should contain year (date part works)
-            Assert.Contains("2023", displayedText);
-
-            // Should contain time separator (time part works)
-            Assert.Contains(":", displayedText);
+            Microsoft.Office.Interop.Excel.Sheets? sheets = null;
+            Microsoft.Office.Interop.Excel.Worksheet? sheet = null;
+            try
+            {
+                sheets = context.Book.Worksheets;
+                sheet = (Microsoft.Office.Interop.Excel.Worksheet)sheets[sheetName];
+                return addresses.Select(address =>
+                {
+                    Microsoft.Office.Interop.Excel.Range? cell = null;
+                    try
+                    {
+                        cell = sheet.Range[address];
+                        cell.ColumnWidth = 50;
+                        return new FormattedCell(Assert.IsType<string>(cell.NumberFormat),
+                            Assert.IsType<string>(cell.Text), Assert.IsType<double>(cell.Value2));
+                    }
+                    finally { ComUtilities.Release(ref cell); }
+                }).ToArray();
+            }
+            finally
+            {
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
         });
+        Assert.Equal(native.Select(cell => cell.Format), reported);
+        return native;
+    }
+
+    private void AssertFormattedCells(string sheet, string[] addresses, string[] expected, double[] values)
+    {
+        var native = ReadFormattedCells(sheet, addresses);
+        var separators = _fixture.ExecuteRawVerification((context, _) =>
+            (context.FormatTranslator.DecimalSeparator, context.FormatTranslator.ThousandsSeparator));
+        Assert.Equal(expected.Select(text => text
+            .Replace("{decimal}", separators.DecimalSeparator, StringComparison.Ordinal)
+            .Replace("{group}", separators.ThousandsSeparator, StringComparison.Ordinal)),
+            native.Select(cell => cell.Text));
+        Assert.Equal(values, native.Select(cell => cell.Value));
     }
 }

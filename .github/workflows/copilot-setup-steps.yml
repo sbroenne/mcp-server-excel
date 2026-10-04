@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - .github/workflows/copilot-setup-steps.yml
+      - scripts/Invoke-CopilotSetupNpm.ps1
       - global.json
       - Directory.Packages.props
       - '**/*.csproj'
@@ -15,6 +16,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/copilot-setup-steps.yml
+      - scripts/Invoke-CopilotSetupNpm.ps1
       - global.json
       - Directory.Packages.props
       - '**/*.csproj'
@@ -25,8 +27,8 @@ on:
 
 jobs:
   copilot-setup-steps:
-    runs-on: windows-latest
-    timeout-minutes: 20
+    runs-on: ${{ vars.EXCEL_COPILOT_ENABLED == 'true' && 'excel-copilot' || 'windows-latest' }}
+    timeout-minutes: 59
     permissions:
       contents: read
     steps:
@@ -36,11 +38,13 @@ jobs:
           persist-credentials: false
 
       - name: Setup .NET
+        if: runner.environment != 'self-hosted'
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
 
       - name: Setup Node.js
+        if: runner.environment != 'self-hosted'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "22"
@@ -51,6 +55,7 @@ jobs:
             npm-packages/shared/package-lock.json
 
       - name: Setup Python
+        if: runner.environment != 'self-hosted'
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.13"
@@ -61,6 +66,7 @@ jobs:
         run: dotnet restore Sbroenne.ExcelMcp.sln
 
       - name: Setup uv
+        if: runner.environment != 'self-hosted'
         uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
         with:
           version: "0.11.16"
@@ -68,20 +74,24 @@ jobs:
           cache-dependency-glob: llm-tests/uv.lock
 
       - name: Install repository tooling
-        run: npm ci
+        shell: pwsh
+        run: .\scripts\Invoke-CopilotSetupNpm.ps1
 
       - name: Install VS Code extension dependencies
         working-directory: vscode-extension
-        run: npm ci
+        shell: pwsh
+        run: ..\scripts\Invoke-CopilotSetupNpm.ps1
 
       - name: Install documentation dependencies
         run: python -m pip install -r gh-pages/requirements.txt
 
       - name: Install shared npm tooling
         working-directory: npm-packages/shared
-        run: npm ci
+        shell: pwsh
+        run: ..\..\scripts\Invoke-CopilotSetupNpm.ps1
 
       - name: Install LLM evaluation dependencies without running evaluations
+        if: runner.environment != 'self-hosted'
         run: uv sync --project llm-tests --locked --python 3.13
 
       - name: Verify setup tools and Excel-free boundary
@@ -92,5 +102,12 @@ jobs:
           dotnet --version
           node --version
           python --version
-          uv --version
-          Write-Output 'Setup complete. Desktop Excel tests must run locally; no COM behavior was verified.'
+          if ($env:RUNNER_ENVIRONMENT -ne 'self-hosted') {
+            uv --version
+            Write-Output 'Hosted setup complete. Desktop Excel is unavailable; no COM behavior was verified.'
+          } else {
+            . 'C:\ProgramData\ExcelMcp\Desktop\ExcelRunnerPolicy.ps1'
+            Assert-ExcelRunnerReadiness (Get-Content 'C:\ProgramData\ExcelMcp\Desktop\ready.json' -Raw | ConvertFrom-Json) `
+              -BootTime (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
+            Write-Output 'Qualified non-admin Excel desktop available. Run requested .NET/Excel tests sequentially; LLM evaluations remain on demand.'
+          }

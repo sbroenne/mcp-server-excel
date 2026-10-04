@@ -13,8 +13,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration;
 /// - ✅ Verify Excel.exe process termination (no leaks)
 ///
 /// NOTE: ExcelSession methods use ExcelShutdownService for resilient cleanup.
-/// Automatic RCW finalizers handle COM reference cleanup (no forced GC needed).
-/// Process cleanup errors are logged but don't fail tests.
+/// Tests check the callable workbook and exact owned-process exit after disposal.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Slow")]
@@ -50,12 +49,18 @@ public class ExcelSessionTests : IDisposable
 
         try
         {
+            using var owned = new OwnedExcelProcessScope();
             // Act
             using var batch = ExcelSession.BeginBatch(testFile);
 
             // Assert
             Assert.NotNull(batch);
             Assert.Equal(testFile, batch.WorkbookPath);
+            Assert.Equal(testFile, batch.Execute((context, _) => context.Book.FullName));
+            Assert.True(batch.IsExcelProcessAlive());
+            Assert.NotNull(batch.ExcelProcessId);
+            batch.Dispose();
+            owned.AssertAllExited();
 
             _output.WriteLine($"✓ Batch created successfully for: {Path.GetFileName(testFile)}");
         }
@@ -76,6 +81,7 @@ public class ExcelSessionTests : IDisposable
         {
             using var batch = ExcelSession.BeginBatch(nonExistentFile);
         });
+        Assert.False(File.Exists(nonExistentFile));
 
         _output.WriteLine("✓ Correctly throws FileNotFoundException for non-existent file");
     }
@@ -96,6 +102,7 @@ public class ExcelSessionTests : IDisposable
             });
 
             Assert.Contains("Invalid file extension", exception.Message);
+            Assert.Equal("dummy", File.ReadAllText(invalidFile));
             _output.WriteLine("✓ Correctly rejects non-Excel file extension");
         }
         finally
@@ -122,4 +129,3 @@ public class ExcelSessionTests : IDisposable
         File.Copy(TemplateFilePath, filePath);
     }
 }
-

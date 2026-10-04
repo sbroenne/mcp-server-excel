@@ -42,7 +42,7 @@ public sealed class ServiceWorkbookLifecycleTests
                 Command = "session.list"
             });
 
-            Assert.True(list.Success, list.ErrorMessage);
+            RequireSuccess(list);
             using var result = JsonDocument.Parse(list.Result!);
             var session = Assert.Single(
                 result.RootElement.GetProperty("sessions").EnumerateArray(),
@@ -50,6 +50,9 @@ public sealed class ServiceWorkbookLifecycleTests
             Assert.Equal(show, session.GetProperty("isExcelVisible").GetBoolean());
             Assert.Equal(0, session.GetProperty("activeOperations").GetInt32());
             Assert.True(session.GetProperty("canClose").GetBoolean());
+            await CloseSessionAsync(service, sessionId, save: false);
+            sessions.TryRemove(sessionId, out _);
+            await AssertSessionIdsAsync(service);
         });
     }
 
@@ -62,14 +65,83 @@ public sealed class ServiceWorkbookLifecycleTests
             var sessionId = await CreateSessionAsync(service, workbookPath);
             sessions[sessionId] = 0;
             await WriteMarkerAsync(service, sessionId, "Persisted");
+            Assert.Equal("Persisted", await ReadMarkerAsync(service, sessionId));
             await CloseSessionAsync(service, sessionId, save: true);
             sessions.TryRemove(sessionId, out _);
+            await AssertSessionIdsAsync(service);
 
             var reopenedSessionId = await OpenSessionAsync(service, workbookPath);
             sessions[reopenedSessionId] = 0;
+            Assert.NotEqual(sessionId, reopenedSessionId);
             Assert.Equal(
                 "Persisted",
                 await ReadMarkerAsync(service, reopenedSessionId));
+        });
+    }
+
+    [Fact]
+    public async Task CloseWithoutSaving_DiscardsEditsAndPreservesOtherWorkbook()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var path = Path.Join(directory, "discard.xlsx");
+            var sessionId = await CreateSessionAsync(service, path);
+            sessions[sessionId] = 0;
+            await WriteMarkerAsync(service, sessionId, "Saved");
+            Assert.Equal("Saved", await ReadMarkerAsync(service, sessionId));
+            await CloseSessionAsync(service, sessionId, save: true);
+            sessions.TryRemove(sessionId, out _);
+            sessionId = await OpenSessionAsync(service, path);
+            sessions[sessionId] = 0;
+            Assert.Equal("Saved", await ReadMarkerAsync(service, sessionId));
+            var neighbor = await CreateSessionAsync(service, Path.Join(directory, "neighbor.xlsx"));
+            sessions[neighbor] = 0;
+            await WriteMarkerAsync(service, neighbor, "Retained neighbor");
+
+            await WriteMarkerAsync(service, sessionId, "Discarded");
+            Assert.Equal("Discarded", await ReadMarkerAsync(service, sessionId));
+            await CloseSessionAsync(service, sessionId, save: false);
+            sessions.TryRemove(sessionId, out _);
+            await AssertSessionIdsAsync(service, neighbor);
+            Assert.Equal("Retained neighbor", await ReadMarkerAsync(service, neighbor));
+
+            var reopened = await OpenSessionAsync(service, path);
+            sessions[reopened] = 0;
+            Assert.NotEqual(sessionId, reopened);
+            Assert.Equal("Saved", await ReadMarkerAsync(service, reopened));
+            Assert.Equal("Retained neighbor", await ReadMarkerAsync(service, neighbor));
+        });
+    }
+
+    [Fact]
+    public async Task CloseMissingSession_PreservesLiveWorkbookAndAllowsRecovery()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var sessionId = await CreateSessionAsync(service, Path.Join(directory, "retained.xlsx"));
+            sessions[sessionId] = 0;
+            await WriteMarkerAsync(service, sessionId, "Retained");
+            Assert.Equal("Retained", await ReadMarkerAsync(service, sessionId));
+            var batch = service.SessionManager.GetSession(sessionId);
+            var missing = $"missing-{Guid.NewGuid():N}";
+            var rejected = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.close",
+                SessionId = missing,
+                Args = """{"save":true}"""
+            });
+            Assert.False(rejected.Success);
+            Assert.Equal("SessionNotFound", rejected.ErrorCategory);
+            Assert.Equal(missing, rejected.SessionId);
+            Assert.Contains("not found", rejected.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            await AssertSessionIdsAsync(service, sessionId);
+            Assert.Same(batch, service.SessionManager.GetSession(sessionId));
+            Assert.Equal("Retained", await ReadMarkerAsync(service, sessionId));
+            await WriteMarkerAsync(service, sessionId, "Recovered");
+            Assert.Equal("Recovered", await ReadMarkerAsync(service, sessionId));
+            await CloseSessionAsync(service, sessionId, save: true);
+            sessions.TryRemove(sessionId, out _);
+            await AssertSessionIdsAsync(service);
         });
     }
 
@@ -123,6 +195,7 @@ public sealed class ServiceWorkbookLifecycleTests
                     Assert.True(File.Exists(workbookPath), $"Expected workbook to exist: {workbookPath}");
                     var reopenedSessionId = await OpenSessionAsync(service, workbookPath);
                     sessions[reopenedSessionId] = 0;
+                    Assert.NotEqual(sessionId, reopenedSessionId);
                     var persisted = await ReadMarkerAsync(service, reopenedSessionId, sheetName);
                     await CloseSessionAsync(service, reopenedSessionId, save: false);
                     sessions.TryRemove(reopenedSessionId, out _);
@@ -152,7 +225,7 @@ public sealed class ServiceWorkbookLifecycleTests
 
                 Assert.Equal(workflowCount, service.SessionCount);
                 var list = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
-                Assert.True(list.Success, list.ErrorMessage);
+                RequireSuccess(list);
                 using (var result = JsonDocument.Parse(list.Result!))
                 {
                     var openSessionIds = result.RootElement
@@ -202,7 +275,7 @@ public sealed class ServiceWorkbookLifecycleTests
 
             Assert.Equal(0, service.SessionCount);
             var finalList = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
-            Assert.True(finalList.Success, finalList.ErrorMessage);
+            RequireSuccess(finalList);
             using var finalResult = JsonDocument.Parse(finalList.Result!);
             Assert.Empty(finalResult.RootElement.GetProperty("sessions").EnumerateArray());
         });
@@ -315,10 +388,11 @@ public sealed class ServiceWorkbookLifecycleTests
             {
                 sheetName = "Sheet1",
                 rangeAddress = "A1",
+                overwritePolicy = "allow",
                 values = new object?[][] { [marker] }
             }, ServiceProtocol.JsonOptions)
         });
-        Assert.True(response.Success, response.ErrorMessage);
+        RequireSuccess(response);
     }
 
     private static async Task CreateSheetAsync(
@@ -332,7 +406,7 @@ public sealed class ServiceWorkbookLifecycleTests
             SessionId = sessionId,
             Args = JsonSerializer.Serialize(new { sheetName }, ServiceProtocol.JsonOptions)
         });
-        Assert.True(response.Success, response.ErrorMessage);
+        RequireSuccess(response);
     }
 
     private static async Task WriteWorkflowValuesAsync(
@@ -350,10 +424,11 @@ public sealed class ServiceWorkbookLifecycleTests
             {
                 sheetName,
                 rangeAddress = "A1:A2",
+                overwritePolicy = "allow",
                 values = new object?[][] { [marker], [$"File-{index}"] }
             }, ServiceProtocol.JsonOptions)
         });
-        Assert.True(response.Success, response.ErrorMessage);
+        RequireSuccess(response);
     }
 
     private static async Task FormatWorkflowValuesAsync(
@@ -375,7 +450,7 @@ public sealed class ServiceWorkbookLifecycleTests
                 }
             }, ServiceProtocol.JsonOptions)
         });
-        Assert.True(response.Success, response.ErrorMessage);
+        RequireSuccess(response);
     }
 
     private static async Task<string?> ReadMarkerAsync(
@@ -393,7 +468,7 @@ public sealed class ServiceWorkbookLifecycleTests
                 rangeAddress = "A1"
             }, ServiceProtocol.JsonOptions)
         });
-        Assert.True(response.Success, response.ErrorMessage);
+        RequireSuccess(response);
         using var result = JsonDocument.Parse(response.Result!);
         return result.RootElement.GetProperty("values")[0][0].GetString();
     }
@@ -416,6 +491,7 @@ public sealed class ServiceWorkbookLifecycleTests
             $"HRESULT: {response.HResult ?? "<none>"}{Environment.NewLine}" +
             $"Inner error: {response.InnerError ?? "<none>"}{Environment.NewLine}" +
             $"Pre-save state: {saveState?.ToString() ?? "<not captured>"}");
+        Assert.True(string.IsNullOrEmpty(response.ErrorMessage), response.ErrorMessage);
     }
 
     private static WorkbookSaveState CaptureSaveState(
@@ -449,11 +525,28 @@ public sealed class ServiceWorkbookLifecycleTests
 
     private static string GetSessionId(ServiceResponse response)
     {
-        Assert.True(response.Success, response.ErrorMessage);
+        RequireSuccess(response);
         using var result = JsonDocument.Parse(response.Result!);
         var sessionId = result.RootElement.GetProperty("sessionId").GetString();
         Assert.False(string.IsNullOrWhiteSpace(sessionId));
         return sessionId!;
+    }
+
+    private static void RequireSuccess(ServiceResponse response)
+    {
+        Assert.True(response.Success, response.ErrorMessage);
+        Assert.True(string.IsNullOrEmpty(response.ErrorMessage), response.ErrorMessage);
+    }
+
+    private static async Task AssertSessionIdsAsync(ExcelMcpService service, params string[] expected)
+    {
+        var response = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+        RequireSuccess(response);
+        using var result = JsonDocument.Parse(response.Result!);
+        var actual = result.RootElement.GetProperty("sessions").EnumerateArray()
+            .Select(item => item.GetProperty("sessionId").GetString()).Order().ToArray();
+        Assert.Equal(expected.Order().ToArray(), actual);
+        Assert.Equal(expected.Length, service.SessionCount);
     }
 
     private sealed record WorkflowResult(

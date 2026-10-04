@@ -35,24 +35,27 @@ public sealed class DataModelFormulaExcelParityTests : IAsyncLifetime
             [
                 "datamodel", "create-measure", "--session", _workbook.SessionId,
                 "--table-name", "SalesTable", "--measure-name", name,
-                "--dax-formula", update ? "SUM(SalesTable[Amount])" : formula
+                "--dax-formula", update ? "SUM(SalesTable[Amount])" : formula,
+                "--format-type", update ? "Percentage" : "Decimal"
             ]);
             if (update)
             {
                 await RunAsync(
                 [
                     "datamodel", "update-measure", "--session", _workbook.SessionId,
-                    "--measure-name", name, "--dax-formula", formula
+                    "--measure-name", name, "--dax-formula", formula,
+                    "--format-type", "Decimal"
                 ]);
             }
             var read = await RunAsync(
             [
                 "datamodel", "read", "--session", _workbook.SessionId, "--measure-name", name
             ]);
-            var storedFormula = read.GetProperty("daxFormula").GetString();
-            Assert.True(
-                storedFormula == formula || storedFormula == formula.Replace(",", ";", StringComparison.Ordinal),
-                $"Unexpected native Excel formula: {storedFormula}");
+            Assert.Equal(formula, read.GetProperty("daxFormula").GetString());
+            Assert.Equal(name, read.GetProperty("measureName").GetString());
+            Assert.Equal("SalesTable", read.GetProperty("tableName").GetString());
+            Assert.Equal(formula.Length, read.GetProperty("characterCount").GetInt32());
+            Assert.Equal("Decimal", read.GetProperty("formatInfo").GetProperty("type").GetString());
             var evaluated = await RunAsync(
             [
                 "datamodel", "evaluate", "--session", _workbook.SessionId,
@@ -69,6 +72,10 @@ public sealed class DataModelFormulaExcelParityTests : IAsyncLifetime
         Assert.True(result.ExitCode == 0, result.Stdout + result.Stderr);
         using var document = JsonDocument.Parse(result.Stdout);
         Assert.True(document.RootElement.GetProperty("success").GetBoolean(), result.Stdout);
+        if (document.RootElement.TryGetProperty("errorMessage", out var error))
+        {
+            Assert.True(error.ValueKind == JsonValueKind.Null || string.IsNullOrEmpty(error.GetString()), result.Stdout);
+        }
         return document.RootElement.Clone();
     }
 }

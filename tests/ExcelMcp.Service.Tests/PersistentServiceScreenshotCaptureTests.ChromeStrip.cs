@@ -6,6 +6,7 @@ using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -100,23 +101,25 @@ public sealed partial class IsolatedServiceScreenshotTests
             ctx.App.WindowState = Microsoft.Office.Interop.Excel.XlWindowState.xlNormal;
             ctx.App.Width = 900;
             ctx.App.Height = 630;
-            dynamic? sheet = null;
-            dynamic? cells = null;
-            dynamic? parkingCell = null;
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? cells = null;
+            Excel.Range? parkingCell = null;
             try
             {
-                sheet = ctx.Book.Worksheets["Sheet1"];
+                sheets = ctx.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets["Sheet1"];
                 sheet.Activate();
                 cells = sheet.Cells;
                 for (int row = 1; row <= rowCount; row++)
                 {
                     for (int column = 1; column <= columnCount; column++)
                     {
-                        dynamic? cell = null;
-                        dynamic? interior = null;
+                        Excel.Range? cell = null;
+                        Excel.Interior? interior = null;
                         try
                         {
-                            cell = cells[row, column];
+                            cell = (Excel.Range)cells[row, column];
                             if (column == 1) cell.RowHeight = 11.25 + row % 3 * 3.75;
                             if (row == 1) cell.ColumnWidth = 7.5 + column % 3 * 2.25;
                             interior = cell.Interior;
@@ -129,7 +132,7 @@ public sealed partial class IsolatedServiceScreenshotTests
                         }
                     }
                 }
-                parkingCell = cells[1, columnCount + 2];
+                parkingCell = (Excel.Range)cells[1, columnCount + 2];
                 parkingCell.Select();
             }
             finally
@@ -137,6 +140,7 @@ public sealed partial class IsolatedServiceScreenshotTests
                 ComUtilities.Release(ref parkingCell);
                 ComUtilities.Release(ref cells);
                 ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
             }
         });
 
@@ -219,14 +223,18 @@ public sealed partial class IsolatedServiceScreenshotTests
     {
         _fixture.ExecuteRawVerification((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? parkingCell = null;
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            Excel.Interior? interior = null;
+            Excel.Range? parkingCell = null;
             try
             {
-                sheet = ctx.Book.Worksheets[sheetName];
+                sheets = ctx.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[sheetName];
                 range = sheet.Range[rangeAddress];
-                range.Interior.Color = fillColor;
+                interior = range.Interior;
+                interior.Color = fillColor;
 
                 // A real screenshot includes the active-cell outline, which would otherwise be drawn
                 // over the fill and read as a light row. Park the selection outside the capture.
@@ -237,8 +245,10 @@ public sealed partial class IsolatedServiceScreenshotTests
             finally
             {
                 ComUtilities.Release(ref parkingCell);
+                ComUtilities.Release(ref interior);
                 ComUtilities.Release(ref range);
                 ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
             }
         });
     }

@@ -447,7 +447,8 @@ public partial class PivotTableCommands
             Caption = slicer.Caption?.ToString() ?? string.Empty,
             FieldName = GetSlicerCacheFieldName(cache),
             ColumnCount = isTimeline ? 0 : Convert.ToInt32(slicer.NumberOfColumns),
-            IsTimeline = isTimeline
+            IsTimeline = isTimeline,
+            SourceType = cache.List ? "Table" : "PivotTable"
         };
 
         // Get sheet name and position
@@ -503,7 +504,8 @@ public partial class PivotTableCommands
         {
             Name = slicer.Name?.ToString() ?? string.Empty,
             Caption = slicer.Caption?.ToString() ?? string.Empty,
-            FieldName = fieldName
+            FieldName = fieldName,
+            SourceType = cache.List ? "Table" : "PivotTable"
         };
 
         // Get sheet name and position

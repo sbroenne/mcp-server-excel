@@ -23,11 +23,22 @@ $plan | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $OutputPath -Encodin
 if ($env:GITHUB_OUTPUT) {
     $include = @($plan.CiTestGroups | ForEach-Object { @{ group = $_ } })
     $matrix = @{ include = $include } | ConvertTo-Json -Compress -Depth 5
+    $languages = @($plan.CodeQlLanguages | ForEach-Object {
+        @{
+            language = $_
+            os = if ($_ -eq 'csharp') { 'windows-latest' } else { 'ubuntu-26.04' }
+            'build-mode' = if ($_ -eq 'csharp') { 'manual' } else { 'none' }
+        }
+    })
+    $codeQlMatrix = @{ include = $languages } | ConvertTo-Json -Compress -Depth 5
     @(
         "matrix=$matrix"
         "source_checks_group=$($plan.SourceChecksGroup)"
         "tests=$($plan.CiTestGroups.Count -gt 0)".ToLowerInvariant()
         "packages=$($plan.Packages)".ToLowerInvariant()
+        "package_build=$($plan.PackageBuild)".ToLowerInvariant()
+        "codeql_matrix=$codeQlMatrix"
+        "codeql=$($plan.CodeQlLanguages.Count -gt 0)".ToLowerInvariant()
         "npm=$($plan.NpmTests)".ToLowerInvariant()
         "lockfiles=$($plan.LockfileTests)".ToLowerInvariant()
     ) | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8

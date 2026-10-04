@@ -9,7 +9,7 @@ guide needed for an unresolved decision.
 | Direct CSV or legacy HTML import | [QueryTables](querytable.md) |
 | Modern imports or stored transformations | [Power Query](powerquery.md) |
 | Aggregation over loaded model data | [Data Model/DAX](datamodel.md) |
-| Cross-table filtering | `datamodel_relationship` (MCP) / `datamodelrelationship` (CLI); load tables first |
+| Cross-table filtering | [Model relationships](datamodel.md); load tables first |
 | Interactive summary | [PivotTables](pivottable.md); model setup only when needed |
 | A chart following PivotTable fields/filters | [Live PivotCharts](chart.md), not a chart of displayed cells |
 | Requested report layout | [Optional formatting](report-formatting.md) |

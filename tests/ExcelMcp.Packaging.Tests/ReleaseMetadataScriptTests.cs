@@ -50,6 +50,11 @@ public sealed class ReleaseMetadataScriptTests
     [Theory]
     [InlineData("absent", false, true)]
     [InlineData("draft", false, true)]
+    [InlineData("draft-later-page", false, true)]
+    [InlineData("duplicate-draft", false, false)]
+    [InlineData("invalid-draft", false, false)]
+    [InlineData("published-list", false, false)]
+    [InlineData("list-api-error", false, false)]
     [InlineData("published", false, true)]
     [InlineData("immutable", false, true)]
     [InlineData("missing", false, false)]
@@ -94,10 +99,26 @@ public sealed class ReleaseMetadataScriptTests
                             'gh: Forbidden (HTTP 403)'
                             return
                         }
-                        if ('{{mode}}' -eq 'absent' -and -not $global:releaseFixtureCreated) {
+                        $isList = $Arguments[1] -eq 'repos/owner/repo/releases'
+                        $isAbsent = '{{mode}}' -eq 'absent' -and -not $global:releaseFixtureCreated
+                        $isDraft = '{{mode}}' -in @('absent', 'draft', 'draft-later-page',
+                            'duplicate-draft', 'invalid-draft', 'published-list', 'list-api-error') `
+                            -and -not $global:releaseFixturePublished
+                        if (-not $isList -and ($isAbsent -or $isDraft)) {
                             $global:LASTEXITCODE = 1
                             'gh: Not Found (HTTP 404)'
                             return
+                        }
+                        if ($isList) {
+                            if ('--paginate' -notin $Arguments -or '--slurp' -notin $Arguments) {
+                                throw 'Draft lookup must request all release pages.'
+                            }
+                            if ('{{mode}}' -eq 'list-api-error') {
+                                $global:LASTEXITCODE = 1
+                                'gh: Forbidden (HTTP 403)'
+                                return
+                            }
+                            if ($isAbsent) { '[[]]'; return }
                         }
                         $assets = @(Get-ChildItem publish -File | ForEach-Object {
                             @{ name = $_.Name; digest = 'sha256:' + (Get-FileHash $_.FullName).Hash.ToLowerInvariant() }
@@ -106,12 +127,27 @@ public sealed class ReleaseMetadataScriptTests
                             $assets = @($assets | Where-Object name -ne 'SHA256SUMS')
                         }
                         if ('{{mode}}' -eq 'mismatch') { $assets[0].digest = 'sha256:' + ('0' * 64) }
-                        @{
+                        $release = @{
                             tag_name = 'v1.2.3'
-                            draft = '{{mode}}' -in @('absent', 'draft') -and -not $global:releaseFixturePublished
+                            draft = $isDraft
                             immutable = '{{mode}}' -like 'immutable*'
                             assets = $assets
-                        } | ConvertTo-Json -Depth 5
+                        }
+                        if ($isList) {
+                            $pages = ,@($release)
+                            if ('{{mode}}' -eq 'draft-later-page') {
+                                $pages = @(@(@{ tag_name = 'V1.2.3'; draft = $true; immutable = $false }),
+                                    @($release))
+                            }
+                            if ('{{mode}}' -eq 'duplicate-draft') { $pages = @(@($release), @($release)) }
+                            if ('{{mode}}' -eq 'invalid-draft') { $release.immutable = 'false' }
+                            if ('{{mode}}' -eq 'published-list') { $release.draft = $false }
+                            $response = ConvertTo-Json -InputObject $pages -Depth 7
+                            $response | Set-Content list-response.json
+                            $response
+                        } else {
+                            $release | ConvertTo-Json -Depth 5
+                        }
                     } elseif ($Arguments[1] -eq 'create') {
                         $global:releaseFixtureCreated = $true
                     } elseif ($Arguments[1] -eq 'upload') {
@@ -131,27 +167,52 @@ public sealed class ReleaseMetadataScriptTests
                 """);
             var result = await RunPowerShellScriptAsync(runner, [], sandbox);
             Assert.True(succeeds == (result.ExitCode == 0), result.CombinedOutput);
+            if (mode is "absent" or "draft" or "draft-later-page" or "duplicate-draft" or "invalid-draft" or "published-list")
+            {
+                using var response = JsonDocument.Parse(File.ReadAllText(Path.Combine(sandbox, "list-response.json")));
+                var pages = response.RootElement;
+                Assert.Equal(JsonValueKind.Array, pages.ValueKind);
+                Assert.All(pages.EnumerateArray(), page =>
+                {
+                    Assert.Equal(JsonValueKind.Array, page.ValueKind);
+                    Assert.Equal(JsonValueKind.Object, Assert.Single(page.EnumerateArray()).ValueKind);
+                });
+                Assert.Equal(mode is "draft-later-page" or "duplicate-draft" ? 2 : 1, pages.GetArrayLength());
+                if (mode == "draft-later-page")
+                {
+                    Assert.Equal("V1.2.3", pages[0][0].GetProperty("tag_name").GetString());
+                    Assert.Equal("v1.2.3", pages[1][0].GetProperty("tag_name").GetString());
+                }
+            }
             if (!succeeds)
             {
                 var expectedError = mode switch
                 {
                     "missing" or "immutable-missing" => "Published assets are missing",
                     "mismatch" => "Missing or mismatched GitHub SHA-256 digest",
-                    "api-error" => "GitHub command failed",
+                    "api-error" or "list-api-error" => "GitHub command failed",
+                    "duplicate-draft" => "multiple releases",
+                    "invalid-draft" or "published-list" => "invalid release identity or state",
                     _ => throw new InvalidOperationException($"Unexpected failure fixture: {mode}")
                 };
                 Assert.Contains(expectedError, result.CombinedOutput, StringComparison.Ordinal);
             }
             var calls = File.ReadAllText(Path.Combine(sandbox, "calls.json"));
-            if (mode is "absent" or "draft")
+            if (mode is "absent" or "draft" or "draft-later-page")
             {
                 Assert.Contains("release upload", calls, StringComparison.Ordinal);
                 Assert.Contains("--clobber", calls, StringComparison.Ordinal);
                 Assert.Contains("release edit", calls, StringComparison.Ordinal);
+                Assert.Contains("api repos/owner/repo/releases --paginate --slurp", calls, StringComparison.Ordinal);
+                Assert.Contains("Published v1.2.3 after verifying every draft asset", result.CombinedOutput, StringComparison.Ordinal);
                 if (mode == "absent")
                 {
                     Assert.Contains("--draft", calls, StringComparison.Ordinal);
                     Assert.Contains("--verify-tag", calls, StringComparison.Ordinal);
+                }
+                else
+                {
+                    Assert.DoesNotContain("release create", calls, StringComparison.Ordinal);
                 }
             }
             else
@@ -167,6 +228,10 @@ public sealed class ReleaseMetadataScriptTests
                 {
                     Assert.DoesNotContain("release upload", calls, StringComparison.Ordinal);
                 }
+            }
+            if (mode is "published" or "immutable" or "missing" or "immutable-missing" or "mismatch" or "api-error")
+            {
+                Assert.DoesNotContain("api repos/owner/repo/releases --paginate", calls, StringComparison.Ordinal);
             }
             if (succeeds)
             {
@@ -895,7 +960,7 @@ public sealed class ReleaseMetadataScriptTests
 
             CopyDocumentationCountFiles(sandbox, canonicalTools, canonicalOperations);
             var readmePath = Path.Combine(sandbox, "README.md");
-            var hooksPath = Path.Combine(sandbox, "gh-pages", "hooks.py");
+            var llmOutputsPath = Path.Combine(sandbox, "gh-pages", "sitegen", "llm.py");
             await File.WriteAllTextAsync(
                 readmePath,
                 (await File.ReadAllTextAsync(readmePath))
@@ -919,12 +984,13 @@ public sealed class ReleaseMetadataScriptTests
                 $"all {canonicalOperations} operations",
                 await File.ReadAllTextAsync(readmePath),
                 StringComparison.Ordinal);
-            var hooksContent = await File.ReadAllTextAsync(hooksPath);
-            Assert.Contains("_read_release_headline_counts()", hooksContent, StringComparison.Ordinal);
-            Assert.Contains("for output_name, source_rel in FEATURE_SOURCES.items():", hooksContent, StringComparison.Ordinal);
+            var llmOutputsContent = await File.ReadAllTextAsync(llmOutputsPath);
+            Assert.Contains("json.loads(read(DOC_COUNTS))", llmOutputsContent, StringComparison.Ordinal);
+            Assert.Contains("headline_tools, headline_operations = headline_counts()", llmOutputsContent, StringComparison.Ordinal);
+            Assert.Contains("for line in read(page.source).splitlines():", llmOutputsContent, StringComparison.Ordinal);
             Assert.DoesNotMatch(
                 @"exposing \d+ tools and \d+ operations",
-                hooksContent);
+                llmOutputsContent);
 
             var docCountsPath = Path.Combine(sandbox, "doc-counts.json");
             Assert.True(File.Exists(docCountsPath), "-Update must generate the single doc-counts.json include file.");
@@ -1153,7 +1219,7 @@ public sealed class ReleaseMetadataScriptTests
             Path.Combine("mcpb", "BUILD.md"),
             Path.Combine("gh-pages", "docs", "index.md"),
             Path.Combine("gh-pages", "docs", "faq.md"),
-            Path.Combine("gh-pages", "hooks.py"),
+            Path.Combine("gh-pages", "sitegen", "llm.py"),
             Path.Combine(".github", "plugins", "excel-mcp", "README.md"),
             Path.Combine(".github", "plugins", "excel-cli", "README.md"),
             Path.Combine("docs", "INSTALLATION-CLI.md"),
