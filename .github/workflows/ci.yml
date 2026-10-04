@@ -39,7 +39,7 @@ jobs:
   # so it can safely be a required check.
   docs:
     name: Docs Site
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -80,7 +80,7 @@ jobs:
 
   changes:
     name: Select validation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       matrix: ${{ steps.select.outputs.matrix }}
       tests: ${{ steps.select.outputs.tests }}
@@ -275,7 +275,7 @@ jobs:
     name: CI Gate
     if: always()
     needs: [changes, tests, packages, npm, lockfiles]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

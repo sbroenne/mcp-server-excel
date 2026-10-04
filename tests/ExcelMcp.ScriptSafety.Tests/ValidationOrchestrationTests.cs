@@ -111,7 +111,7 @@ public sealed class ValidationOrchestrationTests
                     throw 'Wrong selection output flags.'
                 }
                 foreach ($entry in $matrix.include) {
-                    $os = if ($entry.language -eq 'csharp') { 'windows-latest' } else { 'ubuntu-latest' }
+                    $os = if ($entry.language -eq 'csharp') { 'windows-latest' } else { 'ubuntu-26.04' }
                     $mode = if ($entry.language -eq 'csharp') { 'manual' } else { 'none' }
                     if ($entry.os -cne $os -or $entry.'build-mode' -cne $mode) { throw 'Language extraction changed.' }
                 }
