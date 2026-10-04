@@ -158,11 +158,11 @@ public sealed class AutomationSafetyTests
     }
 
     [Theory]
-    [InlineData("src/ExcelMcp.CLI/Program.cs", "Cli,Skills,Plugins")]
-    [InlineData("src/ExcelMcp.McpServer/Program.cs", "Mcp,Extension,Mcpb,Skills,Plugins")]
+    [InlineData("src/ExcelMcp.CLI/Program.cs", "Cli")]
+    [InlineData("src/ExcelMcp.McpServer/Program.cs", "Mcp,Extension")]
     [InlineData("npm-packages/shared/launcher.js", "Cli,Mcp")]
     [InlineData(".npmrc", "Cli,Mcp,Extension,Mcpb,Skills,Plugins")]
-    [InlineData("README.md", "")]
+    [InlineData("README.md", "Cli,Mcp")]
     public async Task PackageSelection_ExcludesUnrelatedDistributions(string path, string expected)
     {
         var root = NewSandbox();

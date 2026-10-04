@@ -15,7 +15,7 @@ public sealed class PreCommitScriptTests
     [Theory]
     [InlineData("src/ExcelMcp.Core/Command.cs", true, true)]
     [InlineData("docs/reference/report-formatting.md", true, false)]
-    [InlineData("README.md", false, false)]
+    [InlineData("README.md", true, false)]
     [InlineData("README.md\nsrc/ExcelMcp.Core/Command.cs", true, true)]
     public async Task ChangedPaths_SelectChecksWithoutCreatingPackages(string path, bool build, bool excel)
     {
@@ -42,7 +42,7 @@ public sealed class PreCommitScriptTests
     {
         (string Path, bool Build, bool Excel, bool SkillTests)[] cases =
         [
-            ("README.md", false, false, false),
+            ("README.md", true, false, false),
             ("docs/guide.md", false, false, false),
             ("gh-pages/docs/index.md", false, false, false),
             ("videos/excel-mcp-intro/Capture-Evidence.ps1", true, false, false),

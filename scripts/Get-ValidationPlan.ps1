@@ -22,8 +22,8 @@ function Get-ValidationPlan {
     }
     $fast = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     $process = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-    $tooling = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-    $toolingOwners = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $toolingSelections = @{}
+    $codeQl = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     $excel = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     $allProjects = @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service')
     $allExcel = @('Acceptance', 'Data', 'Desktop', 'Editing', 'Infrastructure', 'Lifecycle', 'Reporting', 'VBA')
@@ -34,26 +34,55 @@ function Get-ValidationPlan {
     $infrastructureDiagnostics = $false
     foreach ($original in $Paths) {
         $path = $original.Replace('\', '/')
+        $tooling = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        $toolingOwners = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+        if ($path -match '\.cs$|\.(csproj|sln|slnf|props|targets)$|(^|/)(global\.json|NuGet\.Config)$') {
+            [void]$codeQl.Add('csharp')
+        }
+        if ($path -match '\.(js|jsx|mjs|cjs|ts|tsx|mts|cts)$|(^|/)(package(-lock)?\.json|[jt]sconfig[^/]*\.json|\.npmrc)$') {
+            [void]$codeQl.Add('javascript-typescript')
+        }
+        if ($path -match '\.py$|(^|/)(requirements[^/]*\.txt|pyproject\.toml|poetry\.lock|uv\.lock|Pipfile(\.lock)?|setup\.cfg)$') {
+            [void]$codeQl.Add('python')
+        }
+        if ($path -match '^\.github/workflows/[^/]+\.ya?ml$|^\.github/actions/.+/action\.ya?ml$') {
+            [void]$codeQl.Add('actions')
+        }
+        if ($path -match '^\.github/(workflows/codeql\.yml|codeql/)|^scripts/(Get-ValidationPlan|Get-CiValidationPlan)\.ps1$') {
+            foreach ($language in @('actions', 'csharp', 'javascript-typescript', 'python')) { [void]$codeQl.Add($language) }
+        }
         $kind = switch -Regex ($path) {
+            '^skills/|^docs/reference/report-formatting\.md$' { 'skills'; break }
+            '^\.github/plugins/|^\.github/workflows/(publish-plugins\.yml|update-awesome-copilot\.(md|lock\.yml))$' { 'plugins'; break }
+            '(^|/)(AGENTS|CLAUDE)\.md$|^\.github/copilot-instructions\.md$' { 'documentation'; break }
+            '^src/ExcelMcp\.CLI/README\.md$' { 'cli-docs'; break }
+            '^src/ExcelMcp\.McpServer/README\.md$' { 'mcp-docs'; break }
+            '^npm-packages/excelcli[^/]*/README\.md$' { 'cli-docs'; break }
+            '^npm-packages/mcp-server-excel[^/]*/README\.md$' { 'mcp-docs'; break }
+            '^README\.md$' { 'runtime-docs'; break }
+            '^(LICENSE|CHANGELOG\.md)$' { 'distribution-docs'; break }
+            '^docs/AGENT-SKILLS\.md$' { 'skill-docs'; break }
+            '^mcpb/' { 'mcpb'; break }
+            '^vscode-extension/(README\.md|LICENSE|CHANGELOG\.md)$' { 'extension-docs'; break }
+            '\.md$' { 'documentation'; break }
             '^(Directory\.Build\..*|Directory\.Packages\.props|global\.json|NuGet\.Config|Sbroenne\.ExcelMcp\.sln)$' { 'runtime'; break }
             '^src/ExcelMcp\.(Core|ComInterop|Service|Cleanup|Generators[^/]*)/' { 'runtime'; break }
             '^src/ExcelMcp\.CLI/' { 'cli'; break }
             '^src/ExcelMcp\.McpServer/' { 'mcp'; break }
-            '^src/ExcelMcp\.Build\.Tasks/|^skills/|^docs/reference/report-formatting\.md$' { 'skills'; break }
+            '^src/ExcelMcp\.Build\.Tasks/' { 'skills'; break }
             '^src/ExcelMcp\.Diagnostics/|^\.editorconfig$' { 'build'; break }
             '^scripts/(Test-E2E|Test-CliWorkflow|Test-CliApiCoverage|Stop-ExcelMcpProcesses)\.ps1$|^tests/.*/(PreBuildGracefulSaveAcceptanceTests|McpServerSmokeTests|CliWorkflowAcceptanceTests)\.cs$' { 'runtime'; break }
             '^tests/' { 'tests'; break }
+            '^llm-tests/' { 'evaluation'; break }
             '^vscode-extension/' { 'extension'; break }
-            '^mcpb/' { 'mcpb'; break }
             '^npm-packages/excelcli' { 'cli-package'; break }
             '^npm-packages/mcp-server-excel' { 'mcp-package'; break }
             '^npm-packages/shared/' { 'npm-packages'; break }
-            '^\.github/plugins/|^\.github/workflows/(publish-plugins\.yml|update-awesome-copilot\.(md|lock\.yml))$' { 'plugins'; break }
             '^scripts/Build-AgentSkills\.ps1$' { 'skills'; break }
             '^scripts/(Build-Plugins|Sync-PublishedPluginRepo|Publish-PreparedPlugins)\.ps1$|^scripts/(PluginContent|AwesomeCopilotPolicy|Update-AwesomeCopilot)\.mjs$' { 'plugins'; break }
             '^scripts/(Build-NpmPackages|Test-NpmPackages|Build-ReleasePackages|PackageHelpers)\.ps1$|^\.github/workflows/(release|publish-mcp-registry)\.yml$' { 'packages'; break }
             '^doc-counts\.json$|^scripts/check-doc-counts\.ps1$' { 'doc-counts'; break }
-            '^scripts/(pre-commit|Get-ValidationPlan|Get-CiValidationPlan|Get-ExcelTestGroups|Invoke-ExcelFreeTests|Invoke-ExcelTests|Invoke-TestStage|Test-CiCompletion|check-|Test-NpmLockfiles)' { 'tests'; break }
+            '^scripts/(pre-commit|Get-ValidationPlan|Get-CiValidationPlan|Build-CiInputs|Get-ExcelTestGroups|Invoke-ExcelFreeTests|Invoke-ExcelTests|Invoke-TestStage|Test-CiCompletion|check-|Test-NpmLockfiles)' { 'tests'; break }
             '^\.github/workflows/ci\.yml$' { 'pipeline'; break }
             '^scripts/(Build-Changelog|Update-(ReleaseVersion|McpRegistry)Metadata|Resolve-McpRegistryRelease|Test-McpRegistryPublication)\.ps1$' { 'packages'; break }
             '^scripts/(Update|Restore|Persist|Test)-StarHistory\.ps1$|^scripts/.*UsageAnalytics.*\.ps1$' { 'maintenance'; break }
@@ -64,27 +93,28 @@ function Get-ValidationPlan {
             default { 'unknown' }
         }
         $plan.Reasons.Add("$path -> $kind")
+        if ($kind -eq 'documentation') { continue }
         if ($kind -in @('runtime', 'cli', 'mcp', 'unknown')) {
             $plan.Build = $true
             $plan.Excel = $true
             $plan.SourceChecks = $true
         }
-        if ($kind -in @('runtime', 'cli', 'cli-package', 'npm-packages', 'packages', 'pipeline', 'unknown')) { $plan.Cli = $true }
-        if ($kind -in @('runtime', 'mcp', 'mcp-package', 'npm-packages', 'packages', 'pipeline', 'unknown')) { $plan.Mcp = $true }
-        if ($kind -in @('runtime', 'cli', 'mcp', 'skills', 'packages', 'pipeline', 'unknown')) { $plan.Skills = $true }
-        if ($kind -in @('extension', 'skills', 'packages', 'pipeline', 'runtime', 'mcp', 'unknown')) { $plan.Extension = $true }
-        if ($kind -in @('mcpb', 'packages', 'pipeline', 'runtime', 'mcp', 'unknown')) { $plan.Mcpb = $true }
-        if ($kind -in @('plugins', 'skills', 'packages', 'pipeline', 'runtime', 'cli', 'mcp', 'unknown')) { $plan.Plugins = $true }
-        if ($kind -in @('build', 'tests', 'skills', 'plugins', 'packages', 'safety', 'pipeline', 'doc-counts')) { $plan.Build = $true }
+        if ($kind -in @('runtime', 'cli', 'cli-package', 'npm-packages', 'packages', 'pipeline', 'unknown', 'cli-docs', 'runtime-docs', 'distribution-docs')) { $plan.Cli = $true }
+        if ($kind -in @('runtime', 'mcp', 'mcp-package', 'npm-packages', 'packages', 'pipeline', 'unknown', 'mcp-docs', 'runtime-docs', 'distribution-docs')) { $plan.Mcp = $true }
+        if ($kind -in @('skills', 'skill-docs', 'packages', 'pipeline', 'unknown')) { $plan.Skills = $true }
+        if ($kind -in @('extension', 'extension-docs', 'skills', 'packages', 'pipeline', 'runtime', 'mcp', 'unknown', 'distribution-docs')) { $plan.Extension = $true }
+        if ($kind -in @('mcpb', 'packages', 'pipeline', 'unknown', 'distribution-docs')) { $plan.Mcpb = $true }
+        if ($kind -in @('plugins', 'skills', 'packages', 'pipeline', 'unknown')) { $plan.Plugins = $true }
+        if ($kind -in @('build', 'tests', 'skills', 'skill-docs', 'plugins', 'packages', 'safety', 'pipeline', 'doc-counts')) { $plan.Build = $true }
         if ($kind -in @('safety', 'pipeline') -or
             ($kind -eq 'tests' -and $path -notmatch '^tests/(ExcelMcp\.(SkillGeneration|Packaging)\.Tests/|Shared/(GeneratedAssetsFixture|PackagingScriptTestHelper)\.cs$)')) {
             $plan.HookTests = $true
         }
-        if ($kind -in @('skills', 'pipeline') -or
+        if ($kind -in @('skills', 'skill-docs', 'pipeline') -or
             $path -match '^tests/(ExcelMcp\.SkillGeneration\.Tests/|Shared/(GeneratedAssetsFixture|PackagingScriptTestHelper)\.cs$)') {
             $plan.SkillTests = $true
         }
-        if ($kind -in @('plugins', 'packages', 'pipeline', 'doc-counts') -or
+        if ($kind -in @('plugins', 'packages', 'mcpb', 'pipeline', 'doc-counts', 'cli-docs', 'mcp-docs', 'runtime-docs', 'distribution-docs', 'extension-docs') -or
             $path -match '^tests/(ExcelMcp\.Packaging\.Tests/|Shared/(GeneratedAssetsFixture|PackagingScriptTestHelper)\.cs$)' -or
             $path -match '^mcpb/(Build-McpBundle|McpbPackaging)\.ps1$') {
             $plan.PackagingTests = $true
@@ -94,7 +124,8 @@ function Get-ValidationPlan {
         if ($kind -in @('runtime', 'cli', 'mcp', 'unknown', 'pipeline', 'build')) {
             foreach ($project in $allProjects) { [void]$fast.Add($project) }
             [void]$process.Add('CLI')
-            $fullTooling = $true
+            if ($kind -in @('unknown', 'pipeline', 'build') -or
+                $path -match '^(Directory\.|global\.json|NuGet\.Config|Sbroenne\.ExcelMcp\.sln)') { $fullTooling = $true }
         }
         if ($kind -in @('runtime', 'cli', 'mcp', 'unknown')) {
             [void]$excel.Add('Acceptance')
@@ -128,7 +159,7 @@ function Get-ValidationPlan {
         }
         if (($path -match '^tests/Shared/' -and
              $path -notmatch '^tests/Shared/(GeneratedAssetsFixture|PackagingScriptTestHelper)\.cs$') -or
-            $path -match '^tests/.*\.csproj$|^tests/.*xunit\.runner\.json$') {
+            $path -match '^tests/Directory\.Build\.(props|targets)$') {
             foreach ($project in $allProjects) { [void]$fast.Add($project) }
             [void]$process.Add('CLI')
             $fullTooling = $true
@@ -139,12 +170,12 @@ function Get-ValidationPlan {
             [void]$toolingOwners.Add('ScriptSafety')
             foreach ($feature in @('PreCommit', 'AutomationSafety')) { [void]$tooling.Add("Feature=$feature") }
         }
-        if ($path -match '^scripts/(Invoke-TestStage|Get-CiValidationPlan|Test-CiCompletion|Invoke-ExcelTests|Get-ExcelTestGroups)\.ps1$') {
+        if ($path -match '^scripts/(Invoke-TestStage|Get-ValidationPlan|Get-CiValidationPlan|Build-CiInputs|Invoke-ExcelFreeTests|Test-CiCompletion|Invoke-ExcelTests|Get-ExcelTestGroups)\.ps1$') {
             foreach ($project in $allProjects) { [void]$fast.Add($project) }
             [void]$process.Add('CLI')
             $fullTooling = $true
         }
-        if ($kind -eq 'skills') {
+        if ($kind -in @('skills', 'skill-docs')) {
             [void]$toolingOwners.Add('SkillGeneration')
             [void]$tooling.Add('Feature=SkillGeneration')
         }
@@ -174,6 +205,10 @@ function Get-ValidationPlan {
                 [void]$tooling.Add("Feature=$feature")
             }
         }
+        if ($kind -in @('cli-docs', 'mcp-docs', 'runtime-docs', 'distribution-docs', 'extension-docs')) {
+            [void]$toolingOwners.Add('Packaging')
+            [void]$tooling.Add('Feature=Packaging')
+        }
         if ($path -match '^tests/ExcelMcp\.(SkillGeneration|Packaging|ScriptSafety)\.Tests/') {
             [void]$toolingOwners.Add($Matches[1])
             if ($path -match 'PluginPublication') { [void]$tooling.Add('Feature=PluginPublication') }
@@ -184,6 +219,15 @@ function Get-ValidationPlan {
         }
         if ($path -match '(^|/)(package-lock\.json|\.npmrc)$|^scripts/(Test-NpmLockfiles|check-npm-lockfiles)\.ps1$|^\.github/workflows/ci\.yml$') {
             $lockfileTests = $true
+        }
+        foreach ($owner in $toolingOwners) {
+            if (-not $toolingSelections.ContainsKey($owner)) {
+                $toolingSelections[$owner] = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+            }
+            foreach ($filter in $tooling) { [void]$toolingSelections[$owner].Add($filter) }
+        }
+        if ($kind -eq 'unknown') {
+            foreach ($language in @('actions', 'csharp', 'javascript-typescript', 'python')) { [void]$codeQl.Add($language) }
         }
     }
     if ($Full) {
@@ -196,21 +240,29 @@ function Get-ValidationPlan {
         $npmTests = $true
         $lockfileTests = $true
         $infrastructureDiagnostics = $true
+        foreach ($language in @('actions', 'csharp', 'javascript-typescript', 'python')) { [void]$codeQl.Add($language) }
     }
     $plan.FastProjects = @($fast | Sort-Object)
     $plan.ProcessProjects = @($process | Sort-Object)
-    $plan.ToolingFilter = if ($fullTooling) { 'RequiresExcel=false' } else { @($tooling | Sort-Object) -join '|' }
     $plan.ToolingProjects = if ($fullTooling) {
         @('SkillGeneration', 'Packaging', 'ScriptSafety')
-    } else { @($toolingOwners | Sort-Object) }
-    if ($plan.ToolingProjects.Count -and -not $plan.ToolingFilter) { $plan.ToolingFilter = 'RequiresExcel=false' }
+    } else { @($toolingSelections.Keys | Sort-Object) }
+    $plan.ToolingFilters = [ordered]@{}
+    foreach ($owner in $plan.ToolingProjects) {
+        $filters = @($toolingSelections[$owner] | Sort-Object)
+        $plan.ToolingFilters[$owner] = if ($fullTooling -or 'RequiresExcel=false' -in $filters -or -not $filters.Count) {
+            'RequiresExcel=false'
+        } else { $filters -join '|' }
+    }
+    $plan.CodeQlLanguages = @($codeQl | Sort-Object)
+    $plan.PackageBuild = [bool]($plan.Cli -or $plan.Mcp -or $plan.Extension)
     $plan.CiTestGroups = @(
         if ($fast.Count) { 'Fast' }
         if ($process.Count) { 'Process' }
         if ($plan.ToolingProjects.Count) { 'Tooling' }
     )
     $plan.ExcelGroups = @($excel | Sort-Object)
-    $plan.SourceChecksGroup = if ($fast.Count) { 'Fast' } elseif ($documentationCounts) { 'Tooling' } else { '' }
+    $plan.SourceChecksGroup = if ($fast.Count -and ($plan.SourceChecks -or $fullTooling)) { 'Fast' } elseif ($documentationCounts) { 'Tooling' } else { '' }
     $plan.InfrastructureDiagnostics = $infrastructureDiagnostics
     $plan.Packages = [bool](@('Cli', 'Mcp', 'Extension', 'Mcpb', 'Skills', 'Plugins') | Where-Object { $plan[$_] }).Count
     $plan.NpmTests = $npmTests

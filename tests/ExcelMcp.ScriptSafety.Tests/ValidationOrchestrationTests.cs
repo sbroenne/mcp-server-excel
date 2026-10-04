@@ -26,8 +26,10 @@ public sealed class ValidationOrchestrationTests
     public async Task CiPreparatoryBuilds_DisableBuildServers()
     {
         var run = await ValidationSelectionTests.RunAsync("""
-            $builds = @(Get-Content .\.github\workflows\ci.yml | Where-Object { $_ -match 'dotnet build Sbroenne.ExcelMcp.sln' })
-            if ($builds.Count -ne 2) { throw "Unexpected preparatory build count: $($builds.Count)" }
+            $workflow = Get-Content .\.github\workflows\ci.yml -Raw
+            if (-not $workflow.Contains('./scripts/Build-CiInputs.ps1')) { throw 'Scoped preparation was not wired.' }
+            $builds = @(Get-Content .\scripts\Build-CiInputs.ps1 | Where-Object { $_ -match '& dotnet build' })
+            if ($builds.Count -ne 1) { throw "Unexpected preparatory build count: $($builds.Count)" }
             foreach ($build in $builds) {
                 if ($build -notmatch '--disable-build-servers') { throw 'Preparatory build can retain a locking build server.' }
             }
@@ -69,6 +71,62 @@ public sealed class ValidationOrchestrationTests
                 if (-not $workflow.Contains('source_checks_group: ${{ steps.select.outputs.source_checks_group }}') -or
                     -not $workflow.Contains('if: matrix.group == needs.changes.outputs.source_checks_group')) {
                     throw 'Workflow does not route the selected source checks.'
+                }
+            } finally {
+                $env:GITHUB_OUTPUT = $previousOutput
+                Remove-Item -LiteralPath $sandbox -Recurse -Force
+            }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
+    }
+
+    [Theory]
+    [InlineData("tests/AGENTS.md", "", false)]
+    [InlineData("scripts/PluginContent.mjs", "javascript-typescript", false)]
+    [InlineData("src/ExcelMcp.McpServer/Program.cs", "csharp", true)]
+    [InlineData("all", "actions,csharp,javascript-typescript,python", true)]
+    public async Task CiSelection_ExportsLanguageMatrixAndPackageBuild(string path, string languages, bool packageBuild)
+    {
+        var run = await ValidationSelectionTests.RunAsync($$$"""
+            $sandbox = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.LanguageOutputs.$([Guid]::NewGuid().ToString('N'))"
+            New-Item -ItemType Directory -Path $sandbox | Out-Null
+            $previousOutput = $env:GITHUB_OUTPUT
+            try {
+                $env:GITHUB_OUTPUT = Join-Path $sandbox outputs.txt
+                if ('{{{path}}}' -ne 'all') {
+                    function git { '{{{path}}}'; $global:LASTEXITCODE = 0 }
+                }
+                & .\scripts\Get-CiValidationPlan.ps1 -BaseRef baseline -Full:('{{{path}}}' -eq 'all') `
+                    -OutputPath (Join-Path $sandbox plan.json)
+                $outputs = @{}
+                foreach ($line in Get-Content -LiteralPath $env:GITHUB_OUTPUT) {
+                    $key, $value = $line -split '=', 2
+                    $outputs[$key] = $value
+                }
+                $matrix = $outputs.codeql_matrix | ConvertFrom-Json
+                if (($matrix.include.language -join ',') -cne '{{{languages}}}') { throw 'Wrong exported language matrix.' }
+                $expectedCodeQl = if ('{{{languages}}}') { 'true' } else { 'false' }
+                if ($outputs.codeql -cne $expectedCodeQl -or
+                    $outputs.package_build -cne '{{{packageBuild.ToString().ToLowerInvariant()}}}') {
+                    throw 'Wrong selection output flags.'
+                }
+                foreach ($entry in $matrix.include) {
+                    $os = if ($entry.language -eq 'csharp') { 'windows-latest' } else { 'ubuntu-latest' }
+                    $mode = if ($entry.language -eq 'csharp') { 'manual' } else { 'none' }
+                    if ($entry.os -cne $os -or $entry.'build-mode' -cne $mode) { throw 'Language extraction changed.' }
+                }
+                $workflow = Get-Content .\.github\workflows\codeql.yml -Raw
+                foreach ($required in @(
+                    './scripts/Get-CiValidationPlan.ps1',
+                    'matrix: ${{ steps.select.outputs.codeql_matrix }}',
+                    'has-any: ${{ steps.select.outputs.codeql }}',
+                    'fetch-depth: 0',
+                    '-Full:($env:EVENT -ne ''pull_request'')',
+                    'dotnet build Sbroenne.ExcelMcp.sln --no-restore --configuration Release --no-incremental',
+                    'name: CodeQL Completion',
+                    '[ "$DETECTION" = success ]',
+                    'false:skipped)')) {
+                    if (-not $workflow.Contains($required)) { throw "Missing CodeQL guarantee: $required" }
                 }
             } finally {
                 $env:GITHUB_OUTPUT = $previousOutput
@@ -237,7 +295,10 @@ public sealed class ValidationOrchestrationTests
                 $base = git rev-parse HEAD
                 & $script -BaseRef $base -HeadRef $head -OutputPath merge.json
                 $merge = Get-Content merge.json -Raw | ConvertFrom-Json
-                if ($merge.CiTestGroups.Count) { throw 'PR selection included unrelated base-branch work.' }
+                if ($merge.FastProjects.Count -or $merge.ProcessProjects.Count -or
+                    ($merge.CiTestGroups -join ',') -cne 'Tooling' -or $merge.Excel) {
+                    throw 'PR selection included unrelated base-branch work.'
+                }
                 & $script -BaseRef $base -HeadRef $head -Comparison Direct -OutputPath direct.json
                 $direct = Get-Content direct.json -Raw | ConvertFrom-Json
                 if (-not $direct.Packages) { throw 'Direct range missed deleted runtime input.' }
