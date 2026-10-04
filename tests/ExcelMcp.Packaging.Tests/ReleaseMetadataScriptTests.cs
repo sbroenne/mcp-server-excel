@@ -134,7 +134,7 @@ public sealed class ReleaseMetadataScriptTests
                             assets = $assets
                         }
                         if ($isList) {
-                            $pages = @(@($release))
+                            $pages = ,@($release)
                             if ('{{mode}}' -eq 'draft-later-page') {
                                 $pages = @(@(@{ tag_name = 'V1.2.3'; draft = $true; immutable = $false }),
                                     @($release))
@@ -142,7 +142,9 @@ public sealed class ReleaseMetadataScriptTests
                             if ('{{mode}}' -eq 'duplicate-draft') { $pages = @(@($release), @($release)) }
                             if ('{{mode}}' -eq 'invalid-draft') { $release.immutable = 'false' }
                             if ('{{mode}}' -eq 'published-list') { $release.draft = $false }
-                            ConvertTo-Json -InputObject $pages -Depth 7
+                            $response = ConvertTo-Json -InputObject $pages -Depth 7
+                            $response | Set-Content list-response.json
+                            $response
                         } else {
                             $release | ConvertTo-Json -Depth 5
                         }
@@ -165,6 +167,23 @@ public sealed class ReleaseMetadataScriptTests
                 """);
             var result = await RunPowerShellScriptAsync(runner, [], sandbox);
             Assert.True(succeeds == (result.ExitCode == 0), result.CombinedOutput);
+            if (mode is "absent" or "draft" or "draft-later-page" or "duplicate-draft" or "invalid-draft" or "published-list")
+            {
+                using var response = JsonDocument.Parse(File.ReadAllText(Path.Combine(sandbox, "list-response.json")));
+                var pages = response.RootElement;
+                Assert.Equal(JsonValueKind.Array, pages.ValueKind);
+                Assert.All(pages.EnumerateArray(), page =>
+                {
+                    Assert.Equal(JsonValueKind.Array, page.ValueKind);
+                    Assert.Equal(JsonValueKind.Object, Assert.Single(page.EnumerateArray()).ValueKind);
+                });
+                Assert.Equal(mode is "draft-later-page" or "duplicate-draft" ? 2 : 1, pages.GetArrayLength());
+                if (mode == "draft-later-page")
+                {
+                    Assert.Equal("V1.2.3", pages[0][0].GetProperty("tag_name").GetString());
+                    Assert.Equal("v1.2.3", pages[1][0].GetProperty("tag_name").GetString());
+                }
+            }
             if (!succeeds)
             {
                 var expectedError = mode switch
