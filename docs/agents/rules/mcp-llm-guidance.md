@@ -4,15 +4,16 @@
 |---------|-----------|
 | Tool/parameter descriptions | Core interface XML docs/attributes; manual MCP metadata only where it owns the tool |
 | Generated command metadata | `src/ExcelMcp.Generators/ServiceRegistryGenerator.cs` and shared generator metadata |
-| Skill prose and selection rules | `skills/excel-cli-report-formatting/SKILL.md`, `skills/excel-mcp-report-formatting/SKILL.md` |
+| Skill prose and selection rules | `skills/excel-cli/SKILL.md`, `skills/excel-cli-report-formatting/SKILL.md`, `skills/excel-mcp-report-formatting/SKILL.md` |
 | Shared workflows and limitations | `docs/reference/*.md` |
 | Skill reference preparation | `scripts/Build-AgentSkills.ps1` |
 | Minimal MCP server instructions | `Program.cs` in the MCP Server |
 
 Release builds generate the Core manifest. Shared guides are not exposed as MCP prompts.
 `scripts\Build-AgentSkills.ps1 -GenerateOnly` then generates complete skills under
-`artifacts\generated-skills` from the two actual source skills and only the
-canonical report-formatting reference. General documentation stays in `docs`.
+`artifacts\generated-skills` from the CLI launcher skill and the two formatting
+skills. Only formatting skills receive the canonical report-formatting
+reference. General documentation stays in `docs`.
 Never edit those outputs or the extension's packaged skill copy.
 Installed plugins and the published plugin repository are outputs too; local
 source edits do not update installed skills or authorize publication.

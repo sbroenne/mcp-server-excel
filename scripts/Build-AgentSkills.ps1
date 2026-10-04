@@ -3,7 +3,7 @@
     Generates and packages the Excel MCP and CLI agent skills.
 
 .DESCRIPTION
-    GenerateOnly prepares the two authored skills and their formatting reference.
+    GenerateOnly prepares CLI discovery and the two report-formatting skills.
     Packaging consumes that prepared output without regenerating it.
     CLI syntax and action lists are discovered through native --help, not copied
     into the skill package.
@@ -26,6 +26,7 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $SkillsDir = Join-Path $RepoRoot "skills"
 $SharedDir = Join-Path $RepoRoot "docs\reference"
+$SkillNames = @('excel-cli', 'excel-cli-report-formatting', 'excel-mcp-report-formatting')
 . (Join-Path $PSScriptRoot 'PackageHelpers.ps1')
 
 function Copy-SharedReferences {
@@ -84,28 +85,32 @@ New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
 try {
     $SkillsStagingDir = Join-Path $StagingDir "skills"
     New-Item -ItemType Directory -Path $SkillsStagingDir -Force | Out-Null
-    foreach ($component in @('cli', 'mcp')) {
-        $name = "excel-$component-report-formatting"
+    foreach ($name in $SkillNames) {
         $destination = Join-Path $SkillsStagingDir $name
         if ($GenerateOnly) {
             Copy-Item -LiteralPath (Join-Path $SkillsDir $name) -Destination $destination -Recurse
-            Copy-SharedReferences -SkillPath $destination -Surface $component
+            if ($name.EndsWith('-report-formatting')) {
+                $component = if ($name.StartsWith('excel-cli-')) { 'cli' } else { 'mcp' }
+                Copy-SharedReferences -SkillPath $destination -Surface $component
+            }
         }
         else {
             Copy-Item -LiteralPath (Join-Path $SkillsDirectory $name) -Destination $destination -Recurse
         }
-        foreach ($required in @('SKILL.md', 'references\report-formatting.md')) {
+        $requiredFiles = @('SKILL.md')
+        if ($name.EndsWith('-report-formatting')) { $requiredFiles += 'references\report-formatting.md' }
+        foreach ($required in $requiredFiles) {
             if (-not (Test-Path -LiteralPath (Join-Path $destination $required))) { throw "$name is missing $required." }
         }
         Set-Content -LiteralPath (Join-Path $destination 'VERSION') -Value $Version -Encoding utf8 -NoNewline
     }
     New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
     if ($GenerateOnly) {
-        foreach ($name in @('excel-cli-report-formatting', 'excel-mcp-report-formatting')) {
+        foreach ($name in $SkillNames) {
             $destination = Join-Path $OutputPath $name
             Install-PackageOutput -Source (Join-Path $SkillsStagingDir $name) -Destination $destination
         }
-        foreach ($retired in @('excel-cli', 'excel-mcp')) {
+        foreach ($retired in @('excel-mcp')) {
             $legacy = Join-Path $OutputPath $retired
             if (Test-Path -LiteralPath $legacy) {
                 Assert-PackageOutputPath -Path $legacy -RepoRoot $RepoRoot

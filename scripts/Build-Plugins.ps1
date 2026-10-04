@@ -364,6 +364,9 @@ $SourceSkillCli = Join-Path $SkillsDir "excel-cli-report-formatting"
 $DestSkillCli = Join-Path $OutputCli "skills\excel-cli-report-formatting"
 Copy-AgentSkill -SourceDir $SourceSkillCli -DestinationDir $DestSkillCli -Version $Version
 
+Copy-AgentSkill -SourceDir (Join-Path $SkillsDir "excel-cli") `
+    -DestinationDir (Join-Path $OutputCli "skills\excel-cli") -Version $Version
+
 Assert-AgentPluginPackage -PluginName "excel-cli" -PluginDir $OutputCli -ExpectedVersion $Version
 Write-Host "✅ excel-cli plugin built" -ForegroundColor Green
 

@@ -1,11 +1,14 @@
-# Excel report-formatting skills
+# Excel CLI discovery and report-formatting skills
 
-These optional skills supply presentation conventions for requested reports,
-not general Excel automation instructions. Native CLI help and MCP tool schemas
-remain the source for actions, parameters, defaults, and safety.
+The small CLI discovery skill tells agents how to launch the installed plugin
+for ordinary workbook requests. The optional formatting skills supply
+presentation conventions for requested reports, not general command catalogs.
+Native CLI help and MCP tool schemas remain the source for actions, parameters,
+defaults, and safety.
 
 | Skill | Entry point | Distribution |
 |-------|-------------|--------------|
+| `excel-cli` | Plugin's argument-safe npx launcher | `excel-cli` plugin, skill ZIP (requires the plugin launcher) |
 | `excel-cli-report-formatting` | `excelcli` | `excel-cli` plugin, standalone skill ZIP |
 | `excel-mcp-report-formatting` | Excel MCP tools | `excel-mcp` plugin, VS Code extension, standalone skill ZIP |
 
@@ -25,6 +28,9 @@ unknown usage and are excluded from those percentages, not treated as free.
 See [the evidence and limitations](../llm-tests/README.md#measure-whether-skills-help).
 
 This supports removing broad automatic loading for the tested tasks/model.
+It does not establish that agents can discover the CLI launcher from a plugin
+that contains only a formatting skill. A small `excel-cli` discovery skill
+restores that entry point without restoring the broad command/reference corpus.
 It does not prove that the new formatting skills improve agent performance.
 Their actual selection and value require a separate comparison.
 
@@ -47,13 +53,14 @@ npx skills add sbroenne/mcp-server-excel-plugins --skill excel-mcp-report-format
 ```
 
 The VS Code extension registers only `excel-mcp-report-formatting`.
-The source repository also contains the two actual skill directories; the
-prepared release packages add their entry-point-specific formatting reference.
+The source repository contains the three actual skill directories; the
+prepared release packages add the formatting skills' entry-point-specific reference.
 Use a complete prepared package when installing manually.
 
-Existing standalone `excel-cli` or `excel-mcp` skill installations are not
-automatically removed. Remove those old skill installations using your client's
-skill manager, then install the matching formatting skill after publication.
+Existing standalone skill installations are not automatically updated or
+removed. Replace the former broad `excel-cli` skill with the small discovery
+skill when updating the CLI plugin. Remove the retired broad `excel-mcp` skill
+using your client's skill manager; MCP discovery comes from the server configuration.
 Do not remove the plugins or their MCP/CLI launch configuration merely because
 the skill identities changed. Local source edits do not update installed copies
 or publish new packages.
@@ -70,7 +77,8 @@ or publish new packages.
 | Minimal MCP server instructions | `src/ExcelMcp.McpServer/Program.cs` |
 
 `skills` contains actual skills only. Do not add a general documentation corpus,
-copied command catalog, or another broad entry skill.
+copied command catalog, or another broad entry skill. Keep `excel-cli` limited
+to discovery of the plugin's npx wrapper and native help; it carries no references.
 
 ```powershell
 dotnet build Sbroenne.ExcelMcp.sln -c Release
@@ -78,13 +86,15 @@ dotnet build Sbroenne.ExcelMcp.sln -c Release
 ```
 
 Preparation writes complete skills to `artifacts\generated-skills`.
-`Build-AgentSkills.ps1` selects only `report-formatting.md`, renders its matching
+`Build-AgentSkills.ps1` copies CLI discovery without references. For the formatting
+skills it selects only `report-formatting.md`, renders its matching
 `cli` or `mcp` fenced examples, and links supporting topics to the website.
 The ZIP, plugins, and extension consume the same prepared output. Ordinary
 M, DAX, JSON, and other language fences are preserved; no flag translation occurs.
 
 Do not edit generated, packaged, installed, or published copies. Validate both
-skill directories with the public loader and SDK discovery before paid tests.
+formatting skill directories and the CLI discovery skill with the public loader
+before paid tests.
 Availability is not evidence of loading, and loading is not evidence of benefit.
 Keep unrelated reads, raw exports, data edits, refreshes, and recovery outside
 the formatting trigger. Preserve user/template precedence and all optional
