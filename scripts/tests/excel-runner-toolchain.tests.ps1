@@ -68,9 +68,16 @@ if (-not $failed) { throw 'An older SDK must not substitute for the requested SD
 $global:ExcelToolchainJqHash = (Get-RunnerJqRelease).sha256
 $global:ExcelToolchainBashExit = 0
 $global:ExcelToolchainBashVersion = 'GNU bash, version 5.3.15(2)-release (x86_64-pc-cygwin)'
+$global:ExcelToolchainDevelopmentMode = 1
 $bashPath = Join-Path $env:ProgramFiles 'Git\bin\bash.exe'
 $jqPath = Join-Path $env:ProgramFiles 'ExcelMcp\Tools\jq.exe'
 function Test-Path { param($LiteralPath, $PathType) return $true }
+function Get-ItemPropertyValue {
+    param($LiteralPath, $Name, $ErrorAction)
+    if ($LiteralPath -ne 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' -or
+        $Name -ne 'AllowDevelopmentWithoutDevLicense') { throw 'Unexpected development-mode lookup.' }
+    $global:ExcelToolchainDevelopmentMode
+}
 function Get-Command {
     param($Name, $CommandType, $ErrorAction)
     switch ($Name) {
@@ -94,7 +101,8 @@ Set-Item -Path Function:\Get-FileHash -Value $hashFixture
 try {
     $global:LASTEXITCODE = 239
     $cloud = Get-RunnerCloudToolState
-    if ($cloud.bash -ne $global:ExcelToolchainBashVersion -or $cloud.jq -ne 'jq-1.8.2') {
+    if ($cloud.bash -ne $global:ExcelToolchainBashVersion -or $cloud.jq -ne 'jq-1.8.2' -or
+        $cloud.developmentMode -ne $true) {
         throw 'Cloud verification must drain complete Bash output before checking its result.'
     }
     foreach ($case in @(
@@ -107,6 +115,12 @@ try {
         try { Get-RunnerCloudToolState | Out-Null } catch { $failed = $true }
         if (-not $failed) { throw 'Unsuccessful or invalid Bash verification must still fail.' }
     }
+    $global:ExcelToolchainBashExit = 0
+    $global:ExcelToolchainBashVersion = 'GNU bash, version 5.3.15(2)-release (x86_64-pc-cygwin)'
+    $global:ExcelToolchainDevelopmentMode = 0
+    $failed = $false
+    try { Get-RunnerCloudToolState | Out-Null } catch { $failed = $true }
+    if (-not $failed) { throw 'A desktop without limited-user symbolic-link support must not be admitted.' }
 }
 finally { Remove-Item -LiteralPath "Function:\$bashPath" }
 

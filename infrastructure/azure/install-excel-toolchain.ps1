@@ -74,6 +74,9 @@ function Assert-RunnerJqPackage {
 }
 
 function Get-RunnerCloudToolState {
+    $developmentMode = Get-ItemPropertyValue -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' `
+        -Name AllowDevelopmentWithoutDevLicense -ErrorAction Stop
+    if ($developmentMode -ne 1) { throw 'Windows Developer Mode is required for limited-user runtime symbolic-link extraction.' }
     $bash = Join-Path $env:ProgramFiles 'Git\bin\bash.exe'
     $jq = Join-Path $env:ProgramFiles 'ExcelMcp\Tools\jq.exe'
     foreach ($path in @($bash, $jq)) {
@@ -93,7 +96,7 @@ function Get-RunnerCloudToolState {
     if ($LASTEXITCODE -ne 0 -or $jqVersion -ne (Get-RunnerJqRelease).version) {
         throw 'The cloud initialization Bash shell cannot execute the required jq version.'
     }
-    return @{ bash = $bashVersion; jq = $jqVersion }
+    return @{ bash = $bashVersion; jq = $jqVersion; developmentMode = $true }
 }
 
 function Install-RunnerCloudPrerequisites {
@@ -114,6 +117,10 @@ function Install-RunnerCloudPrerequisites {
         finally { if (Test-Path -LiteralPath $download) { Remove-Item -LiteralPath $download -Force } }
     }
     Assert-RunnerJqPackage $jq
+    $developmentSettings = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock'
+    New-Item -Path $developmentSettings -Force | Out-Null
+    New-ItemProperty -LiteralPath $developmentSettings -Name AllowDevelopmentWithoutDevLicense `
+        -PropertyType DWord -Value 1 -Force | Out-Null
     $existing = @([Environment]::GetEnvironmentVariable('Path', 'Machine') -split ';' |
         Where-Object { $_ -and $_.TrimEnd('\') -ine $bashDirectory -and $_.TrimEnd('\') -ine $toolsDirectory })
     [Environment]::SetEnvironmentVariable('Path', (@($bashDirectory, $toolsDirectory) + $existing) -join ';', 'Machine')
@@ -150,7 +157,7 @@ function Get-RunnerToolchainState {
     return @{
         sdk = $selectedSdk; requiredSdk = $SdkVersion; rollForward = $RollForward
         git = $gitVersion; powershell = $powershellVersion; node = $nodeVersion
-        bash = $cloud.bash; jq = $cloud.jq
+        bash = $cloud.bash; jq = $cloud.jq; developmentMode = $cloud.developmentMode
     }
 }
 
