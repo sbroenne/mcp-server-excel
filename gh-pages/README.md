@@ -8,6 +8,16 @@ Capability summaries live in `docs/features/`; workflow decisions and recovery
 guidance live in `docs/reference/`. Current command specifications come from
 CLI help and MCP tool descriptions, not a second hand-maintained reference.
 `hooks.py` adapts the shared pages for the website without duplicating their prose.
+It only wires MkDocs build events; the work lives in the `sitegen/` package:
+
+| Module | Job |
+| --- | --- |
+| `sitegen/sources.py` | `PAGES`, the one table of published documents, plus link rewriting and snippet writing |
+| `sitegen/llm.py` | `llms.txt`, `llms-full.txt`, Markdown mirrors, `tools.json`, FAQ structured data |
+| `sitegen/sitemap.py` | Git-based sitemap dates and the homepage video metadata |
+| `sitegen/analytics.py` | The usage analytics page |
+
+`mkdocs serve` loads `sitegen/` once; restart it after editing that code.
 
 The feature overview is authored only in root `FEATURES.md`. Its website
 wrapper, `docs/features.md`, keeps the page metadata, title, and illustration,
@@ -25,13 +35,13 @@ destination before shortening or moving a page.
 To add or move a published document:
 
 1. Update the canonical source and links pointing to it.
-2. Register it in the appropriate source map or `_write()` step in `hooks.py`.
-3. Add its repository path to `SITE_PAGE_MAP`, so repository-relative links
-   become local website links.
-4. Create a thin wrapper under `gh-pages/docs/` with metadata, one H1, and the
+2. Add a `Page(...)` entry to `PAGES` in `sitegen/sources.py`. That one entry
+   generates the snippet and turns repository links to it into local website
+   links.
+3. Create a thin wrapper under `gh-pages/docs/` with metadata, one H1, and the
    generated snippet.
-5. Update `nav` in `mkdocs.yml` and the deploy workflow's source path filters.
-6. Run the strict build and both checks described below.
+4. Update `nav` in `mkdocs.yml` and the deploy workflow's source path filters.
+5. Run the strict build and the checks described below.
 
 Example wrapper:
 
@@ -81,7 +91,7 @@ do not substitute manual file or folder counts.
 
 | File | Why |
 | --- | --- |
-| `sitemap.xml` | Adds a real `<lastmod>` (the git commit date behind each page, supplied by `hooks.py`) and the home page's `<video:video>` block. The stock template stamps the *build* date on every URL, which told crawlers all 52 pages changed on every deploy. |
+| `sitemap.xml` | Adds a real `<lastmod>` (the git commit date behind each page, supplied by `sitegen/sitemap.py`) and the home page's `<video:video>` block. The stock template stamps the *build* date on every URL, which told crawlers all 52 pages changed on every deploy. |
 | `partials/logo.html` | Upstream renders `alt="logo"` with no dimensions - a WCAG 1.1.1 failure and an unsized image. |
 | `partials/progress.html` | Upstream's `role="progressbar"` has no accessible name (WCAG 4.1.2). |
 
@@ -117,13 +127,14 @@ cd gh-pages
 
 ## Checks
 
-Both run in the `Docs Site` CI job on every pull request, and can be run locally
-after a build:
+These run in the `Docs Site` CI job on every pull request, and can be run locally
+(the first two after a build):
 
 ```powershell
 cd gh-pages
 .\.venv\Scripts\python.exe audit_site.py           # SEO / a11y / LLM-discoverability audit
 .\.venv\Scripts\python.exe check_deploy_paths.py   # deploy paths: filter covers every mirrored source
+.\.venv\Scripts\python.exe -m unittest discover -s tests   # sitegen unit tests
 ```
 
 Both workflows that build the site check out with `fetch-depth: 0`, because the

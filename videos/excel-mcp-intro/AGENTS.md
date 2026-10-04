@@ -55,7 +55,7 @@ an existing video ID; upload the production MP4 as a new video.
    video ID and YouTube publication timestamp; do not infer publication from a
    local file, an old public video, or a clean Git working tree.
 4. Update `README.md`, `gh-pages/docs/index.md`, `gh-pages/overrides/main.html`,
-   and `gh-pages/hooks.py` together, including thumbnails and publication dates.
+   and `gh-pages/sitegen/sitemap.py` together, including thumbnails and publication dates.
 5. Run the website checks in [gh-pages/README.md](../../gh-pages/README.md), merge
    through a PR, and verify the deployed homepage and sitemap use the new ID.
    Leave previous videos unchanged unless the user explicitly asks otherwise.
