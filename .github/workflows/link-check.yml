@@ -30,7 +30,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          # hooks.py derives sitemap dates from git history. A shallow checkout
+          # sitegen derives sitemap dates from git history. A shallow checkout
           # makes the strict MkDocs build fail before the link check can run.
           fetch-depth: 0
 
@@ -64,9 +64,17 @@ jobs:
           # output, so internal and external links are both covered. It must be
           # an absolute path - lychee rejects relative values.
           #
+          # Absolute links to excelmcpserver.dev (canonical, llms.txt, Markdown
+          # mirrors) are checked against this build, not the live site: a
+          # brief Pages outage must not fail the run, and new pages exist here
+          # before they are deployed.
+          #
           # npmjs.com answers automated clients with 403 even when the package
-          # exists, so its links can't be checked this way. The MCP Registry
-          # API is slow at times, so allow more time before giving up.
+          # exists, and powerqueryformatter.com times out from GitHub-hosted
+          # runners while answering normally elsewhere, so their links can't
+          # be checked this way. The MCP Registry API is slow at times, so
+          # allow more time before giving up. Retries wait long enough to ride
+          # out short GitHub/CDN 5xx bursts.
           # GitHub's HTML pages can return 503/504 to automated clients. Check
           # our files through raw URLs and exact commits/PRs/issues plus the
           # release index through the API. Other release paths stay unchanged.
@@ -78,11 +86,15 @@ jobs:
             --no-progress
             --max-concurrency 4
             --timeout 60
+            --max-retries 4
+            --retry-wait-time 15
             --accept 200,206,429
             --exclude '^https?://localhost'
             --exclude '^https?://127\.0\.0\.1'
             --exclude 'example\.com'
             --exclude '^https://www\.npmjs\.com/'
+            --exclude '^https://(www\.)?powerqueryformatter\.com/'
+            --remap '^https://excelmcpserver\.dev/([^?#]*)(?:[?#].*)?$ file://${{ github.workspace }}/gh-pages/_site/$1'
             --remap '^https://github\.com/sbroenne/mcp-server-excel/blob/main/(.*)$ https://raw.githubusercontent.com/sbroenne/mcp-server-excel/main/$1'
             --remap '^https://github\.com/sbroenne/mcp-server-excel/commit/([0-9a-f]{40})(?:[?#].*)?$ https://api.github.com/repos/sbroenne/mcp-server-excel/git/commits/$1'
             --remap '^https://github\.com/sbroenne/mcp-server-excel/pull/([0-9]+)(?:[?#].*)?$ https://api.github.com/repos/sbroenne/mcp-server-excel/pulls/$1'
