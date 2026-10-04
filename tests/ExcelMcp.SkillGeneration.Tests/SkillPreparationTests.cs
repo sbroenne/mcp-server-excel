@@ -23,6 +23,9 @@ public sealed class SkillPreparationTests
         Assert.Contains("start-cli.ps1", content, StringComparison.Ordinal);
         Assert.Contains("npx -y @sbroenne/excelcli@latest", content, StringComparison.Ordinal);
         Assert.Contains("--help", content, StringComparison.Ordinal);
+        Assert.Contains("For the plugin-bundled copy", content, StringComparison.Ordinal);
+        Assert.Contains("For a standalone skill installation", content, StringComparison.Ordinal);
+        Assert.Contains("do not resolve the launcher relative to", content, StringComparison.Ordinal);
         Assert.False(Directory.Exists(Path.Combine(root, "references")));
     }
 

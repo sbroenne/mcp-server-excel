@@ -149,6 +149,27 @@ function requireFile(tree, name) {
     return file.bytes;
 }
 
+export function pluginSkillNames(name, files) {
+    if (!pluginNames.includes(name) || !Array.isArray(files) || files.some(file => typeof file !== 'string')) {
+        throw new Error('Invalid plugin skill layout input.');
+    }
+    const formatting = `${name}-report-formatting`;
+    const skills = files.includes(`${formatting}/SKILL.md`) ? [formatting] : [name];
+    if (name === 'excel-cli' && skills[0] === formatting && files.includes(`${name}/SKILL.md`)) skills.push(name);
+    const directories = new Set(files.map(file => file.split('/')[0]));
+    if (directories.size !== skills.length || skills.some(skill => !directories.has(skill)) ||
+        (skills.length === 2 && files.some(file => file.startsWith(`${name}/references/`)))) {
+        throw new Error('Mixed or unexpected skill layout.');
+    }
+    for (const skill of skills) {
+        const reference = skill === formatting ? 'report-formatting.md' : skills.length === 1 ? 'range.md' : null;
+        for (const file of [`${skill}/SKILL.md`, ...(reference ? [`${skill}/references/${reference}`] : [])]) {
+            if (!files.includes(file)) throw new Error(`Missing required skill file: ${file}`);
+        }
+    }
+    return skills;
+}
+
 export function validatePlugin(tree, name, { expectedVersion, repairStamps = false } = {}) {
     if (!pluginNames.includes(name)) throw new Error('Unsupported plugin identity.');
     const prefix = `plugins/${name}/`;
@@ -168,14 +189,16 @@ export function validatePlugin(tree, name, { expectedVersion, repairStamps = fal
         !Array.isArray(manifest.keywords) || manifest.keywords.some(value => typeof value !== 'string')) {
         throw new Error(`Invalid ${name} manifest metadata.`);
     }
-    const skill = tree.has(`${prefix}skills/${name}-report-formatting/SKILL.md`) ? `${name}-report-formatting` : name;
-    const reference = skill === name ? 'range.md' : 'report-formatting.md';
-    for (const file of ['README.md', `skills/${skill}/SKILL.md`, `skills/${skill}/references/${reference}`,
+    const skills = pluginSkillNames(name, [...tree.keys()].filter(file => file.startsWith(`${prefix}skills/`))
+        .map(file => file.slice(`${prefix}skills/`.length)));
+    for (const file of ['README.md',
         name === 'excel-cli' ? 'bin/start-cli.ps1' : 'mcp.json']) requireFile(tree, prefix + file);
-    const skillDirectories = new Set([...tree.keys()].filter(file => file.startsWith(`${prefix}skills/`))
-        .map(file => file.slice(`${prefix}skills/`.length).split('/')[0]));
-    if (skillDirectories.size !== 1 || !skillDirectories.has(skill)) throw new Error('Mixed or unexpected skill layout.');
-    for (const stamp of ['version.txt', `skills/${skill}/VERSION`]) {
+    for (const skill of skills) {
+        requireFile(tree, `${prefix}skills/${skill}/SKILL.md`);
+        const reference = skill.endsWith('-report-formatting') ? 'report-formatting.md' : skills.length === 1 ? 'range.md' : null;
+        if (reference) requireFile(tree, `${prefix}skills/${skill}/references/${reference}`);
+    }
+    for (const stamp of ['version.txt', ...skills.map(skill => `skills/${skill}/VERSION`)]) {
         const value = tree.get(prefix + stamp);
         if (!value || decoder.decode(value.bytes).trim() !== version) {
             if (!repairStamps) throw new Error(`Missing or mismatched ${name}/${stamp}.`);
