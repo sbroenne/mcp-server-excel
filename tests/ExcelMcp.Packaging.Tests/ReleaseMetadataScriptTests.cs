@@ -960,7 +960,7 @@ public sealed class ReleaseMetadataScriptTests
 
             CopyDocumentationCountFiles(sandbox, canonicalTools, canonicalOperations);
             var readmePath = Path.Combine(sandbox, "README.md");
-            var hooksPath = Path.Combine(sandbox, "gh-pages", "hooks.py");
+            var llmOutputsPath = Path.Combine(sandbox, "gh-pages", "sitegen", "llm.py");
             await File.WriteAllTextAsync(
                 readmePath,
                 (await File.ReadAllTextAsync(readmePath))
@@ -984,12 +984,13 @@ public sealed class ReleaseMetadataScriptTests
                 $"all {canonicalOperations} operations",
                 await File.ReadAllTextAsync(readmePath),
                 StringComparison.Ordinal);
-            var hooksContent = await File.ReadAllTextAsync(hooksPath);
-            Assert.Contains("_read_release_headline_counts()", hooksContent, StringComparison.Ordinal);
-            Assert.Contains("for output_name, source_rel in FEATURE_SOURCES.items():", hooksContent, StringComparison.Ordinal);
+            var llmOutputsContent = await File.ReadAllTextAsync(llmOutputsPath);
+            Assert.Contains("json.loads(read(DOC_COUNTS))", llmOutputsContent, StringComparison.Ordinal);
+            Assert.Contains("headline_tools, headline_operations = headline_counts()", llmOutputsContent, StringComparison.Ordinal);
+            Assert.Contains("for line in read(page.source).splitlines():", llmOutputsContent, StringComparison.Ordinal);
             Assert.DoesNotMatch(
                 @"exposing \d+ tools and \d+ operations",
-                hooksContent);
+                llmOutputsContent);
 
             var docCountsPath = Path.Combine(sandbox, "doc-counts.json");
             Assert.True(File.Exists(docCountsPath), "-Update must generate the single doc-counts.json include file.");
@@ -1218,7 +1219,7 @@ public sealed class ReleaseMetadataScriptTests
             Path.Combine("mcpb", "BUILD.md"),
             Path.Combine("gh-pages", "docs", "index.md"),
             Path.Combine("gh-pages", "docs", "faq.md"),
-            Path.Combine("gh-pages", "hooks.py"),
+            Path.Combine("gh-pages", "sitegen", "llm.py"),
             Path.Combine(".github", "plugins", "excel-mcp", "README.md"),
             Path.Combine(".github", "plugins", "excel-cli", "README.md"),
             Path.Combine("docs", "INSTALLATION-CLI.md"),

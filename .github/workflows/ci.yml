@@ -59,6 +59,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r gh-pages/requirements.txt
 
+      - name: Unit test site generator
+        working-directory: gh-pages
+        run: python -m unittest discover -s tests
+
       - name: Build with MkDocs
         working-directory: gh-pages
         run: mkdocs build --strict --clean
@@ -68,7 +72,7 @@ jobs:
         run: python audit_site.py
 
       # Guards against the deploy workflow's hand-written paths: filter drifting
-      # from the canonical sources hooks.py mirrors, which would publish a
+      # from the canonical sources listed in sitegen/sources.py, which would publish a
       # silently stale site until the nightly cron caught up.
       - name: Verify deploy path filter covers every mirrored source
         working-directory: gh-pages
