@@ -6,5 +6,5 @@ keywords: "Excel window automation, freeze panes programmatically, Excel window 
 
 # Window Management
 
---8<-- "_generated/skills-window.md"
+--8<-- "_generated/reference-window.md"
 

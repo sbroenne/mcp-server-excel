@@ -6,4 +6,4 @@ keywords: "Excel slicer automation, PivotTable slicer, timeline slicer"
 
 # Slicers
 
---8<-- "_generated/skills-slicer.md"
+--8<-- "_generated/reference-slicer.md"

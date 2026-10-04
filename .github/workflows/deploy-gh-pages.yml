@@ -7,7 +7,6 @@ on:
     paths:
       - 'gh-pages/**'
       - 'FEATURES.md'
-      - 'doc-counts.json'
       - 'docs/features/**'
       - 'docs/guides/**'
       - 'docs/reference/**'
@@ -58,7 +57,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          # hooks.py derives each sitemap <lastmod> from `git log`, so the full
+          # generate.py derives each sitemap <lastmod> from `git log`, so the full
           # history is required. A shallow clone would date every page to the
           # tip commit; audit_site.py fails the build if it detects that.
           fetch-depth: 0
@@ -115,9 +114,11 @@ jobs:
       - name: Install dependencies
         run: pip install -r gh-pages/requirements.txt
 
-      - name: Build with MkDocs
+      - name: Build site
         working-directory: gh-pages
-        run: mkdocs build --strict --clean
+        run: |
+          python generate.py
+          zensical build --clean --strict
 
       - name: Audit built site
         working-directory: gh-pages

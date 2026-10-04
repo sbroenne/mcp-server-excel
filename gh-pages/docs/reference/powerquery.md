@@ -6,4 +6,4 @@ keywords: "Power Query reference, Power Query automation, M code errors"
 
 # Power Query
 
---8<-- "_generated/skills-powerquery.md"
+--8<-- "_generated/reference-powerquery.md"

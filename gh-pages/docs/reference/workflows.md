@@ -6,5 +6,5 @@ keywords: "Excel MCP sequencing, Excel automation constraints, refresh order Exc
 
 # Key Constraints & Sequencing
 
---8<-- "_generated/skills-workflows.md"
+--8<-- "_generated/reference-workflows.md"
 

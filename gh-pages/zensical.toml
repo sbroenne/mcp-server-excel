@@ -1,0 +1,255 @@
+# Website build configuration. Build from gh-pages/:
+#
+#     python generate.py
+#     zensical build --clean --strict
+#
+# generate.py must run first: it writes the _generated/ pages that the wrapper
+# pages include, plus the per-page sitemap dates and FAQ data under
+# overrides/generated/. See README.md.
+
+[project]
+site_name = "Excel MCP Server"
+site_url = "https://excelmcpserver.dev/"
+site_description = "Control Microsoft Excel with natural language through AI assistants like GitHub Copilot and Claude. Automate Power Query, DAX, VBA, PivotTables and more."
+site_author = "Stefan Broenner"
+copyright = "Copyright &copy; 2025&ndash;2026 Stefan Broenner &mdash; MIT License"
+
+repo_url = "https://github.com/sbroenne/mcp-server-excel"
+repo_name = "sbroenne/mcp-server-excel"
+edit_uri = "edit/main/gh-pages/docs/"
+
+docs_dir = "docs"
+site_dir = "_site"
+use_directory_urls = true
+
+extra_css = ["assets/stylesheets/extra.css"]
+
+nav = [
+  { "Home" = "index.md" },
+  { "Guides" = [
+    { "Overview" = "guides/index.md" },
+    { "Refresh Power Query" = "guides/refresh-power-query.md" },
+    { "Automate PivotTables" = "guides/automate-pivottables.md" },
+    { "Query the Data Model with DAX" = "guides/query-data-model-with-dax.md" },
+    { "Run VBA macros" = "guides/run-vba-macros.md" },
+    { "COM vs. file parsers" = "guides/excel-automation-vs-file-parsers.md" },
+    { "Claude Desktop setup" = "guides/claude-desktop.md" },
+  ] },
+  { "Features" = [
+    { "Overview" = "features.md" },
+    { "Data & analytics" = "features/data-analytics.md" },
+    { "Cells & workbooks" = "features/cells-workbooks.md" },
+    { "Charts & visuals" = "features/charts-visuals.md" },
+    { "Automation & advanced" = "features/automation-advanced.md" },
+  ] },
+  { "Installation" = [
+    { "Overview" = "installation.md" },
+    { "MCP Server" = "installation-mcp-server.md" },
+    { "CLI" = "installation-cli.md" },
+  ] },
+  { "MCP Server" = "mcp-server.md" },
+  { "CLI" = "cli.md" },
+  { "Workflow guidance" = [
+    { "Overview" = "reference/index.md" },
+    { "Working with agents" = [
+      { "Key constraints & sequencing" = "reference/workflows.md" },
+      { "Behavioral rules" = "reference/behavioral-rules.md" },
+    ] },
+    { "Workbooks, sheets & cells" = [
+      { "Workbook lifecycle" = "reference/workbook.md" },
+      { "Worksheet operations" = "reference/worksheet.md" },
+      { "Ranges & formatting" = "reference/range.md" },
+      { "Excel Tables" = "reference/table.md" },
+      { "Window management" = "reference/window.md" },
+      { "Calculation modes" = "reference/calculation.md" },
+    ] },
+    { "Data & the model" = [
+      { "Power Query" = "reference/powerquery.md" },
+      { "M code syntax" = "reference/m-code-syntax.md" },
+      { "Data Model & DAX" = "reference/datamodel.md" },
+      { "DMV query reference" = "reference/dmv-reference.md" },
+      { "PivotTables" = "reference/pivottable.md" },
+      { "QueryTables" = "reference/querytable.md" },
+      { "What-If Analysis" = "reference/analysis.md" },
+      { "XML maps" = "reference/xmlmap.md" },
+    ] },
+    { "Visuals & output" = [
+      { "Charts" = "reference/chart.md" },
+      { "Conditional formatting" = "reference/conditionalformat.md" },
+      { "Slicers" = "reference/slicer.md" },
+      { "Drawing objects" = "reference/drawing.md" },
+      { "Screenshots" = "reference/screenshot.md" },
+      { "Optional report formatting" = "reference/report-formatting.md" },
+    ] },
+  ] },
+  { "Resources" = [
+    { "Usage analytics" = "usage-analytics.md" },
+    { "Examples & use cases" = "use-cases.md" },
+    { "Agent Skills" = "skills.md" },
+    { "FAQ" = "faq.md" },
+    { "Troubleshooting" = "troubleshooting.md" },
+    { "Architecture" = "architecture.md" },
+    { "Changelog" = "changelog.md" },
+    { "Contributing" = "contributing.md" },
+    { "Security" = "security.md" },
+    { "Privacy" = "privacy.md" },
+    { "Related projects" = "related-projects.md" },
+  ] },
+]
+
+[project.extra]
+generator = false
+
+[[project.extra.social]]
+icon = "fontawesome/brands/github"
+link = "https://github.com/sbroenne/mcp-server-excel"
+name = "GitHub repository"
+
+[[project.extra.social]]
+icon = "fontawesome/brands/youtube"
+link = "https://www.youtube.com/channel/UCq1ojGTy4-aZz8_CmEPp2aw"
+name = "YouTube channel"
+
+[project.theme]
+variant = "classic"
+custom_dir = "overrides"
+language = "en"
+logo = "assets/images/logo.png"
+favicon = "favicon.ico"
+# Local system fonts avoid render-blocking third-party font requests.
+font = false
+features = [
+  "navigation.tabs",
+  "navigation.tabs.sticky",
+  "navigation.indexes",
+  "navigation.top",
+  "navigation.instant",
+  "navigation.instant.progress",
+  "navigation.tracking",
+  "navigation.footer",
+  "toc.follow",
+  "search.suggest",
+  "search.highlight",
+  "search.share",
+  "content.code.copy",
+  "content.code.annotate",
+  "content.tabs.link",
+]
+
+[project.theme.icon]
+repo = "fontawesome/brands/github"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme)"
+toggle.icon = "material/brightness-auto"
+toggle.name = "Switch to light mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "custom"
+accent = "custom"
+toggle.icon = "material/brightness-7"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "custom"
+accent = "custom"
+toggle.icon = "material/brightness-4"
+toggle.name = "Switch to system preference"
+
+[project.markdown_extensions.abbr]
+[project.markdown_extensions.admonition]
+[project.markdown_extensions.attr_list]
+[project.markdown_extensions.def_list]
+[project.markdown_extensions.footnotes]
+[project.markdown_extensions.md_in_html]
+[project.markdown_extensions.tables]
+
+[project.markdown_extensions.toc]
+permalink = true
+title = "On this page"
+
+[project.markdown_extensions.pymdownx.betterem]
+[project.markdown_extensions.pymdownx.caret]
+[project.markdown_extensions.pymdownx.details]
+
+[project.markdown_extensions.pymdownx.emoji]
+emoji_index = "zensical.extensions.emoji.twemoji"
+emoji_generator = "zensical.extensions.emoji.to_svg"
+
+[project.markdown_extensions.pymdownx.highlight]
+anchor_linenums = true
+line_spans = "__span"
+pygments_lang_class = true
+
+[project.markdown_extensions.pymdownx.inlinehilite]
+[project.markdown_extensions.pymdownx.keys]
+[project.markdown_extensions.pymdownx.mark]
+[project.markdown_extensions.pymdownx.smartsymbols]
+
+[project.markdown_extensions.pymdownx.snippets]
+# "." is gh-pages/, so the `--8<-- "_generated/..."` includes resolve.
+base_path = ["docs", "."]
+check_paths = true
+
+[project.markdown_extensions.pymdownx.superfences]
+custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]
+
+[project.markdown_extensions.pymdownx.tabbed]
+alternate_style = true
+
+[project.markdown_extensions.pymdownx.tasklist]
+custom_checkbox = true
+
+[project.markdown_extensions.pymdownx.tilde]
+
+[project.plugins.minify]
+minify_html = true
+
+# Retired pages whose guidance moved into the owning topics.
+[project.plugins.redirects.redirect_maps]
+"reference/gotchas.md" = "reference/behavioral-rules.md"
+"reference/anti-patterns.md" = "reference/behavioral-rules.md"
+"reference/agent-mode.md" = "reference/window.md"
+"reference/dashboard.md" = "reference/report-formatting.md"
+
+# /llms.txt, /llms-full.txt and a Markdown copy of every page at <url>index.md.
+[project.plugins.llmstxt]
+full_output = "llms-full.txt"
+markdown_description = """
+Excel MCP Server (ExcelMcp) automates the real Microsoft Excel application
+through its COM API, for AI assistants over the Model Context Protocol and for
+scripts through the `excelcli` command line. Unlike file-parser libraries it can
+refresh Power Query, evaluate DAX against the Data Model, refresh PivotTables,
+and run VBA, because Excel itself does the work. Windows-only; requires
+Microsoft Excel 2016 or later.
+
+Every page below is also available as Markdown by appending `index.md` to its
+URL. The complete corpus is at https://excelmcpserver.dev/llms-full.txt.
+"""
+
+[project.plugins.llmstxt.sections]
+"Home" = ["index.md"]
+"Guides" = ["guides/index.md", "guides/*.md"]
+"Features" = ["features.md", "features/*.md"]
+"Installation" = ["installation.md", "installation-mcp-server.md", "installation-cli.md"]
+"Entry points" = ["mcp-server.md", "cli.md"]
+"Workflow guidance" = ["reference/index.md", "reference/*.md"]
+"Resources" = [
+  "usage-analytics.md",
+  "use-cases.md",
+  "skills.md",
+  "faq.md",
+  "troubleshooting.md",
+  "architecture.md",
+  "changelog.md",
+  "contributing.md",
+  "security.md",
+  "privacy.md",
+  "related-projects.md",
+]

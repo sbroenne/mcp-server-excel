@@ -6,4 +6,4 @@ keywords: "Excel conditional formatting automation, data bars, color scales Exce
 
 # Conditional Formatting
 
---8<-- "_generated/skills-conditionalformat.md"
+--8<-- "_generated/reference-conditionalformat.md"

@@ -6,5 +6,5 @@ keywords: "Excel screenshot automation, visual verification Excel, capture Excel
 
 # Screenshots & Visual Verification
 
---8<-- "_generated/skills-screenshot.md"
+--8<-- "_generated/reference-screenshot.md"
 

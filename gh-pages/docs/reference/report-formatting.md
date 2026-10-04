@@ -6,4 +6,4 @@ keywords: "Excel report formatting, financial model conventions, Excel dashboard
 
 # Optional Report Formatting
 
---8<-- "_generated/skills-report-formatting.md"
+--8<-- "_generated/reference-report-formatting.md"

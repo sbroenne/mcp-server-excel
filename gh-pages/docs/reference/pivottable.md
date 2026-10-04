@@ -6,4 +6,4 @@ keywords: "PivotTable reference, PivotTable automation, PivotTable refresh"
 
 # PivotTables
 
---8<-- "_generated/skills-pivottable.md"
+--8<-- "_generated/reference-pivottable.md"

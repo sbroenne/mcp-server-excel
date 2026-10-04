@@ -24,7 +24,7 @@ public sealed class ValidationAreaTests
     [InlineData("tests/ExcelMcp.Packaging.Tests/PluginPublicationHistory.test.mjs", "javascript-typescript")]
     [InlineData("vscode-extension/vitest.config.mts", "javascript-typescript")]
     [InlineData("npm-packages/shared/package-lock.json", "javascript-typescript")]
-    [InlineData("gh-pages/hooks.py", "python")]
+    [InlineData("gh-pages/generate.py", "python")]
     [InlineData("llm-tests/requirements.txt", "python")]
     [InlineData(".github/workflows/link-check.yml", "actions")]
     [InlineData(".github/actions/example/action.yaml", "actions")]
@@ -167,7 +167,7 @@ public sealed class ValidationAreaTests
                 'src\ExcelMcp.CLI\README.md',
                 'src/ExcelMcp.McpServer/README.md',
                 'tests/ExcelMcp.McpServer.Tests/Integration/Tools/CalculationGuidanceContractTests.cs',
-                'gh-pages/hooks.py')
+                'gh-pages/generate.py')
             if (($plan.CodeQlLanguages -join ',') -ne 'csharp,python') { throw 'Actual code language missed.' }
             if (($plan.FastProjects -join ',') -ne 'McpServer') { throw 'MCP test selection broadened.' }
             if ($plan.ProcessProjects.Count -or $plan.Excel) { throw 'Documentation selected daemon or Excel tests.' }

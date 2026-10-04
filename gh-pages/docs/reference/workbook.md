@@ -6,5 +6,5 @@ keywords: "Excel workbook automation, open close workbook programmatically, Exce
 
 # Workbook Lifecycle
 
---8<-- "_generated/skills-workbook.md"
+--8<-- "_generated/reference-workbook.md"
 

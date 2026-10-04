@@ -6,5 +6,5 @@ keywords: "Excel QueryTable, import CSV Excel automation, web query Excel"
 
 # QueryTables
 
---8<-- "_generated/skills-querytable.md"
+--8<-- "_generated/reference-querytable.md"
 

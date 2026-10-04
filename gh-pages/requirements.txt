@@ -1,4 +1,8 @@
-# Python dependencies for building the Excel MCP Server documentation site.
-# Build locally with:  pip install -r requirements.txt && mkdocs build
-mkdocs-material==9.7.7
-mkdocs-minify-plugin==0.8.0
+# Python dependencies for building the Excel MCP Server website.
+# Build locally with:
+#   pip install -r requirements.txt
+#   python generate.py
+#   zensical build --clean --strict
+zensical==0.0.67
+# Used by check_deploy_paths.py to read the deploy workflow.
+pyyaml==6.0.3

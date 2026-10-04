@@ -6,5 +6,5 @@ keywords: "Power Query M syntax, M code quoting, Power Query identifier rules"
 
 # M Code Syntax
 
---8<-- "_generated/skills-m-code-syntax.md"
+--8<-- "_generated/reference-m-code-syntax.md"
 

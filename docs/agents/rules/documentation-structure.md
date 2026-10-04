@@ -12,15 +12,14 @@
   from tool files or CLI folders. The command updates `doc-counts.json` and its
   managed headline claims. Feature-section `(N operations)` headings are checked
   separately and are not rewritten by `-Update`; derive affected totals from
-  the generated manifest and preserve those headings. Website and release
-  automation use `doc-counts.json`; the website's capability catalogue also uses
-  the canonical feature sections. CI rejects stale counts; no post-merge bot
+  the generated manifest and preserve those headings. Release automation uses
+  `doc-counts.json`. CI rejects stale counts; no post-merge bot
   rewrites `main`. Internal CLI diagnostics are excluded from advertised counts.
 - Website pages are thin wrappers over canonical repository docs.
-  `gh-pages/hooks.py` writes gitignored `_generated` snippets and machine-readable
-  outputs. Do not hand-copy or separately maintain that content.
-- Adding/moving a published source requires its hook source map/write step,
-  `SITE_PAGE_MAP`, wrapper snippet, MkDocs nav, and deploy path filter to agree.
+  `gh-pages/generate.py` writes gitignored `_generated` snippets before the
+  Zensical build, which produces the machine-readable outputs. Do not hand-copy or separately maintain that content.
+- Adding/moving a published source requires its `generate.py` source map/write step,
+  `SITE_PAGE_MAP`, wrapper snippet, `zensical.toml` nav, and deploy path filter to agree.
   Use local website links for published targets.
 
 Authoring procedures: `docs/CONTRIBUTING.md` and `gh-pages/README.md`.
@@ -28,7 +27,8 @@ Authoring procedures: `docs/CONTRIBUTING.md` and `gh-pages/README.md`.
 Website checks, from `gh-pages`:
 
 ```powershell
-python -m mkdocs build --strict --clean
+python generate.py
+zensical build --clean --strict
 python audit_site.py
 python check_deploy_paths.py
 ```

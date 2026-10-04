@@ -1,14 +1,16 @@
-# MkDocs build output
+# Zensical build output
 _site/
 
-# Generated documentation pages (produced by hooks.py from canonical repo docs).
-# Outside docs/ on purpose - see the comment on GEN_DIR in hooks.py.
+# Generated documentation pages (produced by generate.py from canonical repo docs).
+# Outside docs/ on purpose - see the comment on GEN_DIR in generate.py.
 _generated/
+# Per-page sitemap dates and FAQ JSON-LD (produced by generate.py).
+overrides/generated/
 # Former location, kept so the stale directory in long-lived clones stays
 # ignored rather than showing up as untracked files.
 docs/_generated/
 
-# Star-history chart: produced by the deploy workflow before mkdocs runs, never committed
+# Star-history chart: produced by the deploy workflow before the site build runs, never committed
 docs/assets/images/star-history.svg
 
 # Python

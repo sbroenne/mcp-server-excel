@@ -6,5 +6,5 @@ keywords: "Excel range automation, set cell values programmatically, Excel numbe
 
 # Ranges, Number Formats & Formatting
 
---8<-- "_generated/skills-range.md"
+--8<-- "_generated/reference-range.md"
 

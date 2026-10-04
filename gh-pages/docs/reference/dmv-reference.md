@@ -6,5 +6,5 @@ keywords: "Excel DMV queries, TMSCHEMA Excel, Power Pivot metadata"
 
 # DMV Query Reference
 
---8<-- "_generated/skills-dmv-reference.md"
+--8<-- "_generated/reference-dmv-reference.md"
 

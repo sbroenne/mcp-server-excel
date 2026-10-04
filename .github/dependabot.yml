@@ -56,7 +56,7 @@ updates:
         patterns:
           - "*"
 
-  # Documentation site (MkDocs) - check weekly
+  # Documentation site (Zensical) - check weekly
   - package-ecosystem: "pip"
     directory: "/gh-pages"
     schedule:

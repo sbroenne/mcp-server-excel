@@ -6,5 +6,5 @@ keywords: "Excel worksheet automation, create sheet programmatically, protect wo
 
 # Worksheet Operations
 
---8<-- "_generated/skills-worksheet.md"
+--8<-- "_generated/reference-worksheet.md"
 

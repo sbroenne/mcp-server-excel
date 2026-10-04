@@ -4,7 +4,7 @@
 # safely marked as required status checks without the "required check never
 # runs on path-filtered PRs" deadlock.
 #
-# `Docs Site` builds and audits the MkDocs website. `CI Gate` verifies that
+# `Docs Site` builds and audits the Zensical website. `CI Gate` verifies that
 # change detection and all selected jobs succeeded. Main/manual runs are complete.
 # The Excel-dependent gates — the CLI workflow, stale-build graceful-save
 # acceptance, and MCP workflow scenarios — are intentionally NOT run here:
@@ -44,7 +44,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          # hooks.py derives each sitemap <lastmod> from `git log`, so the full
+          # generate.py derives each sitemap <lastmod> from `git log`, so the full
           # history is required. A shallow clone would date every page to the
           # tip commit; audit_site.py fails the build if it detects that.
           fetch-depth: 0
@@ -59,16 +59,18 @@ jobs:
       - name: Install dependencies
         run: pip install -r gh-pages/requirements.txt
 
-      - name: Build with MkDocs
+      - name: Build site
         working-directory: gh-pages
-        run: mkdocs build --strict --clean
+        run: |
+          python generate.py
+          zensical build --clean --strict
 
       - name: Audit built site
         working-directory: gh-pages
         run: python audit_site.py
 
       # Guards against the deploy workflow's hand-written paths: filter drifting
-      # from the canonical sources hooks.py mirrors, which would publish a
+      # from the canonical sources generate.py mirrors, which would publish a
       # silently stale site until the nightly cron caught up.
       - name: Verify deploy path filter covers every mirrored source
         working-directory: gh-pages

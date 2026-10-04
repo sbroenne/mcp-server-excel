@@ -9,7 +9,7 @@ keywords: "Excel MCP FAQ, does Excel MCP need Excel installed, Excel MCP Windows
 # Frequently Asked Questions
 
 <!--
-  Every `###` heading on this page is parsed by gh-pages/hooks.py into FAQPage
+  Every `###` heading on this page is parsed by gh-pages/generate.py into FAQPage
   JSON-LD (see `_faq_jsonld`). The structured data is derived from this visible
   content, so there is nothing to keep in sync by hand - just write the
   questions here. Headings rather than collapsible admonitions are used

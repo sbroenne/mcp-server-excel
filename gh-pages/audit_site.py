@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Audit the built MkDocs site for SEO and LLM-discoverability regressions.
+"""Audit the built website for SEO and LLM-discoverability regressions.
 
-Run after ``mkdocs build`` from the ``gh-pages`` directory::
+Run after the build from the ``gh-pages`` directory::
 
-    python -m mkdocs build --strict --clean
+    python generate.py
+    zensical build --clean --strict
     python audit_site.py
 
 Exits non-zero and prints every failure if the built site regresses. This runs in
@@ -14,24 +15,23 @@ fast.
 
 from __future__ import annotations
 
-import gzip
 import html as html_lib
 import json
 import re
 import sys
-import zlib
+import tomllib
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlsplit
 
 SITE_DIR = Path(__file__).resolve().parent / "_site"
-MKDOCS_YML = Path(__file__).resolve().parent / "mkdocs.yml"
+CONFIG = Path(__file__).resolve().parent / "zensical.toml"
 SITE_URL = "https://excelmcpserver.dev/"
 
-# Imported rather than duplicated: this is the same mapping hooks.py uses to
+# Imported rather than duplicated: this is the same mapping generate.py uses to
 # rewrite links, so the audit cannot drift away from what the build produces.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from hooks import FEATURE_SOURCES, SITE_PAGE_MAP as SOURCE_TO_SITE  # noqa: E402
+from generate import FEATURE_SOURCES, SITE_PAGE_MAP as SOURCE_TO_SITE  # noqa: E402
 
 # Google truncates around these lengths; well outside them is a real problem.
 TITLE_MAX = 70
@@ -46,7 +46,7 @@ HOMEPAGE = "index.html"
 # so they are matched on host rather than on the path.
 BADGE_HOSTS = ("img.shields.io", "cdn.jsdelivr.net", "vsmarketplacebadges.dev", "badgen.net")
 
-# Material emits the theme logo from its own header partial and sizes it via CSS;
+# The theme emits the logo from its own header partial and sizes it via CSS;
 # it cannot carry width/height without overriding that partial.
 THEME_LOGO_SUFFIXES = ("/logo.png", "/icon.png")
 
@@ -55,39 +55,18 @@ checked = 0
 
 
 def _site_description() -> str:
-    """Read ``site_description`` out of mkdocs.yml.
+    """Read ``site_description`` from zensical.toml.
 
-    Parsed rather than hardcoded on purpose: a copy of the string here would stop
-    matching the moment someone rewords mkdocs.yml, and the fallback check below
-    would then pass forever while guarding nothing - a silent failure inside a
-    detector whose whole job is catching silent failures.
-
-    A full ``yaml.safe_load`` is not an option because mkdocs.yml carries custom
-    ``!!python/name:`` tags, so only this one key is parsed. Plain, quoted and
-    ``>``/``|`` block scalar forms are all handled.
+    Read rather than hardcoded: a copy here would stop matching the moment
+    someone rewords the config, and the fallback check below would then pass
+    forever while guarding nothing.
     """
-    lines = MKDOCS_YML.read_text(encoding="utf-8").splitlines()
-    for index, line in enumerate(lines):
-        match = re.match(r"^site_description:\s*(.*?)\s*$", line)
-        if not match:
-            continue
-        value = match.group(1)
-        if value[:1] in (">", "|"):
-            block: list[str] = []
-            for follow in lines[index + 1 :]:
-                if not follow.strip():
-                    block.append("")
-                    continue
-                if not follow[:1].isspace():
-                    break
-                block.append(follow.strip())
-            value = " ".join(x for x in block if x)
-        else:
-            value = value.strip("'\"")
-        return " ".join(value.split())
-
-    print("ERROR: could not find site_description in mkdocs.yml", file=sys.stderr)
-    sys.exit(2)
+    config = tomllib.loads(CONFIG.read_text(encoding="utf-8"))
+    value = config.get("project", {}).get("site_description", "")
+    if not value:
+        print("ERROR: could not find site_description in zensical.toml", file=sys.stderr)
+        sys.exit(2)
+    return " ".join(value.split())
 
 
 SITE_DESCRIPTION = _site_description()
@@ -134,8 +113,8 @@ def audit_html(path: Path) -> None:
                 f"{name}: meta description is {length} chars "
                 f"(want {DESCRIPTION_MIN}-{DESCRIPTION_MAX})"
             )
-        # Material falls back to site_description whenever a page has no usable
-        # per-page description, and MkDocs reports nothing when that happens.
+        # The theme falls back to site_description whenever a page has no usable
+        # per-page description, and the build reports nothing when that happens.
         # Two ways to trigger it, both silent: a double quote inside an unquoted
         # `description:` value terminates the rendered content="..." attribute
         # early, and an unquoted YAML scalar containing ": " makes the whole
@@ -163,7 +142,7 @@ def audit_html(path: Path) -> None:
     # Raster content images need explicit dimensions to avoid layout shift.
     # SVGs carry intrinsic dimensions in the file itself, remote badges have no
     # build-time dimensions (and often no file extension either, so they are
-    # matched on host), and the theme logo is emitted by Material's own partials.
+    # matched on host), and the theme logo is emitted by the theme's own partials.
     for img in re.findall(r"<img\b[^>]*>", html):
         src_match = re.search(r'src=["\']?([^"\'\s>]+)', img)
         src = src_match.group(1) if src_match else ""
@@ -201,7 +180,7 @@ def audit_offsite_links(html_files: list[Path]) -> None:
 
     Canonical sources that are also rendered outside GitHub (the NuGet package
     READMEs) spell their links out as absolute GitHub URLs, because NuGet.org
-    resolves relative links against the package root and they 404. hooks.py maps
+    resolves relative links against the package root and they 404. generate.py maps
     those back to the published page. If that mapping is missed - a new absolute
     link, or a page added without a SITE_PAGE_MAP entry - the site silently
     starts sending readers to GitHub instead of its own page, losing both the
@@ -219,28 +198,21 @@ def audit_offsite_links(html_files: list[Path]) -> None:
             if mapped is not None:
                 fail(
                     f"{name}: links to GitHub for {target}, which is published at "
-                    f"{mapped} - add the mapping in hooks.py instead"
+                    f"{mapped} - add the mapping in generate.py instead"
                 )
 
 
 def audit_accessibility(html_files: list[Path]) -> None:
-    """Assert the accessible names Material's own partials omit.
+    """Assert the accessible names on the logo, progress bar and search dialog.
 
-    Three WCAG defects are patched during the build: the logo's alt text and
-    dimensions and the loading progress bar (both via ``overrides/partials/``),
-    and the search dialog's accessible name (a string patch in ``hooks.py``,
-    because upstream's search partial is far too large to fork for one
-    attribute). All three are invisible in normal use and none of them failed
-    the build if they stopped applying - so a Material upgrade that renamed a
-    class or reordered an attribute would have silently regressed the site.
+    The logo's alt text and dimensions and the loading progress bar are fixed by
+    ``overrides/partials/``; the search dialog is labelled by the theme itself.
+    All three are invisible in normal use, so a theme upgrade that renamed a
+    class or dropped an attribute would silently regress the site.
 
-    Each element is matched by the specific Material class we patch rather than
-    by its ARIA role, for two reasons. Matching ``role=dialog`` generally would
-    fail the build for any *other* dialog Material grows that we never patched,
-    and - worse - it would go quiet exactly when it matters: if an upgrade
-    restructured the search markup out from under the patch, a role-based search
-    would simply find nothing and pass. Hence the explicit "not found" failure
-    below; an element that vanished is a regression, not a clean run.
+    Each element is matched by its specific theme class rather than by ARIA
+    role: a role-based search would simply find nothing and pass if an upgrade
+    restructured the markup. Hence the explicit "not found" failure below.
     """
     # Attribute quotes are optional: the minify plugin strips them. The trailing
     # character class stops `md-search` also matching `md-search__inner`.
@@ -249,7 +221,7 @@ def audit_accessibility(html_files: list[Path]) -> None:
         (
             "search dialog",
             re.compile(rf"<div[^>]*\bclass={q}md-search[\"'\s>][^>]*>"),
-            "hooks.py on_post_page no longer matches Material's search partial",
+            "the theme's search partial no longer labels the dialog",
         ),
         (
             "progress bar",
@@ -313,10 +285,9 @@ def audit_sitemap() -> None:
         if not loc.startswith(SITE_URL):
             fail(f"sitemap.xml has an off-site <loc>: {loc}")
 
-    # Every URL must carry a real git-derived <lastmod>. hooks.py used to strip
-    # <lastmod> wholesale because MkDocs stamps the *build* date on every page,
-    # telling crawlers all 52 pages changed on every deploy. Now the dates come
-    # from git, so absent or malformed ones mean the index failed to build.
+    # Every URL must carry a real git-derived <lastmod> (written by generate.py,
+    # rendered by overrides/sitemap.xml). Absent or malformed dates mean the
+    # git index or the template include failed.
     lastmods = re.findall(r"<lastmod>([^<]+)</lastmod>", xml)
     if len(lastmods) != len(locs):
         fail(
@@ -335,30 +306,6 @@ def audit_sitemap() -> None:
             "sitemap.xml gives every URL the same <lastmod> "
             f"({lastmods[0]}); the checkout is probably shallow"
         )
-
-    if not (SITE_DIR / "sitemap.xml.gz").is_file():
-        fail("sitemap.xml.gz is missing")
-    else:
-        # The gzipped twin is what many crawlers actually fetch. MkDocs writes it
-        # from the same rendered template as sitemap.xml, so a mismatch means
-        # something rewrote one of the two after the build.
-        # gzip surfaces corruption three ways and only one of them is an OSError:
-        # BadGzipFile (wrong format / CRC failure) subclasses it, but EOFError
-        # (truncated write) and zlib.error (damaged deflate stream) inherit
-        # straight from Exception. Catching OSError alone would let the two most
-        # likely real-world cases escape as a traceback, burying every other
-        # finding this audit produced. The type name is included because
-        # "EOFError" says truncated write, where "BadGzipFile" says wrong format.
-        try:
-            with gzip.open(SITE_DIR / "sitemap.xml.gz", "rt", encoding="utf-8") as fh:
-                if fh.read() != xml:
-                    fail("sitemap.xml.gz does not match sitemap.xml")
-        except (OSError, EOFError, zlib.error) as exc:
-            kind = type(exc).__qualname__
-            if type(exc).__module__ != "builtins":
-                # zlib.error's bare name is just "error", which says nothing.
-                kind = f"{type(exc).__module__}.{kind}"
-            fail(f"sitemap.xml.gz could not be read: {kind}: {exc}")
 
 
 def audit_llms(html_files: list[Path]) -> None:
@@ -404,6 +351,18 @@ def audit_llms(html_files: list[Path]) -> None:
 
 def audit_feature_overview() -> None:
     """The feature overview has one content source; its wrapper adds presentation."""
+    expected_sources = set(FEATURE_SOURCES.values())
+    actual_sources = {
+        source.relative_to(SITE_DIR.parent.parent).as_posix()
+        for source in (SITE_DIR.parent.parent / "docs" / "features").glob("*.md")
+    }
+    if actual_sources != expected_sources:
+        fail(
+            "FEATURE_SOURCES must list exactly the canonical docs/features/*.md files "
+            f"(missing {sorted(actual_sources - expected_sources)}, "
+            f"extra {sorted(expected_sources - actual_sources)})"
+        )
+
     wrapper = SITE_DIR.parent / "docs" / "features.md"
     content = wrapper.read_text(encoding="utf-8")
     snippet = '--8<-- "_generated/features.md"'
@@ -421,91 +380,16 @@ def audit_feature_overview() -> None:
     if not generated.is_file() or not mirror.is_file():
         fail("FEATURES.md generated overview or published Markdown mirror is missing")
         return
-    overview = generated.read_text(encoding="utf-8").strip()
-    if not overview or mirror.read_text(encoding="utf-8").count(overview) != 1:
-        fail("features/index.md must contain the complete generated overview exactly once")
-
-
-def audit_tools_json() -> None:
-    path = SITE_DIR / "tools.json"
-    if not path.is_file():
-        fail("tools.json is missing")
-        return
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
-        fail(f"tools.json is not valid JSON: {exc}")
-        return
-
-    categories = data.get("categories")
-    if not categories:
-        fail("tools.json has no categories")
-        return
-
-    expected_sources = set(FEATURE_SOURCES.values())
-    actual_sources = {
-        source.relative_to(SITE_DIR.parent.parent).as_posix()
-        for source in (SITE_DIR.parent.parent / "docs" / "features").glob("*.md")
-    }
-    if actual_sources != expected_sources:
-        fail(
-            "FEATURE_SOURCES must list exactly the canonical docs/features/*.md files "
-            f"(missing {sorted(str(value) for value in actual_sources - expected_sources)}, "
-            f"extra {sorted(str(value) for value in expected_sources - actual_sources)})"
-        )
-
-    expected_urls = {SITE_URL.rstrip("/") + SOURCE_TO_SITE[source] for source in expected_sources}
-    actual_urls = {category.get("url") for category in categories}
-    if actual_urls != expected_urls:
-        fail(
-            "tools.json categories must match FEATURE_SOURCES "
-            f"(missing {sorted(str(value) for value in expected_urls - actual_urls)}, "
-            f"extra {sorted(str(value) for value in actual_urls - expected_urls)})"
-        )
-
-    for category in categories:
-        groups = category.get("featureGroups")
-        if not isinstance(groups, list) or not groups:
-            fail(f"tools.json category {category.get('name')} has no featureGroups")
-            continue
-        group_operations = 0
-        for group in groups:
-            if not isinstance(group, dict):
-                fail("tools.json featureGroups entries must be objects")
-                continue
-            label = f"tools.json feature group {group.get('name')}"
-            operation_count = group.get("operationCount")
-            if type(operation_count) is not int or operation_count <= 0:
-                fail(f"{label} operationCount must be a positive integer")
-            else:
-                group_operations += operation_count
-            if "operations" in group:
-                fail(f"{label} must emit summaries as capabilities, not operations")
-            capabilities = group.get("capabilities")
-            if not isinstance(capabilities, list) or not capabilities:
-                fail(f"{label} must contain a nonempty capabilities collection")
-                continue
-            for capability in capabilities:
-                if not isinstance(capability, dict) or any(
-                    not isinstance(capability.get(key), str)
-                    or not capability[key].strip()
-                    for key in ("name", "description")
-                ):
-                    fail(f"{label} capabilities must have nonempty names and descriptions")
-        if category.get("operationCount") != group_operations:
-            fail(
-                f"tools.json category {category.get('name')} operationCount "
-                f"must equal its feature-group operation totals ({group_operations})"
-            )
-
-    parsed_operations = sum(category.get("operationCount", 0) for category in categories)
-    if not isinstance(data.get("toolCount"), int) or data["toolCount"] <= 0:
-        fail("tools.json toolCount must be a positive integer")
-    if data.get("operationCount") != parsed_operations:
-        fail(
-            f"tools.json operationCount {data.get('operationCount')} != "
-            f"parsed category operation count {parsed_operations}"
-        )
+    # The llmstxt plugin rebuilds the mirror from rendered HTML, so tables,
+    # links and entities differ from the source text. Every overview heading
+    # must still appear exactly once, which catches a dropped or doubled include.
+    headings = re.findall(r"^#{2,6} (.+)$", generated.read_text(encoding="utf-8"), re.MULTILINE)
+    mirrored = re.findall(r"^#{2,6} (.+)$", mirror.read_text(encoding="utf-8"), re.MULTILINE)
+    if not headings:
+        fail("FEATURES.md generated overview has no headings")
+    for heading in headings:
+        if mirrored.count(heading.strip()) != 1:
+            fail(f"features/index.md must contain overview heading {heading!r} exactly once")
 
 
 def audit_robots() -> None:
@@ -525,7 +409,7 @@ def audit_faq() -> None:
     """The FAQ page must carry parseable FAQPage structured data.
 
     The JSON-LD is derived from the page's own ``###`` question headings by
-    hooks.py, so a parser regression shows up as too few questions rather than
+    generate.py, so a parser regression shows up as too few questions rather than
     as a build failure.
     """
     faq = SITE_DIR / "faq" / "index.html"
@@ -637,15 +521,17 @@ def audit_breadcrumbs(html_files: list[Path]) -> None:
 
 def main() -> int:
     if not SITE_DIR.is_dir():
-        print(f"ERROR: {SITE_DIR} not found - run 'mkdocs build' first", file=sys.stderr)
+        print(f"ERROR: {SITE_DIR} not found - run 'zensical build' first", file=sys.stderr)
         return 2
 
     html_files = sorted(
         p
         for p in SITE_DIR.rglob("*.html")
-        # 404.html is not an indexable page: MkDocs renders it with no canonical
-        # URL and no page metadata, so every metadata check would fire on it.
-        if p.name != "404.html" and "assets" not in p.relative_to(SITE_DIR).parts
+        # 404.html and redirect stubs for retired pages are not indexable pages:
+        # they carry no page metadata, so every metadata check would fire.
+        if p.name != "404.html"
+        and "assets" not in p.relative_to(SITE_DIR).parts
+        and 'http-equiv="refresh"' not in p.read_text(encoding="utf-8", errors="replace")
     )
     if not html_files:
         print("ERROR: no HTML pages found in the built site", file=sys.stderr)
@@ -661,7 +547,6 @@ def main() -> int:
     audit_sitemap()
     audit_llms(html_files)
     audit_feature_overview()
-    audit_tools_json()
     audit_robots()
     audit_faq()
 

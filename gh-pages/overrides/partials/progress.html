@@ -1,8 +1,7 @@
 {#-
-  Overrides material/templates/partials/progress.html.
+  Overrides the theme's partials/progress.html.
 
   A role="progressbar" with no accessible name is a WCAG 4.1.2 failure. Upstream
-  is a single div, so overriding it here is cheap and cannot drift; it replaces
-  two string patches over the built HTML in hooks.py.
+  is a single div, so overriding it here is cheap and cannot drift.
 -#}
 <div class="md-progress" data-md-component="progress" role="progressbar" aria-label="Page loading progress"></div>

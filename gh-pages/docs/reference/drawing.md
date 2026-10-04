@@ -6,5 +6,5 @@ keywords: "Excel shapes automation, Excel text box, drawing objects Excel"
 
 # Drawing Objects
 
---8<-- "_generated/skills-drawing.md"
+--8<-- "_generated/reference-drawing.md"
 

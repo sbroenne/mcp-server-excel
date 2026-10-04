@@ -6,5 +6,5 @@ keywords: "Excel Table automation, ListObject automation, append rows Excel tabl
 
 # Excel Tables
 
---8<-- "_generated/skills-table.md"
+--8<-- "_generated/reference-table.md"
 

@@ -6,5 +6,5 @@ keywords: "Excel XML map, XML import Excel automation"
 
 # XML Maps
 
---8<-- "_generated/skills-xmlmap.md"
+--8<-- "_generated/reference-xmlmap.md"
 

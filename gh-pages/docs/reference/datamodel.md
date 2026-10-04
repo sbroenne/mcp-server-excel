@@ -6,4 +6,4 @@ keywords: "Excel Data Model reference, Power Pivot automation, DAX measure Excel
 
 # Data Model & DAX
 
---8<-- "_generated/skills-datamodel.md"
+--8<-- "_generated/reference-datamodel.md"

@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Verify the Pages deploy workflow rebuilds the site for every canonical source.
 
-``hooks.py`` pulls canonical Markdown from all over the repo into the site, but
+``generate.py`` pulls canonical Markdown from all over the repo into the site, but
 ``.github/workflows/deploy-gh-pages.yml`` decides *when* to rebuild from a
 hand-written ``paths:`` filter. Nothing kept the two in sync, so adding a new
 mirrored source silently produced a stale website until the next nightly cron.
 
-This script fails when a source that ``hooks.py`` reads is not covered by the
+This script fails when a source that ``generate.py`` reads is not covered by the
 workflow filter. Run it from the ``gh-pages`` directory::
 
     python check_deploy_paths.py
@@ -25,7 +25,7 @@ GH_PAGES = Path(__file__).resolve().parent
 REPO_ROOT = GH_PAGES.parent
 WORKFLOW = REPO_ROOT / ".github" / "workflows" / "deploy-gh-pages.yml"
 
-# Literal _read("...") calls in hooks.py: CHANGELOG.md, SECURITY.md, the
+# Literal _read("...") calls in generate.py: CHANGELOG.md, SECURITY.md, the
 # installation pages and so on. The dict-driven sources are collected from the
 # imported module instead, because those paths are built with f-strings.
 _READ_CALL = re.compile(r'_read\(\s*"([^"]+)"')
@@ -33,13 +33,13 @@ _READ_CALL = re.compile(r'_read\(\s*"([^"]+)"')
 
 def mirrored_sources() -> set[str]:
     sys.path.insert(0, str(GH_PAGES))
-    import hooks  # noqa: PLC0415 - deliberate late import; needs sys.path above
+    import generate  # noqa: PLC0415 - deliberate late import; needs sys.path above
 
     sources: set[str] = set()
-    sources.update(hooks.FEATURE_SOURCES.values())
-    sources.update(hooks.GUIDE_SOURCES.values())
-    sources.update(f"docs/reference/{name}" for name in hooks.REFERENCE_SOURCES)
-    sources.update(_READ_CALL.findall((GH_PAGES / "hooks.py").read_text(encoding="utf-8")))
+    sources.update(generate.FEATURE_SOURCES.values())
+    sources.update(generate.GUIDE_SOURCES.values())
+    sources.update(f"docs/reference/{name}" for name in generate.REFERENCE_SOURCES)
+    sources.update(_READ_CALL.findall((GH_PAGES / "generate.py").read_text(encoding="utf-8")))
     return sources
 
 
@@ -63,7 +63,7 @@ def main() -> int:
     missing: list[str] = []
     for source in sorted(mirrored_sources()):
         if not (REPO_ROOT / source).is_file():
-            missing.append(f"{source}: read by hooks.py but does not exist in the repo")
+            missing.append(f"{source}: read by generate.py but does not exist in the repo")
             continue
         if not any(fnmatch.fnmatch(source, pattern) for pattern in patterns):
             missing.append(

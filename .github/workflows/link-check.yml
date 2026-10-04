@@ -30,8 +30,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          # hooks.py derives sitemap dates from git history. A shallow checkout
-          # makes the strict MkDocs build fail before the link check can run.
+          # generate.py derives sitemap dates from git history. A shallow checkout
+          # makes the site build fail before the link check can run.
           fetch-depth: 0
 
       - name: Setup Python
@@ -46,7 +46,9 @@ jobs:
 
       - name: Build site
         working-directory: gh-pages
-        run: mkdocs build --strict --clean
+        run: |
+          python generate.py
+          zensical build --clean --strict
 
       - name: Configure GitHub API authentication
         env:
