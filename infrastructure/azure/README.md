@@ -297,6 +297,14 @@ Windows; adding them in `copilot-setup-steps.yml` is too late. Qualification
 must resolve the protected binaries and execute jq through Git Bash before
 admitting a listener. Existing registered desktops can run the same cloud
 prerequisite helper only during guarded, idle administrative maintenance.
+The same helper enables Windows Developer Mode before admission. GitHub's
+generated Windows runtime archive contains symbolic links; native `tar`
+otherwise fails to extract them under the limited desktop identity before
+repository setup. This permits supported unprivileged link creation without
+adding the coding account to Administrators or enabling Device Portal.
+Toolchain readiness rejects missing or disabled Developer Mode. Qualification
+must also establish native archive-link extraction in the actual non-admin
+desktop, not only an administrator's successful extraction.
 
 Operators can read the actual firewall state through
 `GET /repos/{owner}/{repo}/copilot/cloud-agent/configuration` and manage the

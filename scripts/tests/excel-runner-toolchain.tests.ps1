@@ -68,9 +68,16 @@ if (-not $failed) { throw 'An older SDK must not substitute for the requested SD
 $global:ExcelToolchainJqHash = (Get-RunnerJqRelease).sha256
 $global:ExcelToolchainBashExit = 0
 $global:ExcelToolchainBashVersion = 'GNU bash, version 5.3.15(2)-release (x86_64-pc-cygwin)'
+$global:ExcelToolchainDevelopmentMode = 1
 $bashPath = Join-Path $env:ProgramFiles 'Git\bin\bash.exe'
 $jqPath = Join-Path $env:ProgramFiles 'ExcelMcp\Tools\jq.exe'
 function Test-Path { param($LiteralPath, $PathType) return $true }
+function Get-ItemPropertyValue {
+    param($LiteralPath, $Name, $ErrorAction)
+    if ($LiteralPath -ne 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' -or
+        $Name -ne 'AllowDevelopmentWithoutDevLicense') { throw 'Unexpected development-mode lookup.' }
+    $global:ExcelToolchainDevelopmentMode
+}
 function Get-Command {
     param($Name, $CommandType, $ErrorAction)
     switch ($Name) {
@@ -94,7 +101,8 @@ Set-Item -Path Function:\Get-FileHash -Value $hashFixture
 try {
     $global:LASTEXITCODE = 239
     $cloud = Get-RunnerCloudToolState
-    if ($cloud.bash -ne $global:ExcelToolchainBashVersion -or $cloud.jq -ne 'jq-1.8.2') {
+    if ($cloud.bash -ne $global:ExcelToolchainBashVersion -or $cloud.jq -ne 'jq-1.8.2' -or
+        $cloud.developmentMode -ne $true) {
         throw 'Cloud verification must drain complete Bash output before checking its result.'
     }
     foreach ($case in @(
@@ -106,6 +114,42 @@ try {
         $failed = $false
         try { Get-RunnerCloudToolState | Out-Null } catch { $failed = $true }
         if (-not $failed) { throw 'Unsuccessful or invalid Bash verification must still fail.' }
+    }
+    $global:ExcelToolchainBashExit = 0
+    $global:ExcelToolchainBashVersion = 'GNU bash, version 5.3.15(2)-release (x86_64-pc-cygwin)'
+    $global:ExcelToolchainDevelopmentMode = 0
+    $failed = $false
+    try { Get-RunnerCloudToolState | Out-Null } catch { $failed = $true }
+    if (-not $failed) { throw 'A desktop without limited-user symbolic-link support must not be admitted.' }
+    $global:ExcelToolchainProvisioningCalls = [Collections.Generic.List[string]]::new()
+    function New-Item {
+        param($ItemType, $Path, [switch]$Force)
+        if ($Path -ne (Join-Path $env:ProgramFiles 'ExcelMcp\Tools') -and
+            $Path -ne 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock') {
+            throw 'Unexpected prerequisite directory or registry key.'
+        }
+    }
+    function New-ItemProperty {
+        param($LiteralPath, $Name, $PropertyType, $Value, [switch]$Force)
+        if ($LiteralPath -ne 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock' -or
+            $Name -ne 'AllowDevelopmentWithoutDevLicense' -or $PropertyType -ne 'DWord' -or $Value -ne 1) {
+            throw 'Provisioning must enable the exact supported development-mode DWORD.'
+        }
+        $global:ExcelToolchainDevelopmentMode = $Value
+        $global:ExcelToolchainProvisioningCalls.Add('development-mode')
+    }
+    function Set-RunnerCloudToolPath {
+        if ($global:ExcelToolchainDevelopmentMode -ne 1) { throw 'Development Mode must be enabled before PATH/readiness.' }
+        $global:ExcelToolchainProvisioningCalls.Add('path')
+    }
+    foreach ($initialMode in @($null, 0)) {
+        $global:ExcelToolchainDevelopmentMode = $initialMode
+        $global:ExcelToolchainProvisioningCalls.Clear()
+        $cloud = Install-RunnerCloudPrerequisites
+        if ($cloud.developmentMode -ne $true -or
+            ($global:ExcelToolchainProvisioningCalls -join ',') -ne 'development-mode,path') {
+            throw 'Absent or disabled Developer Mode must be provisioned before actual readiness succeeds.'
+        }
     }
 }
 finally { Remove-Item -LiteralPath "Function:\$bashPath" }

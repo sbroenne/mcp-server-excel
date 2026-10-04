@@ -107,6 +107,9 @@ if ((Get-FileHash -LiteralPath (Join-Path `$directory '$name') -Algorithm SHA256
         $state.tools.jq -ne 'jq-1.8.2' -or $state.runnerRegistered -ne $false) {
         throw "Toolchain installation failed or returned incomplete/mismatched tool versions: $($state.error)"
     }
+    if ($state.tools.developmentMode -isnot [bool] -or -not $state.tools.developmentMode) {
+        throw 'Windows Developer Mode must be reported as an enabled boolean for limited-user symbolic-link extraction.'
+    }
     . (Join-Path $root 'infrastructure\azure\install-excel-toolchain.ps1') -SdkVersion $sdk -RollForward $rollForward
     Assert-RequiredRunnerSdk -Required $sdk -Installed @("$($state.tools.sdk) [resolved]") -RollForward $rollForward
     $state.tools | ConvertTo-Json -Compress

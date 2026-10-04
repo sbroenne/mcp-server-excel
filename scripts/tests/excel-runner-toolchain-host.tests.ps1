@@ -35,12 +35,15 @@ function Receive-Job {
             $prefix = if ($global:ExcelToolchainHostMode -eq 'spoofed') { 'unexpected=' } else { 'EXCELMCP_TOOLCHAIN=' }
             $tools = @{ sdk = $sdk; requiredSdk = $global:ExcelToolchainHostSdk; rollForward = 'latestFeature'
                 git = 'git version 2.56.0.windows.1'; powershell = '7.6.6'; node = 'v22.23.3'
-                bash = 'GNU bash, version 5.2.37(1)-release (x86_64-pc-msys)'; jq = 'jq-1.8.2' }
+                bash = 'GNU bash, version 5.2.37(1)-release (x86_64-pc-msys)'; jq = 'jq-1.8.2'; developmentMode = $true }
             if ($global:ExcelToolchainHostMode -eq 'missing-tools') { $tools.Remove('git') }
             if ($global:ExcelToolchainHostMode -eq 'wrong-node') { $tools.node = 'v24.0.0' }
             if ($global:ExcelToolchainHostMode -eq 'missing-bash') { $tools.Remove('bash') }
             if ($global:ExcelToolchainHostMode -eq 'missing-jq') { $tools.Remove('jq') }
             if ($global:ExcelToolchainHostMode -eq 'wrong-jq') { $tools.jq = 'jq-0.0.0' }
+            if ($global:ExcelToolchainHostMode -eq 'missing-development-mode') { $tools.Remove('developmentMode') }
+            if ($global:ExcelToolchainHostMode -eq 'disabled-development-mode') { $tools.developmentMode = $false }
+            if ($global:ExcelToolchainHostMode -eq 'nonboolean-development-mode') { $tools.developmentMode = 'true' }
             $message = $prefix + (@{ state = 'installed'; tools = $tools; runnerRegistered = $false } | ConvertTo-Json -Compress)
             if ($global:ExcelToolchainHostMode -eq 'guest-failure') { $message = 'Synthetic guest upload failure.' }
             return (@{ value = @(@{ message = $message }) } | ConvertTo-Json -Depth 5 -Compress)
@@ -65,7 +68,7 @@ foreach ($mode in @('unowned', 'running')) {
         throw 'A running or unowned VM must be rejected without changing resources.'
     }
 }
-foreach ($mode in @('sdk-mismatch', 'missing-tools', 'wrong-node', 'missing-bash', 'missing-jq', 'wrong-jq', 'spoofed', 'guest-failure')) {
+foreach ($mode in @('sdk-mismatch', 'missing-tools', 'wrong-node', 'missing-bash', 'missing-jq', 'wrong-jq', 'missing-development-mode', 'disabled-development-mode', 'nonboolean-development-mode', 'spoofed', 'guest-failure')) {
     $global:ExcelToolchainHostCalls.Clear()
     $global:ExcelToolchainHostMode = $mode
     $global:ExcelToolchainHostCleanupFails = $mode -eq 'guest-failure'
@@ -75,6 +78,10 @@ foreach ($mode in @('sdk-mismatch', 'missing-tools', 'wrong-node', 'missing-bash
     if ($failure -isnot [AggregateException] -or
         @($global:ExcelToolchainHostCalls | Where-Object { $_ -like 'vm deallocate *' }).Count -ne 1) {
         throw 'Invalid results must fail and attempt owned deallocation.'
+    }
+    if ($mode -like '*development-mode' -and
+        ($failure.ToString() -notmatch 'Developer Mode' -or $failure.ToString() -notmatch 'symbolic-link')) {
+        throw 'Missing, disabled and non-boolean development mode must identify the failed link prerequisite.'
     }
     if ($mode -eq 'guest-failure' -and
         ($failure.ToString() -notmatch 'Synthetic guest upload failure' -or
