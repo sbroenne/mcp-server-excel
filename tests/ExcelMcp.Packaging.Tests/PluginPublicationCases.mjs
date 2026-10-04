@@ -670,6 +670,36 @@ export function registerPolicyTests() {
         ]) assert.throws(() => assertTemplate(template, body), /preserve upstream template/);
     });
 
+    test('writer restores only trusted template comments stripped by safe-output sanitization', () => {
+        const template = '<!-- Intro -->\n## Checklist\n- [ ] Follow guidelines.\n' +
+            '<!-- Keep context -->\n<!-- Keep more context -->\n## Description\n<!-- Describe changes -->\n';
+        const authored = template.replace('[ ]', '[x]') + 'Actual changes.\n<!-- Agent-only comment -->\n';
+        const sanitized = authored.replace(/<!--[\s\S]*?-->/g, '');
+        assert.throws(() => assertTemplate(template, sanitized), /preserve upstream template/);
+        for (const newline of ['\n', '\r\n']) {
+            const restored = updater.restoreTemplateComments(
+                template.replaceAll('\n', newline), sanitized.replaceAll('\n', newline));
+            assert.doesNotThrow(() => assertTemplate(template, restored));
+            assert.match(restored, /- \[x\] Follow guidelines\./);
+            assert.match(restored, /Actual changes\./);
+            assert.equal(restored.includes('Agent-only comment'), false);
+            for (const comment of template.match(/<!--[\s\S]*?-->/g)) {
+                assert.equal(restored.split(comment).length, 2);
+            }
+            assert.equal(updater.restoreTemplateComments(template, restored), restored);
+        }
+        assert.equal(updater.restoreTemplateComments(template, authored), authored);
+        assert.doesNotThrow(() => assertTemplate(template, updater.restoreTemplateComments(template,
+            authored.replace('<!-- Keep context -->', '').replace('<!-- Describe changes -->', ''))));
+        for (const body of [
+            sanitized.replace('- [x] Follow guidelines.\n', ''),
+            sanitized.replace('## Checklist', '## Changed heading'),
+            '## Description\n## Checklist\n- [x] Follow guidelines.\n',
+            authored.replace('<!-- Keep context -->\n<!-- Keep more context -->',
+                '<!-- Keep more context -->\n<!-- Keep context -->'),
+        ]) assert.throws(() => updater.restoreTemplateComments(template, body), /preserve upstream template/);
+    });
+
 }
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');

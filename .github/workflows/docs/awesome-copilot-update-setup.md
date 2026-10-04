@@ -245,6 +245,13 @@ expected branch head and body immediately before writing. Only
 change, and only affected Excel entries; all other entries/order/root metadata
 must remain identical. Patch size is limited to two MiB.
 
+Safe-output sanitization removes HTML comments from the agent's proposed PR
+body. Before validating the complete template, the writer restores only comments
+from the verified upstream PR template, in template order. It still rejects
+missing or changed headings/checklist items and incorrect ordering. The restored
+body is used consistently for the body fingerprint, submission receipt, and PR;
+arbitrary agent-authored comments are not reconstructed.
+
 Branches use ordinary non-force pushes. A fresh branch starts from upstream main;
 a refresh appends to the recorded PR head without rewriting history or merging
 unrelated fork-main changes. A human branch/body change, conflicted upstream
