@@ -47,7 +47,7 @@ public interface ISheetCommands
     /// <param name="oldName">Current name of the worksheet</param>
     /// <param name="newName">Exact new worksheet name. Names are not trimmed; blank or whitespace-only names are rejected.</param>
     [ServiceAction("rename")]
-    OperationResult Rename(IExcelBatch batch, [RequiredParameter, AllowEmptyString] string oldName, [RequiredParameter, AllowEmptyString] string newName);
+    OperationResult Rename(IExcelBatch batch, [RequiredParameter] string oldName, [RequiredParameter, AllowEmptyString] string newName);
 
     /// <summary>
     /// Copies a worksheet.
@@ -57,7 +57,7 @@ public interface ISheetCommands
     /// <param name="sourceName">Name of the source worksheet</param>
     /// <param name="targetName">Exact name for the copied worksheet. Names are not trimmed; blank or whitespace-only names are rejected.</param>
     [ServiceAction("copy")]
-    OperationResult Copy(IExcelBatch batch, [RequiredParameter, AllowEmptyString] string sourceName, [RequiredParameter, AllowEmptyString] string targetName);
+    OperationResult Copy(IExcelBatch batch, [RequiredParameter] string sourceName, [RequiredParameter, AllowEmptyString] string targetName);
 
     /// <summary>
     /// Deletes a worksheet.
@@ -100,7 +100,7 @@ public interface ISheetCommands
     [ServiceAction("copy-to-file")]
     OperationResult CopyToFile(
         [RequiredParameter] string sourceFile,
-        [RequiredParameter, AllowEmptyString] string sourceSheet,
+        [RequiredParameter] string sourceSheet,
         [RequiredParameter] string targetFile,
         string? targetSheetName = null,
         string? beforeSheet = null,
@@ -122,7 +122,7 @@ public interface ISheetCommands
     [ServiceAction("move-to-file")]
     OperationResult MoveToFile(
         [RequiredParameter] string sourceFile,
-        [RequiredParameter, AllowEmptyString] string sourceSheet,
+        [RequiredParameter] string sourceSheet,
         [RequiredParameter] string targetFile,
         string? beforeSheet = null,
         string? afterSheet = null);

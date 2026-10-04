@@ -69,15 +69,16 @@ public sealed class ValidationSelectionTests
     [Theory]
     [InlineData("scripts\\Invoke-CopilotSetupNpm.ps1")]
     [InlineData(".github\\workflows\\copilot-setup-steps.yml")]
-    public async Task CopilotNpmSetup_SelectsSafetyWithoutExcel(string path)
+    public async Task CopilotNpmSetup_DoesNotSelectAutomatedValidation(string path)
     {
         var result = await RunAsync($$"""
             $plan = Get-ValidationPlan -Paths '{{path}}'
-            if (-not $plan.Build -or -not $plan.HookTests) { throw 'Script safety validation missing.' }
+            if ($plan.Build -or $plan.HookTests -or $plan.CiTestGroups.Count) {
+                throw 'Setup-only changes must not select automated validation.'
+            }
             if ($plan.Excel -or $plan.ExcelGroups.Count -or $plan.FastProjects.Count -or $plan.ProcessProjects.Count) {
                 throw 'Setup-only npm selection must not require Excel or runtime validation.'
             }
-            if (($plan.CiTestGroups -join ',') -ne 'Tooling') { throw 'Wrong setup validation group.' }
             """);
         Assert.True(result.ExitCode == 0, result.Output);
     }
