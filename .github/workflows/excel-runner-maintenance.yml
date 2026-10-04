@@ -16,7 +16,7 @@ concurrency:
 jobs:
   patch:
     if: vars.EXCEL_RUNNER_ENABLED == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 195
     environment: excel-runner-control
     permissions:

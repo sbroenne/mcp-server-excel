@@ -28,7 +28,7 @@ jobs:
         github.event.assignee.type == 'Bot' &&
         github.event.issue.state == 'open' &&
         !github.event.issue.pull_request))
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: ${{ github.event_name == 'issues' && 110 || 35 }}
     environment: excel-runner-control
     permissions:
@@ -60,7 +60,7 @@ jobs:
   alert:
     if: failure() && vars.EXCEL_RUNNER_ENABLED == 'true'
     needs: control
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       issues: write
     steps:

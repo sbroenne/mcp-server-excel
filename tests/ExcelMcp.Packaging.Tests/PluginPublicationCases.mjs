@@ -114,6 +114,28 @@ export function registerPolicyTests() {
         assert.throws(() => validatePublication(candidate), /Mixed/);
     });
 
+    test('Claude Code marketplace must match the canonical catalog before versions are ignored', () => {
+        function withClaude(version, claudeVersion = version) {
+            const files = payload(version);
+            edit(files, '.claude-plugin/marketplace.json', JSON.stringify({
+                plugins: ['excel-cli', 'excel-mcp'].map(name => ({ name, source: `./plugins/${name}`, version: claudeVersion })),
+            }));
+            return files;
+        }
+        assert.deepEqual(compareTrees(withClaude('2.0.1'), withClaude('2.3.0')).changedPaths, []);
+        assert.throws(() => compareTrees(payload(), withClaude('2.3.0', '2.0.1')), /Claude Code marketplace entry/);
+        const missingEntry = withClaude('2.0.1');
+        edit(missingEntry, '.claude-plugin/marketplace.json', JSON.stringify({
+            plugins: [{ name: 'excel-cli', source: './plugins/excel-cli', version: '2.0.1' }],
+        }));
+        assert.throws(() => validatePublication(missingEntry), /exactly two Claude Code/);
+        const wrongSource = withClaude('2.0.1');
+        edit(wrongSource, '.claude-plugin/marketplace.json', JSON.stringify({
+            plugins: ['excel-cli', 'excel-mcp'].map(name => ({ name, source: './plugins/other', version: '2.0.1' })),
+        }));
+        assert.throws(() => validatePublication(wrongSource), /Claude Code marketplace entry/);
+    });
+
     test('identical and release-bookkeeping-only payloads skip every publication write and handoff', () => {
         const baseline = payload(), candidate = payload('2.3.0');
         const comparison = compareTrees(baseline, candidate);
@@ -722,7 +744,7 @@ export function registerWorkflowPolicyTests() {
         assert.match(precheck, /runs-on: ubuntu-(slim|latest)/);
         assert.match(precheck, /Update-AwesomeCopilot\.mjs discover/);
         assert.equal(precheck.includes('secrets.AWESOME_COPILOT_PR_TOKEN'), false);
-        assert.match(writer, /runs-on: ubuntu-latest/);
+        assert.match(writer, /runs-on: ubuntu-26\.04/);
         assert.match(writer, /needs:[\s\S]*- agent/);
         assert.match(agent, /needs:[\s\S]*- activation[\s\S]*- build/);
         const activation = workflow.split('\n  activation:')[1].split(/\n {2}[a-z_]+:/)[0];

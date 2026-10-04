@@ -53,13 +53,14 @@ concurrency:
   cancel-in-progress: false
   job-discriminator: ${{ github.run_id }}
 timeout-minutes: 30
+runs-on: ubuntu-26.04
 jobs:
   activation:
     needs: build
     if: needs.build.outputs.actionable == 'true'
   build:
     needs: pre_activation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions: {}
     env:
       OTEL_EXPORTER_OTLP_ENDPOINT: ${{ '' }}
@@ -120,12 +121,13 @@ safe-outputs:
   missing-data:
     create-issue: false
   threat-detection:
+    runs-on: ubuntu-26.04
     continue-on-error: false
     report-as-issue: false
   jobs:
     submit-marketplace-update:
       description: Recheck public inputs and exact prebuilt listing files without running upstream code, then submit or refresh the same owned PR.
-      runs-on: ubuntu-latest
+      runs-on: ubuntu-26.04
       if: needs.agent.result == 'success' && needs.detection.result == 'success' && needs.detection.outputs.detection_success == 'true'
       permissions:
         contents: read

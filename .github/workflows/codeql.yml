@@ -29,7 +29,7 @@ jobs:
   # for full security coverage regardless of these filters.
   changes:
     name: Detect changed languages
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     outputs:
@@ -111,7 +111,7 @@ jobs:
     name: CodeQL Completion
     if: always()
     needs: [changes, analyze]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Verify detection and all selected analyses
         env:

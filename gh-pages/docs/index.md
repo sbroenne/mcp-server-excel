@@ -10,6 +10,15 @@ hide:
   - toc
 ---
 
+## Get started with Excel MCP Server or CLI
+
+ExcelMcp requires Windows and installed desktop Microsoft Excel. Choose the
+setup instructions for your assistant or command-line workflow:
+
+- [Set up Excel in GitHub Copilot for VS Code](installation-mcp-server.md#vs-code-extension-easiest-one-click-setup)
+- [Connect Claude Desktop to Excel](guides/claude-desktop.md)
+- [Install excelcli for coding agents and scripts](installation-cli.md)
+
 !!! success "Powered by the real Excel engine"
     Excel MCP Server automates the **actual Excel application** through its
     official COM API — the same engine Excel itself uses. That unlocks what
@@ -73,12 +82,16 @@ hide:
     Create, edit and optimize M code. Import from files, databases and APIs.
     Refresh queries and manage load destinations.
 
+    [Refresh Power Query with an AI assistant :material-arrow-right:](guides/refresh-power-query.md)
+
 -   :material-calculator-variant:{ .lg .middle } __Power Pivot &amp; DAX__
 
     ---
 
     Build Data Models, create DAX measures and manage table relationships
     through Excel's supported automation.
+
+    [Query the Excel Data Model with DAX :material-arrow-right:](guides/query-data-model-with-dax.md)
 
 -   :material-chart-box:{ .lg .middle } __PivotTables &amp; charts__
 
@@ -87,12 +100,16 @@ hide:
     Create PivotTables from ranges, tables or the Data Model. Build charts and
     PivotCharts with supported formatting controls.
 
+    [Automate Excel PivotTables :material-arrow-right:](guides/automate-pivottables.md)
+
 -   :material-table:{ .lg .middle } __Tables &amp; ranges__
 
     ---
 
     Read/write data, formulas and formatting. Filter, sort and validate. Manage
     Excel Tables with structured references.
+
+    [Read, write, and format Excel ranges :material-arrow-right:](reference/range.md)
 
 -   :material-code-braces:{ .lg .middle } __VBA macros__
 
@@ -101,12 +118,16 @@ hide:
     View, import, update and execute VBA code. Export modules for version
     control.
 
+    [Run Excel VBA macros with an AI agent :material-arrow-right:](guides/run-vba-macros.md)
+
 -   :material-file-table-box-multiple:{ .lg .middle } __Worksheets &amp; connections__
 
     ---
 
     Manage sheets, named ranges and data connections. Copy and move sheets
     between workbooks.
+
+    [Manage Excel worksheets :material-arrow-right:](reference/worksheet.md)
 
 -   :material-eye-outline:{ .lg .middle } __Agent mode__
 
@@ -116,12 +137,16 @@ hide:
     feedback and smart window arrangement, like a pair programmer in a
     spreadsheet.
 
+    [Watch an AI agent work in Excel :material-arrow-right:](reference/agent-mode.md)
+
 -   :fontawesome-brands-python:{ .lg .middle } __Python in Excel__
 
     ---
 
     Write and run `=PY()` formulas that execute in Excel's cloud Python engine —
     process worksheet data with pandas, NumPy and more, from your AI assistant.
+
+    [Python in Excel requirements and limits :material-arrow-right:](features/automation-advanced.md#python-in-excel)
 
 -   :material-test-tube:{ .lg .middle } __Agent workflow checks__
 

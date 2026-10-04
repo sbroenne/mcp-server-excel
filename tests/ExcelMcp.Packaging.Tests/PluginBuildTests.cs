@@ -83,6 +83,16 @@ public sealed class PluginBuildTests(ITestOutputHelper output) : PluginTestBase(
             Assert.False(File.Exists(Path.Combine(publishedDirectory, "plugins", "excel-cli", "bin", "download.ps1")));
             Assert.Empty(Directory.GetFiles(publishedDirectory, "install-global.ps1", SearchOption.AllDirectories));
 
+            using var claude = System.Text.Json.JsonDocument.Parse(
+                File.ReadAllText(Path.Combine(publishedDirectory, ".claude-plugin", "marketplace.json")));
+            var claudePlugins = claude.RootElement.GetProperty("plugins").EnumerateArray().ToDictionary(
+                plugin => plugin.GetProperty("name").GetString()!);
+            Assert.Equal(["excel-cli", "excel-mcp"], claudePlugins.Keys.Order());
+            Assert.Equal("./plugins/excel-mcp", claudePlugins["excel-mcp"].GetProperty("source").GetString());
+            Assert.Equal(version, claudePlugins["excel-mcp"].GetProperty("version").GetString());
+            Assert.Equal("npx", claudePlugins["excel-mcp"].GetProperty("mcpServers").GetProperty("excel-mcp").GetProperty("command").GetString());
+            Assert.False(claudePlugins["excel-cli"].TryGetProperty("mcpServers", out _));
+
             var validation = await RunPowerShellFileAsync(
                 Path.Combine(publishedDirectory, "tests", "Test-Plugins.ps1"), []);
             Assert.True(validation.ExitCode == 0, validation.CombinedOutput);

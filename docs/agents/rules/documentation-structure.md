@@ -17,10 +17,12 @@
   the canonical feature sections. CI rejects stale counts; no post-merge bot
   rewrites `main`. Internal CLI diagnostics are excluded from advertised counts.
 - Website pages are thin wrappers over canonical repository docs.
-  `gh-pages/hooks.py` writes gitignored `_generated` snippets and machine-readable
-  outputs. Do not hand-copy or separately maintain that content.
-- Adding/moving a published source requires its hook source map/write step,
-  `SITE_PAGE_MAP`, wrapper snippet, MkDocs nav, and deploy path filter to agree.
+  `gh-pages/hooks.py` and `gh-pages/sitegen/` write gitignored `_generated`
+  snippets and machine-readable outputs. Do not hand-copy or separately maintain
+  that content.
+- Adding/moving a published source requires its `PAGES` entry in
+  `gh-pages/sitegen/sources.py`, wrapper snippet, MkDocs nav, and deploy path
+  filter to agree.
   Use local website links for published targets.
 
 Authoring procedures: `docs/CONTRIBUTING.md` and `gh-pages/README.md`.

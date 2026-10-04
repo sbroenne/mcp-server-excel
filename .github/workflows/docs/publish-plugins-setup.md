@@ -63,7 +63,10 @@ The comparison ignores only:
   path for comparison; mixed skill layouts are rejected.
 - The `version` of the corresponding `excel-cli` and `excel-mcp` entries in the
   generated root `.github/plugin/marketplace.json` (or the validated legacy
-  `marketplace.json` before migration).
+  `marketplace.json` before migration), and in the generated Claude Code
+  `.claude-plugin/marketplace.json`. Validation first requires the Claude catalog
+  to list exactly those two plugins with the same `source` and `version` as the
+  canonical catalog, so a stale Claude entry fails instead of being ignored.
 
 JSON objects are compared canonically, including launch JSON; object formatting
 and key order do not matter, but array order and meaningful values do. Other root
@@ -177,7 +180,8 @@ overwritten. For every change:
    Use `-SkillsDirectory` to consume an explicit prepared skills directory.
 4. Run `scripts\Sync-PublishedPluginRepo.ps1` against a disposable local output
    directory and run its generated `tests\Test-Plugins.ps1`. Inspect the complete
-   publication tree, including `.github/plugin/marketplace.json`.
+   publication tree, including `.github/plugin/marketplace.json` and
+   `.claude-plugin/marketplace.json`.
 5. Fix failures in this source repository and regenerate, rather than patching
    output. Merge and publish only when separately authorized.
 

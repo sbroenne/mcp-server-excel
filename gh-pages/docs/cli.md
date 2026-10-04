@@ -1,9 +1,9 @@
 ---
-title: CLI Documentation
-description: Full command-line interface reference for Excel automation — token-efficient Excel control for coding agents like GitHub Copilot, Cursor and Windsurf.
+title: "Excel CLI: Automate Microsoft Excel"
+description: Automate Microsoft Excel from the command line with excelcli. Find commands and examples for workbooks, cells, Power Query, PivotTables, and VBA on Windows.
 keywords: "Excel CLI, excelcli, command line Excel automation, coding agent Excel, Copilot CLI"
 ---
 
-# CLI Documentation
+# Excel CLI: Automate Microsoft Excel { #cli-documentation }
 
 --8<-- "_generated/cli.md"

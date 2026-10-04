@@ -235,6 +235,36 @@ $canonicalManifest = [ordered]@{
 Write-Host "Writing canonical marketplace manifest..." -ForegroundColor Cyan
 Write-Utf8NoBomJson -Path $canonicalManifestPath -Object $canonicalManifest
 
+# Claude Code reads .claude-plugin/marketplace.json. Plugin directories carry no
+# .claude-plugin/plugin.json, so each entry is the manifest and declares the MCP server inline.
+$claudeEntries = @(foreach ($entry in $pluginMetadata) {
+    $claudeEntry = [ordered]@{
+        name = $entry.name
+        source = $entry.source
+        description = $entry.description
+        version = $entry.version
+        author = $entry.author
+        homepage = $entry.homepage
+        repository = $entry.repository
+        license = $entry.license
+        keywords = $entry.keywords
+    }
+    $mcpConfigPath = Join-Path $BuiltPluginsDir "$($entry.name)\mcp.json"
+    if (Test-Path -LiteralPath $mcpConfigPath -PathType Leaf) {
+        $claudeEntry.mcpServers = (Get-Content -LiteralPath $mcpConfigPath -Raw | ConvertFrom-Json).mcpServers
+    }
+    $claudeEntry
+})
+$claudeManifest = [ordered]@{
+    name = "mcp-server-excel-plugins"
+    description = "Windows-only Claude Code plugins for Excel automation with ExcelMcp."
+    owner = $canonicalManifest.owner
+    plugins = $claudeEntries
+}
+
+Write-Host "Writing Claude Code marketplace manifest..." -ForegroundColor Cyan
+Write-Utf8NoBomJson -Path (Join-Path $PublishedRepoDir ".claude-plugin\marketplace.json") -Object $claudeManifest
+
 if (Test-Path $legacyManifestPath) {
     Write-Host "Removing legacy root marketplace manifest..." -ForegroundColor Cyan
     Remove-Item -Path $legacyManifestPath -Force

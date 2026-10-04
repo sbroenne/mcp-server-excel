@@ -26,7 +26,7 @@ if ($env:GITHUB_OUTPUT) {
     $languages = @($plan.CodeQlLanguages | ForEach-Object {
         @{
             language = $_
-            os = if ($_ -eq 'csharp') { 'windows-latest' } else { 'ubuntu-latest' }
+            os = if ($_ -eq 'csharp') { 'windows-latest' } else { 'ubuntu-26.04' }
             'build-mode' = if ($_ -eq 'csharp') { 'manual' } else { 'none' }
         }
     })

@@ -1,6 +1,10 @@
 # Installation Guide - ExcelMcp
 
-ExcelMcp ships two **equal entry points** — the **MCP Server** for AI assistants and the **CLI** for scripting, RPA, and CI/CD. Pick the guide that matches how you'll use it (or read both, they're independent):
+Install ExcelMcp to automate installed Microsoft Excel on Windows from an AI
+assistant or the command line. It ships two **equal entry points** — the
+**MCP Server** for MCP clients and the **CLI** (`excelcli`) for coding agents
+and scripts. Choose the guide for your workflow; the entry points are
+independent:
 
 | Guide | Best For |
 |-------|----------|
@@ -14,7 +18,7 @@ NuGet tools require .NET 10. Manual npm use requires Node.js 18+.
 | Where you work | Recommended installation |
 |---|---|
 | VS Code with GitHub Copilot | VS Code extension; bundles the server and its skill |
-| Claude Desktop | MCPB; configures direct npx with `@latest` (Node.js/npm required) |
+| Claude Desktop | [Claude Desktop setup guide](guides/CLAUDE-DESKTOP.md); MCPB configures direct npx with `@latest` (Node.js/npm required) |
 | Another MCP client | npm through `npx -y @sbroenne/mcp-server-excel@latest` |
 | Coding agents and scripts | `npx -y @sbroenne/excelcli@latest`, or global npm for a command on PATH |
 | No npm downloads desired | Standalone ZIP; replace the executable manually for updates |
@@ -24,6 +28,11 @@ upgrade a running server or CLI background service. The guides below explain
 safe restarts and updates for each method.
 
 > **Tip:** The **VS Code Extension** bundles the MCP Server only (install the CLI separately if you need it for scripting). The **GitHub Copilot plugins** are separate — install `excel-mcp` and/or `excel-cli` depending on which entry point you need — see the MCP Server guide's Quick Start for the one-click paths.
+
+The Copilot plugins are also listed in
+[Awesome Copilot](https://github.com/github/awesome-copilot), the default
+marketplace in current Copilot clients. Each installation guide includes that
+install route and our direct marketplace alternative.
 
 ---
 

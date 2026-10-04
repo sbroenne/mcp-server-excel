@@ -39,7 +39,7 @@ jobs:
   # so it can safely be a required check.
   docs:
     name: Docs Site
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -59,6 +59,10 @@ jobs:
       - name: Install dependencies
         run: pip install -r gh-pages/requirements.txt
 
+      - name: Unit test site generator
+        working-directory: gh-pages
+        run: python -m unittest discover -s tests
+
       - name: Build with MkDocs
         working-directory: gh-pages
         run: mkdocs build --strict --clean
@@ -68,7 +72,7 @@ jobs:
         run: python audit_site.py
 
       # Guards against the deploy workflow's hand-written paths: filter drifting
-      # from the canonical sources hooks.py mirrors, which would publish a
+      # from the canonical sources listed in sitegen/sources.py, which would publish a
       # silently stale site until the nightly cron caught up.
       - name: Verify deploy path filter covers every mirrored source
         working-directory: gh-pages
@@ -76,7 +80,7 @@ jobs:
 
   changes:
     name: Select validation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       matrix: ${{ steps.select.outputs.matrix }}
       tests: ${{ steps.select.outputs.tests }}
@@ -271,7 +275,7 @@ jobs:
     name: CI Gate
     if: always()
     needs: [changes, tests, packages, npm, lockfiles]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

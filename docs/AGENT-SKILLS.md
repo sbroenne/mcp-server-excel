@@ -36,12 +36,32 @@ Their actual selection and value require a separate comparison.
 
 ## Installation and migration
 
-Plugin identities and launch commands are unchanged:
+Plugin names remain `excel-mcp` and `excel-cli`. They are listed in
+[Awesome Copilot](https://github.com/github/awesome-copilot), the default
+marketplace in current Copilot clients:
+
+```powershell
+copilot plugin install excel-mcp@awesome-copilot
+copilot plugin install excel-cli@awesome-copilot
+```
+
+Alternatively, install from our direct marketplace:
 
 ```powershell
 copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 copilot plugin install excel-mcp@mcp-server-excel-plugins
 copilot plugin install excel-cli@mcp-server-excel-plugins
+```
+
+Choose one marketplace per plugin, not both copies of the same plugin. Existing
+direct-marketplace installations can stay in place.
+
+The same plugin repository is also a Claude Code marketplace:
+
+```powershell
+claude plugin marketplace add sbroenne/mcp-server-excel-plugins
+claude plugin install excel-mcp@mcp-server-excel-plugins
+claude plugin install excel-cli@mcp-server-excel-plugins
 ```
 
 After the release containing this change is published, direct skill installation

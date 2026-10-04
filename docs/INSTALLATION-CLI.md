@@ -28,7 +28,7 @@ use the npm installation with ARM64 Node.js.
 
 ## Quick Start (Recommended)
 
-The **excel-cli GitHub Copilot plugin** runs the public npm package through
+The current **excel-cli GitHub Copilot plugin** runs the public npm package through
 `npx -y @sbroenne/excelcli@latest`; npm manages package resolution and caching.
 No separate CLI installation is needed for plugin-driven flows. The **VS Code
 extension** does *not* include the CLI (it only bundles the MCP server); use
@@ -121,15 +121,28 @@ excelcli -q session close --session "SESSION_ID"
 
 **Best for:** GitHub Copilot CLI users who want token-efficient scripting/skill guidance through the plugin marketplace
 
+The plugin is listed in [Awesome Copilot](https://github.com/github/awesome-copilot),
+the default marketplace in current Copilot clients:
+
 ```powershell
-# Register the plugin marketplace (one-time)
+# Install from the default marketplace
+copilot plugin install excel-cli@awesome-copilot
+```
+
+Alternatively, install from our direct marketplace:
+
+```powershell
+# Register our direct marketplace (one-time)
 copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
 
 # Install the CLI plugin
 copilot plugin install excel-cli@mcp-server-excel-plugins
 ```
 
-**After installation:** Use `npx -y @sbroenne/excelcli@latest`. The plugin also
+Choose one marketplace for `excel-cli`; do not install both copies. Existing
+direct-marketplace installations do not need to move.
+
+**Current plugin launch:** Use `npx -y @sbroenne/excelcli@latest`. The plugin also
 provides `bin\start-cli.ps1`, which launches the same npm package while preserving
 quoted JSON arguments in Windows PowerShell. npm resolves the `latest` tag and
 manages caching subject to its cache policy; the plugin has no GitHub-release
@@ -312,7 +325,9 @@ For complete VBA command usage and a macro-enabled workbook example, see
 
 Save and close your intended workbook sessions and stop the service first.
 Remove Copilot's CLI plugin with
-`copilot plugin uninstall excel-cli@mcp-server-excel-plugins` if installed.
+`copilot plugin uninstall excel-cli@awesome-copilot` if installed from Awesome
+Copilot. Use `copilot plugin uninstall excel-cli@mcp-server-excel-plugins`
+instead for a direct-marketplace installation.
 One-off npx use has no global installation to remove.
 
 ```powershell

@@ -28,10 +28,10 @@ SITE_DIR = Path(__file__).resolve().parent / "_site"
 MKDOCS_YML = Path(__file__).resolve().parent / "mkdocs.yml"
 SITE_URL = "https://excelmcpserver.dev/"
 
-# Imported rather than duplicated: this is the same mapping hooks.py uses to
+# Imported rather than duplicated: this is the same mapping the build uses to
 # rewrite links, so the audit cannot drift away from what the build produces.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from hooks import FEATURE_SOURCES, SITE_PAGE_MAP as SOURCE_TO_SITE  # noqa: E402
+from sitegen.sources import FEATURE_SOURCES, SITE_PAGE_MAP as SOURCE_TO_SITE  # noqa: E402
 
 # Google truncates around these lengths; well outside them is a real problem.
 TITLE_MAX = 70
@@ -201,9 +201,9 @@ def audit_offsite_links(html_files: list[Path]) -> None:
 
     Canonical sources that are also rendered outside GitHub (the NuGet package
     READMEs) spell their links out as absolute GitHub URLs, because NuGet.org
-    resolves relative links against the package root and they 404. hooks.py maps
+    resolves relative links against the package root and     they 404. The build maps
     those back to the published page. If that mapping is missed - a new absolute
-    link, or a page added without a SITE_PAGE_MAP entry - the site silently
+        link, or a page added without a PAGES entry in sitegen/sources.py - the site silently
     starts sending readers to GitHub instead of its own page, losing both the
     reader and the internal link equity.
     """
@@ -219,7 +219,7 @@ def audit_offsite_links(html_files: list[Path]) -> None:
             if mapped is not None:
                 fail(
                     f"{name}: links to GitHub for {target}, which is published at "
-                    f"{mapped} - add the mapping in hooks.py instead"
+                    f"{mapped} - add the page to PAGES in sitegen/sources.py instead"
                 )
 
 

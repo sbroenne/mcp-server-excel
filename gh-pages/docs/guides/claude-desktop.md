@@ -1,8 +1,8 @@
 ---
-title: Configure Excel MCP in Claude Desktop
-description: Set up Excel MCP on Windows using an MCPB bundle or manual configuration and troubleshoot desktop Excel access.
+title: Set Up Excel MCP Server in Claude Desktop
+description: Connect Claude Desktop to Microsoft Excel on Windows with Excel MCP Server. Follow MCPB or manual setup, try a first workbook request, and troubleshoot errors.
 ---
 
-# Configure Excel MCP in Claude Desktop
+# Set Up Excel MCP Server in Claude Desktop { #configure-excel-mcp-in-claude-desktop }
 
 --8<-- "_generated/guides-claude-desktop.md"
