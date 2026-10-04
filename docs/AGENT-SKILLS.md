@@ -50,6 +50,14 @@ copilot plugin install excel-cli@mcp-server-excel-plugins
 Choose one marketplace per plugin, not both copies of the same plugin. Existing
 direct-marketplace installations can stay in place.
 
+The same plugin repository is also a Claude Code marketplace:
+
+```powershell
+claude plugin marketplace add sbroenne/mcp-server-excel-plugins
+claude plugin install excel-mcp@mcp-server-excel-plugins
+claude plugin install excel-cli@mcp-server-excel-plugins
+```
+
 After the release containing this change is published, direct skill installation
 uses the new identities:
 

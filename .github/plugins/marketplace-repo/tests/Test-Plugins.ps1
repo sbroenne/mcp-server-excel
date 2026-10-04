@@ -68,6 +68,18 @@ if (@($server.args).Count -ne 2 -or $server.args[0] -ne "-y" -or
     throw "excel-mcp must launch the latest published npm package through npx."
 }
 
+$claudeMarketplace = Get-Content (Join-Path $repoRoot ".claude-plugin\marketplace.json") -Raw | ConvertFrom-Json
+foreach ($plugin in $marketplace.plugins) {
+    $claudePlugin = @($claudeMarketplace.plugins | Where-Object { $_.name -eq $plugin.name })
+    if ($claudePlugin.Count -ne 1 -or $claudePlugin[0].source -ne $plugin.source -or $claudePlugin[0].version -ne $plugin.version) {
+        throw "$($plugin.name) is missing from, or out of step with, .claude-plugin/marketplace.json."
+    }
+}
+$claudeServer = @($claudeMarketplace.plugins | Where-Object { $_.name -eq "excel-mcp" })[0].mcpServers.'excel-mcp'
+if ($claudeServer.command -ne "npx" -or $claudeServer.args[1] -ne "@sbroenne/mcp-server-excel@latest") {
+    throw "Claude Code excel-mcp entry must launch the latest published npm package through npx."
+}
+
 foreach ($file in Get-ChildItem (Join-Path $repoRoot "plugins") -Recurse -File -Filter "*.md") {
     $content = Get-Content $file.FullName -Raw
     $retiredDocumentation = @(

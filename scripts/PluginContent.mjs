@@ -226,7 +226,7 @@ function normalized(tree, { publication = true, plugin, repairStamps = false } =
         if (name.endsWith('.json')) {
             const json = parseJson(bytes);
             if (pluginNames.some(value => name === `plugins/${value}/plugin.json`)) delete json.version;
-            if (publication && ['.github/plugin/marketplace.json', 'marketplace.json'].includes(name)) {
+            if (publication && ['.github/plugin/marketplace.json', '.claude-plugin/marketplace.json', 'marketplace.json'].includes(name)) {
                 for (const entry of json.plugins) if (pluginNames.includes(entry.name)) delete entry.version;
             }
             bytes = Buffer.from(canonical(json));

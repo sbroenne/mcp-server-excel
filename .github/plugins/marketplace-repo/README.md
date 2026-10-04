@@ -19,6 +19,7 @@ This repository is the publish target for plugin artifacts from [`sbroenne/mcp-s
 
 ```text
 .github/plugin/marketplace.json
+.claude-plugin/marketplace.json
 plugins/
 ├── excel-mcp/
 │   ├── plugin.json
@@ -29,7 +30,7 @@ plugins/
     └── skills/excel-cli-report-formatting/SKILL.md
 ```
 
-The canonical marketplace manifest lives at `.github/plugin/marketplace.json`. The `plugins/` directory contains Agent Plugins 1.0 packages generated from source-owned templates by the source repo's `publish-plugins.yml` workflow.
+The canonical marketplace manifest lives at `.github/plugin/marketplace.json`; `.claude-plugin/marketplace.json` is the same catalog in Claude Code's format, with the excel-mcp server declared inline. The `plugins/` directory contains Agent Plugins 1.0 packages generated from source-owned templates by the source repo's `publish-plugins.yml` workflow.
 
 ## Install
 
@@ -58,6 +59,23 @@ direct-marketplace installations do not need to move.
 
 Both plugins use the public npm packages through `npx`. Node.js 18 or later is
 required.
+
+### Claude Code
+
+```powershell
+# Register this marketplace
+claude plugin marketplace add sbroenne/mcp-server-excel-plugins
+
+# Install one or both plugins
+claude plugin install excel-mcp@mcp-server-excel-plugins
+claude plugin install excel-cli@mcp-server-excel-plugins
+```
+
+Inside a Claude Code session, the same steps are `/plugin marketplace add sbroenne/mcp-server-excel-plugins`
+and `/plugin install excel-mcp@mcp-server-excel-plugins`.
+
+For Claude Desktop, use the one-click `.mcpb` bundle from the
+[latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest) instead.
 
 ## Notes
 
