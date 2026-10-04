@@ -41,6 +41,11 @@ public sealed class PluginBuildTests(ITestOutputHelper output) : PluginTestBase(
                 "The MCP plugin must contain its matching report-formatting skill.");
             Assert.True(Directory.Exists(Path.Combine(cliRoot, "skills", "excel-cli-report-formatting")),
                 "The CLI plugin must contain its matching report-formatting skill.");
+            var launcherSkill = Path.Combine(cliRoot, "skills", "excel-cli");
+            Assert.True(File.Exists(Path.Combine(launcherSkill, "SKILL.md")),
+                "The CLI plugin must expose discovery instructions for ordinary Excel requests.");
+            Assert.True(File.Exists(Path.GetFullPath(Path.Combine(launcherSkill, "..", "..", "bin", "start-cli.ps1"))));
+            Assert.False(Directory.Exists(Path.Combine(launcherSkill, "references")));
             var skills = Directory.GetDirectories(outputDirectory)
                 .Select(plugin => Path.Combine(plugin, "skills"))
                 .SelectMany(Directory.GetDirectories).Order(StringComparer.Ordinal).ToArray();

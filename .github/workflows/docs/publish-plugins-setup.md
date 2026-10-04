@@ -193,6 +193,13 @@ must be available to identify previously owned overlay paths.
 Merging a source PR does not publish plugins. A release or authorized manual
 repair must run the publication path.
 
+Skill validation shares the deterministic layout rules used by the publication
+guard. It accepts the CLI discovery-plus-formatting pair, formatting-only
+packages, and immutable legacy packages with their general skill and references.
+Both CLI skills must carry the exact release version. Mixed old reference
+collections with the new discovery skill, unknown skill directories, and mixed
+MCP layouts are rejected.
+
 ## Local validation without publishing
 
 From the source repository root:

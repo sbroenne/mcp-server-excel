@@ -46,7 +46,7 @@ public sealed class SkillPackagingTests
                 .ToList();
 
             Assert.Equal(
-                ["skills/excel-cli-report-formatting/VERSION", "skills/excel-mcp-report-formatting/VERSION"],
+                ["skills/excel-cli-report-formatting/VERSION", "skills/excel-cli/VERSION", "skills/excel-mcp-report-formatting/VERSION"],
                 versionEntries.Select(entry => entry.FullName).ToArray());
 
             foreach (var entry in versionEntries)

@@ -2,7 +2,8 @@
 
 **Command-line Excel automation for coding agents — 64% more token-efficient than MCP Server**
 
-This plugin provides an npx-first `excelcli` launcher and the optional
+This plugin provides an npx-first `excelcli` launcher, a small `excel-cli` skill
+that helps agents discover that launcher for ordinary workbook requests, and the optional
 `excel-cli-report-formatting` skill for requested report presentation.
 Ordinary Excel automation uses native CLI help; general workflows and recovery
 remain in the [documentation](https://excelmcpserver.dev/reference/).

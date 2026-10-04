@@ -52,8 +52,9 @@ The MCP Server and `excelcli` are equal user entry points. They expose the same 
 - Annotated Core interfaces and their implementations define operation contracts and behavior.
 - `docs/features/` documents user-facing behavior.
 - `docs/reference/` owns general workflows, limitations, and recovery documentation.
-- `skills/` contains only the CLI and MCP report-formatting skills; packaging
-  selects their formatting reference from `docs/reference/report-formatting.md`.
+- `skills/` contains a small CLI launcher-discovery skill and the CLI and MCP
+  report-formatting skills; packaging selects the formatting skills' reference
+  from `docs/reference/report-formatting.md`.
 
 When these sources disagree, confirm the current implementation and update the stale source instead of creating another competing definition.
 

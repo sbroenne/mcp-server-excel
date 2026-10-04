@@ -13,19 +13,39 @@ public sealed class SkillPreparationTests
     private static readonly string RepoRoot = FindRepoRoot();
 
     [Fact]
-    public void PreparedSkills_ContainOnlyScopedFormattingGuidance()
+    public void PreparedCliLauncherSkill_ProvidesOrdinaryExcelDiscoveryWithoutReferenceCatalog()
+    {
+        var root = Path.Combine(GeneratedAssetsFixture.SkillsDirectory, "excel-cli");
+        var path = Path.Combine(root, "SKILL.md");
+        Assert.True(File.Exists(path), "Ordinary Excel requests need a packaged CLI launcher skill.");
+        var content = File.ReadAllText(path);
+        Assert.Contains("ordinary Excel", content, StringComparison.Ordinal);
+        Assert.Contains("start-cli.ps1", content, StringComparison.Ordinal);
+        Assert.Contains("npx -y @sbroenne/excelcli@latest", content, StringComparison.Ordinal);
+        Assert.Contains("--help", content, StringComparison.Ordinal);
+        Assert.Contains("For the plugin-bundled copy", content, StringComparison.Ordinal);
+        Assert.Contains("For a standalone skill installation", content, StringComparison.Ordinal);
+        Assert.Contains("do not resolve the launcher relative to", content, StringComparison.Ordinal);
+        Assert.False(Directory.Exists(Path.Combine(root, "references")));
+    }
+
+    [Fact]
+    public void PreparedSkills_ContainCliDiscoveryAndScopedFormattingGuidance()
     {
         Assert.Equal(
-            ["excel-cli-report-formatting", "excel-mcp-report-formatting"],
+            ["excel-cli", "excel-cli-report-formatting", "excel-mcp-report-formatting"],
             Directory.GetDirectories(GeneratedAssetsFixture.SkillsDirectory)
                 .Select(path => new DirectoryInfo(path).Name).Order(StringComparer.Ordinal).ToArray());
         foreach (var skill in Directory.GetDirectories(GeneratedAssetsFixture.SkillsDirectory))
         {
-            Assert.Equal(
-                ["report-formatting.md"],
-                Directory.GetFiles(Path.Combine(skill, "references"))
-                    .Select(path => new FileInfo(path).Name).Order(StringComparer.Ordinal).ToArray());
             var name = Path.GetFileName(skill);
+            if (name == "excel-cli")
+                Assert.False(Directory.Exists(Path.Combine(skill, "references")));
+            else
+                Assert.Equal(
+                    ["report-formatting.md"],
+                    Directory.GetFiles(Path.Combine(skill, "references"))
+                        .Select(path => new FileInfo(path).Name).Order(StringComparer.Ordinal).ToArray());
             var content = File.ReadAllText(Path.Combine(skill, "SKILL.md"));
             var header = Regex.Match(content, @"\A---\r?\n(?<header>.*?)\r?\n---(?:\r?\n|\z)", RegexOptions.Singleline);
             Assert.True(header.Success, "Skill metadata header is missing.");

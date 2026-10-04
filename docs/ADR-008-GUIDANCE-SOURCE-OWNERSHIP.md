@@ -5,6 +5,9 @@
 ## Context and decision
 
 Product operation descriptions come from command metadata and native help.
+The CLI plugin keeps a small discovery skill for its npx launcher because plugin
+installation does not put `excelcli` on PATH. This skill supplies the missing
+entry point, not a copied command catalog.
 Optional report-formatting skills supply presentation guidance, not another
 operation catalog. Shared documentation is prepared into website and package
 outputs rather than independently maintained there.

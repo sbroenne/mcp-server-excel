@@ -90,26 +90,121 @@ function payload(version = '2.0.1') {
 
 function edit(files, path, text) { files.set(path, { bytes: Buffer.from(text), mode: '100644' }); }
 
+function scopedPayload(version) {
+    const files = payload(version);
+    for (const name of ['excel-cli', 'excel-mcp']) {
+        for (const file of ['SKILL.md', 'VERSION']) {
+            const old = `plugins/${name}/skills/${name}/${file}`;
+            files.set(`plugins/${name}/skills/${name}-report-formatting/${file}`, files.get(old));
+            files.delete(old);
+        }
+        files.delete(`plugins/${name}/skills/${name}/references/range.md`);
+        edit(files, `plugins/${name}/skills/${name}-report-formatting/references/report-formatting.md`, 'Formatting conventions');
+    }
+    return files;
+}
+
+function discoveryPayload(version) {
+    const files = scopedPayload(version);
+    edit(files, 'plugins/excel-cli/skills/excel-cli/SKILL.md', 'Discover the npx launcher');
+    edit(files, 'plugins/excel-cli/skills/excel-cli/VERSION', version);
+    return files;
+}
+
 export function registerPolicyTests() {
+    test('CLI discovery plus formatting passes publication guards with both skill stamps validated', () => {
+        const files = discoveryPayload('2.3.0');
+        validatePublication(files);
+        assert.deepEqual(compareTrees(payload(), files).changedPlugins, ['excel-cli', 'excel-mcp']);
+        assert.deepEqual(compareTrees(files, discoveryPayload('2.4.0')).changedPaths, []);
+        assert.equal(plan(files).action, 'create');
+        for (const skill of ['excel-cli', 'excel-cli-report-formatting']) {
+            const stamp = `plugins/excel-cli/skills/${skill}/VERSION`;
+            const invalid = discoveryPayload('2.3.0');
+            edit(invalid, stamp, '2.0.1');
+            assert.throws(() => validatePublication(invalid), /Missing or mismatched/);
+            assert.deepEqual(validatePublication(invalid, { repairStamps: true }).repairs, [stamp]);
+            invalid.delete(`plugins/excel-cli/skills/${skill}/SKILL.md`);
+            assert.throws(() => validatePublication(invalid), /Missing|Mixed/);
+        }
+        for (const extra of [
+            'plugins/excel-cli/skills/excel-cli/references/range.md',
+            'plugins/excel-cli/skills/unexpected/SKILL.md',
+            'plugins/excel-mcp/skills/excel-mcp/SKILL.md',
+        ]) {
+            const invalid = discoveryPayload('2.3.0');
+            edit(invalid, extra, 'Unexpected old or unknown guidance');
+            assert.throws(() => validatePublication(invalid), /Mixed/);
+        }
+        validatePublication(payload());
+        validatePublication(scopedPayload('2.3.0'));
+    });
+
+    test('publication workflow validates every recognized skill and rejects stale discovery stamps', () => {
+        const workflow = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'publish-plugins.yml'), 'utf8');
+        const section = workflow.split('      - name: Validate prepared skills')[1]
+            .split('      - name: Checkout output-only published repository')[0];
+        const body = section.split('        run: |')[1]
+            .replace(/          python -m pip install[^\n]*\n[^\n]*\n/, '')
+            .replace(/^          /gm, '');
+        assert.ok(body.includes('pluginSkillNames'), 'The workflow must use the shared layout rules.');
+        for (const files of [payload('2.3.0'), scopedPayload('2.3.0'), discoveryPayload('2.3.0')]) {
+            const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-workflow-skills-'));
+            try {
+                writeTree(fixture, new Map([...files].filter(([name]) => name.startsWith('plugins/'))
+                    .map(([name, file]) => [`built-plugins/${name.slice('plugins/'.length)}`, file])));
+                const scripts = path.join(fixture, 'automation', 'scripts');
+                fs.mkdirSync(scripts, { recursive: true });
+                fs.copyFileSync(path.join(repoRoot, 'scripts', 'PluginContent.mjs'), path.join(scripts, 'PluginContent.mjs'));
+                const script = `
+                    $env:VERSION = '2.3.0'
+                    $script:validated = @()
+                    function skills-ref {
+                        param($action, $skillPath)
+                        if ($action -ne 'validate') { throw 'Unexpected skill command.' }
+                        $script:validated += (Split-Path $skillPath -Leaf)
+                    }
+                    ${body}
+                    ConvertTo-Json -InputObject $script:validated -Compress
+                `;
+                const run = () => JSON.parse(command('pwsh', ['-NoProfile', '-NonInteractive', '-Command', script], fixture));
+                const expected = [...files.keys()].filter(name => /\/skills\/[^/]+\/SKILL\.md$/.test(name))
+                    .map(name => name.split('/').at(-2)).sort();
+                assert.deepEqual(run().sort(), expected);
+                if (expected.includes('excel-cli-report-formatting') && expected.includes('excel-cli')) {
+                    const stamp = path.join(fixture, 'built-plugins', 'excel-cli', 'skills', 'excel-cli', 'VERSION');
+                    fs.writeFileSync(stamp, '2.0.1');
+                    assert.throws(run, /missing or mismatched skill version/);
+                }
+            } finally { fs.rmSync(fixture, { recursive: true }); }
+        }
+    });
+
+    test('prepared publisher accepts CLI discovery plus formatting in a no-write preview', () => {
+        const fixture = publicationFixture();
+        try {
+            fs.rmSync(fixture.built, { recursive: true });
+            writeTree(fixture.built, new Map([...discoveryPayload('2.3.0')]
+                .filter(([name]) => name.startsWith('plugins/'))
+                .map(([name, file]) => [name.slice('plugins/'.length), file])));
+            const text = publishFixture(fixture, ['-Preview']);
+            const result = JSON.parse(text.slice(text.search(/^\{\r?$/m)));
+            assert.equal(result.status, 'preview');
+            assert.equal(result.decision, 'published');
+            assert.deepEqual(result.changed_plugins, ['excel-cli', 'excel-mcp']);
+            assert.equal(result.handoff, false);
+            assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), fixture.original);
+            assert.equal(command('git', ['tag', '--list', 'v2.3.0'], fixture.output).trim(), '');
+            assert.equal(command('git', ['status', '--porcelain'], fixture.output).trim(), '');
+        } finally { fs.rmSync(fixture.root, { recursive: true }); }
+    });
+
     test('formatting migration changes content and preserves version-only skip behavior', () => {
         const baseline = payload();
-        function scoped(version) {
-            const files = payload(version);
-            for (const name of ['excel-cli', 'excel-mcp']) {
-                for (const file of ['SKILL.md', 'VERSION']) {
-                    const old = `plugins/${name}/skills/${name}/${file}`;
-                    files.set(`plugins/${name}/skills/${name}-report-formatting/${file}`, files.get(old));
-                    files.delete(old);
-                }
-                files.delete(`plugins/${name}/skills/${name}/references/range.md`);
-                edit(files, `plugins/${name}/skills/${name}-report-formatting/references/report-formatting.md`, 'Formatting conventions');
-            }
-            return files;
-        }
-        const candidate = scoped('2.3.0');
+        const candidate = scopedPayload('2.3.0');
         validatePublication(candidate);
         assert.deepEqual(compareTrees(baseline, candidate).changedPlugins, ['excel-cli', 'excel-mcp']);
-        assert.deepEqual(compareTrees(candidate, scoped('2.4.0')).changedPaths, []);
+        assert.deepEqual(compareTrees(candidate, scopedPayload('2.4.0')).changedPaths, []);
         edit(candidate, 'plugins/excel-mcp/skills/excel-mcp/SKILL.md', 'Old broad skill');
         assert.throws(() => validatePublication(candidate), /Mixed/);
     });
