@@ -14,7 +14,7 @@ Use `Closes #...` for an issue this change resolves, `Relates to #...` for relat
 work, or N/A. Do not leave placeholder issue references.
 
 ## Changeset
-- [ ] Added a changeset for user-visible changes; see [.changeset/README.md](../.changeset/README.md)
+- [ ] Added a changeset for user-visible changes; see [.changeset/README.md](https://github.com/sbroenne/mcp-server-excel/blob/main/.changeset/README.md)
 - [ ] Not applicable (internal/docs/tests/CI-only); added `skip-changelog` instead
 
 ## Changes Made
@@ -23,7 +23,7 @@ partial-state/recovery consequences. MCP Server and `excelcli` are equal entry
 points; explain any adapter-only change.
 
 ## Testing Performed
-Follow [AGENTS.md](../AGENTS.md) and [tests/AGENTS.md](../tests/AGENTS.md).
+Follow [AGENTS.md](https://github.com/sbroenne/mcp-server-excel/blob/main/AGENTS.md) and [tests/AGENTS.md](https://github.com/sbroenne/mcp-server-excel/blob/main/tests/AGENTS.md).
 Check only completed, applicable items; explain anything not run below.
 
 - [ ] Behavioral fix has a focused regression that failed before the fix
@@ -54,7 +54,7 @@ Use only synthetic data.
 
 **Does this PR change Core contracts or generated routing?** [ ] Yes [ ] No
 
-If yes, follow [generated contract guidance](../docs/agents/rules/coverage-prevention-strategy.md):
+If yes, follow [generated contract guidance](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/agents/rules/coverage-prevention-strategy.md):
 
 - [ ] Edited source contracts/generators, not emitted files
 - [ ] Built Release and inspected generated Service, CLI options/batch JSON, and MCP schemas
