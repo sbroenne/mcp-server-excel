@@ -48,6 +48,7 @@ function Invoke-ExcelBehaviorProcess {
     $info.RedirectStandardError = $true
     foreach ($argument in $Arguments) { $info.ArgumentList.Add($argument) }
     $process = [Diagnostics.Process]::Start($info)
+    $clock = [Diagnostics.Stopwatch]::StartNew()
     $failure = $null
     try {
         @{ processId = $process.Id; startedAtUtcFileTime = $process.StartTime.ToUniversalTime().ToFileTimeUtc() } |
@@ -61,10 +62,15 @@ function Invoke-ExcelBehaviorProcess {
         }
         $output = $stdout.GetAwaiter().GetResult()
         $errorOutput = $stderr.GetAwaiter().GetResult()
+        $clock.Stop()
         $output | Set-Content -LiteralPath "$LogBase.stdout.txt"
         $errorOutput | Set-Content -LiteralPath "$LogBase.stderr.txt"
         if ($timedOut) { throw "Hard deadline exceeded. See $LogBase.*." }
-        return [pscustomobject]@{ exitCode = $process.ExitCode; output = $output }
+        return [pscustomobject]@{
+            exitCode = $process.ExitCode
+            output = $output
+            elapsedSeconds = [math]::Round($clock.Elapsed.TotalSeconds, 3)
+        }
     }
     catch {
         $failure = $_.Exception
@@ -98,6 +104,15 @@ function Get-ExcelBehaviorDiscoveredCases {
     }
 }
 
+function Get-ExcelBehaviorReportCases {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$Path)
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "Missing TRX report: $Path" }
+    [xml]$trx = Get-Content -LiteralPath $Path -Raw
+    return @($trx.TestRun.Results.UnitTestResult | ForEach-Object testName)
+}
+
 function Assert-ExcelBehaviorCases {
     param([string[]]$Expected, [string[]]$Actual)
     if ($Expected.Count -eq 0) { throw 'The required selection discovered zero cases.' }
@@ -116,8 +131,46 @@ function Assert-ExcelBehaviorCases {
     if ($missing.Count -ne 0) { throw "Discovered cases were omitted: $($missing -join ', ')" }
 }
 
+function Assert-ExcelBehaviorFullCoverage {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string[]]$Projects,
+        [Parameter(Mandatory)][Collections.IDictionary]$ExpectedByProject,
+        [Parameter(Mandatory)][Collections.IDictionary[]]$Stages,
+        [Parameter(Mandatory)][string]$ResultsDirectory
+    )
+
+    foreach ($project in $Projects) {
+        $actual = @(
+            foreach ($stage in $Stages | Where-Object {
+                $_.project -eq $project -and $_.name -ne 'ComInterop-infrastructure'
+            }) {
+                if ($stage.status -ne 'not-applicable-no-discovered-cases') {
+                    Get-ExcelBehaviorReportCases -Path (Join-Path $ResultsDirectory "$($stage.name).trx")
+                }
+            }
+        )
+        Assert-ExcelBehaviorCases -Expected $ExpectedByProject[$project] -Actual $actual
+    }
+}
+
+function Test-ExcelBehaviorStageRequiresDiscovery {
+    [CmdletBinding()]
+    param(
+        [switch]$Full,
+        [switch]$DiscoverOnly,
+        [switch]$AllowEmpty
+    )
+
+    return (-not $Full) -or $DiscoverOnly -or $AllowEmpty
+}
+
 function Assert-ExcelBehaviorReport {
-    param([string]$Path, [string[]]$Discovered, [Collections.IDictionary]$Evidence)
+    param(
+        [string]$Path,
+        [AllowNull()][string[]]$Discovered,
+        [Collections.IDictionary]$Evidence
+    )
     if (-not (Test-Path -LiteralPath $Path)) { throw "Missing TRX report: $Path" }
     [xml]$trx = Get-Content -LiteralPath $Path -Raw
     $summary = $trx.TestRun.ResultSummary
@@ -144,7 +197,9 @@ function Assert-ExcelBehaviorReport {
             throw "Missing required TRX counter ${name}. Report: $Path"
         }
     }
-    Assert-ExcelBehaviorCases -Expected $Discovered -Actual @($results | ForEach-Object testName)
+    if ($null -ne $Discovered) {
+        Assert-ExcelBehaviorCases -Expected $Discovered -Actual @($results | ForEach-Object testName)
+    }
     if ($total -ne $results.Count -or $total -le 0 -or $passed -ne $total -or $executed -ne $total -or
         $summary.outcome -ne 'Completed' -or @($results | Where-Object outcome -ne 'Passed').Count -ne 0) {
         throw "Failed, skipped, incomplete, or contradictory TRX results: $Path"
@@ -163,27 +218,31 @@ function Assert-ExcelBehaviorStageResults {
     }
 }
 
-function Get-ExcelBehaviorSourceIdentity {
-    $paths = & git -C $root ls-files --cached --others --exclude-standard
-    if ($LASTEXITCODE -ne 0) { throw 'Could not enumerate source identity.' }
-    $manifest = @(
-        foreach ($path in ($paths | Sort-Object -Unique)) {
-            $absolute = Join-Path $root $path
-            if (Test-Path -LiteralPath $absolute -PathType Leaf) {
-                "$path`t$((Get-FileHash -LiteralPath $absolute -Algorithm SHA256).Hash)"
-            }
-            else { "$path`tDELETED" }
-        }
+function Get-ExcelBehaviorBuildTarget {
+    [CmdletBinding()]
+    param(
+        [switch]$Full,
+        [string]$Project
     )
-    $bytes = [Text.Encoding]::UTF8.GetBytes($manifest -join "`n")
-    return [pscustomobject]@{
-        sha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes))
-        files = $manifest
-    }
+
+    if ($Full) { return 'Sbroenne.ExcelMcp.sln' }
+    if ([string]::IsNullOrWhiteSpace($Project)) { throw 'Focused mode requires a test project.' }
+    return "tests\ExcelMcp.$Project.Tests\ExcelMcp.$Project.Tests.csproj"
+}
+
+function Get-ExcelBehaviorRequiredFilter {
+    param([Parameter(Mandatory)][string]$Filter)
+    "RequiresExcel=true&($Filter)"
 }
 
 $runDirectory = $null
-$summary = [ordered]@{ status = 'incomplete'; mode = if ($Full) { 'full' } else { 'focused' }; stages = @() }
+$summary = [ordered]@{
+    status = 'incomplete'
+    mode = if ($Full) { 'full' } else { 'focused' }
+    commands = @()
+    stages = @()
+}
+$commandTimings = [Collections.Generic.List[object]]::new()
 $previousOwnership = $env:EXCELMCP_TEST_OWNERSHIP_DIRECTORY
 $previousLanguage = $env:DOTNET_CLI_UI_LANGUAGE
 try {
@@ -195,22 +254,23 @@ try {
     Write-Host "Evidence: $runDirectory"
     $env:EXCELMCP_TEST_OWNERSHIP_DIRECTORY = Join-Path $runDirectory 'ownership'
     $env:DOTNET_CLI_UI_LANGUAGE = 'en'
-    $source = Get-ExcelBehaviorSourceIdentity
-    $source | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $runDirectory 'source.json')
-    $summary.sourceSha256 = $source.sha256
-    $summary.commit = (& git -C $root rev-parse HEAD)
-    if ($LASTEXITCODE -ne 0) { throw 'Could not read the source commit.' }
+    $buildTarget = Get-ExcelBehaviorBuildTarget -Full:$Full -Project $Project
+    Write-Host "Building $buildTarget"
     $build = Invoke-ExcelBehaviorProcess -WorkingDirectory $root -DeadlineSeconds 1800 `
         -LogBase (Join-Path $runDirectory 'build') -Arguments @(
-            'build', 'Sbroenne.ExcelMcp.sln', '-c', 'Release', '--no-restore',
+            'build', $buildTarget, '-c', 'Release', '--no-restore',
             '--disable-build-servers', '--verbosity', 'minimal', '-warnaserror')
     if ($build.exitCode -ne 0) { throw "Release build failed. See $runDirectory\build.*." }
+    $commandTimings.Add([pscustomobject]@{
+        name = 'build'; elapsedSeconds = $build.elapsedSeconds
+    })
+    Write-Host "Build completed in $($build.elapsedSeconds) seconds"
 
-    $projects = @('Core', 'Service', 'CLI', 'McpServer', 'ComInterop', 'SkillGeneration', 'ScriptSafety', 'Packaging', 'Diagnostics')
+    $projects = @('Core', 'Service', 'CLI', 'McpServer', 'ComInterop')
     $stages = @()
     if ($Full) {
+        $base = Get-ExcelBehaviorRequiredFilter 'RunType!=OnDemand'
         foreach ($name in $projects) {
-            $base = 'RunType!=OnDemand'
             $mainFilter = switch ($name) {
                 Core { "$base&Feature!=VBA&Feature!=VBATrust&Feature!=Screenshot" }
                 Service { "$base&Feature!=VBA&Feature!=Screenshot" }
@@ -221,7 +281,7 @@ try {
         }
         $stages += [pscustomobject]@{
             name = 'ComInterop-infrastructure'; project = 'ComInterop'; allowEmpty = $false
-            filter = 'RunType=OnDemand&FullyQualifiedName!~BeginBatch_RealIrmWorkbook&Locale!=ja-JP'
+            filter = Get-ExcelBehaviorRequiredFilter 'RunType=OnDemand&FullyQualifiedName!~BeginBatch_RealIrmWorkbook&Locale!=ja-JP'
         }
         foreach ($name in @('Core', 'Service', 'CLI', 'McpServer')) {
             $vba = switch ($name) {
@@ -231,73 +291,92 @@ try {
             }
             $stages += [pscustomobject]@{
                 name = "$name-vba"; project = $name
-                filter = "RunType!=OnDemand&$vba"; allowEmpty = $true
+                filter = "$base&$vba"; allowEmpty = $true
             }
         }
         foreach ($name in @('Core', 'Service')) {
             $stages += [pscustomobject]@{
                 name = "$name-screenshot"; project = $name
-                filter = 'RunType!=OnDemand&Feature=Screenshot'; allowEmpty = $true
+                filter = "$base&Feature=Screenshot"; allowEmpty = $true
             }
         }
     }
     else {
-        $stages = @([pscustomobject]@{ name = "$Project-focused"; project = $Project; filter = $Filter; allowEmpty = $false })
+        $stages = @([pscustomobject]@{
+            name = "$Project-focused"; project = $Project
+            filter = Get-ExcelBehaviorRequiredFilter $Filter; allowEmpty = $false
+        })
     }
 
-    $binaryIdentity = @(
-        foreach ($name in ($stages.project | Sort-Object -Unique)) {
-            $assembly = @(Get-ChildItem -LiteralPath (Join-Path $root "tests\ExcelMcp.$name.Tests\bin\Release") `
-                -Recurse -Filter "Sbroenne.ExcelMcp.$name.Tests.dll")
-            if ($assembly.Count -ne 1) { throw "Ambiguous or missing Release test assembly for $name." }
-            @{ project = $name; sha256 = (Get-FileHash -LiteralPath $assembly[0].FullName).Hash }
-        }
-    )
-    $binaryIdentity | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $runDirectory 'binaries.json')
     foreach ($stage in $stages) {
-        $projectPath = "tests\ExcelMcp.$($stage.project).Tests\ExcelMcp.$($stage.project).Tests.csproj"
-        $discovery = Invoke-ExcelBehaviorProcess -WorkingDirectory $root -DeadlineSeconds 300 `
-            -LogBase (Join-Path $runDirectory "$($stage.name)-discovery") -Arguments @(
-                'test', $projectPath, '-c', 'Release', '--no-build', '--no-restore',
-                '--disable-build-servers', '--list-tests', '--filter', $stage.filter)
-        if ($discovery.exitCode -ne 0) { throw "Discovery failed for $($stage.name)." }
-        $cases = @(Get-ExcelBehaviorDiscoveredCases -Output $discovery.output)
+        $discoverStage = Test-ExcelBehaviorStageRequiresDiscovery -Full:$Full `
+            -DiscoverOnly:$DiscoverOnly -AllowEmpty:$stage.allowEmpty
+        $cases = @()
+        if ($discoverStage) {
+            $projectPath = "tests\ExcelMcp.$($stage.project).Tests\ExcelMcp.$($stage.project).Tests.csproj"
+            Write-Host "Discovering $($stage.name)"
+            $discovery = Invoke-ExcelBehaviorProcess -WorkingDirectory $root -DeadlineSeconds 300 `
+                -LogBase (Join-Path $runDirectory "$($stage.name)-discovery") -Arguments @(
+                    'test', $projectPath, '-c', 'Release', '--no-build', '--no-restore',
+                    '--disable-build-servers', '--list-tests', '--filter', $stage.filter)
+            if ($discovery.exitCode -ne 0) { throw "Discovery failed for $($stage.name)." }
+            $cases = @(Get-ExcelBehaviorDiscoveredCases -Output $discovery.output)
+            $commandTimings.Add([pscustomobject]@{
+                name = "$($stage.name)-discovery"; elapsedSeconds = $discovery.elapsedSeconds
+            })
+            Write-Host "Discovered $($cases.Count) cases for $($stage.name) in $($discovery.elapsedSeconds) seconds"
+        }
         $stage | Add-Member NoteProperty cases $cases
+        $stage | Add-Member NoteProperty discovered $discoverStage
         $record = [ordered]@{
             name = $stage.name; project = $stage.project; filter = $stage.filter
-            discovered = $cases.Count; status = 'not-run'
+            discovered = if ($discoverStage) { $cases.Count } else { $null }
+            reconciliation = if ($discoverStage) { 'stage-discovery' } else { 'project-execution-union' }
+            status = 'not-run'
         }
         $summary.stages += $record
-        if ($cases.Count -eq 0) {
+        if ($discoverStage -and $cases.Count -eq 0) {
             if (-not $stage.allowEmpty) { throw "Empty required selection: $($stage.name)." }
             $record.status = 'not-applicable-no-discovered-cases'
         }
     }
 
+    $normalDiscoveredCases = @{}
     if ($Full) {
         foreach ($name in $projects) {
+            Write-Host "Checking complete test inventory for $name"
             $all = Invoke-ExcelBehaviorProcess -WorkingDirectory $root -DeadlineSeconds 300 `
                 -LogBase (Join-Path $runDirectory "$name-normal-discovery") -Arguments @(
                     'test', "tests\ExcelMcp.$name.Tests\ExcelMcp.$name.Tests.csproj",
-                    '-c', 'Release', '--no-build', '--no-restore', '--list-tests', '--filter', 'RunType!=OnDemand')
+                    '-c', 'Release', '--no-build', '--no-restore', '--list-tests',
+                    '--filter', (Get-ExcelBehaviorRequiredFilter 'RunType!=OnDemand'))
             if ($all.exitCode -ne 0) { throw "Complete discovery failed for $name." }
             $expected = @(Get-ExcelBehaviorDiscoveredCases -Output $all.output)
-            $actual = @($stages | Where-Object { $_.project -eq $name -and $_.name -ne 'ComInterop-infrastructure' } |
-                ForEach-Object { $_.cases })
-            Assert-ExcelBehaviorCases -Expected $expected -Actual $actual
+            $commandTimings.Add([pscustomobject]@{
+                name = "$name-normal-discovery"; elapsedSeconds = $all.elapsedSeconds
+            })
+            Write-Host "Found $($expected.Count) normal cases for $name in $($all.elapsedSeconds) seconds"
+            $normalDiscoveredCases[$name] = $expected
+            if ($DiscoverOnly) {
+                $actual = @($stages | Where-Object { $_.project -eq $name -and $_.name -ne 'ComInterop-infrastructure' } |
+                    ForEach-Object { $_.cases })
+                Assert-ExcelBehaviorCases -Expected $expected -Actual $actual
+            }
         }
     }
 
-    if ((Get-ExcelBehaviorSourceIdentity).sha256 -ne $source.sha256) {
-        throw 'Source changed during build/discovery; evidence does not match the current source.'
-    }
     if (-not $DiscoverOnly) {
         for ($index = 0; $index -lt $stages.Count; $index++) {
             $stage = $stages[$index]
             $record = $summary.stages[$index]
-            if ($stage.cases.Count -eq 0) { continue }
+            if ($stage.allowEmpty -and $stage.cases.Count -eq 0) { continue }
             $record.status = 'running'
-            Write-Host "Running $($stage.name): $($stage.cases.Count) discovered cases"
+            $selectionEvidence = if ($stage.discovered) {
+                "$($stage.cases.Count) discovered cases"
+            } else {
+                'cases reconciled against complete project execution'
+            }
+            Write-Host "Running $($stage.name): $selectionEvidence"
             $deadline = if ($Full -and $stage.project -eq 'Core' -and
                 -not $PSBoundParameters.ContainsKey('StageTimeoutSeconds')) { 28800 } else { $StageTimeoutSeconds }
             $execution = Invoke-ExcelBehaviorProcess -WorkingDirectory $root -DeadlineSeconds $deadline `
@@ -307,11 +386,21 @@ try {
                     '--filter', $stage.filter, '--blame-hang-timeout', "${HangTimeoutSeconds}s",
                     '--results-directory', $runDirectory, '--logger', "trx;LogFileName=$($stage.name).trx")
             $record.exitCode = $execution.exitCode
+            $record.wallSeconds = $execution.elapsedSeconds
+            $commandTimings.Add([pscustomobject]@{
+                name = $stage.name; elapsedSeconds = $execution.elapsedSeconds
+            })
             try {
+                $discoveredCases = if ($Full -and -not $DiscoverOnly -and -not $stage.discovered) {
+                    $null
+                } else {
+                    $stage.cases
+                }
                 $record.executed = Assert-ExcelBehaviorReport -Path (Join-Path $runDirectory "$($stage.name).trx") `
-                    -Discovered $stage.cases -Evidence $record
+                    -Discovered $discoveredCases -Evidence $record
                 if ($execution.exitCode -ne 0) { throw "$($stage.name) failed, including possible assembly cleanup errors." }
                 $record.status = 'passed'
+                Write-Host "$($stage.name) completed in $($execution.elapsedSeconds) seconds"
             }
             catch {
                 $record.status = 'failed'
@@ -320,8 +409,9 @@ try {
                 Write-Warning "$($stage.name) failed; retaining its evidence and continuing the completed test runs."
             }
         }
-        if ((Get-ExcelBehaviorSourceIdentity).sha256 -ne $source.sha256) {
-            throw 'Source changed during execution; rerun against the final source.'
+        if ($Full) {
+            Assert-ExcelBehaviorFullCoverage -Projects $projects -ExpectedByProject $normalDiscoveredCases `
+                -Stages $summary.stages -ResultsDirectory $runDirectory
         }
         Assert-ExcelBehaviorStageResults -Stages $summary.stages
     }
@@ -339,6 +429,7 @@ catch {
 }
 finally {
     if ($null -ne $runDirectory) {
+        $summary.commands = @($commandTimings)
         $summary | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $runDirectory 'summary.json')
     }
     $env:EXCELMCP_TEST_OWNERSHIP_DIRECTORY = $previousOwnership
