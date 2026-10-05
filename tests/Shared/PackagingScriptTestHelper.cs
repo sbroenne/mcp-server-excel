@@ -67,6 +67,7 @@ internal static class PackagingScriptTestHelper
         startInfo.ArgumentList.Add("Bypass");
         startInfo.ArgumentList.Add("-Command");
         startInfo.ArgumentList.Add(commandText);
+        startInfo.Environment["EXCELMCP_BUILD_ROOT"] = RepoRoot;
 
         using var process = new Process { StartInfo = startInfo };
         var stdout = new StringBuilder();

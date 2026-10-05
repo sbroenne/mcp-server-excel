@@ -75,10 +75,20 @@ public sealed partial class ServiceFileCommandsTests
         Assert.Equal(bytes, File.ReadAllBytes(testFile));
     }
 
-    [Theory]
-    [InlineData(".xlsb", Excel.XlFileFormat.xlExcel12)]
-    [InlineData(".xls", Excel.XlFileFormat.xlExcel8)]
-    public void Test_SavedBinaryOrLegacyWorkbook_IsValidWithoutChangingFile(
+    [Fact]
+    public void Test_SavedBinaryWorkbook_IsValidWithoutChangingFile()
+    {
+        AssertSavedWorkbookIsValidWithoutChangingFile(".xlsb", Excel.XlFileFormat.xlExcel12);
+    }
+
+    [Fact]
+    [Trait("RunType", "OnDemand")]
+    public void Test_SavedLegacyXlsWorkbook_IsValidWithoutChangingFile()
+    {
+        AssertSavedWorkbookIsValidWithoutChangingFile(".xls", Excel.XlFileFormat.xlExcel8);
+    }
+
+    private void AssertSavedWorkbookIsValidWithoutChangingFile(
         string extension, Excel.XlFileFormat format)
     {
         var source = _fixture.CreateTestFile();

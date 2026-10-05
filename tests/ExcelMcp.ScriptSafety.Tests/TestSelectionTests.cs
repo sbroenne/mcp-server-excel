@@ -1,4 +1,7 @@
 using System.Diagnostics;
+using System.Text;
+using System.Text.RegularExpressions;
+using Sbroenne.ExcelMcp.Build;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
@@ -10,9 +13,9 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 public sealed class TestSelectionTests
 {
     [Theory]
-    [InlineData("tests/ExcelMcp.SkillGeneration.Tests/Example.cs", "SkillGeneration")]
-    [InlineData("tests/ExcelMcp.Packaging.Tests/Example.cs", "Packaging")]
-    [InlineData("tests/ExcelMcp.ScriptSafety.Tests/Example.cs", "ScriptSafety")]
+    [InlineData("tests/ExcelMcp.SkillGeneration.Tests/SkillSourceSafetyTests.cs", "SkillGeneration")]
+    [InlineData("tests/ExcelMcp.Packaging.Tests/ReleaseMetadataScriptTests.cs", "Packaging")]
+    [InlineData("tests/ExcelMcp.ScriptSafety.Tests/ChangedAreaRegressionTests.cs", "ScriptSafety")]
     [InlineData("scripts/Build-AgentSkills.ps1", "SkillGeneration")]
     [InlineData("docs/reference/report-formatting.md", "SkillGeneration")]
     [InlineData("scripts/Build-Plugins.ps1", "Packaging")]
@@ -53,15 +56,15 @@ public sealed class TestSelectionTests
     [InlineData("-Local -HookTests", "ScriptSafety")]
     [InlineData("-Local -PackagingTests", "Packaging")]
     [InlineData("-Local -SkillTests -HookTests -PackagingTests", "ScriptSafety,SkillGeneration,Packaging")]
-    [InlineData("-Local -ChangedPaths @('tests/ExcelMcp.Packaging.Tests/Example.cs')", "Packaging")]
+    [InlineData("-Local -ChangedPaths @('tests/ExcelMcp.Packaging.Tests/ReleaseMetadataScriptTests.cs')", "Packaging")]
     [InlineData("-Local -ChangedPaths @('scripts/Build-Plugins.ps1')", "Packaging")]
     [InlineData("-Local -ChangedPaths @('scripts/Build-AgentSkills.ps1')", "SkillGeneration")]
     [InlineData("-Local -ChangedPaths @('scripts/Publish-PreparedPlugins.ps1')", "Packaging")]
     [InlineData("-Local -ChangedPaths @('tests/Shared/GeneratedAssetsFixture.cs')", "SkillGeneration,Packaging")]
     [InlineData("-Local -ChangedPaths @('tests/Shared/PackagingScriptTestHelper.cs')", "SkillGeneration,Packaging")]
     [InlineData("", "CLI,ComInterop,Core,McpServer,Service,SkillGeneration,Packaging,ScriptSafety")]
-    [InlineData("-Group Tooling", "SkillGeneration,Packaging,ScriptSafety")]
-    [InlineData("-Group Tooling -PlanFile $planFile", "SkillGeneration,Packaging,ScriptSafety")]
+    [InlineData("-Group Tooling", "Packaging,ScriptSafety,SkillGeneration")]
+    [InlineData("-Group Tooling -PlanFile $planFile", "Packaging,ScriptSafety,SkillGeneration")]
     public async Task Runner_SelectsActualProjectCommands(string arguments, string expected)
     {
         var result = await RunRunnerAsync(arguments, false);
@@ -80,17 +83,17 @@ public sealed class TestSelectionTests
     }
 
     [Theory]
-    [InlineData("'scripts/Build-AgentSkills.ps1'", "SkillGeneration", "Feature=SkillGeneration")]
-    [InlineData("'scripts/Build-Plugins.ps1'", "Packaging", "Feature=PluginBootstrap")]
-    [InlineData("'scripts/check-workbook-package-access.ps1'", "ScriptSafety", "Feature=PreCommit")]
+    [InlineData("'scripts/Build-AgentSkills.ps1'", "SkillGeneration", "SkillSourceSafetyTests")]
+    [InlineData("'scripts/Build-Plugins.ps1'", "Packaging", "PluginBootstrap")]
+    [InlineData("'scripts/check-workbook-package-access.ps1'", "ScriptSafety", "WorkbookPackageAccessGuardTests")]
     [InlineData("'doc-counts.json'", "Packaging", "FullyQualifiedName~DocumentationCounts")]
-    [InlineData("'mcpb/manifest.json'", "Packaging", "Feature=McpbPackaging")]
-    [InlineData("'tests/ExcelMcp.Packaging.Tests/Example.cs'", "Packaging", "RequiresExcel=false")]
-    [InlineData("'tests/ExcelMcp.ScriptSafety.Tests/Example.cs'", "ScriptSafety", "RequiresExcel=false")]
+    [InlineData("'mcpb/manifest.json'", "Packaging", "McpbPackagingScriptTests")]
+    [InlineData("'tests/ExcelMcp.Packaging.Tests/ReleaseMetadataScriptTests.cs'", "Packaging", "ReleaseMetadataScriptTests")]
+    [InlineData("'tests/ExcelMcp.ScriptSafety.Tests/ChangedAreaRegressionTests.cs'", "ScriptSafety", "ChangedAreaRegressionTests")]
     [InlineData("'tests/Shared/GeneratedAssetsFixture.cs'", "Packaging,SkillGeneration", "RequiresExcel=false")]
     [InlineData("'tests/Shared/PackagingScriptTestHelper.cs'", "Packaging,SkillGeneration", "RequiresExcel=false")]
-    [InlineData("'scripts/Build-AgentSkills.ps1','scripts/check-workbook-package-access.ps1'", "ScriptSafety,SkillGeneration", "Feature=SkillGeneration")]
-    [InlineData("'doc-counts.json','tests/ExcelMcp.ScriptSafety.Tests/Example.cs'", "Packaging,ScriptSafety", "FullyQualifiedName~DocumentationCounts")]
+    [InlineData("'scripts/Build-AgentSkills.ps1','scripts/check-workbook-package-access.ps1'", "ScriptSafety,SkillGeneration", "SkillSourceSafetyTests")]
+    [InlineData("'doc-counts.json','tests/ExcelMcp.ScriptSafety.Tests/ChangedAreaRegressionTests.cs'", "Packaging,ScriptSafety", "FullyQualifiedName~DocumentationCounts")]
     public async Task Runner_HostedToolingSelectsOwningProjectsAndFilters(string paths, string expected, string filter)
     {
         var result = await RunRunnerAsync("-Group Tooling -PlanFile $planFile", false, paths);
@@ -103,54 +106,81 @@ public sealed class TestSelectionTests
     public async Task Runner_MixedToolingOwnersUseTheirOwnFilters()
     {
         var result = await RunRunnerAsync("-Group Tooling -PlanFile $planFile", false,
-            "'doc-counts.json','tests/ExcelMcp.ScriptSafety.Tests/Example.cs'");
+            "'doc-counts.json','tests/ExcelMcp.ScriptSafety.Tests/ChangedAreaRegressionTests.cs'");
         Assert.True(result.ExitCode == 0, result.Output);
         Assert.Contains("Packaging : RequiresExcel=false&RunType!=OnDemand&(FullyQualifiedName~DocumentationCounts)",
             result.Output, StringComparison.Ordinal);
-        Assert.Contains("ScriptSafety : RequiresExcel=false&RunType!=OnDemand&(RequiresExcel=false)",
+        Assert.Contains("ScriptSafety : RequiresExcel=false&RunType!=OnDemand&(FullyQualifiedName~Sbroenne.ExcelMcp.ScriptSafety.Tests.ChangedAreaRegressionTests.)",
             result.Output, StringComparison.Ordinal);
     }
 
-    private static Task<(int ExitCode, string Output)> RunRunnerAsync(string arguments, bool fail, string? paths = null) =>
-        RunAsync($$"""
-            $script = Get-Content (Join-Path $root 'scripts\Invoke-ExcelFreeTests.ps1') -Raw
-            $runnerDirectory = Join-Path $sandbox 'scripts'
-            New-Item -ItemType Directory $runnerDirectory | Out-Null
-            Copy-Item (Join-Path $root 'scripts\Get-ValidationPlan.ps1') $runnerDirectory
-            $stage = Get-Content (Join-Path $root 'scripts\Invoke-TestStage.ps1') -Raw
-            $boundary = '[Diagnostics.Process]::Start($info)'
-            if (($stage.Split($boundary).Count - 1) -ne 1) { throw 'Process boundary changed.' }
-            Set-Content (Join-Path $runnerDirectory 'Invoke-TestStage.ps1') $stage.Replace($boundary, '(Start-TestProcess $info)')
-            $runner = Join-Path $runnerDirectory 'Invoke-ExcelFreeTests.ps1'
-            Set-Content $runner $script
-            . (Join-Path $runnerDirectory 'Get-ValidationPlan.ps1')
-            $planFile = Join-Path $sandbox 'plan.json'
-            Get-ValidationPlan {{(paths is null ? "-Full" : $"-Paths @({paths})")}} | ConvertTo-Json -Depth 10 | Set-Content $planFile
-            $global:selected = [Collections.Generic.List[string]]::new()
-            function Start-TestProcess($info) {
-                $arguments = @($info.ArgumentList)
-                if ($info.FileName -ne 'dotnet' -or $arguments[0] -ne 'test') { throw 'Unexpected command.' }
-                $project = [regex]::Match($arguments[1], 'ExcelMcp\.(\w+)\.Tests\.csproj$').Groups[1].Value
-                if (-not $project) { throw 'Invalid project path.' }
-                $global:selected.Add($project)
-                Write-Host "started=$project"
-                $filter = $arguments[[Array]::IndexOf($arguments, '--filter') + 1]
-                if ($filter -notmatch 'RequiresExcel=false&RunType!=OnDemand') { throw 'Classification filter lost.' }
-                $results = $arguments[[Array]::IndexOf($arguments, '--results-directory') + 1]
-                New-Item -ItemType Directory $results -Force | Out-Null
-                Set-Content (Join-Path $results "$project.trx") '<TestRun><ResultSummary outcome="Completed"><Counters total="1" passed="1" /></ResultSummary></TestRun>'
-                $process = [pscustomobject]@{
-                    ExitCode = {{(fail ? 23 : 0)}}
-                    StandardOutput = [IO.StringReader]::new('')
-                    StandardError = [IO.StringReader]::new('')
-                }
-                $process | Add-Member ScriptMethod WaitForExit { param($timeout) return $true }
-                $process | Add-Member ScriptMethod Dispose {}
-                return $process
-            }
-            & $runner {{arguments}}
-            Write-Output "selected=$($global:selected -join ',')"
-            """);
+    private static async Task<(int ExitCode, string Output)> RunRunnerAsync(string arguments, bool fail, string? paths = null)
+    {
+        var root = TypedValidationPolicyTests.Root;
+        var results = Path.Combine(Path.GetTempPath(), $"ExcelMcp.TypedSelection.{Guid.NewGuid():N}");
+        var options = new FreeTestOptions
+        {
+            Local = arguments.Contains("-Local", StringComparison.Ordinal),
+            HookTests = arguments.Contains("-HookTests", StringComparison.Ordinal),
+            SkillTests = arguments.Contains("-SkillTests", StringComparison.Ordinal),
+            PackagingTests = arguments.Contains("-PackagingTests", StringComparison.Ordinal),
+            Contracts = arguments.Contains("-Contracts", StringComparison.Ordinal),
+            ChangedPaths = Regex.Matches(arguments, "'([^']+)'").Select(match => match.Groups[1].Value).ToArray(),
+            Group = arguments.Contains("-Group Tooling", StringComparison.Ordinal) ? "Tooling" : null,
+            PlanFile = arguments.Contains("-PlanFile", StringComparison.Ordinal) ? "fixture.json" : null,
+            ResultsDirectory = results
+        };
+        var plan = options.PlanFile is null ? null : new ValidationPolicy(root).Select(
+            paths is null ? [] : Regex.Matches(paths, "'([^']+)'").Select(match => match.Groups[1].Value), full: paths is null);
+        var runner = new RecordingTestRunner(fail);
+        try
+        {
+            await FreeTestSelection.ExecuteAsync(root, options, runner, plan);
+            runner.Output.AppendLine("selected=" + string.Join(',', runner.Owners));
+            return (0, runner.Output.ToString());
+        }
+        catch (InvalidOperationException error) { return (1, runner.Output + error.Message); }
+        finally { if (Directory.Exists(results)) { Directory.Delete(results, true); } }
+    }
+
+    internal sealed class RecordingTestRunner(bool fail = false) : IProcessRunner
+    {
+        public StringBuilder Output { get; } = new();
+        public List<string> Owners { get; } = [];
+        public List<string[]> Commands { get; } = [];
+
+        public Task<ProcessResult> RunAsync(string executable, IEnumerable<string> arguments, TimeSpan deadline,
+            IReadOnlyDictionary<string, string>? environment = null, bool preserveGitContext = false)
+        {
+            var command = arguments.ToArray();
+            Commands.Add(command);
+            Assert.Equal("dotnet", executable);
+            Assert.Equal("test", command[0]);
+            Assert.Contains("--disable-build-servers", command);
+            Assert.True(deadline > TimeSpan.Zero);
+            Assert.False(preserveGitContext);
+            var owner = Regex.Match(command[1], @"ExcelMcp\.(\w+)\.Tests\.csproj$").Groups[1].Value;
+            Assert.NotEmpty(owner);
+            var filter = command[Array.IndexOf(command, "--filter") + 1];
+            Assert.Contains("RequiresExcel=false&RunType!=OnDemand", filter, StringComparison.Ordinal);
+            var results = command[Array.IndexOf(command, "--results-directory") + 1];
+            Assert.NotNull(environment);
+            Assert.Equal(Path.Combine(results, $"{owner}-ownership"), environment["EXCELMCP_TEST_OWNERSHIP_DIRECTORY"]);
+            Assert.Equal(TypedValidationPolicyTests.Root, environment["EXCELMCP_BUILD_ROOT"]);
+            Assert.True(File.Exists(environment["EXCELMCP_BUILD_DLL"]));
+            Owners.Add(owner);
+            Output.AppendLine("started=" + owner);
+            Output.AppendLine(owner + " : " + filter);
+            Directory.CreateDirectory(results);
+            File.WriteAllText(Path.Combine(results, $"{owner}.trx"),
+                """<TestRun><Results><UnitTestResult outcome="Passed"/></Results><ResultSummary outcome="Completed"><Counters total="1" passed="1" executed="1"/></ResultSummary></TestRun>""");
+            return Task.FromResult(new ProcessResult(fail ? 23 : 0, "fixture-stdout", "fixture-stderr"));
+        }
+
+        public Task<ProcessResult> CheckedAsync(string executable, IEnumerable<string> arguments, TimeSpan deadline,
+            IReadOnlyDictionary<string, string>? environment = null, bool preserveGitContext = false) =>
+            throw new InvalidOperationException("Unexpected checked command in a selected test stage.");
+    }
 
     private static async Task<(int ExitCode, string Output)> RunAsync(string body)
     {
@@ -177,6 +207,8 @@ public sealed class TestSelectionTests
                 RedirectStandardError = true,
                 UseShellExecute = false
             };
+            info.Environment["EXCELMCP_BUILD_ROOT"] = root.FullName;
+            info.Environment["EXCELMCP_BUILD_DLL"] = typeof(Sbroenne.ExcelMcp.Build.ValidationPolicy).Assembly.Location;
             foreach (var argument in new[] { "-NoProfile", "-File", runner }) { info.ArgumentList.Add(argument); }
             using var process = Process.Start(info)!;
             var stdout = process.StandardOutput.ReadToEndAsync();

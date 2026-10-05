@@ -11,21 +11,13 @@ param(
     [Parameter(Mandatory)][string]$SelectedLockfiles
 )
 $ErrorActionPreference = 'Stop'
-if ($Detection -ne 'success') { throw "Change detection did not succeed: $Detection." }
-foreach ($check in @(
-    @{ Name = 'tests'; Selected = $SelectedTests; Result = $Tests },
-    @{ Name = 'packages'; Selected = $SelectedPackages; Result = $Packages },
-    @{ Name = 'npm'; Selected = $SelectedNpm; Result = $Npm },
-    @{ Name = 'lockfiles'; Selected = $SelectedLockfiles; Result = $Lockfiles }
-)) {
-    $expected = switch -CaseSensitive ($check.Selected) {
-        'true' { 'success' }
-        'false' { 'skipped' }
-        default { throw "Invalid selection for $($check.Name): $($check.Selected)." }
-    }
-    if ($check.Result -ne $expected) {
-        throw "$($check.Name): expected $expected, received $($check.Result)."
-    }
+. (Join-Path $PSScriptRoot 'Invoke-BuildTool.ps1')
+Invoke-ExcelMcpBuild -Arguments @('complete') -OptionsParameter '--completion-options' -Options @{
+    Detection = $Detection
+    Checks = @(
+        @{ Name = 'tests'; Selected = $SelectedTests; Result = $Tests },
+        @{ Name = 'packages'; Selected = $SelectedPackages; Result = $Packages },
+        @{ Name = 'npm'; Selected = $SelectedNpm; Result = $Npm },
+        @{ Name = 'lockfiles'; Selected = $SelectedLockfiles; Result = $Lockfiles }
+    )
 }
-Write-Host 'All selected CI checks succeeded.'
-$global:LASTEXITCODE = 0

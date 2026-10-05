@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using System.Text.Json;
+using Sbroenne.ExcelMcp.Build;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
@@ -13,32 +13,31 @@ public sealed class PreCommitScriptTests
     private static readonly string RepoRoot = FindRepoRoot();
 
     [Theory]
-    [InlineData("src/ExcelMcp.Core/Command.cs", true, true)]
+    [InlineData("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", true, true)]
     [InlineData("docs/reference/report-formatting.md", true, false)]
     [InlineData("README.md", true, false)]
-    [InlineData("README.md\nsrc/ExcelMcp.Core/Command.cs", true, true)]
+    [InlineData("README.md\nsrc/ExcelMcp.Core/Commands/Range/RangeCommands.cs", true, true)]
     public async Task ChangedPaths_SelectChecksWithoutCreatingPackages(string path, bool build, bool excel)
     {
         var result = await RunHookAsync(path);
 
         Assert.Equal(build, result.Output.Contains("dotnet build", StringComparison.Ordinal));
-        Assert.Equal(excel, result.Output.Contains("e2e-ran", StringComparison.Ordinal));
+        Assert.Equal(excel, result.Output.Contains("excel-feature-tests-ran", StringComparison.Ordinal));
         Assert.DoesNotContain("dotnet publish", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("dotnet pack", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("npm ci", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("npm run", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("git add", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("cleanup-ran", result.Output, StringComparison.Ordinal);
-        Assert.DoesNotContain("excel-feature-tests-ran", result.Output, StringComparison.Ordinal);
         if (path == "docs/reference/report-formatting.md")
         {
-            Assert.Matches(@"-SkillTests:\s*True", result.Output);
+            Assert.Contains("-ChangedPaths", result.Output, StringComparison.Ordinal);
         }
         Assert.True(result.ExitCode == 0, result.Output);
     }
 
     [Fact]
-    public async Task ChangedPaths_ClassifyAllInputsInOneInvocation()
+    public void ChangedPaths_ClassifyAllInputsInOneInvocation()
     {
         (string Path, bool Build, bool Excel, bool SkillTests)[] cases =
         [
@@ -58,67 +57,43 @@ public sealed class PreCommitScriptTests
             (".github/workflows/update-awesome-copilot.md", true, false, false),
             (".github/workflows/publish-plugins.yml", true, false, false),
             ("scripts/Build-AgentSkills.ps1", true, false, true),
-            ("tests/ExcelMcp.Core.Tests/ExampleTests.cs", true, false, false),
+            ("tests/ExcelMcp.Core.Tests/Unit/GeneratedActionContractTests.cs", true, false, false),
             ("scripts/pre-commit.ps1", true, false, false),
-            (".github/workflows/ci.yml", true, false, true),
-            ("src/ExcelMcp.Core/Command.cs", true, true, false),
+            (".github/workflows/ci.yml", true, false, false),
+            ("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", true, true, false),
             ("src/ExcelMcp.CLI/Program.cs", true, true, false),
             ("src/ExcelMcp.McpServer/Program.cs", true, true, false),
             ("src/ExcelMcp.Cleanup/Program.cs", true, true, false),
-            ("src/ExcelMcp.Generators.Cli/Generator.cs", true, true, false),
+            ("src/ExcelMcp.Generators.Cli/Generator.cs", true, false, false),
             ("docs/reference/report-formatting.md", true, false, true),
-            ("Directory.Build.props", true, true, false),
-            ("Directory.Packages.props", true, true, false),
-            ("global.json", true, true, false),
-            (".editorconfig", true, false, false),
-            ("README.md\nsrc/ExcelMcp.Core/Command.cs", true, true, false),
-            ("src/ExcelMcp.Core/Deleted.cs\nvscode-extension/src/renamed.ts", true, true, false),
+            ("Directory.Build.props", true, true, true),
+            ("Directory.Packages.props", true, true, true),
+            ("global.json", true, true, true),
+            (".editorconfig", true, false, true),
+            ("README.md\nsrc/ExcelMcp.Core/Commands/Range/RangeCommands.cs", true, true, false),
+            ("src/ExcelMcp.Core/Commands/Range/Deleted.cs\nvscode-extension/src/renamed.ts", true, true, false),
             ("docs/reference/range.md", false, false, false),
-            ("skills/excel-cli-report-formatting/SKILL.md", true, false, true),
-            ("unknown-build-input.config", true, true, false)
+            ("skills/excel-cli-report-formatting/SKILL.md", true, false, true)
         ];
-        var sandbox = Directory.CreateDirectory(Path.Combine(
-            Path.GetTempPath(), $"ExcelMcp.Classification.{Guid.NewGuid():N}")).FullName;
-        try
+        var policy = new ValidationPolicy(RepoRoot);
+        foreach (var (path, build, excel, skills) in cases)
         {
-            var runner = Path.Combine(sandbox, "run.ps1");
-            var json = JsonSerializer.Serialize(cases.Select(row => new
-            {
-                row.Path,
-                row.Build,
-                row.Excel,
-                row.SkillTests
-            }));
-            await File.WriteAllTextAsync(runner, $$"""
-                $ErrorActionPreference = 'Stop'
-                . '{{Path.Combine(RepoRoot, "scripts", "Get-ValidationPlan.ps1").Replace("'", "''", StringComparison.Ordinal)}}'
-                $cases = ConvertFrom-Json @'
-                {{json}}
-                '@
-                foreach ($case in $cases) {
-                    $plan = Get-ValidationPlan -Paths ($case.Path -split '\r?\n')
-                    foreach ($flag in @('Build', 'Excel', 'SkillTests')) {
-                        if ([bool]$plan.$flag -ne [bool]$case.$flag) {
-                            throw "$($case.Path): incorrect $flag selection."
-                        }
-                    }
-                    if ($case.Excel -and -not $plan.SourceChecks) { throw "$($case.Path): source guards missing." }
-                }
-                """);
-            var result = await RunScriptAsync(sandbox, runner);
-            Assert.True(result.ExitCode == 0, result.Output);
+            var plan = policy.Select(path.Split('\n'));
+            Assert.True(build == plan.Build, $"{path}: incorrect Build selection.");
+            Assert.True(excel == plan.Excel, $"{path}: incorrect Excel selection.");
+            Assert.True(skills == plan.SkillTests, $"{path}: incorrect SkillTests selection.");
+            Assert.True(!excel || plan.SourceChecks, $"{path}: source guards missing.");
         }
-        finally { Directory.Delete(sandbox, recursive: true); }
     }
 
     [Theory]
-    [InlineData("src/ExcelMcp.Core/Command.cs")]
+    [InlineData("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs")]
     [InlineData("docs/reference/report-formatting.md")]
     [InlineData("Directory.Build.props")]
     [InlineData(".editorconfig")]
     public async Task UnstagedBuildInputs_BlockBeforeBuilding(string unstaged)
     {
-        var result = await RunHookAsync("src/ExcelMcp.Core/Command.cs", unstaged: unstaged);
+        var result = await RunHookAsync("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", unstaged: unstaged);
         Assert.NotEqual(0, result.ExitCode);
         Assert.Contains("differ from the index", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("dotnet build", result.Output, StringComparison.Ordinal);
@@ -128,7 +103,7 @@ public sealed class PreCommitScriptTests
     [Fact]
     public async Task UntrackedBuildInputs_BlockBeforeBuilding()
     {
-        var result = await RunHookAsync("src/ExcelMcp.Core/Command.cs", untracked: "src/ExcelMcp.Core/New.cs");
+        var result = await RunHookAsync("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", untracked: "src/ExcelMcp.Core/New.cs");
         Assert.NotEqual(0, result.ExitCode);
         Assert.DoesNotContain("dotnet build", result.Output, StringComparison.Ordinal);
     }
@@ -136,9 +111,10 @@ public sealed class PreCommitScriptTests
     [Fact]
     public async Task UnrelatedUnstagedDocs_DoNotBlockRuntimeChecks()
     {
-        var result = await RunHookAsync("src/ExcelMcp.Core/Command.cs", unstaged: "docs/guide.md");
+        var result = await RunHookAsync("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", unstaged: "docs/guide.md");
         Assert.True(result.ExitCode == 0, result.Output);
-        Assert.Contains("e2e-ran", result.Output, StringComparison.Ordinal);
+        Assert.Contains("excel-feature-tests-ran", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("e2e-ran", result.Output, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -148,10 +124,11 @@ public sealed class PreCommitScriptTests
     [InlineData("check-dynamic-casts")]
     [InlineData("check-workbook-package-access")]
     [InlineData("Invoke-ExcelFreeTests")]
+    [InlineData("Invoke-ExcelTests")]
     [InlineData("Test-E2E")]
     public async Task SelectedCheckFailure_IsNeverSwallowed(string failure)
     {
-        var result = await RunHookAsync("src/ExcelMcp.Core/Command.cs", failure: failure);
+        var result = await RunHookAsync(failure == "Test-E2E" ? "Directory.Build.props" : "src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", failure: failure);
         Assert.NotEqual(0, result.ExitCode);
         Assert.Contains("check-root-cause", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("All selected pre-commit checks passed", result.Output, StringComparison.Ordinal);
@@ -160,7 +137,7 @@ public sealed class PreCommitScriptTests
     [Fact]
     public async Task BuildFailure_PreservesNativeDiagnostics()
     {
-        var result = await RunHookAsync("src/ExcelMcp.Core/Command.cs", failure: "dotnet");
+        var result = await RunHookAsync("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", failure: "dotnet");
         Assert.NotEqual(0, result.ExitCode);
         Assert.Contains("build-root-cause", result.Output, StringComparison.Ordinal);
         Assert.Contains("exit code 23", result.Output, StringComparison.Ordinal);
@@ -180,7 +157,7 @@ public sealed class PreCommitScriptTests
     [InlineData("throw")]
     public async Task InspectionOrCheckException_StopsValidation(string failure)
     {
-        var result = await RunHookAsync("src/ExcelMcp.Core/Command.cs", failure: failure);
+        var result = await RunHookAsync("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", failure: failure);
         Assert.NotEqual(0, result.ExitCode);
         Assert.DoesNotContain("All selected pre-commit checks passed", result.Output, StringComparison.Ordinal);
         Assert.Contains("root-cause", result.Output, StringComparison.Ordinal);
@@ -198,6 +175,19 @@ public sealed class PreCommitScriptTests
             {
                 File.Copy(Path.Combine(RepoRoot, "scripts", $"{name}.ps1"), Path.Combine(scripts, $"{name}.ps1"));
             }
+            await File.WriteAllTextAsync(Path.Combine(scripts, "Invoke-BuildTool.ps1"), """
+                function Invoke-ExcelMcpBuild {
+                    param([string[]]$Arguments)
+                    if ($Arguments[0] -ne 'build') { throw 'Unexpected hook build operation.' }
+                    $file = $Arguments[[Array]::IndexOf($Arguments, '--plan') + 1]
+                    $plan = Get-Content -LiteralPath $file -Raw | ConvertFrom-Json
+                    $projects = if ($plan.FullSolutionBuild) { @('Sbroenne.ExcelMcp.sln') } else { @($plan.BuildProjects) }
+                    foreach ($project in $projects) {
+                        dotnet build $project -c Release --disable-build-servers
+                        if ($LASTEXITCODE -ne 0) { throw "Selected build failed with exit code $LASTEXITCODE." }
+                    }
+                }
+                """);
             foreach (var (name, message) in new[]
             {
                 ("check-npm-lockfiles", "lockfile-ran"),
@@ -216,6 +206,17 @@ public sealed class PreCommitScriptTests
                         ? "throw 'check-root-cause'"
                         : name == failure
                         ? "Write-Host 'check-root-cause'; exit 19"
+                        : name == "Invoke-ExcelTests"
+                        ? """
+                            param([string]$PlanFile)
+                            $plan = Get-Content -LiteralPath $PlanFile -Raw | ConvertFrom-Json
+                            Write-Host 'excel-feature-tests-ran'
+                            if ($plan.FullE2E) {
+                                & (Join-Path $PSScriptRoot 'Test-E2E.ps1')
+                                if ($LASTEXITCODE -ne 0) { throw "Acceptance failed with exit code $LASTEXITCODE." }
+                            }
+                            $global:LASTEXITCODE = 0
+                            """
                         : $"Write-Host \"{message} $args\"; $global:LASTEXITCODE = 0");
             }
             var runner = Path.Combine(sandbox, "run.ps1");
@@ -263,6 +264,8 @@ public sealed class PreCommitScriptTests
             RedirectStandardError = true,
             UseShellExecute = false,
         };
+        info.Environment["EXCELMCP_BUILD_ROOT"] = RepoRoot;
+        info.Environment["EXCELMCP_BUILD_DLL"] = typeof(Sbroenne.ExcelMcp.Build.ValidationPolicy).Assembly.Location;
         foreach (var argument in new[] { "-NoLogo", "-NoProfile", "-File", runner }) { info.ArgumentList.Add(argument); }
         using var process = Process.Start(info)!;
         var stdout = process.StandardOutput.ReadToEndAsync();

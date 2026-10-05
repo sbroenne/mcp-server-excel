@@ -4,13 +4,12 @@
 # safely marked as required status checks without the "required check never
 # runs on path-filtered PRs" deadlock.
 #
-# `Docs Site` builds and audits the MkDocs website. `CI Gate` verifies that
+# `Docs Site` always reports and builds changed website inputs. `CI Gate` verifies that
 # change detection and all selected jobs succeeded. Main/manual runs are complete.
 # The Excel-dependent gates — the CLI workflow, stale-build graceful-save
 # acceptance, and MCP workflow scenarios — are intentionally NOT run here:
 # GitHub-hosted `windows-latest` runners do not have Microsoft Excel installed.
-# All required acceptance stages remain local prerequisites and are
-# explicitly attested in the pull request testing checklist.
+# Selected Excel behavior and affected acceptance stages remain local checks.
 
 name: CI Gate
 
@@ -29,19 +28,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # The documentation site is the primary distribution channel for this project
-  # (README.md is a landing page that links to excelmcpserver.dev), but until
-  # this job existed nothing validated it before merge: the Pages workflow only
-  # builds on push to `main`, and scripts/pre-commit.ps1 classifies `docs/`,
-  # `gh-pages/` and `*.md` as a docs-only fast path that skips almost every
-  # gate. A broken --strict build or audit regression therefore surfaced only
-  # after merge, on the deploy run. Runs unfiltered like the CI Gate job below
-  # so it can safely be a required check.
+  # Keep the required check visible even when website work was not selected.
   docs:
     name: Docs Site
+    needs: changes
+    if: always()
     runs-on: ubuntu-26.04
     steps:
+      - name: Verify documentation selection
+        shell: bash
+        env:
+          DETECTION: ${{ needs.changes.result }}
+          SELECTED: ${{ needs.changes.outputs.docs }}
+        run: |
+          [ "$DETECTION" = success ] || { echo "::error::Validation selection failed."; exit 1; }
+          case "$SELECTED" in
+            true) echo 'Website inputs changed.' ;;
+            false) echo 'Website work was not selected.' ;;
+            *) echo "::error::Invalid website selection."; exit 1 ;;
+          esac
       - name: Checkout
+        if: needs.changes.outputs.docs == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           # hooks.py derives each sitemap <lastmod> from `git log`, so the full
@@ -50,6 +57,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Python
+        if: needs.changes.outputs.docs == 'true'
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.13'
@@ -57,20 +65,25 @@ jobs:
           cache-dependency-path: gh-pages/requirements.txt
 
       - name: Install dependencies
+        if: needs.changes.outputs.docs == 'true'
         run: pip install -r gh-pages/requirements.txt
 
       - name: Unit test site generator
+        if: needs.changes.outputs.docs == 'true'
         working-directory: gh-pages
         run: python -m unittest discover -s tests
 
       - name: Check sample data and build scripts
+        if: needs.changes.outputs.docs == 'true'
         run: python -m unittest discover -s samples/world-bank-dashboard -p "test_*.py"
 
       - name: Build with MkDocs
+        if: needs.changes.outputs.docs == 'true'
         working-directory: gh-pages
         run: mkdocs build --strict --clean
 
       - name: Audit built site
+        if: needs.changes.outputs.docs == 'true'
         working-directory: gh-pages
         run: python audit_site.py
 
@@ -78,6 +91,7 @@ jobs:
       # from the canonical sources listed in sitegen/sources.py, which would publish a
       # silently stale site until the nightly cron caught up.
       - name: Verify deploy path filter covers every mirrored source
+        if: needs.changes.outputs.docs == 'true'
         working-directory: gh-pages
         run: python check_deploy_paths.py
 
@@ -92,11 +106,17 @@ jobs:
       npm: ${{ steps.select.outputs.npm }}
       lockfiles: ${{ steps.select.outputs.lockfiles }}
       source_checks_group: ${{ steps.select.outputs.source_checks_group }}
+      docs: ${{ steps.select.outputs.docs }}
+      documentation_counts: ${{ steps.select.outputs.documentation_counts }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+      - name: Setup .NET for selection
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
       - name: Select changed inputs
         id: select
         shell: pwsh
@@ -152,7 +172,7 @@ jobs:
         run: |
           ./scripts/Build-CiInputs.ps1 -PlanFile artifacts/ci-plan.json -Group '${{ matrix.group }}'
       - name: Generate complete skill inputs
-        if: matrix.group == needs.changes.outputs.source_checks_group
+        if: matrix.group == needs.changes.outputs.source_checks_group && needs.changes.outputs.documentation_counts == 'true'
         shell: pwsh
         run: ./scripts/Build-AgentSkills.ps1 -GenerateOnly
       - name: Selected Excel-free tests
@@ -168,10 +188,13 @@ jobs:
             & "./scripts/$script.ps1"
             if ($LASTEXITCODE -ne 0) { throw "$script failed." }
           }
-          & ./scripts/check-doc-counts.ps1 -SkipBuild
-          if ($LASTEXITCODE -ne 0) { throw 'Reviewed documentation counts are stale.' }
+          $plan = Get-Content artifacts/ci-plan.json -Raw | ConvertFrom-Json
+          if ($plan.DocumentationCounts) {
+            & ./scripts/check-doc-counts.ps1 -SkipBuild
+            if ($LASTEXITCODE -ne 0) { throw 'Reviewed documentation counts are stale.' }
+          }
       - name: Verify entry-point builds
-        if: matrix.group == 'Fast' && matrix.group == needs.changes.outputs.source_checks_group
+        if: matrix.group == 'Fast' && needs.changes.outputs.documentation_counts == 'true'
         shell: pwsh
         run: |
           & ./src/ExcelMcp.CLI/bin/Release/net10.0-windows/excelcli.exe --help
@@ -232,7 +255,8 @@ jobs:
           $plan = Get-Content artifacts/ci-plan.json -Raw | ConvertFrom-Json
           $components = @('Cli','Mcp','Extension','Mcpb','Skills','Plugins') | Where-Object { $plan.$_ }
           if (-not $components) { throw 'Selected package job has no components.' }
-          ./scripts/Build-ReleasePackages.ps1 -Components $components -SkillsDirectory artifacts/generated-skills
+          ./scripts/Build-ReleasePackages.ps1 -Components $components -SkillsDirectory artifacts/generated-skills `
+            -SkipExtensionTests:(-not $plan.ExtensionTests)
           if ($LASTEXITCODE -ne 0) { throw 'Selected package validation failed.' }
 
   npm:

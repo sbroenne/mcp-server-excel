@@ -28,11 +28,10 @@ public sealed class ValidationOrchestrationTests
         var run = await ValidationSelectionTests.RunAsync("""
             $workflow = Get-Content .\.github\workflows\ci.yml -Raw
             if (-not $workflow.Contains('./scripts/Build-CiInputs.ps1')) { throw 'Scoped preparation was not wired.' }
-            $builds = @(Get-Content .\scripts\Build-CiInputs.ps1 | Where-Object { $_ -match '& dotnet build' })
-            if ($builds.Count -ne 1) { throw "Unexpected preparatory build count: $($builds.Count)" }
-            foreach ($build in $builds) {
-                if ($build -notmatch '--disable-build-servers') { throw 'Preparatory build can retain a locking build server.' }
-            }
+            $adapter = Get-Content .\scripts\Build-CiInputs.ps1 -Raw
+            if (-not $adapter.Contains('Invoke-ExcelMcpBuild')) { throw 'Shared build execution was not wired.' }
+            $executor = Get-Content .\tools\ExcelMcp.Build\ValidationExecution.cs -Raw
+            if (-not $executor.Contains('--disable-build-servers')) { throw 'Preparatory build can retain a locking build server.' }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
     }
@@ -193,7 +192,8 @@ public sealed class ValidationOrchestrationTests
             . .\scripts\Invoke-TestStage.ps1
             $file = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.Report.$([Guid]::NewGuid().ToString('N')).trx"
             try {
-                '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><ResultSummary outcome="{{outcome}}"><Counters total="{{total}}" passed="{{passed}}"/></ResultSummary></TestRun>' |
+                $results = '<UnitTestResult outcome="Passed"/>' * {{passed}}
+                '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results>' + $results + '</Results><ResultSummary outcome="{{outcome}}"><Counters total="{{total}}" passed="{{passed}}" executed="{{total}}"/></ResultSummary></TestRun>' |
                     Set-Content -LiteralPath $file
                 Assert-TestReport -Path $file
             } finally { Remove-Item -LiteralPath $file }

@@ -6,6 +6,7 @@
 $ErrorActionPreference = 'Stop'
 $rootDir = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'Get-ValidationPlan.ps1')
+. (Join-Path $PSScriptRoot 'Invoke-BuildTool.ps1')
 
 function Invoke-Check {
     param([string]$Name, [scriptblock]$Action)
@@ -41,7 +42,7 @@ try {
             Read-Git @('-c', 'core.quotepath=false', 'ls-files', '--others', '--exclude-standard')
         )
         $inputs = @($workingPaths | Where-Object {
-            $_ -match '^(src[\\/]|tests[\\/]|skills[\\/]|scripts[\\/]|docs[\\/]reference[\\/]report-formatting\.md$|Directory\.|\.editorconfig$|global\.json$|NuGet\.Config$|Sbroenne\.ExcelMcp\.sln$)'
+            $_ -match '^(src[\\/]|tests[\\/]|skills[\\/]|scripts[\\/]|tools[\\/]ExcelMcp\.Build[\\/]|build\.ps1$|docs[\\/]reference[\\/]report-formatting\.md$|Directory\.|\.editorconfig$|global\.json$|NuGet\.Config$|Sbroenne\.ExcelMcp\.sln$)'
         })
         if ($inputs.Count -gt 0) {
             throw "Validation inputs differ from the index. Stage or set aside these changes explicitly: $($inputs -join ', '). No files were staged or stashed."
@@ -56,17 +57,25 @@ try {
         }
     }
     if ($plan.Build) {
-        Invoke-Check 'Building Release solution' {
-            dotnet build Sbroenne.ExcelMcp.sln -c Release -p:NuGetAudit=false --verbosity minimal
-        }
+        $buildPlan = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.CommitBuild.$([Guid]::NewGuid().ToString('N')).json"
+        try {
+            $plan | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $buildPlan -Encoding utf8
+            Invoke-Check 'Building selected Release inputs' {
+                Invoke-ExcelMcpBuild -Arguments @('build', '--plan', $buildPlan)
+            }
+        } finally { Remove-Item -LiteralPath $buildPlan -ErrorAction Stop }
         Invoke-Check 'Running focused Excel-free tests' {
-            & (Join-Path $PSScriptRoot 'Invoke-ExcelFreeTests.ps1') -Local -HookTests:$plan.HookTests -Contracts:$plan.Excel -SkillTests:$plan.SkillTests -PackagingTests:$plan.PackagingTests -ChangedPaths $paths
+            & (Join-Path $PSScriptRoot 'Invoke-ExcelFreeTests.ps1') -Local -ChangedPaths $paths
         }
     }
     if ($plan.Excel) {
-        Invoke-Check 'Running Excel-dependent E2E tests' {
-            & (Join-Path $PSScriptRoot 'Test-E2E.ps1') -SkipBuild
-        }
+        $planFile = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.CommitPlan.$([Guid]::NewGuid().ToString('N')).json"
+        try {
+            $plan | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $planFile -Encoding utf8
+            Invoke-Check 'Running selected Excel-dependent cases' {
+                & (Join-Path $PSScriptRoot 'Invoke-ExcelTests.ps1') -PlanFile $planFile
+            }
+        } finally { Remove-Item -LiteralPath $planFile -ErrorAction Stop }
     }
     Write-Host 'All selected pre-commit checks passed. Release artifact validation belongs to PR CI.' -ForegroundColor Green
 }

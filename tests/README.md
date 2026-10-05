@@ -3,6 +3,9 @@
 Excel-dependent behavior uses real Excel integration tests. Parsing, mapping,
 serialization, and generation can use focused tests without Excel.
 [ADR-001](../docs/ADR-001-TESTING-STRATEGY.md) explains this split.
+Common SDK properties and xUnit/analyzer dependencies live in
+`tests\Directory.Build.props`; each project keeps its platform overrides,
+references, linked fixtures, assets, and test scheduling configuration.
 
 ## Quick Start
 
@@ -262,11 +265,14 @@ intended test fails. Restore the change and rerun the final source before
 delivery; retain these fault-check results with the run evidence.
 
 Before PR delivery, include affected existing callers as well as new feature
-tests. Run the full existing Excel-free selection with
-`scripts\Invoke-ExcelFreeTests.ps1` (without `-Local`), including packaged-plugin
-validation, and `npx --no-install changeset status --since=origin/main`.
-These complement focused native tests and normal hooked runtime E2E; they do
-not replace either.
+tests. Use the shared changed-area plan rather than requiring every Excel-free
+project or complete acceptance after a feature-local edit. PR CI validates the
+affected packages, site, launchers, and lockfiles separately. Complete normal
+runs remain explicit commands: `scripts\Invoke-ExcelFreeTests.ps1` (without
+`-Local`) includes packaged-plugin validation and complements, rather than
+replaces, focused native tests and normal hooked runtime E2E. Run
+`npx --no-install changeset status --since=origin/main` when applicable;
+internal tooling, tests, and CI work uses `skip-changelog`.
 Preserve documented response shapes. For example, MCP `file` action `test`
 returns a file assessment: `success=false` can mean a missing or protected
 file, not a failed tool request. Check its complete diagnostic fields and the
@@ -308,27 +314,60 @@ process, deadline, crash, rebuild, and ownership cases below.
 
 ### Changed-path CI selection
 
-`scripts\Get-ValidationPlan.ps1` owns the selections used by CI and the local
-hook. Pull requests compare their head with the base branch's merge base.
+`tools\ExcelMcp.Build\ValidationPolicy.cs` owns the selections used by CI,
+CodeQL, and the local hook. `scripts\Get-ValidationPlan.ps1` is a forwarding
+adapter, not a second policy. The internal .NET tool uses the existing SDK and
+xUnit; it is not another supported product entry point. Pull requests compare
+their head with the base branch's merge base. The hook uses staged inputs and
+retains merge-parent and unstaged-input safeguards.
+
+```powershell
+.\build.ps1 plan --base-ref origin/main --head-ref HEAD --output artifacts\validation-plan.json
+.\build.ps1 validate --plan artifacts\validation-plan.json
+.\build.ps1 test --area PowerQuery
+.\build.ps1 check-source --rule com-leaks
+```
+
+`validate` builds selected .NET inputs, runs applicable source/count checks,
+and runs selected .NET tests. Package preparation and website/npm checks remain
+separate CI jobs; `validate` does not publish or prepare release artifacts.
+Test-only edits select their classes and actual shared-helper consumers.
+Feature implementations select their Core and Service behavior without an
+unchanged CLI/MCP matrix or npm source suite. Contract edits also select generated
+consumers. Unknown inputs fail instead of selecting everything. Every selected
+test report must contain executed passing cases; unexpected skips, cleanup
+failures, and hard-deadline expiry fail the command.
+The four source guards are implemented in `tools\ExcelMcp.Build\SourceGuards.cs`
+and tested with xUnit. `check-source --rule` accepts `com-leaks`, `success-flag`,
+`dynamic-casts`, or `workbook-package-access`; the existing `scripts\check-*.ps1`
+commands forward to those rules. Their scan boundaries and exceptions are
+preserved. These checks identify risky patterns, not complete COM lifetime or
+success/error control-flow correctness.
 Ordinary documentation and developer instructions, including nested `AGENTS.md`
 and `CLAUDE.md`, avoid unrelated .NET tests and package jobs. Shipped documentation
 is different: root, product, and npm-package READMEs, `LICENSE`, `CHANGELOG.md`, and
 `docs\AGENT-SKILLS.md` select their consuming packages and owning tooling checks,
 not runtime tests. Authored skill and plugin template trees remain package inputs,
 including instruction files that their copy steps have not excluded. The extension
-excludes developer instructions from its VSIX. Runtime and shared inputs select conservatively; multiple
-inputs form a union. Main and manual CI runs select complete validation.
+excludes developer instructions from its VSIX. Shared inputs include affected
+dependencies; multiple inputs form a union. Main and manual CI runs select
+complete validation.
 
 Hosted tests run in separate checkouts: `Fast` contains normal Excel-free
 tests except `AdapterTestKind=System`; `Process` contains the CLI system
 regressions; `Tooling` contains the selected skill-generation, packaging, and
 script-safety checks. Each Tooling project has its own filter, so a script-safety
 change cannot broaden a documentation-count or publication selection in another
-project. Runtime source changes retain runtime/contract and process coverage,
+project. Runtime source changes select owning behavior and necessary boundaries,
 but do not automatically select publication tests, metadata-only MCPB/plugins,
 or authored skill ZIPs. Binary changes still select their consuming packages,
-including the extension when its bundled server changes. Standalone tooling
-test-project changes select their owning project, not every runtime project.
+including the extension when its bundled server changes.
+Bundled-server-only edits still compile and inspect the VSIX, but do not rerun
+the unchanged extension source suite. Extension source inputs and explicit full
+runs select that suite. Manual package preparation retains its full checks unless
+`-SkipExtensionTests` is supplied by the saved plan.
+Standalone tooling test-project changes select their owning project, not every
+runtime project.
 The full partitions cover the complete normal Excel-free selection without overlap.
 Package, npm launcher, and lockfile checks have their own selections.
 Changes to `doc-counts.json` or `scripts\check-doc-counts.ps1` select the
@@ -336,13 +375,15 @@ Changes to `doc-counts.json` or `scripts\check-doc-counts.ps1` select the
 without unrelated runtime tests or packages. Source checks run once in `Fast`
 when selected, otherwise in `Tooling` for these count inputs. Preparatory CI
 builds restore and build only selected test projects and their dependencies.
-The group owning source/count checks still builds the full Release solution,
-as required by `check-doc-counts.ps1 -SkipBuild`. All preparatory builds disable
+Only shared build inputs and selected count derivation require the full Release
+solution, as required by `check-doc-counts.ps1 -SkipBuild`. Ordinary source guards
+do not force a full build. All preparatory builds disable
 build servers so rebuild regressions do not inherit assembly locks. Package
 commands build their own required binaries without a preceding solution build;
 metadata-only packages do not require .NET setup. NuGet and npm caches hold
 dependency downloads, not shared compiled outputs.
-`Docs Site` always runs. The required `CI Gate` always reports and rejects
+`Docs Site` always reports, but builds the site only when its inputs changed.
+The required `CI Gate` always reports and rejects
 failed detection, cancelled or failed work, and unexpectedly skipped jobs.
 Hosted runners do not run real-Excel tests.
 
@@ -376,6 +417,28 @@ Choose a group listed in the saved plan; an unselected or empty group is an erro
 Omitting the group retains the complete Excel-free run; existing
 `-Local`, `-Contracts`, `-HookTests`, `-SkillTests`, and `-PackagingTests`
 selections remain supported.
+
+These commands forward to the internal .NET tool. `Invoke-TestStage.ps1` uses
+the same hard deadlines, owned-process environment and strict report checks as
+saved-plan execution. `Get-ExcelTestGroups.ps1` exports the actual built inventory,
+not a guessed list of source classes. Build inputs and CI completion checks also
+forward to typed components; detection failure, missing cases and unexpected
+skips are errors.
+
+Package preparation uses the same internal tool without publishing anything:
+
+```powershell
+.\build.ps1 package --components Cli,Mcp --output artifacts\local-packages
+```
+
+Use a new output directory. Existing `Build-ReleasePackages.ps1`,
+`Build-NpmPackages.ps1`, `Test-NpmPackages.ps1`, `Build-AgentSkills.ps1`,
+`Build-Plugins.ps1` and `mcpb\Build-McpBundle.ps1` keep their parameters and
+forward to typed preparation. Runtime packages retain architecture and version
+checks, npm archive inspection and native launcher checks. ARM64 archive
+validation is not ARM64 execution on an x64 machine. Extension preparation still
+compiles, lints and inspects both VSIX targets when unchanged source tests are
+explicitly skipped.
 
 Generated MCP parameter tests inspect our emitted method declarations directly.
 Protocol checks cover our names, descriptions, selected output fields, and
@@ -477,8 +540,8 @@ runs. Other OnDemand diagnostics and external-service evaluations remain separat
 
 `Acceptance` runs the complete required E2E stages, then the remaining normal
 adapter acceptance cases without repeating required cases. Local commit checks
-retain their existing scope: selected Excel-free checks and complete E2E for
-runtime paths, not the full workbook-feature suite. Run affected real-Excel
+use the shared changed-area policy, not complete E2E after every runtime edit.
+Run affected real-Excel
 groups separately, including when changing Excel-dependent tests.
 
 `Test-E2E.ps1` defaults to three sequential stages: independent executable CLI
@@ -488,9 +551,12 @@ execution deadline. Empty selections, skipped tests, failures, and assembly
 cleanup failures fail the run. `-Stages Cli`, `-Stages Rebuild`, or `-Stages Mcp`
 is a focused run, not complete runtime acceptance. `Test-CliWorkflow.ps1` is a
 compatible wrapper for the CLI stage, including `-PipeName` and `-KeepFile`.
-The CLI stage also retains the expanded native API workflow in
-`Test-CliApiCoverage.ps1`, hosted by its own acceptance case with a private pipe
-and a hard deadline. MCP native formatting/style and report-depth assertions
+The CLI stage includes independently selectable `CliNative*AcceptanceTests`
+for ranges, formatting, conditional rules, PivotTables, slicers, drawings,
+charts, protection, calculation, window/theme context, filtering, and page layout.
+Their direct executable arguments and concrete save/reopen assertions replace
+the nested PowerShell test runner. `Test-CliApiCoverage.ps1` remains only a
+forwarding command for complete CLI acceptance. MCP formatting/style and report-depth assertions
 remain part of their independently reported acceptance scenarios.
 
 Reports and ownership journals go into a new `TestResults` directory by default.
@@ -652,9 +718,24 @@ llm-tests/                          # LLM tool behavior validation (Manual)
 |----------|-------|--------------|----------------|
 | **Unit** | Fast | No Excel for pure logic | Select the relevant tests |
 | **Integration** | Medium (10-20 min) | Excel + Windows | ✅ Yes (local) |
-| **OnDemand** | Slow (3-5 min) | Excel + Windows | ❌ No (explicit only) |
+| **OnDemand** | Varies | Excel + Windows; test-specific prerequisites | ❌ No (explicit only) |
 | **Diagnostics** | Slow (varies) | Excel + Windows | ❌ No (manual, excluded from CI) |
 | **LLM Tests** | Slow (varies) | Excel + GitHub Copilot | ❌ No (manual only) |
+
+## Optional Legacy `.xls` Checks
+
+The two legacy `.xls` save/validation checks use `RunType=OnDemand`. They retain
+their format, session-path, saved-content and file-preservation assertions, but
+normal commit and CI selections do not run them. The `.xlsx`, `.xlsm` and `.xlsb`
+checks remain required.
+
+Run the legacy checks explicitly on a machine whose existing Office policy
+permits Excel 97-2003 workbooks. The tests do not change Trust Center File Block
+settings:
+
+```powershell
+& .\scripts\Test-ExcelBehavior.ps1 -Project Service -Filter 'RunType=OnDemand&FullyQualifiedName~LegacyXls' -ResultsDirectory 'TestResults\legacy-xls'
+```
 
 ## Diagnostics Tests
 

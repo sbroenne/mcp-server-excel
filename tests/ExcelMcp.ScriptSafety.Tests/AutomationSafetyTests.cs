@@ -274,6 +274,8 @@ public sealed partial class AutomationSafetyTests
             UseShellExecute = false,
             WorkingDirectory = root
         };
+        info.Environment["EXCELMCP_BUILD_ROOT"] = RepoRoot;
+        info.Environment["EXCELMCP_BUILD_DLL"] = typeof(Sbroenne.ExcelMcp.Build.ValidationPolicy).Assembly.Location;
         foreach (var argument in new[] { "-NoProfile", "-File", script }) { info.ArgumentList.Add(argument); }
         using var process = Process.Start(info)!;
         var stdout = process.StandardOutput.ReadToEndAsync();

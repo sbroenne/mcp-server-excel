@@ -11,77 +11,12 @@ param(
     [string]$ResultsDirectory
 )
 $ErrorActionPreference = 'Stop'
-$root = Split-Path -Parent $PSScriptRoot
-. (Join-Path $PSScriptRoot 'Invoke-TestStage.ps1')
-. (Join-Path $PSScriptRoot 'Get-ValidationPlan.ps1')
-$selections = [ordered]@{}
-if ($Group) {
-    $plan = if ($PlanFile) {
-        Get-Content -LiteralPath $PlanFile -Raw | ConvertFrom-Json
-    } else {
-        . (Join-Path $PSScriptRoot 'Get-ValidationPlan.ps1')
-        Get-ValidationPlan -Full
-    }
-    if ($Group -notin $plan.CiTestGroups) { throw "The requested $Group group was not selected." }
-    switch ($Group) {
-        'Fast' {
-            foreach ($project in $plan.FastProjects) { $selections[$project] = 'AdapterTestKind!=System' }
-        }
-        'Process' {
-            foreach ($project in $plan.ProcessProjects) {
-                $selections[$project] = 'AdapterTestKind=System'
-            }
-        }
-        'Tooling' {
-            foreach ($project in $plan.ToolingProjects) {
-                $filter = $plan.ToolingFilters.$project
-                if (-not $filter) { throw "Missing filter for $project." }
-                $selections[$project] = $filter
-            }
-        }
-    }
+. (Join-Path $PSScriptRoot 'Invoke-BuildTool.ps1')
+$options = @{
+    Local = [bool]$Local; HookTests = [bool]$HookTests; Contracts = [bool]$Contracts
+    SkillTests = [bool]$SkillTests; PackagingTests = [bool]$PackagingTests
+    ChangedPaths = @($ChangedPaths); Group = $Group
 }
-elseif ($PlanFile) { throw 'PlanFile requires an explicit Group.' }
-elseif ($Local) {
-    $plan = Get-ValidationPlan -Paths $ChangedPaths
-    if ($HookTests -or $plan.HookTests) {
-        $selections['ScriptSafety'] = if ($plan.ToolingFilters.ScriptSafety) { $plan.ToolingFilters.ScriptSafety } else { 'RequiresExcel=false' }
-    }
-    if ($SkillTests -or $plan.SkillTests) {
-        $selections['SkillGeneration'] = if ($plan.ToolingFilters.SkillGeneration) { $plan.ToolingFilters.SkillGeneration } else { 'Feature=SkillGeneration' }
-    }
-    if ($PackagingTests -or $plan.PackagingTests) {
-        $selections['Packaging'] = if ($plan.ToolingFilters.Packaging) { $plan.ToolingFilters.Packaging } else { 'RequiresExcel=false' }
-    }
-    if ($Contracts) {
-        $selections['Core'] = 'Feature=GeneratedContracts'
-        $selections['CLI'] = 'FullyQualifiedName~GeneratedActionContractCliTests'
-        $selections['McpServer'] = 'FullyQualifiedName~McpToolSurfaceTests|FullyQualifiedName~CalculationGuidanceContractTests|FullyQualifiedName~GeneratedMcpParameterTests'
-    }
-    foreach ($path in $ChangedPaths) {
-        if ($path -match '^tests[/\\]ExcelMcp\.(Core|CLI|ComInterop|McpServer|Service|SkillGeneration|Packaging|ScriptSafety)\.Tests[/\\]') {
-            $selections[$Matches[1]] = 'RequiresExcel=false'
-        }
-        if ($path -match '^tests[/\\]Shared[/\\]' -and $path -notmatch '[/\\](GeneratedAssetsFixture|PackagingScriptTestHelper)\.cs$') {
-            foreach ($project in @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service', 'SkillGeneration', 'Packaging', 'ScriptSafety')) {
-                $selections[$project] = 'RequiresExcel=false'
-            }
-        }
-    }
-}
-else {
-    foreach ($project in @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service', 'SkillGeneration', 'Packaging', 'ScriptSafety')) {
-        $selections[$project] = 'RequiresExcel=false'
-    }
-}
-if (-not $ResultsDirectory) { $ResultsDirectory = Join-Path $root "TestResults\excel-free-$([Guid]::NewGuid().ToString('N'))" }
-if ($selections.Count -eq 0) {
-    if ($Group) { throw "$Group has no selected test projects." }
-    Write-Host 'No local Excel-free tests selected.'
-}
-foreach ($entry in $selections.GetEnumerator()) {
-    $project = Join-Path $root "tests\ExcelMcp.$($entry.Key).Tests\ExcelMcp.$($entry.Key).Tests.csproj"
-    $filter = "RequiresExcel=false&RunType!=OnDemand&($($entry.Value))"
-    Invoke-TestStage -Project $project -Filter $filter -ResultsDirectory $ResultsDirectory -Name $entry.Key
-}
-$global:LASTEXITCODE = 0
+if ($PlanFile) { $options.PlanFile = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($PlanFile) }
+if ($ResultsDirectory) { $options.ResultsDirectory = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ResultsDirectory) }
+Invoke-ExcelMcpBuild -Arguments @('test-free') -OptionsParameter '--test-options' -Options $options
