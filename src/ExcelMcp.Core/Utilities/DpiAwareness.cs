@@ -11,11 +11,15 @@ internal static class DpiAwareness
 {
     private static readonly IntPtr PerMonitorAwareV2 = new(-4);
 
-    public static T Execute<T>(Func<T> operation)
+    public static T Execute<T>(Func<T> operation) =>
+        Execute(operation, SetThreadDpiAwarenessContext);
+
+    internal static T Execute<T>(Func<T> operation, Func<IntPtr, IntPtr> setContext)
     {
         ArgumentNullException.ThrowIfNull(operation);
+        ArgumentNullException.ThrowIfNull(setContext);
 
-        IntPtr previous = SetThreadDpiAwarenessContext(PerMonitorAwareV2);
+        IntPtr previous = setContext(PerMonitorAwareV2);
         if (previous == IntPtr.Zero)
         {
             throw new Win32Exception(
@@ -35,16 +39,26 @@ internal static class DpiAwareness
         }
         finally
         {
-            if (SetThreadDpiAwarenessContext(previous) == IntPtr.Zero)
+            if (setContext(previous) == IntPtr.Zero)
             {
                 var restoreFailure = new Win32Exception(
                     Marshal.GetLastWin32Error(),
                     "Could not restore the thread DPI awareness context.");
-                failure = failure is null
-                    ? restoreFailure
-                    : new AggregateException(
+                if (failure is null)
+                {
+                    failure = restoreFailure;
+                }
+                else
+                {
+                    var failures = new AggregateException(
                         "The Excel window operation and DPI context restoration both failed.",
                         failure, restoreFailure);
+                    failure = failure is OperationCanceledException cancellation
+                        ? new OperationCanceledException(
+                            "The Excel window operation was canceled and DPI context restoration failed.",
+                            failures, cancellation.CancellationToken)
+                        : failures;
+                }
             }
         }
 
