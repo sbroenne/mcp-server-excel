@@ -1,6 +1,5 @@
 ---
-"Sbroenne.ExcelMcp.McpServer": patch
-"Sbroenne.ExcelMcp.CLI": patch
+"excelmcp": patch
 ---
 
 `vba run` now reports its requested execution timeout as a timeout rather than a
