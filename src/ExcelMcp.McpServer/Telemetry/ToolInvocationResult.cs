@@ -17,6 +17,13 @@ internal enum ToolFailureClass
     Unclassified
 }
 
+internal enum ToolFailureCause
+{
+    Timeout,
+    Cancellation
+}
+
 internal readonly record struct ToolInvocationResult(
     ToolInvocationOutcome Outcome,
-    ToolFailureClass? FailureClass);
+    ToolFailureClass? FailureClass,
+    ToolFailureCause? FailureCause = null);

@@ -25,7 +25,7 @@ public partial class VbaCommands
             ? new CancellationTokenSource(timeout.Value)
             : null;
 
-        return batch.Execute((ctx, ct) =>
+        Func<OperationResult> execute = () => batch.Execute((ctx, ct) =>
         {
             var originalCulture = CultureInfo.CurrentCulture;
             var originalUiCulture = CultureInfo.CurrentUICulture;
@@ -96,6 +96,22 @@ public partial class VbaCommands
                 }
             }
         }, timeoutCts?.Token ?? default);
+
+        return ExecuteWithTimeout(execute, timeoutCts);
+    }
+
+    private static OperationResult ExecuteWithTimeout(
+        Func<OperationResult> operation,
+        CancellationTokenSource? timeoutCts)
+    {
+        try
+        {
+            return operation();
+        }
+        catch (OperationCanceledException ex) when (timeoutCts?.IsCancellationRequested == true)
+        {
+            throw new TimeoutException("VBA procedure execution exceeded its requested timeout.", ex);
+        }
     }
 
     /// <inheritdoc />

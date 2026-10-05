@@ -162,6 +162,11 @@ public static class ExcelMcpTelemetry
             properties["FailureClass"] = GetFailureClassValue(result.FailureClass.Value);
         }
 
+        if (result.FailureCause.HasValue)
+        {
+            properties["FailureCause"] = GetFailureCauseValue(result.FailureCause.Value);
+        }
+
         // Track as customEvent for analytics (tool usage, parameters, success/failure)
         var eventTelemetry = new EventTelemetry(operationName);
         foreach (var property in properties)
@@ -212,6 +217,17 @@ public static class ExcelMcpTelemetry
             _ => throw new ArgumentOutOfRangeException(
                 nameof(failureClass),
                 failureClass,
+                null)
+        };
+
+    private static string GetFailureCauseValue(ToolFailureCause failureCause) =>
+        failureCause switch
+        {
+            ToolFailureCause.Timeout => "timeout",
+            ToolFailureCause.Cancellation => "cancellation",
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(failureCause),
+                failureCause,
                 null)
         };
 

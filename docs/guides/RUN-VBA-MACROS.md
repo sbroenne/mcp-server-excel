@@ -60,6 +60,13 @@ The procedure name uses `Module.Procedure` form. Pass arguments with
 Set a timeout that matches the work. A macro that waits on a dialog will otherwise
 hold the session until the default limit expires.
 
+If the requested run timeout expires, the operation is reported as a timeout
+rather than a cancellation. If execution has started, Excel may still be busy
+running the macro, so the workbook session is closed; open the workbook again
+before continuing. If the timeout expires while the operation is still queued,
+the macro is not started and the session remains open. Follow the returned error
+message to determine whether reopening is required.
+
 ## Add or update code
 
 ```powershell

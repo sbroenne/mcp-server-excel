@@ -31,7 +31,7 @@ Paths are relative to the repository root.
 | Core or ComInterop C# | [COM safety](docs/agents/rules/excel-com-interop.md) |
 | Connection commands/sanitizer or connection tests/helpers/fixtures | [Connections](docs/agents/rules/excel-connection-types-guide.md) |
 | `tests/**/*.cs` | [Testing strategy](tests/AGENTS.md) |
-| Workflows, project files, SDK/build configuration, PowerShell scripts | [Build and release](docs/agents/rules/development-workflow.md) |
+| Workflows, project files, SDK/build configuration, PowerShell scripts, `.changeset/**` | [Build and release](docs/agents/rules/development-workflow.md) |
 | README/index files, FEATURES, CHANGELOG, SECURITY, PRIVACY, docs, specs, skills, or website | [Documentation](docs/agents/rules/documentation-structure.md) |
 | Skill sources, Core command metadata, generators, MCP, or Build-AgentSkills.ps1 | [Product agent guidance](docs/agents/rules/mcp-llm-guidance.md) |
 | MCP Server or MCP generator | [MCP boundaries](docs/agents/rules/mcp-server-guide.md) |
@@ -150,6 +150,8 @@ dependencies, running builds, or editing code unless requested.
   leave review comments unanswered or unresolved.
 - User-visible changes require a changeset; internal/docs/tests/CI changes use
   the `skip-changelog` PR label. Versions and `CHANGELOG.md` are release-generated.
+  Follow [.changeset/README.md](.changeset/README.md) for package names and
+  validate the fragment against the PR's actual base before pushing.
 - Plugin publication changes must follow
   `.github/workflows/docs/publish-plugins-setup.md#maintenance-and-updates`;
   the published repository is output-only.

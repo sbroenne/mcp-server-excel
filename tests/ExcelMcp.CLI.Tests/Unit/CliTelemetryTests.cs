@@ -67,6 +67,25 @@ public sealed class CliTelemetryTests
             key => key.Contains("error", StringComparison.OrdinalIgnoreCase));
     }
 
+    [Theory]
+    [InlineData("Timeout", "timeout")]
+    [InlineData("Cancelled", "cancellation")]
+    public void CreateCommandInvocationTelemetry_DistinguishesTimeoutFromCancellation(
+        string errorCategory,
+        string expectedFailureCause)
+    {
+        var (eventTelemetry, requestTelemetry) =
+            CliTelemetry.CreateCommandInvocationTelemetry(
+                "vba.run",
+                25,
+                succeeded: false,
+                errorCategory);
+
+        Assert.Equal("timeout-cancellation", eventTelemetry.Properties["FailureClass"]);
+        Assert.Equal(expectedFailureCause, eventTelemetry.Properties["FailureCause"]);
+        Assert.Equal(expectedFailureCause, requestTelemetry.Properties["FailureCause"]);
+    }
+
     [Fact]
     public void CreateCommandInvocationTelemetry_IdentifiesExpectedNegativeOutcome()
     {

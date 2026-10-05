@@ -1,77 +1,79 @@
 ## Summary
-Brief description of what this PR does.
+Explain the problem, its root cause, and the intended outcome. Do not include
+customer/workbook data, credentials, connection strings, or private paths.
 
 ## Type of Change
-- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
-- [ ] ✨ New feature (non-breaking change which adds functionality)
-- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
-- [ ] 📚 Documentation update
-- [ ] 🔧 Maintenance (dependency updates, code cleanup, etc.)
+- [ ] Bug fix
+- [ ] New feature
+- [ ] Breaking change
+- [ ] Documentation update
+- [ ] Maintenance, tests, or CI
 
 ## Related Issues
-Closes #[issue number]
-Relates to #[issue number]
+Use `Closes #...` for an issue this change resolves, `Relates to #...` for related
+work, or N/A. Do not leave placeholder issue references.
 
 ## Changeset
-- [ ] Added a changeset (`npx changeset`) describing this change for end users — see `.changeset/README.md`
-- [ ] Not applicable (docs/tests/CI/dependency-only) — added `skip-changelog` label instead
+- [ ] Added a changeset for user-visible changes; see [.changeset/README.md](https://github.com/sbroenne/mcp-server-excel/blob/main/.changeset/README.md)
+- [ ] Not applicable (internal/docs/tests/CI-only); added `skip-changelog` instead
 
 ## Changes Made
-- Change 1
-- Change 2
-- Change 3
+Summarize the approach, affected contracts and entry points, and any migration or
+partial-state/recovery consequences. MCP Server and `excelcli` are equal entry
+points; explain any adapter-only change.
 
 ## Testing Performed
-- [ ] If Core/ComInterop/Service/CLI/MCP runtime paths or their generators changed: ran `& .\scripts\Test-E2E.ps1` locally and confirmed it completed with no failures or unresolved issues
-- [ ] Excel E2E not applicable because only documentation/configuration/Excel-free tooling changed
-- [ ] Ran the relevant feature-specific integration tests and recorded the exact command and result below
-- [ ] Ran `scripts\Test-ExcelBehavior.ps1` for affected Excel behavior and recorded its saved results directory (or explained why not applicable)
-- [ ] Outcome assertions check actual Excel state before cleanup; negative cases check preserved state or documented recovery
-- [ ] Tested manually with various Excel files
-- [ ] Verified cleanup of this test's owned Excel sessions without terminating unrelated Excel processes (if applicable)
-- [ ] Tested error conditions (missing files, invalid arguments, etc.)
-- [ ] All existing commands still work
-- [ ] VBA script execution tested (if applicable)
-- [ ] XLSM file format validation tested (if applicable)
-- [ ] VBA trust setup tested (if applicable)
-- [ ] Build produces zero warnings
+Follow [AGENTS.md](https://github.com/sbroenne/mcp-server-excel/blob/main/AGENTS.md) and [tests/AGENTS.md](https://github.com/sbroenne/mcp-server-excel/blob/main/tests/AGENTS.md).
+Check only completed, applicable items; explain anything not run below.
+
+- [ ] Behavioral fix has a focused regression that failed before the fix
+- [ ] Required Release build completed with zero warnings
+- [ ] Affected Excel behavior passed through `scripts\Test-ExcelBehavior.ps1`; recorded its results directory
+- [ ] Runtime changes in Core/ComInterop/Service/CLI/MCP or generators passed local `scripts\Test-E2E.ps1`
+- [ ] Applicable Excel-free, contract, and source checks passed
+- [ ] Assertions verify returned fields and actual Excel state, including partial state or recovery after failure
+- [ ] Excel-dependent commands ran sequentially; cleanup affected only owned sessions/process identities
 
 ## Test Commands
 ```powershell
 # Record each exact command and its result (passed, failed, or not run with reason).
-# Configuration/docs-only work: record the relevant checks; Excel tests are not required.
+# Record Test-ExcelBehavior results directories where applicable.
+# -SkipBuild requires a successful Release solution build in this worktree.
 ```
 
+Desktop Excel is required for COM/E2E checks; ordinary GitHub-hosted runners do
+not have it. Report unavailable Excel checks as not run. Documentation/configuration-only
+changes do not need synthetic runtime tests. LLM evaluations under `llm-tests/`
+are on-demand only, not a normal implementation or PR gate.
+
 ## Screenshots (if applicable)
-[Add screenshots showing the new functionality]
+N/A unless visuals help explain the change and an interactive desktop is available.
+Use only synthetic data.
 
-## Core Commands Coverage Checklist ⚠️
+## Core Commands Coverage Checklist
 
-**Does this PR add or modify Core Commands methods?** [ ] Yes [ ] No
+**Does this PR change Core contracts or generated routing?** [ ] Yes [ ] No
 
-If YES, verify all steps completed:
+If yes, follow [generated contract guidance](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/agents/rules/coverage-prevention-strategy.md):
 
-- [ ] Updated the annotated Core Commands interface and implementation
-- [ ] Built Release so source generators refreshed Service, CLI, and MCP surfaces
+- [ ] Edited source contracts/generators, not emitted files
+- [ ] Built Release and inspected generated Service, CLI options/batch JSON, and MCP schemas
 - [ ] Ran `scripts\Invoke-ExcelFreeTests.ps1 -Local -Contracts`
-- [ ] Verified CLI and MCP names, parameters, defaults, validation, and results match
-- [ ] Updated focused integration tests for the affected entry points
-- [ ] Updated canonical guidance in `docs/reference`, affected formatting skills, and user documentation when behavior changed
-
-**Coverage Impact**: +___ methods, ___% → ___% coverage
+- [ ] Verified matching names, parameters, defaults, validation, results, and timeouts across both entry points
+- [ ] Updated focused tests and applicable source guidance
+- [ ] Ran `scripts\check-doc-counts.ps1` (or `-SkipBuild` after a successful Release build) if advertised counts changed
 
 ## Checklist
-- [ ] Code follows project style guidelines
 - [ ] Self-review of code completed
-- [ ] Code builds with zero warnings
-- [ ] Appropriate error handling added
-- [ ] Updated help text (if adding new commands)
-- [ ] Updated README.md (if needed)
-- [ ] Follows AGENTS.md and the applicable COM safety guide
-- [ ] Uses batch API with proper disposal (`using var batch` or `await using var batch`)
-- [ ] Properly handles 1-based Excel indexing
-- [ ] Escapes user input with `.EscapeMarkup()`
-- [ ] Returns consistent exit codes (0 = success, 1+ = error)
+- [ ] Followed AGENTS.md and matching task guides
+- [ ] Updated directly affected documentation and agent-facing metadata
+- [ ] Preserved errors, cancellation, and documented session recovery; no success-shaped fallback
+- [ ] `Success == true` has no error message
+- [ ] Applicable COM safety rules followed, including `finally` cleanup and PID/start-time process ownership
+- [ ] No sensitive data in public artifacts
+- [ ] No Git hooks skipped or bypassed
+- [ ] Addressed and resolved review threads, or recorded a clear reason for no change
 
 ## Additional Notes
-Any additional information that reviewers should know.
+Record limitations, unavailable validation, and anything requiring careful review.
+Merging or publishing requires separate authorization.

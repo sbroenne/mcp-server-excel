@@ -27,6 +27,33 @@ This asks two questions:
 
 Commit the generated `.changeset/<random-name>.md` file with your PR.
 
+### Package name and validation
+
+Changesets uses the root `package.json` name, **`excelmcp`**, for the shared
+release notes. Do not use .NET project names such as `Sbroenne.ExcelMcp.McpServer`
+or `Sbroenne.ExcelMcp.CLI`; those are not Changesets workspace packages.
+
+For a manually written fragment, use this header:
+
+```md
+---
+"excelmcp": patch
+---
+```
+
+Before pushing, run the same status check as CI against the PR's actual base
+branch (replace `main` if the PR targets another branch):
+
+```powershell
+git fetch origin main
+npx --no-install changeset status --since=origin/main
+```
+
+If the Changesets executable is missing, restore the root tooling with `npm ci`
+and rerun the check. A committed fragment is not enough: malformed headers or
+unknown package names also fail this check. Do not use `skip-changelog` to bypass
+a failure for a user-visible change.
+
 ### What makes a good entry
 
 The changelog is end-user facing. Favor plain language over implementation detail.

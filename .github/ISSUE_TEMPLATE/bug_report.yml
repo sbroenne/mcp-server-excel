@@ -43,6 +43,11 @@ body:
     id: actual
     attributes:
       label: Actual result and sanitized error
-      description: Include returned fields, observed Excel state, and whether owned Excel sessions remain open. Add VBA trust details only for VBA defects.
+      description: Include returned fields (such as errorCategory and hresult), observed Excel state, any partial changes, and whether the session remains usable. Remove sensitive content. VBA project trust matters for listing or editing modules, not for running an existing macro.
     validations:
       required: true
+  - type: textarea
+    id: timing
+    attributes:
+      label: Timing and cancellation (if relevant)
+      description: For slow, timed-out, or cancelled calls, include the elapsed time, session open/create timeout, operation timeout if supplied, and any client time limit or cancellation. State whether the macro/query displays a dialog or waits for input. Do not assume a timeout means workbook changes were undone.

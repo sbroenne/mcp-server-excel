@@ -338,6 +338,16 @@ internal static class CliTelemetry
         if (!succeeded)
         {
             properties["FailureClass"] = ClassifyFailure(errorCategory);
+            var failureCause = errorCategory switch
+            {
+                "Timeout" => "timeout",
+                "Cancelled" => "cancellation",
+                _ => null
+            };
+            if (failureCause != null)
+            {
+                properties["FailureCause"] = failureCause;
+            }
         }
 
         var eventTelemetry = new EventTelemetry(operationName);

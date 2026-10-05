@@ -3,6 +3,11 @@ description: Propose an Excel workflow with a clear expected outcome.
 title: "[FEATURE] "
 labels: ["enhancement"]
 body:
+  - type: markdown
+    attributes:
+      value: |
+        Do not include workbook/customer data, credentials, connection strings, or private paths.
+        Use synthetic examples. Report security vulnerabilities through private vulnerability reporting.
   - type: textarea
     id: problem
     attributes:
@@ -29,7 +34,7 @@ body:
     id: acceptance
     attributes:
       label: Acceptance criteria
-      description: Concrete results that establish success, including workbook state and errors where relevant. This also helps a coding agent implement the request.
+      description: Concrete results that establish success, including returned fields, actual workbook state, and errors or partial-state recovery where relevant. Describe expected behavior through both entry points for workbook operations.
     validations:
       required: true
   - type: textarea
