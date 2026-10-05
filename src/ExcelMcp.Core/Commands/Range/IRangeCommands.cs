@@ -51,7 +51,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
         "MERGED CELLS: Writes that intersect merged cells fail unless the target is only the merged range's top-left cell; the error identifies affected merged ranges. " +
         "FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. Use clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
 [McpReadOnlyActions("get-values", "get-formulas", "get-spill-info", "validate-formulas", "get-number-formats",
-    "get-used-range", "get-current-region", "get-info", "get-special-cells")]
+    "get-used-range", "get-current-region", "get-info", "get-special-cells", "trace-precedents", "trace-dependents")]
 public interface IRangeCommands
 {
     /// <summary>
@@ -60,6 +60,7 @@ public interface IRangeCommands
     /// Native getters return same-worksheet references only and do not fully resolve dynamic references.
     /// Ambiguous native absence is unresolved, not an empty successful lookup. Workbook coverage is
     /// never claimed complete. Does not activate/select cells, recalculate, or open external workbooks.
+    /// coverage.workbookComplete is always false; a native no-range error is unresolved, not fabricated empty coverage.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Worksheet name; empty for a named range</param>

@@ -1005,6 +1005,19 @@ public sealed class ReleaseMetadataScriptTests
                 sandbox);
             Assert.True(validation.ExitCode == 0, validation.CombinedOutput);
 
+            var generatedToolsPath = Path.Combine(sandbox, "src", "ExcelMcp.McpServer",
+                "obj", "GeneratedFiles", "Tools.g.cs");
+            var generatedTools = await File.ReadAllTextAsync(generatedToolsPath);
+            await File.WriteAllTextAsync(generatedToolsPath,
+                generatedTools.Replace("[McpServerTool(Name = \"tool-1_read\")]", "", StringComparison.Ordinal));
+            var missingReadEndpoint = await RunPowerShellScriptAsync(
+                Path.Combine(sandbox, "scripts", "check-doc-counts.ps1"),
+                ["-SkipBuild", "-AllowStaleAdvertisedCounts"],
+                sandbox);
+            Assert.NotEqual(0, missingReadEndpoint.ExitCode);
+            Assert.Contains("Missing: [tool-1_read]", missingReadEndpoint.CombinedOutput, StringComparison.Ordinal);
+            await File.WriteAllTextAsync(generatedToolsPath, generatedTools);
+
             await File.WriteAllTextAsync(
                 readmePath,
                 (await File.ReadAllTextAsync(readmePath))
@@ -1272,8 +1285,14 @@ public sealed class ReleaseMetadataScriptTests
             .Append("[McpServerTool(Name = \"file\")]");
         WriteFile(
             sandbox,
-            Path.Combine("src", "ExcelMcp.McpServer", "Tools.cs"),
+            Path.Combine("src", "ExcelMcp.McpServer", "obj", "GeneratedFiles", "Tools.g.cs"),
             string.Join(Environment.NewLine, toolNames));
+        WriteFile(
+            sandbox,
+            Path.Combine("src", "ExcelMcp.Core", "obj", "GeneratedFiles", "ExcelMcp.Generators",
+                "Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator", "ServiceRegistry.Contracts.g.cs"),
+            string.Join(Environment.NewLine, Enumerable.Range(1, canonicalMcpTools - canonicalTools)
+                .Select(index => $"case \"tool-{index}_read\":")));
         WriteFile(
             sandbox,
             Path.Combine("src", "ExcelMcp.McpServer", "Program.cs"),

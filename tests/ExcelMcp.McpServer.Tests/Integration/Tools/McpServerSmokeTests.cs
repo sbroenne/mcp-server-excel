@@ -761,7 +761,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             Assert.Equal("=RC[-1]*2", formulaJson.RootElement.GetProperty("formulas")[0][0].GetString());
             Assert.Equal(14, formulaJson.RootElement.GetProperty("values")[0][0].GetDouble());
         }
-        var nativePrecedents = await CallToolAsync("range", new Dictionary<string, object?>
+        var nativePrecedents = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "trace-precedents",
             ["session_id"] = sessionId,
@@ -778,7 +778,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             Assert.False(coverage.GetProperty("workbookComplete").GetBoolean());
             Assert.True(coverage.GetProperty("nativeTraversalComplete").GetBoolean());
         }
-        var nativeDependents = await CallToolAsync("range", new Dictionary<string, object?>
+        var nativeDependents = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "trace-dependents",
             ["session_id"] = sessionId,

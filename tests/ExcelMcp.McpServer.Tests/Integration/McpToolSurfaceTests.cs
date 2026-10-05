@@ -1,5 +1,10 @@
+using System.Reflection;
+using ModelContextProtocol.Server;
+using Sbroenne.ExcelMcp.Core.Attributes;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models.Actions;
 using Sbroenne.ExcelMcp.Generated;
+using Sbroenne.ExcelMcp.McpServer.Tools;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -38,7 +43,19 @@ public class McpToolSurfaceTests(ITestOutputHelper output)
             .Where(pair => pair.Key != "diag")
             .ToDictionary(pair => pair.Key, pair => pair.Value.Count, StringComparer.Ordinal);
         expected.Add("file", Enum.GetValues<FileAction>().Length);
-        Assert.Equal(expected.Count + 30, McpToolSurface.ToolCount);
+        var expectedReadTools = typeof(IRangeCommands).Assembly.GetTypes()
+            .Where(type => type.GetCustomAttribute<McpReadOnlyActionsAttribute>() is not null)
+            .Select(type => $"{type.GetCustomAttribute<McpToolAttribute>()!.ToolName}_read")
+            .Concat(new[] { typeof(ExcelFileTool), typeof(ExcelWorksheetTool) }
+                .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+                .Select(method => method.GetCustomAttribute<McpServerToolAttribute>())
+                .Where(attribute => attribute?.Name?.EndsWith("_read", StringComparison.Ordinal) == true)
+                .Select(attribute => attribute!.Name!))
+            .ToHashSet(StringComparer.Ordinal);
+        Assert.Equal(expected.Count + expectedReadTools.Count, McpToolSurface.ToolCount);
+        Assert.True(expectedReadTools.SetEquals(McpToolSurface.Tools
+            .Where(tool => tool.Name.EndsWith("_read", StringComparison.Ordinal))
+            .Select(tool => tool.Name)));
         Assert.Equal(expected.Values.Sum(), McpToolSurface.OperationCount);
         var groupedTools = McpToolSurface.Tools
             .GroupBy(tool => tool.Name.EndsWith("_read", StringComparison.Ordinal)

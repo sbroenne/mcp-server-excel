@@ -153,6 +153,15 @@ $canonicalOps = $manifestOps - $diagOps + $fileOps
 # 3. Cross-check against the REAL MCP tool surface ([McpServerTool(Name=...)])
 # ---------------------------------------------------------------------------
 $mcpToolNames = [System.Collections.Generic.HashSet[string]]::new()
+$expectedReadToolNames = [System.Collections.Generic.HashSet[string]]::new()
+$contractsPath = Join-Path (Split-Path -Parent $manifestPath) "ServiceRegistry.Contracts.g.cs"
+if (-not (Test-Path -LiteralPath $contractsPath)) {
+    Write-Host "ERROR: Generated MCP contracts are missing. Complete a Release build first." -ForegroundColor Red
+    exit 1
+}
+foreach ($match in [regex]::Matches((Get-Content -LiteralPath $contractsPath -Raw), 'case\s+"([^"]+_read)"\s*:')) {
+    [void]$expectedReadToolNames.Add($match.Groups[1].Value)
+}
 $mcpSearchDirs = @(
     (Join-Path $rootDir "src\ExcelMcp.McpServer")
 )
@@ -162,6 +171,9 @@ foreach ($dir in $mcpSearchDirs) {
         $c = Get-Content $_.FullName -Raw
         foreach ($m in [regex]::Matches($c, 'McpServerTool\s*\(\s*Name\s*=\s*"([^"]+)"')) {
             [void]$mcpToolNames.Add($m.Groups[1].Value)
+            if ($_.FullName -notmatch '[\\/]obj[\\/]' -and $m.Groups[1].Value.EndsWith("_read", [StringComparison]::Ordinal)) {
+                [void]$expectedReadToolNames.Add($m.Groups[1].Value)
+            }
         }
     }
 }
@@ -172,8 +184,10 @@ $mcpToolEndpointCount = $mcpToolNames.Count
 if ($mcpBaseToolNames.Count -ne $canonicalTools) {
     Add-Failure ("MCP base tool surface has {0} tools (excluding dedicated _read endpoints) but the manifest-derived command-category count is {1}. If categories changed, update this script." -f $mcpBaseToolNames.Count, $canonicalTools)
 }
-if ($mcpReadTools.Count -ne 30) {
-    Add-Failure ("MCP tool surface has {0} dedicated _read endpoints; expected 30 from the current mixed action groups." -f $mcpReadTools.Count)
+if (-not $expectedReadToolNames.SetEquals([string[]]$mcpReadTools)) {
+    Add-Failure ("MCP read endpoints do not match generated contracts and manual tools. Missing: [{0}]; unexpected: [{1}]." -f
+        (($expectedReadToolNames | Where-Object { $_ -notin $mcpReadTools } | Sort-Object) -join ', '),
+        (($mcpReadTools | Where-Object { -not $expectedReadToolNames.Contains($_) } | Sort-Object) -join ', '))
 }
 if ($mcpToolNames.Contains('diag')) {
     Add-Failure "A 'diag' MCP tool now exists - the user-facing count assumption (diag is CLI-only) is broken. Update this script."
