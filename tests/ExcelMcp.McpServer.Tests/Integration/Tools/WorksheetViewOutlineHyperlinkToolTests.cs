@@ -21,7 +21,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
         await AssertSuccessAsync("window", new()
         {
             ["action"] = "freeze-panes",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "View",
             ["frozen_rows"] = 2,
             ["frozen_columns"] = 1
@@ -37,7 +37,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
             new()
             {
                 ["action"] = "get-view",
-                ["session_id"] = SessionId,
+                ["workbook_session_id"] = SessionId,
                 ["sheet_name"] = "View"
             },
             "window.get-view",
@@ -53,13 +53,13 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
         await AssertSuccessAsync("window", new()
         {
             ["action"] = "unfreeze-panes",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "View"
         }, "window.unfreeze-panes", """{"sheetName":"View"}""");
         await AssertSuccessAsync("window", new()
         {
             ["action"] = "set-zoom",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "View",
             ["zoom"] = 125
         }, "window.set-zoom", """{"sheetName":"View","zoom":125}""", args =>
@@ -67,7 +67,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
         await AssertSuccessAsync("window", new()
         {
             ["action"] = "set-display-options",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "View",
             ["show_gridlines"] = false,
             ["show_headings"] = false,
@@ -84,7 +84,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
         await AssertSuccessAsync("window", new()
         {
             ["action"] = "set-split",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "View",
             ["split_rows"] = 4,
             ["split_columns"] = 2
@@ -104,7 +104,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
             new()
             {
                 ["action"] = "group",
-                ["session_id"] = SessionId,
+                ["workbook_session_id"] = SessionId,
                 ["sheet_name"] = "Outline",
                 ["range_address"] = "2:5"
             });
@@ -131,7 +131,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
         await AssertSuccessAsync("worksheet_style", new()
         {
             ["action"] = "set-outline-settings",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "Outline",
             ["summary_row"] = "above",
             ["summary_column"] = "left",
@@ -146,7 +146,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
         await AssertSuccessAsync("worksheet_style", new()
         {
             ["action"] = "show-outline-levels",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "Outline",
             ["row_levels"] = 1
         }, "sheet.show-outline-levels",
@@ -170,7 +170,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
         await AssertSuccessAsync("worksheet_style", new()
         {
             ["action"] = "clear-outline",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "Outline"
         }, "sheet.clear-outline", """{"sheetName":"Outline"}""");
     }
@@ -181,7 +181,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
         await AssertSuccessAsync("range_link", new()
         {
             ["action"] = "add-hyperlink",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "Links",
             ["cell_address"] = "A1",
             ["sub_address"] = "'Links'!D5",
@@ -198,7 +198,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
             new()
             {
                 ["action"] = "list-hyperlinks",
-                ["session_id"] = SessionId,
+                ["workbook_session_id"] = SessionId,
                 ["sheet_name"] = "Links"
             },
             "rangelink.list-hyperlinks",
@@ -214,7 +214,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
         await AssertSuccessAsync("range_link", new()
         {
             ["action"] = "update-hyperlink",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "Links",
             ["cell_address"] = "A1",
             ["url"] = "https://example.com",
@@ -233,7 +233,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
         await AssertSuccessAsync("range_link", new()
         {
             ["action"] = "remove-hyperlink",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "Links",
             ["range_address"] = "A1"
         }, "rangelink.remove-hyperlink",
@@ -244,7 +244,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
     private static Dictionary<string, object?> OutlineArgs(string action) => new()
     {
         ["action"] = action,
-        ["session_id"] = SessionId,
+        ["workbook_session_id"] = SessionId,
         ["sheet_name"] = "Outline",
         ["range_address"] = "2:5",
         ["axis"] = "Rows"

@@ -140,7 +140,7 @@ public sealed class RangeFindProtocolTests(RecordingProgramTransportFixture fixt
         var result = await fixture.CallResultWithoutDispatchAsync("range_edit", new()
         {
             ["action"] = "sort",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1",
             ["sort_columns"] = new[] { new { columnIndex = 1, ascending = true } },
@@ -157,7 +157,7 @@ public sealed class RangeFindProtocolTests(RecordingProgramTransportFixture fixt
     private static Dictionary<string, object?> FindArguments() => new()
     {
         ["action"] = "find",
-        ["session_id"] = "session-1",
+        ["workbook_session_id"] = "session-1",
         ["sheet_name"] = "Sheet1",
         ["range_address"] = "A1:A26",
         ["search_value"] = "Apple",

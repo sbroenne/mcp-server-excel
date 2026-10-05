@@ -134,7 +134,7 @@ public sealed class DataModelSlicerMcpTests(McpProgramTransportFixture fixture) 
 
         async Task<JsonElement> CallAsync(string tool, Dictionary<string, object?> arguments, bool success = true)
         {
-            arguments["session_id"] = session;
+            arguments["workbook_session_id"] = session;
             string response = await fixture.CallToolAsync(tool, arguments, TimeSpan.FromMinutes(2));
             using var document = JsonDocument.Parse(response);
             Assert.True(document.RootElement.GetProperty("success").GetBoolean() == success, response);

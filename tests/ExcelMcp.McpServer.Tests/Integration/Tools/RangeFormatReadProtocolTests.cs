@@ -28,7 +28,7 @@ public sealed class RangeFormatReadProtocolTests(RecordingProgramTransportFixtur
         Dictionary<string, object?> arguments = new()
         {
             ["action"] = "get-format",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1:A64"
         };
@@ -72,7 +72,7 @@ public sealed class RangeFormatReadProtocolTests(RecordingProgramTransportFixtur
         var result = await fixture.CallResultWithoutDispatchAsync("range_format_read", new()
         {
             ["action"] = "get-format",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1",
             ["view"] = view

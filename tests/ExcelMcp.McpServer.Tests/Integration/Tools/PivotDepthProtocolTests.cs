@@ -20,7 +20,7 @@ public sealed class PivotDepthProtocolTests(RecordingProgramTransportFixture fix
         var call = await fixture.CallToolAsync("pivottable_field", new Dictionary<string, object?>
         {
             ["action"] = "add-field-filter",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["pivot_table_name"] = "Sales",
             ["field_name"] = "Region",
             ["filter_options"] = new { type = "ValueIsGreaterThan", number1 = 150d, dataFieldName = "Total Sales" }
@@ -36,7 +36,7 @@ public sealed class PivotDepthProtocolTests(RecordingProgramTransportFixture fix
         var call = await fixture.CallToolAsync("pivottable_calc", new Dictionary<string, object?>
         {
             ["action"] = "set-layout-options",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["pivot_table_name"] = "Sales",
             ["layout_options"] = new { rowLayout = 1, repeatLabels = true, preserveFormatting = false, styleName = "PivotStyleMedium9" }
         }, RecordingToolTest.Success("""{"success":true}"""), "pivottablecalc.set-layout-options",
@@ -50,7 +50,7 @@ public sealed class PivotDepthProtocolTests(RecordingProgramTransportFixture fix
         var call = await fixture.CallToolAsync("pivottable", new Dictionary<string, object?>
         {
             ["action"] = "set-source",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["pivot_table_name"] = "Sales",
             ["source_sheet_name"] = "Data",
             ["table_name"] = "Source"
@@ -65,7 +65,7 @@ public sealed class PivotDepthProtocolTests(RecordingProgramTransportFixture fix
         var call = await fixture.CallToolAsync("pivottable_field", new Dictionary<string, object?>
         {
             ["action"] = "set-item-expansion",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["pivot_table_name"] = "Sales",
             ["field_name"] = "Region",
             ["item_name"] = "North",

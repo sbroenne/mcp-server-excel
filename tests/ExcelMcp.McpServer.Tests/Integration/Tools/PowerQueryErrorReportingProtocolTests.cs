@@ -25,7 +25,7 @@ public sealed class PowerQueryErrorReportingProtocolTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "refresh",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["query_name"] = queryName,
                 ["timeout_seconds"] = 60
             },

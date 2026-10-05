@@ -22,7 +22,7 @@ public sealed class TableStyleProtocolTests(RecordingProgramTransportFixture fix
         var call = await fixture.CallToolAsync(toolName, new Dictionary<string, object?>
         {
             ["action"] = action,
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["style_name"] = "Custom"
         }, RecordingToolTest.Success("""{"success":true}"""), $"workbook.{action}", """{"styleName":"Custom"}""");
         Assert.False(call.Result.IsError);
@@ -34,7 +34,7 @@ public sealed class TableStyleProtocolTests(RecordingProgramTransportFixture fix
         var call = await fixture.CallToolAsync("workbook", new Dictionary<string, object?>
         {
             ["action"] = "create-table-style",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["style_name"] = "Custom",
             ["source_style_name"] = "TableStyleMedium2"
         }, RecordingToolTest.Success("""{"success":true}"""), "workbook.create-table-style",
@@ -53,7 +53,7 @@ public sealed class TableStyleProtocolTests(RecordingProgramTransportFixture fix
         var call = await fixture.CallToolAsync("workbook", new Dictionary<string, object?>
         {
             ["action"] = "update-table-style",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["style_name"] = "Custom",
             ["table_style_options"] = new { showAsAvailableTableStyle = false, elements = new[] { new { elementType = "xlHeaderRow", bold = false } } }
         }, RecordingToolTest.Success("""{"success":true}"""), "workbook.update-table-style",

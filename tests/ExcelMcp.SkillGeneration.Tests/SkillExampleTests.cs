@@ -33,7 +33,7 @@ public sealed class SkillExampleTests
                 excelcli -q range get-values --session $sessionId --sheet Sales --range A1
                 ```
                 ```mcp
-                range(action: 'get-values', session_id: sessionId, sheet_name: 'Sales', range_address: 'A1')
+                range(action: 'get-values', workbook_session_id: sessionId, sheet_name: 'Sales', range_address: 'A1')
                 ```
                 ```json
                 {"mCodeFile":"query.m"}
@@ -51,7 +51,7 @@ public sealed class SkillExampleTests
                         if ($content -notmatch '```powershell' -or $content -notmatch 'excelcli -q range' -or
                             $content -match 'range\(action:') { throw 'CLI examples were not selected.' }
                     } else {
-                        if ($content -notmatch '```text' -or $content -notmatch "session_id: sessionId" -or
+                        if ($content -notmatch '```text' -or $content -notmatch "workbook_session_id: sessionId" -or
                             $content -match 'excelcli -q') { throw 'MCP examples were not selected.' }
                     }
                 }

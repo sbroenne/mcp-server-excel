@@ -24,7 +24,7 @@ public sealed class WorksheetImageToolTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "add-image",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "ImageSheet",
                 ["image_path"] = imagePath,
                 ["cell_address"] = "A1"
@@ -48,7 +48,7 @@ public sealed class WorksheetImageToolTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "get-image-count",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "ImageSheet"
             },
             RecordingToolTest.Success("""{"success":true,"imageCount":1}"""),

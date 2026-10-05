@@ -42,8 +42,8 @@ Changed or removed selections fail before edits. List again after changes or
 reordering and use fresh selection values.
 
 ```mcp
-conditionalformat(action: 'update-rule', session_id: sessionId, sheet_name: 'Data', rule_priority: selectedPriority, expected_fingerprint: selectedFingerprint, options: {formula1: '150', stopIfTrue: false, appliesTo: 'B2:B100'})
-conditionalformat(action: 'set-rule-priority', session_id: sessionId, sheet_name: 'Data', rule_priority: freshPriority, expected_fingerprint: freshFingerprint, new_priority: 1)
+conditionalformat(action: 'update-rule', workbook_session_id: sessionId, sheet_name: 'Data', rule_priority: selectedPriority, expected_fingerprint: selectedFingerprint, options: {formula1: '150', stopIfTrue: false, appliesTo: 'B2:B100'})
+conditionalformat(action: 'set-rule-priority', workbook_session_id: sessionId, sheet_name: 'Data', rule_priority: freshPriority, expected_fingerprint: freshFingerprint, new_priority: 1)
 ```
 
 ```cli

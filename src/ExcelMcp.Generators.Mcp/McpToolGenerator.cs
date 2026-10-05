@@ -264,7 +264,7 @@ public class McpToolGenerator : IIncrementalGenerator
         sb.AppendLine($"    /// <param name=\"action\">The action to perform</param>");
         if (!info.NoSession)
         {
-            sb.AppendLine($"    /// <param name=\"session_id\">Session ID from file 'open' action</param>");
+            sb.AppendLine($"    /// <param name=\"workbook_session_id\">Session ID from file 'open' action</param>");
         }
         foreach (var p in mcpParams)
         {
@@ -305,7 +305,7 @@ public class McpToolGenerator : IIncrementalGenerator
         // Session parameter (if required)
         if (!info.NoSession)
         {
-            sb.Append("        [Description(\"Session ID from file 'open' action\")] string session_id");
+            sb.Append("        [Description(\"Session ID from file 'open' action\")] string workbook_session_id");
             sb.Append(",");
             sb.AppendLine();
         }
@@ -354,7 +354,7 @@ public class McpToolGenerator : IIncrementalGenerator
         foreach (var property in GetOutputSchemaProperties(info))
         {
             if (property.Name == "SessionId")
-                sb.AppendLine("    [JsonPropertyName(\"session_id\")]");
+                sb.AppendLine("    [JsonPropertyName(\"workbook_session_id\")]");
             sb.AppendLine("    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]");
             sb.AppendLine($"    public {property.TypeName} {property.Name} {{ get; set; }}");
         }
@@ -507,7 +507,7 @@ public class McpToolGenerator : IIncrementalGenerator
 
         if (!info.NoSession)
         {
-            sb.AppendLine($"{indent}            session_id,");
+            sb.AppendLine($"{indent}            workbook_session_id,");
         }
         else
         {

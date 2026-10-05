@@ -142,7 +142,7 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
         AssertSetupSuccess(createJson, $"file.create ({Path.GetFileName(workbookPath)})");
 
         using var createDoc = JsonDocument.Parse(createJson);
-        var sessionId = createDoc.RootElement.GetProperty("session_id").GetString();
+        var sessionId = createDoc.RootElement.GetProperty("workbook_session_id").GetString();
         TrackSession(sessionId);
         Assert.False(string.IsNullOrWhiteSpace(sessionId));
         return sessionId!;
@@ -153,7 +153,7 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
         var createSheetJson = await CallToolAsync("worksheet", new Dictionary<string, object?>
         {
             ["action"] = "create",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = sheetName
         });
 
@@ -187,7 +187,7 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
         await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "close",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["save"] = save
         });
 

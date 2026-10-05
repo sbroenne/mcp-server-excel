@@ -27,7 +27,7 @@ public sealed class RangeTraceProtocolTests(RecordingProgramTransportFixture fix
         var call = await fixture.CallToolAsync("range_read", new()
         {
             ["action"] = action,
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1,C3"
         }, RecordingToolTest.Success(response), $"range.{action}", expected);

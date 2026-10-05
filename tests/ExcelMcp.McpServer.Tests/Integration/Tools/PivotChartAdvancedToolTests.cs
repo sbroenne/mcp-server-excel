@@ -22,7 +22,7 @@ public sealed class PivotChartAdvancedToolTests(
         await AssertSuccessAsync("pivottable", new()
         {
             ["action"] = "create-from-range",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["source_sheet"] = "Sheet1",
             ["source_range"] = "A1:D7",
             ["destination_sheet"] = "Sheet1",
@@ -38,7 +38,7 @@ public sealed class PivotChartAdvancedToolTests(
         await AssertSuccessAsync("pivottable_field", new()
         {
             ["action"] = "add-row-field",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["pivot_table_name"] = "AdvancedPivot",
             ["field_name"] = "Region"
         }, "pivottablefield.add-row-field",
@@ -46,7 +46,7 @@ public sealed class PivotChartAdvancedToolTests(
         await AssertSuccessAsync("pivottable_field", new()
         {
             ["action"] = "add-value-field",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["pivot_table_name"] = "AdvancedPivot",
             ["field_name"] = "Sales",
             ["aggregation_function"] = "Sum"
@@ -58,7 +58,7 @@ public sealed class PivotChartAdvancedToolTests(
         await AssertSuccessAsync("pivottable", new()
         {
             ["action"] = "set-cache-options",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["pivot_table_name"] = "AdvancedPivot",
             ["refresh_on_file_open"] = true,
             ["missing_items_limit"] = "None",
@@ -76,7 +76,7 @@ public sealed class PivotChartAdvancedToolTests(
             new()
             {
                 ["action"] = "get-cache-options",
-                ["session_id"] = SessionId,
+                ["workbook_session_id"] = SessionId,
                 ["pivot_table_name"] = "AdvancedPivot"
             },
             "pivottable.get-cache-options",
@@ -96,7 +96,7 @@ public sealed class PivotChartAdvancedToolTests(
             new()
             {
                 ["action"] = "group-items",
-                ["session_id"] = SessionId,
+                ["workbook_session_id"] = SessionId,
                 ["pivot_table_name"] = "AdvancedPivot",
                 ["field_name"] = "Region",
                 ["item_names"] = """["North","South"]""",
@@ -127,7 +127,7 @@ public sealed class PivotChartAdvancedToolTests(
         await AssertSuccessAsync("pivottable_field", new()
         {
             ["action"] = "ungroup-field",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["pivot_table_name"] = "AdvancedPivot",
             ["grouped_field_name"] = "Region2"
         }, "pivottablefield.ungroup-field",
@@ -141,7 +141,7 @@ public sealed class PivotChartAdvancedToolTests(
             new()
             {
                 ["action"] = "drill-through",
-                ["session_id"] = SessionId,
+                ["workbook_session_id"] = SessionId,
                 ["pivot_table_name"] = "AdvancedPivot",
                 ["cell_address"] = "G2"
             },
@@ -161,7 +161,7 @@ public sealed class PivotChartAdvancedToolTests(
         await AssertSuccessAsync("chart", new()
         {
             ["action"] = "create-from-range",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "Sheet1",
             ["source_range_address"] = "A1:C7",
             ["chart_type"] = "ColumnClustered",
@@ -179,7 +179,7 @@ public sealed class PivotChartAdvancedToolTests(
         await AssertSuccessAsync("chart_config", new()
         {
             ["action"] = "set-series-chart-type",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["chart_name"] = "AdvancedChart",
             ["series_index"] = 2,
             ["chart_type"] = "LineMarkers"
@@ -192,7 +192,7 @@ public sealed class PivotChartAdvancedToolTests(
         await AssertSuccessAsync("chart_config", new()
         {
             ["action"] = "set-plot-options",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["chart_name"] = "AdvancedChart",
             ["plot_by"] = "Rows",
             ["display_blanks_as"] = "Zero",
@@ -210,7 +210,7 @@ public sealed class PivotChartAdvancedToolTests(
             new()
             {
                 ["action"] = "get-plot-options",
-                ["session_id"] = SessionId,
+                ["workbook_session_id"] = SessionId,
                 ["chart_name"] = "AdvancedChart"
             },
             "chartconfig.get-plot-options",
@@ -227,7 +227,7 @@ public sealed class PivotChartAdvancedToolTests(
         await AssertSuccessAsync("chart_config", new()
         {
             ["action"] = "set-placement",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["chart_name"] = "AdvancedChart",
             ["placement"] = 2,
             ["print_object"] = false,
@@ -244,7 +244,7 @@ public sealed class PivotChartAdvancedToolTests(
         await AssertSuccessAsync("chart_config", new()
         {
             ["action"] = "set-area-format",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["chart_name"] = "AdvancedChart",
             ["area"] = "Chart",
             ["fill_color"] = "#FF0000",
@@ -261,7 +261,7 @@ public sealed class PivotChartAdvancedToolTests(
         await AssertSuccessAsync("chart_config", new()
         {
             ["action"] = "set-series-format",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["chart_name"] = "AdvancedChart",
             ["series_index"] = 1,
             ["fill_color"] = "#00FF00",

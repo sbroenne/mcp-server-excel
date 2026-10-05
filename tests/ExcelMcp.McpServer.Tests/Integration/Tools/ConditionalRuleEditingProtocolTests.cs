@@ -27,7 +27,7 @@ public sealed class ConditionalRuleEditingProtocolTests(RecordingProgramTranspor
         var call = await fixture.CallToolAsync("conditionalformat", new()
         {
             ["action"] = "update-rule",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Data",
             ["rule_priority"] = 3,
             ["expected_fingerprint"] = "rule-fingerprint",
@@ -44,7 +44,7 @@ public sealed class ConditionalRuleEditingProtocolTests(RecordingProgramTranspor
         var arguments = new Dictionary<string, object?>
         {
             ["action"] = action,
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Data",
             ["rule_priority"] = 3,
             ["expected_fingerprint"] = "rule-fingerprint"

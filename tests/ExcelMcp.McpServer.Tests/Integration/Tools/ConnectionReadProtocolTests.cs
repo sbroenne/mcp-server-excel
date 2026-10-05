@@ -18,7 +18,7 @@ public sealed class ConnectionReadProtocolTests(RecordingProgramTransportFixture
         var call = await fixture.CallToolAsync("connection_read", new()
         {
             ["action"] = "test",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["connection_name"] = "Sales"
         }, RecordingToolTest.Success("""{"success":true}"""), "connection.test",
             JsonSerializer.Serialize(new { connectionName = "Sales" }, ServiceProtocol.JsonOptions));

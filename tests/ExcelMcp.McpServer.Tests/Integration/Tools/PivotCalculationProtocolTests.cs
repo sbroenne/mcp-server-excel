@@ -30,7 +30,7 @@ public sealed class PivotCalculationProtocolTests(RecordingProgramTransportFixtu
         Dictionary<string, object?> arguments = new()
         {
             ["action"] = "set-field-calculation",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["pivot_table_name"] = "SalesPivot",
             ["field_name"] = "Total Sales",
             ["calculation"] = "DifferenceFrom",
@@ -57,7 +57,7 @@ public sealed class PivotCalculationProtocolTests(RecordingProgramTransportFixtu
         var call = await fixture.CallToolAsync("pivottable_field", new()
         {
             ["action"] = "set-field-calculation",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["pivot_table_name"] = "SalesPivot",
             ["field_name"] = "Average Sales",
             ["calculation"] = "Normal"
@@ -74,7 +74,7 @@ public sealed class PivotCalculationProtocolTests(RecordingProgramTransportFixtu
         Dictionary<string, object?> arguments = new()
         {
             ["action"] = "set-field-calculation",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["pivot_table_name"] = "SalesPivot",
             ["field_name"] = "Total Sales"
         };

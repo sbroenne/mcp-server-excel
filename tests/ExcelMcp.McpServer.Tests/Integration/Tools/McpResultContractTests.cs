@@ -23,7 +23,7 @@ public sealed class McpResultContractTests(RecordingProgramTransportFixture fixt
             new Dictionary<string, object?>
             {
                 ["action"] = "get-values",
-                ["session_id"] = "recording-session",
+                ["workbook_session_id"] = "recording-session",
                 ["sheet_name"] = "Sheet1",
                 ["range_address"] = "A1"
             },
@@ -43,9 +43,9 @@ public sealed class McpResultContractTests(RecordingProgramTransportFixture fixt
     }
 
     [Theory]
-    [InlineData("range_read", """{"action":"get-values","session_id":"s","sheet_name":"Sheet1","range_address":"A1","rang_address":"A2"}""", "rang_address")]
-    [InlineData("file", """{"action":"close","session_id":"s","save_changes":true}""", "save_changes")]
-    [InlineData("worksheet", """{"action":"create","session_id":"s","sheet_name":"New","before_sheet":"Sheet1"}""", "before_sheet")]
+    [InlineData("range_read", """{"action":"get-values","workbook_session_id":"s","sheet_name":"Sheet1","range_address":"A1","rang_address":"A2"}""", "rang_address")]
+    [InlineData("file", """{"action":"close","workbook_session_id":"s","save_changes":true}""", "save_changes")]
+    [InlineData("worksheet", """{"action":"create","workbook_session_id":"s","sheet_name":"New","before_sheet":"Sheet1"}""", "before_sheet")]
     [InlineData("file_read", """{"action":"list","save":false}""", "save")]
     [InlineData("file", """{"action":"open","path":"C:\\missing.xlsx","show":"yes"}""", "show")]
     [InlineData("file", """{}""", "action")]
@@ -60,5 +60,52 @@ public sealed class McpResultContractTests(RecordingProgramTransportFixture fixt
         var text = Assert.Single(result.Content.OfType<TextContentBlock>()).Text;
         Assert.Contains(parameter, text, StringComparison.Ordinal);
         Assert.NotNull(result.StructuredContent);
+    }
+
+    [Theory]
+    [InlineData("workbook_read", "get-info")]
+    [InlineData("worksheet_read", "list")]
+    [InlineData("screenshot", "capture")]
+    [InlineData("file", "close")]
+    public async Task OmittedWorkbookSessionId_IsRejectedBeforeDispatch(string tool, string action)
+    {
+        var result = await fixture.CallResultWithoutDispatchAsync(tool, new()
+        {
+            ["action"] = action
+        });
+
+        Assert.True(result.IsError);
+        var text = Assert.Single(result.Content.OfType<TextContentBlock>()).Text;
+        using var document = JsonDocument.Parse(text);
+        Assert.False(document.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("InvalidInput", document.RootElement.GetProperty("errorCategory").GetString());
+        Assert.Contains("workbook_session_id", document.RootElement.GetProperty("errorMessage").GetString());
+        Assert.NotNull(result.StructuredContent);
+        Assert.True(JsonElement.DeepEquals(document.RootElement, result.StructuredContent.Value));
+    }
+
+    [Theory]
+    [InlineData("workbook_read", "get-info", "")]
+    [InlineData("workbook_read", "get-info", " \t\r\n")]
+    [InlineData("worksheet_read", "list", "")]
+    [InlineData("worksheet_read", "list", " \t\r\n")]
+    [InlineData("screenshot", "capture", "")]
+    [InlineData("screenshot", "capture", " \t\r\n")]
+    public async Task BlankWorkbookSessionId_IsRejectedBeforeDispatch(string tool, string action, string sessionId)
+    {
+        var result = await fixture.CallResultWithoutDispatchAsync(tool, new()
+        {
+            ["action"] = action,
+            ["workbook_session_id"] = sessionId
+        });
+
+        Assert.True(result.IsError);
+        var text = Assert.Single(result.Content.OfType<TextContentBlock>()).Text;
+        using var document = JsonDocument.Parse(text);
+        Assert.False(document.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("InvalidInput", document.RootElement.GetProperty("errorCategory").GetString());
+        Assert.Contains("workbook_session_id", document.RootElement.GetProperty("errorMessage").GetString());
+        Assert.NotNull(result.StructuredContent);
+        Assert.True(JsonElement.DeepEquals(document.RootElement, result.StructuredContent.Value));
     }
 }

@@ -24,7 +24,7 @@ public sealed class RangeMergedCellWriteRegressionTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "set-values",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "Sheet1",
                 ["range_address"] = "B1",
                 ["values"] = new List<List<object?>>

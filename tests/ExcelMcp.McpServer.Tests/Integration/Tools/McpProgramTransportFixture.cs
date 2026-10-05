@@ -61,7 +61,7 @@ public sealed class McpProgramTransportFixture :
                 TimeSpan.FromSeconds(90));
 
             AssertSuccess(result, "file.create shared workbook");
-            _sharedSessionId = GetJsonProperty(result, "session_id");
+            _sharedSessionId = GetJsonProperty(result, "workbook_session_id");
             Assert.False(string.IsNullOrWhiteSpace(_sharedSessionId));
             _openedSession = true;
             _trackedSessionIds.Add(_sharedSessionId!);
@@ -86,7 +86,7 @@ public sealed class McpProgramTransportFixture :
             TimeSpan.FromSeconds(90));
 
         AssertSuccess(result, "file.create");
-        var sessionId = GetJsonProperty(result, "session_id");
+        var sessionId = GetJsonProperty(result, "workbook_session_id");
         Assert.False(string.IsNullOrWhiteSpace(sessionId));
         _openedSession = true;
         _trackedSessionIds.Add(sessionId!);
@@ -100,7 +100,7 @@ public sealed class McpProgramTransportFixture :
             new Dictionary<string, object?>
             {
                 ["action"] = "close",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["save"] = save
             },
             TimeSpan.FromSeconds(30));
@@ -160,7 +160,7 @@ public sealed class McpProgramTransportFixture :
                     new Dictionary<string, object?>
                     {
                         ["action"] = "close",
-                        ["session_id"] = sessionId,
+                        ["workbook_session_id"] = sessionId,
                         ["save"] = false
                     },
                     TimeSpan.FromSeconds(30)));

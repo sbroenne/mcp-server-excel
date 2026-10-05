@@ -24,7 +24,7 @@ public static partial class ExcelWorksheetTool
     /// Use worksheet_style for tab colors, visibility, and protection.
     /// </summary>
     /// <param name="action">The worksheet change to perform</param>
-    /// <param name="session_id">Session ID from file 'open' or 'create' (required for same-workbook changes; not used for copy-to-file or move-to-file)</param>
+    /// <param name="workbook_session_id">Session ID from file 'open' or 'create' (required for same-workbook changes; not used for copy-to-file or move-to-file)</param>
     /// <param name="sheet_name">Name of the worksheet (required for: create, delete, move)</param>
     /// <param name="old_name">Current name of the worksheet (required for: rename)</param>
     /// <param name="source_name">Name of the source worksheet (required for: copy)</param>
@@ -47,7 +47,7 @@ public static partial class ExcelWorksheetTool
         ServiceBridge.ServiceBridge bridge,
         [Description(
             "Session ID from file 'open' or 'create'. Required for same-workbook changes: create, rename, delete, move, and copy. Not used by copy-to-file or move-to-file.")]
-        string? session_id = null,
+        string? workbook_session_id = null,
         [Description(
             "Worksheet name for create, delete, and move.")]
         string? sheet_name = null,
@@ -130,13 +130,13 @@ public static partial class ExcelWorksheetTool
                     });
                 }
 
-                // Validate session_id for non-atomic operations
-                if (string.IsNullOrWhiteSpace(session_id))
+                // Validate the session input for non-atomic operations.
+                if (string.IsNullOrWhiteSpace(workbook_session_id))
                 {
                     return JsonSerializer.Serialize(new
                     {
                         success = false,
-                        errorMessage = "session_id is required for this action. Use file 'open' action to start a session.",
+                        errorMessage = "workbook_session_id is required for this action. Use file 'open' action to start a session.",
                         errorCategory = "InvalidInput",
                         isError = true
                     }, ExcelToolsBase.JsonOptions);
@@ -161,34 +161,34 @@ public static partial class ExcelWorksheetTool
                     SheetAction.Create =>
                         ServiceRegistry.Sheet.RouteAction(
                             serviceAction,
-                            session_id,
+                            workbook_session_id,
                             (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                             sheetName: sheet_name,
                             filePath: file_path),
                     SheetAction.Rename =>
                         ServiceRegistry.Sheet.RouteAction(
                             serviceAction,
-                            session_id,
+                            workbook_session_id,
                             (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                             oldName: old_name,
                             newName: new_name),
                     SheetAction.Delete =>
                         ServiceRegistry.Sheet.RouteAction(
                             serviceAction,
-                            session_id,
+                            workbook_session_id,
                             (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                             sheetName: sheet_name),
                     SheetAction.Copy =>
                         ServiceRegistry.Sheet.RouteAction(
                             serviceAction,
-                            session_id,
+                            workbook_session_id,
                             (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                             sourceName: source_name,
                             targetName: target_name),
                     SheetAction.Move =>
                         ServiceRegistry.Sheet.RouteAction(
                             serviceAction,
-                            session_id,
+                            workbook_session_id,
                             (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                             sheetName: sheet_name,
                             beforeSheet: before_sheet,
@@ -200,7 +200,7 @@ public static partial class ExcelWorksheetTool
 
     /// <summary>List worksheets in a workbook session.</summary>
     /// <param name="action">List worksheets.</param>
-    /// <param name="session_id">Session ID returned by file open/create or file_read list.</param>
+    /// <param name="workbook_session_id">Session ID returned by file open/create or file_read list.</param>
     /// <param name="file_path">Optional workbook path when the session has multiple open workbooks.</param>
     [McpServerTool(Name = "worksheet_read", Title = "Read-Only Worksheet Operations",
         ReadOnly = true, Destructive = false, UseStructuredContent = true,
@@ -212,7 +212,7 @@ public static partial class ExcelWorksheetTool
         [Description("The read-only action to perform")] WorksheetReadAction action,
         ServiceBridge.ServiceBridge bridge,
         [Description("Session ID returned by file open/create or file_read list.")]
-        string session_id,
+        string workbook_session_id,
         [Description("Optional workbook path when the session has multiple open workbooks.")]
         string? file_path = null,
         CancellationToken cancellationToken = default) =>
@@ -225,7 +225,7 @@ public static partial class ExcelWorksheetTool
                     WorksheetReadAction.List => SheetAction.List,
                     _ => throw new ArgumentOutOfRangeException(nameof(action))
                 },
-                session_id,
+                workbook_session_id,
                 (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                 filePath: file_path),
             cancellationToken);

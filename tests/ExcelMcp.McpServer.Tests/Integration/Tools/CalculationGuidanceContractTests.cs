@@ -77,8 +77,8 @@ public sealed class CalculationGuidanceContractTests : McpIntegrationTestBase
                     }
                     if (namedArgument.Groups["variable"].Success)
                     {
-                        Assert.True(parameterName is "session_id" or "mode",
-                            $"Only session_id and a remembered mode may use workflow variables: {argument}");
+                        Assert.True(parameterName is "workbook_session_id" or "mode",
+                            $"Only workbook_session_id and a remembered mode may use workflow variables: {argument}");
                     }
                     parameterNames.Add(parameterName);
                     if (parameterName == "action")

@@ -26,7 +26,7 @@ public sealed class RangeFormatFormatRangesTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "format",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "Formatting",
                 ["range_addresses"] = TargetRanges,
                 ["format_options"] = new { numberFormat = "0.00%" }

@@ -307,7 +307,7 @@ worksheets through the existing Sheet route:
 ```csharp
 public static Task<CallToolResult> ListWorksheets(
     ServiceBridge.ServiceBridge bridge,
-    string session_id,
+    string workbook_session_id,
     CancellationToken cancellationToken = default)
 {
     return ExcelToolsBase.ExecuteToolActionAsync(
@@ -315,7 +315,7 @@ public static Task<CallToolResult> ListWorksheets(
         ServiceRegistry.Sheet.ToActionString(SheetAction.List),
         () => ServiceRegistry.Sheet.RouteAction(
             SheetAction.List,
-            session_id,
+            workbook_session_id,
             (command, id, args) =>
                 ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken)),
         cancellationToken);
@@ -328,7 +328,9 @@ public static Task<CallToolResult> ListWorksheets(
 Service categories, HRESULTs, inner context, and retry information. Unexpected
 exceptions and cancellation propagate to the SDK. Request filters reject unknown,
 misspelled, and action-inapplicable arguments, including explicitly supplied nulls
-and defaults; the SDK still owns binding and injected parameters.
+and defaults. They also reject omitted fields listed as required in the tool's
+input schema with a structured `InvalidInput` response naming the missing field;
+the SDK still owns binding and injected parameters.
 
 Each host owns its bridge through dependency injection. Ordinary shutdown attempts
 to save remaining sessions. Explicit `file close` defaults to `save:false` and
@@ -469,7 +471,7 @@ The Application Insights connection string is **embedded at build time** via MSB
 - User identity, machine name, or IP address
 - Excel data, formulas, or cell values
 - Connection strings, credentials, or passwords
-- Excel workbook `session_id`/`sessionId` values or raw MCP arguments. The
+- Excel workbook `workbook_session_id`/`sessionId` values or raw MCP arguments. The
   standard random MCP server process telemetry session ID is separate from
   workbook identity.
 

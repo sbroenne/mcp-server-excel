@@ -88,7 +88,7 @@ public class Program
                 options.ServerInstructions = """
                     Automates desktop Microsoft Excel on Windows.
                     Use file_read list to find the intended workbook; do not guess paths or choose an unrelated session.
-                    Open/create and file_read list entries return session_id. Pass it to session-based tools, and only supply parameters for the chosen action.
+                    Open/create and file_read list entries return workbook_session_id. Pass it as workbook_session_id to session-based tools, and only supply parameters for the chosen action.
                     Calls in one session execute serially, but concurrent requests and responses have no guaranteed order.
                     Await each dependent call before the next; different sessions can run independently.
                     A workbook must not be open in another Excel instance. Reuse known visibility preferences;
@@ -116,7 +116,6 @@ public class Program
             .WithToolsFromAssembly()
             .WithRequestFilters(filters =>
             {
-                filters.AddCallToolFilter(SessionIdentityFilter.Wrap);
                 filters.AddCallToolFilter(ToolArgumentFilter.Wrap);
             });
 

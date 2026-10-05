@@ -23,7 +23,7 @@ public sealed class WorksheetRenameParameterTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "rename",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["old_name"] = "OriginalSheet",
                 ["new_name"] = "RenamedSheet"
             },
@@ -73,7 +73,7 @@ public sealed class WorksheetRenameParameterTests(
                 [oldNameParameter] = originalSheetName,
                 [newNameParameter] = renamedSheetName,
                 ["action"] = "rename",
-                ["session_id"] = "recording-session"
+                ["workbook_session_id"] = "recording-session"
             });
 
         using var result = JsonDocument.Parse(resultText);
@@ -92,7 +92,7 @@ public sealed class WorksheetRenameParameterTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "rename",
-                ["session_id"] = "recording-session"
+                ["workbook_session_id"] = "recording-session"
             });
 
         using var result = JsonDocument.Parse(resultText);

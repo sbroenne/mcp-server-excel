@@ -22,7 +22,7 @@ public sealed class CellStyleProtocolTests(RecordingProgramTransportFixture fixt
         var call = await fixture.CallToolAsync(toolName, new Dictionary<string, object?>
         {
             ["action"] = action,
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["style_name"] = "Custom"
         }, RecordingToolTest.Success("""{"success":true}"""), $"workbook.{action}", """{"styleName":"Custom"}""");
         Assert.False(call.Result.IsError);
@@ -34,7 +34,7 @@ public sealed class CellStyleProtocolTests(RecordingProgramTransportFixture fixt
         var call = await fixture.CallToolAsync("workbook", new Dictionary<string, object?>
         {
             ["action"] = "create-cell-style",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["style_name"] = "Custom",
             ["source_sheet_name"] = "Data",
             ["source_cell_address"] = "A1"
@@ -50,7 +50,7 @@ public sealed class CellStyleProtocolTests(RecordingProgramTransportFixture fixt
         var call = await fixture.CallToolAsync("workbook", new Dictionary<string, object?>
         {
             ["action"] = "update-cell-style",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["style_name"] = "Custom",
             ["style_options"] = new { includeFont = false, formatOptions = new { bold = false, fillThemeColor = 5 } }
         }, RecordingToolTest.Success("""{"success":true}"""), "workbook.update-cell-style",

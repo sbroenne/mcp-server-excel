@@ -27,7 +27,7 @@ public sealed class NativeCleanupProtocolTests(RecordingProgramTransportFixture 
         var call = await fixture.CallToolAsync("range_edit", new()
         {
             ["action"] = "remove-duplicates",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Data",
             ["range_address"] = "A1:C10",
             ["key_columns"] = columns,
@@ -62,7 +62,7 @@ public sealed class NativeCleanupProtocolTests(RecordingProgramTransportFixture 
         var call = await fixture.CallToolAsync("range_edit", new()
         {
             ["action"] = "text-to-columns",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Data",
             ["source_range"] = "A1:A10",
             ["destination_cell"] = "D1",

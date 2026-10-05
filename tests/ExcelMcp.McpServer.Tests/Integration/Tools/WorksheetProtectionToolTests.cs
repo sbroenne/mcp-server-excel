@@ -33,7 +33,7 @@ public sealed class WorksheetProtectionToolTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "get-protection",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "ProtectedSheet"
             },
             RecordingToolTest.Success(
@@ -69,7 +69,7 @@ public sealed class WorksheetProtectionToolTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "set-protection",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "ProtectedSheet",
                 ["is_protected"] = isProtected
             },

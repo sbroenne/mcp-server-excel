@@ -24,7 +24,7 @@ public sealed class WorkbookToolTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "set-protection",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["is_protected"] = true
             },
             Success("""{"success":true,"isProtected":true}"""),
@@ -46,7 +46,7 @@ public sealed class WorkbookToolTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "get-protection",
-                ["session_id"] = sessionId
+                ["workbook_session_id"] = sessionId
             },
             Success("""{"success":true,"isProtected":true}"""),
             "workbook.get-protection",
@@ -66,7 +66,7 @@ public sealed class WorkbookToolTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "set-protection",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["is_protected"] = false
             },
             Success("""{"success":true,"isProtected":false}"""),
@@ -89,7 +89,7 @@ public sealed class WorkbookToolTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "set-view-options",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["display_gridlines"] = false,
                 ["display_headings"] = true
             },
@@ -112,7 +112,7 @@ public sealed class WorkbookToolTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "get-view-options",
-                ["session_id"] = sessionId
+                ["workbook_session_id"] = sessionId
             },
             Success(
                 """{"success":true,"displayGridlines":false,"displayHeadings":true}"""),

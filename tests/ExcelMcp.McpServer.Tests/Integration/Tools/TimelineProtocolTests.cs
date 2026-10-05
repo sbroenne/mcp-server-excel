@@ -20,7 +20,7 @@ public sealed class TimelineProtocolTests(RecordingProgramTransportFixture fixtu
         var call = await fixture.CallToolAsync("slicer", new Dictionary<string, object?>
         {
             ["action"] = "set-timeline-selection",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["slicer_name"] = "Dates",
             ["timeline_selection"] = new { startDate = "2024-02-01", endDate = "2024-02-29" }
         }, RecordingToolTest.Success("""{"success":true}"""), "slicer.set-timeline-selection",
@@ -35,7 +35,7 @@ public sealed class TimelineProtocolTests(RecordingProgramTransportFixture fixtu
         var call = await fixture.CallToolAsync("slicer", new Dictionary<string, object?>
         {
             ["action"] = "update-slicer",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["slicer_name"] = "Dates",
             ["slicer_options"] = new { width = 350, granularity = "Days", showHeader = false }
         }, RecordingToolTest.Success("""{"success":true}"""), "slicer.update-slicer",

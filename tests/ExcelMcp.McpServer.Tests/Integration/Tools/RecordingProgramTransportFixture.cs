@@ -45,9 +45,9 @@ public sealed class RecordingProgramTransportFixture :
             arguments,
             response,
             expectedCommand,
-            arguments["session_id"] as string
+            arguments["workbook_session_id"] as string
                 ?? throw new InvalidOperationException(
-                    "Session-scoped recording calls must supply a session_id."),
+                    "Session-scoped recording calls must supply a workbook_session_id."),
             expectedArgsJson);
     }
 

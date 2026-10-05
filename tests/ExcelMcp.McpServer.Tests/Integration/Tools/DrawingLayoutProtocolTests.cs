@@ -24,7 +24,7 @@ public sealed class DrawingLayoutProtocolTests(RecordingProgramTransportFixture 
         var args = new Dictionary<string, object?>
         {
             ["action"] = action,
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Dashboard",
             [input] = value
         };

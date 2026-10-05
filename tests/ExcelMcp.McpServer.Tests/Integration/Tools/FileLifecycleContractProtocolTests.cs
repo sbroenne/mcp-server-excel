@@ -80,7 +80,7 @@ public sealed class FileLifecycleContractProtocolTests : McpIntegrationTestBase
             using var json = JsonDocument.Parse(result);
             var root = json.RootElement;
             if (root.GetProperty("success").GetBoolean()
-                && root.TryGetProperty("session_id", out var sessionIdProperty))
+                && root.TryGetProperty("workbook_session_id", out var sessionIdProperty))
             {
                 sessionId = sessionIdProperty.GetString();
                 TrackSession(sessionId);

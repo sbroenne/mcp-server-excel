@@ -72,7 +72,7 @@ public sealed class ExcelFileToolProtocolRegressionTests : McpIntegrationTestBas
         string? sessionId = null;
         if (successProp.GetBoolean())
         {
-            sessionId = openJson.RootElement.GetProperty("session_id").GetString();
+            sessionId = openJson.RootElement.GetProperty("workbook_session_id").GetString();
             Assert.False(string.IsNullOrWhiteSpace(sessionId));
         }
         else

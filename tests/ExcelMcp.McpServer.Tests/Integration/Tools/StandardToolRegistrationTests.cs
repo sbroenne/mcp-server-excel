@@ -326,7 +326,7 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
             var properties = schema.GetProperty("properties");
             Assert.True(properties.TryGetProperty("success", out _),
                 $"{tool.Name} output schema does not describe success.");
-            Assert.True(properties.TryGetProperty("session_id", out _),
+            Assert.True(properties.TryGetProperty("workbook_session_id", out _),
                 $"{tool.Name} output schema does not describe session error context.");
             Assert.False(properties.TryGetProperty("sessionId", out _));
         }
@@ -337,7 +337,7 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     [InlineData("range_read", "rowCount")]
     [InlineData("table_read", "tables")]
     [InlineData("worksheet", "worksheets")]
-    [InlineData("file_read", "session_id")]
+    [InlineData("file_read", "workbook_session_id")]
     [InlineData("screenshot", "mimeType")]
     public async Task OutputSchemas_DescribeActionSpecificFields(string toolName, string propertyName)
     {
@@ -357,7 +357,7 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         var sessions = schema.GetProperty("properties").GetProperty("sessions");
 
         var properties = sessions.GetProperty("items").GetProperty("properties");
-        foreach (var name in new[] { "session_id", "filePath", "isExcelVisible", "activeOperations", "canClose" })
+        foreach (var name in new[] { "workbook_session_id", "filePath", "isExcelVisible", "activeOperations", "canClose" })
         {
             Assert.True(properties.TryGetProperty(name, out _),
                 $"File session output schema does not describe {name}.");
@@ -377,7 +377,7 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         var result = await Client.CallToolAsync("screenshot", new Dictionary<string, object?>
         {
             ["action"] = "capture",
-            ["session_id"] = "unknown-screenshot-schema-session"
+            ["workbook_session_id"] = "unknown-screenshot-schema-session"
         }, cancellationToken: TestCancellationToken);
 
         Assert.True(result.IsError);

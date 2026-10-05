@@ -30,7 +30,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
         var arguments = new Dictionary<string, object?>
         {
             ["action"] = action,
-            ["session_id"] = "missing-session",
+            ["workbook_session_id"] = "missing-session",
             [invalidParameter] = invalidValue
         };
         if (action == "calculate")
@@ -62,7 +62,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
             new Dictionary<string, object?>
             {
                 ["action"] = "calculate",
-                ["session_id"] = "missing-session",
+                ["workbook_session_id"] = "missing-session",
                 ["scope"] = "application",
                 ["mode"] = null
             });
@@ -91,7 +91,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
             new Dictionary<string, object?>
             {
                 ["action"] = "clear-rules",
-                ["session_id"] = "missing-session",
+                ["workbook_session_id"] = "missing-session",
                 ["sheet_name"] = null,
                 ["range_address"] = "A1"
             });
@@ -123,7 +123,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
             new Dictionary<string, object?>
             {
                 ["action"] = "clear-rules",
-                ["session_id"] = "missing-session",
+                ["workbook_session_id"] = "missing-session",
                 ["sheet_name"] = invalidValue,
                 ["range_address"] = "A1"
             });
@@ -141,7 +141,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
             new Dictionary<string, object?>
             {
                 ["action"] = "clear-rules",
-                ["session_id"] = "missing-session",
+                ["workbook_session_id"] = "missing-session",
                 ["sheet_name"] = string.Empty,
                 ["range_address"] = "A1"
             });
@@ -168,7 +168,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
             new Dictionary<string, object?>
             {
                 ["action"] = "create",
-                ["session_id"] = "missing-session",
+                ["workbook_session_id"] = "missing-session",
                 ["sheet_name"] = sheetName
             });
 
@@ -200,7 +200,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
         var arguments = new Dictionary<string, object?>
         {
             ["action"] = action,
-            ["session_id"] = "missing-session",
+            ["workbook_session_id"] = "missing-session",
             [enumParameter] = invalidValue
         };
         if (toolName == "powerquery")
@@ -236,7 +236,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
             new Dictionary<string, object?>
             {
                 ["action"] = "load-to",
-                ["session_id"] = "missing-session",
+                ["workbook_session_id"] = "missing-session",
                 ["query_name"] = "Probe",
                 ["load_destination"] = loadDestination
             });
@@ -261,7 +261,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
             new Dictionary<string, object?>
             {
                 ["action"] = "load-to",
-                ["session_id"] = "missing-session",
+                ["workbook_session_id"] = "missing-session",
                 ["query_name"] = "Probe",
                 ["load_destination"] = "worksheet",
                 ["timeout_seconds"] = 60
@@ -322,7 +322,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
                 new Dictionary<string, object?>
                 {
                     ["action"] = "evaluate",
-                    ["session_id"] = "missing-session",
+                    ["workbook_session_id"] = "missing-session",
                     ["m_code"] = "let Source = 1 in Source",
                     ["m_code_file"] = path
                 });
@@ -358,7 +358,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
         var arguments = new Dictionary<string, object?>
         {
             ["action"] = action,
-            ["session_id"] = "missing-session",
+            ["workbook_session_id"] = "missing-session",
             ["timeout_seconds"] = 60
         };
         if (requiredName != null)
@@ -395,7 +395,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
         var arguments = new Dictionary<string, object?>
         {
             ["action"] = action,
-            ["session_id"] = "missing-session",
+            ["workbook_session_id"] = "missing-session",
             ["timeout_seconds"] = timeoutSeconds
         };
         if (requiredName != null)

@@ -55,7 +55,7 @@ public sealed class RangeFormulaErrorProtocolTests(
         string action) => new()
         {
             ["action"] = action,
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1"
         };

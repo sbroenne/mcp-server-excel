@@ -36,8 +36,8 @@ pixel or cell counts. Do not assume those changes preserve hidden mode.
 For requested side-by-side work:
 
 ```mcp
-window(action: 'show', session_id: sessionId)
-window(action: 'arrange', session_id: sessionId, preset: 'right-half')
+window(action: 'show', workbook_session_id: sessionId)
+window(action: 'arrange', workbook_session_id: sessionId, preset: 'right-half')
 ```
 
 ```cli

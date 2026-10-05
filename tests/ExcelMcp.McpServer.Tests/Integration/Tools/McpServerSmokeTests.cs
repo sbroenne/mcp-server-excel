@@ -98,12 +98,12 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["path"] = _testExcelFile
         });
         AssertSuccess(created, "Create DAX workbook");
-        var session = GetJsonProperty(created, "session_id");
+        var session = GetJsonProperty(created, "workbook_session_id");
         Assert.NotNull(session);
         var loaded = await CallToolAsync("powerquery", new()
         {
             ["action"] = "create",
-            ["session_id"] = session,
+            ["workbook_session_id"] = session,
             ["query_name"] = "SalesTable",
             ["m_code"] = "#table(type table [Amount = number], {{1000}, {2500}})",
             ["load_destination"] = "data-model"
@@ -116,7 +116,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             var written = await CallToolAsync("datamodel", new()
             {
                 ["action"] = "create-measure",
-                ["session_id"] = session,
+                ["workbook_session_id"] = session,
                 ["table_name"] = "SalesTable",
                 ["measure_name"] = name,
                 ["dax_formula"] = update ? "SUM(SalesTable[Amount])" : formula,
@@ -128,7 +128,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
                 var updated = await CallToolAsync("datamodel", new()
                 {
                     ["action"] = "update-measure",
-                    ["session_id"] = session,
+                    ["workbook_session_id"] = session,
                     ["measure_name"] = name,
                     ["dax_formula"] = formula,
                     ["format_type"] = "Decimal"
@@ -138,7 +138,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             var read = await CallToolAsync("datamodel_read", new()
             {
                 ["action"] = "read",
-                ["session_id"] = session,
+                ["workbook_session_id"] = session,
                 ["measure_name"] = name
             });
             AssertSuccess(read, "Read comma measure");
@@ -151,7 +151,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             var evaluated = await CallToolAsync("datamodel_read", new()
             {
                 ["action"] = "evaluate",
-                ["session_id"] = session,
+                ["workbook_session_id"] = session,
                 ["dax_query"] = $"EVALUATE ROW(\"Result\", [{name}])"
             });
             AssertSuccess(evaluated, "Evaluate comma measure");
@@ -162,7 +162,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var closed = await CallToolAsync("file", new()
         {
             ["action"] = "close",
-            ["session_id"] = session,
+            ["workbook_session_id"] = session,
             ["save"] = false
         });
         AssertSuccess(closed, "Close DAX workbook");
@@ -236,7 +236,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         });
         AssertSuccess(createResult, "File creation and session open");
         Assert.True(File.Exists(_testExcelFile), "Excel file should exist");
-        var sessionId = GetJsonProperty(createResult, "session_id");
+        var sessionId = GetJsonProperty(createResult, "workbook_session_id");
         Assert.NotNull(sessionId);
         _output.WriteLine($"  ✓ file: Create passed (session: {sessionId})");
 
@@ -248,20 +248,20 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         using (var listed = JsonDocument.Parse(listSessionsResult))
         {
             var session = Assert.Single(listed.RootElement.GetProperty("sessions").EnumerateArray());
-            Assert.Equal(sessionId, session.GetProperty("session_id").GetString());
+            Assert.Equal(sessionId, session.GetProperty("workbook_session_id").GetString());
             Assert.False(session.TryGetProperty("sessionId", out _));
             Assert.True(session.GetProperty("canClose").GetBoolean());
         }
         await CallSuccessfulToolAsync("worksheet", new()
         {
             ["action"] = "create",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data"
         });
         await CallSuccessfulToolAsync("range", new()
         {
             ["action"] = "set-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "A1",
             ["values"] = new List<List<string>> { new() { "persisted-smoke-value" } }
@@ -283,14 +283,14 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var listSheetsResult = await CallToolAsync("worksheet_read", new Dictionary<string, object?>
         {
             ["action"] = "list",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         AssertSuccess(listSheetsResult, "List worksheets");
 
         var createSheetResult = await CallToolAsync("worksheet", new Dictionary<string, object?>
         {
             ["action"] = "create",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data"
         });
         AssertSuccess(createSheetResult, "Create worksheet");
@@ -298,14 +298,14 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var findSheetResult = await CallToolAsync("worksheet", new Dictionary<string, object?>
         {
             ["action"] = "create",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "FindSmoke"
         });
         AssertSuccess(findSheetResult, "Create find smoke worksheet");
         var findValuesResult = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "set-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "FindSmoke",
             ["range_address"] = "A1:A26",
             ["values"] = Enumerable.Range(0, 26)
@@ -317,7 +317,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             var findArguments = new Dictionary<string, object?>
             {
                 ["action"] = "find",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "FindSmoke",
                 ["range_address"] = "A1:A26",
                 ["search_value"] = "Apple",
@@ -352,7 +352,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var setValuesResult = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "set-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "A1:C3",
             ["values"] = values
@@ -362,7 +362,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var rejectedWrite = await _client!.CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "set-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "A1",
             ["values"] = new List<List<string>> { new() { "Must not overwrite" } }
@@ -378,7 +378,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var unchangedHeader = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "A1"
         });
@@ -387,7 +387,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var intentionalUpdate = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "set-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "A1",
             ["values"] = new List<List<string>> { new() { "Product" } },
@@ -398,7 +398,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var getValuesResult = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "A1:C3"
         });
@@ -426,7 +426,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var discoverCellsResult = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-special-cells",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "A1:C4",
             ["cell_kind"] = "constants"
@@ -445,7 +445,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var fineFormatResult = await CallToolAsync("range_format", new Dictionary<string, object?>
         {
             ["action"] = "format",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_addresses"] = (string[])["AA10:AB11"],
             ["format_options"] = new
@@ -461,7 +461,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var fineFormatRead = await CallToolAsync("range_format_read", new Dictionary<string, object?>
         {
             ["action"] = "get-format",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "AA10"
         });
@@ -480,7 +480,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var styleCreate = await CallToolAsync("workbook", new Dictionary<string, object?>
         {
             ["action"] = "create-cell-style",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["style_name"] = "WorkflowHighlight",
             ["source_sheet_name"] = "Data",
             ["source_cell_address"] = "AA10"
@@ -489,7 +489,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var styleApply = await CallToolAsync("range_format", new Dictionary<string, object?>
         {
             ["action"] = "set-style",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "AD10",
             ["style_name"] = "WorkflowHighlight"
@@ -498,7 +498,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var styleUpdate = await CallToolAsync("workbook", new Dictionary<string, object?>
         {
             ["action"] = "update-cell-style",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["style_name"] = "WorkflowHighlight",
             ["style_options"] = new { includeFont = true, formatOptions = new { bold = true } }
         });
@@ -506,7 +506,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var styleRead = await CallToolAsync("range_format_read", new Dictionary<string, object?>
         {
             ["action"] = "get-style",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "AD10"
         });
@@ -519,7 +519,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var styledCell = await CallSuccessfulToolAsync("range_format_read", new()
         {
             ["action"] = "get-format",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "AD10"
         });
@@ -529,14 +529,14 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var styleDelete = await CallToolAsync("workbook", new Dictionary<string, object?>
         {
             ["action"] = "delete-cell-style",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["style_name"] = "WorkflowHighlight"
         });
         AssertSuccess(styleDelete, "Delete native custom style");
         var cellStyles = await CallSuccessfulToolAsync("workbook_read", new()
         {
             ["action"] = "list-cell-styles",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         using (var stylesJson = JsonDocument.Parse(cellStyles))
             Assert.DoesNotContain(stylesJson.RootElement.GetProperty("styles").EnumerateArray(),
@@ -544,14 +544,14 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await CallToolAsync("workbook", new Dictionary<string, object?>
         {
             ["action"] = "create-table-style",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["style_name"] = "WorkflowTableStyle",
             ["source_style_name"] = "TableStyleMedium2"
         }), "Clone native table style");
         var tableStyleUpdate = await CallToolAsync("workbook", new Dictionary<string, object?>
         {
             ["action"] = "update-table-style",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["style_name"] = "WorkflowTableStyle",
             ["table_style_options"] = new { elements = new[] { new { elementType = "xlHeaderRow", fillColor = "#123456", bold = false } } }
         });
@@ -567,7 +567,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var tableStyleRead = await CallSuccessfulToolAsync("workbook_read", new Dictionary<string, object?>
         {
             ["action"] = "get-table-style",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["style_name"] = "WorkflowTableStyle"
         });
         using (var definition = JsonDocument.Parse(tableStyleRead))
@@ -583,7 +583,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var tableStyles = await CallSuccessfulToolAsync("workbook_read", new Dictionary<string, object?>
         {
             ["action"] = "list-table-styles",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         using (var catalogue = JsonDocument.Parse(tableStyles))
             Assert.Single(catalogue.RootElement.GetProperty("styles").EnumerateArray(),
@@ -591,13 +591,13 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         AssertSuccess(await CallToolAsync("workbook", new Dictionary<string, object?>
         {
             ["action"] = "delete-table-style",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["style_name"] = "WorkflowTableStyle"
         }), "Delete native custom table style");
         var afterDeletion = await CallSuccessfulToolAsync("workbook_read", new()
         {
             ["action"] = "list-table-styles",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         using (var catalogue = JsonDocument.Parse(afterDeletion))
             Assert.DoesNotContain(catalogue.RootElement.GetProperty("styles").EnumerateArray(),
@@ -605,7 +605,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var formatReadResult = await CallToolAsync("range_format_read", new Dictionary<string, object?>
         {
             ["action"] = "get-format",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "A1:C3",
             ["view"] = "both"
@@ -635,7 +635,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var spillFormulaResult = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "set-formulas",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "G1",
             ["formulas"] = new List<List<string>> { new() { "=SEQUENCE(3)" } }
@@ -644,7 +644,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var pasteTargetResult = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "set-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "I1",
             ["values"] = new List<List<int>> { new() { 123 } }
@@ -653,7 +653,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var pasteFormatsResult = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "copy",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["source_sheet"] = "Data",
             ["source_range"] = "A1:C3",
             ["target_sheet"] = "Data",
@@ -669,7 +669,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var pasteContentResult = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "I1"
         });
@@ -681,7 +681,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var spillReadResult = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-spill-info",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "G1:G3"
         });
@@ -700,7 +700,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var patternSeeds = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "set-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "P1:P2",
             ["values"] = new List<List<int>> { new() { 1 }, new() { 3 } }
@@ -709,7 +709,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var patternFill = await CallToolAsync("range_edit", new Dictionary<string, object?>
         {
             ["action"] = "auto-fill",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["source_range"] = "P1:P2",
             ["destination_range"] = "P1:P4",
@@ -719,7 +719,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var patternRead = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "P4"
         });
@@ -731,7 +731,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var relativeFormula = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "set-formulas",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "Q1",
             ["reference_style"] = "r1c1",
@@ -741,7 +741,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var directionalFill = await CallToolAsync("range_edit", new Dictionary<string, object?>
         {
             ["action"] = "fill",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "Q1:Q4",
             ["direction"] = "down"
@@ -750,7 +750,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var formulaRead = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-formulas",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "Q4",
             ["reference_style"] = "r1c1"
@@ -764,7 +764,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var nativePrecedents = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "trace-precedents",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "Q4"
         });
@@ -781,7 +781,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var nativeDependents = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "trace-dependents",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "P4"
         });
@@ -797,7 +797,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var protectionFlags = await CallToolAsync("range_link", new Dictionary<string, object?>
         {
             ["action"] = "set-cell-protection",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "S1,S3",
             ["locked"] = false,
@@ -807,7 +807,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var protectionRead = await CallToolAsync("range_link_read", new Dictionary<string, object?>
         {
             ["action"] = "get-cell-protection",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "S1:S3"
         });
@@ -826,7 +826,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             var protectSheet = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
             {
                 ["action"] = "set-protection",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "Data",
                 ["is_protected"] = true,
                 ["options"] = new { allowFormattingRows = true }
@@ -835,7 +835,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             var readSheetProtection = await CallToolAsync("worksheet_style_read", new Dictionary<string, object?>
             {
                 ["action"] = "get-protection",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "Data"
             });
             AssertSuccess(readSheetProtection, "Read sheet permissions");
@@ -849,7 +849,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             var unprotectSheet = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
             {
                 ["action"] = "set-protection",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "Data",
                 ["is_protected"] = false
             });
@@ -861,7 +861,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             var shape = await CallToolAsync("drawing", new Dictionary<string, object?>
             {
                 ["action"] = "add-shape",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "Data",
                 ["name"] = name,
                 ["left"] = left,
@@ -873,7 +873,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var duplicatedDrawing = await CallToolAsync("drawing", new Dictionary<string, object?>
         {
             ["action"] = "duplicate-object",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["object_name"] = "DrawFirst",
             ["new_name"] = "DrawThird",
@@ -883,7 +883,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var groupedDrawing = await CallToolAsync("drawing", new Dictionary<string, object?>
         {
             ["action"] = "group-objects",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["object_names"] = JsonSerializer.Serialize(DrawingPair),
             ["group_name"] = "DrawGroup"
@@ -894,7 +894,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var ungroupedDrawing = await CallToolAsync("drawing", new Dictionary<string, object?>
         {
             ["action"] = "ungroup-object",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["object_name"] = "DrawGroup"
         });
@@ -902,7 +902,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var alignedDrawing = await CallToolAsync("drawing", new Dictionary<string, object?>
         {
             ["action"] = "align-objects",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["object_names"] = JsonSerializer.Serialize(DrawingSelection),
             ["alignment"] = "Top"
@@ -911,7 +911,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var distributedDrawing = await CallToolAsync("drawing", new Dictionary<string, object?>
         {
             ["action"] = "distribute-objects",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["object_names"] = JsonSerializer.Serialize(DrawingSelection),
             ["distribution"] = "Horizontal"
@@ -922,7 +922,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var orderedDrawing = await CallToolAsync("drawing", new Dictionary<string, object?>
         {
             ["action"] = "set-z-order",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["object_name"] = "DrawThird",
             ["z_order"] = "SendToBack"
@@ -934,7 +934,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var nativeTheme = await CallToolAsync("workbook_read", new Dictionary<string, object?>
         {
             ["action"] = "get-theme",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         AssertSuccess(nativeTheme, "Read complete native workbook theme");
         using (var themeJson = JsonDocument.Parse(nativeTheme))
@@ -946,7 +946,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var calculationSettings = await CallToolAsync("calculation_mode_read", new Dictionary<string, object?>
         {
             ["action"] = "get-settings",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         AssertSuccess(calculationSettings, "Read native calculation settings");
         string previousMode;
@@ -960,14 +960,14 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             var manualSettings = await CallToolAsync("calculation_mode", new Dictionary<string, object?>
             {
                 ["action"] = "set-settings",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["mode"] = "manual"
             });
             AssertSuccess(manualSettings, "Set manual calculation");
             var rebuildCalculation = await CallToolAsync("calculation_mode", new Dictionary<string, object?>
             {
                 ["action"] = "calculate",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["scope"] = "application",
                 ["kind"] = "rebuild"
             });
@@ -978,7 +978,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             var restoredSettings = await CallToolAsync("calculation_mode", new Dictionary<string, object?>
             {
                 ["action"] = "set-settings",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["mode"] = previousMode
             });
             AssertSuccess(restoredSettings, "Restore previous calculation mode");
@@ -986,7 +986,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var retainPrecision = await CallToolAsync("calculation_mode", new Dictionary<string, object?>
         {
             ["action"] = "set-precision",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["precision_as_displayed"] = false
         });
         AssertSuccess(retainPrecision, "Keep stored numeric precision");
@@ -994,7 +994,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var ownedContext = await CallToolAsync("window_read", new Dictionary<string, object?>
         {
             ["action"] = "get-context",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         AssertSuccess(ownedContext, "Read owned window context");
         using (var contextJson = JsonDocument.Parse(ownedContext))
@@ -1005,7 +1005,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var hideRows = await CallToolAsync("range_format", new Dictionary<string, object?>
         {
             ["action"] = "set-visibility",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "A40,A42",
             ["axis"] = "rows",
@@ -1015,7 +1015,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var inspectRows = await CallToolAsync("range_format_read", new Dictionary<string, object?>
         {
             ["action"] = "get-visibility",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "A40:A42",
             ["axis"] = "rows"
@@ -1033,7 +1033,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var showRows = await CallToolAsync("range_format", new Dictionary<string, object?>
         {
             ["action"] = "set-visibility",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "A40,A42",
             ["axis"] = "rows",
@@ -1044,7 +1044,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var seriesSeed = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "set-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "R1",
             ["values"] = new List<List<int>> { new() { 5 } }
@@ -1053,7 +1053,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var seriesCreate = await CallToolAsync("range_edit", new Dictionary<string, object?>
         {
             ["action"] = "create-series",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "R1:R4",
             ["orientation"] = "columns",
@@ -1063,7 +1063,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var seriesRead = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "R4"
         });
@@ -1076,14 +1076,14 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var filterSheet = await CallToolAsync("worksheet", new Dictionary<string, object?>
         {
             ["action"] = "create",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Filters"
         });
         AssertSuccess(filterSheet, "Create filtering worksheet");
         var filterSeed = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "set-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Filters",
             ["range_address"] = "A1:B4",
             ["values"] = new List<List<object?>> { new() { "Category", "Amount" }, new() { "A", 10 }, new() { "B", 20 }, new() { "C", 30 } }
@@ -1092,7 +1092,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var filtered = await CallToolAsync("range_edit", new Dictionary<string, object?>
         {
             ["action"] = "apply-filter",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Filters",
             ["range_address"] = "A1:B4",
             ["column_index"] = 2,
@@ -1102,7 +1102,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var filterRead = await CallToolAsync("range_edit_read", new Dictionary<string, object?>
         {
             ["action"] = "get-filters",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Filters",
             ["range_address"] = "A1:B4"
         });
@@ -1118,7 +1118,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var reportLayout = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
         {
             ["action"] = "set-page-setup",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Filters",
             ["page_setup_options"] = new { printArea = "A1:B4", leftMargin = 36, centerHeader = "Report", zoomPercent = 100 }
         });
@@ -1126,7 +1126,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var reportRead = await CallToolAsync("worksheet_style_read", new Dictionary<string, object?>
         {
             ["action"] = "get-page-setup",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Filters"
         });
         AssertSuccess(reportRead, "Read native report layout");
@@ -1138,7 +1138,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var duplicateSeed = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "set-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "X20:Y23",
             ["values"] = new List<List<object?>> { new() { "Key", "Amount" }, new() { 1, 10 }, new() { 1, 20 }, new() { 2, 30 } }
@@ -1147,7 +1147,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var duplicates = await CallToolAsync("range_edit", new Dictionary<string, object?>
         {
             ["action"] = "remove-duplicates",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "X20:Y23",
             ["key_columns"] = new List<int> { 1 },
@@ -1163,7 +1163,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var parsingSeed = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "set-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "AB20:AB21",
             ["values"] = new List<List<string>> { new() { "001,10," }, new() { "002,20," } }
@@ -1172,7 +1172,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var parsed = await CallToolAsync("range_edit", new Dictionary<string, object?>
         {
             ["action"] = "text-to-columns",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["source_range"] = "AB20:AB21",
             ["destination_cell"] = "AD20",
@@ -1187,7 +1187,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var parsedRead = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "AD20:AF21"
         });
@@ -1203,7 +1203,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var preflightTableResult = await CallToolAsync("table_read", new Dictionary<string, object?>
         {
             ["action"] = "preflight",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["table_name"] = "DataTable",
             ["sheet_name"] = "Data",
             ["range_address"] = "A1:B3",
@@ -1228,7 +1228,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var createTableResult = await CallToolAsync("table", new Dictionary<string, object?>
         {
             ["action"] = "create",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["table_name"] = "DataTable",
             ["sheet_name"] = "Data",
             ["range_address"] = "A1:C3",
@@ -1239,7 +1239,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var listTablesResult = await CallToolAsync("table_read", new Dictionary<string, object?>
         {
             ["action"] = "list",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         AssertSuccess(listTablesResult, "List tables");
         _output.WriteLine("  ✓ table: Preflight, Create, and List passed");
@@ -1252,7 +1252,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var createParamResult = await CallToolAsync("namedrange", new Dictionary<string, object?>
         {
             ["action"] = "create",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["name"] = "ReportDate",
             ["reference"] = "=Data!$C$2"
         });
@@ -1261,7 +1261,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var readParamResult = await CallToolAsync("namedrange_read", new Dictionary<string, object?>
         {
             ["action"] = "read",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["name"] = "ReportDate"
         });
         using (var namedRange = JsonDocument.Parse(readParamResult))
@@ -1302,7 +1302,7 @@ in
         var createQueryResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
             ["action"] = "create",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["query_name"] = "CsvData",
             ["m_code"] = mCode,
             ["load_destination"] = "connection-only"
@@ -1312,7 +1312,7 @@ in
         var listQueriesResult = await CallToolAsync("powerquery_read", new Dictionary<string, object?>
         {
             ["action"] = "list",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         AssertSuccess(listQueriesResult, "List Power Queries");
         using (var queries = JsonDocument.Parse(listQueriesResult))
@@ -1326,7 +1326,7 @@ in
         var renameQueryResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
             ["action"] = "rename",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["old_name"] = "CsvData",
             ["new_name"] = "ProductData"
         });
@@ -1336,7 +1336,7 @@ in
         var listAfterRenameResult = await CallToolAsync("powerquery_read", new Dictionary<string, object?>
         {
             ["action"] = "list",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         AssertSuccess(listAfterRenameResult, "List Power Queries after rename");
         using (var queries = JsonDocument.Parse(listAfterRenameResult))
@@ -1348,7 +1348,7 @@ in
         var renamedCode = await CallSuccessfulToolAsync("powerquery_read", new()
         {
             ["action"] = "view",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["query_name"] = "ProductData"
         });
         Assert.Equal(mCode.Replace("\r\n", "\n", StringComparison.Ordinal),
@@ -1364,7 +1364,7 @@ in
         var listConnectionsResult = await CallToolAsync("connection_read", new Dictionary<string, object?>
         {
             ["action"] = "list",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         AssertSuccess(listConnectionsResult, "List connections");
         using (var connections = JsonDocument.Parse(listConnectionsResult))
@@ -1387,7 +1387,7 @@ in
         var createPivotResult = await CallToolAsync("pivottable", new Dictionary<string, object?>
         {
             ["action"] = "create-from-table",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["table_name"] = "DataTable",
             ["destination_sheet"] = "Data",
             ["destination_cell"] = "E1",
@@ -1398,14 +1398,14 @@ in
         AssertSuccess(await CallToolAsync("pivottable_field", new Dictionary<string, object?>
         {
             ["action"] = "add-row-field",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["pivot_table_name"] = "SalesPivot",
             ["field_name"] = "Name"
         }), "Add PivotTable calculation row field");
         AssertSuccess(await CallToolAsync("pivottable_field", new Dictionary<string, object?>
         {
             ["action"] = "add-value-field",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["pivot_table_name"] = "SalesPivot",
             ["field_name"] = "Value",
             ["custom_name"] = "Total Value"
@@ -1413,7 +1413,7 @@ in
         var showValues = await CallToolAsync("pivottable_field", new Dictionary<string, object?>
         {
             ["action"] = "set-field-calculation",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["pivot_table_name"] = "SalesPivot",
             ["field_name"] = "Total Value",
             ["calculation"] = "PercentOfTotal"
@@ -1422,7 +1422,7 @@ in
         var pivotValues = await CallToolAsync("pivottable_calc_read", new Dictionary<string, object?>
         {
             ["action"] = "get-data",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["pivot_table_name"] = "SalesPivot"
         });
         AssertSuccess(pivotValues, "Read actual native Pivot percentages");
@@ -1435,14 +1435,14 @@ in
         var calculationFields = await CallToolAsync("pivottable_field_read", new Dictionary<string, object?>
         {
             ["action"] = "list-fields",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["pivot_table_name"] = "SalesPivot"
         });
         AssertSuccess(calculationFields, "Read complete Values instances");
         var nativeLayout = await CallToolAsync("pivottable_calc", new Dictionary<string, object?>
         {
             ["action"] = "set-layout-options",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["pivot_table_name"] = "SalesPivot",
             ["layout_options"] = new { rowLayout = 1, repeatLabels = true, styleName = "PivotStyleMedium9", preserveFormatting = true }
         });
@@ -1452,7 +1452,7 @@ in
         var nativeFilter = await CallToolAsync("pivottable_field", new Dictionary<string, object?>
         {
             ["action"] = "add-field-filter",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["pivot_table_name"] = "SalesPivot",
             ["field_name"] = "Name",
             ["filter_options"] = new { type = "ValueIsGreaterThan", number1 = 15, dataFieldName = "Total Value" }
@@ -1463,14 +1463,14 @@ in
         AssertSuccess(await CallToolAsync("pivottable_field", new Dictionary<string, object?>
         {
             ["action"] = "clear-field-filters",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["pivot_table_name"] = "SalesPivot",
             ["field_name"] = "Name"
         }), "Clear selected native Pivot filters");
         var sourceReplacement = await CallToolAsync("pivottable", new Dictionary<string, object?>
         {
             ["action"] = "set-source",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["pivot_table_name"] = "SalesPivot",
             ["source_sheet_name"] = "Data",
             ["table_name"] = "DataTable"
@@ -1481,7 +1481,7 @@ in
         AssertSuccess(await CallToolAsync("slicer", new Dictionary<string, object?>
         {
             ["action"] = "create-slicer",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["pivot_table_name"] = "SalesPivot",
             ["field_name"] = "Name",
             ["slicer_name"] = "ReportNames",
@@ -1491,7 +1491,7 @@ in
         var controlUpdate = await CallToolAsync("slicer", new Dictionary<string, object?>
         {
             ["action"] = "update-slicer",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["slicer_name"] = "ReportNames",
             ["slicer_options"] = new { width = 240, columnCount = 2, caption = "Names", displayHeader = false }
         });
@@ -1499,7 +1499,7 @@ in
         var controlRead = await CallToolAsync("slicer_read", new Dictionary<string, object?>
         {
             ["action"] = "get-slicer",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["slicer_name"] = "ReportNames"
         });
         AssertSuccess(controlRead, "Read complete native control");
@@ -1521,7 +1521,7 @@ in
         var listPivotsResult = await CallToolAsync("pivottable_read", new Dictionary<string, object?>
         {
             ["action"] = "list",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         AssertSuccess(listPivotsResult, "List PivotTables");
         using (var pivots = JsonDocument.Parse(listPivotsResult))
@@ -1542,7 +1542,7 @@ in
         var createChartResult = await CallToolAsync("chart", new Dictionary<string, object?>
         {
             ["action"] = "create-from-range",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["source_range_address"] = "A1:C3",
             ["chart_type"] = "ColumnClustered",
@@ -1556,7 +1556,7 @@ in
         var createdChartRead = await CallSuccessfulToolAsync("chart_read", new()
         {
             ["action"] = "read",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["chart_name"] = "DataChart"
         });
         using (var chart = JsonDocument.Parse(createdChartRead))
@@ -1565,7 +1565,7 @@ in
         var secondarySeries = await CallToolAsync("chart_config", new Dictionary<string, object?>
         {
             ["action"] = "set-series-axis-group",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["chart_name"] = "DataChart",
             ["series_index"] = 1,
             ["axis_group"] = "Secondary"
@@ -1574,7 +1574,7 @@ in
         var formattedPoint = await CallToolAsync("chart_config", new Dictionary<string, object?>
         {
             ["action"] = "set-point-format",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["chart_name"] = "DataChart",
             ["series_index"] = 1,
             ["point_index"] = 1,
@@ -1586,7 +1586,7 @@ in
         var errorBars = await CallToolAsync("chart_config", new Dictionary<string, object?>
         {
             ["action"] = "set-error-bars",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["chart_name"] = "DataChart",
             ["series_index"] = 1,
             ["error_bar_options"] = new { kind = "Fixed", amount = 2d, endStyle = "NoCap" }
@@ -1601,7 +1601,7 @@ in
         var exportedChart = await CallToolAsync("chart", new Dictionary<string, object?>
         {
             ["action"] = "export-image",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["chart_name"] = "DataChart",
             ["target_path"] = chartImage
         });
@@ -1611,7 +1611,7 @@ in
         var listChartsResult = await CallToolAsync("chart_read", new Dictionary<string, object?>
         {
             ["action"] = "list",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         AssertSuccess(listChartsResult, "List Charts");
         using (var charts = JsonDocument.Parse(listChartsResult))
@@ -1626,7 +1626,7 @@ in
         var changedChart = await CallSuccessfulToolAsync("chart_read", new()
         {
             ["action"] = "read",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["chart_name"] = "DataChart"
         });
         using (var chart = JsonDocument.Parse(changedChart))
@@ -1652,7 +1652,7 @@ in
         var listDataModelResult = await CallToolAsync("datamodel_read", new Dictionary<string, object?>
         {
             ["action"] = "list-tables",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         AssertSuccess(listDataModelResult, "List Data Model tables");
         using (var model = JsonDocument.Parse(listDataModelResult))
@@ -1664,7 +1664,7 @@ in
         var loadToDmResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
         {
             ["action"] = "load-to",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["query_name"] = "ProductData",
             ["load_destination"] = "load-to-data-model"
         });
@@ -1674,7 +1674,7 @@ in
         var listAfterLoadResult = await CallToolAsync("datamodel_read", new Dictionary<string, object?>
         {
             ["action"] = "list-tables",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         AssertSuccess(listAfterLoadResult, "List Data Model tables after load");
         using (var model = JsonDocument.Parse(listAfterLoadResult))
@@ -1688,7 +1688,7 @@ in
         var readModelConnectionResult = await CallToolAsync("datamodel_read", new Dictionary<string, object?>
         {
             ["action"] = "read-connection",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         AssertSuccess(readModelConnectionResult, "Read Data Model connection");
         using (var connectionJson = JsonDocument.Parse(readModelConnectionResult))
@@ -1704,7 +1704,7 @@ in
         var renameTableResult = await CallToolAsync("datamodel", new Dictionary<string, object?>
         {
             ["action"] = "rename-table",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["old_name"] = "ProductData",
             ["new_name"] = "RenamedProductData"
         }, expectedError: true);
@@ -1735,7 +1735,7 @@ in
         var addRuleResult = await CallToolAsync("conditionalformat", new Dictionary<string, object?>
         {
             ["action"] = "add-rule",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "B2:B3",
             ["rule_type"] = "cellvalue",
@@ -1749,7 +1749,7 @@ in
         var addTypedRuleResult = await CallToolAsync("conditionalformat", new Dictionary<string, object?>
         {
             ["action"] = "add-rule",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "C2:C3",
             ["rule_type"] = "top10",
@@ -1763,7 +1763,7 @@ in
         var listTypedRuleResult = await CallToolAsync("conditionalformat_read", new Dictionary<string, object?>
         {
             ["action"] = "list-rules",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Data",
             ["range_address"] = "C2:C3"
         });
@@ -1780,7 +1780,7 @@ in
             var updatedRuleResult = await CallToolAsync("conditionalformat", new Dictionary<string, object?>
             {
                 ["action"] = "update-rule",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "Data",
                 ["rule_priority"] = typedRule.GetProperty("priority").GetInt32(),
                 ["expected_fingerprint"] = typedRule.GetProperty("fingerprint").GetString(),
@@ -1798,7 +1798,7 @@ in
             var reorderedRuleResult = await CallToolAsync("conditionalformat", new Dictionary<string, object?>
             {
                 ["action"] = "set-rule-priority",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "Data",
                 ["rule_priority"] = updated.GetProperty("priority").GetInt32(),
                 ["expected_fingerprint"] = updated.GetProperty("fingerprint").GetString(),
@@ -1815,7 +1815,7 @@ in
             var deletedRuleResult = await CallToolAsync("conditionalformat", new Dictionary<string, object?>
             {
                 ["action"] = "delete-rule",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "Data",
                 ["rule_priority"] = moved.GetProperty("priority").GetInt32(),
                 ["expected_fingerprint"] = moved.GetProperty("fingerprint").GetString()
@@ -1837,7 +1837,7 @@ in
         var listVbaResult = await CallToolAsync("vba_read", new Dictionary<string, object?>
         {
             ["action"] = "list",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         }, expectedError: true);
         using (var listVbaJson = JsonDocument.Parse(listVbaResult))
         {
@@ -1863,7 +1863,7 @@ in
         var closeResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "close",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["save"] = true
         });
         AssertSuccess(closeResult, "Close session");
@@ -1880,7 +1880,7 @@ in
             ["path"] = _testExcelFile
         });
         AssertSuccess(verifyOpenResult, "Re-open for verification");
-        var verifySessionId = GetJsonProperty(verifyOpenResult, "session_id");
+        var verifySessionId = GetJsonProperty(verifyOpenResult, "workbook_session_id");
         Assert.NotNull(verifySessionId);
 
         await VerifyAndCloseAsync(verifySessionId, async () =>
@@ -1888,7 +1888,7 @@ in
             var finalSheetsResult = await CallToolAsync("worksheet_read", new Dictionary<string, object?>
             {
                 ["action"] = "list",
-                ["session_id"] = verifySessionId
+                ["workbook_session_id"] = verifySessionId
             });
             AssertSuccess(finalSheetsResult, "Final worksheet list");
 
@@ -1900,7 +1900,7 @@ in
             var values = await CallSuccessfulToolAsync("range_read", new()
             {
                 ["action"] = "get-values",
-                ["session_id"] = verifySessionId,
+                ["workbook_session_id"] = verifySessionId,
                 ["sheet_name"] = "Data",
                 ["range_address"] = "A1"
             });
@@ -1917,20 +1917,20 @@ in
             ["action"] = "create",
             ["path"] = _testExcelFile
         });
-        var session = GetJsonProperty(created, "session_id");
+        var session = GetJsonProperty(created, "workbook_session_id");
         Assert.NotNull(session);
         if (withData)
         {
             await CallSuccessfulToolAsync("worksheet", new()
             {
                 ["action"] = "create",
-                ["session_id"] = session,
+                ["workbook_session_id"] = session,
                 ["sheet_name"] = "Data"
             });
             await CallSuccessfulToolAsync("range", new()
             {
                 ["action"] = "set-values",
-                ["session_id"] = session,
+                ["workbook_session_id"] = session,
                 ["sheet_name"] = "Data",
                 ["range_address"] = "A1:C3",
                 ["values"] = new object?[][]
@@ -1948,7 +1948,7 @@ in
         CallSuccessfulToolAsync("file", new()
         {
             ["action"] = "close",
-            ["session_id"] = session,
+            ["workbook_session_id"] = session,
             ["save"] = false
         });
 
@@ -1970,7 +1970,7 @@ in
         var result = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "close",
-            ["session_id"] = "nonexistent-session-id"
+            ["workbook_session_id"] = "nonexistent-session-id"
         }, expectedError: true);
 
         _output.WriteLine($"Result: {result[..Math.Min(300, result.Length)]}...");
@@ -2013,12 +2013,12 @@ in
             ["path"] = sourceFile
         });
         AssertSuccess(createSource, "create source workbook");
-        var sourceSessionId = GetJsonProperty(createSource, "session_id");
+        var sourceSessionId = GetJsonProperty(createSource, "workbook_session_id");
         Assert.NotNull(sourceSessionId);
         AssertSuccess(await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "set-values",
-            ["session_id"] = sourceSessionId,
+            ["workbook_session_id"] = sourceSessionId,
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1",
             ["values"] = new List<List<string>> { new() { "copied-content" } }
@@ -2026,7 +2026,7 @@ in
         AssertSuccess(await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "close",
-            ["session_id"] = sourceSessionId,
+            ["workbook_session_id"] = sourceSessionId,
             ["save"] = true
         }), "close source workbook");
 
@@ -2038,12 +2038,12 @@ in
             ["path"] = targetFile
         });
         AssertSuccess(createTarget, "create target workbook");
-        var targetSessionId = GetJsonProperty(createTarget, "session_id");
+        var targetSessionId = GetJsonProperty(createTarget, "workbook_session_id");
         Assert.NotNull(targetSessionId);
         AssertSuccess(await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "close",
-            ["session_id"] = targetSessionId,
+            ["workbook_session_id"] = targetSessionId,
             ["save"] = false
         }), "close target workbook");
 
@@ -2068,12 +2068,12 @@ in
             ["path"] = targetFile
         });
         AssertSuccess(openedTarget, "Open copied worksheet destination");
-        var copiedSession = GetJsonProperty(openedTarget, "session_id");
+        var copiedSession = GetJsonProperty(openedTarget, "workbook_session_id");
         Assert.NotNull(copiedSession);
         var copiedValues = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
-            ["session_id"] = copiedSession,
+            ["workbook_session_id"] = copiedSession,
             ["sheet_name"] = "CopiedSheet",
             ["range_address"] = "A1"
         });
@@ -2082,7 +2082,7 @@ in
         AssertSuccess(await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "close",
-            ["session_id"] = copiedSession,
+            ["workbook_session_id"] = copiedSession,
             ["save"] = false
         }), "Close copied worksheet destination");
         _output.WriteLine("  ✓ copy-to-file succeeded WITHOUT session_id!");
@@ -2102,13 +2102,13 @@ in
             ["path"] = macroWorkbook
         });
         AssertSuccess(createResult, "Create macro workbook");
-        var sessionId = GetJsonProperty(createResult, "session_id");
+        var sessionId = GetJsonProperty(createResult, "workbook_session_id");
         Assert.NotNull(sessionId);
 
         var importResult = await CallToolAsync("vba", new Dictionary<string, object?>
         {
             ["action"] = "import",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["module_name"] = "TransportProof",
             ["vba_code"] = """
 Sub WriteTransportProof()
@@ -2121,7 +2121,7 @@ End Sub
         var runResult = await CallToolAsync("vba", new Dictionary<string, object?>
         {
             ["action"] = "run",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["procedure_name"] = "TransportProof.WriteTransportProof"
         });
         AssertSuccess(runResult, "Run VBA procedure");
@@ -2129,7 +2129,7 @@ End Sub
         var getValuesResult = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1"
         });
@@ -2139,7 +2139,7 @@ End Sub
         var closeResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "close",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["save"] = true
         });
         AssertSuccess(closeResult, "Close macro workbook");
@@ -2150,7 +2150,7 @@ End Sub
             ["path"] = macroWorkbook
         });
         AssertSuccess(reopenedResult, "Reopen macro workbook");
-        var reopenedSessionId = GetJsonProperty(reopenedResult, "session_id");
+        var reopenedSessionId = GetJsonProperty(reopenedResult, "workbook_session_id");
         Assert.NotNull(reopenedSessionId);
 
         await VerifyAndCloseAsync(reopenedSessionId, async () =>
@@ -2158,7 +2158,7 @@ End Sub
             var persistedValueResult = await CallSuccessfulToolAsync("range_read", new Dictionary<string, object?>
             {
                 ["action"] = "get-values",
-                ["session_id"] = reopenedSessionId,
+                ["workbook_session_id"] = reopenedSessionId,
                 ["sheet_name"] = "Sheet1",
                 ["range_address"] = "A1"
             });
@@ -2197,28 +2197,28 @@ End Sub
         var code = await CallSuccessfulToolAsync("powerquery_read", new()
         {
             ["action"] = "view",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["query_name"] = "ProductData"
         });
         var queries = await CallSuccessfulToolAsync("powerquery_read", new()
         {
             ["action"] = "list",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         var tables = await CallSuccessfulToolAsync("datamodel_read", new()
         {
             ["action"] = "list-tables",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         var connections = await CallSuccessfulToolAsync("connection_read", new()
         {
             ["action"] = "list",
-            ["session_id"] = sessionId
+            ["workbook_session_id"] = sessionId
         });
         var rows = await CallSuccessfulToolAsync("datamodel_read", new()
         {
             ["action"] = "evaluate",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["dax_query"] = "EVALUATE SELECTCOLUMNS(ProductData, \"Product\", ProductData[Product], \"Quantity\", ProductData[Quantity]) ORDER BY [Product]"
         });
         using var queryJson = JsonDocument.Parse(queries);

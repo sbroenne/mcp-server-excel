@@ -26,10 +26,10 @@ move it, then check overlap warnings and the visible result. This example
 assumes the session and `Sales` sheet already exist and the placement is authorized:
 
 ```mcp
-chart(action: 'create-from-range', session_id: sessionId, sheet_name: 'Sales',
+chart(action: 'create-from-range', workbook_session_id: sessionId, sheet_name: 'Sales',
       source_range_address: 'A1:D20', chart_type: 'ColumnClustered',
       target_range: 'F2:K15')
-screenshot(action: 'capture', session_id: sessionId, sheet_name: 'Sales',
+screenshot(action: 'capture', workbook_session_id: sessionId, sheet_name: 'Sales',
            range_address: 'A1:M25')
 ```
 

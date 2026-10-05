@@ -42,7 +42,7 @@ public static class ExcelScreenshotTool
     public static Task<CallToolResult> ExcelScreenshot(
         [Description("The action to perform")] ScreenshotAction action,
         ServiceBridge.ServiceBridge bridge,
-        [Description("Session ID from file 'open' action")] string session_id,
+        [Description("Session ID from file 'open' action")] string workbook_session_id,
         [Description("Worksheet name; omit for the active sheet. Valid for capture and capture-sheet.")]
         [DefaultValue(null)] string? sheet_name,
         [Description("Range to capture; defaults to A1:Z30. Only valid for capture, not capture-sheet.")]
@@ -56,7 +56,7 @@ public static class ExcelScreenshotTool
             ServiceRegistry.Screenshot.ToActionString(action),
             () => RouteScreenshotAction(
                 action,
-                session_id,
+                workbook_session_id,
                 sheet_name,
                 range_address,
                 quality,
