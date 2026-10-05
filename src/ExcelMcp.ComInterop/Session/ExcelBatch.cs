@@ -60,6 +60,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     /// Production code must leave this null.
     /// </summary>
     internal static Action<string, CancellationToken>? BeforeWorkbookOpenHook { get; set; }
+    internal static Action<object, object>? AfterWorkbookOpenHookForTests { get; set; }
 
     internal static Func<ExcelProcessIdentity, bool>? FailedStartupTerminationHook { get; set; }
 
@@ -432,6 +433,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                     }
 
                     tempWorkbooks[normalizedPath] = wb;
+                    AfterWorkbookOpenHookForTests?.Invoke(tempExcel, wb);
 
                     if (path == _workbookPath)
                     {

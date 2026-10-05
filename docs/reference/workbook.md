@@ -21,7 +21,9 @@ authentication; Excel decides editing rights. Do not change protection to work
 around a genuine permission restriction.
 
 Workbook-changing actions reject read-only access before editing. Inspection,
-window controls, calculation, and authorized Save As/copy/export remain available;
+window controls, calculation other than workbook precision changes, and authorized
+Save As/copy/export remain available. MCP `calculation_mode` action `set-precision`
+and `excelcli calculation set-precision` require editing rights.
 Excel still enforces permissions on outputs.
 
 Writes change the open workbook, not necessarily the saved file. Saving a

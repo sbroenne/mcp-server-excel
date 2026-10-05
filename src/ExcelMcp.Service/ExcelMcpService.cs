@@ -754,11 +754,6 @@ public sealed class ExcelMcpService : IDisposable
                 var result = WrapResult(
                     ServiceRegistry.Workbook.DispatchToCore(_workbookCommands, workbookAction, batch, request.Args));
 
-                if (result.Success && reservedPath != null)
-                {
-                    _sessionManager.UpdateSessionFilePath(request.SessionId!, batch.WorkbookPath);
-                }
-
                 return result;
             }
             catch (Exception ex) when (ex is TimeoutException or OperationCanceledException)
@@ -772,6 +767,10 @@ public sealed class ExcelMcpService : IDisposable
             {
                 if (reservedPath != null && releaseReservation)
                 {
+                    if (string.Equals(batch.WorkbookPath, reservedPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _sessionManager.UpdateSessionFilePath(request.SessionId!, batch.WorkbookPath);
+                    }
                     _sessionManager.ReleaseSessionFilePathReservation(request.SessionId!, reservedPath);
                 }
             }

@@ -11,14 +11,88 @@ public sealed partial class PersistentServiceSheetTests
     [InlineData(false, false)]
     [InlineData(true, true)]
     [InlineData(true, false)]
+    public void CrossFile_CancelledSave_ReportsExactPersistedState(bool move, bool cancelSource)
+    {
+        var (sourceFile, targetFile) = CreateMarkedWorkbookPair(
+            nameof(CrossFile_CancelledSave_ReportsExactPersistedState), "TransferSheet");
+        var sourceBytes = File.ReadAllBytes(sourceFile);
+        var targetBytes = File.ReadAllBytes(targetFile);
+        var cancelledPath = cancelSource ? sourceFile : targetFile;
+        var eventCount = 0;
+        var originalHook = ExcelBatch.AfterWorkbookOpenHookForTests;
+        try
+        {
+            ExcelBatch.AfterWorkbookOpenHookForTests = (application, openedWorkbook) =>
+            {
+                var app = (Excel.Application)application;
+                var workbook = (Excel.Workbook)openedWorkbook;
+                if (!string.Equals(workbook.FullName, targetFile, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                Excel.AppEvents_WorkbookBeforeSaveEventHandler? cancelSave = null;
+                cancelSave = (Excel.Workbook savingWorkbook, bool _, ref bool cancel) =>
+                {
+                    if (string.Equals(savingWorkbook.FullName, cancelledPath, StringComparison.OrdinalIgnoreCase))
+                    {
+                        eventCount++;
+                        cancel = true;
+                        app.WorkbookBeforeSave -= cancelSave;
+                    }
+                };
+                app.WorkbookBeforeSave += cancelSave;
+            };
+            var error = Assert.Throws<InvalidOperationException>(() =>
+            {
+                if (move)
+                {
+                    _sheetCommands.MoveToFile(sourceFile, "TransferSheet", targetFile);
+                }
+                else
+                {
+                    _sheetCommands.CopyToFile(sourceFile, "TransferSheet", targetFile);
+                }
+            });
+            ExcelBatch.AfterWorkbookOpenHookForTests = originalHook;
+
+            Assert.Equal(1, eventCount);
+            Assert.Contains("save was not confirmed", error.Message, StringComparison.Ordinal);
+            Assert.Contains("Temporary sessions will close without another save", error.Message, StringComparison.Ordinal);
+            if (move)
+            {
+                Assert.Contains(
+                    cancelSource ? "source save was not confirmed" : "Excel confirmed the source save",
+                    error.Message, StringComparison.Ordinal);
+                Assert.Contains("No rollback was performed", error.Message, StringComparison.Ordinal);
+            }
+            var sourceSaved = move && !cancelSource;
+            AssertWorkbookStates(
+                sourceFile, sourceSaved ? ["Sheet1"] : ["TransferSheet", "Sheet1"],
+                sourceSaved ? null : "TransferSheet",
+                targetFile, ["Sheet1"]);
+            if (!sourceSaved)
+            {
+                Assert.Equal(sourceBytes, File.ReadAllBytes(sourceFile));
+            }
+            Assert.Equal(targetBytes, File.ReadAllBytes(targetFile));
+        }
+        finally
+        {
+            ExcelBatch.AfterWorkbookOpenHookForTests = originalHook;
+        }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
     public void CrossFile_ReadOnlyWorkbook_RejectsBeforeChangingEitherFile(
         bool move, bool readOnlySource)
     {
-        var sourceFile = CreateWorkbookWithSheet(
+        var (sourceFile, targetFile) = CreateMarkedWorkbookPair(
             nameof(CrossFile_ReadOnlyWorkbook_RejectsBeforeChangingEitherFile),
-            "Source", "TransferSheet");
-        var targetFile = CreateMarkedWorkbook(
-            nameof(CrossFile_ReadOnlyWorkbook_RejectsBeforeChangingEitherFile), "Target");
+            "TransferSheet");
         var sourceBytes = File.ReadAllBytes(sourceFile);
         var targetBytes = File.ReadAllBytes(targetFile);
         var readOnlyFile = readOnlySource ? sourceFile : targetFile;
