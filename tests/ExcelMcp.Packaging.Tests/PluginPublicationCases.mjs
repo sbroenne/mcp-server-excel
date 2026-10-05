@@ -878,11 +878,19 @@ export function registerWorkflowPolicyTests() {
         assert.equal(fs.existsSync(path.join(repoRoot, 'must-not-be-created')), false);
     });
 
-    test('automatic updater requires a meaningful publication handoff and product release does not depend on it', () => {
+    test('listing updates are manual-only and never part of product or plugin publication', () => {
         const publisher = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'publish-plugins.yml'), 'utf8');
         const release = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'release.yml'), 'utf8');
-        assert.match(publisher, /if: needs\.publish\.outputs\.handoff == 'true' && vars\.AWESOME_COPILOT_UPDATES_ENABLED == 'true'/);
-        assert.match(publisher, /published_tag: \$\{\{ needs\.publish\.outputs\.published_tag \}\}/);
+        const updater = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'update-awesome-copilot.lock.yml'), 'utf8');
+        for (const workflow of [publisher, release]) {
+            assert.equal(workflow.includes('update-awesome-copilot'), false);
+            assert.equal(/AWESOME_COPILOT|COPILOT_GITHUB_TOKEN/.test(workflow), false);
+        }
+        const trigger = updater.split('\npermissions:')[0];
+        assert.equal(trigger.includes('workflow_call:'), false);
+        const dispatch = trigger.split('workflow_dispatch:')[1] ?? '';
+        assert.match(dispatch, /\n {6}published_tag:/);
+        assert.match(dispatch, /\n {6}preview:/);
         assert.match(release, /publish-plugins:\r?\n\s+needs: \[version, create-tag, create-release, publish\]/);
         assert.equal(release.slice(0, release.indexOf('\n  publish-plugins:')).includes('needs: publish-plugins'), false);
     });

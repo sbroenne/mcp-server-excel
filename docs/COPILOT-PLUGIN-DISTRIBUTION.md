@@ -121,16 +121,17 @@ not every product release has a matching tag in the published repository.
 
 ## Maintenance
 
-Updates to plugins are handled automatically:
+Plugin publication is automatic during releases; Awesome Copilot listing
+maintenance is manual:
 
 1. **Skill updates** → Modify the actual `skills/<name>/SKILL.md` entries or `docs/reference/report-formatting.md`, then run `Build-AgentSkills.ps1 -GenerateOnly`. Other reference documentation is not bundled.
 2. **Plugin templates** → Update the canonical `.github/plugins/excel-{mcp,cli}/` sources
 3. **Sync to marketplace** → Next release compares complete prepared output,
    including generated references and source-owned root overlays
-4. **Awesome Copilot listing** → An optional, disabled-by-default updater maintains
+4. **Awesome Copilot listing** → A manual, separately run updater maintains
    one upstream PR for actually changed plugin content, using published output
-   commits. Root-overlay-only updates do not need a listing PR. Independent
-   manual catch-up accepts an existing published tag without republishing.
+   commits. Releases never run it. Root-overlay-only updates do not need a
+   listing PR. Catch-up accepts an existing published tag without republishing.
 
 The published marketplace and the pinned Awesome Copilot listings are separate.
 See [Awesome Copilot update setup](../.github/workflows/docs/awesome-copilot-update-setup.md)

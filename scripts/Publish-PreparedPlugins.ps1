@@ -138,16 +138,12 @@ try {
         repaired_stamps = @($evidence.repairs)
     }
     $result | ConvertTo-Json -Depth 10
-    if ($env:GITHUB_OUTPUT) {
-        "status=$($result.status)" >> $env:GITHUB_OUTPUT
-        "published_tag=$actualTag" >> $env:GITHUB_OUTPUT
-        "published_commit=$actualCommit" >> $env:GITHUB_OUTPUT
-        "changed_plugins=$(ConvertTo-Json -InputObject @($result.changed_plugins) -Compress)" >> $env:GITHUB_OUTPUT
-        "handoff=$($result.handoff.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
-    }
     if ($env:GITHUB_STEP_SUMMARY) {
         $message = if ($status -eq 'skipped') { 'Plugin publication skipped: no content changes.' } else { 'Plugin publication prepared/published.' }
         "$message Actual published tag: ``$actualTag``; commit: ``$actualCommit``. Changed plugins: $($result.changed_plugins -join ', ')." >> $env:GITHUB_STEP_SUMMARY
+        if ($result.handoff) {
+            "Awesome Copilot listings are updated manually: run ``update-awesome-copilot.lock.yml`` with ``published_tag=$actualTag`` (preview first)." >> $env:GITHUB_STEP_SUMMARY
+        }
     }
 }
 finally {

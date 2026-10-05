@@ -1,9 +1,12 @@
 # Low-noise Awesome Copilot listing updates
 
-This optional workflow updates **existing** `excel-cli` / `excel-mcp` listings.
+This manual-only workflow updates **existing** `excel-cli` / `excel-mcp` listings.
+Releases and plugin publication never run it, so a listing failure cannot affect
+release status. A maintainer runs it with `workflow_dispatch` after a plugin
+publication whose summary reports changed plugin content.
 It never submits a new-plugin issue, publishes a release, merges/closes a PR, asks
 for upstream labels/reviews, or overwrites a human-edited branch.
-Automatic submissions are disabled unless the source repository variable
+Real (non-preview) submissions are disabled unless the source repository variable
 `AWESOME_COPILOT_UPDATES_ENABLED` is exactly `true`.
 
 ## Repository roles and versions
@@ -16,7 +19,7 @@ Automatic submissions are disabled unless the source repository variable
 | `sbroenne/awesome-copilot` | Writable fork; receives only the automated PR branch, based on **upstream main**, never assumed-synced fork main |
 
 Product releases can outnumber plugin releases. A version-only product release
-creates **no** plugin commit/push/tag and does not invoke this updater.
+creates **no** plugin commit/push/tag and needs no listing update.
 The retained plugins still launch npm packages through `npx ...@latest`.
 Do not assume that a product tag exists in the plugin output repository.
 See [publication rules and exact-source repair](publish-plugins-setup.md).
@@ -127,11 +130,12 @@ execute upstream code.
 The agent runs with read-only GitHub permissions. The publisher's separate
 `PLUGINS_REPO_TOKEN` continues to cover plugin output publication only.
 
-## Preview first, then opt in
+## Preview first, then submit
 
 No secrets or repository settings were changed by this implementation.
 Do not use a real release or an upstream test PR for verification.
 
+Use the `published_tag` reported in the plugin publication step summary.
 Run a no-write preview of an existing output tag:
 
 ```powershell
@@ -185,21 +189,17 @@ After the user validates credentials and preview:
 gh variable set AWESOME_COPILOT_UPDATES_ENABLED --repo sbroenne/mcp-server-excel --body true
 ```
 
-Successful publication with real changed plugin content then calls the compiled
-reusable workflow with its **actual** published tag and `preview=false`.
-Root-only publications and skipped publications do not call it.
-To disable writes again, set the variable to `false` (or delete it).
-
-Independent manual catch-up:
+Real submissions also require this opt-in. To disable writes again, set the
+variable to `false` (or delete it). Then submit:
 
 ```powershell
 gh workflow run update-awesome-copilot.lock.yml --repo sbroenne/mcp-server-excel -f published_tag=v2.1.0 -f preview=false
 ```
 
-This does not republish anything and can use an older retained published tag.
-Actual manual writes also require the explicit opt-in. It is safe to retry a
-missed/failed updater after a successful publication; no new product release or
-plugin tag is required. Copilot runs only when the precheck finds an actionable
+This does not republish anything and can use an older retained published tag
+for catch-up. It is safe to retry after a successful publication; no new
+product release or plugin tag is required. Root-only and skipped publications
+need no listing update. Copilot runs only when the precheck finds an actionable
 proposal. The custom job also explicitly honors `GH_AW_SAFE_OUTPUTS_STAGED=true`;
 never assume gh-aw staged mode suppresses arbitrary custom scripts.
 
@@ -370,4 +370,4 @@ missing-data, detection, incomplete-run and failure reporting cannot create issu
 | Downgrade | Choose a tag at least as new as current/pending listings |
 | Inference/write authentication failure | Validate/rotate the appropriate separate credential; never expose it |
 | Human/conflicting branch/body, orphan branch, declined identical proposal | Inspect manually and agree on a resolution; no automated overwrite/replacement |
-| Updater failed after publication | Retry this workflow using the reported existing output tag; successful publication remains intact |
+| Updater failed | Fix the reported cause and rerun this workflow with the same existing output tag; release and plugin publication are unaffected |
