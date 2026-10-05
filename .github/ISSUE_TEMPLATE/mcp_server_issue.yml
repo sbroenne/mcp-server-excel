@@ -19,7 +19,7 @@ body:
     id: environment
     attributes:
       label: Server and environment
-      description: ExcelMcp version, installation method, Windows/Excel versions, and workbook format. Include VBA trust state only if relevant.
+      description: ExcelMcp version, installation method, Windows/Excel versions, and workbook format. State whether Excel runs on a local interactive desktop or an unattended host. Include VBA project trust state only for project inspection or editing.
     validations:
       required: true
   - type: textarea
@@ -43,7 +43,7 @@ body:
     id: actual
     attributes:
       label: Actual result and sanitized logs
-      description: Preserve actual response field names and errors. Remove sensitive content.
+      description: Preserve actual response field names and errors (including errorCategory and hresult when present). Describe any partial workbook changes and whether the session remains usable. Remove sensitive content.
     validations:
       required: true
   - type: textarea
@@ -52,3 +52,8 @@ body:
       label: Sanitized client configuration
       description: Client-specific configuration and launch command, with secrets and private paths removed. Do not assume one client's MCP configuration applies to another.
       render: json
+  - type: textarea
+    id: timing
+    attributes:
+      label: Timing and cancellation (if relevant)
+      description: Include elapsed time, file open/create timeout_seconds, any operation timeout, and the client's time limit or cancellation. For VBA run, state whether the macro displays a dialog or waits for input. Do not include private macro code or workbook content.
