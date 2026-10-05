@@ -17,6 +17,24 @@ from skill_discovery import discover_skills
 
 
 class DiscoveryPreflightTests(unittest.IsolatedAsyncioTestCase):
+    async def test_required_native_tools_are_checked_without_model_messages(self):
+        with tempfile.TemporaryDirectory() as directory:
+            agent = build_excel_cli_eval("preflight", servers={}, working_directory=directory)
+            for names in (["powershell", "skill"], ["skill"]):
+                with self.subTest(names=names):
+                    client = AsyncMock()
+                    client.create_session.return_value.rpc.skills.list.return_value = SimpleNamespace(skills=[])
+                    client.rpc.tools.list.return_value = SimpleNamespace(
+                        tools=[SimpleNamespace(name=name) for name in names],
+                    )
+                    with patch("skill_discovery.CopilotClient", return_value=client):
+                        if "powershell" in names:
+                            self.assertEqual(await discover_skills(agent, required_tools=("powershell", "skill")), [])
+                        else:
+                            with self.assertRaisesRegex(AssertionError, "Missing native tools"):
+                                await discover_skills(agent, required_tools=("powershell", "skill"))
+                    client.stop.assert_awaited_once()
+
     async def test_package_setup_failure_blocks_discovery_before_a_model_send(self):
         with tempfile.TemporaryDirectory() as directory:
             agent = build_excel_cli_eval("preflight", servers={}, working_directory=directory, skill_dir=directory)

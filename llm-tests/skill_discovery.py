@@ -9,11 +9,14 @@ from typing import Any
 from unittest.mock import patch
 
 from copilot import CopilotClient, CopilotSession, PermissionHandler
+from copilot.generated.rpc import ToolsListRequest
 from pytest_skill_engineering import load_skill
 from pytest_skill_engineering.copilot import CopilotEval
 
 
-async def discover_skills(agent: CopilotEval) -> list[dict[str, Any]]:
+async def discover_skills(
+    agent: CopilotEval, *, required_tools: tuple[str, ...] = (),
+) -> list[dict[str, Any]]:
     config = agent.build_session_config()
     for directory in agent.skill_directories or []:
         load_skill(directory)
@@ -34,6 +37,10 @@ async def discover_skills(agent: CopilotEval) -> list[dict[str, Any]]:
             session = await client.create_session(**config)
             await session.rpc.skills.ensure_loaded()
             result = await session.rpc.skills.list()
+            if required_tools:
+                tools = (await client.rpc.tools.list(ToolsListRequest(model=agent.model))).tools
+                names = {tool.name for tool in tools}
+                assert set(required_tools) <= names, f"Missing native tools: {set(required_tools) - names}"
             return [{"name": skill.name, "enabled": skill.enabled, "path": str(skill.path)}
                     for skill in result.skills]
         finally:

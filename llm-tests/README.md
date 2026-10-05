@@ -62,7 +62,8 @@ uv sync
 ```
 
 Generate skills from their canonical sources. Do not test stale installed
-copies or edit generated `SKILL.md` files.
+copies or edit generated `SKILL.md` files. The published-plugin experiment below
+deliberately uses an installed published package instead of generated sources.
 
 ## Run the right checks
 
@@ -109,6 +110,61 @@ must remain visible; never kill Excel by process name or stop a default service.
 Ordinary evaluations default to `gpt-6.1-sol`; `EXCEL_LLM_MODEL` can explicitly
 select another available model. Skill-value comparisons are always pinned to
 `gpt-6.1-sol` and never silently fall back to `auto`.
+
+### Published CLI plugin discovery
+
+`test_published_cli_discovery.py` is a focused, opt-in experiment: does an
+ordinary workbook request activate the published `excel-cli` skill and use
+the actual packaged `bin\start-cli.ps1` launcher? It loads both installed
+skills (`excel-cli` and `excel-cli-report-formatting`) with native tools and
+generic instructions, not the evaluation harness's CLI MCP bridge or custom
+workspace tool. The request gives no CLI, skill, or launcher tutorial.
+
+Install the published `excel-cli` plugin using your client's plugin manager
+from [the published plugin repository](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-cli).
+Select that installed plugin's root directory, containing `plugin.json`,
+`bin\start-cli.ps1`, and both `skills` directories. Treat it as immutable input;
+record its release/revision separately. This checks discovery and use of that
+package, **not installation itself**, MCP skill selection, a skill-value
+comparison, or universal reliability. The current harness's `CopilotEval.from_plugin`
+does not accept the published author-object metadata, so the experiment loads
+the actual individual skill directories without modifying the plugin.
+
+From `llm-tests`, with the locked dependencies installed (`uv sync --locked`):
+
+```powershell
+# Unpaid checker proofs: no plugin, Excel, or model access needed.
+uv run --locked pytest test_published_cli_discovery.py -m offline -v
+
+# Replace this with your installed published plugin's root directory.
+$env:EXCEL_PUBLISHED_CLI_PLUGIN = 'C:\path\to\installed\excel-cli'
+# Unpaid SDK preflight: validates both SKILL.md sources and enabled skills,
+# checks native powershell/skill tools, and forbids any model message.
+uv run --locked pytest test_published_cli_discovery.py::test_published_cli_unpaid_preflight -v
+
+# Only after those pass and one paid attempt is approved:
+$env:EXCEL_RUN_PUBLISHED_CLI_DISCOVERY = '1'
+uv run --locked pytest test_published_cli_discovery.py::test_live_published_cli_discovery --aitest-json TestResults\published-cli-new-run.json -v
+Remove-Item Env:\EXCEL_RUN_PUBLISHED_CLI_DISCOVERY
+Remove-Item Env:\EXCEL_PUBLISHED_CLI_PLUGIN
+```
+
+Do not add iterations or silently retry. Normal collection without the live
+opt-in skips the paid test. Missing prerequisites may skip; a supplied invalid
+plugin or incorrect result fails. The live attempt repeats the unpaid preflight,
+uses the shared model/budgets, a fresh pytest task directory, and a unique private
+CLI pipe. Run it sequentially with all other Excel-dependent work.
+
+Checks require successful correlated tool completions, activation of `excel-cli`,
+successful packaged-launcher value/formula writes and save-and-close, no open
+owned workbook before teardown, and independent Excel recalculation of saved
+`A1:D5` values/formulas. The quoted product name must survive; line totals must
+be 37.5, 350.5, and 35, with grand total 423. Negative proofs reject missing/wrong
+sheets, incorrect values, constants or wrong formulas, help-only/global-CLI
+evidence, failed/incomplete calls, missing skill activation, and missing close.
+Cleanup closes only the exact synthetic workbook and stops only the private
+service; errors remain visible. Native JSON and the temporary COM snapshot
+contain local paths and must stay private, not be committed or posted publicly.
 
 ## Measure whether skills help
 
