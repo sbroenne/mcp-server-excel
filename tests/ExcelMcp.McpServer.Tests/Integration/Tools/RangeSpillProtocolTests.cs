@@ -51,8 +51,8 @@ public sealed class RangeSpillProtocolTests(RecordingProgramTransportFixture fix
     public async Task Discovery_ExplainsNativeRelationshipsAndUnsupportedSessions()
     {
         var tools = await fixture.ListToolsAsync();
-        var tool = Assert.Single(tools, item => item.Name == "range");
+        var tool = Assert.Single(tools, item => item.Name == "range_read");
         Assert.Contains("get-spill-info", tool.Description, StringComparison.Ordinal);
-        Assert.Contains("Unsupported sessions fail explicitly", tool.Description, StringComparison.Ordinal);
+        Assert.Contains("Unsupported Excel sessions fail explicitly", tool.Description, StringComparison.Ordinal);
     }
 }

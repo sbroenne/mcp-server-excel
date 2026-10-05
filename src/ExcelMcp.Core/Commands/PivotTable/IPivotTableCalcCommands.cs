@@ -25,7 +25,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// </summary>
 [ServiceCategory("pivottablecalc", "PivotTableCalc")]
 [McpTool("pivottable_calc", Title = "PivotTable Calc Operations", Destructive = true, Category = "analysis",
-    Description = "PivotTable calculated fields/members, layout configuration, and data extraction. CALCULATED FIELDS: Create formulas like =Revenue-Cost, then add to Values with pivottable_field. CALCULATED MEMBERS: MDX expressions (OLAP/Data Model only). LAYOUT: 0=Compact, 1=Tabular, 2=Outline. Use pivottable for lifecycle, pivottable_field for field management.")]
+    Description = "Create/delete PivotTable calculated fields and members, and configure layout. CALCULATED FIELDS: Create formulas like =Revenue-Cost, then add to Values with pivottable_field. CALCULATED MEMBERS: MDX expressions (OLAP/Data Model only). LAYOUT: 0=Compact, 1=Tabular, 2=Outline. Use pivottable for lifecycle, pivottable_field for field management.")]
 [McpReadOnlyActions("get-data", "list-calculated-fields", "list-calculated-members", "get-layout-options")]
 public interface IPivotTableCalcCommands
 {

@@ -27,7 +27,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 /// </summary>
 [ServiceCategory("chart", "Chart")]
 [McpTool("chart", Title = "Chart Operations", Destructive = true, Category = "analysis",
-    Description = "Chart lifecycle - create, read, move, and delete embedded charts. POSITIONING: targetRange='F2:K15' (PREFERRED, cell-relative) or left/top (points, 72pts=1in) or OMIT BOTH for auto-positioning below content. COLLISION DETECTION: Automatically warns if chart overlaps data or other charts. CREATE: create-from-range (cell range), create-from-table (Excel Table), create-from-pivottable (verified live PivotChart; fails rather than returning a static chart). List counts plotted series, not PivotTable value fields. Read returns plotted series names, values, and categories for both regular charts and PivotCharts; value arrays are not cell addresses. Verify PivotChart scope through linkedPivotTable and its fields/filters. Use chart_config for series, titles, legends, and styling.")]
+    Description = "Create, move, fit, delete, and export embedded charts. POSITIONING: targetRange='F2:K15' (PREFERRED, cell-relative) or left/top (points, 72pts=1in) or OMIT BOTH for auto-positioning below content. COLLISION DETECTION: Automatically warns if chart overlaps data or other charts. CREATE: create-from-range (cell range), create-from-table (Excel Table), create-from-pivottable (verified live PivotChart; fails rather than returning a static chart). Use chart_config for series, titles, legends, and styling.")]
 [McpReadOnlyActions("list", "read")]
 public interface IChartCommands
 {
@@ -45,6 +45,7 @@ public interface IChartCommands
 
     /// <summary>
     /// Lists all charts in workbook (Regular and PivotCharts).
+    /// Counts plotted series, not PivotTable value fields.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <returns>Structured result with charts, names, types, sheets, positions, and data sources</returns>
@@ -54,6 +55,7 @@ public interface IChartCommands
     /// <summary>
     /// Gets chart configuration and currently plotted series names, values, and categories.
     /// PivotChart data follows the linked PivotTable's fields and filters.
+    /// Series values are arrays, not cell addresses. Verify PivotChart scope through linkedPivotTable and its fields/filters.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart (or shape name)</param>

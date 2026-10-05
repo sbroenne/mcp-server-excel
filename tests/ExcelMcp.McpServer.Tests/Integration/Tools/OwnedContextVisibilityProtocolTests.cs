@@ -83,14 +83,14 @@ public sealed class OwnedContextVisibilityProtocolTests(RecordingProgramTranspor
     public async Task Discovery_ExplainsOwnedContextAndHiddenCauseLimits()
     {
         var tools = await fixture.ListToolsAsync();
-        var window = Assert.Single(tools, tool => tool.Name == "window");
+        var window = Assert.Single(tools, tool => tool.Name == "window_read");
         Assert.Contains("get-context", window.Description, StringComparison.Ordinal);
         Assert.Contains("without activation or selection", window.Description, StringComparison.Ordinal);
         var format = Assert.Single(tools, tool => tool.Name == "range_format");
-        Assert.Contains("hidden cause is undetermined", format.Description, StringComparison.Ordinal);
         Assert.Contains("Disjoint gaps remain unchanged", format.Description, StringComparison.Ordinal);
         Assert.True(format.JsonSchema.GetProperty("properties").TryGetProperty("hidden", out _));
         var readFormat = Assert.Single(tools, tool => tool.Name == "range_format_read");
+        Assert.Contains("Hidden cause is undetermined", readFormat.Description, StringComparison.Ordinal);
         Assert.True(readFormat.JsonSchema.GetProperty("properties").TryGetProperty("axis", out _));
     }
 }

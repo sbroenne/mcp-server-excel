@@ -13,7 +13,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 [ServiceCategory("namedrange", "NamedRange")]
 [McpTool("namedrange", Title = "Named Range Operations", Destructive = true, Category = "data",
-    Description = "Named ranges for formulas/parameters. List returns visible user-defined names; hidden/internal Excel names are omitted before value inspection, and large ranges return metadata without materializing values. Create/update use reference for the cell reference (e.g., Sheet1!$A$1). Write uses value: invariant numeric and Boolean strings become typed values; other input remains text. For bulk data operations, use range with the named range as range_address.")]
+    Description = "Create, update, delete, and write named ranges for formulas/parameters. Create/update use reference for the cell reference (e.g., Sheet1!$A$1). Write uses value: invariant numeric and Boolean strings become typed values; other input remains text. For bulk data writes, use range with the named range as range_address.")]
 [McpReadOnlyActions("list", "read")]
 public interface INamedRangeCommands
 {

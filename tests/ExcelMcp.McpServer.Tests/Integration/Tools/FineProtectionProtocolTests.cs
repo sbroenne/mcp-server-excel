@@ -86,7 +86,8 @@ public sealed class FineProtectionProtocolTests(RecordingProgramTransportFixture
         Assert.Contains("runtime-only", sheet.Description, StringComparison.Ordinal);
         Assert.True(sheet.JsonSchema.GetProperty("properties").TryGetProperty("options", out _));
         var range = Assert.Single(tools, item => item.Name == "range_link");
-        Assert.Contains("every cell without a cap", range.Description, StringComparison.Ordinal);
         Assert.Contains("not tool inspection or file encryption", range.Description, StringComparison.Ordinal);
+        var readRange = Assert.Single(tools, item => item.Name == "range_link_read");
+        Assert.Contains("every unique requested cell, without a cap", readRange.Description, StringComparison.Ordinal);
     }
 }

@@ -26,21 +26,19 @@ public static partial class ExcelFileTool
 
     /// <summary>
     /// Open/create workbooks and manage their sessions.
-    /// Use file_read for listing sessions and testing paths.
-    /// Workflow: file_read list and match the intended workbook -> reuse its session or open/create -> operate ->
-    /// list and check that session's canClose -> close when authorized with explicit save:true or save:false.
-    /// Open/create and list entries return session_id; pass it to session-based tools. Create requires an existing directory.
+    /// Reuse the intended workbook's existing session or open/create one, then operate and close when authorized.
+    /// Open/create return session_id; pass it to session-based tools. Create requires an existing directory.
     /// Close defaults to save:false (discard edits); set save:true to save. Wait for canClose before closing,
     /// and confirm before closing a visible window unless already authorized.
     /// Normal server shutdown attempts to save open sessions; crashes and forced cleanup may lose edits.
-    /// Open/create default to 120 seconds. Cancellation is not undo; inspect file_read list before continuing.
+    /// Open/create default to 120 seconds. Cancellation is not undo; inspect the session state before continuing.
     /// </summary>
     /// <param name="action">The file operation to perform. close with save:false discards all unsaved edits, including earlier work; there is no tool-level undo.</param>
     /// <param name="path">Full Windows workbook path. Required for open and create. Create supports .xlsx/.xlsm. Use a supplied path or discover the matching session; ask if the intended file is unclear.</param>
     /// <param name="session_id">Session ID returned by open/create or listed by this server. Required for close.</param>
     /// <param name="save">Save before close; otherwise discard unsaved changes. Only valid for close.</param>
     /// <param name="show">Show Excel. Only valid for open/create; protected files may force visible authentication.</param>
-    /// <param name="timeout_seconds">Timeout for open/create/test, in seconds (10-3600). Open/create also sets the session operation timeout.</param>
+    /// <param name="timeout_seconds">Timeout for open/create, in seconds (10-3600). Also sets the session operation timeout.</param>
     [McpServerTool(Name = "file", Title = "File Operations", Destructive = true,
         UseStructuredContent = true, OutputSchemaType = typeof(FileToolOutputSchema))]
     [McpMeta("category", "session")]

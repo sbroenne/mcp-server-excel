@@ -17,7 +17,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Drawing;
 /// </summary>
 [ServiceCategory("drawing", "Drawing")]
 [McpTool("drawing", Title = "Drawing Object Operations", Destructive = true, Category = "structure",
-    Description = "Worksheet drawing objects and sparklines. Manage images, AutoShapes, text boxes, connectors, groups, and safe worksheet Forms controls. Group/ungroup, align/distribute within the selection, duplicate, change stacking order, and inspect complete group members. Layout excludes charts, ActiveX/OLE and unknown drawing types; duplication rejects macro assignments. Add common AutoShapes and line, column, or win/loss sparklines. Colors use #RRGGBB. ")]
+    Description = "Create, update, and delete worksheet drawing objects and sparklines. Manage images, AutoShapes, text boxes, connectors, groups, and safe worksheet Forms controls. Group/ungroup, align/distribute within the selection, duplicate, and change stacking order. Layout excludes charts, ActiveX/OLE and unknown drawing types; duplication rejects macro assignments. Add common AutoShapes and line, column, or win/loss sparklines. Colors use #RRGGBB. ")]
 [McpReadOnlyActions("list-objects", "get-object", "list-sparklines", "get-sparkline")]
 public interface IDrawingCommands
 {

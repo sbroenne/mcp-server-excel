@@ -10,7 +10,8 @@ AI assistants should discover the current contract through MCP `tools/list` or
 
 MCP actions marked read-only now appear on dedicated `<tool>_read` endpoints.
 Use each endpoint's schema to see its available actions. The original tool names
-remain for write actions. For example, use `file_read` for `list` and `test`,
+remain for write actions; their descriptions cover only their retained actions.
+For example, use `file_read` for `list` and `test`,
 `file` for `open`, `create`, and `close`, and `worksheet_read` for listing sheets.
 The screenshot endpoint remains `screenshot`, now marked read-only.
 Python `get-result` remains on `pythoninexcel` because it starts calculation,

@@ -41,7 +41,7 @@ public static partial class ExcelWorksheetTool
         UseStructuredContent = true, OutputSchemaType = typeof(WorksheetToolOutputSchema))]
     [McpMeta("category", "structure")]
     [McpMeta("requiresSession", false)]  // Session is optional - depends on the action
-    [Description("Worksheet changes: create, rename, copy, delete, move. Use worksheet_read to list sheets. DELETE HAS NO TOOL-LEVEL UNDO: removes all sheet contents and may break dependent references; check the intended sheet and its dependencies. MOVE-TO-FILE HAS NO TOOL-LEVEL UNDO: removes the source sheet and saves both files. Closing another session without saving cannot reverse that transfer. Rename uses old_name and new_name. Cross-file copy-to-file and move-to-file open, save, and close automatically without a session. Position with before_sheet or after_sheet, not both. Use worksheet_style for tab colors, visibility, and protection.")]
+    [Description("Worksheet changes: create, rename, copy, delete, move. DELETE HAS NO TOOL-LEVEL UNDO: removes all sheet contents and may break dependent references; check the intended sheet and its dependencies. MOVE-TO-FILE HAS NO TOOL-LEVEL UNDO: removes the source sheet and saves both files. Closing another session without saving cannot reverse that transfer. Rename uses old_name and new_name. Cross-file copy-to-file and move-to-file open, save, and close automatically without a session. Position with before_sheet or after_sheet, not both. Use worksheet_style for tab colors, visibility, and protection.")]
     public static Task<CallToolResult> ExcelWorksheet(
         [Description("The worksheet change to perform")] WorksheetWriteAction action,
         ServiceBridge.ServiceBridge bridge,
@@ -207,7 +207,7 @@ public static partial class ExcelWorksheetTool
         OutputSchemaType = typeof(WorksheetToolOutputSchema))]
     [McpMeta("category", "structure")]
     [McpMeta("requiresSession", true)]
-    [Description("List worksheets in a workbook session. Use worksheet for changes such as create, rename, copy, delete, or move.")]
+    [Description("List worksheets in a workbook session.")]
     public static Task<CallToolResult> ExcelWorksheetRead(
         [Description("The read-only action to perform")] WorksheetReadAction action,
         ServiceBridge.ServiceBridge bridge,

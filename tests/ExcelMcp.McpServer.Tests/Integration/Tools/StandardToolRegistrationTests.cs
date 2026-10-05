@@ -67,7 +67,7 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public async Task Discovery_WriteToolDescriptionsRouteMovedReadsToReadEndpoints()
+    public async Task Discovery_WriteToolDescriptionsDoNotAdvertiseMovedReadActions()
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         var byName = tools.ToDictionary(tool => tool.Name, StringComparer.Ordinal);
@@ -75,18 +75,19 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         foreach (var readTool in tools.Where(tool => tool.Name.EndsWith("_read", StringComparison.Ordinal)))
         {
             var writeToolName = readTool.Name[..^"_read".Length];
-            if (writeToolName is "file" or "worksheet")
-                continue;
             if (!byName.TryGetValue(writeToolName, out var writeTool))
                 continue;
 
-            var actions = string.Join(", ", readTool.JsonSchema.GetProperty("properties")
+            Assert.DoesNotContain(readTool.Name, writeTool.Description, StringComparison.Ordinal);
+            foreach (var action in readTool.JsonSchema.GetProperty("properties")
                 .GetProperty("action").GetProperty("enum").EnumerateArray()
-                .Select(value => value.GetString()));
-            Assert.Contains(
-                $"Read-only actions {actions} are available through {readTool.Name}.",
-                writeTool.Description,
-                StringComparison.Ordinal);
+                .Select(value => value.GetString()!)
+                .Where(action => action.Contains('-')))
+            {
+                Assert.DoesNotMatch(
+                    $@"(?i)(?<![\w-]){Regex.Escape(action)}(?![\w-])",
+                    writeTool.Description!);
+            }
         }
     }
 

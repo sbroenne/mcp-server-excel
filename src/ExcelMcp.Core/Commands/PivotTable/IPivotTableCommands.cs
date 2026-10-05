@@ -22,7 +22,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// </summary>
 [ServiceCategory("pivottable", "PivotTable")]
 [McpTool("pivottable", Title = "PivotTable Operations", Destructive = true, Category = "analysis",
-    Description = "PivotTable lifecycle: create from various sources, list, read, refresh, delete. BEST PRACTICE: Use list before creating. Prefer refresh over delete+recreate to preserve field configs. REFRESH: Call after configuring fields with pivottable_field. CREATE: create-from-range, create-from-table, create-from-datamodel. TIMEOUT: 5 min for DataModel. SOURCE: get-source/set-source inspect and isolate worksheet-backed caches; connected slicers/timelines must first be disconnected. Shared cache options cannot change unrelated PivotTables. STYLING: Use pivottable_calc set-layout-options for native styles and preserveFormatting. Use pivottable_field for field management.")]
+    Description = "Create, refresh, delete, and change sources/cache options for PivotTables. Prefer refresh over delete+recreate to preserve field configs. REFRESH: Call after configuring fields with pivottable_field. CREATE: create-from-range, create-from-table, create-from-datamodel. TIMEOUT: 5 min for DataModel. SOURCE: set-source isolates worksheet-backed caches; connected slicers/timelines must first be disconnected. Shared cache options cannot change unrelated PivotTables. STYLING: Use pivottable_calc set-layout-options for native styles and preserveFormatting. Use pivottable_field for field management.")]
 [McpReadOnlyActions("list", "read", "get-source", "get-cache-options")]
 public interface IPivotTableCommands
 {
