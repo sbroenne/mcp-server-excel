@@ -36,10 +36,10 @@ Focused mode builds only the selected test project and its dependencies; full
 mode builds the Release solution.
 
 Every run writes to a fresh directory beneath `-ResultsDirectory` (by default
-`TestResults\ExcelBehavior`). It retains source and binary identities, exact
-commands, exact child-process identities, discovery output, ownership journals,
-TRX files, and `summary.json`. The runner does not fingerprint source files or
-reject edits made during validation.
+`TestResults\ExcelBehavior`). It retains exact commands, child-process
+identities, discovery output, ownership journals, TRX files, and `summary.json`.
+The runner does not fingerprint source files or reject edits made during
+validation.
 Execution has per-test hang protection and a hard deadline per stage.
 `summary.json` records build, discovery, and execution wall times by command;
 TRX reports retain individual test durations, and the console reports progress
