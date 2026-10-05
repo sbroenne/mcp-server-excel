@@ -74,7 +74,7 @@ public sealed class WorksheetCommentToolTests(
         var arguments = new Dictionary<string, object?>
         {
             ["action"] = action,
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "CommentSheet",
             ["cell_address"] = "A1"
         };

@@ -52,9 +52,9 @@ a static chart if Excel cannot establish it.
 For monthly labels in A1:A6 and numeric series in B1:C6 on `Sheet1`:
 
 ```mcp
-chart(action: 'create-from-range', session_id: sessionId, sheet_name: 'Sheet1', source_range_address: 'A1:C6', chart_type: 'ColumnClustered', chart_name: 'MonthlySales', target_range: 'A8:H22')
-chart_config(action: 'set-title', session_id: sessionId, chart_name: 'MonthlySales', title: 'Monthly sales')
-chart_read(action: 'read', session_id: sessionId, chart_name: 'MonthlySales')
+chart(action: 'create-from-range', workbook_session_id: sessionId, sheet_name: 'Sheet1', source_range_address: 'A1:C6', chart_type: 'ColumnClustered', chart_name: 'MonthlySales', target_range: 'A8:H22')
+chart_config(action: 'set-title', workbook_session_id: sessionId, chart_name: 'MonthlySales', title: 'Monthly sales')
+chart_read(action: 'read', workbook_session_id: sessionId, chart_name: 'MonthlySales')
 ```
 
 ```cli
@@ -119,12 +119,12 @@ For existing `Details!A1:C4` containing `Product ID`, `Description`, and
 distinct; the original description remains in column B:
 
 ```mcp
-range(action: 'set-values', session_id: sessionId, sheet_name: 'Details', range_address: 'F1:G1', values: [['Product','Revenue']])
-range(action: 'set-formulas', session_id: sessionId, sheet_name: 'Details', range_address: 'F2:G4', formulas: [['=A2&" - "&LEFT(B2,18)','=C2'],['=A3&" - "&LEFT(B3,18)','=C3'],['=A4&" - "&LEFT(B4,18)','=C4']])
-calculation_mode(action: 'calculate', session_id: sessionId, scope: 'Sheet', sheet_name: 'Details')
-range_read(action: 'get-formulas', session_id: sessionId, sheet_name: 'Details', range_address: 'F2:G4')
-range_read(action: 'get-values', session_id: sessionId, sheet_name: 'Details', range_address: 'F1:G4')
-chart(action: 'create-from-range', session_id: sessionId, sheet_name: 'Details', source_range_address: 'F1:G4', chart_type: 'BarClustered', chart_name: 'ProductRevenue')
+range(action: 'set-values', workbook_session_id: sessionId, sheet_name: 'Details', range_address: 'F1:G1', values: [['Product','Revenue']])
+range(action: 'set-formulas', workbook_session_id: sessionId, sheet_name: 'Details', range_address: 'F2:G4', formulas: [['=A2&" - "&LEFT(B2,18)','=C2'],['=A3&" - "&LEFT(B3,18)','=C3'],['=A4&" - "&LEFT(B4,18)','=C4']])
+calculation_mode(action: 'calculate', workbook_session_id: sessionId, scope: 'Sheet', sheet_name: 'Details')
+range_read(action: 'get-formulas', workbook_session_id: sessionId, sheet_name: 'Details', range_address: 'F2:G4')
+range_read(action: 'get-values', workbook_session_id: sessionId, sheet_name: 'Details', range_address: 'F1:G4')
+chart(action: 'create-from-range', workbook_session_id: sessionId, sheet_name: 'Details', source_range_address: 'F1:G4', chart_type: 'BarClustered', chart_name: 'ProductRevenue')
 ```
 
 ```cli
@@ -156,12 +156,12 @@ For an existing `Transactions` Table with native Excel `Date` values and numeric
 timestamps on the last day and excluding the next month's first day:
 
 ```mcp
-range(action: 'set-values', session_id: sessionId, sheet_name: 'Summary', range_address: 'A1:B3', values: [['Month','Revenue'],['2025-12-01',null],['2026-01-01',null]])
-range(action: 'set-formulas', session_id: sessionId, sheet_name: 'Summary', range_address: 'B2:B3', formulas: [['=SUMIFS(Transactions[Revenue],Transactions[Date],">="&A2,Transactions[Date],"<"&EDATE(A2,1))'],['=SUMIFS(Transactions[Revenue],Transactions[Date],">="&A3,Transactions[Date],"<"&EDATE(A3,1))']])
-range(action: 'set-number-format', session_id: sessionId, sheet_name: 'Summary', range_address: 'A2:A3', format_code: 'mmm yyyy')
-calculation_mode(action: 'calculate', session_id: sessionId, scope: 'Sheet', sheet_name: 'Summary')
-range_read(action: 'get-values', session_id: sessionId, sheet_name: 'Summary', range_address: 'A1:B3')
-chart(action: 'create-from-range', session_id: sessionId, sheet_name: 'Summary', source_range_address: 'A1:B3', chart_type: 'Line', chart_name: 'MonthlyRevenue')
+range(action: 'set-values', workbook_session_id: sessionId, sheet_name: 'Summary', range_address: 'A1:B3', values: [['Month','Revenue'],['2025-12-01',null],['2026-01-01',null]])
+range(action: 'set-formulas', workbook_session_id: sessionId, sheet_name: 'Summary', range_address: 'B2:B3', formulas: [['=SUMIFS(Transactions[Revenue],Transactions[Date],">="&A2,Transactions[Date],"<"&EDATE(A2,1))'],['=SUMIFS(Transactions[Revenue],Transactions[Date],">="&A3,Transactions[Date],"<"&EDATE(A3,1))']])
+range(action: 'set-number-format', workbook_session_id: sessionId, sheet_name: 'Summary', range_address: 'A2:A3', format_code: 'mmm yyyy')
+calculation_mode(action: 'calculate', workbook_session_id: sessionId, scope: 'Sheet', sheet_name: 'Summary')
+range_read(action: 'get-values', workbook_session_id: sessionId, sheet_name: 'Summary', range_address: 'A1:B3')
+chart(action: 'create-from-range', workbook_session_id: sessionId, sheet_name: 'Summary', source_range_address: 'A1:B3', chart_type: 'Line', chart_name: 'MonthlyRevenue')
 ```
 
 ```cli
@@ -185,11 +185,11 @@ For example, `RevenuePivot` already has native-date `Date` in Rows and Sum of
 `Revenue` in Values. Month grouping also creates a year hierarchy:
 
 ```mcp
-pivottable_field(action: 'group-by-date', session_id: sessionId, pivot_table_name: 'RevenuePivot', field_name: 'Date', interval: 'Months')
-pivottable_field_read(action: 'list-fields', session_id: sessionId, pivot_table_name: 'RevenuePivot')
-pivottable(action: 'refresh', session_id: sessionId, pivot_table_name: 'RevenuePivot')
-pivottable_calc_read(action: 'get-data', session_id: sessionId, pivot_table_name: 'RevenuePivot')
-chart(action: 'create-from-pivottable', session_id: sessionId, sheet_name: 'Summary', pivot_table_name: 'RevenuePivot', chart_type: 'Line', chart_name: 'InteractiveRevenue')
+pivottable_field(action: 'group-by-date', workbook_session_id: sessionId, pivot_table_name: 'RevenuePivot', field_name: 'Date', interval: 'Months')
+pivottable_field_read(action: 'list-fields', workbook_session_id: sessionId, pivot_table_name: 'RevenuePivot')
+pivottable(action: 'refresh', workbook_session_id: sessionId, pivot_table_name: 'RevenuePivot')
+pivottable_calc_read(action: 'get-data', workbook_session_id: sessionId, pivot_table_name: 'RevenuePivot')
+chart(action: 'create-from-pivottable', workbook_session_id: sessionId, sheet_name: 'Summary', pivot_table_name: 'RevenuePivot', chart_type: 'Line', chart_name: 'InteractiveRevenue')
 ```
 
 ```cli
@@ -227,9 +227,9 @@ For the `MonthlyRevenue` chart above, keep the underlying amounts unchanged and
 scale only its value-axis display:
 
 ```mcp
-chart_config(action: 'set-axis-title', session_id: sessionId, chart_name: 'MonthlyRevenue', axis: 'Value', title: 'Revenue (USD thousands)')
-chart_config(action: 'set-axis-number-format', session_id: sessionId, chart_name: 'MonthlyRevenue', axis: 'Value', number_format: '#,##0,')
-chart_config_read(action: 'get-axis-number-format', session_id: sessionId, chart_name: 'MonthlyRevenue', axis: 'Value')
+chart_config(action: 'set-axis-title', workbook_session_id: sessionId, chart_name: 'MonthlyRevenue', axis: 'Value', title: 'Revenue (USD thousands)')
+chart_config(action: 'set-axis-number-format', workbook_session_id: sessionId, chart_name: 'MonthlyRevenue', axis: 'Value', number_format: '#,##0,')
+chart_config_read(action: 'get-axis-number-format', workbook_session_id: sessionId, chart_name: 'MonthlyRevenue', axis: 'Value')
 ```
 
 ```cli

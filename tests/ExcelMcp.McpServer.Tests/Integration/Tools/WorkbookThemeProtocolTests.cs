@@ -16,7 +16,7 @@ public sealed class WorkbookThemeProtocolTests(RecordingProgramTransportFixture 
         var call = await fixture.CallToolAsync("workbook", new Dictionary<string, object?>
         {
             ["action"] = "apply-theme",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["theme_path"] = "selected.thmx"
         }, RecordingToolTest.Success("""{"success":true}"""), "workbook.apply-theme",
             """{"themePath":"selected.thmx"}""");

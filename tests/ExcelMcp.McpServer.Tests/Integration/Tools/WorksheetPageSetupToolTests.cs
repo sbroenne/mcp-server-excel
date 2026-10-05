@@ -24,7 +24,7 @@ public sealed class WorksheetPageSetupToolTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "set-page-setup",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "PageSetupSheet",
                 ["orientation"] = "landscape",
                 ["fit_to_pages_wide"] = 1,
@@ -54,7 +54,7 @@ public sealed class WorksheetPageSetupToolTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "get-page-setup",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "PageSetupSheet"
             },
             Success(
@@ -81,7 +81,7 @@ public sealed class WorksheetPageSetupToolTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "get-page-setup",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "AutomaticScale"
             },
             Success(

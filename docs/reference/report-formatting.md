@@ -75,12 +75,12 @@ The user wants readable report formatting, and there is no template to preserve.
 Check each result before the next step; a failed sequence is not rolled back.
 
 ```mcp
-range_format(action: 'format', session_id: sessionId, sheet_name: 'Report', range_addresses: ['A1:C1'], format_options: {bold: true, fillColor: '#4472C4', fontColor: '#FFFFFF'})
-range(action: 'set-number-format', session_id: sessionId, sheet_name: 'Report', range_address: 'B2:B21', format_code: '$#,##0.00')
-range(action: 'set-number-format', session_id: sessionId, sheet_name: 'Report', range_address: 'C2:C21', format_code: '0.0%')
-range_format(action: 'format', session_id: sessionId, sheet_name: 'Report', range_addresses: ['B2:C21'], format_options: {horizontalAlignment: 'right'})
-range_format(action: 'auto-fit-columns', session_id: sessionId, sheet_name: 'Report', range_address: 'A:C')
-window(action: 'freeze-panes', session_id: sessionId, sheet_name: 'Report', frozen_rows: 1)
+range_format(action: 'format', workbook_session_id: sessionId, sheet_name: 'Report', range_addresses: ['A1:C1'], format_options: {bold: true, fillColor: '#4472C4', fontColor: '#FFFFFF'})
+range(action: 'set-number-format', workbook_session_id: sessionId, sheet_name: 'Report', range_address: 'B2:B21', format_code: '$#,##0.00')
+range(action: 'set-number-format', workbook_session_id: sessionId, sheet_name: 'Report', range_address: 'C2:C21', format_code: '0.0%')
+range_format(action: 'format', workbook_session_id: sessionId, sheet_name: 'Report', range_addresses: ['B2:C21'], format_options: {horizontalAlignment: 'right'})
+range_format(action: 'auto-fit-columns', workbook_session_id: sessionId, sheet_name: 'Report', range_address: 'A:C')
+window(action: 'freeze-panes', workbook_session_id: sessionId, sheet_name: 'Report', frozen_rows: 1)
 ```
 
 ```cli

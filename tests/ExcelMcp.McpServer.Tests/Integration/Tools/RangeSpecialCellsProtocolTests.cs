@@ -41,7 +41,7 @@ public sealed class RangeSpecialCellsProtocolTests(RecordingProgramTransportFixt
         var call = await fixture.CallToolAsync("range_read", new()
         {
             ["action"] = "get-special-cells",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1:A64",
             ["cell_kind"] = cellKind
@@ -74,7 +74,7 @@ public sealed class RangeSpecialCellsProtocolTests(RecordingProgramTransportFixt
         var result = await fixture.CallResultWithoutDispatchAsync("range_read", new()
         {
             ["action"] = "get-special-cells",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1",
             ["cell_kind"] = cellKind
@@ -89,7 +89,7 @@ public sealed class RangeSpecialCellsProtocolTests(RecordingProgramTransportFixt
         var result = await fixture.CallResultWithoutDispatchAsync("range_read", new()
         {
             ["action"] = "get-special-cells",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1"
         });

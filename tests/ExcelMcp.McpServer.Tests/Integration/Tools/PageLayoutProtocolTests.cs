@@ -20,7 +20,7 @@ public sealed class PageLayoutProtocolTests(RecordingProgramTransportFixture fix
         var call = await fixture.CallToolAsync("worksheet_style", new Dictionary<string, object?>
         {
             ["action"] = "set-page-setup",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Report",
             ["page_setup_options"] = new { printArea = "", leftMargin = 36, zoomPercent = 90 }
         }, RecordingToolTest.Success("""{"success":true}"""), "sheet.set-page-setup",
@@ -35,7 +35,7 @@ public sealed class PageLayoutProtocolTests(RecordingProgramTransportFixture fix
         var call = await fixture.CallToolAsync("worksheet_style", new Dictionary<string, object?>
         {
             ["action"] = "set-page-breaks",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Report",
             ["page_break_options"] = new { rows = new List<int> { 10 }, columns = new List<int>() }
         }, RecordingToolTest.Success("""{"success":true}"""), "sheet.set-page-breaks",

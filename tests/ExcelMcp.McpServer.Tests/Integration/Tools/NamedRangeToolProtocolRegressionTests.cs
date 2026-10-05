@@ -23,7 +23,7 @@ public sealed class NamedRangeToolProtocolRegressionTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "list",
-                ["session_id"] = sessionId
+                ["workbook_session_id"] = sessionId
             },
             RecordingToolTest.Success(
                 """{"success":true,"namedRanges":[{"name":"CsvFolder","refersTo":"=Sheet1!$B$4","value":"C:\\Data"}]}"""),
@@ -49,7 +49,7 @@ public sealed class NamedRangeToolProtocolRegressionTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "list",
-                ["session_id"] = sessionId
+                ["workbook_session_id"] = sessionId
             },
             RecordingToolTest.Success(
                 """{"success":true,"worksheets":[{"name":"Sheet1"}]}"""),

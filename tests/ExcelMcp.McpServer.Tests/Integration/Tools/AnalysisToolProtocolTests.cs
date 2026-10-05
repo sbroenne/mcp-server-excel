@@ -23,7 +23,7 @@ public sealed class AnalysisToolProtocolTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "goal-seek",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "Analysis",
                 ["formula_cell"] = "B1",
                 ["changing_cell"] = "A1"
@@ -48,7 +48,7 @@ public sealed class AnalysisToolProtocolTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "create-data-table",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "Analysis",
                 ["table_range"] = "A1:C3",
                 ["row_input_cell"] = "A12",

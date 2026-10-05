@@ -158,7 +158,7 @@ public sealed class DrawingToolE2ETests : McpIntegrationTestBase
         var valuesJson = await CallToolAsync("range", new Dictionary<string, object?>
         {
             ["action"] = "set-values",
-            ["session_id"] = _sessionId,
+            ["workbook_session_id"] = _sessionId,
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "B2:E3",
             ["values"] = new List<List<object?>>
@@ -271,7 +271,7 @@ public sealed class DrawingToolE2ETests : McpIntegrationTestBase
     private Task<string> CallDrawingAsync(string action, Dictionary<string, object?> arguments)
     {
         arguments["action"] = action;
-        arguments["session_id"] = _sessionId;
+        arguments["workbook_session_id"] = _sessionId;
         var toolName = action is "get-object" or "list-objects" or "get-sparkline" or "list-sparklines"
             ? "drawing_read"
             : "drawing";

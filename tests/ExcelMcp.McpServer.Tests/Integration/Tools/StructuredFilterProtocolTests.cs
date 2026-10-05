@@ -22,7 +22,7 @@ public sealed class StructuredFilterProtocolTests(RecordingProgramTransportFixtu
         var args = new Dictionary<string, object?>
         {
             ["action"] = "apply-filter",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             [table ? "options" : "filter_options"] = new { filterOperator = "And", criteria1 = ">=20", criteria2 = "<=40" }
         };
         var expected = new Dictionary<string, object?> { [table ? "options" : "filterOptions"] = options };

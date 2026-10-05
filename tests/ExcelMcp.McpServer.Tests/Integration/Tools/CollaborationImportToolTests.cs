@@ -45,7 +45,7 @@ public sealed class CollaborationImportToolTests(
             new()
             {
                 ["action"] = "list-threaded-comments",
-                ["session_id"] = SessionId,
+                ["workbook_session_id"] = SessionId,
                 ["sheet_name"] = "Review",
                 ["cell_address"] = "B2"
             },
@@ -80,7 +80,7 @@ public sealed class CollaborationImportToolTests(
         await AssertSuccessAsync("range_link", new()
         {
             ["action"] = "delete-threaded-comment",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "Review",
             ["cell_address"] = "B2"
         }, "rangelink.delete-threaded-comment",
@@ -123,7 +123,7 @@ public sealed class CollaborationImportToolTests(
             new()
             {
                 ["action"] = "list",
-                ["session_id"] = SessionId
+                ["workbook_session_id"] = SessionId
             },
             "querytable.list",
             null,
@@ -179,7 +179,7 @@ public sealed class CollaborationImportToolTests(
             new()
             {
                 ["action"] = "set-properties",
-                ["session_id"] = SessionId,
+                ["workbook_session_id"] = SessionId,
                 ["sheet_name"] = "Imports",
                 ["query_table_name"] = "CsvImport",
                 ["refresh_period"] = -1
@@ -195,7 +195,7 @@ public sealed class CollaborationImportToolTests(
         await AssertSuccessAsync("querytable", new()
         {
             ["action"] = "set-properties",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "Imports",
             ["query_table_name"] = "CsvImport",
             ["background_query"] = false,
@@ -257,7 +257,7 @@ public sealed class CollaborationImportToolTests(
         await AssertSuccessAsync("querytable", new()
         {
             ["action"] = "create-web",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["query_table_name"] = "HtmlImport",
             ["url"] = "file:///C:/adapter/rates.html",
             ["sheet_name"] = "Imports",
@@ -313,7 +313,7 @@ public sealed class CollaborationImportToolTests(
         await AssertSuccessAsync("connection", new()
         {
             ["action"] = "create",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["connection_name"] = connectionName,
             ["connection_string"] = connectionString,
             ["command_text"] = "SELECT * FROM [Sheet1$]"
@@ -385,7 +385,7 @@ public sealed class CollaborationImportToolTests(
         string text) => new()
         {
             ["action"] = action,
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "Review",
             ["cell_address"] = "B2",
             ["text"] = text
@@ -396,7 +396,7 @@ public sealed class CollaborationImportToolTests(
         string delimiter) => new()
         {
             ["action"] = "create-text",
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["query_table_name"] = "CsvImport",
             ["source_path"] = sourcePath,
             ["sheet_name"] = "Imports",
@@ -412,7 +412,7 @@ public sealed class CollaborationImportToolTests(
         string name) => new()
         {
             ["action"] = action,
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "Imports",
             ["query_table_name"] = name
         };
@@ -422,7 +422,7 @@ public sealed class CollaborationImportToolTests(
         string name) => new()
         {
             ["action"] = action,
-            ["session_id"] = SessionId,
+            ["workbook_session_id"] = SessionId,
             ["connection_name"] = name
         };
 

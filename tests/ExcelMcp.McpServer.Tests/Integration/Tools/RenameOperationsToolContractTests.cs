@@ -23,7 +23,7 @@ public sealed class RenameOperationsToolContractTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "rename",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["old_name"] = "NonExistentQuery",
                 ["new_name"] = "NewName"
             },
@@ -61,7 +61,7 @@ public sealed class RenameOperationsToolContractTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "rename",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["old_name"] = "OriginalQuery",
                 ["new_name"] = "RenamedQuery"
             },

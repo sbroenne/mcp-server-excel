@@ -28,7 +28,7 @@ public sealed class RangeFillProtocolTests(RecordingProgramTransportFixture fixt
         var call = await fixture.CallToolAsync("range_edit", new()
         {
             ["action"] = "fill",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1:B3",
             ["direction"] = direction
@@ -49,7 +49,7 @@ public sealed class RangeFillProtocolTests(RecordingProgramTransportFixture fixt
         var call = await fixture.CallToolAsync("range_edit", new()
         {
             ["action"] = "auto-fill",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Sheet1",
             ["source_range"] = "A1:A2",
             ["destination_range"] = "A1:A10",
@@ -76,7 +76,7 @@ public sealed class RangeFillProtocolTests(RecordingProgramTransportFixture fixt
         var call = await fixture.CallToolAsync("range_edit", new()
         {
             ["action"] = "create-series",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1:A10",
             ["orientation"] = "columns",
@@ -98,7 +98,7 @@ public sealed class RangeFillProtocolTests(RecordingProgramTransportFixture fixt
         Dictionary<string, object?> arguments = new()
         {
             ["action"] = action,
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "B1",
             ["reference_style"] = "r1c1"

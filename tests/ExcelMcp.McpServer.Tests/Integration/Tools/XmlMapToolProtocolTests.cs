@@ -30,7 +30,7 @@ public sealed class XmlMapToolProtocolTests(
             new()
             {
                 ["action"] = "import-xml",
-                ["session_id"] = SessionId,
+                ["workbook_session_id"] = SessionId,
                 ["xml_data"] = xmlData,
                 ["sheet_name"] = "Sheet1",
                 ["start_cell"] = "B2"
@@ -55,7 +55,7 @@ public sealed class XmlMapToolProtocolTests(
             new()
             {
                 ["action"] = "export-xml",
-                ["session_id"] = SessionId,
+                ["workbook_session_id"] = SessionId,
                 ["map_name"] = mapName
             },
             "xmlmap.export-xml",
@@ -75,7 +75,7 @@ public sealed class XmlMapToolProtocolTests(
             new()
             {
                 ["action"] = "delete",
-                ["session_id"] = SessionId,
+                ["workbook_session_id"] = SessionId,
                 ["map_name"] = mapName
             },
             "xmlmap.delete",
@@ -89,7 +89,7 @@ public sealed class XmlMapToolProtocolTests(
             new()
             {
                 ["action"] = "list",
-                ["session_id"] = SessionId
+                ["workbook_session_id"] = SessionId
             },
             "xmlmap.list",
             null,

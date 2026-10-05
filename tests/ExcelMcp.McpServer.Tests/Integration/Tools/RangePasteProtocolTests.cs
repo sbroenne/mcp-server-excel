@@ -50,7 +50,7 @@ public sealed class RangePasteProtocolTests(RecordingProgramTransportFixture fix
         var call = await fixture.CallToolAsync("range", new()
         {
             ["action"] = "copy",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["source_sheet"] = "Source",
             ["source_range"] = "A1:B3",
             ["target_sheet"] = "Target",
@@ -73,7 +73,7 @@ public sealed class RangePasteProtocolTests(RecordingProgramTransportFixture fix
         var result = await fixture.CallResultWithoutDispatchAsync("range", new()
         {
             ["action"] = action,
-            ["session_id"] = "session-1"
+            ["workbook_session_id"] = "session-1"
         });
         Assert.True(result.IsError);
     }
@@ -87,7 +87,7 @@ public sealed class RangePasteProtocolTests(RecordingProgramTransportFixture fix
         Dictionary<string, object?> arguments = new()
         {
             ["action"] = "copy",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["source_sheet"] = "Source",
             ["source_range"] = "A1:B3",
             ["target_sheet"] = "Target",

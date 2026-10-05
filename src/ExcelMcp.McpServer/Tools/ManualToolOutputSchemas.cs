@@ -13,7 +13,7 @@ internal sealed class FileToolOutputSchema
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? FilePath { get; set; }
 
-    [JsonPropertyName("session_id")]
+    [JsonPropertyName("workbook_session_id")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? SessionId { get; set; }
 
@@ -41,7 +41,7 @@ internal sealed class FileToolOutputSchema
 
 internal sealed class FileSessionOutputSchema
 {
-    [JsonPropertyName("session_id")]
+    [JsonPropertyName("workbook_session_id")]
     public string SessionId { get; set; } = string.Empty;
     public string FilePath { get; set; } = string.Empty;
     public bool IsExcelVisible { get; set; }
@@ -51,7 +51,7 @@ internal sealed class FileSessionOutputSchema
 
 internal sealed class WorksheetToolOutputSchema
 {
-    [JsonPropertyName("session_id")]
+    [JsonPropertyName("workbook_session_id")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? SessionId { get; set; }
 
@@ -75,7 +75,7 @@ internal sealed class WorksheetToolOutputSchema
 
 internal sealed class ScreenshotToolOutputSchema
 {
-    [JsonPropertyName("session_id")]
+    [JsonPropertyName("workbook_session_id")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? SessionId { get; set; }
 

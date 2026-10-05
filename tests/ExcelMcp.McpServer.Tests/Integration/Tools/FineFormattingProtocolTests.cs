@@ -26,7 +26,7 @@ public sealed class FineFormattingProtocolTests(RecordingProgramTransportFixture
         var call = await fixture.CallToolAsync("range_format", new Dictionary<string, object?>
         {
             ["action"] = "format",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Data",
             ["range_addresses"] = (string[])["A1:B2", "D1:E2"],
             ["format_options"] = new

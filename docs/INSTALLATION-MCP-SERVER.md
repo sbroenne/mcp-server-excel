@@ -476,8 +476,10 @@ does not change versions.
 
 ### 5. Session ID Missing Through a Client Bridge
 
-MCP tool requests use **`session_id`** as the canonical name. Put it directly
-in the `arguments` object of `tools/call`, alongside `action`:
+MCP tool requests use **`workbook_session_id`** for workbook-session inputs.
+This is a workaround for a Claude Desktop bridge issue that can drop MCP inputs
+named `session_id`. Put it directly in the `arguments` object of `tools/call`,
+alongside `action`:
 
 ```json
 {
@@ -488,16 +490,16 @@ in the `arguments` object of `tools/call`, alongside `action`:
     "name": "workbook_read",
     "arguments": {
       "action": "get-info",
-      "session_id": "<ID returned by this server>"
+      "workbook_session_id": "<ID returned by this server>"
     }
   }
 }
 ```
 
-`file open/create`, `file_read list` entries, and session error context all use
-`session_id`. Pass the selected entry's value directly as `session_id`. Never
+`file open/create` results, `file_read list` entries, and session error context
+also use `workbook_session_id`. Pass the selected entry's value directly as
+`workbook_session_id`. The old MCP name `session_id` is not accepted. Never
 guess an ID or pick another workbook just because only one is listed.
-The legacy `sessionId` input is rejected, even if `session_id` is also present.
 CLI JSON continues to use `sessionId`; CLI and MCP sessions are separate.
 
 Use this workflow: call `file_read` with action `list` and match the intended

@@ -20,7 +20,7 @@ public sealed class ChartDepthProtocolTests(RecordingProgramTransportFixture fix
         var call = await fixture.CallToolAsync("chart_config", new Dictionary<string, object?>
         {
             ["action"] = "set-error-bars",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["chart_name"] = "Sales",
             ["series_index"] = 2,
             ["error_bar_options"] = new { direction = "X", kind = "Fixed", amount = 2, endStyle = "NoCap" }
@@ -36,7 +36,7 @@ public sealed class ChartDepthProtocolTests(RecordingProgramTransportFixture fix
         var call = await fixture.CallToolAsync("chart_config", new Dictionary<string, object?>
         {
             ["action"] = "set-point-format",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["chart_name"] = "Sales",
             ["series_index"] = 2,
             ["point_index"] = 3,
@@ -52,7 +52,7 @@ public sealed class ChartDepthProtocolTests(RecordingProgramTransportFixture fix
         var call = await fixture.CallToolAsync("chart", new Dictionary<string, object?>
         {
             ["action"] = "export-image",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["chart_name"] = "Sales",
             ["target_path"] = "sales.jpg",
             ["image_format"] = "Jpeg",
@@ -70,7 +70,7 @@ public sealed class ChartDepthProtocolTests(RecordingProgramTransportFixture fix
         var call = await fixture.CallToolAsync("chart", new Dictionary<string, object?>
         {
             ["action"] = "export-image",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["chart_name"] = "Sales",
             ["target_path"] = "sales.png"
         }, new ServiceResponse

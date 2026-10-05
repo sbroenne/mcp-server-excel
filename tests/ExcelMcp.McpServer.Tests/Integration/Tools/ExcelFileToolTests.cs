@@ -153,14 +153,14 @@ public sealed class ExcelFileToolExcelTests(ITestOutputHelper output) : McpInteg
         using (var document = JsonDocument.Parse(listed))
         {
             var session = Assert.Single(document.RootElement.GetProperty("sessions").EnumerateArray(),
-                item => item.GetProperty("session_id").GetString() == sessionId);
+                item => item.GetProperty("workbook_session_id").GetString() == sessionId);
             Assert.Equal(tempPath, session.GetProperty("filePath").GetString());
         }
 
         AssertSuccess(await CallToolAsync("range", new()
         {
             ["action"] = "set-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1",
             ["values"] = new List<List<object?>> { new() { "created-session" } }
@@ -168,7 +168,7 @@ public sealed class ExcelFileToolExcelTests(ITestOutputHelper output) : McpInteg
         var read = await CallToolAsync("range_read", new()
         {
             ["action"] = "get-values",
-            ["session_id"] = sessionId,
+            ["workbook_session_id"] = sessionId,
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1"
         });

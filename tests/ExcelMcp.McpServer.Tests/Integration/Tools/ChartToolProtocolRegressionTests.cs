@@ -29,7 +29,7 @@ public sealed class ChartToolProtocolRegressionTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "read",
-                ["session_id"] = "recording-session",
+                ["workbook_session_id"] = "recording-session",
                 ["chart_name"] = "RevenueChart"
             },
             RecordingToolTest.Success(response),
@@ -56,7 +56,7 @@ public sealed class ChartToolProtocolRegressionTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "list",
-                ["session_id"] = sessionId
+                ["workbook_session_id"] = sessionId
             },
             RecordingToolTest.Success("""{"success":true,"charts":[]}"""),
             "chart.list",
@@ -74,7 +74,7 @@ public sealed class ChartToolProtocolRegressionTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "list",
-                ["session_id"] = sessionId
+                ["workbook_session_id"] = sessionId
             },
             RecordingToolTest.Success(
                 """{"success":true,"worksheets":[{"name":"Sheet1"}]}"""),

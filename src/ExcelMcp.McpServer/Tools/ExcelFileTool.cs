@@ -14,7 +14,7 @@ public static partial class ExcelFileTool
         string[] allowed = (toolName, action) switch
         {
             ("file", "open" or "create") => ["action", "path", "show", "timeout_seconds"],
-            ("file", "close") => ["action", "session_id", "save"],
+            ("file", "close") => ["action", "workbook_session_id", "save"],
             ("file_read", "test") => ["action", "path", "timeout_seconds"],
             ("file_read", "list") => ["action"],
             _ => throw new ArgumentException("Unknown file action.")
@@ -27,7 +27,7 @@ public static partial class ExcelFileTool
     /// <summary>
     /// Open/create workbooks and manage their sessions.
     /// Reuse the intended workbook's existing session or open/create one, then operate and close when authorized.
-    /// Open/create return session_id; pass it to session-based tools. Create requires an existing directory.
+    /// Open/create return workbook_session_id; pass it to session-based tools. Create requires an existing directory.
     /// Close defaults to save:false (discard edits); set save:true to save. Wait for canClose before closing,
     /// and confirm before closing a visible window unless already authorized.
     /// Normal server shutdown attempts to save open sessions; crashes and forced cleanup may lose edits.
@@ -35,7 +35,7 @@ public static partial class ExcelFileTool
     /// </summary>
     /// <param name="action">The file operation to perform. close with save:false discards all unsaved edits, including earlier work; there is no tool-level undo.</param>
     /// <param name="path">Full Windows workbook path. Required for open and create. Create supports .xlsx/.xlsm. Use a supplied path or discover the matching session; ask if the intended file is unclear.</param>
-    /// <param name="session_id">Session ID returned by open/create or listed by this server. Required for close.</param>
+    /// <param name="workbook_session_id">Session ID returned by open/create or listed by this server. Required for close.</param>
     /// <param name="save">Save before close; otherwise discard unsaved changes. Only valid for close.</param>
     /// <param name="show">Show Excel. Only valid for open/create; protected files may force visible authentication.</param>
     /// <param name="timeout_seconds">Timeout for open/create, in seconds (10-3600). Also sets the session operation timeout.</param>
@@ -47,7 +47,7 @@ public static partial class ExcelFileTool
         FileWriteAction action,
         ServiceBridge.ServiceBridge bridge,
         [DefaultValue(null)] string? path,
-        [DefaultValue(null)] string? session_id,
+        [DefaultValue(null)] string? workbook_session_id,
         [DefaultValue(false)] bool save,
         [DefaultValue(false)] bool show,
         [DefaultValue(120)] int timeout_seconds,
@@ -61,7 +61,7 @@ public static partial class ExcelFileTool
                 FileWriteAction.Close => FileAction.Close,
                 _ => throw new ArgumentOutOfRangeException(nameof(action))
             },
-            bridge, path, session_id, save, show, timeout_seconds, cancellationToken);
+            bridge, path, workbook_session_id, save, show, timeout_seconds, cancellationToken);
 
     /// <summary>List workbook sessions and validate a workbook path without opening an editable session.</summary>
     /// <remarks>
@@ -98,7 +98,7 @@ public static partial class ExcelFileTool
         FileAction action,
         ServiceBridge.ServiceBridge bridge,
         string? path,
-        string? session_id,
+        string? workbook_session_id,
         bool save,
         bool show,
         int timeout_seconds,
@@ -110,8 +110,8 @@ public static partial class ExcelFileTool
 
             if (action is FileAction.Open or FileAction.Create or FileAction.Test && string.IsNullOrWhiteSpace(path))
                 throw new ArgumentException($"path is required for '{action.ToActionString()}' action.");
-            if (action == FileAction.Close && string.IsNullOrWhiteSpace(session_id))
-                throw new ArgumentException(SessionIdentityFilter.ErrorMessage);
+            if (action == FileAction.Close && string.IsNullOrWhiteSpace(workbook_session_id))
+                throw new ArgumentException("workbook_session_id is required for file 'close'.");
 
             if (action is FileAction.Open or FileAction.Create)
             {
@@ -134,7 +134,7 @@ public static partial class ExcelFileTool
             var response = action switch
             {
                 FileAction.List => await bridge.SendAsync("session.list", cancellationToken: cancellationToken),
-                FileAction.Close => await bridge.SendAsync("session.close", session_id, new { save }, cancellationToken: cancellationToken),
+                FileAction.Close => await bridge.SendAsync("session.close", workbook_session_id, new { save }, cancellationToken: cancellationToken),
                 FileAction.Open or FileAction.Create => await bridge.SendAsync(
                     $"session.{action.ToActionString()}", args: new { filePath = path, show, timeoutSeconds = timeout_seconds },
                     timeoutSeconds: timeout_seconds, cancellationToken: cancellationToken),
@@ -148,7 +148,7 @@ public static partial class ExcelFileTool
 
             // session.close is a void Service command; its successful acknowledgement is authoritative.
             if (action == FileAction.Close)
-                return JsonSerializer.Serialize(new { success = true, session_id, saved = save }, ExcelToolsBase.JsonOptions);
+                return JsonSerializer.Serialize(new { success = true, workbook_session_id, saved = save }, ExcelToolsBase.JsonOptions);
 
             var result = response.Result
                 ?? throw new InvalidOperationException("File operation returned no result.");
@@ -165,7 +165,7 @@ public static partial class ExcelFileTool
                     if (string.IsNullOrWhiteSpace(sessionId))
                         throw new InvalidOperationException("Session listing returned no session ID.");
                     session.Remove("sessionId");
-                    session["session_id"] = sessionId;
+                    session["workbook_session_id"] = sessionId;
                 }
                 return list.ToJsonString(ExcelToolsBase.JsonOptions);
             }
@@ -179,7 +179,7 @@ public static partial class ExcelFileTool
             return JsonSerializer.Serialize(new
             {
                 success = true,
-                session_id = id,
+                workbook_session_id = id,
                 filePath = document.RootElement.GetProperty("filePath").GetString()
             }, ExcelToolsBase.JsonOptions);
         }, cancellationToken);

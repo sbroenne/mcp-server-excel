@@ -18,7 +18,7 @@ public sealed class OwnedContextVisibilityProtocolTests(RecordingProgramTranspor
         var call = await fixture.CallToolAsync("window_read", new()
         {
             ["action"] = "get-context",
-            ["session_id"] = "session-1"
+            ["workbook_session_id"] = "session-1"
         }, RecordingToolTest.Success("""{"success":true,"availability":"available","windows":[]}"""),
             "window.get-context", null);
         Assert.False(call.Result.IsError);
@@ -35,7 +35,7 @@ public sealed class OwnedContextVisibilityProtocolTests(RecordingProgramTranspor
         Dictionary<string, object?> arguments = new()
         {
             ["action"] = action,
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A2,C4",
             ["axis"] = axis
@@ -67,7 +67,7 @@ public sealed class OwnedContextVisibilityProtocolTests(RecordingProgramTranspor
         Dictionary<string, object?> arguments = new()
         {
             ["action"] = action,
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A2",
             ["axis"] = "rows",

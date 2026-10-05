@@ -42,7 +42,7 @@ public static class ExcelToolsBase
             errorMessage,
             errorCategory = response.ErrorCategory,
             command = response.Command,
-            session_id = response.SessionId,
+            workbook_session_id = response.SessionId,
             exceptionType = response.ExceptionType,
             hresult = response.HResult,
             innerError = response.InnerError,

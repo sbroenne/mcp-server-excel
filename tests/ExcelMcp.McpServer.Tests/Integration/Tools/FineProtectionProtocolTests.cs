@@ -31,7 +31,7 @@ public sealed class FineProtectionProtocolTests(RecordingProgramTransportFixture
         var call = await fixture.CallToolAsync("worksheet_style", new()
         {
             ["action"] = "set-protection",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Sheet1",
             ["is_protected"] = true,
             ["options"] = options
@@ -54,7 +54,7 @@ public sealed class FineProtectionProtocolTests(RecordingProgramTransportFixture
         var call = await fixture.CallToolAsync("range_link", new()
         {
             ["action"] = "set-cell-protection",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1,A3",
             ["locked"] = locked,
@@ -71,7 +71,7 @@ public sealed class FineProtectionProtocolTests(RecordingProgramTransportFixture
         var result = await fixture.CallResultWithoutDispatchAsync("range_link", new()
         {
             ["action"] = action,
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1"
         });

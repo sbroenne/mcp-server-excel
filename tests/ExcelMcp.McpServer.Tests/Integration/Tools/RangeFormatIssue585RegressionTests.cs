@@ -25,7 +25,7 @@ public sealed class RangeFormatIssue585RegressionTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "format",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "Formatting",
                 ["range_addresses"] = (string[])["A1:J1"],
                 ["format_options"] = new { bold = true, fontColor = "#FFFFFF", fillColor = "#1F4E79", fontName = (string?)null, orientation = (int?)null }
@@ -61,7 +61,7 @@ public sealed class RangeFormatIssue585RegressionTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "format",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "Formatting",
                 ["range_addresses"] = (string[])["A1:J1"],
                 ["format_options"] = new { fillColor = "not-a-color" }
@@ -89,7 +89,7 @@ public sealed class RangeFormatIssue585RegressionTests(
         Assert.Equal("ArgumentException", root.GetProperty("exceptionType").GetString());
         Assert.Equal("InvalidInput", root.GetProperty("errorCategory").GetString());
         Assert.Equal("rangeformat.format", root.GetProperty("command").GetString());
-        Assert.Equal(sessionId, root.GetProperty("session_id").GetString());
+        Assert.Equal(sessionId, root.GetProperty("workbook_session_id").GetString());
         Assert.Contains(
             "not-a-color",
             root.GetProperty("errorMessage").GetString(),

@@ -111,7 +111,7 @@ public sealed class FileToolRecordingContractTests(
             Assert.True(result.RootElement.GetProperty("success").GetBoolean());
             Assert.Equal(
                 "recorded-session",
-                result.RootElement.GetProperty("session_id").GetString());
+                result.RootElement.GetProperty("workbook_session_id").GetString());
         }
         finally
         {
@@ -189,7 +189,7 @@ public sealed class FileToolRecordingContractTests(
         Assert.Equal(1, result.RootElement.GetProperty("count").GetInt32());
         var session = Assert.Single(
             result.RootElement.GetProperty("sessions").EnumerateArray());
-        Assert.Equal("session-list", session.GetProperty("session_id").GetString());
+        Assert.Equal("session-list", session.GetProperty("workbook_session_id").GetString());
         Assert.False(session.TryGetProperty("sessionId", out _));
         Assert.Equal(@"C:\workbook.xlsx", session.GetProperty("filePath").GetString());
         Assert.Equal(isExcelVisible, session.GetProperty("isExcelVisible").GetBoolean());
@@ -205,13 +205,13 @@ public sealed class FileToolRecordingContractTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "close",
-                ["session_id"] = "session-close",
+                ["workbook_session_id"] = "session-close",
                 ["save"] = false
             },
             new ServiceResponse
             {
                 Success = true,
-                Result = """{"success":true,"session_id":"session-close","saved":false}"""
+                Result = """{"success":true,"workbook_session_id":"session-close","saved":false}"""
             },
             "session.close",
             "session-close",
@@ -222,7 +222,7 @@ public sealed class FileToolRecordingContractTests(
         Assert.True(result.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal(
             "session-close",
-            result.RootElement.GetProperty("session_id").GetString());
+            result.RootElement.GetProperty("workbook_session_id").GetString());
         Assert.False(result.RootElement.GetProperty("saved").GetBoolean());
     }
 
@@ -234,7 +234,7 @@ public sealed class FileToolRecordingContractTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "close",
-                ["session_id"] = "missing-session",
+                ["workbook_session_id"] = "missing-session",
                 ["save"] = false
             },
             new ServiceResponse
@@ -262,7 +262,7 @@ public sealed class FileToolRecordingContractTests(
         Assert.Equal(
             "InvalidOperationException",
             result.RootElement.GetProperty("exceptionType").GetString());
-        Assert.Equal("missing-session", result.RootElement.GetProperty("session_id").GetString());
+        Assert.Equal("missing-session", result.RootElement.GetProperty("workbook_session_id").GetString());
         Assert.False(result.RootElement.TryGetProperty("sessionId", out _));
         Assert.Equal(result.RootElement.GetRawText(), call.Result.StructuredContent!.Value.GetRawText());
     }
@@ -339,7 +339,7 @@ public sealed class FileToolRecordingContractTests(
             Assert.True(retryResult.RootElement.GetProperty("success").GetBoolean());
             Assert.Equal(
                 "retry-session",
-                retryResult.RootElement.GetProperty("session_id").GetString());
+                retryResult.RootElement.GetProperty("workbook_session_id").GetString());
         }
         finally
         {

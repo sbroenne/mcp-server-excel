@@ -23,7 +23,7 @@ public sealed class WorksheetShapeToolTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "add-shape",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "ShapeSheet",
                 ["cell_address"] = "A1"
             },
@@ -45,7 +45,7 @@ public sealed class WorksheetShapeToolTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "get-shape-count",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["sheet_name"] = "ShapeSheet"
             },
             RecordingToolTest.Success("""{"success":true,"shapeCount":1}"""),

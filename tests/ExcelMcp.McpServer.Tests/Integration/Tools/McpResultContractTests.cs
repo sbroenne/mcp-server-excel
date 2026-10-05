@@ -23,7 +23,7 @@ public sealed class McpResultContractTests(RecordingProgramTransportFixture fixt
             new Dictionary<string, object?>
             {
                 ["action"] = "get-values",
-                ["session_id"] = "recording-session",
+                ["workbook_session_id"] = "recording-session",
                 ["sheet_name"] = "Sheet1",
                 ["range_address"] = "A1"
             },
@@ -43,9 +43,9 @@ public sealed class McpResultContractTests(RecordingProgramTransportFixture fixt
     }
 
     [Theory]
-    [InlineData("range_read", """{"action":"get-values","session_id":"s","sheet_name":"Sheet1","range_address":"A1","rang_address":"A2"}""", "rang_address")]
-    [InlineData("file", """{"action":"close","session_id":"s","save_changes":true}""", "save_changes")]
-    [InlineData("worksheet", """{"action":"create","session_id":"s","sheet_name":"New","before_sheet":"Sheet1"}""", "before_sheet")]
+    [InlineData("range_read", """{"action":"get-values","workbook_session_id":"s","sheet_name":"Sheet1","range_address":"A1","rang_address":"A2"}""", "rang_address")]
+    [InlineData("file", """{"action":"close","workbook_session_id":"s","save_changes":true}""", "save_changes")]
+    [InlineData("worksheet", """{"action":"create","workbook_session_id":"s","sheet_name":"New","before_sheet":"Sheet1"}""", "before_sheet")]
     [InlineData("file_read", """{"action":"list","save":false}""", "save")]
     [InlineData("file", """{"action":"open","path":"C:\\missing.xlsx","show":"yes"}""", "show")]
     [InlineData("file", """{}""", "action")]

@@ -40,7 +40,7 @@ public sealed class McpServerPowerQueryRegressionTests(
                 new Dictionary<string, object?>
                 {
                     ["action"] = "create",
-                    ["session_id"] = sessionId,
+                    ["workbook_session_id"] = sessionId,
                     ["query_name"] = "CsvData",
                     ["m_code"] = BuildCsvMCode(csvPath),
                     ["load_destination"] = "connection-only"
@@ -53,7 +53,7 @@ public sealed class McpServerPowerQueryRegressionTests(
                 new Dictionary<string, object?>
                 {
                     ["action"] = "load-to",
-                    ["session_id"] = sessionId,
+                    ["workbook_session_id"] = sessionId,
                     ["query_name"] = "CsvData",
                     ["load_destination"] = "load-to-data-model"
                 },
@@ -65,7 +65,7 @@ public sealed class McpServerPowerQueryRegressionTests(
                 new Dictionary<string, object?>
                 {
                     ["action"] = "list-tables",
-                    ["session_id"] = sessionId
+                    ["workbook_session_id"] = sessionId
                 },
                 ToolTimeout);
             AssertSuccess(
@@ -81,7 +81,7 @@ public sealed class McpServerPowerQueryRegressionTests(
             var evaluated = await _fixture.CallToolAsync("datamodel_read", new Dictionary<string, object?>
             {
                 ["action"] = "evaluate",
-                ["session_id"] = sessionId,
+                ["workbook_session_id"] = sessionId,
                 ["dax_query"] = "EVALUATE CsvData ORDER BY CsvData[Product]"
             }, ToolTimeout);
             AssertSuccess(evaluated, "datamodel_read.evaluate loaded CSV");

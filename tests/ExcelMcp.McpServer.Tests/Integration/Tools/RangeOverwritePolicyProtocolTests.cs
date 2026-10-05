@@ -87,7 +87,7 @@ public sealed class RangeOverwritePolicyProtocolTests(RecordingProgramTransportF
         var result = await fixture.CallResultWithoutDispatchAsync("range_read", new()
         {
             ["action"] = "get-values",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Sheet1",
             ["range_address"] = "A1",
             ["overwrite_policy"] = "allow"
@@ -97,7 +97,7 @@ public sealed class RangeOverwritePolicyProtocolTests(RecordingProgramTransportF
 
     private static Dictionary<string, object?> Arguments(string action, string pasteKind = "all")
     {
-        var args = new Dictionary<string, object?> { ["action"] = action, ["session_id"] = "session-1" };
+        var args = new Dictionary<string, object?> { ["action"] = action, ["workbook_session_id"] = "session-1" };
         if (action.StartsWith("copy", StringComparison.Ordinal))
         {
             args["source_sheet"] = "Sheet1";
@@ -123,7 +123,7 @@ public sealed class RangeOverwritePolicyProtocolTests(RecordingProgramTransportF
         var args = new Dictionary<string, object?>();
         foreach (var (key, value) in Arguments(action, pasteKind))
         {
-            if (key is "action" or "session_id")
+            if (key is "action" or "workbook_session_id")
                 continue;
             var parts = key.Split('_');
             string serviceName = parts[0] + string.Concat(parts.Skip(1).Select(part => char.ToUpperInvariant(part[0]) + part[1..]));

@@ -21,7 +21,7 @@ public sealed class SlicerSelectionProtocolTests(RecordingProgramTransportFixtur
         var arguments = new Dictionary<string, object?>
         {
             ["action"] = "set-slicer-selection",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["slicer_name"] = "QuarterSlicer",
             ["selected_items"] = selectedItems
         };
@@ -52,7 +52,7 @@ public sealed class SlicerSelectionProtocolTests(RecordingProgramTransportFixtur
         var call = await fixture.CallToolAsync("slicer", new()
         {
             ["action"] = "set-slicer-selection",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["slicer_name"] = "QuarterSlicer",
             ["selected_items"] = "[\"missing\"]"
         }, new ServiceResponse
@@ -85,7 +85,7 @@ public sealed class SlicerSelectionProtocolTests(RecordingProgramTransportFixtur
         var call = await fixture.CallToolAsync("slicer", new()
         {
             ["action"] = "set-slicer-selection",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["slicer_name"] = "QuarterSlicer",
             ["selected_items"] = "[\"Q1\"]"
         }, new ServiceResponse
@@ -109,7 +109,7 @@ public sealed class SlicerSelectionProtocolTests(RecordingProgramTransportFixtur
         var retry = await fixture.CallToolAsync("slicer", new()
         {
             ["action"] = "set-slicer-selection",
-            ["session_id"] = "session-1",
+            ["workbook_session_id"] = "session-1",
             ["slicer_name"] = "QuarterSlicer",
             ["selected_items"] = JsonSerializer.Serialize(new[] { returnedCandidates[1] })
         }, RecordingToolTest.Success("""{"success":true,"selectedItems":["Q1"]}"""),
