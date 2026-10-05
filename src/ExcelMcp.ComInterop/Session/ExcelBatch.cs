@@ -60,6 +60,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     /// Production code must leave this null.
     /// </summary>
     internal static Action<string, CancellationToken>? BeforeWorkbookOpenHook { get; set; }
+    internal static Action<object, object>? AfterWorkbookOpenHookForTests { get; set; }
 
     internal static Func<ExcelProcessIdentity, bool>? FailedStartupTerminationHook { get; set; }
 
@@ -394,10 +395,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                                 throw new InvalidOperationException(CreateIrmRequiresVisibleSessionMessage(normalizedPath));
                             }
 
-                            // IRM/AIP-protected files are OLE2 containers that cannot be opened
-                            // exclusively. Open read-only so the IRM credential prompt works.
                             _logger.LogDebug(
-                                "IRM-protected file detected: {FileName}. Opening read-only.",
+                                "IRM-protected file detected: {FileName}. Excel determines editing permissions.",
                                 Path.GetFileName(normalizedPath));
                         }
                         else
@@ -417,12 +416,12 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                             // IDispatch preserves the workbook's native definitions.
                             workbooks = tempExcel.Workbooks;
                             dynamic workbooksDispatch = (dynamic)(object)workbooks;
-                            // ReadOnly=true prevents "exclusive access required" errors on
-                            // IRM-encrypted files and prevents validation opens from modifying files.
+                            // Protection does not imply read-only rights. Excel enforces the
+                            // signed-in user's permissions; only validation forces read-only.
                             wb = (Excel.Workbook)workbooksDispatch.Open(
                                 normalizedPath,
                                 UpdateLinks: 0,
-                                ReadOnly: isIrm || _openReadOnly,
+                                ReadOnly: _openReadOnly,
                                 IgnoreReadOnlyRecommended: true,
                                 Notify: false,
                                 AddToMru: false);
@@ -434,6 +433,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                     }
 
                     tempWorkbooks[normalizedPath] = wb;
+                    AfterWorkbookOpenHookForTests?.Invoke(tempExcel, wb);
 
                     if (path == _workbookPath)
                     {

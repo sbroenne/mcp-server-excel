@@ -48,7 +48,8 @@ public class FileCommands : IFileCommands
                         FileShare.ReadWrite);
                     message =
                         "IRM/AIP protection detected. Container validity and openability require " +
-                        "an interactive Excel open; use show=true. ExcelMcp will open this file read-only.";
+                        "an interactive Excel open; use show=true. Excel determines editing permissions " +
+                        "after authentication; inspect readOnly using workbook get-info.";
                 }
                 else
                 {
@@ -79,7 +80,7 @@ public class FileCommands : IFileCommands
             IsValid = isValid,
             CanOpen = canOpen,
             IsIrmProtected = isIrmProtected,
-            WillOpenReadOnly = isIrmProtected,
+            WillOpenReadOnly = false,
             RequiresVisibleSession = isIrmProtected,
             Message = message
         };

@@ -15,6 +15,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// (not both) to position the sheet relative to another. If neither specified, moves to end.
 /// </summary>
 [ServiceCategory("sheet", "Sheet")]
+[McpReadOnlyActions("list")]
 public interface ISheetCommands
 {
     // === LIFECYCLE OPERATIONS ===

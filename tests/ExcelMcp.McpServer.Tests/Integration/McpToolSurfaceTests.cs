@@ -44,7 +44,8 @@ public class McpToolSurfaceTests(ITestOutputHelper output)
             .ToDictionary(pair => pair.Key, pair => pair.Value.Count, StringComparer.Ordinal);
         expected.Add("file", Enum.GetValues<FileAction>().Length);
         var expectedReadTools = typeof(IRangeCommands).Assembly.GetTypes()
-            .Where(type => type.GetCustomAttribute<McpReadOnlyActionsAttribute>() is not null)
+            .Where(type => type.GetCustomAttribute<McpReadOnlyActionsAttribute>() is not null &&
+                type.GetCustomAttribute<McpToolAttribute>() is not null)
             .Select(type => $"{type.GetCustomAttribute<McpToolAttribute>()!.ToolName}_read")
             .Concat(new[] { typeof(ExcelFileTool), typeof(ExcelWorksheetTool) }
                 .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static))

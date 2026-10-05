@@ -17,42 +17,63 @@ public partial class WorkbookCommands
         var resolvedFormat = ResolveSaveFormat(normalizedPath, format);
         ValidateSaveExtension(normalizedPath, resolvedFormat);
 
-        var result = batch.Execute((context, _) =>
+        var targetAccepted = false;
+        try
         {
-            var displayAlerts = context.App.DisplayAlerts;
-            try
+            return batch.Execute((context, _) =>
             {
-                context.App.DisplayAlerts = false;
-                context.Book.SaveAs(
-                    normalizedPath,
-                    ToExcelFileFormat(resolvedFormat),
-                    Type.Missing,
-                    Type.Missing,
-                    false,
-                    false,
-                    Excel.XlSaveAsAccessMode.xlNoChange,
-                    Excel.XlSaveConflictResolution.xlLocalSessionChanges,
-                    false,
-                    Type.Missing,
-                    Type.Missing,
-                    Type.Missing);
-            }
-            finally
-            {
-                context.App.DisplayAlerts = displayAlerts;
-            }
+                var originalFullName = context.Book.FullName;
+                var displayAlerts = context.App.DisplayAlerts;
+                try
+                {
+                    context.App.DisplayAlerts = false;
+                    context.Book.SaveAs(
+                        normalizedPath,
+                        ToExcelFileFormat(resolvedFormat),
+                        Type.Missing,
+                        Type.Missing,
+                        false,
+                        false,
+                        Excel.XlSaveAsAccessMode.xlNoChange,
+                        Excel.XlSaveConflictResolution.xlLocalSessionChanges,
+                        false,
+                        Type.Missing,
+                        Type.Missing,
+                        Type.Missing);
+                }
+                finally
+                {
+                    context.App.DisplayAlerts = displayAlerts;
+                    // OneDrive can resolve a local target to a SharePoint URL.
+                    targetAccepted =
+                        string.Equals(context.Book.Name, Path.GetFileName(normalizedPath), StringComparison.OrdinalIgnoreCase) &&
+                        (string.Equals(batch.WorkbookPath, normalizedPath, StringComparison.OrdinalIgnoreCase) ||
+                         !string.Equals(context.Book.FullName, originalFullName, StringComparison.OrdinalIgnoreCase));
+                }
 
-            return new OperationResult
-            {
-                Success = true,
-                Action = "save-as",
-                FilePath = normalizedPath,
-                Message = $"Workbook saved as '{normalizedPath}'"
-            };
-        });
+                if (!context.Book.Saved || !targetAccepted)
+                {
+                    throw new InvalidOperationException(
+                        "Workbook was not saved to the requested path. Excel cancelled Save As or left unsaved changes. " +
+                        "The workbook remains open; inspect its saved state and fullName before continuing.");
+                }
 
-        batch.UpdateWorkbookPath(normalizedPath);
-        return result;
+                return new OperationResult
+                {
+                    Success = true,
+                    Action = "save-as",
+                    FilePath = normalizedPath,
+                    Message = $"Workbook saved as '{normalizedPath}'"
+                };
+            });
+        }
+        finally
+        {
+            if (targetAccepted)
+            {
+                batch.UpdateWorkbookPath(normalizedPath);
+            }
+        }
     }
 
     /// <inheritdoc />

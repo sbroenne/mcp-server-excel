@@ -31,6 +31,9 @@ public static partial class ExcelFileTool
     /// Close defaults to save:false (discard edits); set save:true to save. Wait for canClose before closing,
     /// and confirm before closing a visible window unless already authorized.
     /// Normal server shutdown attempts to save open sessions; crashes and forced cleanup may lose edits.
+    /// Protected files require show:true for authentication; Excel determines editing rights.
+    /// Inspect workbook_read get-info readOnly before editing. Workbook changes reject read-only access.
+    /// Failed saves retain the open session and unsaved changes.
     /// Open/create default to 120 seconds. Cancellation is not undo; inspect the session state before continuing.
     /// </summary>
     /// <param name="action">The file operation to perform. close with save:false discards all unsaved edits, including earlier work; there is no tool-level undo.</param>
@@ -66,8 +69,10 @@ public static partial class ExcelFileTool
     /// <summary>List workbook sessions and validate a workbook path without opening an editable session.</summary>
     /// <remarks>
     /// Test defaults to 120 seconds and validates ordinary files through a temporary read-only Excel open.
-    /// IRM/AIP files may require visible authentication and read-only access; inspect canOpen, isIrmProtected,
-    /// willOpenReadOnly, and requiresVisibleSession. Test does not bypass authentication.
+    /// IRM/AIP files require visible authentication; Excel determines editing rights, not protection detection.
+    /// Inspect canOpen, isIrmProtected, willOpenReadOnly, and requiresVisibleSession.
+    /// willOpenReadOnly:false does not guarantee editing rights; inspect workbook_read get-info readOnly after opening.
+    /// Test does not bypass authentication.
     /// </remarks>
     /// <param name="action">List sessions or test whether a workbook can be opened.</param>
     /// <param name="path">Full Windows workbook path. Required for test.</param>

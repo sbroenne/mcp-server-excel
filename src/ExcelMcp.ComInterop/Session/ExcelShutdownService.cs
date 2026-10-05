@@ -55,6 +55,14 @@ public static class ExcelShutdownService
 
         try
         {
+            if (workbook.ReadOnly)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot save '{fileName}': Excel opened the workbook read-only. " +
+                    "Changes have not been saved; any unsaved changes remain in the open workbook. " +
+                    "Inspect the workbook's access and permissions before continuing.");
+            }
+
             // Call Save() directly on the STA thread.
             // Previously this used Task.Run(() => workbook.Save()) which marshalled the COM call
             // from the STA thread to an MTA thread-pool thread — crossing COM apartment boundaries
@@ -71,6 +79,12 @@ public static class ExcelShutdownService
                     // The Excel PIA adds an LCID to Save, which can rewrite locale-specific
                     // table column format definitions. IDispatch preserves those definitions.
                     ((dynamic)(object)workbook).Save();
+                    if (!workbook.Saved)
+                    {
+                        throw new InvalidOperationException(
+                            $"Workbook '{fileName}' was not saved. Excel cancelled the save or left unsaved changes. " +
+                            "Changes remain in the open workbook; inspect its state before retrying.");
+                    }
                     logger.LogDebug("Workbook {FileName} saved successfully", fileName);
                     return; // Success — exit method
                 }

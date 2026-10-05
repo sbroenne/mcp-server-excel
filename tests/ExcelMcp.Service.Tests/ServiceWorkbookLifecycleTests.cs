@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -76,6 +77,208 @@ public sealed class ServiceWorkbookLifecycleTests
             Assert.Equal(
                 "Persisted",
                 await ReadMarkerAsync(service, reopenedSessionId));
+        });
+    }
+
+    [Theory]
+    [InlineData("range.set-values")]
+    [InlineData("sheet.create")]
+    public async Task ReadOnlyWorkbook_RejectsWritesAndRetainsSavedContents(string command)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var path = Path.Join(directory, "read-only-writes.xlsx");
+            var sessionId = await CreateSessionAsync(service, path);
+            sessions[sessionId] = 0;
+            await WriteMarkerAsync(service, sessionId, "Saved baseline");
+            await CloseSessionAsync(service, sessionId, save: true);
+            sessions.TryRemove(sessionId, out _);
+            sessionId = await OpenSessionAsync(service, path);
+            sessions[sessionId] = 0;
+            var batch = Assert.IsAssignableFrom<IExcelBatch>(
+                service.SessionManager.GetSession(sessionId));
+            batch.Execute((context, _) =>
+                context.Book.ChangeFileAccess(Excel.XlFileAccess.xlReadOnly, Type.Missing, false));
+            Assert.True(batch.Execute((context, _) => context.Book.ReadOnly));
+            Assert.True(batch.Execute((context, _) => context.Book.Saved));
+            var beforeSheets = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "sheet.list",
+                SessionId = sessionId
+            });
+            RequireSuccess(beforeSheets);
+            var response = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = command,
+                SessionId = sessionId,
+                Args = command == "sheet.create"
+                    ? """{"sheetName":"RejectedSheet"}"""
+                    : """{"sheetName":"Sheet1","rangeAddress":"A1","overwritePolicy":"allow","values":[["Rejected marker"]]}"""
+            });
+
+            Assert.False(response.Success);
+            Assert.Contains("read-only", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Same(batch, service.SessionManager.GetSession(sessionId));
+            Assert.True(batch.Execute((context, _) => context.Book.Saved));
+            Assert.Equal("Saved baseline", await ReadMarkerAsync(service, sessionId));
+            var afterSheets = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "sheet.list",
+                SessionId = sessionId
+            });
+            RequireSuccess(afterSheets);
+            Assert.Equal(beforeSheets.Result, afterSheets.Result);
+
+            var save = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.close",
+                SessionId = sessionId,
+                Args = """{"save":true}"""
+            });
+            Assert.False(save.Success);
+            Assert.Contains("read-only", save.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Same(batch, service.SessionManager.GetSession(sessionId));
+            await CloseSessionAsync(service, sessionId, save: false);
+            sessions.TryRemove(sessionId, out _);
+            var reopened = await OpenSessionAsync(service, path);
+            sessions[reopened] = 0;
+            Assert.Equal("Saved baseline", await ReadMarkerAsync(service, reopened));
+        });
+    }
+
+    [Theory]
+    [InlineData("session.close")]
+    [InlineData("workbook.save-as")]
+    public async Task CancelledSave_ReturnsFailureAndRetainsUnsavedSession(string command)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var path = Path.Join(directory, "cancelled-save.xlsx");
+            var targetPath = Path.Join(directory, "cancelled-save-as.xlsx");
+            var sessionId = await CreateSessionAsync(service, path);
+            sessions[sessionId] = 0;
+            await WriteMarkerAsync(service, sessionId, "Saved baseline");
+            await CloseSessionAsync(service, sessionId, save: true);
+            sessions.TryRemove(sessionId, out _);
+            sessionId = await OpenSessionAsync(service, path);
+            sessions[sessionId] = 0;
+            await WriteMarkerAsync(service, sessionId, "Unsaved marker");
+            var batch = Assert.IsAssignableFrom<IExcelBatch>(
+                service.SessionManager.GetSession(sessionId));
+            Assert.False(batch.Execute((context, _) => context.Book.ReadOnly));
+            Assert.False(batch.Execute((context, _) => context.Book.Saved));
+            var eventCount = 0;
+            Excel.AppEvents_WorkbookBeforeSaveEventHandler cancelSave =
+                (Excel.Workbook _, bool _, ref bool cancel) =>
+                {
+                    eventCount++;
+                    cancel = true;
+                };
+            batch.Execute((context, _) => context.App.WorkbookBeforeSave += cancelSave);
+            try
+            {
+                var response = await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = command,
+                    SessionId = sessionId,
+                    Args = command == "session.close"
+                        ? """{"save":true}"""
+                        : JsonSerializer.Serialize(new { targetPath }, ServiceProtocol.JsonOptions)
+                });
+
+                Assert.True(eventCount > 0, "Excel did not reach its before-save event.");
+                Assert.False(response.Success);
+                Assert.Contains("not saved", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains("remain", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+                Assert.Same(batch, service.SessionManager.GetSession(sessionId));
+                Assert.False(batch.Execute((context, _) => context.Book.Saved));
+                Assert.Equal(path, batch.Execute((context, _) => context.Book.FullName), ignoreCase: true);
+                Assert.Equal(path, batch.WorkbookPath, ignoreCase: true);
+                Assert.Equal("Unsaved marker", await ReadMarkerAsync(service, sessionId));
+                Assert.False(File.Exists(targetPath));
+            }
+            finally
+            {
+                if (service.SessionManager.GetSession(sessionId) is not null)
+                {
+                    batch.Execute((context, _) => context.App.WorkbookBeforeSave -= cancelSave);
+                }
+            }
+
+            await CloseSessionAsync(service, sessionId, save: false);
+            sessions.TryRemove(sessionId, out _);
+            var reopened = await OpenSessionAsync(service, path);
+            sessions[reopened] = 0;
+            Assert.Equal("Saved baseline", await ReadMarkerAsync(service, reopened));
+        });
+    }
+
+    [Fact]
+    public async Task SaveAs_AfterSaveEdits_ReturnsFailureAndTracksNewPath()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var path = Path.Join(directory, "before-save-as.xlsx");
+            var targetPath = Path.Join(directory, "after-save-as.xlsx");
+            var sessionId = await CreateSessionAsync(service, path);
+            sessions[sessionId] = 0;
+            await WriteMarkerAsync(service, sessionId, "Saved baseline");
+            await CloseSessionAsync(service, sessionId, save: true);
+            sessions.TryRemove(sessionId, out _);
+            sessionId = await OpenSessionAsync(service, path);
+            sessions[sessionId] = 0;
+            var batch = Assert.IsAssignableFrom<IExcelBatch>(
+                service.SessionManager.GetSession(sessionId));
+            var eventCount = 0;
+            Excel.AppEvents_WorkbookAfterSaveEventHandler dirtyAfterSave =
+                (Excel.Workbook workbook, bool success) =>
+                {
+                    Assert.True(success);
+                    eventCount++;
+                    workbook.Saved = false;
+                };
+            batch.Execute((context, _) => context.App.WorkbookAfterSave += dirtyAfterSave);
+            try
+            {
+                var response = await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = "workbook.save-as",
+                    SessionId = sessionId,
+                    Args = JsonSerializer.Serialize(new { targetPath }, ServiceProtocol.JsonOptions)
+                });
+
+                Assert.Equal(1, eventCount);
+                Assert.False(response.Success);
+                Assert.Contains("not saved", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+                Assert.Same(batch, service.SessionManager.GetSession(sessionId));
+                Assert.False(batch.Execute((context, _) => context.Book.Saved));
+                Assert.Equal(targetPath, batch.Execute((context, _) => context.Book.FullName), ignoreCase: true);
+                Assert.Equal(targetPath, batch.WorkbookPath, ignoreCase: true);
+                Assert.True(service.SessionManager.TryGetFilePath(sessionId, out var trackedPath));
+                Assert.Equal(targetPath, trackedPath, ignoreCase: true);
+                var duplicate = await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = "session.open",
+                    Args = JsonSerializer.Serialize(new { filePath = targetPath }, ServiceProtocol.JsonOptions)
+                });
+                Assert.False(duplicate.Success);
+                Assert.Contains("already open", duplicate.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            }
+            finally
+            {
+                batch.Execute((context, _) => context.App.WorkbookAfterSave -= dirtyAfterSave);
+            }
+
+            await CloseSessionAsync(service, sessionId, save: false);
+            sessions.TryRemove(sessionId, out _);
+            foreach (var savedPath in new[] { path, targetPath })
+            {
+                var reopened = await OpenSessionAsync(service, savedPath);
+                sessions[reopened] = 0;
+                Assert.Equal("Saved baseline", await ReadMarkerAsync(service, reopened));
+                await CloseSessionAsync(service, reopened, save: false);
+                sessions.TryRemove(reopened, out _);
+            }
         });
     }
 

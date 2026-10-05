@@ -1026,14 +1026,15 @@ public class FileValidationInfo
 
     /// <summary>
     /// Whether the file is IRM/AIP-protected (OLE2 compound document format).
-    /// IRM-protected files are opened as read-only with Excel made visible so the user
-    /// can authenticate through the Information Rights Management credential prompt.
-    /// Use <c>show=true</c> when opening—this is set automatically by ExcelBatch when IRM is detected.
+    /// IRM-protected files require show=true for visible authentication.
+    /// Excel determines the signed-in user's editing permissions; protection alone
+    /// does not force read-only access.
     /// </summary>
     public bool IsIrmProtected { get; set; }
 
     /// <summary>
-    /// Whether ExcelMcp will open the workbook read-only
+    /// Whether normal opening forces read-only access. False does not guarantee
+    /// editing rights; inspect workbook readOnly after Excel opens it.
     /// </summary>
     public bool WillOpenReadOnly { get; set; }
 

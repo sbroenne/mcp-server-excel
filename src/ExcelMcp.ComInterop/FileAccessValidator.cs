@@ -29,8 +29,8 @@ public static class FileAccessValidator
     /// Ordinary password-encrypted OOXML also uses OLE2 data spaces and must not be
     /// classified as IRM.
     /// Legacy .xls files are always OLE2 by design and are excluded.
-    /// IRM-protected files must be opened as read-only with Excel visible so the user can
-    /// authenticate through the Information Rights Management credential prompt.
+    /// IRM-protected files require visible Excel so the user can authenticate.
+    /// Excel determines editing rights; detection must not force read-only access.
     /// </summary>
     /// <param name="filePath">The file path to inspect.</param>
     /// <returns>

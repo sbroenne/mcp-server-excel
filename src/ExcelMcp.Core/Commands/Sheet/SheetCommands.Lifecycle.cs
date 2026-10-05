@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -326,6 +327,7 @@ public partial class SheetCommands
 
         // Create a batch with both files open in the same Excel instance
         using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
+        WorkbookAccessGuard.EnsureWritable(batch, normalizedTarget);
 
         return batch.Execute((ctx, ct) =>
         {
@@ -406,7 +408,18 @@ public partial class SheetCommands
                 }
 
                 // Save the target workbook (source unchanged, only target modified)
-                targetWb.Save();
+                try
+                {
+                    ExcelShutdownService.SaveWorkbookWithTimeout(
+                        (Excel.Workbook)targetWb, Path.GetFileName(targetFile), batch.Logger, ct);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    throw new InvalidOperationException(
+                        "Worksheet copy changed the target in memory, but its save was not confirmed. " +
+                        "Temporary sessions will close without another save; inspect the target file before retrying. " +
+                        ex.Message, ex);
+                }
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
@@ -449,6 +462,8 @@ public partial class SheetCommands
 
         // Create a batch with both files open in the same Excel instance
         using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
+        WorkbookAccessGuard.EnsureWritable(batch, normalizedSource);
+        WorkbookAccessGuard.EnsureWritable(batch, normalizedTarget);
 
         return batch.Execute((ctx, ct) =>
         {
@@ -507,8 +522,24 @@ public partial class SheetCommands
                 }
 
                 // Save both workbooks (source lost a sheet, target gained one)
-                sourceWb.Save();
-                targetWb.Save();
+                var sourceSaveCompleted = false;
+                try
+                {
+                    ExcelShutdownService.SaveWorkbookWithTimeout(
+                        (Excel.Workbook)sourceWb, Path.GetFileName(sourceFile), batch.Logger, ct);
+                    sourceSaveCompleted = true;
+                    ExcelShutdownService.SaveWorkbookWithTimeout(
+                        (Excel.Workbook)targetWb, Path.GetFileName(targetFile), batch.Logger, ct);
+                }
+                catch (InvalidOperationException ex)
+                {
+                    throw new InvalidOperationException(
+                        (sourceSaveCompleted
+                            ? "Worksheet move: Excel confirmed the source save, but the target save was not confirmed. "
+                            : "Worksheet move changed both workbooks in memory, but the source save was not confirmed. ") +
+                        "Temporary sessions will close without another save; inspect both files before retrying. " +
+                        "No rollback was performed. " + ex.Message, ex);
+                }
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
