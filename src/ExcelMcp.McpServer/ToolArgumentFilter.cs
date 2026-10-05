@@ -37,6 +37,13 @@ internal static class ToolArgumentFilter
                         throw new ArgumentException("workbook_session_id must be a non-empty string.");
                 }
 
+                foreach (var required in tool.ProtocolTool.InputSchema.GetProperty("required").EnumerateArray())
+                {
+                    var name = required.GetString()!;
+                    if (!arguments.ContainsKey(name))
+                        throw new ArgumentException($"Parameter '{name}' is required.");
+                }
+
                 if (tool.ProtocolTool.Name is "file" or "file_read")
                 {
                     ExcelFileTool.ValidateActionParameters(tool.ProtocolTool.Name, canonicalAction, arguments.Keys);

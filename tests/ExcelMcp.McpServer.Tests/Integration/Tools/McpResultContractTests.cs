@@ -63,6 +63,28 @@ public sealed class McpResultContractTests(RecordingProgramTransportFixture fixt
     }
 
     [Theory]
+    [InlineData("workbook_read", "get-info")]
+    [InlineData("worksheet_read", "list")]
+    [InlineData("screenshot", "capture")]
+    [InlineData("file", "close")]
+    public async Task OmittedWorkbookSessionId_IsRejectedBeforeDispatch(string tool, string action)
+    {
+        var result = await fixture.CallResultWithoutDispatchAsync(tool, new()
+        {
+            ["action"] = action
+        });
+
+        Assert.True(result.IsError);
+        var text = Assert.Single(result.Content.OfType<TextContentBlock>()).Text;
+        using var document = JsonDocument.Parse(text);
+        Assert.False(document.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("InvalidInput", document.RootElement.GetProperty("errorCategory").GetString());
+        Assert.Contains("workbook_session_id", document.RootElement.GetProperty("errorMessage").GetString());
+        Assert.NotNull(result.StructuredContent);
+        Assert.True(JsonElement.DeepEquals(document.RootElement, result.StructuredContent.Value));
+    }
+
+    [Theory]
     [InlineData("workbook_read", "get-info", "")]
     [InlineData("workbook_read", "get-info", " \t\r\n")]
     [InlineData("worksheet_read", "list", "")]

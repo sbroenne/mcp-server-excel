@@ -328,7 +328,9 @@ public static Task<CallToolResult> ListWorksheets(
 Service categories, HRESULTs, inner context, and retry information. Unexpected
 exceptions and cancellation propagate to the SDK. Request filters reject unknown,
 misspelled, and action-inapplicable arguments, including explicitly supplied nulls
-and defaults; the SDK still owns binding and injected parameters.
+and defaults. They also reject omitted fields listed as required in the tool's
+input schema with a structured `InvalidInput` response naming the missing field;
+the SDK still owns binding and injected parameters.
 
 Each host owns its bridge through dependency injection. Ordinary shutdown attempts
 to save remaining sessions. Explicit `file close` defaults to `save:false` and
