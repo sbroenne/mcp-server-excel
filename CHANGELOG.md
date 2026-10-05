@@ -11,6 +11,14 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.2.2] - 2026-10-05
+
+### Patch Changes
+
+- [#1050](https://github.com/sbroenne/mcp-server-excel/pull/1050) [`57e3423`](https://github.com/sbroenne/mcp-server-excel/commit/57e342328ec06eda6c882bf3bdedaff3cf159cfc) Thanks [@sbroenne](https://github.com/sbroenne)! - `vba run` now reports its requested execution timeout as a timeout rather than a
+  cancellation. Anonymous operation analytics also distinguish timeouts from
+  cancellations.
+
 ## [2.2.1] - 2026-10-04
 
 ### Patch Changes
