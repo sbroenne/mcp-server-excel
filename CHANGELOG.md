@@ -11,6 +11,12 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.3.0] - 2026-10-05
+
+### Minor Changes
+
+- [#1052](https://github.com/sbroenne/mcp-server-excel/pull/1052) [`880eee5`](https://github.com/sbroenne/mcp-server-excel/commit/880eee54f7795331db23462082097ead414aa759) Thanks [@sbroenne](https://github.com/sbroenne)! - Give read-only MCP actions dedicated tools with accurate `readOnlyHint` metadata. Separate workbook session and worksheet listing from their write tools, and report the package's informational version in MCP server metadata.
+
 ## [2.2.2] - 2026-10-05
 
 ### Patch Changes
