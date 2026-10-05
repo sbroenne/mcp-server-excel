@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Vba;
@@ -24,7 +25,7 @@ public sealed class VbaCommandsTimeoutTests :
     [Fact(Timeout = 60000)]
     [Trait("RunType", "OnDemand")]
     [Trait("Speed", "Slow")]
-    public async Task ScriptCommands_Run_WhenMacroExceedsCallerTimeout_CancelsAndPoisonsBatch()
+    public async Task ScriptCommands_Run_WhenMacroExceedsCallerTimeout_ReportsTimeoutAndPoisonsBatch()
     {
         await Task.Yield();
 
@@ -46,11 +47,12 @@ public sealed class VbaCommandsTimeoutTests :
             _ = commands.Import(batch, "TimeoutModule", vbaCode);
 
             var runStopwatch = Stopwatch.StartNew();
-            Assert.ThrowsAny<OperationCanceledException>(() =>
+            var timeoutException = Assert.Throws<TimeoutException>(() =>
                 commands.Run(
                     batch,
                     "TimeoutModule.WaitForTimeout",
                     TimeSpan.FromSeconds(1)));
+            Assert.Equal("Timeout", OperationFailureClassifier.Classify(timeoutException));
             runStopwatch.Stop();
 
             Assert.InRange(

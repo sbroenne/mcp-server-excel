@@ -99,6 +99,7 @@ public sealed class ExcelToolsBaseTelemetryTests
     [InlineData("SessionNotFound", "InputState")]
     [InlineData("Privacy", "ExternalDependency")]
     [InlineData("Timeout", "TimeoutCancellation")]
+    [InlineData("Cancelled", "TimeoutCancellation")]
     [InlineData("ComInterop", "ExcelRuntime")]
     [InlineData("ServiceStartup", "InternalProductFault")]
     [InlineData("Prerequisite", "InputState")]
@@ -122,7 +123,13 @@ public sealed class ExcelToolsBaseTelemetryTests
         Assert.Equal(
             new ToolInvocationResult(
                 ToolInvocationOutcome.Failed,
-                Enum.Parse<ToolFailureClass>(expectedFailureClass)),
+                Enum.Parse<ToolFailureClass>(expectedFailureClass),
+                errorCategory switch
+                {
+                    "Timeout" => ToolFailureCause.Timeout,
+                    "Cancelled" => ToolFailureCause.Cancellation,
+                    _ => null
+                }),
             invocation);
     }
 
@@ -256,6 +263,25 @@ public sealed class ExcelToolsBaseTelemetryTests
         Assert.DoesNotContain("errorMessage", serializedProperties, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Exception", serializedProperties, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("FileSessionId", serializedProperties, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("Timeout", "timeout")]
+    [InlineData("Cancellation", "cancellation")]
+    public void CreateToolInvocationTelemetry_EmitsSafeFailureCause(
+        string failureCause,
+        string expectedFailureCause)
+    {
+        var result = new ToolInvocationResult(
+            ToolInvocationOutcome.Failed,
+            ToolFailureClass.TimeoutCancellation,
+            Enum.Parse<ToolFailureCause>(failureCause));
+
+        var (eventTelemetry, requestTelemetry) =
+            ExcelMcpTelemetry.CreateToolInvocationTelemetry("vba", "run", 25, result);
+
+        Assert.Equal(expectedFailureCause, eventTelemetry.Properties["FailureCause"]);
+        Assert.Equal(expectedFailureCause, requestTelemetry.Properties["FailureCause"]);
     }
 
     [Fact]

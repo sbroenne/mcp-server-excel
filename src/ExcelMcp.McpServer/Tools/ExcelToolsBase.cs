@@ -90,9 +90,13 @@ public static class ExcelToolsBase
         }
         catch (Exception ex)
         {
-            invocation = new(ToolInvocationOutcome.Failed, ex is JsonException
-                ? ToolFailureClass.InternalProductFault
-                : ClassifyFailure(OperationFailureClassifier.Classify(ex)));
+            var failureCategory = OperationFailureClassifier.Classify(ex);
+            invocation = new(
+                ToolInvocationOutcome.Failed,
+                ex is JsonException
+                    ? ToolFailureClass.InternalProductFault
+                    : ClassifyFailure(failureCategory),
+                ClassifyFailureCause(failureCategory));
             throw; // Let the SDK preserve cancellation and redact unexpected invocation errors.
         }
         finally
@@ -135,10 +139,20 @@ public static class ExcelToolsBase
         {
             var category = root.TryGetProperty("errorCategory", out var property)
                 && property.ValueKind == JsonValueKind.String ? property.GetString() : null;
-            return new(ToolInvocationOutcome.Failed, ClassifyFailure(category));
+            return new(
+                ToolInvocationOutcome.Failed,
+                ClassifyFailure(category),
+                ClassifyFailureCause(category));
         }
         return new(ToolInvocationOutcome.Succeeded, null);
     }
+
+    private static ToolFailureCause? ClassifyFailureCause(string? category) => category switch
+    {
+        "Timeout" => ToolFailureCause.Timeout,
+        "Cancelled" => ToolFailureCause.Cancellation,
+        _ => null
+    };
 
     private static ToolFailureClass ClassifyFailure(string? category) => category switch
     {
