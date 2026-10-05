@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last Updated:** September 20, 2026
+**Last Updated:** October 5, 2026
 
 ## Overview
 
@@ -43,7 +43,7 @@ that a tool returns to your chosen AI assistant.
 - ❌ **Error details** - Error messages, response content, exception names, and
   stack traces are not included in invocation outcome telemetry
 - ❌ **Workbook session IDs or tool arguments** - Telemetry never includes the
-  Excel workbook `session_id`/`sessionId` value, workbook path, request
+  Excel workbook `workbook_session_id` (MCP) / `sessionId` (CLI) value, workbook path, request
   arguments, or user content. The random process telemetry session ID listed
   above is separate from workbook identity.
 

@@ -16,14 +16,14 @@ class ConsentOutcomeTests(unittest.TestCase):
     def test_canonical_calculation_reads_are_allowed_for_both_entry_points(self):
         calls = [
             ToolCall("excel_execute", {"args": "calculationmode get-settings --session test"}),
-            ToolCall("excel-mcp-calculation_mode", {"action": "get-settings", "session_id": "test"}),
+            ToolCall("excel-mcp-calculation_mode", {"action": "get-settings", "workbook_session_id": "test"}),
         ]
         for call in calls:
             with self.subTest(call=call):
                 assert_read_only(CopilotResult(turns=[Turn("assistant", "", [call])]), require_read=False)
 
     def test_calculation_settings_writes_are_not_read_only(self):
-        call = ToolCall("excel-mcp-calculation_mode", {"action": "set-settings", "session_id": "test", "mode": "manual"})
+        call = ToolCall("excel-mcp-calculation_mode", {"action": "set-settings", "workbook_session_id": "test", "mode": "manual"})
         with self.assertRaisesRegex(AssertionError, "State-changing call"):
             assert_read_only(CopilotResult(turns=[Turn("assistant", "", [call])]), require_read=False)
 
@@ -69,11 +69,11 @@ class ConsentOutcomeTests(unittest.TestCase):
             [ToolCall("excel_execute", {"args": "session close --session test"})],
             [ToolCall("excel_execute", {"args": "session close --session test --save false"})],
             [ToolCall("excel_execute", {"args": "session close --session test --save=false"})],
-            [ToolCall("excel-mcp-range", {"action": "set-values", "session_id": "test"})],
-            [ToolCall("excel-mcp-file", {"action": "close", "session_id": "test", "save": False})],
-            [ToolCall("excel-mcp-file", {"action": "close", "session_id": "test", "save": "true"})],
+            [ToolCall("excel-mcp-range", {"action": "set-values", "workbook_session_id": "test"})],
+            [ToolCall("excel-mcp-file", {"action": "close", "workbook_session_id": "test", "save": False})],
+            [ToolCall("excel-mcp-file", {"action": "close", "workbook_session_id": "test", "save": "true"})],
             [
-                ToolCall("excel-mcp-file", {"action": "close", "session_id": "test", "save": True}),
+                ToolCall("excel-mcp-file", {"action": "close", "workbook_session_id": "test", "save": True}),
                 ToolCall("excel-mcp-file", {"action": "open", "path": "budget.xlsx"}),
             ],
         ]
@@ -96,7 +96,7 @@ class ConsentOutcomeTests(unittest.TestCase):
             ToolCall("excel_execute", {"args": "session close --session test --save"}),
             ToolCall("excel_execute", {"args": "session close --session test --save true"}),
             ToolCall("excel_execute", {"args": "session close --session test --save=true"}),
-            ToolCall("excel-mcp-file", {"action": "close", "session_id": "test", "save": True}),
+            ToolCall("excel-mcp-file", {"action": "close", "workbook_session_id": "test", "save": True}),
         ]
         for call in calls:
             with self.subTest(call=call):
@@ -105,7 +105,7 @@ class ConsentOutcomeTests(unittest.TestCase):
     def test_rejects_a_completed_but_failed_save(self):
         with self.assertRaises(AssertionError):
             self.assert_outcome([ToolCall(
-                "excel-mcp-file", {"action": "close", "session_id": "test", "save": True},
+                "excel-mcp-file", {"action": "close", "workbook_session_id": "test", "save": True},
                 result='{"success":false}', completion_received=True, success=True,
             )])
 

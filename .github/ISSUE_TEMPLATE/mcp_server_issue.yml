@@ -30,7 +30,7 @@ body:
       placeholder: |
         Tool: powerquery
         Action: list
-        Parameters: sanitized session_id and other inputs
+        Parameters: sanitized workbook_session_id and other inputs
     validations:
       required: true
   - type: textarea
