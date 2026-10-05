@@ -13,7 +13,7 @@ column and a captured session. Check each result before continuing.
 ```mcp
 table(action: 'add-to-data-model', session_id: sessionId, table_name: 'Sales')
 datamodel(action: 'create-measure', session_id: sessionId, table_name: 'Sales', measure_name: 'Total Sales', dax_formula: 'SUM(Sales[Amount])')
-datamodel(action: 'evaluate', session_id: sessionId, dax_query: 'EVALUATE ROW("Total", [Total Sales])')
+datamodel_read(action: 'evaluate', session_id: sessionId, dax_query: 'EVALUATE ROW("Total", [Total Sales])')
 ```
 
 ```cli

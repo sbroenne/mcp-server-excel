@@ -72,7 +72,7 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
             var sessions = await CallAsync(host.Client, "file_read", new() { ["action"] = "list" });
             Assert.Equal(firstId, Assert.Single(sessions.GetProperty("sessions").EnumerateArray())
                 .GetProperty("session_id").GetString());
-            var values = await CallAsync(host.Client, "range", new()
+            var values = await CallAsync(host.Client, "range_read", new()
             {
                 ["action"] = "get-values",
                 ["session_id"] = firstId,
@@ -139,7 +139,7 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
         try
         {
             var opened = await CallAsync(reader.Client, "file", new() { ["action"] = "open", ["path"] = path });
-            var values = await CallAsync(reader.Client, "range", new()
+            var values = await CallAsync(reader.Client, "range_read", new()
             {
                 ["action"] = "get-values",
                 ["session_id"] = opened.GetProperty("session_id").GetString(),

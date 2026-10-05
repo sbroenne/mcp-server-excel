@@ -47,7 +47,7 @@ For surviving `SalesQuery` and corrected code in a known `query.m` file:
 ```mcp
 powerquery(action: 'evaluate', session_id: sessionId, m_code_file: 'query.m')
 powerquery(action: 'update', session_id: sessionId, query_name: 'SalesQuery', m_code_file: 'query.m', refresh: false)
-powerquery(action: 'get-load-config', session_id: sessionId, query_name: 'SalesQuery')
+powerquery_read(action: 'get-load-config', session_id: sessionId, query_name: 'SalesQuery')
 ```
 
 ```cli
@@ -81,7 +81,7 @@ a staging query onto a sheet or into the model merely to make batch refresh pass
 For a staging definition used by the already-loaded `Financials` query:
 
 ```mcp
-powerquery(action: 'get-load-config', session_id: sessionId, query_name: 'Financials')
+powerquery_read(action: 'get-load-config', session_id: sessionId, query_name: 'Financials')
 powerquery(action: 'refresh', session_id: sessionId, query_name: 'Financials')
 pivottable(action: 'refresh', session_id: sessionId, pivot_table_name: 'RevenuePivot')
 ```
