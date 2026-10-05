@@ -6,6 +6,14 @@ For the complete release history, see [CHANGELOG.md](../CHANGELOG.md).
 AI assistants should discover the current contract through MCP `tools/list` or
 `excelcli --help` rather than relying on hardcoded parameter lists.
 
+## Unreleased - MCP Read-Only Endpoints
+
+MCP actions marked read-only now appear on dedicated `<tool>_read` endpoints.
+Use each endpoint's schema to see its available actions. The original tool names
+remain for write actions. For example, use `file_read` for `list` and `test`,
+`file` for `open`, `create`, and `close`, and `worksheet_read` for listing sheets.
+The screenshot endpoint remains `screenshot`, now marked read-only.
+
 ## Unreleased - Consistent MCP Session Identifiers
 
 MCP session identifiers now use `session_id` in inputs, open/create results,
@@ -36,8 +44,6 @@ Released on August 21, 2026 in
 
 The CLI and MCP Server now use the same 5 file operations: `list`, `open`,
 `create`, `close`, and `test`.
-In MCP, use `file_read` for `list` and `test`, and `file` for `open`, `create`,
-and `close`.
 
 - The standalone CLI `save` command was removed. Save when closing a session
   with `excelcli session close --session <id> --save`.

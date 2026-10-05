@@ -52,7 +52,7 @@ public sealed class RangeFindProtocolTests(RecordingProgramTransportFixture fixt
         var expectedArgs = JsonSerializer.Serialize(expectedArguments, ServiceProtocol.JsonOptions);
 
         var call = await fixture.CallToolAsync(
-            "range_edit", arguments,
+            "range_edit_read", arguments,
             RecordingToolTest.Success(JsonSerializer.Serialize(response, ServiceProtocol.JsonOptions)),
             "rangeedit.find", expectedArgs);
 
@@ -70,7 +70,7 @@ public sealed class RangeFindProtocolTests(RecordingProgramTransportFixture fixt
     public async Task Discovery_AdvertisesFindLimitAndCoverage()
     {
         var tools = await fixture.ListToolsAsync();
-        var tool = Assert.Single(tools, item => item.Name == "range_edit");
+        var tool = Assert.Single(tools, item => item.Name == "range_edit_read");
         Assert.Contains("max_matches", tool.Description, StringComparison.Ordinal);
         Assert.DoesNotContain("maxMatches", tool.Description, StringComparison.Ordinal);
         Assert.Contains("totalCount", tool.Description, StringComparison.Ordinal);
@@ -79,7 +79,7 @@ public sealed class RangeFindProtocolTests(RecordingProgramTransportFixture fixt
         Assert.Contains("default: 10", tool.Description, StringComparison.Ordinal);
         Assert.Contains("not search time", tool.Description, StringComparison.Ordinal);
         Assert.True(tool.JsonSchema.GetProperty("properties").TryGetProperty("max_matches", out _));
-        var parameter = GeneratedToolContract.GetParameter("range_edit", "max_matches");
+        var parameter = GeneratedToolContract.GetParameter("range_edit_read", "max_matches");
         Assert.True(parameter.IsOptional);
         Assert.Equal(typeof(int?), parameter.ParameterType);
         Assert.Null(parameter.DefaultValue);
@@ -98,7 +98,7 @@ public sealed class RangeFindProtocolTests(RecordingProgramTransportFixture fixt
         var arguments = FindArguments();
         arguments["max_matches"] = JsonSerializer.Deserialize<JsonElement>(limitJson);
 
-        var result = await fixture.CallResultWithoutDispatchAsync("range_edit", arguments);
+        var result = await fixture.CallResultWithoutDispatchAsync("range_edit_read", arguments);
 
         Assert.True(result.IsError);
         var text = Assert.IsType<ModelContextProtocol.Protocol.TextContentBlock>(Assert.Single(result.Content)).Text;
@@ -120,7 +120,7 @@ public sealed class RangeFindProtocolTests(RecordingProgramTransportFixture fixt
             findOptions = new FindOptions { MatchEntireCell = true },
             maxMatches
         }, ServiceProtocol.JsonOptions);
-        var call = await fixture.CallToolAsync("range_edit", arguments, new ServiceResponse
+        var call = await fixture.CallToolAsync("range_edit_read", arguments, new ServiceResponse
         {
             Success = false,
             ErrorMessage = "maxMatches must be positive.",
@@ -151,7 +151,7 @@ public sealed class RangeFindProtocolTests(RecordingProgramTransportFixture fixt
         var text = Assert.IsType<ModelContextProtocol.Protocol.TextContentBlock>(Assert.Single(result.Content)).Text;
         using var document = JsonDocument.Parse(text);
         Assert.False(document.RootElement.GetProperty("success").GetBoolean());
-        Assert.Contains("maxMatches", document.RootElement.GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
+        Assert.Contains("max_matches", document.RootElement.GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
     }
 
     private static Dictionary<string, object?> FindArguments() => new()

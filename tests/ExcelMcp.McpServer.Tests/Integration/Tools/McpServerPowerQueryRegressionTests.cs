@@ -78,13 +78,13 @@ public sealed class McpServerPowerQueryRegressionTests(
                 Assert.Equal(2, table.GetProperty("recordCount").GetInt32());
             }
 
-            var evaluated = await _fixture.CallToolAsync("datamodel", new Dictionary<string, object?>
+            var evaluated = await _fixture.CallToolAsync("datamodel_read", new Dictionary<string, object?>
             {
                 ["action"] = "evaluate",
                 ["session_id"] = sessionId,
                 ["dax_query"] = "EVALUATE CsvData ORDER BY CsvData[Product]"
             }, ToolTimeout);
-            AssertSuccess(evaluated, "datamodel.evaluate loaded CSV");
+            AssertSuccess(evaluated, "datamodel_read.evaluate loaded CSV");
             using (var data = JsonDocument.Parse(evaluated))
             {
                 Assert.Equal(2, data.RootElement.GetProperty("rowCount").GetInt32());

@@ -143,6 +143,10 @@ public class McpToolGenerator : IIncrementalGenerator
 
     private static IEnumerable<ServiceInfo> SplitReadOnlyTools(ServiceInfo info)
     {
+        var readOnlyMethods = info.Methods.Where(method => method.McpToolReadOnly).ToArray();
+        var readOnlyActions = readOnlyMethods.Select(method => method.ActionName).ToArray();
+        var readOnlyToolName = readOnlyMethods.FirstOrDefault()?.McpTool;
+
         foreach (var group in info.Methods.GroupBy(method => method.McpTool, StringComparer.Ordinal))
         {
             var methods = group.ToList();
@@ -152,7 +156,9 @@ public class McpToolGenerator : IIncrementalGenerator
                     string.IsNullOrWhiteSpace(method.XmlDocSummary)
                         ? $"{method.ActionName}."
                         : $"{method.ActionName}: {method.XmlDocSummary}"))
-                : info.McpToolDescription;
+                : readOnlyActions.Length > 0 && readOnlyToolName is not null
+                    ? $"{info.McpToolDescription} Read-only actions {string.Join(", ", readOnlyActions)} are available through {readOnlyToolName}."
+                    : info.McpToolDescription;
             yield return new ServiceInfo(
                 info.Category,
                 info.CategoryPascal,

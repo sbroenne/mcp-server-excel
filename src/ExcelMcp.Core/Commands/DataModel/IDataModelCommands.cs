@@ -37,7 +37,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 [ServiceCategory("datamodel", "DataModel")]
 [McpTool("datamodel", Title = "Data Model Operations", Destructive = true, Category = "analysis",
     Description = "DAX measures and Data Model tables. Worksheet Tables and Data Model tables are separate: refresh the model after changing a worksheet source. Power Query refresh synchronizes data loaded to the model. DAX is preserved by default; formatDax=true sends formulas to daxformatter.com and requires user consent. Use evaluate for DAX queries and execute-dmv for SELECT * FROM $SYSTEM.SchemaRowset metadata queries. File inputs daxFormulaFile, daxQueryFile, and dmvQueryFile support longer expressions. Use datamodel_relationship for relationships and table add-to-data-model to add worksheet data.")]
-[McpReadOnlyActions("list-tables", "list-columns", "read-table", "read-info", "read-connection", "list-measures", "read")]
+[McpReadOnlyActions("list-tables", "list-columns", "read-table", "read-info", "read-connection", "list-measures", "read", "evaluate", "execute-dmv")]
 public interface IDataModelCommands
 {
     /// <summary>

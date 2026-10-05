@@ -60,6 +60,34 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
             byName["range_read"].JsonSchema.GetProperty("properties").GetProperty("action")
                 .GetProperty("enum").EnumerateArray().Select(value => value.GetString()),
             action => action == "get-values");
+        Assert.Contains("evaluate", ActionNames("datamodel_read"));
+        Assert.Contains("execute-dmv", ActionNames("datamodel_read"));
+        Assert.Contains("find", ActionNames("range_edit_read"));
+        Assert.Contains("preflight", ActionNames("table_read"));
+    }
+
+    [Fact]
+    public async Task Discovery_WriteToolDescriptionsRouteMovedReadsToReadEndpoints()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var byName = tools.ToDictionary(tool => tool.Name, StringComparer.Ordinal);
+
+        foreach (var readTool in tools.Where(tool => tool.Name.EndsWith("_read", StringComparison.Ordinal)))
+        {
+            var writeToolName = readTool.Name[..^"_read".Length];
+            if (writeToolName is "file" or "worksheet")
+                continue;
+            if (!byName.TryGetValue(writeToolName, out var writeTool))
+                continue;
+
+            var actions = string.Join(", ", readTool.JsonSchema.GetProperty("properties")
+                .GetProperty("action").GetProperty("enum").EnumerateArray()
+                .Select(value => value.GetString()));
+            Assert.Contains(
+                $"Read-only actions {actions} are available through {readTool.Name}.",
+                writeTool.Description,
+                StringComparison.Ordinal);
+        }
     }
 
     [Fact]

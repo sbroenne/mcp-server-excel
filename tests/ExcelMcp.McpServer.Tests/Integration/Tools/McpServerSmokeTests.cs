@@ -148,7 +148,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             Assert.Equal("SalesTable", readDocument.RootElement.GetProperty("tableName").GetString());
             Assert.Equal(formula.Length, readDocument.RootElement.GetProperty("characterCount").GetInt32());
             Assert.Equal("Decimal", readDocument.RootElement.GetProperty("formatInfo").GetProperty("type").GetString());
-            var evaluated = await CallToolAsync("datamodel", new()
+            var evaluated = await CallToolAsync("datamodel_read", new()
             {
                 ["action"] = "evaluate",
                 ["session_id"] = session,
@@ -327,7 +327,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             {
                 findArguments["max_matches"] = limit.Value;
             }
-            var findResult = await CallToolAsync("range_edit", findArguments);
+            var findResult = await CallToolAsync("range_edit_read", findArguments);
             AssertSuccess(findResult, "Find bounded matches");
             using var findJson = JsonDocument.Parse(findResult);
             Assert.Equal(25, findJson.RootElement.GetProperty("totalCount").GetInt64());
@@ -1200,7 +1200,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             Assert.Equal(20d, parsedValues[1][1].GetDouble());
         }
 
-        var preflightTableResult = await CallToolAsync("table", new Dictionary<string, object?>
+        var preflightTableResult = await CallToolAsync("table_read", new Dictionary<string, object?>
         {
             ["action"] = "preflight",
             ["session_id"] = sessionId,
@@ -2215,7 +2215,7 @@ End Sub
             ["action"] = "list",
             ["session_id"] = sessionId
         });
-        var rows = await CallSuccessfulToolAsync("datamodel", new()
+        var rows = await CallSuccessfulToolAsync("datamodel_read", new()
         {
             ["action"] = "evaluate",
             ["session_id"] = sessionId,

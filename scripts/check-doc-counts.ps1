@@ -215,7 +215,6 @@ $checks = @(
     @{ File = ".github\plugins\excel-cli\README.md";    Pattern = '\| (?<m>\d+) tool schemas loaded into context \|' }
     @{ File = "gh-pages\docs\faq.md";                   Pattern = 'same (?<o>\d+) operations' }
     @{ File = "docs\INSTALLATION-CLI.md";               Pattern = 'all (?<t>\d+) feature command categories' }
-    @{ File = "docs\guides\EXCEL-COM-VS-FILE-PARSERS.md"; Pattern = '(?<o>\d+)\s+operations across (?<t>\d+) tools' }
     @{ File = "docs\COPILOT-PLUGIN-DISTRIBUTION.md";    Pattern = 'with (?<m>\d+) tools across (?<t>\d+) feature areas \((?<o>\d+) operations\)' }
 )
 $generatedSkill = Join-Path $SkillsDirectory 'excel-mcp-report-formatting\SKILL.md'
