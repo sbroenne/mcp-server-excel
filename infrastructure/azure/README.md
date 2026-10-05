@@ -293,10 +293,11 @@ workflow display names or event contexts. Without the Agents opt-in, cloud
 setup also retains the existing hosted Windows runner.
 
 Copilot code review uses its separate `copilot-code-review.yml` setup on
-`windows-latest`, regardless of the Agents switch. Without that file GitHub
-reuses the cloud-agent setup, which would direct reviews to the Excel label.
-Reviews are not admitted by the coding-job controller; keep their existing
-hosted tooling separate rather than weakening the trusted cloud-job policy.
+`ubuntu-latest`, regardless of the Agents switch. It cannot run Excel COM
+tests on that Linux runner. Without that file GitHub reuses the cloud-agent
+setup, which would direct reviews to the Excel label.
+Reviews are not admitted by the coding-job controller; keep their hosted
+Linux tooling separate rather than weakening the trusted cloud-job policy.
 The review setup does not install or run the on-demand LLM evaluations.
 Rejected guest admission reports only the GitHub run, attempt, job, actor
 and event fields, never the full environment or personal desktop identity.

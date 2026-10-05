@@ -107,11 +107,13 @@ The full Ponytail plugin and coding mode are not installed.
 
 This deliberately trusts upstream release changes without a repository review.
 A running session keeps its installed version until setup runs again. Download
-or installation failures fail the setup step; there is no silent fallback to a
-stale skill. GitHub may still start the agent after a failed setup, so inspect
-the setup log before claiming Ponytail was available. Its simplification review
-supplements the root review rules, including correctness and Excel safety;
-it does not replace them.
+or installation failures fail the setup step. Setup removes the previous
+`ponytail-review` directory before release lookup and deletes incomplete output
+on failure, without changing other skills, so a failed setup does not leave a
+stale or partial review skill available. GitHub may still start the agent after
+a failed setup, so inspect the setup log before claiming Ponytail was available.
+Its simplification review supplements the root review rules, including
+correctness and Excel safety; it does not replace them.
 
 GitHub's integrated agent firewall does not protect Windows runners;
 this configuration does not change firewall settings or provision runners.

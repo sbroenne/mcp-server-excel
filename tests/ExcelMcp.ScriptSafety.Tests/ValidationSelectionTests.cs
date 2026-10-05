@@ -71,7 +71,7 @@ public sealed class ValidationSelectionTests
     [InlineData("scripts\\Invoke-CopilotSetupNpm.ps1")]
     [InlineData("scripts\\Install-CopilotPonytailReview.ps1")]
     [InlineData(".github\\workflows\\copilot-setup-steps.yml")]
-    public async Task CopilotNpmSetup_DoesNotSelectAutomatedValidation(string path)
+    public async Task CopilotSetup_DoesNotSelectAutomatedValidation(string path)
     {
         var result = await RunAsync($$"""
             $plan = Get-ValidationPlan -Paths '{{path}}'
@@ -79,7 +79,7 @@ public sealed class ValidationSelectionTests
                 throw 'Setup-only changes must not select automated validation.'
             }
             if ($plan.Excel -or $plan.ExcelGroups.Count -or $plan.FastProjects.Count -or $plan.ProcessProjects.Count) {
-                throw 'Setup-only npm selection must not require Excel or runtime validation.'
+                throw 'Setup-only selection must not require Excel or runtime validation.'
             }
             """);
         Assert.True(result.ExitCode == 0, result.Output);

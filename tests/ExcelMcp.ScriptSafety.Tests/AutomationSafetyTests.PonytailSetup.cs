@@ -20,6 +20,9 @@ public sealed partial class AutomationSafetyTests
             var installed = Path.Combine(skills, "ponytail-review", "SKILL.md");
             Directory.CreateDirectory(Path.GetDirectoryName(installed)!);
             File.WriteAllText(installed, "stale skill");
+            var unrelated = Path.Combine(skills, "other-skill", "SKILL.md");
+            Directory.CreateDirectory(Path.GetDirectoryName(unrelated)!);
+            File.WriteAllText(unrelated, "keep this skill");
             var calls = Path.Combine(root, "calls.txt");
             var target = Quote(Path.Combine(RepoRoot, "scripts", "Install-CopilotPonytailReview.ps1"));
             var result = await RunAsync(root, $$"""
@@ -34,6 +37,8 @@ public sealed partial class AutomationSafetyTests
                         $global:releaseTag
                         return
                     }
+                    $null = New-Item -ItemType Directory -Path '{{Quote(Path.GetDirectoryName(installed)!)}}' -Force
+                    Set-Content -LiteralPath '{{Quote(installed)}}' -Value 'partial skill'
                     if ('{{scenario}}' -eq 'install-failure') { $global:LASTEXITCODE = 24; return }
                     if ('{{scenario}}' -eq 'missing-skill') {
                         Remove-Item -LiteralPath '{{Quote(installed)}}'
@@ -63,12 +68,14 @@ public sealed partial class AutomationSafetyTests
                     $"skill install DietrichGebert/ponytail ponytail-review@v2.0.0 --dir {skills} --force",
                     recorded);
                 Assert.Equal("v2.0.0", File.ReadAllText(installed).Trim());
-                Assert.Single(Directory.GetDirectories(skills));
+                Assert.Equal(2, Directory.GetDirectories(skills).Length);
             }
             else
             {
                 Assert.DoesNotContain("Installed ponytail-review release", result.Output, StringComparison.Ordinal);
+                Assert.False(Directory.Exists(Path.GetDirectoryName(installed)));
             }
+            Assert.Equal("keep this skill", File.ReadAllText(unrelated));
         }
         finally { Directory.Delete(root, true); }
     }
