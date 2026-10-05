@@ -87,8 +87,38 @@ Only setup on the default branch is adopted by the cloud agent.
 If a setup step fails, GitHub may still start the agent after skipping remaining
 steps. Diagnose and report missing prerequisites before claiming validation.
 
-The existing review environment shares that setup. Do not add another setup
-workflow unless it provides a demonstrated benefit.
+`.github/workflows/copilot-code-review.yml` prepares the separate Linux review
+environment supported by GitHub. Its .NET restore uses
+`-p:EnableWindowsTargeting=true` to resolve Windows-targeted dependencies;
+this does not make Excel COM tests runnable on Linux. The coding-agent
+environment remains on Windows. The review setup omits dependency installation
+for the Windows-only VS Code extension. Do not add another setup workflow
+unless it provides a demonstrated benefit.
+
+Both workflows run `scripts\Install-CopilotPonytailReview.ps1` before the agent
+starts. It uses PowerShell's built-in HTTP and archive commands to install only
+`ponytail-review` from the latest published release of
+[DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail), not its
+development branch. Each setup resolves the release again, downloads its source
+archive at the resolved commit SHA, and records both the release tag and source
+revision in the log. Only the review skill directory, including its resources,
+and the upstream license are copied, without modifying the released skill.
+GitHub CLI and runner updates are not required, including on the self-hosted
+Excel desktop. The workflows supply `GH_TOKEN` for authenticated GitHub API
+requests; local invocation can also download this public repository without a
+token. The output is ignored at `.github/skills/ponytail-review/` and must not be
+committed or edited. The full Ponytail plugin and coding mode are not installed.
+
+This deliberately trusts upstream release changes without a repository review.
+A running session keeps its installed version until setup runs again. Download
+or installation failures fail the setup step. Setup removes the previous
+`ponytail-review` directory before release lookup and deletes incomplete output
+on failure, without changing other skills, so a failed setup does not leave a
+stale or partial review skill available. GitHub may still start the agent after
+a failed setup, so inspect the setup log before claiming Ponytail was available.
+Its simplification review supplements the root review rules, including
+correctness and Excel safety; it does not replace them.
+
 GitHub's integrated agent firewall does not protect Windows runners;
 this configuration does not change firewall settings or provision runners.
 
@@ -143,4 +173,6 @@ app's executable commands or its acceptance state.
 - [Codex instruction discovery](https://developers.openai.com/codex/guides/agents-md)
 - [App configuration and trust](https://docs.github.com/en/copilot/reference/github-copilot-app-reference/repository-configuration)
 - [Cloud setup](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/customize-cloud-agent/customize-the-agent-environment)
+- [Code review runners](https://docs.github.com/en/copilot/how-tos/copilot-on-github/set-up-copilot/configure-runners)
+- [Agent skill installation and review discovery](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/customize-cloud-agent/add-skills)
 - [Agent secrets and variables](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/customize-cloud-agent/configure-secrets-and-variables)

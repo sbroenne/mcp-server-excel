@@ -5,13 +5,15 @@ on:
   push:
     paths:
       - .github/workflows/copilot-code-review.yml
+      - scripts/Install-CopilotPonytailReview.ps1
   pull_request:
     paths:
       - .github/workflows/copilot-code-review.yml
+      - scripts/Install-CopilotPonytailReview.ps1
 
 jobs:
   copilot-setup-steps:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
       contents: read
@@ -20,6 +22,12 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+
+      - name: Install latest released Ponytail review skill
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .\scripts\Install-CopilotPonytailReview.ps1
 
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
@@ -44,13 +52,9 @@ jobs:
           cache-dependency-path: gh-pages/requirements.txt
 
       - name: Restore .NET dependencies
-        run: dotnet restore Sbroenne.ExcelMcp.sln
+        run: dotnet restore Sbroenne.ExcelMcp.sln -p:EnableWindowsTargeting=true
 
       - name: Install repository tooling
-        run: npm ci
-
-      - name: Install VS Code extension dependencies
-        working-directory: vscode-extension
         run: npm ci
 
       - name: Install documentation dependencies
