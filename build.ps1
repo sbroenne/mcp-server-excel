@@ -3,6 +3,7 @@ param([Parameter(ValueFromRemainingArguments = $true)][string[]]$Arguments)
 
 $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
+$dotnet = (Get-Command dotnet -CommandType Application | Select-Object -First 1).Source
 $dll = $env:EXCELMCP_BUILD_DLL
 if (-not $dll) {
     $hash = [Security.Cryptography.SHA256]::Create()
@@ -36,7 +37,7 @@ if (-not $dll) {
         if (-not (Test-Path -LiteralPath $stamp -PathType Leaf) -or -not (Test-Path -LiteralPath $dll -PathType Leaf)) {
             Push-Location $root
             try {
-                $output = & (Get-Command dotnet -CommandType Application).Source build (Join-Path $root 'tools\ExcelMcp.Build\ExcelMcp.Build.csproj') `
+                $output = & $dotnet build (Join-Path $root 'tools\ExcelMcp.Build\ExcelMcp.Build.csproj') `
                     -c Release --disable-build-servers --verbosity quiet `
                     "-p:BaseIntermediateOutputPath=$cache\obj\" "-p:MSBuildProjectExtensionsPath=$cache\obj\" `
                     "-p:BaseOutputPath=$cache\build\" -o (Join-Path $cache 'bin') 2>&1
@@ -54,7 +55,7 @@ if (-not $dll) {
 if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) { throw "Build-tool assembly does not exist: $dll" }
 $errorsFile = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcpBuildErrors-$([Guid]::NewGuid().ToString('N')).log"
 try {
-    & (Get-Command dotnet -CommandType Application).Source $dll @Arguments 2> $errorsFile
+    & $dotnet $dll @Arguments 2> $errorsFile
     $code = $LASTEXITCODE
     $diagnostics = [IO.File]::ReadAllText($errorsFile)
     if ($diagnostics) { [Console]::Error.Write($diagnostics) }

@@ -7,6 +7,26 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 [Trait("Feature", "PreCommit")]
 public sealed class ChangedAreaRegressionTests
 {
+    [Fact]
+    public async Task BuildBootstrap_MultipleDotnetApplications_UsesFirstExecutable()
+    {
+        var run = await ValidationSelectionTests.RunAsync("""
+            $global:expectedDotnetExecutable = (Microsoft.PowerShell.Core\Get-Command dotnet -CommandType Application |
+                Select-Object -First 1).Source
+            function Get-Command {
+                param([string]$Name, [string]$CommandType)
+                if ($Name -ne 'dotnet' -or $CommandType -ne 'Application') { throw 'Unexpected command lookup.' }
+                [pscustomobject]@{ Source = $global:expectedDotnetExecutable }
+                [pscustomobject]@{ Source = "$global:expectedDotnetExecutable-secondary" }
+            }
+            $help = & .\build.ps1 --help
+            if ($LASTEXITCODE -ne 0 -or ($help -join "`n") -notmatch 'ExcelMcp development tooling') {
+                throw 'The first dotnet executable did not run the tool.'
+            }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
+    }
+
     [Theory]
     [InlineData("Range", "RangeCommands.Values.cs")]
     [InlineData("PowerQuery", "PowerQueryCommands.Read.cs")]
