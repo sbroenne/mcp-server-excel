@@ -29,8 +29,6 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 [ServiceCategory("rangeformat", "RangeFormat")]
 [McpTool("range_format", Title = "Range Format Operations", Destructive = true, Category = "data",
     Description = "Range formatting: styles, custom visual formatting, data validation, merge, auto-fit. " +
-        "get-format: Read every requested cell's stored, displayed (including conditional formatting), or both formatting snapshots; no preview limit and no selection changes. " +
-        "get-visibility: Read every unique intersecting whole row or column, native current size, outline level and worksheet AutoFilter context; hidden cause is undetermined. " +
         "set-visibility: Required axis rows/columns and hidden true/false. Preserve stored dimensions; do not remove filter criteria or groups. Disjoint gaps remain unchanged. " +
         "set-style: Named styles (Good/Bad/Neutral have fills and are theme-aware; Heading 1/2/3 for document hierarchy; Normal to reset). " +
         "NOTE: Heading styles do NOT include a fill colour — use format for coloured header rows. " +
@@ -41,6 +39,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
         "MERGE: Only top-left cell value preserved. " +
         "TABLES: For Excel Table visual styling use table(action:'set-style') — do not apply range_format to table header or data rows, table style manages all table formatting. " +
         "PIVOTTABLES: Do not apply range_format to PivotTable cells — formatting is overwritten on the next refresh.")]
+[McpReadOnlyActions("get-visibility", "get-format", "get-style", "get-validation", "get-merge-info")]
 public interface IRangeFormatCommands
 {
     /// <summary>

@@ -21,7 +21,7 @@ in Values, and checking the result:
 pivottable_calc(action: 'create-calculated-field', session_id: sessionId, pivot_table_name: 'SalesPivot', field_name: 'DoubleSales', formula: '=Sales*2')
 pivottable_field(action: 'add-value-field', session_id: sessionId, pivot_table_name: 'SalesPivot', field_name: 'DoubleSales', aggregation_function: 'Sum')
 pivottable(action: 'refresh', session_id: sessionId, pivot_table_name: 'SalesPivot')
-pivottable_calc(action: 'get-data', session_id: sessionId, pivot_table_name: 'SalesPivot')
+pivottable_calc_read(action: 'get-data', session_id: sessionId, pivot_table_name: 'SalesPivot')
 ```
 
 ```cli

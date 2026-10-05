@@ -138,7 +138,8 @@ public sealed class CalculationSettingsProtocolTests(RecordingProgramTransportFi
         var tool = Assert.Single(tools, item => item.Name == "calculation_mode");
         Assert.Contains("ALL open workbooks", tool.Description, StringComparison.Ordinal);
         Assert.Contains("stored numeric precision is permanently lost", tool.Description, StringComparison.Ordinal);
-        Assert.Contains("get-settings", tool.Description, StringComparison.Ordinal);
+        var read = Assert.Single(tools, item => item.Name == "calculation_mode_read");
+        Assert.Contains("get-settings", read.Description, StringComparison.Ordinal);
         Assert.True(tool.JsonSchema.GetProperty("properties").TryGetProperty("maximum_change", out _));
         Assert.True(tool.JsonSchema.GetProperty("properties").TryGetProperty("allow_precision_loss", out _));
     }

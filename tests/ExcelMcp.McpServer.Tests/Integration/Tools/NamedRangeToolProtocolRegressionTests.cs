@@ -19,7 +19,7 @@ public sealed class NamedRangeToolProtocolRegressionTests(
     {
         const string sessionId = "recording-session";
         var listCall = await _fixture.CallToolAsync(
-            "namedrange",
+            "namedrange_read",
             new Dictionary<string, object?>
             {
                 ["action"] = "list",
@@ -45,7 +45,7 @@ public sealed class NamedRangeToolProtocolRegressionTests(
         }
 
         var worksheetCall = await _fixture.CallToolAsync(
-            "worksheet",
+            "worksheet_read",
             new Dictionary<string, object?>
             {
                 ["action"] = "list",

@@ -28,7 +28,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PythonInExcel;
 /// </summary>
 [ServiceCategory("pythoninexcel", "PythonInExcel")]
 [McpTool("pythoninexcel", Title = "Python in Excel Operations", Destructive = true, Category = "data",
-    Description = "Write and read Microsoft 365 \"Python in Excel\" =PY() formulas. Requires a licensed M365 account with Python in Excel enabled and internet access - Python code executes in Microsoft's cloud sandbox, not locally. SET-FORMULA writes '=PY(code, returnType)' via Range.Formula2 (returnType: 0=Excel Value, 1=Python Object; always pass it explicitly). GET-RESULT reads back the result, polling until the cloud round-trip completes (a fresh formula reads as #BUSY! while still computing); completion is detected deterministically from Excel's calculation state, so a real result is not confused with the #BUSY! placeholder. If Excel returns #NAME? for a PY() formula, both actions report that Python in Excel is unavailable in the current session. If the backend is still busy at the deadline (e.g. a cold start), GET-RESULT says so - call it again or raise maxWaitSeconds. Reference live worksheet data inside the Python code using xl(\"A1:A6\"), xl(\"Sheet1!A1:A6\"), or a named range xl(\"MyRange\") - this works reliably. TIP: xl() returns a DataFrame/Series, not a plain list, so prefer .sum()/.mean()/.max() methods over Python's builtin sum()/len().")]
+    Description = "Write and read Microsoft 365 \"Python in Excel\" =PY() formulas. Requires a licensed M365 account with Python in Excel enabled and internet access - Python code executes in Microsoft's cloud sandbox, not locally. SET-FORMULA writes '=PY(code, returnType)' via Range.Formula2 (returnType: 0=Excel Value, 1=Python Object; always pass it explicitly). GET-RESULT starts application-level calculation, which can execute cloud Python and pending formulas in other workbooks owned by the Excel process; it is not inspection-only. It reads back the result, polling until the cloud round-trip completes (a fresh formula reads as #BUSY! while still computing); completion is detected deterministically from Excel's calculation state, so a real result is not confused with the #BUSY! placeholder. If Excel returns #NAME? for a PY() formula, both actions report that Python in Excel is unavailable in the current session. If the backend is still busy at the deadline (e.g. a cold start), GET-RESULT says so - call it again or raise maxWaitSeconds. Reference live worksheet data inside the Python code using xl(\"A1:A6\"), xl(\"Sheet1!A1:A6\"), or a named range xl(\"MyRange\") - this works reliably. TIP: xl() returns a DataFrame/Series, not a plain list, so prefer .sum()/.mean()/.max() methods over Python's builtin sum()/len().")]
 public interface IPythonInExcelCommands
 {
     /// <summary>
@@ -51,6 +51,8 @@ public interface IPythonInExcelCommands
         int returnType = 0);
 
     /// <summary>
+    /// Starts application-level calculation before polling, which can execute pending formulas
+    /// in other workbooks owned by the Excel process. This is not an inspection-only action.
     /// Reads back the computed result of a =PY() cell, polling until the Python code (which executes
     /// asynchronously in Microsoft's cloud sandbox) finishes. Completion is detected deterministically
     /// from Excel's calculation state plus a per-cell #BUSY! guard, so a converged result is never

@@ -24,7 +24,7 @@ public sealed class RangeTraceProtocolTests(RecordingProgramTransportFixture fix
         }, ServiceProtocol.JsonOptions);
         const string response =
             """{"success":true,"coverage":{"scope":"same-worksheet-only","workbookComplete":false},"nodes":[],"edges":[],"unresolved":[]}""";
-        var call = await fixture.CallToolAsync("range", new()
+        var call = await fixture.CallToolAsync("range_read", new()
         {
             ["action"] = action,
             ["session_id"] = "session-1",
@@ -40,7 +40,7 @@ public sealed class RangeTraceProtocolTests(RecordingProgramTransportFixture fix
     public async Task Discovery_ExplainsUnresolvedAndWorkbookCoverageBoundaries()
     {
         var tools = await fixture.ListToolsAsync();
-        var tool = Assert.Single(tools, item => item.Name == "range");
+        var tool = Assert.Single(tools, item => item.Name == "range_read");
         Assert.Contains("coverage.workbookComplete is always false", tool.Description, StringComparison.Ordinal);
         Assert.Contains("unresolved, not fabricated empty coverage", tool.Description, StringComparison.Ordinal);
         Assert.Contains("without a depth/output cap", tool.Description, StringComparison.Ordinal);

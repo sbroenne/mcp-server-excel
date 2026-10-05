@@ -17,6 +17,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.XmlMap;
 [ServiceCategory("xmlmap", "XmlMap")]
 [McpTool("xmlmap", Title = "XML Map Operations", Destructive = true, Category = "data",
     Description = "Manage workbook XML maps and exchange XML data without interactive dialogs. Schemas and XML data are parsed from supplied content with DTD processing disabled; external XSD dependencies and XML schema-location attributes are rejected. IMPORT MODES: provide map_name to import into existing mapped cells, or omit map_name and provide sheet_name plus start_cell to let Excel create a map and XML table.")]
+[McpReadOnlyActions("list", "export-xml")]
 public interface IXmlMapCommands
 {
     /// <summary>

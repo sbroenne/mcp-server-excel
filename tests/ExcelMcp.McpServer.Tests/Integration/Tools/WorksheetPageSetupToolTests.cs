@@ -50,7 +50,7 @@ public sealed class WorksheetPageSetupToolTests(
         }
 
         var getCall = await _fixture.CallToolAsync(
-            "worksheet_style",
+            "worksheet_style_read",
             new Dictionary<string, object?>
             {
                 ["action"] = "get-page-setup",
@@ -77,7 +77,7 @@ public sealed class WorksheetPageSetupToolTests(
     {
         const string sessionId = "recording-session";
         var call = await _fixture.CallToolAsync(
-            "worksheet_style",
+            "worksheet_style_read",
             new Dictionary<string, object?>
             {
                 ["action"] = "get-page-setup",

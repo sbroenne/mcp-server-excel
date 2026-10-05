@@ -60,7 +60,8 @@ See [window management](window.md#visibility-and-placement).
 - Report what actually succeeded, the saved file when relevant, and any remaining
   failure. Do not present an attempted action as a completed result.
 
-Use the file test operation when access or protection is uncertain.
+Use MCP `file_read` with action `test` (CLI: `excelcli session test`) when access
+or protection is uncertain.
 Ordinary files are briefly opened read-only for this check. IRM/AIP workbooks
 require interactive Excel authentication; do not work around protection.
 

@@ -84,7 +84,7 @@ public sealed class RangeOverwritePolicyProtocolTests(RecordingProgramTransportF
     [Fact]
     public async Task ReadAction_RejectsInapplicablePolicy()
     {
-        var result = await fixture.CallResultWithoutDispatchAsync("range", new()
+        var result = await fixture.CallResultWithoutDispatchAsync("range_read", new()
         {
             ["action"] = "get-values",
             ["session_id"] = "session-1",

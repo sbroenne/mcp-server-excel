@@ -46,7 +46,7 @@ public sealed class RangeFormatReadProtocolTests(RecordingProgramTransportFixtur
             serviceArguments["view"] = view;
         }
         var expectedArgs = JsonSerializer.Serialize(serviceArguments, ServiceProtocol.JsonOptions);
-        var call = await fixture.CallToolAsync("range_format", arguments,
+        var call = await fixture.CallToolAsync("range_format_read", arguments,
             RecordingToolTest.Success(response), "rangeformat.get-format", expectedArgs);
         Assert.False(call.Result.IsError);
         using var output = JsonDocument.Parse(call.JsonResult);
@@ -58,7 +58,7 @@ public sealed class RangeFormatReadProtocolTests(RecordingProgramTransportFixtur
     public async Task Discovery_AdvertisesCompleteStoredAndDisplayedReads()
     {
         var tools = await fixture.ListToolsAsync();
-        var tool = Assert.Single(tools, item => item.Name == "range_format");
+        var tool = Assert.Single(tools, item => item.Name == "range_format_read");
         Assert.Contains("get-format", tool.Description, StringComparison.Ordinal);
         Assert.Contains("displayed", tool.Description, StringComparison.Ordinal);
         Assert.True(tool.JsonSchema.GetProperty("properties").TryGetProperty("view", out _));
@@ -69,7 +69,7 @@ public sealed class RangeFormatReadProtocolTests(RecordingProgramTransportFixtur
     [InlineData("99")]
     public async Task GetFormat_InvalidViewDoesNotDispatch(string view)
     {
-        var result = await fixture.CallResultWithoutDispatchAsync("range_format", new()
+        var result = await fixture.CallResultWithoutDispatchAsync("range_format_read", new()
         {
             ["action"] = "get-format",
             ["session_id"] = "session-1",

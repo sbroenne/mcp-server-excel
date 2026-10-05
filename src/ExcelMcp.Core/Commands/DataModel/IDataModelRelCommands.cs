@@ -24,7 +24,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 [ServiceCategory("datamodelrel", "DataModelRel")]
 [McpTool("datamodel_relationship", Title = "Data Model Relationship Operations", Destructive = true, Category = "analysis",
-    Description = "Link Data Model tables for cross-table DAX calculations. Deleting/recreating tables removes their relationships; inspect list-relationships before replacing tables. Both tables must be in the model with compatible column types. From identifies the many-side detail column; To identifies the one-side lookup column. One active relationship is allowed per table pair; DAX USERELATIONSHIP() uses an inactive relationship for a calculation. Use datamodel for tables and measures.")]
+    Description = "Create and delete relationships linking Data Model tables for cross-table DAX calculations. Deleting/recreating tables removes their relationships. Both tables must be in the model with compatible column types. From identifies the many-side detail column; To identifies the one-side lookup column. One active relationship is allowed per table pair; DAX USERELATIONSHIP() uses an inactive relationship for a calculation. Use datamodel for tables and measures.")]
+[McpReadOnlyActions("list-relationships", "read-relationship")]
 public interface IDataModelRelCommands
 {
     /// <summary>

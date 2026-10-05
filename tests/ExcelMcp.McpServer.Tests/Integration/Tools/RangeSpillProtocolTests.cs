@@ -33,7 +33,7 @@ public sealed class RangeSpillProtocolTests(RecordingProgramTransportFixture fix
             sheetName = "Sheet1",
             rangeAddress = "A1:A64"
         }, ServiceProtocol.JsonOptions);
-        var call = await fixture.CallToolAsync("range", new()
+        var call = await fixture.CallToolAsync("range_read", new()
         {
             ["action"] = "get-spill-info",
             ["session_id"] = "session-1",
@@ -51,8 +51,8 @@ public sealed class RangeSpillProtocolTests(RecordingProgramTransportFixture fix
     public async Task Discovery_ExplainsNativeRelationshipsAndUnsupportedSessions()
     {
         var tools = await fixture.ListToolsAsync();
-        var tool = Assert.Single(tools, item => item.Name == "range");
+        var tool = Assert.Single(tools, item => item.Name == "range_read");
         Assert.Contains("get-spill-info", tool.Description, StringComparison.Ordinal);
-        Assert.Contains("Unsupported sessions fail explicitly", tool.Description, StringComparison.Ordinal);
+        Assert.Contains("Unsupported Excel sessions fail explicitly", tool.Description, StringComparison.Ordinal);
     }
 }

@@ -38,7 +38,7 @@ public sealed class RangeSpecialCellsProtocolTests(RecordingProgramTransportFixt
             cellKind
         }, ServiceProtocol.JsonOptions);
 
-        var call = await fixture.CallToolAsync("range", new()
+        var call = await fixture.CallToolAsync("range_read", new()
         {
             ["action"] = "get-special-cells",
             ["session_id"] = "session-1",
@@ -58,10 +58,10 @@ public sealed class RangeSpecialCellsProtocolTests(RecordingProgramTransportFixt
     public async Task Discovery_AdvertisesRequiredSelectorAndCompleteScope()
     {
         var tools = await fixture.ListToolsAsync();
-        var tool = Assert.Single(tools, item => item.Name == "range");
+        var tool = Assert.Single(tools, item => item.Name == "range_read");
         Assert.Contains("get-special-cells", tool.Description, StringComparison.Ordinal);
         Assert.True(tool.JsonSchema.GetProperty("properties").TryGetProperty("cell_kind", out _));
-        var parameter = GeneratedToolContract.GetParameter("range", "cell_kind");
+        var parameter = GeneratedToolContract.GetParameter("range_read", "cell_kind");
         Assert.Contains("formulas", parameter.GetCustomAttribute<DescriptionAttribute>()?.Description,
             StringComparison.Ordinal);
     }
@@ -71,7 +71,7 @@ public sealed class RangeSpecialCellsProtocolTests(RecordingProgramTransportFixt
     [InlineData("99")]
     public async Task SpecialCells_InvalidSelectorDoesNotDispatch(string cellKind)
     {
-        var result = await fixture.CallResultWithoutDispatchAsync("range", new()
+        var result = await fixture.CallResultWithoutDispatchAsync("range_read", new()
         {
             ["action"] = "get-special-cells",
             ["session_id"] = "session-1",
@@ -86,7 +86,7 @@ public sealed class RangeSpecialCellsProtocolTests(RecordingProgramTransportFixt
     [Fact]
     public async Task SpecialCells_MissingSelectorDoesNotDispatch()
     {
-        var result = await fixture.CallResultWithoutDispatchAsync("range", new()
+        var result = await fixture.CallResultWithoutDispatchAsync("range_read", new()
         {
             ["action"] = "get-special-cells",
             ["session_id"] = "session-1",

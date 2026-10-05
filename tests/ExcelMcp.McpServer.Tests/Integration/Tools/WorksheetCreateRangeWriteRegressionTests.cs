@@ -60,7 +60,7 @@ public class WorksheetCreateRangeWriteRegressionTests : McpIntegrationTestBase
         });
         AssertSetupSuccess(setValuesJson, "range.set-values");
 
-        var getValuesJson = await CallToolAsync("range", new Dictionary<string, object?>
+        var getValuesJson = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
             ["session_id"] = _sessionId,
@@ -83,7 +83,7 @@ public class WorksheetCreateRangeWriteRegressionTests : McpIntegrationTestBase
             }
         }
 
-        var a1Json = await CallToolAsync("range", new Dictionary<string, object?>
+        var a1Json = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
             ["session_id"] = _sessionId,

@@ -30,6 +30,12 @@ public sealed class McpToolAttribute : Attribute
     public bool Destructive { get; set; } = true;
 
     /// <summary>
+    /// Whether this tool performs only read operations without modifying its environment.
+    /// Used in [McpServerTool(ReadOnly = ...)].
+    /// </summary>
+    public bool ReadOnly { get; set; }
+
+    /// <summary>
     /// MCP meta category for the tool (e.g., "data", "analysis", "query", "settings").
     /// Used in [McpMeta("category", ...)].
     /// </summary>

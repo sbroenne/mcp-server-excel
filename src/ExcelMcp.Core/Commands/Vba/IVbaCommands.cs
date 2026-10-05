@@ -23,7 +23,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 [ServiceCategory("vba", "Vba")]
 [McpTool("vba", Title = "VBA Operations", Destructive = true, Category = "automation",
-    Description = "VBA module and procedure operations for macro-enabled workbooks (.xlsm). Lists and views existing VBA components, imports new standard modules, updates or deletes module code, and runs procedures. VBA project inspection and editing require Trust Center access; running an existing macro does not. ExcelMcp does not configure Trust Center settings.")]
+    Description = "Import standard VBA modules, update or delete module code, and run procedures in macro-enabled workbooks (.xlsm). VBA project editing requires Trust Center access; running an existing macro does not. ExcelMcp does not configure Trust Center settings.")]
+[McpReadOnlyActions("list", "view")]
 public interface IVbaCommands
 {
     /// <summary>
@@ -71,4 +72,3 @@ public interface IVbaCommands
     [ServiceAction("delete")]
     OperationResult Delete(IExcelBatch batch, [RequiredParameter] string moduleName);
 }
-

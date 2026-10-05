@@ -272,7 +272,10 @@ public sealed class DrawingToolE2ETests : McpIntegrationTestBase
     {
         arguments["action"] = action;
         arguments["session_id"] = _sessionId;
-        return CallToolAsync("drawing", arguments);
+        var toolName = action is "get-object" or "list-objects" or "get-sparkline" or "list-sparklines"
+            ? "drawing_read"
+            : "drawing";
+        return CallToolAsync(toolName, arguments);
     }
 
     private string CreateTestPng()

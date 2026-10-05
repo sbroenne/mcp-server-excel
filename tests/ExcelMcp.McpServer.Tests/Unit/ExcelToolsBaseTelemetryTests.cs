@@ -2,7 +2,6 @@ using System.Text.Json;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
 using Sbroenne.ExcelMcp.McpServer.Tools;
-using Sbroenne.ExcelMcp.Generated;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
@@ -84,7 +83,7 @@ public sealed class ExcelToolsBaseTelemetryTests
         var response = await Execute(
             diagnostic,
             result => invocation = result,
-            toolName: "file",
+            toolName: "file_read",
             actionName: "test");
 
         Assert.Equal(diagnostic, response);
@@ -217,7 +216,7 @@ public sealed class ExcelToolsBaseTelemetryTests
 
         var (eventTelemetry, requestTelemetry) =
             ExcelMcpTelemetry.CreateToolInvocationTelemetry(
-                "file",
+                "file_read",
                 "test",
                 12,
                 result);
@@ -288,7 +287,7 @@ public sealed class ExcelToolsBaseTelemetryTests
     public async Task WorksheetMissingSession_ReturnsCategorizedRecoveryGuidance()
     {
         using var bridge = new ServiceBridge.ServiceBridge(() => throw new InvalidOperationException("Unexpected dispatch."));
-        var result = await ExcelWorksheetTool.ExcelWorksheet(SheetAction.List, bridge);
+        var result = await ExcelWorksheetTool.ExcelWorksheet(WorksheetWriteAction.Create, bridge);
         var response = Assert.Single(result.Content.OfType<ModelContextProtocol.Protocol.TextContentBlock>()).Text;
 
         using var json = JsonDocument.Parse(response);

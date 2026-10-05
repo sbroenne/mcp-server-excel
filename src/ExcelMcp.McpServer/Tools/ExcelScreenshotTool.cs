@@ -25,7 +25,7 @@ public static class ExcelScreenshotTool
     /// Use after operations to visually verify results.
     /// quality: Medium (default, JPEG 75% scale, ~4-8x smaller), High (PNG full scale), Low (JPEG 50% scale).
     /// </summary>
-    [McpServerTool(Name = "screenshot", Title = "Screenshot", Destructive = false,
+    [McpServerTool(Name = "screenshot", Title = "Screenshot", Destructive = false, ReadOnly = true,
         UseStructuredContent = true, OutputSchemaType = typeof(ScreenshotToolOutputSchema))]
     [McpMeta("category", "visualization")]
     [McpMeta("requiresSession", true)]

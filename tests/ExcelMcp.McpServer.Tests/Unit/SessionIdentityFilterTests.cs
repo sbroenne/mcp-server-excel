@@ -58,7 +58,7 @@ public sealed class SessionIdentityFilterTests
 
         Assert.Equal(SessionIdentityFilter.ErrorMessage, error);
         Assert.Contains("session_id", error, StringComparison.Ordinal);
-        Assert.Contains("file list", error, StringComparison.Ordinal);
+        Assert.Contains("file_read list", error, StringComparison.Ordinal);
     }
 
     private static Dictionary<string, JsonElement> Arguments(

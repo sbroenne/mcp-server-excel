@@ -59,10 +59,10 @@ public class McpToolGenerator : IIncrementalGenerator
                 if (services.Count == 0)
                     return;
 
-                foreach (var info in services)
+                foreach (var info in services.SelectMany(SplitReadOnlyTools))
                 {
                     var code = GenerateToolClass(info);
-                    spc.AddSource($"McpTool.{info.CategoryPascal}.g.cs", SourceText.From(code, Encoding.UTF8));
+                    spc.AddSource($"McpTool.{info.CategoryPascal}.{info.McpToolName}.g.cs", SourceText.From(code, Encoding.UTF8));
                 }
             });
     }
@@ -140,6 +140,34 @@ public class McpToolGenerator : IIncrementalGenerator
                 yield return type;
     }
 
+    private static IEnumerable<ServiceInfo> SplitReadOnlyTools(ServiceInfo info)
+    {
+        foreach (var group in info.Methods.GroupBy(method => method.McpTool, StringComparer.Ordinal))
+        {
+            var methods = group.ToList();
+            var readOnly = methods.All(method => method.McpToolReadOnly);
+            var description = readOnly
+                ? "Read-only actions: " + string.Join(" ", methods.Select(method =>
+                    string.IsNullOrWhiteSpace(method.XmlDocSummary)
+                        ? $"{method.ActionName}."
+                        : $"{method.ActionName}: {method.XmlDocSummary}"))
+                : info.McpToolDescription;
+            yield return new ServiceInfo(
+                info.Category,
+                info.CategoryPascal,
+                group.Key,
+                info.NoSession,
+                methods,
+                readOnly ? $"Read-only {info.CategoryPascal} actions." : info.XmlDocSummary,
+                readOnly ? $"Read-only {info.CategoryPascal} Operations" : info.McpToolTitle,
+                readOnly ? false : info.McpToolDestructive,
+                readOnly,
+                info.McpToolCategory,
+                description,
+                info.HasMcpToolAttribute);
+        }
+    }
+
     /// <summary>
     /// Generates a complete MCP tool class for a service category.
     /// </summary>
@@ -180,6 +208,7 @@ public class McpToolGenerator : IIncrementalGenerator
         sb.AppendLine("{");
 
         // Generate the tool method
+        GenerateActionEnum(sb, info);
         GenerateToolMethod(sb, info, hasProgress);
 
         sb.AppendLine("}");
@@ -188,12 +217,29 @@ public class McpToolGenerator : IIncrementalGenerator
         return sb.ToString();
     }
 
+    private static void GenerateActionEnum(StringBuilder sb, ServiceInfo info)
+    {
+        var enumTypeName = GetActionTypeName(info);
+        sb.AppendLine("    [JsonConverter(typeof(JsonStringEnumConverter<" + enumTypeName + ">))]");
+        sb.AppendLine($"    public enum {enumTypeName}");
+        sb.AppendLine("    {");
+        for (var i = 0; i < info.Methods.Count; i++)
+        {
+            var method = info.Methods[i];
+            var comma = i < info.Methods.Count - 1 ? "," : "";
+            sb.AppendLine($"        [JsonStringEnumMemberName(\"{method.ActionName}\")]");
+            sb.AppendLine($"        {method.MethodName}{comma}");
+        }
+        sb.AppendLine("    }");
+        sb.AppendLine();
+    }
+
     /// <summary>
     /// Generates the MCP tool method with XML docs, attributes, parameters, and body.
     /// </summary>
     private static void GenerateToolMethod(StringBuilder sb, ServiceInfo info, bool hasProgress)
     {
-        var enumTypeName = $"{info.CategoryPascal}Action";
+        var enumTypeName = GetActionTypeName(info);
 
         // Get all exposed parameters (aggregated across methods)
         var exposedParams = ServiceInfoExtractor.GetAllExposedParameters(info);
@@ -202,11 +248,12 @@ public class McpToolGenerator : IIncrementalGenerator
         var mcpParams = BuildMcpParameters(info, exposedParams);
 
         // XML doc: interface-level summary
-        if (!string.IsNullOrEmpty(info.XmlDocSummary))
+        var summary = info.McpToolReadOnly ? $"Read-only {info.CategoryPascal} actions." : info.XmlDocSummary;
+        if (!string.IsNullOrEmpty(summary))
         {
             sb.AppendLine("    /// <summary>");
             // Wrap the summary text, respecting line breaks
-            foreach (var line in WrapXmlDocLines(info.XmlDocSummary))
+            foreach (var line in WrapXmlDocLines(summary))
             {
                 sb.AppendLine($"    /// {EscapeXml(line)}");
             }
@@ -231,7 +278,8 @@ public class McpToolGenerator : IIncrementalGenerator
         // Attributes
         var title = info.McpToolTitle ?? $"Excel {info.CategoryPascal} Operations";
         var destructive = info.McpToolDestructive ? "true" : "false";
-        sb.AppendLine($"    [McpServerTool(Name = \"{info.McpToolName}\", Title = \"{title}\", Destructive = {destructive}, UseStructuredContent = true, OutputSchemaType = typeof({GetOutputSchemaClassName(info)}))]");
+        var readOnly = info.McpToolReadOnly ? "true" : "false";
+        sb.AppendLine($"    [McpServerTool(Name = \"{info.McpToolName}\", Title = \"{title}\", Destructive = {destructive}, ReadOnly = {readOnly}, UseStructuredContent = true, OutputSchemaType = typeof({GetOutputSchemaClassName(info)}))]");
 
         var category = info.McpToolCategory ?? "data";
         sb.AppendLine($"    [McpMeta(\"category\", \"{category}\")]");
@@ -315,7 +363,7 @@ public class McpToolGenerator : IIncrementalGenerator
     }
 
     private static string GetOutputSchemaClassName(ServiceInfo info) =>
-        $"{info.CategoryPascal}ToolOutputSchema";
+        $"{GetToolIdentifier(info)}ToolOutputSchema";
 
     private static OutputSchemaProperty[] GetOutputSchemaProperties(ServiceInfo info)
     {
@@ -417,15 +465,24 @@ public class McpToolGenerator : IIncrementalGenerator
 
         var indent = hasProgress ? "            " : "        ";
 
+        sb.AppendLine($"{indent}var serviceAction = action switch");
+        sb.AppendLine($"{indent}{{");
+        foreach (var method in info.Methods)
+            sb.AppendLine($"{indent}    {enumTypeName}.{method.MethodName} => {registryName}Action.{method.MethodName},");
+        sb.AppendLine($"{indent}    _ => throw new ArgumentException($\"Unknown {enumTypeName}: {{action}}\")");
+        sb.AppendLine($"{indent}}};");
+        sb.AppendLine();
+        const string serviceAction = "serviceAction";
+
         sb.AppendLine($"{indent}return await ExcelToolsBase.ExecuteToolActionAsync(");
         sb.AppendLine($"{indent}    \"{toolName}\",");
-        sb.AppendLine($"{indent}    ServiceRegistry.{registryName}.ToActionString(action),");
+        sb.AppendLine($"{indent}    ServiceRegistry.{registryName}.ToActionString({serviceAction}),");
         sb.AppendLine($"{indent}    () =>");
         sb.AppendLine($"{indent}    {{");
         if (mcpParams.Count > 0)
         {
             sb.AppendLine($"{indent}        ServiceRegistry.{registryName}.ValidateActionParameters(");
-            sb.AppendLine($"{indent}            ServiceRegistry.{registryName}.ToActionString(action),");
+            sb.AppendLine($"{indent}            ServiceRegistry.{registryName}.ToActionString({serviceAction}),");
             sb.AppendLine($"{indent}            ServiceRegistry.GetSuppliedParameterNames(");
             for (int i = 0; i < mcpParams.Count; i++)
             {
@@ -446,7 +503,7 @@ public class McpToolGenerator : IIncrementalGenerator
             sb.AppendLine();
         }
         sb.AppendLine($"{indent}        return ServiceRegistry.{registryName}.RouteAction(");
-        sb.AppendLine($"{indent}            action,");
+        sb.AppendLine($"{indent}            {serviceAction},");
 
         if (!info.NoSession)
         {
@@ -457,7 +514,8 @@ public class McpToolGenerator : IIncrementalGenerator
             sb.AppendLine($"{indent}            \"\",");
         }
 
-        sb.AppendLine($"{indent}            (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),");
+        var routeCallbackComma = mcpParams.Count > 0 ? "," : string.Empty;
+        sb.AppendLine($"{indent}            (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken){routeCallbackComma}");
 
         // Named arguments to RouteAction
         for (int i = 0; i < mcpParams.Count; i++)
@@ -507,9 +565,20 @@ public class McpToolGenerator : IIncrementalGenerator
         {
             paramInfoByName.TryGetValue(ep.Name, out var pInfo);
             var snakeName = StringHelper.ToSnakeCase(ep.Name);
-            var description = ep.DescriptionWithRequired == null
-                ? null
-                : RenderMcpParameterNames(ep.DescriptionWithRequired, exposedParams);
+            var description = ep.DescriptionWithRequired;
+            if (string.IsNullOrWhiteSpace(description) ||
+                description.StartsWith("(required", StringComparison.Ordinal) ||
+                description.StartsWith("(valid", StringComparison.Ordinal))
+            {
+                var actionContext = BuildParameterActionContext(info, ep);
+                if (!string.IsNullOrWhiteSpace(actionContext))
+                {
+                    description = string.Join(" ", new[] { actionContext, description }
+                        .Where(value => !string.IsNullOrWhiteSpace(value)));
+                }
+            }
+            if (description is not null)
+                description = RenderMcpParameterNames(description, exposedParams);
 
             // Determine MCP type and conversion
             if (pInfo != null && pInfo.IsEnum && pInfo.EnumTypeName != null)
@@ -601,6 +670,18 @@ public class McpToolGenerator : IIncrementalGenerator
         return result;
     }
 
+    private static string BuildParameterActionContext(ServiceInfo info, ExposedParameter parameter)
+    {
+        var actions = info.Methods
+            .Where(method => method.Parameters.Any(methodParameter =>
+                string.Equals(methodParameter.ExposedName ?? methodParameter.Name, parameter.Name, StringComparison.OrdinalIgnoreCase)))
+            .Select(method => string.IsNullOrWhiteSpace(method.XmlDocSummary)
+                ? method.ActionName
+                : $"{method.ActionName}: {method.XmlDocSummary}")
+            .Distinct(StringComparer.Ordinal);
+        return string.Join(" ", actions);
+    }
+
     private static string RenderMcpParameterNames(string description, List<ExposedParameter> parameters)
     {
         // Only known top-level camelCase inputs are translated. Nested JSON keys,
@@ -634,17 +715,20 @@ public class McpToolGenerator : IIncrementalGenerator
 
     private static string GetClassName(ServiceInfo info)
     {
-        // Use CategoryPascal which is already correctly cased
-        // e.g., "PowerQuery" → "ExcelPowerQueryTool"
-        return $"Excel{info.CategoryPascal}Tool";
+        return $"Excel{GetToolIdentifier(info)}Tool";
     }
 
     private static string GetMethodName(ServiceInfo info)
     {
-        // Use CategoryPascal which is already correctly cased
-        // e.g., "PowerQuery" → "ExcelPowerQuery"
-        return $"Excel{info.CategoryPascal}";
+        return $"Excel{GetToolIdentifier(info)}";
     }
+
+    private static string GetActionTypeName(ServiceInfo info) =>
+        $"Mcp{GetToolIdentifier(info)}Action";
+
+    private static string GetToolIdentifier(ServiceInfo info) =>
+        info.CategoryPascal + "_" + Regex.Replace(info.McpToolName, "[^a-zA-Z0-9]",
+            match => "_" + ((int)match.Value[0]).ToString("X4", System.Globalization.CultureInfo.InvariantCulture));
 
     private static string[] WrapXmlDocLines(string text)
     {

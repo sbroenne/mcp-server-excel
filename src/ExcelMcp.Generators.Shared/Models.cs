@@ -19,6 +19,7 @@ public sealed class ServiceInfo
 
     /// <summary>Whether the tool is destructive (modifies data). Default: true.</summary>
     public bool McpToolDestructive { get; }
+    public bool McpToolReadOnly { get; }
 
     /// <summary>MCP meta category (e.g., "data", "analysis", "query").</summary>
     public string? McpToolCategory { get; }
@@ -30,7 +31,7 @@ public sealed class ServiceInfo
     public bool HasMcpToolAttribute { get; }
 
     public ServiceInfo(string category, string categoryPascal, string mcpToolName, bool noSession, List<MethodInfo> methods,
-        string? xmlDocSummary = null, string? mcpToolTitle = null, bool mcpToolDestructive = true, string? mcpToolCategory = null,
+        string? xmlDocSummary = null, string? mcpToolTitle = null, bool mcpToolDestructive = true, bool mcpToolReadOnly = false, string? mcpToolCategory = null,
         string? mcpToolDescription = null, bool hasMcpToolAttribute = true)
     {
         Category = category;
@@ -41,6 +42,7 @@ public sealed class ServiceInfo
         Methods = methods;
         McpToolTitle = mcpToolTitle;
         McpToolDestructive = mcpToolDestructive;
+        McpToolReadOnly = mcpToolReadOnly;
         McpToolCategory = mcpToolCategory;
         McpToolDescription = mcpToolDescription;
         HasMcpToolAttribute = hasMcpToolAttribute;
@@ -57,6 +59,7 @@ public sealed class MethodInfo
     public string ReturnType { get; }
     public ITypeSymbol ReturnTypeSymbol { get; }
     public string McpTool { get; }
+    public bool McpToolReadOnly { get; }
     public List<ParameterInfo> Parameters { get; }
     public string? XmlDocSummary { get; }
     /// <summary>Whether the original interface method has an IExcelBatch parameter.</summary>
@@ -67,13 +70,14 @@ public sealed class MethodInfo
 
     public MethodInfo(string methodName, string actionName, string returnType, ITypeSymbol returnTypeSymbol, string mcpTool,
         List<ParameterInfo> parameters, string? xmlDocSummary = null, bool hasBatchParameter = true,
-        bool hasProgressParameter = false)
+        bool hasProgressParameter = false, bool mcpToolReadOnly = false)
     {
         MethodName = methodName;
         ActionName = actionName;
         ReturnType = returnType;
         ReturnTypeSymbol = returnTypeSymbol;
         McpTool = mcpTool;
+        McpToolReadOnly = mcpToolReadOnly;
         Parameters = parameters;
         XmlDocSummary = xmlDocSummary;
         HasBatchParameter = hasBatchParameter;

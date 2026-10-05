@@ -66,7 +66,7 @@ entry in `~/.copilot/mcp-config.json` is required.
 
 ## What You Can Do
 
-**31 specialized tools with 387 operations** for comprehensive Excel automation:
+**60 MCP tools across 31 feature areas, with 387 operations** for comprehensive Excel automation:
 
 ### Core Operations
 

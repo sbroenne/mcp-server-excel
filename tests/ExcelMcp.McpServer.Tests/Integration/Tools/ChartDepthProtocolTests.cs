@@ -104,6 +104,7 @@ public sealed class ChartDepthProtocolTests(RecordingProgramTransportFixture fix
         Assert.True(properties.TryGetProperty("error_bar_options", out _));
         Assert.True(properties.TryGetProperty("point_options", out _));
         Assert.True(properties.TryGetProperty("axis_group", out _));
-        Assert.Contains("settingsReadable", config.Description, StringComparison.Ordinal);
+        var readConfig = Assert.Single(tools, tool => tool.Name == "chart_config_read");
+        Assert.Contains("settingsReadable", readConfig.Description, StringComparison.Ordinal);
     }
 }

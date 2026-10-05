@@ -19,7 +19,7 @@ public sealed class McpResultContractTests(RecordingProgramTransportFixture fixt
     public async Task Failure_SetsProtocolErrorAndMatchingStructuredContent(bool dispatched)
     {
         var call = await fixture.CallToolAsync(
-            "range",
+            "range_read",
             new Dictionary<string, object?>
             {
                 ["action"] = "get-values",
@@ -43,10 +43,10 @@ public sealed class McpResultContractTests(RecordingProgramTransportFixture fixt
     }
 
     [Theory]
-    [InlineData("range", """{"action":"get-values","session_id":"s","sheet_name":"Sheet1","range_address":"A1","rang_address":"A2"}""", "rang_address")]
+    [InlineData("range_read", """{"action":"get-values","session_id":"s","sheet_name":"Sheet1","range_address":"A1","rang_address":"A2"}""", "rang_address")]
     [InlineData("file", """{"action":"close","session_id":"s","save_changes":true}""", "save_changes")]
     [InlineData("worksheet", """{"action":"create","session_id":"s","sheet_name":"New","before_sheet":"Sheet1"}""", "before_sheet")]
-    [InlineData("file", """{"action":"list","save":false}""", "save")]
+    [InlineData("file_read", """{"action":"list","save":false}""", "save")]
     [InlineData("file", """{"action":"open","path":"C:\\missing.xlsx","show":"yes"}""", "show")]
     [InlineData("file", """{}""", "action")]
     [InlineData("file", """{"action":"not-an-action"}""", "action")]

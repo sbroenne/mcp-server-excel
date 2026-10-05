@@ -41,7 +41,7 @@ public sealed class ExcelFileToolProtocolRegressionTests : McpIntegrationTestBas
         var irmTestFile = GetConfiguredIrmTestFilePath()
             ?? throw new InvalidOperationException("Configured IRM test fixture was unavailable after test discovery.");
 
-        var testResult = await CallToolAsync("file", new Dictionary<string, object?>
+        var testResult = await CallToolAsync("file_read", new Dictionary<string, object?>
         {
             ["action"] = "test",
             ["path"] = irmTestFile
@@ -81,7 +81,7 @@ public sealed class ExcelFileToolProtocolRegressionTests : McpIntegrationTestBas
             Assert.False(string.IsNullOrWhiteSpace(errorMessage));
         }
 
-        var listResult = await CallToolAsync("file", new Dictionary<string, object?>
+        var listResult = await CallToolAsync("file_read", new Dictionary<string, object?>
         {
             ["action"] = "list"
         });

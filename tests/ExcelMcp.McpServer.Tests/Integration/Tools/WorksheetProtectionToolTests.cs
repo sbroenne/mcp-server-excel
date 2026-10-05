@@ -29,7 +29,7 @@ public sealed class WorksheetProtectionToolTests(
         }
 
         var getCall = await _fixture.CallToolAsync(
-            "worksheet_style",
+            "worksheet_style_read",
             new Dictionary<string, object?>
             {
                 ["action"] = "get-protection",

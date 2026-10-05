@@ -53,7 +53,8 @@ public class WindowInfoResult : OperationResult
 /// </summary>
 [ServiceCategory("window", "Window")]
 [McpTool("window", Title = "Window Management", Destructive = false, Category = "settings",
-    Description = "Control Excel window visibility, position, state, status bar, and worksheet-specific views. get-context: Read every owned workbook window's active sheet, actual selection, active cell and chart without activation or selection; hidden sessions stay hidden, unsupported/unavailable selections are explicit, never borrowed from another workbook. VIEW: get-view, freeze-panes, unfreeze-panes, set-split, set-zoom, and set-display-options for gridlines, headings, outline symbols, and formulas. freeze-panes uses row/column counts above and left of the pane boundary. set-split creates movable panes and disables frozen panes. Zoom range: 10-400. VISIBILITY: show makes Excel visible and brings it to front; hide hides it. WINDOW STATE: normal, minimized, maximized. ARRANGE presets: left-half, right-half, top-half, bottom-half, center, full-screen.")]
+    Description = "Control Excel window visibility, position, state, status bar, and worksheet-specific views. VIEW: get-view, freeze-panes, unfreeze-panes, set-split, set-zoom, and set-display-options for gridlines, headings, outline symbols, and formulas. get-view activates the workbook window and requested worksheet without restoring the prior active view; it is not inspection-only. freeze-panes uses row/column counts above and left of the pane boundary. set-split creates movable panes and disables frozen panes. Zoom range: 10-400. VISIBILITY: show makes Excel visible and brings it to front; hide hides it. WINDOW STATE: normal, minimized, maximized. ARRANGE presets: left-half, right-half, top-half, bottom-half, center, full-screen.")]
+[McpReadOnlyActions("get-context", "get-info")]
 public interface IWindowCommands
 {
     /// <summary>
@@ -143,6 +144,7 @@ public interface IWindowCommands
 
     /// <summary>
     /// Gets worksheet-specific view state from the workbook window.
+    /// Activates the workbook window and requested worksheet without restoring the prior active view.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Worksheet whose view should be inspected</param>

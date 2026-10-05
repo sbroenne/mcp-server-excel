@@ -82,29 +82,29 @@ public class Program
                 options.ServerInfo = new()
                 {
                     Name = "excel-mcp",
-                    Version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0"
+                    Version = Infrastructure.McpServerVersionChecker.GetCurrentVersion()
                 };
 
                 options.ServerInstructions = """
                     Automates desktop Microsoft Excel on Windows.
-                    Use file list to find the intended workbook; do not guess paths or choose an unrelated session.
-                    Open/create and file list entries return session_id. Pass it to session-based tools, and only supply parameters for the chosen action.
+                    Use file_read list to find the intended workbook; do not guess paths or choose an unrelated session.
+                    Open/create and file_read list entries return session_id. Pass it to session-based tools, and only supply parameters for the chosen action.
                     Calls in one session execute serially, but concurrent requests and responses have no guaranteed order.
                     Await each dependent call before the next; different sessions can run independently.
                     A workbook must not be open in another Excel instance. Reuse known visibility preferences;
                     preserve existing visibility unless a change is requested. New sessions default to hidden.
                     Leaving a workbook open means retaining its session, not showing a hidden window.
                     Do not set show:true just to leave a workbook open without a separate visibility request or known preference.
-                    Close only after active operations finish (canClose:true). Set save:true to keep changes;
+                    Use worksheet_read list to inspect sheets. Close only after active operations finish (canClose:true). Set save:true to keep changes;
                     close defaults to save:false and discards edits. Confirm before closing a visible window unless authorized.
                     The server does not request confirmation through MCP elicitation; the client must obtain any needed consent.
                     Normal shutdown attempts to save remaining sessions. Crashes, timeouts, and forced cleanup may lose edits.
-                    Cancellation is not undo: inspect file list before continuing, and do not blindly retry a change.
+                    Cancellation is not undo: inspect file_read list before continuing, and do not blindly retry a change.
                     Range content writes/copies reject occupied destinations by default. Use overwrite_policy:'allow'
                     when the request authorizes replacement; never automatically retry a rejected write with allow.
                     For bulk writes where repeated recalculation is costly, read the calculation mode, switch to manual,
                     write, calculate, and restore the prior mode, including after failure. One rectangular write is already batched.
-                    After timeout or cancellation, inspect file list before restoring.
+                    After timeout or cancellation, inspect file_read list before restoring.
                     If the session was removed or invalidated, do not call set-settings; report that restoration could not be completed.
                     Writes do not force calculation in every mode; manual mode needs explicit calculation.
                     Execute clear authorized work without repeated approval. Discover facts with tools; ask a focused question
@@ -334,7 +334,7 @@ public class Program
     /// </summary>
     internal static string BuildHelpText()
     {
-        var version = typeof(Program).Assembly.GetName().Version?.ToString() ?? "1.0.0";
+        var version = Infrastructure.McpServerVersionChecker.GetCurrentVersion();
         return $"""
             Excel MCP Server v{version}
 

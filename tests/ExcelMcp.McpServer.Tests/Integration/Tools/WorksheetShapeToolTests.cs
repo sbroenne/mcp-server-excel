@@ -41,7 +41,7 @@ public sealed class WorksheetShapeToolTests(
         }
 
         var countCall = await _fixture.CallToolAsync(
-            "worksheet_style",
+            "worksheet_style_read",
             new Dictionary<string, object?>
             {
                 ["action"] = "get-shape-count",

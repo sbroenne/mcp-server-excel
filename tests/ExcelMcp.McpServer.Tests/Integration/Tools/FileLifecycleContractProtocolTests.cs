@@ -23,6 +23,7 @@ public sealed class FileLifecycleContractProtocolTests : McpIntegrationTestBase
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         var fileTool = Assert.Single(tools, tool => tool.Name == "file");
+        var fileReadTool = Assert.Single(tools, tool => tool.Name == "file_read");
         var actions = fileTool.JsonSchema
             .GetProperty("properties")
             .GetProperty("action")
@@ -30,8 +31,16 @@ public sealed class FileLifecycleContractProtocolTests : McpIntegrationTestBase
             .EnumerateArray()
             .Select(value => value.GetString()!)
             .ToArray();
+        var readActions = fileReadTool.JsonSchema
+            .GetProperty("properties")
+            .GetProperty("action")
+            .GetProperty("enum")
+            .EnumerateArray()
+            .Select(value => value.GetString()!)
+            .ToArray();
 
-        Assert.Equal(["list", "open", "close", "create", "test"], actions);
+        Assert.Equal(["open", "close", "create"], actions);
+        Assert.Equal(["list", "test"], readActions);
         Assert.DoesNotContain("close-workbook", actions);
     }
 
@@ -112,7 +121,7 @@ public sealed class FileLifecycleContractProtocolTests : McpIntegrationTestBase
             Command = "session.test",
             Args = JsonSerializer.Serialize(new { filePath = path, timeoutSeconds = 120 })
         });
-        var toolResult = await CallToolAsync("file", new() { ["action"] = "test", ["path"] = path });
+        var toolResult = await CallToolAsync("file_read", new() { ["action"] = "test", ["path"] = path });
 
         Assert.True(serviceResponse.Success);
         Assert.NotNull(serviceResponse.Result);
@@ -133,7 +142,7 @@ public sealed class FileLifecycleContractProtocolTests : McpIntegrationTestBase
             Command = "session.test",
             Args = JsonSerializer.Serialize(new { filePath = path, timeoutSeconds = 120 })
         });
-        var toolResult = await CallToolAsync("file", new() { ["action"] = "test", ["path"] = path });
+        var toolResult = await CallToolAsync("file_read", new() { ["action"] = "test", ["path"] = path });
 
         Assert.False(serviceResponse.Success);
         Assert.Contains("absolute Windows path", serviceResponse.ErrorMessage, StringComparison.OrdinalIgnoreCase);

@@ -30,16 +30,13 @@ public sealed class ProgramTestTransportLifecycleTests(ITestOutputHelper output)
             input, outputPipe, cancellation.Token, "ErrorPrivacyClient", () => backend);
         try
         {
-            var result = await host.Client.CallToolAsync("range", new Dictionary<string, object?>
+            var result = await host.Client.CallToolAsync("file_read", new Dictionary<string, object?>
             {
-                ["action"] = "get-values",
-                ["session_id"] = "session",
-                ["sheet_name"] = "Sheet1",
-                ["range_address"] = "A1"
+                ["action"] = "list"
             });
             Assert.True(result.IsError);
             var text = Assert.Single(result.Content.OfType<TextContentBlock>()).Text;
-            Assert.Equal("An error occurred invoking 'range'.", text);
+            Assert.Equal("An error occurred invoking 'file_read'.", text);
             Assert.DoesNotContain("synthetic-private-detail", text, StringComparison.Ordinal);
         }
         finally
@@ -67,13 +64,13 @@ public sealed class ProgramTestTransportLifecycleTests(ITestOutputHelper output)
         try
         {
             var args = new Dictionary<string, object?> { ["action"] = "list" };
-            Assert.False((await first.Client.CallToolAsync("file", args)).IsError is true);
-            Assert.False((await second.Client.CallToolAsync("file", args)).IsError is true);
+            Assert.False((await first.Client.CallToolAsync("file_read", args)).IsError is true);
+            Assert.False((await second.Client.CallToolAsync("file_read", args)).IsError is true);
             await ProgramTransportTestHost.StopAsync(first.Client, firstInput, firstOutput, first.ServerTask, output, firstCancellation);
             firstStopped = true;
             Assert.True(firstBackend.Disposed);
             Assert.False(secondBackend.Disposed);
-            Assert.False((await second.Client.CallToolAsync("file", args)).IsError is true);
+            Assert.False((await second.Client.CallToolAsync("file_read", args)).IsError is true);
         }
         finally
         {

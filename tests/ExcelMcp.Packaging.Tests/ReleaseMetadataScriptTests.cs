@@ -951,22 +951,24 @@ public sealed class ReleaseMetadataScriptTests
             var sourceReadme = await File.ReadAllTextAsync(Path.Combine(RepoRoot, "README.md"));
             var headline = System.Text.RegularExpressions.Regex.Match(
                 sourceReadme,
-                @"(?<tools>\d+) tools with (?<operations>\d+) operations");
+                @"(?<mcpTools>\d+) MCP tools across (?<tools>\d+) feature areas, with (?<operations>\d+) operations");
             Assert.True(headline.Success);
             var canonicalTools = int.Parse(headline.Groups["tools"].Value, System.Globalization.CultureInfo.InvariantCulture);
+            var canonicalMcpTools = int.Parse(headline.Groups["mcpTools"].Value, System.Globalization.CultureInfo.InvariantCulture);
             var canonicalOperations = int.Parse(
                 headline.Groups["operations"].Value,
                 System.Globalization.CultureInfo.InvariantCulture);
+            var canonicalHeadline = $"{canonicalMcpTools} MCP tools across {canonicalTools} feature areas, with {canonicalOperations} operations";
 
-            CopyDocumentationCountFiles(sandbox, canonicalTools, canonicalOperations);
+            CopyDocumentationCountFiles(sandbox, canonicalTools, canonicalMcpTools, canonicalOperations);
             var readmePath = Path.Combine(sandbox, "README.md");
             var llmOutputsPath = Path.Combine(sandbox, "gh-pages", "sitegen", "llm.py");
             await File.WriteAllTextAsync(
                 readmePath,
                 (await File.ReadAllTextAsync(readmePath))
                     .Replace(
-                        $"{canonicalTools} tools with {canonicalOperations} operations",
-                        "1 tools with 2 operations",
+                        canonicalHeadline,
+                        "1 MCP tools across 1 feature areas, with 2 operations",
                         StringComparison.Ordinal)
                     .Replace($"all {canonicalOperations} operations", "all 2 operations", StringComparison.Ordinal));
 
@@ -977,7 +979,7 @@ public sealed class ReleaseMetadataScriptTests
 
             Assert.True(update.ExitCode == 0, update.CombinedOutput);
             Assert.Contains(
-                $"{canonicalTools} tools with {canonicalOperations} operations",
+                canonicalHeadline,
                 await File.ReadAllTextAsync(readmePath),
                 StringComparison.Ordinal);
             Assert.Contains(
@@ -1003,12 +1005,25 @@ public sealed class ReleaseMetadataScriptTests
                 sandbox);
             Assert.True(validation.ExitCode == 0, validation.CombinedOutput);
 
+            var generatedToolsPath = Path.Combine(sandbox, "src", "ExcelMcp.McpServer",
+                "obj", "GeneratedFiles", "Tools.g.cs");
+            var generatedTools = await File.ReadAllTextAsync(generatedToolsPath);
+            await File.WriteAllTextAsync(generatedToolsPath,
+                generatedTools.Replace("[McpServerTool(Name = \"tool-1_read\")]", "", StringComparison.Ordinal));
+            var missingReadEndpoint = await RunPowerShellScriptAsync(
+                Path.Combine(sandbox, "scripts", "check-doc-counts.ps1"),
+                ["-SkipBuild", "-AllowStaleAdvertisedCounts"],
+                sandbox);
+            Assert.NotEqual(0, missingReadEndpoint.ExitCode);
+            Assert.Contains("Missing: [tool-1_read]", missingReadEndpoint.CombinedOutput, StringComparison.Ordinal);
+            await File.WriteAllTextAsync(generatedToolsPath, generatedTools);
+
             await File.WriteAllTextAsync(
                 readmePath,
                 (await File.ReadAllTextAsync(readmePath))
                     .Replace(
-                        $"{canonicalTools} tools with {canonicalOperations} operations",
-                        "1 tools with 2 operations",
+                        canonicalHeadline,
+                        $"{canonicalMcpTools} MCP tools across 1 feature areas, with {canonicalOperations} operations",
                         StringComparison.Ordinal));
             var staleValidation = await RunPowerShellScriptAsync(
                 Path.Combine(sandbox, "scripts", "check-doc-counts.ps1"),
@@ -1032,8 +1047,8 @@ public sealed class ReleaseMetadataScriptTests
                 readmePath,
                 (await File.ReadAllTextAsync(readmePath))
                     .Replace(
-                        "1 tools with 2 operations",
-                        $"{canonicalTools} tools with {canonicalOperations} operations",
+                        $"{canonicalMcpTools} MCP tools across 1 feature areas, with {canonicalOperations} operations",
+                        canonicalHeadline,
                         StringComparison.Ordinal));
             await File.WriteAllTextAsync(docCountsPath, "{\n  \"tools\": 1,\n  \"operations\": 2\n}\n");
 
@@ -1202,6 +1217,7 @@ public sealed class ReleaseMetadataScriptTests
     private static void CopyDocumentationCountFiles(
         string sandbox,
         int canonicalTools,
+        int canonicalMcpTools,
         int canonicalOperations)
     {
         var relativePaths = new[]
@@ -1262,15 +1278,21 @@ public sealed class ReleaseMetadataScriptTests
                 public const string Json = @"{""TotalCommands"":{{canonicalTools}},""TotalOperations"":{{canonicalOperations - 1}},""Commands"":[{""Name"":""diag"",""Actions"":[""self-test""]}]}";
             }
             """);
+        var toolNames = Enumerable.Range(1, canonicalTools - 1)
+            .Select(index => $"[McpServerTool(Name = \"tool-{index}\")]")
+            .Concat(Enumerable.Range(1, canonicalMcpTools - canonicalTools)
+                .Select(index => $"[McpServerTool(Name = \"tool-{index}_read\")]"))
+            .Append("[McpServerTool(Name = \"file\")]");
         WriteFile(
             sandbox,
-            Path.Combine("src", "ExcelMcp.McpServer", "Tools.cs"),
-            string.Join(
-                Environment.NewLine,
-                Enumerable.Range(1, canonicalTools - 1)
-                    .Select(index => $"[McpServerTool(Name = \"tool-{index}\")]")) +
-                Environment.NewLine +
-                "[McpServerTool(Name = \"file\")]");
+            Path.Combine("src", "ExcelMcp.McpServer", "obj", "GeneratedFiles", "Tools.g.cs"),
+            string.Join(Environment.NewLine, toolNames));
+        WriteFile(
+            sandbox,
+            Path.Combine("src", "ExcelMcp.Core", "obj", "GeneratedFiles", "ExcelMcp.Generators",
+                "Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator", "ServiceRegistry.Contracts.g.cs"),
+            string.Join(Environment.NewLine, Enumerable.Range(1, canonicalMcpTools - canonicalTools)
+                .Select(index => $"case \"tool-{index}_read\":")));
         WriteFile(
             sandbox,
             Path.Combine("src", "ExcelMcp.McpServer", "Program.cs"),

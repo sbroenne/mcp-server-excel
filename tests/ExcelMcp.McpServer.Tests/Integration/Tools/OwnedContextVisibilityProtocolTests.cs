@@ -15,7 +15,7 @@ public sealed class OwnedContextVisibilityProtocolTests(RecordingProgramTranspor
     [Fact]
     public async Task Context_UsesSessionWithoutAnApplicationSelectionInput()
     {
-        var call = await fixture.CallToolAsync("window", new()
+        var call = await fixture.CallToolAsync("window_read", new()
         {
             ["action"] = "get-context",
             ["session_id"] = "session-1"
@@ -51,7 +51,8 @@ public sealed class OwnedContextVisibilityProtocolTests(RecordingProgramTranspor
             arguments["hidden"] = hidden.Value;
             expected["hidden"] = hidden.Value;
         }
-        var call = await fixture.CallToolAsync("range_format", arguments,
+        var toolName = action == "get-visibility" ? "range_format_read" : "range_format";
+        var call = await fixture.CallToolAsync(toolName, arguments,
             RecordingToolTest.Success("""{"success":true}"""), $"rangeformat.{action}",
             JsonSerializer.Serialize(expected, ServiceProtocol.JsonOptions));
         Assert.False(call.Result.IsError);
@@ -73,7 +74,8 @@ public sealed class OwnedContextVisibilityProtocolTests(RecordingProgramTranspor
             ["hidden"] = false
         };
         arguments.Remove(missing);
-        var result = await fixture.CallResultWithoutDispatchAsync("range_format", arguments);
+        var toolName = action == "get-visibility" ? "range_format_read" : "range_format";
+        var result = await fixture.CallResultWithoutDispatchAsync(toolName, arguments);
         Assert.True(result.IsError);
     }
 
@@ -81,13 +83,14 @@ public sealed class OwnedContextVisibilityProtocolTests(RecordingProgramTranspor
     public async Task Discovery_ExplainsOwnedContextAndHiddenCauseLimits()
     {
         var tools = await fixture.ListToolsAsync();
-        var window = Assert.Single(tools, tool => tool.Name == "window");
+        var window = Assert.Single(tools, tool => tool.Name == "window_read");
         Assert.Contains("get-context", window.Description, StringComparison.Ordinal);
         Assert.Contains("without activation or selection", window.Description, StringComparison.Ordinal);
         var format = Assert.Single(tools, tool => tool.Name == "range_format");
-        Assert.Contains("hidden cause is undetermined", format.Description, StringComparison.Ordinal);
         Assert.Contains("Disjoint gaps remain unchanged", format.Description, StringComparison.Ordinal);
-        Assert.True(format.JsonSchema.GetProperty("properties").TryGetProperty("axis", out _));
         Assert.True(format.JsonSchema.GetProperty("properties").TryGetProperty("hidden", out _));
+        var readFormat = Assert.Single(tools, tool => tool.Name == "range_format_read");
+        Assert.Contains("Hidden cause is undetermined", readFormat.Description, StringComparison.Ordinal);
+        Assert.True(readFormat.JsonSchema.GetProperty("properties").TryGetProperty("axis", out _));
     }
 }

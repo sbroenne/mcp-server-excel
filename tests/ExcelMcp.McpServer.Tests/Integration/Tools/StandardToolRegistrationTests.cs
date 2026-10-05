@@ -28,6 +28,113 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         Assert.Null(Client.ServerCapabilities.Resources);
     }
 
+    [Fact]
+    public async Task Discovery_ReadOnlyToolsExposeOnlyReadActionsAndReadOnlyHint()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var byName = tools.ToDictionary(tool => tool.Name, StringComparer.Ordinal);
+        var readTools = tools.Where(tool => tool.Name.EndsWith("_read", StringComparison.Ordinal)).ToArray();
+        string ActionNames(string toolName) => string.Join(",",
+            byName[toolName].JsonSchema.GetProperty("properties").GetProperty("action")
+                .GetProperty("enum").EnumerateArray()
+                .Select(value => value.GetString()).Order(StringComparer.Ordinal));
+
+        Assert.NotEmpty(readTools);
+        Assert.All(readTools, tool => Assert.True(
+            tool.ProtocolTool.Annotations?.ReadOnlyHint == true,
+            $"{tool.Name} must advertise readOnlyHint=true."));
+        Assert.Equal("close,create,open", ActionNames("file"));
+        Assert.Equal("list,test", ActionNames("file_read"));
+        Assert.Equal("list", ActionNames("worksheet_read"));
+        Assert.Equal("get-settings", ActionNames("calculation_mode_read"));
+        Assert.DoesNotContain(
+            byName["analysis_read"].JsonSchema.GetProperty("properties").GetProperty("action")
+                .GetProperty("enum").EnumerateArray().Select(value => value.GetString()),
+            action => action == "show-scenario");
+        Assert.True(byName["screenshot"].ProtocolTool.Annotations?.ReadOnlyHint == true);
+        Assert.DoesNotContain(
+            byName["range"].JsonSchema.GetProperty("properties").GetProperty("action")
+                .GetProperty("enum").EnumerateArray().Select(value => value.GetString()),
+            action => action == "get-values");
+        Assert.Contains(
+            byName["range_read"].JsonSchema.GetProperty("properties").GetProperty("action")
+                .GetProperty("enum").EnumerateArray().Select(value => value.GetString()),
+            action => action == "get-values");
+        Assert.Contains("evaluate", ActionNames("datamodel_read"));
+        Assert.Contains("execute-dmv", ActionNames("datamodel_read"));
+        Assert.Contains("find", ActionNames("range_edit_read"));
+        Assert.Contains("preflight", ActionNames("table_read"));
+    }
+
+    [Fact]
+    public async Task Discovery_WriteToolDescriptionsDoNotAdvertiseMovedReadActions()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var byName = tools.ToDictionary(tool => tool.Name, StringComparer.Ordinal);
+
+        foreach (var readTool in tools.Where(tool => tool.Name.EndsWith("_read", StringComparison.Ordinal)))
+        {
+            var writeToolName = readTool.Name[..^"_read".Length];
+            if (!byName.TryGetValue(writeToolName, out var writeTool))
+                continue;
+
+            Assert.DoesNotContain(readTool.Name, writeTool.Description, StringComparison.Ordinal);
+            foreach (var action in readTool.JsonSchema.GetProperty("properties")
+                .GetProperty("action").GetProperty("enum").EnumerateArray()
+                .Select(value => value.GetString()!)
+                .Where(action => action.Contains('-')))
+            {
+                Assert.DoesNotMatch(
+                    $@"(?i)(?<![\w-]){Regex.Escape(action)}(?![\w-])",
+                    writeTool.Description!);
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("range_format", "validate-range", false)]
+    [InlineData("connection", "test", true)]
+    [InlineData("range", "trace-precedents", true)]
+    [InlineData("range", "trace-dependents", true)]
+    [InlineData("window", "get-view", false)]
+    [InlineData("pythoninexcel", "get-result", false)]
+    public async Task Discovery_InspectionActionsUseAccurateEndpoints(string toolName, string action, bool readOnly)
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var target = tools.Single(tool => tool.Name == (readOnly ? $"{toolName}_read" : toolName));
+        var other = tools.SingleOrDefault(tool => tool.Name == (readOnly ? toolName : $"{toolName}_read"));
+        static IEnumerable<string?> Actions(JsonElement schema) => schema.GetProperty("properties")
+            .GetProperty("action").GetProperty("enum").EnumerateArray().Select(value => value.GetString());
+
+        Assert.Contains(action, Actions(target.JsonSchema));
+        if (other is not null)
+            Assert.DoesNotContain(action, Actions(other.JsonSchema));
+        Assert.Equal(readOnly, target.ProtocolTool.Annotations?.ReadOnlyHint == true);
+    }
+
+    [Fact]
+    public async Task Discovery_InputSchemasUseJsonSchema202012OrItsProtocolDefault()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        const string dialect = "https://json-schema.org/draft/2020-12/schema";
+
+        foreach (var tool in tools)
+        {
+            if (tool.JsonSchema.TryGetProperty("$schema", out var declaredDialect))
+            {
+                Assert.Equal(dialect, declaredDialect.GetString());
+            }
+        }
+    }
+
+    [Fact]
+    public void Discovery_ServerVersionMatchesPackageInformationalVersion()
+    {
+        Assert.Equal(
+            Infrastructure.McpServerVersionChecker.GetCurrentVersion(),
+            Client!.ServerInfo.Version);
+    }
+
     [Theory]
     [InlineData("range", "values")]
     [InlineData("range_format", "format_options")]
@@ -226,11 +333,11 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     }
 
     [Theory]
-    [InlineData("range", "values")]
-    [InlineData("range", "rowCount")]
-    [InlineData("table", "tables")]
+    [InlineData("range_read", "values")]
+    [InlineData("range_read", "rowCount")]
+    [InlineData("table_read", "tables")]
     [InlineData("worksheet", "worksheets")]
-    [InlineData("file", "session_id")]
+    [InlineData("file_read", "session_id")]
     [InlineData("screenshot", "mimeType")]
     public async Task OutputSchemas_DescribeActionSpecificFields(string toolName, string propertyName)
     {
@@ -246,7 +353,7 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     public async Task FileListOutputSchema_DescribesSessionEntries()
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
-        var schema = Assert.IsType<JsonElement>(tools.Single(t => t.Name == "file").ReturnJsonSchema);
+        var schema = Assert.IsType<JsonElement>(tools.Single(t => t.Name == "file_read").ReturnJsonSchema);
         var sessions = schema.GetProperty("properties").GetProperty("sessions");
 
         var properties = sessions.GetProperty("items").GetProperty("properties");

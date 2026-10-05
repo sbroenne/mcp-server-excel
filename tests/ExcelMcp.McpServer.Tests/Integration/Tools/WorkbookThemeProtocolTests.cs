@@ -28,9 +28,10 @@ public sealed class WorkbookThemeProtocolTests(RecordingProgramTransportFixture 
     {
         var tools = await fixture.ListToolsAsync();
         var workbook = Assert.Single(tools, tool => tool.Name == "workbook");
-        Assert.Contains("get-theme", workbook.Description, StringComparison.Ordinal);
         Assert.Contains("theme-sensitive", workbook.Description, StringComparison.Ordinal);
-        Assert.Contains("no fallback font", workbook.Description, StringComparison.Ordinal);
+        var read = Assert.Single(tools, tool => tool.Name == "workbook_read");
+        Assert.Contains("get-theme", read.Description, StringComparison.Ordinal);
+        Assert.Contains("no fallback font", read.Description, StringComparison.Ordinal);
         Assert.True(workbook.JsonSchema.GetProperty("properties").TryGetProperty("theme_path", out _));
     }
 }

@@ -75,15 +75,16 @@ public sealed class CalculationSettingsResult : OperationResult
 /// </summary>
 [ServiceCategory("calculation", "Calculation")]
 [McpTool("calculation_mode", Title = "Calculation Settings", Destructive = true, Category = "settings",
-    Description = "Read/change native calculation settings. get-settings replaces get-mode; set-settings replaces set-mode. " +
+    Description = "Change native calculation settings and explicitly recalculate formulas. set-settings replaces set-mode. " +
         "Mode, iteration_enabled, maximum_iterations, maximum_change and calculate_before_save affect the owned Excel application; omitted set-settings inputs stay unchanged. " +
-        "Value/formula writes attempt to restore the prior mode; restoration can fail without failing the write. Use get-settings when subsequent work depends on it. " +
+        "Value/formula writes attempt to restore the prior mode; restoration can fail without failing the write. Verify the mode when subsequent work depends on it. " +
         "For costly bulk writes remember the current mode, set-settings mode manual, write, calculate, then restore the prior mode, including after failure. " +
         "Automatic normally recalculates dependent formulas; manual needs explicit calculate. " +
         "Semi-automatic excludes what-if data tables, not worksheet Tables. Successful writes/calculation do not establish completion of asynchronous refreshes or Python calculations. " +
         "calculate requires scope application, sheet or range; sheet/range require sheet_name and range also requires range_address. " +
         "kind normal is the default; full and rebuild require application scope and affect ALL open workbooks in the owned Excel process. No activation/selection or mode changes. " +
         "set-precision affects only the session workbook. precision_as_displayed true requires allow_precision_loss true: stored numeric precision is permanently lost; disabling does not recover digits.")]
+[McpReadOnlyActions("get-settings")]
 public interface ICalculationModeCommands
 {
     /// <summary>Read actual calculation settings/state and workbook precision; no success-shaped fallback.</summary>

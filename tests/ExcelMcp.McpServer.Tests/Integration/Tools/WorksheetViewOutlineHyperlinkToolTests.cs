@@ -154,7 +154,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
             args => Assert.Equal(1, args.GetProperty("rowLevels").GetInt32()));
 
         var infoJson = await CallAsync(
-            "worksheet_style",
+            "worksheet_style_read",
             OutlineArgs("get-outline-info"),
             "sheet.get-outline-info",
             """{"sheetName":"Outline","rangeAddress":"2:5","axis":"Rows"}""",
@@ -194,7 +194,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
         });
 
         var listJson = await CallAsync(
-            "range_link",
+            "range_link_read",
             new()
             {
                 ["action"] = "list-hyperlinks",

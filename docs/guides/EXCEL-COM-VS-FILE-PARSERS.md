@@ -73,8 +73,9 @@ The dividing line in practice: **generating a new simple file** favours parsers;
 
 Raw COM automation from a script is possible but unpleasant — STA threading, COM
 object lifetime, message filters, and Excel process cleanup are all easy to get
-wrong and leak `EXCEL.EXE` processes. ExcelMcp handles that layer and exposes 387
-operations across 31 tools through two equal entry points:
+wrong and leak `EXCEL.EXE` processes. ExcelMcp handles that layer and exposes
+operations through two equal entry points. MCP read-only actions are available
+through their own endpoints.
 
 - an **MCP server** for conversational AI clients (Claude, Copilot, Cursor)
 - a **CLI** (`excelcli`) for scripting and coding agents

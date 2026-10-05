@@ -38,18 +38,17 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 [ServiceCategory("range", "Range")]
 [McpTool("range", Title = "Range Operations", Destructive = true, Category = "data",
-    Description = "trace-precedents/trace-dependents: Traverse every reachable native same-worksheet relationship, returning current formulas/values, distinct edges, cycles, and unresolved lookups without a depth/output cap. coverage.workbookComplete is always false: cross-worksheet/external links and dynamic references are not fully returned. A native no-range error is unresolved, not fabricated empty coverage. Does not activate/select, recalculate, parse formula text, or open external workbooks. " +
-        "get-spill-info: Read all requested cells' native spill source/result/blocked relationships and current extents, without recalculation, selection changes, or formula parsing. Unsupported sessions fail explicitly; blocked formulas have no invented extent. " +
-        "Core range operations: get/set values and formulas, copy ranges, clear content, discover data regions. get-formulas/set-formulas accept reference_style='a1' (default) or 'r1c1'; range addresses stay A1. Relative R1C1 references use each destination cell. " +
-        "get-special-cells inventories cells by kind in the exact requested scope, returning all matching areas and an exact count without a preview limit or single-cell expansion. It does not select cells. Use range_edit find for text searches. " +
+    Description = "Write values and formulas, set number formats, copy ranges, and clear content or formatting. set-formulas accepts reference_style='a1' (default) or 'r1c1'; range addresses stay A1. Relative R1C1 references use each destination cell. " +
         "copy: Required paste_kind (all/values/formulas/formats/validation); transpose and skip_blanks default false. Formats/validation preserve content and need no overwrite permission. Formats include number formats, protection, and applicable conditional rules. All kinds require unmerged rectangular sources/destinations and a single-cell anchor or dimensions that are whole multiples of the source's paste dimensions, including transpose. Uses Excel's clipboard and clears owned copy mode on exit. " +
         "OVERWRITE POLICY: set-values, set-formulas, and content-writing copy kinds default to overwrite_policy='reject-nonempty'. Existing values, whitespace, errors, and formulas displaying blank are occupied. Copy checks exclude skipped source blanks. Conflicts or failed inspection stop before writing; errors list at most 10 conflicting addresses. Use overwrite_policy='allow' when the user's request authorizes replacement, without redundant confirmation. Never automatically retry a rejected write with allow. Checks cover direct destinations, including expanded copy targets, not future spills, rollback, or interactive Excel edits. " +
         "CLEAR ACTIONS HAVE NO TOOL-LEVEL UNDO: clear-all removes values, formulas, and formats; clear-contents removes values/formulas; clear-formats removes formats. Check the intended target before clearing. Use range_edit for insert/delete/find/sort/fill/auto-fill/create-series. Use range_format for styling/validation. Use range_link for hyperlinks/protection. " +
-        "Value/formula writes attempt to restore the prior calculation mode; restoration can fail without failing the write. Use calculation_mode get-settings when subsequent work depends on the mode; manual mode needs explicit calculation. Use calculation_mode for recalculation. " +
+        "Value/formula writes attempt to restore the prior calculation mode; restoration can fail without failing the write. Verify the mode when subsequent work depends on it; manual mode needs explicit calculation. Use calculation_mode for recalculation. " +
         "EXCEL TABLES: If user asks to 'format as table', 'create a table', 'put data in an Excel Table' — do NOT try to use range for this. Use table(action:'create') on the data range to create a proper Excel Table with filter arrows, banded rows, and automatic expansion. " +
-        "DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Single cell returns [[value]]. Strict ISO dates such as '2025-01-15' are stored as native Excel dates; prefix an ISO-looking value with an apostrophe when it must remain text. " +
+        "DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Strict ISO dates such as '2025-01-15' are stored as native Excel dates; prefix an ISO-looking value with an apostrophe when it must remain text. " +
         "MERGED CELLS: Writes that intersect merged cells fail unless the target is only the merged range's top-left cell; the error identifies affected merged ranges. " +
         "FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. Use clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
+[McpReadOnlyActions("get-values", "get-formulas", "get-spill-info", "validate-formulas", "get-number-formats",
+    "get-used-range", "get-current-region", "get-info", "get-special-cells", "trace-precedents", "trace-dependents")]
 public interface IRangeCommands
 {
     /// <summary>
@@ -58,6 +57,7 @@ public interface IRangeCommands
     /// Native getters return same-worksheet references only and do not fully resolve dynamic references.
     /// Ambiguous native absence is unresolved, not an empty successful lookup. Workbook coverage is
     /// never claimed complete. Does not activate/select cells, recalculate, or open external workbooks.
+    /// coverage.workbookComplete is always false; a native no-range error is unresolved, not fabricated empty coverage.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Worksheet name; empty for a named range</param>

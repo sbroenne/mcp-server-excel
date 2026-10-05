@@ -61,7 +61,7 @@ public sealed class McpServerPowerQueryRegressionTests(
             AssertSuccess(loadResult, "powerquery.load-to data-model");
 
             var listTablesResult = await _fixture.CallToolAsync(
-                "datamodel",
+                "datamodel_read",
                 new Dictionary<string, object?>
                 {
                     ["action"] = "list-tables",
@@ -70,7 +70,7 @@ public sealed class McpServerPowerQueryRegressionTests(
                 ToolTimeout);
             AssertSuccess(
                 listTablesResult,
-                "datamodel.list-tables after powerquery.load-to");
+                "datamodel_read.list-tables after powerquery.load-to");
             using (var tables = JsonDocument.Parse(listTablesResult))
             {
                 var table = Assert.Single(tables.RootElement.GetProperty("tables").EnumerateArray(),
@@ -78,13 +78,13 @@ public sealed class McpServerPowerQueryRegressionTests(
                 Assert.Equal(2, table.GetProperty("recordCount").GetInt32());
             }
 
-            var evaluated = await _fixture.CallToolAsync("datamodel", new Dictionary<string, object?>
+            var evaluated = await _fixture.CallToolAsync("datamodel_read", new Dictionary<string, object?>
             {
                 ["action"] = "evaluate",
                 ["session_id"] = sessionId,
                 ["dax_query"] = "EVALUATE CsvData ORDER BY CsvData[Product]"
             }, ToolTimeout);
-            AssertSuccess(evaluated, "datamodel.evaluate loaded CSV");
+            AssertSuccess(evaluated, "datamodel_read.evaluate loaded CSV");
             using (var data = JsonDocument.Parse(evaluated))
             {
                 Assert.Equal(2, data.RootElement.GetProperty("rowCount").GetInt32());
@@ -100,7 +100,7 @@ public sealed class McpServerPowerQueryRegressionTests(
             }
 
             var listSessionsResult = await _fixture.CallToolAsync(
-                "file",
+                "file_read",
                 new Dictionary<string, object?> { ["action"] = "list" },
                 ToolTimeout);
             AssertSuccess(
