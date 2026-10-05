@@ -2,19 +2,6 @@
 name: Update Awesome Copilot
 description: Compare actually listed Excel plugins and submit one guarded fork PR only for real content changes.
 on:
-  workflow_call:
-    inputs:
-      published_tag:
-        required: true
-        type: string
-      preview:
-        type: boolean
-        default: true
-    secrets:
-      COPILOT_GITHUB_TOKEN:
-        required: false
-      AWESOME_COPILOT_PR_TOKEN:
-        required: false
   workflow_dispatch:
     inputs:
       published_tag:

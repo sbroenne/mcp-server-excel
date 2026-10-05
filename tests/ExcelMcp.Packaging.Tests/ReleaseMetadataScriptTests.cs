@@ -588,55 +588,37 @@ public sealed class ReleaseMetadataScriptTests
         Assert.Contains("ref: ${{ needs.resolve.outputs.commit }}", plugins, StringComparison.Ordinal);
     }
 
-    [Theory]
-    [InlineData("release.yml", "publish-plugins", "publish-plugins.yml")]
-    [InlineData("publish-plugins.yml", "update-awesome-copilot", "update-awesome-copilot.lock.yml")]
+    [Fact]
     [Trait("Feature", "ReleaseMetadata")]
-    public void PluginPublication_CallersAllowEveryCompiledUpdaterPermission(
-        string callerFile, string callerJob, string calleeFile)
+    public void PluginPublication_ReleaseChainNeverCallsManualListingUpdater()
     {
         var workflows = Path.Combine(RepoRoot, ".github", "workflows");
-        var caller = File.ReadAllText(Path.Combine(workflows, callerFile));
-        var callerBody = ExtractWorkflowJob(caller, callerJob);
-        Assert.Contains($"uses: ./.github/workflows/{calleeFile}", callerBody, StringComparison.Ordinal);
-        var granted = ExtractWorkflowPermissions(callerBody, 4)
-            ?? ExtractWorkflowPermissions(caller[..caller.IndexOf("\njobs:", StringComparison.Ordinal)], 0);
+        var release = File.ReadAllText(Path.Combine(workflows, "release.yml"));
+        var plugins = File.ReadAllText(Path.Combine(workflows, "publish-plugins.yml"));
+        var caller = ExtractWorkflowJob(release, "publish-plugins");
+        Assert.Contains("uses: ./.github/workflows/publish-plugins.yml", caller, StringComparison.Ordinal);
+        var granted = ExtractWorkflowPermissions(caller, 4);
         Assert.NotNull(granted);
+        Assert.Equal(["contents"], granted.Keys);
+        Assert.Equal("read", granted["contents"]);
 
-        var updater = File.ReadAllText(Path.Combine(workflows, "update-awesome-copilot.lock.yml"));
-        var inherited = ExtractWorkflowPermissions(updater[..updater.IndexOf("\njobs:", StringComparison.Ordinal)], 0);
-        Assert.NotNull(inherited);
-        var required = new HashSet<string>(StringComparer.Ordinal);
-        // GitHub validates every nested job, even when the opt-in condition skips it.
-        foreach (System.Text.RegularExpressions.Match job in System.Text.RegularExpressions.Regex.Matches(
-                     updater[(updater.IndexOf("\njobs:", StringComparison.Ordinal) + 1)..],
-                     @"(?m)^  ([a-z_][a-z_-]*):\r?$"))
+        foreach (var workflow in new[] { release, plugins })
         {
-            var permissions = ExtractWorkflowPermissions(ExtractWorkflowJob(updater, job.Groups[1].Value), 4)
-                ?? inherited;
-            foreach (var permission in permissions.Where(permission => permission.Value != "none"))
-            {
-                Assert.Equal("read", permission.Value);
-                required.Add(permission.Key);
-            }
+            Assert.DoesNotContain("update-awesome-copilot", workflow, StringComparison.Ordinal);
+            Assert.DoesNotContain("AWESOME_COPILOT", workflow, StringComparison.Ordinal);
+            Assert.DoesNotContain("COPILOT_GITHUB_TOKEN", workflow, StringComparison.Ordinal);
         }
-
-        Assert.Equal(["actions", "contents", "pull-requests"], required.Order(StringComparer.Ordinal));
-        foreach (var permission in required)
-        {
-            Assert.True(granted.TryGetValue(permission, out var access) && access == "read",
-                $"{callerFile} job '{callerJob}' must grant {permission}: read to the compiled updater.");
-        }
-        Assert.Equal(required.Order(StringComparer.Ordinal), granted.Keys.Order(StringComparer.Ordinal));
         Assert.Equal(["contents"], ExtractWorkflowPermissions(
-            caller[..caller.IndexOf("\njobs:", StringComparison.Ordinal)], 0)!.Keys);
-        if (callerFile == "publish-plugins.yml")
-        {
-            Assert.Contains("if: needs.publish.outputs.handoff == 'true' && vars.AWESOME_COPILOT_UPDATES_ENABLED == 'true'",
-                callerBody, StringComparison.Ordinal);
-            Assert.Null(ExtractWorkflowPermissions(ExtractWorkflowJob(caller, "resolve"), 4));
-            Assert.Null(ExtractWorkflowPermissions(ExtractWorkflowJob(caller, "publish"), 4));
-        }
+            plugins[..plugins.IndexOf("\njobs:", StringComparison.Ordinal)], 0)!.Keys);
+        Assert.Null(ExtractWorkflowPermissions(ExtractWorkflowJob(plugins, "resolve"), 4));
+        Assert.Null(ExtractWorkflowPermissions(ExtractWorkflowJob(plugins, "publish"), 4));
+
+        var updater = File.ReadAllText(Path.Combine(workflows, "update-awesome-copilot.md"));
+        var trigger = updater[..updater.IndexOf("\npermissions:", StringComparison.Ordinal)];
+        Assert.DoesNotContain("workflow_call:", trigger, StringComparison.Ordinal);
+        Assert.Contains("workflow_dispatch:", trigger, StringComparison.Ordinal);
+        Assert.Contains("published_tag:", trigger, StringComparison.Ordinal);
+        Assert.Contains("preview:", trigger, StringComparison.Ordinal);
     }
 
     [Theory]

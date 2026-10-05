@@ -15,24 +15,9 @@ on:
       plugin_artifact:
         required: true
         type: string
-    outputs:
-      status:
-        value: ${{ jobs.publish.outputs.status }}
-      published_tag:
-        value: ${{ jobs.publish.outputs.published_tag }}
-      published_commit:
-        value: ${{ jobs.publish.outputs.published_commit }}
-      changed_plugins:
-        value: ${{ jobs.publish.outputs.changed_plugins }}
-      handoff:
-        value: ${{ jobs.publish.outputs.handoff }}
     secrets:
       PLUGINS_REPO_TOKEN:
         required: true
-      COPILOT_GITHUB_TOKEN:
-        required: false
-      AWESOME_COPILOT_PR_TOKEN:
-        required: false
   workflow_dispatch:
     inputs:
       release_tag:
@@ -92,12 +77,6 @@ jobs:
     name: Publish Exact Release Plugins
     needs: resolve
     runs-on: windows-latest
-    outputs:
-      status: ${{ steps.publication.outputs.status }}
-      published_tag: ${{ steps.publication.outputs.published_tag }}
-      published_commit: ${{ steps.publication.outputs.published_commit }}
-      changed_plugins: ${{ steps.publication.outputs.changed_plugins }}
-      handoff: ${{ steps.publication.outputs.handoff }}
     env:
       VERSION: ${{ needs.resolve.outputs.version }}
       TAG: ${{ needs.resolve.outputs.tag }}
@@ -197,7 +176,6 @@ jobs:
           path: published-repo
           fetch-depth: 0
       - name: Guard, synchronize and publish
-        id: publication
         shell: pwsh
         env:
           MANUAL_REPAIR: ${{ github.event_name == 'workflow_dispatch' && inputs.plugin_artifact == '' }}
@@ -207,19 +185,3 @@ jobs:
           .\automation\scripts\Publish-PreparedPlugins.ps1 `
             -SourceDirectory source -PublishedRepoDirectory published-repo -BuiltPluginsDirectory built-plugins `
             -Version $env:VERSION -SourceCommit $env:SOURCE_COMMIT -ManualRepair:($env:MANUAL_REPAIR -eq 'true')
-
-  update-awesome-copilot:
-    name: Optional Awesome Copilot Update
-    needs: publish
-    if: needs.publish.outputs.handoff == 'true' && vars.AWESOME_COPILOT_UPDATES_ENABLED == 'true'
-    uses: ./.github/workflows/update-awesome-copilot.lock.yml
-    permissions:
-      actions: read
-      contents: read
-      pull-requests: read
-    with:
-      published_tag: ${{ needs.publish.outputs.published_tag }}
-      preview: false
-    secrets:
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-      AWESOME_COPILOT_PR_TOKEN: ${{ secrets.AWESOME_COPILOT_PR_TOKEN }}

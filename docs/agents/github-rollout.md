@@ -33,8 +33,8 @@ Keep read-only default tokens and job-scoped write grants.
 | Privileged workflow | Existing use to preserve when designing policies |
 | --- | --- |
 | `release.yml` | Authorized manual release; `RELEASE_PAT` writes metadata to main; tag/release writes and package publishing have separate jobs |
-| `publish-plugins.yml` | Exact-release publication to the output-only plugin repository; `PLUGINS_REPO_TOKEN`; optional listing-update handoff |
-| `update-awesome-copilot.lock.yml` | Compiled, guarded discovery/proposal/write stages with separate inference and PR credentials; explicit opt-in |
+| `publish-plugins.yml` | Exact-release publication to the output-only plugin repository; `PLUGINS_REPO_TOKEN`; never runs listing updates |
+| `update-awesome-copilot.lock.yml` | Manual-only (`workflow_dispatch`), compiled, guarded discovery/proposal/write stages with separate inference and PR credentials; explicit opt-in |
 | `publish-mcp-registry.yml` | Exact-release registration and `mcp-registry` environment with OIDC |
 | `deploy-gh-pages.yml` | Read-only dependency/build job; separate Pages/OIDC deployment job |
 | `usage-analytics.yml` | Azure OIDC collection, sanitized agent input, separate branch writer; no writes on fork PRs |

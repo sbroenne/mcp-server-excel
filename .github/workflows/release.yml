@@ -433,9 +433,7 @@ jobs:
     needs: [version, create-tag, create-release, publish]
     uses: ./.github/workflows/publish-plugins.yml
     permissions:
-      actions: read
       contents: read
-      pull-requests: read
     with:
       release_tag: ${{ needs.version.outputs.tag }}
       release_commit: ${{ needs.create-tag.outputs.commit }}
@@ -443,5 +441,3 @@ jobs:
       plugin_artifact: release-plugins
     secrets:
       PLUGINS_REPO_TOKEN: ${{ secrets.PLUGINS_REPO_TOKEN }}
-      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
-      AWESOME_COPILOT_PR_TOKEN: ${{ secrets.AWESOME_COPILOT_PR_TOKEN }}

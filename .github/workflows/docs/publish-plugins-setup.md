@@ -12,8 +12,9 @@ complete skills, not bundled runtimes. They use the public npm packages through
 
 Keep the existing `PLUGINS_REPO_TOKEN` repository secret. It needs contents-write
 access to `sbroenne/mcp-server-excel-plugins`; a suitably scoped PAT or GitHub App
-token is sufficient for publication. The optional Awesome Copilot updater has
-separate credentials; the publishing token is never assumed to authorize it.
+token is sufficient for publication. Awesome Copilot listing updates are a
+separate manual workflow with their own credentials; publication never calls it
+or forwards those credentials.
 Create the credential outside the workflow and store it with:
 
 ```powershell
@@ -91,7 +92,7 @@ Root overlay files under `.github/plugins/marketplace-repo` are included.
 Previously source-owned overlay files are removed from the candidate when
 removed in the exact released source. Unowned root files such as the existing
 license are retained and compared. A root-overlay-only change publishes output
-but does **not** request an Awesome Copilot listing update.
+but does **not** suggest an Awesome Copilot listing update.
 
 If the normalized tree matches both baselines, publication is **skipped entirely**.
 The existing plugin files, version, commit and tag remain; no new plugin tag is
@@ -102,31 +103,27 @@ plugin content change in product `v2.2.0` publishes plugins at `v2.2.0`.
 Launchers still use `npx ...@latest`, so sparse plugin versions do not pin the
 runtime to an older product.
 
-Reusable workflow outputs:
+The step summary and the publisher's JSON result record the decision, actual
+tag/commit and changed plugins:
 
-| Output | Meaning |
+| Field | Meaning |
 | --- | --- |
 | `status` | `skipped` or `published` |
 | `published_tag` | Actual retained/created published plugin tag, not necessarily the product tag |
 | `published_commit` | Commit resolved from that immutable tag in the **output** repository |
-| `changed_plugins` | JSON array of meaningfully changed plugin directories; empty for root-only changes |
+| `changed_plugins` | Meaningfully changed plugin directories; empty for root-only changes |
 | `handoff` | True only for a successful new publication with changed distributed plugin content |
 
-The step summary records the decision, actual tag/commit and changed plugins.
 Invalid manifests/stamps, missing tags/content, inaccessible repositories and
 downgrades are failures, not a no-change outcome.
 
-Only a true handoff and `AWESOME_COPILOT_UPDATES_ENABLED=true` call the optional
-updater. Its failure is visible in its own job and can be retried independently;
-it does not undo plugin or product publication. See
-[Awesome Copilot setup](awesome-copilot-update-setup.md).
+## Awesome Copilot listings are manual
 
-Both reusable-workflow caller jobs (`release.yml`'s `publish-plugins` and
-`publish-plugins.yml`'s `update-awesome-copilot`) must grant `actions: read`,
-`contents: read`, and `pull-requests: read` for the compiled updater's jobs.
-GitHub validates nested permissions before evaluating the optional job's `if`,
-even with the opt-in disabled. These job-scoped read grants do not enable updates
-or change the publisher's default `contents: read` permissions.
+Neither `release.yml` nor `publish-plugins.yml` updates Awesome Copilot
+listings. A listing problem can therefore never change the release or plugin
+publication result. When `handoff` is true, the step summary names the
+`published_tag` to use; a maintainer then runs `update-awesome-copilot.lock.yml`
+manually (preview first). See [Awesome Copilot setup](awesome-copilot-update-setup.md).
 
 ## Manual repair
 
