@@ -13,6 +13,115 @@ public sealed partial class AutomationSafetyTests
         }
         """;
 
+    [Fact]
+    public async Task ExcelBehaviorBuildTarget_FocusedBuildsSelectedProjectAndFullBuildsSolution()
+    {
+        var root = NewSandbox();
+        try
+        {
+            var result = await RunAsync(root, LoadBehaviorRunnerFunctions + """
+
+                if ((Get-ExcelBehaviorBuildTarget -Full) -cne 'Sbroenne.ExcelMcp.sln') {
+                    throw 'Full validation must build the solution.'
+                }
+                if ((Get-ExcelBehaviorBuildTarget -Project Service) -cne
+                    'tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj') {
+                    throw 'Focused validation must build its selected test project.'
+                }
+                """);
+            Assert.True(result.ExitCode == 0, result.Output);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public async Task ExcelBehaviorRequiredFilter_ExcludesTestsThatDoNotRequireExcel()
+    {
+        var root = NewSandbox();
+        try
+        {
+            var result = await RunAsync(root, LoadBehaviorRunnerFunctions + """
+
+                $actual = Get-ExcelBehaviorRequiredFilter 'Feature=Tables&RunType!=OnDemand'
+                if ($actual -cne 'RequiresExcel=true&(Feature=Tables&RunType!=OnDemand)') {
+                    throw "Unexpected Excel behavior test filter: $actual"
+                }
+                """);
+            Assert.True(result.ExitCode == 0, result.Output);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Theory]
+    [InlineData(false, false, false, true)]
+    [InlineData(true, false, false, false)]
+    [InlineData(true, false, true, true)]
+    [InlineData(true, true, false, true)]
+    public async Task ExcelBehaviorStageDiscovery_PreservesFocusedAndOptionalSelectionEvidence(
+        bool full, bool discoverOnly, bool allowEmpty, bool expected)
+    {
+        var root = NewSandbox();
+        try
+        {
+            var fullLiteral = full ? "$true" : "$false";
+            var discoverOnlyLiteral = discoverOnly ? "$true" : "$false";
+            var allowEmptyLiteral = allowEmpty ? "$true" : "$false";
+            var expectedLiteral = expected ? "$true" : "$false";
+            var result = await RunAsync(root, LoadBehaviorRunnerFunctions + $$"""
+
+                $actual = Test-ExcelBehaviorStageRequiresDiscovery -Full:{{fullLiteral}} `
+                    -DiscoverOnly:{{discoverOnlyLiteral}} -AllowEmpty:{{allowEmptyLiteral}}
+                if ($actual -ne {{expectedLiteral}}) { throw "Unexpected stage discovery decision: $actual" }
+                """);
+            Assert.True(result.ExitCode == 0, result.Output);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Theory]
+    [InlineData("@('first', 'second')", "@('first', 'second')", true)]
+    [InlineData("@('first', 'second')", "@('first')", false)]
+    [InlineData("@('first', 'second')", "@('first', 'first', 'second')", false)]
+    public async Task ExcelBehaviorFullCoverage_ReconcilesResultsAcrossPartitions(
+        string expectedCases, string executedCases, bool valid)
+    {
+        var root = NewSandbox();
+        try
+        {
+            var validLiteral = valid ? "$true" : "$false";
+            var result = await RunAsync(root, LoadBehaviorRunnerFunctions + $$"""
+
+                $expected = @{ Service = {{expectedCases}} }
+                $cases = {{executedCases}}
+                for ($index = 0; $index -lt 2; $index++) {
+                    $name = if ($index -eq 0) { 'Service-main' } else { 'Service-vba' }
+                    $case = $cases[$index]
+                    if ($null -eq $case) { $case = '' }
+                    @"
+                <TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+                  <Results>$(
+                    if ($case) { "<UnitTestResult testName=`"$case`" outcome=`"Passed`" />" }
+                  )</Results>
+                </TestRun>
+                "@ | Set-Content -LiteralPath "$name.trx"
+                }
+                $stages = @(
+                    @{ project = 'Service'; name = 'Service-main'; status = 'passed' },
+                    @{ project = 'Service'; name = 'Service-vba'; status = 'passed' },
+                    @{ project = 'ComInterop'; name = 'ComInterop-infrastructure'; status = 'passed' })
+                try {
+                    Assert-ExcelBehaviorFullCoverage -Projects @('Service') -ExpectedByProject $expected `
+                        -Stages $stages -ResultsDirectory (Get-Location).Path
+                    if (-not {{validLiteral}}) { throw 'An invalid partition union passed reconciliation.' }
+                } catch {
+                    if ({{validLiteral}}) { throw }
+                }
+                """);
+            Assert.True(result.ExitCode == 0, result.Output);
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
     [Theory]
     [InlineData("passed", true)]
     [InlineData("failed", false)]
@@ -196,6 +305,26 @@ public sealed partial class AutomationSafetyTests
             {
                 // The recorded PID no longer exists.
             }
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public async Task ExcelBehavior_ProcessRunnerReturnsElapsedTimeForRunEvidence()
+    {
+        var root = NewSandbox();
+        try
+        {
+            var result = await RunAsync(root, LoadBehaviorRunnerFunctions + """
+
+                $run = Invoke-ExcelBehaviorProcess -Executable pwsh -WorkingDirectory (Get-Location).Path `
+                    -LogBase run -DeadlineSeconds 30 -Arguments @('-NoProfile', '-Command', 'Write-Output ready')
+                if ($run.exitCode -ne 0 -or $run.output -notmatch 'ready') {
+                    throw 'The process runner lost its successful output.'
+                }
+                if ($run.elapsedSeconds -lt 0) { throw 'The process runner returned invalid elapsed time.' }
+                """);
+            Assert.True(result.ExitCode == 0, result.Output);
         }
         finally { Directory.Delete(root, true); }
     }

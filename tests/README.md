@@ -22,21 +22,36 @@ dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter 
 
 ### Behavior validation and saved evidence
 
-The required local behavior command is `scripts\Test-ExcelBehavior.ps1`.
-Focused mode requires both `-Project` and `-Filter`; `-Full` uses the ordered
+The required local Excel behavior command is `scripts\Test-ExcelBehavior.ps1`.
+“Excel behavior” means tests tagged `RequiresExcel=true` that exercise ExcelMcp
+against desktop Excel and verify actual workbook or Excel-session outcomes.
+It excludes tests tagged `RequiresExcel=false`, such as parsing, adapter,
+packaging, publishing-script, and other tooling checks covered by their own
+local or CI selections. Focused mode requires both `-Project` and `-Filter`,
+and adds `RequiresExcel=true` automatically. `-Full` runs the ordered Excel
 acceptance partitions below, including separate VBA/desktop groups and the
-supported ComInterop infrastructure selection. It supplements, not replaces,
-`Test-E2E.ps1`. It does not expand the commit hook or change trust/locale settings.
+supported ComInterop infrastructure selection. It does not expand the commit
+hook or change trust/locale settings.
+Focused mode builds only the selected test project and its dependencies; full
+mode builds the Release solution.
 
 Every run writes to a fresh directory beneath `-ResultsDirectory` (by default
 `TestResults\ExcelBehavior`). It retains source and binary identities, exact
 commands, exact child-process identities, discovery output, ownership journals,
-TRX files, and `summary.json`.
+TRX files, and `summary.json`. The runner does not fingerprint source files or
+reject edits made during validation.
 Execution has per-test hang protection and a hard deadline per stage.
+`summary.json` records build, discovery, and execution wall times by command;
+TRX reports retain individual test durations, and the console reports progress
+as each build, inventory check, discovery, and execution stage starts and ends.
 Discovery and executed names are compared as multisets, including theory rows
 and repeated names. Missing/invalid reports, empty focused selections, omitted,
 duplicated, failed, or skipped required cases fail the run. Full-mode partitions
-must cover each project's normal discovery without overlap.
+must cover each project's normal discovery without overlap. Full runs discover
+that project-wide test list once and reconcile the combined partition reports
+against it; stages that may legitimately select no tests retain their own
+discovery so empty runs are skipped safely. Full discovery-only mode still
+discovers and reconciles every individual partition.
 
 Windows/Azure runner setup and administration scripts are not part of the
 automated test suite. Product checks remain, including COM-reference safety,
