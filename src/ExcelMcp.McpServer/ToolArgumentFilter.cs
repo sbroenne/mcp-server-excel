@@ -32,6 +32,9 @@ internal static class ToolArgumentFilter
                     if (!properties.TryGetProperty(name, out var schema))
                         throw new ArgumentException($"Unknown parameter '{name}'.");
                     ValidateValueKind(name, value, schema);
+                    if (name == "workbook_session_id" && value.ValueKind == JsonValueKind.String
+                        && string.IsNullOrWhiteSpace(value.GetString()))
+                        throw new ArgumentException("workbook_session_id must be a non-empty string.");
                 }
 
                 if (tool.ProtocolTool.Name is "file" or "file_read")

@@ -307,7 +307,7 @@ worksheets through the existing Sheet route:
 ```csharp
 public static Task<CallToolResult> ListWorksheets(
     ServiceBridge.ServiceBridge bridge,
-    string session_id,
+    string workbook_session_id,
     CancellationToken cancellationToken = default)
 {
     return ExcelToolsBase.ExecuteToolActionAsync(
@@ -315,7 +315,7 @@ public static Task<CallToolResult> ListWorksheets(
         ServiceRegistry.Sheet.ToActionString(SheetAction.List),
         () => ServiceRegistry.Sheet.RouteAction(
             SheetAction.List,
-            session_id,
+            workbook_session_id,
             (command, id, args) =>
                 ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken)),
         cancellationToken);
@@ -469,7 +469,7 @@ The Application Insights connection string is **embedded at build time** via MSB
 - User identity, machine name, or IP address
 - Excel data, formulas, or cell values
 - Connection strings, credentials, or passwords
-- Excel workbook `session_id`/`sessionId` values or raw MCP arguments. The
+- Excel workbook `workbook_session_id`/`sessionId` values or raw MCP arguments. The
   standard random MCP server process telemetry session ID is separate from
   workbook identity.
 
