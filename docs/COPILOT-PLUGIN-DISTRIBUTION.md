@@ -121,7 +121,8 @@ not every product release has a matching tag in the published repository.
 
 ## Maintenance
 
-Updates to plugins are handled automatically:
+Plugin publication is automatic during releases; Awesome Copilot listing
+maintenance is manual:
 
 1. **Skill updates** → Modify the actual `skills/<name>/SKILL.md` entries or `docs/reference/report-formatting.md`, then run `Build-AgentSkills.ps1 -GenerateOnly`. Other reference documentation is not bundled.
 2. **Plugin templates** → Update the canonical `.github/plugins/excel-{mcp,cli}/` sources
