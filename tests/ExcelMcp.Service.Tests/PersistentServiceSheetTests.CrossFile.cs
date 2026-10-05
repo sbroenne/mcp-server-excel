@@ -7,6 +7,75 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 
 public sealed partial class PersistentServiceSheetTests
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
+    [InlineData(true, false)]
+    public void CrossFile_ReadOnlyWorkbook_RejectsBeforeChangingEitherFile(
+        bool move, bool readOnlySource)
+    {
+        var sourceFile = CreateWorkbookWithSheet(
+            nameof(CrossFile_ReadOnlyWorkbook_RejectsBeforeChangingEitherFile),
+            "Source", "TransferSheet");
+        var targetFile = CreateMarkedWorkbook(
+            nameof(CrossFile_ReadOnlyWorkbook_RejectsBeforeChangingEitherFile), "Target");
+        var sourceBytes = File.ReadAllBytes(sourceFile);
+        var targetBytes = File.ReadAllBytes(targetFile);
+        var readOnlyFile = readOnlySource ? sourceFile : targetFile;
+        var originalAttributes = File.GetAttributes(readOnlyFile);
+        var originalOpenHook = ExcelBatch.BeforeWorkbookOpenHook;
+        try
+        {
+            // Change permissions after filesystem preflight so Excel determines read-only access.
+            ExcelBatch.BeforeWorkbookOpenHook = (path, _) =>
+            {
+                if (string.Equals(path, readOnlyFile, StringComparison.OrdinalIgnoreCase))
+                {
+                    File.SetAttributes(readOnlyFile, originalAttributes | FileAttributes.ReadOnly);
+                }
+            };
+            using (var batch = ExcelSession.BeginBatch(sourceFile, targetFile))
+            {
+                batch.Execute((_, _) =>
+                {
+                    Assert.Equal(readOnlySource, batch.GetWorkbook(sourceFile).ReadOnly);
+                    Assert.Equal(!readOnlySource, batch.GetWorkbook(targetFile).ReadOnly);
+                    Assert.True(batch.GetWorkbook(sourceFile).Saved);
+                    Assert.True(batch.GetWorkbook(targetFile).Saved);
+                });
+            }
+            File.SetAttributes(readOnlyFile, originalAttributes);
+
+            var error = Assert.Throws<InvalidOperationException>(() =>
+            {
+                if (move)
+                {
+                    _sheetCommands.MoveToFile(sourceFile, "TransferSheet", targetFile);
+                }
+                else
+                {
+                    _sheetCommands.CopyToFile(sourceFile, "TransferSheet", targetFile);
+                }
+            });
+
+            ExcelBatch.BeforeWorkbookOpenHook = originalOpenHook;
+            File.SetAttributes(readOnlyFile, originalAttributes);
+            Assert.Contains("Cannot change this workbook", error.Message, StringComparison.Ordinal);
+            Assert.Contains("read-only", error.Message, StringComparison.Ordinal);
+            Assert.Contains(
+                "This operation has not changed the workbook.", error.Message, StringComparison.Ordinal);
+            AssertWorkbookState(sourceFile, ["TransferSheet", "Sheet1"], "TransferSheet");
+            AssertWorkbookState(targetFile, ["Sheet1"]);
+            Assert.Equal(sourceBytes, File.ReadAllBytes(sourceFile));
+            Assert.Equal(targetBytes, File.ReadAllBytes(targetFile));
+        }
+        finally
+        {
+            ExcelBatch.BeforeWorkbookOpenHook = originalOpenHook;
+            File.SetAttributes(readOnlyFile, originalAttributes);
+        }
+    }
+
     [Fact]
     public void CopyToFile_WithTargetName_CopiesAndRenames()
     {
