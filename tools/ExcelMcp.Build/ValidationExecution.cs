@@ -31,7 +31,10 @@ public sealed class ValidationExecution(string root, IProcessRunner runner)
     public string[] BuildProjects(ValidationPlan plan, string? group = null)
     {
         var owners = group is null or "Excel" ? [] : Owners(plan, group);
-        var projects = plan.FullSolutionBuild
+        var groups = plan.CiTestGroups;
+        var fullBuildGroup = groups.Contains(plan.SourceChecksGroup, StringComparer.Ordinal)
+            ? plan.SourceChecksGroup : groups.FirstOrDefault();
+        var projects = plan.FullSolutionBuild && (group is null or "Excel" || group == fullBuildGroup)
             ? new[] { "Sbroenne.ExcelMcp.sln" }
             : group is null ? plan.BuildProjects.ToArray()
             : group == "Excel" ? plan.ExcelSelections.Select(selection => _tests.ProjectPath(selection.Project)).Distinct(StringComparer.Ordinal).ToArray()

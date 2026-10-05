@@ -8,6 +8,67 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 [Trait("Feature", "PreCommit")]
 public sealed class TypedOrchestrationMigrationTests
 {
+    [Fact]
+    public async Task CompleteCiBuild_RestoresAndBuildsSolutionInOnlyOneSelectedGroup()
+    {
+        var plan = new ValidationPolicy(TypedValidationPolicyTests.Root).Select([], full: true);
+        var runner = new BuildRunner();
+        var execution = new ValidationExecution(TypedValidationPolicyTests.Root, runner);
+        foreach (var group in plan.CiTestGroups)
+        {
+            var projects = execution.BuildProjects(plan, group);
+            if (group == plan.SourceChecksGroup) { Assert.Equal(["Sbroenne.ExcelMcp.sln"], projects); }
+            else { Assert.All(projects, project => Assert.EndsWith(".Tests.csproj", project, StringComparison.Ordinal)); }
+            await execution.BuildAsync(plan, group);
+        }
+        foreach (var verb in new[] { "restore", "build" })
+        {
+            var commands = runner.Commands.Where(command => command[0] == verb).ToArray();
+            Assert.Single(commands, command => Path.GetFileName(command[1]) == "Sbroenne.ExcelMcp.sln");
+            Assert.Contains(commands, command => command[1].EndsWith("ExcelMcp.CLI.Tests.csproj", StringComparison.Ordinal));
+            Assert.Contains(commands, command => command[1].EndsWith("ExcelMcp.ScriptSafety.Tests.csproj", StringComparison.Ordinal));
+        }
+    }
+
+    [Theory]
+    [InlineData(true, false, true, false, false, "Fast")]
+    [InlineData(false, true, true, false, false, "Process")]
+    [InlineData(false, false, true, false, false, "Tooling")]
+    [InlineData(true, false, true, false, true, "Tooling")]
+    [InlineData(true, false, true, true, false, "Fast")]
+    [InlineData(false, true, false, false, true, "Process")]
+    public void CompleteGroupedBuild_HasOneDeterministicOwner(
+        bool fast, bool process, bool tooling, bool sourceChecks, bool documentationCounts, string expectedOwner)
+    {
+        var plan = new ValidationPlan
+        {
+            FullSolutionBuild = true,
+            SourceChecks = sourceChecks,
+            DocumentationCounts = documentationCounts
+        };
+        if (fast) { plan.FastFilters["Core"] = "All"; }
+        if (process) { plan.ProcessFilters["CLI"] = "All"; }
+        if (tooling) { plan.ToolingFilters["ScriptSafety"] = "All"; }
+        var execution = new ValidationExecution(TypedValidationPolicyTests.Root, new BuildRunner());
+        foreach (var group in plan.CiTestGroups)
+        {
+            var projects = execution.BuildProjects(plan, group);
+            if (group == expectedOwner) { Assert.Equal(["Sbroenne.ExcelMcp.sln"], projects); }
+            else { Assert.All(projects, project => Assert.EndsWith(".Tests.csproj", project, StringComparison.Ordinal)); }
+        }
+        Assert.Equal(["Sbroenne.ExcelMcp.sln"], execution.BuildProjects(plan));
+        Assert.Throws<InvalidOperationException>(() => execution.BuildProjects(plan, "Unknown"));
+    }
+
+    [Fact]
+    public void FocusedGroupedBuild_KeepsOnlyItsOwningProject()
+    {
+        var plan = new ValidationPolicy(TypedValidationPolicyTests.Root).Select(
+            ["tests/ExcelMcp.Core.Tests/Unit/GeneratedActionContractTests.cs"]);
+        var projects = new ValidationExecution(TypedValidationPolicyTests.Root, new BuildRunner()).BuildProjects(plan, "Fast");
+        Assert.Equal(Path.Combine("tests", "ExcelMcp.Core.Tests", "ExcelMcp.Core.Tests.csproj"), Assert.Single(projects));
+    }
+
     [Theory]
     [InlineData("Invoke-TestStage.ps1")]
     [InlineData("Invoke-ExcelFreeTests.ps1")]
@@ -58,6 +119,21 @@ public sealed class TypedOrchestrationMigrationTests
                 () => new ExcelGroupExecution(TypedValidationPolicyTests.Root, runner).InventoryAsync(results))).Message, StringComparison.Ordinal);
         }
         finally { if (Directory.Exists(results)) { Directory.Delete(results, true); } }
+    }
+
+    private sealed class BuildRunner : IProcessRunner
+    {
+        public List<string[]> Commands { get; } = [];
+        public Task<ProcessResult> CheckedAsync(string executable, IEnumerable<string> arguments, TimeSpan deadline,
+            IReadOnlyDictionary<string, string>? environment = null, bool preserveGitContext = false)
+        {
+            Assert.Equal("dotnet", executable);
+            Commands.Add(arguments.ToArray());
+            return Task.FromResult(new ProcessResult(0, "", ""));
+        }
+        public Task<ProcessResult> RunAsync(string executable, IEnumerable<string> arguments, TimeSpan deadline,
+            IReadOnlyDictionary<string, string>? environment = null, bool preserveGitContext = false) =>
+            throw new InvalidOperationException("Builds must check command results.");
     }
 
     private sealed class InventoryRunner : IProcessRunner

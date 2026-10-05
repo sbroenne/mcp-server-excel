@@ -273,6 +273,10 @@ public sealed partial class ValidationPolicy(string root)
             plan.ExtensionTests = true;
             plan.Reasons.Add($"{path} -> extension checks and package");
         }
+        else if (path.StartsWith("samples/world-bank-dashboard/", StringComparison.Ordinal))
+        {
+            plan.Reasons.Add($"{path} -> published sample and documentation checks");
+        }
         else if (path.EndsWith(".md", StringComparison.Ordinal) || Matches(path, @"^(docs/|gh-pages/|\.github/|\.changeset/|infrastructure/|videos/|llm-tests/|scripts/.*(UsageAnalytics|StarHistory)|\.(gitignore|gitattributes)$|LICENSE$)"))
         {
             plan.Reasons.Add($"{path} -> non-runtime input");
@@ -281,7 +285,7 @@ public sealed partial class ValidationPolicy(string root)
         {
             throw new InvalidOperationException($"No validation mapping for {path}. Add an owning area; a full-suite fallback is not allowed.");
         }
-        if (Matches(path, @"^(docs/(?!agents/)|gh-pages/|README\.md$|FEATURES\.md$|CHANGELOG\.md$|LICENSE$|doc-counts\.json$)"))
+        if (Matches(path, @"^(docs/(?!agents/)|gh-pages/|samples/world-bank-dashboard/|README\.md$|FEATURES\.md$|CHANGELOG\.md$|LICENSE$|doc-counts\.json$)"))
         {
             plan.Docs = true;
         }

@@ -51,6 +51,20 @@ public sealed class TypedValidationPolicyTests
         Assert.False(plan.Excel);
     }
 
+    [Theory]
+    [InlineData("samples/world-bank-dashboard/prepare_data.py")]
+    [InlineData("samples/world-bank-dashboard/world_bank_source.m")]
+    [InlineData("samples/world-bank-dashboard/README.md")]
+    public void PublishedSampleChanges_SelectDocumentationAndSampleChecksWithoutRuntimeTests(string path)
+    {
+        var plan = Policy.Select([path]);
+        Assert.True(plan.Docs);
+        Assert.False(plan.Build);
+        Assert.False(plan.Excel);
+        Assert.False(plan.Packages);
+        Assert.Empty(plan.CiTestGroups);
+    }
+
     [Fact]
     public void EveryExistingCommandArea_HasAnExplicitValidationMapping()
     {

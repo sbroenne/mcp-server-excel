@@ -194,7 +194,7 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Reviewed documentation counts are stale.' }
           }
       - name: Verify entry-point builds
-        if: matrix.group == 'Fast' && needs.changes.outputs.documentation_counts == 'true'
+        if: matrix.group == needs.changes.outputs.source_checks_group && needs.changes.outputs.documentation_counts == 'true'
         shell: pwsh
         run: |
           & ./src/ExcelMcp.CLI/bin/Release/net10.0-windows/excelcli.exe --help

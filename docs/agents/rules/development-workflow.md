@@ -29,7 +29,11 @@
   C# CodeQL keeps traced compilation for generated code.
   `Build-CiInputs.ps1` builds selected test projects. Documentation-count and
   shared build inputs require a complete Release solution build; ordinary source
-  guards do not. Local hooks run the selected real-Excel cases, with full
+  guards do not. Exactly one selected CI group owns that complete build: the
+  source-check group when selected, otherwise the first selected group in
+  Fast, Process, Tooling order. Other groups build only their test projects.
+  Ungrouped local builds retain the complete solution build when required.
+  Local hooks run the selected real-Excel cases, with full
   acceptance reserved for affected shared boundaries or explicit requests.
   Cache dependency downloads,
   not writable compiled outputs. Packages build their own required binaries.
