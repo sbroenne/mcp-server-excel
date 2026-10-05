@@ -49,6 +49,9 @@ artifacts/
 # Retired generated skill; current authored skills are tracked.
 /skills/excel-mcp/
 
+# Downloaded during GitHub agent setup; upstream owns this skill.
+/.github/skills/ponytail-review/
+
 # Files built by Visual Studio
 *_i.c
 *_p.c

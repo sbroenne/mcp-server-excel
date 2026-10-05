@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/copilot-setup-steps.yml
       - scripts/Invoke-CopilotSetupNpm.ps1
+      - scripts/Install-CopilotPonytailReview.ps1
       - global.json
       - Directory.Packages.props
       - '**/*.csproj'
@@ -17,6 +18,7 @@ on:
     paths:
       - .github/workflows/copilot-setup-steps.yml
       - scripts/Invoke-CopilotSetupNpm.ps1
+      - scripts/Install-CopilotPonytailReview.ps1
       - global.json
       - Directory.Packages.props
       - '**/*.csproj'
@@ -36,6 +38,12 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+
+      - name: Install latest released Ponytail review skill
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .\scripts\Install-CopilotPonytailReview.ps1
 
       - name: Setup .NET
         if: runner.environment != 'self-hosted'

@@ -112,6 +112,12 @@ Report high-confidence defects introduced by the change, not style or unrelated
 cleanup. These checks apply to review tasks; they do not require installing
 dependencies, running builds, or editing code unless requested.
 
+When `ponytail-review` is available, use it as an additional review pass for
+concrete, behavior-preserving simplifications introduced by the change. It must
+not replace correctness or security review. Required Excel COM cleanup,
+validation, error handling, tests, generated contracts, and matching MCP/CLI
+behavior are not unnecessary complexity.
+
 - Typed PIAs first, except documented runtime gaps (`Application.Run`, VBE,
   Office-core). Do not reintroduce unavailable dependencies. Dynamic COM numeric
   values need `Convert.*`, not direct casts.
