@@ -11,6 +11,16 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.3.1] - 2026-10-05
+
+### Major Changes
+
+- [#1059](https://github.com/sbroenne/mcp-server-excel/pull/1059) [`2d459dc`](https://github.com/sbroenne/mcp-server-excel/commit/2d459dc749075bdee6d846670b7ae1f2413a661d) Thanks [@sbroenne](https://github.com/sbroenne)! - MCP tools that target an open workbook now use `workbook_session_id` instead of `session_id` in inputs and results. This works around a Claude Desktop bridge issue that can drop inputs named `session_id`. CLI session names are unchanged.
+
+### Patch Changes
+
+- [#1058](https://github.com/sbroenne/mcp-server-excel/pull/1058) [`54115a6`](https://github.com/sbroenne/mcp-server-excel/commit/54115a671e0021a1b429670f539eae223441e011) Thanks [@sbroenne](https://github.com/sbroenne)! - Protected workbooks now use the signed-in user's Excel editing permissions instead of always opening read-only. Workbook changes reject genuine read-only access, and saves and Save As report an error when Excel does not accept the save, leaving the session open for inspection.
+
 ## [2.3.0] - 2026-10-05
 
 ### Minor Changes
