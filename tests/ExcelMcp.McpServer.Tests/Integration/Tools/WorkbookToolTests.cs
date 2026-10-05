@@ -42,7 +42,7 @@ public sealed class WorkbookToolTests(
         }
 
         var getCall = await _fixture.CallToolAsync(
-            "workbook",
+            "workbook_read",
             new Dictionary<string, object?>
             {
                 ["action"] = "get-protection",
@@ -108,7 +108,7 @@ public sealed class WorkbookToolTests(
             });
 
         var getCall = await _fixture.CallToolAsync(
-            "workbook",
+            "workbook_read",
             new Dictionary<string, object?>
             {
                 ["action"] = "get-view-options",

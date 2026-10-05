@@ -115,7 +115,8 @@ public sealed class RangeFillProtocolTests(RecordingProgramTransportFixture fixt
             arguments["formulas"] = formulas;
             expected["formulas"] = formulas;
         }
-        var call = await fixture.CallToolAsync("range", arguments,
+        var toolName = action == "get-formulas" ? "range_read" : "range";
+        var call = await fixture.CallToolAsync(toolName, arguments,
             RecordingToolTest.Success("""{"success":true}"""), $"range.{action}",
             JsonSerializer.Serialize(expected, ServiceProtocol.JsonOptions));
         Assert.False(call.Result.IsError);
@@ -132,8 +133,9 @@ public sealed class RangeFillProtocolTests(RecordingProgramTransportFixture fixt
         Assert.True(properties.TryGetProperty("direction", out _));
         Assert.True(properties.TryGetProperty("source_range", out _));
         Assert.True(properties.TryGetProperty("stop_value", out _));
-        var range = Assert.Single(tools, tool => tool.Name == "range");
-        Assert.Contains("range addresses stay A1", range.Description, StringComparison.Ordinal);
-        Assert.True(range.JsonSchema.GetProperty("properties").TryGetProperty("reference_style", out _));
+        var writeRange = Assert.Single(tools, tool => tool.Name == "range");
+        Assert.Contains("range addresses stay A1", writeRange.Description, StringComparison.Ordinal);
+        var readRange = Assert.Single(tools, tool => tool.Name == "range_read");
+        Assert.True(readRange.JsonSchema.GetProperty("properties").TryGetProperty("reference_style", out _));
     }
 }

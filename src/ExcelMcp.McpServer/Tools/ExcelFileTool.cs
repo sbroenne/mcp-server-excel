@@ -9,36 +9,34 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 [McpServerToolType]
 public static partial class ExcelFileTool
 {
-    internal static void ValidateActionParameters(string action, IEnumerable<string> names)
+    internal static void ValidateActionParameters(string toolName, string action, IEnumerable<string> names)
     {
-        string[] allowed = action switch
+        string[] allowed = (toolName, action) switch
         {
-            "open" or "create" => ["action", "path", "show", "timeout_seconds"],
-            "test" => ["action", "path", "timeout_seconds"],
-            "close" => ["action", "session_id", "save"],
-            "list" => ["action"],
+            ("file", "open" or "create") => ["action", "path", "show", "timeout_seconds"],
+            ("file", "close") => ["action", "session_id", "save"],
+            ("file_read", "test") => ["action", "path", "timeout_seconds"],
+            ("file_read", "list") => ["action"],
             _ => throw new ArgumentException("Unknown file action.")
         };
         var invalid = names.Except(allowed, StringComparer.Ordinal).ToArray();
         if (invalid.Length > 0)
-            throw new ArgumentException($"Parameter(s) {string.Join(", ", invalid)} are not valid for file '{action}'.");
+            throw new ArgumentException($"Parameter(s) {string.Join(", ", invalid)} are not valid for {toolName} '{action}'.");
     }
 
     /// <summary>
     /// Open/create workbooks and manage their sessions.
-    /// Workflow: list and match the intended workbook -> reuse its session or open/create -> operate ->
+    /// Use file_read for listing sessions and testing paths.
+    /// Workflow: file_read list and match the intended workbook -> reuse its session or open/create -> operate ->
     /// list and check that session's canClose -> close when authorized with explicit save:true or save:false.
     /// Open/create and list entries return session_id; pass it to session-based tools. Create requires an existing directory.
     /// Close defaults to save:false (discard edits); set save:true to save. Wait for canClose before closing,
     /// and confirm before closing a visible window unless already authorized.
     /// Normal server shutdown attempts to save open sessions; crashes and forced cleanup may lose edits.
-    /// Open/create/test default to 120 seconds. Cancellation is not undo; inspect list before continuing.
-    /// Test validates ordinary files through a temporary read-only Excel open. IRM/AIP files may require
-    /// visible authentication and read-only access: inspect canOpen, isIrmProtected, willOpenReadOnly,
-    /// and requiresVisibleSession. Test does not bypass authentication.
+    /// Open/create default to 120 seconds. Cancellation is not undo; inspect file_read list before continuing.
     /// </summary>
     /// <param name="action">The file operation to perform. close with save:false discards all unsaved edits, including earlier work; there is no tool-level undo.</param>
-    /// <param name="path">Full Windows workbook path. Required for open, create, test. Create supports .xlsx/.xlsm. Use a supplied path or discover the matching session; ask if the intended file is unclear.</param>
+    /// <param name="path">Full Windows workbook path. Required for open and create. Create supports .xlsx/.xlsm. Use a supplied path or discover the matching session; ask if the intended file is unclear.</param>
     /// <param name="session_id">Session ID returned by open/create or listed by this server. Required for close.</param>
     /// <param name="save">Save before close; otherwise discard unsaved changes. Only valid for close.</param>
     /// <param name="show">Show Excel. Only valid for open/create; protected files may force visible authentication.</param>
@@ -48,7 +46,7 @@ public static partial class ExcelFileTool
     [McpMeta("category", "session")]
     [McpMeta("requiresSession", false)]
     public static partial Task<CallToolResult> ExcelFile(
-        FileAction action,
+        FileWriteAction action,
         ServiceBridge.ServiceBridge bridge,
         [DefaultValue(null)] string? path,
         [DefaultValue(null)] string? session_id,
@@ -56,7 +54,58 @@ public static partial class ExcelFileTool
         [DefaultValue(false)] bool show,
         [DefaultValue(120)] int timeout_seconds,
         CancellationToken cancellationToken = default) =>
-        ExcelToolsBase.ExecuteToolActionAsync("file", action.ToActionString(), async () =>
+        ExecuteFileToolActionAsync(
+            "file",
+            action switch
+            {
+                FileWriteAction.Open => FileAction.Open,
+                FileWriteAction.Create => FileAction.Create,
+                FileWriteAction.Close => FileAction.Close,
+                _ => throw new ArgumentOutOfRangeException(nameof(action))
+            },
+            bridge, path, session_id, save, show, timeout_seconds, cancellationToken);
+
+    /// <summary>List workbook sessions and validate a workbook path without opening an editable session.</summary>
+    /// <remarks>
+    /// Test defaults to 120 seconds and validates ordinary files through a temporary read-only Excel open.
+    /// IRM/AIP files may require visible authentication and read-only access; inspect canOpen, isIrmProtected,
+    /// willOpenReadOnly, and requiresVisibleSession. Test does not bypass authentication.
+    /// </remarks>
+    /// <param name="action">List sessions or test whether a workbook can be opened.</param>
+    /// <param name="path">Full Windows workbook path. Required for test.</param>
+    /// <param name="timeout_seconds">Timeout for test, in seconds (10-3600).</param>
+    [McpServerTool(Name = "file_read", Title = "Read-Only File Operations", ReadOnly = true,
+        Destructive = false, UseStructuredContent = true, OutputSchemaType = typeof(FileToolOutputSchema))]
+    [McpMeta("category", "session")]
+    [McpMeta("requiresSession", false)]
+    public static partial Task<CallToolResult> ExcelFileRead(
+        FileReadAction action,
+        ServiceBridge.ServiceBridge bridge,
+        [DefaultValue(null)] string? path,
+        [DefaultValue(120)] int timeout_seconds = 120,
+        CancellationToken cancellationToken = default) =>
+        ExecuteFileToolActionAsync(
+            "file_read",
+            action switch
+            {
+                FileReadAction.List => FileAction.List,
+                FileReadAction.Test => FileAction.Test,
+                _ => throw new ArgumentOutOfRangeException(nameof(action))
+            },
+            bridge, path, null, save: false, show: false,
+            timeout_seconds: timeout_seconds, cancellationToken: cancellationToken);
+
+    private static Task<CallToolResult> ExecuteFileToolActionAsync(
+        string toolName,
+        FileAction action,
+        ServiceBridge.ServiceBridge bridge,
+        string? path,
+        string? session_id,
+        bool save,
+        bool show,
+        int timeout_seconds,
+        CancellationToken cancellationToken) =>
+        ExcelToolsBase.ExecuteToolActionAsync(toolName, action.ToActionString(), async () =>
         {
             if (timeout_seconds is < 10 or > 3600)
                 throw new ArgumentException("timeout_seconds must be between 10 and 3600 seconds.");

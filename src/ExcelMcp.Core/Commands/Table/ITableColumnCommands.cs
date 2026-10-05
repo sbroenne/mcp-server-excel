@@ -26,6 +26,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 [ServiceCategory("tablecolumn", "TableColumn")]
 [McpTool("table_column", Title = "Table Column Operations", Destructive = true, Category = "data",
     Description = "Table column, filtering, and sorting operations. FILTERING: apply-filter uses typed options for comparisons, AND/OR, values, date groups, top/bottom, colors, icons, and dynamic filters. Nested options use camelCase. get-filters preserves operators, arrays, both criteria and inactive columns, with explicit native getter failures. clear-filters affects only the selected table. apply-filter-values is removed, not an alias. SORTING: sort (single column), sort-multi (JSON array of {columnName, ascending}). COLUMNS: add-column, remove-column, rename-column. NUMBER FORMATS: US locale codes (#,##0.00, 0%, yyyy-mm-dd). Use range_edit for ordinary-range filters and table for lifecycle/data.")]
+[McpReadOnlyActions("get-filters", "get-structured-reference", "get-column-number-format")]
 public interface ITableColumnCommands
 {
     // === FILTER OPERATIONS ===

@@ -28,6 +28,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 [ServiceCategory("chart", "Chart")]
 [McpTool("chart", Title = "Chart Operations", Destructive = true, Category = "analysis",
     Description = "Chart lifecycle - create, read, move, and delete embedded charts. POSITIONING: targetRange='F2:K15' (PREFERRED, cell-relative) or left/top (points, 72pts=1in) or OMIT BOTH for auto-positioning below content. COLLISION DETECTION: Automatically warns if chart overlaps data or other charts. CREATE: create-from-range (cell range), create-from-table (Excel Table), create-from-pivottable (verified live PivotChart; fails rather than returning a static chart). List counts plotted series, not PivotTable value fields. Read returns plotted series names, values, and categories for both regular charts and PivotCharts; value arrays are not cell addresses. Verify PivotChart scope through linkedPivotTable and its fields/filters. Use chart_config for series, titles, legends, and styling.")]
+[McpReadOnlyActions("list", "read")]
 public interface IChartCommands
 {
     /// <summary>Exports an embedded regular or PivotChart through Excel's native image filter. Returns success only for a nonempty image; existing files require overwrite.</summary>

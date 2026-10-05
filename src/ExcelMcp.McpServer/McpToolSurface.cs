@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.McpServer;
 /// WHY THIS EXISTS
 /// ---------------
 /// The <c>--help</c> banner used to hard-code "Provides 22 tools with 195+ operations". The real
-/// surface grew to 31 tools / 326 operations without anyone updating that string, so the binary
+/// surface grew to 31 feature groups / 387 operations without anyone updating that string, so the binary
 /// contradicted its own READMEs, SKILL.md files and its live <c>tools/list</c> response.
 /// Reflecting over the registration makes that class of drift structurally impossible.
 ///
@@ -21,7 +21,7 @@ namespace Sbroenne.ExcelMcp.McpServer;
 /// <c>[McpServerToolType]</c> class (hand-written or emitted by <c>McpToolGenerator</c>), and every
 /// one of them dispatches on a required <c>action</c> parameter whose type is an action enum.
 /// So:
-///   tools      = number of [McpServerTool] methods
+///   tools      = number of [McpServerTool] methods, including dedicated read-only endpoints
 ///   operations = sum of Enum.GetValues(actionEnumType).Length over those methods
 ///
 /// This mirrors the attributed surface discovered by the SDK's WithToolsFromAssembly registration.

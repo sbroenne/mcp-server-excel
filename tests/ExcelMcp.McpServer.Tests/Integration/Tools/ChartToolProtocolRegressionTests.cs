@@ -25,7 +25,7 @@ public sealed class ChartToolProtocolRegressionTests(
             ]}
             """;
         var call = await _fixture.CallToolAsync(
-            "chart",
+            "chart_read",
             new Dictionary<string, object?>
             {
                 ["action"] = "read",
@@ -52,7 +52,7 @@ public sealed class ChartToolProtocolRegressionTests(
     {
         const string sessionId = "recording-session";
         var listCall = await _fixture.CallToolAsync(
-            "chart",
+            "chart_read",
             new Dictionary<string, object?>
             {
                 ["action"] = "list",
@@ -70,7 +70,7 @@ public sealed class ChartToolProtocolRegressionTests(
         }
 
         var worksheetCall = await _fixture.CallToolAsync(
-            "worksheet",
+            "worksheet_read",
             new Dictionary<string, object?>
             {
                 ["action"] = "list",

@@ -106,7 +106,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 | Interface | Best For | Token Efficiency |
 |-----------|----------|------------------|
 | **CLI** (`excelcli`) | Coding agents | **64% fewer tokens** — single tool + skill |
-| **MCP Server** | Conversational AI (Claude Desktop) | 31 tool schemas loaded into context |
+| **MCP Server** | Conversational AI (Claude Desktop) | 61 tool schemas loaded into context |
 
 **Use CLI when:** Your agent needs to script Excel operations without consuming context with large tool definitions.
 

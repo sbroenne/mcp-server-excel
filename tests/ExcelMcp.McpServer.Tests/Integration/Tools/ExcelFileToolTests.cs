@@ -81,7 +81,7 @@ public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBa
         var fakePath = @"C:\NonExistent\fake.xlsx";
 
         // Act
-        var result = await CallToolAsync("file", new() { ["action"] = "test", ["path"] = fakePath, ["timeout_seconds"] = 300 });
+        var result = await CallToolAsync("file_read", new() { ["action"] = "test", ["path"] = fakePath, ["timeout_seconds"] = 300 });
 
         Output.WriteLine($"Result: {result}");
 
@@ -107,7 +107,7 @@ public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBa
                 dataSpaceName);
 
             // Act
-            var result = await CallToolAsync("file", new() { ["action"] = "test", ["path"] = tempPath, ["timeout_seconds"] = 300 });
+            var result = await CallToolAsync("file_read", new() { ["action"] = "test", ["path"] = tempPath, ["timeout_seconds"] = 300 });
 
             Output.WriteLine($"Result: {result}");
 
@@ -148,8 +148,8 @@ public sealed class ExcelFileToolExcelTests(ITestOutputHelper output) : McpInteg
         var tempPath = Path.Join(CreateTempDirectory("FileCreation"), "Created.xlsx");
         var sessionId = await CreateWorkbookSessionAsync(tempPath);
         Assert.True(File.Exists(tempPath));
-        var listed = await CallToolAsync("file", new() { ["action"] = "list" });
-        AssertSuccess(listed, "file.list after creation");
+        var listed = await CallToolAsync("file_read", new() { ["action"] = "list" });
+        AssertSuccess(listed, "file_read.list after creation");
         using (var document = JsonDocument.Parse(listed))
         {
             var session = Assert.Single(document.RootElement.GetProperty("sessions").EnumerateArray(),
@@ -165,7 +165,7 @@ public sealed class ExcelFileToolExcelTests(ITestOutputHelper output) : McpInteg
             ["range_address"] = "A1",
             ["values"] = new List<List<object?>> { new() { "created-session" } }
         }), "range.set-values on created session");
-        var read = await CallToolAsync("range", new()
+        var read = await CallToolAsync("range_read", new()
         {
             ["action"] = "get-values",
             ["session_id"] = sessionId,

@@ -44,7 +44,7 @@ public sealed class WorksheetImageToolTests(
         }
 
         var countCall = await _fixture.CallToolAsync(
-            "worksheet_style",
+            "worksheet_style_read",
             new Dictionary<string, object?>
             {
                 ["action"] = "get-image-count",

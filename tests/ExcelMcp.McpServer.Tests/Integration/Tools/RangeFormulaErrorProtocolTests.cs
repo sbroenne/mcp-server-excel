@@ -33,7 +33,7 @@ public sealed class RangeFormulaErrorProtocolTests(
             """;
 
         var valuesCall = await _fixture.CallToolAsync(
-            "range",
+            "range_read",
             RangeReadArguments("get-values"),
             RecordingToolTest.Success(responseJson),
             "range.get-values",
@@ -42,7 +42,7 @@ public sealed class RangeFormulaErrorProtocolTests(
         AssertCanonicalReferenceError(valuesCall.JsonResult);
 
         var formulasCall = await _fixture.CallToolAsync(
-            "range",
+            "range_read",
             RangeReadArguments("get-formulas"),
             RecordingToolTest.Success(responseJson),
             "range.get-formulas",

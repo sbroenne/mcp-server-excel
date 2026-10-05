@@ -40,7 +40,7 @@ public sealed class FileToolRecordingContractTests(
         }, ServiceProtocol.JsonOptions);
 
         var call = await _fixture.CallToolAsync(
-            "file",
+            "file_read",
             new Dictionary<string, object?>
             {
                 ["action"] = "test",
@@ -132,7 +132,7 @@ public sealed class FileToolRecordingContractTests(
         };
 
         var call = await _fixture.CallToolAsync(
-            "file",
+            "file_read",
             new Dictionary<string, object?>
             {
                 ["action"] = "list"
@@ -175,7 +175,7 @@ public sealed class FileToolRecordingContractTests(
         };
 
         var call = await _fixture.CallToolAsync(
-            "file",
+            "file_read",
             new Dictionary<string, object?>
             {
                 ["action"] = "list"

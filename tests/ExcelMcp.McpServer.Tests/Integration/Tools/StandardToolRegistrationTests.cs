@@ -28,6 +28,63 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         Assert.Null(Client.ServerCapabilities.Resources);
     }
 
+    [Fact]
+    public async Task Discovery_ReadOnlyToolsExposeOnlyReadActionsAndReadOnlyHint()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var byName = tools.ToDictionary(tool => tool.Name, StringComparer.Ordinal);
+        var readTools = tools.Where(tool => tool.Name.EndsWith("_read", StringComparison.Ordinal)).ToArray();
+        string ActionNames(string toolName) => string.Join(",",
+            byName[toolName].JsonSchema.GetProperty("properties").GetProperty("action")
+                .GetProperty("enum").EnumerateArray()
+                .Select(value => value.GetString()).Order(StringComparer.Ordinal));
+
+        Assert.NotEmpty(readTools);
+        Assert.All(readTools, tool => Assert.True(
+            tool.ProtocolTool.Annotations?.ReadOnlyHint == true,
+            $"{tool.Name} must advertise readOnlyHint=true."));
+        Assert.Equal("close,create,open", ActionNames("file"));
+        Assert.Equal("list,test", ActionNames("file_read"));
+        Assert.Equal("list", ActionNames("worksheet_read"));
+        Assert.Equal("get-settings", ActionNames("calculation_mode_read"));
+        Assert.DoesNotContain(
+            byName["analysis_read"].JsonSchema.GetProperty("properties").GetProperty("action")
+                .GetProperty("enum").EnumerateArray().Select(value => value.GetString()),
+            action => action == "show-scenario");
+        Assert.True(byName["screenshot"].ProtocolTool.Annotations?.ReadOnlyHint == true);
+        Assert.DoesNotContain(
+            byName["range"].JsonSchema.GetProperty("properties").GetProperty("action")
+                .GetProperty("enum").EnumerateArray().Select(value => value.GetString()),
+            action => action == "get-values");
+        Assert.Contains(
+            byName["range_read"].JsonSchema.GetProperty("properties").GetProperty("action")
+                .GetProperty("enum").EnumerateArray().Select(value => value.GetString()),
+            action => action == "get-values");
+    }
+
+    [Fact]
+    public async Task Discovery_InputSchemasUseJsonSchema202012OrItsProtocolDefault()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        const string dialect = "https://json-schema.org/draft/2020-12/schema";
+
+        foreach (var tool in tools)
+        {
+            if (tool.JsonSchema.TryGetProperty("$schema", out var declaredDialect))
+            {
+                Assert.Equal(dialect, declaredDialect.GetString());
+            }
+        }
+    }
+
+    [Fact]
+    public void Discovery_ServerVersionMatchesPackageInformationalVersion()
+    {
+        Assert.Equal(
+            Infrastructure.McpServerVersionChecker.GetCurrentVersion(),
+            Client!.ServerInfo.Version);
+    }
+
     [Theory]
     [InlineData("range", "values")]
     [InlineData("range_format", "format_options")]
@@ -226,11 +283,11 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     }
 
     [Theory]
-    [InlineData("range", "values")]
-    [InlineData("range", "rowCount")]
-    [InlineData("table", "tables")]
+    [InlineData("range_read", "values")]
+    [InlineData("range_read", "rowCount")]
+    [InlineData("table_read", "tables")]
     [InlineData("worksheet", "worksheets")]
-    [InlineData("file", "session_id")]
+    [InlineData("file_read", "session_id")]
     [InlineData("screenshot", "mimeType")]
     public async Task OutputSchemas_DescribeActionSpecificFields(string toolName, string propertyName)
     {
@@ -246,7 +303,7 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     public async Task FileListOutputSchema_DescribesSessionEntries()
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
-        var schema = Assert.IsType<JsonElement>(tools.Single(t => t.Name == "file").ReturnJsonSchema);
+        var schema = Assert.IsType<JsonElement>(tools.Single(t => t.Name == "file_read").ReturnJsonSchema);
         var sessions = schema.GetProperty("properties").GetProperty("sessions");
 
         var properties = sessions.GetProperty("items").GetProperty("properties");

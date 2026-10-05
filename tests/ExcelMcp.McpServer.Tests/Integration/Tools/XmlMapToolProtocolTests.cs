@@ -106,7 +106,7 @@ public sealed class XmlMapToolProtocolTests(
         Action<JsonElement>? assertArgs = null)
     {
         var call = await _fixture.CallToolAsync(
-            "xmlmap",
+            arguments["action"] is "list" or "export-xml" ? "xmlmap_read" : "xmlmap",
             arguments,
             RecordingToolTest.Success(responseJson),
             command,

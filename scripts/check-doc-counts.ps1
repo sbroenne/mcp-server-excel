@@ -166,8 +166,14 @@ foreach ($dir in $mcpSearchDirs) {
     }
 }
 
-if ($mcpToolNames.Count -ne $canonicalTools) {
-    Add-Failure ("MCP tool surface has {0} tools ([McpServerTool(Name=...)]) but the manifest-derived canonical tool count is {1}. If you added/removed a tool, update the docs; if diag/file assumptions changed, update this script." -f $mcpToolNames.Count, $canonicalTools)
+$mcpReadTools = @($mcpToolNames | Where-Object { $_.EndsWith("_read", [StringComparison]::Ordinal) })
+$mcpBaseToolNames = @($mcpToolNames | Where-Object { -not $_.EndsWith("_read", [StringComparison]::Ordinal) })
+$mcpToolEndpointCount = $mcpToolNames.Count
+if ($mcpBaseToolNames.Count -ne $canonicalTools) {
+    Add-Failure ("MCP base tool surface has {0} tools (excluding dedicated _read endpoints) but the manifest-derived command-category count is {1}. If categories changed, update this script." -f $mcpBaseToolNames.Count, $canonicalTools)
+}
+if ($mcpReadTools.Count -ne 30) {
+    Add-Failure ("MCP tool surface has {0} dedicated _read endpoints; expected 30 from the current mixed action groups." -f $mcpReadTools.Count)
 }
 if ($mcpToolNames.Contains('diag')) {
     Add-Failure "A 'diag' MCP tool now exists - the user-facing count assumption (diag is CLI-only) is broken. Update this script."
@@ -180,7 +186,7 @@ if (-not $mcpToolNames.Contains('file')) {
 # 4. Canonical counts
 # ---------------------------------------------------------------------------
 Write-Host "Canonical (from code): $canonicalTools tools, $canonicalOps operations" -ForegroundColor Cyan
-Write-Host "  manifest: $manifestTools tools / $manifestOps ops; - diag($diagOps) + file($fileOps); MCP tool surface: $($mcpToolNames.Count) tools" -ForegroundColor DarkGray
+Write-Host "  manifest: $manifestTools categories / $manifestOps ops; - diag($diagOps) + file($fileOps); MCP tool endpoints: $mcpToolEndpointCount ($($mcpReadTools.Count) read-only splits)" -ForegroundColor DarkGray
 
 # ---------------------------------------------------------------------------
 # 5. Update or validate headline claims across user-facing docs
@@ -189,28 +195,28 @@ Write-Host "  manifest: $manifestTools tools / $manifestOps ops; - diag($diagOps
 # capture group 'o' (optional) must equal canonicalOps. A check that matches nothing fails
 # (so a headline can't silently disappear or be reworded past the guard).
 $checks = @(
-    @{ File = "README.md";                              Pattern = '(?<t>\d+) tools with (?<o>\d+) operations' }
+    @{ File = "README.md";                              Pattern = '(?<m>\d+) MCP tools across (?<t>\d+) feature areas, with (?<o>\d+) operations' }
     @{ File = "README.md";                              Pattern = 'all (?<o>\d+) operations' }
-    @{ File = "FEATURES.md";                            Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
-    @{ File = "src\ExcelMcp.McpServer\README.md";       Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
+    @{ File = "FEATURES.md";                            Pattern = '(?<t>\d+) feature areas with (?<o>\d+) operations, exposed through (?<m>\d+) MCP tools' }
+    @{ File = "src\ExcelMcp.McpServer\README.md";       Pattern = '(?<m>\d+) MCP tools across (?<t>\d+) feature areas, with (?<o>\d+) operations' }
     @{ File = "src\ExcelMcp.McpServer\README.md";       Pattern = 'all (?<o>\d+) operations' }
     @{ File = "src\ExcelMcp.CLI\README.md";             Pattern = 'provides (?<t>\d+) feature command categories with (?<o>\d+) operations matching' }
     @{ File = "src\ExcelMcp.CLI\README.md";             Pattern = 'without loading (?<t>\d+) tool schemas' }
     @{ File = "src\ExcelMcp.CLI\README.md";             Pattern = '\*\*(?<o>\d+) operations\*\* across' }
-    @{ File = "vscode-extension\README.md";             Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
-    @{ File = "vscode-extension\README.md";             Pattern = 'all (?<t>\d+) tools and (?<o>\d+) operations' }
-    @{ File = "mcpb\README.md";                         Pattern = '(?<t>\d+) tools with (?<o>\d+) operations' }
-    @{ File = "mcpb\manifest.json";                     Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
-    @{ File = "mcpb\BUILD.md";                           Pattern = 'generates its (?<t>\d+) tool schemas' }
+    @{ File = "vscode-extension\README.md";             Pattern = '(?<m>\d+) MCP tools across (?<t>\d+) feature areas, with (?<o>\d+) operations' }
+    @{ File = "vscode-extension\README.md";             Pattern = 'all (?<m>\d+) MCP tools and (?<o>\d+) operations' }
+    @{ File = "mcpb\README.md";                         Pattern = '(?<m>\d+) MCP tools across (?<t>\d+) feature areas, with (?<o>\d+) operations' }
+    @{ File = "mcpb\manifest.json";                     Pattern = '(?<m>\d+) MCP tools across (?<t>\d+) feature areas, with (?<o>\d+) operations' }
+    @{ File = "mcpb\BUILD.md";                           Pattern = 'generates its (?<m>\d+) tool schemas' }
     @{ File = "src\ExcelMcp.CLI\ExcelMcp.CLI.csproj";   Pattern = '(?<o>\d+) operations across' }
-    @{ File = "gh-pages\docs\index.md";                 Pattern = '(?<t>\d+) tools and (?<o>\d+) operations' }
-    @{ File = ".github\plugins\excel-mcp\README.md";    Pattern = '(?<t>\d+) specialized tools with (?<o>\d+) operations' }
+    @{ File = "gh-pages\docs\index.md";                 Pattern = '(?<m>\d+) MCP tools and (?<o>\d+) operations' }
+    @{ File = ".github\plugins\excel-mcp\README.md";    Pattern = '(?<m>\d+) MCP tools across (?<t>\d+) feature areas, with (?<o>\d+) operations' }
     @{ File = ".github\plugins\excel-cli\README.md";    Pattern = 'command categories with (?<o>\d+) operations' }
-    @{ File = ".github\plugins\excel-cli\README.md";    Pattern = '\| (?<t>\d+) tool schemas loaded into context \|' }
+    @{ File = ".github\plugins\excel-cli\README.md";    Pattern = '\| (?<m>\d+) tool schemas loaded into context \|' }
     @{ File = "gh-pages\docs\faq.md";                   Pattern = 'same (?<o>\d+) operations' }
     @{ File = "docs\INSTALLATION-CLI.md";               Pattern = 'all (?<t>\d+) feature command categories' }
     @{ File = "docs\guides\EXCEL-COM-VS-FILE-PARSERS.md"; Pattern = '(?<o>\d+)\s+operations across (?<t>\d+) tools' }
-    @{ File = "docs\COPILOT-PLUGIN-DISTRIBUTION.md";    Pattern = 'with (?<t>\d+) tools \((?<o>\d+) operations\)' }
+    @{ File = "docs\COPILOT-PLUGIN-DISTRIBUTION.md";    Pattern = 'with (?<m>\d+) tools across (?<t>\d+) feature areas \((?<o>\d+) operations\)' }
 )
 $generatedSkill = Join-Path $SkillsDirectory 'excel-mcp-report-formatting\SKILL.md'
 if (-not (Test-Path -LiteralPath $generatedSkill)) {
@@ -259,6 +265,15 @@ foreach ($check in $checks) {
                 Value = [string]$canonicalOps
                 Kind = "operation"
                 Previous = $m.Groups['o'].Value
+            })
+        }
+        if ($m.Groups['m'].Success -and [int]$m.Groups['m'].Value -ne $mcpToolEndpointCount) {
+            $replacements.Add([pscustomobject]@{
+                Index = $m.Groups['m'].Index
+                Length = $m.Groups['m'].Length
+                Value = [string]$mcpToolEndpointCount
+                Kind = "MCP endpoint"
+                Previous = $m.Groups['m'].Value
             })
         }
 

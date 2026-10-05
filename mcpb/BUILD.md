@@ -85,7 +85,7 @@ The build stamps the package version into a staged copy of the manifest. Do not
 add a release download URL or an `install.win32` block. npx obtains the server
 from npm at launch, subject to normal npm configuration and caching.
 
-The MCP Server generates its 31 tool schemas from the Core contracts and manual
+The MCP Server generates its 61 tool schemas from the Core contracts and manual
 MCP tool definitions. Destructive metadata is set per tool: most tools can
 modify workbooks, while tools such as `screenshot` and `window` do not modify
 workbook content.

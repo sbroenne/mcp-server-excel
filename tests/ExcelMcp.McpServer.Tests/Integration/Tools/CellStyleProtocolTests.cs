@@ -18,7 +18,8 @@ public sealed class CellStyleProtocolTests(RecordingProgramTransportFixture fixt
     [InlineData("delete-cell-style")]
     public async Task Selection_PreservesExactStyleName(string action)
     {
-        var call = await fixture.CallToolAsync("workbook", new Dictionary<string, object?>
+        var toolName = action == "get-cell-style" ? "workbook_read" : "workbook";
+        var call = await fixture.CallToolAsync(toolName, new Dictionary<string, object?>
         {
             ["action"] = action,
             ["session_id"] = "session-1",
@@ -60,10 +61,12 @@ public sealed class CellStyleProtocolTests(RecordingProgramTransportFixture fixt
     [Fact]
     public async Task Discovery_ExplainsEffectsOnExistingUsersAndBuiltInRestrictions()
     {
-        var tool = Assert.Single(await fixture.ListToolsAsync(), item => item.Name == "workbook");
-        Assert.Contains("list-cell-styles", tool.Description, StringComparison.Ordinal);
-        Assert.Contains("existing users", tool.Description, StringComparison.Ordinal);
-        Assert.Contains("Built-in styles are read-only", tool.Description, StringComparison.Ordinal);
-        Assert.True(tool.JsonSchema.GetProperty("properties").TryGetProperty("style_options", out _));
+        var tools = await fixture.ListToolsAsync();
+        var writeTool = Assert.Single(tools, item => item.Name == "workbook");
+        Assert.Contains("existing users", writeTool.Description, StringComparison.Ordinal);
+        Assert.Contains("Built-in styles are read-only", writeTool.Description, StringComparison.Ordinal);
+        Assert.True(writeTool.JsonSchema.GetProperty("properties").TryGetProperty("style_options", out _));
+        var readTool = Assert.Single(tools, item => item.Name == "workbook_read");
+        Assert.Contains("list-cell-styles", readTool.Description, StringComparison.Ordinal);
     }
 }

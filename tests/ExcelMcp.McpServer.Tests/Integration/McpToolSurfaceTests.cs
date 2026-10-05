@@ -11,13 +11,12 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration;
 /// THE BUG THIS PREVENTS
 /// ---------------------
 /// The banner used to carry the hard-coded literal "Provides 22 tools with 195+ operations".
-/// The real surface had grown to 31 tools / 326 operations, so the binary told users something
-/// that contradicted every README, SKILL.md and the live <c>tools/list</c> response.
+/// The real surface had grown to 31 command categories / 326 operations, so the binary told users
+/// something that contradicted every README, SKILL.md and the live <c>tools/list</c> response.
 ///
-/// <see cref="McpToolSurface"/> now derives BOTH numbers by reflecting over the actual
-/// <c>[McpServerToolType]</c>/<c>[McpServerTool]</c> registration, so the banner cannot drift
-/// from the registration again. These tests lock in that derivation and cross-check it against
-/// the ground truth enforced everywhere else (scripts/check-doc-counts.ps1).
+/// <see cref="McpToolSurface"/> derives the banner numbers from the actual
+/// <c>[McpServerToolType]</c>/<c>[McpServerTool]</c> registration. Read-only action groups add
+/// MCP endpoints without changing the CLI command-category count.
 /// </summary>
 /// <inheritdoc/>
 [Trait("Category", "Integration")]
@@ -39,16 +38,21 @@ public class McpToolSurfaceTests(ITestOutputHelper output)
             .Where(pair => pair.Key != "diag")
             .ToDictionary(pair => pair.Key, pair => pair.Value.Count, StringComparer.Ordinal);
         expected.Add("file", Enum.GetValues<FileAction>().Length);
-        Assert.Equal(expected.Count, McpToolSurface.ToolCount);
+        Assert.Equal(expected.Count + 30, McpToolSurface.ToolCount);
         Assert.Equal(expected.Values.Sum(), McpToolSurface.OperationCount);
-        foreach (var tool in McpToolSurface.Tools)
+        var groupedTools = McpToolSurface.Tools
+            .GroupBy(tool => tool.Name.EndsWith("_read", StringComparison.Ordinal)
+                ? tool.Name[..^"_read".Length]
+                : tool.Name)
+            .ToDictionary(group => group.Key, group => group.Sum(tool => tool.OperationCount), StringComparer.Ordinal);
+        foreach (var (name, operationCount) in groupedTools)
         {
-            var command = tool.Name switch
+            var command = name switch
             {
                 "worksheet" => "sheet",
-                _ => tool.Name.Replace("_", "", StringComparison.Ordinal)
+                _ => name.Replace("_", "", StringComparison.Ordinal)
             };
-            Assert.Equal(expected[command], tool.OperationCount);
+            Assert.Equal(expected[command], operationCount);
         }
     }
 

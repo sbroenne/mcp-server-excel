@@ -44,7 +44,7 @@ public sealed class WorkbookToolIntegrationTests(
         }
 
         var getCall = await _fixture.CallToolAsync(
-            "workbook",
+            "workbook_read",
             new Dictionary<string, object?>
             {
                 ["action"] = "get-document-property",

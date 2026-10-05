@@ -33,7 +33,7 @@ public sealed class RangeSpillProtocolTests(RecordingProgramTransportFixture fix
             sheetName = "Sheet1",
             rangeAddress = "A1:A64"
         }, ServiceProtocol.JsonOptions);
-        var call = await fixture.CallToolAsync("range", new()
+        var call = await fixture.CallToolAsync("range_read", new()
         {
             ["action"] = "get-spill-info",
             ["session_id"] = "session-1",

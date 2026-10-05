@@ -20,6 +20,8 @@ public static class ServiceInfoExtractor
         bool noSession = false;
         string? mcpToolTitle = null;
         bool mcpToolDestructive = true;
+        bool mcpToolReadOnly = false;
+        var readOnlyActions = new HashSet<string>(StringComparer.Ordinal);
         string? mcpToolCategory = null;
         string? mcpToolDescription = null;
 
@@ -57,6 +59,10 @@ public static class ServiceInfoExtractor
                             if (namedArg.Value.Value is bool destructive)
                                 mcpToolDestructive = destructive;
                             break;
+                        case "ReadOnly":
+                            if (namedArg.Value.Value is bool readOnly)
+                                mcpToolReadOnly = readOnly;
+                            break;
                         case "Category":
                             mcpToolCategory = namedArg.Value.Value?.ToString();
                             break;
@@ -69,6 +75,15 @@ public static class ServiceInfoExtractor
             else if (attrName == "NoSessionAttribute")
             {
                 noSession = true;
+            }
+            else if (attrName == "McpReadOnlyActionsAttribute" &&
+                     attr.ConstructorArguments.Length > 0)
+            {
+                foreach (var action in attr.ConstructorArguments[0].Values)
+                {
+                    if (action.Value is string actionName)
+                        readOnlyActions.Add(actionName);
+                }
             }
         }
 
@@ -85,7 +100,10 @@ public static class ServiceInfoExtractor
             if (member is IMethodSymbol method && method.MethodKind == MethodKind.Ordinary)
             {
                 var actionName = GetActionName(method);
-                var methodMcpTool = GetMethodMcpTool(method) ?? mcpTool;
+                var actionIsReadOnly = readOnlyActions.Contains(actionName);
+                var methodMcpTool = GetMethodMcpTool(method)
+                    ?? (actionIsReadOnly && mcpTool is not null ? $"{mcpTool}_read" : mcpTool);
+                var methodMcpToolReadOnly = actionIsReadOnly || GetMethodMcpToolReadOnly(method, mcpToolReadOnly);
                 var xmlDoc = ExtractXmlDocumentation(method);
 
                 var hasBatchParameter = method.Parameters.Any(p => p.Type.Name == "IExcelBatch");
@@ -104,7 +122,8 @@ public static class ServiceInfoExtractor
                     parameters,
                     xmlDoc?.Summary,
                     hasBatchParameter,
-                    hasProgressParameter));
+                    hasProgressParameter,
+                    methodMcpToolReadOnly));
             }
         }
 
@@ -120,6 +139,7 @@ public static class ServiceInfoExtractor
             interfaceSummary,
             mcpToolTitle,
             mcpToolDestructive,
+            mcpToolReadOnly,
             mcpToolCategory,
             mcpToolDescription,
             hasMcpToolAttribute: mcpTool != null);
@@ -173,7 +193,25 @@ public static class ServiceInfoExtractor
                 return attr.ConstructorArguments[0].Value?.ToString();
             }
         }
+
         return null;
+    }
+
+    private static bool GetMethodMcpToolReadOnly(IMethodSymbol method, bool defaultValue)
+    {
+        foreach (var attr in method.GetAttributes())
+        {
+            if (attr.AttributeClass?.Name != "McpToolAttribute")
+                continue;
+
+            foreach (var namedArg in attr.NamedArguments)
+            {
+                if (namedArg.Key == "ReadOnly" && namedArg.Value.Value is bool readOnly)
+                    return readOnly;
+            }
+        }
+
+        return defaultValue;
     }
 
     private static ParameterInfo ExtractParameterInfo(IParameterSymbol param, XmlDocumentation? methodDoc)

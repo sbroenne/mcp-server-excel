@@ -103,13 +103,13 @@ public sealed class DataModelSlicerMcpTests(McpProgramTransportFixture fixture) 
 
         async Task AssertStateAsync(double total, params string[] selected)
         {
-            var listed = await CallAsync("slicer", new()
+            var listed = await CallAsync("slicer_read", new()
             {
                 ["action"] = "list-slicers",
                 ["pivot_table_name"] = "SmokePivot"
             });
             AssertItems(Assert.Single(listed.GetProperty("slicers").EnumerateArray()), selected);
-            var values = await CallAsync("range", new()
+            var values = await CallAsync("range_read", new()
             {
                 ["action"] = "get-values",
                 ["sheet_name"] = "SlicerSmoke",

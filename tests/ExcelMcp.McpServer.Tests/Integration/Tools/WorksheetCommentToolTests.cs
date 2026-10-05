@@ -84,7 +84,7 @@ public sealed class WorksheetCommentToolTests(
         }
 
         return _fixture.CallToolAsync(
-            "worksheet_style",
+            action == "get-comment" ? "worksheet_style_read" : "worksheet_style",
             arguments,
             RecordingToolTest.Success(result),
             expectedCommand,

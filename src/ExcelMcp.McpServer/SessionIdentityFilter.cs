@@ -15,7 +15,6 @@ internal static class SessionIdentityFilter
         ["file"] = new(StringComparer.OrdinalIgnoreCase) { "close" },
         ["worksheet"] = new(StringComparer.OrdinalIgnoreCase)
         {
-            ServiceRegistry.Sheet.ListAction,
             ServiceRegistry.Sheet.CreateAction,
             ServiceRegistry.Sheet.RenameAction,
             ServiceRegistry.Sheet.DeleteAction,
@@ -26,7 +25,7 @@ internal static class SessionIdentityFilter
 
     internal const string ErrorMessage =
         "A non-empty string session_id is required in the tools/call arguments object. " +
-        "Use the ID returned by file open/create or the matching entry from file list on this MCP server. " +
+        "Use the ID returned by file open/create or the matching entry from file_read list on this MCP server. " +
         "If you supplied it, check that the client or bridge forwards session_id unchanged.";
 
     internal static McpRequestHandler<CallToolRequestParams, CallToolResult> Wrap(

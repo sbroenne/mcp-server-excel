@@ -61,7 +61,7 @@ public sealed class McpServerPowerQueryRegressionTests(
             AssertSuccess(loadResult, "powerquery.load-to data-model");
 
             var listTablesResult = await _fixture.CallToolAsync(
-                "datamodel",
+                "datamodel_read",
                 new Dictionary<string, object?>
                 {
                     ["action"] = "list-tables",
@@ -70,7 +70,7 @@ public sealed class McpServerPowerQueryRegressionTests(
                 ToolTimeout);
             AssertSuccess(
                 listTablesResult,
-                "datamodel.list-tables after powerquery.load-to");
+                "datamodel_read.list-tables after powerquery.load-to");
             using (var tables = JsonDocument.Parse(listTablesResult))
             {
                 var table = Assert.Single(tables.RootElement.GetProperty("tables").EnumerateArray(),
@@ -100,7 +100,7 @@ public sealed class McpServerPowerQueryRegressionTests(
             }
 
             var listSessionsResult = await _fixture.CallToolAsync(
-                "file",
+                "file_read",
                 new Dictionary<string, object?> { ["action"] = "list" },
                 ToolTimeout);
             AssertSuccess(

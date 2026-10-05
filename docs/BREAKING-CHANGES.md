@@ -36,6 +36,8 @@ Released on August 21, 2026 in
 
 The CLI and MCP Server now use the same 5 file operations: `list`, `open`,
 `create`, `close`, and `test`.
+In MCP, use `file_read` for `list` and `test`, and `file` for `open`, `create`,
+and `close`.
 
 - The standalone CLI `save` command was removed. Save when closing a session
   with `excelcli session close --session <id> --save`.

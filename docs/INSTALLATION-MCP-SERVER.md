@@ -494,15 +494,16 @@ in the `arguments` object of `tools/call`, alongside `action`:
 }
 ```
 
-`file open/create`, `file list` entries, and session error context all use
+`file open/create`, `file_read list` entries, and session error context all use
 `session_id`. Pass the selected entry's value directly as `session_id`. Never
 guess an ID or pick another workbook just because only one is listed.
 The legacy `sessionId` input is rejected, even if `session_id` is also present.
 CLI JSON continues to use `sessionId`; CLI and MCP sessions are separate.
 
-Use this workflow: list and match the intended workbook; reuse its session or
-open/create; operate; list and check that session's `canClose`; close only when
-authorized with an explicit `save: true` or `save: false`. No-save close discards
+Use this workflow: call `file_read` with action `list` and match the intended
+workbook; reuse its session or open/create; operate; call `file_read` with action
+`list` and check that session's `canClose`; close only when authorized with an
+explicit `save: true` or `save: false`. No-save close discards
 all unsaved edits, including earlier work, and has no tool-level undo.
 
 Calls within one session execute serially, but concurrently submitted requests

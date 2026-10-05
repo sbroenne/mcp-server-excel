@@ -72,7 +72,7 @@ public sealed class PivotChartAdvancedToolTests(
         });
 
         var cacheJson = await CallAsync(
-            "pivottable",
+            "pivottable_read",
             new()
             {
                 ["action"] = "get-cache-options",
@@ -206,7 +206,7 @@ public sealed class PivotChartAdvancedToolTests(
         });
 
         var plotJson = await CallAsync(
-            "chart_config",
+            "chart_config_read",
             new()
             {
                 ["action"] = "get-plot-options",

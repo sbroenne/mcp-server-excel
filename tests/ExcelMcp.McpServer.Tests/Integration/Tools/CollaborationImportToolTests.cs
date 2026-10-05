@@ -41,7 +41,7 @@ public sealed class CollaborationImportToolTests(
             """{"sheetName":"Review","cellAddress":"B2","text":"Reviewed"}""");
 
         var listJson = await CallAsync(
-            "range_link",
+            "range_link_read",
             new()
             {
                 ["action"] = "list-threaded-comments",
@@ -119,7 +119,7 @@ public sealed class CollaborationImportToolTests(
             });
 
         var listJson = await CallAsync(
-            "querytable",
+            "querytable_read",
             new()
             {
                 ["action"] = "list",
@@ -149,7 +149,7 @@ public sealed class CollaborationImportToolTests(
         }
 
         var viewJson = await CallAsync(
-            "querytable",
+            "querytable_read",
             QueryTableIdentityArgs("view", "CsvImport"),
             "querytable.view",
             """{"sheetName":"Imports","queryTableName":"CsvImport"}""",
@@ -219,7 +219,7 @@ public sealed class CollaborationImportToolTests(
             """{"sheetName":"Imports","queryTableName":"CsvImport"}""");
 
         var statusJson = await CallAsync(
-            "querytable",
+            "querytable_read",
             QueryTableIdentityArgs("get-refresh-status", "CsvImport"),
             "querytable.get-refresh-status",
             """{"sheetName":"Imports","queryTableName":"CsvImport"}""",
@@ -276,7 +276,7 @@ public sealed class CollaborationImportToolTests(
         });
 
         var webViewJson = await CallAsync(
-            "querytable",
+            "querytable_read",
             QueryTableIdentityArgs("view", "HtmlImport"),
             "querytable.view",
             """{"sheetName":"Imports","queryTableName":"HtmlImport"}""",
@@ -332,7 +332,7 @@ public sealed class CollaborationImportToolTests(
         });
 
         var statusJson = await CallAsync(
-            "connection",
+            "connection_read",
             ConnectionArgs("get-refresh-status", connectionName),
             "connection.get-refresh-status",
             """{"connectionName":"ProductsConnection"}""",
@@ -363,7 +363,7 @@ public sealed class CollaborationImportToolTests(
         }
 
         var missing = await _fixture.CallToolAsync(
-            "connection",
+            "connection_read",
             ConnectionArgs("get-refresh-status", "MissingConnection"),
             Failure(
                 "connection.get-refresh-status",

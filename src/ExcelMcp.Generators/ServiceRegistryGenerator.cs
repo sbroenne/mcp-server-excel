@@ -1320,6 +1320,14 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         foreach (var category in categories.OrderBy(c => c.McpToolName, StringComparer.Ordinal))
         {
             sb.AppendLine($"            case \"{category.McpToolName}\":");
+            foreach (var toolName in category.Methods
+                         .Select(method => method.McpTool)
+                         .Where(toolName => toolName != category.McpToolName)
+                         .Distinct(StringComparer.Ordinal)
+                         .OrderBy(toolName => toolName, StringComparer.Ordinal))
+            {
+                sb.AppendLine($"            case \"{toolName}\":");
+            }
             sb.AppendLine($"                {category.CategoryPascal}.ValidateActionParameters(action, names.Select(name => name switch");
             sb.AppendLine("                {");
             foreach (var parameter in ServiceInfoExtractor.GetAllExposedParameters(category))

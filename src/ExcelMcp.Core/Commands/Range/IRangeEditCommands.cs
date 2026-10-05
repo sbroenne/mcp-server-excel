@@ -34,6 +34,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
         "fill copies the source edge's contents and formatting through an unmerged rectangle. auto-fill uses native Excel patterns; destination_range includes source_range and extends it in exactly one direction on the same worksheet. create-series uses native DataSeries with step_value and optional stop_value; orientation selects rows or columns. " +
         "Fill/series content destinations default to overwrite_policy='reject-nonempty', excluding source edges; formats-only AutoFill preserves content. Trend fitting can replace source values and requires allow. Stop-value preflight conservatively protects the entire selected extent. Never automatically retry with allow. Excel protection still applies. " +
         "Cell movement uses insertShift (Down/Right) or deleteShift (Up/Left). Rows use a range like 5:10; columns use B:D. Find returns up to max_matches cells (default: 10) with exact totalCount, returnedCount, truncated, and optional case/cell matching. Exact counting searches all matches; the limit bounds returned cell details, not search time. Replace modifies all matches by default (replace_options.replaceAll=true). Sort uses sortColumns, an array of {columnIndex, ascending}; indices are 1-based relative to the range.")]
+[McpReadOnlyActions("get-filters")]
 public interface IRangeEditCommands
 {
     /// <summary>Uses native criteria-range filtering in place or copies matches, optionally unique.</summary>

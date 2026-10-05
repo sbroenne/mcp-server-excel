@@ -7,8 +7,9 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
 /// <summary>
 /// Excel worksheet management tool for MCP server.
-/// Handles both session-based operations (list, create, rename, delete, move, copy)
+/// Handles session-based changes (create, rename, delete, move, copy)
 /// and atomic cross-file operations (copy-to-file, move-to-file).
+/// Use worksheet_read to list worksheets.
 /// </summary>
 [McpServerToolType]
 public static partial class ExcelWorksheetTool
@@ -22,8 +23,8 @@ public static partial class ExcelWorksheetTool
     /// POSITIONING: Use before_sheet or after_sheet (not both) to place a sheet relative to another.
     /// Use worksheet_style for tab colors, visibility, and protection.
     /// </summary>
-    /// <param name="action">The action to perform</param>
-    /// <param name="session_id">Session ID from file 'open' action (required for: list, create, rename, delete, move, copy. Not required for: copy-to-file, move-to-file)</param>
+    /// <param name="action">The worksheet change to perform</param>
+    /// <param name="session_id">Session ID from file 'open' or 'create' (required for same-workbook changes; not used for copy-to-file or move-to-file)</param>
     /// <param name="sheet_name">Name of the worksheet (required for: create, delete, move)</param>
     /// <param name="old_name">Current name of the worksheet (required for: rename)</param>
     /// <param name="source_name">Name of the source worksheet (required for: copy)</param>
@@ -40,12 +41,12 @@ public static partial class ExcelWorksheetTool
         UseStructuredContent = true, OutputSchemaType = typeof(WorksheetToolOutputSchema))]
     [McpMeta("category", "structure")]
     [McpMeta("requiresSession", false)]  // Session is optional - depends on the action
-    [Description("Worksheet lifecycle: create, rename, copy, delete, move. DELETE HAS NO TOOL-LEVEL UNDO: removes all sheet contents and may break dependent references; check the intended sheet and its dependencies. MOVE-TO-FILE HAS NO TOOL-LEVEL UNDO: removes the source sheet and saves both files. Closing another session without saving cannot reverse that transfer. Rename uses old_name and new_name. Cross-file copy-to-file and move-to-file open, save, and close automatically without a session. Position with before_sheet or after_sheet, not both. Use worksheet_style for tab colors, visibility, and protection.")]
+    [Description("Worksheet changes: create, rename, copy, delete, move. Use worksheet_read to list sheets. DELETE HAS NO TOOL-LEVEL UNDO: removes all sheet contents and may break dependent references; check the intended sheet and its dependencies. MOVE-TO-FILE HAS NO TOOL-LEVEL UNDO: removes the source sheet and saves both files. Closing another session without saving cannot reverse that transfer. Rename uses old_name and new_name. Cross-file copy-to-file and move-to-file open, save, and close automatically without a session. Position with before_sheet or after_sheet, not both. Use worksheet_style for tab colors, visibility, and protection.")]
     public static Task<CallToolResult> ExcelWorksheet(
-        [Description("The action to perform")] SheetAction action,
+        [Description("The worksheet change to perform")] WorksheetWriteAction action,
         ServiceBridge.ServiceBridge bridge,
         [Description(
-            "Session ID from file 'open' or 'create'. Required for same-workbook actions: list, create, rename, delete, move, and copy. Not used by copy-to-file or move-to-file.")]
+            "Session ID from file 'open' or 'create'. Required for same-workbook changes: create, rename, delete, move, and copy. Not used by copy-to-file or move-to-file.")]
         string? session_id = null,
         [Description(
             "Worksheet name for create, delete, and move.")]
@@ -83,19 +84,30 @@ public static partial class ExcelWorksheetTool
         string? after_sheet = null,
         CancellationToken cancellationToken = default)
     {
+        var serviceAction = action switch
+        {
+            WorksheetWriteAction.Create => SheetAction.Create,
+            WorksheetWriteAction.Rename => SheetAction.Rename,
+            WorksheetWriteAction.Copy => SheetAction.Copy,
+            WorksheetWriteAction.Delete => SheetAction.Delete,
+            WorksheetWriteAction.Move => SheetAction.Move,
+            WorksheetWriteAction.CopyToFile => SheetAction.CopyToFile,
+            WorksheetWriteAction.MoveToFile => SheetAction.MoveToFile,
+            _ => throw new ArgumentOutOfRangeException(nameof(action))
+        };
         return ExcelToolsBase.ExecuteToolActionAsync(
             "worksheet",
-            ServiceRegistry.Sheet.ToActionString(action),
+            ServiceRegistry.Sheet.ToActionString(serviceAction),
             async () =>
             {
                 // Atomic operations don't require a session
-                if (action == SheetAction.CopyToFile || action == SheetAction.MoveToFile)
+                if (serviceAction == SheetAction.CopyToFile || serviceAction == SheetAction.MoveToFile)
                 {
-                    return await (action switch
+                    return await (serviceAction switch
                     {
                         SheetAction.CopyToFile =>
                             ServiceRegistry.Sheet.RouteAction(
-                                action,
+                                serviceAction,
                                 "",  // No session for atomic operation
                                 (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                                 sourceFile: source_file,
@@ -106,7 +118,7 @@ public static partial class ExcelWorksheetTool
                                 afterSheet: after_sheet),
                         SheetAction.MoveToFile =>
                             ServiceRegistry.Sheet.RouteAction(
-                                action,
+                                serviceAction,
                                 "",  // No session for atomic operation
                                 (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                                 sourceFile: source_file,
@@ -114,7 +126,7 @@ public static partial class ExcelWorksheetTool
                                 targetFile: target_file,
                                 beforeSheet: before_sheet,
                                 afterSheet: after_sheet),
-                        _ => throw new ArgumentException($"Unknown atomic action: {action}"),
+                        _ => throw new ArgumentException($"Unknown atomic action: {serviceAction}"),
                     });
                 }
 
@@ -130,7 +142,7 @@ public static partial class ExcelWorksheetTool
                     }, ExcelToolsBase.JsonOptions);
                 }
 
-                if (action == SheetAction.Rename)
+                if (serviceAction == SheetAction.Rename)
                 {
                     if (string.IsNullOrWhiteSpace(old_name))
                     {
@@ -144,51 +156,77 @@ public static partial class ExcelWorksheetTool
                 }
 
                 // Session-based operations
-                return await (action switch
+                return await (serviceAction switch
                 {
-                    SheetAction.List =>
-                        ServiceRegistry.Sheet.RouteAction(
-                            action,
-                            session_id,
-                            (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
-                            filePath: file_path),
                     SheetAction.Create =>
                         ServiceRegistry.Sheet.RouteAction(
-                            action,
+                            serviceAction,
                             session_id,
                             (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                             sheetName: sheet_name,
                             filePath: file_path),
                     SheetAction.Rename =>
                         ServiceRegistry.Sheet.RouteAction(
-                            action,
+                            serviceAction,
                             session_id,
                             (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                             oldName: old_name,
                             newName: new_name),
                     SheetAction.Delete =>
                         ServiceRegistry.Sheet.RouteAction(
-                            action,
+                            serviceAction,
                             session_id,
                             (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                             sheetName: sheet_name),
                     SheetAction.Copy =>
                         ServiceRegistry.Sheet.RouteAction(
-                            action,
+                            serviceAction,
                             session_id,
                             (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                             sourceName: source_name,
                             targetName: target_name),
                     SheetAction.Move =>
                         ServiceRegistry.Sheet.RouteAction(
-                            action,
+                            serviceAction,
                             session_id,
                             (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
                             sheetName: sheet_name,
                             beforeSheet: before_sheet,
                             afterSheet: after_sheet),
-                    _ => throw new ArgumentException($"Unknown action: {action} ({ServiceRegistry.Sheet.ToActionString(action)})", nameof(action))
+                    _ => throw new ArgumentException($"Unknown action: {serviceAction} ({ServiceRegistry.Sheet.ToActionString(serviceAction)})", nameof(action))
                 });
             }, cancellationToken);
     }
+
+    /// <summary>List worksheets in a workbook session.</summary>
+    /// <param name="action">List worksheets.</param>
+    /// <param name="session_id">Session ID returned by file open/create or file_read list.</param>
+    /// <param name="file_path">Optional workbook path when the session has multiple open workbooks.</param>
+    [McpServerTool(Name = "worksheet_read", Title = "Read-Only Worksheet Operations",
+        ReadOnly = true, Destructive = false, UseStructuredContent = true,
+        OutputSchemaType = typeof(WorksheetToolOutputSchema))]
+    [McpMeta("category", "structure")]
+    [McpMeta("requiresSession", true)]
+    [Description("List worksheets in a workbook session. Use worksheet for changes such as create, rename, copy, delete, or move.")]
+    public static Task<CallToolResult> ExcelWorksheetRead(
+        [Description("The read-only action to perform")] WorksheetReadAction action,
+        ServiceBridge.ServiceBridge bridge,
+        [Description("Session ID returned by file open/create or file_read list.")]
+        string session_id,
+        [Description("Optional workbook path when the session has multiple open workbooks.")]
+        string? file_path = null,
+        CancellationToken cancellationToken = default) =>
+        ExcelToolsBase.ExecuteToolActionAsync(
+            "worksheet_read",
+            "list",
+            () => ServiceRegistry.Sheet.RouteAction(
+                action switch
+                {
+                    WorksheetReadAction.List => SheetAction.List,
+                    _ => throw new ArgumentOutOfRangeException(nameof(action))
+                },
+                session_id,
+                (command, id, args) => ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken),
+                filePath: file_path),
+            cancellationToken);
 }

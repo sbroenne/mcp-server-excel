@@ -135,7 +135,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
                 });
                 AssertSuccess(updated, "Update comma measure");
             }
-            var read = await CallToolAsync("datamodel", new()
+            var read = await CallToolAsync("datamodel_read", new()
             {
                 ["action"] = "read",
                 ["session_id"] = session,
@@ -240,7 +240,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         Assert.NotNull(sessionId);
         _output.WriteLine($"  ✓ file: Create passed (session: {sessionId})");
 
-        var listSessionsResult = await CallToolAsync("file", new Dictionary<string, object?>
+        var listSessionsResult = await CallToolAsync("file_read", new Dictionary<string, object?>
         {
             ["action"] = "list"
         });
@@ -280,7 +280,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         // =====================================================================
         _output.WriteLine("\n✓ Step 3: Worksheet operations...");
 
-        var listSheetsResult = await CallToolAsync("worksheet", new Dictionary<string, object?>
+        var listSheetsResult = await CallToolAsync("worksheet_read", new Dictionary<string, object?>
         {
             ["action"] = "list",
             ["session_id"] = sessionId
@@ -375,7 +375,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             Assert.Equal("Conflict", rejectionJson.RootElement.GetProperty("errorCategory").GetString());
             Assert.Contains("$A$1", rejectionJson.RootElement.GetProperty("errorMessage").GetString());
         }
-        var unchangedHeader = await CallToolAsync("range", new Dictionary<string, object?>
+        var unchangedHeader = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
             ["session_id"] = sessionId,
@@ -395,7 +395,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         });
         AssertSuccess(intentionalUpdate, "Explicitly allowed header replacement");
 
-        var getValuesResult = await CallToolAsync("range", new Dictionary<string, object?>
+        var getValuesResult = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
             ["session_id"] = sessionId,
@@ -423,7 +423,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
     public async Task Smoke_NativeFormattingAndStyles_RoundTrip()
     {
         var sessionId = await CreateSmokeWorkbookAsync(withData: true);
-        var discoverCellsResult = await CallToolAsync("range", new Dictionary<string, object?>
+        var discoverCellsResult = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-special-cells",
             ["session_id"] = sessionId,
@@ -458,7 +458,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             }
         });
         AssertSuccess(fineFormatResult, "Apply native fine formatting");
-        var fineFormatRead = await CallToolAsync("range_format", new Dictionary<string, object?>
+        var fineFormatRead = await CallToolAsync("range_format_read", new Dictionary<string, object?>
         {
             ["action"] = "get-format",
             ["session_id"] = sessionId,
@@ -503,7 +503,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["style_options"] = new { includeFont = true, formatOptions = new { bold = true } }
         });
         AssertSuccess(styleUpdate, "Update native custom style");
-        var styleRead = await CallToolAsync("range_format", new Dictionary<string, object?>
+        var styleRead = await CallToolAsync("range_format_read", new Dictionary<string, object?>
         {
             ["action"] = "get-style",
             ["session_id"] = sessionId,
@@ -516,7 +516,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             Assert.Equal("WorkflowHighlight", styleJson.RootElement.GetProperty("styleName").GetString());
             Assert.False(styleJson.RootElement.GetProperty("isBuiltInStyle").GetBoolean());
         }
-        var styledCell = await CallSuccessfulToolAsync("range_format", new()
+        var styledCell = await CallSuccessfulToolAsync("range_format_read", new()
         {
             ["action"] = "get-format",
             ["session_id"] = sessionId,
@@ -533,7 +533,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["style_name"] = "WorkflowHighlight"
         });
         AssertSuccess(styleDelete, "Delete native custom style");
-        var cellStyles = await CallSuccessfulToolAsync("workbook", new()
+        var cellStyles = await CallSuccessfulToolAsync("workbook_read", new()
         {
             ["action"] = "list-cell-styles",
             ["session_id"] = sessionId
@@ -564,7 +564,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             Assert.Equal("#123456", header.GetProperty("fill").GetProperty("color").GetProperty("rgb").GetString());
             Assert.False(header.GetProperty("font").GetProperty("bold").GetBoolean());
         }
-        var tableStyleRead = await CallSuccessfulToolAsync("workbook", new Dictionary<string, object?>
+        var tableStyleRead = await CallSuccessfulToolAsync("workbook_read", new Dictionary<string, object?>
         {
             ["action"] = "get-table-style",
             ["session_id"] = sessionId,
@@ -580,7 +580,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             Assert.Equal("#123456", header.GetProperty("fill").GetProperty("color").GetProperty("rgb").GetString());
             Assert.False(header.GetProperty("font").GetProperty("bold").GetBoolean());
         }
-        var tableStyles = await CallSuccessfulToolAsync("workbook", new Dictionary<string, object?>
+        var tableStyles = await CallSuccessfulToolAsync("workbook_read", new Dictionary<string, object?>
         {
             ["action"] = "list-table-styles",
             ["session_id"] = sessionId
@@ -594,7 +594,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["session_id"] = sessionId,
             ["style_name"] = "WorkflowTableStyle"
         }), "Delete native custom table style");
-        var afterDeletion = await CallSuccessfulToolAsync("workbook", new()
+        var afterDeletion = await CallSuccessfulToolAsync("workbook_read", new()
         {
             ["action"] = "list-table-styles",
             ["session_id"] = sessionId
@@ -602,7 +602,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         using (var catalogue = JsonDocument.Parse(afterDeletion))
             Assert.DoesNotContain(catalogue.RootElement.GetProperty("styles").EnumerateArray(),
                 style => style.GetProperty("name").GetString() == "WorkflowTableStyle");
-        var formatReadResult = await CallToolAsync("range_format", new Dictionary<string, object?>
+        var formatReadResult = await CallToolAsync("range_format_read", new Dictionary<string, object?>
         {
             ["action"] = "get-format",
             ["session_id"] = sessionId,
@@ -666,7 +666,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             Assert.Equal("$I$1:$K$3", pasteJson.RootElement.GetProperty("destinationAddress").GetString());
             Assert.Equal("formats", pasteJson.RootElement.GetProperty("pasteKind").GetString());
         }
-        var pasteContentResult = await CallToolAsync("range", new Dictionary<string, object?>
+        var pasteContentResult = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
             ["session_id"] = sessionId,
@@ -678,7 +678,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         {
             Assert.Equal(123d, pasteContentJson.RootElement.GetProperty("values")[0][0].GetDouble());
         }
-        var spillReadResult = await CallToolAsync("range", new Dictionary<string, object?>
+        var spillReadResult = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-spill-info",
             ["session_id"] = sessionId,
@@ -716,7 +716,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["fill_type"] = "series"
         });
         AssertSuccess(patternFill, "Extend native pattern");
-        var patternRead = await CallToolAsync("range", new Dictionary<string, object?>
+        var patternRead = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
             ["session_id"] = sessionId,
@@ -747,7 +747,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["direction"] = "down"
         });
         AssertSuccess(directionalFill, "Fill relative formulas down");
-        var formulaRead = await CallToolAsync("range", new Dictionary<string, object?>
+        var formulaRead = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-formulas",
             ["session_id"] = sessionId,
@@ -804,7 +804,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["formula_hidden"] = true
         });
         AssertSuccess(protectionFlags, "Set exact cell protection flags");
-        var protectionRead = await CallToolAsync("range_link", new Dictionary<string, object?>
+        var protectionRead = await CallToolAsync("range_link_read", new Dictionary<string, object?>
         {
             ["action"] = "get-cell-protection",
             ["session_id"] = sessionId,
@@ -832,7 +832,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
                 ["options"] = new { allowFormattingRows = true }
             });
             AssertSuccess(protectSheet, "Protect sheet with row formatting permission");
-            var readSheetProtection = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
+            var readSheetProtection = await CallToolAsync("worksheet_style_read", new Dictionary<string, object?>
             {
                 ["action"] = "get-protection",
                 ["session_id"] = sessionId,
@@ -931,7 +931,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         using (var ordered = JsonDocument.Parse(orderedDrawing))
             Assert.Equal(1, ordered.RootElement.GetProperty("drawingObjects")[0].GetProperty("zOrderPosition").GetInt32());
 
-        var nativeTheme = await CallToolAsync("workbook", new Dictionary<string, object?>
+        var nativeTheme = await CallToolAsync("workbook_read", new Dictionary<string, object?>
         {
             ["action"] = "get-theme",
             ["session_id"] = sessionId
@@ -943,7 +943,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             Assert.Equal(3, themeJson.RootElement.GetProperty("majorFonts").GetArrayLength());
             Assert.Equal(3, themeJson.RootElement.GetProperty("minorFonts").GetArrayLength());
         }
-        var calculationSettings = await CallToolAsync("calculation_mode", new Dictionary<string, object?>
+        var calculationSettings = await CallToolAsync("calculation_mode_read", new Dictionary<string, object?>
         {
             ["action"] = "get-settings",
             ["session_id"] = sessionId
@@ -991,7 +991,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         });
         AssertSuccess(retainPrecision, "Keep stored numeric precision");
 
-        var ownedContext = await CallToolAsync("window", new Dictionary<string, object?>
+        var ownedContext = await CallToolAsync("window_read", new Dictionary<string, object?>
         {
             ["action"] = "get-context",
             ["session_id"] = sessionId
@@ -1012,7 +1012,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["hidden"] = true
         });
         AssertSuccess(hideRows, "Hide exact rows");
-        var inspectRows = await CallToolAsync("range_format", new Dictionary<string, object?>
+        var inspectRows = await CallToolAsync("range_format_read", new Dictionary<string, object?>
         {
             ["action"] = "get-visibility",
             ["session_id"] = sessionId,
@@ -1060,7 +1060,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["step_value"] = 5d
         });
         AssertSuccess(seriesCreate, "Create native DataSeries");
-        var seriesRead = await CallToolAsync("range", new Dictionary<string, object?>
+        var seriesRead = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
             ["session_id"] = sessionId,
@@ -1099,7 +1099,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["filter_options"] = new { filterOperator = "And", criteria1 = ">=20", criteria2 = "<=30" }
         });
         AssertSuccess(filtered, "Apply two native filter conditions");
-        var filterRead = await CallToolAsync("range_edit", new Dictionary<string, object?>
+        var filterRead = await CallToolAsync("range_edit_read", new Dictionary<string, object?>
         {
             ["action"] = "get-filters",
             ["session_id"] = sessionId,
@@ -1123,7 +1123,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["page_setup_options"] = new { printArea = "A1:B4", leftMargin = 36, centerHeader = "Report", zoomPercent = 100 }
         });
         AssertSuccess(reportLayout, "Set native report layout");
-        var reportRead = await CallToolAsync("worksheet_style", new Dictionary<string, object?>
+        var reportRead = await CallToolAsync("worksheet_style_read", new Dictionary<string, object?>
         {
             ["action"] = "get-page-setup",
             ["session_id"] = sessionId,
@@ -1184,7 +1184,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             Assert.Equal(3, parsedJson.RootElement.GetProperty("outputColumns").GetInt32());
             Assert.Equal("$AD$20:$AF$21", parsedJson.RootElement.GetProperty("destinationRange").GetString());
         }
-        var parsedRead = await CallToolAsync("range", new Dictionary<string, object?>
+        var parsedRead = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
             ["session_id"] = sessionId,
@@ -1236,7 +1236,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         });
         AssertSuccess(createTableResult, "Create table");
 
-        var listTablesResult = await CallToolAsync("table", new Dictionary<string, object?>
+        var listTablesResult = await CallToolAsync("table_read", new Dictionary<string, object?>
         {
             ["action"] = "list",
             ["session_id"] = sessionId
@@ -1258,7 +1258,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         });
         AssertSuccess(createParamResult, "Create named range");
 
-        var readParamResult = await CallToolAsync("namedrange", new Dictionary<string, object?>
+        var readParamResult = await CallToolAsync("namedrange_read", new Dictionary<string, object?>
         {
             ["action"] = "read",
             ["session_id"] = sessionId,
@@ -1309,7 +1309,7 @@ in
         });
         AssertSuccess(createQueryResult, "Create Power Query");
 
-        var listQueriesResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
+        var listQueriesResult = await CallToolAsync("powerquery_read", new Dictionary<string, object?>
         {
             ["action"] = "list",
             ["session_id"] = sessionId
@@ -1333,7 +1333,7 @@ in
         AssertSuccess(renameQueryResult, "Rename Power Query");
 
         // Verify rename by listing again
-        var listAfterRenameResult = await CallToolAsync("powerquery", new Dictionary<string, object?>
+        var listAfterRenameResult = await CallToolAsync("powerquery_read", new Dictionary<string, object?>
         {
             ["action"] = "list",
             ["session_id"] = sessionId
@@ -1345,7 +1345,7 @@ in
             Assert.Equal("ProductData", query.GetProperty("name").GetString());
             Assert.True(query.GetProperty("isConnectionOnly").GetBoolean());
         }
-        var renamedCode = await CallSuccessfulToolAsync("powerquery", new()
+        var renamedCode = await CallSuccessfulToolAsync("powerquery_read", new()
         {
             ["action"] = "view",
             ["session_id"] = sessionId,
@@ -1361,7 +1361,7 @@ in
         // =====================================================================
         _output.WriteLine("\n✓ Step 8: Connection operations...");
 
-        var listConnectionsResult = await CallToolAsync("connection", new Dictionary<string, object?>
+        var listConnectionsResult = await CallToolAsync("connection_read", new Dictionary<string, object?>
         {
             ["action"] = "list",
             ["session_id"] = sessionId
@@ -1419,7 +1419,7 @@ in
             ["calculation"] = "PercentOfTotal"
         });
         AssertSuccess(showValues, "Set native percentage of grand total");
-        var pivotValues = await CallToolAsync("pivottable_calc", new Dictionary<string, object?>
+        var pivotValues = await CallToolAsync("pivottable_calc_read", new Dictionary<string, object?>
         {
             ["action"] = "get-data",
             ["session_id"] = sessionId,
@@ -1432,7 +1432,7 @@ in
             Assert.Equal(1d / 3d, rows[1][1].GetDouble(), precision: 8);
             Assert.Equal(2d / 3d, rows[2][1].GetDouble(), precision: 8);
         }
-        var calculationFields = await CallToolAsync("pivottable_field", new Dictionary<string, object?>
+        var calculationFields = await CallToolAsync("pivottable_field_read", new Dictionary<string, object?>
         {
             ["action"] = "list-fields",
             ["session_id"] = sessionId,
@@ -1496,7 +1496,7 @@ in
             ["slicer_options"] = new { width = 240, columnCount = 2, caption = "Names", displayHeader = false }
         });
         AssertSuccess(controlUpdate, "Update native control layout");
-        var controlRead = await CallToolAsync("slicer", new Dictionary<string, object?>
+        var controlRead = await CallToolAsync("slicer_read", new Dictionary<string, object?>
         {
             ["action"] = "get-slicer",
             ["session_id"] = sessionId,
@@ -1518,7 +1518,7 @@ in
             Assert.Equal("Sum", value.GetProperty("function").GetString());
         }
 
-        var listPivotsResult = await CallToolAsync("pivottable", new Dictionary<string, object?>
+        var listPivotsResult = await CallToolAsync("pivottable_read", new Dictionary<string, object?>
         {
             ["action"] = "list",
             ["session_id"] = sessionId
@@ -1553,7 +1553,7 @@ in
             ["chart_name"] = "DataChart"
         });
         AssertSuccess(createChartResult, "Create Chart");
-        var createdChartRead = await CallSuccessfulToolAsync("chart", new()
+        var createdChartRead = await CallSuccessfulToolAsync("chart_read", new()
         {
             ["action"] = "read",
             ["session_id"] = sessionId,
@@ -1608,7 +1608,7 @@ in
         AssertSuccess(exportedChart, "Export native chart image");
         Assert.True(new FileInfo(chartImage).Length > 1000);
 
-        var listChartsResult = await CallToolAsync("chart", new Dictionary<string, object?>
+        var listChartsResult = await CallToolAsync("chart_read", new Dictionary<string, object?>
         {
             ["action"] = "list",
             ["session_id"] = sessionId
@@ -1623,7 +1623,7 @@ in
             Assert.Equal(400d, chart.GetProperty("width").GetDouble(), 2);
             Assert.Equal(300d, chart.GetProperty("height").GetDouble(), 2);
         }
-        var changedChart = await CallSuccessfulToolAsync("chart", new()
+        var changedChart = await CallSuccessfulToolAsync("chart_read", new()
         {
             ["action"] = "read",
             ["session_id"] = sessionId,
@@ -1649,7 +1649,7 @@ in
         // =====================================================================
         _output.WriteLine("\n✓ Step 11: Data Model operations...");
 
-        var listDataModelResult = await CallToolAsync("datamodel", new Dictionary<string, object?>
+        var listDataModelResult = await CallToolAsync("datamodel_read", new Dictionary<string, object?>
         {
             ["action"] = "list-tables",
             ["session_id"] = sessionId
@@ -1671,7 +1671,7 @@ in
         AssertSuccess(loadToDmResult, "Load Power Query to Data Model");
 
         // Verify table exists
-        var listAfterLoadResult = await CallToolAsync("datamodel", new Dictionary<string, object?>
+        var listAfterLoadResult = await CallToolAsync("datamodel_read", new Dictionary<string, object?>
         {
             ["action"] = "list-tables",
             ["session_id"] = sessionId
@@ -1685,7 +1685,7 @@ in
         }
         var beforeRename = await ReadProductModelStateAsync(sessionId);
 
-        var readModelConnectionResult = await CallToolAsync("datamodel", new Dictionary<string, object?>
+        var readModelConnectionResult = await CallToolAsync("datamodel_read", new Dictionary<string, object?>
         {
             ["action"] = "read-connection",
             ["session_id"] = sessionId
@@ -1760,7 +1760,7 @@ in
         });
         AssertSuccess(addTypedRuleResult, "Add typed conditional format rule");
 
-        var listTypedRuleResult = await CallToolAsync("conditionalformat", new Dictionary<string, object?>
+        var listTypedRuleResult = await CallToolAsync("conditionalformat_read", new Dictionary<string, object?>
         {
             ["action"] = "list-rules",
             ["session_id"] = sessionId,
@@ -1834,7 +1834,7 @@ in
         // =====================================================================
         _output.WriteLine("\n✓ Step 13: VBA operations...");
 
-        var listVbaResult = await CallToolAsync("vba", new Dictionary<string, object?>
+        var listVbaResult = await CallToolAsync("vba_read", new Dictionary<string, object?>
         {
             ["action"] = "list",
             ["session_id"] = sessionId
@@ -1885,7 +1885,7 @@ in
 
         await VerifyAndCloseAsync(verifySessionId, async () =>
         {
-            var finalSheetsResult = await CallToolAsync("worksheet", new Dictionary<string, object?>
+            var finalSheetsResult = await CallToolAsync("worksheet_read", new Dictionary<string, object?>
             {
                 ["action"] = "list",
                 ["session_id"] = verifySessionId
@@ -1897,7 +1897,7 @@ in
                 Assert.Contains(sheetsJson.RootElement.GetProperty("worksheets").EnumerateArray(),
                     sheet => sheet.GetProperty("name").GetString() == "Data");
             }
-            var values = await CallSuccessfulToolAsync("range", new()
+            var values = await CallSuccessfulToolAsync("range_read", new()
             {
                 ["action"] = "get-values",
                 ["session_id"] = verifySessionId,
@@ -2070,7 +2070,7 @@ in
         AssertSuccess(openedTarget, "Open copied worksheet destination");
         var copiedSession = GetJsonProperty(openedTarget, "session_id");
         Assert.NotNull(copiedSession);
-        var copiedValues = await CallToolAsync("range", new Dictionary<string, object?>
+        var copiedValues = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
             ["session_id"] = copiedSession,
@@ -2126,7 +2126,7 @@ End Sub
         });
         AssertSuccess(runResult, "Run VBA procedure");
 
-        var getValuesResult = await CallToolAsync("range", new Dictionary<string, object?>
+        var getValuesResult = await CallToolAsync("range_read", new Dictionary<string, object?>
         {
             ["action"] = "get-values",
             ["session_id"] = sessionId,
@@ -2155,7 +2155,7 @@ End Sub
 
         await VerifyAndCloseAsync(reopenedSessionId, async () =>
         {
-            var persistedValueResult = await CallSuccessfulToolAsync("range", new Dictionary<string, object?>
+            var persistedValueResult = await CallSuccessfulToolAsync("range_read", new Dictionary<string, object?>
             {
                 ["action"] = "get-values",
                 ["session_id"] = reopenedSessionId,
@@ -2194,23 +2194,23 @@ End Sub
 
     private async Task<(string Code, string Queries, string Tables, string Connections)> ReadProductModelStateAsync(string sessionId)
     {
-        var code = await CallSuccessfulToolAsync("powerquery", new()
+        var code = await CallSuccessfulToolAsync("powerquery_read", new()
         {
             ["action"] = "view",
             ["session_id"] = sessionId,
             ["query_name"] = "ProductData"
         });
-        var queries = await CallSuccessfulToolAsync("powerquery", new()
+        var queries = await CallSuccessfulToolAsync("powerquery_read", new()
         {
             ["action"] = "list",
             ["session_id"] = sessionId
         });
-        var tables = await CallSuccessfulToolAsync("datamodel", new()
+        var tables = await CallSuccessfulToolAsync("datamodel_read", new()
         {
             ["action"] = "list-tables",
             ["session_id"] = sessionId
         });
-        var connections = await CallSuccessfulToolAsync("connection", new()
+        var connections = await CallSuccessfulToolAsync("connection_read", new()
         {
             ["action"] = "list",
             ["session_id"] = sessionId

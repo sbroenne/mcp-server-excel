@@ -54,6 +54,7 @@ public class WindowInfoResult : OperationResult
 [ServiceCategory("window", "Window")]
 [McpTool("window", Title = "Window Management", Destructive = false, Category = "settings",
     Description = "Control Excel window visibility, position, state, status bar, and worksheet-specific views. get-context: Read every owned workbook window's active sheet, actual selection, active cell and chart without activation or selection; hidden sessions stay hidden, unsupported/unavailable selections are explicit, never borrowed from another workbook. VIEW: get-view, freeze-panes, unfreeze-panes, set-split, set-zoom, and set-display-options for gridlines, headings, outline symbols, and formulas. freeze-panes uses row/column counts above and left of the pane boundary. set-split creates movable panes and disables frozen panes. Zoom range: 10-400. VISIBILITY: show makes Excel visible and brings it to front; hide hides it. WINDOW STATE: normal, minimized, maximized. ARRANGE presets: left-half, right-half, top-half, bottom-half, center, full-screen.")]
+[McpReadOnlyActions("get-context", "get-info", "get-view")]
 public interface IWindowCommands
 {
     /// <summary>

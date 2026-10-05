@@ -38,9 +38,9 @@ internal static class ToolArgumentFilter
                     ValidateValueKind(name, value, schema);
                 }
 
-                if (tool.ProtocolTool.Name == "file")
+                if (tool.ProtocolTool.Name is "file" or "file_read")
                 {
-                    ExcelFileTool.ValidateActionParameters(canonicalAction, arguments.Keys);
+                    ExcelFileTool.ValidateActionParameters(tool.ProtocolTool.Name, canonicalAction, arguments.Keys);
                 }
                 else
                 {
@@ -48,7 +48,9 @@ internal static class ToolArgumentFilter
                     try
                     {
                         ServiceRegistry.ValidateMcpActionParameters(
-                            tool.ProtocolTool.Name == "worksheet" ? ServiceRegistry.Sheet.McpToolName : tool.ProtocolTool.Name,
+                            tool.ProtocolTool.Name is "worksheet" or "worksheet_read"
+                                ? ServiceRegistry.Sheet.McpToolName
+                                : tool.ProtocolTool.Name,
                             canonicalAction, names);
                     }
                     catch (ArgumentException ex)

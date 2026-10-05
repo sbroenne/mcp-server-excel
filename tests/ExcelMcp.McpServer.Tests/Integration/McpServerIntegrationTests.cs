@@ -52,36 +52,66 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     private static readonly HashSet<string> ExpectedToolNames =
     [
         "analysis",
+        "analysis_read",
         "calculation_mode",
+        "calculation_mode_read",
         "chart",
+        "chart_read",
         "chart_config",
+        "chart_config_read",
         "conditionalformat",
+        "conditionalformat_read",
         "connection",
+        "connection_read",
         "datamodel",
+        "datamodel_read",
         "datamodel_relationship",
+        "datamodel_relationship_read",
         "drawing",
+        "drawing_read",
         "file",
+        "file_read",
         "namedrange",
+        "namedrange_read",
         "pivottable",
+        "pivottable_read",
         "pivottable_calc",
+        "pivottable_calc_read",
         "pivottable_field",
+        "pivottable_field_read",
         "powerquery",
+        "powerquery_read",
         "pythoninexcel",
+        "pythoninexcel_read",
         "querytable",
+        "querytable_read",
         "range",
+        "range_read",
         "range_edit",
+        "range_edit_read",
         "range_format",
+        "range_format_read",
         "range_link",
+        "range_link_read",
         "screenshot",
         "slicer",
+        "slicer_read",
         "table",
+        "table_read",
         "table_column",
+        "table_column_read",
         "vba",
+        "vba_read",
         "window",
+        "window_read",
         "workbook",
+        "workbook_read",
         "worksheet",
+        "worksheet_read",
         "worksheet_style",
-        "xmlmap"
+        "worksheet_style_read",
+        "xmlmap",
+        "xmlmap_read"
     ];
 
     /// <summary>
@@ -198,7 +228,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
     }
 
     /// <summary>
-    /// Tests that file tool's Test action works via MCP protocol.
+    /// Tests that file_read's Test action works via MCP protocol.
     /// This exercises the complete tool invocation path.
     /// </summary>
     [Fact]
@@ -216,7 +246,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
 
         // Act - Call tool via MCP protocol
         var result = await _client!.CallToolAsync(
-            "file",
+            "file_read",
             arguments,
             cancellationToken: _cts.Token);
 
@@ -235,7 +265,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         // The test action should return success (property name is "success" in success responses)
         Assert.Contains("success", textBlock.Text.ToLowerInvariant());
 
-        output.WriteLine("\n✓ file Test action executed successfully via MCP protocol");
+        output.WriteLine("\n✓ file_read Test action executed successfully via MCP protocol");
     }
 
     /// <summary>

@@ -69,7 +69,7 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
             var closedId = await backend.Closed.Task.WaitAsync(TimeSpan.FromSeconds(30));
             Assert.NotEqual(firstId, closedId);
 
-            var sessions = await CallAsync(host.Client, "file", new() { ["action"] = "list" });
+            var sessions = await CallAsync(host.Client, "file_read", new() { ["action"] = "list" });
             Assert.Equal(firstId, Assert.Single(sessions.GetProperty("sessions").EnumerateArray())
                 .GetProperty("session_id").GetString());
             var values = await CallAsync(host.Client, "range", new()

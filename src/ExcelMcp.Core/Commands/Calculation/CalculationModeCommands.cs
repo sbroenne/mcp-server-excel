@@ -84,6 +84,7 @@ public sealed class CalculationSettingsResult : OperationResult
         "calculate requires scope application, sheet or range; sheet/range require sheet_name and range also requires range_address. " +
         "kind normal is the default; full and rebuild require application scope and affect ALL open workbooks in the owned Excel process. No activation/selection or mode changes. " +
         "set-precision affects only the session workbook. precision_as_displayed true requires allow_precision_loss true: stored numeric precision is permanently lost; disabling does not recover digits.")]
+[McpReadOnlyActions("get-settings")]
 public interface ICalculationModeCommands
 {
     /// <summary>Read actual calculation settings/state and workbook precision; no success-shaped fallback.</summary>

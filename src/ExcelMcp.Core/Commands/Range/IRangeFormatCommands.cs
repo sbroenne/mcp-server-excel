@@ -41,6 +41,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
         "MERGE: Only top-left cell value preserved. " +
         "TABLES: For Excel Table visual styling use table(action:'set-style') — do not apply range_format to table header or data rows, table style manages all table formatting. " +
         "PIVOTTABLES: Do not apply range_format to PivotTable cells — formatting is overwritten on the next refresh.")]
+[McpReadOnlyActions("get-visibility", "get-format", "get-style", "validate-range", "get-validation", "get-merge-info")]
 public interface IRangeFormatCommands
 {
     /// <summary>
