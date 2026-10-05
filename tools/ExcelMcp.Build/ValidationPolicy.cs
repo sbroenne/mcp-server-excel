@@ -255,9 +255,9 @@ public sealed partial class ValidationPolicy(string root)
         }
         else if (Matches(path, @"^scripts/(Test-E2E|Test-CliWorkflow|Test-CliApiCoverage|Stop-ExcelMcpProcesses)\.ps1$"))
         {
+            plan.FullE2E = true;
             AddClasses(plan, Catalog.ForOwner("CLI").Where(type => type.Name is "CliWorkflowAcceptanceTests" or "PreBuildGracefulSaveAcceptanceTests"), "Acceptance");
             AddClasses(plan, Catalog.ForOwner("McpServer").Where(type => type.Name == "McpServerSmokeTests"), "Acceptance");
-            plan.FullE2E = true;
             plan.Reasons.Add($"{path} -> affected acceptance/cleanup boundary");
         }
         else if (path.StartsWith("npm-packages/", StringComparison.Ordinal))
@@ -327,7 +327,8 @@ public sealed partial class ValidationPolicy(string root)
                 }
                 plan.ExcelGroups.Add(area);
             }
-            if (free.Length + system.Length + excel.Length > 0)
+            if (free.Length + system.Length + excel.Length > 0 ||
+                plan.FullE2E && group.Any(type => type.Excel && type.RequiredOnly))
             {
                 plan.BuildProjects.Add($"tests/ExcelMcp.{owner}.Tests/ExcelMcp.{owner}.Tests.csproj");
             }

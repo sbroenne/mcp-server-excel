@@ -14,6 +14,14 @@ public interface IProcessRunner
 
 public sealed class ProcessRunner(string root) : IProcessRunner
 {
+    private readonly Action<Process> _terminate = static process => process.Kill(entireProcessTree: true);
+
+    internal ProcessRunner(string root, Action<Process> terminate) : this(root)
+    {
+        ArgumentNullException.ThrowIfNull(terminate);
+        _terminate = terminate;
+    }
+
     public async Task<ProcessResult> RunAsync(
         string executable, IEnumerable<string> arguments, TimeSpan deadline,
         IReadOnlyDictionary<string, string>? environment = null, bool preserveGitContext = false)
@@ -50,9 +58,13 @@ public sealed class ProcessRunner(string root) : IProcessRunner
         {
             if (!process.HasExited)
             {
-                process.Kill(entireProcessTree: true);
-                await process.WaitForExitAsync();
+                try { _terminate(process); }
+                catch (InvalidOperationException) when (process.HasExited)
+                {
+                    // The child exited between the state check and termination request.
+                }
             }
+            await process.WaitForExitAsync();
             throw new TimeoutException($"{executable} exceeded its hard deadline.\n{await output}\n{await error}", exception);
         }
         return new ProcessResult(process.ExitCode, await output, await error);

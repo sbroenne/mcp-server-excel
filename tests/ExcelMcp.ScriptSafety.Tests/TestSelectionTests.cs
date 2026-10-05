@@ -114,6 +114,23 @@ public sealed class TestSelectionTests
             result.Output, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData("McpToolSurfaceTests")]
+    [InlineData("CalculationGuidanceContractTests")]
+    public void Contracts_IncludesExistingMcpContractSuites(string className)
+    {
+        var selected = FreeTestSelection.Select(TypedValidationPolicyTests.Root,
+            new FreeTestOptions { Local = true, Contracts = true });
+        Assert.Equal(["Core", "CLI", "McpServer"], selected.Select(item => item.Owner));
+        Assert.All(selected, item => Assert.Equal(
+            "RequiresExcel=false&RunType!=OnDemand&(Feature=GeneratedContracts)", item.Filter));
+        var catalogue = new TestCatalog(TypedValidationPolicyTests.Root);
+        var type = Assert.Single(catalogue.ForOwner("McpServer"), type => type.Name == className);
+        Assert.True(type.ExcelFree);
+        Assert.False(type.Excel);
+        Assert.Contains("GeneratedContracts", type.Features);
+    }
+
     private static async Task<(int ExitCode, string Output)> RunRunnerAsync(string arguments, bool fail, string? paths = null)
     {
         var root = TypedValidationPolicyTests.Root;

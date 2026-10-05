@@ -67,4 +67,55 @@ public sealed class TypedProcessRunnerTests
         }
         finally { File.Delete(file); }
     }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task HardDeadline_WhenTerminationThrows_OnlyAcceptsAConfirmedExit(bool exits)
+    {
+        Process? retained = null;
+        var expected = new InvalidOperationException("Synthetic termination failure.");
+        var runner = new ProcessRunner(TypedValidationPolicyTests.Root, process =>
+        {
+            retained = Process.GetProcessById(process.Id);
+            if (exits)
+            {
+                process.Kill(entireProcessTree: true);
+                Assert.True(process.WaitForExit(10_000), "The exact started process did not exit.");
+            }
+            throw expected;
+        });
+        try
+        {
+            var error = await Record.ExceptionAsync(() => runner.RunAsync("pwsh",
+                ["-NoProfile", "-Command", "[Console]::WriteLine('deadline-stdout'); [Console]::Error.WriteLine('deadline-stderr'); Start-Sleep -Seconds 60"],
+                TimeSpan.FromSeconds(5)));
+
+            Assert.NotNull(retained);
+            if (exits)
+            {
+                var timeout = Assert.IsType<TimeoutException>(error);
+                Assert.IsAssignableFrom<OperationCanceledException>(timeout.InnerException);
+                Assert.Contains("deadline-stdout", timeout.Message, StringComparison.Ordinal);
+                Assert.Contains("deadline-stderr", timeout.Message, StringComparison.Ordinal);
+                Assert.True(retained.HasExited);
+            }
+            else
+            {
+                Assert.Same(expected, error);
+                Assert.False(retained.HasExited);
+            }
+        }
+        finally
+        {
+            if (retained is not null)
+            {
+                using (retained)
+                {
+                    if (!retained.HasExited) { retained.Kill(entireProcessTree: true); }
+                    await retained.WaitForExitAsync();
+                }
+            }
+        }
+    }
 }

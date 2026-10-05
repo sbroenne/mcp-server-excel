@@ -189,6 +189,34 @@ public sealed class TypedValidationPolicyTests
         finally { Directory.Delete(directory, recursive: true); }
     }
 
+    [Theory]
+    [InlineData("scripts/Test-E2E.ps1")]
+    [InlineData("scripts/Test-CliWorkflow.ps1")]
+    [InlineData("scripts/Test-CliApiCoverage.ps1")]
+    [InlineData("scripts/Stop-ExcelMcpProcesses.ps1")]
+    public void AcceptanceChanges_LeaveRequiredOnlyCasesToTheAcceptanceRunner(string path)
+    {
+        var plan = Policy.Select([path]);
+        Assert.True(plan.FullE2E);
+        Assert.True(plan.Excel);
+        Assert.True(plan.Build);
+        Assert.Equal(
+            ["tests/ExcelMcp.CLI.Tests/ExcelMcp.CLI.Tests.csproj", "tests/ExcelMcp.McpServer.Tests/ExcelMcp.McpServer.Tests.csproj"],
+            plan.BuildProjects);
+        Assert.False(plan.FullSolutionBuild);
+        var catalogue = new TestCatalog(Root);
+        foreach (var selection in plan.ExcelSelections)
+        {
+            var classes = catalogue.ForOwner(selection.Project).ToArray();
+            foreach (var filter in selection.Filter.Split('|'))
+            {
+                var selected = Assert.Single(classes, type => filter == $"FullyQualifiedName~{type.FullName}.");
+                Assert.False(selected.RequiredOnly, $"{selected.FullName} would be excluded before the acceptance runner.");
+            }
+        }
+        Assert.DoesNotContain(plan.ExcelSelections, selection => selection.Project == "CLI");
+    }
+
     private static string FindRoot()
     {
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory is not null; directory = directory.Parent)

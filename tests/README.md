@@ -416,7 +416,10 @@ CI partition. To prepare just its build inputs:
 Choose a group listed in the saved plan; an unselected or empty group is an error.
 Omitting the group retains the complete Excel-free run; existing
 `-Local`, `-Contracts`, `-HookTests`, `-SkillTests`, and `-PackagingTests`
-selections remain supported.
+selections remain supported. `-Local -Contracts` includes generated routing,
+the advertised MCP tool surface, and authored calculation examples checked
+against the published schema. Tests retain their existing feature traits as
+well as `Feature=GeneratedContracts`.
 
 These commands forward to the internal .NET tool. `Invoke-TestStage.ps1` uses
 the same hard deadlines, owned-process environment and strict report checks as
