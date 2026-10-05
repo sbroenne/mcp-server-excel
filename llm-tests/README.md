@@ -166,6 +166,15 @@ Cleanup closes only the exact synthetic workbook and stops only the private
 service; errors remain visible. Native JSON and the temporary COM snapshot
 contain local paths and must stay private, not be committed or posted publicly.
 
+On 2026-10-05, the 16 offline proofs, 10 shared-harness checks, and unpaid
+published SDK preflight passed. One authorized live attempt with `gpt-6.1-sol`
+passed against installed plugin 2.2.1 from published revision
+`8941e5d59a068e421ddbddf40107c6f505f5acac`: nine successful correlated calls,
+complete evidence with no capture errors, correct saved formulas/values and
+reported total 423, and no open owned workbook before cleanup. The full test
+took 244.48 seconds (207.77 seconds for the agent execution). There was no paid
+retry. This is one model and one task, not installation or MCP discovery coverage.
+
 ## Measure whether skills help
 
 `test_skill_value.py` defaults to the **formatting** suite: two presentation tasks
