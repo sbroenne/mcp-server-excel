@@ -485,7 +485,7 @@ in the `arguments` object of `tools/call`, alongside `action`:
   "id": 1,
   "method": "tools/call",
   "params": {
-    "name": "workbook",
+    "name": "workbook_read",
     "arguments": {
       "action": "get-info",
       "session_id": "<ID returned by this server>"

@@ -62,8 +62,7 @@ public class McpToolGenerator : IIncrementalGenerator
                 foreach (var info in services.SelectMany(SplitReadOnlyTools))
                 {
                     var code = GenerateToolClass(info);
-                    var suffix = info.McpToolReadOnly ? ".ReadOnly" : string.Empty;
-                    spc.AddSource($"McpTool.{info.CategoryPascal}{suffix}.g.cs", SourceText.From(code, Encoding.UTF8));
+                    spc.AddSource($"McpTool.{info.CategoryPascal}.{info.McpToolName}.g.cs", SourceText.From(code, Encoding.UTF8));
                 }
             });
     }
@@ -364,7 +363,7 @@ public class McpToolGenerator : IIncrementalGenerator
     }
 
     private static string GetOutputSchemaClassName(ServiceInfo info) =>
-        $"{info.CategoryPascal}{(info.McpToolReadOnly ? "ReadOnly" : "")}ToolOutputSchema";
+        $"{GetToolIdentifier(info)}ToolOutputSchema";
 
     private static OutputSchemaProperty[] GetOutputSchemaProperties(ServiceInfo info)
     {
@@ -716,16 +715,20 @@ public class McpToolGenerator : IIncrementalGenerator
 
     private static string GetClassName(ServiceInfo info)
     {
-        return $"Excel{info.CategoryPascal}{(info.McpToolReadOnly ? "ReadOnly" : "")}Tool";
+        return $"Excel{GetToolIdentifier(info)}Tool";
     }
 
     private static string GetMethodName(ServiceInfo info)
     {
-        return $"Excel{info.CategoryPascal}{(info.McpToolReadOnly ? "ReadOnly" : "")}";
+        return $"Excel{GetToolIdentifier(info)}";
     }
 
     private static string GetActionTypeName(ServiceInfo info) =>
-        $"Mcp{info.CategoryPascal}{(info.McpToolReadOnly ? "ReadOnly" : "")}Action";
+        $"Mcp{GetToolIdentifier(info)}Action";
+
+    private static string GetToolIdentifier(ServiceInfo info) =>
+        info.CategoryPascal + "_" + Regex.Replace(info.McpToolName, "[^a-zA-Z0-9]",
+            match => "_" + ((int)match.Value[0]).ToString("X4", System.Globalization.CultureInfo.InvariantCulture));
 
     private static string[] WrapXmlDocLines(string text)
     {
