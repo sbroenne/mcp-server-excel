@@ -1397,9 +1397,50 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             sb.AppendLine($"            [\"{cliCommandGroup.Key}\"] = \"{cliCommandGroup.First().Category}\",");
         }
         sb.AppendLine("        };");
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>Checks Excel edit access for workbook-changing Service requests.</summary>");
+        sb.AppendLine("    public static void ValidateWorkbookWriteAccess(string command, Sbroenne.ExcelMcp.ComInterop.Session.IExcelBatch batch, string? argsJson)");
+        sb.AppendLine("    {");
+        sb.AppendLine("        switch (command.ToLowerInvariant())");
+        sb.AppendLine("        {");
+        var writeActions = categories
+            .SelectMany(category => category.Methods
+                .Where(method => RequiresWritableWorkbook(category, method))
+                .Select(method => (Category: category, Method: method)))
+            .OrderBy(action => $"{action.Category.Category}.{action.Method.ActionName}", StringComparer.Ordinal)
+            .ToList();
+        foreach (var action in writeActions.Where(action =>
+                     action.Method.Parameters.Any(parameter => parameter.Name == "filePath")))
+        {
+            sb.AppendLine($"            case \"{action.Category.Category}.{action.Method.ActionName}\":");
+            sb.AppendLine($"                Sbroenne.ExcelMcp.Core.Utilities.WorkbookAccessGuard.EnsureWritable(batch, DeserializeArgs<{action.Category.CategoryPascal}.{action.Method.MethodName}Args>(argsJson).FilePath);");
+            sb.AppendLine("                return;");
+        }
+        var primaryWorkbookActions = writeActions.Where(action =>
+            action.Method.Parameters.All(parameter => parameter.Name != "filePath")).ToList();
+        foreach (var action in primaryWorkbookActions)
+        {
+            sb.AppendLine($"            case \"{action.Category.Category}.{action.Method.ActionName}\":");
+        }
+        if (primaryWorkbookActions.Count > 0)
+        {
+            sb.AppendLine("                Sbroenne.ExcelMcp.Core.Utilities.WorkbookAccessGuard.EnsureWritable(batch);");
+            sb.AppendLine("                return;");
+        }
+        sb.AppendLine("        }");
+        sb.AppendLine("    }");
         sb.AppendLine("}");
         return sb.ToString();
     }
+
+    // Save As/copy/export defer output permissions to Excel; application and
+    // window controls do not require editing the workbook.
+    private static bool RequiresWritableWorkbook(ServiceInfo info, MethodInfo method) =>
+        !info.NoSession && method.HasBatchParameter && !method.McpToolReadOnly &&
+        info.Category is not ("window" or "screenshot") &&
+        (info.Category != "calculation" || method.ActionName == "set-precision") &&
+        (info.Category != "chart" || method.ActionName != "export-image") &&
+        (info.Category != "workbook" || method.ActionName is not ("save-as" or "save-copy-as" or "export-fixed-format"));
 
     private static string GenerateCliManifest(List<ServiceInfo> categories)
     {

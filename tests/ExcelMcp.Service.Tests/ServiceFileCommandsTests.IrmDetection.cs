@@ -61,9 +61,10 @@ public sealed partial class ServiceFileCommandsTests
         Assert.False(info.Success);
         Assert.False(info.CanOpen);
         Assert.True(info.IsIrmProtected);
-        Assert.True(info.WillOpenReadOnly);
+        Assert.False(info.WillOpenReadOnly);
         Assert.True(info.RequiresVisibleSession);
         Assert.NotNull(info.Message);
+        Assert.Contains("Excel determines editing permissions", info.Message, StringComparison.Ordinal);
     }
 
     [Fact]

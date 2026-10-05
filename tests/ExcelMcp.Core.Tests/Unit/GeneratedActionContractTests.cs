@@ -720,6 +720,33 @@ public sealed class GeneratedActionContractTests
         Assert.Equal(typeof(int?), actionParameter.ParameterType);
     }
 
+    [Theory]
+    [InlineData("range.set-values", true)]
+    [InlineData("range.set-formulas", true)]
+    [InlineData("RANGE.SET-VALUES", true)]
+    [InlineData("range.get-values", false)]
+    [InlineData("sheet.create", true)]
+    [InlineData("sheet.list", false)]
+    [InlineData("workbook.set-document-property", true)]
+    [InlineData("workbook.get-info", false)]
+    [InlineData("workbook.save-as", false)]
+    [InlineData("workbook.save-copy-as", false)]
+    [InlineData("workbook.export-fixed-format", false)]
+    [InlineData("window.show", false)]
+    [InlineData("chart.export-image", false)]
+    [InlineData("xmlmap.export-xml", false)]
+    [InlineData("calculation.set-settings", false)]
+    [InlineData("calculation.calculate", false)]
+    [InlineData("calculation.set-precision", true)]
+    public void WorkbookWriteAccess_UsesGeneratedActionPolicy(string command, bool requiresEditAccess)
+    {
+        var (batch, proxy) = CreateProxy<IExcelBatch>();
+
+        ServiceRegistry.ValidateWorkbookWriteAccess(command, batch, """{"filePath":null}""");
+
+        Assert.Equal(requiresEditAccess ? 1 : 0, proxy.CallCount);
+    }
+
     private static void AssertResolvedFileArgument<TInterface, TAction>(
         Func<TInterface, TAction, IExcelBatch, string?, string?> dispatch,
         TAction action,

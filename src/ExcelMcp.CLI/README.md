@@ -143,11 +143,17 @@ excelcli session open "D:\Docs\Protected.xlsx" --show --timeout 120
 ```
 
 `session test` reports `canOpen`, `isIrmProtected`, `willOpenReadOnly`, and
-`requiresVisibleSession` using the same result model as MCP `file test`. Protected
+`requiresVisibleSession` using the same result model as MCP `file_read` action `test`. Protected
 files report `canOpen:false` until interactive Excel authentication occurs. Use
 `--show` whenever hidden automation would block on a sign-in, consent, or
 information-protection prompt. Ordinary files are opened read-only in a temporary
 Excel session and closed without saving.
+
+Protection detection does not force read-only access. After visible authentication,
+Excel decides the signed-in user's editing rights. `willOpenReadOnly:false` is not
+a guarantee of edit access; inspect `readOnly` with `excelcli workbook get-info`
+(MCP: `workbook_read` action `get-info`) before editing. Failed saves return an
+error and leave the session open with any unsaved changes available for inspection.
 
 ### Daemon Status and Session Discovery
 

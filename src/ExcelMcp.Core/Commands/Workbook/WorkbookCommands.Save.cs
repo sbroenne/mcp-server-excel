@@ -19,6 +19,7 @@ public partial class WorkbookCommands
 
         var result = batch.Execute((context, _) =>
         {
+            var originalFullName = context.Book.FullName;
             var displayAlerts = context.App.DisplayAlerts;
             try
             {
@@ -40,6 +41,18 @@ public partial class WorkbookCommands
             finally
             {
                 context.App.DisplayAlerts = displayAlerts;
+            }
+
+            // OneDrive can resolve a local target to a SharePoint URL. Check that
+            // Excel accepted the name and changed identity when saving to a new path.
+            if (!context.Book.Saved ||
+                !string.Equals(context.Book.Name, Path.GetFileName(normalizedPath), StringComparison.OrdinalIgnoreCase) ||
+                (!string.Equals(batch.WorkbookPath, normalizedPath, StringComparison.OrdinalIgnoreCase) &&
+                 string.Equals(context.Book.FullName, originalFullName, StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new InvalidOperationException(
+                    "Workbook was not saved to the requested path. Excel cancelled Save As or left unsaved changes. " +
+                    "The workbook remains open; inspect its saved state and fullName before continuing.");
             }
 
             return new OperationResult

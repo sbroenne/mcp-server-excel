@@ -9,7 +9,8 @@ public interface IFileCommands
 {
     /// <summary>
     /// Tests file existence, Excel extension validity (.xlsx, .xlsm, .xlsb, .xls), file access, and deterministic
-    /// IRM/AIP read-only and visible-session requirements before Service open validation
+    /// IRM/AIP visible-session requirements before Service open validation.
+    /// Excel determines editing permissions after authentication.
     /// </summary>
     /// <param name="filePath">Path to the Excel file to validate</param>
     /// <returns>Canonical file metadata shared by CLI and MCP</returns>

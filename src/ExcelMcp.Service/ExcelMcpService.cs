@@ -552,7 +552,7 @@ public sealed class ExcelMcpService : IDisposable
 
 
 
-        return await WithSessionAsync(request.SessionId, batch => WrapResult(dispatch(action, batch)));
+        return await WithSessionAsync(request, batch => WrapResult(dispatch(action, batch)));
 
     }
 
@@ -609,7 +609,7 @@ public sealed class ExcelMcpService : IDisposable
 
 
 
-            return await WithSessionAsync(request.SessionId, batch =>
+            return await WithSessionAsync(request, batch =>
 
                 WrapResult(ServiceRegistry.Sheet.DispatchToCore(_sheetCommands, sheetAction, batch, request.Args)));
 
@@ -621,7 +621,7 @@ public sealed class ExcelMcpService : IDisposable
 
         {
 
-            return await WithSessionAsync(request.SessionId, batch =>
+            return await WithSessionAsync(request, batch =>
 
                 WrapResult(ServiceRegistry.SheetStyle.DispatchToCore(_sheetCommands, styleAction, batch, request.Args)));
 
@@ -642,7 +642,7 @@ public sealed class ExcelMcpService : IDisposable
 
     private async Task<ServiceResponse> DispatchRangeAsync(string actionString, ServiceRequest request)
     {
-        return await WithSessionAsync(request.SessionId, batch =>
+        return await WithSessionAsync(request, batch =>
         {
             if (ServiceRegistry.Range.TryParseAction(actionString, out var ra))
                 return WrapResult(ServiceRegistry.Range.DispatchToCore(_rangeCommands, ra, batch, request.Args));
@@ -670,7 +670,7 @@ public sealed class ExcelMcpService : IDisposable
 
     {
 
-        return await WithSessionAsync(request.SessionId, batch =>
+        return await WithSessionAsync(request, batch =>
 
         {
 
@@ -703,7 +703,7 @@ public sealed class ExcelMcpService : IDisposable
                 ErrorMessage = $"Unknown window action: {actionString}"
             };
 
-        return await WithSessionAsync(request.SessionId, batch =>
+        return await WithSessionAsync(request, batch =>
         {
             var result = WrapResult(ServiceRegistry.Window.DispatchToCore(_windowCommands, windowAction, batch, request.Args));
 
@@ -737,7 +737,7 @@ public sealed class ExcelMcpService : IDisposable
             };
         }
 
-        return await WithSessionAsync(request.SessionId, batch =>
+        return await WithSessionAsync(request, batch =>
         {
             string? reservedPath = null;
             var releaseReservation = true;
@@ -800,8 +800,9 @@ public sealed class ExcelMcpService : IDisposable
     }
 
 
-    private Task<ServiceResponse> WithSessionAsync(string? sessionId, Func<IExcelBatch, ServiceResponse> action)
+    private Task<ServiceResponse> WithSessionAsync(ServiceRequest request, Func<IExcelBatch, ServiceResponse> action)
     {
+        var sessionId = request.SessionId;
         if (string.IsNullOrWhiteSpace(sessionId))
         {
             return Task.FromResult(new ServiceResponse
@@ -820,6 +821,7 @@ public sealed class ExcelMcpService : IDisposable
 
         try
         {
+            ServiceRegistry.ValidateWorkbookWriteAccess(request.Command, batch!, request.Args);
             var response = action(batch!);
             return Task.FromResult(response);
         }

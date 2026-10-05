@@ -15,6 +15,23 @@ connection strings in published properties.
 
 ## Save and publish
 
+Inspect `readOnly` with MCP `workbook_read` action `get-info` or
+`excelcli workbook get-info` before editing. Protected workbooks require visible
+authentication; Excel decides editing rights. Do not change protection to work
+around a genuine permission restriction.
+
+Workbook-changing actions reject read-only access before editing. Inspection,
+window controls, calculation, and authorized Save As/copy/export remain available;
+Excel still enforces permissions on outputs.
+
+Writes change the open workbook, not necessarily the saved file. Saving a
+read-only workbook or a save cancelled by Excel returns an error. A failed save
+leaves the session open and any unsaved changes available for inspection; do not
+assume they were persisted or automatically discard them.
+
+Successful saving confirms Excel's saved state, not completion of OneDrive
+synchronization or upload to SharePoint.
+
 Choose the output according to the task. Saving under a new name changes the
 active workbook's path; saving a same-format copy leaves the active workbook
 unchanged. PDF/XPS output is a published view, not an editable workbook.

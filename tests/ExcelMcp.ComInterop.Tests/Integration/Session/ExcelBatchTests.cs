@@ -186,6 +186,59 @@ public class ExcelBatchTests : IAsyncLifetime, IDisposable
         _output.WriteLine($"✓ Value persisted correctly: {testValue}");
     }
 
+    [Fact]
+    public void Save_ReadOnlyWorkbook_RejectsEvenWhenAlreadySaved()
+    {
+        using var batch = ExcelSession.BeginReadOnlyValidation(
+            _testFileCopy!, TimeSpan.FromSeconds(30));
+        var originalMarker = SessionWorkbookAssertions.ReadMarker(batch);
+        Assert.True(batch.Execute((context, _) => context.Book.ReadOnly));
+        Assert.True(batch.Execute((context, _) => context.Book.Saved));
+
+        var exception = Assert.Throws<InvalidOperationException>(() => batch.Save());
+
+        Assert.Contains("read-only", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(originalMarker, SessionWorkbookAssertions.ReadMarker(batch));
+        Assert.True(batch.Execute((context, _) => context.Book.ReadOnly));
+    }
+
+    [Fact]
+    [Trait("RunType", "OnDemand")]
+    public void BeginBatch_ProtectedDetection_RequestsEditableAccess()
+    {
+        var syntheticProtectedPath = Path.Join(
+            Path.GetTempPath(), $"batch-irm-access-{Guid.NewGuid():N}.xlsx");
+        _temporaryFiles.Add(syntheticProtectedPath);
+        OleDataSpaceTestFile.Write(syntheticProtectedPath, "\tDRMDataSpace");
+        Assert.True(FileAccessValidator.IsIrmProtected(syntheticProtectedPath));
+        bool reachedOpen = false;
+        ExcelBatch.BeforeWorkbookOpenHook = (path, _) =>
+        {
+            Assert.Equal(syntheticProtectedPath, path, ignoreCase: true);
+            reachedOpen = true;
+            // Replace only synthetic metadata with a valid fixture after detection.
+            // This exercises the actual COM open options without enterprise credentials.
+            File.Copy(_testFileCopy!, path, overwrite: true);
+        };
+
+        try
+        {
+            using var batch = ExcelSession.BeginBatch(
+                show: true, operationTimeout: TimeSpan.FromSeconds(30), syntheticProtectedPath);
+            Assert.True(reachedOpen);
+            Assert.True(batch.Execute((context, _) => context.App.Visible));
+            Assert.False(batch.Execute((context, _) => context.Book.ReadOnly));
+            Assert.Equal(
+                Path.GetFullPath(syntheticProtectedPath),
+                batch.Execute((context, _) => context.Book.FullName),
+                ignoreCase: true);
+        }
+        finally
+        {
+            ExcelBatch.BeforeWorkbookOpenHook = null;
+        }
+    }
+
     [JapaneseLocaleFact]
     [Trait("RunType", "OnDemand")]
     [Trait("RequiresExcel", "true")]
@@ -579,7 +632,6 @@ public class ExcelBatchTests : IAsyncLifetime, IDisposable
             stopwatch.Stop();
             SessionWorkbookAssertions.AssertIdentity(batch, irmTestFile);
             Assert.True(batch.Execute((context, _) => context.App.Visible));
-            Assert.True(batch.Execute((context, _) => context.Book.ReadOnly));
             Assert.True(stopwatch.Elapsed <= TimeSpan.FromSeconds(20));
             _output.WriteLine($"Opened IRM workbook in {stopwatch.Elapsed.TotalSeconds:F1}s");
         });

@@ -118,7 +118,7 @@ public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBa
             Assert.False(json.GetProperty("isValid").GetBoolean());
             Assert.False(json.GetProperty("canOpen").GetBoolean());
             Assert.True(json.GetProperty("isIrmProtected").GetBoolean());
-            Assert.True(json.GetProperty("willOpenReadOnly").GetBoolean());
+            Assert.False(json.GetProperty("willOpenReadOnly").GetBoolean());
             Assert.True(json.GetProperty("requiresVisibleSession").GetBoolean());
             Assert.False(json.TryGetProperty("isError", out _),
                 "IRM preflight is a diagnostic result, not a tool execution failure.");
