@@ -96,14 +96,18 @@ for the Windows-only VS Code extension. Do not add another setup workflow
 unless it provides a demonstrated benefit.
 
 Both workflows run `scripts\Install-CopilotPonytailReview.ps1` before the agent
-starts. It uses GitHub CLI 2.90.0 or later to install only `ponytail-review` from
-the latest published release of
+starts. It uses PowerShell's built-in HTTP and archive commands to install only
+`ponytail-review` from the latest published release of
 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail), not its
-development branch. Each setup resolves the release again, overwrites the
-downloaded skill, and records the release tag in the log; GitHub CLI also adds
-source/version metadata to the installed skill. The output is ignored at
-`.github/skills/ponytail-review/` and must not be committed or edited.
-The full Ponytail plugin and coding mode are not installed.
+development branch. Each setup resolves the release again, downloads its source
+archive at the resolved commit SHA, and records both the release tag and source
+revision in the log. Only the review skill directory, including its resources,
+and the upstream license are copied, without modifying the released skill.
+GitHub CLI and runner updates are not required, including on the self-hosted
+Excel desktop. The workflows supply `GH_TOKEN` for authenticated GitHub API
+requests; local invocation can also download this public repository without a
+token. The output is ignored at `.github/skills/ponytail-review/` and must not be
+committed or edited. The full Ponytail plugin and coding mode are not installed.
 
 This deliberately trusts upstream release changes without a repository review.
 A running session keeps its installed version until setup runs again. Download
