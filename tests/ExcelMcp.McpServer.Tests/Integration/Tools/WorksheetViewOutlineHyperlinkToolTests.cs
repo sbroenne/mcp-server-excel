@@ -33,7 +33,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
         });
 
         var frozenJson = await CallAsync(
-            "window_read",
+            "window",
             new()
             {
                 ["action"] = "get-view",

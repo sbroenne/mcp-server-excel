@@ -171,7 +171,7 @@ calculations and interactive dashboards.
 
 </div>
 
-[Explore capabilities across 61 MCP tools and 387 operations :material-arrow-right:](features.md){ .md-button .md-button--primary }
+[Explore capabilities across 60 MCP tools and 387 operations :material-arrow-right:](features.md){ .md-button .md-button--primary }
 
 ## Popular guides
 

@@ -1,6 +1,6 @@
 # ExcelMcp - What You Can Automate
 
-**31 feature areas with 387 operations, exposed through 61 MCP tools and the CLI**
+**31 feature areas with 387 operations, exposed through 60 MCP tools and the CLI**
 
 ExcelMcp uses the installed Microsoft Excel application, not a file parser.
 Excel itself calculates formulas, refreshes data, runs macros, and renders

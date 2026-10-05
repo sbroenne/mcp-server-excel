@@ -82,7 +82,6 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         "powerquery",
         "powerquery_read",
         "pythoninexcel",
-        "pythoninexcel_read",
         "querytable",
         "querytable_read",
         "range",

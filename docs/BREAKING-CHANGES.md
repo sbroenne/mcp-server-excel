@@ -13,6 +13,10 @@ Use each endpoint's schema to see its available actions. The original tool names
 remain for write actions. For example, use `file_read` for `list` and `test`,
 `file` for `open`, `create`, and `close`, and `worksheet_read` for listing sheets.
 The screenshot endpoint remains `screenshot`, now marked read-only.
+Python `get-result` remains on `pythoninexcel` because it starts calculation,
+which can execute cloud Python and pending formulas in other owned workbooks.
+Window `get-view` remains on `window` because it activates the requested window
+and worksheet. These actions are not inspection-only despite their names.
 
 ## Unreleased - Consistent MCP Session Identifiers
 

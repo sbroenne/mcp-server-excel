@@ -95,16 +95,19 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     [InlineData("connection", "test", true)]
     [InlineData("range", "trace-precedents", true)]
     [InlineData("range", "trace-dependents", true)]
+    [InlineData("window", "get-view", false)]
+    [InlineData("pythoninexcel", "get-result", false)]
     public async Task Discovery_InspectionActionsUseAccurateEndpoints(string toolName, string action, bool readOnly)
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
         var target = tools.Single(tool => tool.Name == (readOnly ? $"{toolName}_read" : toolName));
-        var other = tools.Single(tool => tool.Name == (readOnly ? toolName : $"{toolName}_read"));
+        var other = tools.SingleOrDefault(tool => tool.Name == (readOnly ? toolName : $"{toolName}_read"));
         static IEnumerable<string?> Actions(JsonElement schema) => schema.GetProperty("properties")
             .GetProperty("action").GetProperty("enum").EnumerateArray().Select(value => value.GetString());
 
         Assert.Contains(action, Actions(target.JsonSchema));
-        Assert.DoesNotContain(action, Actions(other.JsonSchema));
+        if (other is not null)
+            Assert.DoesNotContain(action, Actions(other.JsonSchema));
         Assert.Equal(readOnly, target.ProtocolTool.Annotations?.ReadOnlyHint == true);
     }
 

@@ -26,7 +26,7 @@ its official COM API. It can refresh Power Query, recalculate formulas, evaluate
 DAX, run VBA and Python `=PY()`, and preserve PivotTables, charts, macros, the
 Data Model, and workbook formatting.
 
-**61 MCP tools across 31 feature areas, with 387 operations**, cover end-to-end Excel automation.
+**60 MCP tools across 31 feature areas, with 387 operations**, cover end-to-end Excel automation.
 
 > [!IMPORTANT]
 > Requires **Windows**, **Microsoft Excel 2016 or later**, and an interactive
