@@ -357,16 +357,19 @@ public partial class WorkbookCommands
                     if (sourceRange is null)
                         throw new InvalidOperationException("A preview range is required to verify Excel error values.");
 
+                    Excel.Range? cells = null;
                     Excel.Range? cell = null;
                     try
                     {
-                        cell = (Excel.Range)sourceRange.Cells[row + 1, column + 1];
+                        cells = sourceRange.Cells;
+                        cell = (Excel.Range)cells[row + 1, column + 1];
                         if (!string.Equals(cell.Text?.ToString(), error.Name, StringComparison.Ordinal))
                             continue;
                     }
                     finally
                     {
                         ComUtilities.Release(ref cell);
+                        ComUtilities.Release(ref cells);
                     }
                 }
 

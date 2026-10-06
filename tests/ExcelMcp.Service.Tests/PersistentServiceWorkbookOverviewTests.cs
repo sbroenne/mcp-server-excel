@@ -138,6 +138,39 @@ public sealed class PersistentServiceWorkbookOverviewTests(
         Assert.Contains("maxPreviewRows must be between 1 and 10", excessiveRows.ErrorMessage, StringComparison.Ordinal);
     }
 
+    [Theory]
+    [InlineData(10, 0)]
+    [InlineData(11, 1)]
+    public void Inspect_ReportsExactPreviewRowLimit(int scopeRows, int expectedOmittedRows)
+    {
+        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        var values = Enumerable.Range(1, scopeRows)
+            .Select(value => new List<object?> { value }).ToList();
+        Assert.True(_commands.SetValues(_fixture.BatchToken, sheetName,
+            $"A1:A{scopeRows}", values).Success);
+
+        var response = _fixture.Send("workbook.inspect", new
+        {
+            sheetName,
+            includeSheets = false,
+            includeTables = false,
+            includeDefinedNames = false,
+            includePreview = true,
+            rangeAddress = $"A1:A{scopeRows}",
+            maxPreviewRows = 10
+        });
+
+        using var result = JsonDocument.Parse(response.Result!);
+        Assert.True(result.RootElement.GetProperty("success").GetBoolean());
+        var preview = result.RootElement.GetProperty("preview");
+        Assert.Equal(10, preview.GetProperty("rowCount").GetInt32());
+        Assert.Equal(expectedOmittedRows, preview.GetProperty("omittedRowCount").GetInt32());
+        Assert.Equal("$A$1:$A$10", preview.GetProperty("rangeAddress").GetString());
+        Assert.Equal(10, preview.GetProperty("values").GetArrayLength());
+        for (int row = 0; row < 10; row++)
+            Assert.Equal(row + 1, preview.GetProperty("values")[row][0].GetDouble());
+    }
+
     [Fact]
     public void Inspect_HandlesAnEmptySheetAndOnlyReturnsSelectedSections()
     {

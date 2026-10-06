@@ -38,6 +38,10 @@ CLI: excelcli -q workbook inspect --session <session-id> --sheet-name Summary
      --max-preview-columns 6
 ```
 
+Excel reports an empty worksheet's UsedRange as `$A$1`. Its preview contains a
+null value and an empty formula; the returned address does not mean the cell is
+populated.
+
 If Excel cannot read a protected or otherwise inaccessible range, the operation
 reports an error rather than presenting it as empty.
 
