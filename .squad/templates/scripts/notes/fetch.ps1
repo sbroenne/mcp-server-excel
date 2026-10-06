@@ -1,60 +1,88 @@
 #!/usr/bin/env pwsh
-# Fetch into remote-tracking refs; never overwrite local notes.
-# -Setup migrates the legacy refspec. -Merge reconciles divergent notes.
+# scripts/notes/fetch.ps1
+# ─────────────────────────────────────────────────────────────────────────────
+# Fetch git notes from remote. Run on every Ralph-watch startup and before
+# any agent reads or writes notes.
+#
+# Usage:
+#   ./scripts/notes/fetch.ps1           # fetch only
+#   ./scripts/notes/fetch.ps1 -Setup    # first-time: add refspec + fetch
+#   ./scripts/notes/fetch.ps1 -Merge    # fetch + merge (use after push conflict)
+# ─────────────────────────────────────────────────────────────────────────────
+
 [CmdletBinding()]
 param(
-    [string]$Remote = "origin",
+    [string]$Remote   = "origin",
     [string]$RepoPath = ".",
     [switch]$Setup,
     [switch]$Merge,
     [switch]$Quiet
 )
 
-$ErrorActionPreference = "Stop"
-$PSNativeCommandUseErrorActionPreference = $false
-$repo = (Resolve-Path $RepoPath).Path
-$refspec = "+refs/notes/squad/*:refs/notes/remotes/$Remote/squad/*"
-
-function Invoke-Git {
-    param([string[]]$GitArgs)
-    $output = & git -C $repo @GitArgs 2>&1
-    if ($LASTEXITCODE -ne 0) { throw "git $GitArgs failed: $output" }
-    return $output
+function Log ([string]$msg, [string]$color = "White") {
+    if (-not $Quiet) { Write-Host "[notes/fetch] $msg" -ForegroundColor $color }
 }
 
+$repo = Resolve-Path $RepoPath
+
+# ── One-time setup: add fetch refspec ──────────────────────────────────────
 if ($Setup) {
-    $key = "remote.$Remote.fetch"
-    $existing = & git -C $repo config --get-all $key
-    if ($LASTEXITCODE -notin 0, 1) { throw "Could not read $key" }
-    foreach ($legacy in @("refs/notes/*:refs/notes/*", "+refs/notes/*:refs/notes/*")) {
-        if ($existing -contains $legacy) {
-            Invoke-Git -GitArgs @("config", "--fixed-value", "--unset-all", $key, $legacy) | Out-Null
+    $existing = git -C $repo config --get-all "remote.$Remote.fetch" 2>&1 |
+                Where-Object { $_ -match "refs/notes" }
+    if ($existing) {
+        Log "Notes refspec already configured." DarkGray
+    } else {
+        git -C $repo config --add "remote.$Remote.fetch" "refs/notes/*:refs/notes/*"
+        Log "Added notes refspec to remote.$Remote.fetch" Green
+    }
+}
+
+# ── Fetch notes ─────────────────────────────────────────────────────────────
+Log "Fetching notes from $Remote..."
+$output = git -C $repo fetch $Remote "refs/notes/*:refs/notes/*" 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Log "Fetch warning: $output" DarkYellow
+} else {
+    Log "Notes fetched." Green
+}
+
+# ── Merge notes if requested (after push conflict) ──────────────────────────
+if ($Merge) {
+    # Abort any stale merge-in-progress state
+    $mergeLock = Join-Path $repo ".git/NOTES_MERGE_PARTIAL"
+    if (Test-Path $mergeLock) {
+        Log "Stale notes merge in progress — aborting before retry" DarkYellow
+        git -C $repo notes merge --abort 2>&1 | Out-Null
+    }
+
+    $namespaces = git -C $repo for-each-ref "refs/notes/squad/" --format="%(refname)" 2>&1
+    foreach ($ref in $namespaces) {
+        $ns = $ref -replace "refs/notes/", ""
+        $remoteRef = "refs/notes/remotes/$Remote/$ns"
+        $remoteExists = git -C $repo for-each-ref $remoteRef --format="%(refname)" 2>&1
+        if ($remoteExists) {
+            Log "Merging notes: $ns (cat_sort_uniq)"
+            git -C $repo notes --ref=$ns merge -s cat_sort_uniq $remoteRef 2>&1 | Out-Null
+            if ($LASTEXITCODE -ne 0) {
+                Log "  Merge failed on $ns — aborting and continuing" Red
+                git -C $repo notes merge --abort 2>&1 | Out-Null
+            }
         }
     }
-    if ($existing -notcontains $refspec) {
-        Invoke-Git -GitArgs @("config", "--add", $key, $refspec) | Out-Null
-    }
+    Log "Notes merge complete." Green
 }
 
-Invoke-Git -GitArgs @("fetch", $Remote, $refspec) | Out-Null
-$prefix = "refs/notes/remotes/$Remote/"
-$refs = Invoke-Git -GitArgs @("for-each-ref", "${prefix}squad/", "--format=%(refname)")
-foreach ($remoteRef in $refs) {
-    $namespace = $remoteRef.Substring($prefix.Length)
-    $localRef = "refs/notes/$namespace"
-    & git -C $repo show-ref --verify --quiet $localRef
-    $exists = $LASTEXITCODE
-    if ($exists -eq 1) {
-        $sha = Invoke-Git -GitArgs @("rev-parse", $remoteRef)
-        Invoke-Git -GitArgs @("update-ref", $localRef, $sha, "") | Out-Null
-    } elseif ($exists -ne 0) {
-        throw "Could not check local notes ref $localRef"
-    } elseif ($Merge) {
-        Invoke-Git -GitArgs @("notes", "--ref=$namespace", "merge", "-s", "cat_sort_uniq", $remoteRef) | Out-Null
-    }
-}
-
+# ── Show available namespaces ────────────────────────────────────────────────
 if (-not $Quiet) {
-    Write-Host "[notes/fetch] Notes fetched into remote-tracking refs."
-    if ($Merge) { Write-Host "[notes/fetch] Notes merge complete." }
+    $refs = git -C $repo for-each-ref "refs/notes/squad/" --format="%(refname)" 2>&1
+    if ($refs) {
+        Log "Available namespaces:"
+        foreach ($r in $refs) {
+            $count = (git -C $repo notes --ref=($r -replace "refs/notes/","") list 2>&1 |
+                      Where-Object { $_ -ne "" } | Measure-Object -Line).Lines
+            Log "  $r  ($count notes)" DarkGray
+        }
+    } else {
+        Log "No squad notes yet." DarkGray
+    }
 }

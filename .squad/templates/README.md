@@ -8,29 +8,6 @@ files marked squad-owned are overwritten; user-customizable overrides are preser
 
 ---
 
-## Repository setup
-
-This repository currently has the support agents and @copilot, but no specialist
-Members roster. `squad` issue triage supports this setup: suitable issues route
-to `squad:copilot`; other issues receive a comment requesting maintainer review.
-Specialist routing becomes available after a Lead and team are configured.
-
-Automatic assignment is disabled in `.squad/team.md`. A maintainer-applied
-`squad:copilot` label requests assignment using `COPILOT_ASSIGN_TOKEN`.
-If automatic assignment is enabled later, triage uses the same PAT-backed
-assignment helper directly, because labels added with `GITHUB_TOKEN` do not
-trigger the separate assignment workflow. Missing tokens and rejected requests
-fail the assignment step; routing alone is not proof a cloud job started.
-
-Review local safety fixes before `squad upgrade`, which can overwrite templates.
-Run `node --test scripts/tests/squad-workflows.test.cjs` to check the installed
-routing and template scripts. This requires Node.js, Git, PowerShell 7, Bash,
-and jq; it uses synthetic fixtures and does not assign real issues or publish
-releases. Release/promotion templates are not installed product release workflows;
-this repository continues to use its existing `release.yml`.
-
----
-
 ## File Categories
 
 ### Coordinator on-demand references
@@ -52,7 +29,7 @@ of these — they are NOT loaded on every turn.
 | `mcp-config.md` | Coordinator | MCP server integration details |
 | `model-selection-reference.md` | Coordinator | Per-agent model and reasoning-effort selection |
 | `multi-agent-format.md` | Coordinator | Assembling multi-agent artifact output |
-| `orchestration-log.md` | Coordinator | Optional orchestration-log format; not a Scribe task |
+| `orchestration-log.md` | Scribe | Writing per-agent orchestration log entries |
 | `plugin-marketplace.md` | Coordinator | Plugin marketplace discovery and install flow |
 | `prd-intake.md` | Coordinator | PRD Mode — ingesting a spec for decomposition |
 | `ralph-reference.md` | Coordinator | Ralph work-monitor lifecycle and board format |

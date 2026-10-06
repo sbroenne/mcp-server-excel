@@ -64,7 +64,7 @@ $noteJson = $note | ConvertTo-Json -Compress -Depth 10
 
 # ── Fetch first to avoid conflicts ───────────────────────────────────────────
 Log "Fetching notes before write..."
-& (Join-Path $PSScriptRoot "fetch.ps1") -Remote $Remote -RepoPath $repo -Merge -Quiet
+git -C $repo fetch $Remote "refs/notes/*:refs/notes/*" 2>&1 | Out-Null
 
 # ── Check if note already exists on this commit ─────────────────────────────
 $existing = git -C $repo notes --ref=$namespace show $Commit 2>&1
@@ -100,17 +100,21 @@ if (-not $NoPush) {
         if ($pushOut -match "non-fast-forward|fetch first|rejected") {
             Log "Push conflict — fetch-first retry..." DarkYellow
 
-            & (Join-Path $PSScriptRoot "fetch.ps1") -Remote $Remote -RepoPath $repo -Merge -Quiet
-            if ($i -eq $maxRetries - 1) {
-                throw "Notes push still conflicts after $maxRetries attempts. Local notes are preserved in $nsRef."
-            }
+            # Force-fetch: overwrite local ref with current remote state
+            git -C $repo fetch $Remote "${nsRef}:${nsRef}" 2>&1 | Out-Null
+
+            # Re-append our note on top of the now-current remote state
+            git -C $repo notes --ref=$namespace append -m $noteJson $Commit 2>&1 | Out-Null
 
             $jitter = Get-Random -Minimum 0 -Maximum 1000
             $sleep  = [Math]::Pow(2, $i) + $jitter / 1000
             Start-Sleep -Seconds $sleep
 
         } else {
-            throw "Notes push failed: $pushOut. Local notes are preserved in $nsRef."
+            Log "Push error: $pushOut" Red
+            if ($i -eq $maxRetries - 1) {
+                Write-Warning "Failed after $maxRetries retries. Push manually: git push origin '${nsRef}:${nsRef}'"
+            }
         }
     }
 }
