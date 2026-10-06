@@ -11,6 +11,12 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.3.3] - 2026-10-06
+
+### Patch Changes
+
+- [#1062](https://github.com/sbroenne/mcp-server-excel/pull/1062) [`b1256d3`](https://github.com/sbroenne/mcp-server-excel/commit/b1256d342f22e488adcf625c84cc78da23f0f95f) Thanks [@sbroenne](https://github.com/sbroenne)! - Add a bounded workbook overview with worksheet, table, and named-range metadata plus optional limited value and formula previews.
+
 ## [2.3.1] - 2026-10-05
 
 ### Major Changes
