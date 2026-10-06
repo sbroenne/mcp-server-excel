@@ -36,8 +36,11 @@ For an explicit group or complete-suite run, build Release first and use
 `scripts\Invoke-ExcelTests.ps1`. It keeps class fixtures together, runs groups
 and projects sequentially, and uses the same `Invoke-TestStage.ps1` helper as
 Excel-free checks and E2E. The helper retains stdout/stderr logs, TRX reports,
-ownership journals, and wall times, enforces a hard deadline, and rejects empty,
-skipped, failed, or contradictory reports. `-ListTests` lists the selected tests
+ownership journals, reports wall times to the console, enforces a hard deadline,
+and rejects empty, skipped, failed, or contradictory reports. Group and E2E
+runs also compare discovered test names with executed results, including repeated
+theory rows; missing, extra, or duplicated cases fail the run.
+`-ListTests` lists the selected tests
 without running workbook operations; it is not passing test evidence.
 
 Complete-suite runs are not routine development steps. For runtime changes,

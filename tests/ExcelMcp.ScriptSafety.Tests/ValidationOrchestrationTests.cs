@@ -243,6 +243,36 @@ public sealed class ValidationOrchestrationTests
         Assert.NotEqual(0, run.ExitCode);
     }
 
+    [Theory]
+    [InlineData("@('case(row: 1)', 'case(row: 1)')", "@('case(row: 1)', 'case(row: 1)')", true)]
+    [InlineData("@('case(row: 1)', 'other')", "@('other', 'case(row: 1)')", true)]
+    [InlineData("@('case(row: 1)', 'case(row: 1)')", "@('case(row: 1)')", false)]
+    [InlineData("@('case(row: 1)', 'other')", "@('case(row: 1)', 'case(row: 1)')", false)]
+    [InlineData("@('case')", "@('case', 'extra')", false)]
+    [InlineData("@('Case')", "@('case')", false)]
+    [InlineData("@()", "@('case')", false)]
+    public async Task Reports_ReconcileDiscoveredCasesIncludingTheoryMultiplicity(
+        string expected, string actual, bool succeeds)
+    {
+        var run = await ValidationSelectionTests.RunAsync($$"""
+            . .\scripts\Invoke-TestStage.ps1
+            $file = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.Reconciliation.$([Guid]::NewGuid().ToString('N')).trx"
+            try {
+                $cases = {{actual}}
+                $rows = ($cases | ForEach-Object { '<UnitTestResult testName="' + $_ + '" outcome="Passed"/>' }) -join ''
+                '<TestRun><Results>' + $rows + '</Results><ResultSummary outcome="Completed"><Counters total="' +
+                    $cases.Count + '" executed="' + $cases.Count + '" passed="' + $cases.Count +
+                    '" failed="0" notExecuted="0"/></ResultSummary></TestRun>' | Set-Content -LiteralPath $file
+                Assert-TestReport -Path $file -ExpectedCases {{expected}}
+            } finally { Remove-Item -LiteralPath $file }
+            """);
+        Assert.Equal(succeeds, run.ExitCode == 0);
+        if (!succeeds)
+        {
+            Assert.Contains("Test case reconciliation failed", run.Output, StringComparison.Ordinal);
+        }
+    }
+
     [Fact]
     public async Task MissingReport_IsNeverSuccess()
     {
