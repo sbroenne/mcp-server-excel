@@ -12,14 +12,25 @@ public sealed partial class AutomationSafetyTests
     private static readonly string RepoRoot = FindRepoRoot();
 
     [Theory]
-    [InlineData("check-com-leaks.ps1", "var count = worksheet.Rows.Count;")]
-    [InlineData("check-com-leaks.ps1", "int row = table.Range.Row;")]
-    [InlineData("check-com-leaks.ps1", "int column = table.Range.Column;")]
-    [InlineData("check-com-leaks.ps1", "namesCollection.Add(\"Example\", \"=Sheet1!A1\");")]
-    [InlineData("check-success-flag.ps1", "result.Success = true;\nresult.ErrorMessage = \"failure\";")]
-    [InlineData("check-dynamic-casts.ps1", "var item = ((dynamic)source).Item;")]
-    public async Task SourceGuards_RejectEmptyDiscoveryAndIgnoreGeneratedFiles(string script, string suspicious)
+    [InlineData("check-com-leaks.ps1")]
+    [InlineData("check-success-flag.ps1")]
+    [InlineData("check-dynamic-casts.ps1")]
+    public async Task SourceGuards_RejectEmptyDiscoveryAndIgnoreGeneratedFiles(string script)
     {
+        string[] suspiciousCases = script switch
+        {
+            "check-com-leaks.ps1" =>
+            [
+                "var count = worksheet.Rows.Count;",
+                "int row = table.Range.Row;",
+                "int column = table.Range.Column;",
+                "namesCollection.Add(\"Example\", \"=Sheet1!A1\");"
+            ],
+            "check-success-flag.ps1" => ["result.Success = true;\nresult.ErrorMessage = \"failure\";"],
+            "check-dynamic-casts.ps1" => ["var item = ((dynamic)source).Item;"],
+            _ => throw new ArgumentOutOfRangeException(nameof(script))
+        };
+        var suspicious = string.Join(Environment.NewLine, suspiciousCases);
         var root = NewSandbox();
         try
         {
@@ -38,6 +49,10 @@ public sealed partial class AutomationSafetyTests
             File.WriteAllText(Path.Combine(root, "src", "ExcelMcp.ComInterop", "Example.cs"), "class Example {}");
             var invalid = await RunAsync(root, command);
             Assert.NotEqual(0, invalid.ExitCode);
+            if (script == "check-com-leaks.ps1")
+            {
+                Assert.Contains("4 high-risk COM access pattern(s) detected.", invalid.Output, StringComparison.Ordinal);
+            }
 
             File.WriteAllText(source, script == "check-com-leaks.ps1" ? """
                 dynamic? rows = null;
@@ -63,6 +78,7 @@ public sealed partial class AutomationSafetyTests
     }
 
     [Theory]
+    [Trait("RunType", "OnDemand")]
     [InlineData("configure-analytics-oidc.ps1", "-SubscriptionId requested")]
     [InlineData("deploy-appinsights.ps1", "")]
     public async Task AzurePreview_NeverMutatesAndRejectsFailedReads(string script, string arguments)
@@ -110,6 +126,7 @@ public sealed partial class AutomationSafetyTests
     }
 
     [Fact]
+    [Trait("RunType", "OnDemand")]
     public async Task AnalyticsOidc_SwitchesToSelectedTenantAndRestoresOriginalSubscription()
     {
         var root = NewSandbox();

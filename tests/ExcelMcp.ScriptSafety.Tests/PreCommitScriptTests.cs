@@ -22,7 +22,18 @@ public sealed class PreCommitScriptTests
         var result = await RunHookAsync(path);
 
         Assert.Equal(build, result.Output.Contains("dotnet build", StringComparison.Ordinal));
-        Assert.Equal(excel, result.Output.Contains("e2e-ran", StringComparison.Ordinal));
+        Assert.DoesNotContain("e2e-ran", result.Output, StringComparison.Ordinal);
+        if (excel)
+        {
+            Assert.Contains(
+                "Complete local Excel E2E is required once against the final PR source.",
+                result.Output,
+                StringComparison.Ordinal);
+        }
+        else
+        {
+            Assert.DoesNotContain("final PR source", result.Output, StringComparison.Ordinal);
+        }
         Assert.DoesNotContain("dotnet publish", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("dotnet pack", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("npm ci", result.Output, StringComparison.Ordinal);
@@ -138,7 +149,11 @@ public sealed class PreCommitScriptTests
     {
         var result = await RunHookAsync("src/ExcelMcp.Core/Command.cs", unstaged: "docs/guide.md");
         Assert.True(result.ExitCode == 0, result.Output);
-        Assert.Contains("e2e-ran", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("e2e-ran", result.Output, StringComparison.Ordinal);
+        Assert.Contains(
+            "Complete local Excel E2E is required once against the final PR source.",
+            result.Output,
+            StringComparison.Ordinal);
     }
 
     [Theory]
@@ -148,7 +163,6 @@ public sealed class PreCommitScriptTests
     [InlineData("check-dynamic-casts")]
     [InlineData("check-workbook-package-access")]
     [InlineData("Invoke-ExcelFreeTests")]
-    [InlineData("Test-E2E")]
     public async Task SelectedCheckFailure_IsNeverSwallowed(string failure)
     {
         var result = await RunHookAsync("src/ExcelMcp.Core/Command.cs", failure: failure);

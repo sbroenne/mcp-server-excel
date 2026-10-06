@@ -64,9 +64,7 @@ try {
         }
     }
     if ($plan.Excel) {
-        Invoke-Check 'Running Excel-dependent E2E tests' {
-            & (Join-Path $PSScriptRoot 'Test-E2E.ps1') -SkipBuild
-        }
+        Write-Host 'Complete local Excel E2E is required once against the final PR source.' -ForegroundColor Yellow
     }
     Write-Host 'All selected pre-commit checks passed. Release artifact validation belongs to PR CI.' -ForegroundColor Green
 }

@@ -45,14 +45,14 @@ try {
             $filter = "RequiresExcel=true&RunType!=OnDemand&($filters)"
             Invoke-TestStage -Project $project.Name -Filter $filter -ResultsDirectory $ResultsDirectory `
                 -Name "$group-$($project.Group[0].ProjectName)" -DeadlineSeconds $DeadlineSeconds `
-                -HangTimeout 10m -ListTests:$ListTests -Environment @{ EXCELMCP_CLI_PIPE = $pipe }
+                -HangTimeout 10m -ListTests:$ListTests -ReconcileCases -Environment @{ EXCELMCP_CLI_PIPE = $pipe }
         }
     }
     if ($IncludeInfrastructureDiagnostics) {
         $project = Join-Path $root 'tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj'
         Invoke-TestStage -Project $project -Filter 'RequiresExcel=true&RunType=OnDemand&FullyQualifiedName!~BeginBatch_RealIrmWorkbook&Locale!=ja-JP' `
             -ResultsDirectory $ResultsDirectory -Name Infrastructure-OnDemand -DeadlineSeconds 5400 `
-            -HangTimeout 10m -ListTests:$ListTests -Environment @{ EXCELMCP_CLI_PIPE = $pipe }
+            -HangTimeout 10m -ListTests:$ListTests -ReconcileCases -Environment @{ EXCELMCP_CLI_PIPE = $pipe }
     }
 }
 catch {

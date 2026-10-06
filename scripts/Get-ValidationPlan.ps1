@@ -17,6 +17,7 @@ function Get-ValidationPlan {
         Skills = $false
         SkillTests = $false
         PackagingTests = $false
+        AzureInfrastructureTests = $false
         Plugins = $false
         Reasons = [Collections.Generic.List[string]]::new()
     }
@@ -34,6 +35,9 @@ function Get-ValidationPlan {
     $infrastructureDiagnostics = $false
     foreach ($original in $Paths) {
         $path = $original.Replace('\', '/')
+        if ($path -match '^infrastructure/azure/(configure-analytics-oidc|deploy-appinsights)\.ps1$') {
+            $plan.AzureInfrastructureTests = $true
+        }
         $tooling = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
         $toolingOwners = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
         if ($path -match '\.cs$|\.(csproj|sln|slnf|props|targets)$|(^|/)(global\.json|NuGet\.Config)$') {

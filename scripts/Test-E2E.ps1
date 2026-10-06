@@ -85,7 +85,7 @@ try {
         }
         & (Join-Path $PSScriptRoot 'Stop-ExcelMcpProcesses.ps1') -PipeName $selectedPipeName
         if ($LASTEXITCODE -ne 0) { throw "Owned CLI cleanup failed before $stage acceptance." }
-        Invoke-TestStage @parameters
+        Invoke-TestStage @parameters -ReconcileCases
     }
     Write-Host "Selected acceptance stages passed: $($Stages -join ', ')."
 }

@@ -33,7 +33,7 @@ Every commit is checked for direct commits to `main` and nonportable staged
 npm lockfiles. Further checks are selected from staged paths by
 `scripts\Get-ValidationPlan.ps1`.
 
-| Changed inputs | Release build | Local Excel E2E | Release artifact creation |
+| Changed inputs | Release build | Final-source E2E reminder | Release artifact creation |
 |---|---|---|---|
 | Documentation, website, videos, Azure or analytics maintenance without script regressions | No | No | Never |
 | Extension, npm wrappers, or Claude bundle inputs without packaging regressions | No | No | Never |
@@ -48,7 +48,10 @@ against the incoming parent so imported changes do not trigger unrelated work.
 The hook prints its reasons before running expensive checks.
 
 Runtime changes run the retained source-pattern guards, a Release build,
-focused generated-contract checks, and the complete `Test-E2E.ps1` sequence.
+focused generated-contract checks, and a reminder to run complete local E2E.
+The hook does not run `Test-E2E.ps1`. Run its complete three-stage sequence
+after the last runtime-affecting change, and rerun it if later commits change
+runtime behavior.
 The guards flag suspicious patterns; they do not prove every COM lifetime or
 error-result path is correct. Local build cleanup remains pipe-scoped and must
 not stop another worktree's sessions.
@@ -70,9 +73,9 @@ explicitly; the hook never changes the index for you. Unrelated documentation
 edits are left alone.
 
 A failing command stops the hook and retains its output and exit code.
-Windows with desktop Excel is required when Excel checks are selected.
-An unavailable prerequisite is not reported as a pass. Report the blocker
-rather than bypassing the hook.
+The hook still requires Windows for runtime changes. Desktop Excel is required
+for the separately run Excel tests and final E2E. An unavailable prerequisite
+is not reported as a pass. Report the blocker rather than bypassing the hook.
 
 Fix generated-contract failures in the annotated interfaces or generators,
 not in generated enum or adapter files.

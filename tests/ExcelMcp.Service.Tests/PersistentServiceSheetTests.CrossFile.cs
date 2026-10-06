@@ -1,5 +1,7 @@
+using System.Collections.Concurrent;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Tests.Infrastructure;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -7,6 +9,9 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 
 public sealed partial class PersistentServiceSheetTests
 {
+    private static readonly ConcurrentDictionary<(string? Sheet, bool DuplicateGuard), SavedWorkbookTemplateStore>
+        MarkedWorkbookTemplates = new();
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, true)]
@@ -399,27 +404,41 @@ public sealed partial class PersistentServiceSheetTests
         string? targetSheet = null,
         bool targetDuplicateGuard = false)
     {
-        var sourceFile = _fixture.CreateBlankWorkbook(scenario, "Source");
-        var targetFile = _fixture.CreateBlankWorkbook(scenario, "Target");
-        using var batch = ExcelSession.BeginBatch(sourceFile, targetFile);
-        batch.Execute((_, _) =>
-        {
-            SeedWorkbook(batch.GetWorkbook(sourceFile), sourceSheet);
-            SeedWorkbook(batch.GetWorkbook(targetFile), targetSheet, targetDuplicateGuard);
-            batch.GetWorkbook(targetFile).Save();
-        });
-        batch.Save();
+        var sourceFile = CreateMarkedWorkbook(scenario, "Source", sourceSheet);
+        var targetFile = CreateMarkedWorkbook(scenario, "Target", targetSheet, targetDuplicateGuard);
         return (sourceFile, targetFile);
     }
 
     private string CreateMarkedWorkbook(
         string scenario, string suffix, string? additionalSheet = null, bool duplicateGuard = false)
     {
-        var path = _fixture.CreateBlankWorkbook(scenario, suffix);
-        using var batch = ExcelSession.BeginBatch(path);
-        batch.Execute((context, _) => SeedWorkbook(context.Book, additionalSheet, duplicateGuard));
-        batch.Save();
+        var safeScenario = string.Concat(
+            scenario.Select(character =>
+                Path.GetInvalidFileNameChars().Contains(character) ? '_' : character));
+        var path = Path.Combine(
+            Path.GetDirectoryName(_fixture.WorkbookPath)!,
+            $"{safeScenario}_{suffix}_{Guid.NewGuid():N}.xlsx");
+        var key = (additionalSheet, duplicateGuard);
+        var templates = MarkedWorkbookTemplates.GetOrAdd(
+            key,
+            static key => SavedWorkbookTemplates.CreateStore(
+                templatePath => CreateMarkedWorkbookTemplate(templatePath, key.Sheet, key.DuplicateGuard)));
+        templates.CopyTo(path, $"{additionalSheet ?? "base"}-{duplicateGuard}");
         return path;
+    }
+
+    private static void CreateMarkedWorkbookTemplate(
+        string templatePath, string? additionalSheet, bool duplicateGuard)
+    {
+        using var manager = new SessionManager();
+        var sessionId = manager.CreateSessionForNewFile(templatePath, show: false);
+        var batch = manager.GetSession(sessionId)
+            ?? throw new InvalidOperationException("The marked workbook template session was not created.");
+        batch.Execute((context, _) => SeedWorkbook(context.Book, additionalSheet, duplicateGuard));
+        if (!manager.CloseSession(sessionId, save: true))
+        {
+            throw new InvalidOperationException("The marked workbook template could not be saved.");
+        }
     }
 
     private static void SeedWorkbook(

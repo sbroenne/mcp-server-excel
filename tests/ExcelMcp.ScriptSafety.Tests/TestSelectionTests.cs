@@ -83,6 +83,7 @@ public sealed class TestSelectionTests
     [InlineData("'scripts/Build-AgentSkills.ps1'", "SkillGeneration", "Feature=SkillGeneration")]
     [InlineData("'scripts/Build-Plugins.ps1'", "Packaging", "Feature=PluginBootstrap")]
     [InlineData("'scripts/check-workbook-package-access.ps1'", "ScriptSafety", "Feature=PreCommit")]
+    [InlineData("'infrastructure/azure/deploy-appinsights.ps1'", "ScriptSafety", "Feature=AutomationSafety")]
     [InlineData("'doc-counts.json'", "Packaging", "FullyQualifiedName~DocumentationCounts")]
     [InlineData("'mcpb/manifest.json'", "Packaging", "Feature=McpbPackaging")]
     [InlineData("'tests/ExcelMcp.Packaging.Tests/Example.cs'", "Packaging", "RequiresExcel=false")]
@@ -97,6 +98,41 @@ public sealed class TestSelectionTests
         Assert.True(result.ExitCode == 0, result.Output);
         Assert.Contains($"selected={expected}", result.Output, StringComparison.Ordinal);
         Assert.Contains(filter, result.Output, StringComparison.Ordinal);
+        if (paths.Contains("infrastructure/azure", StringComparison.Ordinal))
+        {
+            Assert.Contains("selected=ScriptSafety,ScriptSafety", result.Output, StringComparison.Ordinal);
+            Assert.Contains("RunType=OnDemand&Feature=AutomationSafety", result.Output, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public async Task AzureInfrastructureChecks_AreSelectedOnlyForOwningChanges()
+    {
+        var result = await RunAsync("""
+            . (Join-Path $root 'scripts\Get-ValidationPlan.ps1')
+            $affected = Get-ValidationPlan -Paths @(
+                'infrastructure/azure/configure-analytics-oidc.ps1',
+                'infrastructure/azure/deploy-appinsights.ps1')
+            if (-not $affected.AzureInfrastructureTests) { throw 'Azure safety checks were not selected.' }
+            $unrelated = Get-ValidationPlan -Paths 'scripts/pre-commit.ps1'
+            if ($unrelated.AzureInfrastructureTests) { throw 'Azure safety checks leaked to unrelated changes.' }
+            $full = Get-ValidationPlan -Full
+            if ($full.AzureInfrastructureTests) { throw 'Azure safety checks are part of normal full validation.' }
+            """);
+        Assert.True(result.ExitCode == 0, result.Output);
+    }
+
+    [Fact]
+    public async Task Runner_LocalAzureChangeRunsOnDemandChecksSeparately()
+    {
+        var result = await RunRunnerAsync(
+            "-Local -ChangedPaths @('infrastructure/azure/configure-analytics-oidc.ps1')",
+            false,
+            "'infrastructure/azure/configure-analytics-oidc.ps1'");
+        Assert.True(result.ExitCode == 0, result.Output);
+        Assert.Contains("selected=ScriptSafety,ScriptSafety", result.Output, StringComparison.Ordinal);
+        Assert.Contains("Feature=AutomationSafety", result.Output, StringComparison.Ordinal);
+        Assert.Contains("RunType=OnDemand&Feature=AutomationSafety", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -135,10 +171,19 @@ public sealed class TestSelectionTests
                 $global:selected.Add($project)
                 Write-Host "started=$project"
                 $filter = $arguments[[Array]::IndexOf($arguments, '--filter') + 1]
-                if ($filter -notmatch 'RequiresExcel=false&RunType!=OnDemand') { throw 'Classification filter lost.' }
+                if ($filter -notmatch 'RequiresExcel=false&' -or
+                    ($filter -notmatch 'RunType!=OnDemand' -and $filter -notmatch 'RunType=OnDemand')) {
+                    throw 'Classification filter lost.'
+                }
+                if ($filter -match 'RunType=OnDemand' -and $filter -notmatch 'Feature=AutomationSafety') {
+                    throw 'Unexpected on-demand tooling selection.'
+                }
                 $results = $arguments[[Array]::IndexOf($arguments, '--results-directory') + 1]
                 New-Item -ItemType Directory $results -Force | Out-Null
-                Set-Content (Join-Path $results "$project.trx") '<TestRun><ResultSummary outcome="Completed"><Counters total="1" passed="1" /></ResultSummary></TestRun>'
+                $logger = $arguments[[Array]::IndexOf($arguments, '--logger') + 1]
+                $report = [regex]::Match($logger, 'LogFileName=([^;]+)').Groups[1].Value
+                if (-not $report) { throw 'Missing report name.' }
+                Set-Content (Join-Path $results $report) '<TestRun><Results><UnitTestResult testName="case" outcome="Passed"/></Results><ResultSummary outcome="Completed"><Counters total="1" executed="1" passed="1" failed="0" notExecuted="0"/></ResultSummary></TestRun>'
                 $process = [pscustomobject]@{
                     ExitCode = {{(fail ? 23 : 0)}}
                     StandardOutput = [IO.StringReader]::new('')
