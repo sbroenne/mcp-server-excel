@@ -95,9 +95,9 @@ open a modal preview.
 
 ---
 
-## Workbook (27 operations)
+## Workbook (28 operations)
 
-- **Inspect and describe:** Read workbook state and manage document properties, protection, and view settings.
+- **Inspect and describe:** Get a bounded worksheet/table/name overview with optional previews, read workbook state, and manage document properties, protection, and view settings.
 - **Use themes and styles:** Inspect or apply Office themes and create, inspect, update, or delete supported custom cell and Table styles.
 - **Save and publish:** Change supported file formats, save a requested copy, or export PDF/XPS output.
 - **Manage external links:** Inspect or refresh linked workbook sources, or deliberately replace linked formulas with their values.
@@ -111,7 +111,7 @@ Changing file formats can remove features; saving a macro-enabled workbook as
 saved. Printing and print preview are intentionally excluded from unattended
 automation.
 
-[Saving and external-link guidance](../reference/workbook.md) |
+[Workbook overview, saving, and external-link guidance](../reference/workbook.md) |
 [Reusable style guidance](../reference/range.md#reusable-cell-styles)
 
 ---

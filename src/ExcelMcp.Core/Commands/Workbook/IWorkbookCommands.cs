@@ -16,11 +16,45 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Workbook;
 [ServiceCategory("workbook", "Workbook")]
 [McpTool("workbook", Title = "Workbook Operations", Destructive = true, Category = "structure",
     Description = "TABLE STYLES: create-table-style clones source_style_name without applying it; update-table-style takes a table_style_options object with native elementType names and differential formatting; delete-table-style can remove formatting from existing users. Font name/size, scripts and diagonal borders are unsupported. Built-in styles are read-only. Apply separately with table set-style, pivottable_calc set-layout-options, or slicer set-layout. "
+        + "inspect returns bounded worksheet, table, and visible named-range metadata; an optional cell preview requires sheet_name and is limited before reading. Hidden sheets are identified, not skipped; protected-sheet read failures are reported. "
         + "Change workbook document properties, protection and view options, save/copy workbooks, export fixed-format PDF/XPS, update/break external Excel links, and manage native themes and cell styles. CELL STYLES: create-cell-style captures exactly one visible source cell without modifying it; temporarily activates its worksheet and restores the prior view. Hidden source sheets are rejected without changing visibility. update-cell-style changes a custom definition and can affect all existing users throughout the workbook; omitted inclusion flags are preserved. delete-cell-style removes the custom name from existing users; Excel determines retained formatting. Built-in styles are read-only. Apply styles separately with range_format set-style. THEME: apply-theme takes an existing absolute-path .thmx file and changes theme-sensitive formatting throughout the workbook; fixed RGB remains fixed. Saving stays explicit. BREAK-EXTERNAL-LINK HAS NO TOOL-LEVEL UNDO: replaces linked formulas with their current values. SAVE-AS formats: auto, xlsx, xlsm, xlsb, xls; the active session follows the new path. DOCUMENT PROPERTIES: built-in properties can be updated; custom properties can be created, updated, and deleted. Printing and print preview are excluded because default-printer output and modal preview are unsafe for unattended automation.")]
-[McpReadOnlyActions("list-table-styles", "get-table-style", "list-cell-styles", "get-cell-style", "get-info",
+[McpReadOnlyActions("inspect", "list-table-styles", "get-table-style", "list-cell-styles", "get-cell-style", "get-info",
     "get-theme", "list-document-properties", "get-document-property", "list-external-links", "get-protection", "get-view-options")]
 public interface IWorkbookCommands
 {
+    /// <summary>
+    /// Returns bounded workbook structure and optionally a bounded preview from one selected worksheet.
+    /// Hidden worksheets are included with their visibility. Counts and omitted-item totals describe the selected scope.
+    /// Preview limits are applied before reading cells; string text is capped per cell and across the whole preview.
+    /// Does not edit, save, refresh, recalculate, run macros, or change the active view.
+    /// </summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="sheetName">Optional worksheet filter for sheet/table metadata; required when includePreview is true.</param>
+    /// <param name="includeSheets">Include worksheet names, visibility, and used-range geometry.</param>
+    /// <param name="includeTables">Include table names, worksheets, and ranges.</param>
+    /// <param name="includeDefinedNames">Include visible user-defined workbook names and their RefersTo expressions.</param>
+    /// <param name="includePreview">Include a bounded value/formula preview. Requires sheetName.</param>
+    /// <param name="rangeAddress">Optional preview range on sheetName. If omitted, previews the worksheet's UsedRange from its top-left cell.</param>
+    /// <param name="maxItems">Maximum returned items per metadata section, 1-100.</param>
+    /// <param name="maxPreviewRows">Maximum preview rows, 1-10.</param>
+    /// <param name="maxPreviewColumns">Maximum preview columns, 1-10.</param>
+    /// <param name="maxCellCharacters">Maximum text characters per value/formula cell, 1-200.</param>
+    /// <param name="maxPreviewCharacters">Maximum combined text characters in the preview values and formulas, 1-8192.</param>
+    [ServiceAction("inspect")]
+    WorkbookOverviewResult Inspect(
+        IExcelBatch batch,
+        string? sheetName = null,
+        bool includeSheets = true,
+        bool includeTables = true,
+        bool includeDefinedNames = true,
+        bool includePreview = false,
+        string? rangeAddress = null,
+        int maxItems = 50,
+        int maxPreviewRows = 6,
+        int maxPreviewColumns = 6,
+        int maxCellCharacters = 160,
+        int maxPreviewCharacters = 4096);
+
     /// <summary>Lists every native table/Pivot/slicer/timeline style name, built-in/custom status, and availability flags without a cap.</summary>
     [ServiceAction("list-table-styles")]
     TableStyleListResult ListTableStyles(IExcelBatch batch);
