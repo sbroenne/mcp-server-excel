@@ -137,8 +137,8 @@ tests/
 **During Development (Fast Feedback):**
 ```powershell
 # Quick validation - run tests for specific feature
-& .\scripts\Test-ExcelIntegration.ps1 -Project Service -Filter 'Feature=PowerQuery&RunType!=OnDemand'
-& .\scripts\Test-ExcelIntegration.ps1 -Project Service -Filter 'Feature=DataModel&RunType!=OnDemand'
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Release --filter 'RequiresExcel=true&Feature=PowerQuery&RunType!=OnDemand' --blame-hang-timeout 5m --logger trx
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Release --filter 'RequiresExcel=true&Feature=DataModel&RunType!=OnDemand' --blame-hang-timeout 5m --logger trx
 ```
 
 **Before Commit:** Rerun the affected tests and applicable repository checks.
@@ -192,7 +192,7 @@ Before creating a PR, ensure:
 
 ```powershell
 # Example: select the project and feature affected by the change
-& .\scripts\Test-ExcelIntegration.ps1 -Project Service -Filter 'Feature=PowerQuery&RunType!=OnDemand'
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Release --filter 'RequiresExcel=true&Feature=PowerQuery&RunType!=OnDemand' --blame-hang-timeout 5m --logger trx
 
 # Code builds without warnings
 dotnet build -c Release
@@ -435,7 +435,7 @@ dotnet restore
 dotnet build -c Release
 
 # Run integration tests for the affected feature (requires Excel).
-& .\scripts\Test-ExcelIntegration.ps1 -Project Service -Filter 'Feature=PowerQuery&RunType!=OnDemand'
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Release --filter 'RequiresExcel=true&Feature=PowerQuery&RunType!=OnDemand' --blame-hang-timeout 5m --logger trx
 
 # Test the built executable
 .\src\ExcelMcp.CLI\bin\Release\net10.0\excelcli.exe --version

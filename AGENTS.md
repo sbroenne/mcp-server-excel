@@ -83,8 +83,9 @@ Build with zero warnings. Use targeted tests; see the
 sequentially; never overlap Excel test fixtures, test hosts, or E2E runs.
 Runtime changes in Core, ComInterop, Service, CLI, MCP, or their generators also
 require `scripts\Test-E2E.ps1` locally with Excel, once against the final PR
-source. During development, use focused checks; the commit hook does not repeat
-full E2E on every commit. Report final E2E as not run when Excel is unavailable;
+source, after the last runtime-affecting change. Rerun it if later commits
+change runtime behavior. During development, use focused checks; the commit hook
+does not repeat full E2E on every commit. Report final E2E as not run when Excel is unavailable;
 build-only checks do not cover COM.
 
 The Python evaluation suite under `llm-tests/` is on-demand only, not part of the

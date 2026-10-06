@@ -5,10 +5,22 @@ function Assert-TestReport {
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw "Missing test report: $Path" }
     [xml]$trx = Get-Content -LiteralPath $Path -Raw
     $counters = $trx.TestRun.ResultSummary.Counters
+    $results = @($trx.TestRun.Results.UnitTestResult)
     if (-not $counters -or [int]$counters.total -le 0 -or
         [int]$counters.passed -ne [int]$counters.total -or
+        [int]$counters.executed -ne [int]$counters.total -or
+        $results.Count -ne [int]$counters.total -or
+        @($results | Where-Object outcome -ne 'Passed').Count -gt 0 -or
         $trx.TestRun.ResultSummary.outcome -ne 'Completed') {
         throw "Test selection was empty, skipped, failed, or had a cleanup failure. See $Path."
+    }
+    foreach ($name in @('failed', 'notExecuted', 'error', 'timeout', 'aborted',
+        'inconclusive', 'passedButRunAborted', 'notRunnable', 'disconnected',
+        'warning', 'inProgress', 'pending')) {
+        if (($name -in @('failed', 'notExecuted') -and -not $counters.HasAttribute($name)) -or
+            ($counters.HasAttribute($name) -and [int]$counters.GetAttribute($name) -ne 0)) {
+            throw "Missing or non-passing test counter ${name}. See $Path."
+        }
     }
 }
 

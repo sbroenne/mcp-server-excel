@@ -8,7 +8,7 @@ serialization, and generation can use focused tests without Excel.
 
 ```powershell
 # One ordinary workbook feature through Service
-& .\scripts\Test-ExcelIntegration.ps1 -Project Service -Filter 'Feature=PowerQuery&RunType!=OnDemand'
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Release --filter 'RequiresExcel=true&Feature=PowerQuery&RunType!=OnDemand' --blame-hang-timeout 5m --logger trx
 
 # Excel-independent parsing
 dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "FullyQualifiedName~ServiceRegistryJsonParsingTests"
@@ -22,55 +22,37 @@ dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter 
 
 ### Excel integration tests and saved results
 
-Use `scripts\Test-ExcelIntegration.ps1` for integration tests affected by a change,
-not a routine full-suite run. These are normal tests, not investigation-only
-OnDemand diagnostics. They are tagged `RequiresExcel=true` and exercise ExcelMcp
-against desktop Excel and verify actual workbook or Excel-session outcomes.
-It excludes tests tagged `RequiresExcel=false`, such as parsing, adapter,
-packaging, publishing-script, and other tooling checks covered by their own
-local or CI selections. Focused mode requires both `-Project` and `-Filter`,
-and adds `RequiresExcel=true` automatically. `-Full` runs the ordered Excel
-acceptance partitions below, including separate VBA/desktop groups and the
-supported ComInterop infrastructure selection. It does not expand the commit
-hook or change trust/locale settings.
-Focused mode builds only the selected test project and its dependencies; full
-mode builds the Release solution.
+Excel integration tests are ordinary C# tests tagged `RequiresExcel=true`.
+They exercise ExcelMcp against desktop Excel and verify workbook or session
+outcomes. They are not a separate investigation suite.
 
-Every run writes to a fresh directory beneath `-ResultsDirectory` (by default
-`TestResults\ExcelIntegration`). It retains exact commands, child-process
-identities, discovery output, ownership journals, TRX files, and `summary.json`.
-The runner does not fingerprint source files or reject edits made during
-validation.
-Execution has per-test hang protection and a hard deadline per stage.
-`summary.json` records build, discovery, and execution wall times by command;
-TRX reports retain individual test durations, and the console reports progress
-as each build, inventory check, discovery, and execution stage starts and ends.
-Discovery and executed names are compared as multisets, including theory rows
-and repeated names. Missing/invalid reports, empty focused selections, omitted,
-duplicated, failed, or skipped required cases fail the run. Full-mode partitions
-must cover each project's normal discovery without overlap. Full runs discover
-that project-wide test list once and reconcile the combined partition reports
-against it; stages that may legitimately select no tests retain their own
-discovery so empty runs are skipped safely. Full discovery-only mode still
-discovers and reconciles every individual partition.
+During development, run `dotnet test` for the affected project, class, or feature,
+as above. Use `--logger trx` to retain results, `--blame-hang-timeout 5m` for hang
+protection, and `--results-directory` when a named results directory is useful.
+Check that the filter actually executed the intended tests: `dotnet test` can
+return zero when no tests match. Never overlap Excel-dependent commands.
+
+For an explicit group or complete-suite run, build Release first and use
+`scripts\Invoke-ExcelTests.ps1`. It keeps class fixtures together, runs groups
+and projects sequentially, and uses the same `Invoke-TestStage.ps1` helper as
+Excel-free checks and E2E. The helper retains stdout/stderr logs, TRX reports,
+ownership journals, and wall times, enforces a hard deadline, and rejects empty,
+skipped, failed, or contradictory reports. `-ListTests` lists the selected tests
+without running workbook operations; it is not passing test evidence.
+
+Complete-suite runs are not routine development steps. For runtime changes,
+run `scripts\Test-E2E.ps1` once on final PR source. Investigation diagnostics
+marked `RunType=OnDemand` stay separate; the group runner includes infrastructure
+diagnostics only with explicit `-IncludeInfrastructureDiagnostics`.
 
 Windows/Azure runner setup and administration scripts are not part of the
 automated test suite. Product checks remain, including COM-reference safety,
 owned pre-build cleanup, test-result reporting, and real Excel acceptance.
 The retained PowerShell script tests run with PowerShell 7.
 
-Use `-Full -ContinueOnFailure` when collecting all stage results despite a
-completed stage's failing tests. Each failure remains recorded and the command
-still fails overall. Build/discovery failures and hard deadlines still stop the
-run; continuing is not permission to start another stage while Excel is busy.
-
-`-DiscoverOnly` saves the same selection/discovery evidence without executing
-tests; its summary explicitly says `discovery-only`, not passed. Neither
-discovery nor a passing subgroup proves that every test contains strong
-assertions. Keep the case-by-case source review separate and record unreviewed
-cases honestly. Missing Excel, VBA trust, desktop, or other prerequisites mean
-incomplete validation; do not manufacture a pass by skipping tests or changing
-host settings. Explicit on-demand locale/IRM probes need their own focused run.
+Missing Excel, VBA trust, desktop, or other prerequisites mean incomplete
+validation; do not manufacture a pass by skipping tests or changing host
+settings. Explicit on-demand locale/IRM probes need their own focused run.
 
 ### Verify the outcome before cleanup
 
@@ -266,7 +248,7 @@ Before PR delivery, include affected existing callers as well as new feature
 tests. Run the full existing Excel-free selection with
 `scripts\Invoke-ExcelFreeTests.ps1` (without `-Local`), including packaged-plugin
 validation, and `npx --no-install changeset status --since=origin/main`.
-These complement focused native tests and normal hooked runtime E2E; they do
+These complement focused native tests and final-source runtime E2E; they do
 not replace either.
 Preserve documented response shapes. For example, MCP `file` action `test`
 returns a file assessment: `success=false` can mean a missing or protected
@@ -481,10 +463,10 @@ adapter acceptance cases without repeating required cases. Local commit hooks
 run changed-area Excel-free checks and remind contributors to run complete
 Excel E2E once against the final PR source; they do not repeat full E2E on each
 commit. During development, use focused real-Excel groups or a focused E2E
-stage as needed. Focused runs are not final acceptance. Run the complete
-three-stage E2E once before opening the PR for runtime changes, and run
-affected real-Excel groups separately, including when changing Excel-dependent
-tests.
+stage as needed. Focused runs are not final acceptance. Run complete three-stage
+E2E after the last runtime-affecting change, and rerun it if subsequent commits
+change runtime behavior. Run affected Excel tests separately, including when
+changing Excel-dependent tests.
 
 `Test-E2E.ps1` defaults to three sequential stages: independent executable CLI
 scenarios, the linked stale-build save/rebuild/reopen regression, and independent

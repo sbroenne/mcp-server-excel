@@ -204,12 +204,43 @@ public sealed class ValidationOrchestrationTests
             . .\scripts\Invoke-TestStage.ps1
             $file = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.Report.$([Guid]::NewGuid().ToString('N')).trx"
             try {
-                '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><ResultSummary outcome="{{outcome}}"><Counters total="{{total}}" passed="{{passed}}"/></ResultSummary></TestRun>' |
+                $rows = (1..{{total}} | ForEach-Object {
+                    if ({{total}} -gt 0) { '<UnitTestResult testName="case" outcome="Passed"/>' }
+                }) -join ''
+                '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results>' + $rows +
+                    '</Results><ResultSummary outcome="{{outcome}}"><Counters total="{{total}}" executed="{{total}}" passed="{{passed}}" failed="0" notExecuted="0"/></ResultSummary></TestRun>' |
                     Set-Content -LiteralPath $file
                 Assert-TestReport -Path $file
             } finally { Remove-Item -LiteralPath $file }
             """);
         Assert.Equal(succeeds, run.ExitCode == 0);
+    }
+
+    [Theory]
+    [InlineData("row")]
+    [InlineData("missing-row")]
+    [InlineData("failed")]
+    [InlineData("notExecuted")]
+    [InlineData("executed")]
+    [InlineData("timeout")]
+    public async Task Reports_RejectContradictoryResults(string change)
+    {
+        var run = await ValidationSelectionTests.RunAsync($$"""
+            . .\scripts\Invoke-TestStage.ps1
+            $file = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.Report.$([Guid]::NewGuid().ToString('N')).trx"
+            try {
+                [xml]$report = '<TestRun><Results><UnitTestResult testName="case" outcome="Passed"/></Results><ResultSummary outcome="Completed"><Counters total="1" executed="1" passed="1" failed="0" notExecuted="0"/></ResultSummary></TestRun>'
+                switch ('{{change}}') {
+                    row { $report.TestRun.Results.UnitTestResult.outcome = 'Failed' }
+                    missing-row { [void]$report.TestRun.Results.RemoveAll() }
+                    executed { $report.TestRun.ResultSummary.Counters.executed = '0' }
+                    default { $report.TestRun.ResultSummary.Counters.SetAttribute('{{change}}', '1') }
+                }
+                $report.Save($file)
+                Assert-TestReport -Path $file
+            } finally { Remove-Item -LiteralPath $file }
+            """);
+        Assert.NotEqual(0, run.ExitCode);
     }
 
     [Fact]

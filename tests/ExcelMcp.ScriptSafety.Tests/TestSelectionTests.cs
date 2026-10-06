@@ -183,7 +183,7 @@ public sealed class TestSelectionTests
                 $logger = $arguments[[Array]::IndexOf($arguments, '--logger') + 1]
                 $report = [regex]::Match($logger, 'LogFileName=([^;]+)').Groups[1].Value
                 if (-not $report) { throw 'Missing report name.' }
-                Set-Content (Join-Path $results $report) '<TestRun><ResultSummary outcome="Completed"><Counters total="1" passed="1" /></ResultSummary></TestRun>'
+                Set-Content (Join-Path $results $report) '<TestRun><Results><UnitTestResult testName="case" outcome="Passed"/></Results><ResultSummary outcome="Completed"><Counters total="1" executed="1" passed="1" failed="0" notExecuted="0"/></ResultSummary></TestRun>'
                 $process = [pscustomobject]@{
                     ExitCode = {{(fail ? 23 : 0)}}
                     StandardOutput = [IO.StringReader]::new('')
