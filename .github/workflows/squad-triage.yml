@@ -16,6 +16,7 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4
 
       - name: Triage issue via Lead agent
+        id: triage
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b #v7
         with:
           script: |
@@ -42,22 +43,25 @@ jobs:
 
             if (hasCopilot) {
               // Extract capability tiers from team.md
-              const goodFitMatch = content.match(/🟢\s*Good fit[^:]*:\s*(.+)/i);
-              const needsReviewMatch = content.match(/🟡\s*Needs review[^:]*:\s*(.+)/i);
-              const notSuitableMatch = content.match(/🔴\s*Not suitable[^:]*:\s*(.+)/i);
+              const goodFitMatch = content.match(/🟢\s*Good fit[^:\r\n]*:[ \t]*([^\r\n]*)/i);
+              const needsReviewMatch = content.match(/🟡\s*Needs review[^:\r\n]*:[ \t]*([^\r\n]*)/i);
+              const notSuitableMatch = content.match(/🔴\s*Not suitable[^:\r\n]*:[ \t]*([^\r\n]*)/i);
+              const inlineKeywords = match => match
+                ? match[1].replace(/\*\*/g, '').toLowerCase().split(',').map(s => s.trim()).filter(Boolean)
+                : [];
 
-              if (goodFitMatch) {
-                goodFitKeywords = goodFitMatch[1].toLowerCase().split(',').map(s => s.trim());
+              if (inlineKeywords(goodFitMatch).length) {
+                goodFitKeywords = inlineKeywords(goodFitMatch);
               } else {
                 goodFitKeywords = ['bug fix', 'test coverage', 'lint', 'format', 'dependency update', 'small feature', 'scaffolding', 'doc fix', 'documentation'];
               }
-              if (needsReviewMatch) {
-                needsReviewKeywords = needsReviewMatch[1].toLowerCase().split(',').map(s => s.trim());
+              if (inlineKeywords(needsReviewMatch).length) {
+                needsReviewKeywords = inlineKeywords(needsReviewMatch);
               } else {
                 needsReviewKeywords = ['medium feature', 'refactoring', 'api endpoint', 'migration'];
               }
-              if (notSuitableMatch) {
-                notSuitableKeywords = notSuitableMatch[1].toLowerCase().split(',').map(s => s.trim());
+              if (inlineKeywords(notSuitableMatch).length) {
+                notSuitableKeywords = inlineKeywords(notSuitableMatch);
               } else {
                 notSuitableKeywords = ['architecture', 'system design', 'security', 'auth', 'encryption', 'performance'];
               }
@@ -215,8 +219,7 @@ jobs:
 
             const lead = findLead(members);
             if (!lead) {
-              core.warning('No Lead role found in team roster — cannot triage');
-              return;
+              core.info('No Lead configured — evaluating the coding agent only.');
             }
 
             // Build triage context
@@ -253,6 +256,16 @@ jobs:
 
             // If not routed to @copilot, score the repository's current routing table.
             if (!assignedMember) {
+              if (!lead) {
+                core.warning('No suitable coding agent match and no Lead configured.');
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: 'Squad could not route this issue: it does not match the coding agent capability profile and no Lead is configured. A maintainer must review it or configure the specialist team in `.squad/team.md`.'
+                });
+                return;
+              }
               const assignment = selectRoutingAssignment(issueText, routingContent, members, lead);
               assignedMember = assignment.member;
               triageReason = assignment.workType
@@ -279,19 +292,8 @@ jobs:
               labels: ['go:needs-research']
             });
 
-            // Auto-assign @copilot if enabled
-            if (isCopilot && copilotAutoAssign) {
-              try {
-                await github.rest.issues.addAssignees({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issue.number,
-                  assignees: ['copilot']
-                });
-              } catch (err) {
-                core.warning(`Could not auto-assign @copilot: ${err.message}`);
-              }
-            }
+            // GITHUB_TOKEN label events do not trigger the assignment workflow.
+            core.setOutput('assign-copilot', isCopilot && copilotAutoAssign ? 'true' : 'false');
 
             // Build copilot evaluation note
             let copilotNote = '';
@@ -305,11 +307,12 @@ jobs:
 
             // Post triage comment
             const comment = [
-              `### 🏗️ Squad Triage — ${lead.name} (${lead.role})`,
+              lead ? `### 🏗️ Squad Triage — ${lead.name} (${lead.role})` : '### Squad Triage — Coding Agent',
               '',
               `**Issue:** #${issue.number} — ${issue.title}`,
               `**Assigned to:** ${assignedMember.name} (${assignedMember.role})`,
               `**Reason:** ${triageReason}`,
+              isCopilot && !copilotAutoAssign ? 'Automatic assignment is disabled. A maintainer can assign the coding agent directly or remove and reapply `squad:copilot` to trigger the assignment workflow.' : '',
               copilotTier === 'needs-review' ? `\n⚠️ **PR review recommended** — a squad member should review @copilot's work on this one.` : '',
               copilotNote,
               '',
@@ -330,3 +333,14 @@ jobs:
             });
 
             core.info(`Triaged issue #${issue.number} → ${assignedMember.name} (${assignLabel})`);
+
+      - name: Assign @copilot coding agent
+        if: steps.triage.outputs.assign-copilot == 'true'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b #v7
+        env:
+          COPILOT_ASSIGN_TOKEN: ${{ secrets.COPILOT_ASSIGN_TOKEN }}
+        with:
+          github-token: ${{ secrets.COPILOT_ASSIGN_TOKEN }}
+          script: |
+            const assign = require('./.github/scripts/assign-squad-copilot.cjs');
+            await assign({ github, context, core, token: process.env.COPILOT_ASSIGN_TOKEN });

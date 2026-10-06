@@ -48,25 +48,38 @@ await browser.close();
 ### 2. Host screenshots on a temporary branch
 
 GitHub PR descriptions render images via URLs. The `gh` CLI cannot upload binary
-images directly. Use a temporary orphan branch to host the images:
+images directly. Use a unique screenshot branch in a separate temporary worktree.
+Never switch or reset the user's working checkout. Upload only synthetic images,
+and get authorization before pushing the screenshot branch.
 
 ```powershell
-# Save current branch
-$currentBranch = git branch --show-current
-
-# Create orphan branch with only screenshot files
-git checkout --orphan screenshots-temp
-git reset
-git add screenshots/*.png
-git commit -m "screenshots for PR review"
-git push origin screenshots-temp --force
+# Use a unique branch for this PR and upload
+$branch = "screenshots-pr-{PR_NUMBER}-$([guid]::NewGuid().ToString('N'))"
+$worktree = Join-Path ([IO.Path]::GetTempPath()) $branch
+$source = (Resolve-Path screenshots).Path
+git worktree add --detach $worktree HEAD
+if ($LASTEXITCODE -ne 0) { throw "Could not create screenshot worktree" }
+Push-Location $worktree
+try {
+    git switch --orphan $branch
+    if ($LASTEXITCODE -ne 0) { throw "Could not create screenshot branch" }
+    Copy-Item $source -Destination (Join-Path $worktree "screenshots") -Recurse
+    git add -- screenshots
+    if ($LASTEXITCODE -ne 0) { throw "Could not stage screenshots" }
+    git commit -m "screenshots for PR review"
+    if ($LASTEXITCODE -ne 0) { throw "Could not commit screenshots" }
+    git push origin $branch
+    if ($LASTEXITCODE -ne 0) { throw "Could not push screenshot branch" }
+} finally {
+    Pop-Location
+}
+git worktree remove $worktree
+if ($LASTEXITCODE -ne 0) { throw "Could not remove screenshot worktree; inspect it before cleanup" }
 
 # Build raw URLs
-$base = "https://raw.githubusercontent.com/{owner}/{repo}/screenshots-temp/screenshots"
+$base = "https://raw.githubusercontent.com/{owner}/{repo}/$branch/screenshots"
 # Each image: $base/{name}.png
 
-# Return to working branch
-git checkout -f $currentBranch
 ```
 
 ### 3. Embed in PR description
@@ -74,7 +87,7 @@ git checkout -f $currentBranch
 Use `gh pr edit` with the raw URLs embedded as markdown images:
 
 ```powershell
-$base = "https://raw.githubusercontent.com/{owner}/{repo}/screenshots-temp/screenshots"
+$base = "https://raw.githubusercontent.com/{owner}/{repo}/$branch/screenshots"
 
 gh pr edit {PR_NUMBER} --repo {owner}/{repo} --body @"
 ## {PR Title}
@@ -103,10 +116,11 @@ gh pr edit {PR_NUMBER} --repo {owner}/{repo} --body @"
 
 ### 4. Cleanup after merge
 
-After the PR is merged, delete the temporary branch:
+Keep the branch while reviewers need the images. After merge, delete only this
+upload's branch with authorization (the embedded images will stop working):
 
-```bash
-git push origin --delete screenshots-temp
+```powershell
+git push origin --delete $branch
 ```
 
 ### 5. Gitignore screenshots locally
@@ -125,7 +139,7 @@ docs/tests/screenshots/
 
 1. Start dev server: `cd docs && npm run dev`
 2. Run Playwright tests (they capture screenshots as a side effect)
-3. Push screenshots to `screenshots-temp` branch
+3. Push screenshots to a unique per-PR branch from a temporary worktree
 4. Update PR body with embedded `![...]()` image references
 5. Reviewer sees the pages inline without checking out the branch
 
@@ -136,7 +150,7 @@ If tests at `docs/tests/*.spec.mjs` already save to `docs/tests/screenshots/`:
 ```powershell
 cd docs && npx playwright test tests/api-reference.spec.mjs
 # Screenshots now at docs/tests/screenshots/*.png
-# Push those to screenshots-temp and embed in PR
+# Push those to a unique per-PR branch and embed in PR
 ```
 
 ## Anti-Patterns
@@ -146,4 +160,4 @@ cd docs && npx playwright test tests/api-reference.spec.mjs
 - ❌ **Using `gh` CLI to "upload" images** — `gh issue comment` and `gh pr edit` don't support binary uploads
 - ❌ **Asking the user to manually drag-drop images** — automate it with the temp branch pattern
 - ❌ **Skipping screenshots for visual PRs** — if the PR changes what users see, show what users see
-- ❌ **Leaving the screenshots-temp branch around forever** — clean up after merge
+- ❌ **Force-pushing or switching the user's checkout** — use an isolated worktree and an ordinary push

@@ -85,7 +85,7 @@ _None — no routing data available._
 - `meet-the-squad.md`
 - Scribe: `.squad/agents/scribe/charter.md`
 - Ralph: `.squad/agents/ralph/charter.md`
-- Rai: `.squad/agents/rai/charter.md`
+- Rai: `.squad/agents/Rai/charter.md`
 - Fact Checker: `.squad/agents/fact-checker/charter.md`
 
 ## Built-in Support Agents
@@ -94,7 +94,7 @@ Scribe, Ralph, Rai, and Fact Checker are mandatory support identities. Their can
 
 - Scribe: `.squad/agents/scribe/charter.md`
 - Ralph: `.squad/agents/ralph/charter.md`
-- Rai: `.squad/agents/rai/charter.md`
+- Rai: `.squad/agents/Rai/charter.md`
 - Fact Checker: `.squad/agents/fact-checker/charter.md`
 
 They are not specialist registry entries or routing-table destinations.

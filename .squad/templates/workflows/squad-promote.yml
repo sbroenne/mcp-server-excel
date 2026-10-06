@@ -113,7 +113,13 @@ jobs:
           git checkout main
           git merge origin/preview --no-ff -m "chore: promote preview → main (v$(node -e "console.log(require('./package.json').version)"))"
           git push origin main
-          echo "✅ Pushed main — squad-release.yml will tag and publish the release"
+          echo "✅ Pushed main"
+
+      - name: Dispatch release
+        if: ${{ inputs.dry_run == 'false' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run squad-release.yml --ref main
 
       - name: Dry run complete
         if: ${{ inputs.dry_run == 'true' }}

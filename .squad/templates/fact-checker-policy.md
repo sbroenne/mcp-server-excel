@@ -97,7 +97,7 @@ Decisions that affect other agents go to `.squad/decisions/inbox/fact-checker-{s
 When Fact Checker issues a ❌ Contradicted verdict on a user-facing artifact at Pre-Ship time:
 
 1. **Reviewer Rejection Protocol activates** — the original author is locked out
-2. **Fact Checker names the fix agent** — usually the agent that produced the unverified claim
+2. **Fact Checker names a different qualified fix agent** — the rejected author remains locked out of the revision
 3. **Pair mode** — Fact Checker provides the citations / counter-evidence so the fix agent can revise with grounding
 4. **Re-verification required** — Fact Checker must issue ✅ or ⚠️ before the artifact can ship
 
