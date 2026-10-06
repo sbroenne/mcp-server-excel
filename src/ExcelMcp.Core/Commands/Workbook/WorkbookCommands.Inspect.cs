@@ -238,8 +238,7 @@ public partial class WorkbookCommands
                             ? previewRange.Formula2
                             : previewRange.Formula;
                         var previewFormulas = ExcelValueNormalizer.Normalize(formulaValues);
-                        NormalizePreviewErrors(previewValues);
-                        NormalizePreviewErrors(previewFormulas);
+                        NormalizePreviewErrors(previewValues, previewFormulas, previewRange);
 
                         int remainingCharacters = maxPreviewCharacters;
                         int returnedCharacters = 0;
@@ -337,14 +336,41 @@ public partial class WorkbookCommands
             || localName.Equals("_FilterDatabase", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void NormalizePreviewErrors(ExcelValueGrid grid)
+    private static void NormalizePreviewErrors(
+        ExcelValueGrid grid,
+        ExcelValueGrid? formulas = null,
+        Excel.Range? sourceRange = null)
     {
         for (int row = 0; row < grid.RowCount; row++)
         {
             for (int column = 0; column < grid.ColumnCount; column++)
             {
-                if (ExcelErrorMapper.TryGet(grid.Values[row][column], out _, out var error))
-                    grid.Values[row][column] = error.Name;
+                object? value = grid.Values[row][column];
+                if (!ExcelErrorMapper.TryGet(value, out _, out var error))
+                    continue;
+
+                if (value is double)
+                {
+                    if (formulas?.Values[row][column] is not string formula
+                        || !formula.StartsWith('='))
+                        continue;
+                    if (sourceRange is null)
+                        throw new InvalidOperationException("A preview range is required to verify Excel error values.");
+
+                    Excel.Range? cell = null;
+                    try
+                    {
+                        cell = (Excel.Range)sourceRange.Cells[row + 1, column + 1];
+                        if (!string.Equals(cell.Text?.ToString(), error.Name, StringComparison.Ordinal))
+                            continue;
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref cell);
+                    }
+                }
+
+                grid.Values[row][column] = error.Name;
             }
         }
     }
@@ -364,12 +390,21 @@ public partial class WorkbookCommands
                     continue;
 
                 int allowed = Math.Min(maxCellCharacters, remainingCharacters);
-                if (text.Length > allowed)
+                int returned = allowed;
+                if (returned > 0
+                    && returned < text.Length
+                    && char.IsHighSurrogate(text[returned - 1])
+                    && char.IsLowSurrogate(text[returned]))
                 {
-                    row[column] = text[..allowed];
+                    returned--;
+                }
+
+                if (text.Length > returned)
+                {
+                    row[column] = text[..returned];
                     truncatedCells++;
-                    returnedCharacters += allowed;
-                    remainingCharacters -= allowed;
+                    returnedCharacters += returned;
+                    remainingCharacters -= returned;
                 }
                 else
                 {

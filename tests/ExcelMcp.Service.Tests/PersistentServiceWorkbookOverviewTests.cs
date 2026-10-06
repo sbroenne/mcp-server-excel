@@ -167,6 +167,60 @@ public sealed class PersistentServiceWorkbookOverviewTests(
         Assert.Equal(string.Empty, preview.GetProperty("formulas")[0][0].GetString());
     }
 
+    [Fact]
+    public void Inspect_DistinguishesErrorResultsFromMatchingNumericValues()
+    {
+        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        Assert.True(_commands.SetValues(_fixture.BatchToken, sheetName, "A2",
+            [[-2146826281d]]).Success);
+        Assert.True(_commands.SetFormulas(_fixture.BatchToken, sheetName, "A1",
+            [["=1/0"]], overwritePolicy: Sbroenne.ExcelMcp.Core.Commands.Range.OverwritePolicy.Allow).Success);
+
+        var response = _fixture.Send("workbook.inspect", new
+        {
+            sheetName,
+            includeSheets = false,
+            includeTables = false,
+            includeDefinedNames = false,
+            includePreview = true,
+            rangeAddress = "A1:A2"
+        });
+
+        using var result = JsonDocument.Parse(response.Result!);
+        var preview = result.RootElement.GetProperty("preview");
+        Assert.Equal("#DIV/0!", preview.GetProperty("values")[0][0].GetString());
+        Assert.Equal(-2146826281d, preview.GetProperty("values")[1][0].GetDouble());
+        Assert.Equal("=1/0", preview.GetProperty("formulas")[0][0].GetString());
+        Assert.Equal("-2146826281", preview.GetProperty("formulas")[1][0].GetString());
+    }
+
+    [Fact]
+    public void Inspect_TruncatesTextWithoutSplittingSurrogatePairs()
+    {
+        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        Assert.True(_commands.SetValues(_fixture.BatchToken, sheetName, "A1:A2",
+            [["a😀b"], ["Z"]]).Success);
+
+        var response = _fixture.Send("workbook.inspect", new
+        {
+            sheetName,
+            includeSheets = false,
+            includeTables = false,
+            includeDefinedNames = false,
+            includePreview = true,
+            rangeAddress = "A1:A2",
+            maxCellCharacters = 2,
+            maxPreviewCharacters = 2
+        });
+
+        using var result = JsonDocument.Parse(response.Result!);
+        var preview = result.RootElement.GetProperty("preview");
+        Assert.Equal("a", preview.GetProperty("values")[0][0].GetString());
+        Assert.Equal("Z", preview.GetProperty("values")[1][0].GetString());
+        Assert.Equal(2, preview.GetProperty("textCharactersReturned").GetInt32());
+        Assert.True(preview.GetProperty("truncatedTextCellCount").GetInt32() > 0);
+    }
+
     private (string Sheet, string Address, bool Saved) ReadViewState()
     {
         return _fixture.ExecuteRawVerification((context, _) =>
