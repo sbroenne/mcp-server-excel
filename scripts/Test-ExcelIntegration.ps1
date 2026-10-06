@@ -1,12 +1,16 @@
 <#
 .SYNOPSIS
-Runs focused or ordered Excel behavior validation and retains reconciled evidence.
+Runs affected real-Excel integration tests and retains reconciled evidence.
+.DESCRIPTION
+Use focused mode for tests affected by a change. Full mode is an explicit
+complete-suite check, not a routine development step. OnDemand diagnostics
+are separate from ordinary integration tests.
 .EXAMPLE
-.\scripts\Test-ExcelBehavior.ps1 -Project Service -Filter 'Feature=Tables&RunType!=OnDemand'
+.\scripts\Test-ExcelIntegration.ps1 -Project Service -Filter 'Feature=Tables&RunType!=OnDemand'
 .EXAMPLE
-.\scripts\Test-ExcelBehavior.ps1 -Full
+.\scripts\Test-ExcelIntegration.ps1 -Full
 .EXAMPLE
-.\scripts\Test-ExcelBehavior.ps1 -Full -ContinueOnFailure
+.\scripts\Test-ExcelIntegration.ps1 -Full -ContinueOnFailure
 #>
 [CmdletBinding(DefaultParameterSetName = 'Focused')]
 param(
@@ -247,7 +251,7 @@ $previousOwnership = $env:EXCELMCP_TEST_OWNERSHIP_DIRECTORY
 $previousLanguage = $env:DOTNET_CLI_UI_LANGUAGE
 try {
     if ([string]::IsNullOrWhiteSpace($ResultsDirectory)) {
-        $ResultsDirectory = Join-Path $root 'TestResults\ExcelBehavior'
+        $ResultsDirectory = Join-Path $root 'TestResults\ExcelIntegration'
     }
     $runDirectory = Join-Path ([IO.Path]::GetFullPath($ResultsDirectory)) ([Guid]::NewGuid().ToString('N'))
     New-Item -ItemType Directory -Path $runDirectory | Out-Null

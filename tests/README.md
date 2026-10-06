@@ -8,7 +8,7 @@ serialization, and generation can use focused tests without Excel.
 
 ```powershell
 # One ordinary workbook feature through Service
-& .\scripts\Test-ExcelBehavior.ps1 -Project Service -Filter 'Feature=PowerQuery&RunType!=OnDemand'
+& .\scripts\Test-ExcelIntegration.ps1 -Project Service -Filter 'Feature=PowerQuery&RunType!=OnDemand'
 
 # Excel-independent parsing
 dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj --filter "FullyQualifiedName~ServiceRegistryJsonParsingTests"
@@ -20,10 +20,11 @@ dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj --f
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter "Feature=VBA&RunType!=OnDemand"
 ```
 
-### Behavior validation and saved evidence
+### Excel integration tests and saved results
 
-The required local Excel behavior command is `scripts\Test-ExcelBehavior.ps1`.
-“Excel behavior” means tests tagged `RequiresExcel=true` that exercise ExcelMcp
+Use `scripts\Test-ExcelIntegration.ps1` for integration tests affected by a change,
+not a routine full-suite run. These are normal tests, not investigation-only
+OnDemand diagnostics. They are tagged `RequiresExcel=true` and exercise ExcelMcp
 against desktop Excel and verify actual workbook or Excel-session outcomes.
 It excludes tests tagged `RequiresExcel=false`, such as parsing, adapter,
 packaging, publishing-script, and other tooling checks covered by their own
@@ -36,7 +37,7 @@ Focused mode builds only the selected test project and its dependencies; full
 mode builds the Release solution.
 
 Every run writes to a fresh directory beneath `-ResultsDirectory` (by default
-`TestResults\ExcelBehavior`). It retains exact commands, child-process
+`TestResults\ExcelIntegration`). It retains exact commands, child-process
 identities, discovery output, ownership journals, TRX files, and `summary.json`.
 The runner does not fingerprint source files or reject edits made during
 validation.

@@ -28,7 +28,7 @@ Check only completed, applicable items; explain anything not run below.
 
 - [ ] Behavioral fix has a focused regression that failed before the fix
 - [ ] Required Release build completed with zero warnings
-- [ ] Affected Excel behavior passed through `scripts\Test-ExcelBehavior.ps1`; recorded its results directory
+- [ ] Affected Excel integration tests passed through `scripts\Test-ExcelIntegration.ps1`; recorded its results directory
 - [ ] Runtime changes in Core/ComInterop/Service/CLI/MCP or generators passed local `scripts\Test-E2E.ps1` once against final PR source
 - [ ] Applicable Excel-free, contract, and source checks passed
 - [ ] Assertions verify returned fields and actual Excel state, including partial state or recovery after failure
@@ -37,7 +37,7 @@ Check only completed, applicable items; explain anything not run below.
 ## Test Commands
 ```powershell
 # Record each exact command and its result (passed, failed, or not run with reason).
-# Record Test-ExcelBehavior results directories where applicable.
+# Record Test-ExcelIntegration results directories where applicable.
 # -SkipBuild requires a successful Release solution build in this worktree.
 ```
 

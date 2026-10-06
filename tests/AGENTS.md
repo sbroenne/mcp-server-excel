@@ -5,10 +5,11 @@ instructions; review tasks use the root [Code Review Rules](../AGENTS.md#code-re
 
 ## Commands
 
-Use `scripts\Test-ExcelBehavior.ps1 -Project <name> -Filter <filter>` for required
-affected Excel behavior validation and retain its results. Use `-Full` for
-ordered, reconciled acceptance, not during every commit. Commit-hook scope is
-unchanged. The runner sets hard execution deadlines; returning control while a
+Use `scripts\Test-ExcelIntegration.ps1 -Project <name> -Filter <filter>` for
+integration tests affected by a change and retain its results. These are normal
+real-Excel tests, not investigation-only diagnostics. Use `-Full` only for an
+explicit complete-suite check, not routine development or every commit.
+The runner sets hard execution deadlines; returning control while a
 test keeps running is not a timeout.
 Session/batch infrastructure changes also require relevant ComInterop OnDemand
 tests. Core OnDemand tests are optional diagnostics, not mandatory CI gates.

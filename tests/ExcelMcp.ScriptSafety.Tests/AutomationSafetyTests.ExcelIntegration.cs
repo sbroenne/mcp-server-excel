@@ -7,7 +7,7 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 public sealed partial class AutomationSafetyTests
 {
     private static string LoadBehaviorRunnerFunctions => $$"""
-        $ast = [Management.Automation.Language.Parser]::ParseFile('{{Quote(Path.Combine(RepoRoot, "scripts", "Test-ExcelBehavior.ps1"))}}', [ref]$null, [ref]$null)
+        $ast = [Management.Automation.Language.Parser]::ParseFile('{{Quote(Path.Combine(RepoRoot, "scripts", "Test-ExcelIntegration.ps1"))}}', [ref]$null, [ref]$null)
         foreach ($function in $ast.FindAll({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] }, $true)) {
             . ([scriptblock]::Create($function.Extent.Text))
         }

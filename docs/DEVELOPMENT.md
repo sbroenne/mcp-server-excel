@@ -137,8 +137,8 @@ tests/
 **During Development (Fast Feedback):**
 ```powershell
 # Quick validation - run tests for specific feature
-& .\scripts\Test-ExcelBehavior.ps1 -Project Service -Filter 'Feature=PowerQuery&RunType!=OnDemand'
-& .\scripts\Test-ExcelBehavior.ps1 -Project Service -Filter 'Feature=DataModel&RunType!=OnDemand'
+& .\scripts\Test-ExcelIntegration.ps1 -Project Service -Filter 'Feature=PowerQuery&RunType!=OnDemand'
+& .\scripts\Test-ExcelIntegration.ps1 -Project Service -Filter 'Feature=DataModel&RunType!=OnDemand'
 ```
 
 **Before Commit:** Rerun the affected tests and applicable repository checks.
@@ -192,7 +192,7 @@ Before creating a PR, ensure:
 
 ```powershell
 # Example: select the project and feature affected by the change
-& .\scripts\Test-ExcelBehavior.ps1 -Project Service -Filter 'Feature=PowerQuery&RunType!=OnDemand'
+& .\scripts\Test-ExcelIntegration.ps1 -Project Service -Filter 'Feature=PowerQuery&RunType!=OnDemand'
 
 # Code builds without warnings
 dotnet build -c Release
@@ -434,8 +434,8 @@ dotnet restore
 # Build release version
 dotnet build -c Release
 
-# Ordered local acceptance with discovery and saved results (requires Excel).
-& .\scripts\Test-ExcelBehavior.ps1 -Full
+# Run integration tests for the affected feature (requires Excel).
+& .\scripts\Test-ExcelIntegration.ps1 -Project Service -Filter 'Feature=PowerQuery&RunType!=OnDemand'
 
 # Test the built executable
 .\src\ExcelMcp.CLI\bin\Release\net10.0\excelcli.exe --version
