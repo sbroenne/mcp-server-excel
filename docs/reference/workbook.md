@@ -13,6 +13,34 @@ for workbook-specific information. Custom properties can be removed; built-in
 ones are maintained by Excel. Avoid putting private paths, credentials, or
 connection strings in published properties.
 
+Use MCP `workbook_read` action `inspect` or `excelcli workbook inspect` for a
+bounded workbook overview. It returns worksheet visibility and used-range
+geometry, table locations, and visible user-defined names, with per-section
+counts and omitted-item counts. `sheet_name` narrows worksheet and table
+metadata; the named-range section remains workbook-wide. Hidden worksheets are
+reported, not skipped. The operation reads through Excel and does not change the
+workbook or its view.
+
+Cell previews are optional. Set `include_preview=true` and provide `sheet_name`;
+optionally set `range_address` to limit the source range. Without it, the
+preview starts at the top-left of Excel's UsedRange. The preview reads at most
+10 rows by 10 columns, and reports omitted rows and columns. `max_cell_characters`
+and `max_preview_characters` further bound text in returned values and formulas.
+Row and column limits are applied before reading cell contents; text limits are
+applied to the response. For example:
+
+```text
+MCP: workbook_read(action: 'inspect', workbook_session_id: sessionId,
+     sheet_name: 'Summary', include_preview: true, range_address: 'A1:F100',
+     max_preview_rows: 5, max_preview_columns: 6)
+CLI: excelcli -q workbook inspect --session <session-id> --sheet-name Summary
+     --include-preview true --range-address A1:F100 --max-preview-rows 5
+     --max-preview-columns 6
+```
+
+If Excel cannot read a protected or otherwise inaccessible range, the operation
+reports an error rather than presenting it as empty.
+
 ## Save and publish
 
 Inspect `readOnly` with MCP `workbook_read` action `get-info` or
