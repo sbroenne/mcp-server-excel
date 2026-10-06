@@ -7,16 +7,27 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 [Trait("Feature", "PreCommit")]
 public sealed class ValidationOrchestrationTests
 {
-    [Theory]
-    [InlineData(null)]
-    [InlineData(17)]
-    public async Task LockfileRegressions_PublishSuccessIndependentOfAmbientNativeExitCode(int? exitCode)
+    [Fact]
+    public async Task LockfileRegressions_PublishSuccessIndependentOfAmbientNativeExitCode()
     {
-        var initialCode = exitCode?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "$null";
-        var run = await ValidationSelectionTests.RunAsync($$"""
-            $global:LASTEXITCODE = {{initialCode}}
+        var run = await ValidationSelectionTests.RunAsync("""
+            $global:LASTEXITCODE = 17
             & .\scripts\Test-NpmLockfiles.ps1
             if ($LASTEXITCODE -ne 0) { throw "Successful lockfile regressions left exit code '$LASTEXITCODE'." }
+            $tokens = $null
+            $errors = $null
+            $ast = [Management.Automation.Language.Parser]::ParseFile(
+                (Resolve-Path .\scripts\Test-NpmLockfiles.ps1).Path, [ref]$tokens, [ref]$errors)
+            if ($errors.Count) { throw 'Lockfile regression script no longer parses.' }
+            $reset = $ast.EndBlock.Statements |
+                Where-Object { $_.Extent.Text -match '^\s*\$global:LASTEXITCODE\s*=\s*0\s*$' } |
+                Select-Object -Last 1
+            if (-not $reset) { throw 'The successful script exit-code reset is missing.' }
+            foreach ($initialCode in [object[]]@($null, 17)) {
+                $global:LASTEXITCODE = $initialCode
+                & ([scriptblock]::Create($reset.Extent.Text))
+                if ($LASTEXITCODE -ne 0) { throw "The reset did not clear '$initialCode'." }
+            }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
         Assert.Contains("npm lockfile regression checks.", run.Output, StringComparison.Ordinal);

@@ -15,6 +15,7 @@ $root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'Invoke-TestStage.ps1')
 . (Join-Path $PSScriptRoot 'Get-ValidationPlan.ps1')
 $selections = [ordered]@{}
+$runAzureInfrastructureTests = $false
 if ($Group) {
     $plan = if ($PlanFile) {
         Get-Content -LiteralPath $PlanFile -Raw | ConvertFrom-Json
@@ -23,6 +24,7 @@ if ($Group) {
         Get-ValidationPlan -Full
     }
     if ($Group -notin $plan.CiTestGroups) { throw "The requested $Group group was not selected." }
+    $runAzureInfrastructureTests = $Group -eq 'Tooling' -and $plan.AzureInfrastructureTests
     switch ($Group) {
         'Fast' {
             foreach ($project in $plan.FastProjects) { $selections[$project] = 'AdapterTestKind!=System' }
@@ -44,6 +46,7 @@ if ($Group) {
 elseif ($PlanFile) { throw 'PlanFile requires an explicit Group.' }
 elseif ($Local) {
     $plan = Get-ValidationPlan -Paths $ChangedPaths
+    $runAzureInfrastructureTests = $plan.AzureInfrastructureTests
     if ($HookTests -or $plan.HookTests) {
         $selections['ScriptSafety'] = if ($plan.ToolingFilters.ScriptSafety) { $plan.ToolingFilters.ScriptSafety } else { 'RequiresExcel=false' }
     }
@@ -83,5 +86,11 @@ foreach ($entry in $selections.GetEnumerator()) {
     $project = Join-Path $root "tests\ExcelMcp.$($entry.Key).Tests\ExcelMcp.$($entry.Key).Tests.csproj"
     $filter = "RequiresExcel=false&RunType!=OnDemand&($($entry.Value))"
     Invoke-TestStage -Project $project -Filter $filter -ResultsDirectory $ResultsDirectory -Name $entry.Key
+}
+if ($runAzureInfrastructureTests) {
+    Invoke-TestStage `
+        -Project (Join-Path $root 'tests\ExcelMcp.ScriptSafety.Tests\ExcelMcp.ScriptSafety.Tests.csproj') `
+        -Filter 'RequiresExcel=false&RunType=OnDemand&Feature=AutomationSafety' `
+        -ResultsDirectory $ResultsDirectory -Name 'ScriptSafety-AzureInfrastructure'
 }
 $global:LASTEXITCODE = 0

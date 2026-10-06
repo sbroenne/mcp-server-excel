@@ -22,8 +22,15 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
     };
     private string? _session;
 
-    public async Task InitializeAsync()
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    private async Task EnsureSessionAsync()
     {
+        if (_session is not null)
+        {
+            return;
+        }
+
         var created = await SendAsync("session", "create", _workbook);
         _session = created.GetProperty("sessionId").GetString();
         Assert.False(string.IsNullOrWhiteSpace(_session));
@@ -33,6 +40,7 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
     [Fact]
     public async Task Lifecycle_SaveAndReopen_PreservesValue()
     {
+        await EnsureSessionAsync();
         await SendAsync("sheet", "create", "--session", Session, "--sheet-name", "Data");
         await WriteAsync("424242");
         await SendAsync("session", "close", "--session", Session, "--save");
@@ -49,6 +57,7 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
     [Fact]
     public async Task Editing_ProtectsOccupiedCellsAndDeletesOnlyDisposableSheet()
     {
+        await EnsureSessionAsync();
         await SendAsync("sheet", "create", "--session", Session, "--sheet-name", "Data");
         await WriteAsync("424242");
         var (result, json) = await CliProcessHelper.RunJsonAsync(
@@ -76,6 +85,7 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
     [Fact]
     public async Task Formatting_TypedAndRepeatedArgumentsRoundTrip()
     {
+        await EnsureSessionAsync();
         await SendAsync("sheet", "create", "--session", Session, "--sheet-name", "Data");
         var gapBefore = await SendAsync("rangeformat", "get-format", "--session", Session,
             "--sheet-name", "Data", "--range-address", "B1:B2");
@@ -118,8 +128,6 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
     [Fact]
     public async Task NativeApiCoverage_OperationsAndSavedStateRoundTrip()
     {
-        await SendAsync("session", "close", "--session", Session, "--save", "false");
-        _session = null;
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
         var startInfo = new ProcessStartInfo("pwsh")
         {

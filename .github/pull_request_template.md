@@ -29,7 +29,7 @@ Check only completed, applicable items; explain anything not run below.
 - [ ] Behavioral fix has a focused regression that failed before the fix
 - [ ] Required Release build completed with zero warnings
 - [ ] Affected Excel behavior passed through `scripts\Test-ExcelBehavior.ps1`; recorded its results directory
-- [ ] Runtime changes in Core/ComInterop/Service/CLI/MCP or generators passed local `scripts\Test-E2E.ps1`
+- [ ] Runtime changes in Core/ComInterop/Service/CLI/MCP or generators passed local `scripts\Test-E2E.ps1` once against final PR source
 - [ ] Applicable Excel-free, contract, and source checks passed
 - [ ] Assertions verify returned fields and actual Excel state, including partial state or recovery after failure
 - [ ] Excel-dependent commands ran sequentially; cleanup affected only owned sessions/process identities

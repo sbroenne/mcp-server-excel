@@ -476,10 +476,14 @@ configured IRM and Japanese-locale probes; those require separate configured
 runs. Other OnDemand diagnostics and external-service evaluations remain separate.
 
 `Acceptance` runs the complete required E2E stages, then the remaining normal
-adapter acceptance cases without repeating required cases. Local commit checks
-retain their existing scope: selected Excel-free checks and complete E2E for
-runtime paths, not the full workbook-feature suite. Run affected real-Excel
-groups separately, including when changing Excel-dependent tests.
+adapter acceptance cases without repeating required cases. Local commit hooks
+run changed-area Excel-free checks and remind contributors to run complete
+Excel E2E once against the final PR source; they do not repeat full E2E on each
+commit. During development, use focused real-Excel groups or a focused E2E
+stage as needed. Focused runs are not final acceptance. Run the complete
+three-stage E2E once before opening the PR for runtime changes, and run
+affected real-Excel groups separately, including when changing Excel-dependent
+tests.
 
 `Test-E2E.ps1` defaults to three sequential stages: independent executable CLI
 scenarios, the linked stale-build save/rebuild/reopen regression, and independent

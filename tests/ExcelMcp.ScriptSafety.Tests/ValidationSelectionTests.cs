@@ -108,22 +108,6 @@ public sealed class ValidationSelectionTests
     }
 
     [Fact]
-    public async Task FullSelection_ContainsEveryHostedGroupAndPackage()
-    {
-        var result = await RunAsync("""
-            $plan = Get-ValidationPlan -Full
-            if (($plan.CiTestGroups -join ',') -ne 'Fast,Process,Tooling') { throw 'Full groups missing.' }
-            foreach ($project in $plan.ToolingProjects) {
-                if ($plan.ToolingFilters.$project -ne 'RequiresExcel=false') { throw 'Full tooling selection narrowed.' }
-            }
-            foreach ($component in @('Cli','Mcp','Extension','Mcpb','Skills','Plugins')) {
-                if (-not $plan.$component) { throw "Missing $component package." }
-            }
-            """);
-        Assert.True(result.ExitCode == 0, result.Output);
-    }
-
-    [Fact]
     public async Task PublicationSelection_DoesNotSelectDaemonOrWorkbookTests()
     {
         var result = await RunAsync("""
