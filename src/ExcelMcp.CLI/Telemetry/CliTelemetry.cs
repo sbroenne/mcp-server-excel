@@ -188,11 +188,20 @@ internal static class CliTelemetry
     internal static int TrackCliInvocation(
         string[] args,
         Func<int> operation,
+        Action<string, long, bool, string?, bool> trackInvocation) =>
+        TrackCliInvocationAsync(args, () => Task.FromResult(operation()), trackInvocation).GetAwaiter().GetResult();
+
+    internal static Task<int> TrackCliInvocationAsync(string[] args, Func<Task<int>> operation) =>
+        TrackCliInvocationAsync(args, operation, TrackCommandInvocation);
+
+    internal static async Task<int> TrackCliInvocationAsync(
+        string[] args,
+        Func<Task<int>> operation,
         Action<string, long, bool, string?, bool> trackInvocation)
     {
         if (args.Any(arg => HelpFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)))
         {
-            return operation();
+            return await operation();
         }
 
         var isBatch = IsBatchCommand(args);
@@ -205,7 +214,7 @@ internal static class CliTelemetry
         var operationThrew = false;
         try
         {
-            exitCode = operation();
+            exitCode = await operation();
             return exitCode;
         }
         catch (Exception ex)

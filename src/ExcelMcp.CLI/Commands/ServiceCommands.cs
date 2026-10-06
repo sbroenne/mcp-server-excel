@@ -17,17 +17,17 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 /// </summary>
 internal sealed class ServiceStartCommand : AsyncCommand
 {
-    protected override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         try
         {
             using var client = await DaemonAutoStart.EnsureAndConnectAsync(cancellationToken);
-            Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service started." }, ServiceProtocol.JsonOptions));
+            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service started." }, ServiceProtocol.JsonOptions));
             return 0;
         }
         catch (Exception ex)
         {
-            Console.WriteLine(JsonSerializer.Serialize(new { success = false, error = ex.Message }, ServiceProtocol.JsonOptions));
+            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new { success = false, error = ex.Message }, ServiceProtocol.JsonOptions));
             return 1;
         }
     }
@@ -42,7 +42,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
     private static readonly TimeSpan ShutdownWaitTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan ShutdownPollInterval = TimeSpan.FromMilliseconds(250);
 
-    protected override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         var pipeName = DaemonAutoStart.GetPipeName();
         return await DaemonAutoStart.WithStartupLockAsync(
@@ -79,11 +79,11 @@ internal sealed class ServiceStopCommand : AsyncCommand
                     preShutdownSnapshot,
                     cancellationToken))
                 {
-                    Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped.", forced = true }, ServiceProtocol.JsonOptions));
+                    CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped.", forced = true }, ServiceProtocol.JsonOptions));
                     return 0;
                 }
 
-                Console.WriteLine(JsonSerializer.Serialize(
+                CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
                     new { success = false, error = $"Service acknowledged shutdown but did not exit within {ShutdownWaitTimeout.TotalSeconds:0} seconds." },
                     ServiceProtocol.JsonOptions));
                 return 1;
@@ -103,11 +103,11 @@ internal sealed class ServiceStopCommand : AsyncCommand
                 preShutdownSnapshot,
                 cancellationToken))
             {
-                Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped.", forced = true }, ServiceProtocol.JsonOptions));
+                CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped.", forced = true }, ServiceProtocol.JsonOptions));
                 return 0;
             }
 
-            Console.WriteLine(JsonSerializer.Serialize(
+            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
                 new
                 {
                     success = false,
@@ -132,11 +132,11 @@ internal sealed class ServiceStopCommand : AsyncCommand
                 preShutdownSnapshot,
                 cancellationToken))
             {
-                Console.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped.", forced = true }, ServiceProtocol.JsonOptions));
+                CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped.", forced = true }, ServiceProtocol.JsonOptions));
                 return 0;
             }
 
-            Console.WriteLine(JsonSerializer.Serialize(
+            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
                 new
                 {
                     success = false,
@@ -189,7 +189,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
             cancellationToken);
         if (!cleanupResult.Success)
         {
-            Console.WriteLine(JsonSerializer.Serialize(
+            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
                 new
                 {
                     success = false,
@@ -200,7 +200,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
             return 1;
         }
 
-        Console.WriteLine(JsonSerializer.Serialize(
+        CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
             new { success = true, message = successMessage },
             ServiceProtocol.JsonOptions));
         return 0;
@@ -213,7 +213,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
 /// </summary>
 internal sealed class ServiceStatusCommand : AsyncCommand
 {
-    protected override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         var pipeName = DaemonAutoStart.GetPipeName();
         var observation = DaemonConnectionPolicy.Observe(pipeName);
@@ -241,7 +241,7 @@ internal sealed class ServiceStatusCommand : AsyncCommand
             }
             if (status != null)
             {
-                Console.WriteLine(JsonSerializer.Serialize(new
+                CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new
                 {
                     success = true,
                     daemonState = DaemonConnectionPolicy.RunningState,
@@ -278,7 +278,7 @@ internal sealed class ServiceStatusCommand : AsyncCommand
 
     private static int WriteStoppedStatus()
     {
-        Console.WriteLine(JsonSerializer.Serialize(new
+        CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new
         {
             success = true,
             daemonState = DaemonConnectionPolicy.StoppedState,

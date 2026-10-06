@@ -16,7 +16,7 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 
 internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.Settings>
 {
-    protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(settings.FilePath))
         {
@@ -80,7 +80,7 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
 
 internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Settings>
 {
-    protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(settings.FilePath))
         {
@@ -144,7 +144,7 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
 
 internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseCommand.Settings>
 {
-    protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(settings.SessionId))
         {
@@ -189,7 +189,7 @@ internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseCommand.Set
 
 internal sealed class SessionListCommand : AsyncCommand
 {
-    protected override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         var pipeName = DaemonAutoStart.GetPipeName();
         var daemonConnection = CliCommandRuntime.Current.DaemonConnection;
@@ -258,7 +258,7 @@ internal sealed class SessionListCommand : AsyncCommand
 
 internal sealed class SessionTestCommand : AsyncCommand<SessionTestCommand.Settings>
 {
-    protected override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(settings.FilePath))
         {

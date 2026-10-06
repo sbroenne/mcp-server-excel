@@ -42,7 +42,7 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
     /// Validates settings and executes the command.
     /// Returns early with error code if validation fails.
     /// </summary>
-    protected sealed override async Task<int> ExecuteAsync(CommandContext context, TSettings settings, CancellationToken cancellationToken)
+    public sealed override async Task<int> ExecuteAsync(CommandContext context, TSettings settings, CancellationToken cancellationToken)
     {
         // Session validation
         var sessionId = GetSessionId(settings);
