@@ -15,10 +15,13 @@ em{font-style:normal;color:#107c41}
 
 /* Hook */
 .hook-copy{position:absolute;left:86px;top:250px;width:760px}
+.hook-copy h1{font-size:100px;letter-spacing:-4px}
+.hook-label{margin-bottom:28px;font:26px "Cascadia Mono",Consolas,monospace;letter-spacing:4px;text-transform:uppercase;color:#107c41}
 .hook-copy .lead{margin-top:36px}
 .hook-flow{position:absolute;left:86px;top:760px;display:flex;gap:18px;align-items:center;font:27px "Cascadia Mono",Consolas,monospace;color:#3e5b49}
 .hook-flow i{font-style:normal;color:#7a9183}
 .hook-flow .xl{color:#107c41}.hook-flow .pp{color:#c43e1c}
+.hook-stat{position:absolute;left:86px;top:850px;font:34px "Cascadia Mono",Consolas,monospace;color:#107c41}
 .fan{position:absolute;width:780px;border:1px solid #d6ded9;box-shadow:0 18px 44px #1017141f;background:#fff}
 .fan img{display:block;width:100%}
 
@@ -96,4 +99,14 @@ em{font-style:normal;color:#107c41}
 
 .scene-number{position:absolute;right:86px;top:72px;font:22px "Cascadia Mono",Consolas,monospace;color:#56705f}
 #progress{position:absolute;bottom:0;left:0;width:1920px;height:6px;background:#107c41;transform-origin:left;z-index:110}
-.credit{position:absolute;left:86px;right:86px;top:930px;font:21px "Cascadia Mono",Consolas,monospace;color:#56705f}
+
+/* Credits */
+.credits{background:#0d1117;color:#f4f7f5}
+.credits em{color:#5fd08f}
+.roll{position:absolute;left:260px;right:260px;top:70px;text-align:center}
+.roll h2{margin-bottom:34px}
+.roll-group{margin-top:30px}
+.roll-group h3{font:400 24px "Cascadia Mono",Consolas,monospace;letter-spacing:3px;text-transform:uppercase;color:#5fd08f;margin-bottom:12px}
+.roll-row{display:grid;grid-template-columns:1fr 1.5fr;gap:36px;font-size:27px;line-height:1.55;text-align:left}
+.roll-row span{text-align:right;color:#b4c4ba}
+.roll-row b{font-weight:400;color:#f4f7f5}

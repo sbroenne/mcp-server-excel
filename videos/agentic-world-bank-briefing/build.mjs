@@ -12,7 +12,7 @@ const ev = read('evidence.json');
 const esc = s => String(s).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 const fix = s => s.replaceAll('M C P', 'MCP').replaceAll('C L I', 'CLI').replaceAll('A I', 'AI');
 
-const duration = 142;
+const duration = 161;
 const minutes = Math.round(ev.timeline.totalMinutes);
 const calls = ev.toolCalls;
 const words = ev.humanInput.promptWords;
@@ -21,16 +21,17 @@ if (prompt.join(' ').split(/\s+/).length !== words) throw new Error('prompt.txt 
 
 // Scenes and where each clip sits on the video timeline.
 const scenes = [
-  { id: 's1', title: 'Hook', start: 0, end: 8 },
-  { id: 's2', title: 'The ask', start: 8, end: 22 },
-  { id: 's3', title: 'Research', start: 22, end: 37 },
-  { id: 's4', title: 'Excel MCP Server', start: 37, end: 67 },
-  { id: 's5', title: 'Hand-off', start: 67, end: 77 },
-  { id: 's6', title: 'PowerPoint MCP Server', start: 77, end: 105 },
-  { id: 's7', title: 'The briefing', start: 105, end: 125 },
-  { id: 's8', title: 'Scoreboard', start: 125, end: duration },
+  { id: 's1', title: 'Hook', start: 0, end: 13 },
+  { id: 's2', title: 'The ask', start: 13, end: 27 },
+  { id: 's3', title: 'Research', start: 27, end: 42 },
+  { id: 's4', title: 'Excel MCP Server', start: 42, end: 72 },
+  { id: 's5', title: 'Hand-off', start: 72, end: 82 },
+  { id: 's6', title: 'PowerPoint MCP Server', start: 82, end: 110 },
+  { id: 's7', title: 'The briefing', start: 110, end: 130 },
+  { id: 's8', title: 'Scoreboard', start: 130, end: 147 },
+  { id: 's9', title: 'How this video was made', start: 147, end: duration },
 ];
-const clipStart = { ask: 8, research: 22, excel: 37, 'ppt-a': 77, 'ppt-b': 98.5 };
+const clipStart = { ask: 13, research: 27, excel: 42, 'ppt-a': 82, 'ppt-b': 103.5 };
 const clips = footage.clips.map(c => ({ ...c, start: clipStart[c.id], speed: (c.srcEnd - c.srcStart) / c.duration }));
 for (const c of clips) {
   if (!fs.existsSync(`assets/footage/${c.id}.mp4`)) throw new Error(`Missing assets/footage/${c.id}.mp4; run npm run footage -- <recording>`);
@@ -43,14 +44,15 @@ if (skipFrom !== ev.skippedInVideo.fromElapsed || skipTo !== ev.skippedInVideo.t
 
 // Voice line start times (seconds); each line must end before the next starts and inside its scene.
 const voiceAt = {
-  '01a': .5, '01b': 4.9,
-  '02a': 8.6, '02b': 14.2,
-  '03a': 22.6, '03b': 25.0, '03c': 32.9,
-  '04a': 37.6, '04b': 42.8, '04c': 51.6, '04d': 57.5,
-  '05a': 67.6, '05b': 73.0,
-  '06a': 77.6, '06b': 80.2, '06c': 87.4, '06d': 99.2,
-  '07a': 105.5, '07b': 108.4, '07c': 112.0, '07d': 115.8,
-  '08a': 125.6, '08b': 132.0,
+  '01a': .3, '01b': 2.4, '01c': 9.0,
+  '02a': 13.6, '02b': 19.2,
+  '03a': 27.6, '03b': 30, '03c': 37.9,
+  '04a': 42.6, '04b': 47.8, '04c': 56.6, '04d': 62.5,
+  '05a': 72.6, '05b': 78,
+  '06a': 82.6, '06b': 85.2, '06c': 92.4, '06d': 104.2,
+  '07a': 110.5, '07b': 113.4, '07c': 117, '07d': 120.8,
+  '08a': 130.6, '08b': 137,
+  '09a': 147.6, '09b': 151.4,
 };
 const cues = [];
 let lastEnd = 0;
@@ -79,64 +81,84 @@ const fan = [6, 5, 4, 3, 2, 1, 0].map(i => `<div class="fan" id="fan${i + 1}" st
 
 const html_scenes = {
   s1: `${fan}
- <div class="hook-copy"><h1 id="hook-title">One request.<br><em>${minutes} minutes.</em></h1>
- <p class="lead" ${at(1.6)}>One AI agent researched public data, built the Excel analysis, then designed this briefing.</p></div>
- <div class="hook-flow" ${at(3.2)}><span>Research</span><i>→</i><span class="xl">Excel MCP Server</span><i>→</i><span class="pp">PowerPoint MCP Server</span></div>`,
+ <div class="hook-copy"><div class="hook-label">Agentic workflow</div><h1 id="hook-title">One request<br>to an <em>AI agent.</em></h1>
+ <p class="lead" ${at(2.4)}>It researched World Bank data, analyzed it in Excel, then built this PowerPoint briefing.</p></div>
+ <div class="hook-flow" ${at(4.6)}><span>Research</span><i>→</i><span class="xl">Excel MCP Server</span><i>→</i><span class="pp">PowerPoint MCP Server</span></div>
+ <div class="hook-stat" ${at(9.0)}>1 request · ${minutes} minutes · ${ev.humanInput.interventions} follow-ups</div>`,
   s2: `${kicker('01', 'The ask')}
  <div class="copy"><h2>One request,<br><em>in plain English.</em></h2></div>
- <div class="prompt" ${at(8.6)}><span class="prompt-label">The exact prompt</span>${prompt.map(p => `<p>${esc(p)}</p>`).join('')}</div>
- <div class="facts" style="top:850px"><div class="mono" ${at(15)} style="font-size:26px;color:#22382b">${words} words · sent once · ${ev.humanInput.interventions} follow-ups</div></div>
+ <div class="prompt" ${at(13.6)}><span class="prompt-label">The exact prompt</span>${prompt.map(p => `<p>${esc(p)}</p>`).join('')}</div>
+ <div class="facts" style="top:850px"><div class="mono" ${at(19.2)} style="font-size:26px;color:#22382b">${words} words · sent once · ${ev.humanInput.interventions} follow-ups</div></div>
  <div class="card card-tall">${video('ask')}</div><div class="card-label">Real footage · GitHub Copilot CLI</div>
  ${badges('top-badges', 'ask')}`,
   s3: `${kicker('02', 'Research')}
  <div class="copy"><h2>First, find<br><em>the right data.</em></h2></div>
  <ul class="facts">
-  <li class="fact" ${at(25.0)}><b>01</b>World Bank data service, official indicators</li>
-  <li class="fact" ${at(27.4)}><b>02</b>Income, growth, life expectancy, internet</li>
-  <li class="fact" ${at(29.8)}><b>03</b>25 economies × 25 years</li>
-  <li class="fact" ${at(32.9)}><b>04</b>Coverage checked for gaps</li>
+  <li class="fact" ${at(30)}><b>01</b>World Bank data service, official indicators</li>
+  <li class="fact" ${at(32.4)}><b>02</b>Income, growth, life expectancy, internet</li>
+  <li class="fact" ${at(34.8)}><b>03</b>25 economies × 25 years</li>
+  <li class="fact" ${at(37.9)}><b>04</b>Coverage checked for gaps</li>
  </ul>
  <div class="card card-tall">${video('research')}</div><div class="card-label">Real footage · GitHub Copilot CLI</div>
  ${badges('top-badges', 'research')}`,
   s4: `${kicker('03', 'Excel MCP Server')}
  <div class="rail"><h2>Build the<br><em>analysis.</em></h2><ul class="stages">
-  ${stage(37.9, 'Power Query')}${stage(42.6, 'Data Model + DAX')}${stage(45.3, 'Analysis + checks')}${stage(51.3, 'Charts')}${stage(57.9, 'PivotTable')}${stage(64.9, 'Refresh all')}
+  ${stage(42.9, 'Power Query')}${stage(47.6, 'Data Model + DAX')}${stage(50.3, 'Analysis + checks')}${stage(56.3, 'Charts')}${stage(62.9, 'PivotTable')}${stage(69.9, 'Refresh all')}
  </ul></div>
  <div class="card card-wide">${video('excel')}</div><div class="card-label">Real footage · Copilot CLI + Excel</div>
  ${badges('rail-badges', 'excel')}`,
   s5: `${kicker('04', 'Hand-off')}
  <div class="handoff"><h2>Every number on a slide<br><em>comes from Excel.</em></h2>
  <div class="numbers">
-  <div class="number" ${at(68.6)}><strong>5.9x</strong><span>China's income per person, 2000 to 2024</span></div>
-  <div class="number" ${at(69.4)}><strong>23x → 11x</strong><span>richest ÷ poorest income, of the 25</span></div>
-  <div class="number" ${at(70.2)}><strong>+4.7 yrs</strong><span>median life expectancy</span></div>
-  <div class="number" ${at(71.0)}><strong>7% → 90%</strong><span>median share of people online</span></div>
+  <div class="number" ${at(73.6)}><strong>5.9x</strong><span>China's income per person, 2000 to 2024</span></div>
+  <div class="number" ${at(74.4)}><strong>23x → 11x</strong><span>richest ÷ poorest income, of the 25</span></div>
+  <div class="number" ${at(75.2)}><strong>+4.7 yrs</strong><span>median life expectancy</span></div>
+  <div class="number" ${at(76)}><strong>7% → 90%</strong><span>median share of people online</span></div>
  </div>
- <div class="flow" ${at(73.0)}><span class="file xl">${esc(ev.outputs.workbook)}</span><i>the agent reads its results back</i><span class="file pp">${esc(ev.outputs.deck.replace(/ \(.*\)/, ''))}</span></div></div>`,
+ <div class="flow" ${at(78)}><span class="file xl">${esc(ev.outputs.workbook)}</span><i>the agent reads its results back</i><span class="file pp">${esc(ev.outputs.deck.replace(/ \(.*\)/, ''))}</span></div></div>`,
   s6: `${kicker('05', 'PowerPoint MCP Server')}
  <div class="rail"><h2>Design the<br><em>briefing.</em></h2><ul class="stages">
-  ${stage(80.2, 'Template slide')}${stage(89.3, 'Export and look')}${stage(90.8, 'Copy the design')}${stage(96.6, 'Native charts')}${stage(98.5, 'Recover + check')}
+  ${stage(85.2, 'Template slide')}${stage(94.3, 'Export and look')}${stage(95.8, 'Copy the design')}${stage(101.6, 'Native charts')}${stage(103.5, 'Recover + check')}
  </ul></div>
  <div class="card card-wide">${video('ppt-a')}${video('ppt-b')}</div><div class="card-label">Real footage · Copilot CLI + PowerPoint</div>
  <div class="skip" id="skip"><strong>Skipped ${skipFrom} → ${skipTo} elapsed</strong>The chart data window got stuck (PowerPoint MCP issue #108), then PowerPoint crashed. The agent reopened the deck and rebuilt the lost charts.</div>
  ${badges('rail-badges', 'ppt-a,ppt-b')}`,
   s7: `${kicker('06', 'The briefing')}
- ${[[1, 105.0, 108.2, 'Executive summary'], [2, 108.2, 111.8, 'Prosperity'], [3, 111.8, 115.6, 'The income gap'], [6, 115.6, 119.6, 'Connectivity']].map(([n, a, b, name]) =>
+ ${[[1, 110, 113.2, 'Executive summary'], [2, 113.2, 116.8, 'Prosperity'], [3, 116.8, 120.6, 'The income gap'], [6, 120.6, 124.6, 'Connectivity']].map(([n, a, b, name]) =>
     `<div class="slide" id="slide${n}" data-in="${a}" data-out="${b}"><div class="frame"><img src="${slideImg(n)}" alt="Slide ${n}: ${name}"></div><div class="slide-note">Slide ${n} of 7 · ${name} · exported from the agent's deck</div></div>`).join('')}
  <div class="grid" id="grid">${[1, 2, 3, 4, 5, 6, 7].map(n => `<img src="${slideImg(n, 'grid/')}" alt="Slide ${n}">`).join('')}<div class="grid-note">7 slides. Native, editable charts. Sources and speaker notes.</div></div>`,
   s8: `${kicker('07', 'Scoreboard')}
  <div class="score"><h2>One request.<br><em>The heavy lifting, done.</em></h2>
  <div class="stats">
-  <div class="stat" ${at(125.8)}><strong>1</strong><span>request, ${words} words, ${ev.humanInput.interventions} follow-ups</span></div>
-  <div class="stat" ${at(126.3)}><strong>${minutes} min</strong><span>from prompt to finished deck</span></div>
-  <div class="stat" ${at(127.2)}><strong>${calls.total}</strong><span>tool calls by the agent</span></div>
-  <div class="stat xl" ${at(128.0)}><strong>${calls.excel}</strong><span>Excel MCP Server calls</span></div>
-  <div class="stat pp" ${at(128.6)}><strong>${calls.powerpoint}</strong><span>PowerPoint MCP Server calls</span></div>
-  <div class="stat" ${at(129.6)}><strong>2 + 1</strong><span>MCP servers and one AI model</span></div>
+  <div class="stat" ${at(130.8)}><strong>1</strong><span>request, ${words} words, ${ev.humanInput.interventions} follow-ups</span></div>
+  <div class="stat" ${at(131.3)}><strong>${minutes} min</strong><span>from prompt to finished deck</span></div>
+  <div class="stat" ${at(132.2)}><strong>${calls.total}</strong><span>tool calls by the agent</span></div>
+  <div class="stat xl" ${at(133)}><strong>${calls.excel}</strong><span>Excel MCP Server calls</span></div>
+  <div class="stat pp" ${at(133.6)}><strong>${calls.powerpoint}</strong><span>PowerPoint MCP Server calls</span></div>
+  <div class="stat" ${at(134.6)}><strong>2 + 1</strong><span>MCP servers and one AI model</span></div>
  </div>
- <div class="review" ${at(132.2)}>Headline numbers checked against the World Bank. <em>You still review the result.</em></div>
- <div class="links" ${at(135.0)}><span class="xl">excelmcpserver.dev</span><span class="pp">powerpointmcpserver.dev</span><span class="plain">Open source · MIT</span></div>
- <div class="credit" ${at(135.6)}>GitHub Copilot CLI · Claude Opus 5.5 · Excel MCP Server ${ev.servers.excel.split(' ').pop()} · PowerPoint MCP Server ${ev.servers.powerpoint.split(' ').pop()} · Data: World Bank WDI, CC BY 4.0</div></div>`,
+ <div class="review" ${at(137.2)}>Headline numbers checked against the World Bank. <em>You still review the result.</em></div>
+ <div class="links" ${at(140)}><span class="xl">excelmcpserver.dev</span><span class="pp">powerpointmcpserver.dev</span><span class="plain">Open source · MIT</span></div></div>`,
+  s9: `<div class="roll" id="roll"><h2>How this video<br><em>was made.</em></h2>
+ ${[
+    ['The run', [
+      ['Agent', 'GitHub Copilot CLI, autopilot'],
+      ['AI model', 'Claude Opus 5.5'],
+      ['Tools', `${ev.servers.excel} · ${ev.servers.powerpoint}`],
+      ['Human input', `${ev.humanInput.prompts} request, ${words} words, ${ev.humanInput.interventions} follow-ups`],
+      ['Footage', 'One screen recording; speed-ups and the cut are labelled'],
+    ]],
+    ['This video', [
+      ['Recording, editing, script', 'An AI agent: GitHub Copilot CLI with Claude Opus 5.5'],
+      ['Video engine', 'HyperFrames, open source'],
+      ['Voice', 'AI voice (Kokoro), generated on the same PC'],
+      ['Human role', 'Gave direction and approved the result'],
+    ]],
+    ['Data', [
+      ['Source', 'World Bank World Development Indicators, CC BY 4.0'],
+      ['Workbook and deck', 'excelmcpserver.dev/samples/world-bank-briefing'],
+    ]],
+  ].map(([head, rows]) => `<div class="roll-group"><h3>${head}</h3>${rows.map(([k, v]) => `<div class="roll-row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</div>`).join('')}</div>`,
 };
 
 const clipData = clips.map(({ id, start, duration: d, speed, srcStart }) => ({ id, start, end: start + d, speed: +speed.toFixed(4), srcStart }));
@@ -144,9 +166,9 @@ const tracks = cues.map(c => `<audio id="voice-${c.id}" src="${c.path}" data-sta
 const css = fs.readFileSync('style.css', 'utf8');
 const html = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=1920,height=1080">
-<title>One request: World Bank data to an executive briefing</title><script src="assets/vendor/gsap.min.js"></script><style>${css}</style></head>
+<title>Agentic workflow: World Bank data to Excel and PowerPoint</title><script src="assets/vendor/gsap.min.js"></script><style>${css}</style></head>
 <body><main id="root" data-composition-id="main" data-width="1920" data-height="1080" data-start="0" data-duration="${duration}">
-${scenes.map(s => `<section id="${s.id}" class="scene${s.id === 's6' ? ' ppt' : ''}" data-layout-allow-overflow>${html_scenes[s.id]}</section>`).join('\n')}
+${scenes.map(s => `<section id="${s.id}" class="scene${s.id === 's6' ? ' ppt' : s.id === 's9' ? ' credits' : ''}" data-layout-allow-overflow>${html_scenes[s.id]}</section>`).join('\n')}
 <div id="progress" data-layout-ignore></div>
 ${tracks.join('\n')}
 </main><script>
@@ -173,9 +195,10 @@ document.querySelectorAll(".slide").forEach(el => {
   tl.fromTo(el, { autoAlpha: 0, scale: 1.03 }, { autoAlpha: 1, scale: 1, duration: .5, ease: "power2.out" }, a);
   tl.to(el, { autoAlpha: 0, duration: .35, ease: "power2.in" }, b - .2);
 });
-tl.fromTo("#grid", { autoAlpha: 0, y: 30 }, { autoAlpha: 1, y: 0, duration: .6, ease: "power3.out" }, 119.6);
-tl.fromTo("#grid img", { autoAlpha: 0 }, { autoAlpha: 1, duration: .35, stagger: .12 }, 119.7);
+tl.fromTo("#grid", { autoAlpha: 0, y: 30 }, { autoAlpha: 1, y: 0, duration: .6, ease: "power3.out" }, 124.6);
+tl.fromTo("#grid img", { autoAlpha: 0 }, { autoAlpha: 1, duration: .35, stagger: .12 }, 124.7);
 tl.fromTo("#skip", { autoAlpha: 0, y: 20 }, { autoAlpha: 1, y: 0, duration: .45, ease: "power3.out" }, ${pptB.start});
+tl.fromTo("#roll", { y: 80 }, { y: -40, duration: ${duration - scenes.at(-1).start}, ease: "none" }, ${scenes.at(-1).start});
 const pad = n => String(Math.floor(n)).padStart(2, "0");
 const clocks = [...document.querySelectorAll(".clock")], speeds = [...document.querySelectorAll(".speed")], stages = [...document.querySelectorAll(".stage")];
 function activeClip(ids, t) {
@@ -205,10 +228,10 @@ fs.writeFileSync('agentic-world-bank-briefing.vtt', 'WEBVTT\n\n' + cues.map((c, 
 fs.writeFileSync('captions.json', JSON.stringify(cues.map(({ id, text, start, end }) => ({ id, text, start, end })), null, 2) + '\n');
 fs.writeFileSync('schedule.json', JSON.stringify({ duration, scenes, clips: clipData, voice: cues.map(({ id, start, end }) => ({ id, start, end })) }, null, 2) + '\n');
 const lines = id => cues.filter(c => c.scene === id).map(c => c.text).join(' ');
-fs.writeFileSync('SCRIPT.md', `# One request: World Bank data to an executive briefing\n\n**Voice:** Local Kokoro / af_heart (warm female English). No music; footage muted.\n\n**Duration:** ${duration} seconds. Captions align to individually synthesized lines.\n\n` +
+fs.writeFileSync('SCRIPT.md', `# Agentic workflow: World Bank data to Excel and PowerPoint\n\n**Voice:** Local Kokoro / af_heart (warm female English). No music; footage muted.\n\n**Duration:** ${duration} seconds. Captions align to individually synthesized lines.\n\n` +
   scenes.map((s, i) => `## ${i + 1}. ${s.title}\n\n**Time:** ${s.start}–${s.end}s\n\n    ${lines(s.id)}\n`).join('\n'));
 const visuals = {
-  s1: 'The seven exported slides fan in; "One request. N minutes."',
+  s1: 'The seven exported slides fan in; "One request to an AI agent." under an Agentic workflow label, with the three steps and the measured effort.',
   s2: 'The exact prompt, word count, and real footage of it being sent in Copilot CLI.',
   s3: 'Research steps beside sped-up terminal footage; elapsed clock and speed.',
   s4: 'Sped-up footage of Copilot CLI and Excel; Excel steps light up as they happen.',
@@ -216,7 +239,8 @@ const visuals = {
   s6: 'Sped-up footage of Copilot CLI and PowerPoint; labelled skip over the stuck chart window and crash.',
   s7: 'Four exported slides full-screen, then all seven.',
   s8: 'Measured effort from the session record, review reminder, links.',
+  s9: 'Dark end-credits roll: how the run and this video were made, and the data source.',
 };
-fs.writeFileSync('STORYBOARD.md', `---\nformat: 1920x1080\nduration: ${duration}s\nmessage: "One request. Two MCP servers. Public data to a board-ready briefing."\narc: Hook → Ask → Research → Excel → Hand-off → PowerPoint → Briefing → Scoreboard\naudience: people curious about AI agents doing real office work\nmode: autonomous\n---\n\n` +
+fs.writeFileSync('STORYBOARD.md', `---\nformat: 1920x1080\nduration: ${duration}s\nmessage: "An agentic workflow: one request, two MCP servers, public data to a board-ready briefing."\narc: Hook → Ask → Research → Excel → Hand-off → PowerPoint → Briefing → Scoreboard → Credits\naudience: people curious about AI agents doing real office work\nmode: autonomous\n---\n\n` +
   scenes.map((s, i) => `## Frame ${i + 1} — ${s.title}\n\n- status: animated\n- src: index.html\n- duration: ${s.end - s.start}s\n- poster: ${s.start + 3}s\n- transition_in: fade\n- scene: ${visuals[s.id]}\n- voiceover: ${lines(s.id)}\n`).join('\n'));
 console.log(`Built ${duration}s composition: ${scenes.length} scenes, ${clips.length} clips, ${cues.length} voice lines (last ends ${lastEnd}s).`);

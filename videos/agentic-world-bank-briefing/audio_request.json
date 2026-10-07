@@ -6,11 +6,15 @@
   "lines": [
     {
       "id": "01a",
-      "text": "This executive briefing took one request and thirty-nine minutes."
+      "text": "This is an agentic workflow."
     },
     {
       "id": "01b",
-      "text": "Nobody stepped in along the way."
+      "text": "One A I agent researched World Bank data, analyzed it in Excel, and built a PowerPoint briefing."
+    },
+    {
+      "id": "01c",
+      "text": "All from one request, in thirty-nine minutes. Nobody stepped in."
     },
     {
       "id": "02a",
@@ -18,7 +22,7 @@
     },
     {
       "id": "02b",
-      "text": "Research World Bank data, analyze it in Excel, then build a seven-slide briefing in PowerPoint."
+      "text": "One hundred and twelve words, sent once, with no follow-ups."
     },
     {
       "id": "03a",
@@ -95,6 +99,14 @@
     {
       "id": "08b",
       "text": "We checked the headline numbers against the World Bank. You still review the result, but the heavy lifting is done."
+    },
+    {
+      "id": "09a",
+      "text": "How was this video made? With another agentic workflow."
+    },
+    {
+      "id": "09b",
+      "text": "An A I agent recorded the run, cut the footage, wrote the script, and built this video with HyperFrames. A person approved it at key points."
     }
   ]
 }

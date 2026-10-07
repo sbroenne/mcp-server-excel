@@ -1,10 +1,7 @@
-# .media · 23 assets
+# .media · 26 assets
 
 id         type   dur   dims   path                  description
-voice_001  voice  4s    —      assets/voice/01a.wav  This executive briefing took one request and thirty-nine minutes.
-voice_002  voice  1.8s  —      assets/voice/01b.wav  Nobody stepped in along the way.
 voice_003  voice  5.2s  —      assets/voice/02a.wav  It starts with a plain-English request to an A I agent in GitHub Copilot C L I.
-voice_004  voice  6.3s  —      assets/voice/02b.wav  Research World Bank data, analyze it in Excel, then build a seven-slide briefing in PowerPoint.
 voice_005  voice  2s    —      assets/voice/03a.wav  First, the agent does the research.
 voice_006  voice  7.4s  —      assets/voice/03b.wav  It finds the World Bank's official indicators, tests the data service, and pulls twenty-five years for twenty-five economies.
 voice_007  voice  1.3s  —      assets/voice/03c.wav  Then it checks for gaps.
@@ -24,3 +21,9 @@ voice_020  voice  3s    —      assets/voice/07c.wav  The gap between the riche
 voice_021  voice  2.9s  —      assets/voice/07d.wav  And internet use went from seven percent to ninety.
 voice_022  voice  6s    —      assets/voice/08a.wav  One request. Six hundred and twelve tool calls. Two M C P servers, and one A I model.
 voice_023  voice  6.1s  —      assets/voice/08b.wav  We checked the headline numbers against the World Bank. You still review the result, but the heavy lifting is done.
+voice_024  voice  1.8s  —      assets/voice/01a.wav  This is an agentic workflow.
+voice_025  voice  6.3s  —      assets/voice/01b.wav  One A I agent researched World Bank data, analyzed it in Excel, and built a PowerPoint briefing.
+voice_026  voice  3.7s  —      assets/voice/01c.wav  All from one request, in thirty-nine minutes. Nobody stepped in.
+voice_027  voice  3.5s  —      assets/voice/02b.wav  One hundred and twelve words, sent once, with no follow-ups.
+voice_028  voice  3.3s  —      assets/voice/09a.wav  How was this video made? With another agentic workflow.
+voice_029  voice  8.7s  —      assets/voice/09b.wav  An A I agent recorded the run, cut the footage, wrote the script, and built this video with HyperFrames. A person approved it at key points.

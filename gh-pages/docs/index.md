@@ -79,7 +79,7 @@ it and download the files the agent made.
 
 -   [![Agentic workflow video: one request turned into an Excel analysis and a PowerPoint briefing in 39 minutes](assets/images/world-bank-briefing-poster.jpg){ width="1280" height="720" loading="lazy" }](samples/world-bank-briefing.md)
 
-    __[From one request to Excel and PowerPoint](samples/world-bank-briefing.md)__ · 2:22
+    __[Agentic workflow: from one request to Excel and PowerPoint](samples/world-bank-briefing.md)__ · 2:41
 
     One agent researches World Bank data, builds a checked Excel analysis, then
     a 7-slide executive briefing with PowerPoint MCP Server.

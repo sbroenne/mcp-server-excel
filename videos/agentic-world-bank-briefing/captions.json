@@ -1,140 +1,158 @@
 [
   {
     "id": "01a",
-    "text": "This executive briefing took one request and thirty-nine minutes.",
-    "start": 0.5,
-    "end": 4.511
+    "text": "This is an agentic workflow.",
+    "start": 0.3,
+    "end": 2.092
   },
   {
     "id": "01b",
-    "text": "Nobody stepped in along the way.",
-    "start": 4.9,
-    "end": 6.692
+    "text": "One AI agent researched World Bank data, analyzed it in Excel, and built a PowerPoint briefing.",
+    "start": 2.4,
+    "end": 8.736
+  },
+  {
+    "id": "01c",
+    "text": "All from one request, in thirty-nine minutes. Nobody stepped in.",
+    "start": 9,
+    "end": 12.733
   },
   {
     "id": "02a",
     "text": "It starts with a plain-English request to an AI agent in GitHub Copilot CLI.",
-    "start": 8.6,
-    "end": 13.805
+    "start": 13.6,
+    "end": 18.805
   },
   {
     "id": "02b",
-    "text": "Research World Bank data, analyze it in Excel, then build a seven-slide briefing in PowerPoint.",
-    "start": 14.2,
-    "end": 20.451
+    "text": "One hundred and twelve words, sent once, with no follow-ups.",
+    "start": 19.2,
+    "end": 22.72
   },
   {
     "id": "03a",
     "text": "First, the agent does the research.",
-    "start": 22.6,
-    "end": 24.584
+    "start": 27.6,
+    "end": 29.584
   },
   {
     "id": "03b",
     "text": "It finds the World Bank's official indicators, tests the data service, and pulls twenty-five years for twenty-five economies.",
-    "start": 25,
-    "end": 32.403
+    "start": 30,
+    "end": 37.403
   },
   {
     "id": "03c",
     "text": "Then it checks for gaps.",
-    "start": 32.9,
-    "end": 34.244
+    "start": 37.9,
+    "end": 39.244
   },
   {
     "id": "04a",
     "text": "Next, Excel MCP Server. The agent drives the real Excel app.",
-    "start": 37.6,
-    "end": 42.357
+    "start": 42.6,
+    "end": 47.357
   },
   {
     "id": "04b",
     "text": "It loads the data with Power Query, builds a Data Model with DAX measures, and adds analysis sheets, charts, and a PivotTable.",
-    "start": 42.8,
-    "end": 50.949
+    "start": 47.8,
+    "end": 55.949
   },
   {
     "id": "04c",
     "text": "A checks sheet tests the key numbers.",
-    "start": 51.6,
-    "end": 53.541
+    "start": 56.6,
+    "end": 58.541
   },
   {
     "id": "04d",
     "text": "When a step fails, the agent reads the error and tries another way.",
-    "start": 57.5,
-    "end": 61.212
+    "start": 62.5,
+    "end": 66.212
   },
   {
     "id": "05a",
     "text": "Before it designs a single slide, the agent reads its results back from the workbook.",
-    "start": 67.6,
-    "end": 72.571
+    "start": 72.6,
+    "end": 77.571
   },
   {
     "id": "05b",
     "text": "Every number on a slide comes from Excel.",
-    "start": 73,
-    "end": 75.24
+    "start": 78,
+    "end": 80.24
   },
   {
     "id": "06a",
     "text": "Now, PowerPoint MCP Server.",
-    "start": 77.6,
-    "end": 79.861
+    "start": 82.6,
+    "end": 84.861
   },
   {
     "id": "06b",
     "text": "The agent designs one slide as a template, exports it as a picture, and looks at it, the way a designer would.",
-    "start": 80.2,
-    "end": 87.027
+    "start": 85.2,
+    "end": 92.027
   },
   {
     "id": "06c",
     "text": "Then it builds the other slides, with native, editable charts, headlines that state the insight, sources, and speaker notes.",
-    "start": 87.4,
-    "end": 94.355
+    "start": 92.4,
+    "end": 99.355
   },
   {
     "id": "06d",
     "text": "It ran into a chart bug and a PowerPoint crash, and recovered on its own.",
-    "start": 99.2,
-    "end": 103.445
+    "start": 104.2,
+    "end": 108.445
   },
   {
     "id": "07a",
     "text": "The result is a seven-slide briefing.",
-    "start": 105.5,
-    "end": 107.804
+    "start": 110.5,
+    "end": 112.804
   },
   {
     "id": "07b",
     "text": "China's income per person grew almost six times.",
-    "start": 108.4,
-    "end": 111.28
+    "start": 113.4,
+    "end": 116.28
   },
   {
     "id": "07c",
     "text": "The gap between the richest and poorest economies halved.",
-    "start": 112,
-    "end": 115.029
+    "start": 117,
+    "end": 120.029
   },
   {
     "id": "07d",
     "text": "And internet use went from seven percent to ninety.",
-    "start": 115.8,
-    "end": 118.659
+    "start": 120.8,
+    "end": 123.659
   },
   {
     "id": "08a",
     "text": "One request. Six hundred and twelve tool calls. Two MCP servers, and one AI model.",
-    "start": 125.6,
-    "end": 131.573
+    "start": 130.6,
+    "end": 136.573
   },
   {
     "id": "08b",
     "text": "We checked the headline numbers against the World Bank. You still review the result, but the heavy lifting is done.",
-    "start": 132,
-    "end": 138.144
+    "start": 137,
+    "end": 143.144
+  },
+  {
+    "id": "09a",
+    "text": "How was this video made? With another agentic workflow.",
+    "start": 147.6,
+    "end": 150.907
+  },
+  {
+    "id": "09b",
+    "text": "An AI agent recorded the run, cut the footage, wrote the script, and built this video with HyperFrames. A person approved it at key points.",
+    "start": 151.4,
+    "end": 160.083
   }
 ]

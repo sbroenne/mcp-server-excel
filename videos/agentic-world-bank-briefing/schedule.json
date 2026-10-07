@@ -1,88 +1,94 @@
 {
-  "duration": 142,
+  "duration": 161,
   "scenes": [
     {
       "id": "s1",
       "title": "Hook",
       "start": 0,
-      "end": 8
+      "end": 13
     },
     {
       "id": "s2",
       "title": "The ask",
-      "start": 8,
-      "end": 22
+      "start": 13,
+      "end": 27
     },
     {
       "id": "s3",
       "title": "Research",
-      "start": 22,
-      "end": 37
+      "start": 27,
+      "end": 42
     },
     {
       "id": "s4",
       "title": "Excel MCP Server",
-      "start": 37,
-      "end": 67
+      "start": 42,
+      "end": 72
     },
     {
       "id": "s5",
       "title": "Hand-off",
-      "start": 67,
-      "end": 77
+      "start": 72,
+      "end": 82
     },
     {
       "id": "s6",
       "title": "PowerPoint MCP Server",
-      "start": 77,
-      "end": 105
+      "start": 82,
+      "end": 110
     },
     {
       "id": "s7",
       "title": "The briefing",
-      "start": 105,
-      "end": 125
+      "start": 110,
+      "end": 130
     },
     {
       "id": "s8",
       "title": "Scoreboard",
-      "start": 125,
-      "end": 142
+      "start": 130,
+      "end": 147
+    },
+    {
+      "id": "s9",
+      "title": "How this video was made",
+      "start": 147,
+      "end": 161
     }
   ],
   "clips": [
     {
       "id": "ask",
-      "start": 8,
-      "end": 22,
+      "start": 13,
+      "end": 27,
       "speed": 1,
       "srcStart": 15
     },
     {
       "id": "research",
-      "start": 22,
-      "end": 37,
+      "start": 27,
+      "end": 42,
       "speed": 7.4667,
       "srcStart": 26
     },
     {
       "id": "excel",
-      "start": 37,
-      "end": 67,
+      "start": 42,
+      "end": 72,
       "speed": 30.8333,
       "srcStart": 138
     },
     {
       "id": "ppt-a",
-      "start": 77,
-      "end": 98.5,
+      "start": 82,
+      "end": 103.5,
       "speed": 20.3256,
       "srcStart": 1063
     },
     {
       "id": "ppt-b",
-      "start": 98.5,
-      "end": 105,
+      "start": 103.5,
+      "end": 110,
       "speed": 18.4615,
       "srcStart": 1840
     }
@@ -90,118 +96,133 @@
   "voice": [
     {
       "id": "01a",
-      "start": 0.5,
-      "end": 4.511
+      "start": 0.3,
+      "end": 2.092
     },
     {
       "id": "01b",
-      "start": 4.9,
-      "end": 6.692
+      "start": 2.4,
+      "end": 8.736
+    },
+    {
+      "id": "01c",
+      "start": 9,
+      "end": 12.733
     },
     {
       "id": "02a",
-      "start": 8.6,
-      "end": 13.805
+      "start": 13.6,
+      "end": 18.805
     },
     {
       "id": "02b",
-      "start": 14.2,
-      "end": 20.451
+      "start": 19.2,
+      "end": 22.72
     },
     {
       "id": "03a",
-      "start": 22.6,
-      "end": 24.584
+      "start": 27.6,
+      "end": 29.584
     },
     {
       "id": "03b",
-      "start": 25,
-      "end": 32.403
+      "start": 30,
+      "end": 37.403
     },
     {
       "id": "03c",
-      "start": 32.9,
-      "end": 34.244
+      "start": 37.9,
+      "end": 39.244
     },
     {
       "id": "04a",
-      "start": 37.6,
-      "end": 42.357
+      "start": 42.6,
+      "end": 47.357
     },
     {
       "id": "04b",
-      "start": 42.8,
-      "end": 50.949
+      "start": 47.8,
+      "end": 55.949
     },
     {
       "id": "04c",
-      "start": 51.6,
-      "end": 53.541
+      "start": 56.6,
+      "end": 58.541
     },
     {
       "id": "04d",
-      "start": 57.5,
-      "end": 61.212
+      "start": 62.5,
+      "end": 66.212
     },
     {
       "id": "05a",
-      "start": 67.6,
-      "end": 72.571
+      "start": 72.6,
+      "end": 77.571
     },
     {
       "id": "05b",
-      "start": 73,
-      "end": 75.24
+      "start": 78,
+      "end": 80.24
     },
     {
       "id": "06a",
-      "start": 77.6,
-      "end": 79.861
+      "start": 82.6,
+      "end": 84.861
     },
     {
       "id": "06b",
-      "start": 80.2,
-      "end": 87.027
+      "start": 85.2,
+      "end": 92.027
     },
     {
       "id": "06c",
-      "start": 87.4,
-      "end": 94.355
+      "start": 92.4,
+      "end": 99.355
     },
     {
       "id": "06d",
-      "start": 99.2,
-      "end": 103.445
+      "start": 104.2,
+      "end": 108.445
     },
     {
       "id": "07a",
-      "start": 105.5,
-      "end": 107.804
+      "start": 110.5,
+      "end": 112.804
     },
     {
       "id": "07b",
-      "start": 108.4,
-      "end": 111.28
+      "start": 113.4,
+      "end": 116.28
     },
     {
       "id": "07c",
-      "start": 112,
-      "end": 115.029
+      "start": 117,
+      "end": 120.029
     },
     {
       "id": "07d",
-      "start": 115.8,
-      "end": 118.659
+      "start": 120.8,
+      "end": 123.659
     },
     {
       "id": "08a",
-      "start": 125.6,
-      "end": 131.573
+      "start": 130.6,
+      "end": 136.573
     },
     {
       "id": "08b",
-      "start": 132,
-      "end": 138.144
+      "start": 137,
+      "end": 143.144
+    },
+    {
+      "id": "09a",
+      "start": 147.6,
+      "end": 150.907
+    },
+    {
+      "id": "09b",
+      "start": 151.4,
+      "end": 160.083
     }
   ]
 }
