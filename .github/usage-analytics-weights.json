@@ -25,13 +25,13 @@
   "cliCategories": {
     "analysis": ["analysis"],
     "batch": ["batch"],
-    "calculation": ["calculation_mode"],
+    "calculationmode": ["calculation_mode"],
     "chart": ["chart"],
     "chartconfig": ["chart_config"],
     "conditionalformat": ["conditionalformat"],
     "connection": ["connection"],
     "datamodel": ["datamodel"],
-    "datamodelrel": ["datamodel_relationship"],
+    "datamodelrelationship": ["datamodel_relationship"],
     "diag": ["diag"],
     "drawing": ["drawing"],
     "namedrange": ["namedrange"],
@@ -56,6 +56,7 @@
     "vba": ["vba"],
     "window": ["window"],
     "workbook": ["workbook"],
+    "worksheetstyle": ["worksheet_style"],
     "xmlmap": ["xmlmap"]
   },
   "tools": {
