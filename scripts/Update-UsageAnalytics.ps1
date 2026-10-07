@@ -9,38 +9,42 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$OutputPath,
 
-    [string]$FixturePath
+    [string]$FixturePath,
+
+    [string]$WeightsPath = (Join-Path $PSScriptRoot "../.github/usage-analytics-weights.json")
 )
 
 $ErrorActionPreference = "Stop"
+. (Join-Path $PSScriptRoot "UsageAnalyticsWeights.ps1")
+$weights = Read-UsageAnalyticsWeights -Path $WeightsPath
 $categorizedReliabilitySinceUtc = "2026-08-28T09:25:22Z"
 $categorizedReliabilityMinimumVersion = "2.0.5"
-$excludedActions = @("file/open", "file/close")
+# excelcli began reporting usage, with the EntryPoint label, in release 2.0.12.
+$entryPointSinceUtc = "2026-09-28T00:00:00Z"
+$entryPointMinimumUsers = 10
+$entryPoints = @("cli", "mcp-server")
+$excludedActions = $weights.ExcludedActions
 $queries = [ordered]@{
     overview = @'
-let engagement = AppEvents
+let engagement = normalizedEvents
 | where TimeGenerated > ago(90d)
-| where Name !in ('SessionStart', 'file/open', 'file/close')
 | summarize ActiveDays=dcount(startofday(TimeGenerated)) by UserId
 | summarize RepeatUserRate=iif(
     count() == 0,
     0.0,
     round(100.0 * countif(ActiveDays >= 2) / count(), 2));
-AppEvents
+normalizedEvents
 | where TimeGenerated > ago(90d)
-| where Name !in ('SessionStart', 'file/open', 'file/close')
 | summarize Users=dcount(UserId),
             ToolInvocations=count()
 | extend RepeatUserRate=toscalar(engagement | project RepeatUserRate)
 '@
     trend = @'
-let current = AppEvents
+let current = normalizedEvents
 | where TimeGenerated between (ago(14d) .. now())
-| where Name !in ('SessionStart', 'file/open', 'file/close')
 | summarize Users=dcount(UserId), Invocations=count();
-let previous = AppEvents
+let previous = normalizedEvents
 | where TimeGenerated between (ago(28d) .. ago(14d))
-| where Name !in ('SessionStart', 'file/open', 'file/close')
 | summarize Users=dcount(UserId), Invocations=count();
 current
 | extend PreviousUsers=toscalar(previous | project Users),
@@ -55,20 +59,18 @@ current
              round(100.0 * (Invocations-PreviousInvocations) / PreviousInvocations, 2))
 '@
     weekly = @'
-AppEvents
+normalizedEvents
 | where TimeGenerated >= startofweek(ago(84d))
     and TimeGenerated < startofweek(now())
-| where Name !in ('SessionStart', 'file/open', 'file/close')
 | summarize Users=dcount(UserId),
             Actions=count()
     by Week=startofweek(TimeGenerated)
 | order by Week asc
 '@
     versionAdoption = @'
-let weeklyUsers = AppRequests
+let weeklyUsers = normalizedRequests
 | where TimeGenerated >= startofweek(ago(77d))
     and TimeGenerated <= now()
-| where Name !in ('file/open', 'file/close')
 | extend Week=startofweek(TimeGenerated),
          Version=tostring(split(AppVersion, '+')[0])
 | where isnotempty(Version)
@@ -100,22 +102,19 @@ grouped
 | order by Week asc, Users desc
 '@
     operations = @'
-AppRequests
+normalizedRequests
 | where TimeGenerated > ago(90d)
-| where Name !in ('file/open', 'file/close')
 | summarize Invocations=count(), Users=dcount(UserId) by Name
 | order by Invocations desc
 | take 25
 '@
     families = @'
 let total=toscalar(
-    AppRequests
+    normalizedRequests
     | where TimeGenerated > ago(90d)
-    | where Name !in ('file/open', 'file/close')
     | count);
-AppRequests
+normalizedRequests
 | where TimeGenerated > ago(90d)
-| where Name !in ('file/open', 'file/close')
 | extend ToolFamily=tostring(split(Name, '/')[0])
 | summarize Invocations=count(), Users=dcount(UserId) by ToolFamily
 | extend SharePct=iif(total == 0, 0.0, round(100.0 * Invocations / total, 2))
@@ -124,42 +123,54 @@ AppRequests
 '@
     heroFeatures = @'
 let total=toscalar(
-    AppRequests
+    normalizedRequests
     | where TimeGenerated > ago(90d)
-    | where Name !in ('file/open', 'file/close')
     | count);
-AppRequests
+normalizedRequests
 | where TimeGenerated > ago(90d)
-| where Name !in ('file/open', 'file/close')
-| extend ToolFamily=tostring(split(Name, '/')[0])
-| extend HeroFeature=case(
-    ToolFamily == 'powerquery', 'power-query',
-    ToolFamily in ('datamodel', 'datamodelrel'), 'power-pivot-dax',
-    ToolFamily in (
-        'pivottable', 'pivottable_field', 'chart', 'chart_config',
-        'slicer', 'drawing', 'screenshot', 'conditionalformat'
-    ), 'pivottables-charts',
-    ToolFamily in (
-        'range', 'range_format', 'range_edit', 'range_link',
-        'table', 'calculation_mode'
-    ), 'tables-ranges',
-    ToolFamily == 'vba', 'vba',
-    ToolFamily in (
-        'worksheet', 'worksheet_style', 'workbook', 'file',
-        'namedrange', 'connection', 'querytable'
-    ), 'worksheets-connections',
-    ToolFamily == 'window', 'agent-mode',
-    ToolFamily == 'pythoninexcel', 'python-in-excel',
-    'other'
-)
-| summarize Invocations=count(), Users=dcount(UserId) by HeroFeature
+| summarize Invocations=count(), Users=dcount(UserId) by HeroFeature=Feature
 | extend SharePct=iif(total == 0, 0.0, round(100.0 * Invocations / total, 2))
 | order by Invocations desc
 '@
+    actionCounts = @'
+normalizedRequests
+| where TimeGenerated > ago(90d)
+| summarize Actions=count(), Users=dcount(UserId) by Name
+'@
+    weeklyActions = @'
+normalizedRequests
+| where TimeGenerated >= startofweek(ago(84d))
+    and TimeGenerated < startofweek(now())
+| summarize Actions=count() by Week=startofweek(TimeGenerated), Name
+'@
+    comparisonActions = @'
+normalizedRequests
+| where TimeGenerated between (ago(28d) .. now())
+| summarize CurrentActions=countif(TimeGenerated >= ago(14d)),
+            PreviousActions=countif(TimeGenerated < ago(14d))
+    by Name
+'@
+    heavyWork = @'
+normalizedRequests
+| where TimeGenerated > ago(90d)
+| summarize Users=dcount(UserId),
+            HeavyUsers=dcountif(UserId, Name in (heavyNames))
+'@
+    entryPoints = @"
+normalizedRequests
+| where TimeGenerated >= max_of(datetime($entryPointSinceUtc), ago(90d))
+| where EntryPoint in ('cli', 'mcp-server')
+| summarize Users=dcount(UserId), Actions=count() by EntryPoint
+"@
+    entryPointActions = @"
+normalizedRequests
+| where TimeGenerated >= max_of(datetime($entryPointSinceUtc), ago(90d))
+| where EntryPoint in ('cli', 'mcp-server')
+| summarize Actions=count() by EntryPoint, Name
+"@
     reliability = @"
-AppRequests
+normalizedRequests
 | where TimeGenerated >= datetime($categorizedReliabilitySinceUtc)
-| where Name !in ('file/open', 'file/close')
 | extend Version=tostring(split(AppVersion, '+')[0])
 | where parse_version(Version) >= parse_version('$categorizedReliabilityMinimumVersion')
 | extend Outcome=tostring(Properties['Outcome']),
@@ -181,9 +192,8 @@ AppRequests
 | take 20
 "@
     failureClasses = @"
-AppRequests
+normalizedRequests
 | where TimeGenerated >= datetime($categorizedReliabilitySinceUtc)
-| where Name !in ('file/open', 'file/close')
 | extend Version=tostring(split(AppVersion, '+')[0])
 | where parse_version(Version) >= parse_version('$categorizedReliabilityMinimumVersion')
 | extend Outcome=tostring(Properties['Outcome']),
@@ -202,9 +212,8 @@ AppRequests
 | order by Actions desc
 "@
     versionReliability = @"
-AppRequests
+normalizedRequests
 | where TimeGenerated >= datetime($categorizedReliabilitySinceUtc)
-| where Name !in ('file/open', 'file/close')
 | extend Version=tostring(split(AppVersion, '+')[0])
 | where parse_version(Version) >= parse_version('$categorizedReliabilityMinimumVersion')
 | extend Outcome=tostring(Properties['Outcome']),
@@ -291,6 +300,7 @@ if (-not [string]::IsNullOrWhiteSpace($FixturePath)) {
     $fixtures = Get-Content -LiteralPath $resolvedFixturePath -Raw | ConvertFrom-Json
 }
 
+$queryPrelude = New-UsageAnalyticsQueryPrelude -Weights $weights
 $results = [ordered]@{}
 foreach ($entry in $queries.GetEnumerator()) {
     if ($null -ne $fixtures) {
@@ -301,7 +311,7 @@ foreach ($entry in $queries.GetEnumerator()) {
         $results[$entry.Key] = @($property.Value)
     }
     else {
-        $results[$entry.Key] = @(Invoke-LogAnalyticsQuery -Query $entry.Value)
+        $results[$entry.Key] = @(Invoke-LogAnalyticsQuery -Query ($queryPrelude + $entry.Value))
     }
 }
 
@@ -311,8 +321,152 @@ if ($null -eq $overview -or $null -eq $trend) {
     throw "Analytics overview and trend queries must each return one row."
 }
 
+function Get-Percent {
+    param([double]$Part, [double]$Total)
+    if ($Total -eq 0) {
+        return 0.0
+    }
+    return [Math]::Round(100.0 * $Part / $Total, 2)
+}
+
+function Get-WorkUnits {
+    param([string]$Name, [object]$Actions)
+    if (-not $weights.WeightByName.ContainsKey($Name)) {
+        return $null
+    }
+    return [long]$weights.WeightByName[$Name] * (Convert-ToNumber $Actions)
+}
+
+# Work units multiply each action count by its hand-picked level from the weights file.
+# Actions without a level (for example, renamed actions from old releases) stay visible as
+# unweighted instead of being guessed.
+$actionRows = @(
+    $results.actionCounts |
+        Where-Object { $excludedActions -notcontains [string]$_.Name } |
+        ForEach-Object {
+            $name = [string]$_.Name
+            [pscustomobject]@{
+                Name = $name
+                Tool = $name.Split('/')[0]
+                Feature = Get-UsageAnalyticsFeature -Weights $weights -Name $name
+                Actions = Convert-ToNumber $_.Actions
+                Users = Convert-ToNumber $_.Users
+                WorkUnits = Get-WorkUnits -Name $name -Actions $_.Actions
+            }
+        }
+)
+$weightedRows = @($actionRows | Where-Object { $null -ne $_.WorkUnits })
+$unweightedRows = @($actionRows | Where-Object { $null -eq $_.WorkUnits })
+$totalWorkUnits = [long](($weightedRows | Measure-Object WorkUnits -Sum).Sum)
+$workByFeature = @{}
+$workByFamily = @{}
+foreach ($row in $weightedRows) {
+    $workByFeature[$row.Feature] = [long]$workByFeature[$row.Feature] + $row.WorkUnits
+    $workByFamily[$row.Tool] = [long]$workByFamily[$row.Tool] + $row.WorkUnits
+}
+
+$workByWeek = @{}
+foreach ($row in $results.weeklyActions) {
+    $work = Get-WorkUnits -Name ([string]$row.Name) -Actions $row.Actions
+    if ($null -ne $work -and $excludedActions -notcontains [string]$row.Name) {
+        $week = ([DateTime]$row.Week).ToString("yyyy-MM-dd")
+        $workByWeek[$week] = [long]$workByWeek[$week] + $work
+    }
+}
+
+$currentWorkUnits = [long]0
+$previousWorkUnits = [long]0
+foreach ($row in $results.comparisonActions) {
+    if ($excludedActions -contains [string]$row.Name) {
+        continue
+    }
+    $current = Get-WorkUnits -Name ([string]$row.Name) -Actions $row.CurrentActions
+    $previous = Get-WorkUnits -Name ([string]$row.Name) -Actions $row.PreviousActions
+    if ($null -ne $current) {
+        $currentWorkUnits += $current
+        $previousWorkUnits += $previous
+    }
+}
+
+$heavyWork = @($results.heavyWork)[0]
+$heavyWorkUsers = if ($null -eq $heavyWork) { 0 } else { Convert-ToNumber $heavyWork.Users }
+$heavyWorkHeavyUsers = if ($null -eq $heavyWork) { 0 } else { Convert-ToNumber $heavyWork.HeavyUsers }
+
+$entryPointWindowStart = [DateTime]::Parse(
+    $entryPointSinceUtc,
+    [Globalization.CultureInfo]::InvariantCulture,
+    [Globalization.DateTimeStyles]::AdjustToUniversal)
+$reportingWindowStart = [DateTime]::UtcNow.Date.AddDays(-90)
+if ($reportingWindowStart -gt $entryPointWindowStart) {
+    $entryPointWindowStart = $reportingWindowStart
+}
+$entryPointSummaries = [Collections.Generic.List[object]]::new()
+$entryPointFeatureRows = [Collections.Generic.List[object]]::new()
+$entryPointOperationRows = [Collections.Generic.List[object]]::new()
+foreach ($row in $results.entryPoints) {
+    $name = [string]$row.EntryPoint
+    if ($entryPoints -notcontains $name) {
+        throw "Analytics contains an unsafe entry point."
+    }
+    $users = Convert-ToNumber $row.Users
+    if ($users -lt $entryPointMinimumUsers) {
+        $entryPointSummaries.Add([ordered]@{ name = $name; enoughData = $false })
+        continue
+    }
+
+    $rows = @(
+        $results.entryPointActions |
+            Where-Object {
+                [string]$_.EntryPoint -eq $name -and
+                $excludedActions -notcontains [string]$_.Name
+            } |
+            ForEach-Object {
+                $actionName = [string]$_.Name
+                [pscustomobject]@{
+                    Name = $actionName
+                    Feature = Get-UsageAnalyticsFeature -Weights $weights -Name $actionName
+                    Actions = Convert-ToNumber $_.Actions
+                    WorkUnits = Get-WorkUnits -Name $actionName -Actions $_.Actions
+                }
+            }
+    )
+    $actions = [long](($rows | Measure-Object Actions -Sum).Sum)
+    $work = [long](($rows | Where-Object { $null -ne $_.WorkUnits } | Measure-Object WorkUnits -Sum).Sum)
+    $entryPointSummaries.Add([ordered]@{
+        name = $name
+        enoughData = $true
+        users = $users
+        actions = $actions
+        workUnits = $work
+        actionsPerUser = [Math]::Round($actions / $users, 1)
+        workUnitsPerUser = [Math]::Round($work / $users, 1)
+    })
+    foreach ($group in ($rows | Group-Object Feature)) {
+        $featureActions = [long](($group.Group | Measure-Object Actions -Sum).Sum)
+        $featureWork = [long](($group.Group | Where-Object { $null -ne $_.WorkUnits } |
+            Measure-Object WorkUnits -Sum).Sum)
+        $entryPointFeatureRows.Add([ordered]@{
+            entryPoint = $name
+            name = $group.Name
+            actions = $featureActions
+            actionSharePct = Get-Percent $featureActions $actions
+            workUnits = $featureWork
+            workSharePct = Get-Percent $featureWork $work
+        })
+    }
+    foreach ($operation in ($rows | Sort-Object -Property @{ Expression = "Actions"; Descending = $true }, Name |
+        Select-Object -First 10)) {
+        $entryPointOperationRows.Add([ordered]@{
+            entryPoint = $name
+            name = $operation.Name
+            actions = $operation.Actions
+            workUnits = if ($null -eq $operation.WorkUnits) { 0 } else { $operation.WorkUnits }
+        })
+    }
+}
+
 $report = [ordered]@{
-    schemaVersion = 2
+    schemaVersion = 3
     generatedAtUtc = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
     windows = [ordered]@{
         reportingDays = 90
@@ -320,7 +474,10 @@ $report = [ordered]@{
         trendWeeks = 12
         categorizedReliabilitySinceUtc = $categorizedReliabilitySinceUtc
         categorizedReliabilityMinimumVersion = $categorizedReliabilityMinimumVersion
+        entryPointSinceUtc = $entryPointWindowStart.ToString("yyyy-MM-ddTHH:mm:ssZ")
+        entryPointMinimumUsers = $entryPointMinimumUsers
     }
+    weights = $weights.Levels
     privacy = [ordered]@{
         excluded = @(
             "user identifiers",
@@ -338,6 +495,8 @@ $report = [ordered]@{
         users = Convert-ToNumber $overview.Users
         toolInvocations = Convert-ToNumber $overview.ToolInvocations
         repeatUserRate = Convert-ToNumber $overview.RepeatUserRate
+        workUnits = $totalWorkUnits
+        unweightedActions = [long](($unweightedRows | Measure-Object Actions -Sum).Sum)
     }
     comparison = [ordered]@{
         currentUsers = Convert-ToNumber $trend.Users
@@ -346,14 +505,24 @@ $report = [ordered]@{
         currentInvocations = Convert-ToNumber $trend.Invocations
         previousInvocations = Convert-ToNumber $trend.PreviousInvocations
         invocationChangePct = Convert-ToNumber $trend.InvocationChangePct
+        currentWorkUnits = $currentWorkUnits
+        previousWorkUnits = $previousWorkUnits
+        workChangePct = Get-Percent ($currentWorkUnits - $previousWorkUnits) $previousWorkUnits
+    }
+    heavyWork = [ordered]@{
+        users = $heavyWorkUsers
+        heavyUsers = $heavyWorkHeavyUsers
+        heavyUserSharePct = Get-Percent $heavyWorkHeavyUsers $heavyWorkUsers
     }
     weekly = @(
         $results.weekly |
             ForEach-Object {
+                $week = ([DateTime]$_.Week).ToString("yyyy-MM-dd")
                 [ordered]@{
-                    week = ([DateTime]$_.Week).ToString("yyyy-MM-dd")
+                    week = $week
                     users = Convert-ToNumber $_.Users
                     actions = Convert-ToNumber $_.Actions
+                    workUnits = [long]$workByWeek[$week]
                 }
             }
     )
@@ -382,25 +551,65 @@ $report = [ordered]@{
     toolFamilies = @(
         $results.families |
             ForEach-Object {
+                $name = [string]$_.ToolFamily
                 [ordered]@{
-                    name = [string]$_.ToolFamily
+                    name = $name
                     invocations = Convert-ToNumber $_.Invocations
                     users = Convert-ToNumber $_.Users
                     sharePct = Convert-ToNumber $_.SharePct
+                    workUnits = [long]$workByFamily[$name]
+                    workSharePct = Get-Percent ([long]$workByFamily[$name]) $totalWorkUnits
                 }
             }
     )
     heroFeatures = @(
         $results.heroFeatures |
             ForEach-Object {
+                $name = [string]$_.HeroFeature
                 [ordered]@{
-                    name = [string]$_.HeroFeature
+                    name = $name
                     invocations = Convert-ToNumber $_.Invocations
                     users = Convert-ToNumber $_.Users
                     sharePct = Convert-ToNumber $_.SharePct
+                    workUnits = [long]$workByFeature[$name]
+                    workSharePct = Get-Percent ([long]$workByFeature[$name]) $totalWorkUnits
                 }
             }
     )
+    operationsByWork = @(
+        $weightedRows |
+            Sort-Object -Property @{ Expression = "WorkUnits"; Descending = $true }, Name |
+            Select-Object -First 15 |
+            ForEach-Object {
+                [ordered]@{
+                    name = $_.Name
+                    level = $weights.LevelByName[$_.Name]
+                    actions = $_.Actions
+                    users = $_.Users
+                    workUnits = $_.WorkUnits
+                    workSharePct = Get-Percent $_.WorkUnits $totalWorkUnits
+                }
+            }
+    )
+    unweightedActions = @(
+        $unweightedRows |
+            Sort-Object -Property @{ Expression = "Actions"; Descending = $true }, Name |
+            Select-Object -First 20 |
+            ForEach-Object {
+                [ordered]@{
+                    name = $_.Name
+                    actions = $_.Actions
+                }
+            }
+    )
+    entryPoints = @($entryPointSummaries)
+    entryPointFeatures = @(
+        $entryPointFeatureRows |
+            Sort-Object -Property @{ Expression = { $_.entryPoint } },
+                @{ Expression = { $_.workUnits }; Descending = $true },
+                @{ Expression = { $_.name } }
+    )
+    entryPointOperations = @($entryPointOperationRows)
     reliability = @(
         $results.reliability |
             Where-Object { $excludedActions -notcontains [string]$_.Name } |
@@ -493,7 +702,28 @@ foreach ($family in $report.toolFamilies) {
     }
 }
 foreach ($feature in $report.heroFeatures) {
-    if ($feature.name -notmatch '^[a-z0-9-]+$') {
+    if ($feature.name -notmatch '^[a-z0-9-]+$' -or $weights.Features -notcontains $feature.name) {
+        throw "Analytics contains an unsafe homepage-feature dimension."
+    }
+}
+foreach ($operation in @($report.operationsByWork) + @($report.unweightedActions) + @($report.entryPointOperations)) {
+    if ($operation.name -notmatch '^[a-z0-9_/-]+$') {
+        throw "Analytics contains an unsafe weighted operation dimension."
+    }
+}
+foreach ($entryPoint in $report.entryPoints) {
+    if ($entryPoints -notcontains $entryPoint.name) {
+        throw "Analytics contains an unsafe entry point."
+    }
+}
+foreach ($item in @($report.entryPointFeatures) + @($report.entryPointOperations)) {
+    $summary = $report.entryPoints | Where-Object { $_.name -eq $item.entryPoint }
+    if ($null -eq $summary -or -not $summary.enoughData) {
+        throw "Analytics contains entry-point detail for a group below the minimum size."
+    }
+}
+foreach ($item in $report.entryPointFeatures) {
+    if ($weights.Features -notcontains $item.name) {
         throw "Analytics contains an unsafe homepage-feature dimension."
     }
 }

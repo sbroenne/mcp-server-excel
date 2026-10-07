@@ -1,0 +1,640 @@
+{
+  "about": [
+    "Hand-picked work weights for the public usage analytics report.",
+    "Every MCP tool action and every excelcli command must appear here; the UsageAnalyticsWeightsTests checks fail when an action is missing or stale.",
+    "Use heavy for actions that make Excel run a query, refresh, calculation engine, macro, or Data Model step; medium for other workbook changes and image exports; light for reads, lists, and window or housekeeping actions.",
+    "Tool names use the MCP tool name without the _read suffix. cliCategories maps excelcli command categories to those tools."
+  ],
+  "levels": {
+    "light": 1,
+    "medium": 3,
+    "heavy": 10
+  },
+  "features": [
+    "power-query",
+    "power-pivot-dax",
+    "pivottables-charts",
+    "tables-ranges",
+    "vba",
+    "worksheets-connections",
+    "agent-mode",
+    "python-in-excel",
+    "other"
+  ],
+  "excludedActions": ["file/open", "file/close"],
+  "cliCategories": {
+    "analysis": ["analysis"],
+    "batch": ["batch"],
+    "calculation": ["calculation_mode"],
+    "chart": ["chart"],
+    "chartconfig": ["chart_config"],
+    "conditionalformat": ["conditionalformat"],
+    "connection": ["connection"],
+    "datamodel": ["datamodel"],
+    "datamodelrel": ["datamodel_relationship"],
+    "diag": ["diag"],
+    "drawing": ["drawing"],
+    "namedrange": ["namedrange"],
+    "other": ["other"],
+    "pivottable": ["pivottable"],
+    "pivottablecalc": ["pivottable_calc"],
+    "pivottablefield": ["pivottable_field"],
+    "powerquery": ["powerquery"],
+    "pythoninexcel": ["pythoninexcel"],
+    "querytable": ["querytable"],
+    "range": ["range"],
+    "rangeedit": ["range_edit"],
+    "rangeformat": ["range_format"],
+    "rangelink": ["range_link"],
+    "screenshot": ["screenshot"],
+    "service": ["service"],
+    "session": ["file"],
+    "sheet": ["worksheet", "worksheet_style"],
+    "slicer": ["slicer"],
+    "table": ["table"],
+    "tablecolumn": ["table_column"],
+    "vba": ["vba"],
+    "window": ["window"],
+    "workbook": ["workbook"],
+    "xmlmap": ["xmlmap"]
+  },
+  "tools": {
+    "analysis": {
+      "feature": "tables-ranges",
+      "actions": {
+        "create-data-table": "heavy",
+        "create-scenario": "medium",
+        "create-scenario-summary": "heavy",
+        "delete-scenario": "medium",
+        "goal-seek": "heavy",
+        "list-scenarios": "light",
+        "show-scenario": "medium",
+        "update-scenario": "medium"
+      }
+    },
+    "batch": {
+      "feature": "other",
+      "cliOnly": true,
+      "actions": {
+        "run": "light"
+      }
+    },
+    "calculation_mode": {
+      "feature": "tables-ranges",
+      "actions": {
+        "calculate": "medium",
+        "get-settings": "light",
+        "set-precision": "medium",
+        "set-settings": "medium"
+      }
+    },
+    "chart": {
+      "feature": "pivottables-charts",
+      "actions": {
+        "create-from-pivottable": "medium",
+        "create-from-range": "medium",
+        "create-from-table": "medium",
+        "delete": "medium",
+        "export-image": "medium",
+        "fit-to-range": "medium",
+        "list": "light",
+        "move": "medium",
+        "read": "light"
+      }
+    },
+    "chart_config": {
+      "feature": "pivottables-charts",
+      "actions": {
+        "add-series": "medium",
+        "add-trendline": "medium",
+        "delete-trendline": "medium",
+        "get-axis-number-format": "light",
+        "get-axis-scale": "light",
+        "get-error-bars": "light",
+        "get-gridlines": "light",
+        "get-plot-options": "light",
+        "get-point-format": "light",
+        "get-series-settings": "light",
+        "list-trendlines": "light",
+        "remove-series": "medium",
+        "set-area-format": "medium",
+        "set-axis-number-format": "medium",
+        "set-axis-scale": "medium",
+        "set-axis-title": "medium",
+        "set-chart-type": "medium",
+        "set-data-labels": "medium",
+        "set-error-bars": "medium",
+        "set-gridlines": "medium",
+        "set-placement": "medium",
+        "set-plot-options": "medium",
+        "set-point-format": "medium",
+        "set-series-axis-group": "medium",
+        "set-series-chart-type": "medium",
+        "set-series-format": "medium",
+        "set-source-range": "medium",
+        "set-style": "medium",
+        "set-title": "medium",
+        "set-trendline": "medium",
+        "show-legend": "medium"
+      }
+    },
+    "conditionalformat": {
+      "feature": "pivottables-charts",
+      "actions": {
+        "add-rule": "medium",
+        "clear-rules": "medium",
+        "delete-rule": "medium",
+        "list-rules": "light",
+        "list-worksheet-rules": "light",
+        "set-rule-priority": "medium",
+        "update-rule": "medium"
+      }
+    },
+    "connection": {
+      "feature": "worksheets-connections",
+      "actions": {
+        "cancel-refresh": "medium",
+        "create": "heavy",
+        "delete": "medium",
+        "get-properties": "light",
+        "get-refresh-status": "light",
+        "list": "light",
+        "load-to": "heavy",
+        "refresh": "heavy",
+        "set-properties": "medium",
+        "test": "light",
+        "view": "light"
+      }
+    },
+    "datamodel": {
+      "feature": "power-pivot-dax",
+      "actions": {
+        "create-measure": "heavy",
+        "delete-measure": "medium",
+        "delete-table": "medium",
+        "evaluate": "heavy",
+        "execute-dmv": "heavy",
+        "list-columns": "light",
+        "list-measures": "light",
+        "list-tables": "light",
+        "read": "light",
+        "read-connection": "light",
+        "read-info": "light",
+        "read-table": "light",
+        "refresh": "heavy",
+        "rename-table": "medium",
+        "update-measure": "heavy"
+      }
+    },
+    "datamodel_relationship": {
+      "feature": "power-pivot-dax",
+      "actions": {
+        "create-relationship": "heavy",
+        "delete-relationship": "medium",
+        "list-relationships": "light",
+        "read-relationship": "light",
+        "update-relationship": "heavy"
+      }
+    },
+    "diag": {
+      "feature": "other",
+      "cliOnly": true,
+      "actions": {
+        "echo": "light",
+        "ping": "light",
+        "validate-params": "light"
+      }
+    },
+    "drawing": {
+      "feature": "pivottables-charts",
+      "actions": {
+        "add-connector": "medium",
+        "add-form-control": "medium",
+        "add-image": "medium",
+        "add-shape": "medium",
+        "add-sparkline": "medium",
+        "add-text-box": "medium",
+        "align-objects": "medium",
+        "delete-object": "medium",
+        "delete-sparkline": "medium",
+        "distribute-objects": "medium",
+        "duplicate-object": "medium",
+        "get-object": "light",
+        "get-sparkline": "light",
+        "group-objects": "medium",
+        "list-objects": "light",
+        "list-sparklines": "light",
+        "set-z-order": "medium",
+        "ungroup-object": "medium",
+        "update-object": "medium",
+        "update-sparkline": "medium"
+      }
+    },
+    "file": {
+      "feature": "worksheets-connections",
+      "actions": {
+        "close": "light",
+        "create": "medium",
+        "list": "light",
+        "open": "light",
+        "test": "light"
+      }
+    },
+    "namedrange": {
+      "feature": "worksheets-connections",
+      "actions": {
+        "create": "medium",
+        "delete": "medium",
+        "list": "light",
+        "read": "light",
+        "update": "medium",
+        "write": "medium"
+      }
+    },
+    "other": {
+      "feature": "other",
+      "cliOnly": true,
+      "actions": {
+        "other": "light"
+      }
+    },
+    "pivottable": {
+      "feature": "pivottables-charts",
+      "actions": {
+        "create-from-datamodel": "heavy",
+        "create-from-range": "heavy",
+        "create-from-table": "heavy",
+        "delete": "medium",
+        "drill-through": "heavy",
+        "get-cache-options": "light",
+        "get-source": "light",
+        "list": "light",
+        "read": "light",
+        "refresh": "heavy",
+        "set-cache-options": "medium",
+        "set-source": "heavy"
+      }
+    },
+    "pivottable_calc": {
+      "feature": "pivottables-charts",
+      "actions": {
+        "create-calculated-field": "heavy",
+        "create-calculated-member": "heavy",
+        "delete-calculated-field": "medium",
+        "delete-calculated-member": "medium",
+        "get-data": "light",
+        "get-layout-options": "light",
+        "list-calculated-fields": "light",
+        "list-calculated-members": "light",
+        "set-grand-totals": "medium",
+        "set-layout": "medium",
+        "set-layout-options": "medium",
+        "set-subtotals": "medium"
+      }
+    },
+    "pivottable_field": {
+      "feature": "pivottables-charts",
+      "actions": {
+        "add-column-field": "medium",
+        "add-field-filter": "medium",
+        "add-filter-field": "medium",
+        "add-row-field": "medium",
+        "add-value-field": "medium",
+        "clear-field-filters": "medium",
+        "get-field-filters": "light",
+        "get-item-expansion": "light",
+        "group-by-date": "medium",
+        "group-by-numeric": "medium",
+        "group-items": "medium",
+        "list-fields": "light",
+        "remove-field": "medium",
+        "set-field-calculation": "medium",
+        "set-field-filter": "medium",
+        "set-field-format": "medium",
+        "set-field-function": "medium",
+        "set-field-name": "medium",
+        "set-item-expansion": "medium",
+        "sort-field": "medium",
+        "ungroup-field": "medium"
+      }
+    },
+    "powerquery": {
+      "feature": "power-query",
+      "actions": {
+        "create": "heavy",
+        "delete": "medium",
+        "evaluate": "heavy",
+        "get-load-config": "light",
+        "list": "light",
+        "load-to": "heavy",
+        "refresh": "heavy",
+        "refresh-all": "heavy",
+        "rename": "medium",
+        "unload": "medium",
+        "update": "heavy",
+        "view": "light"
+      }
+    },
+    "pythoninexcel": {
+      "feature": "python-in-excel",
+      "actions": {
+        "get-result": "light",
+        "set-formula": "heavy"
+      }
+    },
+    "querytable": {
+      "feature": "worksheets-connections",
+      "actions": {
+        "cancel-refresh": "medium",
+        "create-text": "heavy",
+        "create-web": "heavy",
+        "delete": "medium",
+        "get-refresh-status": "light",
+        "list": "light",
+        "refresh": "heavy",
+        "set-properties": "medium",
+        "view": "light"
+      }
+    },
+    "range": {
+      "feature": "tables-ranges",
+      "actions": {
+        "clear-all": "medium",
+        "clear-contents": "medium",
+        "clear-formats": "medium",
+        "copy": "medium",
+        "get-current-region": "light",
+        "get-formulas": "light",
+        "get-info": "light",
+        "get-number-formats": "light",
+        "get-special-cells": "light",
+        "get-spill-info": "light",
+        "get-used-range": "light",
+        "get-values": "light",
+        "set-formulas": "medium",
+        "set-number-format": "medium",
+        "set-number-formats": "medium",
+        "set-values": "medium",
+        "trace-dependents": "light",
+        "trace-precedents": "light",
+        "validate-formulas": "light"
+      }
+    },
+    "range_edit": {
+      "feature": "tables-ranges",
+      "actions": {
+        "advanced-filter": "medium",
+        "apply-filter": "medium",
+        "auto-fill": "medium",
+        "clear-filters": "medium",
+        "create-series": "medium",
+        "delete-cells": "medium",
+        "delete-columns": "medium",
+        "delete-rows": "medium",
+        "fill": "medium",
+        "find": "light",
+        "get-filters": "light",
+        "insert-cells": "medium",
+        "insert-columns": "medium",
+        "insert-rows": "medium",
+        "remove-duplicates": "medium",
+        "replace": "medium",
+        "sort": "medium",
+        "text-to-columns": "medium"
+      }
+    },
+    "range_format": {
+      "feature": "tables-ranges",
+      "actions": {
+        "auto-fit-columns": "medium",
+        "auto-fit-rows": "medium",
+        "format": "medium",
+        "get-format": "light",
+        "get-merge-info": "light",
+        "get-style": "light",
+        "get-validation": "light",
+        "get-visibility": "light",
+        "merge-cells": "medium",
+        "remove-validation": "medium",
+        "set-column-width": "medium",
+        "set-row-height": "medium",
+        "set-style": "medium",
+        "set-visibility": "medium",
+        "unmerge-cells": "medium",
+        "validate-range": "medium"
+      }
+    },
+    "range_link": {
+      "feature": "tables-ranges",
+      "actions": {
+        "add-hyperlink": "medium",
+        "add-threaded-comment": "medium",
+        "add-threaded-comment-reply": "medium",
+        "delete-threaded-comment": "medium",
+        "get-cell-protection": "light",
+        "get-hyperlink": "light",
+        "list-hyperlinks": "light",
+        "list-threaded-comments": "light",
+        "remove-hyperlink": "medium",
+        "set-cell-protection": "medium",
+        "update-hyperlink": "medium"
+      }
+    },
+    "screenshot": {
+      "feature": "pivottables-charts",
+      "actions": {
+        "capture": "medium",
+        "capture-sheet": "medium"
+      }
+    },
+    "service": {
+      "feature": "other",
+      "cliOnly": true,
+      "actions": {
+        "ping": "light",
+        "shutdown": "light",
+        "start": "light",
+        "status": "light",
+        "stop": "light"
+      }
+    },
+    "slicer": {
+      "feature": "pivottables-charts",
+      "actions": {
+        "clear-timeline-selection": "medium",
+        "connect-pivottable": "medium",
+        "create-slicer": "medium",
+        "create-table-slicer": "medium",
+        "create-timeline": "medium",
+        "delete-slicer": "medium",
+        "delete-table-slicer": "medium",
+        "disconnect-pivottable": "medium",
+        "get-slicer": "light",
+        "list-slicers": "light",
+        "list-table-slicers": "light",
+        "set-slicer-selection": "medium",
+        "set-table-slicer-selection": "medium",
+        "set-timeline-selection": "medium",
+        "update-slicer": "medium"
+      }
+    },
+    "table": {
+      "feature": "tables-ranges",
+      "actions": {
+        "add-to-data-model": "heavy",
+        "append": "medium",
+        "create": "medium",
+        "create-from-dax": "heavy",
+        "delete": "medium",
+        "get-data": "light",
+        "get-dax": "light",
+        "list": "light",
+        "preflight": "light",
+        "read": "light",
+        "rename": "medium",
+        "resize": "medium",
+        "set-column-total": "medium",
+        "set-style": "medium",
+        "toggle-totals": "medium",
+        "update-dax": "heavy"
+      }
+    },
+    "table_column": {
+      "feature": "tables-ranges",
+      "actions": {
+        "add-column": "medium",
+        "apply-filter": "medium",
+        "clear-filters": "medium",
+        "get-column-number-format": "light",
+        "get-filters": "light",
+        "get-structured-reference": "light",
+        "remove-column": "medium",
+        "rename-column": "medium",
+        "set-column-number-format": "medium",
+        "sort": "medium",
+        "sort-multi": "medium"
+      }
+    },
+    "vba": {
+      "feature": "vba",
+      "actions": {
+        "delete": "medium",
+        "import": "medium",
+        "list": "light",
+        "run": "heavy",
+        "update": "medium",
+        "view": "light"
+      }
+    },
+    "window": {
+      "feature": "agent-mode",
+      "actions": {
+        "arrange": "light",
+        "bring-to-front": "light",
+        "clear-status-bar": "light",
+        "freeze-panes": "light",
+        "get-context": "light",
+        "get-info": "light",
+        "get-view": "light",
+        "hide": "light",
+        "set-display-options": "light",
+        "set-position": "light",
+        "set-split": "light",
+        "set-state": "light",
+        "set-status-bar": "light",
+        "set-zoom": "light",
+        "show": "light",
+        "unfreeze-panes": "light"
+      }
+    },
+    "workbook": {
+      "feature": "worksheets-connections",
+      "actions": {
+        "apply-theme": "medium",
+        "break-external-link": "medium",
+        "create-cell-style": "medium",
+        "create-table-style": "medium",
+        "delete-cell-style": "medium",
+        "delete-document-property": "medium",
+        "delete-table-style": "medium",
+        "export-fixed-format": "medium",
+        "get-cell-style": "light",
+        "get-document-property": "light",
+        "get-info": "light",
+        "get-protection": "light",
+        "get-table-style": "light",
+        "get-theme": "light",
+        "get-view-options": "light",
+        "inspect": "light",
+        "list-cell-styles": "light",
+        "list-document-properties": "light",
+        "list-external-links": "light",
+        "list-table-styles": "light",
+        "save-as": "medium",
+        "save-copy-as": "medium",
+        "set-document-property": "medium",
+        "set-protection": "medium",
+        "set-view-options": "medium",
+        "update-cell-style": "medium",
+        "update-external-link": "medium",
+        "update-table-style": "medium"
+      }
+    },
+    "worksheet": {
+      "feature": "worksheets-connections",
+      "actions": {
+        "copy": "medium",
+        "copy-to-file": "medium",
+        "create": "medium",
+        "delete": "medium",
+        "list": "light",
+        "move": "medium",
+        "move-to-file": "medium",
+        "rename": "medium"
+      }
+    },
+    "worksheet_style": {
+      "feature": "worksheets-connections",
+      "actions": {
+        "add-image": "medium",
+        "add-shape": "medium",
+        "clear-comment": "medium",
+        "clear-outline": "medium",
+        "clear-tab-color": "medium",
+        "get-comment": "light",
+        "get-image-count": "light",
+        "get-outline-info": "light",
+        "get-page-breaks": "light",
+        "get-page-setup": "light",
+        "get-protection": "light",
+        "get-shape-count": "light",
+        "get-tab-color": "light",
+        "get-visibility": "light",
+        "group": "medium",
+        "hide": "medium",
+        "set-comment": "medium",
+        "set-outline-settings": "medium",
+        "set-page-breaks": "medium",
+        "set-page-setup": "medium",
+        "set-protection": "medium",
+        "set-tab-color": "medium",
+        "set-visibility": "medium",
+        "show": "medium",
+        "show-outline-levels": "medium",
+        "ungroup": "medium",
+        "very-hide": "medium"
+      }
+    },
+    "xmlmap": {
+      "feature": "worksheets-connections",
+      "actions": {
+        "add": "medium",
+        "delete": "medium",
+        "export-xml": "light",
+        "import-xml": "medium",
+        "list": "light",
+        "map-range": "medium"
+      }
+    }
+  }
+}

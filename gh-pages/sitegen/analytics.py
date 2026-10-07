@@ -84,6 +84,26 @@ _ANALYTICS_OPERATION_NAMES = {
     "vba/run": "Run a macro",
     "range_edit/find": "Find cells",
     "range/set-number-format": "Set number format",
+    "powerquery/refresh": "Refresh a Power Query",
+    "powerquery/evaluate": "Run Power Query code",
+    "powerquery/create": "Create a Power Query",
+    "powerquery/update": "Update a Power Query",
+    "datamodel/evaluate": "Run a Data Model query",
+    "datamodel/refresh": "Refresh the Data Model",
+    "pivottable/create-from-range": "Create a PivotTable",
+    "pivottable/refresh": "Refresh a PivotTable",
+    "connection/refresh": "Refresh a data connection",
+}
+
+_ANALYTICS_LEVEL_NAMES = {
+    "light": "Quick read",
+    "medium": "Everyday edit",
+    "heavy": "Heavy data work",
+}
+
+_ANALYTICS_ENTRY_POINT_NAMES = {
+    "mcp-server": "AI assistant (MCP Server)",
+    "cli": "Command line (excelcli)",
 }
 
 _ANALYTICS_FAILURE_CLASS_NAMES = {
@@ -132,6 +152,61 @@ def _analytics_bar_chart(
                 "  </div>",
             ]
         )
+    lines.append("</div>")
+    return "\n".join(lines)
+
+
+def _analytics_paired_bar_chart(
+    rows: list[dict[str, object]],
+    *,
+    label_field: str,
+    first_field: str,
+    second_field: str,
+    first_name: str,
+    second_name: str,
+) -> str:
+    """Render two percentage bars per row on a shared 0-100 scale."""
+    maximum = max(
+        (
+            max(float(row[first_field]), float(row[second_field]))
+            for row in rows
+        ),
+        default=0,
+    )
+    lines = [
+        '<div class="analytics-bars" role="list">',
+        '  <div class="analytics-bars__legend" aria-hidden="true">',
+        f"    <span><i></i>{escape(first_name)}</span>",
+        '    <span><i class="analytics-bars__swatch--work"></i>'
+        f"{escape(second_name)}</span>",
+        "  </div>",
+    ]
+    for row in rows:
+        label = escape(str(row[label_field]))
+        first = f"{_analytics_cell(row[first_field])}%"
+        second = f"{_analytics_cell(row[second_field])}%"
+        lines.extend(
+            [
+                '  <div class="analytics-bars__row" role="listitem" '
+                f'aria-label="{label}: {escape(first_name)} {escape(first)}, '
+                f'{escape(second_name)} {escape(second)}">',
+                '    <div class="analytics-bars__label" aria-hidden="true">',
+                f"      <span>{label}</span>"
+                f"<strong>{escape(first)} / {escape(second)}</strong>",
+                "    </div>",
+            ]
+        )
+        for field, modifier in ((first_field, ""), (second_field, " analytics-bars__track--work")):
+            value = float(row[field])
+            width = 0 if maximum == 0 else max(2, value / maximum * 100)
+            lines.extend(
+                [
+                    f'    <div class="analytics-bars__track{modifier}" aria-hidden="true">',
+                    f'      <span style="width: {width:.2f}%"></span>',
+                    "    </div>",
+                ]
+            )
+        lines.append("  </div>")
     lines.append("</div>")
     return "\n".join(lines)
 
@@ -267,11 +342,228 @@ def _analytics_version_chart(rows: list[dict[str, object]]) -> str:
     return "\n".join(lines)
 
 
+def _analytics_weighted_feature_section(
+    report: dict[str, object], hero_rows: list[dict[str, object]]
+) -> list[str]:
+    return [
+        "The bars group actions by the main features highlighted on the Excel MCP "
+        "homepage. Each feature has two bars. **Share of actions** counts every "
+        "action once. **Share of work** gives heavier actions more weight, so "
+        "refreshing a Power Query counts for more than reading a few cells. See "
+        "[how share of work is calculated](#how-share-of-work-is-calculated). "
+        "Smaller capabilities are grouped as **Other features**.",
+        "",
+        _analytics_paired_bar_chart(
+            hero_rows,
+            label_field="friendlyName",
+            first_field="sharePct",
+            second_field="workSharePct",
+            first_name="Share of actions",
+            second_name="Share of work",
+        ),
+        "",
+        _analytics_table(
+            ("Homepage feature", "Actions", "Users", "Share of actions", "Share of work"),
+            ("friendlyName", "invocations", "users", "share", "workShare"),
+            hero_rows,
+        ),
+        "",
+    ]
+
+
+def _analytics_work_sections(report: dict[str, object]) -> list[str]:
+    levels = report["weights"]
+    summary = report["summary"]
+    heavy = report["heavyWork"]
+    sections = [
+        "## How share of work is calculated",
+        "",
+        "!!! info \"An estimate, not a measurement\"\n"
+        f"    Every action is given one of three fixed effort levels. Quick reads, "
+        f"such as reading cells or listing worksheets, count "
+        f"**{levels['light']}**. Everyday edits, such as writing values or "
+        f"formatting cells, count **{levels['medium']}**. Heavy data work, such "
+        "as refreshing Power Query or the Data Model, running macros, or "
+        f"building PivotTables, counts **{levels['heavy']}**. The levels are "
+        "chosen by the maintainers and checked automatically whenever an action "
+        "is added. They describe the kind of work, not how long it took. See the "
+        "[full list of levels](https://github.com/sbroenne/mcp-server-excel/"
+        "blob/main/.github/usage-analytics-weights.json).",
+        "",
+    ]
+    if int(summary["unweightedActions"]) > 0:
+        sections.extend(
+            [
+                f"**{_analytics_cell(summary['unweightedActions'])} actions** came "
+                "from older releases that used action names which no longer "
+                "exist. They are counted as actions but left out of share of work.",
+                "",
+            ]
+        )
+    sections.extend(
+        [
+            f"**{_analytics_cell(heavy['heavyUserSharePct'])}%** of people who "
+            "used Excel MCP in this period did at least one piece of heavy data "
+            "work.",
+            "",
+            "## Where most of the work goes",
+            "",
+            "These actions add up to the largest share of estimated work. Common "
+            "light actions can still appear here when they are used very often.",
+            "",
+            _analytics_table(
+                ("Action", "Effort level", "Times used", "Users", "Share of work"),
+                ("friendlyName", "levelName", "actions", "users", "workShare"),
+                [
+                    {
+                        **row,
+                        "friendlyName": _analytics_name(
+                            row["name"], _ANALYTICS_OPERATION_NAMES
+                        ),
+                        "levelName": _ANALYTICS_LEVEL_NAMES.get(
+                            str(row["level"]), str(row["level"]).title()
+                        ),
+                        "workShare": f"{_analytics_cell(row['workSharePct'])}%",
+                    }
+                    for row in report["operationsByWork"][:10]
+                ],
+            ),
+            "",
+        ]
+    )
+    return sections
+
+
+def _analytics_entry_point_sections(
+    report: dict[str, object], date_format: str
+) -> list[str]:
+    windows = report["windows"]
+    since = datetime.fromisoformat(
+        str(windows["entryPointSinceUtc"]).replace("Z", "+00:00")
+    )
+    minimum = windows["entryPointMinimumUsers"]
+    sections = [
+        "## Command line and AI assistant",
+        "",
+        "Excel MCP can be used through an AI assistant, which talks to the MCP "
+        "Server, or directly from the command line with `excelcli`. Each action "
+        f"has recorded which of the two was used since **{since.strftime(date_format)}**, "
+        "so this comparison covers a shorter period than the rest of the page. "
+        "The two groups are mostly different people doing different jobs, so "
+        "differences describe how each is used, not which is better. A group is "
+        f"shown only when it has at least **{_analytics_cell(minimum)} users**.",
+        "",
+    ]
+    shown = [row for row in report["entryPoints"] if row.get("enoughData")]
+    hidden = [row for row in report["entryPoints"] if not row.get("enoughData")]
+    if shown:
+        sections.extend(
+            [
+                _analytics_table(
+                    (
+                        "How it was used",
+                        "Users",
+                        "Actions",
+                        "Actions per user",
+                        "Estimated work per user",
+                    ),
+                    (
+                        "friendlyName",
+                        "users",
+                        "actions",
+                        "actionsPerUser",
+                        "workUnitsPerUser",
+                    ),
+                    [
+                        {
+                            **row,
+                            "friendlyName": _analytics_name(
+                                row["name"], _ANALYTICS_ENTRY_POINT_NAMES
+                            ),
+                        }
+                        for row in shown
+                    ],
+                ),
+                "",
+            ]
+        )
+    for row in hidden:
+        name = _analytics_name(row["name"], _ANALYTICS_ENTRY_POINT_NAMES)
+        sections.extend(
+            [f"There is not enough data yet to show **{name}** on its own.", ""]
+        )
+    if len(shown) < 2:
+        return sections
+
+    entry_points = [str(row["name"]) for row in shown]
+    features: dict[str, dict[str, object]] = {}
+    for row in report["entryPointFeatures"]:
+        feature = features.setdefault(
+            str(row["name"]),
+            {
+                "friendlyName": _analytics_name(
+                    row["name"], _ANALYTICS_HERO_FEATURE_NAMES
+                ),
+                "order": 0.0,
+            },
+        )
+        entry_point = str(row["entryPoint"])
+        feature[f"{entry_point}:actions"] = f"{_analytics_cell(row['actionSharePct'])}%"
+        feature[f"{entry_point}:work"] = f"{_analytics_cell(row['workSharePct'])}%"
+        feature["order"] = max(float(feature["order"]), float(row["workSharePct"]))
+    feature_rows = sorted(features.values(), key=lambda item: -float(item["order"]))
+    for feature in feature_rows:
+        for entry_point in entry_points:
+            feature.setdefault(f"{entry_point}:actions", "0%")
+            feature.setdefault(f"{entry_point}:work", "0%")
+    headings = ["Homepage feature"]
+    fields = ["friendlyName"]
+    for entry_point in entry_points:
+        short = "AI assistant" if entry_point == "mcp-server" else "Command line"
+        headings.extend([f"{short}: share of actions", f"{short}: share of work"])
+        fields.extend([f"{entry_point}:actions", f"{entry_point}:work"])
+    sections.extend(
+        [
+            "### What each group works on",
+            "",
+            _analytics_table(tuple(headings), tuple(fields), feature_rows),
+            "",
+            "### Most common actions in each group",
+            "",
+            _analytics_table(
+                ("How it was used", "Action", "Times used"),
+                ("entryPointName", "friendlyName", "actions"),
+                [
+                    {
+                        **row,
+                        "entryPointName": _analytics_name(
+                            row["entryPoint"], _ANALYTICS_ENTRY_POINT_NAMES
+                        ),
+                        "friendlyName": _analytics_name(
+                            row["name"], _ANALYTICS_OPERATION_NAMES
+                        ),
+                    }
+                    for entry_point in entry_points
+                    for row in [
+                        item
+                        for item in report["entryPointOperations"]
+                        if item["entryPoint"] == entry_point
+                    ][:5]
+                ],
+            ),
+            "",
+        ]
+    )
+    return sections
+
+
 def render_usage_analytics() -> str:
     source_rel = ".github/usage-analytics.json"
     report = json.loads(read(source_rel))
-    if report.get("schemaVersion") != 2:
+    schema_version = report.get("schemaVersion")
+    if schema_version not in (2, 3):
         raise ValueError("usage analytics has an unsupported schema version")
+    weighted = schema_version >= 3
     interpretation = report.get("interpretation")
     if not isinstance(interpretation, str) or not interpretation.strip():
         raise ValueError("usage analytics is missing its validated interpretation")
@@ -347,6 +639,17 @@ def render_usage_analytics() -> str:
             "change": f"{comparison['invocationChangePct']}%",
         },
     ]
+    if weighted:
+        comparison_rows.append(
+            {
+                "metric": "Estimated work",
+                "current": comparison["currentWorkUnits"],
+                "previous": comparison["previousWorkUnits"],
+                "change": f"{comparison['workChangePct']}%",
+            }
+        )
+        for row in hero_rows:
+            row["workShare"] = f"{_analytics_cell(row['workSharePct'])}%"
     sections = [
         "Excel MCP Server lets GitHub Copilot, Claude, and other AI assistants "
         "automate the real Microsoft Excel application. This public report shows "
@@ -397,6 +700,18 @@ def render_usage_analytics() -> str:
             title="Actions each week",
         ),
         "",
+        *(
+            [
+                _analytics_week_chart(
+                    report["weekly"],
+                    value_field="workUnits",
+                    title="Estimated work each week",
+                ),
+                "",
+            ]
+            if weighted
+            else []
+        ),
         "## Release upgrades over time",
         "",
         "Each column is one week; the final column is the current week so far. A "
@@ -431,23 +746,25 @@ def render_usage_analytics() -> str:
         "",
         "## What people use most",
         "",
-        "The bars group actions by the main features highlighted on the Excel MCP "
-        "homepage. The percentage is each feature's share of meaningful actions. "
-        "Smaller capabilities are grouped as **Other features**.",
-        "",
-        _analytics_bar_chart(
-            hero_rows,
-            label_field="friendlyName",
-            value_field="sharePct",
-            value_suffix="%",
-        ),
-        "",
-        _analytics_table(
-            ("Homepage feature", "Actions", "Users", "Share"),
-            ("friendlyName", "invocations", "users", "share"),
-            hero_rows,
-        ),
-        "",
+        *(_analytics_weighted_feature_section(report, hero_rows) if weighted else [
+            "The bars group actions by the main features highlighted on the Excel MCP "
+            "homepage. The percentage is each feature's share of meaningful actions. "
+            "Smaller capabilities are grouped as **Other features**.",
+            "",
+            _analytics_bar_chart(
+                hero_rows,
+                label_field="friendlyName",
+                value_field="sharePct",
+                value_suffix="%",
+            ),
+            "",
+            _analytics_table(
+                ("Homepage feature", "Actions", "Users", "Share"),
+                ("friendlyName", "invocations", "users", "share"),
+                hero_rows,
+            ),
+            "",
+        ]),
         "## Most common actions",
         "",
         _analytics_table(
@@ -457,6 +774,9 @@ def render_usage_analytics() -> str:
         ),
         "",
     ]
+    if weighted:
+        sections.extend(_analytics_work_sections(report))
+        sections.extend(_analytics_entry_point_sections(report, date_format))
     sections.extend(
         [
             "## Reliability measurement",

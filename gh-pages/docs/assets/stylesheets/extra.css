@@ -184,6 +184,28 @@
   background: var(--md-primary-fg-color);
 }
 
+.analytics-bars__track--work span,
+.analytics-bars__legend i.analytics-bars__swatch--work {
+  background: #d97706;
+}
+
+.analytics-bars__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.75rem;
+}
+
+.analytics-bars__legend i {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-right: 0.3rem;
+  border-radius: 0.2rem;
+  background: var(--md-primary-fg-color);
+  vertical-align: -0.05rem;
+}
+
 .analytics-week-chart {
   margin: 1.2rem 0 1.6rem;
 }

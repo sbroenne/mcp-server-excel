@@ -116,6 +116,34 @@ try {
                 Exceptions = 12; Users = 10; Sessions = 11
             }
         )
+        actionCounts = @(
+            @{ Name = "range/get-values"; Actions = 500; Users = 10 },
+            @{ Name = "powerquery/refresh"; Actions = 200; Users = 5 },
+            @{ Name = "rare/action"; Actions = 9; Users = 9 },
+            @{ Name = "file/open"; Actions = 200; Users = 20 }
+        )
+        weeklyActions = @(
+            @{ Week = "2026-08-09"; Name = "range/get-values"; Actions = 300 },
+            @{ Week = "2026-08-16"; Name = "range/get-values"; Actions = 300 },
+            @{ Week = "2026-08-16"; Name = "powerquery/refresh"; Actions = 20 },
+            @{ Week = "2026-08-16"; Name = "file/open"; Actions = 50 }
+        )
+        comparisonActions = @(
+            @{ Name = "range/get-values"; CurrentActions = 100; PreviousActions = 100 },
+            @{ Name = "powerquery/refresh"; CurrentActions = 20; PreviousActions = 10 },
+            @{ Name = "rare/action"; CurrentActions = 5; PreviousActions = 0 }
+        )
+        heavyWork = @(@{ Users = 100; HeavyUsers = 25 })
+        entryPoints = @(
+            @{ EntryPoint = "mcp-server"; Users = 40; Actions = 600 },
+            @{ EntryPoint = "cli"; Users = 9; Actions = 50 }
+        )
+        entryPointActions = @(
+            @{ EntryPoint = "mcp-server"; Name = "range/get-values"; Actions = 400 },
+            @{ EntryPoint = "mcp-server"; Name = "powerquery/refresh"; Actions = 100 },
+            @{ EntryPoint = "mcp-server"; Name = "file/open"; Actions = 100 },
+            @{ EntryPoint = "cli"; Name = "range/get-values"; Actions = 50 }
+        )
     }
     $fixturePath = Write-TestFile "fixture.json" ($fixture | ConvertTo-Json -Depth 8)
     $analyticsPath = Join-Path $testRoot "analytics.json"
@@ -127,7 +155,7 @@ try {
         "Workbook open or close actions entered the public report."
     Assert-True ($null -eq $analytics.operations[0].PSObject.Properties["successRate"]) `
         "Historical success rates entered the public report."
-    Assert-True ($analytics.schemaVersion -eq 2) "Categorized analytics schema was not emitted."
+    Assert-True ($analytics.schemaVersion -eq 3) "Weighted analytics schema was not emitted."
     Assert-True ($analytics.reliability[0].name -eq "range/get-values") `
         "Categorized reliability data was not included."
     Assert-True ($analytics.reliability[0].expectedNegatives -eq 3) `
@@ -154,6 +182,111 @@ try {
         "Exception data was not reduced to the public category."
     Assert-True ($null -eq $analytics.exceptions[0].PSObject.Properties["type"]) `
         "Technical exception details entered the public report."
+    $testsRun++
+
+    Assert-True ($analytics.weights.light -eq 1 -and $analytics.weights.medium -eq 3 -and
+        $analytics.weights.heavy -eq 10) "The work levels were not published."
+    Assert-True ($analytics.summary.workUnits -eq 2500) `
+        "Work units did not multiply 500 light and 200 heavy actions by their levels."
+    Assert-True ($analytics.summary.unweightedActions -eq 9) `
+        "Actions without a weight were hidden instead of reported."
+    Assert-True ($analytics.unweightedActions[0].name -eq "rare/action") `
+        "The unweighted action was not named."
+    $powerQuery = $analytics.heroFeatures | Where-Object name -eq "power-query"
+    $tablesRanges = $analytics.heroFeatures | Where-Object name -eq "tables-ranges"
+    Assert-True ($powerQuery.workSharePct -eq 80 -and $powerQuery.sharePct -eq 20) `
+        "200 heavy actions out of 700 did not become 80 percent of the work."
+    Assert-True ($tablesRanges.workSharePct -eq 20 -and $tablesRanges.workUnits -eq 500) `
+        "Light actions did not keep their share of work."
+    Assert-True ($analytics.operationsByWork[0].name -eq "powerquery/refresh" -and
+        $analytics.operationsByWork[0].level -eq "heavy" -and
+        $analytics.operationsByWork[0].workUnits -eq 2000) `
+        "Actions were not ranked by work."
+    Assert-True ($analytics.toolFamilies[0].workUnits -eq 500 -and
+        $analytics.toolFamilies[0].workSharePct -eq 20) `
+        "Tool families did not receive work units."
+    Assert-True ($analytics.weekly[0].workUnits -eq 300 -and $analytics.weekly[1].workUnits -eq 500) `
+        "Weekly work units were not calculated or included workbook open and close actions."
+    Assert-True ($analytics.comparison.currentWorkUnits -eq 300 -and
+        $analytics.comparison.previousWorkUnits -eq 200 -and
+        $analytics.comparison.workChangePct -eq 50) `
+        "The two-week work comparison is wrong."
+    Assert-True ($analytics.heavyWork.heavyUserSharePct -eq 25) `
+        "The share of users doing heavy work is missing."
+    $testsRun++
+
+    $mcp = $analytics.entryPoints | Where-Object name -eq "mcp-server"
+    $cli = $analytics.entryPoints | Where-Object name -eq "cli"
+    Assert-True ($mcp.enoughData -and $mcp.actions -eq 500 -and $mcp.workUnits -eq 1400 -and
+        $mcp.actionsPerUser -eq 12.5 -and $mcp.workUnitsPerUser -eq 35) `
+        "The MCP Server entry point summary is wrong."
+    Assert-True (-not $cli.enoughData -and $null -eq $cli.PSObject.Properties["users"]) `
+        "An entry point below the minimum group size published its numbers."
+    Assert-True ($null -eq ($analytics.entryPointFeatures | Where-Object entryPoint -eq "cli") -and
+        $null -eq ($analytics.entryPointOperations | Where-Object entryPoint -eq "cli")) `
+        "An entry point below the minimum group size published its details."
+    $mcpPowerQuery = $analytics.entryPointFeatures |
+        Where-Object { $_.entryPoint -eq "mcp-server" -and $_.name -eq "power-query" }
+    Assert-True ($mcpPowerQuery.actionSharePct -eq 20 -and $mcpPowerQuery.workSharePct -eq 71.43) `
+        "Entry point feature shares are wrong."
+    Assert-True ($analytics.windows.entryPointMinimumUsers -eq 10) `
+        "The entry point minimum group size is missing."
+    $testsRun++
+
+    $largeCliFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $largeCliFixture.entryPoints[1].Users = 10
+    $largeCliPath = Write-TestFile "large-cli-fixture.json" ($largeCliFixture | ConvertTo-Json -Depth 8)
+    $largeCliAnalyticsPath = Join-Path $testRoot "large-cli.json"
+    & $updateScript -WorkspaceId "fixture" -OutputPath $largeCliAnalyticsPath -FixturePath $largeCliPath
+    $largeCli = (Get-Content -LiteralPath $largeCliAnalyticsPath -Raw | ConvertFrom-Json).entryPoints |
+        Where-Object name -eq "cli"
+    Assert-True ($largeCli.enoughData -and $largeCli.users -eq 10 -and $largeCli.workUnits -eq 50) `
+        "An entry point at the minimum group size was hidden."
+    $testsRun++
+
+    . (Join-Path $PSScriptRoot "UsageAnalyticsWeights.ps1")
+    $weights = Read-UsageAnalyticsWeights -Path (Join-Path $PSScriptRoot "../.github/usage-analytics-weights.json")
+    Assert-True ($weights.ToolMap["rangeformat"] -eq "range_format") `
+        "CLI category names are not mapped to MCP tool names."
+    Assert-True ($weights.ToolMap["range_read"] -eq "range") `
+        "Read-only MCP tool names are not mapped to their base tool."
+    Assert-True ($weights.SplitMap["sheet/set-tab-color"] -eq "worksheet_style/set-tab-color" -and
+        $weights.SplitMap["sheet/list"] -eq "worksheet/list") `
+        "CLI sheet actions are not split between worksheet tools."
+    Assert-True ($weights.ToolMap["session"] -eq "file" -and $weights.ExcludedActions -contains "file/open") `
+        "CLI session open and close are not treated like workbook open and close."
+    Assert-True ($weights.HeavyNames -contains "powerquery/refresh" -and
+        $weights.HeavyNames -notcontains "range/get-values") `
+        "Heavy actions were not identified."
+    $prelude = New-UsageAnalyticsQueryPrelude -Weights $weights
+    Assert-True ($prelude.Contains("'rangeformat', 'range_format', 'tables-ranges'")) `
+        "The query lookup does not combine CLI and MCP spellings."
+    Assert-True ($prelude.Contains("'sheet/set-tab-color', 'worksheet_style/set-tab-color', 'worksheets-connections'")) `
+        "The query lookup does not split CLI sheet actions."
+    Assert-True ($prelude.Contains("coalesce(tostring(Properties['EntryPoint']), 'mcp-server')")) `
+        "Rows recorded before the entry point label are not counted as MCP Server."
+    Assert-True ($prelude -match "let excludedNames = dynamic\(\['file/open', 'file/close'\]\)") `
+        "Excluded actions are not removed after names are combined."
+    $testsRun++
+
+    $validWeights = Get-Content -LiteralPath (Join-Path $PSScriptRoot "../.github/usage-analytics-weights.json") -Raw
+    $invalidWeights = @{
+        "unknown level" = $validWeights.Replace('"get-values": "light"', '"get-values": "enormous"')
+        "positive whole number" = $validWeights.Replace('"heavy": 10', '"heavy": 0')
+        "repeat" = $validWeights.Replace('"get-values": "light",', '"get-values": "light", "get-values": "heavy",')
+        "unknown tool" = $validWeights.Replace('"rangeformat": ["range_format"]', '"rangeformat": ["range_formats"]')
+        "unknown feature" = $validWeights.Replace('"feature": "power-query"', '"feature": "power-queries"')
+    }
+    foreach ($case in $invalidWeights.GetEnumerator()) {
+        Assert-True ($case.Value -ne $validWeights) "Invalid weights case '$($case.Key)' did not change the file."
+        $invalidWeightsPath = Write-TestFile "invalid-weights.json" $case.Value
+        Assert-Throws -ExpectedMessage $case.Key -Action {
+            & $updateScript -WorkspaceId "fixture" `
+                -OutputPath (Join-Path $testRoot "invalid-weights-report.json") `
+                -FixturePath $fixturePath `
+                -WeightsPath $invalidWeightsPath
+        }
+    }
     $testsRun++
 
     $unsafeFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
@@ -371,6 +504,20 @@ Investigate the 12 background task problems before changing behavior.
         "Restore script split the branch query into a second API endpoint."
     Assert-True ([IO.File]::ReadAllText($bootstrapPath) -eq $restoredText) `
         "Restore script did not replace the bootstrap report."
+    $testsRun++
+
+    $schemaTwoReport = $report | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+    $schemaTwoReport.schemaVersion = 2
+    $schemaTwoText = $schemaTwoReport | ConvertTo-Json -Depth 10
+    $restoredContent = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($schemaTwoText))
+    & $restoreScript `
+        -Repository "owner/repository" `
+        -Branch "analytics-data" `
+        -ReportPath $bootstrapPath `
+        -RemotePath ".github/usage-analytics.json" `
+        -ApiInvoker $restoreInvoker
+    Assert-True ([IO.File]::ReadAllText($bootstrapPath) -eq $schemaTwoText) `
+        "Restore script rejected a report from before work weighting."
     $testsRun++
 
     $unsupported = $interpretation.Replace("12 background", "999 background")

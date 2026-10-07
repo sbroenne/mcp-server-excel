@@ -561,6 +561,39 @@ gh workflow run usage-analytics.yml -f publish=false
 
 After inspecting the artifact, publish a validated run with `publish=true`.
 
+#### Effort levels and share of work
+
+The report shows each feature's **share of actions** (every action counts once)
+next to its **share of work** (each action multiplied by a fixed effort level).
+`.github/usage-analytics-weights.json` is the single source of truth for those
+levels, for which homepage feature each tool belongs to, and for how CLI command
+categories map to MCP tools. The collection script reads it to build its
+queries, so no level or mapping is copied into the scripts.
+
+Pick a level by the kind of work Excel does, not by measured duration (duration
+mostly reflects workbook size and the user's machine):
+
+| Level | Weight | Use for |
+| --- | --- | --- |
+| `light` | 1 | Reads, lists, and lookups; window actions; CLI service and diagnostic commands |
+| `medium` | 3 | Changes to cells, formats, sheets, tables, charts, names, or code; screenshots and image export |
+| `heavy` | 10 | Power Query, Data Model, and connection refresh or evaluation; creating queries, models, relationships, and PivotTables; running macros; what-if analysis |
+
+Actions that existed only in older releases have no level. The report lists
+them as `unweightedActions` and leaves them out of share of work. Opening and
+closing workbooks remain excluded through `excludedActions`.
+
+The report also compares command line (`excelcli`) and AI assistant (MCP
+Server) use, starting from the release that first recorded the entry point.
+A group with fewer than `entryPointMinimumUsers` users shows only that it lacks
+enough data.
+
+Test the scripts locally without Azure access:
+
+```powershell
+.\scripts\Test-UsageAnalytics.ps1
+```
+
 ### **Telemetry Architecture**
 
 ```text

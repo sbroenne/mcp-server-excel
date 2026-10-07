@@ -9,6 +9,7 @@ on:
       - 'scripts/*UsageAnalytics*.ps1'
       - 'gh-pages/**'
       - '.github/usage-analytics.json'
+      - '.github/usage-analytics-weights.json'
   workflow_dispatch:
     inputs:
       publish:

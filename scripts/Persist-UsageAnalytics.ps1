@@ -41,7 +41,7 @@ if (-not (Test-Path -LiteralPath $resolvedReportPath -PathType Leaf)) {
 }
 $reportText = [IO.File]::ReadAllText($resolvedReportPath)
 $report = $reportText | ConvertFrom-Json
-if ($report.schemaVersion -ne 2 -or
+if (@(2, 3) -notcontains $report.schemaVersion -or
     [string]::IsNullOrWhiteSpace([string]$report.interpretation)) {
     throw "Analytics report is incomplete or has an unsupported schema."
 }
