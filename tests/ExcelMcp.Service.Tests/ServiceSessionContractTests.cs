@@ -21,7 +21,24 @@ public sealed class ServiceSessionContractTests
         });
 
         Assert.False(response.Success);
-        Assert.Contains("Unknown session action", response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal("InvalidInput", response.ErrorCategory);
+        Assert.Equal(
+            "Unknown action 'save' for command group 'session'. Valid actions: create, open, close, list, test.",
+            response.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task UnknownServiceAction_ListsValidActions()
+    {
+        using var service = new ExcelMcpService();
+
+        var response = await service.ProcessAsync(new ServiceRequest { Command = "service.restart" });
+
+        Assert.False(response.Success);
+        Assert.Equal("InvalidInput", response.ErrorCategory);
+        Assert.Equal(
+            "Unknown action 'restart' for command group 'service'. Valid actions: ping, shutdown, status.",
+            response.ErrorMessage);
     }
 
     [Theory]

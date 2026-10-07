@@ -203,7 +203,7 @@ public sealed class ExcelMcpService : IDisposable
             {
                 Success = false,
                 ErrorCategory = "InvalidInput",
-                ErrorMessage = $"Unknown service action: {action}"
+                ErrorMessage = $"Unknown action '{action}' for command group 'service'. Valid actions: ping, shutdown, status."
             }
         };
     }
@@ -236,7 +236,7 @@ public sealed class ExcelMcpService : IDisposable
             {
                 Success = false,
                 ErrorCategory = "InvalidInput",
-                ErrorMessage = $"Unknown session action: {action}"
+                ErrorMessage = $"Unknown action '{action}' for command group 'session'. Valid actions: create, open, close, list, test."
             };
         }
 
