@@ -48,4 +48,29 @@ public sealed partial class PersistentServicePivotTableTests
         Assert.Empty(RequireSuccess(_pivotCommands.List(batch)).PivotTables);
         AssertOriginalSales();
     }
+
+    [Fact]
+    public void CreateFromRange_PartiallyBlankHeaderRow_RejectsBeforeCreatingPivot()
+    {
+        var batch = _fixture.BatchToken;
+        RequireSuccess(_commands.SetValues(batch, _salesSheetName, "A9:C11",
+        [
+            ["Region", "", "Sales"],
+            ["North", "Widget", 10],
+            ["South", "Gadget", 20],
+        ]));
+        var namesBefore = RequireSuccess(_pivotCommands.List(batch)).PivotTables
+            .Select(table => table.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var error = Assert.ThrowsAny<Exception>(() =>
+            _pivotCommands.CreateFromRange(
+                batch, _salesSheetName, "A9:C11", _salesSheetName, "H1", "PartialBlankHeaderPivot"));
+
+        Assert.Contains("header", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(namesBefore, RequireSuccess(_pivotCommands.List(batch)).PivotTables
+            .Select(table => table.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase));
+        AssertOriginalSales();
+    }
 }

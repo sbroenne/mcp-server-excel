@@ -15,6 +15,76 @@ public sealed class PersistentServiceTimelineTests(PersistentServiceWorkbookFixt
     PersistentServiceWorkbookTestBase(fixture), IClassFixture<PersistentServiceWorkbookFixture>
 {
     [Fact]
+    public async Task Timeline_MissingDestinationSheet_RejectsWithoutAddingCache()
+    {
+        var (_, pivot, name) = CreateSource();
+        int cachesBefore = CountSlicerCaches();
+
+        var failure = await _fixture.SendForFailureAsync("slicer.create-timeline", new
+        {
+            pivotTableName = pivot,
+            fieldName = "Date",
+            slicerName = name,
+            destinationSheet = "NoSuchTimelineSheet",
+            position = "J2"
+        });
+
+        Assert.False(failure.Success);
+        Assert.Contains("NoSuchTimelineSheet", failure.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal(cachesBefore, CountSlicerCaches());
+    }
+
+    [Fact]
+    public async Task Timeline_InvalidPosition_RejectsWithoutAddingCache()
+    {
+        var (sheet, pivot, name) = CreateSource();
+        int cachesBefore = CountSlicerCaches();
+
+        var failure = await _fixture.SendForFailureAsync("slicer.create-timeline", new
+        {
+            pivotTableName = pivot,
+            fieldName = "Date",
+            slicerName = name,
+            destinationSheet = sheet,
+            position = "NotACell"
+        });
+
+        Assert.False(failure.Success);
+        Assert.Contains("NotACell", failure.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal(cachesBefore, CountSlicerCaches());
+    }
+
+    [Fact]
+    public async Task Timeline_DuplicateControlName_RejectsWithoutAddingCache()
+    {
+        var (sheet, pivot, name) = CreateSource();
+        _fixture.Send("slicer.create-slicer", new
+        {
+            pivotTableName = pivot,
+            fieldName = "Region",
+            slicerName = name,
+            destinationSheet = sheet,
+            position = "J2"
+        });
+        int cachesBefore = CountSlicerCaches();
+
+        var failure = await _fixture.SendForFailureAsync("slicer.create-timeline", new
+        {
+            pivotTableName = pivot,
+            fieldName = "Date",
+            slicerName = name,
+            destinationSheet = sheet,
+            position = "J12"
+        });
+
+        Assert.False(failure.Success);
+        Assert.Contains("already exists", failure.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(cachesBefore, CountSlicerCaches());
+        using var state = JsonDocument.Parse(_fixture.Send("slicer.get-slicer", new { slicerName = name }).Result!);
+        Assert.False(state.RootElement.GetProperty("slicer").GetProperty("isTimeline").GetBoolean());
+    }
+
+    [Fact]
     public void Timeline_CreateReadAndFilterActualDates()
     {
         var (sheet, pivot, name) = CreateSource();
@@ -453,6 +523,21 @@ public sealed class PersistentServiceTimelineTests(PersistentServiceWorkbookFixt
         Assert.Equal(expected, rows.Skip(1).SkipLast(1).Select(row => (Assert.IsType<string>(row[0].GetString()), row[1].GetDouble())));
         Assert.Equal(expected.Sum(row => row.Amount), rows[^1][1].GetDouble());
     }
+
+    private int CountSlicerCaches() =>
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.SlicerCaches? caches = null;
+            try
+            {
+                caches = context.Book.SlicerCaches;
+                return caches.Count;
+            }
+            finally
+            {
+                ComUtilities.Release(ref caches);
+            }
+        });
 
     private (string Sheet, string Pivot, string Slicer) CreateSource()
     {

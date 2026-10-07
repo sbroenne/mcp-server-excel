@@ -4,7 +4,7 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 
 public sealed partial class PersistentServiceDrawingTests
 {
-    // Excel accepts names up to 254 characters; longer names fail only after the object exists.
+    // Excel accepts drawing names up to 254 characters.
     private static readonly string NameExcelRejects = new('N', 300);
 
     [Theory]
@@ -13,11 +13,11 @@ public sealed partial class PersistentServiceDrawingTests
     [InlineData("text box")]
     [InlineData("connector")]
     [InlineData("form control")]
-    public void AddObject_NameRejectedAfterObjectExists_ReportsLeftoverObject(string kind)
+    public void AddObject_OverlongName_IsRejectedBeforeAddingObject(string kind)
     {
         var batch = _fixture.BatchToken;
 
-        var exception = Assert.ThrowsAny<Exception>(() =>
+        var exception = Assert.Throws<ArgumentException>(() =>
         {
             _ = kind switch
             {
@@ -31,8 +31,8 @@ public sealed partial class PersistentServiceDrawingTests
 
         var listed = _drawingCommands.ListObjects(batch, _sheetName);
         Assert.True(listed.Success, listed.ErrorMessage);
-        var leftover = Assert.Single(listed.DrawingObjects);
-        LeftoverObjectAssert.Reported(exception.Message, kind, leftover.Name, _sheetName);
+        Assert.Empty(listed.DrawingObjects);
+        Assert.Contains("254", exception.Message, StringComparison.Ordinal);
     }
 
     [Theory]

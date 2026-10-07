@@ -176,7 +176,7 @@ public sealed partial class DrawingCommands
 
     private static void ValidateLayoutName(string? name)
     {
-        // Excel accepts drawing names up to 254 characters; longer names fail after the group or copy exists.
+        // Excel accepts drawing names up to 254 characters.
         if (name != null && (string.IsNullOrWhiteSpace(name) || name.Length > 254))
             throw new ArgumentException("A supplied drawing name must be nonempty and at most 254 characters.", nameof(name));
     }

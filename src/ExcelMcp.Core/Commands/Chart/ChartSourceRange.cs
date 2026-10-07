@@ -2,6 +2,7 @@ using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 
@@ -253,16 +254,22 @@ internal static class ChartSourceRange
             return sheetName;
         }
 
-        dynamic? worksheets = null;
-        dynamic? sheet = null;
+        Excel.Sheets? worksheets = null;
+        Excel.Worksheet? sheet = null;
         try
         {
-            worksheets = book.Worksheets;
-            sheet = worksheets[sheetName];
-            return (string)sheet.Name;
-        }
-        catch (COMException)
-        {
+            worksheets = (Excel.Sheets)book.Worksheets;
+            for (int index = 1; index <= worksheets.Count; index++)
+            {
+                sheet = worksheets[index];
+                if (string.Equals(sheet.Name, sheetName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return sheet.Name;
+                }
+
+                ComUtilities.Release(ref sheet);
+            }
+
             return sheetName;
         }
         finally

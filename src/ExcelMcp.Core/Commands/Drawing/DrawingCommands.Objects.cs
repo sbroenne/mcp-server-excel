@@ -92,6 +92,7 @@ public sealed partial class DrawingCommands
             throw new FileNotFoundException($"Image file not found: {imagePath}", imagePath);
         }
 
+        ValidateLayoutName(name);
         ValidateGeometry(width, height);
         return batch.Execute((ctx, ct) =>
         {
@@ -142,6 +143,7 @@ public sealed partial class DrawingCommands
         string? lineColor = null,
         double? lineWeight = null)
     {
+        ValidateLayoutName(name);
         ValidateGeometry(width, height);
         ValidateColors(null, fillColor, lineColor);
         ValidateLineWeight(lineWeight);
@@ -192,6 +194,7 @@ public sealed partial class DrawingCommands
         string? fillColor = null,
         string? lineColor = null)
     {
+        ValidateLayoutName(name);
         ValidateGeometry(width, height);
         ValidateColors(fontColor, fillColor, lineColor);
         return batch.Execute((ctx, ct) =>
@@ -239,6 +242,7 @@ public sealed partial class DrawingCommands
         string? lineColor = null,
         double? lineWeight = null)
     {
+        ValidateLayoutName(name);
         ValidateColors(null, null, lineColor);
         ValidateLineWeight(lineWeight);
         return batch.Execute((ctx, ct) =>
@@ -287,6 +291,7 @@ public sealed partial class DrawingCommands
         string? linkedCell = null,
         string? inputRange = null)
     {
+        ValidateLayoutName(name);
         ValidateGeometry(width, height);
         ValidateFormControlBindings(controlType, linkedCell, inputRange);
         return batch.Execute((ctx, ct) =>

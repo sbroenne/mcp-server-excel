@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 using Sbroenne.ExcelMcp.ComInterop;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -10,6 +11,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Slicer;
 /// </summary>
 internal static class SlicerPlacement
 {
+    private const int ExcelMaxRows = 1_048_576;
+    private const int ExcelMaxColumns = 16_384;
+    private static readonly Regex CellAddress = new(
+        @"^\$?(?<column>[A-Z]{1,3})\$?(?<row>\d{1,7})$",
+        RegexOptions.Compiled | RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+
     /// <summary>
     /// Rejects a name already used by any slicer or timeline in the workbook.
     /// </summary>
@@ -55,33 +62,80 @@ internal static class SlicerPlacement
     internal static (Excel.Worksheet Sheet, Excel.Range Anchor) ResolveDestination(
         Excel.Workbook book, string sheetName, string position)
     {
-        Excel.Worksheet? sheet;
+        var (column, row) = ParsePosition(sheetName, position);
+        var sheet = FindWorksheet(book, sheetName);
+        try
+        {
+            Excel.Range anchor = sheet.Cells[row, column];
+            return (sheet, anchor);
+        }
+        catch
+        {
+            ComUtilities.Release(ref sheet);
+            throw;
+        }
+    }
+
+    private static Excel.Worksheet FindWorksheet(Excel.Workbook book, string sheetName)
+    {
         Excel.Sheets? worksheets = null;
+        Excel.Worksheet? candidate = null;
         try
         {
             worksheets = book.Worksheets;
-            sheet = (Excel.Worksheet)worksheets[sheetName];
-        }
-        catch (COMException ex)
-        {
-            throw new ArgumentException($"Worksheet '{sheetName}' not found.", ex);
+            for (int index = 1; index <= worksheets.Count; index++)
+            {
+                candidate = worksheets[index];
+                if (string.Equals(candidate.Name, sheetName, StringComparison.OrdinalIgnoreCase))
+                {
+                    var result = candidate;
+                    candidate = null;
+                    return result;
+                }
+
+                ComUtilities.Release(ref candidate);
+            }
+
+            throw new ArgumentException($"Worksheet '{sheetName}' not found.");
         }
         finally
         {
+            ComUtilities.Release(ref candidate);
             ComUtilities.Release(ref worksheets);
         }
-
-        try
-        {
-            return (sheet, sheet.Range[position]);
-        }
-        catch (COMException ex)
-        {
-            ComUtilities.Release(ref sheet);
-            throw new ArgumentException(
-                $"Position '{position}' is not a valid cell reference on sheet '{sheetName}'.", ex);
-        }
     }
+
+    private static (int Column, int Row) ParsePosition(string sheetName, string position)
+    {
+        if (string.IsNullOrWhiteSpace(position))
+        {
+            throw InvalidPosition(sheetName, position);
+        }
+
+        var match = CellAddress.Match(position);
+        if (!match.Success)
+        {
+            throw InvalidPosition(sheetName, position);
+        }
+
+        int column = 0;
+        foreach (char letter in match.Groups["column"].Value)
+        {
+            column = (column * 26) + (char.ToUpperInvariant(letter) - 'A' + 1);
+        }
+
+        if (!int.TryParse(match.Groups["row"].Value, out int row) ||
+            column is < 1 or > ExcelMaxColumns ||
+            row is < 1 or > ExcelMaxRows)
+        {
+            throw InvalidPosition(sheetName, position);
+        }
+
+        return (column, row);
+    }
+
+    private static ArgumentException InvalidPosition(string sheetName, string position) =>
+        new($"Position '{position}' is not a valid cell reference on sheet '{sheetName}'.", nameof(position));
 
     /// <summary>
     /// Builds the error for a slicer that Excel failed to add after it created a new slicer cache.

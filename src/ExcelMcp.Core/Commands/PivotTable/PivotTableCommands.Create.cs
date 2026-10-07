@@ -45,6 +45,7 @@ public partial class PivotTableCommands
                 }
 
                 var availableFields = new List<string>();
+                var blankHeaderColumns = new List<int>();
 
                 dynamic? headerRow = null;
                 try
@@ -52,10 +53,14 @@ public partial class PivotTableCommands
                     headerRow = sourceRows[1];
                     var headerValues = ExcelValueNormalizer.Normalize(headerRow.Value2);
 
-                    foreach (var value in headerValues.Values[0])
+                    for (int column = 0; column < headerValues.ColumnCount; column++)
                     {
-                        var header = value?.ToString();
-                        if (!string.IsNullOrWhiteSpace(header))
+                        var header = headerValues.Values[0][column]?.ToString();
+                        if (string.IsNullOrWhiteSpace(header))
+                        {
+                            blankHeaderColumns.Add(column + 1);
+                        }
+                        else
                         {
                             availableFields.Add(header);
                         }
@@ -64,6 +69,13 @@ public partial class PivotTableCommands
                     if (availableFields.Count == 0)
                     {
                         throw new InvalidOperationException($"No field headers found in source range. Header row has {headerValues.ColumnCount} columns.");
+                    }
+
+                    if (blankHeaderColumns.Count > 0)
+                    {
+                        throw new InvalidOperationException(
+                            $"Every source column must have a field header. Header row contains blank field name(s) in column(s): " +
+                            $"{string.Join(", ", blankHeaderColumns)}.");
                     }
                 }
                 finally
