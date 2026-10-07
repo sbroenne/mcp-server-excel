@@ -222,6 +222,99 @@ public static class ParameterTransforms
         }
     }
 
+    /// <summary>
+    /// Resolves formula cells from either an inline 2D array or a JSON file path. Each cell may be a
+    /// formula or text string, a number, a boolean, or null, and is returned as the invariant English
+    /// text that Excel's Formula property parses: numbers use '.' decimals, booleans become TRUE/FALSE,
+    /// and null becomes an empty cell.
+    /// </summary>
+    /// <param name="formulas">Inline 2D array of formula cells (may be null if file is provided)</param>
+    /// <param name="formulasFile">Path to JSON file containing formula cells</param>
+    /// <param name="parameterName">Parameter name for error messages</param>
+    /// <returns>Resolved 2D array of formula text</returns>
+    /// <exception cref="ArgumentException">Neither input provided, invalid JSON, or an unsupported cell</exception>
+    /// <exception cref="FileNotFoundException">File not found</exception>
+    public static List<List<string>> ResolveFormulaCellsOrFile(List<List<object?>>? formulas, string? formulasFile, string parameterName = "formulas")
+    {
+        if (formulas != null && formulas.Count > 0)
+            return NormalizeFormulaCells(formulas, parameterName);
+
+        if (string.IsNullOrWhiteSpace(formulasFile))
+            throw new ArgumentException($"Either {parameterName} or {parameterName}File must be provided", parameterName);
+
+        if (!File.Exists(formulasFile))
+            throw new FileNotFoundException($"Formulas file not found: {formulasFile}", formulasFile);
+
+        var content = File.ReadAllText(formulasFile);
+        List<List<object?>>? parsed;
+        try
+        {
+            parsed = JsonSerializer.Deserialize<List<List<object?>>>(content, s_jsonOptions);
+        }
+        catch (JsonException ex)
+        {
+            throw new ArgumentException(
+                $"Invalid JSON in formulas file '{formulasFile}': {ex.Message}. Expected 2D array: [[\"Label\", 5.86, true, null, \"=SUM(A:A)\"]]",
+                parameterName);
+        }
+
+        return NormalizeFormulaCells(
+            parsed ?? throw new ArgumentException($"JSON file '{formulasFile}' deserialized to null", parameterName),
+            parameterName);
+    }
+
+    private static List<List<string>> NormalizeFormulaCells(List<List<object?>> rows, string parameterName)
+    {
+        var result = new List<List<string>>(rows.Count);
+        for (int r = 0; r < rows.Count; r++)
+        {
+            var row = rows[r] ?? throw new ArgumentException(
+                $"{parameterName}[{r}] must be an array of cells, not null.", parameterName);
+            var normalizedRow = new List<string>(row.Count);
+            for (int c = 0; c < row.Count; c++)
+            {
+                normalizedRow.Add(FormulaCellToText(row[c])
+                    ?? throw new ArgumentException(
+                        $"{parameterName}[{r}][{c}] has an unsupported value. Each cell must be a formula or text string, a finite number, true/false, or null (empty cell).",
+                        parameterName));
+            }
+            result.Add(normalizedRow);
+        }
+        return result;
+    }
+
+    private static string? FormulaCellToText(object? cell)
+    {
+        var invariant = System.Globalization.CultureInfo.InvariantCulture;
+        return cell switch
+        {
+            null => string.Empty,
+            string text => text,
+            bool flag => flag ? "TRUE" : "FALSE",
+            JsonElement element => element.ValueKind switch
+            {
+                JsonValueKind.String => element.GetString(),
+                JsonValueKind.True => "TRUE",
+                JsonValueKind.False => "FALSE",
+                JsonValueKind.Null or JsonValueKind.Undefined => string.Empty,
+                JsonValueKind.Number => element.TryGetInt64(out var whole)
+                    ? whole.ToString(invariant)
+                    : FiniteToText(element.GetDouble()),
+                _ => null
+            },
+            double number => FiniteToText(number),
+            float number => float.IsFinite(number) ? number.ToString("R", invariant) : null,
+            decimal number => number.ToString(invariant),
+            sbyte or byte or short or ushort or int or uint or long or ulong
+                => ((IFormattable)cell).ToString(null, invariant),
+            _ => null
+        };
+
+        static string? FiniteToText(double number) => double.IsFinite(number)
+            ? number.ToString("R", System.Globalization.CultureInfo.InvariantCulture)
+            : null;
+    }
+
     // === Options Object Construction ===
 
     /// <summary>

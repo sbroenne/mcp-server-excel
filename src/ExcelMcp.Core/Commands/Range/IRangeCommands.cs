@@ -162,13 +162,13 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address matching formulas dimensions (e.g., 'A1:B2' for 2x2 formula array)</param>
-    /// <param name="formulas">2D array of formulas to set - include '=' prefix (e.g., [['=A1+B1', '=SUM(A:A)'], ['=C1*2', '=AVERAGE(B:B)']]). Optional if formulasFile is provided.</param>
-    /// <param name="formulasFile">Path to a JSON file containing the formulas as a 2D array. Alternative to inline formulas parameter.</param>
+    /// <param name="formulas">2D array of cells to set. Formulas need the '=' prefix (e.g., [['=A1+B1', '=SUM(A:A)'], ['=C1*2', '=AVERAGE(B:B)']]). Cells may also be text, numbers, true/false, or null (empty cell), so labels and constants can sit beside formulas (e.g., [['Label', 5.86, true, null, '=1+1']]). Optional if formulasFile is provided.</param>
+    /// <param name="formulasFile">Path to a JSON file containing the cells as a 2D array, with the same cell kinds as formulas. Alternative to inline formulas parameter.</param>
     /// <param name="overwritePolicy">reject-nonempty (default) rejects existing content before writing, including formulas displaying blank. allow permits authorized replacement. Checks cover direct destinations, not future formula spills; inspection failure stops the write.</param>
     /// <param name="referenceStyle">a1 (default) or r1c1 native formula notation; relative R1C1 references use each destination cell</param>
     [ServiceAction("set-formulas")]
     OperationResult SetFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress,
-        List<List<string>>? formulas = null, string? formulasFile = null,
+        List<List<object?>>? formulas = null, string? formulasFile = null,
         [FromString] OverwritePolicy overwritePolicy = OverwritePolicy.RejectNonempty,
         [FromString] FormulaReferenceStyle referenceStyle = FormulaReferenceStyle.A1);
 
@@ -176,14 +176,15 @@ public interface IRangeCommands
     /// Validates formulas for syntax errors, undefined functions, and other issues without applying them.
     /// Detects common problems like undefined functions (e.g., GETVM3 without XA2. namespace),
     /// invalid references, syntax errors, and circular references.
+    /// Accepts the same cells as set-formulas; text, numbers, true/false, and empty cells count as valid constants.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address to validate</param>
-    /// <param name="formulas">2D array of formulas to validate - include '=' prefix</param>
-    /// <param name="formulasFile">Path to a JSON file containing the formulas to validate. Alternative to inline formulas parameter.</param>
+    /// <param name="formulas">2D array of cells to validate. Formulas need the '=' prefix; text, numbers, true/false, and null are valid constants.</param>
+    /// <param name="formulasFile">Path to a JSON file containing the cells to validate. Alternative to inline formulas parameter.</param>
     [ServiceAction("validate-formulas")]
-    RangeFormulaValidationResult ValidateFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<string>>? formulas = null, string? formulasFile = null);
+    RangeFormulaValidationResult ValidateFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<object?>>? formulas = null, string? formulasFile = null);
 
     // === CLEAR OPERATIONS ===
 
