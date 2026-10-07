@@ -1,6 +1,6 @@
 ---
 title: Usage statistics and trends
-description: See how developers use Excel MCP Server for AI-powered Excel automation, including adoption trends, popular features, and reliability.
+description: See how developers use Excel MCP Server for AI-powered Excel automation, including adoption trends, popular features, and downloads.
 keywords:
   - Excel MCP Server usage statistics
   - AI Excel automation

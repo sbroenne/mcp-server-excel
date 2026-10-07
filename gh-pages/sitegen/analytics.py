@@ -88,16 +88,6 @@ _ANALYTICS_ENTRY_POINT_NAMES = {
     "cli": "Command line (excelcli)",
 }
 
-_ANALYTICS_FAILURE_CLASS_NAMES = {
-    "expected-negative": "Expected validation or state result",
-    "input-state": "Input or workbook state",
-    "external-dependency": "External dependency",
-    "timeout-cancellation": "Timeout or cancellation",
-    "excel-runtime": "Excel runtime",
-    "internal-product-fault": "Excel MCP product fault",
-    "unclassified": "Unclassified failure",
-}
-
 
 def _analytics_name(value: object, names: dict[str, str]) -> str:
     """Replace an internal action name with a reader-friendly label."""
@@ -216,8 +206,10 @@ def _analytics_week_chart(
     title: str,
 ) -> str:
     """Render weekly values as an accessible compact bar chart."""
-    maximum = max((float(row[value_field]) for row in rows), default=0)
+    maximum = float(max((float(row[value_field]) for row in rows), default=0))
     midpoint = maximum / 2
+    if maximum.is_integer() and maximum >= 10:
+        midpoint = round(midpoint)
     lines = [
         '<div class="analytics-week-chart" role="group" '
         f'aria-label="{escape(title)}">',
@@ -737,14 +729,120 @@ def _analytics_habit_sections(habits: dict[str, object]) -> list[str]:
     return sections
 
 
-def _analytics_reliability_row(row: dict[str, object]) -> dict[str, object]:
-    shown = (
-        f"{_analytics_cell(row['failureRate'])}% failed "
-        f"({_analytics_cell(row['failures'])} of {_analytics_cell(row['actions'])}"
+def _analytics_download_sections(
+    downloads: dict[str, object], date_format: str
+) -> list[str]:
+    """Render public download counters from npm, NuGet, GitHub, and VS Code."""
+    collected = datetime.fromisoformat(
+        str(downloads["collectedUtc"]).replace("Z", "+00:00")
     )
-    if int(row["expectedNegatives"]) > 0:
-        shown += f"; {_analytics_cell(row['expectedNegatives'])} expected"
-    return {**row, "shown": shown + ")"}
+    channel_rows = [
+        {
+            **row,
+            "shown": f"{_analytics_cell(row['total'])} "
+            + ("installs" if row["key"] == "vscode" else "downloads"),
+        }
+        for row in downloads["channels"]
+    ]
+    sections = [
+        "## Where people get Excel MCP",
+        "",
+        "These numbers come from the public download counters on npm, NuGet, "
+        "GitHub, and the Visual Studio Marketplace, checked on "
+        f"**{collected.strftime(date_format)}**.",
+        "",
+        "!!! note \"Downloads are not people\"\n"
+        "    One person can download Excel MCP many times, updates and automatic "
+        "installs add to the counts, and the same person can appear in more than "
+        "one place. Use these numbers to compare channels and spot trends, not to "
+        "count users, and do not add them together.",
+        "",
+        "### Downloads by channel",
+        "",
+        "npm counts cover the last 12 months. The other counts include "
+        "everything since each channel started.",
+        "",
+        _analytics_bar_chart(
+            channel_rows,
+            label_field="label",
+            value_field="total",
+            display_field="shown",
+        ),
+        "",
+    ]
+    npm_weekly = list(downloads["npmWeekly"])
+    if npm_weekly:
+        sections.extend(
+            [
+                "### npm downloads each week",
+                "",
+                "npm keeps a daily history, so each bar is one full week of "
+                "downloads for the MCP Server and command line packages together.",
+                "",
+                _analytics_week_chart(
+                    npm_weekly,
+                    value_field="total",
+                    title="npm downloads each week",
+                ),
+                "",
+            ]
+        )
+    releases = list(downloads["releases"])
+    if releases:
+        sections.extend(
+            [
+                "### Downloads of recent releases",
+                "",
+                "Files downloaded from each GitHub release: the MCP Server and "
+                "command line packages, the VS Code extension files, and the "
+                "Claude Desktop bundle. Newer releases have had less time to "
+                "collect downloads.",
+                "",
+                _analytics_bar_chart(
+                    [
+                        {
+                            **row,
+                            "friendlyName": f"{row['version']} ("
+                            + datetime.fromisoformat(str(row["published"])).strftime(
+                                "%b %d"
+                            )
+                            + ")",
+                        }
+                        for row in releases
+                    ],
+                    label_field="friendlyName",
+                    value_field="downloads",
+                ),
+                "",
+            ]
+        )
+    gains = list(downloads["weeklyGains"])
+    sections.extend(["### New downloads each week", ""])
+    if gains:
+        sections.extend(
+            [
+                "NuGet, GitHub releases, and the VS Code Marketplace only publish "
+                "running totals. This chart shows how much those totals grew "
+                "between one weekly report and the next.",
+                "",
+                _analytics_week_chart(
+                    [{**row, "total": max(0, int(row["total"]))} for row in gains],
+                    value_field="total",
+                    title="New NuGet, GitHub release, and VS Code downloads",
+                ),
+                "",
+            ]
+        )
+    else:
+        sections.extend(
+            [
+                "NuGet, GitHub releases, and the VS Code Marketplace only publish "
+                "running totals. This report saves those totals every week, so a "
+                "chart of new downloads each week appears from the next report on.",
+                "",
+            ]
+        )
+    return sections
 
 
 def render_usage_analytics() -> str:
@@ -766,12 +864,6 @@ def render_usage_analytics() -> str:
     reporting_start = generated - timedelta(days=reporting_days)
     current_start = generated - timedelta(days=comparison_days)
     previous_start = generated - timedelta(days=comparison_days * 2)
-    categorized_reliability_since = datetime.fromisoformat(
-        report["windows"]["categorizedReliabilitySinceUtc"].replace("Z", "+00:00")
-    )
-    categorized_reliability_version = report["windows"][
-        "categorizedReliabilityMinimumVersion"
-    ]
     date_format = "%b %d, %Y"
 
     hero_rows = [
@@ -790,23 +882,6 @@ def render_usage_analytics() -> str:
         }
         for row in report["operations"]
     ]
-    reliability_rows = [
-        {
-            **row,
-            "friendlyName": _analytics_name(row["name"], _ANALYTICS_OPERATION_NAMES),
-        }
-        for row in report["reliability"]
-    ]
-    failure_class_rows = [
-        {
-            **row,
-            "friendlyName": _analytics_name(
-                row["name"], _ANALYTICS_FAILURE_CLASS_NAMES
-            ),
-        }
-        for row in report["failureClasses"]
-    ]
-    release_rows = list(report["versionReliability"])
     comparison_rows = [
         {
             "metric": "Users",
@@ -833,7 +908,7 @@ def render_usage_analytics() -> str:
     sections = [
         "Excel MCP Server lets GitHub Copilot, Claude, and other AI assistants "
         "automate the real Microsoft Excel application. This public report shows "
-        "how the open-source project is used and where reliability can improve.",
+        "how the open-source project is used and where people get it.",
         "",
         "New to the project? [Install Excel MCP Server](/installation/) to get started.",
         "",
@@ -974,107 +1049,10 @@ def render_usage_analytics() -> str:
         sections.extend(_analytics_entry_point_sections(report, date_format))
         if "habits" in report:
             sections.extend(_analytics_habit_sections(report["habits"]))
+    if "downloads" in report:
+        sections.extend(_analytics_download_sections(report["downloads"], date_format))
     sections.extend(
         [
-            "## Reliability measurement",
-            "",
-            f"Outcome classification starts with release "
-            f"**{categorized_reliability_version}** from "
-            f"**{categorized_reliability_since.strftime(date_format)}**. Earlier "
-            "rows did not contain these labels and are not guessed or rewritten.",
-            "",
-            "A negative diagnostic result, such as finding that a workbook cannot "
-            "be opened, is counted as an expected result rather than a product "
-            "failure. Failures are grouped using fixed labels supplied by the "
-            "software. Unknown labels remain visible as **Unclassified failure**.",
-            "",
-        ]
-    )
-    if failure_class_rows:
-        sections.extend(
-            [
-                "### Outcomes and failure classes",
-                "",
-                _analytics_bar_chart(
-                    [
-                        {
-                            **row,
-                            "shown": f"{_analytics_cell(row['actions'])} actions, "
-                            f"{_analytics_cell(row['users'])} users",
-                        }
-                        for row in failure_class_rows
-                    ],
-                    label_field="friendlyName",
-                    value_field="actions",
-                    display_field="shown",
-                ),
-                "",
-            ]
-        )
-    if reliability_rows:
-        sections.extend(
-            [
-                "### Reliability by action",
-                "",
-                "Failure rate for the actions with the most problems. Expected "
-                "results are shown separately and are not failures.",
-                "",
-                _analytics_bar_chart(
-                    [_analytics_reliability_row(row) for row in reliability_rows[:15]],
-                    label_field="friendlyName",
-                    value_field="failureRate",
-                    display_field="shown",
-                    work=True,
-                ),
-                "",
-            ]
-        )
-    if release_rows:
-        sections.extend(
-            [
-                "### Reliability by release",
-                "",
-                "This comparison can reveal a problem introduced in a release. It "
-                "is not a direct quality score: different releases may be used for "
-                "different kinds of work. The action count shows how much data each "
-                "rate is based on.",
-                "",
-                _analytics_bar_chart(
-                    [
-                        {**_analytics_reliability_row(row), "friendlyName": row["version"]}
-                        for row in release_rows[:15]
-                    ],
-                    label_field="friendlyName",
-                    value_field="failureRate",
-                    display_field="shown",
-                    work=True,
-                ),
-                "",
-            ]
-        )
-    sections.extend(
-        [
-        "## Problems we are watching",
-        "",
-        ]
-    )
-    exceptions = report["exceptions"]
-    if exceptions:
-        total_exceptions = sum(int(row["exceptions"]) for row in exceptions)
-        sections.append(
-            f"Excel MCP reported **{_analytics_cell(total_exceptions)} background "
-            "task problems** during this period. These reports came from at least "
-            f"**{_analytics_cell(max(int(row['users']) for row in exceptions))} "
-            "users**. They are not the same as failed user actions, and one "
-            "underlying problem can produce more than one report."
-        )
-    else:
-        sections.append(
-            "No broadly shared background problem appeared during this period."
-        )
-    sections.extend(
-        [
-            "",
             "## How this report protects privacy",
             "",
             "The report is built from anonymous counts and percentages. "

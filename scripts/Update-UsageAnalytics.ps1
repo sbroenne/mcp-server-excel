@@ -11,14 +11,18 @@ param(
 
     [string]$FixturePath,
 
-    [string]$WeightsPath = (Join-Path $PSScriptRoot "../.github/usage-analytics-weights.json")
+    [string]$WeightsPath = (Join-Path $PSScriptRoot "../.github/usage-analytics-weights.json"),
+
+    # The last published report. Its download snapshots are carried forward, because
+    # NuGet, GitHub releases, and the VS Code Marketplace only publish running totals.
+    [string]$PreviousReportPath,
+
+    [string]$Repository = "sbroenne/mcp-server-excel"
 )
 
 $ErrorActionPreference = "Stop"
 . (Join-Path $PSScriptRoot "UsageAnalyticsWeights.ps1")
 $weights = Read-UsageAnalyticsWeights -Path $WeightsPath
-$categorizedReliabilitySinceUtc = "2026-08-28T09:25:22Z"
-$categorizedReliabilityMinimumVersion = "2.0.5"
 # excelcli began reporting usage, with the EntryPoint label, in release 2.0.12.
 $entryPointSinceUtc = "2026-09-28T00:00:00Z"
 $entryPointMinimumUsers = 10
@@ -175,71 +179,6 @@ normalizedRequests
 | where EntryPoint in ('cli', 'mcp-server')
 | summarize Actions=count() by EntryPoint, Name
 "@
-    reliability = @"
-normalizedRequests
-| where TimeGenerated >= datetime($categorizedReliabilitySinceUtc)
-| extend Version=tostring(split(AppVersion, '+')[0])
-| where parse_version(Version) >= parse_version('$categorizedReliabilityMinimumVersion')
-| extend Outcome=tostring(Properties['Outcome']),
-         FailureClass=tostring(Properties['FailureClass'])
-| where Outcome in ('succeeded', 'expected-negative', 'failed')
-| summarize Actions=count(),
-            ExpectedNegatives=countif(Outcome == 'expected-negative'),
-            Failures=countif(Outcome == 'failed'),
-            InputState=countif(Outcome == 'failed' and FailureClass == 'input-state'),
-            ExternalDependency=countif(Outcome == 'failed' and FailureClass == 'external-dependency'),
-            TimeoutCancellation=countif(Outcome == 'failed' and FailureClass == 'timeout-cancellation'),
-            ExcelRuntime=countif(Outcome == 'failed' and FailureClass == 'excel-runtime'),
-            InternalProductFault=countif(Outcome == 'failed' and FailureClass == 'internal-product-fault'),
-            Unclassified=countif(Outcome == 'failed' and FailureClass == 'unclassified'),
-            Users=dcount(UserId) by Name
-| where ExpectedNegatives > 0 or Failures > 0
-| extend FailureRate=round(100.0 * Failures / Actions, 2)
-| order by Failures desc, ExpectedNegatives desc
-| take 20
-"@
-    failureClasses = @"
-normalizedRequests
-| where TimeGenerated >= datetime($categorizedReliabilitySinceUtc)
-| extend Version=tostring(split(AppVersion, '+')[0])
-| where parse_version(Version) >= parse_version('$categorizedReliabilityMinimumVersion')
-| extend Outcome=tostring(Properties['Outcome']),
-         FailureClass=tostring(Properties['FailureClass'])
-| extend Bucket=case(
-    Outcome == 'expected-negative', 'expected-negative',
-    Outcome == 'failed' and FailureClass == 'input-state', 'input-state',
-    Outcome == 'failed' and FailureClass == 'external-dependency', 'external-dependency',
-    Outcome == 'failed' and FailureClass == 'timeout-cancellation', 'timeout-cancellation',
-    Outcome == 'failed' and FailureClass == 'excel-runtime', 'excel-runtime',
-    Outcome == 'failed' and FailureClass == 'internal-product-fault', 'internal-product-fault',
-    Outcome == 'failed', 'unclassified',
-    'succeeded')
-| where Bucket != 'succeeded'
-| summarize Actions=count(), Users=dcount(UserId) by Bucket
-| order by Actions desc
-"@
-    versionReliability = @"
-normalizedRequests
-| where TimeGenerated >= datetime($categorizedReliabilitySinceUtc)
-| extend Version=tostring(split(AppVersion, '+')[0])
-| where parse_version(Version) >= parse_version('$categorizedReliabilityMinimumVersion')
-| extend Outcome=tostring(Properties['Outcome']),
-         FailureClass=tostring(Properties['FailureClass'])
-| where Outcome in ('succeeded', 'expected-negative', 'failed')
-| summarize Actions=count(),
-            ExpectedNegatives=countif(Outcome == 'expected-negative'),
-            Failures=countif(Outcome == 'failed'),
-            InputState=countif(Outcome == 'failed' and FailureClass == 'input-state'),
-            ExternalDependency=countif(Outcome == 'failed' and FailureClass == 'external-dependency'),
-            TimeoutCancellation=countif(Outcome == 'failed' and FailureClass == 'timeout-cancellation'),
-            ExcelRuntime=countif(Outcome == 'failed' and FailureClass == 'excel-runtime'),
-            InternalProductFault=countif(Outcome == 'failed' and FailureClass == 'internal-product-fault'),
-            Unclassified=countif(Outcome == 'failed' and FailureClass == 'unclassified'),
-            Users=dcount(UserId) by Version
-| extend FailureRate=round(100.0 * Failures / Actions, 2)
-| order by Actions desc
-| take 25
-"@
     # Habits use AI assistant sessions only: each excelcli command runs as its own process,
     # so a command line "session" is always a single command.
     assistantSessions = @"
@@ -324,14 +263,7 @@ normalizedRequests
     by Feature
 | where Users >= $habitMinimumUsers
 "@
-    exceptions = @"
-AppExceptions
-| where TimeGenerated >= datetime($categorizedReliabilitySinceUtc)
-| where tostring(Properties['Sanitized']) == 'true'
-| summarize Exceptions=count(), Users=dcount(UserId), Sessions=dcount(SessionId)
-| where Exceptions > 0
-| extend Category='background-task-problem'
-"@
+
 }
 
 function Invoke-LogAnalyticsQuery {
@@ -382,7 +314,283 @@ function Convert-ToNumber {
     return $Value
 }
 
-$fixtures = $null
+$npmPackages = [ordered]@{
+    "npm-mcp-server" = "@sbroenne/mcp-server-excel"
+    "npm-cli" = "@sbroenne/excelcli"
+}
+$nugetPackages = [ordered]@{
+    "nuget-mcp-server" = "Sbroenne.ExcelMcp.McpServer"
+    "nuget-cli" = "Sbroenne.ExcelMcp.CLI"
+}
+$downloadChannelLabels = [ordered]@{
+    "npm-mcp-server" = "npm: MCP Server"
+    "npm-cli" = "npm: command line"
+    "nuget-mcp-server" = "NuGet: MCP Server"
+    "nuget-cli" = "NuGet: command line"
+    "github-releases" = "GitHub release files"
+    "vscode" = "VS Code extension installs"
+}
+# npm publishes daily history. The other sources only publish running totals, so the
+# report keeps one dated snapshot per run and calculates the gain between snapshots.
+$snapshotChannels = @("nuget-mcp-server", "nuget-cli", "github-releases", "vscode")
+# Checksums and release metadata are fetched by automation, not people.
+$releaseFilePattern = '\.(?:zip|vsix|mcpb)$'
+$maxDownloadSnapshots = 104
+$downloadReleaseCount = 10
+$npmWeekCount = 12
+
+function ConvertTo-UtcDate {
+    param([Parameter(Mandatory = $true)][object]$Value)
+    if ($Value -is [DateTime]) {
+        $date = if ($Value.Kind -eq [DateTimeKind]::Local) { $Value.ToUniversalTime() } else { $Value }
+        return $date.Date
+    }
+    return [DateTimeOffset]::Parse(
+        [string]$Value,
+        [Globalization.CultureInfo]::InvariantCulture,
+        [Globalization.DateTimeStyles]::AssumeUniversal).UtcDateTime.Date
+}
+
+function Get-DownloadSources {
+    $sources = [ordered]@{
+        npm = [ordered]@{}
+        nuget = [ordered]@{}
+        releases = @()
+        vscodeInstalls = $null
+    }
+    foreach ($entry in $npmPackages.GetEnumerator()) {
+        $response = Invoke-RestMethod -Uri "https://api.npmjs.org/downloads/range/last-year/$($entry.Value)"
+        $sources.npm[$entry.Key] = @($response.downloads)
+    }
+    foreach ($entry in $nugetPackages.GetEnumerator()) {
+        $response = Invoke-RestMethod `
+            -Uri "https://azuresearch-usnc.nuget.org/query?q=packageid:$($entry.Value)&prerelease=true&semVerLevel=2.0.0"
+        $package = @($response.data | Where-Object { $_.id -eq $entry.Value })[0]
+        if ($null -eq $package) {
+            throw "NuGet did not return package '$($entry.Value)'."
+        }
+        $sources.nuget[$entry.Key] = $package.totalDownloads
+    }
+
+    $headers = @{ Accept = "application/vnd.github+json"; "X-GitHub-Api-Version" = "2022-11-28" }
+    $token = if (-not [string]::IsNullOrWhiteSpace($env:GH_TOKEN)) { $env:GH_TOKEN } else { $env:GITHUB_TOKEN }
+    if (-not [string]::IsNullOrWhiteSpace($token)) {
+        $headers.Authorization = "Bearer $token"
+    }
+    $releases = [Collections.Generic.List[object]]::new()
+    for ($page = 1; $page -le 20; $page++) {
+        $response = Invoke-RestMethod -Headers $headers `
+            -Uri "https://api.github.com/repos/$Repository/releases?per_page=100&page=$page"
+        $batch = @($response)
+        foreach ($release in $batch) {
+            $releases.Add([pscustomobject]@{
+                tag = $release.tag_name
+                publishedAt = $release.published_at
+                draft = $release.draft
+                assets = @($release.assets | ForEach-Object {
+                    [pscustomobject]@{ name = $_.name; downloads = $_.download_count }
+                })
+            })
+        }
+        if ($batch.Count -lt 100) {
+            break
+        }
+    }
+    if ($releases.Count -eq 0) {
+        throw "GitHub returned no releases for '$Repository'."
+    }
+    $sources.releases = $releases.ToArray()
+
+    $body = @{
+        filters = @(@{ criteria = @(@{ filterType = 7; value = "sbroenne.excel-mcp" }) })
+        flags = 914
+    } | ConvertTo-Json -Depth 6
+    $response = Invoke-RestMethod `
+        -Method Post `
+        -Uri "https://marketplace.visualstudio.com/_apis/public/gallery/extensionquery" `
+        -Headers @{ Accept = "application/json;api-version=7.2-preview.1" } `
+        -ContentType "application/json" `
+        -Body $body
+    $extension = @(@($response.results)[0].extensions)[0]
+    $installs = @($extension.statistics | Where-Object { $_.statisticName -eq "install" })[0]
+    if ($null -eq $installs) {
+        throw "The VS Code Marketplace did not return an install count."
+    }
+    $sources.vscodeInstalls = $installs.value
+    # Match the fixture shape, so both paths are read the same way.
+    return $sources | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+}
+
+function Get-PreviousDownloadSnapshots {
+    param([string]$Path)
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return @()
+    }
+    $resolvedPath = [IO.Path]::GetFullPath($Path)
+    if (-not (Test-Path -LiteralPath $resolvedPath -PathType Leaf)) {
+        throw "Previous analytics report '$resolvedPath' does not exist."
+    }
+    $previous = Get-Content -LiteralPath $resolvedPath -Raw | ConvertFrom-Json
+    $downloadsProperty = $previous.PSObject.Properties["downloads"]
+    if ($null -eq $downloadsProperty) {
+        return @()
+    }
+    return @(
+        foreach ($snapshot in @($downloadsProperty.Value.snapshots)) {
+            $totals = [ordered]@{}
+            foreach ($channel in $snapshotChannels) {
+                $property = $snapshot.totals.PSObject.Properties[$channel]
+                if ($null -eq $property) {
+                    throw "Previous download snapshot is missing '$channel'."
+                }
+                $totals[$channel] = Convert-ToNumber $property.Value
+            }
+            [ordered]@{
+                date = (ConvertTo-UtcDate $snapshot.date).ToString("yyyy-MM-dd")
+                totals = $totals
+            }
+        }
+    )
+}
+
+function New-DownloadReport {
+    param(
+        [Parameter(Mandatory = $true)][object]$Sources,
+        [object[]]$PreviousSnapshots = @()
+    )
+
+    $collected = [DateTime]::UtcNow
+    $totals = [ordered]@{}
+    $npmDays = @{}
+    foreach ($channel in $npmPackages.Keys) {
+        $series = $Sources.npm.PSObject.Properties[$channel]
+        if ($null -eq $series) {
+            throw "npm download history is missing '$channel'."
+        }
+        $sum = [long]0
+        foreach ($day in @($series.Value)) {
+            $count = [long](Convert-ToNumber $day.downloads)
+            $sum += $count
+            $date = ConvertTo-UtcDate $day.day
+            if (-not $npmDays.ContainsKey($date)) {
+                $npmDays[$date] = [ordered]@{}
+            }
+            $npmDays[$date][$channel] = $count
+        }
+        $totals[$channel] = $sum
+    }
+    foreach ($channel in $nugetPackages.Keys) {
+        $total = $Sources.nuget.PSObject.Properties[$channel]
+        if ($null -eq $total) {
+            throw "NuGet download totals are missing '$channel'."
+        }
+        $totals[$channel] = [long](Convert-ToNumber $total.Value)
+    }
+
+    $releaseRows = @(
+        foreach ($release in @($Sources.releases | Where-Object { -not $_.draft })) {
+            $version = ([string]$release.tag) -replace '^v', ''
+            if ($version -notmatch '^[0-9A-Za-z.+-]+$') {
+                throw "Download data contains an unsafe release version."
+            }
+            $downloads = [long]0
+            foreach ($asset in @($release.assets)) {
+                if ([string]$asset.name -match $releaseFilePattern) {
+                    $downloads += [long](Convert-ToNumber $asset.downloads)
+                }
+            }
+            [pscustomobject]@{
+                version = $version
+                published = ConvertTo-UtcDate $release.publishedAt
+                downloads = $downloads
+            }
+        }
+    )
+    $totals["github-releases"] = [long](($releaseRows | Measure-Object downloads -Sum).Sum)
+    $totals["vscode"] = [long](Convert-ToNumber $Sources.vscodeInstalls)
+
+    # Weeks start on Sunday to match the usage charts; only full weeks are shown.
+    $npmWeekly = @()
+    if ($npmDays.Count -gt 0) {
+        $lastDay = $npmDays.Keys | Sort-Object | Select-Object -Last 1
+        $firstActiveDay = $npmDays.Keys |
+            Where-Object { ($npmDays[$_].Values | Measure-Object -Sum).Sum -gt 0 } |
+            Sort-Object |
+            Select-Object -First 1
+        if ($null -ne $firstActiveDay) {
+            $weeks = [ordered]@{}
+            foreach ($date in ($npmDays.Keys | Sort-Object)) {
+                $weekStart = $date.AddDays(-[int]$date.DayOfWeek)
+                if ($weekStart.AddDays(6) -gt $lastDay -or $weekStart.AddDays(6) -lt $firstActiveDay) {
+                    continue
+                }
+                $key = $weekStart.ToString("yyyy-MM-dd")
+                if (-not $weeks.Contains($key)) {
+                    $weeks[$key] = [ordered]@{ week = $key; mcpServer = [long]0; cli = [long]0; total = [long]0 }
+                }
+                $mcpServer = [long]$npmDays[$date]["npm-mcp-server"]
+                $cli = [long]$npmDays[$date]["npm-cli"]
+                $weeks[$key].mcpServer += $mcpServer
+                $weeks[$key].cli += $cli
+                $weeks[$key].total += $mcpServer + $cli
+            }
+            $npmWeekly = @($weeks.Values | Select-Object -Last $npmWeekCount)
+        }
+    }
+
+    $today = $collected.ToString("yyyy-MM-dd")
+    $snapshotTotals = [ordered]@{}
+    foreach ($channel in $snapshotChannels) {
+        $snapshotTotals[$channel] = $totals[$channel]
+    }
+    $snapshots = @(
+        @($PreviousSnapshots | Where-Object { $_.date -lt $today }) +
+            @([ordered]@{ date = $today; totals = $snapshotTotals }) |
+            Sort-Object { $_.date } |
+            Select-Object -Last $maxDownloadSnapshots
+    )
+    $gains = @(
+        for ($index = 1; $index -lt $snapshots.Count; $index++) {
+            $before = $snapshots[$index - 1]
+            $after = $snapshots[$index]
+            $channelGains = [ordered]@{}
+            foreach ($channel in $snapshotChannels) {
+                $channelGains[$channel] = [long]$after.totals[$channel] - [long]$before.totals[$channel]
+            }
+            [ordered]@{
+                week = $before.date
+                days = ([DateTime]$after.date - [DateTime]$before.date).Days
+                total = [long](($channelGains.Values | Measure-Object -Sum).Sum)
+                channels = $channelGains
+            }
+        }
+    )
+
+    return [ordered]@{
+        collectedUtc = $collected.ToString("yyyy-MM-ddTHH:mm:ssZ")
+        channels = @(
+            foreach ($entry in $downloadChannelLabels.GetEnumerator()) {
+                [ordered]@{ key = $entry.Key; label = $entry.Value; total = $totals[$entry.Key] }
+            }
+        )
+        npmWeekly = $npmWeekly
+        releases = @(
+            $releaseRows |
+                Sort-Object published, version -Descending |
+                Select-Object -First $downloadReleaseCount |
+                ForEach-Object {
+                    [ordered]@{
+                        version = $_.version
+                        published = $_.published.ToString("yyyy-MM-dd")
+                        downloads = $_.downloads
+                    }
+                }
+        )
+        snapshotChannels = $snapshotChannels
+        snapshots = $snapshots
+        weeklyGains = $gains
+    }
+}
 if (-not [string]::IsNullOrWhiteSpace($FixturePath)) {
     $resolvedFixturePath = [IO.Path]::GetFullPath($FixturePath)
     if (-not (Test-Path -LiteralPath $resolvedFixturePath -PathType Leaf)) {
@@ -405,6 +613,20 @@ foreach ($entry in $queries.GetEnumerator()) {
         $results[$entry.Key] = @(Invoke-LogAnalyticsQuery -Query ($queryPrelude + $entry.Value))
     }
 }
+
+$downloadSources = if ($null -ne $fixtures) {
+    $property = $fixtures.PSObject.Properties["downloadSources"]
+    if ($null -eq $property) {
+        throw "Analytics fixture is missing 'downloadSources'."
+    }
+    $property.Value
+}
+else {
+    Get-DownloadSources
+}
+$downloads = New-DownloadReport `
+    -Sources $downloadSources `
+    -PreviousSnapshots @(Get-PreviousDownloadSnapshots -Path $PreviousReportPath)
 
 $overview = @($results.overview)[0]
 $trend = @($results.trend)[0]
@@ -706,8 +928,6 @@ $report = [ordered]@{
         reportingDays = 90
         comparisonDays = 14
         trendWeeks = 12
-        categorizedReliabilitySinceUtc = $categorizedReliabilitySinceUtc
-        categorizedReliabilityMinimumVersion = $categorizedReliabilityMinimumVersion
         entryPointSinceUtc = $entryPointWindowStart.ToString("yyyy-MM-ddTHH:mm:ssZ")
         entryPointMinimumUsers = $entryPointMinimumUsers
     }
@@ -845,90 +1065,13 @@ $report = [ordered]@{
     )
     entryPointOperations = @($entryPointOperationRows)
     habits = $habits
-    reliability = @(
-        $results.reliability |
-            Where-Object { $excludedActions -notcontains [string]$_.Name } |
-            ForEach-Object {
-                [ordered]@{
-                    name = [string]$_.Name
-                    actions = Convert-ToNumber $_.Actions
-                    expectedNegatives = Convert-ToNumber $_.ExpectedNegatives
-                    failures = Convert-ToNumber $_.Failures
-                    failureRate = Convert-ToNumber $_.FailureRate
-                    inputState = Convert-ToNumber $_.InputState
-                    externalDependency = Convert-ToNumber $_.ExternalDependency
-                    timeoutCancellation = Convert-ToNumber $_.TimeoutCancellation
-                    excelRuntime = Convert-ToNumber $_.ExcelRuntime
-                    internalProductFault = Convert-ToNumber $_.InternalProductFault
-                    unclassified = Convert-ToNumber $_.Unclassified
-                    users = Convert-ToNumber $_.Users
-                }
-            }
-    )
-    failureClasses = @(
-        $results.failureClasses |
-            ForEach-Object {
-                [ordered]@{
-                    name = [string]$_.Bucket
-                    actions = Convert-ToNumber $_.Actions
-                    users = Convert-ToNumber $_.Users
-                }
-            }
-    )
-    versionReliability = @(
-        $results.versionReliability |
-            ForEach-Object {
-                [ordered]@{
-                    version = [string]$_.Version
-                    actions = Convert-ToNumber $_.Actions
-                    expectedNegatives = Convert-ToNumber $_.ExpectedNegatives
-                    failures = Convert-ToNumber $_.Failures
-                    failureRate = Convert-ToNumber $_.FailureRate
-                    inputState = Convert-ToNumber $_.InputState
-                    externalDependency = Convert-ToNumber $_.ExternalDependency
-                    timeoutCancellation = Convert-ToNumber $_.TimeoutCancellation
-                    excelRuntime = Convert-ToNumber $_.ExcelRuntime
-                    internalProductFault = Convert-ToNumber $_.InternalProductFault
-                    unclassified = Convert-ToNumber $_.Unclassified
-                    users = Convert-ToNumber $_.Users
-                }
-            }
-    )
-    exceptions = @(
-        $results.exceptions |
-            ForEach-Object {
-                [ordered]@{
-                    category = [string]$_.Category
-                    exceptions = Convert-ToNumber $_.Exceptions
-                    users = Convert-ToNumber $_.Users
-                    sessions = Convert-ToNumber $_.Sessions
-                }
-            }
-    )
+    downloads = $downloads
+
 }
 
 foreach ($operation in $report.operations) {
     if ($operation.name -notmatch '^[a-z0-9_/-]+$') {
         throw "Analytics contains an unsafe operation dimension."
-    }
-}
-foreach ($reliabilityItem in $report.reliability) {
-    if ($reliabilityItem.name -notmatch '^[a-z0-9_/-]+$') {
-        throw "Analytics contains an unsafe reliability dimension."
-    }
-}
-$allowedFailureClasses = @(
-    "expected-negative",
-    "input-state",
-    "external-dependency",
-    "timeout-cancellation",
-    "excel-runtime",
-    "internal-product-fault",
-    "unclassified"
-)
-foreach ($failureClass in $report.failureClasses) {
-    if ($allowedFailureClasses -notcontains $failureClass.name) {
-        throw "Analytics contains an unsafe failure class."
     }
 }
 foreach ($family in $report.toolFamilies) {
@@ -962,11 +1105,6 @@ foreach ($item in $report.entryPointFeatures) {
         throw "Analytics contains an unsafe homepage-feature dimension."
     }
 }
-foreach ($version in $report.versionReliability) {
-    if ($version.version -notmatch '^[0-9A-Za-z.+-]+$') {
-        throw "Analytics contains an unsafe version dimension."
-    }
-}
 foreach ($week in $report.weekly) {
     if ($week.week -notmatch '^\d{4}-\d{2}-\d{2}$') {
         throw "Analytics contains an unsafe weekly date."
@@ -978,12 +1116,18 @@ foreach ($release in $report.versionAdoption) {
         throw "Analytics contains an unsafe release-adoption dimension."
     }
 }
-foreach ($exception in $report.exceptions) {
-    if ($exception.category -ne "background-task-problem") {
-        throw "Analytics contains an unsafe exception category."
+foreach ($channel in $report.downloads.channels) {
+    if (-not $downloadChannelLabels.Contains($channel.key)) {
+        throw "Analytics contains an unsafe download channel."
     }
 }
-
+foreach ($item in @($report.downloads.npmWeekly) + @($report.downloads.releases) +
+    @($report.downloads.snapshots) + @($report.downloads.weeklyGains)) {
+    $date = if ($item.Contains("week")) { $item.week } elseif ($item.Contains("published")) { $item.published } else { $item.date }
+    if ($date -notmatch '^\d{4}-\d{2}-\d{2}$') {
+        throw "Analytics contains an unsafe download date."
+    }
+}
 $json = $report | ConvertTo-Json -Depth 8
 $forbidden = @(
     '"UserId"', '"SessionId"', '"FileSessionId"', '"ClientIP"',

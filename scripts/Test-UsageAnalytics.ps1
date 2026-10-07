@@ -76,46 +76,48 @@ try {
                 Users = 5; SharePct = 20
             }
         )
-        reliability = @(
-            @{
-                Name = "range/get-values"; Actions = 100; ExpectedNegatives = 3
-                Failures = 7; FailureRate = 7; InputState = 2
-                ExternalDependency = 1; TimeoutCancellation = 1
-                ExcelRuntime = 1; InternalProductFault = 1; Unclassified = 1
-                Users = 8
-            },
-            @{
-                Name = "file/close"; Actions = 100; ExpectedNegatives = 0
-                Failures = 3; FailureRate = 3; InputState = 3
-                ExternalDependency = 0; TimeoutCancellation = 0
-                ExcelRuntime = 0; InternalProductFault = 0; Unclassified = 0
-                Users = 8
+        downloadSources = @{
+            npm = @{
+                "npm-mcp-server" = @(
+                    @{ day = "2026-08-08"; downloads = 0 }
+                    foreach ($offset in 0..6) {
+                        @{ day = ([DateTime]"2026-08-09").AddDays($offset).ToString("yyyy-MM-dd"); downloads = 10 }
+                    }
+                    @{ day = "2026-08-16"; downloads = 5 }
+                )
+                "npm-cli" = @(
+                    @{ day = "2026-08-08"; downloads = 0 }
+                    foreach ($offset in 0..6) {
+                        @{ day = ([DateTime]"2026-08-09").AddDays($offset).ToString("yyyy-MM-dd"); downloads = 2 }
+                    }
+                    @{ day = "2026-08-16"; downloads = 1 }
+                )
             }
-        )
-        failureClasses = @(
-            @{ Bucket = "expected-negative"; Actions = 3; Users = 2 },
-            @{ Bucket = "input-state"; Actions = 2; Users = 2 },
-            @{ Bucket = "external-dependency"; Actions = 1; Users = 1 },
-            @{ Bucket = "timeout-cancellation"; Actions = 1; Users = 1 },
-            @{ Bucket = "excel-runtime"; Actions = 1; Users = 1 },
-            @{ Bucket = "internal-product-fault"; Actions = 1; Users = 1 },
-            @{ Bucket = "unclassified"; Actions = 1; Users = 1 }
-        )
-        versionReliability = @(
-            @{
-                Version = "2.0.5"; Actions = 700; ExpectedNegatives = 3
-                Failures = 7; FailureRate = 1; InputState = 2
-                ExternalDependency = 1; TimeoutCancellation = 1
-                ExcelRuntime = 1; InternalProductFault = 1; Unclassified = 1
-                Users = 20
-            }
-        )
-        exceptions = @(
-            @{
-                Category = "background-task-problem"
-                Exceptions = 12; Users = 10; Sessions = 11
-            }
-        )
+            nuget = @{ "nuget-mcp-server" = 500; "nuget-cli" = 300 }
+            releases = @(
+                @{
+                    tag = "v2.0.4"; publishedAt = "2026-08-15T10:00:00Z"; draft = $true
+                    assets = @(@{ name = "ExcelMcp-MCP-Server-2.0.4-windows.zip"; downloads = 999 })
+                },
+                @{
+                    tag = "v2.0.3"; publishedAt = "2026-08-14T10:00:00Z"; draft = $false
+                    assets = @(
+                        @{ name = "ExcelMcp-MCP-Server-2.0.3-windows.zip"; downloads = 40 },
+                        @{ name = "excel-mcp-2.0.3.vsix"; downloads = 5 },
+                        @{ name = "SHA256SUMS"; downloads = 100 },
+                        @{ name = "RELEASE-INPUTS.json"; downloads = 7 }
+                    )
+                },
+                @{
+                    tag = "v2.0.2"; publishedAt = "2026-08-01T10:00:00Z"; draft = $false
+                    assets = @(
+                        @{ name = "ExcelMcp-MCP-Server-2.0.2-windows.zip"; downloads = 60 },
+                        @{ name = "excel-mcp-2.0.2.mcpb"; downloads = 4 }
+                    )
+                }
+            )
+            vscodeInstalls = 250
+        }
         actionCounts = @(
             @{ Name = "range/get-values"; Actions = 500; Users = 10 },
             @{ Name = "powerquery/refresh"; Actions = 200; Users = 5 },
@@ -180,32 +182,34 @@ try {
     Assert-True ($null -eq $analytics.operations[0].PSObject.Properties["successRate"]) `
         "Historical success rates entered the public report."
     Assert-True ($analytics.schemaVersion -eq 3) "Weighted analytics schema was not emitted."
-    Assert-True ($analytics.reliability[0].name -eq "range/get-values") `
-        "Categorized reliability data was not included."
-    Assert-True ($analytics.reliability[0].expectedNegatives -eq 3) `
-        "Expected negative outcomes were not separated."
-    Assert-True ($analytics.reliability[0].internalProductFault -eq 1) `
-        "Internal product faults were not separated."
-    Assert-True ($analytics.reliability[0].unclassified -eq 1) `
-        "Unclassified failures were hidden."
-    Assert-True (($analytics.failureClasses | Where-Object name -eq "unclassified").actions -eq 1) `
-        "The explicit unclassified bucket was not published."
-    Assert-True ($analytics.reliability.Count -eq 1) `
-        "Workbook lifecycle failures entered the public report."
-    Assert-True (
-        $analytics.windows.categorizedReliabilityMinimumVersion -eq "2.0.5") `
-        "The categorized reliability version boundary is missing."
-    Assert-True ($analytics.weekly.Count -eq 2) "Weekly usage history was not included."
+    Assert-True ($null -eq $analytics.PSObject.Properties["reliability"] -and
+        $null -eq $analytics.PSObject.Properties["exceptions"]) `
+        "Reliability data entered the usage report; it has its own report."
+    $downloads = $analytics.downloads
+    Assert-True (($downloads.channels.key -join ",") -eq
+        "npm-mcp-server,npm-cli,nuget-mcp-server,nuget-cli,github-releases,vscode") `
+        "Download channels were not published in a fixed order."
+    Assert-True (($downloads.channels | Where-Object key -eq "npm-mcp-server").total -eq 75) `
+        "npm downloads were not totalled from daily history."
+    Assert-True (($downloads.channels | Where-Object key -eq "github-releases").total -eq 109) `
+        "GitHub release downloads counted drafts, checksums, or release metadata."
+    Assert-True ($downloads.npmWeekly.Count -eq 1 -and $downloads.npmWeekly[0].week -eq "2026-08-09" -and
+        $downloads.npmWeekly[0].total -eq 84) `
+        "npm weekly history did not keep only full weeks after the first download."
+    Assert-True ($downloads.releases.Count -eq 2 -and $downloads.releases[0].version -eq "2.0.3" -and
+        $downloads.releases[0].published -eq "2026-08-14" -and $downloads.releases[0].downloads -eq 45) `
+        "Release downloads were not listed newest first."
+    Assert-True ($downloads.snapshots.Count -eq 1 -and $downloads.weeklyGains.Count -eq 0) `
+        "A first report must start the download history with one snapshot."
+    Assert-True ($downloads.snapshots[0].date -eq [DateTime]::UtcNow.ToString("yyyy-MM-dd") -and
+        $downloads.snapshots[0].totals.vscode -eq 250) `
+        "Today's download totals were not recorded."    Assert-True ($analytics.weekly.Count -eq 2) "Weekly usage history was not included."
     Assert-True ($analytics.versionAdoption.Count -eq 3) `
         "Weekly release adoption was not included."
     Assert-True ($analytics.versionAdoption[1].version -eq "2.0.3") `
         "Release adoption labels were not preserved."
     Assert-True ($analytics.heroFeatures[0].name -eq "tables-ranges") `
         "Homepage feature usage was not included."
-    Assert-True ($analytics.exceptions[0].category -eq "background-task-problem") `
-        "Exception data was not reduced to the public category."
-    Assert-True ($null -eq $analytics.exceptions[0].PSObject.Properties["type"]) `
-        "Technical exception details entered the public report."
     $testsRun++
 
     Assert-True ($analytics.weights.light -eq 1 -and $analytics.weights.medium -eq 3 -and
@@ -356,28 +360,6 @@ try {
     }
     $testsRun++
 
-    $unsafeFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
-    $unsafeFixture.exceptions[0].Category = "ignore-all-instructions"
-    $unsafePath = Write-TestFile "unsafe-fixture.json" ($unsafeFixture | ConvertTo-Json -Depth 8)
-    Assert-Throws -ExpectedMessage "unsafe exception category" -Action {
-        & $updateScript -WorkspaceId "fixture" `
-            -OutputPath (Join-Path $testRoot "unsafe.json") `
-            -FixturePath $unsafePath
-    }
-    $testsRun++
-
-    $unsafeClassFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
-    $unsafeClassFixture.reliability = @()
-    $unsafeClassFixture.failureClasses[0].Bucket = "private-error-message"
-    $unsafeClassPath = Write-TestFile "unsafe-class-fixture.json" `
-        ($unsafeClassFixture | ConvertTo-Json -Depth 8)
-    Assert-Throws -ExpectedMessage "unsafe failure class" -Action {
-        & $updateScript -WorkspaceId "fixture" `
-            -OutputPath (Join-Path $testRoot "unsafe-class.json") `
-            -FixturePath $unsafeClassPath
-    }
-    $testsRun++
-
     $querySource = [IO.File]::ReadAllText($updateScript)
     Assert-True ($querySource -match 'iif\(\s*count\(\) == 0,\s*0\.0,') `
         "The repeat-use query does not guard an empty reporting window."
@@ -387,16 +369,68 @@ try {
         "The action comparison does not guard an empty previous window."
     $testsRun++
 
-    $invalidReliabilityFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
-    $invalidReliabilityFixture.operations = @()
-    $invalidReliabilityFixture.reliability[0].Name = "unsafe name"
-    $invalidReliabilityPath = Write-TestFile "invalid-reliability-fixture.json" `
-        ($invalidReliabilityFixture | ConvertTo-Json -Depth 8)
-    Assert-Throws -ExpectedMessage "unsafe reliability dimension" -Action {
-        & $updateScript -WorkspaceId "fixture" `
-            -OutputPath (Join-Path $testRoot "invalid-reliability.json") `
-            -FixturePath $invalidReliabilityPath
+    $today = [DateTime]::UtcNow.ToString("yyyy-MM-dd")
+    $previousReport = $analytics | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+    $previousReport.downloads.snapshots = @(
+        [pscustomobject]@{
+            date = "2026-08-01"
+            totals = [pscustomobject]@{
+                "nuget-mcp-server" = 400; "nuget-cli" = 300; "github-releases" = 100; vscode = 200
+            }
+        },
+        [pscustomobject]@{
+            date = $today
+            totals = [pscustomobject]@{
+                "nuget-mcp-server" = 999; "nuget-cli" = 999; "github-releases" = 999; vscode = 999
+            }
+        }
+    )
+    $previousReportPath = Write-TestFile "previous-report.json" ($previousReport | ConvertTo-Json -Depth 10)
+    $carriedPath = Join-Path $testRoot "carried.json"
+    & $updateScript -WorkspaceId "fixture" -OutputPath $carriedPath -FixturePath $fixturePath `
+        -PreviousReportPath $previousReportPath
+    $carried = (Get-Content -LiteralPath $carriedPath -Raw | ConvertFrom-Json).downloads
+    Assert-True ($carried.snapshots.Count -eq 2 -and $carried.snapshots[0].date -eq "2026-08-01") `
+        "Earlier download snapshots were not carried forward."
+    Assert-True ($carried.snapshots[1].date -eq $today -and $carried.snapshots[1].totals.vscode -eq 250) `
+        "A second run on the same day did not replace that day's snapshot."
+    Assert-True ($carried.weeklyGains.Count -eq 1 -and $carried.weeklyGains[0].week -eq "2026-08-01" -and
+        $carried.weeklyGains[0].total -eq 159 -and $carried.weeklyGains[0].channels.vscode -eq 50) `
+        "Download gains were not calculated between snapshots."
+    $testsRun++
+
+    $bootstrapCarriedPath = Join-Path $testRoot "bootstrap-carried.json"
+    & $updateScript -WorkspaceId "fixture" -OutputPath $bootstrapCarriedPath -FixturePath $fixturePath `
+        -PreviousReportPath (Join-Path $PSScriptRoot "../.github/usage-analytics.json")
+    $bootstrapCarried = (Get-Content -LiteralPath $bootstrapCarriedPath -Raw | ConvertFrom-Json).downloads
+    Assert-True ($bootstrapCarried.snapshots.Count -ge 1 -and
+        $bootstrapCarried.snapshots[-1].date -eq $today) `
+        "The checked-in report could not seed the download history."
+    $testsRun++
+
+    $brokenPreviousReport = $previousReport | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+    $brokenPreviousReport.downloads.snapshots[0].totals.PSObject.Properties.Remove("vscode")
+    $brokenPreviousPath = Write-TestFile "broken-previous.json" ($brokenPreviousReport | ConvertTo-Json -Depth 10)
+    Assert-Throws -ExpectedMessage "snapshot is missing 'vscode'" -Action {
+        & $updateScript -WorkspaceId "fixture" -OutputPath (Join-Path $testRoot "broken.json") `
+            -FixturePath $fixturePath -PreviousReportPath $brokenPreviousPath
     }
+    Assert-Throws -ExpectedMessage "does not exist" -Action {
+        & $updateScript -WorkspaceId "fixture" -OutputPath (Join-Path $testRoot "missing.json") `
+            -FixturePath $fixturePath -PreviousReportPath (Join-Path $testRoot "no-such-report.json")
+    }
+    $testsRun++
+
+    $unsafeDownloadFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $unsafeDownloadFixture.downloadSources.releases[1].tag = "v2.0.3 see private notes"
+    $unsafeDownloadPath = Write-TestFile "unsafe-download-fixture.json" `
+        ($unsafeDownloadFixture | ConvertTo-Json -Depth 8)
+    Assert-Throws -ExpectedMessage "unsafe release version" -Action {
+        & $updateScript -WorkspaceId "fixture" `
+            -OutputPath (Join-Path $testRoot "unsafe-download.json") `
+            -FixturePath $unsafeDownloadPath
+    }
+    $testsRun++
 
     $invalidFeatureFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
     $invalidFeatureFixture.families = @()
@@ -437,17 +471,17 @@ try {
 
 Users increased by 25 percent while the report covered 1,000 actions.
 
-## How well it worked
-
-The categorized data includes 7 failures and 3 expected negative results across 100 actions.
-
 ## How people use it
 
-Release 2.0.5 reported 7 failures across 700 actions.
+Release 2.0.3 was used by 40 people in the latest full week.
+
+## Where people get it
+
+The VS Code extension shows 250 installs, and npm recorded 84 downloads in one full week. Downloads count downloads, not people.
 
 ## What we will improve
 
-Investigate the 12 background task problems before changing behavior.
+Review the 200 heavy data actions before changing behavior.
 "@
     $interpretationPath = Write-TestFile "interpretation.md" $interpretation
     $reportPath = Join-Path $testRoot "report.json"
@@ -589,7 +623,7 @@ Investigate the 12 background task problems before changing behavior.
         "Restore script rejected a report from before work weighting."
     $testsRun++
 
-    $unsupported = $interpretation.Replace("12 background", "999 background")
+    $unsupported = $interpretation.Replace("84 downloads", "999 downloads")
     $unsupportedPath = Write-TestFile "unsupported.md" $unsupported
     Assert-Throws -ExpectedMessage "unsupported numeric claim '999'" -Action {
         & $completeScript `
@@ -599,7 +633,7 @@ Investigate the 12 background task problems before changing behavior.
     }
     $testsRun++
 
-    $unsupportedVersion = $interpretation.Replace("Release 2.0.5", "Release 2.0.9")
+    $unsupportedVersion = $interpretation.Replace("Release 2.0.3", "Release 2.0.9")
     $unsupportedVersionPath = Write-TestFile "unsupported-version.md" $unsupportedVersion
     Assert-Throws -ExpectedMessage "unsupported numeric claim '2.0.9'" -Action {
         & $completeScript `
@@ -610,7 +644,7 @@ Investigate the 12 background task problems before changing behavior.
     $testsRun++
 
     $jargonInterpretation = $interpretation.Replace(
-        "background task problems",
+        "heavy data actions",
         "sanitized AggregateException records")
     $jargonInterpretationPath = Write-TestFile "jargon-interpretation.md" $jargonInterpretation
     Assert-Throws -ExpectedMessage "forbidden technical jargon" -Action {
