@@ -310,6 +310,11 @@ try {
     $sessionQuery = [regex]::Match($habitQuerySource, '(?s)assistantSessions = @".*?"@').Value
     Assert-True ($sessionQuery -match 'Users=dcount\(UserId\)') `
         "Session sizes do not count users, so small groups cannot be hidden."
+    foreach ($queryName in "assistantSessions", "assistantSessionMedian", "featurePairs") {
+        $query = [regex]::Match($habitQuerySource, "(?s)$queryName = @`".*?`"@").Value
+        Assert-True ($query -match 'by UserId, SessionId\r?\n') `
+            "$queryName must group by person and session; SessionId alone repeats across people."
+    }
 
     $smallHabitFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
     $smallHabitFixture.assistantSessionMedian[0].Users = 9

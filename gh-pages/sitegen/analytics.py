@@ -433,6 +433,7 @@ def _analytics_work_sections(report: dict[str, object]) -> list[str]:
                 value_field="workSharePct",
                 display_field="shown",
                 work=True,
+                percent=True,
             ),
             "",
         ]
@@ -861,14 +862,14 @@ def _analytics_habit_sections(habits: dict[str, object]) -> list[str]:
     return sections
 
 
-def _analytics_gain_is_long(row: dict[str, object]) -> bool:
-    """Weekly reports can drift by a day; anything longer is a missed week."""
-    return int(row.get("days") or 7) > 8
+def _analytics_gain_is_scaled(row: dict[str, object]) -> bool:
+    """Weekly reports can drift by a day; other gaps are scaled to one week."""
+    return not 6 <= int(row.get("days") or 7) <= 8
 
 
 def _analytics_gain_week(row: dict[str, object]) -> dict[str, object]:
     total = max(0, int(row["total"]))
-    if not _analytics_gain_is_long(row):
+    if not _analytics_gain_is_scaled(row):
         return {**row, "total": total}
     days = int(row["days"])
     start = datetime.fromisoformat(str(row["week"]))
@@ -978,9 +979,9 @@ def _analytics_download_sections(
                 "running totals. This chart shows how much those totals grew "
                 "between one weekly report and the next."
                 + (
-                    " Bars marked * cover a longer gap between reports and show "
-                    "the average for one week of that gap."
-                    if any(_analytics_gain_is_long(row) for row in gains)
+                    " Bars marked * cover a gap between reports that was not one "
+                    "week and show the average for one week of that gap."
+                    if any(_analytics_gain_is_scaled(row) for row in gains)
                     else ""
                 ),
                 "",

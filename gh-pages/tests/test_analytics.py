@@ -93,6 +93,11 @@ class WeightedReportTests(unittest.TestCase):
         pairs = _section(page, "### Areas used together")
         self.assertEqual(_widths(pairs), ["40.00"])
 
+    def test_work_share_bars_use_a_fixed_scale(self):
+        page = _render(self.report)
+        work = _section(page, "## Where most of the work goes")
+        self.assertEqual(_widths(work), ["80.00", "20.00"])
+
     def test_small_values_stay_visible(self):
         self.assertEqual(analytics._analytics_bar_size(0, 100), 0)
         self.assertEqual(analytics._analytics_bar_size(0.5, 100), 2)
@@ -143,10 +148,22 @@ class WeightedReportTests(unittest.TestCase):
         ]
         page = _render(report)
         gains = _section(page, "### New downloads each week")
-        self.assertIn("Bars marked * cover a longer gap", gains)
+        self.assertIn("Bars marked * cover a gap between reports that was not one week", gains)
         self.assertIn('aria-label="Week of Sep 16: 70"', gains)
         self.assertIn('aria-label="Average week from Sep 23 to Oct 07: 140"', gains)
         self.assertIn(">Sep 23*</small>", gains)
+
+    def test_short_gaps_between_reports_show_an_average_week(self):
+        report = copy.deepcopy(self.report)
+        report["downloads"]["weeklyGains"] = [
+            {"week": "2026-09-30", "days": 7, "total": 70, "channels": {}},
+            {"week": "2026-10-07", "days": 2, "total": 40, "channels": {}},
+        ]
+        page = _render(report)
+        gains = _section(page, "### New downloads each week")
+        self.assertIn("Bars marked *", gains)
+        self.assertIn('aria-label="Average week from Oct 07 to Oct 09: 140"', gains)
+        self.assertIn(">Oct 07*</small>", gains)
 
     def test_weekly_gaps_do_not_add_a_note(self):
         report = copy.deepcopy(self.report)

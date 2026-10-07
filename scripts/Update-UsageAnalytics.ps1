@@ -181,12 +181,13 @@ normalizedRequests
 | summarize Actions=count() by EntryPoint, Name
 "@
     # Habits use AI assistant sessions only: each excelcli command runs as its own process,
-    # so a command line "session" is always a single command.
+    # so a command line "session" is always a single command. SessionId is a short per-process
+    # value that can repeat across people, so sessions are keyed by UserId and SessionId.
     assistantSessions = @"
 normalizedRequests
 | where TimeGenerated > ago(${habitDays}d)
 | where EntryPoint == 'mcp-server' and isnotempty(SessionId)
-| summarize Actions=count(), Features=dcount(Feature), UserId=take_any(UserId) by SessionId
+| summarize Actions=count(), Features=dcount(Feature) by UserId, SessionId
 | extend Size=case(
     Actions == 1, '1',
     Actions <= 10, '2-10',
@@ -203,14 +204,14 @@ normalizedRequests
 normalizedRequests
 | where TimeGenerated > ago(${habitDays}d)
 | where EntryPoint == 'mcp-server' and isnotempty(SessionId)
-| summarize Actions=count(), UserId=take_any(UserId) by SessionId
+| summarize Actions=count() by UserId, SessionId
 | summarize MedianActions=percentile(Actions, 50), Users=dcount(UserId)
 "@
     featurePairs = @"
 normalizedRequests
 | where TimeGenerated > ago(${habitDays}d)
 | where EntryPoint == 'mcp-server' and isnotempty(SessionId)
-| summarize Features=make_set(Feature), UserId=take_any(UserId) by SessionId
+| summarize Features=make_set(Feature) by UserId, SessionId
 | mv-expand First=Features to typeof(string)
 | mv-expand Second=Features to typeof(string)
 | where strcmp(First, Second) < 0

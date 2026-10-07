@@ -613,7 +613,7 @@ Marketplace only publish running totals, so the collect job restores the last
 published report and `Update-UsageAnalytics.ps1 -PreviousReportPath` carries
 its dated `snapshots` forward, adds today's totals (replacing a same-day entry),
 and stores the gain between snapshots in `weeklyGains`, with `days` between the
-two snapshots. When reports are more than eight days apart, the page charts the
+two snapshots. When reports are not six to eight days apart, the page charts the
 average week of that gap and marks the bar. Downloads count
 downloads, not people, and the channels overlap. npm weekly history covers the
 last 52 full weeks.
