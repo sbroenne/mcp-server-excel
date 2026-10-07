@@ -11,6 +11,14 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.3.4] - 2026-10-07
+
+### Patch Changes
+
+- [#1070](https://github.com/sbroenne/mcp-server-excel/pull/1070) [`fb5b8a1`](https://github.com/sbroenne/mcp-server-excel/commit/fb5b8a1e346e532fefba4d994b4c111328322e9f) Thanks [@sbroenne](https://github.com/sbroenne)! - Charts can now use data made of separate cell blocks on one sheet, such as labels in M4:M29 and values in O4:S29 (`M4:M29,O4:S29`), when creating a chart or changing its source. Bad input for charts, drawing objects, PivotTables, slicers, timelines and conditional formats is now rejected before anything is added to the workbook. If Excel still fails after creating the object, the error now names what was left behind and where, instead of showing a bare Excel error code.
+
+- [#1069](https://github.com/sbroenne/mcp-server-excel/pull/1069) [`6126f0b`](https://github.com/sbroenne/mcp-server-excel/commit/6126f0bb79e60ed26ed33391096b93f88153b050) Thanks [@sbroenne](https://github.com/sbroenne)! - Power Query `refresh-all` now works on workbooks that contain parameter or connection-only queries: it skips them, refreshes every loaded query, and keeps going when one query fails. The result lists which queries were refreshed, skipped, and failed (with each failure's error), and reports `success: false` when any query failed. `excelcli` now exits with code 1 whenever a command's result reports `success: false`, matching how the MCP Server flags the same result as an error.
+
 ## [2.3.3] - 2026-10-06
 
 ### Patch Changes
