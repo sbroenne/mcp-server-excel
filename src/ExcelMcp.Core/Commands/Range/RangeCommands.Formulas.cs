@@ -123,15 +123,18 @@ public partial class RangeCommands
         if (cellValue is not string text || !string.Equals(text, formula, StringComparison.Ordinal))
             return true;
 
+        Excel.Range? cells = null;
         Excel.Range? cell = null;
         try
         {
-            cell = (Excel.Range)range.Cells[row, column];
+            cells = range.Cells;
+            cell = (Excel.Range)cells[row, column];
             return Convert.ToBoolean(cell.HasFormula, CultureInfo.InvariantCulture);
         }
         finally
         {
             ComUtilities.Release(ref cell);
+            ComUtilities.Release(ref cells);
         }
     }
 
