@@ -197,7 +197,7 @@ public class PivotChartStrategy : IChartStrategy
     }
 
     /// <inheritdoc />
-    public void SetSourceRange(dynamic chart, string sourceRange)
+    public void SetSourceRange(dynamic chart, string sourceRange, CancellationToken ct)
     {
         throw new NotSupportedException(
             "Cannot set source range for PivotChart. " +

@@ -187,11 +187,15 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
             dynamic? shape = null;
             dynamic? chart = null;
             dynamic? targetRangeObj = null;
+            dynamic? sourceRangeObj = null;
 
             try
             {
                 worksheet = ctx.Book.Worksheets[sheetName];
                 shapes = worksheet.Shapes;
+
+                // Resolve the source before creating anything so a bad address leaves no chart behind.
+                sourceRangeObj = ChartSourceRange.Resolve(ctx.Book, sheetName, sourceRangeAddress, ct);
 
                 // Resolve final position: targetRange > explicit left/top > auto-position
                 double finalLeft = left;
@@ -227,47 +231,8 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 );
 
                 chart = shape.Chart;
-
-                // Set data source - need to get Range object from string address
-                dynamic? sourceRangeObj = null;
-                try
-                {
-                    // Get the range object from the address string
-                    // If sourceRangeAddress doesn't include sheet name, prefix it
-                    // Sheet names with spaces or special characters must be quoted: 'Sheet Name'!A1:D6
-                    string fullRangeAddress = sourceRangeAddress.Contains('!')
-                        ? sourceRangeAddress
-                        : $"'{sheetName}'!{sourceRangeAddress}";
-                    sourceRangeObj = ctx.App.Range[fullRangeAddress];
-                    try
-                    {
-                        chart.SetSourceData(sourceRangeObj);
-                    }
-                    catch (System.Runtime.InteropServices.COMException ex)
-                        when (ex.HResult == unchecked((int)0x800A03EC))
-                    {
-                        throw new InvalidOperationException(
-                            $"Cannot set chart data source to '{sourceRangeAddress}'. " +
-                            "The range must be contiguous, non-empty, and accessible. " +
-                            "If the data is not in a table, consider creating a table first with " +
-                            "table(action='create'), then use chart(action='create-from-table').", ex);
-                    }
-                }
-                finally
-                {
-                    if (sourceRangeObj != null)
-                    {
-                        ComUtilities.Release(ref sourceRangeObj!);
-                    }
-                }
-
-                // Set custom name if provided
-                if (!string.IsNullOrWhiteSpace(chartName))
-                {
-                    shape.Name = chartName;
-                }
-
-                string finalName = shape.Name?.ToString() ?? "Chart";
+                string finalName = ConfigureCreatedChart(
+                    shape, chart, sourceRangeObj, sourceRangeAddress, sheetName, chartName);
 
                 // Collision detection — warn about overlaps after positioning
                 var warnings = ChartPositionHelpers.DetectCollisions(
@@ -292,6 +257,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
             }
             finally
             {
+                ComUtilities.Release(ref sourceRangeObj!);
                 ComUtilities.Release(ref targetRangeObj!);
                 ComUtilities.Release(ref chart!);
                 ComUtilities.Release(ref shape!);
@@ -368,17 +334,8 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 );
 
                 chart = shape.Chart;
-
-                // Set data source to table's range
-                chart.SetSourceData(tableRange);
-
-                // Set custom name if provided
-                if (!string.IsNullOrWhiteSpace(chartName))
-                {
-                    shape.Name = chartName;
-                }
-
-                string finalName = shape.Name?.ToString() ?? "Chart";
+                string finalName = ConfigureCreatedChart(
+                    shape, chart, tableRange, tableName, sheetName, chartName);
 
                 // Collision detection
                 var warnings = ChartPositionHelpers.DetectCollisions(
@@ -593,6 +550,33 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 ComUtilities.Release(ref pivotTable!);
             }
         });
+    }
+
+    private static string ConfigureCreatedChart(
+        dynamic shape,
+        dynamic chart,
+        dynamic sourceRange,
+        string sourceDescription,
+        string sheetName,
+        string? chartName)
+    {
+        string createdName = shape.Name?.ToString() ?? "Chart";
+        string step = $"Setting the data source of the new chart to '{sourceDescription}'";
+        try
+        {
+            ChartSourceRange.Apply(chart, sourceRange, sourceDescription);
+            if (!string.IsNullOrWhiteSpace(chartName))
+            {
+                step = $"Renaming the new chart to '{chartName}'";
+                shape.Name = chartName;
+            }
+
+            return shape.Name?.ToString() ?? createdName;
+        }
+        catch (Exception ex) when (CreatedObjectFailure.CanReport(ex))
+        {
+            throw CreatedObjectFailure.Create("chart", createdName, sheetName, step, ex);
+        }
     }
 
     private static void DeleteCreatedChart(Excel.Shape? chartShape)

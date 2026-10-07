@@ -39,6 +39,19 @@ contains the requested fields, use Table-based creation to retain its source
 behavior; check the plotted rows again after appending data. A fixed helper range
 does not automatically grow with the original Table.
 
+When the labels and values are not side by side, list separate blocks on one
+sheet, separated by commas, with the label block first and earliest on the
+worksheet (top to bottom, then left to right): for labels in M4:M29 and values
+in O4:S29, use `M4:M29,O4:S29`. Excel can otherwise select a different block
+for the category labels, so an out-of-order source is rejected before the chart
+is created or changed. Give every block the same rows. The same form works for
+`chart_config` / `chartconfig` `set-source-range`; there, blocks without a sheet
+name use the chart's own sheet, not the active sheet.
+
+If Excel fails after it has already created the chart, for example while
+applying the name or source, the error names the chart and its sheet. The chart
+is not removed automatically: read it, then fix or delete it.
+
 For a chart that must follow PivotTable fields and filters, use a live PivotChart,
 not a regular chart of the displayed PivotTable cells. Change its series through
 the [PivotTable fields](pivottable.md), not regular-chart series operations.

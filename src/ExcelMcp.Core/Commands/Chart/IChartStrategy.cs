@@ -30,7 +30,7 @@ public interface IChartStrategy
     /// </summary>
     /// <param name="chart">Excel Chart COM object</param>
     /// <param name="sourceRange">New source range</param>
-    void SetSourceRange(dynamic chart, string sourceRange);
+    void SetSourceRange(dynamic chart, string sourceRange, CancellationToken ct);
 
     /// <summary>
     /// Adds a data series.
@@ -63,5 +63,4 @@ public interface IChartStrategy
     /// <returns>Detailed chart information</returns>
     ChartInfoResult GetDetailedInfo(dynamic chart, string chartName, string sheetName, dynamic shape);
 }
-
 

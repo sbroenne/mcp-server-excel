@@ -350,6 +350,30 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
         Assert.Equal(actionBefore, ReadNativeOrderAndAction(sheet, "First"));
     }
 
+    [Theory]
+    [InlineData("drawing.group-objects")]
+    [InlineData("drawing.duplicate-object")]
+    public async Task NameExcelRejects_IsRejectedBeforeChangingObjects(string command)
+    {
+        // Excel accepts drawing names up to 254 characters; 255 fails only after the group or copy exists.
+        var sheet = CreateObjects();
+        var name = new string('G', 255);
+        var before = _fixture.Send("drawing.list-objects", new { sheetName = sheet }).Result;
+
+        var response = command == "drawing.group-objects"
+            ? await _fixture.SendForFailureAsync(command, new
+            {
+                sheetName = sheet,
+                objectNames = new List<string> { "First", "Second" },
+                groupName = name
+            })
+            : await _fixture.SendForFailureAsync(command, new { sheetName = sheet, objectName = "First", newName = name });
+
+        Assert.False(response.Success);
+        Assert.Contains("at most 254 characters", response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal(before, _fixture.Send("drawing.list-objects", new { sheetName = sheet }).Result);
+    }
+
     private string CreateObjects()
     {
         var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);
