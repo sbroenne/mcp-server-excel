@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -512,6 +513,35 @@ public sealed partial class PersistentServiceRangeValuesTests
             }
         });
         Assert.Equal([false, false, true, false, false, false, false], hasFormula);
+    }
+
+    [Fact]
+    public void GetFormulas_TextStartingWithEquals_IsNotReportedAsFormula()
+    {
+        var batch = _fixture.BatchToken;
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        _fixture.Send("range.set-values", new
+        {
+            sheetName,
+            rangeAddress = "A1:C1",
+            values = new object?[][] { ["'=not a formula", "'=B1", "=B1"] }
+        });
+
+        using var multi = JsonDocument.Parse(_fixture.Send("range.get-formulas", new { sheetName, rangeAddress = "A1:C1" }).Result!);
+        var formulas = multi.RootElement.GetProperty("formulas")[0];
+        var values = multi.RootElement.GetProperty("values")[0];
+        Assert.Equal("", formulas[0].GetString());
+        Assert.Equal("=not a formula", values[0].GetString());
+        Assert.Equal("", formulas[1].GetString());
+        Assert.Equal("=B1", values[1].GetString());
+        // C1 is a real formula whose result happens to equal its own formula text.
+        Assert.Equal("=B1", formulas[2].GetString());
+        Assert.Equal("=B1", values[2].GetString());
+
+        using var single = JsonDocument.Parse(_fixture.Send("range.get-formulas", new { sheetName, rangeAddress = "A1" }).Result!);
+        Assert.Equal("", single.RootElement.GetProperty("formulas")[0][0].GetString());
+        Assert.Equal("=not a formula", single.RootElement.GetProperty("values")[0][0].GetString());
     }
 
     [Fact]

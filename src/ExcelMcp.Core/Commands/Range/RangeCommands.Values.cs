@@ -198,7 +198,7 @@ public partial class RangeCommands
                         else
                             ((Excel.Range)range).Formula = arrayValues;
 
-                        setResult.Message = $"Formula detected: {formulaCount} formula(s) applied with set-formulas semantics; other cells kept as values";
+                        setResult.Message = $"Wrote {formulaCount} formula(s); other cells kept as values";
                     }
                     else
                     {

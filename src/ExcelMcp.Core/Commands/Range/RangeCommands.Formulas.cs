@@ -1,3 +1,4 @@
+using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -59,7 +60,7 @@ public partial class RangeCommands
                         {
                             string formula = formulas[r, c]?.ToString() ?? string.Empty;
                             object? cellValue = values[r, c];
-                            string returnedFormula = formula.StartsWith('=') ? formula : string.Empty;
+                            string returnedFormula = IsReturnedFormula((Excel.Range)range, r, c, formula, cellValue) ? formula : string.Empty;
 
                             // Only return actual formulas (starting with =), not values
                             formulaRow.Add(returnedFormula);
@@ -83,8 +84,8 @@ public partial class RangeCommands
                     string formula = formulaOrArray?.ToString() ?? string.Empty;
                     object? cellValue = valueOrArray;
 
-                    // Only return actual formulas (starting with =), not values
-                    string returnedFormula = formula.StartsWith('=') ? formula : string.Empty;
+                    // Only return actual formulas, not text constants that start with "="
+                    string returnedFormula = IsReturnedFormula((Excel.Range)range, 1, 1, formula, cellValue) ? formula : string.Empty;
                     result.Formulas.Add([returnedFormula]);
                     result.Values.Add([
                         ConvertErrorForRead(
@@ -109,6 +110,29 @@ public partial class RangeCommands
                 ComUtilities.Release(ref range);
             }
         });
+    }
+
+    /// <summary>
+    /// A text constant such as "=abc" reports its text through Formula, exactly like a formula.
+    /// Only when the formula text equals the displayed text is the cell ambiguous; then ask Excel.
+    /// </summary>
+    private static bool IsReturnedFormula(Excel.Range range, int row, int column, string formula, object? cellValue)
+    {
+        if (!formula.StartsWith('='))
+            return false;
+        if (cellValue is not string text || !string.Equals(text, formula, StringComparison.Ordinal))
+            return true;
+
+        Excel.Range? cell = null;
+        try
+        {
+            cell = (Excel.Range)range.Cells[row, column];
+            return Convert.ToBoolean(cell.HasFormula, CultureInfo.InvariantCulture);
+        }
+        finally
+        {
+            ComUtilities.Release(ref cell);
+        }
     }
 
     internal static object? ConvertErrorForRead(

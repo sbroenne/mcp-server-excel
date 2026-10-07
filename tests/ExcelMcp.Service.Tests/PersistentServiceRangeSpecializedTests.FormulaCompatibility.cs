@@ -125,7 +125,7 @@ public sealed partial class PersistentServiceRangeSpecializedTests
         var routed = _commands.SetValues(batch, sheetName, "B1:B2", [["=A1+A2"], ["=1/0"]]);
         Assert.True(routed.Success);
         Assert.True(string.IsNullOrEmpty(routed.ErrorMessage));
-        Assert.Contains("set-formulas", routed.Message);
+        Assert.Equal("Wrote 2 formula(s); other cells kept as values", routed.Message);
 
         var single = RequireSuccess(_commands.GetValues(batch, sheetName, "B2"));
         Assert.Equal("#DIV/0!", single.Values[0][0]);
