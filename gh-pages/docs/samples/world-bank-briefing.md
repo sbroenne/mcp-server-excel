@@ -6,6 +6,20 @@ keywords: agentic workflow, Excel MCP, PowerPoint MCP, World Bank, executive bri
 
 # World Bank Briefing: Excel to PowerPoint
 
+## Watch the video
+
+**Agentic Workflow: One AI Agent Turns World Bank Data into Excel and
+PowerPoint** - one request to GitHub Copilot CLI with Claude Opus 5.5, using
+Excel MCP Server and PowerPoint MCP Server.
+
+<div class="mcp-video">
+<iframe width="1920" height="1080" src="https://www.youtube-nocookie.com/embed/_z-twdXG2fA" title="Agentic Workflow: One AI Agent Turns World Bank Data into Excel and PowerPoint" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="encrypted-media; picture-in-picture; web-share" allowfullscreen></iframe>
+</div>
+
+[Watch on YouTube (2:41), with English captions](https://youtu.be/_z-twdXG2fA).
+
+## Get the files
+
 [Download the Excel workbook](../downloads/WDI_Development_2000-2024.xlsx){ .md-button .md-button--primary download="WDI_Development_2000-2024.xlsx" }
 [Download the PowerPoint briefing](../downloads/WDI_Briefing_2000-2024.pptx){ .md-button download="WDI_Briefing_2000-2024.pptx" }
 
