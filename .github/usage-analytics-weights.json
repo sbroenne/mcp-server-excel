@@ -82,7 +82,7 @@
     "calculation_mode": {
       "feature": "tables-ranges",
       "actions": {
-        "calculate": "medium",
+        "calculate": "heavy",
         "get-settings": "light",
         "set-precision": "medium",
         "set-settings": "medium"

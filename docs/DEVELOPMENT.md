@@ -594,6 +594,11 @@ versus weekend use, and how soon people first try advanced areas. Session
 figures cover the AI assistant (MCP Server) only, because every `excelcli`
 command runs as its own process. Waits depend on workbook size and the
 user's machine, so they show which areas are heavier, not product speed.
+Every habit group (session size, weekday, returning-user group, area) needs at
+least `minimumUsers` users; smaller groups are published only as
+`enoughData: false` but still count toward totals and averages. First use of
+advanced areas covers only people first seen in the last
+`firstAdvancedUseWindowDays` days, well inside the 90-day log retention.
 
 Reliability (failures and errors) is not part of this report; it is covered by
 a separate reliability report.
@@ -607,8 +612,11 @@ automation), and VS Code Marketplace installs. GitHub and the
 Marketplace only publish running totals, so the collect job restores the last
 published report and `Update-UsageAnalytics.ps1 -PreviousReportPath` carries
 its dated `snapshots` forward, adds today's totals (replacing a same-day entry),
-and stores the gain between snapshots in `weeklyGains`. Downloads count
-downloads, not people, and the channels overlap.
+and stores the gain between snapshots in `weeklyGains`, with `days` between the
+two snapshots. When reports are more than eight days apart, the page charts the
+average week of that gap and marks the bar. Downloads count
+downloads, not people, and the channels overlap. npm weekly history covers the
+last 52 full weeks.
 
 NuGet is deliberately left out. Every version, even old ones nobody would pick,
 collects roughly the same couple of hundred downloads from automated mirrors and

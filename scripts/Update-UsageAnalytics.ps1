@@ -30,6 +30,7 @@ $entryPoints = @("cli", "mcp-server")
 $excludedActions = $weights.ExcludedActions
 $habitDays = 30
 $habitMinimumUsers = 10
+$firstAdvancedCohortDays = 60
 $sessionSizes = @("1", "2-10", "11-50", "51-200", "201+")
 $advancedFeatures = @("power-query", "power-pivot-dax", "pivottables-charts", "vba")
 $advancedFeatureList = ($advancedFeatures | ForEach-Object { "'$_'" }) -join ", "
@@ -185,7 +186,7 @@ normalizedRequests
 normalizedRequests
 | where TimeGenerated > ago(${habitDays}d)
 | where EntryPoint == 'mcp-server' and isnotempty(SessionId)
-| summarize Actions=count(), Features=dcount(Feature) by SessionId
+| summarize Actions=count(), Features=dcount(Feature), UserId=take_any(UserId) by SessionId
 | extend Size=case(
     Actions == 1, '1',
     Actions <= 10, '2-10',
@@ -194,15 +195,16 @@ normalizedRequests
     '201+')
 | summarize Sessions=count(),
             Actions=sum(Actions),
-            MultiFeatureSessions=countif(Features >= 2)
+            MultiFeatureSessions=countif(Features >= 2),
+            Users=dcount(UserId)
     by Size
 "@
     assistantSessionMedian = @"
 normalizedRequests
 | where TimeGenerated > ago(${habitDays}d)
 | where EntryPoint == 'mcp-server' and isnotempty(SessionId)
-| summarize Actions=count() by SessionId
-| summarize MedianActions=percentile(Actions, 50)
+| summarize Actions=count(), UserId=take_any(UserId) by SessionId
+| summarize MedianActions=percentile(Actions, 50), Users=dcount(UserId)
 "@
     featurePairs = @"
 normalizedRequests
@@ -249,9 +251,12 @@ normalizedRequests
 | order by Day asc
 "@
     firstAdvancedUse = @"
+// Logs go back 90 days, so only people first seen well inside that range are counted as new.
 let firstUse = normalizedRequests
-| summarize FirstSeen=min(TimeGenerated) by UserId;
+| summarize FirstSeen=min(TimeGenerated) by UserId
+| where FirstSeen > ago(${firstAdvancedCohortDays}d);
 normalizedRequests
+| where TimeGenerated > ago(${firstAdvancedCohortDays}d)
 | where Feature in ($advancedFeatureList)
 | summarize FirstFeatureUse=min(TimeGenerated) by UserId, Feature
 | join kind=inner firstUse on UserId
@@ -333,7 +338,7 @@ $snapshotChannels = @("github-releases", "vscode")
 $releaseFilePattern = '\.(?:zip|vsix|mcpb)$'
 $maxDownloadSnapshots = 104
 $downloadReleaseCount = 10
-$npmWeekCount = 12
+$npmWeekCount = 52
 
 function ConvertTo-UtcDate {
     param([Parameter(Mandatory = $true)][object]$Value)
@@ -765,6 +770,7 @@ $sessionRows = @(
                 Sessions = Convert-ToNumber $_.Sessions
                 Actions = Convert-ToNumber $_.Actions
                 MultiFeatureSessions = Convert-ToNumber $_.MultiFeatureSessions
+                Users = Convert-ToNumber $_.Users
             }
         }
 )
@@ -777,6 +783,48 @@ $totalSessions = [long](($sessionRows | Measure-Object Sessions -Sum).Sum)
 $totalSessionActions = [long](($sessionRows | Measure-Object Actions -Sum).Sum)
 $multiFeatureSessions = [long](($sessionRows | Measure-Object MultiFeatureSessions -Sum).Sum)
 $sessionMedian = @($results.assistantSessionMedian)[0]
+$sessionUsers = if ($null -eq $sessionMedian) { 0 } else { Convert-ToNumber $sessionMedian.Users }
+$assistantSessions = if ($sessionUsers -lt $habitMinimumUsers) {
+    [ordered]@{ enoughData = $false }
+}
+else {
+    [ordered]@{
+        enoughData = $true
+        sessions = $totalSessions
+        medianActions = [Math]::Round([double](Convert-ToNumber $sessionMedian.MedianActions), 1)
+        multiFeatureSessions = $multiFeatureSessions
+        multiFeatureSharePct = Get-Percent $multiFeatureSessions $totalSessions
+        sizes = @(
+            foreach ($size in $sessionSizes) {
+                $row = $sessionRows | Where-Object Size -eq $size
+                if ($null -eq $row) {
+                    [ordered]@{
+                        size = $size
+                        enoughData = $true
+                        sessions = 0
+                        actions = 0
+                        sessionSharePct = 0
+                        actionSharePct = 0
+                    }
+                }
+                elseif ($row.Users -lt $habitMinimumUsers) {
+                    # Hidden sizes still count toward the totals above.
+                    [ordered]@{ size = $size; enoughData = $false }
+                }
+                else {
+                    [ordered]@{
+                        size = $size
+                        enoughData = $true
+                        sessions = $row.Sessions
+                        actions = $row.Actions
+                        sessionSharePct = Get-Percent $row.Sessions $totalSessions
+                        actionSharePct = Get-Percent $row.Actions $totalSessionActions
+                    }
+                }
+            }
+        )
+    }
+}
 $returning = @($results.returningUsers)[0]
 $newUsers = if ($null -eq $returning) { 0 } else { Convert-ToNumber $returning.NewUsers }
 $returnedAfterWeek = if ($null -eq $returning) { 0 } else { Convert-ToNumber $returning.ReturnedAfterWeek }
@@ -805,28 +853,7 @@ $weekendAverage = [long][Math]::Round([double]$weekendTotal / (2 * $weekdayWeeks
 $habits = [ordered]@{
     windowDays = $habitDays
     minimumUsers = $habitMinimumUsers
-    assistantSessions = [ordered]@{
-        sessions = $totalSessions
-        medianActions = if ($null -eq $sessionMedian) { 0 } else {
-            [Math]::Round([double](Convert-ToNumber $sessionMedian.MedianActions), 1)
-        }
-        multiFeatureSessions = $multiFeatureSessions
-        multiFeatureSharePct = Get-Percent $multiFeatureSessions $totalSessions
-        sizes = @(
-            foreach ($size in $sessionSizes) {
-                $row = $sessionRows | Where-Object Size -eq $size
-                $sessions = if ($null -eq $row) { 0 } else { $row.Sessions }
-                $actions = if ($null -eq $row) { 0 } else { $row.Actions }
-                [ordered]@{
-                    size = $size
-                    sessions = $sessions
-                    actions = $actions
-                    sessionSharePct = Get-Percent $sessions $totalSessions
-                    actionSharePct = Get-Percent $actions $totalSessionActions
-                }
-            }
-        )
-    }
+    assistantSessions = $assistantSessions
     featurePairs = @(
         $results.featurePairs |
             ForEach-Object {
@@ -843,12 +870,18 @@ $habits = [ordered]@{
                 }
             }
     )
-    returningUsers = [ordered]@{
-        newUsers = $newUsers
-        returnedAfterWeek = $returnedAfterWeek
-        returnedAfterWeekPct = Get-Percent $returnedAfterWeek $newUsers
-        returnedAfterThreeWeeks = $returnedAfterThreeWeeks
-        returnedAfterThreeWeeksPct = Get-Percent $returnedAfterThreeWeeks $newUsers
+    returningUsers = if ($newUsers -lt $habitMinimumUsers) {
+        [ordered]@{ enoughData = $false }
+    }
+    else {
+        [ordered]@{
+            enoughData = $true
+            newUsers = $newUsers
+            returnedAfterWeek = $returnedAfterWeek
+            returnedAfterWeekPct = Get-Percent $returnedAfterWeek $newUsers
+            returnedAfterThreeWeeks = $returnedAfterThreeWeeks
+            returnedAfterThreeWeeksPct = Get-Percent $returnedAfterThreeWeeks $newUsers
+        }
     }
     featureWait = @(
         $results.featureWait |
@@ -869,16 +902,24 @@ $habits = [ordered]@{
         $weekdayRows |
             Sort-Object { ($_.Day + 6) % 7 } |
             ForEach-Object {
-                [ordered]@{
-                    day = $weekdayNames[$_.Day]
-                    actions = $_.Actions
-                    users = $_.Users
+                if ($_.Users -lt $habitMinimumUsers) {
+                    # Hidden days still count toward the workday and weekend averages.
+                    [ordered]@{ day = $weekdayNames[$_.Day]; enoughData = $false }
+                }
+                else {
+                    [ordered]@{
+                        day = $weekdayNames[$_.Day]
+                        enoughData = $true
+                        actions = $_.Actions
+                        users = $_.Users
+                    }
                 }
             }
     )
     workdayAverageActions = $workdayAverage
     weekendAverageActions = $weekendAverage
     weekdayWeeks = $weekdayWeeks
+    firstAdvancedUseWindowDays = $firstAdvancedCohortDays
     firstAdvancedUse = @(
         $results.firstAdvancedUse |
             ForEach-Object {

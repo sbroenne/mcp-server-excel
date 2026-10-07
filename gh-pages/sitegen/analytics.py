@@ -97,6 +97,13 @@ def _analytics_name(value: object, names: dict[str, str]) -> str:
     return raw.replace("/", " ").replace("_", " ").replace("-", " ").title()
 
 
+def _analytics_bar_size(value: float, maximum: float) -> float:
+    """Return a bar length in percent; zero stays empty, small values stay visible."""
+    if value <= 0 or maximum <= 0:
+        return 0.0
+    return min(100.0, max(2.0, value / maximum * 100))
+
+
 def _analytics_bar_chart(
     rows: list[dict[str, object]],
     *,
@@ -105,14 +112,17 @@ def _analytics_bar_chart(
     value_suffix: str = "",
     display_field: str | None = None,
     work: bool = False,
+    percent: bool = False,
 ) -> str:
-    """Render an accessible horizontal comparison chart."""
-    maximum = max((float(row[value_field]) for row in rows), default=0)
+    """Render an accessible horizontal comparison chart.
+
+    Percentages use a fixed 0-100 scale; other values scale to the largest row.
+    """
+    maximum = 100.0 if percent else max((float(row[value_field]) for row in rows), default=0)
     modifier = " analytics-bars__track--work" if work else ""
     lines = ['<div class="analytics-bars" role="list">']
     for row in rows:
-        value = float(row[value_field])
-        width = 0 if maximum == 0 else max(2, value / maximum * 100)
+        width = _analytics_bar_size(float(row[value_field]), maximum)
         label = escape(str(row[label_field]))
         display_value = (
             str(row[display_field])
@@ -146,9 +156,13 @@ def _analytics_paired_bar_chart(
     value_suffix: str = "%",
     display_field: str | None = None,
     scale_each_row: bool = False,
+    percent: bool = True,
 ) -> str:
-    """Render two bars per row, on one shared scale or scaled within each row."""
-    shared_maximum = max(
+    """Render two bars per row, on one shared scale or scaled within each row.
+
+    Percentages use a fixed 0-100 scale unless each row is scaled on its own.
+    """
+    shared_maximum = 100.0 if percent else max(
         (
             max(float(row[first_field]), float(row[second_field]))
             for row in rows
@@ -185,8 +199,7 @@ def _analytics_paired_bar_chart(
             ]
         )
         for field, modifier in ((first_field, ""), (second_field, " analytics-bars__track--work")):
-            value = float(row[field])
-            width = 0 if maximum == 0 else max(2, value / maximum * 100)
+            width = _analytics_bar_size(float(row[field]), maximum)
             lines.extend(
                 [
                     f'    <div class="analytics-bars__track{modifier}" aria-hidden="true">',
@@ -222,18 +235,22 @@ def _analytics_week_chart(
         "    </div>",
         '  <div class="analytics-week-chart__plot" role="list">',
     ]
-    for row in rows:
-        value = float(row[value_field])
-        height = 0 if maximum == 0 else max(2, value / maximum * 100)
+    # Long histories label every few weeks so dates do not overlap.
+    label_step = max(1, -(-len(rows) // 13))
+    for index, row in enumerate(rows):
+        height = _analytics_bar_size(float(row[value_field]), maximum)
         week = datetime.fromisoformat(str(row["week"]))
-        label = week.strftime("%b %d")
+        label = str(row.get("label") or week.strftime("%b %d"))
+        quiet = (len(rows) - 1 - index) % label_step != 0 and "label" not in row
         display_value = _analytics_cell(row[value_field])
+        description = str(row.get("description") or f"Week of {week.strftime('%b %d')}")
         lines.extend(
             [
                 '    <div class="analytics-week-chart__week" role="listitem" '
-                f'aria-label="Week of {escape(label)}: {escape(display_value)}">',
+                f'aria-label="{escape(description)}: {escape(display_value)}">',
                 f'      <span style="height: {height:.2f}%" aria-hidden="true"></span>',
-                f"      <small>{escape(label)}</small>",
+                f"      <small{' class=\"analytics-week-chart__quiet\"' if quiet else ''}>"
+                f"{escape(label)}</small>",
                 "    </div>",
             ]
         )
@@ -423,6 +440,38 @@ def _analytics_work_sections(report: dict[str, object]) -> list[str]:
     return sections
 
 
+def _analytics_pie_chart(slices: list[tuple[str, float]], *, title: str) -> str:
+    """Render shares of a whole as an accessible CSS pie with a legend."""
+    palette = ("#4051b5", "#d97706", "#008b8b", "#db2777")
+    total = sum(value for _, value in slices)
+    shares = [
+        (name, 0.0 if total <= 0 else value / total * 100, palette[index % len(palette)])
+        for index, (name, value) in enumerate(slices)
+    ]
+    stops: list[str] = []
+    start = 0.0
+    for _, share, color in shares:
+        end = start + share
+        stops.append(f"{color} {start:.2f}% {end:.2f}%")
+        start = end
+    description = ", ".join(f"{name} {share:.1f}%" for name, share, _ in shares)
+    lines = [
+        '<figure class="analytics-pie">',
+        f"  <figcaption>{escape(title)}</figcaption>",
+        '  <div class="analytics-pie__chart" role="img" '
+        f'aria-label="{escape(title)}: {escape(description)}" '
+        f'style="background: conic-gradient({", ".join(stops)})"></div>',
+        '  <ul class="analytics-pie__legend" aria-hidden="true">',
+    ]
+    for name, share, color in shares:
+        lines.append(
+            f'    <li><i style="background: {color}"></i>{escape(name)} '
+            f"<strong>{share:.1f}%</strong></li>"
+        )
+    lines.extend(["  </ul>", "</figure>"])
+    return "\n".join(lines)
+
+
 def _analytics_entry_point_sections(
     report: dict[str, object], date_format: str
 ) -> list[str]:
@@ -468,6 +517,7 @@ def _analytics_entry_point_sections(
                     second_name="Estimated work per user",
                     value_suffix="",
                     display_field="shown",
+                    percent=False,
                 ),
                 "",
             ]
@@ -479,6 +529,33 @@ def _analytics_entry_point_sections(
         )
     if len(shown) < 2:
         return sections
+
+    pie_rows = sorted(shown, key=lambda row: -int(row["users"]))
+    sections.extend(
+        [
+            "### Share of people and actions",
+            "",
+            "Someone who uses both is counted in each group.",
+            "",
+            '<div class="analytics-pies">',
+            _analytics_pie_chart(
+                [
+                    (_analytics_name(row["name"], _ANALYTICS_ENTRY_POINT_NAMES), float(row["users"]))
+                    for row in pie_rows
+                ],
+                title="Users",
+            ),
+            _analytics_pie_chart(
+                [
+                    (_analytics_name(row["name"], _ANALYTICS_ENTRY_POINT_NAMES), float(row["actions"]))
+                    for row in pie_rows
+                ],
+                title="Actions",
+            ),
+            "</div>",
+            "",
+        ]
+    )
 
     entry_points = [str(row["name"]) for row in shown]
     first_point, second_point = entry_points[0], entry_points[1]
@@ -549,6 +626,10 @@ def _analytics_feature_name(value: object) -> str:
     return _analytics_name(value, _ANALYTICS_HERO_FEATURE_NAMES)
 
 
+def _analytics_session_size(size: object) -> str:
+    return f"{size} action" + ("" if str(size) == "1" else "s")
+
+
 def _analytics_habit_sections(habits: dict[str, object]) -> list[str]:
     days = habits["windowDays"]
     sessions = habits["assistantSessions"]
@@ -562,30 +643,56 @@ def _analytics_habit_sections(habits: dict[str, object]) -> list[str]:
         "",
         "### Size of AI assistant sessions",
         "",
-        "A session is one run of the MCP Server inside an AI assistant. The "
-        "command line is left out because every `excelcli` command runs on its "
-        f"own. Out of **{_analytics_cell(sessions['sessions'])} sessions**, the "
-        f"typical one had **{_analytics_cell(sessions['medianActions'])} actions**, "
-        f"and **{_analytics_cell(sessions['multiFeatureSharePct'])}%** used two or "
-        "more areas of Excel. A small number of long sessions do much of the work.",
-        "",
-        _analytics_paired_bar_chart(
-            [
-                {
-                    **row,
-                    "friendlyName": f"{row['size']} action"
-                    + ("" if row["size"] == "1" else "s"),
-                }
-                for row in sessions["sizes"]
-            ],
-            label_field="friendlyName",
-            first_field="sessionSharePct",
-            second_field="actionSharePct",
-            first_name="Share of sessions",
-            second_name="Share of actions",
-        ),
-        "",
     ]
+    if not sessions.get("enoughData"):
+        sections.extend(
+            ["There is not enough data yet to describe AI assistant sessions.", ""]
+        )
+    else:
+        shown_sizes = [row for row in sessions["sizes"] if row.get("enoughData")]
+        hidden_sizes = [row for row in sessions["sizes"] if not row.get("enoughData")]
+        intro = (
+            "A session is one run of the MCP Server inside an AI assistant. The "
+            "command line is left out because every `excelcli` command runs on its "
+            f"own. Out of **{_analytics_cell(sessions['sessions'])} sessions**, the "
+            f"typical one had **{_analytics_cell(sessions['medianActions'])} actions**, "
+            f"and **{_analytics_cell(sessions['multiFeatureSharePct'])}%** used two or "
+            "more areas of Excel."
+        )
+        longest = next((row for row in shown_sizes if row["size"] == "201+"), None)
+        if longest and float(longest["sessionSharePct"]) > 0:
+            intro += (
+                " Sessions with more than 200 actions were "
+                f"**{_analytics_cell(longest['sessionSharePct'])}%** of sessions but "
+                f"**{_analytics_cell(longest['actionSharePct'])}%** of actions."
+            )
+        sections.extend([intro, ""])
+        if shown_sizes:
+            sections.extend(
+                [
+                    _analytics_paired_bar_chart(
+                        [
+                            {**row, "friendlyName": _analytics_session_size(row["size"])}
+                            for row in shown_sizes
+                        ],
+                        label_field="friendlyName",
+                        first_field="sessionSharePct",
+                        second_field="actionSharePct",
+                        first_name="Share of sessions",
+                        second_name="Share of actions",
+                    ),
+                    "",
+                ]
+            )
+        if hidden_sizes:
+            names = ", ".join(_analytics_session_size(row["size"]) for row in hidden_sizes)
+            sections.extend(
+                [
+                    f"Not shown because too few people had them: {names}. "
+                    "They still count toward the totals above.",
+                    "",
+                ]
+            )
     if habits["featurePairs"]:
         sections.extend(
             [
@@ -608,11 +715,21 @@ def _analytics_habit_sections(habits: dict[str, object]) -> list[str]:
                     label_field="friendlyName",
                     value_field="sharePct",
                     display_field="shown",
+                    percent=True,
                 ),
                 "",
             ]
         )
-    if returning["newUsers"]:
+    if not returning.get("enoughData"):
+        sections.extend(
+            [
+                "### Do new users come back?",
+                "",
+                "There are not enough new people yet to show whether they come back.",
+                "",
+            ]
+        )
+    else:
         sections.extend(
             [
                 "### Do new users come back?",
@@ -639,6 +756,7 @@ def _analytics_habit_sections(habits: dict[str, object]) -> list[str]:
                     label_field="label",
                     value_field="value",
                     display_field="shown",
+                    percent=True,
                 ),
                 "",
             ]
@@ -671,6 +789,8 @@ def _analytics_habit_sections(habits: dict[str, object]) -> list[str]:
                 "",
             ]
         )
+    shown_days = [row for row in habits["weekdays"] if row.get("enoughData")]
+    hidden_days = [row for row in habits["weekdays"] if not row.get("enoughData")]
     if habits["weekdays"]:
         sections.extend(
             [
@@ -690,7 +810,7 @@ def _analytics_habit_sections(habits: dict[str, object]) -> list[str]:
                             "shown": f"{_analytics_cell(row['actions'])} actions, "
                             f"{_analytics_cell(row['users'])} users",
                         }
-                        for row in habits["weekdays"]
+                        for row in shown_days
                     ],
                     label_field="day",
                     value_field="actions",
@@ -699,13 +819,24 @@ def _analytics_habit_sections(habits: dict[str, object]) -> list[str]:
                 "",
             ]
         )
+        if hidden_days:
+            names = ", ".join(str(row["day"]) for row in hidden_days)
+            sections.extend(
+                [
+                    f"Not shown because too few people used Excel MCP on them: {names}. "
+                    "They still count toward the averages above.",
+                    "",
+                ]
+            )
     if habits["firstAdvancedUse"]:
         sections.extend(
             [
                 "### When people first try advanced features",
                 "",
-                "Of the people who used each advanced area, the share who first "
-                "used it within a day of their first Excel MCP action.",
+                "Among people who started using Excel MCP in the last "
+                f"**{habits['firstAdvancedUseWindowDays']} days**, the share of each "
+                "advanced area's users who first used it within a day of their "
+                "first Excel MCP action.",
                 "",
                 _analytics_bar_chart(
                     [
@@ -722,11 +853,33 @@ def _analytics_habit_sections(habits: dict[str, object]) -> list[str]:
                     label_field="friendlyName",
                     value_field="firstDayPct",
                     display_field="shown",
+                    percent=True,
                 ),
                 "",
             ]
         )
     return sections
+
+
+def _analytics_gain_is_long(row: dict[str, object]) -> bool:
+    """Weekly reports can drift by a day; anything longer is a missed week."""
+    return int(row.get("days") or 7) > 8
+
+
+def _analytics_gain_week(row: dict[str, object]) -> dict[str, object]:
+    total = max(0, int(row["total"]))
+    if not _analytics_gain_is_long(row):
+        return {**row, "total": total}
+    days = int(row["days"])
+    start = datetime.fromisoformat(str(row["week"]))
+    end = start + timedelta(days=days)
+    return {
+        **row,
+        "total": round(total * 7 / days),
+        "label": start.strftime("%b %d") + "*",
+        "description": f"Average week from {start.strftime('%b %d')} to "
+        f"{end.strftime('%b %d')}",
+    }
 
 
 def _analytics_download_sections(
@@ -749,8 +902,7 @@ def _analytics_download_sections(
         "",
         "These numbers come from the public download counters on npm, GitHub, "
         "and the Visual Studio Marketplace, checked on "
-        f"**{collected.strftime(date_format)}**. NuGet is not shown: most of its "
-        "downloads come from automated mirrors and scanners, not people.",
+        f"**{collected.strftime(date_format)}**.",
         "",
         "!!! note \"Downloads are not people\"\n"
         "    One person can download Excel MCP many times, updates and automatic "
@@ -824,10 +976,16 @@ def _analytics_download_sections(
             [
                 "GitHub releases and the VS Code Marketplace only publish "
                 "running totals. This chart shows how much those totals grew "
-                "between one weekly report and the next.",
+                "between one weekly report and the next."
+                + (
+                    " Bars marked * cover a longer gap between reports and show "
+                    "the average for one week of that gap."
+                    if any(_analytics_gain_is_long(row) for row in gains)
+                    else ""
+                ),
                 "",
                 _analytics_week_chart(
-                    [{**row, "total": max(0, int(row["total"]))} for row in gains],
+                    [_analytics_gain_week(row) for row in gains],
                     value_field="total",
                     title="New GitHub release downloads and VS Code installs",
                 ),
@@ -1002,6 +1160,7 @@ def render_usage_analytics() -> str:
             value_suffix="",
             display_field="shown",
             scale_each_row=True,
+            percent=False,
         ),
         "",
         "## What the numbers tell us",
@@ -1025,6 +1184,7 @@ def render_usage_analytics() -> str:
                 label_field="friendlyName",
                 value_field="sharePct",
                 value_suffix="%",
+                percent=True,
             ),
             "",
         ]),

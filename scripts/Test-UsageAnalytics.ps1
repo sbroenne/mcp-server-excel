@@ -146,11 +146,11 @@ try {
             @{ EntryPoint = "cli"; Name = "range/get-values"; Actions = 50 }
         )
         assistantSessions = @(
-            @{ Size = "1"; Sessions = 10; Actions = 10; MultiFeatureSessions = 0 },
-            @{ Size = "2-10"; Sessions = 30; Actions = 150; MultiFeatureSessions = 10 },
-            @{ Size = "201+"; Sessions = 10; Actions = 2840; MultiFeatureSessions = 10 }
+            @{ Size = "1"; Sessions = 10; Actions = 10; MultiFeatureSessions = 0; Users = 4 },
+            @{ Size = "2-10"; Sessions = 30; Actions = 150; MultiFeatureSessions = 10; Users = 20 },
+            @{ Size = "201+"; Sessions = 10; Actions = 2840; MultiFeatureSessions = 10; Users = 12 }
         )
-        assistantSessionMedian = @(@{ MedianActions = 5.0 })
+        assistantSessionMedian = @(@{ MedianActions = 5.0; Users = 30 })
         featurePairs = @(
             @{ First = "tables-ranges"; Second = "worksheets-connections"; Sessions = 20; Users = 12 }
         )
@@ -262,31 +262,86 @@ try {
     $testsRun++
 
     $habits = $analytics.habits
-    Assert-True ($habits.assistantSessions.sessions -eq 50 -and
+    Assert-True ($habits.assistantSessions.enoughData -and
+        $habits.assistantSessions.sessions -eq 50 -and
         $habits.assistantSessions.medianActions -eq 5 -and
         $habits.assistantSessions.multiFeatureSharePct -eq 40) `
         "The AI assistant session summary is wrong."
     Assert-True (($habits.assistantSessions.sizes.size -join ",") -eq "1,2-10,11-50,51-200,201+") `
         "Session sizes are not listed in a fixed order with empty sizes kept."
+    $singleSessions = $habits.assistantSessions.sizes | Where-Object size -eq "1"
+    $emptySessions = $habits.assistantSessions.sizes | Where-Object size -eq "11-50"
+    Assert-True (-not $singleSessions.enoughData -and
+        $null -eq $singleSessions.PSObject.Properties["sessions"] -and
+        $null -eq $singleSessions.PSObject.Properties["sessionSharePct"] -and
+        $emptySessions.enoughData -and $emptySessions.sessions -eq 0) `
+        "A session size used by fewer than the minimum number of users was published."
     $longSessions = $habits.assistantSessions.sizes | Where-Object size -eq "201+"
-    Assert-True ($longSessions.sessionSharePct -eq 20 -and $longSessions.actionSharePct -eq 94.67) `
+    Assert-True ($longSessions.enoughData -and
+        $longSessions.sessionSharePct -eq 20 -and $longSessions.actionSharePct -eq 94.67) `
         "Long sessions did not get their share of sessions and actions."
     Assert-True ($habits.featurePairs[0].sharePct -eq 40 -and
         $null -eq $habits.featurePairs[0].PSObject.Properties["users"]) `
         "Areas used together are wrong or publish a user count."
-    Assert-True ($habits.returningUsers.returnedAfterWeekPct -eq 50 -and
+    Assert-True ($habits.returningUsers.enoughData -and
+        $habits.returningUsers.returnedAfterWeekPct -eq 50 -and
         $habits.returningUsers.returnedAfterThreeWeeksPct -eq 25) `
         "Returning user shares are wrong."
     Assert-True ($habits.featureWait[0].name -eq "power-query" -and
         $habits.featureWait[0].typicalSeconds -eq 2.83 -and
         $habits.featureWait[0].slowSeconds -eq 33) `
         "Typical waits were not converted to seconds."
+    $saturday = $habits.weekdays | Where-Object day -eq "Saturday"
     Assert-True (($habits.weekdays.day -join ",") -eq "Monday,Tuesday,Saturday,Sunday" -and
         $habits.workdayAverageActions -eq 20 -and $habits.weekendAverageActions -eq 10) `
         "Weekday use is not in Monday-first order or the per-day averages are wrong."
+    Assert-True (-not $saturday.enoughData -and
+        $null -eq $saturday.PSObject.Properties["actions"] -and
+        $null -eq $saturday.PSObject.Properties["users"]) `
+        "A weekday used by fewer than the minimum number of users was published."
     Assert-True ($habits.firstAdvancedUse[0].name -eq "power-query" -and
-        $habits.firstAdvancedUse[0].firstDayPct -eq 75) `
-        "First use of advanced areas is wrong."
+        $habits.firstAdvancedUse[0].firstDayPct -eq 75 -and
+        $habits.firstAdvancedUseWindowDays -eq 60) `
+        "First use of advanced areas is wrong or does not state its window."
+    $habitQuerySource = [IO.File]::ReadAllText($updateScript)
+    $firstUseQuery = [regex]::Match($habitQuerySource, '(?s)firstAdvancedUse = @".*?"@').Value
+    Assert-True ($firstUseQuery -match 'FirstSeen > ago\(\$\{firstAdvancedCohortDays\}d\)') `
+        "First use of advanced areas does not limit itself to people who started inside the window."
+    $sessionQuery = [regex]::Match($habitQuerySource, '(?s)assistantSessions = @".*?"@').Value
+    Assert-True ($sessionQuery -match 'Users=dcount\(UserId\)') `
+        "Session sizes do not count users, so small groups cannot be hidden."
+
+    $smallHabitFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $smallHabitFixture.assistantSessionMedian[0].Users = 9
+    $smallHabitFixture.returningUsers[0].NewUsers = 9
+    $smallHabitFixture.returningUsers[0].ReturnedAfterWeek = 3
+    $smallHabitFixture.returningUsers[0].ReturnedAfterThreeWeeks = 1
+    $smallHabitPath = Write-TestFile "small-habit-fixture.json" ($smallHabitFixture | ConvertTo-Json -Depth 8)
+    $smallHabitOutput = Join-Path $testRoot "small-habits.json"
+    & $updateScript -WorkspaceId "fixture" -OutputPath $smallHabitOutput -FixturePath $smallHabitPath
+    $smallHabits = (Get-Content -LiteralPath $smallHabitOutput -Raw | ConvertFrom-Json).habits
+    Assert-True (-not $smallHabits.assistantSessions.enoughData -and
+        $null -eq $smallHabits.assistantSessions.PSObject.Properties["sessions"] -and
+        $null -eq $smallHabits.assistantSessions.PSObject.Properties["sizes"]) `
+        "Session figures from fewer than the minimum number of users were published."
+    Assert-True (-not $smallHabits.returningUsers.enoughData -and
+        $null -eq $smallHabits.returningUsers.PSObject.Properties["newUsers"] -and
+        $null -eq $smallHabits.returningUsers.PSObject.Properties["returnedAfterWeekPct"]) `
+        "A returning-user group smaller than the minimum was published."
+    $yearFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $yearDays = @(
+        for ($offset = 0; $offset -lt 60 * 7; $offset++) {
+            @{ day = ([DateTime]"2025-08-10").AddDays($offset).ToString("yyyy-MM-dd"); downloads = 1 }
+        }
+    )
+    $yearFixture.downloadSources.npm."npm-mcp-server" = $yearDays
+    $yearFixture.downloadSources.npm."npm-cli" = $yearDays
+    $yearPath = Write-TestFile "year-fixture.json" ($yearFixture | ConvertTo-Json -Depth 8)
+    $yearOutput = Join-Path $testRoot "year.json"
+    & $updateScript -WorkspaceId "fixture" -OutputPath $yearOutput -FixturePath $yearPath
+    $yearWeekly = (Get-Content -LiteralPath $yearOutput -Raw | ConvertFrom-Json).downloads.npmWeekly
+    Assert-True ($yearWeekly.Count -eq 52 -and $yearWeekly[-1].total -eq 14) `
+        "npm weekly history does not cover the last 12 months."
     $unsafeHabitCases = @{
         "session size" = { param($f) $f.assistantSessions[0].Size = "huge" }
         "homepage-feature" = { param($f) $f.featurePairs[0].Second = "private-workbook" }
