@@ -1,4 +1,8 @@
+using System.Globalization;
+using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -451,6 +455,93 @@ public sealed partial class PersistentServiceRangeValuesTests
         Assert.True(retained.Success, retained.ErrorMessage);
         Assert.Equal("Original formula anchor", retained.Values[0][0]);
         Assert.Null(retained.Values[0][1]);
+    }
+
+    [Fact]
+    public void SetValues_MixedFormulaAndConstants_KeepsNonFormulaCells()
+    {
+        var batch = _fixture.BatchToken;
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        _fixture.Send("range.set-values", new
+        {
+            sheetName,
+            rangeAddress = "A1:G1",
+            values = new object?[][] { [1, "text", "=1+1", null, "2026-10-01", true, "'=not a formula"] }
+        });
+
+        var read = _commands.GetValues(batch, sheetName, "A1:G1");
+        Assert.True(read.Success, read.ErrorMessage);
+        var values = Assert.Single(read.Values);
+        Assert.Equal(1d, Convert.ToDouble(values[0], CultureInfo.InvariantCulture));
+        Assert.Equal("text", values[1]);
+        Assert.Equal(2d, Convert.ToDouble(values[2], CultureInfo.InvariantCulture));
+        Assert.Null(values[3]);
+        Assert.Equal(46296d, Convert.ToDouble(values[4], CultureInfo.InvariantCulture));
+        Assert.Equal(true, values[5]);
+        Assert.Equal("=not a formula", values[6]);
+
+        var hasFormula = _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Worksheet? sheet = null;
+            Excel.Range? cells = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(sheet);
+                cells = sheet.Range["A1:G1"];
+                var flags = new List<bool>();
+                for (int column = 1; column <= 7; column++)
+                {
+                    Excel.Range? cell = null;
+                    try
+                    {
+                        cell = (Excel.Range)cells.Cells[1, column];
+                        flags.Add(Convert.ToBoolean(cell.HasFormula, CultureInfo.InvariantCulture));
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref cell);
+                    }
+                }
+                return flags;
+            }
+            finally
+            {
+                ComUtilities.Release(ref cells);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+        Assert.Equal([false, false, true, false, false, false, false], hasFormula);
+    }
+
+    [Fact]
+    public void GetFormulas_TextStartingWithEquals_IsNotReportedAsFormula()
+    {
+        var batch = _fixture.BatchToken;
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        _fixture.Send("range.set-values", new
+        {
+            sheetName,
+            rangeAddress = "A1:C1",
+            values = new object?[][] { ["'=not a formula", "'=B1", "=B1"] }
+        });
+
+        using var multi = JsonDocument.Parse(_fixture.Send("range.get-formulas", new { sheetName, rangeAddress = "A1:C1" }).Result!);
+        var formulas = multi.RootElement.GetProperty("formulas")[0];
+        var values = multi.RootElement.GetProperty("values")[0];
+        Assert.Equal("", formulas[0].GetString());
+        Assert.Equal("=not a formula", values[0].GetString());
+        Assert.Equal("", formulas[1].GetString());
+        Assert.Equal("=B1", values[1].GetString());
+        // C1 is a real formula whose result happens to equal its own formula text.
+        Assert.Equal("=B1", formulas[2].GetString());
+        Assert.Equal("=B1", values[2].GetString());
+
+        using var single = JsonDocument.Parse(_fixture.Send("range.get-formulas", new { sheetName, rangeAddress = "A1" }).Result!);
+        Assert.Equal("", single.RootElement.GetProperty("formulas")[0][0].GetString());
+        Assert.Equal("=not a formula", single.RootElement.GetProperty("values")[0][0].GetString());
     }
 
     [Fact]
