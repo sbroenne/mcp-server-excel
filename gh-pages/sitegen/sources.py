@@ -91,6 +91,8 @@ _REFERENCE_PAGES = {
 
 PAGES: tuple[Page, ...] = (
     Page("world-in-motion.md", "samples/world-bank-dashboard/README.md", "/samples/world-in-motion/"),
+    Page("world-bank-briefing.md", "samples/world-bank-briefing/README.md",
+         "/samples/world-bank-briefing/"),
     Page("usage-analytics.md", ".github/usage-analytics.json", "/usage-analytics/", header="rendered"),
     Page("features.md", "FEATURES.md", "/features/", demote_h1=False),
     _feature("features-data.md", "docs/features/DATA-ANALYTICS.md",
@@ -140,6 +142,13 @@ SAMPLE_ASSETS = {
     "assets/images/world-in-motion/overview.png": "videos/world-in-motion-demo/capture/assets/overview.png",
     "assets/images/world-in-motion/growth.png": "videos/world-in-motion-demo/capture/assets/growth.png",
     "assets/images/world-in-motion/progress.png": "videos/world-in-motion-demo/capture/assets/progress.png",
+    "downloads/WDI_Development_2000-2024.xlsx": "samples/world-bank-briefing/WDI_Development_2000-2024.xlsx",
+    "downloads/WDI_Briefing_2000-2024.pptx": "samples/world-bank-briefing/WDI_Briefing_2000-2024.pptx",
+    **{
+        f"assets/images/world-bank-briefing/slide{n}.png":
+            f"videos/agentic-world-bank-briefing/assets/slides/fan/Slide{n}.png"
+        for n in (1, 2, 5, 6)
+    },
 }
 SITE_ASSET_MAP = {source: "/" + destination for destination, source in SAMPLE_ASSETS.items()}
 

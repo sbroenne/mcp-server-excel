@@ -8,6 +8,8 @@ on:
       - 'gh-pages/**'
       - 'samples/world-bank-dashboard/**'
       - 'videos/world-in-motion-demo/capture/assets/**'
+      - 'samples/world-bank-briefing/**'
+      - 'videos/agentic-world-bank-briefing/assets/slides/fan/**'
       - 'FEATURES.md'
       - 'doc-counts.json'
       - 'docs/features/**'

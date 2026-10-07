@@ -1,0 +1,5 @@
+Research World Bank data on how 25 major economies developed from 2000 to 2024: income per person, economic growth, life expectancy and internet use. Use the official World Development Indicators.
+
+With Excel MCP, build a refreshable Excel analysis in this folder: load the data with Power Query, model it, add a few clear charts, and check the key numbers.
+
+Then, as an expert in executive presentations, use PowerPoint MCP to build a 7-slide briefing of the highlights: one insight per slide with a headline that states it, native charts with numbers from the workbook, sources and caveats, and speaker notes. Export each slide and check it visually. Keep Excel and PowerPoint visible.

@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=1920,height=1080">
+<title>Agentic workflow: World Bank data to Excel and PowerPoint</title><script src="assets/vendor/gsap.min.js"></script><style>@font-face{font-family:"Cascadia Mono";src:local("Cascadia Mono"),local("CascadiaMono-Regular")}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#fff}
+body{font-family:"Segoe UI",Arial,sans-serif;color:#101714}
+#root{position:relative;width:1920px;height:1080px;overflow:hidden;background:#fff}
+.scene{position:absolute;inset:0;background:#fff;visibility:hidden;opacity:0}
+.mono{font-family:"Cascadia Mono",Consolas,monospace}
+.kicker{position:absolute;left:86px;top:72px;font:24px "Cascadia Mono",Consolas,monospace;letter-spacing:3px;text-transform:uppercase;color:#3e5b49}
+.kicker b{font-weight:400;color:#107c41}
+.ppt .kicker b,.ppt em{color:#c43e1c}
+h1{font-size:128px;line-height:1;letter-spacing:-5px;font-weight:400}
+h2{font-size:78px;line-height:1.06;letter-spacing:-2.5px;font-weight:400}
+em{font-style:normal;color:#107c41}
+.lead{font-size:34px;line-height:1.35;color:#3c5145}
+
+/* Hook */
+.hook-copy{position:absolute;left:86px;top:250px;width:760px}
+.hook-copy h1{font-size:100px;letter-spacing:-4px}
+.hook-label{margin-bottom:28px;font:26px "Cascadia Mono",Consolas,monospace;letter-spacing:4px;text-transform:uppercase;color:#107c41}
+.hook-copy .lead{margin-top:36px}
+.hook-flow{position:absolute;left:86px;top:760px;display:flex;gap:18px;align-items:center;font:27px "Cascadia Mono",Consolas,monospace;color:#3e5b49}
+.hook-flow i{font-style:normal;color:#7a9183}
+.hook-flow .xl{color:#107c41}.hook-flow .pp{color:#c43e1c}
+.hook-stat{position:absolute;left:86px;top:850px;font:34px "Cascadia Mono",Consolas,monospace;color:#107c41}
+.fan{position:absolute;width:780px;border:1px solid #d6ded9;box-shadow:0 18px 44px #1017141f;background:#fff}
+.fan img{display:block;width:100%}
+
+/* Footage cards */
+.card{position:absolute;background:#0d1117;border:1px solid #cbd6cf;box-shadow:0 16px 40px #10171418;overflow:hidden}
+.card video{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
+.card-wide{left:440px;top:112px;width:1420px;height:856px}
+.card-tall{left:1250px;top:150px;width:556px;height:850px}
+.card-label{position:absolute;font:21px "Cascadia Mono",Consolas,monospace;color:#496251}
+.card-wide+.card-label{right:60px;top:78px}
+.card-tall+.card-label{left:1250px;top:112px}
+
+/* Left rail */
+.rail{position:absolute;left:86px;top:150px;width:320px}
+.rail h2{font-size:62px;letter-spacing:-2px}
+.stages{margin-top:44px;list-style:none}
+.stage{font-size:27px;line-height:1.2;padding:13px 0 13px 26px;border-left:3px solid #d6e2da;color:#7d8f84}
+.stage.on{border-left-color:#107c41;color:#101714}
+.ppt .stage.on{border-left-color:#c43e1c}
+
+/* Clock and speed */
+.badges{position:absolute;display:flex;gap:14px;font:24px "Cascadia Mono",Consolas,monospace}
+.rail-badges{left:86px;top:860px;flex-direction:column;gap:10px}
+.top-badges{left:86px;top:930px}
+.badge{display:flex;gap:14px;align-items:baseline;padding:10px 16px;border:1px solid #c8d6cd;background:#f6faf7;white-space:nowrap}
+.badge span{font-size:18px;letter-spacing:1px;text-transform:uppercase;color:#56705f}
+.badge strong{font-weight:400;color:#101714}
+.ppt .badge{background:#fdf6f3;border-color:#ecd2c8}
+
+/* Ask and research */
+.copy{position:absolute;left:86px;top:150px;width:1080px}
+.prompt{position:absolute;left:86px;top:380px;width:1080px;padding:26px 32px;border-left:5px solid #107c41;background:#f4f9f6;font-size:24px;line-height:1.5;color:#22382b}
+.prompt p+p{margin-top:12px}
+.prompt-label{display:block;margin-bottom:12px;font:19px "Cascadia Mono",Consolas,monospace;letter-spacing:1px;text-transform:uppercase;color:#496251}
+.facts{position:absolute;left:86px;top:430px;width:1060px;list-style:none}
+.fact{display:flex;gap:26px;align-items:baseline;font-size:36px;padding:22px 0;border-bottom:1px solid #d1ddd5}
+.fact b{min-width:60px;font:400 24px "Cascadia Mono",Consolas,monospace;color:#107c41}
+
+/* Hand-off */
+.handoff h2{position:absolute;left:86px;top:150px;width:1700px}
+.numbers{position:absolute;left:86px;right:86px;top:450px;display:flex;gap:34px}
+.number{flex:1;border-top:4px solid #107c41;padding-top:22px}
+.number strong{display:block;font-size:84px;font-weight:400;letter-spacing:-3px;color:#107c41}
+.number span{display:block;font-size:28px;line-height:1.3;margin-top:10px;color:#22382b}
+.flow{position:absolute;left:86px;right:86px;top:800px;display:flex;align-items:center;gap:26px;font:26px "Cascadia Mono",Consolas,monospace;color:#3e5b49}
+.flow .file{padding:14px 20px;border:1px solid #c8d6cd}
+.flow .file.xl{border-color:#107c41;color:#0b5a2f}
+.flow .file.pp{border-color:#c43e1c;color:#9a3015}
+.flow i{font-style:normal;flex:1;text-align:center;border-bottom:2px dashed #b9c9bf;padding-bottom:6px;font-size:22px}
+
+/* Skip marker */
+.skip{position:absolute;left:440px;top:832px;width:1420px;padding:16px 26px;background:#2a1a14f0;color:#fff;font-size:26px;line-height:1.35;visibility:hidden;opacity:0}
+.skip strong{font:400 24px "Cascadia Mono",Consolas,monospace;color:#ffb59c;display:block;margin-bottom:4px}
+
+/* Briefing */
+.slide{position:absolute;inset:0;visibility:hidden;opacity:0}
+.slide .frame{position:absolute;left:216px;top:120px;width:1488px;height:837px;border:1px solid #d6ded9;box-shadow:0 18px 44px #10171418}
+.slide .frame img{display:block;width:100%;height:100%}
+.slide-note{position:absolute;left:216px;top:980px;font:22px "Cascadia Mono",Consolas,monospace;color:#496251}
+.grid{position:absolute;left:86px;top:250px;width:1748px;display:grid;grid-template-columns:repeat(4,1fr);gap:24px;visibility:hidden;opacity:0}
+.grid img{display:block;width:100%;border:1px solid #d6ded9}
+.grid-note{grid-column:span 1;align-self:center;font-size:30px;line-height:1.35;color:#22382b}
+
+/* Scoreboard */
+.score h2{position:absolute;left:86px;top:140px}
+.stats{position:absolute;left:86px;right:86px;top:370px;display:grid;grid-template-columns:repeat(3,1fr);gap:30px 44px}
+.stat{border-top:1px solid #9fb6a8;padding-top:16px}
+.stat strong{display:block;font-size:76px;font-weight:400;letter-spacing:-3px;line-height:1.05}
+.stat span{display:block;font-size:26px;line-height:1.3;margin-top:6px;color:#3c5145}
+.stat.xl strong{color:#107c41}.stat.pp strong{color:#c43e1c}
+.review{position:absolute;left:86px;top:730px;font-size:34px;color:#101714}
+.links{position:absolute;left:86px;right:86px;top:820px;display:flex;gap:56px;font:27px "Cascadia Mono",Consolas,monospace}
+.links .xl{color:#107c41}.links .pp{color:#c43e1c}
+.links .plain{color:#496251}
+
+.scene-number{position:absolute;right:86px;top:72px;font:22px "Cascadia Mono",Consolas,monospace;color:#56705f}
+#progress{position:absolute;bottom:0;left:0;width:1920px;height:6px;background:#107c41;transform-origin:left;z-index:110}
+
+/* Credits */
+.credits{background:#0d1117;color:#f4f7f5}
+.credits em{color:#5fd08f}
+.roll{position:absolute;left:260px;right:260px;top:70px;text-align:center}
+.roll h2{margin-bottom:34px}
+.roll-group{margin-top:30px}
+.roll-group h3{font:400 24px "Cascadia Mono",Consolas,monospace;letter-spacing:3px;text-transform:uppercase;color:#5fd08f;margin-bottom:12px}
+.roll-row{display:grid;grid-template-columns:1fr 1.5fr;gap:36px;font-size:27px;line-height:1.55;text-align:left}
+.roll-row span{text-align:right;color:#b4c4ba}
+.roll-row b{font-weight:400;color:#f4f7f5}
+</style></head>
+<body><main id="root" data-composition-id="main" data-width="1920" data-height="1080" data-start="0" data-duration="161">
+<section id="s1" class="scene" data-layout-allow-overflow><div class="fan" id="fan7" style="left:960px;top:130px;z-index:1"><img src="assets/slides/fan/Slide7.png" alt="Slide 7 of the agent's briefing"></div><div class="fan" id="fan6" style="left:984px;top:174px;z-index:2"><img src="assets/slides/fan/Slide6.png" alt="Slide 6 of the agent's briefing"></div><div class="fan" id="fan5" style="left:1008px;top:218px;z-index:3"><img src="assets/slides/fan/Slide5.png" alt="Slide 5 of the agent's briefing"></div><div class="fan" id="fan4" style="left:1032px;top:262px;z-index:4"><img src="assets/slides/fan/Slide4.png" alt="Slide 4 of the agent's briefing"></div><div class="fan" id="fan3" style="left:1056px;top:306px;z-index:5"><img src="assets/slides/fan/Slide3.png" alt="Slide 3 of the agent's briefing"></div><div class="fan" id="fan2" style="left:1080px;top:350px;z-index:6"><img src="assets/slides/fan/Slide2.png" alt="Slide 2 of the agent's briefing"></div><div class="fan" id="fan1" style="left:1104px;top:394px;z-index:7"><img src="assets/slides/fan/Slide1.png" alt="Slide 1 of the agent's briefing"></div>
+ <div class="hook-copy"><div class="hook-label">Agentic workflow</div><h1 id="hook-title">One request<br>to an <em>AI agent.</em></h1>
+ <p class="lead" data-at="2.4">It researched World Bank data, analyzed it in Excel, then built this PowerPoint briefing.</p></div>
+ <div class="hook-flow" data-at="4.6"><span>Research</span><i>→</i><span class="xl">Excel MCP Server</span><i>→</i><span class="pp">PowerPoint MCP Server</span></div>
+ <div class="hook-stat" data-at="9">1 request · 39 minutes · 0 follow-ups</div></section>
+<section id="s2" class="scene" data-layout-allow-overflow><div class="kicker"><b>01 /</b> The ask</div>
+ <div class="copy"><h2>One request,<br><em>in plain English.</em></h2></div>
+ <div class="prompt" data-at="13.6"><span class="prompt-label">The exact prompt</span><p>Research World Bank data on how 25 major economies developed from 2000 to 2024: income per person, economic growth, life expectancy and internet use. Use the official World Development Indicators.</p><p>With Excel MCP, build a refreshable Excel analysis in this folder: load the data with Power Query, model it, add a few clear charts, and check the key numbers.</p><p>Then, as an expert in executive presentations, use PowerPoint MCP to build a 7-slide briefing of the highlights: one insight per slide with a headline that states it, native charts with numbers from the workbook, sources and caveats, and speaker notes. Export each slide and check it visually. Keep Excel and PowerPoint visible.</p></div>
+ <div class="facts" style="top:850px"><div class="mono" data-at="19.2" style="font-size:26px;color:#22382b">112 words · sent once · 0 follow-ups</div></div>
+ <div class="card card-tall"><video id="v-ask" src="assets/footage/ask.mp4" data-start="13" data-duration="14" data-track-index="1" muted playsinline></video></div><div class="card-label">Real footage · GitHub Copilot CLI</div>
+ <div class="badges top-badges"><div class="badge"><span>Elapsed</span><strong class="clock" data-clips="ask">00:00</strong></div><div class="badge"><span>Speed</span><strong class="speed" data-clips="ask">1x</strong></div></div></section>
+<section id="s3" class="scene" data-layout-allow-overflow><div class="kicker"><b>02 /</b> Research</div>
+ <div class="copy"><h2>First, find<br><em>the right data.</em></h2></div>
+ <ul class="facts">
+  <li class="fact" data-at="30"><b>01</b>World Bank data service, official indicators</li>
+  <li class="fact" data-at="32.4"><b>02</b>Income, growth, life expectancy, internet</li>
+  <li class="fact" data-at="34.8"><b>03</b>25 economies × 25 years</li>
+  <li class="fact" data-at="37.9"><b>04</b>Coverage checked for gaps</li>
+ </ul>
+ <div class="card card-tall"><video id="v-research" src="assets/footage/research.mp4" data-start="27" data-duration="15" data-track-index="1" muted playsinline></video></div><div class="card-label">Real footage · GitHub Copilot CLI</div>
+ <div class="badges top-badges"><div class="badge"><span>Elapsed</span><strong class="clock" data-clips="research">00:00</strong></div><div class="badge"><span>Speed</span><strong class="speed" data-clips="research">1x</strong></div></div></section>
+<section id="s4" class="scene" data-layout-allow-overflow><div class="kicker"><b>03 /</b> Excel MCP Server</div>
+ <div class="rail"><h2>Build the<br><em>analysis.</em></h2><ul class="stages">
+  <li class="stage" data-on="42.9">Power Query</li><li class="stage" data-on="47.6">Data Model + DAX</li><li class="stage" data-on="50.3">Analysis + checks</li><li class="stage" data-on="56.3">Charts</li><li class="stage" data-on="62.9">PivotTable</li><li class="stage" data-on="69.9">Refresh all</li>
+ </ul></div>
+ <div class="card card-wide"><video id="v-excel" src="assets/footage/excel.mp4" data-start="42" data-duration="30" data-track-index="1" muted playsinline></video></div><div class="card-label">Real footage · Copilot CLI + Excel</div>
+ <div class="badges rail-badges"><div class="badge"><span>Elapsed</span><strong class="clock" data-clips="excel">00:00</strong></div><div class="badge"><span>Speed</span><strong class="speed" data-clips="excel">1x</strong></div></div></section>
+<section id="s5" class="scene" data-layout-allow-overflow><div class="kicker"><b>04 /</b> Hand-off</div>
+ <div class="handoff"><h2>Every number on a slide<br><em>comes from Excel.</em></h2>
+ <div class="numbers">
+  <div class="number" data-at="73.6"><strong>5.9x</strong><span>China's income per person, 2000 to 2024</span></div>
+  <div class="number" data-at="74.4"><strong>23x → 11x</strong><span>richest ÷ poorest income, of the 25</span></div>
+  <div class="number" data-at="75.2"><strong>+4.7 yrs</strong><span>median life expectancy</span></div>
+  <div class="number" data-at="76"><strong>7% → 90%</strong><span>median share of people online</span></div>
+ </div>
+ <div class="flow" data-at="78"><span class="file xl">WDI_Development_2000-2024.xlsx</span><i>the agent reads its results back</i><span class="file pp">WDI_Briefing_2000-2024.pptx</span></div></div></section>
+<section id="s6" class="scene ppt" data-layout-allow-overflow><div class="kicker"><b>05 /</b> PowerPoint MCP Server</div>
+ <div class="rail"><h2>Design the<br><em>briefing.</em></h2><ul class="stages">
+  <li class="stage" data-on="85.2">Template slide</li><li class="stage" data-on="94.3">Export and look</li><li class="stage" data-on="95.8">Copy the design</li><li class="stage" data-on="101.6">Native charts</li><li class="stage" data-on="103.5">Recover + check</li>
+ </ul></div>
+ <div class="card card-wide"><video id="v-ppt-a" src="assets/footage/ppt-a.mp4" data-start="82" data-duration="21.5" data-track-index="1" muted playsinline></video><video id="v-ppt-b" src="assets/footage/ppt-b.mp4" data-start="103.5" data-duration="6.5" data-track-index="1" muted playsinline></video></div><div class="card-label">Real footage · Copilot CLI + PowerPoint</div>
+ <div class="skip" id="skip"><strong>Skipped 24:38 → 30:18 elapsed</strong>The chart data window got stuck (PowerPoint MCP issue #108), then PowerPoint crashed. The agent reopened the deck and rebuilt the lost charts.</div>
+ <div class="badges rail-badges"><div class="badge"><span>Elapsed</span><strong class="clock" data-clips="ppt-a,ppt-b">00:00</strong></div><div class="badge"><span>Speed</span><strong class="speed" data-clips="ppt-a,ppt-b">1x</strong></div></div></section>
+<section id="s7" class="scene" data-layout-allow-overflow><div class="kicker"><b>06 /</b> The briefing</div>
+ <div class="slide" id="slide1" data-in="110" data-out="113.2"><div class="frame"><img src="assets/slides/Slide1.png" alt="Slide 1: Executive summary"></div><div class="slide-note">Slide 1 of 7 · Executive summary · exported from the agent's deck</div></div><div class="slide" id="slide2" data-in="113.2" data-out="116.8"><div class="frame"><img src="assets/slides/Slide2.png" alt="Slide 2: Prosperity"></div><div class="slide-note">Slide 2 of 7 · Prosperity · exported from the agent's deck</div></div><div class="slide" id="slide3" data-in="116.8" data-out="120.6"><div class="frame"><img src="assets/slides/Slide3.png" alt="Slide 3: The income gap"></div><div class="slide-note">Slide 3 of 7 · The income gap · exported from the agent's deck</div></div><div class="slide" id="slide6" data-in="120.6" data-out="124.6"><div class="frame"><img src="assets/slides/Slide6.png" alt="Slide 6: Connectivity"></div><div class="slide-note">Slide 6 of 7 · Connectivity · exported from the agent's deck</div></div>
+ <div class="grid" id="grid"><img src="assets/slides/grid/Slide1.png" alt="Slide 1"><img src="assets/slides/grid/Slide2.png" alt="Slide 2"><img src="assets/slides/grid/Slide3.png" alt="Slide 3"><img src="assets/slides/grid/Slide4.png" alt="Slide 4"><img src="assets/slides/grid/Slide5.png" alt="Slide 5"><img src="assets/slides/grid/Slide6.png" alt="Slide 6"><img src="assets/slides/grid/Slide7.png" alt="Slide 7"><div class="grid-note">7 slides. Native, editable charts. Sources and speaker notes.</div></div></section>
+<section id="s8" class="scene" data-layout-allow-overflow><div class="kicker"><b>07 /</b> Scoreboard</div>
+ <div class="score"><h2>One request.<br><em>The heavy lifting, done.</em></h2>
+ <div class="stats">
+  <div class="stat" data-at="130.8"><strong>1</strong><span>request, 112 words, 0 follow-ups</span></div>
+  <div class="stat" data-at="131.3"><strong>39 min</strong><span>from prompt to finished deck</span></div>
+  <div class="stat" data-at="132.2"><strong>612</strong><span>tool calls by the agent</span></div>
+  <div class="stat xl" data-at="133"><strong>182</strong><span>Excel MCP Server calls</span></div>
+  <div class="stat pp" data-at="133.6"><strong>372</strong><span>PowerPoint MCP Server calls</span></div>
+  <div class="stat" data-at="134.6"><strong>2 + 1</strong><span>MCP servers and one AI model</span></div>
+ </div>
+ <div class="review" data-at="137.2">Headline numbers checked against the World Bank. <em>You still review the result.</em></div>
+ <div class="links" data-at="140"><span class="xl">excelmcpserver.dev</span><span class="pp">powerpointmcpserver.dev</span><span class="plain">Open source · MIT</span></div></div></section>
+<section id="s9" class="scene credits" data-layout-allow-overflow><div class="roll" id="roll"><h2>How this video<br><em>was made.</em></h2>
+ <div class="roll-group"><h3>The run</h3><div class="roll-row"><span>Agent</span><b>GitHub Copilot CLI, autopilot</b></div><div class="roll-row"><span>AI model</span><b>Claude Opus 5.5</b></div><div class="roll-row"><span>Tools</span><b>Excel MCP Server 2.3.3 · PowerPoint MCP Server 0.3.1</b></div><div class="roll-row"><span>Human input</span><b>1 request, 112 words, 0 follow-ups</b></div><div class="roll-row"><span>Footage</span><b>One screen recording; speed-ups and the cut are labelled</b></div></div><div class="roll-group"><h3>This video</h3><div class="roll-row"><span>Recording, editing, script</span><b>An AI agent: GitHub Copilot CLI with Claude Opus 5.5</b></div><div class="roll-row"><span>Video engine</span><b>HyperFrames, open source</b></div><div class="roll-row"><span>Voice</span><b>AI voice (Kokoro), generated on the same PC</b></div><div class="roll-row"><span>Human role</span><b>Gave direction and approved the result</b></div></div><div class="roll-group"><h3>Data</h3><div class="roll-row"><span>Source</span><b>World Bank World Development Indicators, CC BY 4.0</b></div><div class="roll-row"><span>Workbook and deck</span><b>excelmcpserver.dev/samples/world-bank-briefing</b></div></div></div></section>
+<div id="progress" data-layout-ignore></div>
+<audio id="voice-01a" src="assets/voice/01a.wav" data-start="0.3" data-duration="1.792" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-01b" src="assets/voice/01b.wav" data-start="2.4" data-duration="6.336" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-01c" src="assets/voice/01c.wav" data-start="9" data-duration="3.733" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-02a" src="assets/voice/02a.wav" data-start="13.6" data-duration="5.205" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-02b" src="assets/voice/02b.wav" data-start="19.2" data-duration="3.52" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-03a" src="assets/voice/03a.wav" data-start="27.6" data-duration="1.984" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-03b" src="assets/voice/03b.wav" data-start="30" data-duration="7.403" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-03c" src="assets/voice/03c.wav" data-start="37.9" data-duration="1.344" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-04a" src="assets/voice/04a.wav" data-start="42.6" data-duration="4.757" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-04b" src="assets/voice/04b.wav" data-start="47.8" data-duration="8.149" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-04c" src="assets/voice/04c.wav" data-start="56.6" data-duration="1.941" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-04d" src="assets/voice/04d.wav" data-start="62.5" data-duration="3.712" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-05a" src="assets/voice/05a.wav" data-start="72.6" data-duration="4.971" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-05b" src="assets/voice/05b.wav" data-start="78" data-duration="2.24" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-06a" src="assets/voice/06a.wav" data-start="82.6" data-duration="2.261" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-06b" src="assets/voice/06b.wav" data-start="85.2" data-duration="6.827" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-06c" src="assets/voice/06c.wav" data-start="92.4" data-duration="6.955" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-06d" src="assets/voice/06d.wav" data-start="104.2" data-duration="4.245" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-07a" src="assets/voice/07a.wav" data-start="110.5" data-duration="2.304" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-07b" src="assets/voice/07b.wav" data-start="113.4" data-duration="2.88" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-07c" src="assets/voice/07c.wav" data-start="117" data-duration="3.029" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-07d" src="assets/voice/07d.wav" data-start="120.8" data-duration="2.859" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-08a" src="assets/voice/08a.wav" data-start="130.6" data-duration="5.973" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-08b" src="assets/voice/08b.wav" data-start="137" data-duration="6.144" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-09a" src="assets/voice/09a.wav" data-start="147.6" data-duration="3.307" data-track-index="10" data-volume="1"></audio>
+<audio id="voice-09b" src="assets/voice/09b.wav" data-start="151.4" data-duration="8.683" data-track-index="10" data-volume="1"></audio>
+</main><script>
+window.__timelines = window.__timelines || {};
+const tl = gsap.timeline({ paused: true });
+window.__timelines["main"] = tl;
+const scenes = [{"id":"s1","start":0,"end":13},{"id":"s2","start":13,"end":27},{"id":"s3","start":27,"end":42},{"id":"s4","start":42,"end":72},{"id":"s5","start":72,"end":82},{"id":"s6","start":82,"end":110},{"id":"s7","start":110,"end":130},{"id":"s8","start":130,"end":147},{"id":"s9","start":147,"end":161}];
+const clips = [{"id":"ask","start":13,"end":27,"speed":1,"srcStart":15},{"id":"research","start":27,"end":42,"speed":7.4667,"srcStart":26},{"id":"excel","start":42,"end":72,"speed":30.8333,"srcStart":138},{"id":"ppt-a","start":82,"end":103.5,"speed":20.3256,"srcStart":1063},{"id":"ppt-b","start":103.5,"end":110,"speed":18.4615,"srcStart":1840}];
+const promptAt = 22;
+tl.fromTo("#progress", { scaleX: 0 }, { scaleX: 1, duration: 161, ease: "none" }, 0);
+scenes.forEach(({ id, start, end }, i) => {
+  tl.fromTo("#" + id, { autoAlpha: 0 }, { autoAlpha: 1, duration: i ? .45 : .01, ease: "power2.out", immediateRender: true }, start);
+  if (end < 161) tl.to("#" + id, { autoAlpha: 0, duration: .35, ease: "power2.in" }, end - .35);
+});
+document.querySelectorAll("[data-at]").forEach(el => {
+  tl.fromTo(el, { autoAlpha: 0, y: 26 }, { autoAlpha: 1, y: 0, duration: .6, ease: "power3.out" }, +el.dataset.at);
+});
+tl.fromTo("#hook-title", { autoAlpha: 0, y: 40 }, { autoAlpha: 1, y: 0, duration: .8, ease: "power3.out" }, .2);
+[1, 2, 3, 4, 5, 6, 7].reverse().forEach((n, i) => {
+  tl.fromTo("#fan" + n, { autoAlpha: 0, y: 90, rotation: (n % 2 ? -4 : 4) }, { autoAlpha: 1, y: 0, rotation: (n - 4) * .8, duration: .7, ease: "power3.out" }, .3 + i * .22);
+});
+document.querySelectorAll(".slide").forEach(el => {
+  const a = +el.dataset.in, b = +el.dataset.out;
+  tl.fromTo(el, { autoAlpha: 0, scale: 1.03 }, { autoAlpha: 1, scale: 1, duration: .5, ease: "power2.out" }, a);
+  tl.to(el, { autoAlpha: 0, duration: .35, ease: "power2.in" }, b - .2);
+});
+tl.fromTo("#grid", { autoAlpha: 0, y: 30 }, { autoAlpha: 1, y: 0, duration: .6, ease: "power3.out" }, 124.6);
+tl.fromTo("#grid img", { autoAlpha: 0 }, { autoAlpha: 1, duration: .35, stagger: .12 }, 124.7);
+tl.fromTo("#skip", { autoAlpha: 0, y: 20 }, { autoAlpha: 1, y: 0, duration: .45, ease: "power3.out" }, 103.5);
+tl.fromTo("#roll", { y: 80 }, { y: -40, duration: 14, ease: "none" }, 147);
+const pad = n => String(Math.floor(n)).padStart(2, "0");
+const clocks = [...document.querySelectorAll(".clock")], speeds = [...document.querySelectorAll(".speed")], stages = [...document.querySelectorAll(".stage")];
+function activeClip(ids, t) {
+  const list = clips.filter(c => ids.includes(c.id));
+  return list.find(c => t >= c.start && t < c.end) || (t < list[0].start ? list[0] : list[list.length - 1]);
+}
+function render() {
+  const t = tl.time();
+  clocks.forEach(el => {
+    const c = activeClip(el.dataset.clips.split(","), t);
+    const e = Math.max(0, c.srcStart - promptAt + (Math.min(Math.max(t, c.start), c.end) - c.start) * c.speed);
+    el.textContent = pad(e / 60) + ":" + pad(e % 60);
+  });
+  speeds.forEach(el => {
+    const c = activeClip(el.dataset.clips.split(","), t);
+    el.textContent = c.speed < 1.05 ? "real time" : (c.speed >= 10 ? Math.round(c.speed) : c.speed.toFixed(1)) + "x faster";
+  });
+  stages.forEach(el => el.classList.toggle("on", t >= +el.dataset.on));
+}
+tl.eventCallback("onUpdate", render);
+render();
+</script></body></html>

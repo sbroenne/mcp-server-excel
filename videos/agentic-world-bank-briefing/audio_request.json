@@ -1,0 +1,112 @@
+{
+  "provider": "kokoro",
+  "voice": "af_heart",
+  "lang": "en",
+  "speed": 1,
+  "lines": [
+    {
+      "id": "01a",
+      "text": "This is an agentic workflow."
+    },
+    {
+      "id": "01b",
+      "text": "One A I agent researched World Bank data, analyzed it in Excel, and built a PowerPoint briefing."
+    },
+    {
+      "id": "01c",
+      "text": "All from one request, in thirty-nine minutes. Nobody stepped in."
+    },
+    {
+      "id": "02a",
+      "text": "It starts with a plain-English request to an A I agent in GitHub Copilot C L I."
+    },
+    {
+      "id": "02b",
+      "text": "One hundred and twelve words, sent once, with no follow-ups."
+    },
+    {
+      "id": "03a",
+      "text": "First, the agent does the research."
+    },
+    {
+      "id": "03b",
+      "text": "It finds the World Bank's official indicators, tests the data service, and pulls twenty-five years for twenty-five economies."
+    },
+    {
+      "id": "03c",
+      "text": "Then it checks for gaps."
+    },
+    {
+      "id": "04a",
+      "text": "Next, Excel M C P Server. The agent drives the real Excel app."
+    },
+    {
+      "id": "04b",
+      "text": "It loads the data with Power Query, builds a Data Model with DAX measures, and adds analysis sheets, charts, and a PivotTable."
+    },
+    {
+      "id": "04c",
+      "text": "A checks sheet tests the key numbers."
+    },
+    {
+      "id": "04d",
+      "text": "When a step fails, the agent reads the error and tries another way."
+    },
+    {
+      "id": "05a",
+      "text": "Before it designs a single slide, the agent reads its results back from the workbook."
+    },
+    {
+      "id": "05b",
+      "text": "Every number on a slide comes from Excel."
+    },
+    {
+      "id": "06a",
+      "text": "Now, PowerPoint M C P Server."
+    },
+    {
+      "id": "06b",
+      "text": "The agent designs one slide as a template, exports it as a picture, and looks at it, the way a designer would."
+    },
+    {
+      "id": "06c",
+      "text": "Then it builds the other slides, with native, editable charts, headlines that state the insight, sources, and speaker notes."
+    },
+    {
+      "id": "06d",
+      "text": "It ran into a chart bug and a PowerPoint crash, and recovered on its own."
+    },
+    {
+      "id": "07a",
+      "text": "The result is a seven-slide briefing."
+    },
+    {
+      "id": "07b",
+      "text": "China's income per person grew almost six times."
+    },
+    {
+      "id": "07c",
+      "text": "The gap between the richest and poorest economies halved."
+    },
+    {
+      "id": "07d",
+      "text": "And internet use went from seven percent to ninety."
+    },
+    {
+      "id": "08a",
+      "text": "One request. Six hundred and twelve tool calls. Two M C P servers, and one A I model."
+    },
+    {
+      "id": "08b",
+      "text": "We checked the headline numbers against the World Bank. You still review the result, but the heavy lifting is done."
+    },
+    {
+      "id": "09a",
+      "text": "How was this video made? With another agentic workflow."
+    },
+    {
+      "id": "09b",
+      "text": "An A I agent recorded the run, cut the footage, wrote the script, and built this video with HyperFrames. A person approved it at key points."
+    }
+  ]
+}

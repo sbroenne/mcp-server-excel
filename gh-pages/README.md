@@ -149,6 +149,11 @@ title, description, thumbnail, player link and duration. The homepage keeps the
 original introduction's video entry. The packaging test also renders the sitemap
 template and checks that both videos remain associated with the correct pages.
 
+The World Bank Briefing page mirrors `samples/world-bank-briefing/README.md`
+the same way. `SAMPLE_ASSETS` publishes the agent's workbook and deck unchanged,
+plus four slide images from `videos/agentic-world-bank-briefing/assets/slides/fan/`.
+The homepage links both sample pages from its video cards.
+
 Both workflows that build the site check out with `fetch-depth: 0`, because the
 sitemap dates come from `git log`. On a shallow clone every page would claim the
 tip commit's date; `audit_site.py` fails the build when it sees that.
