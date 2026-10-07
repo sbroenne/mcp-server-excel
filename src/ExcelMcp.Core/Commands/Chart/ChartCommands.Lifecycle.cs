@@ -195,7 +195,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 shapes = worksheet.Shapes;
 
                 // Resolve the source before creating anything so a bad address leaves no chart behind.
-                sourceRangeObj = ChartSourceRange.Resolve(ctx.Book, sheetName, sourceRangeAddress);
+                sourceRangeObj = ChartSourceRange.Resolve(ctx.Book, sheetName, sourceRangeAddress, ct);
 
                 // Resolve final position: targetRange > explicit left/top > auto-position
                 double finalLeft = left;

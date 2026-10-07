@@ -60,13 +60,15 @@ internal static class SlicerPlacement
     /// Finds the destination sheet and anchor cell. The caller releases both.
     /// </summary>
     internal static (Excel.Worksheet Sheet, Excel.Range Anchor) ResolveDestination(
-        Excel.Workbook book, string sheetName, string position)
+        Excel.Workbook book, string sheetName, string position, CancellationToken ct)
     {
         var (column, row) = ParsePosition(sheetName, position);
-        var sheet = FindWorksheet(book, sheetName);
+        var sheet = FindWorksheet(book, sheetName, ct);
+        Excel.Range? cells = null;
         try
         {
-            Excel.Range anchor = sheet.Cells[row, column];
+            cells = sheet.Cells;
+            Excel.Range anchor = cells[row, column];
             return (sheet, anchor);
         }
         catch
@@ -74,9 +76,14 @@ internal static class SlicerPlacement
             ComUtilities.Release(ref sheet);
             throw;
         }
+        finally
+        {
+            ComUtilities.Release(ref cells);
+        }
     }
 
-    private static Excel.Worksheet FindWorksheet(Excel.Workbook book, string sheetName)
+    private static Excel.Worksheet FindWorksheet(
+        Excel.Workbook book, string sheetName, CancellationToken ct)
     {
         Excel.Sheets? worksheets = null;
         Excel.Worksheet? candidate = null;
@@ -85,6 +92,7 @@ internal static class SlicerPlacement
             worksheets = book.Worksheets;
             for (int index = 1; index <= worksheets.Count; index++)
             {
+                ct.ThrowIfCancellationRequested();
                 candidate = worksheets[index];
                 if (string.Equals(candidate.Name, sheetName, StringComparison.OrdinalIgnoreCase))
                 {

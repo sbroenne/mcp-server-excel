@@ -210,7 +210,7 @@ public class RegularChartStrategy : IChartStrategy
     }
 
     /// <inheritdoc />
-    public void SetSourceRange(dynamic chart, string sourceRange)
+    public void SetSourceRange(dynamic chart, string sourceRange, CancellationToken ct)
     {
         Excel.ChartObject? chartObject = null;
         Excel.Worksheet? chartSheet = null;
@@ -221,7 +221,7 @@ public class RegularChartStrategy : IChartStrategy
             chartObject = (Excel.ChartObject)chart.Parent;
             chartSheet = (Excel.Worksheet)chartObject.Parent;
             book = (Excel.Workbook)chartSheet.Parent;
-            sourceRangeObj = ChartSourceRange.Resolve(book, chartSheet.Name, sourceRange);
+            sourceRangeObj = ChartSourceRange.Resolve(book, chartSheet.Name, sourceRange, ct);
             ChartSourceRange.Apply(chart, sourceRangeObj, sourceRange);
         }
         finally

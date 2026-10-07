@@ -36,7 +36,7 @@ public partial class ChartCommands
                 // Determine strategy and delegate
                 IChartStrategy strategy = _pivotStrategy.CanHandle(findResult.Chart) ? _pivotStrategy : _regularStrategy;
 #pragma warning disable CS8604 // CodeQL false positive: Both strategies implement IChartStrategy.SetSourceRange with dynamic parameter
-                strategy.SetSourceRange(findResult.Chart, sourceRange);
+                strategy.SetSourceRange(findResult.Chart, sourceRange, ct);
 #pragma warning restore CS8604
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
@@ -186,4 +186,3 @@ public partial class ChartCommands
         }
     }
 }
-

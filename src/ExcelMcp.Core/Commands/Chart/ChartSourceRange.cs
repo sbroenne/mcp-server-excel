@@ -22,12 +22,13 @@ internal static class ChartSourceRange
     /// when the first block has no sheet name. Throws before any workbook change when the
     /// address is invalid, mixes sheets, or names a missing sheet.
     /// </summary>
-    internal static dynamic Resolve(dynamic book, string defaultSheetName, string sourceAddress)
+    internal static dynamic Resolve(
+        dynamic book, string defaultSheetName, string sourceAddress, CancellationToken ct)
     {
         var parsed = Parse(sourceAddress, defaultSheetName);
         try
         {
-            var sheetName = ActualSheetName(book, parsed.SheetName);
+            var sheetName = ActualSheetName(book, parsed.SheetName, ct);
             return RangeHelpers.ResolveRange(book, sheetName, string.Join(",", parsed.Blocks))!;
         }
         catch (OperationFailureException ex)
@@ -247,7 +248,7 @@ internal static class ChartSourceRange
     /// Returns the sheet's name as stored in the workbook, because Excel matches sheet names
     /// regardless of capital letters. A missing sheet keeps the given name so the range lookup reports it.
     /// </summary>
-    private static string ActualSheetName(dynamic book, string sheetName)
+    private static string ActualSheetName(dynamic book, string sheetName, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(sheetName))
         {
@@ -261,6 +262,7 @@ internal static class ChartSourceRange
             worksheets = (Excel.Sheets)book.Worksheets;
             for (int index = 1; index <= worksheets.Count; index++)
             {
+                ct.ThrowIfCancellationRequested();
                 sheet = worksheets[index];
                 if (string.Equals(sheet.Name, sheetName, StringComparison.OrdinalIgnoreCase))
                 {

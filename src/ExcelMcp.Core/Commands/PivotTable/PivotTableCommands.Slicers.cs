@@ -36,7 +36,7 @@ public partial class PivotTableCommands
                 // Check everything that can fail before Excel creates a slicer cache:
                 // a cache created for a request that then fails stays in the workbook.
                 SlicerPlacement.ValidateNewControlName((Excel.SlicerCaches)slicerCaches, slicerName, ct);
-                (destSheet, destRange) = SlicerPlacement.ResolveDestination(ctx.Book, destinationSheet, position);
+                (destSheet, destRange) = SlicerPlacement.ResolveDestination(ctx.Book, destinationSheet, position, ct);
 
                 // Get position in points from the cell reference
                 double top = Convert.ToDouble(destRange.Top);

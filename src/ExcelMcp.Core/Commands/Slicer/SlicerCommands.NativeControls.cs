@@ -23,9 +23,7 @@ public sealed partial class SlicerCommands
             try
             {
                 pivot = CoreLookupHelpers.FindPivotTable(ctx.Book, pivotTableName);
-                (sheet, anchor) = SlicerPlacement.ResolveDestination(ctx.Book, destinationSheet, position);
-                if (Convert.ToDouble(anchor.CountLarge, CultureInfo.InvariantCulture) != 1)
-                    throw new ArgumentException("Timeline position must be one anchor cell.");
+                (sheet, anchor) = SlicerPlacement.ResolveDestination(ctx.Book, destinationSheet, position, ct);
                 if (sheet.ProtectDrawingObjects)
                     throw new InvalidOperationException("Unprotect drawing objects before creating a timeline.");
                 caches = ctx.Book.SlicerCaches;

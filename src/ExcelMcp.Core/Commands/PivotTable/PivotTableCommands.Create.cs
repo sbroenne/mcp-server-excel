@@ -456,7 +456,11 @@ public partial class PivotTableCommands
         string step = $"Refreshing the new PivotTable '{pivotTableName}'";
         try
         {
-            pivotTable.RefreshTable();
+            if (!pivotTable.RefreshTable())
+            {
+                throw new InvalidOperationException("Excel did not refresh the new PivotTable.");
+            }
+
             step = $"Reading the location of the new PivotTable '{pivotTableName}'";
             tableRange2 = pivotTable.TableRange2;
             return tableRange2.Address;
