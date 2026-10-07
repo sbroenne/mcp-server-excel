@@ -14,7 +14,7 @@ voice_013  voice  2.2s  —      assets/voice/05b.wav  Every number on a slide c
 voice_014  voice  2.3s  —      assets/voice/06a.wav  Now, PowerPoint M C P Server.
 voice_015  voice  6.8s  —      assets/voice/06b.wav  The agent designs one slide as a template, exports it as a picture, and looks at it, the way a designer would.
 voice_016  voice  7s    —      assets/voice/06c.wav  Then it builds the other slides, with native, editable charts, headlines that state the insight, sources, and speaker notes.
-voice_017  voice  3.4s  —      assets/voice/06d.wav  It hit a bug in PowerPoint's chart editor, and worked around it.
+voice_017  voice  4.2s  —      assets/voice/06d.wav  It ran into a chart bug and a PowerPoint crash, and recovered on its own.
 voice_018  voice  2.3s  —      assets/voice/07a.wav  The result is a seven-slide briefing.
 voice_019  voice  2.9s  —      assets/voice/07b.wav  China's income per person grew almost six times.
 voice_020  voice  3s    —      assets/voice/07c.wav  The gap between the richest and poorest economies halved.

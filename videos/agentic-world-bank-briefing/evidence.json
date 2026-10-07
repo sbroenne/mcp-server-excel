@@ -41,6 +41,8 @@
   "independentVerification": "All slide headline numbers re-computed from live World Bank WDI API (lastupdated 2026-07-13) and match.",
   "issuesFiled": [
     "sbroenne/mcp-server-powerpoint#108",
+    "sbroenne/mcp-server-excel#1067",
+    "sbroenne/mcp-server-excel#1068",
     "sbroenne/mcp-server-excel#1072",
     "sbroenne/mcp-server-excel#1073"
   ],
