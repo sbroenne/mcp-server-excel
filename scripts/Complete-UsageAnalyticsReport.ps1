@@ -24,8 +24,8 @@ if ($interpretation.Length -lt 100 -or $interpretation.Length -gt 4000) {
 
 $requiredHeadings = @(
     "## What changed",
-    "## How well it worked",
     "## How people use it",
+    "## Where people get it",
     "## What we will improve"
 )
 foreach ($heading in $requiredHeadings) {

@@ -192,6 +192,71 @@
   background: var(--md-primary-fg-color);
 }
 
+.analytics-bars__track--work span,
+.analytics-bars__legend i.analytics-bars__swatch--work {
+  background: #d97706;
+}
+
+.analytics-bars__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  font-size: 0.75rem;
+}
+
+.analytics-bars__legend i {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-right: 0.3rem;
+  border-radius: 0.2rem;
+  background: var(--md-primary-fg-color);
+  vertical-align: -0.05rem;
+}
+
+.analytics-pies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 3rem;
+  margin: 1rem 0 1.6rem;
+}
+
+.analytics-pie {
+  margin: 0;
+}
+
+.analytics-pie figcaption {
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+  font-size: 0.8rem;
+}
+
+.analytics-pie__chart {
+  width: 9rem;
+  height: 9rem;
+  border-radius: 50%;
+}
+
+.md-typeset .analytics-pie__legend {
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.75rem;
+}
+
+.md-typeset .analytics-pie__legend li {
+  margin: 0.2rem 0;
+}
+
+.analytics-pie__legend i {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-right: 0.35rem;
+  border-radius: 0.2rem;
+  vertical-align: -0.05rem;
+}
+
 .analytics-week-chart {
   margin: 1.2rem 0 1.6rem;
 }
@@ -244,7 +309,6 @@
 
 .analytics-week-chart__week span {
   display: block;
-  min-height: 0.2rem;
   border-radius: 0.2rem 0.2rem 0 0;
   background: var(--md-primary-fg-color);
 }
@@ -256,6 +320,10 @@
   line-height: 1;
   text-overflow: clip;
   white-space: nowrap;
+}
+
+.analytics-week-chart__week small.analytics-week-chart__quiet {
+  visibility: hidden;
 }
 
 .analytics-version-chart {
