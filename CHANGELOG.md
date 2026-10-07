@@ -11,6 +11,12 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.3.5] - 2026-10-07
+
+### Patch Changes
+
+- [#1076](https://github.com/sbroenne/mcp-server-excel/pull/1076) [`39f20a1`](https://github.com/sbroenne/mcp-server-excel/commit/39f20a13268ffc08df9838d9125dcbcd51ba0692) Thanks [@sbroenne](https://github.com/sbroenne)! - **Consistent command and timeout names** ([#1066](https://github.com/sbroenne/mcp-server-excel/issues/1066)): `excelcli batch` now accepts the same command group names as the CLI (`calculationmode`, `datamodelrelationship`, `worksheetstyle`). Timeouts are named `--timeout-seconds` in the CLI, `timeoutSeconds` in batch JSON, and `timeout_seconds` in MCP. MCP `file` and `file_read` now take `file_path` instead of `path`. Mistyped commands or arguments now return a list of the valid choices. These are breaking changes; see [Breaking Changes](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/BREAKING-CHANGES.md).
+
 ## [2.3.4] - 2026-10-07
 
 ### Patch Changes
