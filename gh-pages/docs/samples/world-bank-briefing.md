@@ -1,6 +1,6 @@
 ---
-title: World Bank Briefing - Excel to PowerPoint with one agent
-description: Download the Excel analysis and 7-slide PowerPoint briefing one AI agent built from a single request, using Excel MCP Server and PowerPoint MCP Server with World Bank data.
+title: World Bank Briefing - Excel to PowerPoint
+description: Watch one AI agent turn World Bank data into an Excel analysis and a 7-slide PowerPoint briefing from a single request, then download both files.
 keywords: agentic workflow, Excel MCP, PowerPoint MCP, World Bank, executive briefing, Power Query, Data Model
 ---
 
