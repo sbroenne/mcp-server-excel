@@ -57,6 +57,12 @@ function Read-UsageAnalyticsWeights {
         @($levels.Values | Sort-Object -Unique).Count -ne $levels.Count) {
         throw "Usage analytics weights levels must be non-empty and distinct."
     }
+    # The page and the summary prompt describe these three levels and values.
+    $expectedLevels = @{ light = 1; medium = 3; heavy = 10 }
+    if ($levels.Count -ne $expectedLevels.Count -or
+        @($expectedLevels.Keys | Where-Object { $levels[$_] -ne $expectedLevels[$_] }).Count -gt 0) {
+        throw "Usage analytics weights levels must be exactly light 1, medium 3, and heavy 10."
+    }
 
     $features = @($source.features)
     if ($features.Count -eq 0 -or

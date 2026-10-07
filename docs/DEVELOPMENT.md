@@ -594,9 +594,11 @@ versus weekend use, and how soon people first try advanced areas. Session
 figures cover the AI assistant (MCP Server) only, because every `excelcli`
 command runs as its own process. Waits depend on workbook size and the
 user's machine, so they show which areas are heavier, not product speed.
-Every habit group (session size, weekday, returning-user group, area) needs at
-least `minimumUsers` users; smaller groups are published only as
-`enoughData: false` but still count toward totals and averages. First use of
+Every habit group needs at least `minimumUsers` users, and small groups are
+handled in one of two ways. Session size, weekday, and returning-user groups
+that are too small are published only as `enoughData: false` but still count
+toward totals and averages. Areas used together, typical wait by area, and
+first use of advanced areas leave out too-small rows entirely. First use of
 advanced areas covers only people first seen in the last
 `firstAdvancedUseWindowDays` days, well inside the 90-day log retention.
 

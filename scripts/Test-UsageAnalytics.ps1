@@ -404,6 +404,8 @@ try {
     $invalidWeights = @{
         "unknown level" = $validWeights.Replace('"get-values": "light"', '"get-values": "enormous"')
         "positive whole number" = $validWeights.Replace('"heavy": 10', '"heavy": 0')
+        "exactly light 1" = $validWeights.Replace('"heavy": 10', '"heavy": 9')
+        "medium 3, and heavy 10" = $validWeights.Replace('"heavy": 10', '"heavy": 10, "huge": 30')
         "repeat" = $validWeights.Replace('"get-values": "light",', '"get-values": "light", "get-values": "heavy",')
         "unknown tool" = $validWeights.Replace('"rangeformat": ["range_format"]', '"rangeformat": ["range_formats"]')
         "unknown feature" = $validWeights.Replace('"feature": "power-query"', '"feature": "power-queries"')
