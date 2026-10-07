@@ -34,7 +34,7 @@ const scenes = [
 const clipStart = { ask: 13, research: 27, excel: 42, 'ppt-a': 82, 'ppt-b': 103.5 };
 const clips = footage.clips.map(c => ({ ...c, start: clipStart[c.id], speed: (c.srcEnd - c.srcStart) / c.duration }));
 for (const c of clips) {
-  if (!fs.existsSync(`assets/footage/${c.id}.mp4`)) throw new Error(`Missing assets/footage/${c.id}.mp4; run npm run footage -- <recording>`);
+  if (!fs.existsSync(`assets/footage/${c.id}.mp4`)) throw new Error(`Missing assets/footage/${c.id}.mp4. Footage clips are not committed (about 41 MB); regenerate them from the original OBS recording with npm run footage -- <recording>. The published video is https://youtu.be/_z-twdXG2fA.`);
 }
 const elapsed = (c, t) => Math.max(0, c.srcStart - footage.promptAt + (t - c.start) * c.speed);
 const mmss = s => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(Math.floor(s % 60)).padStart(2, '0')}`;

@@ -32,7 +32,11 @@ media-use audio script and the local Kokoro `af_heart` voice.
 ## Footage
 
 The raw OBS recording stays outside the repository. `assets/footage/` is
-git-ignored and regenerated from it:
+git-ignored on purpose: the prepared clips are about 41 MB, and committing them
+would add that size to every clone. A clean checkout therefore cannot build or
+render the video; `npm run build` stops with a missing-footage error. The
+published video is https://youtu.be/_z-twdXG2fA. Regenerate the clips from the
+recording:
 
 ```powershell
 npm run footage -- <path-to-recording.mp4>
