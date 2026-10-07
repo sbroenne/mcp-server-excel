@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Telemetry;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Service;
 using Xunit;
 
@@ -326,6 +328,59 @@ public sealed class CliTelemetryTests
 
         Assert.Equal(1, exitCode);
         Assert.Equal([("session.test", true, true)], trackedInvocations);
+    }
+
+    [Fact]
+    public async Task TrackCommandAsync_RefreshAllFailure_TracksFailureWithResultCategory()
+    {
+        var tracked = new List<(string Command, bool Succeeded, string? ErrorCategory, bool ExpectedNegative)>();
+        var refreshAll = new PowerQueryRefreshAllResult
+        {
+            Success = false,
+            ErrorMessage = "1 of 2 queries failed to refresh: 'Broken'.",
+            RefreshedQueries = ["Good"],
+            FailedQueries =
+            [
+                new PowerQueryRefreshFailure
+                {
+                    QueryName = "Broken",
+                    ErrorCategory = "Expression",
+                    ErrorMessage = "[Expression.Error] The name 'Missing' wasn't recognized.",
+                    ExceptionType = "COMException",
+                    HResult = "0x800A03EC"
+                }
+            ]
+        };
+
+        await CliTelemetry.TrackCommandAsync(
+            new ServiceRequest { Command = "powerquery.refresh-all" },
+            () => Task.FromResult(new ServiceResponse
+            {
+                Success = true,
+                Result = JsonSerializer.Serialize(refreshAll, ServiceProtocol.JsonOptions)
+            }),
+            (command, _, succeeded, errorCategory, expectedNegative) =>
+                tracked.Add((command, succeeded, errorCategory, expectedNegative)));
+
+        Assert.Equal([("powerquery.refresh-all", false, "Expression", false)], tracked);
+    }
+
+    [Fact]
+    public async Task TrackCommandAsync_FileTestCanOpenFalse_RemainsExpectedNegative()
+    {
+        var tracked = new List<(string Command, bool Succeeded, string? ErrorCategory, bool ExpectedNegative)>();
+
+        await CliTelemetry.TrackCommandAsync(
+            new ServiceRequest { Command = "session.test" },
+            () => Task.FromResult(new ServiceResponse
+            {
+                Success = true,
+                Result = """{"success":false,"canOpen":false}"""
+            }),
+            (command, _, succeeded, errorCategory, expectedNegative) =>
+                tracked.Add((command, succeeded, errorCategory, expectedNegative)));
+
+        Assert.Equal([("session.test", true, (string?)null, true)], tracked);
     }
 
     [Fact]

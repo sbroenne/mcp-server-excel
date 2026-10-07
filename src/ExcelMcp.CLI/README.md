@@ -185,6 +185,12 @@ foreach ($file in $files) {
 }
 ```
 
+Each command prints a JSON result and exits with code 0 on success. It exits
+with code 1 when the command fails or its result reports `success: false` (for
+example, a `powerquery refresh-all` where one query failed), so scripts can
+check `$LASTEXITCODE`. In `batch` output, such a line has `success: false`, and
+`--stop-on-error` stops there.
+
 ### CI/CD Integration
 
 Excel COM requires a self-hosted Windows runner with desktop Excel installed; GitHub-hosted runners do not include Excel.

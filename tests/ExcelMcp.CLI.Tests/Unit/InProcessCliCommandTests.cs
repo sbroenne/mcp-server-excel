@@ -545,6 +545,118 @@ public sealed class InProcessCliCommandTests
     }
 
     [Fact]
+    public async Task ServiceCommand_ResultReportsSuccessFalse_PrintsResultAndExitsNonzero()
+    {
+        const string result = """{"success":false,"errorMessage":"1 of 2 queries failed to refresh: 'Broken'.","refreshedQueries":["Good"],"skippedQueries":[],"failedQueries":[{"queryName":"Broken","errorCategory":"Expression","errorMessage":"[Expression.Error] bad","exceptionType":"COMException","hresult":"0x800A03EC"}]}""";
+        var telemetry = new List<(string Command, bool Succeeded, string? ErrorCategory, bool ExpectedNegative)>();
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = result });
+        var output = new StringWriter();
+        var error = new StringWriter();
+
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "powerquery", "refresh-all", "--session", "session-1"],
+            CreateRuntime(factory, output, error,
+                telemetryObserver: (command, _, succeeded, errorCategory, expectedNegative) =>
+                    telemetry.Add((command, succeeded, errorCategory, expectedNegative))));
+
+        Assert.Equal(1, exitCode);
+        Assert.Empty(error.ToString());
+        Assert.Equal("powerquery.refresh-all", Assert.Single(factory.Requests).Command);
+        Assert.Equal(result, output.ToString().Trim());
+        var tracked = Assert.Single(telemetry);
+        Assert.False(tracked.Succeeded);
+        Assert.False(tracked.ExpectedNegative);
+    }
+
+    [Fact]
+    public async Task ServiceCommand_ResultReportsSuccessFalseWithOutputPath_DoesNotReportWrittenFile()
+    {
+        const string result = """{"success":false,"errorMessage":"Range is empty."}""";
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = result });
+        var output = new StringWriter();
+        var outputPath = Path.Combine(Path.GetTempPath(), $"excelcli-negative-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var exitCode = await Program.RunAsync(
+                ["--quiet", "powerquery", "refresh-all", "--session", "session-1", "--output", outputPath],
+                CreateRuntime(factory, output, new StringWriter()));
+
+            Assert.Equal(1, exitCode);
+            Assert.False(File.Exists(outputPath));
+            Assert.Equal(result, output.ToString().Trim());
+        }
+        finally
+        {
+            File.Delete(outputPath);
+        }
+    }
+
+    [Fact]
+    public async Task Batch_ResultReportsSuccessFalse_MarksLineFailedAndHonorsStopOnError()
+    {
+        const string negative = """{"success":false,"errorMessage":"1 of 1 queries failed to refresh: 'Broken'.","errorCategory":"Expression"}""";
+        var factory = new RecordingClientFactory(
+            new ServiceResponse { Success = true, Result = negative },
+            new ServiceResponse { Success = true, Result = """{"success":true}""" });
+        var output = new StringWriter();
+        var runtime = CreateRuntime(
+            factory,
+            output,
+            new StringWriter(),
+            """
+            {"command":"powerquery.refresh-all","sessionId":"session-1"}
+            {"command":"diag.echo","args":{"message":"after"}}
+            """);
+
+        var exitCode = await Program.RunAsync(["--quiet", "batch", "--stop-on-error"], runtime);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal("powerquery.refresh-all", Assert.Single(factory.Requests).Command);
+        using var line = JsonDocument.Parse(Assert.Single(
+            output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)));
+        Assert.False(line.RootElement.GetProperty("success").GetBoolean());
+        Assert.False(line.RootElement.GetProperty("result").GetProperty("success").GetBoolean());
+        Assert.Equal(
+            "1 of 1 queries failed to refresh: 'Broken'.",
+            line.RootElement.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task Batch_FileTestCanOpenFalse_MarksLineFailedAndContinues()
+    {
+        var factory = new RecordingClientFactory(
+            new ServiceResponse { Success = true, Result = """{"success":false,"canOpen":false}""" },
+            new ServiceResponse { Success = true, Result = """{"success":true}""" });
+        var output = new StringWriter();
+        var runtime = CreateRuntime(
+            factory,
+            output,
+            new StringWriter(),
+            """
+            {"command":"session.test","args":{"filePath":"C:\\workbooks\\missing.xlsx"}}
+            {"command":"diag.echo","args":{"message":"after"}}
+            """);
+
+        var exitCode = await Program.RunAsync(["--quiet", "batch"], runtime);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal(2, factory.Requests.Count);
+        var lines = output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(2, lines.Length);
+        using (var first = JsonDocument.Parse(lines[0]))
+        {
+            Assert.False(first.RootElement.GetProperty("success").GetBoolean());
+            Assert.False(first.RootElement.GetProperty("result").GetProperty("canOpen").GetBoolean());
+            Assert.False(string.IsNullOrWhiteSpace(first.RootElement.GetProperty("error").GetString()));
+        }
+        using (var second = JsonDocument.Parse(lines[1]))
+        {
+            Assert.True(second.RootElement.GetProperty("success").GetBoolean());
+        }
+    }
+
+    [Fact]
     public async Task SessionTest_CanOpenFalse_TracksExpectedNegative()
     {
         var telemetry = new List<(string Command, bool Succeeded, string? ErrorCategory, bool ExpectedNegative)>();

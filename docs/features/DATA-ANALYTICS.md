@@ -20,8 +20,9 @@ MCP tool descriptions; the linked guides explain practical decisions and workflo
 Creating or loading a query can execute its data sources. Evaluation also runs
 code and temporarily changes the workbook, so it is not a read-only audit.
 Failed loads can leave objects behind; inspect what survived before retrying.
-Definition-only staging queries cannot refresh independently, and a batch
-refresh failure does not roll back loads that already finished.
+Workbook-wide refresh skips parameter and definition-only staging queries,
+keeps going past a failed query, and names each refreshed, skipped, and failed
+query. A failure does not roll back loads that already finished.
 
 M code is preserved unless remote formatting is requested. Remote formatting
 sends code to an external service and needs consent.

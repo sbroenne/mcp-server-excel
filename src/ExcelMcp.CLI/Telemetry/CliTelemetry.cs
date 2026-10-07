@@ -8,6 +8,7 @@ using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Channel;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.Extensibility;
+using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Generated;
@@ -87,7 +88,14 @@ internal static class CliTelemetry
         {
             stopwatch.Stop();
             var invocationTelemetry = CurrentInvocationTelemetry.Value;
-            var trackedFailureCategory = response?.ErrorCategory ?? failureCategory;
+            string? resultErrorCategory = null;
+            var negativeResult = response?.Success == true &&
+                ServiceResultOutcome.TryReadNegative(response.Result, out _, out resultErrorCategory);
+            var expectedNegative = IsExpectedNegative(request, response);
+            var succeeded = response?.Success == true && (!negativeResult || expectedNegative);
+            var trackedFailureCategory = response?.ErrorCategory
+                ?? (expectedNegative ? null : resultErrorCategory)
+                ?? failureCategory;
             if (invocationTelemetry != null && response?.Success != true)
             {
                 invocationTelemetry.FailureCategory ??= trackedFailureCategory;
@@ -99,11 +107,10 @@ internal static class CliTelemetry
                 {
                     invocationTelemetry.RequestTracked = true;
                 }
-                var expectedNegative = IsExpectedNegative(request, response);
                 trackInvocation(
                     request.Command,
                     stopwatch.ElapsedMilliseconds,
-                    response?.Success == true,
+                    succeeded,
                     trackedFailureCategory,
                     expectedNegative);
             }

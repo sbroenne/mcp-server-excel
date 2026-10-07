@@ -101,6 +101,18 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
                 ? response.Result
                 : JsonSerializer.Serialize(new { success = true }, ServiceProtocol.JsonOptions);
 
+            // A delivered result can still report a failed operation (success:false).
+            // Print it as-is so the details are visible, and exit nonzero like MCP's isError.
+            if (ServiceResultOutcome.TryReadNegative(result, out _, out var errorCategory))
+            {
+                if (!string.IsNullOrWhiteSpace(errorCategory))
+                {
+                    CliTelemetry.RecordFinalFailure(errorCategory);
+                }
+                CliCommandRuntime.Current.Output.WriteLine(result);
+                return 1;
+            }
+
             if (!string.IsNullOrEmpty(outputPath))
             {
                 return WriteOutputToFile(result, outputPath);

@@ -95,12 +95,15 @@ public partial class PowerQueryCommands
     }
 
     /// <summary>
-    /// Refreshes all Power Query queries in the workbook
+    /// Refreshes every Power Query in the workbook. Queries with nothing to refresh on their
+    /// own (parameter and connection-only staging queries) are skipped. A failed query is
+    /// recorded and the remaining queries are still refreshed; nothing is rolled back.
+    /// Timeouts, cancellation, and Excel disconnects stop the operation immediately.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="timeout">Maximum time to wait for all refreshes to complete</param>
-    /// <exception cref="InvalidOperationException">Thrown when refresh fails</exception>
-    public OperationResult RefreshAll(IExcelBatch batch, TimeSpan timeout = default, IProgress<ProgressInfo>? progress = null)
+    /// <param name="progress">Optional progress reporter</param>
+    public PowerQueryRefreshAllResult RefreshAll(IExcelBatch batch, TimeSpan timeout = default, IProgress<ProgressInfo>? progress = null)
     {
         timeout = NormalizeRefreshTimeout(timeout);
 
@@ -108,68 +111,177 @@ public partial class PowerQueryCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            Excel.Queries? queries = null;
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
+            var queryNames = ReadQueryNames(ctx.Book, linkedCts.Token);
+
+            // Use the same robust strategy as single-query Refresh:
+            // 1) QueryTable.Refresh(false) for worksheet-loaded queries
+            // 2) Connection.Refresh() for Data Model queries
+            var result = RefreshQueries(
+                queryNames,
+                queryName => RefreshConnectionByQueryName(ctx.Book, queryName, linkedCts.Token),
+                linkedCts.Token,
+                progress);
+            result.FilePath = batch.WorkbookPath;
+            return result;
+        }, timeoutCts.Token);
+    }
+
+    internal static PowerQueryRefreshAllResult RefreshQueries(
+        IReadOnlyList<string> queryNames,
+        Func<string, bool> refreshQuery,
+        CancellationToken cancellationToken,
+        IProgress<ProgressInfo>? progress = null)
+    {
+        var result = new PowerQueryRefreshAllResult();
+        int total = queryNames.Count;
+
+        for (int i = 0; i < total; i++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            string queryName = queryNames[i];
+            progress?.Report(new ProgressInfo { Current = i, Total = total, Message = $"Refreshing '{queryName}' ({i + 1}/{total})" });
 
             try
             {
-                queries = ctx.Book.Queries;
-                int totalQueries = queries.Count;
-                var errors = new List<string>();
-
-                for (int i = 1; i <= totalQueries; i++)
+                if (refreshQuery(queryName))
                 {
-                    Excel.WorkbookQuery? query = null;
-                    try
-                    {
-                        query = queries.Item(i);
-                        string queryName = query.Name;
-
-                        progress?.Report(new ProgressInfo { Current = i - 1, Total = totalQueries, Message = $"Refreshing '{queryName}' ({i}/{totalQueries})" });
-
-                        // Use the same robust strategy as single-query Refresh:
-                        // 1) QueryTable.Refresh(false) for worksheet-loaded queries
-                        // 2) Connection.Refresh() for Data Model queries
-                        bool refreshed;
-                        try
-                        {
-                            refreshed = RefreshConnectionByQueryName(ctx.Book, queryName, timeoutCts.Token);
-                        }
-                        catch (Exception ex) when (TryWrapPowerQueryException(ex, out var pqEx))
-                        {
-                            errors.Add($"{queryName} [{pqEx!.ErrorCategory}]: {pqEx.Message}");
-                            continue;
-                        }
-                        catch (COMException ex)
-                        {
-                            errors.Add($"{queryName}: {ex.Message}");
-                            continue;
-                        }
-
-                        if (!refreshed)
-                        {
-                            errors.Add(MissingRefreshDestinationMessage(queryName));
-                        }
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref query!);
-                    }
+                    result.RefreshedQueries.Add(queryName);
                 }
-
-                // Throw if any errors occurred
-                if (errors.Count > 0)
+                else
                 {
-                    throw new InvalidOperationException($"Some queries failed to refresh: {string.Join(", ", errors)}");
+                    result.SkippedQueries.Add(new PowerQueryRefreshSkip
+                    {
+                        QueryName = queryName,
+                        Reason = NothingToRefreshReason
+                    });
                 }
-
-                progress?.Report(new ProgressInfo { Current = totalQueries, Total = totalQueries, Message = "All queries refreshed" });
-                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
-            finally
+            catch (Exception ex) when (IsRecordableQueryFailure(ex, cancellationToken))
             {
-                ComUtilities.Release(ref queries!);
+                result.FailedQueries.Add(CreateRefreshFailure(queryName, ex));
             }
-        }, timeoutCts.Token);
+        }
+
+        progress?.Report(new ProgressInfo { Current = total, Total = total, Message = "Refresh-all finished" });
+
+        string summary = SummarizeRefreshAll(result);
+        if (result.FailedQueries.Count > 0)
+        {
+            result.Success = false;
+            result.ErrorMessage =
+                $"{result.FailedQueries.Count} of {total} queries failed to refresh: " +
+                $"{string.Join(", ", result.FailedQueries.Select(f => $"'{f.QueryName}'"))}. " +
+                "Nothing was rolled back; " + summary +
+                " Inspect failedQueries for each error, then refresh failed queries by name after fixing them.";
+            return result;
+        }
+
+        result.Success = true;
+        result.Message = summary;
+        return result;
+    }
+
+    private const string NothingToRefreshReason =
+        "No worksheet table, Data Model table, or workbook connection to refresh. " +
+        "Parameter and connection-only staging queries are evaluated when the loaded queries that use them refresh.";
+
+    private static List<string> ReadQueryNames(Excel.Workbook workbook, CancellationToken cancellationToken)
+    {
+        var names = new List<string>();
+        Excel.Queries? queries = null;
+        try
+        {
+            queries = workbook.Queries;
+            int count = queries.Count;
+            for (int i = 1; i <= count; i++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Excel.WorkbookQuery? query = null;
+                try
+                {
+                    query = queries.Item(i);
+                    names.Add(query.Name);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref query);
+                }
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref queries);
+        }
+
+        return names;
+    }
+
+    private static bool IsRecordableQueryFailure(Exception exception, CancellationToken cancellationToken)
+    {
+        // Timeouts, cancellation (by the caller or by Excel), and a dead/disconnected Excel
+        // must stop the whole operation so the batch and Service layers can report them and
+        // recover the session.
+        if (cancellationToken.IsCancellationRequested ||
+            exception is OperationCanceledException or TimeoutException)
+        {
+            return false;
+        }
+
+        for (Exception? current = exception; current != null; current = current.InnerException)
+        {
+            if (current is COMException comException && IsFatalExcelDisconnect(comException))
+            {
+                return false;
+            }
+
+            if (current is OperationFailureException { ErrorCategory: OperationFailureCategory.Cancelled })
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private static bool IsFatalExcelDisconnect(COMException exception) =>
+        exception.HResult is ResiliencePipelines.RPC_E_DISCONNECTED
+            or ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE
+            or ResiliencePipelines.RPC_E_CALL_FAILED;
+
+    private static PowerQueryRefreshFailure CreateRefreshFailure(string queryName, Exception exception)
+    {
+        string? category = exception switch
+        {
+            PowerQueryCommandException pq => pq.ErrorCategory,
+            OperationFailureException failure => failure.ErrorCategory.ToString(),
+            _ => ClassifyPowerQueryError(exception.Message)
+        };
+
+        // Our own wrapper exceptions carry no HRESULT; report the underlying Excel/COM one.
+        Exception? origin = exception is PowerQueryCommandException or OperationFailureException
+            ? exception.InnerException
+            : exception;
+
+        return new PowerQueryRefreshFailure
+        {
+            QueryName = queryName,
+            ErrorCategory = category,
+            ErrorMessage = exception.Message,
+            ExceptionType = exception.GetType().Name,
+            HResult = origin != null ? $"0x{origin.HResult:X8}" : null
+        };
+    }
+
+    private static string SummarizeRefreshAll(PowerQueryRefreshAllResult result)
+    {
+        string refreshed = result.RefreshedQueries.Count == 0
+            ? "no queries were refreshed."
+            : $"refreshed {result.RefreshedQueries.Count}: {string.Join(", ", result.RefreshedQueries.Select(n => $"'{n}'"))}.";
+        string skipped = result.SkippedQueries.Count == 0
+            ? string.Empty
+            : $" Skipped {result.SkippedQueries.Count} with nothing to refresh: {string.Join(", ", result.SkippedQueries.Select(s => $"'{s.QueryName}'"))}.";
+        return char.ToUpperInvariant(refreshed[0]) + refreshed[1..] + skipped;
     }
 
     internal static TimeSpan NormalizeRefreshTimeout(TimeSpan timeout)

@@ -203,12 +203,15 @@ public sealed partial class PersistentServicePowerQueryRefreshTests(
             TimeSpan.Zero));
 
         Assert.True(result.Success, $"RefreshAll failed: {result.ErrorMessage}");
+        Assert.Equal([first, second], result.RefreshedQueries);
+        Assert.Empty(result.SkippedQueries);
+        Assert.Empty(result.FailedQueries);
         AssertWorksheetValue(first, 41);
         AssertWorksheetValue(second, 82);
     }
 
     [Fact]
-    public void RefreshAll_DefinitionOnlyStage_ReportsNamedRefreshRecoveryAndRefreshesLoadedDependent()
+    public void RefreshAll_DefinitionOnlyStage_SkipsStageAndRefreshesLoadedDependent()
     {
         var stageName = UniqueName("Stage");
         RequireSuccess(_queries.Create(
@@ -231,20 +234,81 @@ public sealed partial class PersistentServicePowerQueryRefreshTests(
         Assert.Equal("X", pending.Values[0][0]);
         Assert.Equal(1d, Convert.ToDouble(pending.Values[1][0], System.Globalization.CultureInfo.InvariantCulture));
 
-        var error = Assert.Throws<InvalidOperationException>(() =>
-            _queries.RefreshAll(_fixture.BatchToken, TimeSpan.FromMinutes(1)));
-        Assert.Contains(stageName, error.Message, StringComparison.Ordinal);
-        Assert.Contains("loaded dependent", error.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("powerquery refresh", error.Message, StringComparison.OrdinalIgnoreCase);
+        var result = RequireSuccess(_queries.RefreshAll(_fixture.BatchToken, TimeSpan.FromMinutes(1)));
+
+        Assert.Equal([loadedName], result.RefreshedQueries);
+        var skipped = Assert.Single(result.SkippedQueries);
+        Assert.Equal(stageName, skipped.QueryName);
+        Assert.Contains("connection-only", skipped.Reason, StringComparison.OrdinalIgnoreCase);
+        Assert.Empty(result.FailedQueries);
+        Assert.Contains(stageName, result.Message, StringComparison.Ordinal);
         PowerQueryStateAssertions.AssertStored(_fixture, loadedName, stageName,
             PowerQueryLoadMode.LoadToTable, loadedName, ["X"], [[42]]);
         PowerQueryStateAssertions.AssertStored(_fixture, stageName, changedCode,
             PowerQueryLoadMode.ConnectionOnly, null, ["X"], [[42]]);
-        var recovery = RequireSuccess(_queries.Refresh(
-            _fixture.BatchToken, loadedName, TimeSpan.FromMinutes(1)));
-        AssertRefreshMetadata(recovery, loadedName, loadedName);
-        PowerQueryStateAssertions.AssertStored(_fixture, loadedName, stageName,
-            PowerQueryLoadMode.LoadToTable, loadedName, ["X"], [[42]]);
+    }
+
+    [Fact]
+    public void RefreshAll_ParameterQuery_SkipsParameterAndRefreshesQueryThatUsesIt()
+    {
+        var parameterName = UniqueName("pCountry");
+        const string usaParameter =
+            "\"USA\" meta [IsParameterQuery=true, Type=\"Text\", IsParameterQueryRequired=true]";
+        const string deuParameter =
+            "\"DEU\" meta [IsParameterQuery=true, Type=\"Text\", IsParameterQueryRequired=true]";
+        RequireSuccess(_queries.Create(
+            _fixture.BatchToken, parameterName, usaParameter,
+            PowerQueryLoadMode.ConnectionOnly));
+        _fixture.RegisterPowerQueryForCleanup(parameterName);
+        var loadedName = UniqueName("Countries");
+        var loadedCode = $"let Source = #table({{\"Country\"}}, {{{{{parameterName}}}}}) in Source";
+        RequireSuccess(_queries.Create(
+            _fixture.BatchToken, loadedName, loadedCode,
+            PowerQueryLoadMode.LoadToTable, loadedName));
+        _fixture.RegisterPowerQueryForCleanup(loadedName);
+        _fixture.RegisterSheetForCleanup(loadedName);
+        PowerQueryStateAssertions.AssertStored(_fixture, loadedName, loadedCode,
+            PowerQueryLoadMode.LoadToTable, loadedName, ["Country"], [["USA"]]);
+        RequireSuccess(_queries.Update(
+            _fixture.BatchToken, parameterName, deuParameter, refresh: false));
+        PowerQueryStateAssertions.AssertStored(_fixture, loadedName, loadedCode,
+            PowerQueryLoadMode.LoadToTable, loadedName, ["Country"], [["USA"]]);
+
+        var result = RequireSuccess(_queries.RefreshAll(_fixture.BatchToken, TimeSpan.FromMinutes(1)));
+
+        Assert.Equal([loadedName], result.RefreshedQueries);
+        Assert.Equal([parameterName], result.SkippedQueries.Select(s => s.QueryName));
+        Assert.Empty(result.FailedQueries);
+        PowerQueryStateAssertions.AssertStored(_fixture, loadedName, loadedCode,
+            PowerQueryLoadMode.LoadToTable, loadedName, ["Country"], [["DEU"]]);
+        PowerQueryStateAssertions.AssertStored(_fixture, parameterName, deuParameter,
+            PowerQueryLoadMode.ConnectionOnly, null, ["Country"], [["DEU"]]);
+    }
+
+    [Fact]
+    public void RefreshAll_OneQueryFails_RefreshesRemainingQueriesAndReportsFailure()
+    {
+        var broken = CreateWorksheetQuery("RefreshAllBroken");
+        var good = CreateWorksheetQuery("RefreshAllGood");
+        StageSource(broken, "let Source = NonExistentFunction() in Source");
+        StageWorksheetUpdate(good, 64);
+
+        var result = _queries.RefreshAll(_fixture.BatchToken, TimeSpan.FromMinutes(1));
+
+        Assert.False(result.Success);
+        Assert.False(string.IsNullOrWhiteSpace(result.ErrorMessage));
+        Assert.Contains(broken, result.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains(good, result.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("rolled back", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal([good], result.RefreshedQueries);
+        Assert.Empty(result.SkippedQueries);
+        var failure = Assert.Single(result.FailedQueries);
+        Assert.Equal(broken, failure.QueryName);
+        Assert.Equal("Expression", failure.ErrorCategory);
+        Assert.Contains("NonExistentFunction", failure.ErrorMessage, StringComparison.Ordinal);
+        Assert.False(string.IsNullOrWhiteSpace(failure.ExceptionType));
+        AssertWorksheetValue(good, 64);
+        AssertWorksheetValue(broken, 1);
     }
 
     private string CreateWorksheetQuery(string prefix)
