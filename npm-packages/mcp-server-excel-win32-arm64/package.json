@@ -1,7 +1,7 @@
 {
   "name": "@sbroenne/mcp-server-excel-win32-arm64",
   "version": "0.0.0-development",
-  "description": "Windows ARM64 runtime for the ExcelMcp MCP server.",
+  "description": "Windows ARM64 runtime for @sbroenne/mcp-server-excel, the Microsoft Excel automation MCP server. Requires desktop Excel.",
   "license": "MIT",
   "main": "mcp-excel.exe",
   "files": [
