@@ -51,7 +51,7 @@ returns the full source of one module.
 ## Run a macro
 
 ```powershell
-excelcli -q vba run --session $session --procedure-name "Module1.GenerateReport" --timeout 120
+excelcli -q vba run --session $session --procedure-name "Module1.GenerateReport" --timeout-seconds 120
 ```
 
 The procedure name uses `Module.Procedure` form. Pass arguments with

@@ -27,7 +27,7 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
         {
             ParameterTransforms.ValidateTimeoutSeconds(
                 settings.TimeoutSeconds,
-                "timeout",
+                "timeoutSeconds",
                 minimumSeconds: 10,
                 maximumSeconds: 3600);
         }
@@ -68,7 +68,7 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
         [Description("Path to the new Excel file to create")]
         public string FilePath { get; init; } = string.Empty;
 
-        [CommandOption("--timeout <SECONDS>")]
+        [CommandOption("--timeout-seconds <SECONDS>")]
         [Description("Session open/create and operation timeout in whole seconds (default: 120; range: 10-3600)")]
         public int? TimeoutSeconds { get; init; }
 
@@ -91,7 +91,7 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
         {
             ParameterTransforms.ValidateTimeoutSeconds(
                 settings.TimeoutSeconds,
-                "timeout",
+                "timeoutSeconds",
                 minimumSeconds: 10,
                 maximumSeconds: 3600);
         }
@@ -132,7 +132,7 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
         [Description("Path to the Excel file to open")]
         public string FilePath { get; init; } = string.Empty;
 
-        [CommandOption("--timeout <SECONDS>")]
+        [CommandOption("--timeout-seconds <SECONDS>")]
         [Description("Session open and operation timeout in whole seconds (default: 120; range: 10-3600)")]
         public int? TimeoutSeconds { get; init; }
 
@@ -269,7 +269,7 @@ internal sealed class SessionTestCommand : AsyncCommand<SessionTestCommand.Setti
         {
             ParameterTransforms.ValidateTimeoutSeconds(
                 settings.TimeoutSeconds,
-                "timeout",
+                "timeoutSeconds",
                 minimumSeconds: 10,
                 maximumSeconds: 3600);
         }
@@ -335,7 +335,7 @@ internal sealed class SessionTestCommand : AsyncCommand<SessionTestCommand.Setti
         [Description("Full path to test for existence, validity, openability, and IRM/AIP requirements")]
         public string FilePath { get; init; } = string.Empty;
 
-        [CommandOption("--timeout <SECONDS>")]
+        [CommandOption("--timeout-seconds <SECONDS>")]
         [Description("Excel validation open timeout in whole seconds (default: 120; range: 10-3600)")]
         public int? TimeoutSeconds { get; init; }
     }

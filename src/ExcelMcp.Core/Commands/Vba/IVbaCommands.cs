@@ -21,7 +21,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// Running an existing macro does not require VBA project access.
 /// ExcelMcp does not configure VBA trust settings for you.
 /// </summary>
-[ServiceCategory("vba", "Vba")]
+[ServiceCategory("Vba")]
 [McpTool("vba", Title = "VBA Operations", Destructive = true, Category = "automation",
     Description = "Import standard VBA modules, update or delete module code, and run procedures in macro-enabled workbooks (.xlsm). VBA project editing requires Trust Center access; running an existing macro does not. ExcelMcp does not configure Trust Center settings.")]
 [McpReadOnlyActions("list", "view")]

@@ -883,7 +883,7 @@ public sealed class PersistentServiceWorkbookTestScope(
             try
             {
                 await fixture.SendAsync(
-                    "sheetstyle.show",
+                    "worksheetstyle.show",
                     new { sheetName = _sheets[index] });
                 await fixture.SendAsync("sheet.delete", new { sheetName = _sheets[index] });
             }

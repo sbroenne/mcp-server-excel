@@ -18,7 +18,7 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
     public void PageSetup_ReadsPrintScopeMarginsAndHeaders()
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
-        _fixture.Send("sheet.set-page-setup", new
+        _fixture.Send("worksheetstyle.set-page-setup", new
         {
             sheetName,
             orientation = "landscape",
@@ -46,7 +46,7 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
                 zoomPercent = 85
             }
         });
-        var response = _fixture.Send("sheet.get-page-setup", new { sheetName });
+        var response = _fixture.Send("worksheetstyle.get-page-setup", new { sheetName });
         using var result = JsonDocument.Parse(response.Result!);
         var state = result.RootElement;
         Assert.Equal("$A$1:$D$20", state.GetProperty("printArea").GetString());
@@ -76,18 +76,18 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
         _fixture.Send("range.set-values", new { sheetName, rangeAddress = "A1", values = new object[][] { ["Report"] } });
-        _fixture.Send("sheet.set-page-setup", new
+        _fixture.Send("worksheetstyle.set-page-setup", new
         {
             sheetName,
             orientation = "portrait",
             pageSetupOptions = new { printArea = "A1:H40" }
         });
-        _fixture.Send("sheet.set-page-breaks", new
+        _fixture.Send("worksheetstyle.set-page-breaks", new
         {
             sheetName,
             pageBreakOptions = new { rows = ManualRows, columns = ManualColumns }
         });
-        var response = _fixture.Send("sheet.get-page-breaks", new { sheetName });
+        var response = _fixture.Send("worksheetstyle.get-page-breaks", new { sheetName });
         using var result = JsonDocument.Parse(response.Result!);
         var rows = result.RootElement.GetProperty("horizontal").EnumerateArray()
             .Where(item => item.GetProperty("isManual").GetBoolean()).Select(item => item.GetProperty("position").GetInt32()).ToArray();
@@ -95,12 +95,12 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
         var columns = result.RootElement.GetProperty("vertical").EnumerateArray()
             .Where(item => item.GetProperty("isManual").GetBoolean()).Select(item => item.GetProperty("position").GetInt32()).ToArray();
         Assert.Equal([4], columns);
-        _fixture.Send("sheet.set-page-breaks", new
+        _fixture.Send("worksheetstyle.set-page-breaks", new
         {
             sheetName,
             pageBreakOptions = new { rows = Array.Empty<int>(), columns = Array.Empty<int>() }
         });
-        var cleared = _fixture.Send("sheet.get-page-breaks", new { sheetName });
+        var cleared = _fixture.Send("worksheetstyle.get-page-breaks", new { sheetName });
         using var empty = JsonDocument.Parse(cleared.Result!);
         Assert.DoesNotContain(empty.RootElement.GetProperty("horizontal").EnumerateArray(),
             item => item.GetProperty("isManual").GetBoolean());
@@ -112,18 +112,18 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
     public void PageSetup_ExplicitClearAndOmissionHaveDifferentEffects()
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
-        _fixture.Send("sheet.set-page-setup", new
+        _fixture.Send("worksheetstyle.set-page-setup", new
         {
             sheetName,
             orientation = "landscape",
             pageSetupOptions = new { printArea = "A1:B10,D1:E10", printTitleRows = "1:2", leftHeader = "Keep", rightFooter = "Remove", zoomPercent = 90 }
         });
-        _fixture.Send("sheet.set-page-setup", new
+        _fixture.Send("worksheetstyle.set-page-setup", new
         {
             sheetName,
             pageSetupOptions = new { printArea = "", printTitleRows = "", rightFooter = "", printGridlines = true }
         });
-        var response = _fixture.Send("sheet.get-page-setup", new { sheetName });
+        var response = _fixture.Send("worksheetstyle.get-page-setup", new { sheetName });
         using var result = JsonDocument.Parse(response.Result!);
         Assert.Equal("", result.RootElement.GetProperty("printArea").GetString());
         Assert.Equal("", result.RootElement.GetProperty("printTitleRows").GetString());
@@ -137,21 +137,21 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
     public void PageSetup_FitAndFixedZoomSwitchNativeModes()
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
-        _fixture.Send("sheet.set-page-setup", new
+        _fixture.Send("worksheetstyle.set-page-setup", new
         {
             sheetName,
             fitToPagesWide = 1,
             fitToPagesTall = 0
         });
-        var response = _fixture.Send("sheet.get-page-setup", new { sheetName });
+        var response = _fixture.Send("worksheetstyle.get-page-setup", new { sheetName });
         using (var result = JsonDocument.Parse(response.Result!))
         {
             Assert.Equal(JsonValueKind.Null, result.RootElement.GetProperty("zoomPercent").ValueKind);
             Assert.Equal(1, result.RootElement.GetProperty("fitToPagesWide").GetInt32());
             Assert.Equal(JsonValueKind.Null, result.RootElement.GetProperty("fitToPagesTall").ValueKind);
         }
-        _fixture.Send("sheet.set-page-setup", new { sheetName, pageSetupOptions = new { zoomPercent = 100 } });
-        var zoomRead = _fixture.Send("sheet.get-page-setup", new { sheetName });
+        _fixture.Send("worksheetstyle.set-page-setup", new { sheetName, pageSetupOptions = new { zoomPercent = 100 } });
+        var zoomRead = _fixture.Send("worksheetstyle.get-page-setup", new { sheetName });
         using var zoom = JsonDocument.Parse(zoomRead.Result!);
         Assert.Equal(100, zoom.RootElement.GetProperty("zoomPercent").GetInt32());
         Assert.Equal(JsonValueKind.Null, zoom.RootElement.GetProperty("fitToPagesWide").ValueKind);
@@ -171,7 +171,7 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
     public async Task PageSetup_InvalidOptionsDoNotMutateOrientation(string options)
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
-        _fixture.Send("sheet.set-page-setup", new
+        _fixture.Send("worksheetstyle.set-page-setup", new
         {
             sheetName,
             orientation = "portrait",
@@ -186,16 +186,16 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
                 zoomPercent = 90
             }
         });
-        var before = _fixture.Send("sheet.get-page-setup", new { sheetName });
+        var before = _fixture.Send("worksheetstyle.get-page-setup", new { sheetName });
         using var document = JsonDocument.Parse(options);
-        var response = await _fixture.SendForFailureAsync("sheet.set-page-setup", new
+        var response = await _fixture.SendForFailureAsync("worksheetstyle.set-page-setup", new
         {
             sheetName,
             orientation = "landscape",
             pageSetupOptions = document.RootElement
         });
         Assert.False(response.Success);
-        var read = _fixture.Send("sheet.get-page-setup", new { sheetName });
+        var read = _fixture.Send("worksheetstyle.get-page-setup", new { sheetName });
         using var state = JsonDocument.Parse(read.Result!);
         Assert.Equal("portrait", state.RootElement.GetProperty("orientation").GetString());
         Assert.Equal(before.Result, read.Result);
@@ -205,14 +205,14 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
     public async Task PageSetup_ConflictingScalingIsRejectedBeforeWriting()
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
-        _fixture.Send("sheet.set-page-setup", new
+        _fixture.Send("worksheetstyle.set-page-setup", new
         {
             sheetName,
             orientation = "portrait",
             pageSetupOptions = new { zoomPercent = 85, printArea = "A1:C20", centerHeader = "Keep" }
         });
-        var before = _fixture.Send("sheet.get-page-setup", new { sheetName });
-        var response = await _fixture.SendForFailureAsync("sheet.set-page-setup", new
+        var before = _fixture.Send("worksheetstyle.get-page-setup", new { sheetName });
+        var response = await _fixture.SendForFailureAsync("worksheetstyle.set-page-setup", new
         {
             sheetName,
             fitToPagesWide = 1,
@@ -220,7 +220,7 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
         });
         Assert.False(response.Success);
         Assert.Contains("conflicting", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(before.Result, _fixture.Send("sheet.get-page-setup", new { sheetName }).Result);
+        Assert.Equal(before.Result, _fixture.Send("worksheetstyle.get-page-setup", new { sheetName }).Result);
     }
 
     [Theory]
@@ -233,7 +233,7 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
     public async Task PageSetup_UnresolvablePrintScopesReturnInvalidInputWithoutMutation(string option, string address)
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
-        _fixture.Send("sheet.set-page-setup", new
+        _fixture.Send("worksheetstyle.set-page-setup", new
         {
             sheetName,
             orientation = "portrait",
@@ -247,7 +247,7 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
                 zoomPercent = 90
             }
         });
-        var before = _fixture.Send("sheet.get-page-setup", new { sheetName });
+        var before = _fixture.Send("worksheetstyle.get-page-setup", new { sheetName });
         var options = new Dictionary<string, object>
         {
             ["printArea"] = "D1:F10",
@@ -257,7 +257,7 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
             ["centerHeader"] = "Changed"
         };
         options[option] = address;
-        var rejected = await _fixture.SendForFailureAsync("sheet.set-page-setup", new
+        var rejected = await _fixture.SendForFailureAsync("worksheetstyle.set-page-setup", new
         {
             sheetName,
             orientation = "landscape",
@@ -267,7 +267,7 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
         Assert.Equal("InvalidInput", rejected.ErrorCategory);
         Assert.Contains(address, rejected.ErrorMessage, StringComparison.Ordinal);
         Assert.Contains("invalid", rejected.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-        var after = _fixture.Send("sheet.get-page-setup", new { sheetName });
+        var after = _fixture.Send("worksheetstyle.get-page-setup", new { sheetName });
         Assert.Equal(before.Result, after.Result);
     }
 
@@ -282,16 +282,16 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
         _fixture.Send("range.set-values", new { sheetName, rangeAddress = "A1", values = new object[][] { ["Report"] } });
-        _fixture.Send("sheet.set-page-setup", new { sheetName, pageSetupOptions = new { printArea = "A1:H40" } });
-        _fixture.Send("sheet.set-page-breaks", new { sheetName, pageBreakOptions = new { rows = ManualRows, columns = ManualColumns } });
+        _fixture.Send("worksheetstyle.set-page-setup", new { sheetName, pageSetupOptions = new { printArea = "A1:H40" } });
+        _fixture.Send("worksheetstyle.set-page-breaks", new { sheetName, pageBreakOptions = new { rows = ManualRows, columns = ManualColumns } });
         using var document = JsonDocument.Parse(options);
-        var response = await _fixture.SendForFailureAsync("sheet.set-page-breaks", new
+        var response = await _fixture.SendForFailureAsync("worksheetstyle.set-page-breaks", new
         {
             sheetName,
             pageBreakOptions = document.RootElement
         });
         Assert.False(response.Success);
-        var read = _fixture.Send("sheet.get-page-breaks", new { sheetName });
+        var read = _fixture.Send("worksheetstyle.get-page-breaks", new { sheetName });
         using var state = JsonDocument.Parse(read.Result!);
         Assert.Equal(ManualRows, state.RootElement.GetProperty("horizontal").EnumerateArray()
             .Where(item => item.GetProperty("isManual").GetBoolean()).Select(item => item.GetProperty("position").GetInt32()));
@@ -303,7 +303,7 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
     public void PageSetup_AdditionalNativePrintingSettingsRoundTrip()
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
-        _fixture.Send("sheet.set-page-setup", new
+        _fixture.Send("worksheetstyle.set-page-setup", new
         {
             sheetName,
             pageSetupOptions = new
@@ -317,7 +317,7 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
                 alignMarginsHeaderFooter = false
             }
         });
-        var read = _fixture.Send("sheet.get-page-setup", new { sheetName });
+        var read = _fixture.Send("worksheetstyle.get-page-setup", new { sheetName });
         using var state = JsonDocument.Parse(read.Result!);
         Assert.True(state.RootElement.GetProperty("blackAndWhite").GetBoolean());
         Assert.True(state.RootElement.GetProperty("draft").GetBoolean());
@@ -326,8 +326,8 @@ public sealed class PersistentServicePageLayoutTests(PersistentServiceWorkbookFi
         Assert.Equal("xlPrintErrorsDash", state.RootElement.GetProperty("printErrors").GetString());
         Assert.False(state.RootElement.GetProperty("scaleWithDocHeaderFooter").GetBoolean());
         Assert.False(state.RootElement.GetProperty("alignMarginsHeaderFooter").GetBoolean());
-        _fixture.Send("sheet.set-page-setup", new { sheetName, pageSetupOptions = new { firstPageNumber = 0 } });
-        var automatic = _fixture.Send("sheet.get-page-setup", new { sheetName });
+        _fixture.Send("worksheetstyle.set-page-setup", new { sheetName, pageSetupOptions = new { firstPageNumber = 0 } });
+        var automatic = _fixture.Send("worksheetstyle.get-page-setup", new { sheetName });
         using var auto = JsonDocument.Parse(automatic.Result!);
         Assert.Equal(0, auto.RootElement.GetProperty("firstPageNumber").GetInt32());
     }

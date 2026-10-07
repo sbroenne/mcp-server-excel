@@ -134,6 +134,14 @@
   gap: 0.6rem;
 }
 
+/* Video cards: the thumbnail fills the card width. */
+.md-typeset .video-cards img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.3rem;
+}
+
 .md-typeset .feature-groups > ul > li {
   display: flex;
   flex-direction: column;

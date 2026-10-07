@@ -21,7 +21,7 @@ public sealed class PersistentServiceFineProtectionTests(
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
         var failure = Record.Exception(() =>
         {
-            _fixture.Send("sheet.set-protection", new
+            _fixture.Send("worksheetstyle.set-protection", new
             {
                 sheetName,
                 isProtected = true,
@@ -32,7 +32,7 @@ public sealed class PersistentServiceFineProtectionTests(
                     userInterfaceOnly = true
                 }
             });
-            var response = _fixture.Send("sheet.get-protection", new { sheetName });
+            var response = _fixture.Send("worksheetstyle.get-protection", new { sheetName });
             using var result = JsonDocument.Parse(response.Result!);
             Assert.True(result.RootElement.GetProperty("isProtected").GetBoolean());
             Assert.True(result.RootElement.GetProperty("userInterfaceOnly").GetBoolean());
@@ -79,7 +79,7 @@ public sealed class PersistentServiceFineProtectionTests(
             new { sheetName, rangeAddress = "A2:A3", axis = "columns" });
         var failure = await Record.ExceptionAsync(async () =>
         {
-            _fixture.Send("sheet.set-protection", new
+            _fixture.Send("worksheetstyle.set-protection", new
             {
                 sheetName,
                 isProtected = true,
@@ -100,7 +100,7 @@ public sealed class PersistentServiceFineProtectionTests(
             Assert.Equal("rangeformat.set-column-width", forbidden.Command);
             Assert.Equal(before.Result, _fixture.Send("rangeformat.get-visibility",
                 new { sheetName, rangeAddress = "A2:A3", axis = "columns" }).Result);
-            var retained = _fixture.Send("sheet.get-protection", new { sheetName });
+            var retained = _fixture.Send("worksheetstyle.get-protection", new { sheetName });
             using var state = JsonDocument.Parse(retained.Result!);
             Assert.True(state.RootElement.GetProperty("protectContents").GetBoolean());
         });
@@ -115,7 +115,7 @@ public sealed class PersistentServiceFineProtectionTests(
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
         var failure = await Record.ExceptionAsync(async () =>
         {
-            _fixture.Send("sheet.set-protection", new
+            _fixture.Send("worksheetstyle.set-protection", new
             {
                 sheetName,
                 isProtected = true,
@@ -177,14 +177,14 @@ public sealed class PersistentServiceFineProtectionTests(
     public async Task SheetProtection_UnknownOptionsDoNotMutateProtection()
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
-        var failed = await _fixture.SendForFailureAsync("sheet.set-protection", new
+        var failed = await _fixture.SendForFailureAsync("worksheetstyle.set-protection", new
         {
             sheetName,
             isProtected = true,
             options = new { allowTypo = true }
         });
         Assert.False(failed.Success);
-        var read = _fixture.Send("sheet.get-protection", new { sheetName });
+        var read = _fixture.Send("worksheetstyle.get-protection", new { sheetName });
         using var result = JsonDocument.Parse(read.Result!);
         Assert.False(result.RootElement.GetProperty("isProtected").GetBoolean());
     }
@@ -195,7 +195,7 @@ public sealed class PersistentServiceFineProtectionTests(
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
         var failure = Record.Exception(() =>
         {
-            _fixture.Send("sheet.set-protection", new
+            _fixture.Send("worksheetstyle.set-protection", new
             {
                 sheetName,
                 isProtected = true,
@@ -216,7 +216,7 @@ public sealed class PersistentServiceFineProtectionTests(
                     selection = "UnlockedCells"
                 }
             });
-            var response = _fixture.Send("sheet.get-protection", new { sheetName });
+            var response = _fixture.Send("worksheetstyle.get-protection", new { sheetName });
             using var result = JsonDocument.Parse(response.Result!);
             var permissions = result.RootElement.GetProperty("permissions");
             foreach (var permission in permissions.EnumerateObject())
@@ -237,13 +237,13 @@ public sealed class PersistentServiceFineProtectionTests(
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
         var failure = Record.Exception(() =>
         {
-            _fixture.Send("sheet.set-protection", new
+            _fixture.Send("worksheetstyle.set-protection", new
             {
                 sheetName,
                 isProtected = true,
                 options = new { contents = false, scenarios = false }
             });
-            var read = _fixture.Send("sheet.get-protection", new { sheetName });
+            var read = _fixture.Send("worksheetstyle.get-protection", new { sheetName });
             using var result = JsonDocument.Parse(read.Result!);
             Assert.True(result.RootElement.GetProperty("isProtected").GetBoolean());
             Assert.True(result.RootElement.GetProperty("protectDrawingObjects").GetBoolean());
@@ -260,7 +260,7 @@ public sealed class PersistentServiceFineProtectionTests(
         const string password = "Synthetic protection test";
         var failure = await Record.ExceptionAsync(async () =>
         {
-            var set = _fixture.Send("sheet.set-protection", new
+            var set = _fixture.Send("worksheetstyle.set-protection", new
             {
                 sheetName,
                 isProtected = true,
@@ -268,21 +268,21 @@ public sealed class PersistentServiceFineProtectionTests(
                 options = new { allowFiltering = true, allowFormattingRows = true, selection = "UnlockedCells" }
             });
             Assert.DoesNotContain(password, set.Result ?? "", StringComparison.Ordinal);
-            var before = _fixture.Send("sheet.get-protection", new { sheetName });
-            var failed = await _fixture.SendForFailureAsync("sheet.set-protection", new
+            var before = _fixture.Send("worksheetstyle.get-protection", new { sheetName });
+            var failed = await _fixture.SendForFailureAsync("worksheetstyle.set-protection", new
             {
                 sheetName,
                 isProtected = false,
                 password = "Wrong synthetic password"
             });
             Assert.False(failed.Success);
-            var read = _fixture.Send("sheet.get-protection", new { sheetName });
+            var read = _fixture.Send("worksheetstyle.get-protection", new { sheetName });
             Assert.Equal(before.Result, read.Result);
             Assert.DoesNotContain(password, read.Result!, StringComparison.Ordinal);
             using var result = JsonDocument.Parse(read.Result!);
             Assert.True(result.RootElement.GetProperty("isProtected").GetBoolean());
-            _fixture.Send("sheet.set-protection", new { sheetName, isProtected = false, password });
-            var recovered = _fixture.Send("sheet.get-protection", new { sheetName });
+            _fixture.Send("worksheetstyle.set-protection", new { sheetName, isProtected = false, password });
+            var recovered = _fixture.Send("worksheetstyle.get-protection", new { sheetName });
             using var recovery = JsonDocument.Parse(recovered.Result!);
             Assert.False(recovery.RootElement.GetProperty("isProtected").GetBoolean());
         });
@@ -292,7 +292,7 @@ public sealed class PersistentServiceFineProtectionTests(
     private void UnprotectAndThrowFailure(string sheetName, string? password, Exception? failure)
     {
         var cleanup = Record.Exception(() =>
-            _fixture.Send("sheet.set-protection", new { sheetName, isProtected = false, password }));
+            _fixture.Send("worksheetstyle.set-protection", new { sheetName, isProtected = false, password }));
         if (cleanup is not null)
             failure = PersistentServiceCleanupFailures.Combine(failure, cleanup);
         if (failure is not null)

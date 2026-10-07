@@ -14,7 +14,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// POSITIONING: For 'move', 'copy-to-file', 'move-to-file' - use 'before' OR 'after'
 /// (not both) to position the sheet relative to another. If neither specified, moves to end.
 /// </summary>
-[ServiceCategory("sheet", "Sheet")]
+[ServiceCategory("Sheet")]
 [McpReadOnlyActions("list")]
 public interface ISheetCommands
 {

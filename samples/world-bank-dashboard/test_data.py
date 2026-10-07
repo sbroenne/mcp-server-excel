@@ -97,7 +97,7 @@ class OverviewDesignTests(unittest.TestCase):
     def test_only_overview_and_its_supporting_data_are_changed(self):
         sheets = {c["args"]["sheetName"] for c in self.commands if "sheetName" in c["args"]}
         self.assertEqual(sheets, {"World Overview", "Chart Data"})
-        self.assertFalse(any(c["command"].startswith(("powerquery.", "datamodel.", "datamodelrel."))
+        self.assertFalse(any(c["command"].startswith(("powerquery.", "datamodel.", "datamodelrelationship."))
                              for c in self.commands))
 
     def test_named_series_keep_population_and_missing_values(self):

@@ -71,7 +71,7 @@ active workbook's path; saving a same-format copy leaves the active workbook
 unchanged. PDF/XPS output is a published view, not an editable workbook.
 
 Saved `.xlsx`, `.xlsm`, `.xlsb`, and `.xls` workbooks can be reopened with
-`file(action: 'open', path: ...)` (MCP) or `excelcli file open --path ...` (CLI).
+`file(action: 'open', file_path: ...)` (MCP) or `excelcli session open <FILE>` (CLI).
 
 Replacing an output needs authorization. A format conversion can remove
 features: saving a macro-enabled workbook as `.xlsx` removes its VBA content.

@@ -74,7 +74,7 @@ class ConsentOutcomeTests(unittest.TestCase):
             [ToolCall("excel-mcp-file", {"action": "close", "workbook_session_id": "test", "save": "true"})],
             [
                 ToolCall("excel-mcp-file", {"action": "close", "workbook_session_id": "test", "save": True}),
-                ToolCall("excel-mcp-file", {"action": "open", "path": "budget.xlsx"}),
+                ToolCall("excel-mcp-file", {"action": "open", "file_path": "budget.xlsx"}),
             ],
         ]
         for calls in cases:

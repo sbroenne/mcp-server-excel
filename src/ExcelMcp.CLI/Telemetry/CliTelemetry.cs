@@ -264,8 +264,8 @@ internal static class CliTelemetry
             return UnknownCommand;
         }
 
-        var category = ServiceRegistry.CategoryByCliCommand.TryGetValue(args[0], out var mapped)
-            ? mapped
+        var category = ServiceRegistry.ValidActionsByCategory.ContainsKey(args[0])
+            ? args[0].ToLowerInvariant()
             : args[0];
         // Commands without a subcommand (for example "batch") use the "run" action.
         var action = args.Length > 1 && !args[1].StartsWith('-') ? args[1] : "run";

@@ -39,6 +39,7 @@ Paths are relative to the repository root.
 | Repository/agent instructions, CONTEXT, or `docs/agents/**` | [Instruction maintenance](docs/agents/rules/meta.md) |
 | `vscode-extension/**` | [Extension](vscode-extension/AGENTS.md) |
 | `videos/excel-mcp-intro/**` | [Video](videos/excel-mcp-intro/AGENTS.md) |
+| `videos/agentic-world-bank-briefing/**` | [Agentic workflow video](videos/agentic-world-bank-briefing/AGENTS.md) |
 
 ## Implementation
 

@@ -60,15 +60,15 @@ public sealed class GeneratedActionContractCliTests : IDisposable
         "loadDestination",
         "work-sheet")]
     [InlineData(
-        "powerquery load-to --session missing-session --query-name Probe --load-destination worksheet --timeout 30",
+        "powerquery load-to --session missing-session --query-name Probe --load-destination worksheet --timeout-seconds 30",
         "timeout",
         "load-to")]
     [InlineData(
-        "powerquery refresh --session missing-session --query-name Probe --timeout -1",
+        "powerquery refresh --session missing-session --query-name Probe --timeout-seconds -1",
         "timeout",
         "2147483")]
     [InlineData(
-        "connection refresh --session missing-session --connection-name Probe --timeout 0",
+        "connection refresh --session missing-session --connection-name Probe --timeout-seconds 0",
         "timeout",
         "2147483")]
     [InlineData(
@@ -101,7 +101,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
 
     [Theory]
     [InlineData(
-        """{"command":"calculation.calculate","sessionId":"missing-session","args":{"scope":"application","mode":"manual"}}""",
+        """{"command":"calculationmode.calculate","sessionId":"missing-session","args":{"scope":"application","mode":"manual"}}""",
         "mode",
         "calculate")]
     [InlineData(
@@ -121,7 +121,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
         "loadDestination",
         "work-sheet")]
     [InlineData(
-        """{"command":"calculation.calculate","sessionId":"missing-session","args":{"scope":5}}""",
+        """{"command":"calculationmode.calculate","sessionId":"missing-session","args":{"scope":5}}""",
         "scope",
         "String")]
     [InlineData(
@@ -129,15 +129,15 @@ public sealed class GeneratedActionContractCliTests : IDisposable
         "chartType",
         "required")]
     [InlineData(
-        """{"command":"powerquery.refresh","sessionId":"missing-session","args":{"queryName":"Probe","timeout":-1}}""",
+        """{"command":"powerquery.refresh","sessionId":"missing-session","args":{"queryName":"Probe","timeoutSeconds":-1}}""",
         "timeout",
         "2147483")]
     [InlineData(
-        """{"command":"connection.refresh","sessionId":"missing-session","args":{"connectionName":"Probe","timeout":0}}""",
+        """{"command":"connection.refresh","sessionId":"missing-session","args":{"connectionName":"Probe","timeoutSeconds":0}}""",
         "timeout",
         "2147483")]
     [InlineData(
-        """{"command":"powerquery.refresh","sessionId":"missing-session","args":{"queryName":"Probe","timeout":"600"}}""",
+        """{"command":"powerquery.refresh","sessionId":"missing-session","args":{"queryName":"Probe","timeoutSeconds":"600"}}""",
         "timeout",
         "Int32")]
     public async Task RawBatch_RejectsInvalidGeneratedContractBeforeDaemonDispatch(
@@ -278,6 +278,47 @@ public sealed class GeneratedActionContractCliTests : IDisposable
     }
 
     [Theory]
+    [InlineData("""{"command":"calculationmode.get-settings","sessionId":"missing-session","args":{}}""")]
+    [InlineData("""{"command":"worksheetstyle.get-tab-color","sessionId":"missing-session","args":{"sheetName":"Sheet1"}}""")]
+    [InlineData("""{"command":"datamodelrelationship.list-relationships","sessionId":"missing-session","args":{}}""")]
+    [InlineData("""{"command":"vba.run","sessionId":"missing-session","args":{"procedureName":"Main","timeoutSeconds":60}}""")]
+    public async Task RawBatch_AcceptsCliGroupAndParameterNames(string entryJson)
+    {
+        var inputPath = Path.Join(_tempDirectory, $"{Guid.NewGuid():N}.json");
+        await File.WriteAllTextAsync(inputPath, $"[{entryJson}]");
+
+        var result = await InProcessCliHelper.RunWithServiceAsync(["batch", "--input", inputPath]);
+        _output.WriteLine($"stdout: {result.Stdout}");
+
+        Assert.Equal(1, result.ExitCode);
+        using var output = JsonDocument.Parse(result.Stdout.Trim());
+        var error = output.RootElement.GetProperty("error").GetString();
+        Assert.Contains("missing-session", error, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Unknown", error, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Theory]
+    [InlineData("calculation.get-settings", "calculationmode")]
+    [InlineData("datamodelrel.list-relationships", "datamodelrelationship")]
+    [InlineData("sheetstyle.get-tab-color", "worksheetstyle")]
+    public async Task RawBatch_RejectsUnknownGroupAndListsValidGroups(string command, string expectedValidGroup)
+    {
+        var inputPath = Path.Join(_tempDirectory, $"{Guid.NewGuid():N}.json");
+        await File.WriteAllTextAsync(
+            inputPath,
+            $$$"""[{"command":"{{{command}}}","sessionId":"missing-session","args":{}}]""");
+
+        var result = await InProcessCliHelper.RunWithServiceAsync(["batch", "--input", inputPath]);
+        _output.WriteLine($"stdout: {result.Stdout}");
+
+        Assert.Equal(1, result.ExitCode);
+        using var output = JsonDocument.Parse(result.Stdout.Trim());
+        var error = output.RootElement.GetProperty("error").GetString();
+        Assert.Contains(command.Split('.')[0], error, StringComparison.Ordinal);
+        Assert.Contains(expectedValidGroup, error, StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData("create", 9)]
     [InlineData("create", 3601)]
     [InlineData("open", 9)]
@@ -290,7 +331,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
     {
         var workbookPath = Path.Join(_tempDirectory, "timeout-contract.xlsx");
         var result = await InProcessCliHelper.RunWithServiceAsync(
-            ["session", action, workbookPath, "--timeout", timeoutSeconds.ToString(CultureInfo.InvariantCulture)]);
+            ["session", action, workbookPath, "--timeout-seconds", timeoutSeconds.ToString(CultureInfo.InvariantCulture)]);
 
         Assert.Equal(1, result.ExitCode);
         var combinedOutput = result.Stdout + result.Stderr;
@@ -404,7 +445,7 @@ public sealed class GeneratedActionContractCliTests : IDisposable
         var inputPath = Path.Join(_tempDirectory, $"{Guid.NewGuid():N}.json");
         await File.WriteAllTextAsync(
             inputPath,
-            """[{"command":"powerquery.refresh","sessionId":"missing-session","args":{"queryName":"Probe","timeout":60,"unexpected":true}}]""");
+            """[{"command":"powerquery.refresh","sessionId":"missing-session","args":{"queryName":"Probe","timeoutSeconds":60,"unexpected":true}}]""");
 
         var result = await InProcessCliHelper.RunWithServiceAsync(["batch", "--input", inputPath]);
 

@@ -1,0 +1,105 @@
+WEBVTT
+
+1
+00:00:00.300 --> 00:00:02.092
+This is an agentic workflow.
+
+2
+00:00:02.400 --> 00:00:08.736
+One AI agent researched World Bank data, analyzed it in Excel, and built a PowerPoint briefing.
+
+3
+00:00:09.000 --> 00:00:12.733
+All from one request, in thirty-nine minutes. Nobody stepped in.
+
+4
+00:00:13.600 --> 00:00:18.805
+It starts with a plain-English request to an AI agent in GitHub Copilot CLI.
+
+5
+00:00:19.200 --> 00:00:22.720
+One hundred and twelve words, sent once, with no follow-ups.
+
+6
+00:00:27.600 --> 00:00:29.584
+First, the agent does the research.
+
+7
+00:00:30.000 --> 00:00:37.403
+It finds the World Bank's official indicators, tests the data service, and pulls twenty-five years for twenty-five economies.
+
+8
+00:00:37.900 --> 00:00:39.244
+Then it checks for gaps.
+
+9
+00:00:42.600 --> 00:00:47.357
+Next, Excel MCP Server. The agent drives the real Excel app.
+
+10
+00:00:47.800 --> 00:00:55.949
+It loads the data with Power Query, builds a Data Model with DAX measures, and adds analysis sheets, charts, and a PivotTable.
+
+11
+00:00:56.600 --> 00:00:58.541
+A checks sheet tests the key numbers.
+
+12
+00:01:02.500 --> 00:01:06.212
+When a step fails, the agent reads the error and tries another way.
+
+13
+00:01:12.600 --> 00:01:17.571
+Before it designs a single slide, the agent reads its results back from the workbook.
+
+14
+00:01:18.000 --> 00:01:20.240
+Every number on a slide comes from Excel.
+
+15
+00:01:22.600 --> 00:01:24.861
+Now, PowerPoint MCP Server.
+
+16
+00:01:25.200 --> 00:01:32.027
+The agent designs one slide as a template, exports it as a picture, and looks at it, the way a designer would.
+
+17
+00:01:32.400 --> 00:01:39.355
+Then it builds the other slides, with native, editable charts, headlines that state the insight, sources, and speaker notes.
+
+18
+00:01:44.200 --> 00:01:48.445
+It ran into a chart bug and a PowerPoint crash, and recovered on its own.
+
+19
+00:01:50.500 --> 00:01:52.804
+The result is a seven-slide briefing.
+
+20
+00:01:53.400 --> 00:01:56.280
+China's income per person grew almost six times.
+
+21
+00:01:57.000 --> 00:02:00.029
+The gap between the richest and poorest economies halved.
+
+22
+00:02:00.800 --> 00:02:03.659
+And internet use went from seven percent to ninety.
+
+23
+00:02:10.600 --> 00:02:16.573
+One request. Six hundred and twelve tool calls. Two MCP servers, and one AI model.
+
+24
+00:02:17.000 --> 00:02:23.144
+We checked the headline numbers against the World Bank. You still review the result, but the heavy lifting is done.
+
+25
+00:02:27.600 --> 00:02:30.907
+How was this video made? With another agentic workflow.
+
+26
+00:02:31.400 --> 00:02:40.083
+An AI agent recorded the run, cut the footage, wrote the script, and built this video with HyperFrames. A person approved it at key points.

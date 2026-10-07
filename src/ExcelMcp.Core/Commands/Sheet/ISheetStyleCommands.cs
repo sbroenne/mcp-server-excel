@@ -21,7 +21,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// OUTLINES: Group or ungroup row/column ranges, configure summary positions,
 /// show a specific row/column outline level, inspect grouping state, or clear all groups.
 /// </summary>
-[ServiceCategory("sheet", "SheetStyle")]
+[ServiceCategory("WorksheetStyle")]
 [McpTool("worksheet_style", Title = "Worksheet Style Operations", Destructive = true, Category = "structure",
     Description = "Change worksheet styling, visibility, protection, grouping, and outlines. OUTLINES: group/ungroup row or column ranges with axis Rows or Columns; set-outline-settings accepts summaryRow above/below and summaryColumn left/right; show-outline-levels expands or collapses to row/column levels; clear-outline removes all groups. TAB COLORS: RGB values 0-255. VISIBILITY: visible, hidden, veryhidden. PROTECTION: set-protection accepts typed options replacing native permissions; omitted options use restrictive native defaults. userInterfaceOnly is runtime-only, not persisted after reopening. Filtering permission changes existing filters; sorting/deletion still require unlocked cells. Passwords are not returned. Use worksheet for lifecycle operations.")]
 [McpReadOnlyActions("get-tab-color", "get-protection", "get-comment", "get-image-count", "get-shape-count",

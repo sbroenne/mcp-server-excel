@@ -30,7 +30,7 @@ public sealed class CalculationSettingsProtocolTests(RecordingProgramTransportFi
             ["maximum_iterations"] = 37,
             ["maximum_change"] = 0.0002,
             ["calculate_before_save"] = false
-        }, RecordingToolTest.Success("""{"success":true}"""), "calculation.set-settings", expected);
+        }, RecordingToolTest.Success("""{"success":true}"""), "calculationmode.set-settings", expected);
         Assert.False(call.Result.IsError);
     }
 
@@ -47,7 +47,7 @@ public sealed class CalculationSettingsProtocolTests(RecordingProgramTransportFi
             ["workbook_session_id"] = "session-1",
             ["scope"] = "application",
             ["kind"] = kind
-        }, RecordingToolTest.Success("""{"success":true}"""), "calculation.calculate", expected);
+        }, RecordingToolTest.Success("""{"success":true}"""), "calculationmode.calculate", expected);
         Assert.False(call.Result.IsError);
     }
 
@@ -67,7 +67,7 @@ public sealed class CalculationSettingsProtocolTests(RecordingProgramTransportFi
             ["workbook_session_id"] = "session-1",
             ["precision_as_displayed"] = enabled,
             ["allow_precision_loss"] = enabled
-        }, RecordingToolTest.Success("""{"success":true}"""), "calculation.set-precision", expected);
+        }, RecordingToolTest.Success("""{"success":true}"""), "calculationmode.set-precision", expected);
         Assert.False(call.Result.IsError);
     }
 
@@ -92,12 +92,12 @@ public sealed class CalculationSettingsProtocolTests(RecordingProgramTransportFi
         var call = await fixture.CallToolAsync("calculation_mode", arguments, new ServiceResponse
         {
             Success = false,
-            Command = "calculation.calculate",
+            Command = "calculationmode.calculate",
             SessionId = "session-1",
             ErrorCategory = "InvalidInput",
             ExceptionType = nameof(ArgumentException),
             ErrorMessage = $"{parameter} is required for calculation."
-        }, "calculation.calculate", expected);
+        }, "calculationmode.calculate", expected);
 
         Assert.True(call.Result.IsError);
         using var json = JsonDocument.Parse(call.JsonResult);

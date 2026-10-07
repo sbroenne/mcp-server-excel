@@ -21,7 +21,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 ///
 /// Note: Cell locking only takes effect when the worksheet is protected.
 /// </summary>
-[ServiceCategory("rangelink", "RangeLink")]
+[ServiceCategory("RangeLink")]
 [McpTool("range_link", Title = "Range Link Operations", Destructive = true, Category = "data",
     Description = "Change hyperlinks, threaded comments, and cell protection. THREADED COMMENTS: add-threaded-comment, add-threaded-comment-reply, delete-threaded-comment use the local Excel PIA. Cloud mentions, assignments, reactions, presence, and coauthoring state are not exposed by local Excel COM. HYPERLINKS: add-hyperlink creates external links with url or internal workbook links with subAddress; update-hyperlink changes an existing target, display text, or tooltip; remove-hyperlink keeps cell content. At least url or subAddress is required when adding. CELL PROTECTION: set-cell-protection changes only supplied locked/formula_hidden flags in the exact scope. Enforcement needs sheet protection; formula hiding affects Excel UI, not tool inspection or file encryption. Former cell-lock actions are removed.")]
 [McpReadOnlyActions("list-hyperlinks", "get-hyperlink", "list-threaded-comments", "get-cell-protection")]

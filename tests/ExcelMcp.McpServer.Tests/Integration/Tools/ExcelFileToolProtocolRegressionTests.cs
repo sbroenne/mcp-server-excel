@@ -44,7 +44,7 @@ public sealed class ExcelFileToolProtocolRegressionTests : McpIntegrationTestBas
         var testResult = await CallToolAsync("file_read", new Dictionary<string, object?>
         {
             ["action"] = "test",
-            ["path"] = irmTestFile
+            ["file_path"] = irmTestFile
         });
 
         using (var testJson = JsonDocument.Parse(testResult))
@@ -57,7 +57,7 @@ public sealed class ExcelFileToolProtocolRegressionTests : McpIntegrationTestBas
         var openResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "open",
-            ["path"] = irmTestFile,
+            ["file_path"] = irmTestFile,
             ["timeout_seconds"] = 15
         }).WaitAsync(TimeSpan.FromSeconds(20));
         stopwatch.Stop();

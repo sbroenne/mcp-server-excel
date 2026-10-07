@@ -284,7 +284,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
     }
 
     [Fact]
-    public async Task FileCreate_ForwardsMacroEnabledThroughSessionProtocol()
+    public async Task FileCreate_DoesNotSendRemovedMacroEnabledParameter()
     {
         var path = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.xlsx");
         await File.WriteAllTextAsync(path, string.Empty);
@@ -295,7 +295,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
                 new Dictionary<string, object?>
                 {
                     ["action"] = "create",
-                    ["path"] = path
+                    ["file_path"] = path
                 });
 
             using var document = ParseJsonResult(result, "file.create");

@@ -55,7 +55,7 @@ public sealed class PowerQueryErrorReportingTests : IAsyncLifetime
         await AssertLoadedValueAsync(queryName, 1);
 
         var (refreshResult, refreshJson) = await CliProcessHelper.RunJsonAsync(
-            ["powerquery", "refresh", "--session", _workbook.SessionId, "--query-name", queryName, "--timeout", "60"],
+            ["powerquery", "refresh", "--session", _workbook.SessionId, "--query-name", queryName, "--timeout-seconds", "60"],
             timeoutMs: 120000,
             diagnosticLabel: "pq-error-reporting-refresh");
 

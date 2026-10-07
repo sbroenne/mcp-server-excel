@@ -708,7 +708,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
         return
             $"Excel startup timed out after {_startupTimeout.TotalSeconds} seconds while opening '{Path.GetFileName(_workbookPath)}'. " +
             "The workbook may be blocked on an interactive dialog, enterprise authentication, IRM/AIP prompt, external-link prompt, or an unresponsive open. " +
-            "Corrective action: retry the file open/create with a larger timeout_seconds value (CLI: --timeout <seconds>) if the workbook is just slow, " +
+            "Corrective action: retry the file open/create with a larger timeout_seconds value (CLI: --timeout-seconds <seconds>) if the workbook is just slow, " +
             $"or retry with show=true (CLI: --show) so Excel is visible for prompts.{protectedWorkbookHint}";
     }
 
