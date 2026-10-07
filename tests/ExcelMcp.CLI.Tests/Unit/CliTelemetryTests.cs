@@ -329,6 +329,42 @@ public sealed class CliTelemetryTests
     }
 
     [Fact]
+    public async Task TrackCommandAsync_ResultReportsSuccessFalse_TracksFailureWithResultCategory()
+    {
+        var tracked = new List<(string Command, bool Succeeded, string? ErrorCategory, bool ExpectedNegative)>();
+
+        await CliTelemetry.TrackCommandAsync(
+            new ServiceRequest { Command = "powerquery.refresh-all" },
+            () => Task.FromResult(new ServiceResponse
+            {
+                Success = true,
+                Result = """{"success":false,"errorMessage":"failed","errorCategory":"Expression"}"""
+            }),
+            (command, _, succeeded, errorCategory, expectedNegative) =>
+                tracked.Add((command, succeeded, errorCategory, expectedNegative)));
+
+        Assert.Equal([("powerquery.refresh-all", false, "Expression", false)], tracked);
+    }
+
+    [Fact]
+    public async Task TrackCommandAsync_FileTestCanOpenFalse_RemainsExpectedNegative()
+    {
+        var tracked = new List<(string Command, bool Succeeded, string? ErrorCategory, bool ExpectedNegative)>();
+
+        await CliTelemetry.TrackCommandAsync(
+            new ServiceRequest { Command = "session.test" },
+            () => Task.FromResult(new ServiceResponse
+            {
+                Success = true,
+                Result = """{"success":false,"canOpen":false}"""
+            }),
+            (command, _, succeeded, errorCategory, expectedNegative) =>
+                tracked.Add((command, succeeded, errorCategory, expectedNegative)));
+
+        Assert.Equal([("session.test", true, (string?)null, true)], tracked);
+    }
+
+    [Fact]
     public void TrackCliInvocation_PreservesLocallyRejectedBatchItems()
     {
         var trackedInvocations = new List<(string Command, bool Succeeded, string? ErrorCategory)>();

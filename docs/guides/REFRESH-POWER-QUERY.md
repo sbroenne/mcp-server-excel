@@ -66,6 +66,13 @@ Use the `refresh-all` action to refresh every query in the workbook:
 excelcli -q powerquery refresh-all --session $session
 ```
 
+The result lists `refreshedQueries`, `skippedQueries`, and `failedQueries`.
+Parameter and connection-only queries are skipped because they have nothing of
+their own to refresh; Excel evaluates them when the loaded queries that use
+them refresh. If one query fails, the others still refresh, the result reports
+`success: false`, and `excelcli` exits with code 1. Queries that already
+refreshed keep their new data.
+
 ## Test M code before you save it
 
 The most valuable habit when an AI assistant writes Power Query for you is
