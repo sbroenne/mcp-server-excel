@@ -134,26 +134,6 @@ public partial class RangeCommands
         // Resolve values from inline parameter or file
         var resolvedValues = ParameterTransforms.ResolveValuesOrFile(values, valuesFile);
 
-        // SMART FORMULA DETECTION: Check if any value starts with "=" and auto-route to SetFormulas
-        bool hasFormulas = DetectFormulas(resolvedValues, out var detectedFormulas);
-        if (hasFormulas)
-        {
-            // Detected formulas - convert to proper formula format and use SetFormulas
-            var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-values" };
-
-            // Call SetFormulas internally to apply detected formulas
-            var formulaResult = SetFormulas(batch, sheetName, rangeAddress, detectedFormulas, overwritePolicy: overwritePolicy);
-
-            // Copy result data and add detection message
-            result.Success = formulaResult.Success;
-            result.ErrorMessage = formulaResult.ErrorMessage;
-            if (result.Success && string.IsNullOrEmpty(result.Message))
-            {
-                result.Message = $"Formula detected: {detectedFormulas.Sum(row => row.Count(f => !string.IsNullOrEmpty(f)))} formula(s) applied via set-formulas";
-            }
-            return result;
-        }
-
         var setResult = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-values" };
 
         return batch.Execute((ctx, ct) =>
@@ -191,6 +171,7 @@ public partial class RangeCommands
                 {
                     // Create 1-based array for Excel COM compatibility
                     object[,] arrayValues = (object[,])Array.CreateInstance(typeof(object), [rows, cols], [1, 1]);
+                    int formulaCount = 0;
 
                     for (int r = 1; r <= rows; r++)
                     {
@@ -198,11 +179,31 @@ public partial class RangeCommands
                         {
                             // Convert JsonElement to proper C# type for COM interop
                             // MCP framework deserializes JSON to JsonElement, not primitives
-                            arrayValues[r, c] = RangeHelpers.ConvertToCellValue(resolvedValues[r - 1][c - 1]);
+                            object cellValue = RangeHelpers.ConvertToCellValue(resolvedValues[r - 1][c - 1]);
+                            if (cellValue is string text && text.StartsWith('='))
+                            {
+                                formulaCount++;
+                            }
+
+                            arrayValues[r, c] = cellValue;
                         }
                     }
 
-                    range.Value2 = arrayValues;
+                    if (formulaCount > 0)
+                    {
+                        // Formula/Formula2 store constants exactly like Value2, so one mixed array
+                        // writes the formulas without blanking the other cells (issue #1065).
+                        if (ctx.Capabilities.SupportsFormula2)
+                            ((Excel.Range)range).Formula2 = arrayValues;
+                        else
+                            ((Excel.Range)range).Formula = arrayValues;
+
+                        setResult.Message = $"Formula detected: {formulaCount} formula(s) applied with set-formulas semantics; other cells kept as values";
+                    }
+                    else
+                    {
+                        range.Value2 = arrayValues;
+                    }
                 }
 
                 setResult.Success = true;
@@ -284,40 +285,6 @@ public partial class RangeCommands
             $"Cannot write to range '{requestedRangeAddress}' because the write intersects merged cells. " +
             $"{rangeLabel}: {string.Join(", ", mergedRanges)}. " +
             "Write only to each merged range's top-left cell, or unmerge the affected range before writing.");
-    }
-
-    /// <summary>
-    /// Detects formulas in value array (strings starting with =)
-    /// Returns true if any formulas detected, outputs formula array
-    /// </summary>
-    private static bool DetectFormulas(List<List<object?>> values, out List<List<string>> detectedFormulas)
-    {
-        detectedFormulas = new List<List<string>>();
-        bool hasFormulas = false;
-
-        foreach (var row in values)
-        {
-            var formulaRow = new List<string>();
-            foreach (var value in row)
-            {
-                string str = value?.ToString() ?? string.Empty;
-
-                // Detect formula (starts with = but not escaped with ')
-                if (str.StartsWith('=') && !str.StartsWith("'=", StringComparison.Ordinal))
-                {
-                    formulaRow.Add(str);
-                    hasFormulas = true;
-                }
-                else
-                {
-                    // Not a formula - empty string in formula array
-                    formulaRow.Add(string.Empty);
-                }
-            }
-            detectedFormulas.Add(formulaRow);
-        }
-
-        return hasFormulas;
     }
 
     /// <summary>
