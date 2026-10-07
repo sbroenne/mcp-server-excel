@@ -16,7 +16,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// OPERATORS: equal, notEqual, greater, less, greaterEqual, lessEqual, between, notBetween.
 /// For 'between' and 'notBetween', both formula1 and formula2 are required.
 /// </summary>
-[ServiceCategory("conditionalformat", "ConditionalFormat")]
+[ServiceCategory("ConditionalFormat")]
 [McpTool("conditionalformat", Title = "Conditional Formatting", Destructive = true, Category = "structure",
     Description = "Add, update, reorder, delete, and clear conditional formatting rules based on cell values. TYPES: cellValue, expression, colorScale, dataBar, iconSet, top10, aboveAverage, timePeriod, uniqueValues, blanksCondition (accepts both camelCase and kebab-case). For cellValue: requires operatorType + formula1. Visual types use dedicated add-rule parameters. SELECTED EDITS: update-rule, delete-rule, set-rule-priority require current worksheet-wide rule_priority and expected_fingerprint from inspection; fingerprints cover inspected settings, not persistent IDs. Updates retain type and unrelated rules; supply only applicable nested options. add-rule accepts priority and stop_if_true; stop flags are unavailable for colorScale/dataBar/iconSet. Native failures do not promise rollback. FORMAT: interiorColor/fontColor as #RRGGBB hex, fontBold/fontItalic booleans, borderStyle/borderColor.")]
 [McpReadOnlyActions("list-rules", "list-worksheet-rules")]

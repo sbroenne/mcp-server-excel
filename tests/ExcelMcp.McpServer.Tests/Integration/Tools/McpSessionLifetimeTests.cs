@@ -31,7 +31,7 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
             input, outputPipe, shutdown.Token, "CreationCancellationClient", () => backend);
         try
         {
-            var first = await CallAsync(host.Client, "file", new() { ["action"] = "create", ["path"] = firstPath });
+            var first = await CallAsync(host.Client, "file", new() { ["action"] = "create", ["file_path"] = firstPath });
             var firstId = first.GetProperty("workbook_session_id").GetString()!;
             await CallAsync(host.Client, "range", new()
             {
@@ -49,7 +49,7 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
                 Params = JsonSerializer.SerializeToNode(new
                 {
                     name = "file",
-                    arguments = new { action = "create", path = secondPath }
+                    arguments = new { action = "create", file_path = secondPath }
                 })
             };
             var creation = host.Client.SendRequestAsync(request, cancellation.Token);
@@ -114,7 +114,7 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
         var host = await ProgramTransportTestHost.StartAsync(input, outputPipe, shutdown.Token, "PersistenceWriter");
         try
         {
-            var created = await CallAsync(host.Client, "file", new() { ["action"] = "create", ["path"] = path });
+            var created = await CallAsync(host.Client, "file", new() { ["action"] = "create", ["file_path"] = path });
             var id = created.GetProperty("workbook_session_id").GetString()!;
             await CallAsync(host.Client, "range", new()
             {
@@ -138,7 +138,7 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
         var reader = await ProgramTransportTestHost.StartAsync(readerInput, readerOutput, readerShutdown.Token, "PersistenceReader");
         try
         {
-            var opened = await CallAsync(reader.Client, "file", new() { ["action"] = "open", ["path"] = path });
+            var opened = await CallAsync(reader.Client, "file", new() { ["action"] = "open", ["file_path"] = path });
             var values = await CallAsync(reader.Client, "range_read", new()
             {
                 ["action"] = "get-values",

@@ -105,7 +105,7 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                 nameof(maxWaitSeconds),
                 maxWaitSeconds,
                 $"maxWaitSeconds must be less than the session operation timeout of {batch.OperationTimeout.TotalSeconds:0.###} seconds. " +
-                "Reopen the session with a larger --timeout, or use a shorter wait and call get-result again.");
+                "Reopen the session with a larger timeout (MCP timeout_seconds, CLI --timeout-seconds), or use a shorter wait and call get-result again.");
         }
 
         var result = new PythonInExcelResult

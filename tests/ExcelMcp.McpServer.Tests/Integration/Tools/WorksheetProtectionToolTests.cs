@@ -21,7 +21,7 @@ public sealed class WorksheetProtectionToolTests(
         var protectCall = await CallSetAsync(sessionId, true);
         using (var args = RecordingToolTest.ParseArgs(
             protectCall.Request,
-            "sheet.set-protection",
+            "worksheetstyle.set-protection",
             sessionId))
         {
             Assert.Equal("ProtectedSheet", args.RootElement.GetProperty("sheetName").GetString());
@@ -38,12 +38,12 @@ public sealed class WorksheetProtectionToolTests(
             },
             RecordingToolTest.Success(
                 """{"success":true,"isProtected":true}"""),
-            "sheet.get-protection",
+            "worksheetstyle.get-protection",
             """{"sheetName":"ProtectedSheet"}""");
 
         using (var args = RecordingToolTest.ParseArgs(
             getCall.Request,
-            "sheet.get-protection",
+            "worksheetstyle.get-protection",
             sessionId))
         {
             Assert.Equal("ProtectedSheet", args.RootElement.GetProperty("sheetName").GetString());
@@ -56,7 +56,7 @@ public sealed class WorksheetProtectionToolTests(
         var unprotectCall = await CallSetAsync(sessionId, false);
         using var unprotectArgs = RecordingToolTest.ParseArgs(
             unprotectCall.Request,
-            "sheet.set-protection",
+            "worksheetstyle.set-protection",
             sessionId);
         Assert.False(unprotectArgs.RootElement.GetProperty("isProtected").GetBoolean());
     }
@@ -74,7 +74,7 @@ public sealed class WorksheetProtectionToolTests(
                 ["is_protected"] = isProtected
             },
             RecordingToolTest.Success("""{"success":true}"""),
-            "sheet.set-protection",
+            "worksheetstyle.set-protection",
             isProtected
                 ? """{"sheetName":"ProtectedSheet","isProtected":true}"""
                 : """{"sheetName":"ProtectedSheet","isProtected":false}""");

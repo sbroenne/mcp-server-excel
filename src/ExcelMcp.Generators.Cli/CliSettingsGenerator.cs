@@ -1,6 +1,7 @@
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
+using Sbroenne.ExcelMcp.Generators.Common;
 
 namespace Sbroenne.ExcelMcp.Generators.Cli;
 
@@ -58,22 +59,21 @@ public class CliSettingsGenerator : IIncrementalGenerator
                 var attr = type.GetAttributes().FirstOrDefault(a =>
                     a.AttributeClass?.Name == "ServiceCategoryAttribute" &&
                     a.AttributeClass?.ContainingNamespace?.ToDisplayString() == "Sbroenne.ExcelMcp.Core.Attributes");
-                if (attr == null || attr.ConstructorArguments.Length < 2)
+                if (attr == null || attr.ConstructorArguments.Length < 1)
                     continue;
 
-                var categoryPascal = attr.ConstructorArguments[1].Value?.ToString() ?? "";
+                var categoryPascal = attr.ConstructorArguments[0].Value?.ToString() ?? "";
 
                 // Get McpTool name for deriving CLI command name
                 var mcpToolAttr = type.GetAttributes().FirstOrDefault(a =>
                     a.AttributeClass?.Name == "McpToolAttribute");
-                var mcpToolName = mcpToolAttr?.ConstructorArguments.FirstOrDefault().Value?.ToString()
-                    ?? $"{attr.ConstructorArguments[0].Value}";
+                var mcpToolName = mcpToolAttr?.ConstructorArguments.FirstOrDefault().Value?.ToString();
 
                 // Check for NoSession attribute
                 var noSession = type.GetAttributes().Any(a =>
                     a.AttributeClass?.Name == "NoSessionAttribute");
 
-                var cliName = mcpToolName.Replace("_", "");
+                var cliName = ServiceInfoExtractor.GetCommandGroupName(mcpToolName, categoryPascal);
                 result.Add((cliName, categoryPascal, !noSession));
             }
         }

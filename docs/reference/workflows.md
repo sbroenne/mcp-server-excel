@@ -20,7 +20,10 @@ MCP has no equivalent batch tool: await dependent calls. CLI batch avoids
 repeated process startup for a known sequence. It is not a transaction.
 Use individual commands when the next step needs inspection.
 
-Batch arguments use Service camel-case names, not CLI flags. Check every NDJSON success
+Batch commands use the same group and action names as the CLI
+(`group.action`, for example `worksheetstyle.set-tab-color`). Arguments use
+camel-case names, not CLI flags; for example, `--timeout-seconds` becomes
+`timeoutSeconds`. Check every NDJSON success
 flag, the exit status, and expected command count. Use `--stop-on-error`;
 otherwise errors do not stop later commands. Keep save/close outside the batch.
 

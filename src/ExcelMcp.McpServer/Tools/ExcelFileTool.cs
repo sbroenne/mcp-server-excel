@@ -13,9 +13,9 @@ public static partial class ExcelFileTool
     {
         string[] allowed = (toolName, action) switch
         {
-            ("file", "open" or "create") => ["action", "path", "show", "timeout_seconds"],
+            ("file", "open" or "create") => ["action", "file_path", "show", "timeout_seconds"],
             ("file", "close") => ["action", "workbook_session_id", "save"],
-            ("file_read", "test") => ["action", "path", "timeout_seconds"],
+            ("file_read", "test") => ["action", "file_path", "timeout_seconds"],
             ("file_read", "list") => ["action"],
             _ => throw new ArgumentException("Unknown file action.")
         };
@@ -37,7 +37,7 @@ public static partial class ExcelFileTool
     /// Open/create default to 120 seconds. Cancellation is not undo; inspect the session state before continuing.
     /// </summary>
     /// <param name="action">The file operation to perform. close with save:false discards all unsaved edits, including earlier work; there is no tool-level undo.</param>
-    /// <param name="path">Full Windows workbook path. Required for open and create. Create supports .xlsx/.xlsm. Use a supplied path or discover the matching session; ask if the intended file is unclear.</param>
+    /// <param name="file_path">Full Windows workbook path. Required for open and create. Create supports .xlsx/.xlsm. Use a supplied path or discover the matching session; ask if the intended file is unclear.</param>
     /// <param name="workbook_session_id">Session ID returned by open/create or listed by this server. Required for close.</param>
     /// <param name="save">Save before close; otherwise discard unsaved changes. Only valid for close.</param>
     /// <param name="show">Show Excel. Only valid for open/create; protected files may force visible authentication.</param>
@@ -49,7 +49,7 @@ public static partial class ExcelFileTool
     public static partial Task<CallToolResult> ExcelFile(
         FileWriteAction action,
         ServiceBridge.ServiceBridge bridge,
-        [DefaultValue(null)] string? path,
+        [DefaultValue(null)] string? file_path,
         [DefaultValue(null)] string? workbook_session_id,
         [DefaultValue(false)] bool save,
         [DefaultValue(false)] bool show,
@@ -64,7 +64,7 @@ public static partial class ExcelFileTool
                 FileWriteAction.Close => FileAction.Close,
                 _ => throw new ArgumentOutOfRangeException(nameof(action))
             },
-            bridge, path, workbook_session_id, save, show, timeout_seconds, cancellationToken);
+            bridge, file_path, workbook_session_id, save, show, timeout_seconds, cancellationToken);
 
     /// <summary>List workbook sessions and validate a workbook path without opening an editable session.</summary>
     /// <remarks>
@@ -75,7 +75,7 @@ public static partial class ExcelFileTool
     /// Test does not bypass authentication.
     /// </remarks>
     /// <param name="action">List sessions or test whether a workbook can be opened.</param>
-    /// <param name="path">Full Windows workbook path. Required for test.</param>
+    /// <param name="file_path">Full Windows workbook path. Required for test.</param>
     /// <param name="timeout_seconds">Timeout for test, in seconds (10-3600).</param>
     [McpServerTool(Name = "file_read", Title = "Read-Only File Operations", ReadOnly = true,
         Destructive = false, UseStructuredContent = true, OutputSchemaType = typeof(FileToolOutputSchema))]
@@ -84,7 +84,7 @@ public static partial class ExcelFileTool
     public static partial Task<CallToolResult> ExcelFileRead(
         FileReadAction action,
         ServiceBridge.ServiceBridge bridge,
-        [DefaultValue(null)] string? path,
+        [DefaultValue(null)] string? file_path,
         [DefaultValue(120)] int timeout_seconds = 120,
         CancellationToken cancellationToken = default) =>
         ExecuteFileToolActionAsync(
@@ -95,14 +95,14 @@ public static partial class ExcelFileTool
                 FileReadAction.Test => FileAction.Test,
                 _ => throw new ArgumentOutOfRangeException(nameof(action))
             },
-            bridge, path, null, save: false, show: false,
+            bridge, file_path, null, save: false, show: false,
             timeout_seconds: timeout_seconds, cancellationToken: cancellationToken);
 
     private static Task<CallToolResult> ExecuteFileToolActionAsync(
         string toolName,
         FileAction action,
         ServiceBridge.ServiceBridge bridge,
-        string? path,
+        string? file_path,
         string? workbook_session_id,
         bool save,
         bool show,
@@ -113,25 +113,25 @@ public static partial class ExcelFileTool
             if (timeout_seconds is < 10 or > 3600)
                 throw new ArgumentException("timeout_seconds must be between 10 and 3600 seconds.");
 
-            if (action is FileAction.Open or FileAction.Create or FileAction.Test && string.IsNullOrWhiteSpace(path))
-                throw new ArgumentException($"path is required for '{action.ToActionString()}' action.");
+            if (action is FileAction.Open or FileAction.Create or FileAction.Test && string.IsNullOrWhiteSpace(file_path))
+                throw new ArgumentException($"file_path is required for '{action.ToActionString()}' action.");
             if (action == FileAction.Close && string.IsNullOrWhiteSpace(workbook_session_id))
                 throw new ArgumentException("workbook_session_id is required for file 'close'.");
 
             if (action is FileAction.Open or FileAction.Create)
             {
-                var pathError = ExcelToolsBase.ValidateWindowsPath(path);
+                var pathError = ExcelToolsBase.ValidateWindowsPath(file_path);
                 if (pathError is not null)
                     return pathError;
             }
-            if (action == FileAction.Open && !File.Exists(path))
+            if (action == FileAction.Open && !File.Exists(file_path))
             {
                 return JsonSerializer.Serialize(new
                 {
                     success = false,
-                    errorMessage = $"File not found: {path}",
+                    errorMessage = $"File not found: {file_path}",
                     errorCategory = "NotFound",
-                    filePath = path,
+                    filePath = file_path,
                     isError = true
                 }, ExcelToolsBase.JsonOptions);
             }
@@ -141,15 +141,15 @@ public static partial class ExcelFileTool
                 FileAction.List => await bridge.SendAsync("session.list", cancellationToken: cancellationToken),
                 FileAction.Close => await bridge.SendAsync("session.close", workbook_session_id, new { save }, cancellationToken: cancellationToken),
                 FileAction.Open or FileAction.Create => await bridge.SendAsync(
-                    $"session.{action.ToActionString()}", args: new { filePath = path, show, timeoutSeconds = timeout_seconds },
+                    $"session.{action.ToActionString()}", args: new { filePath = file_path, show, timeoutSeconds = timeout_seconds },
                     timeoutSeconds: timeout_seconds, cancellationToken: cancellationToken),
-                FileAction.Test => await bridge.SendAsync("session.test", args: new { filePath = path, timeoutSeconds = timeout_seconds },
+                FileAction.Test => await bridge.SendAsync("session.test", args: new { filePath = file_path, timeoutSeconds = timeout_seconds },
                     timeoutSeconds: timeout_seconds, cancellationToken: cancellationToken),
                 _ => throw new ArgumentException($"Unknown file action: {action}.")
             };
 
             if (!response.Success)
-                return ExcelToolsBase.SerializeServiceResponse(response, path);
+                return ExcelToolsBase.SerializeServiceResponse(response, file_path);
 
             // session.close is a void Service command; its successful acknowledgement is authoritative.
             if (action == FileAction.Close)

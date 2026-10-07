@@ -15,7 +15,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Drawing;
 /// SPARKLINES: list/read/create/update/delete line, column, and win/loss sparklines.
 /// COLORS: use #RRGGBB hexadecimal values.
 /// </summary>
-[ServiceCategory("drawing", "Drawing")]
+[ServiceCategory("Drawing")]
 [McpTool("drawing", Title = "Drawing Object Operations", Destructive = true, Category = "structure",
     Description = "Create, update, and delete worksheet drawing objects and sparklines. Manage images, AutoShapes, text boxes, connectors, groups, and safe worksheet Forms controls. Group/ungroup, align/distribute within the selection, duplicate, and change stacking order. Layout excludes charts, ActiveX/OLE and unknown drawing types; duplication rejects macro assignments. Add common AutoShapes and line, column, or win/loss sparklines. Colors use #RRGGBB. ")]
 [McpReadOnlyActions("list-objects", "get-object", "list-sparklines", "get-sparkline")]

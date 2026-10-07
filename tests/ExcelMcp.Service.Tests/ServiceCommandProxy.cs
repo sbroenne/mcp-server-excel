@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Attributes;
+using Sbroenne.ExcelMcp.Generated;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -39,9 +40,12 @@ internal static class ServiceCommandProxy
             var declaringType = targetMethod.DeclaringType
                 ?? throw new InvalidOperationException(
                     $"Service command method '{targetMethod.Name}' has no declaring type.");
-            var category = declaringType.GetCustomAttribute<ServiceCategoryAttribute>()?.Category
+            var pascalName = declaringType.GetCustomAttribute<ServiceCategoryAttribute>()?.PascalName
                 ?? throw new InvalidOperationException(
                     $"Service command interface '{declaringType.FullName}' has no ServiceCategory.");
+            var category = typeof(ServiceRegistry).GetNestedType(pascalName)?.GetField("Category")?.GetRawConstantValue() as string
+                ?? throw new InvalidOperationException(
+                    $"Service command interface '{declaringType.FullName}' has no generated ServiceRegistry.{pascalName}.Category.");
             var action = GetActionName(targetMethod);
 
             var parameters = targetMethod.GetParameters();
@@ -103,11 +107,15 @@ internal static class ServiceCommandProxy
                 System.Text.RegularExpressions.RegexOptions.CultureInvariant)
             .ToLowerInvariant();
 
-    internal static string GetParameterName(ParameterInfo parameter, int index) =>
-        parameter.GetCustomAttribute<FromStringAttribute>()?.ExposedName
-        ?? parameter.Name
-        ?? throw new InvalidOperationException(
-            $"Service command parameter {index} has no name.");
+    internal static string GetParameterName(ParameterInfo parameter, int index)
+    {
+        var name = parameter.GetCustomAttribute<FromStringAttribute>()?.ExposedName
+            ?? parameter.Name
+            ?? throw new InvalidOperationException(
+                $"Service command parameter {index} has no name.");
+        var parameterType = Nullable.GetUnderlyingType(parameter.ParameterType) ?? parameter.ParameterType;
+        return parameterType == typeof(TimeSpan) ? name + "Seconds" : name;
+    }
 
     internal static bool IsAmbientProgressParameter(ParameterInfo parameter) =>
         parameter.ParameterType.IsGenericType

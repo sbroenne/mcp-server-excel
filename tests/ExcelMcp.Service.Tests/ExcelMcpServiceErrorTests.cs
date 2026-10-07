@@ -94,12 +94,11 @@ public sealed class ExcelMcpServiceErrorTests
     }
 
     /// <summary>
-    /// Verifies that normal error responses (business logic, not unexpected exceptions)
-    /// still work correctly after the Bug 5 fix. The format change should only affect
-    /// the top-level unexpected exception handler.
+    /// Unknown command groups are rejected by the shared generated validator, the same
+    /// way unknown actions and parameters are, and the error lists the valid groups.
     /// </summary>
     [Fact]
-    public async Task ProcessAsync_UnknownCategory_ReturnsNormalErrorWithoutTypeName()
+    public async Task ProcessAsync_UnknownCategory_ReturnsInvalidInputListingValidGroups()
     {
         // Arrange
         using var service = new ExcelMcpService();
@@ -110,12 +109,12 @@ public sealed class ExcelMcpServiceErrorTests
 
         // Assert
         Assert.False(response.Success);
+        Assert.Equal("InvalidInput", response.ErrorCategory);
         Assert.NotNull(response.ErrorMessage);
-        Assert.Contains("Unknown command category", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-
-        // This path returns a normal string, not an exception-caught message,
-        // so it should NOT contain an exception type name prefix.
-        Assert.DoesNotContain("Exception:", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Unknown command group 'unknowncategory'", response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("Valid groups:", response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("worksheetstyle", response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("calculationmode", response.ErrorMessage, StringComparison.Ordinal);
     }
 
     /// <summary>
@@ -206,16 +205,16 @@ public sealed class ExcelMcpServiceErrorTests
     [Theory]
     [InlineData(
         "powerquery.refresh",
-        """{"queryName":"Probe","Timeout":null}""",
-        "Timeout")]
+        """{"queryName":"Probe","TimeoutSeconds":null}""",
+        "TimeoutSeconds")]
     [InlineData(
         "powerquery.refresh",
         """{"queryName":"Probe","unexpected":true}""",
         "unexpected")]
     [InlineData(
         "connection.refresh",
-        """{"connectionName":"Probe","timeout":0}""",
-        "timeout")]
+        """{"connectionName":"Probe","timeoutSeconds":0}""",
+        "timeoutSeconds")]
     [InlineData(
         "powerquery.load-to",
         """{"queryName":"Probe","loadDestination":"worksheet","timeout":60}""",

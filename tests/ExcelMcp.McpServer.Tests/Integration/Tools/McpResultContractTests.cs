@@ -47,7 +47,7 @@ public sealed class McpResultContractTests(RecordingProgramTransportFixture fixt
     [InlineData("file", """{"action":"close","workbook_session_id":"s","save_changes":true}""", "save_changes")]
     [InlineData("worksheet", """{"action":"create","workbook_session_id":"s","sheet_name":"New","before_sheet":"Sheet1"}""", "before_sheet")]
     [InlineData("file_read", """{"action":"list","save":false}""", "save")]
-    [InlineData("file", """{"action":"open","path":"C:\\missing.xlsx","show":"yes"}""", "show")]
+    [InlineData("file", """{"action":"open","file_path":"C:\\missing.xlsx","show":"yes"}""", "show")]
     [InlineData("file", """{}""", "action")]
     [InlineData("file", """{"action":"not-an-action"}""", "action")]
     public async Task InvalidInput_IsRejectedBeforeDispatchWithUsefulError(

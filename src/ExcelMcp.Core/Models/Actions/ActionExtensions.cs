@@ -18,7 +18,7 @@ public static class ActionExtensions
 
     // NOTE: PowerQueryAction.ToActionString() is now generated in ServiceRegistry.PowerQuery.ToActionString()
     // NOTE: SheetAction.ToActionString() is now generated in ServiceRegistry.Sheet.ToActionString()
-    // NOTE: SheetStyleAction.ToActionString() is now generated in ServiceRegistry.SheetStyle.ToActionString()
+    // NOTE: WorksheetStyleAction.ToActionString() is now generated in ServiceRegistry.WorksheetStyle.ToActionString()
     // See Sbroenne.ExcelMcp.Generated namespace
 
     // NOTE: RangeAction.ToActionString() is now generated in ServiceRegistry.Range.ToActionString()
@@ -36,7 +36,7 @@ public static class ActionExtensions
 
     // DataModelAction.ToActionString() is now generated in ServiceRegistry.DataModel.ToActionString()
 
-    // DataModelRelAction.ToActionString() is now generated in ServiceRegistry.DataModelRel.ToActionString()
+    // DataModelRelationshipAction.ToActionString() is now generated in ServiceRegistry.DataModelRelationship.ToActionString()
 
     // TableAction.ToActionString() is now generated in ServiceRegistry.Table.ToActionString()
 
@@ -51,7 +51,7 @@ public static class ActionExtensions
 
     // SlicerAction.ToActionString() is now generated in ServiceRegistry.Slicer.ToActionString()
 
-    // CalculationModeAction.ToActionString() is now generated in ServiceRegistry.Calculation.ToActionString()
+    // CalculationModeAction.ToActionString() is now generated in ServiceRegistry.CalculationMode.ToActionString()
 }
 #pragma warning restore CS1591
 

@@ -28,12 +28,12 @@ public sealed class WorksheetShapeToolTests(
                 ["cell_address"] = "A1"
             },
             RecordingToolTest.Success("""{"success":true}"""),
-            "sheet.add-shape",
+            "worksheetstyle.add-shape",
             """{"sheetName":"ShapeSheet","cellAddress":"A1"}""");
 
         using (var args = RecordingToolTest.ParseArgs(
             addCall.Request,
-            "sheet.add-shape",
+            "worksheetstyle.add-shape",
             sessionId))
         {
             Assert.Equal("ShapeSheet", args.RootElement.GetProperty("sheetName").GetString());
@@ -49,10 +49,10 @@ public sealed class WorksheetShapeToolTests(
                 ["sheet_name"] = "ShapeSheet"
             },
             RecordingToolTest.Success("""{"success":true,"shapeCount":1}"""),
-            "sheet.get-shape-count",
+            "worksheetstyle.get-shape-count",
             """{"sheetName":"ShapeSheet"}""");
 
-        Assert.Equal("sheet.get-shape-count", countCall.Request.Command);
+        Assert.Equal("worksheetstyle.get-shape-count", countCall.Request.Command);
         using var result = JsonDocument.Parse(countCall.JsonResult);
         Assert.Equal(1, result.RootElement.GetProperty("shapeCount").GetInt32());
     }

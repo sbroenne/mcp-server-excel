@@ -20,7 +20,7 @@ public sealed class RequiredFromStringParameterTests
     public void SheetStyleGroup_MissingAxis_ThrowsBeforeDispatch(string? axis)
     {
         var exception = Assert.Throws<ArgumentException>(() =>
-            ServiceRegistry.SheetStyle.RouteCliArgs(
+            ServiceRegistry.WorksheetStyle.RouteCliArgs(
                 "group",
                 sheetName: "Sheet1",
                 rangeAddress: "2:5",

@@ -31,9 +31,9 @@ public enum FileAction
 // NOTE: PowerQueryAction is now generated from IPowerQueryCommands interface
 // See Sbroenne.ExcelMcp.Generated.PowerQueryAction in ServiceRegistry.PowerQuery.g.cs
 
-// NOTE: SheetAction and SheetStyleAction are now generated from ISheetCommands and ISheetStyleCommands
+// NOTE: SheetAction and WorksheetStyleAction are now generated from ISheetCommands and ISheetStyleCommands
 // See Sbroenne.ExcelMcp.Generated.SheetAction in ServiceRegistry.Sheet.g.cs
-// See Sbroenne.ExcelMcp.Generated.SheetStyleAction in ServiceRegistry.SheetStyle.g.cs
+// See Sbroenne.ExcelMcp.Generated.WorksheetStyleAction in ServiceRegistry.WorksheetStyle.g.cs
 
 // NOTE: RangeAction is now generated from IRangeCommands interface
 // See Sbroenne.ExcelMcp.Generated.RangeAction in ServiceRegistry.Range.g.cs
@@ -57,7 +57,7 @@ public enum FileAction
 // ConnectionAction is now generated in ServiceRegistry.Connection
 
 // DataModelAction is now generated in ServiceRegistry.DataModel
-// DataModelRelAction is now generated in ServiceRegistry.DataModelRel
+// DataModelRelationshipAction is now generated in ServiceRegistry.DataModelRelationship
 
 // TableAction is now generated in ServiceRegistry.Table
 // TableColumnAction is now generated in ServiceRegistry.TableColumn
@@ -76,6 +76,6 @@ public enum FileAction
 // See Sbroenne.ExcelMcp.Generated.SlicerAction in ServiceRegistry.Slicer.g.cs
 
 // CalculationModeAction is now generated from ICalculationModeCommands interface
-// See Sbroenne.ExcelMcp.Generated.CalculationAction in ServiceRegistry.Calculation.g.cs
+// See Sbroenne.ExcelMcp.Generated.CalculationModeAction in ServiceRegistry.CalculationMode.g.cs
 #pragma warning restore CS1591
 

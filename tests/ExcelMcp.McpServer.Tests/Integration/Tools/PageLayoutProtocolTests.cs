@@ -23,7 +23,7 @@ public sealed class PageLayoutProtocolTests(RecordingProgramTransportFixture fix
             ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Report",
             ["page_setup_options"] = new { printArea = "", leftMargin = 36, zoomPercent = 90 }
-        }, RecordingToolTest.Success("""{"success":true}"""), "sheet.set-page-setup",
+        }, RecordingToolTest.Success("""{"success":true}"""), "worksheetstyle.set-page-setup",
             JsonSerializer.Serialize(new { sheetName = "Report", pageSetupOptions = options }, ServiceProtocol.JsonOptions));
         Assert.False(call.Result.IsError);
     }
@@ -38,7 +38,7 @@ public sealed class PageLayoutProtocolTests(RecordingProgramTransportFixture fix
             ["workbook_session_id"] = "session-1",
             ["sheet_name"] = "Report",
             ["page_break_options"] = new { rows = new List<int> { 10 }, columns = new List<int>() }
-        }, RecordingToolTest.Success("""{"success":true}"""), "sheet.set-page-breaks",
+        }, RecordingToolTest.Success("""{"success":true}"""), "worksheetstyle.set-page-breaks",
             JsonSerializer.Serialize(new { sheetName = "Report", pageBreakOptions = options }, ServiceProtocol.JsonOptions));
         Assert.False(call.Result.IsError);
     }

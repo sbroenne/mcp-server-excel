@@ -25,7 +25,7 @@ public sealed class PythonInExcelTimeoutRegressionTests : IDisposable
         try
         {
             var (createResult, createJsonDocument) = await CliProcessHelper.RunJsonAsync(
-                ["session", "create", _workbookPath, "--timeout", "30"],
+                ["session", "create", _workbookPath, "--timeout-seconds", "30"],
                 timeoutMs: 45000,
                 diagnosticLabel: "python-timeout-create");
             using var createJson = createJsonDocument;

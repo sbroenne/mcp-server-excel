@@ -178,7 +178,7 @@ public sealed class CliTelemetryTests
             () => 0,
             (command, _, _, _, _) => trackedCommand = command);
 
-        Assert.Equal("calculation.get", trackedCommand);
+        Assert.Equal("calculationmode.get", trackedCommand);
     }
 
     [Fact]

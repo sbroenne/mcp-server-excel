@@ -28,7 +28,7 @@ public sealed class FineProtectionContractCliTests
         });
         Assert.True(result.ExitCode == 0, result.Stdout + result.Stderr);
         Assert.NotNull(captured);
-        Assert.Equal("sheet.set-protection", captured.Command);
+        Assert.Equal("worksheetstyle.set-protection", captured.Command);
         using var args = JsonDocument.Parse(captured.Args!);
         Assert.True(args.RootElement.GetProperty("options").GetProperty("allowFiltering").GetBoolean());
         Assert.True(args.RootElement.GetProperty("options").GetProperty("userInterfaceOnly").GetBoolean());

@@ -8,7 +8,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// Worksheet QueryTable lifecycle and configuration for local COM text, CSV, and legacy web imports.
 /// Use powerquery for modern connectors and transformations.
 /// </summary>
-[ServiceCategory("querytable", "QueryTable")]
+[ServiceCategory("QueryTable")]
 [McpTool("querytable", Title = "QueryTable Import Operations", Destructive = true, Category = "query",
     Description = "Local Excel COM QueryTable lifecycle and configuration. Supports text and CSV imports from local files, plus legacy HTML web imports. Use powerquery for modern connectors and transformations. QueryTables do not expose Power Query M, cloud data types, workbook coauthor presence, sharing, mentions, assignments, or other Microsoft 365 service APIs.")]
 [McpReadOnlyActions("list", "view", "get-refresh-status")]

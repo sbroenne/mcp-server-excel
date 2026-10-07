@@ -33,10 +33,10 @@ public sealed class WorksheetPageSetupToolTests(
                 ["center_vertically"] = true
             },
             Success("""{"success":true}"""),
-            "sheet.set-page-setup",
+            "worksheetstyle.set-page-setup",
             """{"sheetName":"PageSetupSheet","orientation":"landscape","fitToPagesWide":1,"fitToPagesTall":2,"centerHorizontally":false,"centerVertically":true}""");
 
-        Assert.Equal("sheet.set-page-setup", setCall.Request.Command);
+        Assert.Equal("worksheetstyle.set-page-setup", setCall.Request.Command);
         Assert.Equal(sessionId, setCall.Request.SessionId);
         using (var args = ParseArgs(setCall.Request))
         {
@@ -59,10 +59,10 @@ public sealed class WorksheetPageSetupToolTests(
             },
             Success(
                 """{"success":true,"orientation":"landscape","fitToPagesWide":1,"fitToPagesTall":2,"centerHorizontally":false,"centerVertically":true}"""),
-            "sheet.get-page-setup",
+            "worksheetstyle.get-page-setup",
             """{"sheetName":"PageSetupSheet"}""");
 
-        Assert.Equal("sheet.get-page-setup", getCall.Request.Command);
+        Assert.Equal("worksheetstyle.get-page-setup", getCall.Request.Command);
         using var result = JsonDocument.Parse(getCall.JsonResult);
         var resultRoot = result.RootElement;
         Assert.Equal("landscape", resultRoot.GetProperty("orientation").GetString());
@@ -86,10 +86,10 @@ public sealed class WorksheetPageSetupToolTests(
             },
             Success(
                 """{"success":true,"fitToPagesWide":null,"fitToPagesTall":null}"""),
-            "sheet.get-page-setup",
+            "worksheetstyle.get-page-setup",
             """{"sheetName":"AutomaticScale"}""");
 
-        Assert.Equal("sheet.get-page-setup", call.Request.Command);
+        Assert.Equal("worksheetstyle.get-page-setup", call.Request.Command);
         Assert.Equal(sessionId, call.Request.SessionId);
         using (var args = ParseArgs(call.Request))
         {

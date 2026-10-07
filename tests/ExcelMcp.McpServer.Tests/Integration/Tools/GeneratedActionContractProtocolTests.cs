@@ -295,7 +295,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
                 new Dictionary<string, object?>
                 {
                     ["action"] = "create",
-                    ["path"] = path
+                    ["file_path"] = path
                 });
 
             using var document = ParseJsonResult(result, "file.create");

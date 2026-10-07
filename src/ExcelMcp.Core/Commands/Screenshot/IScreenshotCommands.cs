@@ -68,7 +68,7 @@ public class ScreenshotResult : OperationResult
 /// Quality defaults to Medium (JPEG 75% scale) which is 4-8x smaller than High (PNG).
 /// Use High only when fine detail inspection is needed.
 /// </summary>
-[ServiceCategory("screenshot", "Screenshot")]
+[ServiceCategory("Screenshot")]
 public interface IScreenshotCommands
 {
     /// <summary>

@@ -77,7 +77,7 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
         {
             var stopwatch = Stopwatch.StartNew();
             var (openResult, openJsonDocument) = await CliProcessHelper.RunJsonAsync(
-                ["session", "open", irmTestFile, "--show", "--timeout", "15"],
+                ["session", "open", irmTestFile, "--show", "--timeout-seconds", "15"],
                 timeoutMs: 20000,
                 diagnosticLabel: "session-open-irm-show");
             stopwatch.Stop();

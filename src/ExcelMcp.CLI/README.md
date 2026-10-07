@@ -133,13 +133,13 @@ where.exe excelcli
 
 ```powershell
 # Validate an ordinary workbook through a temporary read-only Excel open
-excelcli -q session test "D:\Docs\Workbook.xlsx" --timeout 120
+excelcli -q session test "D:\Docs\Workbook.xlsx" --timeout-seconds 120
 
 # Inspect deterministic protection requirements before an interactive open
 excelcli -q session test "D:\Docs\Protected.xlsx"
 
 # Keep Excel visible so authentication or policy prompts can surface
-excelcli session open "D:\Docs\Protected.xlsx" --show --timeout 120
+excelcli session open "D:\Docs\Protected.xlsx" --show --timeout-seconds 120
 ```
 
 `session test` reports `canOpen`, `isIrmProtected`, `willOpenReadOnly`, and

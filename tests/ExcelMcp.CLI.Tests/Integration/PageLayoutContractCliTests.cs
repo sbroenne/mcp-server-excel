@@ -32,7 +32,7 @@ public sealed class PageLayoutContractCliTests
         });
         Assert.True(result.ExitCode == 0, result.Stdout + result.Stderr);
         Assert.NotNull(captured);
-        Assert.Equal($"sheet.{action}", captured.Command);
+        Assert.Equal($"worksheetstyle.{action}", captured.Command);
         Assert.Equal("session-1", captured.SessionId);
         using var args = JsonDocument.Parse(captured.Args!);
         var options = args.RootElement.GetProperty(breaks ? "pageBreakOptions" : "pageSetupOptions");

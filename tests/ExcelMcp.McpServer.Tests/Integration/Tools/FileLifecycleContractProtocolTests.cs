@@ -50,7 +50,7 @@ public sealed class FileLifecycleContractProtocolTests : McpIntegrationTestBase
         var result = await Client!.CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "close-workbook",
-            ["path"] = @"C:\tmp\book.xlsx"
+            ["file_path"] = @"C:\tmp\book.xlsx"
         }, cancellationToken: TestCancellationToken);
 
         Assert.True(result.IsError);
@@ -72,7 +72,7 @@ public sealed class FileLifecycleContractProtocolTests : McpIntegrationTestBase
             var result = await CallToolAsync("file", new Dictionary<string, object?>
             {
                 ["action"] = "create",
-                ["path"] = unsupportedPath
+                ["file_path"] = unsupportedPath
             });
 
             Output.WriteLine($"Unsupported file create result: {result}");
@@ -121,7 +121,7 @@ public sealed class FileLifecycleContractProtocolTests : McpIntegrationTestBase
             Command = "session.test",
             Args = JsonSerializer.Serialize(new { filePath = path, timeoutSeconds = 120 })
         });
-        var toolResult = await CallToolAsync("file_read", new() { ["action"] = "test", ["path"] = path });
+        var toolResult = await CallToolAsync("file_read", new() { ["action"] = "test", ["file_path"] = path });
 
         Assert.True(serviceResponse.Success);
         Assert.NotNull(serviceResponse.Result);
@@ -142,7 +142,7 @@ public sealed class FileLifecycleContractProtocolTests : McpIntegrationTestBase
             Command = "session.test",
             Args = JsonSerializer.Serialize(new { filePath = path, timeoutSeconds = 120 })
         });
-        var toolResult = await CallToolAsync("file_read", new() { ["action"] = "test", ["path"] = path });
+        var toolResult = await CallToolAsync("file_read", new() { ["action"] = "test", ["file_path"] = path });
 
         Assert.False(serviceResponse.Success);
         Assert.Contains("absolute Windows path", serviceResponse.ErrorMessage, StringComparison.OrdinalIgnoreCase);

@@ -293,7 +293,7 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
     {
         var sheet = CreateObjects();
         var before = _fixture.Send("drawing.list-objects", new { sheetName = sheet }).Result;
-        _fixture.Send("sheet.set-protection", new { sheetName = sheet, isProtected = true });
+        _fixture.Send("worksheetstyle.set-protection", new { sheetName = sheet, isProtected = true });
         var failure = await Record.ExceptionAsync(async () =>
         {
             using var input = JsonDocument.Parse(args);
@@ -305,7 +305,7 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
             Assert.Equal(before, _fixture.Send("drawing.list-objects", new { sheetName = sheet }).Result);
         });
         var cleanup = Record.Exception(() =>
-            _fixture.Send("sheet.set-protection", new { sheetName = sheet, isProtected = false }));
+            _fixture.Send("worksheetstyle.set-protection", new { sheetName = sheet, isProtected = false }));
         if (cleanup is not null)
             failure = PersistentServiceCleanupFailures.Combine(failure, cleanup);
         if (failure is not null)

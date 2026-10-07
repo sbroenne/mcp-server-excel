@@ -95,7 +95,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var created = await CallToolAsync("file", new()
         {
             ["action"] = "create",
-            ["path"] = _testExcelFile
+            ["file_path"] = _testExcelFile
         });
         AssertSuccess(created, "Create DAX workbook");
         var session = GetJsonProperty(created, "workbook_session_id");
@@ -232,7 +232,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
         var createResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "create",
-            ["path"] = _testExcelFile
+            ["file_path"] = _testExcelFile
         });
         AssertSuccess(createResult, "File creation and session open");
         Assert.True(File.Exists(_testExcelFile), "Excel file should exist");
@@ -1877,7 +1877,7 @@ in
         var verifyOpenResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "open",
-            ["path"] = _testExcelFile
+            ["file_path"] = _testExcelFile
         });
         AssertSuccess(verifyOpenResult, "Re-open for verification");
         var verifySessionId = GetJsonProperty(verifyOpenResult, "workbook_session_id");
@@ -1915,7 +1915,7 @@ in
         var created = await CallSuccessfulToolAsync("file", new()
         {
             ["action"] = "create",
-            ["path"] = _testExcelFile
+            ["file_path"] = _testExcelFile
         });
         var session = GetJsonProperty(created, "workbook_session_id");
         Assert.NotNull(session);
@@ -2010,7 +2010,7 @@ in
         var createSource = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "create",
-            ["path"] = sourceFile
+            ["file_path"] = sourceFile
         });
         AssertSuccess(createSource, "create source workbook");
         var sourceSessionId = GetJsonProperty(createSource, "workbook_session_id");
@@ -2035,7 +2035,7 @@ in
         var createTarget = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "create",
-            ["path"] = targetFile
+            ["file_path"] = targetFile
         });
         AssertSuccess(createTarget, "create target workbook");
         var targetSessionId = GetJsonProperty(createTarget, "workbook_session_id");
@@ -2065,7 +2065,7 @@ in
         var openedTarget = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "open",
-            ["path"] = targetFile
+            ["file_path"] = targetFile
         });
         AssertSuccess(openedTarget, "Open copied worksheet destination");
         var copiedSession = GetJsonProperty(openedTarget, "workbook_session_id");
@@ -2099,7 +2099,7 @@ in
         var createResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "create",
-            ["path"] = macroWorkbook
+            ["file_path"] = macroWorkbook
         });
         AssertSuccess(createResult, "Create macro workbook");
         var sessionId = GetJsonProperty(createResult, "workbook_session_id");
@@ -2147,7 +2147,7 @@ End Sub
         var reopenedResult = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "open",
-            ["path"] = macroWorkbook
+            ["file_path"] = macroWorkbook
         });
         AssertSuccess(reopenedResult, "Reopen macro workbook");
         var reopenedSessionId = GetJsonProperty(reopenedResult, "workbook_session_id");

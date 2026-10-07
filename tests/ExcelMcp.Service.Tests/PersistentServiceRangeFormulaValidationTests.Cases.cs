@@ -258,7 +258,7 @@ public sealed partial class PersistentServiceRangeFormulaValidationTests
                 "=NA()"
             ]
         ]));
-        var calculation = _fixture.Send("calculation.calculate", new { scope = "application" });
+        var calculation = _fixture.Send("calculationmode.calculate", new { scope = "application" });
         Assert.True(calculation.Success, calculation.ErrorMessage);
         Assert.True(string.IsNullOrEmpty(calculation.ErrorMessage));
 
