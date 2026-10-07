@@ -1,0 +1,99 @@
+@font-face{font-family:"Cascadia Mono";src:local("Cascadia Mono"),local("CascadiaMono-Regular")}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:1920px;height:1080px;overflow:hidden;background:#fff}
+body{font-family:"Segoe UI",Arial,sans-serif;color:#101714}
+#root{position:relative;width:1920px;height:1080px;overflow:hidden;background:#fff}
+.scene{position:absolute;inset:0;background:#fff;visibility:hidden;opacity:0}
+.mono{font-family:"Cascadia Mono",Consolas,monospace}
+.kicker{position:absolute;left:86px;top:72px;font:24px "Cascadia Mono",Consolas,monospace;letter-spacing:3px;text-transform:uppercase;color:#3e5b49}
+.kicker b{font-weight:400;color:#107c41}
+.ppt .kicker b,.ppt em{color:#c43e1c}
+h1{font-size:128px;line-height:1;letter-spacing:-5px;font-weight:400}
+h2{font-size:78px;line-height:1.06;letter-spacing:-2.5px;font-weight:400}
+em{font-style:normal;color:#107c41}
+.lead{font-size:34px;line-height:1.35;color:#3c5145}
+
+/* Hook */
+.hook-copy{position:absolute;left:86px;top:250px;width:760px}
+.hook-copy .lead{margin-top:36px}
+.hook-flow{position:absolute;left:86px;top:760px;display:flex;gap:18px;align-items:center;font:27px "Cascadia Mono",Consolas,monospace;color:#3e5b49}
+.hook-flow i{font-style:normal;color:#7a9183}
+.hook-flow .xl{color:#107c41}.hook-flow .pp{color:#c43e1c}
+.fan{position:absolute;width:780px;border:1px solid #d6ded9;box-shadow:0 18px 44px #1017141f;background:#fff}
+.fan img{display:block;width:100%}
+
+/* Footage cards */
+.card{position:absolute;background:#0d1117;border:1px solid #cbd6cf;box-shadow:0 16px 40px #10171418;overflow:hidden}
+.card video{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:cover}
+.card-wide{left:440px;top:112px;width:1420px;height:856px}
+.card-tall{left:1250px;top:150px;width:556px;height:850px}
+.card-label{position:absolute;font:21px "Cascadia Mono",Consolas,monospace;color:#496251}
+.card-wide+.card-label{right:60px;top:78px}
+.card-tall+.card-label{left:1250px;top:112px}
+
+/* Left rail */
+.rail{position:absolute;left:86px;top:150px;width:320px}
+.rail h2{font-size:62px;letter-spacing:-2px}
+.stages{margin-top:44px;list-style:none}
+.stage{font-size:27px;line-height:1.2;padding:13px 0 13px 26px;border-left:3px solid #d6e2da;color:#7d8f84}
+.stage.on{border-left-color:#107c41;color:#101714}
+.ppt .stage.on{border-left-color:#c43e1c}
+
+/* Clock and speed */
+.badges{position:absolute;display:flex;gap:14px;font:24px "Cascadia Mono",Consolas,monospace}
+.rail-badges{left:86px;top:860px;flex-direction:column;gap:10px}
+.top-badges{left:86px;top:930px}
+.badge{display:flex;gap:14px;align-items:baseline;padding:10px 16px;border:1px solid #c8d6cd;background:#f6faf7;white-space:nowrap}
+.badge span{font-size:18px;letter-spacing:1px;text-transform:uppercase;color:#56705f}
+.badge strong{font-weight:400;color:#101714}
+.ppt .badge{background:#fdf6f3;border-color:#ecd2c8}
+
+/* Ask and research */
+.copy{position:absolute;left:86px;top:150px;width:1080px}
+.prompt{position:absolute;left:86px;top:380px;width:1080px;padding:26px 32px;border-left:5px solid #107c41;background:#f4f9f6;font-size:24px;line-height:1.5;color:#22382b}
+.prompt p+p{margin-top:12px}
+.prompt-label{display:block;margin-bottom:12px;font:19px "Cascadia Mono",Consolas,monospace;letter-spacing:1px;text-transform:uppercase;color:#496251}
+.facts{position:absolute;left:86px;top:430px;width:1060px;list-style:none}
+.fact{display:flex;gap:26px;align-items:baseline;font-size:36px;padding:22px 0;border-bottom:1px solid #d1ddd5}
+.fact b{min-width:60px;font:400 24px "Cascadia Mono",Consolas,monospace;color:#107c41}
+
+/* Hand-off */
+.handoff h2{position:absolute;left:86px;top:150px;width:1700px}
+.numbers{position:absolute;left:86px;right:86px;top:450px;display:flex;gap:34px}
+.number{flex:1;border-top:4px solid #107c41;padding-top:22px}
+.number strong{display:block;font-size:84px;font-weight:400;letter-spacing:-3px;color:#107c41}
+.number span{display:block;font-size:28px;line-height:1.3;margin-top:10px;color:#22382b}
+.flow{position:absolute;left:86px;right:86px;top:800px;display:flex;align-items:center;gap:26px;font:26px "Cascadia Mono",Consolas,monospace;color:#3e5b49}
+.flow .file{padding:14px 20px;border:1px solid #c8d6cd}
+.flow .file.xl{border-color:#107c41;color:#0b5a2f}
+.flow .file.pp{border-color:#c43e1c;color:#9a3015}
+.flow i{font-style:normal;flex:1;text-align:center;border-bottom:2px dashed #b9c9bf;padding-bottom:6px;font-size:22px}
+
+/* Skip marker */
+.skip{position:absolute;left:440px;top:832px;width:1420px;padding:16px 26px;background:#2a1a14f0;color:#fff;font-size:26px;line-height:1.35;visibility:hidden;opacity:0}
+.skip strong{font:400 24px "Cascadia Mono",Consolas,monospace;color:#ffb59c;display:block;margin-bottom:4px}
+
+/* Briefing */
+.slide{position:absolute;inset:0;visibility:hidden;opacity:0}
+.slide .frame{position:absolute;left:216px;top:120px;width:1488px;height:837px;border:1px solid #d6ded9;box-shadow:0 18px 44px #10171418}
+.slide .frame img{display:block;width:100%;height:100%}
+.slide-note{position:absolute;left:216px;top:980px;font:22px "Cascadia Mono",Consolas,monospace;color:#496251}
+.grid{position:absolute;left:86px;top:250px;width:1748px;display:grid;grid-template-columns:repeat(4,1fr);gap:24px;visibility:hidden;opacity:0}
+.grid img{display:block;width:100%;border:1px solid #d6ded9}
+.grid-note{grid-column:span 1;align-self:center;font-size:30px;line-height:1.35;color:#22382b}
+
+/* Scoreboard */
+.score h2{position:absolute;left:86px;top:140px}
+.stats{position:absolute;left:86px;right:86px;top:370px;display:grid;grid-template-columns:repeat(3,1fr);gap:30px 44px}
+.stat{border-top:1px solid #9fb6a8;padding-top:16px}
+.stat strong{display:block;font-size:76px;font-weight:400;letter-spacing:-3px;line-height:1.05}
+.stat span{display:block;font-size:26px;line-height:1.3;margin-top:6px;color:#3c5145}
+.stat.xl strong{color:#107c41}.stat.pp strong{color:#c43e1c}
+.review{position:absolute;left:86px;top:730px;font-size:34px;color:#101714}
+.links{position:absolute;left:86px;right:86px;top:820px;display:flex;gap:56px;font:27px "Cascadia Mono",Consolas,monospace}
+.links .xl{color:#107c41}.links .pp{color:#c43e1c}
+.links .plain{color:#496251}
+
+.scene-number{position:absolute;right:86px;top:72px;font:22px "Cascadia Mono",Consolas,monospace;color:#56705f}
+#progress{position:absolute;bottom:0;left:0;width:1920px;height:6px;background:#107c41;transform-origin:left;z-index:110}
+.credit{position:absolute;left:86px;right:86px;top:930px;font:21px "Cascadia Mono",Consolas,monospace;color:#56705f}

@@ -63,17 +63,27 @@ setup instructions for your assistant or command-line workflow:
 }
 </script>
 
-## See what AI can build in Excel
+## See what AI can build
 
-**AI-Built Excel Dashboards | ExcelMCP in Action** shows a working workbook
-created by GPT-6 Astra through ExcelMCP. Excel runs the connected data,
-calculations and interactive dashboards.
+Each video shows real work by an AI agent in desktop Excel. Open one to watch
+it and download the files the agent made.
 
-<div class="mcp-video" markdown>
-[![Watch AI-Built Excel Dashboards: built by AI, run by Excel](https://img.youtube.com/vi/47HJPZbcta4/maxresdefault.jpg){ width="1920" height="1080" loading="lazy" }](https://youtu.be/47HJPZbcta4)
+<div class="grid cards video-cards" markdown>
 
-[Watch the dashboard demo (2:33)](https://youtu.be/47HJPZbcta4){ .md-button .md-button--primary }
-[Get the workbook and ask your agent to adapt it](samples/world-in-motion.md){ .md-button }
+-   [![AI-Built Excel Dashboards video: a World Bank dashboard built by an AI agent and run by Excel](https://img.youtube.com/vi/47HJPZbcta4/maxresdefault.jpg){ width="1280" height="720" loading="lazy" }](samples/world-in-motion.md)
+
+    __[AI-built Excel dashboards](samples/world-in-motion.md)__ · 2:33
+
+    GPT-6 Astra builds interactive World Bank dashboards with connected data
+    through Excel MCP Server.
+
+-   [![Agentic workflow video: one request turned into an Excel analysis and a PowerPoint briefing in 39 minutes](assets/images/world-bank-briefing-poster.jpg){ width="1280" height="720" loading="lazy" }](samples/world-bank-briefing.md)
+
+    __[From one request to Excel and PowerPoint](samples/world-bank-briefing.md)__ · 2:22
+
+    One agent researches World Bank data, builds a checked Excel analysis, then
+    a 7-slide executive briefing with PowerPoint MCP Server.
+
 </div>
 
 !!! tip "Also building PowerPoint decks?"
