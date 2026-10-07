@@ -107,7 +107,7 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
 
       - name: Install Copilot CLI
-        run: npm install --global @github/copilot@1.0.80
+        run: npm install --global @github/copilot@1.0.93
 
       - name: Interpret and validate sanitized aggregates
         shell: pwsh

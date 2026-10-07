@@ -24,6 +24,13 @@ $entryPointSinceUtc = "2026-09-28T00:00:00Z"
 $entryPointMinimumUsers = 10
 $entryPoints = @("cli", "mcp-server")
 $excludedActions = $weights.ExcludedActions
+$habitDays = 30
+$habitMinimumUsers = 10
+$sessionSizes = @("1", "2-10", "11-50", "51-200", "201+")
+$advancedFeatures = @("power-query", "power-pivot-dax", "pivottables-charts", "vba")
+$advancedFeatureList = ($advancedFeatures | ForEach-Object { "'$_'" }) -join ", "
+$weekdayNames = @("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+$weekdayWeeks = 8
 $queries = [ordered]@{
     overview = @'
 let engagement = normalizedEvents
@@ -232,6 +239,90 @@ normalizedRequests
 | extend FailureRate=round(100.0 * Failures / Actions, 2)
 | order by Actions desc
 | take 25
+"@
+    # Habits use AI assistant sessions only: each excelcli command runs as its own process,
+    # so a command line "session" is always a single command.
+    assistantSessions = @"
+normalizedRequests
+| where TimeGenerated > ago(${habitDays}d)
+| where EntryPoint == 'mcp-server' and isnotempty(SessionId)
+| summarize Actions=count(), Features=dcount(Feature) by SessionId
+| extend Size=case(
+    Actions == 1, '1',
+    Actions <= 10, '2-10',
+    Actions <= 50, '11-50',
+    Actions <= 200, '51-200',
+    '201+')
+| summarize Sessions=count(),
+            Actions=sum(Actions),
+            MultiFeatureSessions=countif(Features >= 2)
+    by Size
+"@
+    assistantSessionMedian = @"
+normalizedRequests
+| where TimeGenerated > ago(${habitDays}d)
+| where EntryPoint == 'mcp-server' and isnotempty(SessionId)
+| summarize Actions=count() by SessionId
+| summarize MedianActions=percentile(Actions, 50)
+"@
+    featurePairs = @"
+normalizedRequests
+| where TimeGenerated > ago(${habitDays}d)
+| where EntryPoint == 'mcp-server' and isnotempty(SessionId)
+| summarize Features=make_set(Feature), UserId=take_any(UserId) by SessionId
+| mv-expand First=Features to typeof(string)
+| mv-expand Second=Features to typeof(string)
+| where strcmp(First, Second) < 0
+| summarize Sessions=count(), Users=dcount(UserId) by First, Second
+| where Users >= $habitMinimumUsers
+| top 8 by Sessions desc
+"@
+    returningUsers = @'
+let newUsers = normalizedRequests
+| summarize FirstSeen=min(TimeGenerated) by UserId
+| where FirstSeen between (ago(84d) .. ago(28d));
+newUsers
+| join kind=inner (normalizedRequests | project UserId, TimeGenerated) on UserId
+| summarize AfterWeek=countif(TimeGenerated >= FirstSeen + 7d),
+            AfterThreeWeeks=countif(TimeGenerated >= FirstSeen + 21d)
+    by UserId
+| summarize NewUsers=count(),
+            ReturnedAfterWeek=countif(AfterWeek > 0),
+            ReturnedAfterThreeWeeks=countif(AfterThreeWeeks > 0)
+'@
+    featureWait = @"
+normalizedRequests
+| where TimeGenerated > ago(${habitDays}d)
+| summarize Actions=count(),
+            Users=dcount(UserId),
+            TypicalMs=percentile(DurationMs, 50),
+            SlowMs=percentile(DurationMs, 90)
+    by Feature
+| where Users >= $habitMinimumUsers
+| order by TypicalMs desc
+"@
+    weekdays = @"
+normalizedRequests
+| where TimeGenerated >= startofweek(ago($($weekdayWeeks * 7)d))
+    and TimeGenerated < startofweek(now())
+| summarize Actions=count(), Users=dcount(UserId)
+    by Day=toint(dayofweek(TimeGenerated) / 1d)
+| order by Day asc
+"@
+    firstAdvancedUse = @"
+let firstUse = normalizedRequests
+| summarize FirstSeen=min(TimeGenerated) by UserId;
+normalizedRequests
+| where Feature in ($advancedFeatureList)
+| summarize FirstFeatureUse=min(TimeGenerated) by UserId, Feature
+| join kind=inner firstUse on UserId
+| extend Delay=FirstFeatureUse - FirstSeen
+| summarize Users=count(),
+            FirstDay=countif(Delay < 1d),
+            FirstWeek=countif(Delay >= 1d and Delay < 7d),
+            Later=countif(Delay >= 7d)
+    by Feature
+| where Users >= $habitMinimumUsers
 "@
     exceptions = @"
 AppExceptions
@@ -465,6 +556,149 @@ foreach ($row in $results.entryPoints) {
     }
 }
 
+$sessionRows = @(
+    $results.assistantSessions |
+        ForEach-Object {
+            [pscustomobject]@{
+                Size = [string]$_.Size
+                Sessions = Convert-ToNumber $_.Sessions
+                Actions = Convert-ToNumber $_.Actions
+                MultiFeatureSessions = Convert-ToNumber $_.MultiFeatureSessions
+            }
+        }
+)
+foreach ($row in $sessionRows) {
+    if ($sessionSizes -notcontains $row.Size) {
+        throw "Analytics contains an unsafe session size."
+    }
+}
+$totalSessions = [long](($sessionRows | Measure-Object Sessions -Sum).Sum)
+$totalSessionActions = [long](($sessionRows | Measure-Object Actions -Sum).Sum)
+$multiFeatureSessions = [long](($sessionRows | Measure-Object MultiFeatureSessions -Sum).Sum)
+$sessionMedian = @($results.assistantSessionMedian)[0]
+$returning = @($results.returningUsers)[0]
+$newUsers = if ($null -eq $returning) { 0 } else { Convert-ToNumber $returning.NewUsers }
+$returnedAfterWeek = if ($null -eq $returning) { 0 } else { Convert-ToNumber $returning.ReturnedAfterWeek }
+$returnedAfterThreeWeeks = if ($null -eq $returning) { 0 } else { Convert-ToNumber $returning.ReturnedAfterThreeWeeks }
+$weekdayRows = @(
+    $results.weekdays |
+        ForEach-Object {
+            $day = [int](Convert-ToNumber $_.Day)
+            if ($day -lt 0 -or $day -gt 6) {
+                throw "Analytics contains an unsafe weekday."
+            }
+            [pscustomobject]@{
+                Day = $day
+                Actions = Convert-ToNumber $_.Actions
+                Users = Convert-ToNumber $_.Users
+            }
+        }
+)
+$workdayRows = @($weekdayRows | Where-Object { $_.Day -ge 1 -and $_.Day -le 5 })
+$weekendRows = @($weekdayRows | Where-Object { $_.Day -eq 0 -or $_.Day -eq 6 })
+# Each weekday row adds up all of that weekday's actions across the whole window.
+$workdayTotal = ($workdayRows | Measure-Object Actions -Sum).Sum
+$weekendTotal = ($weekendRows | Measure-Object Actions -Sum).Sum
+$workdayAverage = [long][Math]::Round([double]$workdayTotal / (5 * $weekdayWeeks))
+$weekendAverage = [long][Math]::Round([double]$weekendTotal / (2 * $weekdayWeeks))
+$habits = [ordered]@{
+    windowDays = $habitDays
+    minimumUsers = $habitMinimumUsers
+    assistantSessions = [ordered]@{
+        sessions = $totalSessions
+        medianActions = if ($null -eq $sessionMedian) { 0 } else {
+            [Math]::Round([double](Convert-ToNumber $sessionMedian.MedianActions), 1)
+        }
+        multiFeatureSessions = $multiFeatureSessions
+        multiFeatureSharePct = Get-Percent $multiFeatureSessions $totalSessions
+        sizes = @(
+            foreach ($size in $sessionSizes) {
+                $row = $sessionRows | Where-Object Size -eq $size
+                $sessions = if ($null -eq $row) { 0 } else { $row.Sessions }
+                $actions = if ($null -eq $row) { 0 } else { $row.Actions }
+                [ordered]@{
+                    size = $size
+                    sessions = $sessions
+                    actions = $actions
+                    sessionSharePct = Get-Percent $sessions $totalSessions
+                    actionSharePct = Get-Percent $actions $totalSessionActions
+                }
+            }
+        )
+    }
+    featurePairs = @(
+        $results.featurePairs |
+            ForEach-Object {
+                $first = [string]$_.First
+                $second = [string]$_.Second
+                if ($weights.Features -notcontains $first -or $weights.Features -notcontains $second) {
+                    throw "Analytics contains an unsafe homepage-feature dimension."
+                }
+                [ordered]@{
+                    first = $first
+                    second = $second
+                    sessions = Convert-ToNumber $_.Sessions
+                    sharePct = Get-Percent (Convert-ToNumber $_.Sessions) $totalSessions
+                }
+            }
+    )
+    returningUsers = [ordered]@{
+        newUsers = $newUsers
+        returnedAfterWeek = $returnedAfterWeek
+        returnedAfterWeekPct = Get-Percent $returnedAfterWeek $newUsers
+        returnedAfterThreeWeeks = $returnedAfterThreeWeeks
+        returnedAfterThreeWeeksPct = Get-Percent $returnedAfterThreeWeeks $newUsers
+    }
+    featureWait = @(
+        $results.featureWait |
+            ForEach-Object {
+                $name = [string]$_.Feature
+                if ($weights.Features -notcontains $name) {
+                    throw "Analytics contains an unsafe homepage-feature dimension."
+                }
+                [ordered]@{
+                    name = $name
+                    actions = Convert-ToNumber $_.Actions
+                    typicalSeconds = [Math]::Round([double](Convert-ToNumber $_.TypicalMs) / 1000, 2)
+                    slowSeconds = [Math]::Round([double](Convert-ToNumber $_.SlowMs) / 1000, 1)
+                }
+            }
+    )
+    weekdays = @(
+        $weekdayRows |
+            Sort-Object { ($_.Day + 6) % 7 } |
+            ForEach-Object {
+                [ordered]@{
+                    day = $weekdayNames[$_.Day]
+                    actions = $_.Actions
+                    users = $_.Users
+                }
+            }
+    )
+    workdayAverageActions = $workdayAverage
+    weekendAverageActions = $weekendAverage
+    weekdayWeeks = $weekdayWeeks
+    firstAdvancedUse = @(
+        $results.firstAdvancedUse |
+            ForEach-Object {
+                $name = [string]$_.Feature
+                if ($advancedFeatures -notcontains $name) {
+                    throw "Analytics contains an unsafe homepage-feature dimension."
+                }
+                $users = Convert-ToNumber $_.Users
+                [ordered]@{
+                    name = $name
+                    users = $users
+                    firstDay = Convert-ToNumber $_.FirstDay
+                    firstWeek = Convert-ToNumber $_.FirstWeek
+                    later = Convert-ToNumber $_.Later
+                    firstDayPct = Get-Percent (Convert-ToNumber $_.FirstDay) $users
+                }
+            } |
+            Sort-Object { $_.firstDayPct } -Descending
+    )
+}
+
 $report = [ordered]@{
     schemaVersion = 3
     generatedAtUtc = [DateTime]::UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
@@ -610,6 +844,7 @@ $report = [ordered]@{
                 @{ Expression = { $_.name } }
     )
     entryPointOperations = @($entryPointOperationRows)
+    habits = $habits
     reliability = @(
         $results.reliability |
             Where-Object { $excludedActions -notcontains [string]$_.Name } |

@@ -24,24 +24,6 @@ def _analytics_cell(value: object) -> str:
     return text.replace("|", r"\|").replace("\r", " ").replace("\n", " ")
 
 
-def _analytics_table(
-    headings: tuple[str, ...],
-    fields: tuple[str, ...],
-    rows: list[dict[str, object]],
-) -> str:
-    lines = [
-        "| " + " | ".join(headings) + " |",
-        "|" + "|".join("---" for _ in headings) + "|",
-    ]
-    for row in rows:
-        lines.append(
-            "| "
-            + " | ".join(_analytics_cell(row[field]) for field in fields)
-            + " |"
-        )
-    return "\n".join(lines)
-
-
 _ANALYTICS_FAMILY_NAMES = {
     "range": "Reading and writing cells",
     "file": "Managing workbooks",
@@ -131,22 +113,29 @@ def _analytics_bar_chart(
     label_field: str,
     value_field: str,
     value_suffix: str = "",
+    display_field: str | None = None,
+    work: bool = False,
 ) -> str:
     """Render an accessible horizontal comparison chart."""
     maximum = max((float(row[value_field]) for row in rows), default=0)
+    modifier = " analytics-bars__track--work" if work else ""
     lines = ['<div class="analytics-bars" role="list">']
     for row in rows:
         value = float(row[value_field])
         width = 0 if maximum == 0 else max(2, value / maximum * 100)
         label = escape(str(row[label_field]))
-        display_value = f"{_analytics_cell(row[value_field])}{value_suffix}"
+        display_value = (
+            str(row[display_field])
+            if display_field
+            else f"{_analytics_cell(row[value_field])}{value_suffix}"
+        )
         lines.extend(
             [
                 '  <div class="analytics-bars__row" role="listitem">',
                 '    <div class="analytics-bars__label">',
                 f"      <span>{label}</span><strong>{escape(display_value)}</strong>",
                 "    </div>",
-                '    <div class="analytics-bars__track" aria-hidden="true">',
+                f'    <div class="analytics-bars__track{modifier}" aria-hidden="true">',
                 f'      <span style="width: {width:.2f}%"></span>',
                 "    </div>",
                 "  </div>",
@@ -164,9 +153,12 @@ def _analytics_paired_bar_chart(
     second_field: str,
     first_name: str,
     second_name: str,
+    value_suffix: str = "%",
+    display_field: str | None = None,
+    scale_each_row: bool = False,
 ) -> str:
-    """Render two percentage bars per row on a shared 0-100 scale."""
-    maximum = max(
+    """Render two bars per row, on one shared scale or scaled within each row."""
+    shared_maximum = max(
         (
             max(float(row[first_field]), float(row[second_field]))
             for row in rows
@@ -183,8 +175,14 @@ def _analytics_paired_bar_chart(
     ]
     for row in rows:
         label = escape(str(row[label_field]))
-        first = f"{_analytics_cell(row[first_field])}%"
-        second = f"{_analytics_cell(row[second_field])}%"
+        first = f"{_analytics_cell(row[first_field])}{value_suffix}"
+        second = f"{_analytics_cell(row[second_field])}{value_suffix}"
+        shown = str(row[display_field]) if display_field else f"{first} / {second}"
+        maximum = (
+            max(float(row[first_field]), float(row[second_field]))
+            if scale_each_row
+            else shared_maximum
+        )
         lines.extend(
             [
                 '  <div class="analytics-bars__row" role="listitem" '
@@ -192,7 +190,7 @@ def _analytics_paired_bar_chart(
                 f'{escape(second_name)} {escape(second)}">',
                 '    <div class="analytics-bars__label" aria-hidden="true">',
                 f"      <span>{label}</span>"
-                f"<strong>{escape(first)} / {escape(second)}</strong>",
+                f"<strong>{escape(shown)}</strong>",
                 "    </div>",
             ]
         )
@@ -362,12 +360,6 @@ def _analytics_weighted_feature_section(
             second_name="Share of work",
         ),
         "",
-        _analytics_table(
-            ("Homepage feature", "Actions", "Users", "Share of actions", "Share of work"),
-            ("friendlyName", "invocations", "users", "share", "workShare"),
-            hero_rows,
-        ),
-        "",
     ]
 
 
@@ -411,22 +403,27 @@ def _analytics_work_sections(report: dict[str, object]) -> list[str]:
             "These actions add up to the largest share of estimated work. Common "
             "light actions can still appear here when they are used very often.",
             "",
-            _analytics_table(
-                ("Action", "Effort level", "Times used", "Users", "Share of work"),
-                ("friendlyName", "levelName", "actions", "users", "workShare"),
+            _analytics_bar_chart(
                 [
                     {
                         **row,
                         "friendlyName": _analytics_name(
                             row["name"], _ANALYTICS_OPERATION_NAMES
-                        ),
-                        "levelName": _ANALYTICS_LEVEL_NAMES.get(
+                        )
+                        + " ("
+                        + _ANALYTICS_LEVEL_NAMES.get(
                             str(row["level"]), str(row["level"]).title()
-                        ),
-                        "workShare": f"{_analytics_cell(row['workSharePct'])}%",
+                        ).lower()
+                        + ")",
+                        "shown": f"{_analytics_cell(row['workSharePct'])}% of work, "
+                        f"used {_analytics_cell(row['actions'])} times",
                     }
                     for row in report["operationsByWork"][:10]
                 ],
+                label_field="friendlyName",
+                value_field="workSharePct",
+                display_field="shown",
+                work=True,
             ),
             "",
         ]
@@ -459,30 +456,26 @@ def _analytics_entry_point_sections(
     if shown:
         sections.extend(
             [
-                _analytics_table(
-                    (
-                        "How it was used",
-                        "Users",
-                        "Actions",
-                        "Actions per user",
-                        "Estimated work per user",
-                    ),
-                    (
-                        "friendlyName",
-                        "users",
-                        "actions",
-                        "actionsPerUser",
-                        "workUnitsPerUser",
-                    ),
+                _analytics_paired_bar_chart(
                     [
                         {
                             **row,
                             "friendlyName": _analytics_name(
                                 row["name"], _ANALYTICS_ENTRY_POINT_NAMES
-                            ),
+                            )
+                            + f" ({_analytics_cell(row['users'])} users)",
+                            "shown": f"{_analytics_cell(row['actionsPerUser'])} actions / "
+                            f"{_analytics_cell(row['workUnitsPerUser'])} work per user",
                         }
                         for row in shown
                     ],
+                    label_field="friendlyName",
+                    first_field="actionsPerUser",
+                    second_field="workUnitsPerUser",
+                    first_name="Actions per user",
+                    second_name="Estimated work per user",
+                    value_suffix="",
+                    display_field="shown",
                 ),
                 "",
             ]
@@ -496,6 +489,7 @@ def _analytics_entry_point_sections(
         return sections
 
     entry_points = [str(row["name"]) for row in shown]
+    first_point, second_point = entry_points[0], entry_points[1]
     features: dict[str, dict[str, object]] = {}
     for row in report["entryPointFeatures"]:
         feature = features.setdefault(
@@ -504,57 +498,253 @@ def _analytics_entry_point_sections(
                 "friendlyName": _analytics_name(
                     row["name"], _ANALYTICS_HERO_FEATURE_NAMES
                 ),
-                "order": 0.0,
+                first_point: 0.0,
+                second_point: 0.0,
             },
         )
-        entry_point = str(row["entryPoint"])
-        feature[f"{entry_point}:actions"] = f"{_analytics_cell(row['actionSharePct'])}%"
-        feature[f"{entry_point}:work"] = f"{_analytics_cell(row['workSharePct'])}%"
-        feature["order"] = max(float(feature["order"]), float(row["workSharePct"]))
-    feature_rows = sorted(features.values(), key=lambda item: -float(item["order"]))
-    for feature in feature_rows:
-        for entry_point in entry_points:
-            feature.setdefault(f"{entry_point}:actions", "0%")
-            feature.setdefault(f"{entry_point}:work", "0%")
-    headings = ["Homepage feature"]
-    fields = ["friendlyName"]
-    for entry_point in entry_points:
-        short = "AI assistant" if entry_point == "mcp-server" else "Command line"
-        headings.extend([f"{short}: share of actions", f"{short}: share of work"])
-        fields.extend([f"{entry_point}:actions", f"{entry_point}:work"])
+        if str(row["entryPoint"]) in (first_point, second_point):
+            feature[str(row["entryPoint"])] = float(row["workSharePct"])
+    feature_rows = sorted(
+        features.values(),
+        key=lambda item: -max(float(item[first_point]), float(item[second_point])),
+    )
+    short_names = {"mcp-server": "AI assistant", "cli": "Command line"}
     sections.extend(
         [
             "### What each group works on",
             "",
-            _analytics_table(tuple(headings), tuple(fields), feature_rows),
+            "Each feature's share of estimated work within each group.",
+            "",
+            _analytics_paired_bar_chart(
+                feature_rows,
+                label_field="friendlyName",
+                first_field=first_point,
+                second_field=second_point,
+                first_name=short_names.get(first_point, first_point),
+                second_name=short_names.get(second_point, second_point),
+            ),
             "",
             "### Most common actions in each group",
             "",
-            _analytics_table(
-                ("How it was used", "Action", "Times used"),
-                ("entryPointName", "friendlyName", "actions"),
-                [
-                    {
-                        **row,
-                        "entryPointName": _analytics_name(
-                            row["entryPoint"], _ANALYTICS_ENTRY_POINT_NAMES
-                        ),
-                        "friendlyName": _analytics_name(
-                            row["name"], _ANALYTICS_OPERATION_NAMES
-                        ),
-                    }
-                    for entry_point in entry_points
-                    for row in [
-                        item
-                        for item in report["entryPointOperations"]
-                        if item["entryPoint"] == entry_point
-                    ][:5]
-                ],
-            ),
-            "",
         ]
     )
+    for entry_point in entry_points:
+        sections.extend(
+            [
+                f"**{_analytics_name(entry_point, _ANALYTICS_ENTRY_POINT_NAMES)}**",
+                "",
+                _analytics_bar_chart(
+                    [
+                        {
+                            **row,
+                            "friendlyName": _analytics_name(
+                                row["name"], _ANALYTICS_OPERATION_NAMES
+                            ),
+                        }
+                        for row in report["entryPointOperations"]
+                        if row["entryPoint"] == entry_point
+                    ][:5],
+                    label_field="friendlyName",
+                    value_field="actions",
+                ),
+                "",
+            ]
+        )
     return sections
+
+
+def _analytics_feature_name(value: object) -> str:
+    return _analytics_name(value, _ANALYTICS_HERO_FEATURE_NAMES)
+
+
+def _analytics_habit_sections(habits: dict[str, object]) -> list[str]:
+    days = habits["windowDays"]
+    sessions = habits["assistantSessions"]
+    returning = habits["returningUsers"]
+    sections = [
+        "## How people work",
+        "",
+        f"These views use the last **{days} days** unless stated otherwise. "
+        "Groups with fewer than "
+        f"**{_analytics_cell(habits['minimumUsers'])} users** are not shown.",
+        "",
+        "### Size of AI assistant sessions",
+        "",
+        "A session is one run of the MCP Server inside an AI assistant. The "
+        "command line is left out because every `excelcli` command runs on its "
+        f"own. Out of **{_analytics_cell(sessions['sessions'])} sessions**, the "
+        f"typical one had **{_analytics_cell(sessions['medianActions'])} actions**, "
+        f"and **{_analytics_cell(sessions['multiFeatureSharePct'])}%** used two or "
+        "more areas of Excel. A small number of long sessions do much of the work.",
+        "",
+        _analytics_paired_bar_chart(
+            [
+                {
+                    **row,
+                    "friendlyName": f"{row['size']} action"
+                    + ("" if row["size"] == "1" else "s"),
+                }
+                for row in sessions["sizes"]
+            ],
+            label_field="friendlyName",
+            first_field="sessionSharePct",
+            second_field="actionSharePct",
+            first_name="Share of sessions",
+            second_name="Share of actions",
+        ),
+        "",
+    ]
+    if habits["featurePairs"]:
+        sections.extend(
+            [
+                "### Areas used together",
+                "",
+                "How often two areas of Excel appear in the same AI assistant "
+                "session, as a share of all sessions.",
+                "",
+                _analytics_bar_chart(
+                    [
+                        {
+                            **row,
+                            "friendlyName": f"{_analytics_feature_name(row['first'])} + "
+                            f"{_analytics_feature_name(row['second'])}",
+                            "shown": f"{_analytics_cell(row['sharePct'])}% "
+                            f"({_analytics_cell(row['sessions'])} sessions)",
+                        }
+                        for row in habits["featurePairs"]
+                    ],
+                    label_field="friendlyName",
+                    value_field="sharePct",
+                    display_field="shown",
+                ),
+                "",
+            ]
+        )
+    if returning["newUsers"]:
+        sections.extend(
+            [
+                "### Do new users come back?",
+                "",
+                f"Of **{_analytics_cell(returning['newUsers'])} people** first seen "
+                "between 4 and 12 weeks ago, this is how many used Excel MCP again "
+                "later. People first seen before the 90-day window may be counted as new.",
+                "",
+                _analytics_bar_chart(
+                    [
+                        {
+                            "label": "Came back after a week or more",
+                            "value": returning["returnedAfterWeekPct"],
+                            "shown": f"{_analytics_cell(returning['returnedAfterWeekPct'])}% "
+                            f"({_analytics_cell(returning['returnedAfterWeek'])} people)",
+                        },
+                        {
+                            "label": "Came back after three weeks or more",
+                            "value": returning["returnedAfterThreeWeeksPct"],
+                            "shown": f"{_analytics_cell(returning['returnedAfterThreeWeeksPct'])}% "
+                            f"({_analytics_cell(returning['returnedAfterThreeWeeks'])} people)",
+                        },
+                    ],
+                    label_field="label",
+                    value_field="value",
+                    display_field="shown",
+                ),
+                "",
+            ]
+        )
+    if habits["featureWait"]:
+        sections.extend(
+            [
+                "### Typical wait by area",
+                "",
+                "How long a typical action takes from request to answer, including "
+                "Excel's own work. The second number is the wait that 1 in 10 "
+                "actions goes past. Waits depend on workbook size and the computer, "
+                "so they show which areas are heavier, not how fast Excel MCP is.",
+                "",
+                _analytics_bar_chart(
+                    [
+                        {
+                            **row,
+                            "friendlyName": _analytics_feature_name(row["name"]),
+                            "shown": f"{_analytics_cell(row['typicalSeconds'])} s typical; "
+                            f"1 in 10 over {_analytics_cell(row['slowSeconds'])} s",
+                        }
+                        for row in habits["featureWait"]
+                    ],
+                    label_field="friendlyName",
+                    value_field="typicalSeconds",
+                    display_field="shown",
+                    work=True,
+                ),
+                "",
+            ]
+        )
+    if habits["weekdays"]:
+        sections.extend(
+            [
+                "### Weekdays and weekends",
+                "",
+                f"Total actions on each day of the week, added up over the last "
+                f"**{habits['weekdayWeeks']} complete weeks** (UTC). A single "
+                f"weekday averaged **{_analytics_cell(habits['workdayAverageActions'])} "
+                "actions**, compared with "
+                f"**{_analytics_cell(habits['weekendAverageActions'])}** on a "
+                "single weekend day.",
+                "",
+                _analytics_bar_chart(
+                    [
+                        {
+                            **row,
+                            "shown": f"{_analytics_cell(row['actions'])} actions, "
+                            f"{_analytics_cell(row['users'])} users",
+                        }
+                        for row in habits["weekdays"]
+                    ],
+                    label_field="day",
+                    value_field="actions",
+                    display_field="shown",
+                ),
+                "",
+            ]
+        )
+    if habits["firstAdvancedUse"]:
+        sections.extend(
+            [
+                "### When people first try advanced features",
+                "",
+                "Of the people who used each advanced area, the share who first "
+                "used it within a day of their first Excel MCP action.",
+                "",
+                _analytics_bar_chart(
+                    [
+                        {
+                            **row,
+                            "friendlyName": _analytics_feature_name(row["name"]),
+                            "shown": f"{_analytics_cell(row['firstDayPct'])}% on day one "
+                            f"({_analytics_cell(row['firstDay'])} of "
+                            f"{_analytics_cell(row['users'])}); "
+                            f"{_analytics_cell(row['later'])} after a week or more",
+                        }
+                        for row in habits["firstAdvancedUse"]
+                    ],
+                    label_field="friendlyName",
+                    value_field="firstDayPct",
+                    display_field="shown",
+                ),
+                "",
+            ]
+        )
+    return sections
+
+
+def _analytics_reliability_row(row: dict[str, object]) -> dict[str, object]:
+    shown = (
+        f"{_analytics_cell(row['failureRate'])}% failed "
+        f"({_analytics_cell(row['failures'])} of {_analytics_cell(row['actions'])}"
+    )
+    if int(row["expectedNegatives"]) > 0:
+        shown += f"; {_analytics_cell(row['expectedNegatives'])} expected"
+    return {**row, "shown": shown + ")"}
 
 
 def render_usage_analytics() -> str:
@@ -590,7 +780,6 @@ def render_usage_analytics() -> str:
             "friendlyName": _analytics_name(
                 row["name"], _ANALYTICS_HERO_FEATURE_NAMES
             ),
-            "share": f"{_analytics_cell(row['sharePct'])}%",
         }
         for row in report["heroFeatures"]
     ]
@@ -605,7 +794,6 @@ def render_usage_analytics() -> str:
         {
             **row,
             "friendlyName": _analytics_name(row["name"], _ANALYTICS_OPERATION_NAMES),
-            "failureRateDisplay": f"{_analytics_cell(row['failureRate'])}%",
         }
         for row in report["reliability"]
     ]
@@ -618,13 +806,7 @@ def render_usage_analytics() -> str:
         }
         for row in report["failureClasses"]
     ]
-    release_rows = [
-        {
-            **row,
-            "failureRateDisplay": f"{_analytics_cell(row['failureRate'])}%",
-        }
-        for row in report["versionReliability"]
-    ]
+    release_rows = list(report["versionReliability"])
     comparison_rows = [
         {
             "metric": "Users",
@@ -648,8 +830,6 @@ def render_usage_analytics() -> str:
                 "change": f"{comparison['workChangePct']}%",
             }
         )
-        for row in hero_rows:
-            row["workShare"] = f"{_analytics_cell(row['workSharePct'])}%"
     sections = [
         "Excel MCP Server lets GitHub Copilot, Claude, and other AI assistants "
         "automate the real Microsoft Excel application. This public report shows "
@@ -729,10 +909,23 @@ def render_usage_analytics() -> str:
         f"**{previous_start.strftime(date_format)} to "
         f"{current_start.strftime(date_format)}**.",
         "",
-        _analytics_table(
-            ("Measure", f"Latest {comparison_days} days", f"Previous {comparison_days} days", "Change"),
-            ("metric", "current", "previous", "change"),
-            comparison_rows,
+        _analytics_paired_bar_chart(
+            [
+                {
+                    **row,
+                    "shown": f"{_analytics_cell(row['previous'])} → "
+                    f"{_analytics_cell(row['current'])} ({row['change']})",
+                }
+                for row in comparison_rows
+            ],
+            label_field="metric",
+            first_field="previous",
+            second_field="current",
+            first_name=f"Previous {comparison_days} days",
+            second_name=f"Latest {comparison_days} days",
+            value_suffix="",
+            display_field="shown",
+            scale_each_row=True,
         ),
         "",
         "## What the numbers tell us",
@@ -758,25 +951,29 @@ def render_usage_analytics() -> str:
                 value_suffix="%",
             ),
             "",
-            _analytics_table(
-                ("Homepage feature", "Actions", "Users", "Share"),
-                ("friendlyName", "invocations", "users", "share"),
-                hero_rows,
-            ),
-            "",
         ]),
         "## Most common actions",
         "",
-        _analytics_table(
-            ("Action", "Times used", "Users"),
-            ("friendlyName", "invocations", "users"),
-            operation_rows[:8],
+        _analytics_bar_chart(
+            [
+                {
+                    **row,
+                    "shown": f"{_analytics_cell(row['invocations'])} times by "
+                    f"{_analytics_cell(row['users'])} users",
+                }
+                for row in operation_rows[:8]
+            ],
+            label_field="friendlyName",
+            value_field="invocations",
+            display_field="shown",
         ),
         "",
     ]
     if weighted:
         sections.extend(_analytics_work_sections(report))
         sections.extend(_analytics_entry_point_sections(report, date_format))
+        if "habits" in report:
+            sections.extend(_analytics_habit_sections(report["habits"]))
     sections.extend(
         [
             "## Reliability measurement",
@@ -799,15 +996,17 @@ def render_usage_analytics() -> str:
                 "### Outcomes and failure classes",
                 "",
                 _analytics_bar_chart(
-                    failure_class_rows,
+                    [
+                        {
+                            **row,
+                            "shown": f"{_analytics_cell(row['actions'])} actions, "
+                            f"{_analytics_cell(row['users'])} users",
+                        }
+                        for row in failure_class_rows
+                    ],
                     label_field="friendlyName",
                     value_field="actions",
-                ),
-                "",
-                _analytics_table(
-                    ("Outcome or failure class", "Actions", "Users"),
-                    ("friendlyName", "actions", "users"),
-                    failure_class_rows,
+                    display_field="shown",
                 ),
                 "",
             ]
@@ -817,24 +1016,15 @@ def render_usage_analytics() -> str:
             [
                 "### Reliability by action",
                 "",
-                _analytics_table(
-                    (
-                        "Action",
-                        "Actions",
-                        "Expected negative",
-                        "Failures",
-                        "Failure rate",
-                        "Users",
-                    ),
-                    (
-                        "friendlyName",
-                        "actions",
-                        "expectedNegatives",
-                        "failures",
-                        "failureRateDisplay",
-                        "users",
-                    ),
-                    reliability_rows[:15],
+                "Failure rate for the actions with the most problems. Expected "
+                "results are shown separately and are not failures.",
+                "",
+                _analytics_bar_chart(
+                    [_analytics_reliability_row(row) for row in reliability_rows[:15]],
+                    label_field="friendlyName",
+                    value_field="failureRate",
+                    display_field="shown",
+                    work=True,
                 ),
                 "",
             ]
@@ -849,24 +1039,15 @@ def render_usage_analytics() -> str:
                 "different kinds of work. The action count shows how much data each "
                 "rate is based on.",
                 "",
-                _analytics_table(
-                    (
-                        "Release",
-                        "Actions",
-                        "Expected negative",
-                        "Failures",
-                        "Failure rate",
-                        "Users",
-                    ),
-                    (
-                        "version",
-                        "actions",
-                        "expectedNegatives",
-                        "failures",
-                        "failureRateDisplay",
-                        "users",
-                    ),
-                    release_rows[:15],
+                _analytics_bar_chart(
+                    [
+                        {**_analytics_reliability_row(row), "friendlyName": row["version"]}
+                        for row in release_rows[:15]
+                    ],
+                    label_field="friendlyName",
+                    value_field="failureRate",
+                    display_field="shown",
+                    work=True,
                 ),
                 "",
             ]

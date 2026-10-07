@@ -144,6 +144,30 @@ try {
             @{ EntryPoint = "mcp-server"; Name = "file/open"; Actions = 100 },
             @{ EntryPoint = "cli"; Name = "range/get-values"; Actions = 50 }
         )
+        assistantSessions = @(
+            @{ Size = "1"; Sessions = 10; Actions = 10; MultiFeatureSessions = 0 },
+            @{ Size = "2-10"; Sessions = 30; Actions = 150; MultiFeatureSessions = 10 },
+            @{ Size = "201+"; Sessions = 10; Actions = 2840; MultiFeatureSessions = 10 }
+        )
+        assistantSessionMedian = @(@{ MedianActions = 5.0 })
+        featurePairs = @(
+            @{ First = "tables-ranges"; Second = "worksheets-connections"; Sessions = 20; Users = 12 }
+        )
+        returningUsers = @(@{ NewUsers = 200; ReturnedAfterWeek = 100; ReturnedAfterThreeWeeks = 50 })
+        featureWait = @(
+            @{ Feature = "power-query"; Actions = 200; Users = 12; TypicalMs = 2834.6; SlowMs = 33012.0 },
+            @{ Feature = "tables-ranges"; Actions = 500; Users = 30; TypicalMs = 61.9; SlowMs = 791.3 }
+        )
+        weekdays = @(
+            @{ Day = 0; Actions = 80; Users = 10 },
+            @{ Day = 1; Actions = 400; Users = 20 },
+            @{ Day = 2; Actions = 400; Users = 20 },
+            @{ Day = 6; Actions = 80; Users = 5 }
+        )
+        firstAdvancedUse = @(
+            @{ Feature = "power-query"; Users = 40; FirstDay = 30; FirstWeek = 6; Later = 4 },
+            @{ Feature = "vba"; Users = 20; FirstDay = 10; FirstWeek = 5; Later = 5 }
+        )
     }
     $fixturePath = Write-TestFile "fixture.json" ($fixture | ConvertTo-Json -Depth 8)
     $analyticsPath = Join-Path $testRoot "analytics.json"
@@ -231,6 +255,49 @@ try {
         "Entry point feature shares are wrong."
     Assert-True ($analytics.windows.entryPointMinimumUsers -eq 10) `
         "The entry point minimum group size is missing."
+    $testsRun++
+
+    $habits = $analytics.habits
+    Assert-True ($habits.assistantSessions.sessions -eq 50 -and
+        $habits.assistantSessions.medianActions -eq 5 -and
+        $habits.assistantSessions.multiFeatureSharePct -eq 40) `
+        "The AI assistant session summary is wrong."
+    Assert-True (($habits.assistantSessions.sizes.size -join ",") -eq "1,2-10,11-50,51-200,201+") `
+        "Session sizes are not listed in a fixed order with empty sizes kept."
+    $longSessions = $habits.assistantSessions.sizes | Where-Object size -eq "201+"
+    Assert-True ($longSessions.sessionSharePct -eq 20 -and $longSessions.actionSharePct -eq 94.67) `
+        "Long sessions did not get their share of sessions and actions."
+    Assert-True ($habits.featurePairs[0].sharePct -eq 40 -and
+        $null -eq $habits.featurePairs[0].PSObject.Properties["users"]) `
+        "Areas used together are wrong or publish a user count."
+    Assert-True ($habits.returningUsers.returnedAfterWeekPct -eq 50 -and
+        $habits.returningUsers.returnedAfterThreeWeeksPct -eq 25) `
+        "Returning user shares are wrong."
+    Assert-True ($habits.featureWait[0].name -eq "power-query" -and
+        $habits.featureWait[0].typicalSeconds -eq 2.83 -and
+        $habits.featureWait[0].slowSeconds -eq 33) `
+        "Typical waits were not converted to seconds."
+    Assert-True (($habits.weekdays.day -join ",") -eq "Monday,Tuesday,Saturday,Sunday" -and
+        $habits.workdayAverageActions -eq 20 -and $habits.weekendAverageActions -eq 10) `
+        "Weekday use is not in Monday-first order or the per-day averages are wrong."
+    Assert-True ($habits.firstAdvancedUse[0].name -eq "power-query" -and
+        $habits.firstAdvancedUse[0].firstDayPct -eq 75) `
+        "First use of advanced areas is wrong."
+    $unsafeHabitCases = @{
+        "session size" = { param($f) $f.assistantSessions[0].Size = "huge" }
+        "homepage-feature" = { param($f) $f.featurePairs[0].Second = "private-workbook" }
+        "weekday" = { param($f) $f.weekdays[0].Day = 9 }
+    }
+    foreach ($case in $unsafeHabitCases.GetEnumerator()) {
+        $unsafeHabitFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+        & $case.Value $unsafeHabitFixture
+        $unsafeHabitPath = Write-TestFile "unsafe-habit-fixture.json" ($unsafeHabitFixture | ConvertTo-Json -Depth 8)
+        Assert-Throws -ExpectedMessage $case.Key -Action {
+            & $updateScript -WorkspaceId "fixture" `
+                -OutputPath (Join-Path $testRoot "unsafe-habit-report.json") `
+                -FixturePath $unsafeHabitPath
+        }
+    }
     $testsRun++
 
     $largeCliFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
@@ -420,6 +487,8 @@ Investigate the 12 background task problems before changing behavior.
         "The initial prompt does not leave room below the validation limit."
     Assert-True ($copilotRequests[1] -like "*failed validation*") `
         "The retry prompt does not explain why another draft is required."
+    Assert-True (@($copilotRequests | Where-Object { $_ -like "*--model claude-opus-5.5 *" }).Count -eq 2) `
+        "Every interpretation request must pin the report model."
     Assert-True ($retryReport.interpretation -eq $interpretation.Trim()) `
         "The regenerated interpretation was not assembled into the report."
     $testsRun++
