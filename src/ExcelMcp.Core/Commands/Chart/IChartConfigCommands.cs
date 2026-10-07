@@ -98,7 +98,7 @@ public interface IChartConfigCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
-    /// <param name="sourceRange">New data source range (e.g., Sheet1!A1:D10). Separate cell blocks on one sheet are allowed (e.g., A1:A10,C1:D10); the first block supplies the category labels. Blocks without a sheet name use the first block's sheet, or the chart's own sheet when the first block has none.</param>
+    /// <param name="sourceRange">New data source range (e.g., Sheet1!A1:D10). Separate cell blocks on one sheet are allowed (e.g., A1:A10,C1:D10); the first block supplies category labels and must precede the other blocks in worksheet order (top to bottom, then left to right). Blocks without a sheet name use the first block's sheet, or the chart's own sheet when the first block has none.</param>
     [ServiceAction("set-source-range")]
     OperationResult SetSourceRange(
         IExcelBatch batch,

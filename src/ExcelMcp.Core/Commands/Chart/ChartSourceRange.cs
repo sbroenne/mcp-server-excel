@@ -29,7 +29,22 @@ internal static class ChartSourceRange
         try
         {
             var sheetName = ActualSheetName(book, parsed.SheetName, ct);
-            return RangeHelpers.ResolveRange(book, sheetName, string.Join(",", parsed.Blocks))!;
+            var source = (Excel.Range)RangeHelpers.ResolveRange(
+                book, sheetName, string.Join(",", parsed.Blocks))!;
+            try
+            {
+                if (parsed.Blocks.Count > 1)
+                {
+                    ValidateFirstBlockPosition(book, sheetName, parsed.Blocks, sourceAddress, ct);
+                }
+
+                return source;
+            }
+            catch
+            {
+                ComUtilities.Release(ref source);
+                throw;
+            }
         }
         catch (OperationFailureException ex)
             when (ex.ErrorCategory == OperationFailureCategory.InvalidInput && parsed.Blocks.Count == 1)
@@ -278,6 +293,41 @@ internal static class ChartSourceRange
         {
             ComUtilities.Release(ref sheet);
             ComUtilities.Release(ref worksheets);
+        }
+    }
+
+    private static void ValidateFirstBlockPosition(
+        dynamic book, string sheetName, IReadOnlyList<string> blocks, string sourceAddress, CancellationToken ct)
+    {
+        Excel.Range? firstBlock = null;
+        try
+        {
+            firstBlock = (Excel.Range)RangeHelpers.ResolveRange(book, sheetName, blocks[0])!;
+            int firstRow = firstBlock.Row;
+            int firstColumn = firstBlock.Column;
+            for (int index = 1; index < blocks.Count; index++)
+            {
+                ct.ThrowIfCancellationRequested();
+                Excel.Range? block = null;
+                try
+                {
+                    block = (Excel.Range)RangeHelpers.ResolveRange(book, sheetName, blocks[index])!;
+                    if (block.Row < firstRow || (block.Row == firstRow && block.Column < firstColumn))
+                    {
+                        throw InvalidAddress(
+                            sourceAddress,
+                            "The first block must come first in worksheet order so it supplies the category labels.");
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref block);
+                }
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref firstBlock);
         }
     }
 

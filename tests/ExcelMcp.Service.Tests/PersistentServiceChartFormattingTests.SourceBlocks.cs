@@ -25,6 +25,20 @@ public sealed partial class PersistentServiceChartFormattingTests
         AssertSeriesData(result.ChartName, 1, "Series2", SeedCategories, [20, 25, 30, 35, 40]);
     }
 
+    [Fact]
+    public void CreateFromRange_LabelBlockAfterSeriesBlock_RejectsBeforeCreatingChart()
+    {
+        var batch = _fixture.BatchToken;
+        var before = ChartNames(_sheetName);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            _chartCommands.CreateFromRange(
+                batch, _sheetName, "C1:C6,A1:A6", ChartType.ColumnClustered, 50, 50));
+
+        Assert.Contains("first block", exception.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(before, ChartNames(_sheetName));
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
@@ -161,6 +175,21 @@ public sealed partial class PersistentServiceChartFormattingTests
 
         Assert.Single(RequireSuccess(_chartCommands.Read(batch, created.ChartName)).Series);
         AssertSeriesData(created.ChartName, 1, "Other2", SeedCategories, [200, 250, 300, 350, 400]);
+    }
+
+    [Fact]
+    public void SetSourceRange_LabelBlockAfterSeriesBlock_LeavesChartUnchanged()
+    {
+        var batch = _fixture.BatchToken;
+        var created = RequireSuccess(_chartCommands.CreateFromRange(
+            batch, _sheetName, "A1:B4", ChartType.Line, 50, 50));
+        var before = RequireSuccess(_chartCommands.Read(batch, created.ChartName));
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            _chartCommands.SetSourceRange(batch, created.ChartName, "C1:C6,A1:A6"));
+
+        Assert.Contains("first block", exception.Message, StringComparison.OrdinalIgnoreCase);
+        AssertChartUnchanged(before);
     }
 
     [Fact]

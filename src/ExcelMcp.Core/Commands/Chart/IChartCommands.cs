@@ -68,7 +68,7 @@ public interface IChartCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Target worksheet name</param>
-    /// <param name="sourceRangeAddress">Data range for the chart (e.g., A1:D10). Separate cell blocks on one sheet are allowed (e.g., A1:A10,C1:D10); the first block supplies the category labels. Blocks without a sheet name use the first block's sheet, or the target worksheet when the first block has none.</param>
+    /// <param name="sourceRangeAddress">Data range for the chart (e.g., A1:D10). Separate cell blocks on one sheet are allowed (e.g., A1:A10,C1:D10); the first block supplies category labels and must precede the other blocks in worksheet order (top to bottom, then left to right). Blocks without a sheet name use the first block's sheet, or the target worksheet when the first block has none.</param>
     /// <param name="chartType">Type of chart to create</param>
     /// <param name="left">Left position in points from worksheet edge</param>
     /// <param name="top">Top position in points from worksheet edge</param>
