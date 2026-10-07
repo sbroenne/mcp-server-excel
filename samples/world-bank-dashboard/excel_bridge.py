@@ -30,12 +30,12 @@ class Excel:
         path.parent.mkdir(parents=True, exist_ok=True)
         if path.exists():
             raise FileExistsError(f"Refusing to overwrite {path}")
-        self.session = self.invoke("session", "create", path, "--timeout", "600", "--show")["sessionId"]
+        self.session = self.invoke("session", "create", path, "--timeout-seconds", "600", "--show")["sessionId"]
         return self.session
 
     def open(self, path, show=False):
         options = ["--show"] if show else []
-        self.session = self.invoke("session", "open", Path(path).resolve(), "--timeout", "600", *options)["sessionId"]
+        self.session = self.invoke("session", "open", Path(path).resolve(), "--timeout-seconds", "600", *options)["sessionId"]
         return self.session
 
     def batch(self, commands):

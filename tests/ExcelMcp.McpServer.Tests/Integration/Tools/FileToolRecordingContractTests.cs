@@ -44,7 +44,7 @@ public sealed class FileToolRecordingContractTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "test",
-                ["path"] = path,
+                ["file_path"] = path,
                 ["timeout_seconds"] = 45
             },
             response,
@@ -97,7 +97,7 @@ public sealed class FileToolRecordingContractTests(
                 new Dictionary<string, object?>
                 {
                     ["action"] = action,
-                    ["path"] = path,
+                    ["file_path"] = path,
                     ["show"] = false,
                     ["timeout_seconds"] = 120
                 },
@@ -277,7 +277,7 @@ public sealed class FileToolRecordingContractTests(
         var arguments = new Dictionary<string, object?>
         {
             ["action"] = "open",
-            ["path"] = path,
+            ["file_path"] = path,
             ["show"] = false,
             ["timeout_seconds"] = 120
         };

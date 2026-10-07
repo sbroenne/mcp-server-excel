@@ -32,7 +32,7 @@ public sealed class PageLayoutPersistenceTests
                 rangeAddress = "A1:B2",
                 values = new object[][] { ["Report", "Amount"], ["A", 10] }
             })) { }
-            using (await Send(service, session, "sheet.set-page-setup", new
+            using (await Send(service, session, "worksheetstyle.set-page-setup", new
             {
                 sheetName = "Sheet1",
                 orientation = "landscape",
@@ -47,7 +47,7 @@ public sealed class PageLayoutPersistenceTests
                     zoomPercent = 100
                 }
             })) { }
-            using (await Send(service, session, "sheet.set-page-breaks", new
+            using (await Send(service, session, "worksheetstyle.set-page-breaks", new
             {
                 sheetName = "Sheet1",
                 pageBreakOptions = new { rows = new List<int> { 10 }, columns = new List<int>() }
@@ -57,7 +57,7 @@ public sealed class PageLayoutPersistenceTests
             using (var opened = await Send(service, null, "session.open", new { filePath = path }))
                 session = opened.RootElement.GetProperty("sessionId").GetString();
             Assert.False(string.IsNullOrEmpty(session));
-            using (var state = await Send(service, session, "sheet.get-page-setup", new { sheetName = "Sheet1" }))
+            using (var state = await Send(service, session, "worksheetstyle.get-page-setup", new { sheetName = "Sheet1" }))
             {
                 Assert.Equal("$A$1:$B$20", state.RootElement.GetProperty("printArea").GetString());
                 Assert.Equal("$1:$1", state.RootElement.GetProperty("printTitleRows").GetString());
@@ -68,7 +68,7 @@ public sealed class PageLayoutPersistenceTests
                 Assert.Equal("xlPaperA4", state.RootElement.GetProperty("paperSize").GetString());
                 Assert.Equal(100, state.RootElement.GetProperty("zoomPercent").GetInt32());
             }
-            using (var breaks = await Send(service, session, "sheet.get-page-breaks", new { sheetName = "Sheet1" }))
+            using (var breaks = await Send(service, session, "worksheetstyle.get-page-breaks", new { sheetName = "Sheet1" }))
                 Assert.Contains(breaks.RootElement.GetProperty("horizontal").EnumerateArray(),
                     item => item.GetProperty("isManual").GetBoolean() && item.GetProperty("position").GetInt32() == 10);
             using (await Send(service, session, "workbook.export-fixed-format", new { targetPath = pdf })) { }

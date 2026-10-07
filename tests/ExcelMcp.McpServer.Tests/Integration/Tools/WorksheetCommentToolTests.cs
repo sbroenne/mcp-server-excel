@@ -26,11 +26,11 @@ public sealed class WorksheetCommentToolTests(
                 ["text"] = "Quarterly update"
             },
             """{"success":true}""",
-            "sheet.set-comment",
+            "worksheetstyle.set-comment",
             """{"sheetName":"CommentSheet","cellAddress":"A1","text":"Quarterly update"}""");
         using (var args = RecordingToolTest.ParseArgs(
             setCall.Request,
-            "sheet.set-comment",
+            "worksheetstyle.set-comment",
             sessionId))
         {
             Assert.Equal("CommentSheet", args.RootElement.GetProperty("sheetName").GetString());
@@ -43,7 +43,7 @@ public sealed class WorksheetCommentToolTests(
             sessionId,
             [],
             """{"success":true,"hasComment":true,"text":"Quarterly update"}""",
-            "sheet.get-comment",
+            "worksheetstyle.get-comment",
             """{"sheetName":"CommentSheet","cellAddress":"A1"}""");
         using (var result = JsonDocument.Parse(getCall.JsonResult))
         {
@@ -58,9 +58,9 @@ public sealed class WorksheetCommentToolTests(
             sessionId,
             [],
             """{"success":true}""",
-            "sheet.clear-comment",
+            "worksheetstyle.clear-comment",
             """{"sheetName":"CommentSheet","cellAddress":"A1"}""");
-        Assert.Equal("sheet.clear-comment", clearCall.Request.Command);
+        Assert.Equal("worksheetstyle.clear-comment", clearCall.Request.Command);
     }
 
     private Task<RecordingProgramTransportFixture.CapturedToolCall> CallAsync(

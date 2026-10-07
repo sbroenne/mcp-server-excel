@@ -36,7 +36,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 ///
 /// NUMBER FORMATS: Use US locale format codes (e.g., '#,##0.00', 'mm/dd/yyyy', '0.00%').
 /// </summary>
-[ServiceCategory("range", "Range")]
+[ServiceCategory("Range")]
 [McpTool("range", Title = "Range Operations", Destructive = true, Category = "data",
     Description = "Write values and formulas, set number formats, copy ranges, and clear content or formatting. set-formulas accepts reference_style='a1' (default) or 'r1c1'; range addresses stay A1. Relative R1C1 references use each destination cell. " +
         "copy: Required paste_kind (all/values/formulas/formats/validation); transpose and skip_blanks default false. Formats/validation preserve content and need no overwrite permission. Formats include number formats, protection, and applicable conditional rules. All kinds require unmerged rectangular sources/destinations and a single-cell anchor or dimensions that are whole multiples of the source's paste dimensions, including transpose. Uses Excel's clipboard and clears owned copy mode on exit. " +

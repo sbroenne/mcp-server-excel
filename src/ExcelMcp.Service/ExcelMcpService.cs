@@ -104,7 +104,10 @@ public sealed class ExcelMcpService : IDisposable
             {
                 "service" => HandleServiceCommand(action),
                 "session" => HandleSessionCommand(action, request),
-                "sheet" or "sheetstyle" => await DispatchSheetAsync(action, request),
+                "sheet" => await DispatchSheetAsync(action, request),
+                "worksheetstyle" => await DispatchSimpleAsync<WorksheetStyleAction>(action, request,
+                    ServiceRegistry.WorksheetStyle.TryParseAction,
+                    (a, batch) => ServiceRegistry.WorksheetStyle.DispatchToCore(_sheetCommands, a, batch, request.Args)),
                 "range" or "rangeedit" or "rangeformat" or "rangelink" => await DispatchRangeAsync(action, request),
                 "table" or "tablecolumn" => await DispatchTableAsync(action, request),
                 "powerquery" => await DispatchSimpleAsync<PowerQueryAction>(action, request,
@@ -131,9 +134,9 @@ public sealed class ExcelMcpService : IDisposable
                 "querytable" => await DispatchSimpleAsync<QueryTableAction>(action, request,
                     ServiceRegistry.QueryTable.TryParseAction,
                     (a, batch) => ServiceRegistry.QueryTable.DispatchToCore(_queryTableCommands, a, batch, request.Args)),
-                "calculation" => await DispatchSimpleAsync<CalculationAction>(action, request,
-                    ServiceRegistry.Calculation.TryParseAction,
-                    (a, batch) => ServiceRegistry.Calculation.DispatchToCore(_calculationModeCommands, a, batch, request.Args)),
+                "calculationmode" => await DispatchSimpleAsync<CalculationModeAction>(action, request,
+                    ServiceRegistry.CalculationMode.TryParseAction,
+                    (a, batch) => ServiceRegistry.CalculationMode.DispatchToCore(_calculationModeCommands, a, batch, request.Args)),
                 "analysis" => await DispatchSimpleAsync<AnalysisAction>(action, request,
                     ServiceRegistry.Analysis.TryParseAction,
                     (a, batch) => ServiceRegistry.Analysis.DispatchToCore(_analysisCommands, a, batch, request.Args)),
@@ -149,9 +152,9 @@ public sealed class ExcelMcpService : IDisposable
                 "datamodel" => await DispatchSimpleAsync<DataModelAction>(action, request,
                     ServiceRegistry.DataModel.TryParseAction,
                     (a, batch) => ServiceRegistry.DataModel.DispatchToCore(_dataModelCommands, a, batch, request.Args)),
-                "datamodelrel" => await DispatchSimpleAsync<DataModelRelAction>(action, request,
-                    ServiceRegistry.DataModelRel.TryParseAction,
-                    (a, batch) => ServiceRegistry.DataModelRel.DispatchToCore(_dataModelCommands, a, batch, request.Args)),
+                "datamodelrelationship" => await DispatchSimpleAsync<DataModelRelationshipAction>(action, request,
+                    ServiceRegistry.DataModelRelationship.TryParseAction,
+                    (a, batch) => ServiceRegistry.DataModelRelationship.DispatchToCore(_dataModelCommands, a, batch, request.Args)),
                 "slicer" => await DispatchSimpleAsync<SlicerAction>(action, request,
                     ServiceRegistry.Slicer.TryParseAction,
                     (a, batch) => ServiceRegistry.Slicer.DispatchToCore(_slicerCommands, a, batch, request.Args)),
@@ -200,7 +203,7 @@ public sealed class ExcelMcpService : IDisposable
             {
                 Success = false,
                 ErrorCategory = "InvalidInput",
-                ErrorMessage = $"Unknown service action: {action}"
+                ErrorMessage = $"Unknown action '{action}' for command group 'service'. Valid actions: ping, shutdown, status."
             }
         };
     }
@@ -233,7 +236,7 @@ public sealed class ExcelMcpService : IDisposable
             {
                 Success = false,
                 ErrorCategory = "InvalidInput",
-                ErrorMessage = $"Unknown session action: {action}"
+                ErrorMessage = $"Unknown action '{action}' for command group 'session'. Valid actions: create, open, close, list, test."
             };
         }
 
@@ -249,29 +252,33 @@ public sealed class ExcelMcpService : IDisposable
         };
     }
 
+    private static readonly Dictionary<string, string> SessionParameterDescriptions = new(StringComparer.Ordinal)
+    {
+        ["filePath"] = "absolute path to the workbook",
+        ["show"] = "true to show the Excel window",
+        ["timeoutSeconds"] = "whole seconds from 10 through 3600 (default 120)",
+        ["save"] = "true to save the workbook before closing",
+    };
+
     private static void ValidateSessionActionArguments(string action, string? argsJson)
     {
-        var allowedParameters = action switch
+        string[] allowedParameters = action switch
         {
-            "create" => new HashSet<string>(
-                ["filePath", "macroEnabled", "show", "timeoutSeconds"],
-                StringComparer.Ordinal),
-            "open" => new HashSet<string>(
-                ["filePath", "show", "timeoutSeconds"],
-                StringComparer.Ordinal),
-            "close" => new HashSet<string>(["save"], StringComparer.Ordinal),
-            "test" => new HashSet<string>(
-                ["filePath", "timeoutSeconds"],
-                StringComparer.Ordinal),
+            "create" or "open" => ["filePath", "show", "timeoutSeconds"],
+            "close" => ["save"],
+            "test" => ["filePath", "timeoutSeconds"],
             _ => []
         };
         var unknownParameters = ServiceRegistry.GetJsonPropertyNames(argsJson, includeNullValues: true)
-            .Where(parameter => !allowedParameters.Contains(parameter))
+            .Where(parameter => !allowedParameters.Contains(parameter, StringComparer.Ordinal))
             .ToArray();
         if (unknownParameters.Length > 0)
         {
+            var validParameters = allowedParameters.Length == 0
+                ? "none"
+                : string.Join("; ", allowedParameters.Select(parameter => $"{parameter} ({SessionParameterDescriptions[parameter]})"));
             throw new ArgumentException(
-                $"Unknown parameter(s) for session.{action}: {string.Join(", ", unknownParameters)}.");
+                $"Unknown parameter(s) for session.{action}: {string.Join(", ", unknownParameters)}. Valid parameters: {validParameters}.");
         }
     }
 
@@ -315,12 +322,6 @@ public sealed class ExcelMcpService : IDisposable
                 ErrorCategory = "InvalidInput",
                 ErrorMessage = $"Invalid file extension '{extension}'. session create supports .xlsx and .xlsm only."
             };
-        }
-        var extensionIsMacroEnabled = string.Equals(extension, ".xlsm", StringComparison.OrdinalIgnoreCase);
-        if (args.MacroEnabled.HasValue && args.MacroEnabled.Value != extensionIsMacroEnabled)
-        {
-            throw new ArgumentException(
-                $"macroEnabled must be {extensionIsMacroEnabled.ToString().ToLowerInvariant()} for a '{extension}' workbook.");
         }
 
         try
@@ -612,18 +613,6 @@ public sealed class ExcelMcpService : IDisposable
             return await WithSessionAsync(request, batch =>
 
                 WrapResult(ServiceRegistry.Sheet.DispatchToCore(_sheetCommands, sheetAction, batch, request.Args)));
-
-        }
-
-
-
-        if (ServiceRegistry.SheetStyle.TryParseAction(actionString, out var styleAction))
-
-        {
-
-            return await WithSessionAsync(request, batch =>
-
-                WrapResult(ServiceRegistry.SheetStyle.DispatchToCore(_sheetCommands, styleAction, batch, request.Args)));
 
         }
 
@@ -1090,7 +1079,6 @@ public sealed class ExcelMcpService : IDisposable
 public sealed class SessionOpenArgs
 {
     public string? FilePath { get; set; }
-    public bool? MacroEnabled { get; set; }
     public bool Show { get; set; }
     public int? TimeoutSeconds { get; set; }
 }

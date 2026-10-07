@@ -63,7 +63,7 @@ public sealed class IrmProtectedWorkbookRegressionTests : IDisposable
         var stopwatch = Stopwatch.StartNew();
 
         var (result, json) = await CliProcessHelper.RunJsonAsync(
-            ["session", "open", _fakeIrmFile, "--timeout", "15"],
+            ["session", "open", _fakeIrmFile, "--timeout-seconds", "15"],
             timeoutMs: 20000,
             diagnosticLabel: "irm-session-open-headless");
 
@@ -102,7 +102,7 @@ public sealed class IrmProtectedWorkbookRegressionTests : IDisposable
         try
         {
             var (result, json) = await CliProcessHelper.RunJsonAsync(
-                ["session", "open", irmTestFile, "--show", "--timeout", "15"],
+                ["session", "open", irmTestFile, "--show", "--timeout-seconds", "15"],
                 timeoutMs: 20000,
                 diagnosticLabel: "irm-session-open-visible");
 

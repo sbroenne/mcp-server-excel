@@ -2,32 +2,25 @@ namespace Sbroenne.ExcelMcp.Core.Attributes;
 
 /// <summary>
 /// Marks an interface as a service category for code generation.
-/// The category name is used for Service routing (e.g., "powerquery" → "powerquery.list").
+/// The command group name used by MCP routing, CLI commands, and batch files is derived
+/// from the <see cref="McpToolAttribute"/> name with underscores removed
+/// (e.g., "calculation_mode" → "calculationmode"). Interfaces without an MCP tool use
+/// the lowercased <see cref="PascalName"/> (e.g., "Sheet" → "sheet").
 /// </summary>
 [AttributeUsage(AttributeTargets.Interface, AllowMultiple = false, Inherited = false)]
 public sealed class ServiceCategoryAttribute : Attribute
 {
     /// <summary>
-    /// The service category name (e.g., "powerquery", "range", "sheet").
-    /// Used in service command routing: "{category}.{action}"
+    /// PascalCase name used for generated types (e.g., "PowerQuery" → PowerQueryAction).
     /// </summary>
-    public string Category { get; }
-
-    /// <summary>
-    /// Optional PascalCase name for the category (e.g., "PowerQuery").
-    /// If not specified, derived from category using simple conversion.
-    /// Use this when the category contains multiple words (e.g., "powerquery" → "PowerQuery").
-    /// </summary>
-    public string? PascalName { get; }
+    public string PascalName { get; }
 
     /// <summary>
     /// Creates a new ServiceCategoryAttribute.
     /// </summary>
-    /// <param name="category">The service category name in lowercase (e.g., "powerquery")</param>
-    /// <param name="pascalName">Optional PascalCase name (e.g., "PowerQuery")</param>
-    public ServiceCategoryAttribute(string category, string? pascalName = null)
+    /// <param name="pascalName">PascalCase name used for generated types (e.g., "PowerQuery")</param>
+    public ServiceCategoryAttribute(string pascalName)
     {
-        Category = category ?? throw new ArgumentNullException(nameof(category));
-        PascalName = pascalName;
+        PascalName = pascalName ?? throw new ArgumentNullException(nameof(pascalName));
     }
 }

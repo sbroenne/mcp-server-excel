@@ -30,20 +30,20 @@ public sealed class FineProtectionPersistenceTests
                 locked = true,
                 formulaHidden = true
             })) { }
-            using (await Send(service, session, "sheet.set-protection", new
+            using (await Send(service, session, "worksheetstyle.set-protection", new
             {
                 sheetName = "Sheet1",
                 isProtected = true,
                 options = new { userInterfaceOnly = true, allowFormattingRows = true }
             })) { }
-            using (var before = await Send(service, session, "sheet.get-protection", new { sheetName = "Sheet1" }))
+            using (var before = await Send(service, session, "worksheetstyle.get-protection", new { sheetName = "Sheet1" }))
                 Assert.True(before.RootElement.GetProperty("userInterfaceOnly").GetBoolean());
             await Close(service, session!, save: true);
             session = null;
             using (var opened = await Send(service, null, "session.open", new { filePath = path }))
                 session = opened.RootElement.GetProperty("sessionId").GetString();
             Assert.False(string.IsNullOrEmpty(session));
-            using (var read = await Send(service, session, "sheet.get-protection", new { sheetName = "Sheet1" }))
+            using (var read = await Send(service, session, "worksheetstyle.get-protection", new { sheetName = "Sheet1" }))
             {
                 Assert.True(read.RootElement.GetProperty("protectContents").GetBoolean());
                 Assert.False(read.RootElement.GetProperty("userInterfaceOnly").GetBoolean());

@@ -8,7 +8,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Diag;
 /// These commands validate parameter parsing, routing, JSON serialization,
 /// and error handling — no Excel COM session needed.
 /// </summary>
-[ServiceCategory("diag", "Diag")]
+[ServiceCategory("Diag")]
 [NoSession]
 public interface IDiagCommands
 {

@@ -26,7 +26,7 @@ public sealed class DataModelRefreshTimeoutRegressionTests
         await fakeDaemon.StartAsync();
 
         var (result, json) = await CliProcessHelper.RunJsonAsync(
-            ["datamodel", "refresh", "--session", "session-issue-640", "--timeout", "600"],
+            ["datamodel", "refresh", "--session", "session-issue-640", "--timeout-seconds", "600"],
             timeoutMs: 20000,
             environmentVariables: new Dictionary<string, string>
             {
@@ -39,7 +39,7 @@ public sealed class DataModelRefreshTimeoutRegressionTests
         Assert.Equal("datamodel.refresh", json.RootElement.GetProperty("command").GetString());
 
         using var argsJson = JsonDocument.Parse(json.RootElement.GetProperty("argsJson").GetString()!);
-        Assert.Equal(600, argsJson.RootElement.GetProperty("timeout").GetInt32());
+        Assert.Equal(600, argsJson.RootElement.GetProperty("timeoutSeconds").GetInt32());
     }
 
     [Fact]
@@ -51,7 +51,7 @@ public sealed class DataModelRefreshTimeoutRegressionTests
         await fakeDaemon.StartAsync();
 
         var (result, json) = await CliProcessHelper.RunJsonAsync(
-            ["datamodel", "refresh", "--session", "session-issue-640", "--timeout", "00:10:00"],
+            ["datamodel", "refresh", "--session", "session-issue-640", "--timeout-seconds", "00:10:00"],
             timeoutMs: 20000,
             environmentVariables: new Dictionary<string, string>
             {
@@ -77,7 +77,7 @@ public sealed class DataModelRefreshTimeoutRegressionTests
         await fakeDaemon.StartAsync();
 
         var (result, json) = await CliProcessHelper.RunJsonAsync(
-            ["powerquery", "refresh", "--session", "session-issue-640", "--query-name", "Issue640Query", "--timeout", "600"],
+            ["powerquery", "refresh", "--session", "session-issue-640", "--query-name", "Issue640Query", "--timeout-seconds", "600"],
             timeoutMs: 20000,
             environmentVariables: new Dictionary<string, string>
             {
@@ -90,7 +90,7 @@ public sealed class DataModelRefreshTimeoutRegressionTests
         Assert.Equal("powerquery.refresh", json.RootElement.GetProperty("command").GetString());
 
         using var argsJson = JsonDocument.Parse(json.RootElement.GetProperty("argsJson").GetString()!);
-        Assert.Equal(600, argsJson.RootElement.GetProperty("timeout").GetInt32());
+        Assert.Equal(600, argsJson.RootElement.GetProperty("timeoutSeconds").GetInt32());
     }
 
     private sealed class EchoDaemon : IAsyncDisposable

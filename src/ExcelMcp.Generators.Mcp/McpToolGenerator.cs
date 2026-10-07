@@ -614,9 +614,8 @@ public class McpToolGenerator : IIncrementalGenerator
             }
             else if (ep.TypeName.Contains("TimeSpan"))
             {
-                // Public timeout inputs are whole seconds. Conversion happens once in service dispatch.
-                var secondsName = ep.Name + "Seconds";
-                var snakeSecondsName = StringHelper.ToSnakeCase(secondsName);
+                // Public timeout inputs are whole seconds (exposed as timeoutSeconds). Conversion happens once in service dispatch.
+                var snakeSecondsName = StringHelper.ToSnakeCase(ep.Name);
                 var minimumSeconds = info.Category == "powerquery" ? 0 : 1;
                 result.Add(new McpParameter(
                     name: snakeSecondsName,

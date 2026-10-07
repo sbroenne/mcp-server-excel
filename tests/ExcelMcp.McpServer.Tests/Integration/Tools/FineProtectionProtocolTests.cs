@@ -35,7 +35,7 @@ public sealed class FineProtectionProtocolTests(RecordingProgramTransportFixture
             ["sheet_name"] = "Sheet1",
             ["is_protected"] = true,
             ["options"] = options
-        }, RecordingToolTest.Success("""{"success":true}"""), "sheet.set-protection", expected);
+        }, RecordingToolTest.Success("""{"success":true}"""), "worksheetstyle.set-protection", expected);
         Assert.False(call.Result.IsError);
     }
 

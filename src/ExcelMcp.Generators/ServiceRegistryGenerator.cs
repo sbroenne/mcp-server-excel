@@ -453,13 +453,9 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         ServiceInfo info,
         List<ExposedParameter> allExposedParams)
     {
-        sb.AppendLine("        /// <summary>Validates explicitly supplied parameters for an action.</summary>");
-        sb.AppendLine("        public static void ValidateActionParameters(");
-        sb.AppendLine("            string action,");
-        sb.AppendLine("            System.Collections.Generic.IEnumerable<string> suppliedParameters,");
-        sb.AppendLine("            bool allowFileParameters)");
+        sb.AppendLine("        private static string[] GetValidActionParameters(string action, bool allowFileParameters)");
         sb.AppendLine("        {");
-        sb.AppendLine("            var validParameters = action switch");
+        sb.AppendLine("            return action switch");
         sb.AppendLine("            {");
         foreach (var method in info.Methods)
         {
@@ -478,6 +474,35 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         }
         sb.AppendLine("                _ => throw new System.ArgumentException($\"Unknown action: {action}\")");
         sb.AppendLine("            };");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+
+        sb.AppendLine("        private static readonly System.Collections.Generic.Dictionary<string, string> ParameterDescriptions = new(System.StringComparer.Ordinal)");
+        sb.AppendLine("        {");
+        foreach (var (name, description) in GetShortParameterDescriptions(info))
+        {
+            sb.AppendLine($"            [\"{EscapeStringLiteral(name)}\"] = \"{EscapeStringLiteral(description)}\",");
+        }
+        sb.AppendLine("        };");
+        sb.AppendLine();
+
+        sb.AppendLine("        private static string DescribeValidParameters(string action, bool allowFileParameters)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var validParameters = GetValidActionParameters(action, allowFileParameters);");
+        sb.AppendLine("            if (validParameters.Length == 0)");
+        sb.AppendLine("                return $\"Action '{action}' takes no parameters.\";");
+        sb.AppendLine("            return $\"Valid parameters for '{action}': \" + string.Join(\"; \", validParameters.Select(parameter =>");
+        sb.AppendLine("                ParameterDescriptions.TryGetValue(action + \":\" + parameter, out var description) ? $\"{parameter} ({description})\" : parameter)) + \".\";");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+
+        sb.AppendLine("        /// <summary>Validates explicitly supplied parameters for an action.</summary>");
+        sb.AppendLine("        public static void ValidateActionParameters(");
+        sb.AppendLine("            string action,");
+        sb.AppendLine("            System.Collections.Generic.IEnumerable<string> suppliedParameters,");
+        sb.AppendLine("            bool allowFileParameters)");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var validParameters = GetValidActionParameters(action, allowFileParameters);");
         sb.AppendLine("            var validSet = new System.Collections.Generic.HashSet<string>(validParameters, System.StringComparer.Ordinal);");
         sb.AppendLine("            var invalid = suppliedParameters");
         sb.AppendLine("                .Where(parameter => !validSet.Contains(parameter))");
@@ -487,7 +512,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("            if (invalid.Length > 0)");
         sb.AppendLine("            {");
         sb.AppendLine("                throw new System.ArgumentException(");
-        sb.AppendLine("                    $\"Parameter(s) {string.Join(\", \", invalid)} are not valid for action '{action}'.\");");
+        sb.AppendLine("                    $\"Parameter(s) {string.Join(\", \", invalid)} are not valid for action '{action}'. {DescribeValidParameters(action, allowFileParameters)}\");");
         sb.AppendLine("            }");
         sb.AppendLine("        }");
         sb.AppendLine();
@@ -506,7 +531,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("            if (invalidPropertyNames.Length > 0)");
         sb.AppendLine("            {");
         sb.AppendLine("                throw new System.ArgumentException(");
-        sb.AppendLine("                    $\"Unknown or non-canonical parameter(s): {string.Join(\", \", invalidPropertyNames)}.\");");
+        sb.AppendLine("                    $\"Unknown or non-canonical parameter(s): {string.Join(\", \", invalidPropertyNames)}. Parameter names are case-sensitive. {DescribeValidParameters(action, allowFileParameters: true)}\");");
         sb.AppendLine("            }");
         sb.AppendLine("            ValidateActionParameters(action, rawPropertyNames, allowFileParameters: true);");
         var validatedMethods = info.Methods
@@ -571,9 +596,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 }
                 foreach (var parameter in method.Parameters.Where(p => p.IsEnum))
                 {
-                    var propertyName = parameter.IsFromString && parameter.ExposedName != null
-                        ? parameter.ExposedName
-                        : parameter.Name;
+                    var propertyName = parameter.ExposedName ?? parameter.Name;
                     var propertyExpression = $"args.{StringHelper.ToPascalCase(propertyName)}";
                     if (IsRequiredParameter(parameter))
                     {
@@ -590,6 +613,75 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         }
         sb.AppendLine("        }");
         sb.AppendLine();
+    }
+
+    private static List<(string Key, string Description)> GetShortParameterDescriptions(ServiceInfo info)
+    {
+        var result = new List<(string Key, string Description)>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var method in info.Methods)
+        {
+            foreach (var parameter in method.Parameters)
+            {
+                var key = $"{method.ActionName}:{parameter.ExposedName ?? parameter.Name}";
+                if (seen.Add(key))
+                {
+                    var description = IsTimeSpanType(parameter.TypeName)
+                        ? "timeout in whole seconds"
+                        : ShortenDescription(parameter.XmlDocDescription);
+                    if (description != null)
+                        result.Add((key, description));
+                }
+                var fileKey = $"{method.ActionName}:{parameter.Name}{parameter.FileSuffix}";
+                if (parameter.IsFileOrValue && parameter.FileSuffix != null && seen.Add(fileKey))
+                {
+                    result.Add((fileKey, $"path to a file containing {parameter.Name}"));
+                }
+            }
+        }
+        return result;
+    }
+
+    private static string? ShortenDescription(string? description)
+    {
+        if (string.IsNullOrWhiteSpace(description))
+            return null;
+        var text = System.Text.RegularExpressions.Regex.Replace(description!, @"\s+", " ").Trim();
+        const string acceptedMarker = "Accepted values (case-insensitive): ";
+        string? acceptedValues = null;
+        var acceptedIndex = text.IndexOf(acceptedMarker, StringComparison.Ordinal);
+        if (acceptedIndex >= 0)
+        {
+            acceptedValues = text.Substring(acceptedIndex + acceptedMarker.Length).TrimEnd('.', ' ');
+            text = text.Substring(0, acceptedIndex).Trim();
+        }
+
+        text = FirstTopLevelSentence(text);
+        const int maxLength = 100;
+        if (text.Length > maxLength)
+            text = text.Substring(0, maxLength).TrimEnd() + "...";
+
+        if (acceptedValues != null && acceptedValues.Length <= 120)
+            text = text.Length == 0 ? $"one of: {acceptedValues}" : $"{text} (one of: {acceptedValues})";
+
+        return text.Length == 0 ? null : text;
+    }
+
+    private static string FirstTopLevelSentence(string text)
+    {
+        var depth = 0;
+        for (var i = 0; i < text.Length - 1; i++)
+        {
+            var c = text[i];
+            if (c == '(')
+                depth++;
+            else if (c == ')' && depth > 0)
+                depth--;
+            else if (depth == 0 && (c == '.' || c == ';') && text[i + 1] == ' '
+                && !(c == '.' && i >= 3 && (text.Substring(i - 3, 3) == "e.g" || text.Substring(i - 3, 3) == "i.e")))
+                return text.Substring(0, i).Trim();
+        }
+        return text.TrimEnd('.', ';', ' ');
     }
 
     private static List<string> GetActionParameterNames(MethodInfo method, bool includeFileParameters)
@@ -834,7 +926,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             }
 
             string valueName;
-            if (p.IsFromString && p.ExposedName != null)
+            if (p.ExposedName != null)
             {
                 // CLI passes string directly to service using exposed name
                 valueName = p.ExposedName;
@@ -845,7 +937,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             }
 
             // Use ExposedName for JSON property names when FromString specifies alternate name
-            var propName = (p.IsFromString && p.ExposedName != null) ? p.ExposedName : p.Name;
+            var propName = p.ExposedName ?? p.Name;
             var jsonName = char.ToLowerInvariant(propName[0]) + propName.Substring(1);
             props.Add($"{jsonName} = {valueName}");
         }
@@ -871,7 +963,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             else if (IsTimeSpanType(p.TypeName))
             {
                 var defaultStr = p.HasDefault ? " = null" : "";
-                methodParams.Add($"int? {p.Name}{defaultStr}");
+                methodParams.Add($"int? {p.ExposedName ?? p.Name}{defaultStr}");
             }
             else if (p.IsFromString && p.IsEnum)
             {
@@ -886,7 +978,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 var defaultStr = p.HasDefault ? $" = {p.DefaultValue}" : "";
                 // Make nullable if not already
                 var typeName = p.TypeName.EndsWith("?") ? p.TypeName : $"{p.TypeName}?";
-                methodParams.Add($"{typeName} {p.Name}{defaultStr}");
+                methodParams.Add($"{typeName} {p.ExposedName ?? p.Name}{defaultStr}");
             }
         }
 
@@ -929,7 +1021,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 }
 
                 string valueExpr;
-                if (p.IsFromString && p.ExposedName != null)
+                if (p.ExposedName != null)
                 {
                     // FromString parameters: pass the exposed name (raw string) to service
                     valueExpr = p.ExposedName;
@@ -939,7 +1031,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                     valueExpr = p.Name;
                 }
                 // Use ExposedName for property name when FromString attribute specifies an alternate name
-                var propertyName = (p.IsFromString && p.ExposedName != null) ? p.ExposedName : p.Name;
+                var propertyName = p.ExposedName ?? p.Name;
                 sb.AppendLine($"                {StringHelper.ToPascalCase(propertyName)} = {valueExpr},");
             }
             sb.AppendLine("            });");
@@ -1086,7 +1178,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         foreach (var p in method.Parameters)
         {
             // Property name must match what Forward methods and BuildCliArgsExpression produce
-            var propertyName = (p.IsFromString && p.ExposedName != null) ? p.ExposedName : p.Name;
+            var propertyName = p.ExposedName ?? p.Name;
             var pascalName = StringHelper.ToPascalCase(propertyName);
             var argsType = MakeArgsPropertyType(p);
             sb.AppendLine($"            public {argsType} {pascalName} {{ get; set; }}");
@@ -1178,21 +1270,22 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 }
                 else
                 {
-                    if (!result.TryGetValue(p.Name, out var existing) ||
+                    var exposedName = p.ExposedName ?? p.Name;
+                    if (!result.TryGetValue(exposedName, out var existing) ||
                         (string.IsNullOrEmpty(existing.Description) && !string.IsNullOrEmpty(p.XmlDocDescription)))
                     {
                         var typeName = IsTimeSpanType(p.TypeName)
                             ? "int?"
                             : p.TypeName.EndsWith("?") ? p.TypeName : $"{p.TypeName}?";
-                        var ep = new ExposedParameter(p.Name, typeName, p.XmlDocDescription, "null");
-                        if (result.TryGetValue(p.Name, out var prev))
+                        var ep = new ExposedParameter(exposedName, typeName, p.XmlDocDescription, "null");
+                        if (result.TryGetValue(exposedName, out var prev))
                             ep.RequiredByActions.AddRange(prev.RequiredByActions);
-                        result[p.Name] = ep;
+                        result[exposedName] = ep;
                     }
                     if (isRequired)
-                        result[p.Name].RequiredByActions.Add(method.ActionName);
-                    if (!result[p.Name].ApplicableByActions.Contains(method.ActionName, StringComparer.OrdinalIgnoreCase))
-                        result[p.Name].ApplicableByActions.Add(method.ActionName);
+                        result[exposedName].RequiredByActions.Add(method.ActionName);
+                    if (!result[exposedName].ApplicableByActions.Contains(method.ActionName, StringComparer.OrdinalIgnoreCase))
+                        result[exposedName].ApplicableByActions.Add(method.ActionName);
                 }
             }
         }
@@ -1226,7 +1319,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             }
             else
             {
-                args.Add(p.Name);
+                args.Add(p.ExposedName ?? p.Name);
             }
         }
 
@@ -1332,7 +1425,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             sb.AppendLine("                {");
             foreach (var parameter in ServiceInfoExtractor.GetAllExposedParameters(category))
             {
-                var name = parameter.TypeName.Contains("TimeSpan") ? parameter.Name + "Seconds" : parameter.Name;
+                var name = parameter.Name;
                 sb.AppendLine($"                    \"{StringHelper.ToSnakeCase(name)}\" => \"{parameter.Name}\",");
             }
             sb.AppendLine("                    _ => name");
@@ -1347,23 +1440,24 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("    public static void ValidateCommandArguments(string command, string? argsJson)");
         sb.AppendLine("    {");
         sb.AppendLine("        var parts = command.Split('.', 2);");
-        sb.AppendLine("        if (parts.Length != 2) return;");
-        sb.AppendLine("        switch (parts[0])");
+        sb.AppendLine("        if (parts[0] is \"session\" or \"service\") return;");
+        sb.AppendLine("        if (!ValidActionsByCategory.TryGetValue(parts[0], out var validActions))");
         sb.AppendLine("        {");
-        foreach (var categoryGroup in categories
-                     .GroupBy(category => category.Category, StringComparer.Ordinal)
-                     .OrderBy(group => group.Key, StringComparer.Ordinal))
+        sb.AppendLine("            var validGroups = string.Join(\", \", System.Linq.Enumerable.Order(System.Linq.Enumerable.Concat(ValidActionsByCategory.Keys, new[] { \"session\", \"service\" }), System.StringComparer.Ordinal));");
+        sb.AppendLine("            throw new System.ArgumentException($\"Unknown command group '{parts[0]}'. Valid groups: {validGroups}.\");");
+        sb.AppendLine("        }");
+        sb.AppendLine("        if (parts.Length != 2 || !validActions.Contains(parts[1], System.StringComparer.OrdinalIgnoreCase))");
+        sb.AppendLine("        {");
+        sb.AppendLine("            var suppliedAction = parts.Length == 2 ? parts[1] : string.Empty;");
+        sb.AppendLine("            throw new System.ArgumentException($\"Unknown action '{suppliedAction}' for command group '{parts[0]}'. Valid actions: {string.Join(\", \", validActions)}.\");");
+        sb.AppendLine("        }");
+        sb.AppendLine("        switch (parts[0].ToLowerInvariant())");
+        sb.AppendLine("        {");
+        foreach (var category in categories.OrderBy(category => category.Category, StringComparer.Ordinal))
         {
-            sb.AppendLine($"            case \"{categoryGroup.Key}\":");
-            foreach (var category in categoryGroup)
-            {
-                sb.AppendLine($"                if ({category.CategoryPascal}.ValidActions.Contains(parts[1], System.StringComparer.OrdinalIgnoreCase))");
-                sb.AppendLine("                {");
-                sb.AppendLine($"                    {category.CategoryPascal}.ValidateActionArguments(parts[1], argsJson);");
-                sb.AppendLine("                    break;");
-                sb.AppendLine("                }");
-            }
-            sb.AppendLine($"                throw new System.ArgumentException($\"Unknown action: {{parts[1]}}\");");
+            sb.AppendLine($"            case \"{category.Category}\":");
+            sb.AppendLine($"                {category.CategoryPascal}.ValidateActionArguments(parts[1], argsJson);");
+            sb.AppendLine("                return;");
         }
         sb.AppendLine("        }");
         sb.AppendLine("    }");
@@ -1372,29 +1466,9 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("    public static readonly System.Collections.Generic.IReadOnlyDictionary<string, System.Collections.Generic.IReadOnlyList<string>> ValidActionsByCategory =");
         sb.AppendLine("        new System.Collections.Generic.Dictionary<string, System.Collections.Generic.IReadOnlyList<string>>(System.StringComparer.OrdinalIgnoreCase)");
         sb.AppendLine("        {");
-        foreach (var categoryGroup in categories
-                     .GroupBy(category => category.Category, StringComparer.Ordinal)
-                     .OrderBy(group => group.Key, StringComparer.Ordinal))
+        foreach (var category in categories.OrderBy(category => category.Category, StringComparer.Ordinal))
         {
-            var actionSource = string.Join(
-                ", ",
-                categoryGroup.Select(category => $"{category.CategoryPascal}.ValidActions"));
-            var actions = categoryGroup.Count() == 1
-                ? actionSource
-                : $"System.Linq.Enumerable.ToArray(System.Linq.Enumerable.SelectMany(new System.Collections.Generic.IReadOnlyList<string>[] {{ {actionSource} }}, actions => actions))";
-            sb.AppendLine($"            [\"{categoryGroup.Key}\"] = {actions},");
-        }
-        sb.AppendLine("        };");
-        sb.AppendLine();
-        sb.AppendLine("    /// <summary>Maps CLI command names to their service command category.</summary>");
-        sb.AppendLine("    public static readonly System.Collections.Generic.IReadOnlyDictionary<string, string> CategoryByCliCommand =");
-        sb.AppendLine("        new System.Collections.Generic.Dictionary<string, string>(System.StringComparer.OrdinalIgnoreCase)");
-        sb.AppendLine("        {");
-        foreach (var cliCommandGroup in categories
-                     .GroupBy(category => category.McpToolName.Replace("_", ""), StringComparer.Ordinal)
-                     .OrderBy(group => group.Key, StringComparer.Ordinal))
-        {
-            sb.AppendLine($"            [\"{cliCommandGroup.Key}\"] = \"{cliCommandGroup.First().Category}\",");
+            sb.AppendLine($"            [\"{category.Category}\"] = {category.CategoryPascal}.ValidActions,");
         }
         sb.AppendLine("        };");
         sb.AppendLine();
@@ -1438,7 +1512,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
     private static bool RequiresWritableWorkbook(ServiceInfo info, MethodInfo method) =>
         !info.NoSession && method.HasBatchParameter && !method.McpToolReadOnly &&
         info.Category is not ("window" or "screenshot") &&
-        (info.Category != "calculation" || method.ActionName == "set-precision") &&
+        (info.Category != "calculationmode" || method.ActionName == "set-precision") &&
         (info.Category != "chart" || method.ActionName != "export-image") &&
         (info.Category != "workbook" || method.ActionName is not ("save-as" or "save-copy-as" or "export-fixed-format"));
 
@@ -1908,7 +1982,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         foreach (var p in method.Parameters.Where(p => p.IsEnum))
         {
             var enumType = p.TypeName.TrimEnd('?');
-            var propName = (p.IsFromString && p.ExposedName != null) ? p.ExposedName : p.Name;
+            var propName = p.ExposedName ?? p.Name;
             var pascalProp = StringHelper.ToPascalCase(propName);
             var isNullableEnum = p.TypeName.EndsWith("?");
 
@@ -1976,7 +2050,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
             }
             else
             {
-                var propName = (p.IsFromString && p.ExposedName != null) ? p.ExposedName : p.Name;
+                var propName = p.ExposedName ?? p.Name;
                 var pascalProp = StringHelper.ToPascalCase(propName);
                 callArgs.Add(GetDispatchCallExpression(p, pascalProp));
             }

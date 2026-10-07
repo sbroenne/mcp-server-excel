@@ -24,7 +24,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// SORT: Specify sortColumns as array of {columnIndex: 1, ascending: true} objects.
 /// Column indices are 1-based relative to the range.
 /// </summary>
-[ServiceCategory("rangeedit", "RangeEdit")]
+[ServiceCategory("RangeEdit")]
 [McpTool("range_edit", Title = "Range Edit Operations", Destructive = true, Category = "data",
     Description = "Insert/delete cells, rows, or columns; replace text; sort and clean data. " +
         "remove-duplicates retains first records using explicit key_columns relative to the selected rectangle and has_headers, with exact blank-aware counts. Removed rows are cleared inside the selection, not shifted from below. " +

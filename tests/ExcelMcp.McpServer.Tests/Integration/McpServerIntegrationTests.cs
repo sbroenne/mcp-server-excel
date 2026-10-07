@@ -240,7 +240,7 @@ public class McpServerIntegrationTests(ITestOutputHelper output) : IAsyncLifetim
         var arguments = new Dictionary<string, object?>
         {
             ["action"] = "test",
-            ["path"] = "C:\\fake\\test.xlsx"
+            ["file_path"] = "C:\\fake\\test.xlsx"
         };
 
         // Act - Call tool via MCP protocol

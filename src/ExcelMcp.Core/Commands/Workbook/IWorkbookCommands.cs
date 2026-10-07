@@ -13,7 +13,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Workbook;
 /// break-external-link replaces linked formulas with their current values; no tool-level undo.
 /// Printing and print preview are intentionally excluded because default-printer output and modal preview are unsafe for unattended automation.
 /// </summary>
-[ServiceCategory("workbook", "Workbook")]
+[ServiceCategory("Workbook")]
 [McpTool("workbook", Title = "Workbook Operations", Destructive = true, Category = "structure",
     Description = "TABLE STYLES: create-table-style clones source_style_name without applying it; update-table-style takes a table_style_options object with native elementType names and differential formatting; delete-table-style can remove formatting from existing users. Font name/size, scripts and diagonal borders are unsupported. Built-in styles are read-only. Apply separately with table set-style, pivottable_calc set-layout-options, or slicer set-layout. "
         + "inspect returns bounded worksheet, table, and visible named-range metadata; an optional cell preview requires sheet_name and is limited before reading. Hidden sheets are identified, not skipped; protected-sheet read failures are reported. "

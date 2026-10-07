@@ -55,7 +55,7 @@ public sealed class McpProgramTransportFixture :
                 new Dictionary<string, object?>
                 {
                     ["action"] = "create",
-                    ["path"] = workbookPath,
+                    ["file_path"] = workbookPath,
                     ["show"] = false
                 },
                 TimeSpan.FromSeconds(90));
@@ -80,7 +80,7 @@ public sealed class McpProgramTransportFixture :
             new Dictionary<string, object?>
             {
                 ["action"] = "create",
-                ["path"] = workbookPath,
+                ["file_path"] = workbookPath,
                 ["show"] = false
             },
             TimeSpan.FromSeconds(90));

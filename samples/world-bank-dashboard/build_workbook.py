@@ -105,7 +105,7 @@ def build_model(excel):
                loadDestination="both", targetSheet="Model Data", targetCellAddress="A1")
     excel.batch([cmd("table.add-to-data-model", tableName=name) for name in ["Countries", "Indicators", "Years"]])
     excel.batch([
-        cmd("datamodelrel.create-relationship", fromTable="Observations", fromColumn=source,
+        cmd("datamodelrelationship.create-relationship", fromTable="Observations", fromColumn=source,
             toTable=target, toColumn=key)
         for source, target, key in [("CountryCode", "Countries", "Code"),
                                    ("IndicatorCode", "Indicators", "Code"), ("Year", "Years", "Year")]

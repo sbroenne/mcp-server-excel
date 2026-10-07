@@ -26,7 +26,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 ///
 /// MERGE: Combines cells into one. Only top-left cell value is preserved.
 /// </summary>
-[ServiceCategory("rangeformat", "RangeFormat")]
+[ServiceCategory("RangeFormat")]
 [McpTool("range_format", Title = "Range Format Operations", Destructive = true, Category = "data",
     Description = "Range formatting: styles, custom visual formatting, data validation, merge, auto-fit. " +
         "set-visibility: Required axis rows/columns and hidden true/false. Preserve stored dimensions; do not remove filter criteria or groups. Disjoint gaps remain unchanged. " +

@@ -12,9 +12,15 @@ namespace Sbroenne.ExcelMcp.Generators.Common;
 /// </summary>
 public static class ServiceInfoExtractor
 {
+    /// <summary>
+    /// Derives the command group name shared by MCP routing, CLI commands, and batch files:
+    /// the MCP tool name without underscores, or the lowercased PascalName when there is no MCP tool.
+    /// </summary>
+    public static string GetCommandGroupName(string? mcpToolName, string pascalName) =>
+        mcpToolName is not null ? mcpToolName.Replace("_", "") : pascalName.ToLowerInvariant();
+
     public static ServiceInfo? ExtractServiceInfo(INamedTypeSymbol interfaceSymbol)
     {
-        string? category = null;
         string? pascalName = null;
         string? mcpTool = null;
         bool noSession = false;
@@ -33,11 +39,7 @@ public static class ServiceInfoExtractor
             {
                 if (attr.ConstructorArguments.Length > 0)
                 {
-                    category = attr.ConstructorArguments[0].Value?.ToString();
-                }
-                if (attr.ConstructorArguments.Length > 1)
-                {
-                    pascalName = attr.ConstructorArguments[1].Value?.ToString();
+                    pascalName = attr.ConstructorArguments[0].Value?.ToString();
                 }
             }
             else if (attrName == "McpToolAttribute")
@@ -87,8 +89,11 @@ public static class ServiceInfoExtractor
             }
         }
 
-        if (category is null)
+        if (string.IsNullOrEmpty(pascalName))
             return null;
+
+        // One group name for MCP routing, CLI commands, and batch files.
+        var category = GetCommandGroupName(mcpTool, pascalName!);
 
         // Extract interface-level XML documentation
         var interfaceSummary = ExtractInterfaceSummary(interfaceSymbol);
@@ -127,8 +132,7 @@ public static class ServiceInfoExtractor
             }
         }
 
-        // Use explicit pascalName if provided, otherwise derive from category
-        var categoryPascal = pascalName ?? StringHelper.ToPascalCase(category);
+        var categoryPascal = pascalName!;
 
         return new ServiceInfo(
             category,
@@ -255,6 +259,12 @@ public static class ServiceInfoExtractor
             {
                 allowsEmptyString = true;
             }
+        }
+
+        // Timeouts are whole seconds on every surface, so the public name says so (timeout → timeoutSeconds).
+        if (TypeNameHelper.GetTypeName(param.Type).Contains("TimeSpan"))
+        {
+            exposedName = (exposedName ?? param.Name) + "Seconds";
         }
 
         // Detect if this is an enum type (including Nullable<Enum>)

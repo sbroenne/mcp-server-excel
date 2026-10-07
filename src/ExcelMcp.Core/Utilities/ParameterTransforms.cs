@@ -411,7 +411,7 @@ public static class ParameterTransforms
     /// <exception cref="ArgumentOutOfRangeException">Thrown when the timeout is outside the supported range</exception>
     public static TimeSpan? ParseTimeoutSeconds(
         int? value,
-        string parameterName = "timeout",
+        string parameterName = "timeoutSeconds",
         int minimumSeconds = 1,
         int maximumSeconds = MaximumTimeoutSeconds)
     {
@@ -427,7 +427,7 @@ public static class ParameterTransforms
     /// </summary>
     public static void ValidateTimeoutSeconds(
         int? value,
-        string parameterName = "timeout",
+        string parameterName = "timeoutSeconds",
         int minimumSeconds = 1,
         int maximumSeconds = MaximumTimeoutSeconds)
     {

@@ -42,7 +42,7 @@ public sealed class PowerQueryErrorReportingProtocolTests(
                 InnerError = "Formula.Firewall"
             },
             "powerquery.refresh",
-            """{"queryName":"SyntheticFirewallQuery","timeout":60}""");
+            """{"queryName":"SyntheticFirewallQuery","timeoutSeconds":60}""");
 
         using (var args = RecordingToolTest.ParseArgs(
             call.Request,
@@ -54,7 +54,7 @@ public sealed class PowerQueryErrorReportingProtocolTests(
                 args.RootElement.GetProperty("queryName").GetString());
             Assert.Equal(
                 60,
-                args.RootElement.GetProperty("timeout").GetInt32());
+                args.RootElement.GetProperty("timeoutSeconds").GetInt32());
         }
 
         using var document = JsonDocument.Parse(call.JsonResult);

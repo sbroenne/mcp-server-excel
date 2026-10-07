@@ -30,12 +30,12 @@ public sealed class WorksheetImageToolTests(
                 ["cell_address"] = "A1"
             },
             RecordingToolTest.Success("""{"success":true}"""),
-            "sheet.add-image",
+            "worksheetstyle.add-image",
             """{"sheetName":"ImageSheet","imagePath":"C:\\adapter-tests\\sample.png","cellAddress":"A1"}""");
 
         using (var args = RecordingToolTest.ParseArgs(
             addCall.Request,
-            "sheet.add-image",
+            "worksheetstyle.add-image",
             sessionId))
         {
             Assert.Equal("ImageSheet", args.RootElement.GetProperty("sheetName").GetString());
@@ -52,10 +52,10 @@ public sealed class WorksheetImageToolTests(
                 ["sheet_name"] = "ImageSheet"
             },
             RecordingToolTest.Success("""{"success":true,"imageCount":1}"""),
-            "sheet.get-image-count",
+            "worksheetstyle.get-image-count",
             """{"sheetName":"ImageSheet"}""");
 
-        Assert.Equal("sheet.get-image-count", countCall.Request.Command);
+        Assert.Equal("worksheetstyle.get-image-count", countCall.Request.Command);
         using var result = JsonDocument.Parse(countCall.JsonResult);
         Assert.Equal(1, result.RootElement.GetProperty("imageCount").GetInt32());
     }
