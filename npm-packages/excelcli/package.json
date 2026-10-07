@@ -1,7 +1,7 @@
 {
   "name": "@sbroenne/excelcli",
   "version": "0.0.0-development",
-  "description": "Excel automation CLI for Windows, distributed through npm.",
+  "description": "Automate Microsoft Excel from coding agents and scripts with a token-efficient CLI for workbooks, formulas, Power Query, PivotTables, and more. Requires Windows and desktop Excel.",
   "license": "MIT",
   "type": "module",
   "bin": {
