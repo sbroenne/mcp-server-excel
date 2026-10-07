@@ -25,18 +25,27 @@ public partial class PivotTableCommands
             dynamic? slicerCache = null;
             dynamic? slicers = null;
             dynamic? slicer = null;
-            dynamic? destSheet = null;
-            dynamic? destRange = null;
-            Excel.Sheets? sheets = null;
+            Excel.Worksheet? destSheet = null;
+            Excel.Range? destRange = null;
 
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
                 slicerCaches = ctx.Book.SlicerCaches;
 
+                // Check everything that can fail before Excel creates a slicer cache:
+                // a cache created for a request that then fails stays in the workbook.
+                SlicerPlacement.ValidateNewControlName((Excel.SlicerCaches)slicerCaches, slicerName, ct);
+                (destSheet, destRange) = SlicerPlacement.ResolveDestination(ctx.Book, destinationSheet, position);
+
+                // Get position in points from the cell reference
+                double top = Convert.ToDouble(destRange.Top);
+                double left = Convert.ToDouble(destRange.Left);
+
                 // Check if a SlicerCache already exists for this field+PivotTable
                 // If so, we add a new visual Slicer to the existing cache
                 slicerCache = FindExistingSlicerCache(slicerCaches, pivot, fieldName, ct);
+                bool createdCache = false;
 
                 if (slicerCache == null)
                 {
@@ -50,23 +59,22 @@ public partial class PivotTableCommands
                     // For OLAP, may need the hierarchical name
                     ct.ThrowIfCancellationRequested();
                     slicerCache = slicerCaches.Add2(pivot, fieldName);
+                    createdCache = true;
                 }
-
-                // Get destination sheet and calculate position from cell reference
-                sheets = ctx.Book.Worksheets;
-                destSheet = sheets[destinationSheet];
-                destRange = destSheet.Range[position];
-
-                // Get position in points from the cell reference
-                double top = Convert.ToDouble(destRange.Top);
-                double left = Convert.ToDouble(destRange.Left);
 
                 // Add visual Slicer to the cache
                 // Slicers.Add(SlicerDestination, Level, Name, Caption, Top, Left, Width, Height)
                 // For non-OLAP sources, Level should be Type.Missing or omitted
                 slicers = slicerCache.Slicers;
                 ct.ThrowIfCancellationRequested();
-                slicer = slicers.Add(destSheet, Type.Missing, slicerName, slicerName, top, left);
+                try
+                {
+                    slicer = slicers.Add(destSheet, Type.Missing, slicerName, slicerName, top, left);
+                }
+                catch (Exception ex) when (createdCache && CreatedObjectFailure.CanReport(ex))
+                {
+                    throw SlicerPlacement.LeftoverCache((Excel.SlicerCache)slicerCache, fieldName, ex);
+                }
 
                 // Build result
                 var result = BuildSlicerResult(slicer, slicerCache, fieldName, ct);
@@ -81,7 +89,6 @@ public partial class PivotTableCommands
                 ComUtilities.Release(ref slicers);
                 ComUtilities.Release(ref destRange);
                 ComUtilities.Release(ref destSheet);
-                ComUtilities.Release(ref sheets);
                 ComUtilities.Release(ref slicerCache);
                 ComUtilities.Release(ref slicerCaches);
                 ComUtilities.Release(ref pivot);

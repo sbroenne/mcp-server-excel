@@ -212,18 +212,24 @@ public class RegularChartStrategy : IChartStrategy
     /// <inheritdoc />
     public void SetSourceRange(dynamic chart, string sourceRange)
     {
-        dynamic? app = null;
+        Excel.ChartObject? chartObject = null;
+        Excel.Worksheet? chartSheet = null;
+        Excel.Workbook? book = null;
         dynamic? sourceRangeObj = null;
         try
         {
-            app = chart.Application;
-            sourceRangeObj = app.Range(sourceRange);
-            chart.SetSourceData(sourceRangeObj);
+            chartObject = (Excel.ChartObject)chart.Parent;
+            chartSheet = (Excel.Worksheet)chartObject.Parent;
+            book = (Excel.Workbook)chartSheet.Parent;
+            sourceRangeObj = ChartSourceRange.Resolve(book, chartSheet.Name, sourceRange);
+            ChartSourceRange.Apply(chart, sourceRangeObj, sourceRange);
         }
         finally
         {
             ComUtilities.Release(ref sourceRangeObj);
-            ComUtilities.Release(ref app);
+            ComUtilities.Release(ref book);
+            ComUtilities.Release(ref chartSheet);
+            ComUtilities.Release(ref chartObject);
         }
     }
 

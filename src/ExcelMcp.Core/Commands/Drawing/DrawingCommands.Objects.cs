@@ -114,9 +114,9 @@ public sealed partial class DrawingCommands
                     Convert.ToSingle(width),
                     Convert.ToSingle(height));
 
-                ApplyName(shape, name);
-                SetLockAspectRatio(shape, lockAspectRatio);
-                return CreateDrawingObjectResult(batch.WorkbookPath, ReadDrawingObject(shape, sheetName));
+                return FinishCreatedObject(batch.WorkbookPath, shape, "image", sheetName, name,
+                    "Setting the aspect ratio lock of the new image",
+                    created => SetLockAspectRatio(created, lockAspectRatio));
             }
             finally
             {
@@ -144,6 +144,7 @@ public sealed partial class DrawingCommands
     {
         ValidateGeometry(width, height);
         ValidateColors(null, fillColor, lineColor);
+        ValidateLineWeight(lineWeight);
         return batch.Execute((ctx, ct) =>
         {
             Excel.Worksheet? sheet = null;
@@ -163,9 +164,9 @@ public sealed partial class DrawingCommands
                     Convert.ToSingle(width),
                     Convert.ToSingle(height));
 
-                ApplyName(shape, name);
-                ApplyObjectFormatting(shape, text, null, null, fillColor, lineColor, lineWeight);
-                return CreateDrawingObjectResult(batch.WorkbookPath, ReadDrawingObject(shape, sheetName));
+                return FinishCreatedObject(batch.WorkbookPath, shape, "shape", sheetName, name,
+                    "Formatting the new shape",
+                    created => ApplyObjectFormatting(created, text, null, null, fillColor, lineColor, lineWeight));
             }
             finally
             {
@@ -212,9 +213,9 @@ public sealed partial class DrawingCommands
                     Convert.ToSingle(width),
                     Convert.ToSingle(height));
 
-                ApplyName(shape, name);
-                ApplyObjectFormatting(shape, text, fontSize, fontColor, fillColor, lineColor, null);
-                return CreateDrawingObjectResult(batch.WorkbookPath, ReadDrawingObject(shape, sheetName));
+                return FinishCreatedObject(batch.WorkbookPath, shape, "text box", sheetName, name,
+                    "Formatting the new text box",
+                    created => ApplyObjectFormatting(created, text, fontSize, fontColor, fillColor, lineColor, null));
             }
             finally
             {
@@ -239,6 +240,7 @@ public sealed partial class DrawingCommands
         double? lineWeight = null)
     {
         ValidateColors(null, null, lineColor);
+        ValidateLineWeight(lineWeight);
         return batch.Execute((ctx, ct) =>
         {
             Excel.Worksheet? sheet = null;
@@ -258,9 +260,9 @@ public sealed partial class DrawingCommands
                     Convert.ToSingle(endX),
                     Convert.ToSingle(endY));
 
-                ApplyName(shape, name);
-                ApplyLineFormatting(shape, lineColor, lineWeight);
-                return CreateDrawingObjectResult(batch.WorkbookPath, ReadDrawingObject(shape, sheetName));
+                return FinishCreatedObject(batch.WorkbookPath, shape, "connector", sheetName, name,
+                    "Formatting the new connector",
+                    created => ApplyLineFormatting(created, lineColor, lineWeight));
             }
             finally
             {
@@ -292,7 +294,6 @@ public sealed partial class DrawingCommands
             Excel.Worksheet? sheet = null;
             Excel.Shapes? shapes = null;
             Excel.Shape? shape = null;
-            Excel.ControlFormat? controlFormat = null;
             try
             {
                 sheet = GetSheet(ctx.Book, sheetName);
@@ -304,31 +305,12 @@ public sealed partial class DrawingCommands
                     Convert.ToInt32(width),
                     Convert.ToInt32(height));
 
-                ApplyName(shape, name);
-                if (text != null)
-                {
-                    SetText(shape, text, null, null);
-                }
-
-                if (linkedCell != null || inputRange != null)
-                {
-                    controlFormat = shape.ControlFormat;
-                    if (linkedCell != null)
-                    {
-                        controlFormat.LinkedCell = linkedCell;
-                    }
-
-                    if (inputRange != null)
-                    {
-                        controlFormat.ListFillRange = inputRange;
-                    }
-                }
-
-                return CreateDrawingObjectResult(batch.WorkbookPath, ReadDrawingObject(shape, sheetName));
+                return FinishCreatedObject(batch.WorkbookPath, shape, "form control", sheetName, name,
+                    "Setting the text and cell links of the new form control",
+                    created => ConfigureFormControl(created, text, linkedCell, inputRange));
             }
             finally
             {
-                ComUtilities.Release(ref controlFormat);
                 ComUtilities.Release(ref shape);
                 ComUtilities.Release(ref shapes);
                 ComUtilities.Release(ref sheet);
@@ -619,11 +601,74 @@ public sealed partial class DrawingCommands
         }
     }
 
-    private static void ApplyName(Excel.Shape shape, string? name)
+    private static DrawingObjectResult FinishCreatedObject(
+        string workbookPath,
+        Excel.Shape shape,
+        string objectKind,
+        string sheetName,
+        string? name,
+        string configureStep,
+        Action<Excel.Shape> configure)
     {
-        if (!string.IsNullOrWhiteSpace(name))
+        string currentName = shape.Name;
+        string step = configureStep;
+        try
         {
-            shape.Name = name;
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                step = $"Renaming the new {objectKind} to '{name}'";
+                shape.Name = name;
+                currentName = name;
+            }
+
+            step = configureStep;
+            configure(shape);
+            step = $"Reading the new {objectKind}";
+            return CreateDrawingObjectResult(workbookPath, ReadDrawingObject(shape, sheetName));
+        }
+        catch (Exception ex) when (CreatedObjectFailure.CanReport(ex))
+        {
+            throw CreatedObjectFailure.Create(objectKind, currentName, sheetName, step, ex);
+        }
+    }
+
+    private static void ConfigureFormControl(Excel.Shape shape, string? text, string? linkedCell, string? inputRange)
+    {
+        if (text != null)
+        {
+            SetText(shape, text, null, null);
+        }
+
+        if (linkedCell == null && inputRange == null)
+        {
+            return;
+        }
+
+        Excel.ControlFormat? controlFormat = null;
+        try
+        {
+            controlFormat = shape.ControlFormat;
+            if (linkedCell != null)
+            {
+                controlFormat.LinkedCell = linkedCell;
+            }
+
+            if (inputRange != null)
+            {
+                controlFormat.ListFillRange = inputRange;
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref controlFormat);
+        }
+    }
+
+    private static void ValidateLineWeight(double? lineWeight)
+    {
+        if (lineWeight is < 0)
+        {
+            throw new ArgumentException("lineWeight must be zero or greater.", nameof(lineWeight));
         }
     }
 

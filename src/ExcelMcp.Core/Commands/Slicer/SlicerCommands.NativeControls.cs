@@ -23,19 +23,24 @@ public sealed partial class SlicerCommands
             try
             {
                 pivot = CoreLookupHelpers.FindPivotTable(ctx.Book, pivotTableName);
-                sheet = ComUtilities.FindSheet(ctx.Book, destinationSheet)
-                    ?? throw new ArgumentException($"Worksheet '{destinationSheet}' not found.");
-                anchor = sheet.Range[position];
+                (sheet, anchor) = SlicerPlacement.ResolveDestination(ctx.Book, destinationSheet, position);
                 if (Convert.ToDouble(anchor.CountLarge, CultureInfo.InvariantCulture) != 1)
                     throw new ArgumentException("Timeline position must be one anchor cell.");
                 if (sheet.ProtectDrawingObjects)
                     throw new InvalidOperationException("Unprotect drawing objects before creating a timeline.");
                 caches = ctx.Book.SlicerCaches;
-                ValidateNewControlName(caches, slicerName, ct);
+                SlicerPlacement.ValidateNewControlName(caches, slicerName, ct);
                 ct.ThrowIfCancellationRequested();
                 cache = caches.Add2(pivot, fieldName, Type.Missing, Excel.XlSlicerCacheType.xlTimeline);
                 slicers = cache.Slicers;
-                slicer = slicers.Add(sheet, Type.Missing, slicerName, slicerName, anchor.Top, anchor.Left);
+                try
+                {
+                    slicer = slicers.Add(sheet, Type.Missing, slicerName, slicerName, anchor.Top, anchor.Left);
+                }
+                catch (Exception ex) when (CreatedObjectFailure.CanReport(ex))
+                {
+                    throw SlicerPlacement.LeftoverCache(cache, fieldName, ex);
+                }
                 return State(batch, slicer, cache, ct);
             }
             finally
@@ -412,42 +417,6 @@ public sealed partial class SlicerCommands
         finally
         {
             ComUtilities.Release(ref pivots);
-        }
-    }
-
-    private static void ValidateNewControlName(Excel.SlicerCaches caches, string name, CancellationToken ct)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(name);
-        for (int index = 1; index <= caches.Count; index++)
-        {
-            ct.ThrowIfCancellationRequested();
-            Excel.SlicerCache? cache = null;
-            Excel.Slicers? slicers = null;
-            try
-            {
-                cache = caches[index];
-                slicers = cache.Slicers;
-                for (int item = 1; item <= slicers.Count; item++)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    Excel.Slicer? slicer = null;
-                    try
-                    {
-                        slicer = slicers[item];
-                        if (string.Equals(slicer.Name, name, StringComparison.OrdinalIgnoreCase))
-                            throw new ArgumentException($"Slicer or timeline '{name}' already exists.");
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref slicer);
-                    }
-                }
-            }
-            finally
-            {
-                ComUtilities.Release(ref slicers);
-                ComUtilities.Release(ref cache);
-            }
         }
     }
 

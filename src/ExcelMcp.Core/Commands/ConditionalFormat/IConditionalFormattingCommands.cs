@@ -131,7 +131,7 @@ public interface IConditionalFormattingCommands
     /// <param name="iconThreshold3Value">iconSet threshold 3 value</param>
     /// <param name="iconThreshold4Type">iconSet threshold 4 type</param>
     /// <param name="iconThreshold4Value">iconSet threshold 4 value</param>
-    /// <param name="rank">top10 rank (number of values, or percent when top10Percent is true)</param>
+    /// <param name="rank">top10 rank: 1-1000 values, or 1-100 percent when top10Percent is true</param>
     /// <param name="top10Percent">top10 treat rank as a percentage</param>
     /// <param name="topBottom">top10 direction: top or bottom</param>
     /// <param name="aboveBelow">aboveAverage selector: aboveAverage, belowAverage, aboveStdDev, belowStdDev, equalAboveAverage, equalBelowAverage</param>
