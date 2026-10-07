@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Telemetry;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Service;
 using Xunit;
 
@@ -329,16 +331,33 @@ public sealed class CliTelemetryTests
     }
 
     [Fact]
-    public async Task TrackCommandAsync_ResultReportsSuccessFalse_TracksFailureWithResultCategory()
+    public async Task TrackCommandAsync_RefreshAllFailure_TracksFailureWithResultCategory()
     {
         var tracked = new List<(string Command, bool Succeeded, string? ErrorCategory, bool ExpectedNegative)>();
+        var refreshAll = new PowerQueryRefreshAllResult
+        {
+            Success = false,
+            ErrorMessage = "1 of 2 queries failed to refresh: 'Broken'.",
+            RefreshedQueries = ["Good"],
+            FailedQueries =
+            [
+                new PowerQueryRefreshFailure
+                {
+                    QueryName = "Broken",
+                    ErrorCategory = "Expression",
+                    ErrorMessage = "[Expression.Error] The name 'Missing' wasn't recognized.",
+                    ExceptionType = "COMException",
+                    HResult = "0x800A03EC"
+                }
+            ]
+        };
 
         await CliTelemetry.TrackCommandAsync(
             new ServiceRequest { Command = "powerquery.refresh-all" },
             () => Task.FromResult(new ServiceResponse
             {
                 Success = true,
-                Result = """{"success":false,"errorMessage":"failed","errorCategory":"Expression"}"""
+                Result = JsonSerializer.Serialize(refreshAll, ServiceProtocol.JsonOptions)
             }),
             (command, _, succeeded, errorCategory, expectedNegative) =>
                 tracked.Add((command, succeeded, errorCategory, expectedNegative)));

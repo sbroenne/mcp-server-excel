@@ -177,7 +177,8 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
                 Command = cmd.Command,
                 Success = itemSucceeded,
                 Result = response.Success ? TryParseJsonElement(response.Result) : null,
-                Error = response.ErrorMessage ?? resultErrorMessage
+                Error = response.ErrorMessage ?? resultErrorMessage ??
+                    (negativeResult ? "Command reported success: false; see result for details." : null)
             };
 
             CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(output, BatchJsonOptions));

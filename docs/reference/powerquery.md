@@ -76,10 +76,12 @@ sheet or into the model merely to make batch refresh pass.
 
 When one query fails, `refresh-all` records it in `failedQueries` (with its
 error message and category) and keeps refreshing the rest. The result then has
-`success: false`, and the CLI exits with code 1. This is not a transaction:
+`success: false`, and the CLI exits with code 1. When every failed query has the
+same category, the result's top-level `errorCategory` repeats it. This is not a
+transaction:
 queries listed in `refreshedQueries` keep their new data. Engine errors are
-reported, not hidden or converted into success. A timeout, cancellation, or
-lost Excel connection stops the whole run instead.
+reported, not hidden or converted into success. A timeout, cancellation (by the
+caller or by Excel), or lost Excel connection stops the whole run instead.
 
 To refresh only selected queries, inspect `get-load-config` to identify loaded
 destinations and refresh each intended loaded query by name. Refresh dependent

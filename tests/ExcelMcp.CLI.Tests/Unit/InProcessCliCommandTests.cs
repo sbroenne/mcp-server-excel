@@ -648,6 +648,7 @@ public sealed class InProcessCliCommandTests
         {
             Assert.False(first.RootElement.GetProperty("success").GetBoolean());
             Assert.False(first.RootElement.GetProperty("result").GetProperty("canOpen").GetBoolean());
+            Assert.False(string.IsNullOrWhiteSpace(first.RootElement.GetProperty("error").GetString()));
         }
         using (var second = JsonDocument.Parse(lines[1]))
         {

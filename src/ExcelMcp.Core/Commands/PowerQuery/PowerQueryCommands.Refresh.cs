@@ -219,8 +219,9 @@ public partial class PowerQueryCommands
 
     private static bool IsRecordableQueryFailure(Exception exception, CancellationToken cancellationToken)
     {
-        // Timeouts, cancellation, and a dead/disconnected Excel must stop the whole operation
-        // so the batch and Service layers can report them and recover the session.
+        // Timeouts, cancellation (by the caller or by Excel), and a dead/disconnected Excel
+        // must stop the whole operation so the batch and Service layers can report them and
+        // recover the session.
         if (cancellationToken.IsCancellationRequested ||
             exception is OperationCanceledException or TimeoutException)
         {
@@ -230,6 +231,11 @@ public partial class PowerQueryCommands
         for (Exception? current = exception; current != null; current = current.InnerException)
         {
             if (current is COMException comException && IsFatalExcelDisconnect(comException))
+            {
+                return false;
+            }
+
+            if (current is OperationFailureException { ErrorCategory: OperationFailureCategory.Cancelled })
             {
                 return false;
             }

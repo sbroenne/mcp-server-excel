@@ -1636,6 +1636,20 @@ public class PowerQueryRefreshAllResult : OperationResult
     /// Queries whose refresh failed. The operation continued with the remaining queries.
     /// </summary>
     public List<PowerQueryRefreshFailure> FailedQueries { get; set; } = [];
+
+    /// <summary>
+    /// Failure category shared by every failed query; omitted when no query failed or
+    /// the failed queries have different (or unknown) categories.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ErrorCategory
+    {
+        get
+        {
+            var categories = FailedQueries.Select(f => f.ErrorCategory).Distinct().ToList();
+            return categories.Count == 1 ? categories[0] : null;
+        }
+    }
 }
 
 /// <summary>

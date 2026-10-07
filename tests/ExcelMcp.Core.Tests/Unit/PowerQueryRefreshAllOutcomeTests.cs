@@ -24,7 +24,7 @@ public sealed class PowerQueryRefreshAllOutcomeTests
         var attempted = new List<string>();
         var outOfMemory = new OutOfMemoryException(
             "Not enough memory resources are available to complete this operation. (0x8007000E (E_OUTOFMEMORY))");
-        outOfMemory.HResult = EOutOfMemory;
+        Assert.Equal(EOutOfMemory, outOfMemory.HResult);
 
         var result = PowerQueryCommands.RefreshQueries(
             ["Countries", "WDI_Long", "WDI_Wide"],
@@ -84,23 +84,24 @@ public sealed class PowerQueryRefreshAllOutcomeTests
     public void RefreshQueries_MixedOutcomes_ReportsEveryQueryWithCategory()
     {
         var result = PowerQueryCommands.RefreshQueries(
-            ["Good", "Engine", "Com", "Param", "Cancelled"],
+            ["Good", "Engine", "Com", "Param", "Prereq"],
             name => name switch
             {
                 "Engine" => throw new COMException(
                     "[Expression.Error] The name 'Missing' wasn't recognized.", unchecked((int)0x800A03EC)),
                 "Com" => throw new COMException("Generic failure", unchecked((int)0x80004005)),
                 "Param" => false,
-                "Cancelled" => throw new OperationFailureException(
-                    OperationFailureCategory.Cancelled, "Power Query refresh for 'Cancelled' was cancelled by Excel."),
+                "Prereq" => throw new OperationFailureException(
+                    OperationFailureCategory.Prerequisite, "Power Query refresh for 'Prereq' needs a prerequisite."),
                 _ => true
             },
             CancellationToken.None);
 
         Assert.False(result.Success);
+        Assert.Null(result.ErrorCategory);
         Assert.Equal(["Good"], result.RefreshedQueries);
         Assert.Equal(["Param"], result.SkippedQueries.Select(s => s.QueryName));
-        Assert.Equal(["Engine", "Com", "Cancelled"], result.FailedQueries.Select(f => f.QueryName));
+        Assert.Equal(["Engine", "Com", "Prereq"], result.FailedQueries.Select(f => f.QueryName));
 
         var engine = result.FailedQueries[0];
         Assert.Equal("Expression", engine.ErrorCategory);
@@ -112,9 +113,53 @@ public sealed class PowerQueryRefreshAllOutcomeTests
         Assert.Equal(nameof(COMException), com.ExceptionType);
         Assert.Equal("0x80004005", com.HResult);
 
-        var cancelled = result.FailedQueries[2];
-        Assert.Equal(nameof(OperationFailureCategory.Cancelled), cancelled.ErrorCategory);
-        Assert.Null(cancelled.HResult);
+        var prereq = result.FailedQueries[2];
+        Assert.Equal(nameof(OperationFailureCategory.Prerequisite), prereq.ErrorCategory);
+        Assert.Null(prereq.HResult);
+    }
+
+    [Fact]
+    public void RefreshQueries_FailuresShareCategory_ReportsItAsResultCategory()
+    {
+        var result = PowerQueryCommands.RefreshQueries(
+            ["BrokenA", "Good", "BrokenB"],
+            name => name == "Good"
+                ? true
+                : throw new COMException(
+                    $"[Expression.Error] The name 'Missing{name}' wasn't recognized.", unchecked((int)0x800A03EC)),
+            CancellationToken.None);
+
+        Assert.False(result.Success);
+        Assert.Equal("Expression", result.ErrorCategory);
+        Assert.All(result.FailedQueries, f => Assert.Equal("Expression", f.ErrorCategory));
+    }
+
+    [Fact]
+    public void RefreshQueries_Success_HasNoResultCategory()
+    {
+        var result = PowerQueryCommands.RefreshQueries(["Good"], _ => true, CancellationToken.None);
+
+        Assert.True(result.Success);
+        Assert.Null(result.ErrorCategory);
+    }
+
+    [Fact]
+    public void RefreshQueries_ExcelCancelledRefresh_PropagatesWithoutAttemptingLaterQueries()
+    {
+        var attempted = new List<string>();
+
+        var exception = Assert.Throws<OperationFailureException>(() => PowerQueryCommands.RefreshQueries(
+            ["First", "Second"],
+            name =>
+            {
+                attempted.Add(name);
+                throw new OperationFailureException(
+                    OperationFailureCategory.Cancelled, $"Power Query refresh for '{name}' was cancelled by Excel.");
+            },
+            CancellationToken.None));
+
+        Assert.Equal(OperationFailureCategory.Cancelled, exception.ErrorCategory);
+        Assert.Equal(["First"], attempted);
     }
 
     [Fact]

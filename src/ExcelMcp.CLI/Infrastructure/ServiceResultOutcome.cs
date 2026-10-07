@@ -9,9 +9,6 @@ namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
 /// </summary>
 internal static class ServiceResultOutcome
 {
-    internal static bool IsNegative(string? resultJson) =>
-        TryReadNegative(resultJson, out _, out _);
-
     internal static bool TryReadNegative(
         string? resultJson,
         out string? errorMessage,
