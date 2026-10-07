@@ -93,7 +93,6 @@ try {
                     @{ day = "2026-08-16"; downloads = 1 }
                 )
             }
-            nuget = @{ "nuget-mcp-server" = 500; "nuget-cli" = 300 }
             releases = @(
                 @{
                     tag = "v2.0.4"; publishedAt = "2026-08-15T10:00:00Z"; draft = $true
@@ -187,7 +186,7 @@ try {
         "Reliability data entered the usage report; it has its own report."
     $downloads = $analytics.downloads
     Assert-True (($downloads.channels.key -join ",") -eq
-        "npm-mcp-server,npm-cli,nuget-mcp-server,nuget-cli,github-releases,vscode") `
+        "npm-mcp-server,npm-cli,github-releases,vscode") `
         "Download channels were not published in a fixed order."
     Assert-True (($downloads.channels | Where-Object key -eq "npm-mcp-server").total -eq 75) `
         "npm downloads were not totalled from daily history."
@@ -203,7 +202,8 @@ try {
         "A first report must start the download history with one snapshot."
     Assert-True ($downloads.snapshots[0].date -eq [DateTime]::UtcNow.ToString("yyyy-MM-dd") -and
         $downloads.snapshots[0].totals.vscode -eq 250) `
-        "Today's download totals were not recorded."    Assert-True ($analytics.weekly.Count -eq 2) "Weekly usage history was not included."
+        "Today's download totals were not recorded."
+    Assert-True ($analytics.weekly.Count -eq 2) "Weekly usage history was not included."
     Assert-True ($analytics.versionAdoption.Count -eq 3) `
         "Weekly release adoption was not included."
     Assert-True ($analytics.versionAdoption[1].version -eq "2.0.3") `
@@ -375,13 +375,13 @@ try {
         [pscustomobject]@{
             date = "2026-08-01"
             totals = [pscustomobject]@{
-                "nuget-mcp-server" = 400; "nuget-cli" = 300; "github-releases" = 100; vscode = 200
+                "nuget-mcp-server" = 400; "github-releases" = 100; vscode = 200
             }
         },
         [pscustomobject]@{
             date = $today
             totals = [pscustomobject]@{
-                "nuget-mcp-server" = 999; "nuget-cli" = 999; "github-releases" = 999; vscode = 999
+                "github-releases" = 999; vscode = 999
             }
         }
     )
@@ -395,8 +395,10 @@ try {
     Assert-True ($carried.snapshots[1].date -eq $today -and $carried.snapshots[1].totals.vscode -eq 250) `
         "A second run on the same day did not replace that day's snapshot."
     Assert-True ($carried.weeklyGains.Count -eq 1 -and $carried.weeklyGains[0].week -eq "2026-08-01" -and
-        $carried.weeklyGains[0].total -eq 159 -and $carried.weeklyGains[0].channels.vscode -eq 50) `
-        "Download gains were not calculated between snapshots."
+        $carried.weeklyGains[0].total -eq 59 -and $carried.weeklyGains[0].channels.vscode -eq 50 -and
+        $null -eq $carried.weeklyGains[0].channels.PSObject.Properties["nuget-mcp-server"] -and
+        $null -eq $carried.snapshots[0].totals.PSObject.Properties["nuget-mcp-server"]) `
+        "Download gains were not calculated between snapshots, or a retired channel was kept."
     $testsRun++
 
     $bootstrapCarriedPath = Join-Path $testRoot "bootstrap-carried.json"

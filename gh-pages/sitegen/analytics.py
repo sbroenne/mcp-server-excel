@@ -732,7 +732,7 @@ def _analytics_habit_sections(habits: dict[str, object]) -> list[str]:
 def _analytics_download_sections(
     downloads: dict[str, object], date_format: str
 ) -> list[str]:
-    """Render public download counters from npm, NuGet, GitHub, and VS Code."""
+    """Render public download counters from npm, GitHub, and VS Code."""
     collected = datetime.fromisoformat(
         str(downloads["collectedUtc"]).replace("Z", "+00:00")
     )
@@ -747,9 +747,10 @@ def _analytics_download_sections(
     sections = [
         "## Where people get Excel MCP",
         "",
-        "These numbers come from the public download counters on npm, NuGet, "
-        "GitHub, and the Visual Studio Marketplace, checked on "
-        f"**{collected.strftime(date_format)}**.",
+        "These numbers come from the public download counters on npm, GitHub, "
+        "and the Visual Studio Marketplace, checked on "
+        f"**{collected.strftime(date_format)}**. NuGet is not shown: most of its "
+        "downloads come from automated mirrors and scanners, not people.",
         "",
         "!!! note \"Downloads are not people\"\n"
         "    One person can download Excel MCP many times, updates and automatic "
@@ -821,14 +822,14 @@ def _analytics_download_sections(
     if gains:
         sections.extend(
             [
-                "NuGet, GitHub releases, and the VS Code Marketplace only publish "
+                "GitHub releases and the VS Code Marketplace only publish "
                 "running totals. This chart shows how much those totals grew "
                 "between one weekly report and the next.",
                 "",
                 _analytics_week_chart(
                     [{**row, "total": max(0, int(row["total"]))} for row in gains],
                     value_field="total",
-                    title="New NuGet, GitHub release, and VS Code downloads",
+                    title="New GitHub release downloads and VS Code installs",
                 ),
                 "",
             ]
@@ -836,7 +837,7 @@ def _analytics_download_sections(
     else:
         sections.extend(
             [
-                "NuGet, GitHub releases, and the VS Code Marketplace only publish "
+                "GitHub releases and the VS Code Marketplace only publish "
                 "running totals. This report saves those totals every week, so a "
                 "chart of new downloads each week appears from the next report on.",
                 "",

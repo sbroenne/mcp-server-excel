@@ -14,7 +14,7 @@ param(
     [string]$WeightsPath = (Join-Path $PSScriptRoot "../.github/usage-analytics-weights.json"),
 
     # The last published report. Its download snapshots are carried forward, because
-    # NuGet, GitHub releases, and the VS Code Marketplace only publish running totals.
+    # GitHub releases and the VS Code Marketplace only publish running totals.
     [string]$PreviousReportPath,
 
     [string]$Repository = "sbroenne/mcp-server-excel"
@@ -318,21 +318,17 @@ $npmPackages = [ordered]@{
     "npm-mcp-server" = "@sbroenne/mcp-server-excel"
     "npm-cli" = "@sbroenne/excelcli"
 }
-$nugetPackages = [ordered]@{
-    "nuget-mcp-server" = "Sbroenne.ExcelMcp.McpServer"
-    "nuget-cli" = "Sbroenne.ExcelMcp.CLI"
-}
+# NuGet is left out: its counts are dominated by automated mirrors (roughly the same
+# few hundred downloads for every version), and few people install it from there.
 $downloadChannelLabels = [ordered]@{
     "npm-mcp-server" = "npm: MCP Server"
     "npm-cli" = "npm: command line"
-    "nuget-mcp-server" = "NuGet: MCP Server"
-    "nuget-cli" = "NuGet: command line"
     "github-releases" = "GitHub release files"
     "vscode" = "VS Code extension installs"
 }
 # npm publishes daily history. The other sources only publish running totals, so the
 # report keeps one dated snapshot per run and calculates the gain between snapshots.
-$snapshotChannels = @("nuget-mcp-server", "nuget-cli", "github-releases", "vscode")
+$snapshotChannels = @("github-releases", "vscode")
 # Checksums and release metadata are fetched by automation, not people.
 $releaseFilePattern = '\.(?:zip|vsix|mcpb)$'
 $maxDownloadSnapshots = 104
@@ -354,22 +350,12 @@ function ConvertTo-UtcDate {
 function Get-DownloadSources {
     $sources = [ordered]@{
         npm = [ordered]@{}
-        nuget = [ordered]@{}
         releases = @()
         vscodeInstalls = $null
     }
     foreach ($entry in $npmPackages.GetEnumerator()) {
         $response = Invoke-RestMethod -Uri "https://api.npmjs.org/downloads/range/last-year/$($entry.Value)"
         $sources.npm[$entry.Key] = @($response.downloads)
-    }
-    foreach ($entry in $nugetPackages.GetEnumerator()) {
-        $response = Invoke-RestMethod `
-            -Uri "https://azuresearch-usnc.nuget.org/query?q=packageid:$($entry.Value)&prerelease=true&semVerLevel=2.0.0"
-        $package = @($response.data | Where-Object { $_.id -eq $entry.Value })[0]
-        if ($null -eq $package) {
-            throw "NuGet did not return package '$($entry.Value)'."
-        }
-        $sources.nuget[$entry.Key] = $package.totalDownloads
     }
 
     $headers = @{ Accept = "application/vnd.github+json"; "X-GitHub-Api-Version" = "2022-11-28" }
@@ -478,13 +464,6 @@ function New-DownloadReport {
             $npmDays[$date][$channel] = $count
         }
         $totals[$channel] = $sum
-    }
-    foreach ($channel in $nugetPackages.Keys) {
-        $total = $Sources.nuget.PSObject.Properties[$channel]
-        if ($null -eq $total) {
-            throw "NuGet download totals are missing '$channel'."
-        }
-        $totals[$channel] = [long](Convert-ToNumber $total.Value)
     }
 
     $releaseRows = @(
