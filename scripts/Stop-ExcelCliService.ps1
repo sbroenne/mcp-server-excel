@@ -29,14 +29,23 @@ foreach ($candidate in Get-CimInstance Win32_Process -Filter "Name = 'excelcli.e
         }
     }
 
-    $current = Get-CimInstance Win32_Process -Filter "ProcessId = $($candidate.ProcessId)"
-    if ($null -eq $current -or $current.CreationDate -ne $candidate.CreationDate -or
-        $current.ExecutablePath -ne $candidate.ExecutablePath -or
-        $current.CommandLine -ne $candidate.CommandLine) {
-        continue
-    }
+    $process = $null
     try {
-        Stop-Process -Id $candidate.ProcessId -Force -ErrorAction Stop
+        $process = Get-Process -Id $candidate.ProcessId -ErrorAction Stop
+        # Pin the handle; call its getter directly so PowerShell propagates errors.
+        $null = $process.get_Handle()
+        $started = $process.StartTime.ToUniversalTime().Ticks
+        if (($started - ($started % 10)) -ne $candidate.CreationDate.ToUniversalTime().Ticks) {
+            continue
+        }
+        $current = Get-CimInstance Win32_Process -Filter "ProcessId = $($candidate.ProcessId)"
+        if ($null -eq $current -or $current.CreationDate -ne $candidate.CreationDate -or
+            $current.ExecutablePath -ne $candidate.ExecutablePath -or
+            $current.CommandLine -ne $candidate.CommandLine) {
+            continue
+        }
+        $process.Kill()
+        Write-Host "Stopped development CLI service PID $($candidate.ProcessId)."
     }
     catch {
         # A service can exit between identity validation and termination.
@@ -44,6 +53,8 @@ foreach ($candidate in Get-CimInstance Win32_Process -Filter "Name = 'excelcli.e
             throw
         }
     }
-    Write-Host "Stopped development CLI service PID $($candidate.ProcessId)."
+    finally {
+        if ($null -ne $process) { $process.Dispose() }
+    }
 }
 $global:LASTEXITCODE = 0

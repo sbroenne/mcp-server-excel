@@ -23,7 +23,8 @@
   packaging. Selection and local Excel group commands: `tests/README.md`.
 - Local CLI builds invoke `scripts\Stop-ExcelCliService.ps1` once. Forcibly stop
   only background CLI services from this worktree's output, validating PID/start
-  time. Builds do not save workbooks or terminate Excel, MCP, foreground CLI, or
+  time and terminating through the same retained native process handle. Builds
+  do not save workbooks or terminate Excel, MCP, foreground CLI, or
   other worktrees' services. Test-run cleanup passes an explicit private pipe.
   Preserve ordinary product save/close and explicit service-stop safeguards.
 - `release.yml` owns versions and changelog generation. Do not dispatch it as a

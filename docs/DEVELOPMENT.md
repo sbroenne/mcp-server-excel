@@ -203,7 +203,9 @@ dotnet build -c Release
 Before the CLI project replaces its output, local builds call
 `scripts\Stop-ExcelCliService.ps1` once. It forcibly stops background CLI services
 whose executable is this worktree's Debug or Release output, after checking the
-`service run` command and PID/start-time identity. **Builds do not save workbooks;
+`service run` command and PID/start-time identity. It retains a native process
+handle through verification and termination, so a reused PID cannot redirect
+termination to another process. **Builds do not save workbooks;
 unsaved work in those development sessions may be lost.** No temporary helper is
 built, and no Excel, MCP, foreground CLI, or other worktree's process is stopped.
 No matching service is a no-op; a real query or termination failure fails the
