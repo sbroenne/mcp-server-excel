@@ -11,6 +11,36 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.3.8] - 2026-10-08
+
+### Minor Changes
+
+- [#1083](https://github.com/sbroenne/mcp-server-excel/pull/1083) [`47f8cc9`](https://github.com/sbroenne/mcp-server-excel/commit/47f8cc9ba2724a520fdbcc497ad93b08ea87e31e) Thanks [@sbroenne](https://github.com/sbroenne)! - Inspect sign-in settings, set selected account-hint and sign-in modes, or remove a selected Power BI/Analysis Services connection's saved account hint through MCP or CLI. Account and secret values are not returned. Passwords, tokens, server impersonation, and unspecified settings are preserved; the actions do not clear shared credentials, sign in or out, refresh, or save automatically.
+
+- [#1083](https://github.com/sbroenne/mcp-server-excel/pull/1083) [`47f8cc9`](https://github.com/sbroenne/mcp-server-excel/commit/47f8cc9ba2724a520fdbcc497ad93b08ea87e31e) Thanks [@sbroenne](https://github.com/sbroenne)! - Open existing SharePoint and OneDrive for Business workbooks directly from their HTTPS file URLs in MCP and excelcli, without syncing or downloading a separate copy first. Visible Excel handles sign-in and editing permissions; cloud AutoSave is disabled so explicit save and discard behavior stays consistent with local workbooks.
+
+  Workbook information now reports the live AutoSave status through `autoSaveOn`. Older Excel versions without AutoSave report it as disabled and can still open cloud workbooks; unexpected AutoSave access errors remain failures.
+
+### Patch Changes
+
+- [#1083](https://github.com/sbroenne/mcp-server-excel/pull/1083) [`47f8cc9`](https://github.com/sbroenne/mcp-server-excel/commit/47f8cc9ba2724a520fdbcc497ad93b08ea87e31e) Thanks [@sbroenne](https://github.com/sbroenne)! - Prevent simultaneous shutdown requests from stopping the service while a busy workbook is retained for recovery.
+
+- [#1083](https://github.com/sbroenne/mcp-server-excel/pull/1083) [`47f8cc9`](https://github.com/sbroenne/mcp-server-excel/commit/47f8cc9ba2724a520fdbcc497ad93b08ea87e31e) Thanks [@sbroenne](https://github.com/sbroenne)! - MCP and CLI session listings now distinguish an open Excel dialog from a busy query and explain when to check Excel for a prompt. Detection works without calling Excel, includes dialogs hosted in another process, and never reads credentials or responds to prompts. Save and close remain blocked until Excel is ready.
+
+- [#1083](https://github.com/sbroenne/mcp-server-excel/pull/1083) [`47f8cc9`](https://github.com/sbroenne/mcp-server-excel/commit/47f8cc9ba2724a520fdbcc497ad93b08ea87e31e) Thanks [@sbroenne](https://github.com/sbroenne)! - Retain the workbook and service when Excel rejects the final shutdown save as busy, preserving the original COM error for inspection and retry. Remove sessions whose Excel process has exited from the daemon's idle count so abandoned sessions do not prevent idle shutdown.
+
+- [#1083](https://github.com/sbroenne/mcp-server-excel/pull/1083) [`47f8cc9`](https://github.com/sbroenne/mcp-server-excel/commit/47f8cc9ba2724a520fdbcc497ad93b08ea87e31e) Thanks [@sbroenne](https://github.com/sbroenne)! - Keep the workbook and session usable when a refresh starts between the initial readiness check and closing. Retry closing after the refresh completes; any save already completed before the refusal remains saved.
+
+- [#1083](https://github.com/sbroenne/mcp-server-excel/pull/1083) [`47f8cc9`](https://github.com/sbroenne/mcp-server-excel/commit/47f8cc9ba2724a520fdbcc497ad93b08ea87e31e) Thanks [@sbroenne](https://github.com/sbroenne)! - Fix Power BI/MSOLAP connection inspection and refresh when Excel does not expose background-query settings. Save, Save As, and close now check Excel's live refresh state, keep unfinished work open, and report busy errors without incorrectly blaming a file lock.
+
+  Require confirmed Excel process ownership during startup, retrying temporary identity-capture failures and rejecting startup before opening or creating a workbook if ownership cannot be confirmed.
+
+  Allow a started readiness inspection to finish within the session operation timeout, so an idle large workbook is not permanently blocked from saving or closing by the short queue deadline.
+
+  Refuse service shutdown when readiness blocks saving, retaining the workbook and service for recovery instead of disposing unsaved edits. Product CLI stop respects refusal and pending-request timeouts rather than force-stopping the owned processes.
+
+- [#1083](https://github.com/sbroenne/mcp-server-excel/pull/1083) [`47f8cc9`](https://github.com/sbroenne/mcp-server-excel/commit/47f8cc9ba2724a520fdbcc497ad93b08ea87e31e) Thanks [@sbroenne](https://github.com/sbroenne)! - Reject browser pages and text responses masquerading as Excel workbooks instead of reporting a successful open. Unsupported SharePoint links now explain how to obtain a direct workbook address or use an existing local workbook.
+
 ## [2.3.7] - 2026-10-08
 
 ### Patch Changes
