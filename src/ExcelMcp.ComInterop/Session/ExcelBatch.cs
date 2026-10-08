@@ -442,14 +442,14 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     }
 
                     tempWorkbooks[normalizedPath] = wb;
+                    AfterWorkbookOpenHookForTests?.Invoke(tempExcel, wb);
+                    WorkbookLocation.ValidateOpenedWorkbookFormat(normalizedPath, wb.FileFormat);
                     if (isRemote && !wb.ReadOnly)
                     {
                         // Cloud AutoSave would otherwise persist edits before an explicit save
                         // and defeat close(save:false).
                         ExcelCapabilities.DisableAutoSave(() => wb.AutoSaveOn = false);
                     }
-                    AfterWorkbookOpenHookForTests?.Invoke(tempExcel, wb);
-
                     if (path == _workbookPath)
                     {
                         primaryWorkbook = wb;

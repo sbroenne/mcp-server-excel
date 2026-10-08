@@ -15,6 +15,16 @@ forms identify the same workbook. Folder URLs, browser pages such as `Doc.aspx`,
 sharing links, other query parameters, arbitrary websites, and OneDrive personal
 consumer links are not supported.
 
+For an unsupported link, open the file in desktop Excel and use
+**File > Info > Copy Path** to obtain its direct workbook URL, or supply the
+path to an existing local workbook. ExcelMcp does not register a Microsoft app
+or resolve opaque sharing links.
+
+Before publishing a session for a `.xlsx`, `.xlsm`, `.xlsb`, or `.xls` location,
+ExcelMcp checks Excel's actual file format. A sign-in page, browser response, or
+text import is not accepted as a successful workbook open, even if Excel can
+display it as a worksheet.
+
 Use MCP `file(action: 'open', file_path: '<direct-url>', show: true)` or
 `excelcli session open "<direct-url>" --show`. The visible session is required
 so Office sign-in and rights-management prompts remain accessible. Excel uses

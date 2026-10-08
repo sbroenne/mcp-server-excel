@@ -1,4 +1,6 @@
+using Sbroenne.ExcelMcp.ComInterop;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -19,6 +21,46 @@ public sealed partial class PersistentServiceConnectionTests
         Assert.Equal(Microsoft.Office.Interop.Excel.XlConnectionType.xlConnectionTypeODBC, native.Type);
         Assert.Contains("DSN=Excel Files", native.Source, StringComparison.Ordinal);
         Assert.Equal("ODBC", RequireSuccess(_connections.View(_fixture.BatchToken, connectionName)).Type);
+    }
+
+    [Fact]
+    public void List_UnrefreshedOlapConnection_ReturnsUnknownRefreshDate()
+    {
+        var name = UniqueConnectionName("UnrefreshedOlap");
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Connections? connections = null;
+            Excel.WorkbookConnection? connection = null;
+            Excel.OLEDBConnection? oledb = null;
+            try
+            {
+                connections = context.Book.Connections;
+                connection = connections.Add2(name, "Unrefreshed cube metadata",
+                    "OLEDB;Provider=MSOLAP.8;Data Source=UnconfiguredRegressionSource;Initial Catalog=RegressionCube",
+                    "Model", Excel.XlCmdType.xlCmdCube, false, false);
+                _fixture.RegisterConnectionForCleanup(name);
+                oledb = connection.OLEDBConnection;
+                Assert.True(oledb.OLAP);
+                Assert.False(oledb.Refreshing);
+            }
+            finally
+            {
+                ComUtilities.Release(ref oledb);
+                ComUtilities.Release(ref connection);
+                ComUtilities.Release(ref connections);
+            }
+        });
+
+        var listed = RequireSuccess(_connections.List(_fixture.BatchToken));
+        var info = Assert.Single(listed.Connections, item => item.Name == name);
+        Assert.Equal("OLEDB", info.Type);
+        Assert.False(info.IsPowerQuery);
+        Assert.False(info.BackgroundQuery);
+        Assert.False(info.RefreshOnFileOpen);
+        Assert.Null(info.LastRefresh);
+        var viewed = RequireSuccess(_connections.View(_fixture.BatchToken, name));
+        Assert.Equal("Cube", viewed.CommandType);
+        Assert.Equal("Model", viewed.CommandText);
     }
 
     [Fact]
