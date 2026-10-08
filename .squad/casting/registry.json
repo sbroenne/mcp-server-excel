@@ -1,8 +1,59 @@
 {
   "schema": "squad-agent-provenance/v1",
   "schema_version": 1,
-  "revision": 1,
-  "generated_at": "1970-01-01T00:00:00.000Z",
-  "agents": {},
-  "transaction_id": "d3d3b87f-14ba-4040-8e07-ed8d54e7258c"
+  "revision": 2,
+  "generated_at": "2026-10-06T17:10:20.668+02:00",
+  "agents": {
+    "lead": {
+      "display_name": "Lead",
+      "persistent_name": "Lead",
+      "role": "Lead",
+      "universe": "descriptive",
+      "status": "active",
+      "created_at": "2026-10-06T17:10:20.668+02:00",
+      "updated_at": "2026-10-06T17:10:20.668+02:00",
+      "legacy_named": false
+    },
+    "runtime-engineer": {
+      "display_name": "Runtime Engineer",
+      "persistent_name": "Runtime Engineer",
+      "role": "Core and Excel COM Engineer",
+      "universe": "descriptive",
+      "status": "active",
+      "created_at": "2026-10-06T17:10:20.668+02:00",
+      "updated_at": "2026-10-06T17:10:20.668+02:00",
+      "legacy_named": false
+    },
+    "entry-points-engineer": {
+      "display_name": "Entry Points Engineer",
+      "persistent_name": "Entry Points Engineer",
+      "role": "Service, CLI, and MCP Engineer",
+      "universe": "descriptive",
+      "status": "active",
+      "created_at": "2026-10-06T17:10:20.668+02:00",
+      "updated_at": "2026-10-06T17:10:20.668+02:00",
+      "legacy_named": false
+    },
+    "quality-engineer": {
+      "display_name": "Quality Engineer",
+      "persistent_name": "Quality Engineer",
+      "role": "Tests and Regression Evidence",
+      "universe": "descriptive",
+      "status": "active",
+      "created_at": "2026-10-06T17:10:20.668+02:00",
+      "updated_at": "2026-10-06T17:10:20.668+02:00",
+      "legacy_named": false
+    },
+    "docs-extension-engineer": {
+      "display_name": "Docs & Extension Engineer",
+      "persistent_name": "Docs & Extension Engineer",
+      "role": "Documentation, Guidance, and Extension",
+      "universe": "descriptive",
+      "status": "active",
+      "created_at": "2026-10-06T17:10:20.668+02:00",
+      "updated_at": "2026-10-06T17:10:20.668+02:00",
+      "legacy_named": false
+    }
+  },
+  "transaction_id": "636afc77-9247-4840-b4a4-5a84f77b944e"
 }

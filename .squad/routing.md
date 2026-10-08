@@ -6,9 +6,24 @@ How to decide who handles what.
 
 | Work Type | Route To | Examples |
 |-----------|----------|----------|
+| Scope, architecture, cross-area integration, code review, unmatched work | Lead | Design disagreements, ADR conflicts, review of a finished change |
+| Core commands, ComInterop, Excel COM sessions and cleanup | Runtime Engineer | COM leaks, timeouts, session recovery, Power Query/PivotTable/chart behavior |
+| Service, CLI, MCP Server, generators, entry-point contracts | Entry Points Engineer | Tool schemas, CLI flags, generated routing, MCP and CLI disagreeing |
+| .NET tests, regression evidence, Excel E2E, check scripts | Quality Engineer | Failing regression test, sequential `scripts\Test-E2E.ps1` run, flaky test |
+| Docs, product skills and agent guidance, website, VS Code extension, changesets | Docs & Extension Engineer | Stale docs, skill sources, `gh-pages`, `vscode-extension/` |
 
-Preset installation adds concrete routes for the configured team. Add or edit rows
-here only when their agent names also exist in the casting registry.
+### Built-in support (not owners of product work)
+
+| Member | Use when |
+|--------|----------|
+| Scribe | Merging decision inbox files into `decisions.md` after substantial work |
+| Ralph | Checking the work queue or backlog |
+| Rai | Responsible AI review, only when requested or selected as a gate |
+| Fact Checker | Verifying claims, or challenging a plan or conclusion before it is accepted |
+
+### @copilot
+
+Opt-in only: `copilot-auto-assign` is `false` in `.squad/team.md`. Route to @copilot only when asked, using the capability profile there.
 
 ## Issue Routing
 
@@ -26,10 +41,11 @@ here only when their agent names also exist in the casting registry.
 
 ## Rules
 
-1. **Eager by default** — spawn all agents who could usefully start work, including anticipatory downstream work.
-2. **Scribe always runs** after substantial work, always as `mode: "background"`. Never blocks.
-3. **Quick facts → coordinator answers directly.** Don't spawn an agent for "what port does the server run on?"
-4. **When two agents could handle it**, pick the one whose domain is the primary concern.
-5. **"Team, ..." → fan-out.** Spawn all relevant agents in parallel as `mode: "background"`.
-6. **Anticipate downstream work.** If a feature is being built, spawn the tester to write test cases from requirements simultaneously.
-7. **Issue-labeled work** — when a `squad:{member}` label is applied to an issue, route to that member. The Lead handles all `squad` (base label) triage.
+1. **One accountable owner per task.** Pick the member whose area is the primary concern; the Lead owns anything unmatched.
+2. **Bring in others only for a concrete need** (a changed contract, a review, test evidence), and keep the collaboration bounded.
+3. **Changes to Core contracts, generators, or entry-point behavior** involve the Entry Points Engineer so MCP Server and `excelcli` stay in agreement.
+4. **Excel-dependent tests run sequentially**; never run two in parallel.
+5. **Scribe runs after substantial work**, in the background, and never blocks.
+6. **Quick facts → coordinator answers directly.** Don't spawn an agent for a simple lookup.
+7. **Issue-labeled work** — a `squad:{member}` label routes to that member; the Lead handles the base `squad` label.
+8. `llm-tests/` evaluations run only when the user explicitly asks.
