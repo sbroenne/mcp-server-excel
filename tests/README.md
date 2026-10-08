@@ -56,7 +56,7 @@ diagnostics only with explicit `-IncludeInfrastructureDiagnostics`.
 
 Windows/Azure runner setup and administration scripts are not part of the
 automated test suite. Product checks remain, including COM-reference safety,
-owned pre-build cleanup, test-result reporting, and real Excel acceptance.
+worktree-scoped pre-build CLI service stopping, test-result reporting, and real Excel acceptance.
 The retained PowerShell script tests run with PowerShell 7.
 
 Missing Excel, VBA trust, desktop, or other prerequisites mean incomplete
@@ -489,13 +489,19 @@ E2E after the last runtime-affecting change, and rerun it if subsequent commits
 change runtime behavior. Run affected Excel tests separately, including when
 changing Excel-dependent tests.
 
-`Test-E2E.ps1` defaults to three sequential stages: independent executable CLI
-scenarios, the linked stale-build save/rebuild/reopen regression, and independent
+`Test-E2E.ps1` defaults to two sequential stages: independent executable CLI
+scenarios and independent
 real-protocol MCP scenarios. Each stage has a separate TRX report and a hard
 execution deadline. Empty selections, skipped tests, failures, and assembly
-cleanup failures fail the run. `-Stages Cli`, `-Stages Rebuild`, or `-Stages Mcp`
+cleanup failures fail the run. `-Stages Cli` or `-Stages Mcp`
 is a focused run, not complete runtime acceptance. `Test-CliWorkflow.ps1` is a
 compatible wrapper for the CLI stage, including `-PipeName` and `-KeepFile`.
+
+Development builds directly stop only CLI services from the current worktree
+without saving workbooks. They do not kill Excel or stop other worktrees' services.
+The old graceful-save rebuild gate is removed; normal CLI/MCP persistence and
+safe-close tests remain. Test-run service stopping also specifies its private
+pipe so it cannot stop another local fixture's CLI service.
 The CLI stage also retains the expanded native API workflow in
 `Test-CliApiCoverage.ps1`, hosted by its own acceptance case with a private pipe
 and a hard deadline. MCP native formatting/style and report-depth assertions

@@ -64,7 +64,7 @@ public sealed class DaemonConfigurationTests
     }
 
     [Fact]
-    public void PreBuildCleanup_RunsOnlyForCliProject()
+    public void BuildServiceStop_RunsOnlyForCliProject()
     {
         var buildProperties = XDocument.Load(
             Path.Combine(GetRepositoryRoot(), "Directory.Build.props"));
@@ -72,7 +72,7 @@ public sealed class DaemonConfigurationTests
             .Descendants("Target")
             .Single(element => string.Equals(
                 element.Attribute("Name")?.Value,
-                "StopExcelMcpProcesses",
+                "StopExcelCliService",
                 StringComparison.Ordinal));
 
         Assert.Contains(
@@ -83,30 +83,23 @@ public sealed class DaemonConfigurationTests
     }
 
     [Fact]
-    public void CleanupScript_StagesCurrentClientWhenExistingBinaryIsStale()
+    public void DevelopmentStop_HasNoBootstrapOrProductShutdownPath()
     {
         var cleanupScript = File.ReadAllText(
-            Path.Combine(GetRepositoryRoot(), "scripts", "Stop-ExcelMcpProcesses.ps1"));
-        var requiredFragments = new[]
+            Path.Combine(GetRepositoryRoot(), "scripts", "Stop-ExcelCliService.ps1"));
+        var forbiddenFragments = new[]
         {
-            @"src\ExcelMcp.CLI\Infrastructure\DaemonAutoStart.cs",
-            @"src\ExcelMcp.CLI\Infrastructure\PreBuildProcessCleanup.cs",
-            @"src\ExcelMcp.CLI\Program.cs",
-            @"src\ExcelMcp.ComInterop\Session\SessionManager.cs",
-            @"src\ExcelMcp.ComInterop\Session\ExcelBatch.cs",
-            @"src\ExcelMcp.ComInterop\Session\ExcelProcessIdentity.cs",
-            @"src\ExcelMcp.ComInterop\Session\OwnedProcessGuard.cs",
-            @"src\ExcelMcp.ComInterop\Session\ProcessTerminationPolicy.cs",
-            "-p:ExcelMcpCleanupRoot=$stagingRoot",
-            "-p:ExcelMcpSkipCleanup=true",
-            @"src\ExcelMcp.Cleanup\ExcelMcp.Cleanup.csproj",
-            @"src\ExcelMcp.Service\ServiceClient.cs",
-            @"src\ExcelMcp.Service\Rpc\IExcelDaemonRpc.cs",
-            "if ($availableClis.Count -eq 0)"
+            "dotnet",
+            "service stop",
+            "service.shutdown",
+            "EXCEL.EXE",
+            "DaemonProcessTracker",
+            "ExcelMcp.Cleanup",
+            "LastWriteTime"
         };
-
-        Assert.All(requiredFragments, fragment =>
-            Assert.Contains(fragment, cleanupScript, StringComparison.Ordinal));
+        Assert.All(forbiddenFragments, fragment =>
+            Assert.DoesNotContain(fragment, cleanupScript, StringComparison.OrdinalIgnoreCase));
+        Assert.False(File.Exists(Path.Combine(GetRepositoryRoot(), "src", "ExcelMcp.Cleanup", "ExcelMcp.Cleanup.csproj")));
     }
 
     private static string GetRepositoryRoot() =>

@@ -9,10 +9,12 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 [Trait("Feature", "AutomationSafety")]
 public sealed class AutomationScriptTests
 {
-    [Fact]
-    public async Task PreBuildCleanupCondition_Passes()
+    [Theory]
+    [InlineData("excel-runner-build-cleanup.tests.ps1")]
+    [InlineData("cli-service-stop.tests.ps1")]
+    public async Task DevelopmentServiceStop_Passes(string scriptName)
     {
-        var script = Path.Combine(FindRoot(), "scripts", "tests", "excel-runner-build-cleanup.tests.ps1");
+        var script = Path.Combine(FindRoot(), "scripts", "tests", scriptName);
         var info = new ProcessStartInfo("pwsh")
         {
             WorkingDirectory = FindRoot(),

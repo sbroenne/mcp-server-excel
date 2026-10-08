@@ -61,7 +61,7 @@ catch {
 finally {
     try {
         if (-not $ListTests) {
-            & (Join-Path $PSScriptRoot 'Stop-ExcelMcpProcesses.ps1') -PipeName $pipe
+            & (Join-Path $PSScriptRoot 'Stop-ExcelCliService.ps1') -PipeName $pipe
             if ($LASTEXITCODE -ne 0) { throw 'Owned local-test CLI cleanup failed.' }
         }
     }

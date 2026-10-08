@@ -6,8 +6,6 @@
 #
 # `Docs Site` builds and audits the MkDocs website. `CI Gate` verifies that
 # change detection and all selected jobs succeeded. Main/manual runs are complete.
-# The Excel-dependent gates — the CLI workflow, stale-build graceful-save
-# acceptance, and MCP workflow scenarios — are intentionally NOT run here:
 # GitHub-hosted `windows-latest` runners do not have Microsoft Excel installed.
 # All required acceptance stages remain local prerequisites and are
 # explicitly attested in the pull request testing checklist.
