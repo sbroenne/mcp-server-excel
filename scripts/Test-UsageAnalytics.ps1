@@ -243,6 +243,34 @@ try {
         "The share of users doing heavy work is missing."
     $testsRun++
 
+    $accountFixture = $fixture.Clone()
+    $accountFixture.actionCounts = @(
+        @{ Name = "connection/get-account-settings"; Actions = 20; Users = 10 },
+        @{ Name = "connection/clear-account-hint"; Actions = 20; Users = 10 },
+        @{ Name = "connection/set-account-settings"; Actions = 20; Users = 10 }
+    )
+    $accountFixturePath = Write-TestFile "account-fixture.json" ($accountFixture | ConvertTo-Json -Depth 8)
+    $accountReportPath = Join-Path $testRoot "account-analytics.json"
+    & $updateScript -WorkspaceId "fixture" -OutputPath $accountReportPath -FixturePath $accountFixturePath
+    $accountReport = Get-Content -LiteralPath $accountReportPath -Raw | ConvertFrom-Json
+    Assert-True ($accountReport.summary.workUnits -eq 140) `
+        "Account actions did not use their configured light/medium/medium weights."
+    $accountRead = $accountReport.operationsByWork | Where-Object name -eq "connection/get-account-settings"
+    Assert-True ($accountRead.workUnits -eq 20 -and $accountRead.level -eq "light") `
+        "Account inspection did not receive its configured light weight."
+    $originalWeights = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "../.github/usage-analytics-weights.json"))
+    $changedWeights = $originalWeights.Replace('"get-account-settings": "light"', '"get-account-settings": "medium"')
+    Assert-True ($changedWeights -ne $originalWeights) "The account weight mutation did not change the source mapping."
+    $changedWeightsPath = Write-TestFile "changed-account-weights.json" $changedWeights
+    & $updateScript -WorkspaceId "fixture" -OutputPath $accountReportPath -FixturePath $accountFixturePath `
+        -WeightsPath $changedWeightsPath
+    $changedReport = Get-Content -LiteralPath $accountReportPath -Raw | ConvertFrom-Json
+    $changedRead = $changedReport.operationsByWork | Where-Object name -eq "connection/get-account-settings"
+    Assert-True ($changedReport.summary.workUnits -eq 180 -and
+        $changedRead.workUnits -eq 60 -and $changedRead.level -eq "medium") `
+        "Changing the account inspection weight did not change the produced report aggregate."
+    $testsRun++
+
     $mcp = $analytics.entryPoints | Where-Object name -eq "mcp-server"
     $cli = $analytics.entryPoints | Where-Object name -eq "cli"
     Assert-True ($mcp.enoughData -and $mcp.actions -eq 500 -and $mcp.workUnits -eq 1400 -and

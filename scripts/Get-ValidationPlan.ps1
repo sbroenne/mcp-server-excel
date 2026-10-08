@@ -75,7 +75,7 @@ function Get-ValidationPlan {
             '^src/ExcelMcp\.McpServer/' { 'mcp'; break }
             '^src/ExcelMcp\.Build\.Tasks/' { 'skills'; break }
             '^src/ExcelMcp\.Diagnostics/|^\.editorconfig$' { 'build'; break }
-            '^scripts/(Test-E2E|Test-CliWorkflow|Test-CliApiCoverage|Stop-ExcelMcpProcesses)\.ps1$|^tests/.*/(PreBuildGracefulSaveAcceptanceTests|McpServerSmokeTests|CliWorkflowAcceptanceTests)\.cs$' { 'runtime'; break }
+            '^scripts/(Test-E2E|Test-CliWorkflow|Test-CliApiCoverage|Stop-ExcelCliService)\.ps1$|^tests/.*/(McpServerSmokeTests|CliWorkflowAcceptanceTests)\.cs$' { 'runtime'; break }
             '^tests/' { 'tests'; break }
             '^llm-tests/' { 'evaluation'; break }
             '^vscode-extension/' { 'extension'; break }

@@ -1901,6 +1901,45 @@ public class ConnectionPropertiesResult : ResultBase
     public int RefreshPeriod { get; set; }
 }
 
+/// <summary>
+/// Safe account-setting inspection for an MSOLAP connection; never contains account or secret values.
+/// </summary>
+public class ConnectionAccountSettingsResult : ResultBase
+{
+    /// <summary>Exact workbook connection name.</summary>
+    public string ConnectionName { get; set; } = "";
+    /// <summary>Whether a User ID or UID setting exists, including an empty setting.</summary>
+    public bool AccountHintPresent { get; set; }
+    /// <summary>Whether a Password or PWD setting exists; not evidence of a valid saved password.</summary>
+    public bool PasswordPresent { get; set; }
+    /// <summary>Whether EffectiveUserName server impersonation is configured.</summary>
+    public bool ImpersonationPresent { get; set; }
+    /// <summary>Excel's password-saving setting, distinct from shared credential caches.</summary>
+    public bool SavePassword { get; set; }
+    /// <summary>Recognized Interactive Login value, null if absent, or Unrecognized.</summary>
+    public string? InteractiveLogin { get; set; }
+    /// <summary>Recognized Identity Mode value, null if absent, or Unrecognized.</summary>
+    public string? IdentityMode { get; set; }
+}
+
+/// <summary>Safe result of updating explicitly supplied workbook account-hint or sign-in settings.</summary>
+public class ConnectionAccountSettingsUpdateResult : ConnectionAccountSettingsResult
+{
+    /// <summary>Whether any explicitly requested account-hint or sign-in setting changed.</summary>
+    public bool Changed { get; set; }
+}
+
+/// <summary>Result of removing workbook-scoped account hints, not cached sign-in credentials.</summary>
+public class ConnectionAccountHintClearResult : ResultBase
+{
+    /// <summary>Exact workbook connection name.</summary>
+    public string ConnectionName { get; set; } = "";
+    /// <summary>Whether any User ID/UID setting was removed.</summary>
+    public bool Changed { get; set; }
+    /// <summary>Whether an account hint remains after successful readback.</summary>
+    public bool AccountHintPresent { get; set; }
+}
+
 #endregion
 
 #region Data Model Result Types

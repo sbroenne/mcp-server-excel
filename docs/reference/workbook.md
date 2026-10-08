@@ -6,6 +6,50 @@ is separate; see [session and saving guidance](behavioral-rules.md#sessions-and-
 
 Current commands and supported inputs come from CLI help or MCP tool descriptions.
 
+## Opening a SharePoint workbook
+
+Open accepts a direct SharePoint or OneDrive for Business HTTPS file URL ending
+in `.xlsx`, `.xlsm`, `.xlsb`, or `.xls`. An optional `?web=1` or `?web=0` is
+removed before opening and session matching. Spaces and their percent-encoded
+forms identify the same workbook. Folder URLs, browser pages such as `Doc.aspx`,
+sharing links, other query parameters, arbitrary websites, and OneDrive personal
+consumer links are not supported.
+
+For an unsupported link, open the file in desktop Excel and use
+**File > Info > Copy Path** to obtain its direct workbook URL, or supply the
+path to an existing local workbook. ExcelMcp does not register a Microsoft app
+or resolve opaque sharing links.
+
+Before publishing a session for a `.xlsx`, `.xlsm`, `.xlsb`, or `.xls` location,
+ExcelMcp checks Excel's actual file format. A sign-in page, browser response, or
+text import is not accepted as a successful workbook open, even if Excel can
+display it as a worksheet.
+
+Use MCP `file(action: 'open', file_path: '<direct-url>', show: true)` or
+`excelcli session open "<direct-url>" --show`. The visible session is required
+so Office sign-in and rights-management prompts remain accessible. Excel uses
+the signed-in Office account; ExcelMcp neither supplies credentials nor bypasses
+IRM/AIP restrictions. Inspect `workbook_read` action `get-info` or
+`excelcli workbook get-info` for `readOnly` and the live `autoSaveOn` status before
+editing. When `autoSaveOn` is true, Excel can persist changes without an explicit
+save.
+
+Excel versions without the AutoSave property report `autoSaveOn: false`; there
+is no AutoSave feature to disable on those versions. Only known unavailable-member
+errors are treated this way. Other AutoSave read or write failures remain errors.
+
+`file_read` action `test` and `excelcli session test` report that URL validation
+requires interactive opening. They do not download the workbook or probe a local
+file. Returned `exists: false`, zero size, and `isIrmProtected: false` are unknown
+remote metadata, not evidence of a missing or unprotected workbook.
+
+Cloud AutoSave is disabled in editable remote sessions. Explicit save/close
+behavior therefore matches local workbooks: close without saving discards
+unsaved session edits; close with saving writes through Excel to the original
+SharePoint location. Normal Service shutdown still attempts to save. A successful
+save confirms Excel's saved state, not independent server-side upload completion.
+Save As, Save Copy As, export, and create continue to require Windows output paths.
+
 ## Metadata and document properties
 
 Use built-in properties for existing document metadata and custom properties
@@ -47,6 +91,11 @@ reports an error rather than presenting it as empty.
 
 ## Save and publish
 
+Opening or creating a workbook requires a confirmed Excel process ID and start
+time for safe readiness checks and cleanup. Startup retries a temporary capture
+failure. If the identity remains unavailable, it reports an error before opening
+or creating the workbook rather than returning a session that cannot save or close.
+
 Inspect `readOnly` with MCP `workbook_read` action `get-info` or
 `excelcli workbook get-info` before editing. Protected workbooks require visible
 authentication; Excel decides editing rights. Do not change protection to work
@@ -65,6 +114,52 @@ assume they were persisted or automatically discard them.
 
 Successful saving confirms Excel's saved state, not completion of OneDrive
 synchronization or upload to SharePoint.
+
+Saving, Save As, and explicit closing check Excel's live refresh readiness.
+A running refresh, open modal dialog, busy Excel instance, or unconfirmed status returns a `Busy`
+error without saving or discarding edits. The session remains open. Wait for
+Excel to finish, check `canClose` through MCP `file_read` action `list` or
+`excelcli session list`, inspect the refreshed values, then retry. A zero
+`activeOperations` count alone is not proof that Excel is idle.
+
+Readiness inspection waits at most one second for queued work. If inspection
+has already started, it can use the session's operation timeout to finish
+checking a large workbook. A scan that exceeds that additional deadline reports
+an unconfirmed state without saving or closing the workbook.
+
+Service shutdown also refuses to discard edits when readiness blocks saving.
+Normal close checks readiness again on Excel's STA at the shutdown transition.
+If a refresh starts after the initial check, close reports `Busy` without
+cancelling the work queue or retiring the session, so it can be used and retried.
+When `save=true`, saving may already have completed before this late refusal;
+that save is not rolled back.
+The blocked workbook stays in its session and the service stays running so you
+can respond to Excel's prompt or wait for the refresh, then retry
+`excelcli service stop`. Other ready sessions may already have been saved and
+closed before a refusal. Product `excelcli service stop` waits up to 60 seconds for
+the shutdown reply while ready workbooks save and close. It does not force-stop Excel
+after a `Busy` response or a timeout waiting for a shutdown reply after connecting.
+Simultaneous shutdown requests cannot bypass a refusal: saving and the decision
+to stop the service are serialized across all service shutdown entry points.
+This does not protect against externally killing the service or Excel.
+
+Development builds use a separate force-stop policy: they stop only this
+worktree's CLI background services without requesting graceful shutdown or
+saving workbooks. Unsaved development-session work may be lost. They do not
+terminate Excel, MCP, foreground CLI commands, or other worktrees' services.
+
+The same session listing exposes `excelState` and `blockingReason`. When
+`excelState` is `dialogOpen`, check the Excel window for a prompt before simply
+waiting longer. The server observes window ownership without reading dialog
+contents; this can detect a separate Microsoft sign-in host but cannot confirm
+that authentication is the dialog's purpose. It never enters credentials or
+responds to the prompt. After responding, check readiness and refreshed data
+before saving.
+
+Power BI/MSOLAP (OLAP) connections always refresh synchronously. Their unsupported
+background setting is reported as false; enabling it is rejected before changing
+other properties. An empty last-refresh date is reported as unknown, not as proof
+of a completed query.
 
 Choose the output according to the task. Saving under a new name changes the
 active workbook's path; saving a same-format copy leaves the active workbook

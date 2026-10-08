@@ -71,7 +71,7 @@ public sealed class TestClassificationArchitectureTests
     private static string GetExcelGroup(Type type, HashSet<string> features)
     {
         if (type.Assembly.GetName().Name == "Sbroenne.ExcelMcp.ComInterop.Tests") { return "Infrastructure"; }
-        if (type.Name is "PreBuildGracefulSaveAcceptanceTests" or "CliWorkflowAcceptanceTests" or "McpServerSmokeTests") { return "Acceptance"; }
+        if (type.Name is "CliWorkflowAcceptanceTests" or "McpServerSmokeTests") { return "Acceptance"; }
         if (features.Overlaps(["VBA", "VBATrust"])) { return "VBA"; }
         if (features.Overlaps(["Screenshot", "Window"])) { return "Desktop"; }
         if (features.Overlaps(["PowerQuery", "Connection", "Connections", "QueryTable", "DataModel", "PythonInExcel"])) { return "Data"; }

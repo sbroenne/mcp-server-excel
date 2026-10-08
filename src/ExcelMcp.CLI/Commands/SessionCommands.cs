@@ -129,7 +129,7 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<FILE>")]
-        [Description("Path to the Excel file to open")]
+        [Description("Absolute Windows path or direct SharePoint/OneDrive for Business HTTPS workbook URL (requires --show)")]
         public string FilePath { get; init; } = string.Empty;
 
         [CommandOption("--timeout-seconds <SECONDS>")]
@@ -332,7 +332,7 @@ internal sealed class SessionTestCommand : AsyncCommand<SessionTestCommand.Setti
     internal sealed class Settings : CommandSettings
     {
         [CommandArgument(0, "<FILE>")]
-        [Description("Full path to test for existence, validity, openability, and IRM/AIP requirements")]
+        [Description("Absolute Windows path or direct SharePoint HTTPS workbook URL; remote URLs report an interactive validation requirement")]
         public string FilePath { get; init; } = string.Empty;
 
         [CommandOption("--timeout-seconds <SECONDS>")]

@@ -76,16 +76,16 @@ public static class ExcelSession
         string[] fullPaths = new string[filePaths.Length];
         for (int i = 0; i < filePaths.Length; i++)
         {
-            string fullPath = Path.GetFullPath(filePaths[i]);
+            string fullPath = WorkbookLocation.Normalize(filePaths[i]);
 
             // Validate file exists
-            if (!File.Exists(fullPath))
+            if (!WorkbookLocation.IsRemote(fullPath) && !File.Exists(fullPath))
             {
                 throw new FileNotFoundException($"Excel file not found: {fullPath}. To create a new file, use the 'create' action instead of 'open'.", fullPath);
             }
 
             // Security: Validate file extension
-            string extension = Path.GetExtension(fullPath).ToLowerInvariant();
+            string extension = WorkbookLocation.GetExtension(fullPath);
             if (extension is not (".xlsx" or ".xlsm" or ".xlsb" or ".xls"))
             {
                 throw new ArgumentException($"Invalid file extension '{extension}'. Only Excel files (.xlsx, .xlsm, .xlsb, .xls) are supported.");
@@ -110,15 +110,15 @@ public static class ExcelSession
         string filePath,
         TimeSpan? operationTimeout)
     {
-        var fullPath = Path.GetFullPath(filePath);
-        if (!File.Exists(fullPath))
+        var fullPath = WorkbookLocation.Normalize(filePath);
+        if (!WorkbookLocation.IsRemote(fullPath) && !File.Exists(fullPath))
         {
             throw new FileNotFoundException(
                 $"Excel file not found: {fullPath}.",
                 fullPath);
         }
 
-        var extension = Path.GetExtension(fullPath).ToLowerInvariant();
+        var extension = WorkbookLocation.GetExtension(fullPath);
         if (extension is not (".xlsx" or ".xlsm" or ".xlsb" or ".xls"))
         {
             throw new ArgumentException(
@@ -129,7 +129,7 @@ public static class ExcelSession
         return new ExcelBatch(
             [fullPath],
             logger: null,
-            show: false,
+            show: WorkbookLocation.IsRemote(fullPath),
             operationTimeout: operationTimeout,
             openReadOnly: true);
     }

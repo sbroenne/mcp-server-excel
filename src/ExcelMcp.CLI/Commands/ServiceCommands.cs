@@ -39,6 +39,7 @@ internal sealed class ServiceStartCommand : AsyncCommand
 internal sealed class ServiceStopCommand : AsyncCommand
 {
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan ShutdownRequestTimeout = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan ShutdownWaitTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan ShutdownPollInterval = TimeSpan.FromMilliseconds(250);
 
@@ -58,7 +59,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
         var preShutdownSnapshot = OwnedProcessCleanup.CaptureTrackedProcesses(pipeName);
         try
         {
-            using var client = new ServiceClient(pipeName, connectTimeout: CommandTimeout, requestTimeout: CommandTimeout);
+            using var client = new ServiceClient(pipeName, connectTimeout: CommandTimeout, requestTimeout: ShutdownRequestTimeout);
             var request = new ServiceRequest { Command = "service.shutdown" };
             var response = await CliTelemetry.TrackCommandAsync(
                 request,
@@ -86,6 +87,13 @@ internal sealed class ServiceStopCommand : AsyncCommand
                 CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
                     new { success = false, error = $"Service acknowledged shutdown but did not exit within {ShutdownWaitTimeout.TotalSeconds:0} seconds." },
                     ServiceProtocol.JsonOptions));
+                return 1;
+            }
+
+            if (response.ErrorCategory == "Busy" ||
+                (response.ErrorCategory == "Timeout" && response.ErrorMessage == "Service request timed out"))
+            {
+                CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(response, ServiceProtocol.JsonOptions));
                 return 1;
             }
 

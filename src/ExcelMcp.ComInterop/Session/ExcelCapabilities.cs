@@ -18,6 +18,35 @@ public sealed class ExcelCapabilities
     /// </summary>
     public bool SupportsFormula2 => _supportsFormula2 ??= _probeFormula2();
 
+    internal static bool ReadAutoSave(Func<bool> read)
+    {
+        try
+        {
+            return read();
+        }
+        catch (COMException ex) when (IsAutoSaveUnavailable(ex))
+        {
+            return false;
+        }
+    }
+
+    internal static void DisableAutoSave(Action disable)
+    {
+        try
+        {
+            disable();
+        }
+        catch (COMException ex) when (IsAutoSaveUnavailable(ex))
+        {
+            // Older Excel has no AutoSave to disable.
+        }
+    }
+
+    private static bool IsAutoSaveUnavailable(COMException exception) => exception.HResult is
+        unchecked((int)0x80020003) or // DISP_E_MEMBERNOTFOUND
+        unchecked((int)0x80020006) or // DISP_E_UNKNOWNNAME
+        unchecked((int)0x80004001);   // E_NOTIMPL
+
     internal static bool ProbeFormula2(Func<object?> readFormula, Func<object?> readFormula2)
     {
         // Confirm the probe cell is readable before interpreting Excel's generic error

@@ -18,14 +18,6 @@
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
 
     <!-- Build settings -->
-    <!-- A stale CLI cannot stop its daemon before its normal output is replaced.
-         The cleanup script sets this to build a current client in a unique,
-         isolated tree without touching or sharing intermediate project files. -->
-    <BaseOutputPath Condition="'$(ExcelMcpCleanupRoot)' != ''">$(ExcelMcpCleanupRoot)\bin\$(MSBuildProjectName)\</BaseOutputPath>
-    <BaseIntermediateOutputPath Condition="'$(ExcelMcpCleanupRoot)' != ''">$(ExcelMcpCleanupRoot)\obj\$(MSBuildProjectName)\</BaseIntermediateOutputPath>
-    <MSBuildProjectExtensionsPath Condition="'$(ExcelMcpCleanupRoot)' != ''">$(BaseIntermediateOutputPath)</MSBuildProjectExtensionsPath>
-    <DefaultItemExcludes Condition="'$(ExcelMcpCleanupRoot)' != ''">$(DefaultItemExcludes);$(MSBuildProjectDirectory)\bin\**;$(MSBuildProjectDirectory)\obj\**</DefaultItemExcludes>
-
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>14</LangVersion>
@@ -69,19 +61,12 @@
 
   </PropertyGroup>
 
-  <!--
-    Pre-build cleanup: before the CLI project replaces its output, ask the
-    current CLI cleanup implementation to stop only the daemon and Excel
-    processes tracked for the selected pipe. Restricting this target to the CLI
-    project prevents parallel solution builds from launching cleanup clients
-    that lock the CLI output.
-    Skipped on hosted CI, but retained on self-hosted desktops with live daemons.
-  -->
-  <Target Name="StopExcelMcpProcesses"
+  <!-- Development rebuilds stop only this worktree's CLI services, without saving.
+       Hosted CI has no local service; self-hosted desktops can have one. -->
+  <Target Name="StopExcelCliService"
           BeforeTargets="BeforeBuild"
-          Condition="'$(MSBuildProjectName)' == 'ExcelMcp.CLI' AND ('$(CI)' != 'true' OR '$(RUNNER_ENVIRONMENT)' == 'self-hosted') AND '$(ExcelMcpSkipCleanup)' != 'true'">
-    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\Stop-ExcelMcpProcesses.ps1&quot;"
-          StandardOutputImportance="low" />
+          Condition="'$(MSBuildProjectName)' == 'ExcelMcp.CLI' AND ('$(CI)' != 'true' OR '$(RUNNER_ENVIRONMENT)' == 'self-hosted')">
+    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\Stop-ExcelCliService.ps1&quot;" />
   </Target>
 
   <!-- Import user-specific properties (gitignored, for local secrets) -->

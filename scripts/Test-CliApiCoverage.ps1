@@ -39,7 +39,7 @@ Write-Host "Using private CLI pipe: $selectedPipeName" -ForegroundColor DarkGray
 function Reset-CliWorkflowEnvironment {
     $cleanupExitCode = 0
     try {
-        & (Join-Path $PSScriptRoot 'Stop-ExcelMcpProcesses.ps1') -PipeName $selectedPipeName
+        & (Join-Path $PSScriptRoot 'Stop-ExcelCliService.ps1') -PipeName $selectedPipeName
         $cleanupExitCode = $LASTEXITCODE
     }
     finally {

@@ -34,6 +34,7 @@ public sealed class ExcelMcpService : IDisposable
     private readonly SessionManager _sessionManager = new();
     private readonly ConcurrentDictionary<string, byte> _knownSessionIds = new(StringComparer.Ordinal);
     private readonly DaemonHost _daemonHost;
+    private readonly Lock _shutdownLock = new();
     private readonly DateTime _startTime = DateTime.UtcNow;
     private bool _disposed;
 
@@ -67,7 +68,7 @@ public sealed class ExcelMcpService : IDisposable
         _powerQueryCommands = new PowerQueryCommands(_dataModelCommands);
         _daemonHost = new DaemonHost(
             ProcessAsync,
-            () => _sessionManager.GetActiveSessions().Count);
+            () => _sessionManager.ActiveSessionIds.Count(_sessionManager.IsSessionAlive));
     }
 
     public DateTime StartTime => _startTime;
@@ -83,7 +84,14 @@ public sealed class ExcelMcpService : IDisposable
     public Task RunAsync(string pipeName, TimeSpan? idleTimeout = null) =>
         _daemonHost.RunAsync(pipeName, idleTimeout);
 
-    public void RequestShutdown() => _daemonHost.RequestShutdown();
+    public void RequestShutdown()
+    {
+        lock (_shutdownLock)
+        {
+            _sessionManager.Dispose();
+            _daemonHost.RequestShutdown();
+        }
+    }
 
     /// <summary>
     /// Processes a service request directly (in-process, no pipe).
@@ -210,8 +218,12 @@ public sealed class ExcelMcpService : IDisposable
 
     private ServiceResponse HandleShutdown()
     {
-        _daemonHost.RequestShutdownAfterResponse();
-        return new ServiceResponse { Success = true };
+        lock (_shutdownLock)
+        {
+            _sessionManager.Dispose();
+            _daemonHost.RequestShutdownAfterResponse();
+            return new ServiceResponse { Success = true };
+        }
     }
 
     private ServiceResponse HandleStatus()
@@ -359,7 +371,7 @@ public sealed class ExcelMcpService : IDisposable
                 ErrorMessage = "filePath is required"
             };
         }
-        var fullPath = FilePathValidation.NormalizeAbsoluteWindowsPath(args.FilePath);
+        var fullPath = FilePathValidation.NormalizeWorkbookLocation(args.FilePath);
 
         try
         {
@@ -487,13 +499,19 @@ public sealed class ExcelMcpService : IDisposable
     private ServiceResponse HandleSessionList()
     {
         var sessions = _sessionManager.GetActiveSessions()
-            .Select(s => new
+            .Select(s =>
             {
-                sessionId = s.SessionId,
-                filePath = s.FilePath,
-                isExcelVisible = _sessionManager.IsExcelVisible(s.SessionId),
-                activeOperations = _sessionManager.GetActiveOperationCount(s.SessionId),
-                canClose = _sessionManager.GetActiveOperationCount(s.SessionId) == 0
+                var validation = _sessionManager.ValidateClose(s.SessionId);
+                return new
+                {
+                    sessionId = s.SessionId,
+                    filePath = s.FilePath,
+                    isExcelVisible = validation.IsExcelVisible,
+                    activeOperations = validation.ActiveOperationCount,
+                    canClose = validation.CanClose,
+                    excelState = validation.ExcelState,
+                    blockingReason = validation.BlockingReason
+                };
             })
             .ToList();
 
@@ -809,6 +827,17 @@ public sealed class ExcelMcpService : IDisposable
 
         try
         {
+            if (string.Equals(request.Command, ServiceRegistry.Connection.GetRefreshStatusCommand, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(request.Command, ServiceRegistry.Connection.CancelRefreshCommand, StringComparison.OrdinalIgnoreCase))
+            {
+                ConnectionCommands.ValidateRefreshControlReadiness(batch!);
+            }
+            if (string.Equals(request.Command, ServiceRegistry.Connection.GetAccountSettingsCommand, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(request.Command, ServiceRegistry.Connection.SetAccountSettingsCommand, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(request.Command, ServiceRegistry.Connection.ClearAccountHintCommand, StringComparison.OrdinalIgnoreCase))
+            {
+                ConnectionCommands.ValidateAccountSettingsReadiness(batch!);
+            }
             ServiceRegistry.ValidateWorkbookWriteAccess(request.Command, batch!, request.Args);
             var response = action(batch!);
             return Task.FromResult(response);
@@ -1058,17 +1087,22 @@ public sealed class ExcelMcpService : IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
-        _disposed = true;
-
-        _daemonHost.RequestShutdown();
-        try
+        lock (_shutdownLock)
         {
-            _sessionManager.Dispose();
-        }
-        finally
-        {
-            _daemonHost.Dispose();
+            if (_disposed) return;
+            try
+            {
+                _sessionManager.Dispose();
+            }
+            finally
+            {
+                if (_sessionManager.ActiveSessionCount == 0)
+                {
+                    _disposed = true;
+                    _daemonHost.RequestShutdown();
+                    _daemonHost.Dispose();
+                }
+            }
         }
     }
 }

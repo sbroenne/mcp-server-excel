@@ -4,6 +4,8 @@ using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Commands;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
+using Sbroenne.ExcelMcp.Service;
+using StreamJsonRpc;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
@@ -19,6 +21,53 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Collection("Sequential")]
 public sealed class DaemonForcedStopRegressionTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ShutdownRefusal_DoesNotForceTrackedProcesses(bool requestTimedOut)
+    {
+        var pipeName = $"excelmcp-shutdown-refused-{Guid.NewGuid():N}";
+        using var daemon = StartSleepingProcess();
+        using var excel = StartSleepingProcess();
+        using var server = ServiceSecurity.CreateSecureServer(pipeName);
+        try
+        {
+            RegisterTrackedProcesses(pipeName, daemon, excel);
+            var connection = server.WaitForConnectionAsync();
+            var stop = RunServiceStopAsync(pipeName);
+            await connection.WaitAsync(TimeSpan.FromSeconds(10));
+            using var rpc = JsonRpc.Attach(server, new RefusedShutdownRpcTarget(requestTimedOut));
+            var result = await stop.WaitAsync(TimeSpan.FromSeconds(20));
+            Assert.Equal(1, result.ExitCode);
+            using var json = JsonDocument.Parse(result.Stdout);
+            Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal(requestTimedOut ? "Timeout" : "Busy", json.RootElement.GetProperty("errorCategory").GetString());
+            Assert.False(daemon.HasExited);
+            Assert.False(excel.HasExited);
+            Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
+        }
+        finally
+        {
+            StopIfRunning(daemon);
+            StopIfRunning(excel);
+            DaemonProcessTracker.Clear(pipeName);
+        }
+    }
+
+    private sealed class RefusedShutdownRpcTarget(bool requestTimedOut)
+    {
+        public Task<ServiceResponse> ProcessCommandAsync(ServiceRequest request)
+        {
+            Assert.Equal("service.shutdown", request.Command);
+            return Task.FromResult(new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = requestTimedOut ? "Timeout" : "Busy",
+                ErrorMessage = requestTimedOut ? "Service request timed out" : "Excel remains open until saving is safe."
+            });
+        }
+    }
+
     public static TheoryData<string> AdversarialPipeNames
     {
         get
@@ -235,7 +284,7 @@ public sealed class DaemonForcedStopRegressionTests
     }
 
     [Fact(Timeout = 300000)]
-    public async Task PreBuildCleanup_StaleBinaryStopsOwnedDaemonAndAllowsReleaseRebuild()
+    public async Task Build_StopsOnlyLocalCliServiceAndLeavesTrackedExcelAlone()
     {
         var repositoryRoot = GetRepositoryRoot();
         var releaseDirectory = Path.Combine(
@@ -250,30 +299,23 @@ public sealed class DaemonForcedStopRegressionTests
 
         var controlDirectory = Path.Combine(
             Path.GetTempPath(),
-            $"excelmcp-stale-cleanup-control-{Guid.NewGuid():N}");
+            $"excelmcp-build-control-{Guid.NewGuid():N}");
         CopyDirectory(releaseDirectory, controlDirectory);
         var controlCli = Path.Combine(controlDirectory, "excelcli.exe");
-        var ownedPipe = $"excelmcp-stale-build-owned-{Guid.NewGuid():N}";
-        var controlPipe = $"excelmcp-stale-build-control-{Guid.NewGuid():N}";
+        var ownedPipe = $"excelmcp-build-owned-{Guid.NewGuid():N}";
+        var controlPipe = $"excelmcp-build-control-{Guid.NewGuid():N}";
+        var otherLocalPipe = $"excelmcp-build-other-local-{Guid.NewGuid():N}";
         using var ownedDaemon = StartDaemonProcess(releaseCli, ownedPipe);
         using var controlDaemon = StartDaemonProcess(controlCli, controlPipe);
-        var safetySource = Path.Combine(
-            repositoryRoot,
-            "src",
-            "ExcelMcp.CLI",
-            "Infrastructure",
-            "DaemonProcessTracker.cs");
-        var originalSourceWriteTime = File.GetLastWriteTimeUtc(safetySource);
+        using var otherLocalDaemon = StartDaemonProcess(releaseCli, otherLocalPipe);
+        using var trackedExcel = StartSleepingProcess();
 
         try
         {
             await WaitForDaemonReadyAsync(releaseCli, ownedPipe);
             await WaitForDaemonReadyAsync(controlCli, controlPipe);
-
-            File.SetLastWriteTimeUtc(safetySource, DateTime.UtcNow);
-            Assert.True(
-                File.GetLastWriteTimeUtc(safetySource) > File.GetLastWriteTimeUtc(releaseCli),
-                "The ownership source must be newer than the existing CLI for this regression.");
+            await WaitForDaemonReadyAsync(releaseCli, otherLocalPipe);
+            RegisterTrackedProcesses(ownedPipe, ownedDaemon, trackedExcel);
 
             var buildResult = await RunProcessAsync(
                 "dotnet",
@@ -310,15 +352,20 @@ public sealed class DaemonForcedStopRegressionTests
             Assert.DoesNotContain("warning ", buildResult.Stderr, StringComparison.OrdinalIgnoreCase);
             Assert.True(
                 ownedDaemon.WaitForExit(10000),
-                $"Owned daemon {ownedDaemon.Id} was not stopped by the stale-binary pre-build target.");
+                $"Local daemon {ownedDaemon.Id} was not stopped by the pre-build target.");
+            Assert.False(trackedExcel.HasExited);
+            Assert.True(otherLocalDaemon.WaitForExit(10000));
             Assert.False(controlDaemon.HasExited);
             Assert.True((await GetServiceStatusAsync(controlCli, controlPipe)).ExitCode == 0);
+            Assert.DoesNotContain("excelmcp-cleanup", buildResult.Stdout + buildResult.Stderr, StringComparison.OrdinalIgnoreCase);
         }
         finally
         {
-            File.SetLastWriteTimeUtc(safetySource, originalSourceWriteTime);
+            StopIfRunning(trackedExcel);
             await StopDaemonBestEffortAsync(releaseCli, ownedPipe, ownedDaemon);
+            await StopDaemonBestEffortAsync(releaseCli, otherLocalPipe, otherLocalDaemon);
             await StopDaemonBestEffortAsync(controlCli, controlPipe, controlDaemon);
+            DaemonProcessTracker.Clear(ownedPipe);
             Directory.Delete(controlDirectory, recursive: true);
         }
     }
@@ -352,45 +399,6 @@ public sealed class DaemonForcedStopRegressionTests
             Assert.True(cleanupResult.Success);
             Assert.True(daemon.WaitForExit(5000));
             Assert.True(excel.WaitForExit(5000));
-            Assert.False(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
-        }
-        finally
-        {
-            StopIfRunning(daemon);
-            StopIfRunning(excel);
-            DaemonProcessTracker.Clear(pipeName);
-        }
-    }
-
-    [Fact]
-    public async Task PreBuildCleanup_LostShutdownReply_AllowsTrackedGenerationToExit()
-    {
-        var pipeName = $"excelmcp-lost-shutdown-reply-{Guid.NewGuid():N}";
-        using var daemon = StartShortLivedProcess(seconds: 2);
-        using var excel = StartShortLivedProcess(seconds: 5);
-
-        try
-        {
-            var daemonIdentity = DaemonProcessTracker.RegisterProcess(
-                pipeName,
-                daemon.Id,
-                daemon.StartTime.ToUniversalTime().ToFileTimeUtc());
-            DaemonProcessTracker.UpdateExcelProcesses(
-                pipeName,
-                daemonIdentity,
-                [excel.Id]);
-
-            var cleanupResult =
-                await PreBuildProcessCleanup.CleanupWithGracefulShutdownAsync(
-                    pipeName,
-                    CancellationToken.None,
-                    _ => Task.FromResult(false));
-
-            Assert.True(cleanupResult.Success);
-            Assert.True(daemon.WaitForExit(5000));
-            Assert.True(excel.WaitForExit(5000));
-            Assert.Equal(0, daemon.ExitCode);
-            Assert.Equal(0, excel.ExitCode);
             Assert.False(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
         }
         finally
@@ -979,16 +987,21 @@ public sealed class DaemonForcedStopRegressionTests
         }
     }
 
-    [Fact(Timeout = 180000)]
-    public async Task PreBuildCleanup_MalformedTrackingRecordPropagatesFailure()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DevelopmentStop_DoesNotReadOrFollowTrackingRecords(bool malformed)
     {
         var pipeName = $"excelmcp-tracker-prebuild-{Guid.NewGuid():N}";
         var trackingFile = DaemonProcessTracker.GetTrackingFilePath(pipeName);
+        using var daemon = StartSleepingProcess();
+        using var excel = StartSleepingProcess();
 
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(trackingFile)!);
-            await File.WriteAllTextAsync(trackingFile, """{"processId":""");
+            RegisterTrackedProcesses(pipeName, daemon, excel);
+            if (malformed) await File.WriteAllTextAsync(trackingFile, """{"processId":""");
+            var originalRecord = await File.ReadAllTextAsync(trackingFile);
 
             var result = await RunProcessAsync(
                 "powershell.exe",
@@ -1000,7 +1013,7 @@ public sealed class DaemonForcedStopRegressionTests
                     Path.Combine(
                         GetRepositoryRoot(),
                         "scripts",
-                        "Stop-ExcelMcpProcesses.ps1"),
+                        "Stop-ExcelCliService.ps1"),
                     "-PipeName",
                     pipeName,
                     "-Verbose"
@@ -1009,77 +1022,16 @@ public sealed class DaemonForcedStopRegressionTests
                 environmentVariables: null,
                 TimeSpan.FromMinutes(2));
 
-            Assert.Equal(1, result.ExitCode);
-            Assert.Contains(
-                "cleanup failed",
-                result.Stdout + result.Stderr,
-                StringComparison.OrdinalIgnoreCase);
-            Assert.True(File.Exists(trackingFile));
+            Assert.True(result.ExitCode == 0, result.Stdout + result.Stderr);
+            Assert.False(daemon.HasExited);
+            Assert.False(excel.HasExited);
+            Assert.Equal(originalRecord, await File.ReadAllTextAsync(trackingFile));
         }
         finally
         {
+            StopIfRunning(daemon);
+            StopIfRunning(excel);
             DaemonProcessTracker.Clear(pipeName);
-        }
-    }
-
-    [Fact(Timeout = 180000)]
-    public async Task PreBuildCleanup_UnresponsiveFallbackRemainsPipeScoped()
-    {
-        var selectedPipe = $"excelmcp-prebuild-unresponsive-{Guid.NewGuid():N}";
-        var unrelatedPipe = $"excelmcp-prebuild-control-{Guid.NewGuid():N}";
-        using var selectedDaemon = StartSleepingProcess();
-        using var selectedExcel = StartSleepingProcess();
-        using var unrelatedDaemon = StartSleepingProcess();
-        using var unrelatedExcel = StartSleepingProcess();
-        var repositoryRoot = GetRepositoryRoot();
-        var protocolSource = Path.Combine(
-            repositoryRoot,
-            "src",
-            "ExcelMcp.Service",
-            "ServiceClient.cs");
-        var originalSourceWriteTime = File.GetLastWriteTimeUtc(protocolSource);
-
-        try
-        {
-            RegisterTrackedProcesses(selectedPipe, selectedDaemon, selectedExcel);
-            RegisterTrackedProcesses(unrelatedPipe, unrelatedDaemon, unrelatedExcel);
-            File.SetLastWriteTimeUtc(protocolSource, DateTime.UtcNow.AddSeconds(2));
-
-            var result = await RunProcessAsync(
-                "powershell.exe",
-                [
-                    "-NoProfile",
-                    "-ExecutionPolicy",
-                    "Bypass",
-                    "-File",
-                    Path.Combine(
-                        repositoryRoot,
-                        "scripts",
-                        "Stop-ExcelMcpProcesses.ps1"),
-                    "-PipeName",
-                    selectedPipe,
-                    "-Verbose"
-                ],
-                repositoryRoot,
-                environmentVariables: null,
-                TimeSpan.FromMinutes(2));
-
-            Assert.Equal(0, result.ExitCode);
-            Assert.True(selectedDaemon.WaitForExit(5000));
-            Assert.True(selectedExcel.WaitForExit(5000));
-            Assert.False(unrelatedDaemon.HasExited);
-            Assert.False(unrelatedExcel.HasExited);
-            Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(unrelatedPipe)));
-        }
-        finally
-        {
-            File.SetLastWriteTimeUtc(protocolSource, originalSourceWriteTime);
-            StopIfRunning(selectedDaemon);
-            StopIfRunning(selectedExcel);
-            StopIfRunning(unrelatedDaemon);
-            StopIfRunning(unrelatedExcel);
-            DaemonProcessTracker.Clear(selectedPipe);
-            DaemonProcessTracker.Clear(unrelatedPipe);
         }
     }
 

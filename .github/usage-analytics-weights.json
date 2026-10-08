@@ -155,13 +155,16 @@
       "feature": "worksheets-connections",
       "actions": {
         "cancel-refresh": "medium",
+        "clear-account-hint": "medium",
         "create": "heavy",
         "delete": "medium",
+        "get-account-settings": "light",
         "get-properties": "light",
         "get-refresh-status": "light",
         "list": "light",
         "load-to": "heavy",
         "refresh": "heavy",
+        "set-account-settings": "medium",
         "set-properties": "medium",
         "test": "light",
         "view": "light"

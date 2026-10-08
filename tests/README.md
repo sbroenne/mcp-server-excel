@@ -43,6 +43,12 @@ theory rows; missing, extra, or duplicated cases fail the run.
 `-ListTests` lists the selected tests
 without running workbook operations; it is not passing test evidence.
 
+Excel-free CLI daemon tests use separate pipes, mutexes, and tracking records
+per test. Independent startup, observation, and lifecycle classes let real
+timeout waits overlap within the existing four-worker limit. Rebuild and
+forced-cleanup regressions remain in the exclusive `Sequential` collection;
+Excel tests still run sequentially.
+
 Complete-suite runs are not routine development steps. For runtime changes,
 run `scripts\Test-E2E.ps1` once on final PR source. Investigation diagnostics
 marked `RunType=OnDemand` stay separate; the group runner includes infrastructure
@@ -50,12 +56,24 @@ diagnostics only with explicit `-IncludeInfrastructureDiagnostics`.
 
 Windows/Azure runner setup and administration scripts are not part of the
 automated test suite. Product checks remain, including COM-reference safety,
-owned pre-build cleanup, test-result reporting, and real Excel acceptance.
+worktree-scoped pre-build CLI service stopping, test-result reporting, and real Excel acceptance.
 The retained PowerShell script tests run with PowerShell 7.
 
 Missing Excel, VBA trust, desktop, or other prerequisites mean incomplete
 validation; do not manufacture a pass by skipping tests or changing host
 settings. Explicit on-demand locale/IRM probes need their own focused run.
+
+The opt-in SharePoint regression uses `TEST_SHAREPOINT_WORKBOOK_URL` to identify
+a writable test workbook and the signed-in Office account on the local desktop.
+It opens through the real MCP pipeline, verifies URL session identity, saves and
+reopens a temporary-sheet marker, and checks that close without saving discards
+edits. It removes its saved test sheet after successful verification. A failed
+run may leave that sheet saved; inspect the reported workbook before repeating
+or cleaning it up. Do not point this test at a customer or production workbook.
+
+```powershell
+dotnet test tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj -c Release --filter 'FullyQualifiedName~SharePointWorkbookTests' --blame-hang-timeout 5m --logger trx
+```
 
 ### Verify the outcome before cleanup
 
@@ -471,13 +489,19 @@ E2E after the last runtime-affecting change, and rerun it if subsequent commits
 change runtime behavior. Run affected Excel tests separately, including when
 changing Excel-dependent tests.
 
-`Test-E2E.ps1` defaults to three sequential stages: independent executable CLI
-scenarios, the linked stale-build save/rebuild/reopen regression, and independent
+`Test-E2E.ps1` defaults to two sequential stages: independent executable CLI
+scenarios and independent
 real-protocol MCP scenarios. Each stage has a separate TRX report and a hard
 execution deadline. Empty selections, skipped tests, failures, and assembly
-cleanup failures fail the run. `-Stages Cli`, `-Stages Rebuild`, or `-Stages Mcp`
+cleanup failures fail the run. `-Stages Cli` or `-Stages Mcp`
 is a focused run, not complete runtime acceptance. `Test-CliWorkflow.ps1` is a
 compatible wrapper for the CLI stage, including `-PipeName` and `-KeepFile`.
+
+Development builds directly stop only CLI services from the current worktree
+without saving workbooks. They do not kill Excel or stop other worktrees' services.
+The old graceful-save rebuild gate is removed; normal CLI/MCP persistence and
+safe-close tests remain. Test-run service stopping also specifies its private
+pipe so it cannot stop another local fixture's CLI service.
 The CLI stage also retains the expanded native API workflow in
 `Test-CliApiCoverage.ps1`, hosted by its own acceptance case with a private pipe
 and a hard deadline. MCP native formatting/style and report-depth assertions

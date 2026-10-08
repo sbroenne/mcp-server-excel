@@ -12,7 +12,19 @@ public class FileCommands : IFileCommands
     /// <inheritdoc />
     public FileValidationInfo Test(string filePath)
     {
-        filePath = FilePathValidation.NormalizeAbsoluteWindowsPath(filePath);
+        filePath = FilePathValidation.NormalizeWorkbookLocation(filePath);
+        if (WorkbookLocation.IsRemote(filePath))
+        {
+            return new FileValidationInfo
+            {
+                FilePath = filePath,
+                Extension = WorkbookLocation.GetExtension(filePath),
+                RequiresVisibleSession = true,
+                Message = "SharePoint workbook existence, size and IRM/AIP protection cannot be determined by local preflight. " +
+                    "Open with show=true for Excel authentication, then inspect workbook readOnly before editing. " +
+                    "A false preflight exists/isIrmProtected value does not establish absence or lack of protection."
+            };
+        }
 
         bool exists = File.Exists(filePath);
         string extension = Path.GetExtension(filePath).ToLowerInvariant();
