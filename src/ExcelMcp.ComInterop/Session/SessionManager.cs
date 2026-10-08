@@ -962,7 +962,8 @@ public sealed class SessionManager : IDisposable
                 }
             }
 
-            CloseSessionSync(sessionId, batch);
+            BeforeCloseSessionHookForTests?.Invoke();
+            CloseSessionSync(sessionId, batch, force);
             closeSucceeded = true;
             return true;
         }
@@ -975,7 +976,9 @@ public sealed class SessionManager : IDisposable
         }
     }
 
-    private void CloseSessionSync(string sessionId, IExcelBatch batch)
+    internal Action? BeforeCloseSessionHookForTests { get; set; }
+
+    private void CloseSessionSync(string sessionId, IExcelBatch batch, bool force)
     {
         if (string.IsNullOrWhiteSpace(sessionId))
         {
@@ -984,7 +987,11 @@ public sealed class SessionManager : IDisposable
 
         try
         {
-            batch.Dispose();
+            CloseBatch(batch, force);
+        }
+        catch (ExcelBusyException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -1002,6 +1009,15 @@ public sealed class SessionManager : IDisposable
         }
 
         _sessionLocks.TryRemove(sessionId, out _);
+    }
+
+    private static void CloseBatch(IExcelBatch batch, bool force = false)
+    {
+        if (!force && !batch.HasTimedOutOperation && batch.IsExcelProcessAlive()
+            && batch is IExcelBatchCloseState closeState)
+            closeState.Close();
+        else
+            batch.Dispose();
     }
 
     private static bool TryConfirmFailedTeardown(IExcelBatch batch) =>
@@ -1275,7 +1291,15 @@ public sealed class SessionManager : IDisposable
             {
                 // Dispose sequentially - ExcelBatch.Dispose() handles its own Excel cleanup
                 // via ExcelShutdownService with proper timeouts and retry logic
-                session.Dispose();
+                CloseBatch(session);
+            }
+            catch (ExcelBusyException ex)
+            {
+                failures.Add(new InvalidOperationException(
+                    $"Shutdown refused for session '{sessionId}': {ex.Message}", ex));
+                _logger.LogWarning(ex,
+                    "Shutdown refused for session {SessionId}; workbook and session remain open", sessionId);
+                continue;
             }
             catch (Exception ex)
             {
@@ -1284,11 +1308,8 @@ public sealed class SessionManager : IDisposable
                 failures.Add(failure);
                 _logger.LogError(ex, "Failed to dispose session {SessionId}", sessionId);
             }
-            finally
-            {
-                lock (_filePathReservationLock)
-                    RemoveSessionTracking(sessionId, removeSessionLock: true);
-            }
+            lock (_filePathReservationLock)
+                RemoveSessionTracking(sessionId, removeSessionLock: true);
         }
 
         lock (_filePathReservationLock)

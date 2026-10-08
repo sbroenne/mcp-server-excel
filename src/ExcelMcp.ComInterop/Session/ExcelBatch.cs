@@ -23,7 +23,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// </list>
 /// <para><b>Resource Cost:</b> Each ExcelBatch = one Excel.Application process (~50-100MB+ memory)</para>
 /// </remarks>
-internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcelBatchRefreshState
+internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcelBatchRefreshState, IExcelBatchCloseState
 {
     // P/Invoke for getting process ID from window handle
     [DllImport("user32.dll")]
@@ -41,6 +41,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     private readonly Channel<IExcelWorkItem> _workQueue;
     private readonly Thread _staThread;
     private readonly CancellationTokenSource _shutdownCts;
+    private readonly Lock _disposeLock = new();
     private int _disposed; // 0 = not disposed, 1 = disposed (using int for Interlocked.CompareExchange)
     private int _executingWorkItem;
     private int? _excelProcessId; // Excel.exe process ID for force-kill if needed
@@ -1085,17 +1086,40 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         return WorkbookRefreshState.Ready;
     }
 
+    public void Close()
+    {
+        lock (_disposeLock)
+        {
+            if (_disposed != 0) return;
+            Execute((_, _) =>
+            {
+                ExcelBusyException.ThrowIfNotReady(ReadRefreshState(), "close");
+                // Commit shutdown on the STA only after readiness is confirmed.
+                Interlocked.Exchange(ref _disposed, 1);
+                _shutdownCts.Cancel();
+                _workQueue.Writer.TryComplete();
+            });
+            CompleteDispose();
+        }
+    }
+
     public void Dispose()
     {
-        var callingThread = Environment.CurrentManagedThreadId;
-
-        // Use Interlocked.CompareExchange for thread-safe disposal check
-        // Returns 0 if exchange succeeded (was not disposed), 1 if already disposed
-        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        lock (_disposeLock)
         {
-            _logger.LogDebug("[Thread {CallingThread}] Dispose skipped - already disposed for {FileName}", callingThread, Path.GetFileName(_workbookPath));
-            return; // Already disposed
+            if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+            {
+                _logger.LogDebug("[Thread {CallingThread}] Dispose skipped - already disposed for {FileName}",
+                    Environment.CurrentManagedThreadId, Path.GetFileName(_workbookPath));
+                return;
+            }
+            CompleteDispose();
         }
+    }
+
+    private void CompleteDispose()
+    {
+        var callingThread = Environment.CurrentManagedThreadId;
 
         _logger.LogDebug("[Thread {CallingThread}] Dispose starting for {FileName}", callingThread, Path.GetFileName(_workbookPath));
 
@@ -1105,7 +1129,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
         // Then complete the work queue
         _logger.LogDebug("[Thread {CallingThread}] Completing work queue for {FileName}", callingThread, Path.GetFileName(_workbookPath));
-        _workQueue.Writer.Complete();
+        _workQueue.Writer.TryComplete();
 
         _logger.LogDebug("[Thread {CallingThread}] Waiting for STA thread (Id={STAThread}) to exit for {FileName}", callingThread, _staThread?.ManagedThreadId ?? -1, Path.GetFileName(_workbookPath));
 

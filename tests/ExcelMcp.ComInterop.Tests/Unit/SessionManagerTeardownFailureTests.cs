@@ -14,6 +14,74 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 [Trait("Speed", "Fast")]
 public sealed class SessionManagerTeardownFailureTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Close_LateBusyRefusal_RetainsPathAndAllowsRetry(bool save)
+    {
+        using var manager = new SessionManager();
+        var batch = new ConfigurableFailingBatch(false, false) { CloseBusy = true };
+        var path = Path.GetFullPath("late-close-busy.xlsx");
+        RegisterSession(manager, "late-busy", path, batch);
+        try
+        {
+            Assert.True(manager.ValidateClose("late-busy").CanClose);
+            Assert.Throws<ExcelBusyException>(() => manager.CloseSession("late-busy", save));
+            Assert.Equal(0, batch.DisposeCallCount);
+            Assert.Same(batch, manager.GetSession("late-busy"));
+            Assert.True(manager.TryGetFilePath("late-busy", out var retainedPath));
+            Assert.Equal(path, retainedPath);
+        }
+        finally
+        {
+            batch.CloseBusy = false;
+        }
+        Assert.True(manager.CloseSession("late-busy", save));
+        Assert.Equal(1, batch.DisposeCallCount);
+        Assert.Equal(0, manager.ActiveSessionCount);
+    }
+
+    [Fact]
+    public void Dispose_LateCloseRefusal_RetainsBlockedSessionAndAllowsRetry()
+    {
+        using var manager = new SessionManager();
+        var blocked = new ConfigurableFailingBatch(false, false) { CloseBusy = true };
+        var healthy = new ConfigurableFailingBatch(false, false);
+        var path = Path.GetFullPath("late-shutdown-busy.xlsx");
+        RegisterSession(manager, "blocked", path, blocked);
+        RegisterSession(manager, "healthy", Path.GetFullPath("late-shutdown-ready.xlsx"), healthy);
+        try
+        {
+            var failure = Assert.Throws<AggregateException>(manager.Dispose);
+            Assert.Contains(failure.InnerExceptions, ex => ex.InnerException is ExcelBusyException);
+            Assert.Equal(0, blocked.DisposeCallCount);
+            Assert.Same(blocked, manager.GetSession("blocked"));
+            Assert.True(manager.TryGetFilePath("blocked", out var retainedPath));
+            Assert.Equal(path, retainedPath);
+            Assert.Equal(1, healthy.DisposeCallCount);
+        }
+        finally
+        {
+            blocked.CloseBusy = false;
+        }
+        manager.Dispose();
+        Assert.Equal(1, blocked.DisposeCallCount);
+        Assert.Equal(1, healthy.DisposeCallCount);
+        Assert.Equal(0, manager.ActiveSessionCount);
+    }
+
+    [Fact]
+    public void Close_ExplicitForce_PreservesExistingTeardownPolicy()
+    {
+        using var manager = new SessionManager();
+        var batch = new ConfigurableFailingBatch(false, false) { CloseBusy = true };
+        RegisterSession(manager, "forced", Path.GetFullPath("forced-close.xlsx"), batch);
+        Assert.True(manager.CloseSession("forced", force: true));
+        Assert.Equal(0, batch.CloseCallCount);
+        Assert.Equal(1, batch.DisposeCallCount);
+        Assert.Equal(0, manager.ActiveSessionCount);
+    }
+
     [Fact]
     public void Dispose_SaveReadinessRace_RetainsBlockedSessionAndAllowsRetry()
     {
@@ -241,9 +309,12 @@ public sealed class SessionManagerTeardownFailureTests
         }
     }
 
-    private sealed class ConfigurableFailingBatch(bool saveFails, bool disposeFails) : IExcelBatch, IExcelBatchRefreshState
+    private sealed class ConfigurableFailingBatch(bool saveFails, bool disposeFails)
+        : IExcelBatch, IExcelBatchRefreshState, IExcelBatchCloseState
     {
         public bool SaveBusy { get; set; }
+        public bool CloseBusy { get; set; }
+        public int CloseCallCount { get; private set; }
         public WorkbookRefreshState GetRefreshState() => WorkbookRefreshState.Ready;
         internal InvalidOperationException SaveException { get; } =
             new("synthetic save failure");
@@ -266,6 +337,14 @@ public sealed class SessionManagerTeardownFailureTests
         public TimeSpan OperationTimeout => TimeSpan.FromSeconds(1);
 
         public bool IsExcelVisible => false;
+
+        public void Close()
+        {
+            CloseCallCount++;
+            if (CloseBusy)
+                ExcelBusyException.ThrowIfNotReady(WorkbookRefreshState.Refreshing, "close");
+            Dispose();
+        }
 
         public void Dispose()
         {

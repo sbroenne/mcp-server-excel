@@ -128,6 +128,11 @@ checking a large workbook. A scan that exceeds that additional deadline reports
 an unconfirmed state without saving or closing the workbook.
 
 Service shutdown also refuses to discard edits when readiness blocks saving.
+Normal close checks readiness again on Excel's STA at the shutdown transition.
+If a refresh starts after the initial check, close reports `Busy` without
+cancelling the work queue or retiring the session, so it can be used and retried.
+When `save=true`, saving may already have completed before this late refusal;
+that save is not rolled back.
 The blocked workbook stays in its session and the service stays running so you
 can respond to Excel's prompt or wait for the refresh, then retry
 `excelcli service stop`. Other ready sessions may already have been saved and

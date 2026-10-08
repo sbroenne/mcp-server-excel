@@ -301,6 +301,99 @@ public sealed partial class ServiceWorkbookLifecycleTests
         });
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RefreshStartsAfterClosePreflight_RetainsUsableSessionAndPersistsRetry(bool save)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var path = Path.Join(directory, "late-close-refresh.xlsx");
+            var session = await CreateSessionAsync(service, path);
+            sessions[session] = 0;
+            await WriteMarkerAsync(service, session, "Before refused close");
+            RequireSuccess(await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "powerquery.create",
+                SessionId = session,
+                Args = """{"queryName":"LateRefresh","mCode":"#table({\"Marker\"}, {{\"Before\"}})","loadDestination":"worksheet","targetSheet":"LateRefresh"}"""
+            }));
+            RequireSuccess(await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "powerquery.update",
+                SessionId = session,
+                Args = """{"queryName":"LateRefresh","mCode":"Function.InvokeAfter(() => #table({\"Marker\"}, {{\"After\"}}), #duration(0,0,0,12))","refresh":false}"""
+            }));
+            var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(session));
+            var refreshStarted = false;
+            service.SessionManager.BeforeCloseSessionHookForTests = () =>
+                batch.Execute((context, _) =>
+                {
+                    Excel.Sheets? sheets = null;
+                    Excel.Worksheet? sheet = null;
+                    Excel.ListObjects? tables = null;
+                    Excel.ListObject? table = null;
+                    Excel.QueryTable? query = null;
+                    try
+                    {
+                        sheets = context.Book.Worksheets;
+                        sheet = (Excel.Worksheet)sheets["LateRefresh"];
+                        tables = sheet.ListObjects;
+                        table = tables[1];
+                        query = table.QueryTable;
+                        Assert.True(query.Refresh(true));
+                        Assert.True(query.Refreshing, "Native refresh must start after close preflight.");
+                        refreshStarted = true;
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref query);
+                        ComUtilities.Release(ref table);
+                        ComUtilities.Release(ref tables);
+                        ComUtilities.Release(ref sheet);
+                        ComUtilities.Release(ref sheets);
+                    }
+                });
+            try
+            {
+                var response = await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = "session.close",
+                    SessionId = session,
+                    Args = JsonSerializer.Serialize(new { save }, ServiceProtocol.JsonOptions)
+                });
+                Assert.True(refreshStarted);
+                Assert.False(response.Success);
+                Assert.Equal("Busy", response.ErrorCategory);
+                Assert.Same(batch, service.SessionManager.GetSession(session));
+                Assert.False(batch.HasTimedOutOperation);
+                Assert.True(batch.IsExcelProcessAlive());
+                Assert.True(service.SessionManager.TryGetFilePath(session, out var retainedPath));
+                Assert.Equal(path, retainedPath);
+                Assert.Equal("Before refused close", await ReadMarkerAsync(service, session));
+                await WriteMarkerAsync(service, session, "Usable after refused close");
+            }
+            finally
+            {
+                service.SessionManager.BeforeCloseSessionHookForTests = null;
+                if (service.SessionManager.GetSession(session) != null)
+                {
+                    var deadline = DateTime.UtcNow.AddMinutes(1);
+                    while (batch.GetRefreshState() != WorkbookRefreshState.Ready && DateTime.UtcNow < deadline)
+                        await Task.Delay(250);
+                    Assert.Equal(WorkbookRefreshState.Ready, batch.GetRefreshState());
+                }
+            }
+            Assert.Equal("After", await ReadMarkerAsync(service, session, "LateRefresh", "A2"));
+            await CloseSessionAsync(service, session, save: true);
+            sessions.TryRemove(session, out _);
+            var reopened = await OpenSessionAsync(service, path);
+            sessions[reopened] = 0;
+            Assert.Equal("Usable after refused close", await ReadMarkerAsync(service, reopened));
+            Assert.Equal("After", await ReadMarkerAsync(service, reopened, "LateRefresh", "A2"));
+        });
+    }
+
     [Fact]
     public async Task GetInfo_ReturnsNativeAutoSaveStatus()
     {
