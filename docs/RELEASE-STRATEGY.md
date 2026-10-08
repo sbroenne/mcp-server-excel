@@ -132,6 +132,9 @@ The publisher first looks up a published release by tag. If that endpoint
 returns HTTP 404, it searches all authenticated release-list pages for the
 exact, case-sensitive draft tag. Duplicate matches or invalid release state
 block publication; other API failures are not treated as a missing release.
+After creating a draft, the publisher retries that lookup up to ten times,
+waiting two seconds between attempts, because GitHub may not expose a new draft
+immediately.
 
 Replaying an already published release verifies matching assets and does not
 replace them or edit notes. Missing or mismatched immutable assets fail visibly.
