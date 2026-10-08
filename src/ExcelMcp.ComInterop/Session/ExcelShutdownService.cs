@@ -37,7 +37,7 @@ public static class ExcelShutdownService
     /// <param name="logger">Logger for diagnostic output (optional)</param>
     /// <param name="cancellationToken">Cancellation token checked before Save() is invoked</param>
     /// <exception cref="OperationCanceledException">Cancellation was requested before save started</exception>
-    /// <exception cref="COMException">Save failed due to COM error</exception>
+    /// <exception cref="ExcelBusyException">Excel rejected the final save because it is busy</exception>
     /// <exception cref="InvalidOperationException">Save failed due to unexpected error</exception>
     public static void SaveWorkbookWithTimeout(
         Excel.Workbook workbook,
@@ -115,12 +115,18 @@ public static class ExcelShutdownService
         }
         catch (COMException ex)
         {
-            string errorMessage = CreateSaveFailureMessage(ex.HResult, fileName, ex.Message);
-
             logger.LogError(ex, "Save failed for {FileName} (HResult: 0x{HResult:X8})", fileName, ex.HResult);
-            throw new InvalidOperationException(errorMessage, ex);
+            throw CreateSaveFailureException(ex, fileName);
         }
         // All other exceptions propagate; no generic catch block.
+    }
+
+    internal static Exception CreateSaveFailureException(COMException exception, string fileName)
+    {
+        var message = CreateSaveFailureMessage(exception.HResult, fileName, exception.Message);
+        return exception.HResult == unchecked((int)0x800AC472)
+            ? new ExcelBusyException(message, exception)
+            : new InvalidOperationException(message, exception);
     }
 
     internal static string CreateSaveFailureMessage(int hresult, string fileName, string detail) =>

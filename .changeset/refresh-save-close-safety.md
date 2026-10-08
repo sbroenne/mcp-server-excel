@@ -8,4 +8,4 @@ Require confirmed Excel process ownership during startup, retrying temporary ide
 
 Allow a started readiness inspection to finish within the session operation timeout, so an idle large workbook is not permanently blocked from saving or closing by the short queue deadline.
 
-Refuse service shutdown when readiness blocks saving, retaining the workbook and service for recovery instead of disposing unsaved edits. CLI stop and build cleanup respect refusal and pending-request timeouts rather than force-stopping the owned processes.
+Refuse service shutdown when readiness blocks saving, retaining the workbook and service for recovery instead of disposing unsaved edits. Product CLI stop respects refusal and pending-request timeouts rather than force-stopping the owned processes.

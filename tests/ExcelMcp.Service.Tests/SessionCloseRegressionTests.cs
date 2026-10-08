@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -16,6 +17,87 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 [Trait("Speed", "Medium")]
 public sealed class SessionCloseRegressionTests
 {
+    [Theory]
+    [InlineData("rpc")]
+    [InlineData("direct")]
+    [InlineData("dispose")]
+    public async Task Shutdown_FinalSaveBusyHResult_RetainsSessionAndAllowsRetry(string caller)
+    {
+        using var service = new ExcelMcpService();
+        var comFailure = Assert.IsType<COMException>(Marshal.GetExceptionForHR(unchecked((int)0x800AC472)));
+        var batch = new FakeBatch
+        {
+            WorkbookPath = CreateFakeWorkbookPath(),
+            SaveException = ExcelShutdownService.CreateSaveFailureException(comFailure, "fixture.xlsx")
+        };
+        const string session = "final-save-busy";
+        RegisterSession(service, session, batch, addKnownSessionId: true);
+        var host = GetPrivateField<Sbroenne.ExcelMcp.Service.Rpc.DaemonHost>(service, "_daemonHost");
+        var shutdown = GetPrivateField<CancellationTokenSource>(host, "_shutdownCts");
+        var idleCount = GetPrivateField<Func<int>>(host, "_sessionCount");
+        batch.BeforeSave = () => Assert.Equal(1, idleCount());
+        try
+        {
+            if (caller == "rpc")
+            {
+                var response = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
+                Assert.False(response.Success);
+                Assert.Equal("Busy", response.ErrorCategory);
+                Assert.Equal("0x800AC472", response.HResult);
+            }
+            else
+            {
+                var failure = Assert.Throws<AggregateException>(
+                    caller == "direct" ? service.RequestShutdown : service.Dispose);
+                var busy = Assert.IsType<ExcelBusyException>(Assert.Single(failure.InnerExceptions).InnerException);
+                Assert.Same(comFailure, busy.InnerException);
+            }
+            Assert.Equal(0, batch.DisposeCalls);
+            Assert.Same(batch, service.SessionManager.GetSession(session));
+            Assert.True(service.SessionManager.TryGetFilePath(session, out var retainedPath));
+            Assert.Equal(batch.WorkbookPath, retainedPath);
+            Assert.False(shutdown.IsCancellationRequested);
+            Assert.True((await service.ProcessAsync(new ServiceRequest { Command = "service.ping" })).Success);
+        }
+        finally { batch.SaveException = null; }
+
+        var retry = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
+        Assert.True(retry.Success, retry.ErrorMessage);
+        Assert.Equal(1, batch.DisposeCalls);
+        Assert.Equal(0, service.SessionManager.ActiveSessionCount);
+    }
+
+    [Fact]
+    public void DaemonIdleCount_RemovesDeadSessionsWithoutProbingLiveExcelReadiness()
+    {
+        using var service = new ExcelMcpService();
+        var dead = new FakeBatch { WorkbookPath = CreateFakeWorkbookPath() };
+        var live = new FakeBatch
+        {
+            WorkbookPath = CreateFakeWorkbookPath(),
+            RefreshState = WorkbookRefreshState.Unknown
+        };
+        RegisterSession(service, "dead-for-idle", dead, addKnownSessionId: true);
+        RegisterSession(service, "live-for-idle", live, addKnownSessionId: true);
+        var host = GetPrivateField<Sbroenne.ExcelMcp.Service.Rpc.DaemonHost>(service, "_daemonHost");
+        var count = GetPrivateField<Func<int>>(host, "_sessionCount");
+        try
+        {
+            Assert.Equal(2, count());
+            dead.IsAlive = false;
+            Assert.Equal(1, count());
+            Assert.Equal(1, dead.DisposeCalls);
+            Assert.False(service.SessionManager.TryGetFilePath("dead-for-idle", out _));
+            Assert.Same(live, service.SessionManager.GetSession("live-for-idle"));
+            Assert.Equal(0, live.RefreshProbeCalls);
+            live.IsAlive = false;
+            Assert.Equal(0, count());
+            Assert.Equal(1, live.DisposeCalls);
+            Assert.Equal(0, service.SessionManager.ActiveSessionCount);
+        }
+        finally { live.RefreshState = WorkbookRefreshState.Ready; }
+    }
+
     [Theory]
     [InlineData("rpc")]
     [InlineData("direct")]
@@ -524,7 +606,12 @@ public sealed class SessionCloseRegressionTests
     private sealed class FakeBatch : IExcelBatch, IExcelBatchRefreshState
     {
         public WorkbookRefreshState RefreshState { get; set; } = WorkbookRefreshState.Ready;
-        public WorkbookRefreshState GetRefreshState() => RefreshState;
+        public int RefreshProbeCalls { get; private set; }
+        public WorkbookRefreshState GetRefreshState()
+        {
+            RefreshProbeCalls++;
+            return RefreshState;
+        }
         public string WorkbookPath { get; init; } = string.Empty;
         public Microsoft.Extensions.Logging.ILogger Logger { get; } = NullLogger.Instance;
         public IReadOnlyDictionary<string, Excel.Workbook> Workbooks { get; } = new Dictionary<string, Excel.Workbook>();
@@ -534,7 +621,9 @@ public sealed class SessionCloseRegressionTests
         public bool IsExcelVisible => false;
         public Exception? DisposeException { get; init; }
         public Exception? ExecuteException { get; init; }
-        public Action? BeforeSave { get; init; }
+        public Action? BeforeSave { get; set; }
+        public Exception? SaveException { get; set; }
+        public bool IsAlive { get; set; } = true;
         public int DisposeCalls { get; private set; }
         public int ExecuteCalls { get; private set; }
         public bool BlockOperations { get; init; }
@@ -565,9 +654,10 @@ public sealed class SessionCloseRegressionTests
         {
             BeforeSave?.Invoke();
             ExcelBusyException.ThrowIfNotReady(RefreshState, "save");
+            if (SaveException != null) throw SaveException;
         }
 
-        public bool IsExcelProcessAlive() => true;
+        public bool IsExcelProcessAlive() => IsAlive;
 
         public void Dispose()
         {

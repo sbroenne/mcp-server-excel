@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
@@ -19,9 +20,11 @@ public sealed class ServiceWorkbookOpenSafetyTests
         var path = Path.Join(Path.GetTempPath(), $"WorkbookOpenSafety_{Guid.NewGuid():N}.xlsm");
         var webPagePath = Path.ChangeExtension(path, ".mht");
         var originalHook = ExcelBatch.AfterWorkbookOpenHookForTests;
+        var service = new ExcelMcpService();
+        Exception? primaryFailure = null;
+        var cleanupFailures = new List<Exception>();
         try
         {
-            using var service = new ExcelMcpService();
             var created = await service.ProcessAsync(new ServiceRequest
             {
                 Command = "session.create",
@@ -80,11 +83,28 @@ public sealed class ServiceWorkbookOpenSafetyTests
             Assert.True(closedAfterRetry.Success, closedAfterRetry.ErrorMessage);
             Assert.Equal(0, service.SessionCount);
         }
+        catch (Exception ex)
+        {
+            primaryFailure = ex;
+        }
         finally
         {
             ExcelBatch.AfterWorkbookOpenHookForTests = originalHook;
-            File.Delete(path);
-            File.Delete(webPagePath);
+            CaptureCleanup(service.Dispose);
+            CaptureCleanup(() => File.Delete(path));
+            CaptureCleanup(() => File.Delete(webPagePath));
+        }
+        if (cleanupFailures.Count > 0)
+        {
+            if (primaryFailure is not null) cleanupFailures.Insert(0, primaryFailure);
+            throw new AggregateException("Workbook open-safety regression or cleanup failed.", cleanupFailures);
+        }
+        if (primaryFailure is not null) ExceptionDispatchInfo.Capture(primaryFailure).Throw();
+
+        void CaptureCleanup(Action action)
+        {
+            try { action(); }
+            catch (Exception ex) { cleanupFailures.Add(ex); }
         }
     }
 }

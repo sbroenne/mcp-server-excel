@@ -14,7 +14,8 @@ internal interface IExcelBatchRefreshState
     WorkbookRefreshState GetRefreshState();
 }
 
-internal sealed class ExcelBusyException(string message) : InvalidOperationException(message)
+internal sealed class ExcelBusyException(string message, Exception? innerException = null)
+    : InvalidOperationException(message, innerException)
 {
     internal static void ThrowIfNotReady(WorkbookRefreshState state, string operation)
     {

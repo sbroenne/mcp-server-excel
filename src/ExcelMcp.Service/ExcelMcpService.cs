@@ -68,7 +68,7 @@ public sealed class ExcelMcpService : IDisposable
         _powerQueryCommands = new PowerQueryCommands(_dataModelCommands);
         _daemonHost = new DaemonHost(
             ProcessAsync,
-            () => _sessionManager.ActiveSessionCount);
+            () => _sessionManager.ActiveSessionIds.Count(_sessionManager.IsSessionAlive));
     }
 
     public DateTime StartTime => _startTime;

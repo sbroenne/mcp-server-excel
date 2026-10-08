@@ -136,12 +136,17 @@ that save is not rolled back.
 The blocked workbook stays in its session and the service stays running so you
 can respond to Excel's prompt or wait for the refresh, then retry
 `excelcli service stop`. Other ready sessions may already have been saved and
-closed before a refusal. CLI stop and build cleanup wait up to 60 seconds for
-the shutdown reply while ready workbooks save and close. They do not force-stop Excel
+closed before a refusal. Product `excelcli service stop` waits up to 60 seconds for
+the shutdown reply while ready workbooks save and close. It does not force-stop Excel
 after a `Busy` response or a timeout waiting for a shutdown reply after connecting.
 Simultaneous shutdown requests cannot bypass a refusal: saving and the decision
 to stop the service are serialized across all service shutdown entry points.
 This does not protect against externally killing the service or Excel.
+
+Development builds use a separate force-stop policy: they stop only this
+worktree's CLI background services without requesting graceful shutdown or
+saving workbooks. Unsaved development-session work may be lost. They do not
+terminate Excel, MCP, foreground CLI commands, or other worktrees' services.
 
 The same session listing exposes `excelState` and `blockingReason`. When
 `excelState` is `dialogOpen`, check the Excel window for a prompt before simply

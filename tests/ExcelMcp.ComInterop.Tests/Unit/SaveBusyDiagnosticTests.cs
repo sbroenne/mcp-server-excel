@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
@@ -10,6 +11,30 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 [Trait("Speed", "Fast")]
 public sealed class SaveBusyDiagnosticTests
 {
+    [Fact]
+    public void FinalSaveBusy_PreservesTypedRefusalAndInnerComHResult()
+    {
+        var comFailure = Assert.IsType<COMException>(Marshal.GetExceptionForHR(unchecked((int)0x800AC472)));
+        var failure = ExcelShutdownService.CreateSaveFailureException(comFailure, "fixture.xlsx");
+
+        var busy = Assert.IsType<ExcelBusyException>(failure);
+        Assert.Same(comFailure, busy.InnerException);
+        Assert.Equal(unchecked((int)0x800AC472), busy.InnerException.HResult);
+        Assert.Contains("not been saved", busy.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(unchecked((int)0x800A03EC))]
+    [InlineData(ResiliencePipelines.RPC_E_DISCONNECTED)]
+    public void OtherSaveFailures_RetainTheirExistingCategoryAndComCause(int hresult)
+    {
+        var comFailure = Assert.IsType<COMException>(Marshal.GetExceptionForHR(hresult));
+        var failure = ExcelShutdownService.CreateSaveFailureException(comFailure, "fixture.xlsx");
+
+        Assert.IsType<InvalidOperationException>(failure);
+        Assert.Same(comFailure, failure.InnerException);
+    }
+
     [Fact]
     public void SaveBusy_DoesNotInventAnExternalLock_AndExplainsUnsavedState()
     {
