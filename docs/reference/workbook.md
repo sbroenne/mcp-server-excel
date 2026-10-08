@@ -134,6 +134,8 @@ can respond to Excel's prompt or wait for the refresh, then retry
 closed before a refusal. CLI stop and build cleanup wait up to 60 seconds for
 the shutdown reply while ready workbooks save and close. They do not force-stop Excel
 after a `Busy` response or a timeout waiting for a shutdown reply after connecting.
+Simultaneous shutdown requests cannot bypass a refusal: saving and the decision
+to stop the service are serialized across all service shutdown entry points.
 This does not protect against externally killing the service or Excel.
 
 The same session listing exposes `excelState` and `blockingReason`. When

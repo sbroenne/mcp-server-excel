@@ -34,6 +34,7 @@ public sealed class ExcelMcpService : IDisposable
     private readonly SessionManager _sessionManager = new();
     private readonly ConcurrentDictionary<string, byte> _knownSessionIds = new(StringComparer.Ordinal);
     private readonly DaemonHost _daemonHost;
+    private readonly Lock _shutdownLock = new();
     private readonly DateTime _startTime = DateTime.UtcNow;
     private bool _disposed;
 
@@ -85,8 +86,11 @@ public sealed class ExcelMcpService : IDisposable
 
     public void RequestShutdown()
     {
-        _sessionManager.Dispose();
-        _daemonHost.RequestShutdown();
+        lock (_shutdownLock)
+        {
+            _sessionManager.Dispose();
+            _daemonHost.RequestShutdown();
+        }
     }
 
     /// <summary>
@@ -214,9 +218,12 @@ public sealed class ExcelMcpService : IDisposable
 
     private ServiceResponse HandleShutdown()
     {
-        _sessionManager.Dispose();
-        _daemonHost.RequestShutdownAfterResponse();
-        return new ServiceResponse { Success = true };
+        lock (_shutdownLock)
+        {
+            _sessionManager.Dispose();
+            _daemonHost.RequestShutdownAfterResponse();
+            return new ServiceResponse { Success = true };
+        }
     }
 
     private ServiceResponse HandleStatus()
@@ -1080,18 +1087,21 @@ public sealed class ExcelMcpService : IDisposable
 
     public void Dispose()
     {
-        if (_disposed) return;
-        try
+        lock (_shutdownLock)
         {
-            _sessionManager.Dispose();
-        }
-        finally
-        {
-            if (_sessionManager.ActiveSessionCount == 0)
+            if (_disposed) return;
+            try
             {
-                _disposed = true;
-                _daemonHost.RequestShutdown();
-                _daemonHost.Dispose();
+                _sessionManager.Dispose();
+            }
+            finally
+            {
+                if (_sessionManager.ActiveSessionCount == 0)
+                {
+                    _disposed = true;
+                    _daemonHost.RequestShutdown();
+                    _daemonHost.Dispose();
+                }
             }
         }
     }

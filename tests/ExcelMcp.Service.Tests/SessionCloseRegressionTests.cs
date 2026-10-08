@@ -17,6 +17,81 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed class SessionCloseRegressionTests
 {
     [Theory]
+    [InlineData("rpc")]
+    [InlineData("direct")]
+    [InlineData("dispose")]
+    public async Task Shutdown_ConcurrentCaller_CannotBypassBusyRefusal(string caller)
+    {
+        using var service = new ExcelMcpService();
+        using var saveEntered = new ManualResetEventSlim();
+        using var releaseSave = new ManualResetEventSlim();
+        using var secondStarted = new ManualResetEventSlim();
+        var saveAttempts = 0;
+        var batch = new FakeBatch
+        {
+            WorkbookPath = CreateFakeWorkbookPath(),
+            RefreshState = WorkbookRefreshState.Refreshing,
+            BeforeSave = () =>
+            {
+                if (Interlocked.Increment(ref saveAttempts) != 1) return;
+                saveEntered.Set();
+                Assert.True(releaseSave.Wait(TimeSpan.FromSeconds(10)));
+            }
+        };
+        const string session = "concurrent-shutdown-busy";
+        RegisterSession(service, session, batch, addKnownSessionId: true);
+        var host = GetPrivateField<Sbroenne.ExcelMcp.Service.Rpc.DaemonHost>(service, "_daemonHost");
+        var shutdown = GetPrivateField<CancellationTokenSource>(host, "_shutdownCts");
+        var first = Task.Run(() => service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" }));
+        Task<(ServiceResponse? Response, Exception? Error)>? second = null;
+        try
+        {
+            Assert.True(saveEntered.Wait(TimeSpan.FromSeconds(10)));
+            second = Task.Run(async () =>
+            {
+                secondStarted.Set();
+                if (caller == "rpc")
+                    return (await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" }), (Exception?)null);
+                return ((ServiceResponse?)null,
+                    Record.Exception(caller == "direct" ? service.RequestShutdown : service.Dispose));
+            });
+            Assert.True(secondStarted.Wait(TimeSpan.FromSeconds(10)));
+            await Task.WhenAny(second, Task.Delay(250));
+            releaseSave.Set();
+
+            var refused = await first.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.False(refused.Success);
+            Assert.Equal("Busy", refused.ErrorCategory);
+            var concurrent = await second.WaitAsync(TimeSpan.FromSeconds(10));
+            if (caller == "rpc")
+            {
+                Assert.NotNull(concurrent.Response);
+                Assert.False(concurrent.Response.Success);
+                Assert.Equal("Busy", concurrent.Response.ErrorCategory);
+            }
+            else
+            {
+                Assert.IsType<AggregateException>(concurrent.Error);
+            }
+            Assert.False(shutdown.IsCancellationRequested);
+            Assert.Equal(0, batch.DisposeCalls);
+            Assert.Same(batch, service.SessionManager.GetSession(session));
+            Assert.True((await service.ProcessAsync(new ServiceRequest { Command = "service.ping" })).Success);
+        }
+        finally
+        {
+            releaseSave.Set();
+            await first.WaitAsync(TimeSpan.FromSeconds(10));
+            if (second != null) await second.WaitAsync(TimeSpan.FromSeconds(10));
+            batch.RefreshState = WorkbookRefreshState.Ready;
+        }
+        var retry = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
+        Assert.True(retry.Success, retry.ErrorMessage);
+        Assert.Equal(1, batch.DisposeCalls);
+        Assert.Equal(0, service.SessionManager.ActiveSessionCount);
+    }
+
+    [Theory]
     [InlineData("get-account-settings")]
     [InlineData("clear-account-hint")]
     [InlineData("set-account-settings")]
@@ -459,6 +534,7 @@ public sealed class SessionCloseRegressionTests
         public bool IsExcelVisible => false;
         public Exception? DisposeException { get; init; }
         public Exception? ExecuteException { get; init; }
+        public Action? BeforeSave { get; init; }
         public int DisposeCalls { get; private set; }
         public int ExecuteCalls { get; private set; }
         public bool BlockOperations { get; init; }
@@ -487,6 +563,7 @@ public sealed class SessionCloseRegressionTests
 
         public void Save(CancellationToken cancellationToken = default)
         {
+            BeforeSave?.Invoke();
             ExcelBusyException.ThrowIfNotReady(RefreshState, "save");
         }
 
