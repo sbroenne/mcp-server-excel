@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -15,6 +16,73 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 [Trait("Speed", "Medium")]
 public sealed class SessionCloseRegressionTests
 {
+    [Theory]
+    [InlineData("get-account-settings")]
+    [InlineData("clear-account-hint")]
+    [InlineData("set-account-settings")]
+    public async Task ConnectionAccountSettings_RefreshStartsAfterPreflight_ReturnsBusy(string action)
+    {
+        using var service = new ExcelMcpService();
+        var batch = new FakeBatch
+        {
+            WorkbookPath = CreateFakeWorkbookPath(),
+            ExecuteException = Record.Exception(() =>
+                typeof(ConnectionCommands).GetMethod(
+                    "ValidateAccountSettingsConnectionReadiness",
+                    BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, [true]))
+        };
+        Assert.NotNull(batch.ExecuteException);
+        const string session = "account-refresh-race";
+        RegisterSession(service, session, batch, addKnownSessionId: true);
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "connection." + action,
+            SessionId = session,
+            Args = action == "set-account-settings"
+                ? """{"connectionName":"Selected","accountHint":"Synthetic hint"}"""
+                : """{"connectionName":"Selected"}"""
+        });
+        Assert.False(response.Success);
+        Assert.Equal("Busy", response.ErrorCategory);
+        Assert.True(batch.ExecuteCalls > 0);
+        Assert.Equal(0, batch.DisposeCalls);
+        Assert.Same(batch, service.SessionManager.GetSession(session));
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    public async Task Shutdown_NonReadySession_RefusesAndRetainsServiceForRetry(int state)
+    {
+        using var service = new ExcelMcpService();
+        var batch = new FakeBatch
+        {
+            WorkbookPath = CreateFakeWorkbookPath(),
+            RefreshState = (WorkbookRefreshState)state
+        };
+        const string session = "shutdown-busy";
+        RegisterSession(service, session, batch, addKnownSessionId: true);
+        try
+        {
+            var response = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
+            Assert.False(response.Success);
+            Assert.Equal("Busy", response.ErrorCategory);
+            Assert.Equal(0, batch.DisposeCalls);
+            Assert.Same(batch, service.SessionManager.GetSession(session));
+            Assert.True((await service.ProcessAsync(new ServiceRequest { Command = "service.ping" })).Success);
+        }
+        finally
+        {
+            batch.RefreshState = WorkbookRefreshState.Ready;
+        }
+        var retry = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
+        Assert.True(retry.Success, retry.ErrorMessage);
+        Assert.Equal(1, batch.DisposeCalls);
+        Assert.Equal(0, service.SessionManager.ActiveSessionCount);
+    }
+
     [Theory]
     [InlineData("get-refresh-status", 2)]
     [InlineData("get-refresh-status", 3)]
@@ -390,6 +458,7 @@ public sealed class SessionCloseRegressionTests
         public TimeSpan OperationTimeout => TimeSpan.FromSeconds(5);
         public bool IsExcelVisible => false;
         public Exception? DisposeException { get; init; }
+        public Exception? ExecuteException { get; init; }
         public int DisposeCalls { get; private set; }
         public int ExecuteCalls { get; private set; }
         public bool BlockOperations { get; init; }
@@ -404,6 +473,7 @@ public sealed class SessionCloseRegressionTests
         {
             ExecuteCalls++;
             WaitForRelease(cancellationToken);
+            if (ExecuteException != null) throw ExecuteException;
             throw new NotSupportedException();
         }
 
@@ -411,11 +481,13 @@ public sealed class SessionCloseRegressionTests
         {
             ExecuteCalls++;
             WaitForRelease(cancellationToken);
+            if (ExecuteException != null) throw ExecuteException;
             throw new NotSupportedException();
         }
 
         public void Save(CancellationToken cancellationToken = default)
         {
+            ExcelBusyException.ThrowIfNotReady(RefreshState, "save");
         }
 
         public bool IsExcelProcessAlive() => true;

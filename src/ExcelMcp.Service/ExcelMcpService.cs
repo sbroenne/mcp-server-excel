@@ -67,7 +67,7 @@ public sealed class ExcelMcpService : IDisposable
         _powerQueryCommands = new PowerQueryCommands(_dataModelCommands);
         _daemonHost = new DaemonHost(
             ProcessAsync,
-            () => _sessionManager.GetActiveSessions().Count);
+            () => _sessionManager.ActiveSessionCount);
     }
 
     public DateTime StartTime => _startTime;
@@ -83,7 +83,11 @@ public sealed class ExcelMcpService : IDisposable
     public Task RunAsync(string pipeName, TimeSpan? idleTimeout = null) =>
         _daemonHost.RunAsync(pipeName, idleTimeout);
 
-    public void RequestShutdown() => _daemonHost.RequestShutdown();
+    public void RequestShutdown()
+    {
+        _sessionManager.Dispose();
+        _daemonHost.RequestShutdown();
+    }
 
     /// <summary>
     /// Processes a service request directly (in-process, no pipe).
@@ -210,6 +214,7 @@ public sealed class ExcelMcpService : IDisposable
 
     private ServiceResponse HandleShutdown()
     {
+        _sessionManager.Dispose();
         _daemonHost.RequestShutdownAfterResponse();
         return new ServiceResponse { Success = true };
     }
@@ -1076,16 +1081,18 @@ public sealed class ExcelMcpService : IDisposable
     public void Dispose()
     {
         if (_disposed) return;
-        _disposed = true;
-
-        _daemonHost.RequestShutdown();
         try
         {
             _sessionManager.Dispose();
         }
         finally
         {
-            _daemonHost.Dispose();
+            if (_sessionManager.ActiveSessionCount == 0)
+            {
+                _disposed = true;
+                _daemonHost.RequestShutdown();
+                _daemonHost.Dispose();
+            }
         }
     }
 }

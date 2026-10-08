@@ -4,7 +4,8 @@ namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
 
 internal static class PreBuildProcessCleanup
 {
-    private static readonly TimeSpan GracefulRequestTimeout = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan GracefulConnectTimeout = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan GracefulRequestTimeout = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan GracefulExitTimeout = TimeSpan.FromSeconds(12);
 
     internal static Task<OwnedProcessCleanup.CleanupResult> CleanupWithGracefulShutdownAsync(
@@ -55,12 +56,16 @@ internal static class PreBuildProcessCleanup
         {
             using var client = new ServiceClient(
                 pipeName,
-                connectTimeout: GracefulRequestTimeout,
+                connectTimeout: GracefulConnectTimeout,
                 requestTimeout: GracefulRequestTimeout);
             var response = await client.SendAsync(
                 new ServiceRequest { Command = "service.shutdown" },
                 GracefulRequestTimeout,
                 cancellationToken);
+            if (response.ErrorCategory == "Busy" ||
+                (response.ErrorCategory == "Timeout" && response.ErrorMessage == "Service request timed out"))
+                throw new InvalidOperationException(response.ErrorMessage ??
+                    "Build cleanup refused: Excel is busy and unsaved work remains in the running service.");
             return response.Success;
         }
         catch (IOException)

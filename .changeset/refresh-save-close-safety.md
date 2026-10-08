@@ -7,3 +7,5 @@ Fix Power BI/MSOLAP connection inspection and refresh when Excel does not expose
 Require confirmed Excel process ownership during startup, retrying temporary identity-capture failures and rejecting startup before opening or creating a workbook if ownership cannot be confirmed.
 
 Allow a started readiness inspection to finish within the session operation timeout, so an idle large workbook is not permanently blocked from saving or closing by the short queue deadline.
+
+Refuse service shutdown when readiness blocks saving, retaining the workbook and service for recovery instead of disposing unsaved edits. CLI stop and build cleanup respect refusal and pending-request timeouts rather than force-stopping the owned processes.

@@ -43,6 +43,12 @@ theory rows; missing, extra, or duplicated cases fail the run.
 `-ListTests` lists the selected tests
 without running workbook operations; it is not passing test evidence.
 
+Excel-free CLI daemon tests use separate pipes, mutexes, and tracking records
+per test. Independent startup, observation, and lifecycle classes let real
+timeout waits overlap within the existing four-worker limit. Rebuild and
+forced-cleanup regressions remain in the exclusive `Sequential` collection;
+Excel tests still run sequentially.
+
 Complete-suite runs are not routine development steps. For runtime changes,
 run `scripts\Test-E2E.ps1` once on final PR source. Investigation diagnostics
 marked `RunType=OnDemand` stay separate; the group runner includes infrastructure

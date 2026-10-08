@@ -9,6 +9,45 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class ServiceWorkbookLifecycleTests
 {
     [Fact]
+    public async Task Shutdown_WithOwnedDialog_RetainsUnsavedWorkbookUntilSafeRetry()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var path = Path.Join(directory, "shutdown-dialog.xlsx");
+            var session = await CreateSessionAsync(service, path);
+            sessions[session] = 0;
+            await WriteMarkerAsync(service, session, "Retained through shutdown refusal");
+            var batch = Assert.IsAssignableFrom<IExcelBatch>(service.SessionManager.GetSession(session));
+            var owner = batch.Execute((context, _) => new nint(context.App.Hwnd));
+            using (var dialog = new OwnedTestDialog(owner))
+            {
+                var refusal = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
+                Assert.False(refusal.Success);
+                Assert.Equal("Busy", refusal.ErrorCategory);
+                Assert.Same(batch, service.SessionManager.GetSession(session));
+                Assert.True((await service.ProcessAsync(new ServiceRequest { Command = "service.ping" })).Success);
+                Assert.False(batch.HasTimedOutOperation);
+            }
+            Assert.Equal("Retained through shutdown refusal", await ReadMarkerAsync(service, session));
+            Assert.False(batch.Execute((context, _) => context.Book.Saved));
+            var retry = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
+            RequireSuccess(retry);
+            sessions.TryRemove(session, out _);
+            Assert.Equal(0, service.SessionManager.ActiveSessionCount);
+            using var reopenedService = new ExcelMcpService();
+            var reopened = await OpenSessionAsync(reopenedService, path);
+            try
+            {
+                Assert.Equal("Retained through shutdown refusal", await ReadMarkerAsync(reopenedService, reopened));
+            }
+            finally
+            {
+                await CloseSessionAsync(reopenedService, reopened, save: false);
+            }
+        });
+    }
+
+    [Fact]
     public async Task ExcelOwnedDialog_ReportsPromptWithoutReadingContents_AndPreservesEdits()
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>

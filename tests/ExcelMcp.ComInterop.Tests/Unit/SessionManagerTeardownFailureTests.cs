@@ -15,6 +15,37 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 public sealed class SessionManagerTeardownFailureTests
 {
     [Fact]
+    public void Dispose_SaveReadinessRace_RetainsBlockedSessionAndAllowsRetry()
+    {
+        using var manager = new SessionManager();
+        var blocked = new ConfigurableFailingBatch(saveFails: false, disposeFails: false) { SaveBusy = true };
+        var healthy = new ConfigurableFailingBatch(saveFails: false, disposeFails: false);
+        var path = Path.GetFullPath("shutdown-busy.xlsx");
+        RegisterSession(manager, "blocked", path, blocked);
+        RegisterSession(manager, "healthy", Path.GetFullPath("shutdown-ready.xlsx"), healthy);
+        try
+        {
+            var failure = Assert.Throws<AggregateException>(manager.Dispose);
+            Assert.Contains(failure.InnerExceptions, ex => ex.InnerException is ExcelBusyException);
+            Assert.Equal(0, blocked.DisposeCallCount);
+            Assert.Same(blocked, manager.GetSession("blocked"));
+            Assert.True(manager.TryGetFilePath("blocked", out var retainedPath));
+            Assert.Equal(path, retainedPath);
+            Assert.Equal(1, manager.ActiveSessionCount);
+            Assert.Equal(1, healthy.DisposeCallCount);
+        }
+        finally
+        {
+            blocked.SaveBusy = false;
+        }
+        manager.Dispose();
+        Assert.Equal(2, blocked.SaveCallCount);
+        Assert.Equal(1, blocked.DisposeCallCount);
+        Assert.Equal(1, healthy.DisposeCallCount);
+        Assert.Equal(0, manager.ActiveSessionCount);
+    }
+
+    [Fact]
     public void Dispose_TeardownFailures_AreReportedAfterEverySessionIsAttempted()
     {
         using var manager = new SessionManager();
@@ -212,6 +243,7 @@ public sealed class SessionManagerTeardownFailureTests
 
     private sealed class ConfigurableFailingBatch(bool saveFails, bool disposeFails) : IExcelBatch, IExcelBatchRefreshState
     {
+        public bool SaveBusy { get; set; }
         public WorkbookRefreshState GetRefreshState() => WorkbookRefreshState.Ready;
         internal InvalidOperationException SaveException { get; } =
             new("synthetic save failure");
@@ -249,6 +281,8 @@ public sealed class SessionManagerTeardownFailureTests
         public void Save(CancellationToken cancellationToken = default)
         {
             SaveCallCount++;
+            if (SaveBusy)
+                ExcelBusyException.ThrowIfNotReady(WorkbookRefreshState.Refreshing, "save");
             if (saveFails)
             {
                 throw SaveException;

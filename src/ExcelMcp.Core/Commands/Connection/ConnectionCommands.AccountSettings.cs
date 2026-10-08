@@ -200,10 +200,16 @@ public partial class ConnectionCommands
 
     private static DbConnectionStringBuilder ReadAccountSettingsConnectionString(Excel.OLEDBConnection oledb)
     {
-        if (oledb.Refreshing)
-            throw new InvalidOperationException("The connection is refreshing. Wait until it is idle before inspecting or changing account settings.");
+        ValidateAccountSettingsConnectionReadiness(oledb.Refreshing);
         string text = Convert.ToString(oledb.Connection, CultureInfo.InvariantCulture) ?? "";
         return ParseAccountSettingsConnectionString(text);
+    }
+
+    internal static void ValidateAccountSettingsConnectionReadiness(bool isRefreshing)
+    {
+        ExcelBusyException.ThrowIfNotReady(
+            isRefreshing ? WorkbookRefreshState.Refreshing : WorkbookRefreshState.Ready,
+            "inspect or change connection account settings");
     }
 
     internal static DbConnectionStringBuilder ParseAccountSettingsConnectionString(string text)

@@ -21,28 +21,8 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("RequiresExcel", "false")]
 [Trait("AdapterTestKind", "System")]
 [Trait("Speed", "Medium")]
-public sealed class CliDaemonTests : IAsyncLifetime
+public sealed class CliDaemonTests(ITestOutputHelper output) : CliDaemonTestBase(output)
 {
-    private readonly ITestOutputHelper _output;
-    private readonly string _testPipeName = $"excelmcp-test-daemon-{Guid.NewGuid():N}";
-    private Process? _daemonProcess;
-
-    public CliDaemonTests(ITestOutputHelper output) => _output = output;
-
-    public Task InitializeAsync()
-    {
-        // No need to stop existing daemons — we use a unique test pipe name
-        return Task.CompletedTask;
-    }
-
-    public Task DisposeAsync()
-    {
-        KillDaemon();
-        return Task.CompletedTask;
-    }
-
-    private Dictionary<string, string> TestEnv => new() { ["EXCELMCP_CLI_PIPE"] = _testPipeName };
-
     [Fact]
     public async Task ServiceStart_AutoStartsDaemonAndAcceptsConnections()
     {
@@ -118,6 +98,16 @@ public sealed class CliDaemonTests : IAsyncLifetime
         Assert.Contains("service stop", error, StringComparison.OrdinalIgnoreCase);
     }
 
+}
+
+[Trait("Layer", "CLI")]
+[Trait("Category", "Integration")]
+[Trait("Feature", "ServiceDaemon")]
+[Trait("RequiresExcel", "false")]
+[Trait("AdapterTestKind", "System")]
+[Trait("Speed", "Medium")]
+public sealed class CliDaemonStartupTests(ITestOutputHelper output) : CliDaemonTestBase(output)
+{
     [Fact]
     public async Task ServiceStart_WhenDaemonStartupExceedsBusyTimeout_WaitsForStartupReadiness()
     {
@@ -175,6 +165,16 @@ public sealed class CliDaemonTests : IAsyncLifetime
         Assert.False(DaemonAutoStart.IsDaemonStartupInProgress(_testPipeName));
     }
 
+}
+
+[Trait("Layer", "CLI")]
+[Trait("Category", "Integration")]
+[Trait("Feature", "ServiceDaemon")]
+[Trait("RequiresExcel", "false")]
+[Trait("AdapterTestKind", "System")]
+[Trait("Speed", "Medium")]
+public sealed class CliDaemonStartTests(ITestOutputHelper output) : CliDaemonTestBase(output)
+{
     [Fact]
     public async Task ServiceStart_WhenDaemonMutexExistsButIsNotOwned_StartsDaemon()
     {
@@ -244,6 +244,16 @@ public sealed class CliDaemonTests : IAsyncLifetime
         _daemonProcess = Process.GetProcessById(processId);
     }
 
+}
+
+[Trait("Layer", "CLI")]
+[Trait("Category", "Integration")]
+[Trait("Feature", "ServiceDaemon")]
+[Trait("RequiresExcel", "false")]
+[Trait("AdapterTestKind", "System")]
+[Trait("Speed", "Medium")]
+public sealed class CliDaemonObservationTests(ITestOutputHelper output) : CliDaemonTestBase(output)
+{
     [Fact]
     public async Task ServiceStatus_WhenDaemonIsNotRunning_ReportsStoppedState()
     {
@@ -461,6 +471,16 @@ public sealed class CliDaemonTests : IAsyncLifetime
         }
     }
 
+}
+
+[Trait("Layer", "CLI")]
+[Trait("Category", "Integration")]
+[Trait("Feature", "ServiceDaemon")]
+[Trait("RequiresExcel", "false")]
+[Trait("AdapterTestKind", "System")]
+[Trait("Speed", "Medium")]
+public sealed class CliDaemonLifecycleTests(ITestOutputHelper output) : CliDaemonTestBase(output)
+{
     [Fact]
     public async Task ServiceRun_StartsAndAcceptsConnections()
     {
@@ -634,7 +654,24 @@ public sealed class CliDaemonTests : IAsyncLifetime
             "A new daemon should start successfully after the previous one released the mutex");
     }
 
-    private Process StartDaemon()
+}
+
+public abstract class CliDaemonTestBase(ITestOutputHelper output) : IAsyncLifetime
+{
+    private protected readonly ITestOutputHelper _output = output;
+    private protected readonly string _testPipeName = $"excelmcp-test-daemon-{Guid.NewGuid():N}";
+    private protected Process? _daemonProcess;
+    private protected Dictionary<string, string> TestEnv => new() { ["EXCELMCP_CLI_PIPE"] = _testPipeName };
+
+    public Task InitializeAsync() => Task.CompletedTask;
+
+    public Task DisposeAsync()
+    {
+        KillDaemon();
+        return Task.CompletedTask;
+    }
+
+    private protected Process StartDaemon()
     {
         var exePath = CliProcessHelper.GetExePath();
         var startInfo = new ProcessStartInfo
@@ -653,7 +690,7 @@ public sealed class CliDaemonTests : IAsyncLifetime
         return process;
     }
 
-    private static Mutex CreateAbandonedMutex(string mutexName)
+    private protected static Mutex CreateAbandonedMutex(string mutexName)
     {
         Mutex? mutex = null;
         Exception? threadException = null;
@@ -685,7 +722,7 @@ public sealed class CliDaemonTests : IAsyncLifetime
         return mutex ?? throw new InvalidOperationException($"Test mutex '{mutexName}' was not created.");
     }
 
-    private static Process StartMutexHoldingProcess(string mutexName)
+    private protected static Process StartMutexHoldingProcess(string mutexName)
     {
         var process = new Process
         {
@@ -704,7 +741,7 @@ public sealed class CliDaemonTests : IAsyncLifetime
         return process;
     }
 
-    private async Task WaitForDaemonReadyAsync(int maxRetries = 20, int delayMs = 500)
+    private protected async Task WaitForDaemonReadyAsync(int maxRetries = 20, int delayMs = 500)
     {
         for (var i = 0; i < maxRetries; i++)
         {
@@ -728,7 +765,7 @@ public sealed class CliDaemonTests : IAsyncLifetime
         throw new TimeoutException($"CLI daemon did not become ready within {maxRetries * delayMs}ms");
     }
 
-    private async Task<CliResult> RunWithDelayedServiceAsync(string command, TimeSpan startupDelay)
+    private protected async Task<CliResult> RunWithDelayedServiceAsync(string command, TimeSpan startupDelay)
     {
         await using var heldMutex = await HeldMutex.AcquireAsync(DaemonAutoStart.GetDaemonMutexName(_testPipeName));
         using var service = new ExcelMcpService();
@@ -750,7 +787,7 @@ public sealed class CliDaemonTests : IAsyncLifetime
         }
     }
 
-    private async Task<CliResult> RunWithDelayedStartingDaemonAsync(TimeSpan startupDelay)
+    private protected async Task<CliResult> RunWithDelayedStartingDaemonAsync(TimeSpan startupDelay)
     {
         await using var daemonMutex = await HeldMutex.AcquireAsync(
             DaemonAutoStart.GetDaemonMutexName(_testPipeName));
@@ -777,7 +814,7 @@ public sealed class CliDaemonTests : IAsyncLifetime
         }
     }
 
-    private async Task<CliResult> RunWithLateStartingMarkerAsync(
+    private protected async Task<CliResult> RunWithLateStartingMarkerAsync(
         TimeSpan markerDelay,
         TimeSpan startupDelay)
     {
@@ -805,7 +842,7 @@ public sealed class CliDaemonTests : IAsyncLifetime
         }
     }
 
-    private static string GetDaemonStartingMarkerName(string pipeName) =>
+    private protected static string GetDaemonStartingMarkerName(string pipeName) =>
         DaemonAutoStart.GetDaemonStartingMarkerName(pipeName);
 
     private void KillDaemon()
@@ -828,7 +865,7 @@ public sealed class CliDaemonTests : IAsyncLifetime
         }
     }
 
-    private sealed class StalledPipeServer : IAsyncDisposable
+    private protected sealed class StalledPipeServer : IAsyncDisposable
     {
         private readonly string _pipeName;
         private readonly ITestOutputHelper _output;
@@ -920,7 +957,7 @@ public sealed class CliDaemonTests : IAsyncLifetime
         }
     }
 
-    private sealed class HeldMutex : IAsyncDisposable
+    private protected sealed class HeldMutex : IAsyncDisposable
     {
         private readonly string _mutexName;
         private readonly TaskCompletionSource _acquiredTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);

@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Utilities;
 
 namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
 
@@ -487,7 +488,14 @@ internal sealed class CliServiceTray : IDisposable
             }
         }
 
-        _requestShutdown();
+        try
+        {
+            _requestShutdown();
+        }
+        catch (Exception ex) when (OperationFailureClassifier.Classify(ex) == "Busy")
+        {
+            ShowBalloon("Shutdown Refused", ex.Message, ToolTipIcon.Warning);
+        }
     }
 
     /// <summary>

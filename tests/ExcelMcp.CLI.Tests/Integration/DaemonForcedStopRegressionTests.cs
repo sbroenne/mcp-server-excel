@@ -4,6 +4,8 @@ using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Commands;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
+using Sbroenne.ExcelMcp.Service;
+using StreamJsonRpc;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
@@ -19,6 +21,70 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Collection("Sequential")]
 public sealed class DaemonForcedStopRegressionTests
 {
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task ShutdownRefusal_DoesNotForceTrackedProcesses(bool buildCleanup, bool requestTimedOut)
+    {
+        var pipeName = $"excelmcp-shutdown-refused-{Guid.NewGuid():N}";
+        using var daemon = StartSleepingProcess();
+        using var excel = StartSleepingProcess();
+        using var server = ServiceSecurity.CreateSecureServer(pipeName);
+        try
+        {
+            RegisterTrackedProcesses(pipeName, daemon, excel);
+            var connection = server.WaitForConnectionAsync();
+            Task<Exception?>? cleanup = null;
+            Task<CliResult>? stop = null;
+            if (buildCleanup)
+                cleanup = Record.ExceptionAsync(async () =>
+                    await PreBuildProcessCleanup.CleanupWithGracefulShutdownAsync(pipeName, CancellationToken.None));
+            else
+                stop = RunServiceStopAsync(pipeName);
+            await connection.WaitAsync(TimeSpan.FromSeconds(10));
+            using var rpc = JsonRpc.Attach(server, new RefusedShutdownRpcTarget(requestTimedOut));
+            if (cleanup != null)
+            {
+                var failure = await cleanup.WaitAsync(TimeSpan.FromSeconds(20));
+                var refused = Assert.IsType<InvalidOperationException>(failure);
+                Assert.Contains(requestTimedOut ? "timed out" : "remains open", refused.Message, StringComparison.Ordinal);
+            }
+            else
+            {
+                var result = await stop!.WaitAsync(TimeSpan.FromSeconds(20));
+                Assert.Equal(1, result.ExitCode);
+                using var json = JsonDocument.Parse(result.Stdout);
+                Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+                Assert.Equal(requestTimedOut ? "Timeout" : "Busy", json.RootElement.GetProperty("errorCategory").GetString());
+            }
+            Assert.False(daemon.HasExited);
+            Assert.False(excel.HasExited);
+            Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
+        }
+        finally
+        {
+            StopIfRunning(daemon);
+            StopIfRunning(excel);
+            DaemonProcessTracker.Clear(pipeName);
+        }
+    }
+
+    private sealed class RefusedShutdownRpcTarget(bool requestTimedOut)
+    {
+        public Task<ServiceResponse> ProcessCommandAsync(ServiceRequest request)
+        {
+            Assert.Equal("service.shutdown", request.Command);
+            return Task.FromResult(new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = requestTimedOut ? "Timeout" : "Busy",
+                ErrorMessage = requestTimedOut ? "Service request timed out" : "Excel remains open until saving is safe."
+            });
+        }
+    }
+
     public static TheoryData<string> AdversarialPipeNames
     {
         get

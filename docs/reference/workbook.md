@@ -117,6 +117,15 @@ has already started, it can use the session's operation timeout to finish
 checking a large workbook. A scan that exceeds that additional deadline reports
 an unconfirmed state without saving or closing the workbook.
 
+Service shutdown also refuses to discard edits when readiness blocks saving.
+The blocked workbook stays in its session and the service stays running so you
+can respond to Excel's prompt or wait for the refresh, then retry
+`excelcli service stop`. Other ready sessions may already have been saved and
+closed before a refusal. CLI stop and build cleanup wait up to 60 seconds for
+the shutdown reply while ready workbooks save and close. They do not force-stop Excel
+after a `Busy` response or a timeout waiting for a shutdown reply after connecting.
+This does not protect against externally killing the service or Excel.
+
 The same session listing exposes `excelState` and `blockingReason`. When
 `excelState` is `dialogOpen`, check the Excel window for a prompt before simply
 waiting longer. The server observes window ownership without reading dialog

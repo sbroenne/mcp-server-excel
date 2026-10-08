@@ -1238,9 +1238,6 @@ public sealed class SessionManager : IDisposable
                 return;
             _disposed = true;
             sessions = _activeSessions.ToArray();
-            foreach (var sessionId in _activeSessions.Keys)
-                RemoveSessionTracking(sessionId, removeSessionLock: true);
-            _activeFilePaths.Clear();
         }
 
         var failures = new List<Exception>();
@@ -1256,6 +1253,14 @@ public sealed class SessionManager : IDisposable
                     using var saveTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                     session.Save(saveTimeout.Token);
                     _logger.LogInformation("Auto-saved session for {Path} before shutdown", session.WorkbookPath);
+                }
+                catch (ExcelBusyException ex)
+                {
+                    failures.Add(new InvalidOperationException(
+                        $"Shutdown refused for session '{sessionId}': {ex.Message}", ex));
+                    _logger.LogWarning(ex,
+                        "Shutdown refused for session {SessionId}; workbook and session remain open", sessionId);
+                    continue;
                 }
                 catch (Exception ex)
                 {
@@ -1279,6 +1284,19 @@ public sealed class SessionManager : IDisposable
                 failures.Add(failure);
                 _logger.LogError(ex, "Failed to dispose session {SessionId}", sessionId);
             }
+            finally
+            {
+                lock (_filePathReservationLock)
+                    RemoveSessionTracking(sessionId, removeSessionLock: true);
+            }
+        }
+
+        lock (_filePathReservationLock)
+        {
+            if (_activeSessions.IsEmpty)
+                _activeFilePaths.Clear();
+            else
+                _disposed = false;
         }
 
         if (failures.Count > 0)
