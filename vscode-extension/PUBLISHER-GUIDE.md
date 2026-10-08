@@ -111,6 +111,7 @@ in its packaged README. Local validation is documented in [DEVELOPMENT.md](DEVEL
    - Watch the "Release All Components" workflow run
    - It will:
      - Build all components (MCP Server, CLI, VS Code Extension, MCPB)
+     - Build and publish the Windows x64, Windows ARM64, and Apple Silicon macOS VSIX packages
      - Publish to NuGet (MCP Server, CLI)
      - Publish to VS Code Marketplace
      - Create unified GitHub release with all artifacts
