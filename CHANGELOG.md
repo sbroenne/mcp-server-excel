@@ -11,6 +11,12 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.3.7] - 2026-10-08
+
+### Patch Changes
+
+- [#1081](https://github.com/sbroenne/mcp-server-excel/pull/1081) [`872a568`](https://github.com/sbroenne/mcp-server-excel/commit/872a568bc3d079d0d145ece8cc00f327cddb4408) Thanks [@sbroenne](https://github.com/sbroenne)! - **Formula blocks can mix in numbers, true/false, and blanks** ([#1072](https://github.com/sbroenne/mcp-server-excel/issues/1072)): `range set-formulas` and `range validate-formulas` now accept JSON numbers, `true`/`false`, and `null` (an empty cell) next to formulas and text, both inline in `formulas` and in a `formulasFile`. Numbers keep their exact value in any Excel language, and `validate-formulas` treats these constants as valid instead of reporting them as errors.
+
 ## [2.3.6] - 2026-10-07
 
 ### Patch Changes
