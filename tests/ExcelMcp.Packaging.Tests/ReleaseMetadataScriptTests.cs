@@ -51,6 +51,8 @@ public sealed class ReleaseMetadataScriptTests
     [InlineData("absent", false, true)]
     [InlineData("draft", false, true)]
     [InlineData("draft-later-page", false, true)]
+    [InlineData("draft-delayed", false, true)]
+    [InlineData("draft-never-visible", false, false)]
     [InlineData("duplicate-draft", false, false)]
     [InlineData("invalid-draft", false, false)]
     [InlineData("published-list", false, false)]
@@ -88,7 +90,12 @@ public sealed class ReleaseMetadataScriptTests
                 $global:releaseFixtureCreated = $false
                 $global:releaseFixtureUploaded = $false
                 $global:releaseFixturePublished = $false
+                $global:releaseFixtureDraftLookups = 0
                 $global:releaseFixtureCalls = [Collections.Generic.List[string]]::new()
+                function global:Start-Sleep {
+                    param([int]$Seconds)
+                    $global:releaseFixtureCalls.Add("Start-Sleep -Seconds $Seconds")
+                }
                 function global:gh {
                     param([Parameter(ValueFromRemainingArguments)][string[]]$Arguments)
                     $global:releaseFixtureCalls.Add(($Arguments -join ' '))
@@ -100,9 +107,10 @@ public sealed class ReleaseMetadataScriptTests
                             return
                         }
                         $isList = $Arguments[1] -eq 'repos/owner/repo/releases'
-                        $isAbsent = '{{mode}}' -eq 'absent' -and -not $global:releaseFixtureCreated
-                        $isDraft = '{{mode}}' -in @('absent', 'draft', 'draft-later-page',
-                            'duplicate-draft', 'invalid-draft', 'published-list', 'list-api-error') `
+                        $isAbsent = '{{mode}}' -in @('absent', 'draft-delayed', 'draft-never-visible') `
+                            -and -not $global:releaseFixtureCreated
+                        $isDraft = '{{mode}}' -in @('absent', 'draft', 'draft-later-page', 'draft-delayed',
+                            'draft-never-visible', 'duplicate-draft', 'invalid-draft', 'published-list', 'list-api-error') `
                             -and -not $global:releaseFixturePublished
                         if (-not $isList -and ($isAbsent -or $isDraft)) {
                             $global:LASTEXITCODE = 1
@@ -119,6 +127,15 @@ public sealed class ReleaseMetadataScriptTests
                                 return
                             }
                             if ($isAbsent) { '[[]]'; return }
+                            if ('{{mode}}' -eq 'draft-delayed' -and $global:releaseFixtureCreated) {
+                                $global:releaseFixtureDraftLookups++
+                                if ($global:releaseFixtureDraftLookups -le 2) { '[[]]'; return }
+                            }
+                            if ('{{mode}}' -eq 'draft-never-visible' -and $global:releaseFixtureCreated) {
+                                $global:releaseFixtureDraftLookups++
+                                '[[]]'
+                                return
+                            }
                         }
                         $assets = @(Get-ChildItem publish -File | ForEach-Object {
                             @{ name = $_.Name; digest = 'sha256:' + (Get-FileHash $_.FullName).Hash.ToLowerInvariant() }
@@ -167,7 +184,7 @@ public sealed class ReleaseMetadataScriptTests
                 """);
             var result = await RunPowerShellScriptAsync(runner, [], sandbox);
             Assert.True(succeeds == (result.ExitCode == 0), result.CombinedOutput);
-            if (mode is "absent" or "draft" or "draft-later-page" or "duplicate-draft" or "invalid-draft" or "published-list")
+            if (mode is "absent" or "draft" or "draft-later-page" or "draft-delayed" or "duplicate-draft" or "invalid-draft" or "published-list")
             {
                 using var response = JsonDocument.Parse(File.ReadAllText(Path.Combine(sandbox, "list-response.json")));
                 var pages = response.RootElement;
@@ -193,19 +210,32 @@ public sealed class ReleaseMetadataScriptTests
                     "api-error" or "list-api-error" => "GitHub command failed",
                     "duplicate-draft" => "multiple releases",
                     "invalid-draft" or "published-list" => "invalid release identity or state",
+                    "draft-never-visible" => "after 10 attempts",
                     _ => throw new InvalidOperationException($"Unexpected failure fixture: {mode}")
                 };
                 Assert.Contains(expectedError, result.CombinedOutput, StringComparison.Ordinal);
             }
             var calls = File.ReadAllText(Path.Combine(sandbox, "calls.json"));
-            if (mode is "absent" or "draft" or "draft-later-page")
+            if (mode == "draft-never-visible")
+            {
+                Assert.Equal(9, System.Text.RegularExpressions.Regex.Matches(
+                    calls, "Start-Sleep -Seconds 2", System.Text.RegularExpressions.RegexOptions.CultureInvariant).Count);
+                Assert.Contains("release create", calls, StringComparison.Ordinal);
+                Assert.DoesNotContain("release upload", calls, StringComparison.Ordinal);
+            }
+            if (mode is "absent" or "draft" or "draft-later-page" or "draft-delayed")
             {
                 Assert.Contains("release upload", calls, StringComparison.Ordinal);
                 Assert.Contains("--clobber", calls, StringComparison.Ordinal);
                 Assert.Contains("release edit", calls, StringComparison.Ordinal);
                 Assert.Contains("api repos/owner/repo/releases --paginate --slurp", calls, StringComparison.Ordinal);
                 Assert.Contains("Published v1.2.3 after verifying every draft asset", result.CombinedOutput, StringComparison.Ordinal);
-                if (mode == "absent")
+                if (mode == "draft-delayed")
+                {
+                    Assert.Equal(2, System.Text.RegularExpressions.Regex.Matches(
+                        calls, "Start-Sleep -Seconds 2", System.Text.RegularExpressions.RegexOptions.CultureInvariant).Count);
+                }
+                if (mode is "absent" or "draft-delayed")
                 {
                     Assert.Contains("--draft", calls, StringComparison.Ordinal);
                     Assert.Contains("--verify-tag", calls, StringComparison.Ordinal);
@@ -219,7 +249,10 @@ public sealed class ReleaseMetadataScriptTests
             {
                 Assert.DoesNotContain("--clobber", calls, StringComparison.Ordinal);
                 Assert.DoesNotContain("release edit", calls, StringComparison.Ordinal);
-                Assert.DoesNotContain("release create", calls, StringComparison.Ordinal);
+                if (mode != "draft-never-visible")
+                {
+                    Assert.DoesNotContain("release create", calls, StringComparison.Ordinal);
+                }
                 if (mode == "missing" && succeeds)
                 {
                     Assert.Contains("release upload", calls, StringComparison.Ordinal);
