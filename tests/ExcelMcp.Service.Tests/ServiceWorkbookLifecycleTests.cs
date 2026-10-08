@@ -1,5 +1,7 @@
 using System.Collections.Concurrent;
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -12,8 +14,316 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 [Trait("Feature", "Session")]
 [Trait("Speed", "Medium")]
 [Trait("RequiresExcel", "true")]
-public sealed class ServiceWorkbookLifecycleTests
+public sealed partial class ServiceWorkbookLifecycleTests
 {
+    private static readonly bool[] CloseSaveModes = [true, false];
+    [Theory]
+    [InlineData("connection.list")]
+    [InlineData("connection.get-properties")]
+    [InlineData("connection.get-refresh-status")]
+    [InlineData("connection.set-properties")]
+    [InlineData("connection.refresh")]
+    public async Task ExternalOlap_UnavailableBackgroundSetting_DoesNotBreakMetadata(string command)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var session = await CreateSessionAsync(service, Path.Join(directory, "olap-metadata.xlsx"));
+            sessions[session] = 0;
+            var batch = Assert.IsAssignableFrom<IExcelBatch>(service.SessionManager.GetSession(session));
+            batch.Execute((context, _) =>
+            {
+                Excel.Connections? connections = null;
+                Excel.WorkbookConnection? connection = null;
+                Excel.OLEDBConnection? oledb = null;
+                try
+                {
+                    connections = context.Book.Connections;
+                    connection = connections.Add2("OlapFixture", "Local metadata fixture",
+                        "OLEDB;Provider=MSOLAP.8;Data Source=localhost;Initial Catalog=Fixture;Connect Timeout=1;",
+                        "Model", Excel.XlCmdType.xlCmdCube, false, false);
+                    oledb = connection.OLEDBConnection;
+                    Assert.True(oledb.OLAP);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref oledb);
+                    ComUtilities.Release(ref connection);
+                    ComUtilities.Release(ref connections);
+                }
+            });
+
+            var response = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = command,
+                SessionId = session,
+                Args = command switch
+                {
+                    "connection.list" => null,
+                    "connection.set-properties" =>
+                        """{"connectionName":"OlapFixture","description":"Should not change","backgroundQuery":true}""",
+                    _ => """{"connectionName":"OlapFixture"}"""
+                }
+            });
+            if (command == "connection.refresh")
+            {
+                // This connection has no load target; it proves capability handling, not server data refresh.
+                RequireSuccess(response);
+                var status = await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = "connection.get-refresh-status",
+                    SessionId = session,
+                    Args = """{"connectionName":"OlapFixture"}"""
+                });
+                RequireSuccess(status);
+                using var state = JsonDocument.Parse(status.Result!);
+                Assert.True(state.RootElement.GetProperty("supportsRefreshStatus").GetBoolean());
+                Assert.False(state.RootElement.GetProperty("isRefreshing").GetBoolean());
+                return;
+            }
+            if (command == "connection.set-properties")
+            {
+                Assert.False(response.Success);
+                Assert.Equal("InvalidInput", response.ErrorCategory);
+                Assert.Contains("OLAP", response.ErrorMessage, StringComparison.Ordinal);
+                batch.Execute((context, _) =>
+                {
+                    Excel.Connections? connections = null;
+                    Excel.WorkbookConnection? connection = null;
+                    try
+                    {
+                        connections = context.Book.Connections;
+                        connection = connections.Item("OlapFixture");
+                        Assert.Equal("Local metadata fixture", connection.Description);
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref connection);
+                        ComUtilities.Release(ref connections);
+                    }
+                });
+                var synchronous = await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = command,
+                    SessionId = session,
+                    Args = """{"connectionName":"OlapFixture","backgroundQuery":false,"description":"Synchronous OLAP"}"""
+                });
+                RequireSuccess(synchronous);
+                return;
+            }
+            RequireSuccess(response);
+            using var json = JsonDocument.Parse(response.Result!);
+            var metadata = command == "connection.list"
+                ? Assert.Single(json.RootElement.GetProperty("connections").EnumerateArray())
+                : json.RootElement;
+            if (command == "connection.get-refresh-status")
+            {
+                Assert.True(metadata.GetProperty("supportsRefreshStatus").GetBoolean());
+                Assert.False(metadata.GetProperty("isRefreshing").GetBoolean());
+            }
+            else
+            {
+                Assert.False(metadata.GetProperty("backgroundQuery").GetBoolean());
+            }
+            if (command == "connection.list")
+            {
+                Assert.Equal("OlapFixture", metadata.GetProperty("name").GetString());
+                if (metadata.TryGetProperty("lastRefresh", out var refreshed))
+                    Assert.Equal(JsonValueKind.Null, refreshed.ValueKind);
+            }
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExcelStartedRefresh_BlocksCloseAndSave_UntilNewValuesCanBePersisted(bool backgroundQuery)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var path = Path.Join(directory, "background-refresh.xlsx");
+            var session = await CreateSessionAsync(service, path);
+            sessions[session] = 0;
+            await WriteMarkerAsync(service, session, "Unsaved edit");
+            var created = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "powerquery.create",
+                SessionId = session,
+                Args = """{"queryName":"DelayedLoad","mCode":"#table({\"Marker\"}, {{\"Before\"}})","loadDestination":"worksheet","targetSheet":"DelayedLoad"}"""
+            });
+            RequireSuccess(created);
+            var updated = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "powerquery.update",
+                SessionId = session,
+                Args = """{"queryName":"DelayedLoad","mCode":"Function.InvokeAfter(() => #table({\"Marker\"}, {{\"After\"}}), #duration(0,0,0,12))","refresh":false}"""
+            });
+            RequireSuccess(updated);
+            var batch = Assert.IsAssignableFrom<IExcelBatch>(service.SessionManager.GetSession(session));
+            using var refreshEntered = new ManualResetEventSlim();
+            string? refreshConnectionName = null;
+            var refreshTask = Task.Run(() => batch.Execute((context, _) =>
+            {
+                Excel.Sheets? sheets = null;
+                Excel.Worksheet? sheet = null;
+                Excel.ListObjects? tables = null;
+                Excel.ListObject? table = null;
+                Excel.QueryTable? query = null;
+                Excel.WorkbookConnection? connection = null;
+                try
+                {
+                    sheets = context.Book.Worksheets;
+                    sheet = (Excel.Worksheet)sheets["DelayedLoad"];
+                    tables = sheet.ListObjects;
+                    table = tables[1];
+                    query = table.QueryTable;
+                    connection = query.WorkbookConnection;
+                    refreshConnectionName = connection.Name;
+                    refreshEntered.Set();
+                    Assert.True(query.Refresh(backgroundQuery));
+                    if (backgroundQuery)
+                    {
+                        Assert.True(query.Refreshing, "The native background query must still be running.");
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref connection);
+                    ComUtilities.Release(ref query);
+                    ComUtilities.Release(ref table);
+                    ComUtilities.Release(ref tables);
+                    ComUtilities.Release(ref sheet);
+                    ComUtilities.Release(ref sheets);
+                }
+            }));
+            Assert.True(refreshEntered.Wait(TimeSpan.FromSeconds(10)), "Native refresh did not start.");
+            if (backgroundQuery)
+            {
+                await refreshTask.WaitAsync(TimeSpan.FromSeconds(10));
+                Assert.NotEqual(WorkbookRefreshState.Ready,
+                    Assert.IsAssignableFrom<IExcelBatchRefreshState>(batch).GetRefreshState());
+            }
+            else
+            {
+                Assert.False(refreshTask.IsCompleted, "The delayed native refresh already completed.");
+            }
+            try
+            {
+                Assert.Equal(0, service.SessionManager.GetActiveOperationCount(session));
+                var guardTimer = System.Diagnostics.Stopwatch.StartNew();
+                var list = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+                RequireSuccess(list);
+                using var json = JsonDocument.Parse(list.Result!);
+                var listed = Assert.Single(json.RootElement.GetProperty("sessions").EnumerateArray());
+                Assert.False(listed.GetProperty("canClose").GetBoolean());
+                foreach (var save in CloseSaveModes)
+                {
+                    var rejected = await service.ProcessAsync(new ServiceRequest
+                    {
+                        Command = "session.close",
+                        SessionId = session,
+                        Args = JsonSerializer.Serialize(new { save }, ServiceProtocol.JsonOptions)
+                    });
+                    Assert.False(rejected.Success);
+                    Assert.Contains("refresh", rejected.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+                    Assert.Same(batch, service.SessionManager.GetSession(session));
+                }
+                var saveFailure = Assert.Throws<ExcelBusyException>(() => batch.Save());
+                Assert.Contains("refresh", saveFailure.Message, StringComparison.OrdinalIgnoreCase);
+                Assert.False(batch.HasTimedOutOperation);
+                Assert.True(guardTimer.Elapsed < TimeSpan.FromSeconds(5),
+                    "Status, rejected close, and rejected save must not wait behind the long refresh.");
+                var saveAsPath = Path.Join(directory, "must-not-save-during-refresh.xlsx");
+                var saveAs = await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = "workbook.save-as",
+                    SessionId = session,
+                    Args = JsonSerializer.Serialize(new { targetPath = saveAsPath }, ServiceProtocol.JsonOptions)
+                });
+                Assert.False(saveAs.Success);
+                Assert.Equal("Busy", saveAs.ErrorCategory);
+                Assert.False(File.Exists(saveAsPath));
+                Assert.Equal(path, batch.WorkbookPath);
+                var status = await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = "connection.get-refresh-status",
+                    SessionId = session,
+                    Args = JsonSerializer.Serialize(
+                        new { connectionName = refreshConnectionName }, ServiceProtocol.JsonOptions)
+                });
+                if (backgroundQuery)
+                {
+                    RequireSuccess(status);
+                    using var state = JsonDocument.Parse(status.Result!);
+                    Assert.True(state.RootElement.GetProperty("isRefreshing").GetBoolean());
+                }
+                else
+                {
+                    Assert.False(status.Success);
+                    Assert.Equal("Busy", status.ErrorCategory);
+                    var cancel = await service.ProcessAsync(new ServiceRequest
+                    {
+                        Command = "connection.cancel-refresh",
+                        SessionId = session,
+                        Args = JsonSerializer.Serialize(
+                            new { connectionName = refreshConnectionName }, ServiceProtocol.JsonOptions)
+                    });
+                    Assert.False(cancel.Success);
+                    Assert.Equal("Busy", cancel.ErrorCategory);
+                }
+                Assert.False(batch.HasTimedOutOperation);
+                Assert.True(guardTimer.Elapsed < TimeSpan.FromSeconds(5),
+                    "Save As and refresh controls must also reject busy access promptly.");
+            }
+            finally
+            {
+                await refreshTask.WaitAsync(TimeSpan.FromMinutes(1));
+                if (backgroundQuery)
+                {
+                    var refreshState = Assert.IsAssignableFrom<IExcelBatchRefreshState>(batch);
+                    var deadline = DateTime.UtcNow.AddMinutes(1);
+                    while (refreshState.GetRefreshState() != WorkbookRefreshState.Ready && DateTime.UtcNow < deadline)
+                    {
+                        await Task.Delay(250);
+                    }
+                    Assert.Equal(WorkbookRefreshState.Ready, refreshState.GetRefreshState());
+                }
+            }
+
+            Assert.False(batch.Execute((context, _) => context.Book.Saved));
+            Assert.Equal("After", await ReadMarkerAsync(service, session, "DelayedLoad", "A2"));
+            Assert.Equal("Unsaved edit", await ReadMarkerAsync(service, session));
+            await CloseSessionAsync(service, session, save: true);
+            sessions.TryRemove(session, out _);
+            var reopened = await OpenSessionAsync(service, path);
+            sessions[reopened] = 0;
+            Assert.Equal("After", await ReadMarkerAsync(service, reopened, "DelayedLoad", "A2"));
+            Assert.Equal("Unsaved edit", await ReadMarkerAsync(service, reopened));
+        });
+    }
+
+    [Fact]
+    public async Task GetInfo_ReturnsNativeAutoSaveStatus()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var session = await CreateSessionAsync(service, Path.Join(directory, "autosave.xlsx"));
+            sessions[session] = 0;
+            var batch = service.SessionManager.GetSession(session);
+            Assert.NotNull(batch);
+            var nativeAutoSave = batch.Execute((context, _) => context.Book.AutoSaveOn);
+
+            var response = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "workbook.get-info",
+                SessionId = session
+            });
+            RequireSuccess(response);
+            using var json = JsonDocument.Parse(response.Result!);
+            Assert.True(json.RootElement.TryGetProperty("autoSaveOn", out var autoSave));
+            Assert.Equal(nativeAutoSave, autoSave.GetBoolean());
+        });
+    }
+
     [Theory]
     [InlineData("create", false)]
     [InlineData("create", true)]
@@ -538,7 +848,7 @@ public sealed class ServiceWorkbookLifecycleTests
 
         if (failure is not null)
         {
-            throw failure;
+            ExceptionDispatchInfo.Capture(failure).Throw();
         }
     }
 
@@ -659,7 +969,8 @@ public sealed class ServiceWorkbookLifecycleTests
     private static async Task<string?> ReadMarkerAsync(
         ExcelMcpService service,
         string sessionId,
-        string sheetName = "Sheet1")
+        string sheetName = "Sheet1",
+        string rangeAddress = "A1")
     {
         var response = await service.ProcessAsync(new ServiceRequest
         {
@@ -668,7 +979,7 @@ public sealed class ServiceWorkbookLifecycleTests
             Args = JsonSerializer.Serialize(new
             {
                 sheetName,
-                rangeAddress = "A1"
+                rangeAddress
             }, ServiceProtocol.JsonOptions)
         });
         RequireSuccess(response);

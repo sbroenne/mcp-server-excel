@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
 using Sbroenne.ExcelMcp.Core.Utilities;
@@ -74,7 +75,7 @@ public partial class ConnectionCommands : IConnectionCommands
                 try
                 {
                     oledbConnection = conn.OLEDBConnection;
-                    return oledbConnection?.BackgroundQuery ?? false;
+                    return oledbConnection != null && !oledbConnection.OLAP && oledbConnection.BackgroundQuery;
                 }
                 finally
                 {
@@ -124,7 +125,7 @@ public partial class ConnectionCommands : IConnectionCommands
                 }
             }
         }
-        catch (COMException)
+        catch (COMException ex) when (IsUnsupportedConnectionProperty(ex))
         {
         }
 
@@ -192,7 +193,7 @@ public partial class ConnectionCommands : IConnectionCommands
                 }
             }
         }
-        catch (COMException)
+        catch (COMException ex) when (IsUnsupportedConnectionProperty(ex))
         {
         }
 
@@ -260,7 +261,7 @@ public partial class ConnectionCommands : IConnectionCommands
                 }
             }
         }
-        catch (COMException)
+        catch (COMException ex) when (IsUnsupportedConnectionProperty(ex))
         {
         }
 
@@ -328,14 +329,14 @@ public partial class ConnectionCommands : IConnectionCommands
                 }
             }
         }
-        catch (COMException)
+        catch (COMException ex) when (IsUnsupportedConnectionProperty(ex))
         {
         }
 
         return 0;
     }
 
-    private static DateTime? GetLastRefreshDate(dynamic conn)
+    private static DateTime? GetLastRefreshDate(dynamic conn, ILogger logger)
     {
         try
         {
@@ -346,7 +347,8 @@ public partial class ConnectionCommands : IConnectionCommands
                 try
                 {
                     oledbConnection = conn.OLEDBConnection;
-                    return GetRefreshDateSafe(oledbConnection?.RefreshDate);
+                    // PIA gap: OLAP RefreshDate can be an empty VARIANT, not the PIA's non-nullable DateTime.
+                    return oledbConnection == null ? null : GetRefreshDateSafe(((dynamic)oledbConnection).RefreshDate);
                 }
                 finally
                 {
@@ -368,12 +370,16 @@ public partial class ConnectionCommands : IConnectionCommands
                 }
             }
         }
-        catch (COMException)
+        catch (COMException ex)
         {
+            logger.LogWarning(ex, "Could not read the connection's last-refresh timestamp; reporting it as unknown");
         }
 
         return null;
     }
+
+    private static bool IsUnsupportedConnectionProperty(COMException exception) =>
+        exception.HResult is unchecked((int)0x80020003) or unchecked((int)0x80004001);
 
     private static string? GetConnectionString(dynamic conn)
     {
@@ -596,7 +602,7 @@ public partial class ConnectionCommands : IConnectionCommands
         };
     }
 
-    private static object GetConnectionProperties(dynamic conn)
+    private static object GetConnectionProperties(dynamic conn, ILogger logger)
     {
         return new
         {
@@ -604,7 +610,7 @@ public partial class ConnectionCommands : IConnectionCommands
             RefreshOnFileOpen = GetRefreshOnFileOpenSetting(conn),
             SavePassword = GetSavePasswordSetting(conn),
             RefreshPeriod = GetRefreshPeriod(conn),
-            LastRefresh = GetLastRefreshDate(conn)
+            LastRefresh = GetLastRefreshDate(conn, logger)
         };
     }
 
@@ -656,8 +662,33 @@ public partial class ConnectionCommands : IConnectionCommands
         }
     }
 
+    private static bool IsOlapConnection(dynamic connection)
+    {
+        int connectionType = connection.Type;
+        if (connectionType != 1) return false;
+
+        Excel.OLEDBConnection? oledb = null;
+        try
+        {
+            oledb = connection.OLEDBConnection;
+            return oledb.OLAP;
+        }
+        finally
+        {
+            ComUtilities.Release(ref oledb);
+        }
+    }
+
     private static void UpdateConnectionProperties(dynamic conn, ConnectionDefinition definition)
     {
+        bool isOlap = IsOlapConnection(conn);
+        if (isOlap && definition.BackgroundQuery == true)
+        {
+            throw new ArgumentException(
+                "OLAP connections refresh synchronously and do not support backgroundQuery=true.",
+                nameof(definition));
+        }
+
         try
         {
             // Update description
@@ -684,10 +715,11 @@ public partial class ConnectionCommands : IConnectionCommands
                         {
                             oledbConnection.CommandText = definition.CommandText;
                         }
-                        if (definition.BackgroundQuery.HasValue)
+                        if (definition.BackgroundQuery.HasValue && !isOlap)
                         {
                             oledbConnection.BackgroundQuery = definition.BackgroundQuery.Value;
                         }
+
                         if (definition.RefreshOnFileOpen.HasValue)
                         {
                             oledbConnection.RefreshOnFileOpen = definition.RefreshOnFileOpen.Value;

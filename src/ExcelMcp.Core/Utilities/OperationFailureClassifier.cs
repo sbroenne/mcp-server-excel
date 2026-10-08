@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 
@@ -48,7 +49,9 @@ public static class OperationFailureClassifier
                 PowerQueryCommandException query => query.ErrorCategory,
                 TimeoutException => "Timeout",
                 OperationCanceledException => "Cancelled",
+                ExcelBusyException => "Busy",
                 ArgumentException or JsonException => "InvalidInput",
+                COMException com when com.HResult == unchecked((int)0x800AC472) => "Busy",
                 COMException => "ComInterop",
                 _ => null
             };

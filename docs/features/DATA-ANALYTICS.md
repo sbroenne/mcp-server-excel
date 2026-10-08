@@ -100,11 +100,12 @@ also constrain source changes.
 
 ---
 
-## Data Connections (11 operations)
+## Data Connections (13 operations)
 
 - **Connect existing sources:** Create, inspect, and maintain supported OLEDB or ODBC workbook connections.
 - **Refresh and troubleshoot:** Test access, refresh data, inspect active refresh state, or cancel a supported refresh.
 - **Manage loads:** Load supported connections to worksheets or remove their associated load objects.
+- **Manage account hints:** Inspect sign-in settings and remove a selected MSOLAP connection's saved account hint without clearing shared credentials.
 
 The appropriate provider or driver must be installed. Power Query connections
 use Power Query behavior rather than ordinary OLEDB/ODBC connection handling.

@@ -114,7 +114,7 @@ public interface IWorkbookCommands
     [ServiceAction("delete-cell-style")]
     OperationResult DeleteCellStyle(IExcelBatch batch, [RequiredParameter] string styleName);
 
-    /// <summary>Gets metadata for the active workbook.</summary>
+    /// <summary>Gets metadata for the active workbook, including saved, readOnly, and the live autoSaveOn status. AutoSave can persist edits before an explicit save when enabled.</summary>
     [ServiceAction("get-info")]
     WorkbookInfoResult GetInfo(IExcelBatch batch);
 

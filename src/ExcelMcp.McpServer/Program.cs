@@ -97,6 +97,7 @@ public class Program
                     Do not set show:true just to leave a workbook open without a separate visibility request or known preference.
                     Use worksheet_read list to inspect sheets. Close only after active operations finish (canClose:true). Set save:true to keep changes;
                     close defaults to save:false and discards edits. Confirm before closing a visible window unless authorized.
+                    If file_read list reports excelState:dialogOpen, ask the user to check Excel for a prompt; the dialog type is not identified.
                     The server does not request confirmation through MCP elicitation; the client must obtain any needed consent.
                     Normal shutdown attempts to save remaining sessions. Crashes, timeouts, and forced cleanup may lose edits.
                     Cancellation is not undo: inspect file_read list before continuing, and do not blindly retry a change.

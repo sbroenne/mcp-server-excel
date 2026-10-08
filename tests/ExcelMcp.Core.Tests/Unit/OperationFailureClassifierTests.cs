@@ -15,6 +15,17 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 public sealed class OperationFailureClassifierTests
 {
     [Fact]
+    public void Classify_SaveBusy_PreservesBusyCategoryAndOriginalHResult()
+    {
+#pragma warning disable CA2201 // Synthetic native failure for classification.
+        var native = new COMException("Excel declined automation", unchecked((int)0x800AC472));
+#pragma warning restore CA2201
+        var failure = new InvalidOperationException("Save failed; workbook remains open", native);
+        Assert.Equal("Busy", OperationFailureClassifier.Classify(failure));
+        Assert.Equal("0x800AC472", OperationFailureClassifier.GetComHResult(failure));
+    }
+
+    [Fact]
     public void Classify_TypedOuterFailure_TakesPrecedenceOverComCause()
     {
 #pragma warning disable CA2201 // Synthetic exception for pure classification.

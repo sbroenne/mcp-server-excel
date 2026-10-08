@@ -15,6 +15,143 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 [Trait("Speed", "Medium")]
 public sealed class SessionCloseRegressionTests
 {
+    [Theory]
+    [InlineData("get-account-settings", 1)]
+    [InlineData("get-account-settings", 2)]
+    [InlineData("get-account-settings", 3)]
+    [InlineData("get-account-settings", 4)]
+    [InlineData("clear-account-hint", 1)]
+    [InlineData("clear-account-hint", 2)]
+    [InlineData("clear-account-hint", 3)]
+    [InlineData("clear-account-hint", 4)]
+    public async Task ConnectionAccountSettings_RejectsNonReadyExcelBeforeQueuingCom(string action, int state)
+    {
+        using var service = new ExcelMcpService();
+        var batch = new FakeBatch
+        {
+            WorkbookPath = CreateFakeWorkbookPath(),
+            RefreshState = (WorkbookRefreshState)state
+        };
+        const string session = "account-settings-busy";
+        RegisterSession(service, session, batch, addKnownSessionId: true);
+        try
+        {
+            var response = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "connection." + action,
+                SessionId = session,
+                Args = """{"connectionName":"Selected"}"""
+            });
+            Assert.False(response.Success);
+            Assert.Equal("Busy", response.ErrorCategory);
+            Assert.Contains("account settings", response.ErrorMessage, StringComparison.Ordinal);
+            Assert.Equal(0, batch.ExecuteCalls);
+            Assert.Same(batch, GetSessionManager(service).GetSession(session));
+        }
+        finally
+        {
+            batch.RefreshState = WorkbookRefreshState.Ready;
+        }
+    }
+
+    [Theory]
+    [InlineData(false, 0)]
+    [InlineData(true, 0)]
+    [InlineData(false, 1)]
+    [InlineData(true, 1)]
+    public async Task DialogOpen_ReportsActionableStateAndRetainsSession(bool save, int activeOperations)
+    {
+        using var service = new ExcelMcpService();
+        var batch = new FakeBatch
+        {
+            WorkbookPath = CreateFakeWorkbookPath(),
+            RefreshState = WorkbookRefreshState.DialogOpen
+        };
+        const string sessionId = "dialog-open";
+        RegisterSession(service, sessionId, batch, addKnownSessionId: true);
+        var operationCounts = GetPrivateField<ConcurrentDictionary<string, int>>(
+            GetSessionManager(service), "_activeOperationCounts");
+        operationCounts[sessionId] = activeOperations;
+
+        try
+        {
+            var list = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+            Assert.True(list.Success, list.ErrorMessage);
+            using var json = JsonDocument.Parse(list.Result!);
+            var session = Assert.Single(json.RootElement.GetProperty("sessions").EnumerateArray());
+            Assert.Equal("dialogOpen", session.GetProperty("excelState").GetString());
+            Assert.Contains("Check the Excel window", session.GetProperty("blockingReason").GetString(), StringComparison.Ordinal);
+            Assert.Equal(activeOperations, session.GetProperty("activeOperations").GetInt32());
+            Assert.False(session.GetProperty("canClose").GetBoolean());
+
+            var closed = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.close",
+                SessionId = sessionId,
+                Args = JsonSerializer.Serialize(new { save }, ServiceProtocol.JsonOptions)
+            });
+            Assert.False(closed.Success);
+            Assert.Equal("Busy", closed.ErrorCategory);
+            Assert.Contains("dialog", closed.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("sign-in required", closed.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(0, batch.DisposeCalls);
+            Assert.Same(batch, GetSessionManager(service).GetSession(sessionId));
+        }
+        finally
+        {
+            batch.RefreshState = WorkbookRefreshState.Ready;
+            operationCounts[sessionId] = 0;
+        }
+
+        var readyList = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+        using var readyJson = JsonDocument.Parse(readyList.Result!);
+        var readySession = Assert.Single(readyJson.RootElement.GetProperty("sessions").EnumerateArray());
+        Assert.Equal("ready", readySession.GetProperty("excelState").GetString());
+        Assert.True(readySession.GetProperty("canClose").GetBoolean());
+        Assert.False(readySession.TryGetProperty("blockingReason", out _));
+        var retried = await CloseSessionAsync(service, sessionId);
+        Assert.True(retried.Success, retried.ErrorMessage);
+        Assert.Equal(1, batch.DisposeCalls);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task NativeRefreshWithoutTrackedOperation_PreventsCloseAndRetainsSession(int state)
+    {
+        using var service = new ExcelMcpService();
+        var batch = new FakeBatch
+        {
+            WorkbookPath = CreateFakeWorkbookPath(),
+            RefreshState = (WorkbookRefreshState)state
+        };
+        const string sessionId = "native-refresh";
+        RegisterSession(service, sessionId, batch, addKnownSessionId: true);
+
+        var list = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+        Assert.True(list.Success, list.ErrorMessage);
+        using (var json = JsonDocument.Parse(list.Result!))
+        {
+            var session = Assert.Single(json.RootElement.GetProperty("sessions").EnumerateArray());
+            Assert.Equal(0, session.GetProperty("activeOperations").GetInt32());
+            Assert.False(session.GetProperty("canClose").GetBoolean());
+            Assert.Equal(batch.RefreshState.ToString().ToLowerInvariant(), session.GetProperty("excelState").GetString());
+            Assert.Contains("refresh", session.GetProperty("blockingReason").GetString(), StringComparison.OrdinalIgnoreCase);
+        }
+        var closed = await CloseSessionAsync(service, sessionId);
+        Assert.False(closed.Success);
+        Assert.Equal("Busy", closed.ErrorCategory);
+        Assert.Contains("refresh", closed.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Same(batch, GetSessionManager(service).GetSession(sessionId));
+        Assert.Equal(0, batch.DisposeCalls);
+
+        batch.RefreshState = WorkbookRefreshState.Ready;
+        var retried = await CloseSessionAsync(service, sessionId);
+        Assert.True(retried.Success, retried.ErrorMessage);
+        Assert.Equal(1, batch.DisposeCalls);
+    }
+
     [Fact]
     public async Task SessionClose_MissingSessionReturnsStructuredError()
     {
@@ -201,8 +338,10 @@ public sealed class SessionCloseRegressionTests
         return (T)field!.GetValue(instance)!;
     }
 
-    private sealed class FakeBatch : IExcelBatch
+    private sealed class FakeBatch : IExcelBatch, IExcelBatchRefreshState
     {
+        public WorkbookRefreshState RefreshState { get; set; } = WorkbookRefreshState.Ready;
+        public WorkbookRefreshState GetRefreshState() => RefreshState;
         public string WorkbookPath { get; init; } = string.Empty;
         public Microsoft.Extensions.Logging.ILogger Logger { get; } = NullLogger.Instance;
         public IReadOnlyDictionary<string, Excel.Workbook> Workbooks { get; } = new Dictionary<string, Excel.Workbook>();
@@ -212,6 +351,7 @@ public sealed class SessionCloseRegressionTests
         public bool IsExcelVisible => false;
         public Exception? DisposeException { get; init; }
         public int DisposeCalls { get; private set; }
+        public int ExecuteCalls { get; private set; }
         public bool BlockOperations { get; init; }
         public ManualResetEventSlim OperationEntered { get; } = new();
         public ManualResetEventSlim ReleaseOperation { get; } = new();
@@ -222,12 +362,14 @@ public sealed class SessionCloseRegressionTests
 
         public void Execute(Action<ExcelContext, CancellationToken> operation, CancellationToken cancellationToken = default)
         {
+            ExecuteCalls++;
             WaitForRelease(cancellationToken);
             throw new NotSupportedException();
         }
 
         public T Execute<T>(Func<ExcelContext, CancellationToken, T> operation, CancellationToken cancellationToken = default)
         {
+            ExecuteCalls++;
             WaitForRelease(cancellationToken);
             throw new NotSupportedException();
         }

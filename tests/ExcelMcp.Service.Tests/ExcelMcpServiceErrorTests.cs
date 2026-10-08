@@ -517,8 +517,9 @@ public sealed class ExcelMcpServiceErrorTests
         return (T)field!.GetValue(instance)!;
     }
 
-    private sealed class FakeBatch : IExcelBatch
+    private sealed class FakeBatch : IExcelBatch, IExcelBatchRefreshState
     {
+        public WorkbookRefreshState GetRefreshState() => WorkbookRefreshState.Ready;
         public string WorkbookPath { get; init; } = Path.Combine(Path.GetTempPath(), $"fake-batch-{Guid.NewGuid():N}.xlsx");
         public Microsoft.Extensions.Logging.ILogger Logger { get; } = NullLogger.Instance;
         public IReadOnlyDictionary<string, Excel.Workbook> Workbooks { get; } = new Dictionary<string, Excel.Workbook>();

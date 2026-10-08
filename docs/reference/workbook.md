@@ -6,6 +6,36 @@ is separate; see [session and saving guidance](behavioral-rules.md#sessions-and-
 
 Current commands and supported inputs come from CLI help or MCP tool descriptions.
 
+## Opening a SharePoint workbook
+
+Open accepts a direct SharePoint or OneDrive for Business HTTPS file URL ending
+in `.xlsx`, `.xlsm`, `.xlsb`, or `.xls`. An optional `?web=1` or `?web=0` is
+removed before opening and session matching. Spaces and their percent-encoded
+forms identify the same workbook. Folder URLs, browser pages such as `Doc.aspx`,
+sharing links, other query parameters, arbitrary websites, and OneDrive personal
+consumer links are not supported.
+
+Use MCP `file(action: 'open', file_path: '<direct-url>', show: true)` or
+`excelcli session open "<direct-url>" --show`. The visible session is required
+so Office sign-in and rights-management prompts remain accessible. Excel uses
+the signed-in Office account; ExcelMcp neither supplies credentials nor bypasses
+IRM/AIP restrictions. Inspect `workbook_read` action `get-info` or
+`excelcli workbook get-info` for `readOnly` and the live `autoSaveOn` status before
+editing. When `autoSaveOn` is true, Excel can persist changes without an explicit
+save.
+
+`file_read` action `test` and `excelcli session test` report that URL validation
+requires interactive opening. They do not download the workbook or probe a local
+file. Returned `exists: false`, zero size, and `isIrmProtected: false` are unknown
+remote metadata, not evidence of a missing or unprotected workbook.
+
+Cloud AutoSave is disabled in editable remote sessions. Explicit save/close
+behavior therefore matches local workbooks: close without saving discards
+unsaved session edits; close with saving writes through Excel to the original
+SharePoint location. Normal Service shutdown still attempts to save. A successful
+save confirms Excel's saved state, not independent server-side upload completion.
+Save As, Save Copy As, export, and create continue to require Windows output paths.
+
 ## Metadata and document properties
 
 Use built-in properties for existing document metadata and custom properties
@@ -65,6 +95,26 @@ assume they were persisted or automatically discard them.
 
 Successful saving confirms Excel's saved state, not completion of OneDrive
 synchronization or upload to SharePoint.
+
+Saving, Save As, and explicit closing check Excel's live refresh readiness.
+A running refresh, open modal dialog, busy Excel instance, or unconfirmed status returns a `Busy`
+error without saving or discarding edits. The session remains open. Wait for
+Excel to finish, check `canClose` through MCP `file_read` action `list` or
+`excelcli session list`, inspect the refreshed values, then retry. A zero
+`activeOperations` count alone is not proof that Excel is idle.
+
+The same session listing exposes `excelState` and `blockingReason`. When
+`excelState` is `dialogOpen`, check the Excel window for a prompt before simply
+waiting longer. The server observes window ownership without reading dialog
+contents; this can detect a separate Microsoft sign-in host but cannot confirm
+that authentication is the dialog's purpose. It never enters credentials or
+responds to the prompt. After responding, check readiness and refreshed data
+before saving.
+
+Power BI/MSOLAP (OLAP) connections always refresh synchronously. Their unsupported
+background setting is reported as false; enabling it is rejected before changing
+other properties. An empty last-refresh date is reported as unknown, not as proof
+of a completed query.
 
 Choose the output according to the task. Saving under a new name changes the
 active workbook's path; saving a same-format copy leaves the active workbook

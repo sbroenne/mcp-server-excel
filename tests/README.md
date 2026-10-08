@@ -57,6 +57,18 @@ Missing Excel, VBA trust, desktop, or other prerequisites mean incomplete
 validation; do not manufacture a pass by skipping tests or changing host
 settings. Explicit on-demand locale/IRM probes need their own focused run.
 
+The opt-in SharePoint regression uses `TEST_SHAREPOINT_WORKBOOK_URL` to identify
+a writable test workbook and the signed-in Office account on the local desktop.
+It opens through the real MCP pipeline, verifies URL session identity, saves and
+reopens a temporary-sheet marker, and checks that close without saving discards
+edits. It removes its saved test sheet after successful verification. A failed
+run may leave that sheet saved; inspect the reported workbook before repeating
+or cleaning it up. Do not point this test at a customer or production workbook.
+
+```powershell
+dotnet test tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj -c Release --filter 'FullyQualifiedName~SharePointWorkbookTests' --blame-hang-timeout 5m --logger trx
+```
+
 ### Verify the outcome before cleanup
 
 Establish the relevant initial state, check the operation's response, then

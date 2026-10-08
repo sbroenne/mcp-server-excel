@@ -359,7 +359,7 @@ public sealed class ExcelMcpService : IDisposable
                 ErrorMessage = "filePath is required"
             };
         }
-        var fullPath = FilePathValidation.NormalizeAbsoluteWindowsPath(args.FilePath);
+        var fullPath = FilePathValidation.NormalizeWorkbookLocation(args.FilePath);
 
         try
         {
@@ -487,13 +487,19 @@ public sealed class ExcelMcpService : IDisposable
     private ServiceResponse HandleSessionList()
     {
         var sessions = _sessionManager.GetActiveSessions()
-            .Select(s => new
+            .Select(s =>
             {
-                sessionId = s.SessionId,
-                filePath = s.FilePath,
-                isExcelVisible = _sessionManager.IsExcelVisible(s.SessionId),
-                activeOperations = _sessionManager.GetActiveOperationCount(s.SessionId),
-                canClose = _sessionManager.GetActiveOperationCount(s.SessionId) == 0
+                var validation = _sessionManager.ValidateClose(s.SessionId);
+                return new
+                {
+                    sessionId = s.SessionId,
+                    filePath = s.FilePath,
+                    isExcelVisible = validation.IsExcelVisible,
+                    activeOperations = validation.ActiveOperationCount,
+                    canClose = validation.CanClose,
+                    excelState = validation.ExcelState,
+                    blockingReason = validation.BlockingReason
+                };
             })
             .ToList();
 
@@ -809,6 +815,16 @@ public sealed class ExcelMcpService : IDisposable
 
         try
         {
+            if (string.Equals(request.Command, ServiceRegistry.Connection.GetRefreshStatusCommand, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(request.Command, ServiceRegistry.Connection.CancelRefreshCommand, StringComparison.OrdinalIgnoreCase))
+            {
+                ConnectionCommands.ValidateRefreshControlReadiness(batch!);
+            }
+            if (string.Equals(request.Command, ServiceRegistry.Connection.GetAccountSettingsCommand, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(request.Command, ServiceRegistry.Connection.ClearAccountHintCommand, StringComparison.OrdinalIgnoreCase))
+            {
+                ConnectionCommands.ValidateAccountSettingsReadiness(batch!);
+            }
             ServiceRegistry.ValidateWorkbookWriteAccess(request.Command, batch!, request.Args);
             var response = action(batch!);
             return Task.FromResult(response);

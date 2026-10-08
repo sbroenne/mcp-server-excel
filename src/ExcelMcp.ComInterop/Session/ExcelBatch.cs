@@ -23,7 +23,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// </list>
 /// <para><b>Resource Cost:</b> Each ExcelBatch = one Excel.Application process (~50-100MB+ memory)</para>
 /// </remarks>
-internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
+internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcelBatchRefreshState
 {
     // P/Invoke for getting process ID from window handle
     [DllImport("user32.dll")]
@@ -42,6 +42,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     private readonly Thread _staThread;
     private readonly CancellationTokenSource _shutdownCts;
     private int _disposed; // 0 = not disposed, 1 = disposed (using int for Interlocked.CompareExchange)
+    private int _executingWorkItem;
     private int? _excelProcessId; // Excel.exe process ID for force-kill if needed
     private ExcelProcessIdentity? _excelProcessIdentity;
     private volatile bool _isExcelVisible;
@@ -349,7 +350,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                 foreach (var path in _allWorkbookPaths)
                 {
                     Excel.Workbook wb;
-                    string normalizedPath = Path.GetFullPath(path);
+                    string normalizedPath = WorkbookLocation.Normalize(path);
+                    bool isRemote = WorkbookLocation.IsRemote(normalizedPath);
 
                     if (_createNewFile)
                     {
@@ -385,7 +387,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                     else
                     {
                         // OPEN EXISTING FILE: Validate and open
-                        bool isIrm = FileAccessValidator.IsIrmProtected(normalizedPath);
+                        bool isIrm = !isRemote && FileAccessValidator.IsIrmProtected(normalizedPath);
 
                         if (isIrm)
                         {
@@ -399,7 +401,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                                 "IRM-protected file detected: {FileName}. Excel determines editing permissions.",
                                 Path.GetFileName(normalizedPath));
                         }
-                        else
+                        else if (!isRemote)
                         {
                             // CRITICAL: Check if file is locked at OS level BEFORE attempting Excel COM open
                             FileAccessValidator.ValidateFileNotLocked(path);
@@ -433,6 +435,12 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                     }
 
                     tempWorkbooks[normalizedPath] = wb;
+                    if (isRemote && !wb.ReadOnly)
+                    {
+                        // Cloud AutoSave would otherwise persist edits before an explicit save
+                        // and defeat close(save:false).
+                        wb.AutoSaveOn = false;
+                    }
                     AfterWorkbookOpenHookForTests?.Invoke(tempExcel, wb);
 
                     if (path == _workbookPath)
@@ -492,7 +500,15 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                                 continue;
                             }
 
-                            work.TryExecute();
+                            Interlocked.Exchange(ref _executingWorkItem, 1);
+                            try
+                            {
+                                work.TryExecute();
+                            }
+                            finally
+                            {
+                                Interlocked.Exchange(ref _executingWorkItem, 0);
+                            }
                         }
                     }
                     catch (OperationCanceledException)
@@ -743,7 +759,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     public void UpdateWorkbookPath(string workbookPath)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
-        var normalizedPath = Path.GetFullPath(workbookPath);
+        var normalizedPath = WorkbookLocation.Normalize(workbookPath);
 
         Execute((_, _) =>
         {
@@ -752,7 +768,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                 throw new InvalidOperationException("Workbooks not initialized");
             }
 
-            var previousPath = Path.GetFullPath(_workbookPath);
+            var previousPath = WorkbookLocation.Normalize(_workbookPath);
             if (!_workbooks.Remove(previousPath, out var workbook))
             {
                 throw new InvalidOperationException($"Tracked workbook '{previousPath}' was not found.");
@@ -820,7 +836,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
         if (_workbooks == null)
             throw new InvalidOperationException("Workbooks not initialized");
 
-        string normalizedPath = Path.GetFullPath(filePath);
+        string normalizedPath = WorkbookLocation.Normalize(filePath);
         if (_workbooks.TryGetValue(normalizedPath, out var workbook))
         {
             return workbook;
@@ -982,8 +998,12 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
 
     public void Save(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        ExcelBusyException.ThrowIfNotReady(GetRefreshState(), "save");
         Execute((ctx, ct) =>
         {
+            ExcelBusyException.ThrowIfNotReady(
+                ReadRefreshState(), "save");
             ExcelShutdownService.SaveWorkbookWithTimeout(
                 _workbook!,
                 Path.GetFileName(_workbookPath),
@@ -991,6 +1011,59 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                 ct);
             return 0;
         }, cancellationToken);
+    }
+
+    public WorkbookRefreshState GetRefreshState()
+    {
+        if (_disposed != 0 || _operationTimedOut)
+        {
+            return WorkbookRefreshState.Unknown;
+        }
+        // Window inspection must not queue behind COM work blocked by a modal prompt.
+        var dialogState = ExcelDialogProbe.Read(_excelProcessIdentity, _logger);
+        if (dialogState != WorkbookRefreshState.Ready)
+        {
+            return dialogState;
+        }
+        if (Volatile.Read(ref _executingWorkItem) != 0)
+        {
+            return WorkbookRefreshState.Busy;
+        }
+
+        var completion = new TaskCompletionSource<WorkbookRefreshState>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var work = new ExcelWorkItem<WorkbookRefreshState>(
+            ReadRefreshState, completion);
+        if (!_workQueue.Writer.TryWrite(work))
+        {
+            return WorkbookRefreshState.Unknown;
+        }
+        try
+        {
+            // Observational probes must neither wait behind a long query nor poison the session.
+            return completion.Task.WaitAsync(TimeSpan.FromSeconds(1)).GetAwaiter().GetResult();
+        }
+        catch (TimeoutException)
+        {
+            if (work.TryDiscard())
+            {
+                completion.TrySetResult(WorkbookRefreshState.Unknown);
+            }
+            _logger.LogWarning("Excel refresh-state inspection timed out; save and close remain blocked");
+            return WorkbookRefreshState.Unknown;
+        }
+    }
+
+    private WorkbookRefreshState ReadRefreshState()
+    {
+        var dialogState = ExcelDialogProbe.Read(_excelProcessIdentity, _logger);
+        if (dialogState != WorkbookRefreshState.Ready) return dialogState;
+        foreach (var workbook in _workbooks!.Values)
+        {
+            var state = WorkbookRefreshProbe.Read(_excel!, workbook, _logger);
+            if (state != WorkbookRefreshState.Ready) return state;
+        }
+        return WorkbookRefreshState.Ready;
     }
 
     public void Dispose()

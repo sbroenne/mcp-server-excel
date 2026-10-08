@@ -54,9 +54,9 @@ See [window management](window.md#visibility-and-placement).
   earlier work. There is no tool-level undo for discarded edits.
 - Cancellation is not undo. After failure, inspect the surviving session and
   affected objects before retrying. A failed operation can partly apply.
-- Save only the intended successful result. For a session opened exclusively for
-  a job, close without saving after failure. Do not discard another user's
-  existing session or earlier unsaved work.
+- Save only the intended successful result. After failure, inspect the partial
+  state before deciding whether to save or discard, including sessions opened
+  for a single job. Do not automatically discard earlier unsaved work.
 - Report what actually succeeded, the saved file when relevant, and any remaining
   failure. Do not present an attempted action as a completed result.
 
@@ -72,6 +72,63 @@ have no guaranteed caller-defined order, and responses can arrive out of order.
 Wait for each dependent call's result before starting the next. Different
 sessions can run independently. A `canClose: true` listing is a snapshot:
 do not submit new work while closing that session.
+
+`activeOperations: 0` counts server-tracked work, not every query Excel can run.
+The session listing also checks Excel's live refresh state. `canClose: false`
+can mean a running query, an open modal dialog, another busy Excel operation, or an inspection that
+could not confirm readiness. Both save-before-close and discard-close are
+blocked in these cases; the workbook remains open. Wait for Excel to finish,
+list sessions again, and retry only when ready. Do not cancel a query or discard
+edits merely to make closing possible.
+
+MCP `file_read` action `list` and `excelcli session list` expose `excelState`
+and, when closing is blocked, `blockingReason`. `excelState: "dialogOpen"`
+means a visible, enabled window is owned by a disabled Excel main window,
+including a dialog hosted in another process. This check does not call Excel COM,
+so it can report a dialog while an Excel operation is waiting. Ask the user to
+check the Excel window and respond to the prompt when appropriate, then inspect
+the session again. The server does not identify the dialog as authentication,
+read account details or passwords, select an account, or dismiss it. A progress
+dialog can also be reported; an open dialog is not proof that a query has stopped.
+Unrelated windows and modeless windows do not establish `dialogOpen`. If window
+inspection fails, readiness is `unknown`, not ready.
+
+Excel busy error `0x800AC472` does not establish a file lock or a visible dialog.
+A failed refresh-status read does not establish completion. After refresh or
+cancellation, inspect the intended loaded values as well as status before saving.
+MCP `connection_read` action `get-refresh-status` (CLI:
+`excelcli connection get-refresh-status`) reports background refresh flags when
+Excel is accessible. A synchronous query can prevent safe inspection or
+cancellation; these requests return `Busy` promptly instead of waiting behind
+the query. Cancellation uses MCP `connection` action `cancel-refresh` or
+`excelcli connection cancel-refresh`. Use the session listing to check readiness
+and retry after completion.
+
+For Power BI/Analysis Services MSOLAP OLEDB connections, inspect saved sign-in
+settings with MCP `connection_read` action `get-account-settings`, inputs
+`workbook_session_id` and `connection_name` (CLI:
+`excelcli connection get-account-settings --session <id> --connection-name <name>`).
+The result reports whether `User ID`/`UID`, password, and `EffectiveUserName`
+settings exist, plus recognized `Interactive Login` and `Identity Mode` values.
+It does not expose their account or secret values. Unconfigured modes are null;
+unrecognized mode values are reported as `Unrecognized`, not echoed.
+These settings do not establish which account is currently authenticated.
+
+If the user requests removing a saved account hint, use MCP `connection` action
+`clear-account-hint` with the same inputs (CLI:
+`excelcli connection clear-account-hint --session <id> --connection-name <name>`).
+Only `User ID`/`UID` on that exact connection are removed; passwords, tokens,
+server impersonation, and other settings are preserved and checked by readback.
+An absent hint returns `changed: false`. Both actions require idle Excel; clearing
+also requires a writable workbook. Power Query, ODBC, and non-MSOLAP providers
+are unsupported. Do not reconstruct a full connection string from the redacted
+`view` result to make this change.
+
+Clearing a hint does not sign out, delete Office/Windows credentials, force a new
+account-selection prompt, refresh, or save. Provider account choices may remain
+cached for the Excel process lifetime. Refresh and save explicitly when requested.
+If readback fails after a write, the workbook may be changed; inspect it before
+deciding what to do next. Do not assume rollback or clear shared token caches.
 
 ## Changes and formatting
 

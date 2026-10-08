@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using Sbroenne.ExcelMcp.Core.Utilities;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
 
@@ -32,12 +33,17 @@ public static partial class ExcelFileTool
     /// and confirm before closing a visible window unless already authorized.
     /// Normal server shutdown attempts to save open sessions; crashes and forced cleanup may lose edits.
     /// Protected files require show:true for authentication; Excel determines editing rights.
+    /// Open accepts direct SharePoint/OneDrive for Business HTTPS workbook URLs, including ?web=1.
+    /// URL opening requires show:true; browser pages, sharing links and arbitrary web URLs are not supported.
+    /// Remote AutoSave is disabled so explicit save/close semantics apply.
     /// Inspect workbook_read get-info readOnly before editing. Workbook changes reject read-only access.
     /// Failed saves retain the open session and unsaved changes.
+    /// canClose is false while Excel has a modal dialog open, is busy, refreshing, or its state cannot be confirmed,
+    /// even with activeOperations:0. Close with either save value is blocked until Excel is ready.
     /// Open/create default to 120 seconds. Cancellation is not undo; inspect the session state before continuing.
     /// </summary>
     /// <param name="action">The file operation to perform. close with save:false discards all unsaved edits, including earlier work; there is no tool-level undo.</param>
-    /// <param name="file_path">Full Windows workbook path. Required for open and create. Create supports .xlsx/.xlsm. Use a supplied path or discover the matching session; ask if the intended file is unclear.</param>
+    /// <param name="file_path">Full Windows workbook path, or a direct SharePoint/OneDrive for Business HTTPS workbook URL for open. URLs support .xlsx/.xlsm/.xlsb/.xls and optional ?web=1 or ?web=0. Create requires a Windows path and supports .xlsx/.xlsm. Use a supplied location or discover the matching session; ask if the intended file is unclear.</param>
     /// <param name="workbook_session_id">Session ID returned by open/create or listed by this server. Required for close.</param>
     /// <param name="save">Save before close; otherwise discard unsaved changes. Only valid for close.</param>
     /// <param name="show">Show Excel. Only valid for open/create; protected files may force visible authentication.</param>
@@ -66,16 +72,19 @@ public static partial class ExcelFileTool
             },
             bridge, file_path, workbook_session_id, save, show, timeout_seconds, cancellationToken);
 
-    /// <summary>List workbook sessions and validate a workbook path without opening an editable session.</summary>
+    /// <summary>List workbook sessions with live canClose, excelState and blockingReason, and validate a workbook path without opening an editable session. dialogOpen means an Excel-owned modal window is visible: ask the user to check Excel for a prompt, which may require sign-in. It does not identify the dialog type or prove a query has stopped. activeOperations:0 does not prove a background refresh has finished.</summary>
     /// <remarks>
     /// Test defaults to 120 seconds and validates ordinary files through a temporary read-only Excel open.
     /// IRM/AIP files require visible authentication; Excel determines editing rights, not protection detection.
     /// Inspect canOpen, isIrmProtected, willOpenReadOnly, and requiresVisibleSession.
     /// willOpenReadOnly:false does not guarantee editing rights; inspect workbook_read get-info readOnly after opening.
     /// Test does not bypass authentication.
+    /// SharePoint URLs return an interactive-validation requirement without opening Excel.
+    /// Remote existence, size and IRM protection cannot be established by local preflight;
+    /// false exists/isIrmProtected values do not prove absence or lack of protection.
     /// </remarks>
     /// <param name="action">List sessions or test whether a workbook can be opened.</param>
-    /// <param name="file_path">Full Windows workbook path. Required for test.</param>
+    /// <param name="file_path">Full Windows workbook path or direct SharePoint/OneDrive for Business HTTPS workbook URL. Required for test.</param>
     /// <param name="timeout_seconds">Timeout for test, in seconds (10-3600).</param>
     [McpServerTool(Name = "file_read", Title = "Read-Only File Operations", ReadOnly = true,
         Destructive = false, UseStructuredContent = true, OutputSchemaType = typeof(FileToolOutputSchema))]
@@ -118,13 +127,15 @@ public static partial class ExcelFileTool
             if (action == FileAction.Close && string.IsNullOrWhiteSpace(workbook_session_id))
                 throw new ArgumentException("workbook_session_id is required for file 'close'.");
 
-            if (action is FileAction.Open or FileAction.Create)
+            var isRemoteOpen = action == FileAction.Open
+                && FilePathValidation.IsRemoteWorkbook(file_path!);
+            if (action is FileAction.Open or FileAction.Create && !isRemoteOpen)
             {
                 var pathError = ExcelToolsBase.ValidateWindowsPath(file_path);
                 if (pathError is not null)
                     return pathError;
             }
-            if (action == FileAction.Open && !File.Exists(file_path))
+            if (action == FileAction.Open && !isRemoteOpen && !File.Exists(file_path))
             {
                 return JsonSerializer.Serialize(new
                 {

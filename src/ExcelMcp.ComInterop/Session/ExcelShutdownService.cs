@@ -74,8 +74,20 @@ public static class ExcelShutdownService
 
             for (int attempt = 1; attempt <= maxSaveAttempts; attempt++)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
+                    Excel.Application? application = null;
+                    try
+                    {
+                        application = workbook.Application;
+                        ExcelBusyException.ThrowIfNotReady(
+                            WorkbookRefreshProbe.Read(application, workbook, logger), "save");
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref application);
+                    }
                     // The Excel PIA adds an LCID to Save, which can rewrite locale-specific
                     // table column format definitions. IDispatch preserves those definitions.
                     ((dynamic)(object)workbook).Save();
@@ -92,8 +104,7 @@ public static class ExcelShutdownService
                     attempt < maxSaveAttempts &&
                     (ex.HResult == unchecked((int)0x800A03EC) || ex.HResult == unchecked((int)0x800AC472)))
                 {
-                    // File locked by another process or antivirus — retry with delay
-                    logger.LogDebug("Save attempt {Attempt} for {FileName} got transient lock (0x{HResult:X8}), retrying in {Delay}ms",
+                    logger.LogDebug("Save attempt {Attempt} for {FileName} got a transient Excel error (0x{HResult:X8}), retrying in {Delay}ms",
                         attempt, fileName, ex.HResult, saveRetryDelayMs * attempt);
                     Thread.Sleep(saveRetryDelayMs * attempt);
                 }
@@ -104,25 +115,29 @@ public static class ExcelShutdownService
         }
         catch (COMException ex)
         {
-            string errorMessage = ex.HResult switch
-            {
-                unchecked((int)0x800A03EC) =>
-                    $"Cannot save '{fileName}'. " +
-                    "The file may be read-only, locked by another process, or the path may not exist.",
-                unchecked((int)0x800AC472) =>
-                    $"Cannot save '{fileName}'. " +
-                    "The file is locked for editing by another user or process.",
-                ResiliencePipelines.RPC_E_DISCONNECTED =>
-                    $"Cannot save '{fileName}'. Excel disconnected from automation before the save completed. " +
-                    "The session is no longer usable; reopen the workbook and verify whether changes were saved.",
-                _ => $"Failed to save workbook '{fileName}': {ex.Message}"
-            };
+            string errorMessage = CreateSaveFailureMessage(ex.HResult, fileName, ex.Message);
 
             logger.LogError(ex, "Save failed for {FileName} (HResult: 0x{HResult:X8})", fileName, ex.HResult);
             throw new InvalidOperationException(errorMessage, ex);
         }
         // All other exceptions propagate; no generic catch block.
     }
+
+    internal static string CreateSaveFailureMessage(int hresult, string fileName, string detail) =>
+        hresult switch
+        {
+            unchecked((int)0x800A03EC) =>
+                $"Cannot save '{fileName}'. " +
+                "The file may be read-only, locked by another process, or the path may not exist.",
+            unchecked((int)0x800AC472) =>
+                $"Cannot save '{fileName}': Excel is busy (0x800AC472). " +
+                "A refresh or another Excel operation may still be running. Changes have not been saved. " +
+                "Inspect the open workbook, wait for Excel to finish, then retry saving.",
+            ResiliencePipelines.RPC_E_DISCONNECTED =>
+                $"Cannot save '{fileName}'. Excel disconnected from automation before the save completed. " +
+                "The session is no longer usable; reopen the workbook and verify whether changes were saved.",
+            _ => $"Failed to save workbook '{fileName}': {detail}"
+        };
 
     /// <summary>
     /// Closes a workbook and quits the Excel application with resilient retry logic.

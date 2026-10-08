@@ -152,8 +152,9 @@ public sealed class SessionManagerTeardownFailureTests
                 .GetField(name, BindingFlags.Instance | BindingFlags.NonPublic)!
                 .GetValue(manager));
 
-    private sealed class OneShotFailingBatch : IExcelBatch, IExcelBatchTeardownState
+    private sealed class OneShotFailingBatch : IExcelBatch, IExcelBatchTeardownState, IExcelBatchRefreshState
     {
+        public WorkbookRefreshState GetRefreshState() => WorkbookRefreshState.Ready;
         private bool _cleanupConfirmed;
 
         public int DisposeCallCount { get; private set; }
@@ -209,8 +210,9 @@ public sealed class SessionManagerTeardownFailureTests
         }
     }
 
-    private sealed class ConfigurableFailingBatch(bool saveFails, bool disposeFails) : IExcelBatch
+    private sealed class ConfigurableFailingBatch(bool saveFails, bool disposeFails) : IExcelBatch, IExcelBatchRefreshState
     {
+        public WorkbookRefreshState GetRefreshState() => WorkbookRefreshState.Ready;
         internal InvalidOperationException SaveException { get; } =
             new("synthetic save failure");
 
