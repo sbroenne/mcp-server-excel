@@ -77,6 +77,11 @@ reports an error rather than presenting it as empty.
 
 ## Save and publish
 
+Opening or creating a workbook requires a confirmed Excel process ID and start
+time for safe readiness checks and cleanup. Startup retries a temporary capture
+failure. If the identity remains unavailable, it reports an error before opening
+or creating the workbook rather than returning a session that cannot save or close.
+
 Inspect `readOnly` with MCP `workbook_read` action `get-info` or
 `excelcli workbook get-info` before editing. Protected workbooks require visible
 authentication; Excel decides editing rights. Do not change protection to work

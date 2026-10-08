@@ -62,6 +62,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     /// </summary>
     internal static Action<string, CancellationToken>? BeforeWorkbookOpenHook { get; set; }
     internal static Action<object, object>? AfterWorkbookOpenHookForTests { get; set; }
+    internal static Func<int, ExcelProcessIdentity?>? TrackProcessIdentityHookForTests { get; set; }
 
     internal static Func<ExcelProcessIdentity, bool>? FailedStartupTerminationHook { get; set; }
 
@@ -270,8 +271,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 }
                 tempExcel.DisplayAlerts = false;
 
-                // Capture Excel process ID for force-kill scenarios (hung Excel, dead RPC connection)
-                // Retry with delay: Excel's HWND may not be immediately available under system load.
+                // Readiness probes and teardown require both PID and start time.
+                // Retry when Excel's window or process identity is not available yet.
                 try
                 {
                     const int maxRetries = 3;
@@ -288,28 +289,26 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                             {
                                 _excelProcessId = (int)processId;
                                 _excelProcessIdentity =
-                                    SessionManager.TrackExcelProcessIdentity(_excelProcessId.Value);
-                                _logger.LogDebug("Captured Excel process ID via Hwnd: {ProcessId} (attempt {Attempt})",
-                                    _excelProcessId, attempt);
-                                break;
+                                    TrackProcessIdentityHookForTests is { } trackIdentity
+                                        ? trackIdentity(_excelProcessId.Value)
+                                        : SessionManager.TrackExcelProcessIdentity(_excelProcessId.Value);
+                                if (_excelProcessIdentity.HasValue)
+                                {
+                                    _logger.LogDebug("Captured Excel process identity via Hwnd: {ProcessId} (attempt {Attempt})",
+                                        _excelProcessId, attempt);
+                                    break;
+                                }
                             }
                         }
 
                         if (attempt < maxRetries)
                         {
-                            _logger.LogDebug("Hwnd not available yet (attempt {Attempt}/{Max}), retrying in {Delay}ms",
+                            _logger.LogDebug("Excel process identity not available yet (attempt {Attempt}/{Max}), retrying in {Delay}ms",
                                 attempt, maxRetries, retryDelayMs);
                             Thread.Sleep(retryDelayMs);
                         }
                     }
 
-                    if (!_excelProcessId.HasValue)
-                    {
-                        _logger.LogWarning(
-                            "Could not determine Excel process ID via Hwnd after {MaxRetries} attempts. " +
-                            "Force-kill will be disabled for this session to avoid killing unrelated Excel instances.",
-                            maxRetries);
-                    }
                 }
                 catch (ExcelProcessPersistenceException ex)
                 {
@@ -318,7 +317,14 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to capture Excel process ID. Force-kill will not be available.");
+                    _logger.LogWarning(ex, "Failed to capture Excel process identity during startup.");
+                }
+                if (!_excelProcessIdentity.HasValue)
+                {
+                    _logger.LogError("Excel startup cannot continue without a confirmed process identity.");
+                    throw new InvalidOperationException(
+                        "Could not capture Excel process identity. No workbook has been opened or created, " +
+                        "and no session was published. Retry opening the workbook.");
                 }
 
                 // Workbook macro execution must remain available for explicit VBA operations on
