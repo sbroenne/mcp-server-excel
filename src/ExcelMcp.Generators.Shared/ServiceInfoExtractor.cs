@@ -97,6 +97,7 @@ public static class ServiceInfoExtractor
 
         // Extract interface-level XML documentation
         var interfaceSummary = ExtractInterfaceSummary(interfaceSymbol);
+        var interfaceMacCapability = ExtractMacCapabilityInfo(interfaceSymbol, null);
 
         var methods = new List<MethodInfo>();
 
@@ -128,7 +129,8 @@ public static class ServiceInfoExtractor
                     xmlDoc?.Summary,
                     hasBatchParameter,
                     hasProgressParameter,
-                    methodMcpToolReadOnly));
+                    methodMcpToolReadOnly,
+                    ExtractMacCapabilityInfo(method, interfaceMacCapability)));
             }
         }
 
@@ -146,7 +148,94 @@ public static class ServiceInfoExtractor
             mcpToolReadOnly,
             mcpToolCategory,
             mcpToolDescription,
-            hasMcpToolAttribute: mcpTool != null);
+            hasMcpToolAttribute: mcpTool != null,
+            macCapability: interfaceMacCapability);
+    }
+
+    public static MacCapabilityInfo ExtractMacCapabilityInfo(
+        ISymbol symbol,
+        MacCapabilityInfo? inherited)
+    {
+        var attribute = symbol.GetAttributes()
+            .FirstOrDefault(candidate => candidate.AttributeClass?.Name == "MacCapabilityAttribute");
+        if (attribute is null)
+        {
+            return inherited ?? MacCapabilityInfo.Unclassified;
+        }
+
+        var tier = attribute.ConstructorArguments.Length > 0
+            ? GetEnumArgumentName(attribute.ConstructorArguments[0], "Unsupported")
+            : "Unsupported";
+        var status = attribute.ConstructorArguments.Length > 1
+            ? GetEnumArgumentName(attribute.ConstructorArguments[1], "NotTested")
+            : "NotTested";
+        var isAvailable = attribute.ConstructorArguments.Length > 2
+            && attribute.ConstructorArguments[2].Value is true;
+        string? evidence = null;
+        string? excelApiVersion = null;
+        string? blocker = null;
+        foreach (var argument in attribute.NamedArguments)
+        {
+            switch (argument.Key)
+            {
+                case "Evidence":
+                    evidence = argument.Value.Value?.ToString();
+                    break;
+                case "ExcelApiVersion":
+                    excelApiVersion = argument.Value.Value?.ToString();
+                    break;
+                case "Blocker":
+                    blocker = argument.Value.Value?.ToString();
+                    break;
+            }
+        }
+
+        var defaults = GetMacCapabilityDefaults(tier, isAvailable);
+        return new MacCapabilityInfo(
+            tier,
+            status,
+            isAvailable,
+            evidence ?? defaults.Evidence,
+            excelApiVersion ?? defaults.ExcelApiVersion,
+            isAvailable ? string.Empty : blocker ?? defaults.Blocker);
+    }
+
+    private static MacCapabilityInfo GetMacCapabilityDefaults(string tier, bool isAvailable)
+    {
+        if (isAvailable && tier == "Native")
+        {
+            return new MacCapabilityInfo(
+                tier,
+                "Implemented",
+                true,
+                "Real desktop Excel coverage exercises the native Apple Events action through CLI and MCP.",
+                "Excel for Mac 16.112.3; Apple Events dictionary inspected for the same version.",
+                string.Empty);
+        }
+
+        return new MacCapabilityInfo(
+            "Unsupported",
+            "Blocked",
+            false,
+            "No macOS route has been verified to preserve this generated Windows contract.",
+            "Excel for Mac 16.113.1 Apple Events dictionary.",
+            "current supported macOS APIs cannot preserve the exact public contract; use the Windows COM backend");
+    }
+
+    private static string GetEnumArgumentName(TypedConstant argument, string fallback)
+    {
+        if (argument.Type is not INamedTypeSymbol enumType || argument.Value is null)
+        {
+            return fallback;
+        }
+
+        return enumType.GetMembers()
+            .OfType<IFieldSymbol>()
+            .FirstOrDefault(field =>
+                field.HasConstantValue
+                && Equals(field.ConstantValue, argument.Value))
+            ?.Name
+            ?? fallback;
     }
 
     private static string? ExtractInterfaceSummary(INamedTypeSymbol interfaceSymbol)

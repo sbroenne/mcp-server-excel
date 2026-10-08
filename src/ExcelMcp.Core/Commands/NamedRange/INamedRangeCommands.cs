@@ -15,6 +15,9 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 [McpTool("namedrange", Title = "Named Range Operations", Destructive = true, Category = "data",
     Description = "Create, update, delete, and write named ranges for formulas/parameters. Create/update use reference for the cell reference (e.g., Sheet1!$A$1). Write uses value: invariant numeric and Boolean strings become typed values; other input remains text. For bulk data writes, use range with the named range as range_address.")]
 [McpReadOnlyActions("list", "read")]
+[MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+    Evidence = "Real CLI/MCP acceptance verifies direct-reference named-range list, create, read, write, update, and delete, typed values, bounded previews, save/reopen persistence, and an unrelated-workbook sentinel. Dynamic, constant-only, and other formula-based references fail explicitly for read/write and are listed as unavailable.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary; native workbook named items and direct worksheet ranges.")]
 public interface INamedRangeCommands
 {
     /// <summary>

@@ -1,4 +1,6 @@
 #pragma warning disable CS1591
+using Sbroenne.ExcelMcp.Core.Attributes;
+
 namespace Sbroenne.ExcelMcp.Core.Models.Actions;
 
 /// <summary>
@@ -12,18 +14,30 @@ namespace Sbroenne.ExcelMcp.Core.Models.Actions;
 [System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<FileAction>))]
 public enum FileAction
 {
+    /// <summary>Lists sessions owned by the current entry-point process.</summary>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [System.Text.Json.Serialization.JsonStringEnumMemberName("list")]
     List,
 
+    /// <summary>Opens one exact existing workbook through the platform session owner.</summary>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [System.Text.Json.Serialization.JsonStringEnumMemberName("open")]
     Open,
 
+    /// <summary>Closes one owned workbook with explicit save or discard semantics.</summary>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [System.Text.Json.Serialization.JsonStringEnumMemberName("close")]
     Close,
 
+    /// <summary>Creates and owns a workbook at one exact target path.</summary>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [System.Text.Json.Serialization.JsonStringEnumMemberName("create")]
     Create,
 
+    /// <summary>Validates file metadata and ordinary workbook openability through Excel.</summary>
+    [MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+        Evidence = "The Windows contract validates ordinary workbooks through a temporary read-only Excel open.",
+        Blocker = "macOS file-test parity requires a verified temporary read-only open and cleanup route")]
     [System.Text.Json.Serialization.JsonStringEnumMemberName("test")]
     Test
 }
@@ -78,4 +92,3 @@ public enum FileAction
 // CalculationModeAction is now generated from ICalculationModeCommands interface
 // See Sbroenne.ExcelMcp.Generated.CalculationModeAction in ServiceRegistry.CalculationMode.g.cs
 #pragma warning restore CS1591
-

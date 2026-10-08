@@ -1,5 +1,9 @@
 # Data Model and DAX
 
+**Windows-only in the experimental macOS beta.** Data Model, DAX, relationships,
+and OLAP actions are unavailable on Mac; installing MSOLAP is not a workaround.
+See [macOS support](https://excelmcpserver.dev/macos-support/).
+
 Worksheet Tables and Data Model tables are separate. Add an existing Excel Table
 to the model, or load a Power Query to `data-model`/`both`, before creating
 relationships or measures. Use model table listings to discover exact names.

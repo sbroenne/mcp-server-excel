@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <NoWarn>$(NoWarn);CS1591;CA1707;IDE0005</NoWarn>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+    <AssemblyName>Sbroenne.ExcelMcp.Portable.Tests</AssemblyName>
+    <RootNamespace>Sbroenne.ExcelMcp.Portable.Tests</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ExcelMcp.Core\ExcelMcp.Core.csproj" />
+    <ProjectReference Include="..\..\src\ExcelMcp.Service\ExcelMcp.Service.csproj" />
+    <ProjectReference Include="..\..\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj" />
+    <ProjectReference Include="..\..\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj"
+                      ReferenceOutputAssembly="false"
+                      Condition="'$(OS)' != 'Windows_NT'" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Shared\TestClassificationArchitectureTests.cs" Link="Infrastructure\TestClassificationArchitectureTests.cs" />
+  </ItemGroup>
+</Project>

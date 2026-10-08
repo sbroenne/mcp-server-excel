@@ -1,6 +1,6 @@
 ---
 title: Automate PivotTables with an AI Assistant
-description: Create, configure, and refresh real Excel PivotTables from an AI assistant - worksheet or Data Model sources, DAX measures, PivotCharts, and refresh rules.
+description: Create and refresh Excel PivotTables on Windows using worksheet or Data Model sources, DAX measures, and PivotCharts. Unsupported in the experimental Mac beta.
 keywords: "automate PivotTable, PivotTable automation AI, create PivotTable programmatically, refresh PivotTable, PivotChart automation"
 ---
 

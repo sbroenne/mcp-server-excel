@@ -3,21 +3,8 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
-using Sbroenne.ExcelMcp.Core.Commands.Analysis;
-using Sbroenne.ExcelMcp.Core.Commands.Calculation;
-using Sbroenne.ExcelMcp.Core.Commands.Chart;
-using Sbroenne.ExcelMcp.Core.Commands.Diag;
-using Sbroenne.ExcelMcp.Core.Commands.Drawing;
-using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
-using Sbroenne.ExcelMcp.Core.Commands.PythonInExcel;
-using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Service.Rpc;
-using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
-using Sbroenne.ExcelMcp.Core.Commands.Slicer;
-using Sbroenne.ExcelMcp.Core.Commands.Table;
-using Sbroenne.ExcelMcp.Core.Commands.Window;
-using Sbroenne.ExcelMcp.Core.Commands.Workbook;
-using Sbroenne.ExcelMcp.Core.Commands.XmlMap;
+using Sbroenne.ExcelMcp.Service.Mac;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Generated;
 
@@ -32,46 +19,41 @@ namespace Sbroenne.ExcelMcp.Service;
 public sealed class ExcelMcpService : IDisposable
 {
     private readonly SessionManager _sessionManager = new();
+    private readonly MacExcelBackend? _macBackend;
+    private readonly MacExcelSessionManager? _macSessionManager;
     private readonly ConcurrentDictionary<string, byte> _knownSessionIds = new(StringComparer.Ordinal);
     private readonly DaemonHost _daemonHost;
     private readonly DateTime _startTime = DateTime.UtcNow;
     private bool _disposed;
 
-    // Core command instances - use concrete types per CA1859
-    private readonly RangeCommands _rangeCommands = new();
-    private readonly SheetCommands _sheetCommands = new();
-    private readonly TableCommands _tableCommands = new();
-    private readonly PowerQueryCommands _powerQueryCommands;
-    private readonly PivotTableCommands _pivotTableCommands = new();
-    private readonly SlicerCommands _slicerCommands = new();
-    private readonly ChartCommands _chartCommands = new();
-    private readonly ConnectionCommands _connectionCommands = new();
-    private readonly QueryTableCommands _queryTableCommands = new();
-    private readonly NamedRangeCommands _namedRangeCommands = new();
-    private readonly ConditionalFormattingCommands _conditionalFormatCommands = new();
-    private readonly VbaCommands _vbaCommands = new();
-    private readonly DataModelCommands _dataModelCommands = new();
-    private readonly CalculationModeCommands _calculationModeCommands = new();
-    private readonly ScreenshotCommands _screenshotCommands = new();
-    private readonly DiagCommands _diagCommands = new();
-    private readonly DrawingCommands _drawingCommands = new();
-    private readonly WindowCommands _windowCommands = new();
-    private readonly WorkbookCommands _workbookCommands = new();
-    private readonly PythonInExcelCommands _pythonInExcelCommands = new();
-    private readonly AnalysisCommands _analysisCommands = new();
-    private readonly XmlMapCommands _xmlMapCommands = new();
+    private readonly PlatformCommandSet _commands;
     private readonly FileCommands _fileCommands = new();
 
     public ExcelMcpService()
     {
-        _powerQueryCommands = new PowerQueryCommands(_dataModelCommands);
+        _commands = OperatingSystem.IsMacOS() ? PlatformCommandSet.CreateMac() : PlatformCommandSet.CreateWindows();
         _daemonHost = new DaemonHost(
             ProcessAsync,
-            () => _sessionManager.GetActiveSessions().Count);
+            () => SessionCount);
+        if (OperatingSystem.IsMacOS())
+        {
+            _macBackend = new MacExcelBackend();
+            _macSessionManager = new MacExcelSessionManager(_macBackend);
+        }
+    }
+
+    internal ExcelMcpService(MacExcelBackend macBackend)
+    {
+        _commands = PlatformCommandSet.CreateMac();
+        _macBackend = macBackend;
+        _macSessionManager = new MacExcelSessionManager(macBackend);
+        _daemonHost = new DaemonHost(
+            ProcessAsync,
+            () => SessionCount);
     }
 
     public DateTime StartTime => _startTime;
-    public int SessionCount => _sessionManager.GetActiveSessions().Count;
+    public int SessionCount => _macSessionManager?.Count ?? _sessionManager.GetActiveSessions().Count;
     public SessionManager SessionManager => _sessionManager;
 
     /// <summary>
@@ -102,77 +84,81 @@ public sealed class ExcelMcpService : IDisposable
 
             ServiceResponse response = category switch
             {
-                "service" => HandleServiceCommand(action),
-                "session" => HandleSessionCommand(action, request),
+                "service" => action is "helper-check" or "helper-build"
+                    ? await HandleMacHelperCommandAsync(action, request)
+                    : HandleServiceCommand(action),
+                "session" => _macSessionManager is not null
+                    ? await HandleMacSessionCommandAsync(action, request)
+                    : HandleSessionCommand(action, request),
                 "sheet" => await DispatchSheetAsync(action, request),
                 "worksheetstyle" => await DispatchSimpleAsync<WorksheetStyleAction>(action, request,
                     ServiceRegistry.WorksheetStyle.TryParseAction,
-                    (a, batch) => ServiceRegistry.WorksheetStyle.DispatchToCore(_sheetCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.WorksheetStyle.DispatchToCore(_commands.WorksheetStyle, a, batch, request.Args)),
                 "range" or "rangeedit" or "rangeformat" or "rangelink" => await DispatchRangeAsync(action, request),
                 "table" or "tablecolumn" => await DispatchTableAsync(action, request),
                 "powerquery" => await DispatchSimpleAsync<PowerQueryAction>(action, request,
                     ServiceRegistry.PowerQuery.TryParseAction,
-                    (a, batch) => ServiceRegistry.PowerQuery.DispatchToCore(_powerQueryCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.PowerQuery.DispatchToCore(_commands.PowerQuery, a, batch, request.Args)),
                 "pivottable" => await DispatchSimpleAsync<PivotTableAction>(action, request,
                     ServiceRegistry.PivotTable.TryParseAction,
-                    (a, batch) => ServiceRegistry.PivotTable.DispatchToCore(_pivotTableCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.PivotTable.DispatchToCore(_commands.PivotTable, a, batch, request.Args)),
                 "pivottablefield" => await DispatchSimpleAsync<PivotTableFieldAction>(action, request,
                     ServiceRegistry.PivotTableField.TryParseAction,
-                    (a, batch) => ServiceRegistry.PivotTableField.DispatchToCore(_pivotTableCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.PivotTableField.DispatchToCore(_commands.PivotTableField, a, batch, request.Args)),
                 "pivottablecalc" => await DispatchSimpleAsync<PivotTableCalcAction>(action, request,
                     ServiceRegistry.PivotTableCalc.TryParseAction,
-                    (a, batch) => ServiceRegistry.PivotTableCalc.DispatchToCore(_pivotTableCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.PivotTableCalc.DispatchToCore(_commands.PivotTableCalc, a, batch, request.Args)),
                 "chart" => await DispatchSimpleAsync<ChartAction>(action, request,
                     ServiceRegistry.Chart.TryParseAction,
-                    (a, batch) => ServiceRegistry.Chart.DispatchToCore(_chartCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.Chart.DispatchToCore(_commands.Chart, a, batch, request.Args)),
                 "chartconfig" => await DispatchSimpleAsync<ChartConfigAction>(action, request,
                     ServiceRegistry.ChartConfig.TryParseAction,
-                    (a, batch) => ServiceRegistry.ChartConfig.DispatchToCore(_chartCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.ChartConfig.DispatchToCore(_commands.ChartConfig, a, batch, request.Args)),
                 "connection" => await DispatchSimpleAsync<ConnectionAction>(action, request,
                     ServiceRegistry.Connection.TryParseAction,
-                    (a, batch) => ServiceRegistry.Connection.DispatchToCore(_connectionCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.Connection.DispatchToCore(_commands.Connection, a, batch, request.Args)),
                 "querytable" => await DispatchSimpleAsync<QueryTableAction>(action, request,
                     ServiceRegistry.QueryTable.TryParseAction,
-                    (a, batch) => ServiceRegistry.QueryTable.DispatchToCore(_queryTableCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.QueryTable.DispatchToCore(_commands.QueryTable, a, batch, request.Args)),
                 "calculationmode" => await DispatchSimpleAsync<CalculationModeAction>(action, request,
                     ServiceRegistry.CalculationMode.TryParseAction,
-                    (a, batch) => ServiceRegistry.CalculationMode.DispatchToCore(_calculationModeCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.CalculationMode.DispatchToCore(_commands.CalculationMode, a, batch, request.Args)),
                 "analysis" => await DispatchSimpleAsync<AnalysisAction>(action, request,
                     ServiceRegistry.Analysis.TryParseAction,
-                    (a, batch) => ServiceRegistry.Analysis.DispatchToCore(_analysisCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.Analysis.DispatchToCore(_commands.Analysis, a, batch, request.Args)),
                 "namedrange" => await DispatchSimpleAsync<NamedRangeAction>(action, request,
                     ServiceRegistry.NamedRange.TryParseAction,
-                    (a, batch) => ServiceRegistry.NamedRange.DispatchToCore(_namedRangeCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.NamedRange.DispatchToCore(_commands.NamedRange, a, batch, request.Args)),
                 "conditionalformat" => await DispatchSimpleAsync<ConditionalFormatAction>(action, request,
                     ServiceRegistry.ConditionalFormat.TryParseAction,
-                    (a, batch) => ServiceRegistry.ConditionalFormat.DispatchToCore(_conditionalFormatCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.ConditionalFormat.DispatchToCore(_commands.ConditionalFormat, a, batch, request.Args)),
                 "vba" => await DispatchSimpleAsync<VbaAction>(action, request,
                     ServiceRegistry.Vba.TryParseAction,
-                    (a, batch) => ServiceRegistry.Vba.DispatchToCore(_vbaCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.Vba.DispatchToCore(_commands.Vba, a, batch, request.Args)),
                 "datamodel" => await DispatchSimpleAsync<DataModelAction>(action, request,
                     ServiceRegistry.DataModel.TryParseAction,
-                    (a, batch) => ServiceRegistry.DataModel.DispatchToCore(_dataModelCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.DataModel.DispatchToCore(_commands.DataModel, a, batch, request.Args)),
                 "datamodelrelationship" => await DispatchSimpleAsync<DataModelRelationshipAction>(action, request,
                     ServiceRegistry.DataModelRelationship.TryParseAction,
-                    (a, batch) => ServiceRegistry.DataModelRelationship.DispatchToCore(_dataModelCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.DataModelRelationship.DispatchToCore(_commands.DataModelRelationship, a, batch, request.Args)),
                 "slicer" => await DispatchSimpleAsync<SlicerAction>(action, request,
                     ServiceRegistry.Slicer.TryParseAction,
-                    (a, batch) => ServiceRegistry.Slicer.DispatchToCore(_slicerCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.Slicer.DispatchToCore(_commands.Slicer, a, batch, request.Args)),
                 "screenshot" => await DispatchSimpleAsync<ScreenshotAction>(action, request,
                     ServiceRegistry.Screenshot.TryParseAction,
-                    (a, batch) => ServiceRegistry.Screenshot.DispatchToCore(_screenshotCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.Screenshot.DispatchToCore(_commands.Screenshot, a, batch, request.Args)),
                 "window" => await DispatchWindowAsync(action, request),
                 "workbook" => await DispatchWorkbookAsync(action, request),
                 "diag" => DispatchSessionless(action, request),
                 "drawing" => await DispatchSimpleAsync<DrawingAction>(action, request,
                     ServiceRegistry.Drawing.TryParseAction,
-                    (a, batch) => ServiceRegistry.Drawing.DispatchToCore(_drawingCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.Drawing.DispatchToCore(_commands.Drawing, a, batch, request.Args)),
                 "pythoninexcel" => await DispatchSimpleAsync<PythonInExcelAction>(action, request,
                     ServiceRegistry.PythonInExcel.TryParseAction,
-                    (a, batch) => ServiceRegistry.PythonInExcel.DispatchToCore(_pythonInExcelCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.PythonInExcel.DispatchToCore(_commands.PythonInExcel, a, batch, request.Args)),
                 "xmlmap" => await DispatchSimpleAsync<XmlMapAction>(action, request,
                     ServiceRegistry.XmlMap.TryParseAction,
-                    (a, batch) => ServiceRegistry.XmlMap.DispatchToCore(_xmlMapCommands, a, batch, request.Args)),
+                    (a, batch) => ServiceRegistry.XmlMap.DispatchToCore(_commands.XmlMap, a, batch, request.Args)),
                 _ => new ServiceResponse
                 {
                     Success = false,
@@ -182,6 +168,10 @@ public sealed class ExcelMcpService : IDisposable
             };
 
             return AttachRequestContext(request, response);
+        }
+        catch (MacExcelOperationException ex)
+        {
+            return AttachRequestContext(request, ex.ToServiceResponse());
         }
         catch (Exception ex)
         {
@@ -214,19 +204,195 @@ public sealed class ExcelMcpService : IDisposable
         return new ServiceResponse { Success = true };
     }
 
+    private async Task<ServiceResponse> HandleMacHelperCommandAsync(string action, ServiceRequest request)
+    {
+        if (_macBackend == null)
+        {
+            throw new PlatformNotSupportedException("The native ExcelMcp helper requires Apple Silicon macOS.");
+        }
+        if (action == "helper-check")
+        {
+            if (ServiceRegistry.GetJsonPropertyNames(request.Args, includeNullValues: true).Count != 0)
+            {
+                throw new ArgumentException("service.helper-check accepts no arguments.");
+            }
+            var info = await _macBackend.RequireHelperAsync(MacHelperProtocol.InfoPrimitives, TimeSpan.FromSeconds(30));
+            return new ServiceResponse
+            {
+                Success = true,
+                Result = JsonSerializer.Serialize(info, ServiceProtocol.JsonOptions)
+            };
+        }
+        var allowed = new HashSet<string>(["workbookPath", "outputPath", "helperVersion"], StringComparer.Ordinal);
+        if (ServiceRegistry.GetJsonPropertyNames(request.Args, includeNullValues: true).Any(name => !allowed.Contains(name)))
+        {
+            throw new ArgumentException("service.helper-build accepts only workbookPath, outputPath, and helperVersion.");
+        }
+        var workbookPath = FilePathValidation.NormalizeAbsolutePath(GetRequiredStringArgument(request.Args, "workbookPath"));
+        var outputPath = FilePathValidation.NormalizeAbsolutePath(GetRequiredStringArgument(request.Args, "outputPath"));
+        var helperVersion = GetRequiredStringArgument(request.Args, "helperVersion");
+        if (!string.Equals(Path.GetExtension(workbookPath), ".xlsm", StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(Path.GetExtension(outputPath), ".xlam", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException("The helper build requires an Excel-authored .xlsm bootstrap and an .xlam output.");
+        }
+        if (!File.Exists(workbookPath)) throw new FileNotFoundException("The helper bootstrap workbook does not exist.", workbookPath);
+        if (File.Exists(outputPath)) throw new InvalidOperationException("The helper build output already exists; it will not be overwritten.");
+        var result = await _macBackend.InvokeAsync("helper.build", new { workbookPath, outputPath, helperVersion }, TimeSpan.FromMinutes(2));
+        return new ServiceResponse { Success = true, Result = result.GetRawText() };
+    }
+
     private ServiceResponse HandleStatus()
     {
         var status = new ServiceStatus
         {
             Running = true,
             ProcessId = Environment.ProcessId,
-            SessionCount = _sessionManager.GetActiveSessions().Count,
+            SessionCount = SessionCount,
             StartTime = _startTime
         };
         return new ServiceResponse { Success = true, Result = JsonSerializer.Serialize(status, ServiceProtocol.JsonOptions) };
     }
 
     // === SESSION COMMANDS ===
+
+    private async Task<ServiceResponse> HandleMacSessionCommandAsync(
+        string action,
+        ServiceRequest request)
+    {
+        if (action is not ("create" or "open" or "close" or "list" or "test"))
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = $"Unknown session action: {action}"
+            };
+        }
+
+        ValidateSessionActionArguments(action, request.Args);
+        if (action == "list")
+        {
+            var sessions = _macSessionManager!.Sessions.Select(session => new
+            {
+                sessionId = session.SessionId,
+                filePath = session.FilePath,
+                isExcelVisible = session.IsVisible,
+                activeOperations = Volatile.Read(ref session.ActiveOperations),
+                canClose = session.PendingOperations == 0
+                    && !session.IsClosing
+                    && !session.HasUnconfirmedOpen
+                    && !session.RequiresRecovery
+                    && session.UnsafeReason is null,
+                requiresRecovery = session.RequiresRecovery,
+                unsafeReason = session.UnsafeReason
+            }).ToList();
+            return new ServiceResponse
+            {
+                Success = true,
+                Result = JsonSerializer.Serialize(
+                    new { success = true, sessions, count = sessions.Count },
+                    ServiceProtocol.JsonOptions)
+            };
+        }
+
+        if (action == "test")
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "PlatformNotSupported",
+                ErrorMessage = MacCommandCapabilities.Get("file.test").UnavailableMessage
+            };
+        }
+
+        if (action == "close")
+        {
+            if (string.IsNullOrWhiteSpace(request.SessionId))
+            {
+                return new ServiceResponse
+                {
+                    Success = false,
+                    ErrorCategory = "InvalidInput",
+                    ErrorMessage = "sessionId is required"
+                };
+            }
+
+            var closeArgs = ServiceRegistry.DeserializeArgs<SessionCloseArgs>(request.Args);
+            var closed = await _macSessionManager!.CloseAsync(request.SessionId, closeArgs?.Save ?? false);
+            if (closed)
+            {
+                return new ServiceResponse { Success = true };
+            }
+            if (_knownSessionIds.ContainsKey(request.SessionId))
+            {
+                return new ServiceResponse
+                {
+                    Success = true,
+                    Result = JsonSerializer.Serialize(
+                        new { success = true, sessionId = request.SessionId, message = "Session already closed." },
+                        ServiceProtocol.JsonOptions)
+                };
+            }
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "SessionNotFound",
+                ErrorMessage = $"Session '{request.SessionId}' not found"
+            };
+        }
+
+        var args = ServiceRegistry.DeserializeArgs<SessionOpenArgs>(request.Args);
+        if (string.IsNullOrWhiteSpace(args.FilePath))
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "InvalidInput",
+                ErrorMessage = "filePath is required"
+            };
+        }
+
+        var fullPath = FilePathValidation.NormalizeAbsolutePath(args.FilePath);
+        var parsedTimeout = ParameterTransforms.ParseTimeoutSeconds(
+            args.TimeoutSeconds,
+            "timeoutSeconds",
+            minimumSeconds: 10,
+            maximumSeconds: 3600);
+        var timeout = parsedTimeout ?? TimeSpan.FromSeconds(120);
+        if (action == "open" && !File.Exists(fullPath))
+        {
+            throw new FileNotFoundException(
+                $"Excel file not found: {fullPath}. To create a new file, use the 'create' action instead.",
+                fullPath);
+        }
+        if (action == "create" && File.Exists(fullPath))
+        {
+            throw new InvalidOperationException(
+                $"File already exists: {fullPath}. Use session open to open an existing workbook.");
+        }
+
+        var extension = Path.GetExtension(fullPath);
+        if (!string.Equals(extension, ".xlsx", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(extension, ".xlsm", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException(
+                $"Invalid file extension '{extension}'. session {action} supports .xlsx and .xlsm only.");
+        }
+
+        var macroEnabled = string.Equals(extension, ".xlsm", StringComparison.OrdinalIgnoreCase);
+        var sessionId = action == "create"
+            ? await _macSessionManager!.CreateAsync(fullPath, macroEnabled, args.Show, timeout)
+            : await _macSessionManager!.OpenAsync(fullPath, args.Show, timeout);
+        _knownSessionIds.TryAdd(sessionId, 0);
+        return new ServiceResponse
+        {
+            Success = true,
+            Result = JsonSerializer.Serialize(
+                new { success = true, sessionId, filePath = fullPath },
+                ServiceProtocol.JsonOptions)
+        };
+    }
 
     private ServiceResponse HandleSessionCommand(string action, ServiceRequest request)
     {
@@ -300,7 +466,7 @@ public sealed class ExcelMcpService : IDisposable
             };
         }
 
-        var fullPath = FilePathValidation.NormalizeAbsoluteWindowsPath(args.FilePath);
+        var fullPath = FilePathValidation.NormalizeAbsolutePath(args.FilePath);
 
         if (File.Exists(fullPath))
         {
@@ -359,7 +525,7 @@ public sealed class ExcelMcpService : IDisposable
                 ErrorMessage = "filePath is required"
             };
         }
-        var fullPath = FilePathValidation.NormalizeAbsoluteWindowsPath(args.FilePath);
+        var fullPath = FilePathValidation.NormalizeAbsolutePath(args.FilePath);
 
         try
         {
@@ -571,7 +737,7 @@ public sealed class ExcelMcpService : IDisposable
                 ErrorMessage = $"Unknown action: {actionString}"
             };
 
-        return WrapResult(ServiceRegistry.Diag.DispatchToCore(_diagCommands, action, request.Args));
+        return WrapResult(ServiceRegistry.Diag.DispatchToCore(_commands.Diag, action, request.Args));
     }
 
     private async Task<ServiceResponse> DispatchSheetAsync(string actionString, ServiceRequest request)
@@ -594,7 +760,7 @@ public sealed class ExcelMcpService : IDisposable
 
                     return WrapResult(ServiceRegistry.Sheet.DispatchToCore(
 
-                        _sheetCommands, sheetAction, null!, request.Args));
+                        _commands.Sheet, sheetAction, null!, request.Args));
 
                 }
 
@@ -612,7 +778,7 @@ public sealed class ExcelMcpService : IDisposable
 
             return await WithSessionAsync(request, batch =>
 
-                WrapResult(ServiceRegistry.Sheet.DispatchToCore(_sheetCommands, sheetAction, batch, request.Args)));
+                WrapResult(ServiceRegistry.Sheet.DispatchToCore(_commands.Sheet, sheetAction, batch, request.Args)));
 
         }
 
@@ -634,16 +800,16 @@ public sealed class ExcelMcpService : IDisposable
         return await WithSessionAsync(request, batch =>
         {
             if (ServiceRegistry.Range.TryParseAction(actionString, out var ra))
-                return WrapResult(ServiceRegistry.Range.DispatchToCore(_rangeCommands, ra, batch, request.Args));
+                return WrapResult(ServiceRegistry.Range.DispatchToCore(_commands.Range, ra, batch, request.Args));
 
             if (ServiceRegistry.RangeEdit.TryParseAction(actionString, out var rea))
-                return WrapResult(ServiceRegistry.RangeEdit.DispatchToCore(_rangeCommands, rea, batch, request.Args));
+                return WrapResult(ServiceRegistry.RangeEdit.DispatchToCore(_commands.RangeEdit, rea, batch, request.Args));
 
             if (ServiceRegistry.RangeFormat.TryParseAction(actionString, out var rfa))
-                return WrapResult(ServiceRegistry.RangeFormat.DispatchToCore(_rangeCommands, rfa, batch, request.Args));
+                return WrapResult(ServiceRegistry.RangeFormat.DispatchToCore(_commands.RangeFormat, rfa, batch, request.Args));
 
             if (ServiceRegistry.RangeLink.TryParseAction(actionString, out var rla))
-                return WrapResult(ServiceRegistry.RangeLink.DispatchToCore(_rangeCommands, rla, batch, request.Args));
+                return WrapResult(ServiceRegistry.RangeLink.DispatchToCore(_commands.RangeLink, rla, batch, request.Args));
 
             return new ServiceResponse
             {
@@ -665,11 +831,11 @@ public sealed class ExcelMcpService : IDisposable
 
             if (ServiceRegistry.Table.TryParseAction(actionString, out var ta))
 
-                return WrapResult(ServiceRegistry.Table.DispatchToCore(_tableCommands, ta, batch, request.Args));
+                return WrapResult(ServiceRegistry.Table.DispatchToCore(_commands.Table, ta, batch, request.Args));
 
             if (ServiceRegistry.TableColumn.TryParseAction(actionString, out var tca))
 
-                return WrapResult(ServiceRegistry.TableColumn.DispatchToCore(_tableCommands, tca, batch, request.Args));
+                return WrapResult(ServiceRegistry.TableColumn.DispatchToCore(_commands.TableColumn, tca, batch, request.Args));
 
             return new ServiceResponse
             {
@@ -694,10 +860,10 @@ public sealed class ExcelMcpService : IDisposable
 
         return await WithSessionAsync(request, batch =>
         {
-            var result = WrapResult(ServiceRegistry.Window.DispatchToCore(_windowCommands, windowAction, batch, request.Args));
+            var result = WrapResult(ServiceRegistry.Window.DispatchToCore(_commands.Window, windowAction, batch, request.Args));
 
             // Update SessionManager visibility flag when show/hide commands succeed
-            if (result.Success && !string.IsNullOrWhiteSpace(request.SessionId))
+            if (_macSessionManager == null && result.Success && !string.IsNullOrWhiteSpace(request.SessionId))
             {
                 if (windowAction is WindowAction.Show or WindowAction.Arrange or WindowAction.SetState or WindowAction.SetPosition)
                 {
@@ -730,7 +896,7 @@ public sealed class ExcelMcpService : IDisposable
         {
             string? reservedPath = null;
             var releaseReservation = true;
-            if (workbookAction == WorkbookAction.SaveAs &&
+            if (_macSessionManager == null && workbookAction == WorkbookAction.SaveAs &&
                 !string.IsNullOrWhiteSpace(request.SessionId))
             {
                 reservedPath = _sessionManager.ReserveSessionFilePath(
@@ -741,7 +907,7 @@ public sealed class ExcelMcpService : IDisposable
             try
             {
                 var result = WrapResult(
-                    ServiceRegistry.Workbook.DispatchToCore(_workbookCommands, workbookAction, batch, request.Args));
+                    ServiceRegistry.Workbook.DispatchToCore(_commands.Workbook, workbookAction, batch, request.Args));
 
                 return result;
             }
@@ -799,6 +965,11 @@ public sealed class ExcelMcpService : IDisposable
                 ErrorCategory = "InvalidInput",
                 ErrorMessage = "sessionId is required"
             });
+        }
+
+        if (_macSessionManager != null)
+        {
+            return WithMacSessionAsync(sessionId, action);
         }
 
         var sessionError = TryBeginUsableSession(sessionId, out var batch);
@@ -899,6 +1070,47 @@ public sealed class ExcelMcpService : IDisposable
         finally
         {
             _sessionManager.EndOperation(sessionId);
+        }
+    }
+
+    private async Task<ServiceResponse> WithMacSessionAsync(string sessionId, Func<IExcelBatch, ServiceResponse> action)
+    {
+        try
+        {
+            return await _macSessionManager!.ExecuteAsync(sessionId, async session =>
+            {
+                using var batch = new MacExcelBatch(_macBackend!, session);
+                return await Task.Run(() => action(batch));
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "SessionNotFound",
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (TimeoutException ex)
+        {
+            _macSessionManager!.RequireRecovery(sessionId);
+            return new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "Timeout",
+                ErrorMessage = ex.Message,
+                ExceptionType = ex.GetType().Name
+            };
+        }
+        catch (MacExcelOperationException ex)
+        {
+            return ex.ToServiceResponse();
+        }
+        catch (Exception ex)
+        {
+            return CreateErrorResponse(ex);
         }
     }
 
@@ -1064,6 +1276,7 @@ public sealed class ExcelMcpService : IDisposable
         _daemonHost.RequestShutdown();
         try
         {
+            _macSessionManager?.Dispose();
             _sessionManager.Dispose();
         }
         finally

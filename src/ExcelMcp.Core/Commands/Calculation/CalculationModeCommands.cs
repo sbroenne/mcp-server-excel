@@ -89,6 +89,9 @@ public interface ICalculationModeCommands
 {
     /// <summary>Read actual calculation settings/state and workbook precision; no success-shaped fallback.</summary>
     /// <param name="batch">Excel batch session</param>
+    [MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+        Evidence = "The current Windows contract changed after the Mac implementation was verified.",
+        Blocker = "macOS parity must be reverified against the current contract before enabling this action")]
     [ServiceAction("get-settings")]
     CalculationSettingsResult GetSettings(IExcelBatch batch);
 
@@ -102,6 +105,9 @@ public interface ICalculationModeCommands
     /// <param name="maximumIterations">Optional iteration count, 1 through 32767</param>
     /// <param name="maximumChange">Optional finite positive convergence tolerance</param>
     /// <param name="calculateBeforeSave">Optional native calculate-before-save flag</param>
+    [MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+        Evidence = "The current Windows contract changed after the Mac implementation was verified.",
+        Blocker = "macOS parity must be reverified against the current contract before enabling this action")]
     [ServiceAction("set-settings")]
     CalculationSettingsResult SetSettings(IExcelBatch batch,
         [FromString] CalculationMode? mode = null, bool? iterationEnabled = null,
@@ -114,6 +120,9 @@ public interface ICalculationModeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="precisionAsDisplayed">Required true to enable or false to disable</param>
     /// <param name="allowPrecisionLoss">Required explicit true permission when enabling; default false</param>
+    [MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+        Evidence = "The current Windows contract changed after the Mac implementation was verified.",
+        Blocker = "macOS parity must be reverified against the current contract before enabling this action")]
     [ServiceAction("set-precision")]
     CalculationSettingsResult SetPrecision(IExcelBatch batch,
         [RequiredParameter] bool precisionAsDisplayed, bool allowPrecisionLoss = false);
@@ -128,6 +137,9 @@ public interface ICalculationModeCommands
     /// <param name="sheetName">Required for sheet/range scope</param>
     /// <param name="rangeAddress">Required for range scope</param>
     /// <param name="kind">normal, full, or rebuild; default normal</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "Native normal sheet and rectangular range calculation preserves shared validation/results, calculation mode and active worksheet. CLI/MCP acceptance checks dirty-cell sentinels in other ranges, worksheets and workbooks. Application scope, full/rebuild, and disjoint/structured/spill address variants are explicitly gated before mutation.",
+        ExcelApiVersion = "Installed Excel for Mac Apple Events dictionary; worksheet and range calculate commands.")]
     [ServiceAction("calculate")]
     OperationResult Calculate(IExcelBatch batch, [RequiredParameter, FromString] CalculationScope scope,
         string? sheetName = null, string? rangeAddress = null,

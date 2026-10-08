@@ -133,43 +133,44 @@ $originalHome = $env:HOME
 $originalPath = $env:PATH
 
 try {
-    $echoScript = Join-Path $tempProfile "echo-argument.js"
-
     New-Item -ItemType Directory -Path $tempProfile -Force | Out-Null
-    [IO.File]::WriteAllText(
-        $echoScript,
-        'WScript.StdOut.Write("pipeline-ok");',
-        [Text.UTF8Encoding]::new($false))
-    [IO.File]::WriteAllText(
-        (Join-Path $tempProfile "npx.cmd"),
-        "@echo off`r`n",
-        [Text.Encoding]::ASCII)
     $npmBin = Join-Path $tempProfile "node_modules\npm\bin"
     New-Item -ItemType Directory -Path $npmBin -Force | Out-Null
     [IO.File]::WriteAllText(
         (Join-Path $npmBin "npx-cli.js"),
         @'
-const { spawnSync } = require("node:child_process");
 if (process.argv[2] !== "-y" || process.argv[3] !== "@sbroenne/excelcli@latest") {
     throw new Error(`Unexpected npx arguments: ${process.argv.slice(2).join(" ")}`);
 }
-const child = spawnSync(
-    `${process.env.SystemRoot}\\System32\\cscript.exe`,
-    process.argv.slice(4),
-    { stdio: "inherit" });
-if (child.error) {
-    throw child.error;
+if (process.argv.length !== 5) {
+    throw new Error("Expected exactly one passthrough argument");
 }
-process.exit(child.status ?? 1);
+process.stdout.write(process.argv[4]);
 '@,
         [Text.UTF8Encoding]::new($false))
+    if ($IsWindows) {
+        [IO.File]::WriteAllText(
+            (Join-Path $tempProfile "npx.cmd"),
+            "@echo off`r`n",
+            [Text.Encoding]::ASCII)
+    } else {
+        $npx = Join-Path $tempProfile "npx"
+        $npxStub = @'
+#!/bin/sh
+exec node "$(dirname "$0")/node_modules/npm/bin/npx-cli.js" "$@"
+'@
+        [IO.File]::WriteAllText($npx, ($npxStub -replace "`r`n?", "`n") + "`n",
+            [Text.UTF8Encoding]::new($false))
+        [IO.File]::SetUnixFileMode($npx,
+            [IO.UnixFileMode]::UserRead -bor [IO.UnixFileMode]::UserWrite -bor [IO.UnixFileMode]::UserExecute)
+    }
 
     $env:USERPROFILE = $tempProfile
     $env:HOME = $tempProfile
-    $env:PATH = "$tempProfile;$originalPath"
+    $env:PATH = "$tempProfile$([IO.Path]::PathSeparator)$originalPath"
 
     $wrapper = Join-Path $repoRoot "plugins\excel-cli\bin\start-cli.ps1"
-    $captured = (& $wrapper //nologo $echoScript | Out-String).Trim()
+    $captured = (& $wrapper "pipeline-ok" | Out-String).Trim()
 
     if ($captured -ne "pipeline-ok") {
         throw "CLI wrapper pipeline capture failed. Expected 'pipeline-ok', got '$captured'."

@@ -220,13 +220,15 @@ def write_llm_outputs(site_dir: Path, site_url: str) -> None:
         "# Excel MCP Server",
         "",
         "> Excel MCP Server (ExcelMcp) automates the real Microsoft Excel "
-        f"application through its COM API, exposing {headline_tools} tools and "
+        f"application, exposing {headline_tools} tools and "
         f"{headline_operations} operations to AI assistants "
         "over the Model Context Protocol and to scripts through "
         "the `excelcli` command line. Unlike file-parser libraries it can refresh "
         "Power Query, evaluate DAX against the Data Model, refresh PivotTables, "
-        "and run VBA, because Excel itself does the work. Windows-only; requires "
-        "Microsoft Excel 2016 or later.",
+        "and run VBA on Windows, because Excel itself does the work. "
+        "Windows requires Microsoft Excel 2016 or later. Apple Silicon macOS "
+        "support is experimental beta with a capability-gated subset; consult "
+        "the Mac support page for unavailable features and recovery rules.",
         "",
         "Every page below is also available as Markdown by appending `index.md` "
         "to its URL. The complete corpus is at "
@@ -336,14 +338,35 @@ def write_tools_json(site_dir: Path, site_url: str, repo_url: str) -> None:
         "url": site_url,
         "repository": repo_url,
         "description": (
-            "Automates the real Microsoft Excel application through its COM API, "
+            "Automates the real Microsoft Excel application through Windows COM "
+            "or capability-gated Apple Events on Apple Silicon macOS, "
             "exposing Excel to AI assistants over the Model Context Protocol and "
             "to scripts through the excelcli command line. "
             "Feature groups describe capabilities, not individual commands."
         ),
         "requirements": {
-            "operatingSystem": "Windows",
-            "application": "Microsoft Excel desktop 2016 or later",
+            "operatingSystem": ["Windows", "Apple Silicon macOS (experimental beta)"],
+            "application": "Microsoft Excel desktop; Windows requires 2016 or later",
+        },
+        "catalogueScope": "Full Windows capability catalogue; Mac availability is recorded separately.",
+        "platformSupport": {
+            "Windows": {"status": "supported", "backend": "COM"},
+            "macOS": {
+                "status": "experimental beta",
+                "architecture": "Apple Silicon",
+                "backend": "Apple Events",
+                "supportPage": site_url.rstrip("/") + "/macos-support/",
+                "capabilityInventory": repo_url.rstrip("/") + "/blob/main/docs/MACOS-ACTION-INVENTORY.md",
+                "unsupportedFeatures": [
+                    "Power Query",
+                    "Public VBA module/source actions and arbitrary macro execution",
+                    "Data Model, DAX, and OLAP",
+                    "Tables, PivotTables, charts, and slicers",
+                    "Connections and QueryTables",
+                    "Screenshots and XML Maps",
+                    "Advanced worksheet, visual, calculation, and file variants",
+                ],
+            },
         },
         "entryPoints": ["mcp-server", "cli"],
         "toolCount": headline_tools,

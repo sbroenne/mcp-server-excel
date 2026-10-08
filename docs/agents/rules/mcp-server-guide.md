@@ -12,7 +12,8 @@
   content. Unexpected exceptions and cancellation propagate to the SDK.
 - Request filters validate supplied action parameters and session identity
   before SDK binding. Generate action applicability from Core contracts.
-- Ordinary shutdown saves remaining sessions. Explicit no-save close discards
+- Ordinary shutdown saves confirmed remaining sessions; an unconfirmed Mac
+  handoff stays untouched for manual recovery. Explicit no-save close discards
   edits; cancellation is not undo and must not close unrelated workbooks.
 - Stdio stdout is JSON-RPC only, including startup/bootstrap paths; diagnostics
   go to stderr.

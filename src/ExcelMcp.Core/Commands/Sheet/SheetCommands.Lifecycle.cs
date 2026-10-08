@@ -151,27 +151,14 @@ public partial class SheetCommands
         }
         catch (System.Runtime.InteropServices.COMException namingError)
         {
-            var message = isNewSheet
-                ? $"Excel rejected worksheet name '{name}'. The new worksheet '{existingName}' remains in the workbook; inspect it and remove it if appropriate."
-                : $"Excel rejected worksheet name '{name}'. Worksheet '{existingName}' was not renamed.";
+            var message = WorksheetCommandValidation.NamingRejectionMessage(name, existingName, isNewSheet);
             throw new InvalidOperationException(message, namingError);
         }
     }
 
     private static void ValidateNewSheetName(string name)
     {
-        if (string.IsNullOrWhiteSpace(name) ||
-            name.Length > 31 ||
-            name.AsSpan().IndexOfAny(":\\/?*[]".AsSpan()) >= 0 ||
-            name.StartsWith('\'') ||
-            name.EndsWith('\'') ||
-            string.Equals(name, "History", StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException(
-                "Worksheet names must be nonblank, contain at most 31 characters, not be 'History', " +
-                "not contain : \\ / ? * [ ], and not begin or end with an apostrophe.",
-                nameof(name));
-        }
+        WorksheetCommandValidation.ValidateNewSheetName(name);
     }
 
     private static void EnsureSheetNameAvailable(
@@ -194,11 +181,7 @@ public partial class SheetCommands
                         Excel.Chart chart => chart.Name,
                         _ => throw new InvalidOperationException("Excel returned an unsupported sheet type during name validation.")
                     };
-                    if (string.Equals(existingName, name, StringComparison.OrdinalIgnoreCase) &&
-                        !string.Equals(existingName, currentName, StringComparison.Ordinal))
-                    {
-                        throw new InvalidOperationException($"Sheet '{name}' already exists.");
-                    }
+                    WorksheetCommandValidation.RequireAvailableName(existingName, name, currentName);
                 }
                 finally { ComUtilities.Release(ref candidate); }
             }
@@ -215,10 +198,7 @@ public partial class SheetCommands
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
-                if (sheet == null)
-                {
-                    throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
-                }
+                WorksheetCommandValidation.RequireExistingSheet(sheet != null, sheetName);
                 sheet.Delete();
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }

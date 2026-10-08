@@ -2,7 +2,7 @@
   "name": "excelmcp",
   "version": "2.3.7",
   "private": true,
-  "description": "ExcelMcp is a Windows-only Excel automation toolset (MCP Server, CLI, VS Code Extension, MCPB). This package.json exists solely to host Changesets tooling for CHANGELOG.md generation — it is never published to npm and has no runtime dependencies.",
+  "description": "ExcelMcp is an Excel automation toolset for Windows x64/ARM64 and Apple Silicon macOS across the MCP Server, CLI, VS Code extension, plugins, and MCPB. This package.json exists solely to host Changesets tooling for CHANGELOG.md generation — it is never published to npm and has no runtime dependencies.",
   "repository": {
     "type": "git",
     "url": "https://github.com/sbroenne/mcp-server-excel"

@@ -27,6 +27,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PythonInExcel;
 /// builtins (sum()/len()) to avoid getting a Series back instead of a scalar total.
 /// </summary>
 [ServiceCategory("PythonInExcel")]
+[MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Blocked, false,
+    Evidence = "Excel for Mac 16.113.2 accepted and preserved PY() Formula2 writes, but the result read failed through the public MCP entry point with Apple Events 'Message not understood'.",
+    ExcelApiVersion = "Excel for Mac 16.113.2; Formula2 and Apple Events.",
+    Blocker = "Python result values cannot be read reliably through the native API; use Windows for get-result.")]
 [McpTool("pythoninexcel", Title = "Python in Excel Operations", Destructive = true, Category = "data",
     Description = "Write and read Microsoft 365 \"Python in Excel\" =PY() formulas. Requires a licensed M365 account with Python in Excel enabled and internet access - Python code executes in Microsoft's cloud sandbox, not locally. SET-FORMULA writes '=PY(code, returnType)' via Range.Formula2 (returnType: 0=Excel Value, 1=Python Object; always pass it explicitly). GET-RESULT starts application-level calculation, which can execute cloud Python and pending formulas in other workbooks owned by the Excel process; it is not inspection-only. It reads back the result, polling until the cloud round-trip completes (a fresh formula reads as #BUSY! while still computing); completion is detected deterministically from Excel's calculation state, so a real result is not confused with the #BUSY! placeholder. If Excel returns #NAME? for a PY() formula, both actions report that Python in Excel is unavailable in the current session. If the backend is still busy at the deadline (e.g. a cold start), GET-RESULT says so - call it again or raise maxWaitSeconds. Reference live worksheet data inside the Python code using xl(\"A1:A6\"), xl(\"Sheet1!A1:A6\"), or a named range xl(\"MyRange\") - this works reliably. TIP: xl() returns a DataFrame/Series, not a plain list, so prefer .sum()/.mean()/.max() methods over Python's builtin sum()/len().")]
 public interface IPythonInExcelCommands
@@ -42,6 +46,9 @@ public interface IPythonInExcelCommands
     /// <param name="code">Python source code (e.g. "xl('A1:A6').sum()")</param>
     /// <param name="returnType">0 = Excel Value (default), 1 = Python Object</param>
     /// <exception cref="InvalidOperationException">If the range cannot be resolved</exception>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "CLI and MCP preserved the exact literal PY() Formula2 through the native setter's immediate readback.",
+        ExcelApiVersion = "Excel for Mac 16.113.2; Formula2.")]
     [ServiceAction("set-formula")]
     OperationResult SetFormula(
         IExcelBatch batch,

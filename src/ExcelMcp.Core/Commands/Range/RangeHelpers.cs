@@ -297,7 +297,7 @@ public static class RangeHelpers
         }
     }
 
-    private static List<string>? ParseSupportedRangeAreas(string rangeAddress)
+    internal static List<string>? ParseSupportedRangeAreas(string rangeAddress)
     {
         if (string.IsNullOrWhiteSpace(rangeAddress))
         {

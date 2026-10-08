@@ -9,6 +9,11 @@ its COM API, so the Power Query engine that runs is Excel's own. Credentials,
 privacy levels, native connectors, and the Data Model all behave exactly as they
 do when you click **Data → Refresh All** yourself.
 
+On macOS, every Power Query action returns `PlatformNotSupported`. Excel for Mac
+exposes no direct Apple Events API that satisfies the contract,
+and ExcelMcp does not inspect workbook packages or ship a VBA helper. See
+[macOS support](../../specs/MACOS-SUPPORT.md#power-query-and-vba-limitations).
+
 ## What you ask for
 
 Talk to your assistant in plain language:

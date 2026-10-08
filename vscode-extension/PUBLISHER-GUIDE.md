@@ -2,6 +2,12 @@
 
 This guide walks you through publishing your VS Code extension to the marketplace for the first time.
 
+These steps require explicit publication authorization, not merely permission
+to build packages. The extension has separate Windows x64, Windows ARM64, and
+Apple Silicon VSIX files; Mac support is **experimental beta**, with the
+[unsupported-feature reference](../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta)
+in its packaged README. Local validation is documented in [DEVELOPMENT.md](DEVELOPMENT.md).
+
 ## Quick Summary
 
 1. Create Azure DevOps organization + PAT token
@@ -105,6 +111,7 @@ This guide walks you through publishing your VS Code extension to the marketplac
    - Watch the "Release All Components" workflow run
    - It will:
      - Build all components (MCP Server, CLI, VS Code Extension, MCPB)
+     - Build and publish the Windows x64, Windows ARM64, and Apple Silicon macOS VSIX packages
      - Publish to NuGet (MCP Server, CLI)
      - Publish to VS Code Marketplace
      - Create unified GitHub release with all artifacts

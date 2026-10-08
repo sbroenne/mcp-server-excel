@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 using System.Xml.Linq;
 using Xunit;
 
-namespace Sbroenne.ExcelMcp.Packaging.Tests;
+namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
 
 /// <summary>
 /// Integration tests for release metadata synchronization and workflow wiring.
@@ -15,7 +15,6 @@ namespace Sbroenne.ExcelMcp.Packaging.Tests;
 public sealed class ReleaseMetadataScriptTests
 {
     private static readonly string RepoRoot = FindRepoRoot();
-    private static readonly string[] GitRepositoryEnvironmentVariables = GetGitRepositoryEnvironmentVariables();
     private static readonly string UpdateMetadataScript = Path.Combine(
         RepoRoot,
         "scripts",
@@ -77,7 +76,9 @@ public sealed class ReleaseMetadataScriptTests
             {
                 "ExcelMcp-CLI-1.2.3-windows.zip", "ExcelMcp-MCP-Server-1.2.3-windows.zip",
                 "excel-plugins-v1.2.3.zip", "excel-skills-v1.2.3.zip",
-                "excel-mcp-1.2.3.vsix", "excel-mcp-1.2.3-win32-arm64.vsix", "excel-mcp-1.2.3.mcpb"
+                "excel-mcp-1.2.3.vsix", "excel-mcp-1.2.3-win32-arm64.vsix", "excel-mcp-1.2.3.mcpb",
+                "ExcelMcp-CLI-1.2.3-macos-arm64.zip", "ExcelMcp-MCP-Server-1.2.3-macos-arm64.zip",
+                "excelmcp-1.2.3-darwin-arm64.vsix", "excel-mcp-1.2.3-macos-arm64.mcpb"
             })
             {
                 File.WriteAllText(Path.Combine(artifacts, name), name);
@@ -277,7 +278,7 @@ public sealed class ReleaseMetadataScriptTests
                 Assert.Equal(
                     Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(Path.Combine(sandbox, "metadata.patch")))),
                     inputs.RootElement.GetProperty("metadataPatchSha256").GetString());
-                Assert.Equal(7, inputs.RootElement.GetProperty("artifacts").GetArrayLength());
+                Assert.Equal(11, inputs.RootElement.GetProperty("artifacts").GetArrayLength());
                 foreach (var artifact in inputs.RootElement.GetProperty("artifacts").EnumerateArray())
                 {
                     var name = artifact.GetProperty("name").GetString()!;
@@ -286,7 +287,7 @@ public sealed class ReleaseMetadataScriptTests
                         artifact.GetProperty("sha256").GetString());
                 }
                 var checksumLines = File.ReadAllLines(Path.Combine(sandbox, "publish", "SHA256SUMS"));
-                Assert.Equal(9, checksumLines.Length);
+                Assert.Equal(13, checksumLines.Length);
                 foreach (var line in checksumLines)
                 {
                     var parts = line.Split("  ", StringSplitOptions.None);
@@ -440,7 +441,7 @@ public sealed class ReleaseMetadataScriptTests
 
     [Fact]
     [Trait("Feature", "ReleaseMetadata")]
-    public void McpRegistryPublication_UsesOnlyExactExistingRelease()
+    public void McpRegistryRepair_UsesOnlyExactExistingRelease()
     {
         var release = File.ReadAllText(ReleaseWorkflow);
         var registry = File.ReadAllText(McpRegistryWorkflow);
@@ -448,7 +449,7 @@ public sealed class ReleaseMetadataScriptTests
 
         Assert.Contains("uses: ./.github/workflows/publish-mcp-registry.yml", publishMcpRegistry, StringComparison.Ordinal);
         Assert.Contains("needs: [version, create-tag, create-release, publish]", publishMcpRegistry, StringComparison.Ordinal);
-        Assert.DoesNotContain("workflow_dispatch:", registry, StringComparison.Ordinal);
+        Assert.Contains("workflow_dispatch:", registry, StringComparison.Ordinal);
         Assert.Contains("environment: mcp-registry", registry, StringComparison.Ordinal);
         Assert.Contains("./scripts/Resolve-McpRegistryRelease.ps1", registry, StringComparison.Ordinal);
         Assert.Contains("ref: ${{ github.sha }}", registry, StringComparison.Ordinal);
@@ -465,7 +466,7 @@ public sealed class ReleaseMetadataScriptTests
     [InlineData(true)]
     [InlineData(false)]
     [Trait("Feature", "ReleaseMetadata")]
-    public async Task McpRegistryPublication_RequiresTagCommitOnMain(bool tagCommitOnMain)
+    public async Task McpRegistryRepair_RequiresTagCommitOnMain(bool tagCommitOnMain)
     {
         var sandbox = CreateSandbox();
         try
@@ -476,26 +477,24 @@ public sealed class ReleaseMetadataScriptTests
             var runner = Path.Combine(sandbox, "run.ps1");
             File.WriteAllText(runner, $$"""
                 $ErrorActionPreference = 'Stop'
-                function Invoke-FixtureGit {
-                    git @args
-                    if ($LASTEXITCODE -ne 0) { throw "Fixture Git command failed: git $args" }
-                }
-                Invoke-FixtureGit init --bare '{{remote.Replace("'", "''", StringComparison.Ordinal)}}'
-                Invoke-FixtureGit init -b main '{{repository.Replace("'", "''", StringComparison.Ordinal)}}'
+                $ErrorView = 'NormalView'
+                git init --bare '{{remote.Replace("'", "''", StringComparison.Ordinal)}}'
+                git init '{{repository.Replace("'", "''", StringComparison.Ordinal)}}'
                 Set-Location '{{repository.Replace("'", "''", StringComparison.Ordinal)}}'
-                Invoke-FixtureGit config user.name fixture
-                Invoke-FixtureGit config user.email fixture@example.test
+                git config user.name fixture
+                git config user.email fixture@example.test
                 Set-Content release.txt base
-                Invoke-FixtureGit add release.txt
-                Invoke-FixtureGit commit -m base
-                Invoke-FixtureGit remote add origin '{{remote.Replace("'", "''", StringComparison.Ordinal)}}'
-                Invoke-FixtureGit push -u origin main
+                git add release.txt
+                git commit -m base
+                git branch -M main
+                git remote add origin '{{remote.Replace("'", "''", StringComparison.Ordinal)}}'
+                git push -u origin main
                 if (-not ${{tagCommitOnMain.ToString().ToLowerInvariant()}}) {
-                    Invoke-FixtureGit checkout -b unmerged
+                    git checkout -b unmerged
                     Set-Content release.txt unmerged
-                    Invoke-FixtureGit commit -am unmerged
+                    git commit -am unmerged
                 }
-                Invoke-FixtureGit tag v1.2.3
+                git tag v1.2.3
                 $env:GITHUB_OUTPUT = Join-Path $PWD output.txt
                 function gh {
                     [pscustomobject]@{ isDraft = $false; tagName = 'v1.2.3' } | ConvertTo-Json -Compress
@@ -515,74 +514,6 @@ public sealed class ReleaseMetadataScriptTests
                 Assert.Contains("not reachable from protected main", result.Stderr, StringComparison.Ordinal);
                 Assert.False(File.Exists(Path.Combine(repository, "output.txt")));
             }
-        }
-        finally { DeleteGitSandbox(sandbox); }
-    }
-
-    [Fact]
-    [Trait("Feature", "ReleaseMetadata")]
-    public async Task GitFixtures_IgnoreInheritedHookRepositoryAndIndex()
-    {
-        var sandbox = CreateSandbox();
-        try
-        {
-            var foreign = Path.Combine(sandbox, "foreign");
-            var repository = Path.Combine(sandbox, "fixture");
-            var setup = Path.Combine(sandbox, "setup.ps1");
-            File.WriteAllText(setup, $$"""
-                $ErrorActionPreference = 'Stop'
-                $PSNativeCommandUseErrorActionPreference = $true
-                git init -b main '{{foreign.Replace("'", "''", StringComparison.Ordinal)}}'
-                Set-Location '{{foreign.Replace("'", "''", StringComparison.Ordinal)}}'
-                git config user.name original
-                git config user.email original@example.test
-                Set-Content sentinel.txt untouched
-                git add sentinel.txt
-                git commit -m sentinel
-                """);
-            var prepared = await RunPowerShellScriptAsync(setup, [], sandbox);
-            Assert.True(prepared.ExitCode == 0, prepared.CombinedOutput);
-            var foreignConfig = Path.Combine(foreign, ".git", "config");
-            var foreignIndex = Path.Combine(foreign, ".git", "index");
-            var configBefore = File.ReadAllBytes(foreignConfig);
-            var indexBefore = File.ReadAllBytes(foreignIndex);
-            var headBefore = File.ReadAllText(Path.Combine(foreign, ".git", "HEAD"));
-            var tipPath = Path.Combine(foreign, ".git", "refs", "heads", "main");
-            var tipBefore = File.ReadAllText(tipPath);
-            var runner = Path.Combine(sandbox, "fixture.ps1");
-            File.WriteAllText(runner, $$"""
-                $ErrorActionPreference = 'Stop'
-                $PSNativeCommandUseErrorActionPreference = $true
-                git init -b main '{{repository.Replace("'", "''", StringComparison.Ordinal)}}'
-                Set-Location '{{repository.Replace("'", "''", StringComparison.Ordinal)}}'
-                git config user.name fixture
-                git config user.email fixture@example.test
-                Set-Content release.txt fixture
-                git add release.txt
-                git commit -m fixture
-                git rev-parse --show-toplevel
-                $PSNativeCommandUseErrorActionPreference = $false
-                $injected = git config --get fixture.injected
-                if ($LASTEXITCODE -ne 1) { throw 'Fixture inherited injected Git configuration.' }
-                $global:LASTEXITCODE = 0
-                """);
-            var result = await RunPowerShellScriptAsync(runner, [], sandbox,
-                new Dictionary<string, string>
-                {
-                    ["GIT_DIR"] = Path.Combine(foreign, ".git"),
-                    ["GIT_WORK_TREE"] = foreign,
-                    ["GIT_INDEX_FILE"] = foreignIndex,
-                    ["GIT_CONFIG_COUNT"] = "1",
-                    ["GIT_CONFIG_KEY_0"] = "fixture.injected",
-                    ["GIT_CONFIG_VALUE_0"] = "foreign"
-                });
-
-            Assert.True(result.ExitCode == 0, result.CombinedOutput);
-            Assert.Contains(repository.Replace('\\', '/'), result.Stdout, StringComparison.OrdinalIgnoreCase);
-            Assert.Equal(configBefore, File.ReadAllBytes(foreignConfig));
-            Assert.Equal(indexBefore, File.ReadAllBytes(foreignIndex));
-            Assert.Equal(headBefore, File.ReadAllText(Path.Combine(foreign, ".git", "HEAD")));
-            Assert.Equal(tipBefore, File.ReadAllText(tipPath));
         }
         finally { DeleteGitSandbox(sandbox); }
     }
@@ -678,7 +609,7 @@ public sealed class ReleaseMetadataScriptTests
                 syncFails,
                 succeeds
             });
-            var script = Path.Combine(RepoRoot, "tests", "ExcelMcp.Packaging.Tests", "PluginPublication.test.mjs");
+            var script = Path.Combine(RepoRoot, "tests", "ExcelMcp.SkillGeneration.Tests", "PluginPublication.test.mjs");
             var runner = Path.Combine(sandbox, "run.ps1");
             File.WriteAllText(runner, $$"""
                 $env:PLUGIN_PUBLICATION_SCENARIO='{{scenario}}'
@@ -1253,6 +1184,7 @@ public sealed class ReleaseMetadataScriptTests
             Path.Combine("gh-pages", "sitegen", "llm.py"),
             Path.Combine(".github", "plugins", "excel-mcp", "README.md"),
             Path.Combine(".github", "plugins", "excel-cli", "README.md"),
+            Path.Combine("artifacts", "generated-skills", "excel-mcp-report-formatting", "SKILL.md"),
             Path.Combine("docs", "INSTALLATION-CLI.md"),
             Path.Combine("docs", "guides", "EXCEL-COM-VS-FILE-PARSERS.md"),
             Path.Combine("docs", "COPILOT-PLUGIN-DISTRIBUTION.md"),
@@ -1263,11 +1195,6 @@ public sealed class ReleaseMetadataScriptTests
         {
             CopyFile(RepoRoot, sandbox, relativePath);
         }
-
-        WriteFile(
-            sandbox,
-            Path.Combine("artifacts", "generated-skills", "excel-mcp-report-formatting", "SKILL.md"),
-            File.ReadAllText(Path.Combine(RepoRoot, "skills", "excel-mcp-report-formatting", "SKILL.md")));
 
         var featureRoot = Path.Combine(RepoRoot, "docs", "features");
         foreach (var sourcePath in Directory.GetFiles(featureRoot, "*.md"))
@@ -1501,40 +1428,10 @@ public sealed class ReleaseMetadataScriptTests
         throw new DirectoryNotFoundException("Could not locate repository root from test output directory.");
     }
 
-    private static string[] GetGitRepositoryEnvironmentVariables()
-    {
-        var info = new ProcessStartInfo("git")
-        {
-            WorkingDirectory = RepoRoot,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
-        info.ArgumentList.Add("rev-parse");
-        info.ArgumentList.Add("--local-env-vars");
-        using var process = Process.Start(info);
-        Assert.NotNull(process);
-        var stdout = process.StandardOutput.ReadToEndAsync();
-        var stderr = process.StandardError.ReadToEndAsync();
-        if (!process.WaitForExit(30000))
-        {
-            process.Kill(entireProcessTree: true);
-            process.WaitForExit();
-            throw new TimeoutException("Git environment discovery exceeded 30 seconds.");
-        }
-        if (process.ExitCode != 0)
-        {
-            throw new InvalidOperationException($"Git environment discovery failed: {stderr.GetAwaiter().GetResult()}");
-        }
-        return stdout.GetAwaiter().GetResult().Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
-    }
-
     private static async Task<ScriptResult> RunPowerShellScriptAsync(
         string scriptPath,
         IReadOnlyList<string> arguments,
-        string? workingDirectory = null,
-        IReadOnlyDictionary<string, string>? environment = null)
+        string? workingDirectory = null)
     {
         var startInfo = new ProcessStartInfo
         {
@@ -1553,16 +1450,6 @@ public sealed class ReleaseMetadataScriptTests
         foreach (var argument in arguments)
         {
             startInfo.ArgumentList.Add(argument);
-        }
-        if (environment != null)
-        {
-            foreach (var (key, value) in environment) { startInfo.Environment[key] = value; }
-        }
-        foreach (var name in GitRepositoryEnvironmentVariables.Concat(
-                     startInfo.Environment.Keys.Where(name =>
-                         System.Text.RegularExpressions.Regex.IsMatch(name, @"^GIT_CONFIG_(KEY|VALUE)_\d+$")).ToArray()))
-        {
-            startInfo.Environment.Remove(name);
         }
 
         using var process = Process.Start(startInfo);

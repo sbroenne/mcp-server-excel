@@ -9,11 +9,13 @@ independent:
 | Guide | Best For |
 |-------|----------|
 | 📖 **[Installing the MCP Server](INSTALLATION-MCP-SERVER.md)** | AI assistants — GitHub Copilot, Claude Desktop, Cursor, Windsurf, and any other MCP client |
-| 📖 **[Installing the CLI](INSTALLATION-CLI.md)** | Scripting, RPA, CI/CD pipelines, and coding agents that prefer a token-efficient single tool |
+| 📖 **[Installing the CLI](INSTALLATION-CLI.md)** | Scripting, RPA, and coding agents on a desktop Excel host |
 
-Both require **Windows OS**, **Microsoft Excel 2016+**, and an **interactive
-desktop**. npm and standalone executables need no separate .NET runtime;
-NuGet tools require .NET 10. Manual npm use requires Node.js 18+.
+Both entry points support **Windows with Microsoft Excel 2016+** and
+**Apple Silicon macOS with Excel for Mac 16.112+**. Windows provides the complete
+operation set; macOS support is **experimental beta** with a
+[capability-gated subset and explicit limitations](../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+The standalone distributions do not require a .NET runtime.
 
 | Where you work | Recommended installation |
 |---|---|
@@ -23,9 +25,46 @@ NuGet tools require .NET 10. Manual npm use requires Node.js 18+.
 | Coding agents and scripts | `npx -y @sbroenne/excelcli@latest`, or global npm for a command on PATH |
 | No npm downloads desired | Standalone ZIP; replace the executable manually for updates |
 
-`@latest` is resolved when launching, subject to normal npm caching. It does not
-upgrade a running server or CLI background service. The guides below explain
-safe restarts and updates for each method.
+Windows and Apple Silicon macOS use separate native archives; one executable
+file cannot be shared across PE/Windows and Mach-O/macOS. Intel macOS is
+unsupported and fails closed rather than selecting the ARM64 runtime. See
+[macOS distribution readiness](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/MACOS-DISTRIBUTION.md)
+for package inspection, signing, and notarization details.
+
+The macOS backend does not require an Office.js add-in, hosted manifest, or
+localhost certificate. Only actions enabled in the generated macOS inventory
+are supported.
+
+### Optional macOS native helper
+
+Helper artifact acceptance and the first independent release are still pending.
+Native actions work without it; installing a helper does not enable gated
+Power Query, formula, or other unverified actions.
+
+When a separate `helper-vX.Y.Z` release provides the artifact:
+
+1. Download `ExcelMcpHelper.xlam` and `SHA256SUMS` from that release in
+   [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases).
+   Verify the checksum. Keep the filename `ExcelMcpHelper.xlam`.
+2. Put it in a stable location you control. In Excel, open **Tools > Excel Add-ins**,
+   browse to the downloaded file, and enable it.
+3. Approve macros interactively only if you trust that release. ExcelMcp does
+   not alter macro security, click trust dialogs, or install source modules.
+4. With desktop Excel open, check the installed helper through the CLI:
+
+   ```powershell
+   '{"command":"service.helper-check"}' | excelcli -q batch
+   ```
+
+The check returns the helper's `version` and `primitives`, or an explicit missing,
+incompatible, malformed, permission, or execution error. The server accepts
+helper major **1** and checks each requested primitive before helper-backed
+mutation. The helper and server release numbers do **not** need to match.
+Compatible older helpers remain usable for primitives they supply.
+
+Users install the released `.xlam`; they do not import `.bas` files or build it.
+Maintainer bootstrap/build instructions are in
+[the helper source README](https://github.com/sbroenne/mcp-server-excel/blob/main/helper/mac/README.md).
 
 > **Tip:** The **VS Code Extension** bundles the MCP Server only (install the CLI separately if you need it for scripting). The **GitHub Copilot plugins** are separate — install `excel-mcp` and/or `excel-cli` depending on which entry point you need — see the MCP Server guide's Quick Start for the one-click paths.
 

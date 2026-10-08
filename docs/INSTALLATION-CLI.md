@@ -5,21 +5,25 @@ Installation instructions for the ExcelMcp **CLI** (`excelcli`) — the entry po
 ## System Requirements
 
 ### Required
-- **Windows OS** (Windows 10 or later)
-- **Microsoft Excel 2016 or later** (Desktop version - Office 365, Professional Plus, or Standalone)
-- **An interactive Windows desktop** with Excel available to the signed-in user;
-  ordinary hosted CI runners do not have desktop Excel
+- **Windows:** Windows 10 or later with Microsoft Excel 2016 or later
+- **macOS:** Apple Silicon Mac with Microsoft Excel for Mac 16.112 or later
+
+Windows provides the complete operation set. macOS support is **experimental
+beta**, not full Windows parity. Power Query, VBA, Data Model/DAX/OLAP, Tables,
+PivotTables, charts, slicers, connections, QueryTables, XML Maps, screenshots,
+advanced visual formatting, and Python result reads are unavailable. See
+[macOS beta limitations](../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta)
+before installing. Failed or cancelled mutations can partly apply; inspect the
+surviving session before retrying.
 
 > **.NET runtime is NOT required** for npm or the standalone exe — both use the fully self-contained runtime.
 
 The npm option also requires **Node.js 18 or later**. Install the current LTS
-with `winget install OpenJS.NodeJS.LTS`. Windows x64 and ARM64 are supported;
-ARM64 Node.js uses a native ARM64 executable.
+from [nodejs.org](https://nodejs.org/) or use
+`winget install OpenJS.NodeJS.LTS` on Windows. npm supports Windows x64/Arm64
+and Apple Silicon macOS. ARM64 Node.js on Windows selects a native ARM64 runtime.
 
-The standalone ZIP currently contains the x64 CLI. For a native ARM64 CLI,
-use the npm installation with ARM64 Node.js.
-
-### Optional (for specific features)
+### Optional (Windows-only features)
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
   - Easiest: Install [Power BI Desktop](https://www.microsoft.com/en-us/power-platform/products/power-bi/desktop) (includes MSOLAP)
   - Alternative: [Microsoft OLE DB Driver for Analysis Services](https://learn.microsoft.com/analysis-services/client-libraries)
@@ -49,20 +53,17 @@ All CLI arguments follow the package name, for example:
 ```powershell
 npx -y @sbroenne/excelcli@latest -q session open "C:\Data\Test.xlsx"
 npx -y @sbroenne/excelcli@latest -q session list
-# Replace SESSION_ID with the ID returned by session open:
-npx -y @sbroenne/excelcli@latest -q session close --session "SESSION_ID"
+npx -y @sbroenne/excelcli@latest -q session close --session <id>
 ```
 
-These commands do not install bare `excelcli` on PATH. `@latest` selects the
-current npm release at invocation, subject to normal caching. It does not
-replace an already running background service.
+The open example uses a Windows path. On Mac, pass your actual absolute path,
+for example `npx -y @sbroenne/excelcli@latest -q session open "/absolute/path/Test.xlsx"`.
+Capture the returned session ID before follow-up calls.
 
-#### Global npm Installation
-
-For repeated use with the bare command, install it on your PATH:
+For repeated use, install the command on your PATH:
 
 ```powershell
-npm install --global @sbroenne/excelcli@latest
+npm install --global @sbroenne/excelcli
 excelcli --version
 ```
 
@@ -71,25 +72,35 @@ The launcher installs `@sbroenne/excelcli-win32-x64` or
 process architecture. x64 Node.js on ARM64 Windows still uses x64 emulation.
 There is no automatic fallback if the matching runtime is missing.
 Do not use `--omit=optional`. It forwards arguments,
-standard input/output, and exit codes to the same `excelcli.exe`; session
+standard input/output, and exit codes to the matching native executable; session
 management and Excel behavior are unchanged.
+Apple Silicon macOS selects `@sbroenne/excelcli-darwin-arm64`.
 
 Avoid installing multiple distributions of `excelcli` on the same PATH. Use
-`where.exe excelcli` to check which installation your shell will run.
+`Get-Command excelcli` in PowerShell to check which installation your shell
+will run.
 
 ### Standalone Executable (Also Primary)
 
 1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-2. Download **`ExcelMcp-CLI-{version}-windows.zip`**
-3. Extract to a permanent location (e.g., `C:\Tools\ExcelMcp\`)
+2. Download the archive for your platform:
+   - Windows: **`ExcelMcp-CLI-{version}-windows.zip`**
+   - Apple Silicon macOS: **`ExcelMcp-CLI-{version}-macos-arm64.zip`**
+3. Extract to a permanent location.
 
 ```powershell
 Expand-Archive "ExcelMcp-CLI-1.x.x-windows.zip" -DestinationPath "C:\Tools\ExcelMcp"
 ```
 
-#### Add the Standalone CLI to PATH
+```bash
+mkdir -p "$HOME/.local/bin/excelmcp"
+unzip ExcelMcp-CLI-1.x.x-macos-arm64.zip -d "$HOME/.local/bin/excelmcp"
+chmod +x "$HOME/.local/bin/excelmcp/excelcli"
+```
 
-Skip this section for npx and global npm installations.
+### Add CLI to PATH
+
+**Windows:**
 
 ```powershell
 $toolsDir = "C:\Tools\ExcelMcp"
@@ -102,7 +113,11 @@ if ($userPath -notlike "*$toolsDir*") {
 
 Or manually: **Settings → System → About → Advanced system settings → Environment Variables → User variables → Path → Edit → New** → add `C:\Tools\ExcelMcp`
 
-#### Standalone Quick Test
+**macOS:** Add `export PATH="$HOME/.local/bin/excelmcp:$PATH"` to your shell
+profile (for example `~/.zprofile` for zsh), then open a new terminal.
+Use `command -v excelcli` to confirm which executable resolves.
+
+### Quick Test
 
 ```powershell
 excelcli --version
@@ -111,8 +126,7 @@ excelcli --help
 # Test with an existing workbook
 excelcli -q session open "C:\Data\Test.xlsx"
 excelcli -q session list
-# Replace SESSION_ID with the ID returned by session open:
-excelcli -q session close --session "SESSION_ID"
+excelcli -q session close --session <id>
 ```
 
 ---
@@ -166,8 +180,7 @@ excelcli --version
 
 > **Note:** The Copilot CLI install command above is specific to the GitHub Copilot plugin marketplace. VS Code and Claude have their own plugin systems with separate installation flows.
 
-Plugins are published when their distributed content changes. Their version can
-lag the ExcelMcp product release; the launcher still uses the latest npm runtime.
+Plugins are published automatically after each ExcelMcp release, though you may need to wait a few moments for the update to appear in the marketplace.
 
 ---
 
@@ -204,23 +217,7 @@ dotnet tool uninstall --global Sbroenne.ExcelMcp.CLI
 excelcli --version
 ```
 
-For npx use `npx -y @sbroenne/excelcli@latest --version` instead.
-This reports the foreground CLI executable's version, not necessarily the
-version of an already running background service.
-
 ### Update to New Version
-
-**Before updating:** finish operations, explicitly save and close the intended
-workbook sessions, then stop the CLI service:
-
-```powershell
-npx -y @sbroenne/excelcli@latest -q service stop
-```
-
-For standalone or global installations, use `excelcli -q service stop`.
-Stopping the service may terminate its tracked Excel processes; do not use it
-as an update shortcut while workbooks have unsaved changes. The next workbook
-command starts the service using the selected CLI executable.
 
 **npm:**
 
@@ -236,11 +233,18 @@ npm uninstall --global @sbroenne/excelcli
 **Standalone exe (primary):**
 
 1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-2. Download the new ZIP: `ExcelMcp-CLI-{version}-windows.zip`
+2. Download the new ZIP for your platform:
+   - Windows: `ExcelMcp-CLI-{version}-windows.zip`
+   - Apple Silicon macOS: `ExcelMcp-CLI-{version}-macos-arm64.zip`
 3. Extract and overwrite the existing files in your installation directory
 
 ```powershell
 Expand-Archive "ExcelMcp-CLI-1.x.x-windows.zip" -DestinationPath "C:\Tools\ExcelMcp" -Force
+```
+
+```bash
+unzip -o ExcelMcp-CLI-1.x.x-macos-arm64.zip -d "$HOME/.local/bin/excelmcp"
+chmod +x "$HOME/.local/bin/excelmcp/excelcli"
 ```
 
 **NuGet (secondary):**
@@ -259,22 +263,22 @@ Before updating, check the [changelog](../CHANGELOG.md) or [GitHub Releases](htt
 
 ### npm Runtime Package Missing
 
-If the launcher cannot find `@sbroenne/excelcli-win32-x64` or
-`@sbroenne/excelcli-win32-arm64`, reinstall with
+If the launcher cannot find the matching Windows or Darwin ARM64 runtime, reinstall with
 optional dependencies enabled:
 
 ```powershell
-npm install --global @sbroenne/excelcli@latest --include=optional
+npm install --global @sbroenne/excelcli --include=optional
 ```
 
-The npm launcher reports an error on macOS/Linux and unsupported Windows
-architectures rather than attempting to start Excel.
+The npm launcher supports Apple Silicon macOS. It reports an explicit error on
+Linux, Intel Macs, and unsupported Windows architectures rather than selecting
+an incompatible runtime.
 
 ### Command Not Found After Installation
 
 ```powershell
-# Check excelcli.exe location
-where.exe excelcli
+# Check which executable is on PATH
+Get-Command excelcli
 
 # If not found, ensure the directory containing excelcli.exe is in your PATH
 # The default location after extraction might be: C:\Tools\ExcelMcp\
@@ -284,12 +288,13 @@ where.exe excelcli
 
 ```powershell
 # Error: "Microsoft Excel is not installed"
-# Solution: Install Microsoft Excel (any version 2016+)
+# Solution: Install desktop Excel 2016+ on Windows or Excel for Mac 16.112+
 ```
 
 ### VBA Access Denied
 
-VBA commands require **"Trust access to the VBA project object model"** to be enabled manually in Excel:
+**Windows only.** VBA is unavailable in the Mac beta. Reading/changing VBA
+modules requires **"Trust access to the VBA project object model"** manually:
 
 1. Open Excel
 2. Go to **File → Options → Trust Center**
@@ -310,14 +315,16 @@ For complete VBA command usage and a macro-enabled workbook example, see
 
 ### "Workbook is locked" or "Cannot open file"
 
-**Solution:** Close all Excel windows before running ExcelMcp. ExcelMcp requires exclusive access to workbooks (Excel COM limitation).
+**Solution:** Reconcile the target workbook if it is open or already owned by a
+session. Do not close unrelated Excel windows. On Mac, `RecoveryRequired` means
+an uncertain handoff needs manual reconciliation before another attempt.
 
 ### Permission Issues
 
-```powershell
-# Run PowerShell/CMD as Administrator if you encounter permission errors
-# excelcli.exe is a standalone exe - no installation needed
-```
+Use the returned access/permission error to identify the denied operation;
+do not elevate privileges as a general workaround. Mac Automation permission
+is granted manually for the requesting process identity. See
+[platform troubleshooting](https://excelmcpserver.dev/troubleshooting/).
 
 ---
 
@@ -331,9 +338,6 @@ instead for a direct-marketplace installation.
 One-off npx use has no global installation to remove.
 
 ```powershell
-# Global npm installation:
-npm uninstall --global @sbroenne/excelcli
-
 # Standalone exe:
 Remove-Item "C:\Tools\ExcelMcp\excelcli.exe" -Force
 

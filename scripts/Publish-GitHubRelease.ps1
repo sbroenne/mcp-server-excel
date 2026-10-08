@@ -96,7 +96,11 @@ $requiredNames = @(
     "excel-skills-v$Version.zip",
     "excel-mcp-$Version.vsix",
     "excel-mcp-$Version-win32-arm64.vsix",
-    "excel-mcp-$Version.mcpb"
+    "excel-mcp-$Version.mcpb",
+    "ExcelMcp-CLI-$Version-macos-arm64.zip",
+    "ExcelMcp-MCP-Server-$Version-macos-arm64.zip",
+    "excelmcp-$Version-darwin-arm64.vsix",
+    "excel-mcp-$Version-macos-arm64.mcpb"
 )
 $files = @(Get-ChildItem -LiteralPath $AssetDirectory -Recurse -File)
 $selected = foreach ($name in $requiredNames) {

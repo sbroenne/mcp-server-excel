@@ -1,0 +1,41 @@
+Attribute VB_Name = "ExcelMcpHelper"
+Option Explicit
+
+Private Const HelperVersion As String = "@@HELPER_VERSION@@"
+
+Public Function ExcelMcpHelper_Info() As String
+    ExcelMcpHelper_Info = "{""version"":""" & HelperVersion & """,""primitives"":[""helper.info""]}"
+End Function
+
+Public Function ExcelMcpHelper_Build(ByVal outputPath As String) As String
+    Dim previousAddIn As Boolean
+    Dim errorNumber As Long
+    Dim errorDescription As String
+    previousAddIn = ThisWorkbook.IsAddin
+    On Error GoTo Failed
+    If Len(outputPath) = 0 Then Err.Raise 5, , "An output path is required."
+    If LCase$(Right$(outputPath, 5)) <> ".xlam" Then Err.Raise 5, , "The output must be an .xlam file."
+    If Len(Dir$(outputPath)) > 0 Then Err.Raise 58, , "The output already exists."
+    ThisWorkbook.IsAddin = True
+    ThisWorkbook.SaveAs Filename:=outputPath, FileFormat:=55
+    ExcelMcpHelper_Build = "{""success"":true,""errorMessage"":""""}"
+    Exit Function
+Failed:
+    errorNumber = Err.Number
+    errorDescription = Err.Description
+    On Error GoTo RestoreFailed
+    ThisWorkbook.IsAddin = previousAddIn
+    ExcelMcpHelper_Build = BuildError(errorNumber, errorDescription)
+    Exit Function
+RestoreFailed:
+    ExcelMcpHelper_Build = BuildError(errorNumber, errorDescription & "; restoring add-in state failed: " & Err.Description)
+End Function
+
+Private Function BuildError(ByVal errorNumber As Long, ByVal description As String) As String
+    description = Replace(description, "\", "\\")
+    description = Replace(description, """", "\""")
+    description = Replace(description, vbCr, "\r")
+    description = Replace(description, vbLf, "\n")
+    description = Replace(description, vbTab, "\t")
+    BuildError = "{""success"":false,""errorNumber"":" & CStr(errorNumber) & ",""errorMessage"":""" & description & """}"
+End Function

@@ -3,6 +3,13 @@
 Excel MCP Server lets AI assistants and coding agents automate the real Microsoft
 Excel application using natural-language requests.
 
+**Platform scope:** Windows supports all workflows below. Apple Silicon macOS
+is an **experimental beta**: basic cell/formula/number-format work, worksheet
+lifecycle, named ranges, sizing, Goal Seek, Data Tables, and licensed Python
+formula writes are enabled. Tables, PivotTables/charts, Power Query/DAX, VBA,
+advanced visual formatting, Scenarios, and window/Agent Mode operations are
+unavailable. See [macOS support and limitations](../specs/MACOS-SUPPORT.md).
+
 ## Example prompts
 
 ### Create and populate data
@@ -12,6 +19,8 @@ Excel application using natural-language requests.
 - *"Put this data in A1:C4: Name, Age, City / Alice, 30, Seattle / Bob, 25,
   Portland."*
 - *"Add a formula column that calculates Quantity times Unit Price."*
+
+On Mac, use plain worksheet cells rather than requesting an Excel Table.
 
 ### Analyze and visualize
 
@@ -28,6 +37,9 @@ Excel application using natural-language requests.
 - *"Create a relationship between the Orders and Products tables using
   ProductID."*
 
+Goal Seek and Data Tables work in the Mac beta, but saving scenarios does not.
+The PivotTable/chart, Power Query, slicer, and relationship prompts require Windows.
+
 ### Format and style
 
 - *"Format the Price column as currency and highlight values over $500 in green."*
@@ -38,6 +50,8 @@ Excel application using natural-language requests.
 
 Number display formats use the `range` tool. Visual styling, validation, sizing,
 and auto-fit use `range_format`.
+On Mac, currency number formats and auto-fit are enabled; conditional
+highlighting, rich header styling, Table styles, and `format-ranges` are not.
 
 ### Automate with code
 
@@ -56,6 +70,8 @@ visible whenever you want to inspect progress:
 
 ExcelMcp can arrange Excel beside the AI assistant and display live progress in
 Excel's status bar.
+This hidden-window/side-by-side/status-bar experience is **Windows-only**.
+Mac uses shared desktop Excel; window and Agent Mode actions remain gated.
 
 ## Who should use ExcelMcp?
 
@@ -68,7 +84,9 @@ ExcelMcp is designed for:
 
 It is not designed for:
 
-- Linux or macOS environments
+- Linux environments or Intel Macs
+- macOS workflows that require the Windows-only Power Query, Data Model, VBA,
+  PivotTable, chart, conditional-formatting, or window-management operations
 - Server-side processing without an interactive desktop and Microsoft Excel
 - High-volume, Excel-free batch processing where libraries such as ClosedXML or
   EPPlus are a better fit

@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "excel-cli",
   "version": "0.0.0",
-  "description": "Automate Microsoft Excel from coding agents and scripts with a token-efficient CLI for workbooks, formulas, Power Query, PivotTables, and more. Requires Windows and desktop Excel.",
+  "description": "Automate Microsoft Excel from coding agents and scripts with a token-efficient CLI for workbooks, formulas, Power Query, PivotTables, and more. Supports Windows x64/ARM64 and Apple Silicon macOS (experimental beta); requires desktop Excel.",
   "author": {
     "name": "Stefan Brönner",
     "email": "3026464+sbroenne@users.noreply.github.com",

@@ -31,6 +31,10 @@ try {
     $paths = @(Read-Git @('-c', 'core.quotepath=false', 'diff', '--cached', '--name-only', '--no-renames', $base))
     $plan = Get-ValidationPlan -Paths $paths
     $plan.Reasons | ForEach-Object { Write-Host "  $_" }
+    $supportsDesktopExcelValidation = [OperatingSystem]::IsWindows() -or (
+        [OperatingSystem]::IsMacOS() -and
+        [Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture -eq
+            [Runtime.InteropServices.Architecture]::Arm64)
 
     Invoke-Check 'Checking staged npm lockfiles' {
         & (Join-Path $PSScriptRoot 'check-npm-lockfiles.ps1') -Staged
@@ -47,8 +51,8 @@ try {
             throw "Validation inputs differ from the index. Stage or set aside these changes explicitly: $($inputs -join ', '). No files were staged or stashed."
         }
     }
-    if ($plan.Excel -and -not [OperatingSystem]::IsWindows()) {
-        throw 'Required Excel validation needs Windows with desktop Excel; it cannot be reported as passed on this host.'
+    if ($plan.Excel -and -not $supportsDesktopExcelValidation) {
+        throw 'Desktop Excel validation requires Windows or Apple Silicon macOS; required E2E was not run.'
     }
     if ($plan.SourceChecks) {
         foreach ($script in @('check-com-leaks', 'check-success-flag', 'check-dynamic-casts', 'check-workbook-package-access')) {
@@ -57,7 +61,20 @@ try {
     }
     if ($plan.Build) {
         Invoke-Check 'Building Release solution' {
-            dotnet build Sbroenne.ExcelMcp.sln -c Release -p:NuGetAudit=false --verbosity minimal
+            [string[]]$platformProperties = if ([OperatingSystem]::IsWindows()) { @() } else { @('-p:EnableWindowsTargeting=true') }
+            dotnet build Sbroenne.ExcelMcp.sln -c Release -p:NuGetAudit=false @platformProperties --verbosity minimal
+        }
+        if ($plan.ToolingProjects.Count -gt 0) {
+            $planFile = Join-Path ([IO.Path]::GetTempPath()) "excelmcp-validation-$([guid]::NewGuid().ToString('N')).json"
+            try {
+                $plan | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $planFile
+                Invoke-Check 'Building selected Excel-free test projects' {
+                    & (Join-Path $PSScriptRoot 'Build-CiInputs.ps1') -PlanFile $planFile -Group Tooling
+                }
+            }
+            finally {
+                if (Test-Path -LiteralPath $planFile) { Remove-Item -LiteralPath $planFile -Force }
+            }
         }
         Invoke-Check 'Running focused Excel-free tests' {
             & (Join-Path $PSScriptRoot 'Invoke-ExcelFreeTests.ps1') -Local -HookTests:$plan.HookTests -Contracts:$plan.Excel -SkillTests:$plan.SkillTests -PackagingTests:$plan.PackagingTests -ChangedPaths $paths

@@ -10,15 +10,17 @@ export function createLauncher({ packageName, commandName }) {
     arch = process.arch,
     resolvePackage = name => require.resolve(name)
   } = {}) {
-    if (platform !== 'win32') {
-      throw new Error('ExcelMcp is Windows only.');
+    let runtimePackageName;
+    if (platform === 'win32' && (arch === 'x64' || arch === 'arm64')) {
+      runtimePackageName = `${packageName}-win32-${arch}`;
+    } else if (platform === 'darwin' && arch === 'arm64') {
+      runtimePackageName = `${packageName}-darwin-arm64`;
+    } else {
+      throw new Error(
+        `ExcelMcp supports Windows x64/Arm64 and Apple Silicon macOS; this Node.js process is ${platform}-${arch}.`
+      );
     }
 
-    if (arch !== 'x64' && arch !== 'arm64') {
-      throw new Error(`ExcelMcp requires Windows x64 or Arm64; this Node.js process is ${arch}.`);
-    }
-
-    const runtimePackageName = `${packageName}-win32-${arch}`;
     try {
       return resolvePackage(runtimePackageName);
     } catch (cause) {

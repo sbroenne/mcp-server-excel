@@ -5,27 +5,22 @@ Submit Excel MCP Server to Anthropic’s Claude Directory as an MCPB bundle for 
 
 ## Prerequisites
 - MCPB bundle built and validated
-- Direct npx launch tested in Claude Desktop on Windows with Node.js/npm on PATH
 - 512×512 PNG icon available
 - Privacy page published
+- Separate authorization to publish or submit; local package checks are not publication
 
 ## Required Assets
-- MCPB bundle: GitHub Actions release workflow artifact (.mcpb)
+- MCPB bundles: Windows npx metadata and Apple Silicon macOS native GitHub Actions artifacts
 - MCPB manifest: mcpb/manifest.json
 - Icon: mcpb/icon-512.png
 - Privacy page: https://excelmcpserver.dev/privacy/
 
 ## Build Steps
-1. Build locally with `.\mcpb\Build-McpBundle.ps1`, or use the authorized release artifact.
-2. Inspect the `.mcpb`: it contains metadata and a direct
-   `npx -y @sbroenne/mcp-server-excel@latest` configuration, not a fixed executable.
-3. Test initialization, tool discovery, and a create/save/close workbook operation
-   in Claude Desktop. Do not dispatch a release workflow merely to test packaging.
-
-Directory acceptance of this npm fetch-on-launch design is not verified. The
-bundle does not include all runtime dependencies: Node.js/npm must be available
-on PATH, and npx needs network access for downloads and update checks. Disclose
-this in the submission rather than describing the bundle as self-contained.
+1. Run the release workflow to produce both MCPB artifacts.
+2. Download both MCPB artifacts from the workflow run.
+3. Verify the Windows artifact contains only metadata and launches
+   `@sbroenne/mcp-server-excel@latest`; verify the Mac artifact contains only
+   its signed native executable and helper.
 
 ## Tool Annotation Requirement
 The C# MCP SDK maps tool hints from [McpServerTool] attribute properties:
@@ -37,13 +32,15 @@ Nearly all tools set Destructive = true, since Excel automation modifies live wo
 ## Submission Form Checklist
 Fill the Claude Directory submission form with:
 - Server name: Excel MCP Server
-- MCPB file: downloaded workflow artifact (.mcpb)
+- MCPB files: downloaded Windows npx and Apple Silicon macOS native artifacts
 - Website: https://excelmcpserver.dev/
 - Privacy policy: https://excelmcpserver.dev/privacy/
 - Support or repo link: https://github.com/sbroenne/mcp-server-excel
 - Icon: mcpb/icon-512.png
-- Platform notes: Windows-only (Excel COM); npx selects the x64 or ARM64 npm
-  runtime matching Node.js. Requires Node.js/npm and network access; no separate .NET.
+- Platform notes: Windows x64/ARM64 uses the complete COM backend; Apple Silicon
+  macOS is an **experimental beta**, not full parity. Include the
+  [unsupported-feature reference](../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta);
+  optional handlers do not constitute supported features
 
 ## Post-Submission
 - Record submission timestamp and form confirmation URL in the GitHub issue

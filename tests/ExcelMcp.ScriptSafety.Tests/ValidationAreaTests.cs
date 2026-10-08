@@ -101,7 +101,7 @@ public sealed class ValidationAreaTests
     {
         var result = await ValidationSelectionTests.RunAsync("""
             $plan = Get-ValidationPlan -Paths 'src/ExcelMcp.Core/Commands/DataModel/DataModelCommands.Read.cs'
-            if (($plan.FastProjects -join ',') -ne 'CLI,ComInterop,Core,McpServer,Service') {
+            if (($plan.FastProjects -join ',') -ne 'CLI,ComInterop,Core,McpServer,Portable,Service') {
                 throw 'Shared runtime coverage lost.'
             }
             if (($plan.ProcessProjects -join ',') -ne 'CLI' -or -not $plan.Excel) {
@@ -200,6 +200,8 @@ public sealed class ValidationAreaTests
     [Theory]
     [InlineData("tests/ExcelMcp.McpServer.Tests/Example.cs", "Fast",
         "tests\\ExcelMcp.McpServer.Tests\\ExcelMcp.McpServer.Tests.csproj")]
+    [InlineData("tests/ExcelMcp.Portable.Tests/Example.cs", "Fast",
+        "tests\\ExcelMcp.Portable.Tests\\ExcelMcp.Portable.Tests.csproj")]
     [InlineData("scripts/Publish-PreparedPlugins.ps1", "Tooling",
         "tests\\ExcelMcp.Packaging.Tests\\ExcelMcp.Packaging.Tests.csproj")]
     [InlineData("src/ExcelMcp.Core/Commands/DataModel/Example.cs", "Fast", "Sbroenne.ExcelMcp.sln")]

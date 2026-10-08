@@ -12,6 +12,16 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 [Trait("RequiresExcel", "false")]
 public sealed class StdinPipeMonitorTests
 {
+    [Fact]
+    public void Start_OnNonWindows_DoesNotCallWindowsApis()
+    {
+        if (OperatingSystem.IsWindows())
+            return;
+
+        using var timer = StdinPipeMonitor.Start(new FakeHostApplicationLifetime());
+        Assert.Null(timer);
+    }
+
     [DllImport("kernel32.dll", SetLastError = true)]
     private static extern bool CreatePipe(
         out IntPtr hReadPipe, out IntPtr hWritePipe,

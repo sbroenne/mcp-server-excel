@@ -26,7 +26,10 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $SkillsDir = Join-Path $RepoRoot "skills"
 $SharedDir = Join-Path $RepoRoot "docs\reference"
-$SkillNames = @('excel-cli', 'excel-cli-report-formatting', 'excel-mcp-report-formatting')
+$SkillNames = @('excel-cli')
+foreach ($component in @('cli', 'mcp')) {
+    $SkillNames += "excel-$component-report-formatting"
+}
 . (Join-Path $PSScriptRoot 'PackageHelpers.ps1')
 
 function Copy-SharedReferences {
@@ -61,11 +64,11 @@ function Copy-SharedReferences {
 }
 
 if ($GenerateOnly) {
-    if (-not $OutputDir) { $OutputDir = 'artifacts\generated-skills' }
+    if (-not $OutputDir) { $OutputDir = 'artifacts/generated-skills' }
     if (-not $Version) { $Version = (Get-Content (Join-Path $RepoRoot 'package.json') -Raw | ConvertFrom-Json).version }
 }
 elseif (-not $OutputDir) {
-    $OutputDir = 'artifacts\skills'
+    $OutputDir = 'artifacts/skills'
 }
 if ([string]::IsNullOrWhiteSpace($Version)) {
     throw "Version is required. Pass -Version <version>."
@@ -79,7 +82,7 @@ if ($OutputPath -eq [IO.Path]::GetPathRoot($OutputPath) -or
     $OutputPath -eq $SkillsDir) {
     throw "Skill output must not overlap source files: $OutputPath"
 }
-if (-not $SkillsDirectory) { $SkillsDirectory = Join-Path $RepoRoot 'artifacts\generated-skills' }
+if (-not $SkillsDirectory) { $SkillsDirectory = Join-Path $RepoRoot 'artifacts/generated-skills' }
 $StagingDir = Join-Path ([IO.Path]::GetTempPath()) "excel-skills-$([guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
 try {

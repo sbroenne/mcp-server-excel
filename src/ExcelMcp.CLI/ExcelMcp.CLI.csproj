@@ -2,8 +2,10 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
-    <UseWindowsForms>true</UseWindowsForms>
+    <TargetFramework Condition="'$(OS)' == 'Windows_NT'">net10.0-windows</TargetFramework>
+    <TargetFramework Condition="'$(OS)' != 'Windows_NT'">net10.0</TargetFramework>
+    <UseWindowsForms Condition="'$(TargetFramework)' == 'net10.0-windows'">true</UseWindowsForms>
+    <ExcelMcpSkipCleanup Condition="'$(OS)' != 'Windows_NT'">true</ExcelMcpSkipCleanup>
 
     <PublishAot>false</PublishAot>
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
@@ -120,7 +122,11 @@ internal static class TelemetryConfig
   </ItemGroup>
 
   <ItemGroup>
-    <EmbeddedResource Include="Resources\excelcli.ico" />
+    <EmbeddedResource Include="Resources\excelcli.ico" Condition="'$(TargetFramework)' == 'net10.0-windows'" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net10.0'">
+    <Compile Remove="Infrastructure\CliServiceTray.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -142,17 +148,31 @@ internal static class TelemetryConfig
 
   <!-- Workaround for NETSDK1146: PackAsTool doesn't support net10.0-windows -->
   <!-- See: https://github.com/dotnet/sdk/issues/12055#issuecomment-2125927648 -->
-  <Target Name="HackBeforePackToolValidation" BeforeTargets="_PackToolValidation">
+  <Target Name="HackBeforePackToolValidation" BeforeTargets="_PackToolValidation"
+          Condition="'$(TargetFramework)' == 'net10.0-windows'">
     <PropertyGroup>
       <TargetPlatformIdentifier></TargetPlatformIdentifier>
       <TargetPlatformMoniker></TargetPlatformMoniker>
     </PropertyGroup>
   </Target>
 
-  <Target Name="HackAfterPackToolValidation" AfterTargets="_PackToolValidation" BeforeTargets="PackTool">
+  <Target Name="HackAfterPackToolValidation" AfterTargets="_PackToolValidation" BeforeTargets="PackTool"
+          Condition="'$(TargetFramework)' == 'net10.0-windows'">
     <PropertyGroup>
       <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
     </PropertyGroup>
+  </Target>
+
+  <UsingTask TaskName="Sbroenne.ExcelMcp.Build.Tasks.GenerateMacActionInventory"
+             AssemblyFile="$(MSBuildProjectDirectory)\..\ExcelMcp.Build.Tasks\bin\$(Configuration)\netstandard2.0\Sbroenne.ExcelMcp.Build.Tasks.dll" />
+
+  <Target Name="GenerateMacActionInventory" AfterTargets="Build" Condition="'$(Configuration)' == 'Release'"
+          Inputs="$(MSBuildProjectDirectory)\..\ExcelMcp.Core\obj\GeneratedFiles\ExcelMcp.Generators\Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator\_MacActionInventory.g.cs;$(MSBuildProjectDirectory)\..\ExcelMcp.Build.Tasks\bin\$(Configuration)\netstandard2.0\Sbroenne.ExcelMcp.Build.Tasks.dll"
+          Outputs="$(MSBuildProjectDirectory)\..\..\docs\generated\macos-action-inventory.json;$(MSBuildProjectDirectory)\..\..\docs\MACOS-ACTION-INVENTORY.md">
+    <GenerateMacActionInventory
+      ManifestPath="$(MSBuildProjectDirectory)\..\ExcelMcp.Core\obj\GeneratedFiles\ExcelMcp.Generators\Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator\_MacActionInventory.g.cs"
+      JsonOutputPath="$(MSBuildProjectDirectory)\..\..\docs\generated\macos-action-inventory.json"
+      MarkdownOutputPath="$(MSBuildProjectDirectory)\..\..\docs\MACOS-ACTION-INVENTORY.md" />
   </Target>
 
 </Project>

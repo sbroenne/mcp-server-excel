@@ -1,5 +1,10 @@
 # Legacy Excel COM API Coverage
 
+**Platform scope:** this inventory describes Windows COM, not Mac availability.
+XML Maps, Scenarios, external-link management, and page setup below are
+unsupported in the experimental Apple Silicon macOS beta; see
+[Mac limitations](../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+
 This inventory records how ExcelMcp treats older and administrative Excel COM
 surfaces. Features are included only when they are deterministic, non-interactive,
 safe for an automation server, and testable against a real Excel instance.
@@ -30,7 +35,7 @@ local-file schema resolution during automatic mapping.
 | COM surface | Status | Reason |
 |-------------|--------|--------|
 | Application/workbook/worksheet events | Excluded | Callback timing depends on user activity, add-ins, calculation, and Excel message pumping. Persistent subscriptions do not fit request/response command semantics and cannot be tested deterministically. |
-| `Application.Dialogs`, `Dialog.Show`, file pickers | Excluded | Modal and interactive. These calls can block a headless server indefinitely and require a foreground desktop/user response. |
+| `Application.Dialogs`, `Dialog.Show`, file pickers | Excluded | Modal and interactive. These calls can block an automation request indefinitely and require a foreground desktop/user response. Headless Excel hosts are unsupported. |
 | `CommandBars`, controls, Ribbon/UI customization | Excluded | UI-only, add-in-dependent, and largely superseded by Ribbon extensibility. State varies by Excel version and installed add-ins. |
 | `SendMail`, `SendForReview`, routing slips, mail envelopes | Excluded | Sends external communication, depends on a configured mail client/account, may display security prompts, and creates privacy-sensitive side effects. |
 | Smart tags and smart-tag actions | Excluded | Deprecated/removed from modern Office workflows and not reliably available across supported Excel versions. |

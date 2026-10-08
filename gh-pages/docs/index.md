@@ -2,8 +2,8 @@
 template: home.html
 title: Home
 description: >-
-  Automate real Microsoft Excel with GitHub Copilot, Claude, and other AI
-  assistants using Power Query, DAX, VBA, PivotTables, charts, and Python.
+  Automate real Excel with Copilot and Claude: full Windows support and
+  experimental Apple Silicon macOS features with explicit limitations.
 keywords: "Excel automation, MCP server, AI Excel, Power Query, DAX measures, VBA macros, GitHub Copilot Excel, Claude Excel, Excel CLI, M code"
 hide:
   - navigation
@@ -21,27 +21,39 @@ setup instructions for your assistant or command-line workflow:
 
 !!! success "Powered by the real Excel engine"
     Excel MCP Server automates the **actual Excel application** through its
-    official COM API — the same engine Excel itself uses. That unlocks what
-    spreadsheets are really for:
+    Windows COM API or its capability-gated macOS Apple Events backend.
 
-    - **Runs live Excel operations.** Refresh Power Query to pull and reshape
+    - **Runs live Excel operations.** On Windows, refresh Power Query to pull and reshape
       fresh data, recalculate with Excel's own engine, refresh PivotTables and
       the Data Model, evaluate DAX, and run VBA or Python `=PY()` — the real,
       *computed results* land right in your workbook.
-    - **Excel opens and saves your workbook.** Excel opens and saves your
-      workbook itself, rather than a file-parser library rewriting it. Requested
-      edits can still change the workbook's data, formatting, or features.
+    - **Excel owns file loading and saving.** ExcelMcp does not rewrite workbook
+      internals. Requested edits and partial failures can still change a workbook;
+      inspect the surviving session and workbook state before retrying.
 
     Other tools (openpyxl-based MCP servers and Agent Skills, including
     Anthropic's `xlsx` skill) read and rewrite the `.xlsx` file directly — which
     can quietly drop PivotTables, charts, and macros, and can't run Power Query,
-    the Data Model, or DAX at all. Here, Excel does the work. Watch it live: just
-    say *"Show me Excel while you work."*
+    the Data Model, or DAX at all. Here, Excel does the work.
+
+!!! warning "Apple Silicon macOS: experimental beta, limited feature set"
+    Verified workbook/worksheet lifecycle, basic values/formulas/number formats,
+    named ranges, sizing, explicit calculation, Goal Seek, Data Tables, and
+    licensed Python formula writes are enabled. Power Query, VBA, Data Model/DAX,
+    Tables, PivotTables, charts, slicers, connections, QueryTables, screenshots,
+    advanced visual formatting, window/Agent Mode control, and Python result
+    reads are **not supported**. Intel Macs and headless hosts are unsupported.
+    Failed or cancelled mutations can partly apply; consult
+    [macOS support and limitations](macos-support.md) and inspect the surviving
+    session before retrying.
+    Windows retains the complete feature set.
 
 <div class="mcp-video" markdown>
 [![Watch the Excel MCP Server intro video](https://img.youtube.com/vi/wbw3-hPcE2o/maxresdefault.jpg){ width="1280" height="720" }](https://youtu.be/wbw3-hPcE2o)
 
 ▶️ [Watch the intro video (2 min)](https://youtu.be/wbw3-hPcE2o)
+
+This recorded demonstration shows Windows features, not macOS beta coverage.
 </div>
 
 <script type="application/ld+json">
@@ -94,7 +106,11 @@ it and download the files the agent made.
     Check out [Windows MCP Server](https://windowsmcpserver.dev/) — automate
     Windows apps and browsers from your AI assistant.
 
-## Key features
+## Feature overview
+
+Windows supports the complete feature set below. Mac availability is limited
+to the [verified beta subset](macos-support.md); installing an optional bridge
+does not enable these Windows-only workflows.
 
 <div class="grid cards" markdown>
 
@@ -147,8 +163,8 @@ it and download the files the agent made.
 
     ---
 
-    Manage sheets, named ranges and data connections. Copy and move sheets
-    between workbooks.
+    Manage sheets and named ranges on both platforms. Data connections and
+    copying/moving sheets remain Windows-only in the Mac beta.
 
     [Manage Excel worksheets :material-arrow-right:](reference/worksheet.md)
 
@@ -168,6 +184,7 @@ it and download the files the agent made.
 
     Write and run `=PY()` formulas that execute in Excel's cloud Python engine —
     process worksheet data with pandas, NumPy and more, from your AI assistant.
+    Mac supports licensed formula writes, not result reads.
 
     [Python in Excel requirements and limits :material-arrow-right:](features/automation-advanced.md#python-in-excel)
 
@@ -179,11 +196,15 @@ it and download the files the agent made.
     workbook inspection. Skill-value comparisons measure whether guidance helps;
     they do not guarantee every agent can use every operation.
 
+    Mac candidates remain gated until exact public CLI/MCP behavior is accepted.
+
 </div>
 
 [Explore capabilities across 60 MCP tools and 388 operations :material-arrow-right:](features.md){ .md-button .md-button--primary }
 
 ## Popular guides
+
+Power Query, PivotTable, Data Model, and VBA guides describe Windows workflows.
 
 - [Refresh Power Query from an AI assistant](guides/refresh-power-query.md)
 - [Build and update PivotTables with an AI assistant](guides/automate-pivottables.md)
@@ -193,7 +214,8 @@ it and download the files the agent made.
 
 ## See it in action
 
-Ask your AI assistant in plain language — it drives Excel for you:
+The following examples and images demonstrate **Windows workflows**.
+For Mac, request only actions in the [beta support list](macos-support.md).
 
 <figure markdown="span">
   ![A styled sales table, regional summary and column chart in the real Excel app, built by Excel MCP Server](assets/images/excel-demo-table-chart.png){ width="1360" height="800" loading=lazy }
@@ -237,19 +259,14 @@ features like **Python in Excel** work too — your AI assistant can write
   <figcaption>The formula bar with a <code>=PY()</code> formula (note the green <strong>PY</strong> badge) and Excel's <strong>Python</strong> ribbon group — summing the <code>SalesData</code> table with <code>pandas</code>, driven from your AI assistant.</figcaption>
 </figure>
 
-!!! info "Local Excel and your data"
-    Excel runs on your Windows desktop. Requested workbook results are returned
-    to your AI assistant, whose privacy policy applies. Release builds can send
-    anonymous usage statistics, but those statistics exclude workbook contents,
-    file names, and paths. Optional remote M/DAX formatting and Python in Excel
-    use external services only when you request those features.
-    [Read the privacy policy](privacy.md).
-
 ## CLI or MCP Server?
 
 This package ships **both** a CLI and an MCP Server. They share the same core,
 so every operation behaves identically — pick the entry point that fits your
 workflow:
+
+They share the same platform gates: the Windows operation count does not imply
+Mac parity.
 
 | Interface | Best for | Why |
 |-----------|----------|-----|

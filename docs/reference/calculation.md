@@ -42,10 +42,21 @@ restoration could not be completed.
 
 ## Calculation scope and precision {#actions}
 
-Application settings affect all workbooks in the session's owned Excel process,
+On Windows, application settings affect all workbooks in the session's owned Excel process,
 not other Excel processes. Use application-wide calculation when dependencies
 cross worksheets; deeper recalculation and dependency rebuilds also require
 that scope.
+
+The experimental macOS backend supports `calculate` with `scope=sheet` or
+`scope=range` and `kind=normal`. Range scope accepts one rectangular A1 address.
+It preserves the calculation mode and active worksheet and does not calculate
+dirty formulas outside the requested scope. Application scope, full/rebuild,
+and disjoint, structured-reference, or spill addresses fail explicitly before
+mutation because shared Excel is not owned by the session.
+
+macOS `get-settings`, `set-settings`, and `set-precision` remain unavailable.
+Use scoped calculation in the existing mode; the Windows settings workflow
+above does not authorize changing shared Mac application state.
 
 Precision-as-displayed belongs to the workbook. Enabling it permanently rounds
 stored numbers to their displayed precision. Disabling it does not recover lost

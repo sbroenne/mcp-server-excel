@@ -6,24 +6,38 @@ function Assert-PackageOutputPath {
     )
     $output = [IO.Path]::GetFullPath($Path).TrimEnd('\', '/')
     $repo = [IO.Path]::GetFullPath($RepoRoot).TrimEnd('\', '/')
-    $allowed = @("$repo\artifacts", "$repo\plugins", "$repo\mcpb\artifacts")
+    $separator = [IO.Path]::DirectorySeparatorChar
+    $comparison = if ($IsWindows) { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
+    $allowed = @(
+        (Join-Path $repo 'artifacts'),
+        (Join-Path $repo 'plugins'),
+        (Join-Path $repo 'mcpb/artifacts')
+    )
+    $trustedBaselines = @(
+        $repo,
+        [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\', '/')
+    )
+    function Test-PathWithin([string]$Candidate, [string]$Parent) {
+        return $Candidate.Equals($Parent, $comparison) -or
+            $Candidate.StartsWith("$Parent$separator", $comparison)
+    }
     if ($output -eq [IO.Path]::GetPathRoot($Path).TrimEnd('\', '/') -or
-        $repo -eq $output -or $repo.StartsWith("$output\", [StringComparison]::OrdinalIgnoreCase) -or
-        ($output.StartsWith("$repo\", [StringComparison]::OrdinalIgnoreCase) -and
-            -not @($allowed | Where-Object { $output -eq $_ -or $output.StartsWith("$_\", [StringComparison]::OrdinalIgnoreCase) }).Count)) {
+        (Test-PathWithin $repo $output) -or
+        ((Test-PathWithin $output $repo) -and
+            -not @($allowed | Where-Object { Test-PathWithin $output $_ }).Count)) {
         throw "Unsafe package output directory: $output"
     }
     foreach ($inputPath in $Inputs) {
         if (-not $inputPath) { continue }
         $inputFull = [IO.Path]::GetFullPath($inputPath, $RepoRoot).TrimEnd('\', '/')
-        if ($output -eq $inputFull -or $inputFull.StartsWith("$output\", [StringComparison]::OrdinalIgnoreCase) -or
-            $output.StartsWith("$inputFull\", [StringComparison]::OrdinalIgnoreCase)) {
+        if ((Test-PathWithin $inputFull $output) -or (Test-PathWithin $output $inputFull)) {
             throw "Package output overlaps a prepared input: $output"
         }
     }
     for ($ancestor = $output; $ancestor; $ancestor = Split-Path $ancestor -Parent) {
         if ((Test-Path -LiteralPath $ancestor) -and
-            ((Get-Item -LiteralPath $ancestor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+            ((Get-Item -LiteralPath $ancestor -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) -and
+            -not @($trustedBaselines | Where-Object { Test-PathWithin $_ $ancestor }).Count) {
             throw "Package output must not traverse a link: $ancestor"
         }
     }
@@ -35,11 +49,16 @@ function Publish-PackageRuntime {
         [string]$RepoRoot,
         [string]$Version,
         [string]$OutputDirectory,
-        [ValidateSet('x64', 'arm64')][string]$Architecture = 'x64'
+        [ValidateSet('x64', 'arm64')][string]$Architecture = 'x64',
+        [ValidateSet('win-x64', 'win-arm64', 'osx-arm64')]
+        [string]$RuntimeIdentifier = 'win-x64'
     )
+    if (-not $PSBoundParameters.ContainsKey('RuntimeIdentifier')) {
+        $RuntimeIdentifier = "win-$Architecture"
+    }
     $projectName = if ($Component -eq 'Cli') { 'CLI' } else { 'McpServer' }
     dotnet publish (Join-Path $RepoRoot "src\ExcelMcp.$projectName\ExcelMcp.$projectName.csproj") `
-        -c Release -r "win-$Architecture" --self-contained true -p:PublishSingleFile=true `
+        -c Release -r $RuntimeIdentifier --self-contained true -p:PublishSingleFile=true `
         -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false `
         -p:PublishReadyToRun=false -p:NuGetAudit=false "-p:Version=$Version" `
         -o $OutputDirectory --verbosity minimal

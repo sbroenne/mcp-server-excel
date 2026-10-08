@@ -8,13 +8,21 @@ that helps agents discover that launcher for ordinary workbook requests, and the
 Ordinary Excel automation uses native CLI help; general workflows and recovery
 remain in the [documentation](https://excelmcpserver.dev/reference/).
 
+> **macOS support is experimental beta.** Power Query, VBA, Data Model/DAX/OLAP,
+> Tables, PivotTables, charts, slicers, connections, QueryTables, XML Maps,
+> screenshots, advanced visual formatting, and Python result reads are not
+> supported. See [macOS beta limitations](https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+> The full feature list below describes Windows. Failed or cancelled Mac
+> mutations can partly apply; reconcile the surviving session before retrying.
+
 **Best for:** Coding agents (GitHub Copilot, Cursor, Windsurf) that need Excel automation without loading large tool schemas into context.
 
 ---
 
 ## Prerequisites
 
-- **Windows** with Microsoft Excel 2016 or later (COM interop required)
+- **Windows x64/ARM64** with Microsoft Excel 2016 or later, or **Apple Silicon
+  macOS** with Excel for Mac 16.112 or later
 - **Node.js 18 or later** with `npx`
 
 ---
@@ -50,6 +58,9 @@ npx -y @sbroenne/excelcli@latest --help
 Node.js and npx are required. The plugin's `bin\start-cli.ps1` wrapper preserves
 quoted JSON arguments when invoked from Windows PowerShell. No global helper,
 PATH change, or separate runtime installation is required.
+It installs the matching Windows x64/ARM64 or Darwin ARM64 runtime; unsupported
+hosts, including Intel macOS, fail closed. The wrapper requires PowerShell 7;
+direct `npx` invocation does not.
 
 You do **not** need a separate standalone install just to use the plugin.
 
@@ -58,8 +69,8 @@ You do **not** need a separate standalone install just to use the plugin.
 If you still prefer a fully separate non-plugin install, you can use the normal release channels:
 
 **Option A: Standalone Executable**
-1. Download `ExcelMcp-CLI-{version}-windows.zip` from [Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-2. Extract `excelcli.exe` to a permanent folder (for example `C:\Tools\ExcelMcp\`)
+1. Download the Windows or Apple Silicon macOS CLI archive from [Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+2. Extract `excelcli.exe` or `excelcli` to a permanent folder
 3. Add that folder to your PATH
 
 **Option B: .NET Global Tool**
@@ -125,6 +136,8 @@ marketplace-specific path. Replace the example directory below:
 ```powershell
 & "C:\Path\To\Installed\excel-cli\bin\start-cli.ps1" --help
 ```
+This Windows example uses Tables, which are unavailable in the Mac beta. On
+Mac, use an absolute native workbook path and plain range writes instead.
 
 ```powershell
 # Create new workbook
@@ -152,7 +165,9 @@ excelcli -q session close --session <id> --save
 
 ## Key Features
 
-- **Real Excel Engine** — Drives the actual Excel application via COM, so live operations run for real and existing workbooks stay intact
+- **Real Excel Engine** — Uses COM on Windows and capability-gated Apple Events
+  on Mac. Excel performs the operations; failed or cancelled mutations are not
+  guaranteed to roll back, so inspect the surviving session before retrying
 - **Session Management** — Open once, run many operations, close cleanly
 - **Quiet Mode** (`-q`) — JSON output only, perfect for scripting
 - **Built-in Help** — `npx -y @sbroenne/excelcli@latest --help` and `npx -y @sbroenne/excelcli@latest <command> --help`

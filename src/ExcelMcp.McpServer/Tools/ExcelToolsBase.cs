@@ -166,7 +166,7 @@ public static class ExcelToolsBase
         _ => ToolFailureClass.Unclassified
     };
 
-    public static string? ValidateWindowsPath(string? path)
+    public static string? ValidateAbsolutePath(string? path)
     {
         if (string.IsNullOrWhiteSpace(path) || Path.IsPathFullyQualified(path))
             return null;
@@ -176,9 +176,11 @@ public static class ExcelToolsBase
             fileName = "workbook.xlsx";
         var documentsFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
         var suggestedPath = Path.Combine(documentsFolder, fileName);
-        var errorMessage = path.StartsWith('/')
-            ? $"Invalid path format: '{path}' appears to be a Unix/Linux path. This server runs on Windows. Use: '{suggestedPath}'"
-            : $"Invalid path format: '{path}' is not an absolute Windows path. Use: '{suggestedPath}'";
+        var errorMessage = OperatingSystem.IsWindows()
+            ? path.StartsWith('/')
+                ? $"Invalid path format: '{path}' appears to be a Unix/Linux path. This server runs on Windows. Use: '{suggestedPath}'"
+                : $"Invalid path format: '{path}' is not an absolute Windows path. Use: '{suggestedPath}'"
+            : $"Invalid path format: '{path}' is not an absolute path. Use: '{suggestedPath}'";
         return JsonSerializer.Serialize(new
         {
             success = false,

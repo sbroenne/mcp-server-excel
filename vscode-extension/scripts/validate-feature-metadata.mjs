@@ -25,7 +25,6 @@ assertText(manifest.description, 'Extension description must be declared.');
 assertText(manifest.publisher, 'Extension publisher must be declared.');
 assertText(manifest.version, 'Extension version must be declared.');
 assertText(manifest.engines?.vscode, 'Minimum VS Code engine version must be declared.');
-assert.deepEqual(manifest.os, ['win32'], 'Excel automation requires Windows.');
 assert.deepEqual(manifest.extensionKind, ['ui'], 'Excel automation must run on the local desktop.');
 assert.ok(manifest.categories?.length > 0, 'At least one Marketplace category must be declared.');
 assert.ok(manifest.keywords?.length > 0, 'At least one Marketplace keyword must be declared.');
@@ -53,6 +52,22 @@ for (const provider of providers) {
     `MCP server definition provider '${provider.id}' must be registered by src/extension.ts.`
   );
 }
+
+assert.deepEqual(
+  manifest.os,
+  ['win32', 'darwin'],
+  'Extension operating systems must include Windows and macOS.'
+);
+assert.ok(
+  extensionSource.includes(
+    "platform === 'win32' && (architecture === 'x64' || architecture === 'arm64')"
+  ),
+  'Extension must resolve its bundled Windows x64 and ARM64 runtimes.'
+);
+assert.ok(
+  extensionSource.includes("platform === 'darwin' && architecture === 'arm64'"),
+  'Extension must resolve its bundled Apple Silicon macOS runtime.'
+);
 
 const skills = manifest.contributes?.chatSkills ?? [];
 assert.ok(skills.length > 0, 'At least one chat skill must be contributed.');

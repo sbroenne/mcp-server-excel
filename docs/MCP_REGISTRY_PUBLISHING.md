@@ -19,7 +19,7 @@ This is the MCP registry metadata file that describes the server:
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.sbroenne/mcp-server-excel",
   "title": "MCP Server for Excel",
-  "description": "Excel automation for AI - Sheets, Power Query, DAX, VBA, Tables, Ranges and more. Windows only.",
+  "description": "Real Excel automation for AI. Complete on Windows; experimental beta on Apple Silicon macOS.",
   "version": "1.0.0",
   "repository": {
     "url": "https://github.com/sbroenne/mcp-server-excel",
@@ -40,6 +40,11 @@ Key fields:
 The registry offers both NuGet and npm installations. It validates NuGet
 ownership through `mcp-name:` in the package README and npm ownership through
 the `mcpName` property in the launcher package.
+
+Registry presence is not platform acceptance. Apple Silicon macOS support is
+experimental beta; prefer the npm deployment for Mac. NuGet installation checks
+run on Windows, and neither channel bypasses
+[Mac feature gates](../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
 
 Location: `src/ExcelMcp.McpServer/README.md`
 

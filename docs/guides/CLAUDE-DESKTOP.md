@@ -7,63 +7,53 @@ or a manual stdio configuration below.
 
 ## Requirements
 
-- Windows 10 or later
-- Microsoft Excel 2016 or later (desktop version)
-- An interactive Windows desktop with Excel available to the signed-in user
-- Node.js 18+ with npm/npx on PATH for MCPB or manual npx configuration
-- Network access for npm package downloads and update checks
+- Windows x64/ARM64 with desktop Excel 2016 or later, or
+- Apple Silicon macOS with Excel for Mac 16.112 or later
+- An interactive desktop session; Intel Macs and headless hosts are unsupported
 
-The published Windows packages are self-contained; no .NET runtime is required.
+The published Windows x64/ARM64 and Apple Silicon macOS packages are self-contained;
+no .NET runtime is required.
 
 ## Recommended: MCPB Bundle
 
-1. Download `excel-mcp-{version}.mcpb` from the
+1. Download `excel-mcp-{version}-windows.mcpb` or
+   `excel-mcp-{version}-macos-arm64.mcpb` from the
    [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest).
 2. Double-click the bundle or drag it into Claude Desktop.
 3. Restart Claude Desktop.
 
-The bundle configures Claude Desktop to run
-`npx -y @sbroenne/mcp-server-excel@latest`. It contains configuration and
-documentation, not a fixed server executable or bundled npm. Install Node.js
-LTS first if npx is unavailable, then restart Claude Desktop so it sees PATH.
-Do not assume Claude's built-in Node.js provides the external npx command.
-
-`@latest` uses normal npm resolution and caching, not a guaranteed online
-check on every launch. A running server does not change versions. Users of an
-older binary MCPB must install the new bundle once; later bundle configuration
-changes still require manual replacement.
+The bundle contains the MCP server and configures Claude Desktop automatically.
 
 ## Manual Configuration
 
-Add the server to `%APPDATA%\Claude\claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "excel-mcp": {
-      "command": "npx",
-      "args": ["-y", "@sbroenne/mcp-server-excel@latest"]
-    }
-  }
-}
-```
-
-Restart Claude Desktop after saving the configuration.
-
-### Standalone Alternative
-
-This method does not require Node.js, but executable updates are manual.
-
-1. Download `ExcelMcp-MCP-Server-{version}-windows.zip` from the
+1. Download `ExcelMcp-MCP-Server-{version}-windows.zip` or
+   `ExcelMcp-MCP-Server-{version}-macos-arm64.zip` from the
    [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest).
-2. Extract it to a permanent directory such as `C:\Tools\ExcelMcp`.
-3. Add the server to `%APPDATA%\Claude\claude_desktop_config.json`:
+2. Extract it to a permanent directory.
+3. Add the matching absolute executable path to Claude's configuration:
+   `%APPDATA%\Claude\claude_desktop_config.json` on Windows, or
+   `~/Library/Application Support/Claude/claude_desktop_config.json` on Mac.
+
+Windows example:
 
 ```json
 {
   "mcpServers": {
     "excel-mcp": {
       "command": "C:\\Tools\\ExcelMcp\\mcp-excel.exe",
+      "args": []
+    }
+  }
+}
+```
+
+Mac example (replace the user and installation path):
+
+```json
+{
+  "mcpServers": {
+    "excel-mcp": {
+      "command": "/Users/your-user/Tools/ExcelMcp/mcp-excel",
       "args": []
     }
   }
@@ -99,15 +89,16 @@ not just read a spreadsheet file. For more tasks, see
    authorized and the session reports canClose: true.
 ```
 
-Use full Windows paths and close sessions explicitly so Excel processes do not
-remain open and lock workbooks.
+Use full native paths. Windows sessions own their Excel processes; Mac sessions
+own only exact workbooks in shared Excel. Never terminate shared Excel or close
+unrelated workbooks.
 
 ## Troubleshooting
 
 ### Excel not found
 
-- Confirm that desktop Excel 2016 or later is installed.
-- Confirm that Excel starts normally for the current Windows user.
+- Confirm that the required desktop Excel version for your platform is installed.
+- Confirm that Excel starts normally for the current user.
 
 ### Access denied or file locked
 
@@ -115,20 +106,31 @@ remain open and lock workbooks.
 - Reuse the matching session when possible; do not close another user's window.
 - Ask for a different destination only if the supplied one cannot be used.
 
-### COM timeout
+### Mac permission, platform, or recovery errors
+
+- Grant Excel Automation permission manually when macOS requests it.
+- `PlatformNotSupported` means the action/variant is unavailable; installing an
+  optional bridge does not enable unaccepted actions.
+- For `RecoveryRequired`, reconcile the exact workbook and pending dialogs
+  manually before restarting the client. Do not repeat the open, close other
+  workbooks, or kill shared Excel.
+
+### COM timeout (Windows)
 
 - Check whether Excel is displaying a modal dialog.
 - Allow long-running refresh or calculation operations to finish.
 - Inspect the surviving sessions and partial changes before retrying. Restarting
   can lose unsaved work or trigger saving during normal shutdown.
 
-### VBA operations fail
+### VBA operations fail (Windows)
 
 Read the actual error. VBA project inspection/editing requires trusted project
 access configured manually by the user. Running an existing macro does not
 itself require that project access, though Excel's macro security still applies.
 Do not change Trust Center settings automatically or assume every VBA error is
 a trust failure.
+
+VBA is unsupported in the Mac beta; changing macro preferences cannot enable it.
 
 See the current
 [MCP Server installation guide](https://excelmcpserver.dev/installation-mcp-server/)

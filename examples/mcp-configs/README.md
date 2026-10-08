@@ -2,24 +2,27 @@
 
 This directory contains ready-to-use MCP configuration files for various AI coding assistants.
 
+**Apple Silicon macOS support is experimental beta**, with only the
+[enabled action subset](../../docs/MACOS-ACTION-INVENTORY.md).
+See [unsupported features](../../specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+Windows retains the complete backend. Interactive desktop Excel is required;
+Intel Macs, Linux, and headless hosts are unsupported.
+
 ## Quick Setup Guide
 
-### 1. Install Node.js for Direct npx Setup
+### 1. Install ExcelMcp MCP Server
 
-```powershell
-winget install OpenJS.NodeJS.LTS
-npx -y @sbroenne/mcp-server-excel@latest --version
-```
+These configuration files use the bare `mcp-excel` command, so install the
+matching standalone runtime on PATH: download
+`ExcelMcp-MCP-Server-{version}-windows.zip` or
+`ExcelMcp-MCP-Server-{version}-macos-arm64.zip` from
+[Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest),
+extract `mcp-excel.exe` or `mcp-excel` to a permanent directory, and add that
+directory to PATH. Alternatively, replace the command with its absolute path.
 
-The supplied configurations use `npx -y @sbroenne/mcp-server-excel@latest`.
-Windows, desktop Excel 2016+, and an interactive desktop are required; .NET is
-not. Restart your client after installing Node.js so it sees the updated PATH.
-Network access is needed for downloads and update checks. `@latest` uses normal
-npm caching and does not upgrade an already running server.
-
-For standalone ZIP or NuGet setup, see the
-[installation guide](../../docs/INSTALLATION-MCP-SERVER.md) and replace the
-example's command with `mcp-excel`, removing its npx arguments.
+For a direct npm configuration (`npx`, Node.js 18+) or the secondary .NET-tool
+channel, follow the [installation guide](../../docs/INSTALLATION-MCP-SERVER.md).
+The standalone runtimes do not require .NET or Node.js.
 
 ### 2. Choose Your Client and Copy the Config
 
@@ -31,11 +34,12 @@ Select the configuration file for your AI assistant and follow the instructions 
 
 **Config File:** `claude-desktop-config.json`
 
-**Location:** `%APPDATA%\Claude\claude_desktop_config.json` (Windows)
+**Location:** `%APPDATA%\Claude\claude_desktop_config.json` (Windows), or
+`~/Library/Application Support/Claude/claude_desktop_config.json` (Mac)
 
 **Setup Steps:**
 
-1. Open File Explorer and navigate to: `%APPDATA%\Claude\`
+1. Open the configuration directory for your platform
 2. If `claude_desktop_config.json` doesn't exist, create it
 3. Copy the contents of `claude-desktop-config.json` from this folder
 4. If you already have a config file, merge the `excel-mcp` server entry into your existing `mcpServers` section
@@ -43,7 +47,7 @@ Select the configuration file for your AI assistant and follow the instructions 
 
 **Test it:**
 ```
-Create an Excel file called "test.xlsx"
+Create an Excel file at this supplied absolute path ending in "test.xlsx"
 ```
 
 ---
@@ -53,12 +57,12 @@ Create an Excel file called "test.xlsx"
 **Config File:** `cursor-mcp-config.json`
 
 **Location:** 
-- Windows: `%USERPROFILE%\.cursor\mcp.json`
+- Windows: `%APPDATA%\Cursor\User\globalStorage\mcp\mcp.json`
 - Or: Project-specific `.cursor/mcp.json` in your workspace
 
 **Setup Steps:**
 
-1. Open Cursor Settings (Ctrl+,)
+1. Open Cursor Settings (Ctrl+, on Windows; Cmd+, on Mac)
 2. Search for "MCP" in settings
 3. Click "Edit in settings.json" or manually create the config file at the location above
 4. Copy the contents of `cursor-mcp-config.json` from this folder
@@ -100,10 +104,8 @@ Create an Excel file called "test.xlsx"
 **Config File:** `windsurf-mcp-config.json`
 
 **Location:** 
-- Use **Open MCP config file** in the client's MCP settings; do not create a
-  guessed file under `%APPDATA%\Windsurf`.
-- In older Windsurf versions, the file is
-  `%USERPROFILE%\.codeium\windsurf\mcp_config.json`.
+- Windows: `%APPDATA%\Windsurf\User\mcp_settings.json`
+- Or check Windsurf's MCP settings panel
 
 **Setup Steps:**
 
@@ -147,31 +149,30 @@ Create an Excel file called "test.xlsx"
 
 ### Server Not Responding
 
-1. **Verify installation:**
+1. **Verify the executable configured by these examples is on PATH:**
    ```powershell
-   npx -y @sbroenne/mcp-server-excel@latest --version
+   mcp-excel --version
    ```
 
-2. **Check Node.js/npm is installed:**
-   ```powershell
-   node --version
-   npm --version
-   ```
+2. **Verify the client's command/path:** GUI clients may have a different PATH
+   from your shell; use an absolute executable path if necessary.
 
-3. **If npx is missing, install Node.js LTS and restart the client:**
-   ```powershell
-   winget install OpenJS.NodeJS.LTS
-   ```
+3. **Update the matching installation:** replace the standalone runtime in its
+   permanent directory. Only .NET-tool installations need the .NET runtime and
+   `dotnet tool` diagnostics.
 
 ### Excel Not Found
 
-- Ensure Microsoft Excel Desktop (2016+) is installed
-- ExcelMcp requires Windows OS with Excel installed
+- Ensure desktop Excel 2016+ on Windows x64/ARM64, or Excel for Mac 16.112+ on Apple Silicon
+- Verify Excel starts normally in an interactive desktop session
 
 ### Permission Issues
 
-- Close all Excel windows before running ExcelMcp
-- Ensure your user account has Excel access
+- Ensure your user account has Excel and workbook access
+- On Mac, grant Excel Automation permission manually when requested
+- Reuse the matching workbook session; do not close unrelated workbooks
+- For Mac `RecoveryRequired`, reconcile the exact file and pending dialogs
+  manually before restarting the client; do not kill shared Excel
 
 ### Still Having Issues?
 

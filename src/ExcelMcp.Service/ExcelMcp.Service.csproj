@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
 
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -32,6 +32,9 @@
   <ItemGroup>
     <ProjectReference Include="..\ExcelMcp.Core\ExcelMcp.Core.csproj" />
     <ProjectReference Include="..\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />
+    <ProjectReference Include="..\ExcelMcp.Generators\ExcelMcp.Generators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!-- Allow CLI and MCP Server tests to access internals -->
@@ -41,9 +44,16 @@
     <InternalsVisibleTo Include="Sbroenne.ExcelMcp.CLI.Tests" />
     <InternalsVisibleTo Include="Sbroenne.ExcelMcp.McpServer.Tests" />
     <InternalsVisibleTo Include="Sbroenne.ExcelMcp.Service.Tests" />
+    <InternalsVisibleTo Include="Sbroenne.ExcelMcp.Portable.Tests" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="StreamJsonRpc" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Mac\MacExcelBridge.js" />
+    <EmbeddedResource Include="Mac\Templates\Blank.xlsx"
+                      LogicalName="Sbroenne.ExcelMcp.Service.Mac.Blank.xlsx" />
   </ItemGroup>
 
 </Project>

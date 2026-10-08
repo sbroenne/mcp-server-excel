@@ -11,6 +11,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// TIMEOUT: Refresh accepts a caller timeout; load-to uses the 30-minute data-operation timeout.
 /// </summary>
 [ServiceCategory("Connection")]
+[MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+    Evidence = "Excel for Mac 16.113.1 defines a read-only workbook connection class but exposes no workbook collection, no creation command, and no typed OLEDB or ODBC properties.",
+    ExcelApiVersion = "Excel for Mac 16.113.1; Apple Events.",
+    Blocker = "the installed dictionary cannot satisfy the public contract for enumeration, creation, provider properties, refresh control, load-to, or exact cleanup; use the Windows COM backend")]
 [McpTool("connection", Title = "Data Connection Operations", Destructive = true, Category = "query",
     Description = "Create, change, import, delete, load, refresh, and cancel refreshes for data connections (OLEDB, ODBC, ODC import). Use querytable for direct text/web/CSV imports or powerquery for transformations. Power Query connections redirect by exact mashup Location identity. Delete/load-to cleanup follows the exact WorkbookConnection and preserves unrelated similarly named QueryTables. Refresh cancellation uses typed OLEDB/ODBC helpers. Refresh accepts a caller timeout; load-to uses the 30-minute data-operation timeout.")]
 [McpReadOnlyActions("list", "view", "test", "get-refresh-status", "get-properties")]

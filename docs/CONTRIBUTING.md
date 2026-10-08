@@ -7,7 +7,7 @@ Thank you for your interest in contributing to Sbroenne.ExcelMcp! This project i
 ExcelMcp aims to be the go-to command-line tool for coding agents to interact with Microsoft Excel files. We prioritize:
 
 - **Simplicity** - Clear, predictable commands
-- **Reliability** - Robust COM automation
+- **Reliability** - Robust native Excel automation
 - **Extensibility** - Easy to add new features
 - **Agent-Friendly** - Designed for AI coding assistants
 
@@ -16,10 +16,15 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 ### Development Environment
 
 1. **Prerequisites**:
-   - Windows OS (required for Excel COM)
+   - Windows x64/ARM64 or Apple Silicon macOS
    - Visual Studio 2022 or VS Code
    - .NET 10 SDK
-   - Microsoft Excel installed
+   - Microsoft Excel installed for Excel-dependent tests
+   - PowerShell 7 for repository scripts
+
+   Apple Silicon macOS support is **experimental beta**. See
+   [macOS capabilities and limitations](../specs/MACOS-SUPPORT.md).
+   Windows COM tests cannot run on Mac.
 
 2. **Setup**:
    ```powershell
@@ -29,10 +34,19 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
    dotnet build
    ```
 
-3. **Test your setup** (surgical — don't run the full integration suite, it takes 45+ minutes):
+   For a cross-target solution build on Mac, pass
+   `-p:EnableWindowsTargeting=true` to restore/build. This compiles the Windows
+   targets; it does not execute Windows desktop tests.
+
+3. **Test your setup** with the affected project/feature. The following Sheet
+   integration selection requires **Windows desktop Excel**:
    ```powershell
    dotnet test --filter "Feature=Sheet&RunType!=OnDemand"
    ```
+
+   On Mac, build Release and run `pwsh ./scripts/Test-MacE2E.ps1 -SkipBuild`
+   against the verified native subset. Run all Excel-dependent commands
+   sequentially; never overlap desktop fixtures or entry-point acceptance.
 
 ## 🚨 **CRITICAL: Pull Request Workflow Required**
 
@@ -130,21 +144,22 @@ change the user's NuGet configuration or solution restore sources.
 
 ### Architecture
 
-ExcelMcp has **two equal entry points** — an MCP Server and a CLI — sharing one Core layer:
+ExcelMcp has **two equal entry points** and platform-specific automation
+backends:
 
 ```
-MCP Server ──► In-process ExcelMcpService ──► Core Commands ──► Excel COM
-CLI ─────────► CLI Daemon (named pipe) ─────► Core Commands ──► Excel COM
+MCP Server ──► In-process ExcelMcpService ──► Windows COM / macOS Apple Events
+CLI ─────────► CLI daemon (local IPC) ──────► Windows COM / macOS Apple Events
 ```
 
 - **`ExcelMcp.ComInterop`** - Reusable COM automation primitives (STA threading, session/batch management)
 - **`ExcelMcp.Core`** - Excel business logic (Power Query, VBA, worksheets, PivotTables, etc.)
-- **`ExcelMcp.Service`** - Excel session management and command routing
+- **`ExcelMcp.Service`** - Shared session routing and the macOS backend
 - **`ExcelMcp.CLI`** - Command-line interface (session-based: `excelcli session open`, then operate on the session, then `excelcli session close --save`)
 - **`ExcelMcp.McpServer`** - Model Context Protocol tools for AI assistants
 - **`ExcelMcp.Generators*`** - Source generators that produce CLI commands and MCP tools directly from Core interfaces — you do **not** hand-write CLI verb registration or MCP tool schemas
 
-#### Command Pattern
+#### Windows Core Command Pattern
 
 Core Commands use the batch API and let exceptions propagate — never wrap `batch.Execute()` in a try-catch that returns an error result:
 
@@ -179,7 +194,7 @@ arguments before entering the batch. The batch propagates callback failures to
 the caller; Service and MCP boundaries serialize failures with their diagnostic
 context. Do not replace that context with a second generic error result.
 
-#### Critical Rules
+#### Windows Core Critical Rules
 
 1. **Always use the batch API** - Never manage Excel lifecycle manually
 2. **Excel uses 1-based indexing** - `collection.Item(1)` is the first element
@@ -187,7 +202,7 @@ context. Do not replace that context with a second generic error result.
 4. **`Success = true` must never coexist with a non-empty `ErrorMessage`**
 5. **COM objects** are released only in `finally` blocks, never swallowed in empty `catch` blocks
 
-### Excel COM Best Practices
+### Windows Excel COM Best Practices
 
 - **Typed Excel PIAs first** - use late binding only for documented PIA/runtime dependency gaps
 - **Proper error handling** - Catch `COMException` where specific handling is needed; otherwise let exceptions propagate

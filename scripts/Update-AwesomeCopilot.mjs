@@ -104,8 +104,18 @@ function physicalPath(value) {
     return value.startsWith('\\\\?\\') ? value.slice(4) : value;
 }
 
+function canonicalSystemAlias(value) {
+    if (process.platform !== 'darwin') return value;
+    for (const [alias, canonical] of [['/var', '/private/var'], ['/tmp', '/private/tmp']]) {
+        if (value === alias || value.startsWith(`${alias}${path.sep}`)) {
+            return `${canonical}${value.slice(alias.length)}`;
+        }
+    }
+    return value;
+}
+
 export function safeUpdaterPath(target, { directory = false, allowMissing = false } = {}) {
-    const absolute = path.resolve(target), volume = path.parse(absolute).root;
+    const absolute = canonicalSystemAlias(path.resolve(target)), volume = path.parse(absolute).root;
     const parts = absolute.slice(volume.length).split(path.sep).filter(Boolean);
     let current = volume;
     const existing = [];

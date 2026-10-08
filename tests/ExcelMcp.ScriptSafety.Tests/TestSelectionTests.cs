@@ -59,13 +59,33 @@ public sealed class TestSelectionTests
     [InlineData("-Local -ChangedPaths @('scripts/Publish-PreparedPlugins.ps1')", "Packaging")]
     [InlineData("-Local -ChangedPaths @('tests/Shared/GeneratedAssetsFixture.cs')", "SkillGeneration,Packaging")]
     [InlineData("-Local -ChangedPaths @('tests/Shared/PackagingScriptTestHelper.cs')", "SkillGeneration,Packaging")]
-    [InlineData("", "CLI,ComInterop,Core,McpServer,Service,SkillGeneration,Packaging,ScriptSafety")]
+    [InlineData("-Local -ChangedPaths @('tests/ExcelMcp.Portable.Tests/MacAppleEventTests.cs')", "ScriptSafety,Portable")]
+    [InlineData("-Local -ChangedPaths @('src/ExcelMcp.Service/Mac/MacAppleEvents.cs')", "Portable")]
+    [InlineData("", "CLI,ComInterop,Core,McpServer,Service,SkillGeneration,Packaging,ScriptSafety,Portable")]
     [InlineData("-Group Tooling", "SkillGeneration,Packaging,ScriptSafety")]
     [InlineData("-Group Tooling -PlanFile $planFile", "SkillGeneration,Packaging,ScriptSafety")]
     public async Task Runner_SelectsActualProjectCommands(string arguments, string expected)
     {
         var result = await RunRunnerAsync(arguments, false);
         Assert.True(result.ExitCode == 0, result.Output);
+        if (!OperatingSystem.IsWindows() && !arguments.Contains("-Group", StringComparison.Ordinal) &&
+            expected.Split(',').Contains("Packaging", StringComparer.Ordinal))
+        {
+            Assert.Contains("Packaging tests are not supported by the local non-Windows runner; not run on this host.",
+                result.Output, StringComparison.Ordinal);
+            expected = string.Join(',', expected.Split(',').Where(project => project != "Packaging"));
+        }
+        if (!OperatingSystem.IsWindows())
+        {
+            var windowsProjects = new[] { "CLI", "ComInterop", "Core", "McpServer", "Service" };
+            foreach (var project in expected.Split(',').Where(windowsProjects.Contains))
+            {
+                Assert.Contains($"{project} tests require Microsoft.WindowsDesktop.App; not run on this host.",
+                    result.Output, StringComparison.Ordinal);
+                Assert.DoesNotContain($"started={project}", result.Output, StringComparison.Ordinal);
+            }
+            expected = string.Join(',', expected.Split(',').Where(project => !windowsProjects.Contains(project)));
+        }
         Assert.Contains($"selected={expected}", result.Output, StringComparison.Ordinal);
     }
 

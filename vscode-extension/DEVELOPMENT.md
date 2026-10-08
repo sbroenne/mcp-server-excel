@@ -1,11 +1,13 @@
 # VS Code Extension Development
 
-The Excel MCP Server extension bundles a self-contained Windows MCP executable
-and one Agent Skill. It ships separate VSIX packages for Windows x64 and
-Windows ARM64 installations of VS Code, each containing a matching native
-server executable. Native ARM64 server and CLI executables are also distributed
-through npm and selected by ARM64 Node.js. Extension users do not need a
-separate .NET runtime, Node.js runtime, or CLI installation.
+The Excel MCP Server extension ships platform-targeted VSIX packages for
+Windows x64/ARM64 and Apple Silicon macOS. Each package bundles the matching MCP
+executable and one Agent Skill. Users do not need a separate .NET runtime or
+CLI installation.
+
+Mac support is an experimental beta subset, not full Windows parity; keep
+package metadata and examples aligned with
+[the support reference](../specs/MACOS-SUPPORT.md).
 
 ## Project structure
 
@@ -16,9 +18,6 @@ vscode-extension/
 ├── bin/                      # Self-contained MCP Server built for packaging
 ├── skills/excel-mcp-report-formatting/ # Build copy of the formatting skill
 ├── scripts/                  # Build-time manifest validation
-├── tests/                    # Vitest registration and setup regressions
-├── vitest.config.mts         # Node tests with a test-only VS Code API replacement
-├── tsconfig.test.json        # Separate test-source type checking
 ├── package.json              # Extension manifest and npm scripts
 ├── package-lock.json         # Locked development dependencies
 ├── tsconfig.json             # TypeScript compiler settings
@@ -33,14 +32,12 @@ Do not edit files under `vscode-extension/skills/excel-mcp-report-formatting/` d
 shared package command copies the prepared MCP skill from
 `artifacts/generated-skills/` into an isolated extension staging directory.
 
-After a Release solution build, `npm run package` uses
+On Windows, after a Release solution build, `npm run package` uses
 `scripts/Build-ReleasePackages.ps1 -Components Extension`. It publishes the MCP
-runtimes for x64 and ARM64, generates complete skills, installs locked extension
-dependencies, and creates and inspects both VSIX files under `artifacts/packages/`.
-When npm packages are built in the same run, the extension reuses their prepared
-ARM64 server. It does not clean or overwrite this source directory. For an
-unpackaged debug session, open the prepared `extension` directory reported by
-that command; its server matches the Windows host architecture.
+runtime once, generates complete skills, installs locked extension dependencies,
+and creates and inspects the VSIX under `artifacts/packages/`. It does not clean
+or overwrite this source directory. For an unpackaged debug session, open the
+prepared `extension` directory reported by that command.
 
 Do not edit `vscode-extension/CHANGELOG.md` directly. The build copies the
 generated root `CHANGELOG.md` into the extension package.
@@ -49,32 +46,27 @@ generated root `CHANGELOG.md` into the extension package.
 
 ### MCP Server
 
-The manifest declares the provider ID and `extensionKind: ["ui"]`. The
-extension registers that exact ID through VS Code's API and includes its
-release-stamped version so upgrades refresh tool discovery:
+The manifest declares the provider ID and the extension registers that exact
+ID through VS Code's API:
+
+The platform resolver selects `win32-x64/Sbroenne.ExcelMcp.McpServer.exe` or
+`darwin-arm64/Sbroenne.ExcelMcp.McpServer`; unsupported hosts fail explicitly:
 
 ```typescript
 vscode.lm.registerMcpServerDefinitionProvider('excel-mcp', {
-  provideMcpServerDefinitions: async () => [
-    new vscode.McpStdioServerDefinition(
-      'excel-mcp',
-      path.join(context.extensionPath, 'bin', 'Sbroenne.ExcelMcp.McpServer.exe'),
-      [],
-      {},
-      context.extension.packageJSON.version
-    )
-  ]
+  provideMcpServerDefinitions: async () => {
+    const runtime = resolveBundledRuntime(process.platform, process.arch);
+    return [
+      new vscode.McpStdioServerDefinition(
+        'excel-mcp',
+        path.join(context.extensionPath, 'bin', runtime.directory, runtime.executable),
+        [],
+        {}
+      )
+    ];
+  }
 });
 ```
-
-Discovery does not probe the installation or prompt the user.
-`resolveMcpServerDefinition` checks Windows, executable access, and Excel COM
-registration just before launch. The registration check uses noninteractive
-Windows PowerShell with a ten-second timeout and cancellation; it does not
-create Excel or open a workbook.
-
-The first-run Getting Started action opens the published user guides, not
-installation instructions for an extension that is already installed.
 
 ### Agent Skill
 
@@ -96,9 +88,10 @@ manifest. Runtime skill discovery reads the matching frontmatter from
 
 ## Prerequisites
 
-- Windows
+- Windows x64/ARM64 or Apple Silicon macOS
 - The .NET SDK pinned by the repository `global.json`
-- Node.js 22.12+ and npm, compatible with the locked Vitest and vsce versions
+- Node.js and npm
+- PowerShell 7 for the packaging scripts
 - Microsoft Excel for end-to-end MCP testing
 
 Install locked dependencies:
@@ -113,8 +106,7 @@ npm ci
 Run the fast checks while editing:
 
 ```powershell
-npm test
-npm run typecheck:tests
+npm run compile
 npm run lint
 ```
 
@@ -124,20 +116,15 @@ replacements. It does not establish Excel COM behavior. Tests, mocks, test
 configuration, caches, reports, and developer-only `AGENTS.md`/`CLAUDE.md`
 instructions do not ship, including nested instruction files.
 
-`npm run compile` validates Marketplace assets and feature metadata before
-compiling production TypeScript. It needs the generated skill inputs present
-in the prepared package stage; the source directory deliberately does not
-contain those generated copies.
-
-Build the complete release-shaped VSIX:
+Build the Windows release-shaped VSIX on Windows:
 
 ```powershell
 npm run package
 ```
 
-Packaging performs these steps automatically:
+Windows packaging performs these steps automatically:
 
-1. Prepares self-contained Windows x64 and native ARM64 MCP Server executables.
+1. Publishes the self-contained Windows x64 and ARM64 MCP runtimes.
 2. Copies and stamps the canonical Agent Skill.
 3. Copies the generated root changelog.
 4. Validates feature and Marketplace metadata and compiles TypeScript.
@@ -149,25 +136,32 @@ Packaging performs these steps automatically:
    files, developer instructions, and the CLI. A mislabeled server or leaked
    instruction file fails packaging.
 
-To prepare and inspect the bundled executable through the shared package path,
+Apple Silicon release packaging runs separately from the repository root:
+
+```powershell
+./scripts/Build-MacReleasePackages.ps1 -Version <version> -OutputDirectory artifacts/release-macos
+```
+
+That path builds, signs, launches, and inspects the ARM64 runtime and produces
+the `darwin-arm64` VSIX. Intel macOS is unsupported and has no VSIX target.
+
+On Windows, to prepare and inspect the bundled executable through the shared package path,
 run these commands from the repository root:
 
 ```powershell
 .\scripts\Build-AgentSkills.ps1 -GenerateOnly
 .\scripts\Build-ReleasePackages.ps1 -Components Extension -SkillsDirectory artifacts\generated-skills -OutputDirectory artifacts\extension-check
 .\artifacts\extension-check\runtimes\Mcp\Sbroenne.ExcelMcp.McpServer.exe --version
-# On ARM64 Windows, also check the native server:
-.\artifacts\extension-check\runtimes\Mcp-arm64\Sbroenne.ExcelMcp.McpServer.exe --version
 ```
 
 ## Local testing
 
 ### Extension Development Host
 
-1. Run `npm run package` from the source extension folder.
-2. Open the prepared `extension` directory reported by packaging in VS Code.
-3. Install its locked development dependencies with `npm ci` if the debug
-   configuration needs a compile step, then press `F5`.
+1. Open the prepared extension staging directory for your platform in VS Code
+   (it contains the generated skill and bundled runtime).
+2. Run `npm run compile`.
+3. Press `F5` to open an Extension Development Host.
 4. Confirm the MCP server appears in VS Code's MCP management UI.
 5. Open the extension's Features tab and verify:
    - MCP Servers shows `excel-mcp` and `Excel MCP Server`.
@@ -175,25 +169,14 @@ run these commands from the repository root:
 
 ### Packaged VSIX
 
-1. Run `npm run package`.
+1. Run `npm run package` on Windows or the Mac packaging command above on Apple Silicon.
 2. Use **Extensions: Install from VSIX...** in VS Code.
-3. Select `excel-mcp-<version>.vsix` for Windows x64 or
-   `excel-mcp-<version>-win32-arm64.vsix` for native ARM64 VS Code.
+3. Select `excelmcp-<version>-win32-x64.vsix` or
+   `excelmcp-<version>-darwin-arm64.vsix`.
 4. Reload VS Code and verify the MCP server and Agent Skill.
 
-The VSIX files are approximately 60-65 MB. Most of their size is the compressed,
-self-contained MCP Server; the unpacked executable is approximately 150-165 MB,
-depending on architecture.
-
-For an isolated check, use separate `--user-data-dir` and `--extensions-dir`
-directories rather than overwrite your everyday installation. Check activation,
-first-run help, the Features tab, and **MCP: List Servers > excel-mcp > Show
-Output**. The **ExcelMcp** output channel contains setup diagnostics, not server
-operation logs.
-
-Use a temporary workbook for a create/read/close smoke with real Excel. Run
-Excel-dependent checks sequentially. In a remote workspace, verify the server
-runs on the Windows desktop and requires locally accessible workbook paths.
+The VSIX is approximately 65 MB. Most of its size is the compressed,
+self-contained MCP Server; the unpacked executable is approximately 150 MB.
 
 ## Release workflow
 
@@ -217,11 +200,15 @@ Run `npm ci` from `vscode-extension`.
 
 ### MCP Server is missing
 
-Run the shared package commands above, then verify that
+On Windows, run the shared package commands above, then verify that
 `artifacts/extension-check/runtimes/Mcp/Sbroenne.ExcelMcp.McpServer.exe --version`
 succeeds. The manifest provider
 ID and the ID passed to `registerMcpServerDefinitionProvider` must both be
 `excel-mcp`.
+
+On Mac, use the native packaging path and check
+`<output>/runtimes/Mcp/Sbroenne.ExcelMcp.McpServer --version`. Do not run the
+Windows package path or expect an `.exe`.
 
 ### Feature metadata validation fails
 

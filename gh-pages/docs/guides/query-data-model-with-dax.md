@@ -1,6 +1,6 @@
 ---
 title: Query the Excel Data Model with DAX
-description: Create DAX measures, run DAX queries, inspect the Excel Data Model with DMVs, and manage relationships in Power Pivot from an AI assistant or script.
+description: Create DAX measures, query the Excel Data Model, and manage Power Pivot relationships on Windows. These actions are unsupported in the experimental Mac beta.
 keywords: "Excel DAX automation, Power Pivot automation, create DAX measure programmatically, Excel Data Model DMV, MSOLAP Excel"
 ---
 

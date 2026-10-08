@@ -154,6 +154,9 @@ public interface IRangeLinkCommands
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
     /// <param name="locked">Optional native lock flag; omitted leaves it unchanged</param>
     /// <param name="formulaHidden">Optional native formula-hiding flag; omitted leaves it unchanged</param>
+    [MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+        Evidence = "The current Windows contract changed after the Mac implementation was verified.",
+        Blocker = "macOS parity must be reverified against the current contract before enabling this action")]
     [ServiceAction("set-cell-protection")]
     OperationResult SetCellProtection(IExcelBatch batch, [AllowEmptyString] string sheetName,
         [RequiredParameter] string rangeAddress, bool? locked = null, bool? formulaHidden = null);
@@ -163,6 +166,9 @@ public interface IRangeLinkCommands
     /// </summary>
     /// <param name="sheetName">Worksheet name; empty for named ranges</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
+    [MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+        Evidence = "The current Windows contract changed after the Mac implementation was verified.",
+        Blocker = "macOS parity must be reverified against the current contract before enabling this action")]
     [ServiceAction("get-cell-protection")]
     RangeCellProtectionResult GetCellProtection(IExcelBatch batch, [AllowEmptyString] string sheetName,
         [RequiredParameter] string rangeAddress);
