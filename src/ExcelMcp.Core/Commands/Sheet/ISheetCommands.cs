@@ -26,6 +26,7 @@ public interface ISheetCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="filePath">Optional file path when batch contains multiple workbooks. If omitted, uses primary workbook.</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("list")]
     WorksheetListResult List(IExcelBatch batch, string? filePath = null);
 
@@ -37,6 +38,7 @@ public interface ISheetCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Exact name for the new worksheet. Names are not trimmed; blank or whitespace-only names are rejected.</param>
     /// <param name="filePath">Optional file path when batch contains multiple workbooks. If omitted, creates in primary workbook.</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("create")]
     OperationResult Create(IExcelBatch batch, [RequiredParameter] string sheetName, string? filePath = null);
 
@@ -47,6 +49,8 @@ public interface ISheetCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="oldName">Current name of the worksheet</param>
     /// <param name="newName">Exact new worksheet name. Names are not trimmed; blank or whitespace-only names are rejected.</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "Native exact-object rename uses shared name validation, duplicate checks and Excel naming-rejection context. CLI/MCP acceptance verifies unchanged protected-workbook state and naming diagnostics, exact spaces/case, and persistence. Workbooks containing chart sheets are gated before naming mutations.")]
     [ServiceAction("rename")]
     OperationResult Rename(IExcelBatch batch, [RequiredParameter] string oldName, [RequiredParameter, AllowEmptyString] string newName);
 
@@ -68,6 +72,7 @@ public interface ISheetCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet to delete</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("delete")]
     OperationResult Delete(IExcelBatch batch, [RequiredParameter] string sheetName);
 

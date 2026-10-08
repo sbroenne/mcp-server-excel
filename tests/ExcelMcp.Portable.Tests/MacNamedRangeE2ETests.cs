@@ -82,10 +82,17 @@ public sealed class MacNamedRangeE2ETests(ITestOutputHelper output)
             Assert.Equal("InvalidOperation", duplicate.GetProperty("errorCategory").GetString());
             Success(await Call("write", new() { ["name"] = createdName, ["value"] = "17" }));
             var number = await Call("read", new() { ["name"] = createdName });
-            Assert.Equal(17, number.GetProperty("value").GetDouble());
+            Assert.True(number.TryGetProperty("value", out var numericValue), number.GetRawText());
+            Assert.Equal(17, numericValue.GetDouble());
             Assert.Equal("Double", number.GetProperty("valueType").GetString());
-            Assert.Equal(17, (await Call("read", new() { ["name"] = "Input" })).GetProperty("value").GetDouble());
-            Assert.Equal(17, (await Call("read", new() { ["name"] = "DynamicInput" })).GetProperty("value").GetDouble());
+            var direct = await Call("read", new() { ["name"] = "Input" });
+            Assert.True(direct.TryGetProperty("value", out var directValue), direct.GetRawText());
+            Assert.Equal(17, directValue.GetDouble());
+            var dynamicRead = await Call("read", new() { ["name"] = "DynamicInput" });
+            Assert.False(dynamicRead.GetProperty("success").GetBoolean());
+            Assert.Equal("PlatformNotSupported", dynamicRead.GetProperty("errorCategory").GetString());
+            Assert.Contains("dynamic", dynamicRead.GetProperty("errorMessage").GetString(),
+                StringComparison.OrdinalIgnoreCase);
             Success(await client.CallAsync("range", "set-number-format", session,
                 new() { ["sheet_name"] = "Data", ["range_address"] = "A1", ["format_code"] = "yyyy-mm-dd" }, deadline.Token));
             Success(await Call("write", new() { ["name"] = createdName, ["value"] = "44927" }));
@@ -146,6 +153,10 @@ public sealed class MacNamedRangeE2ETests(ITestOutputHelper output)
             var constant = Assert.Single(names, item => item.GetProperty("name").GetString() == "ConstantOnly");
             Assert.Equal("Unavailable", constant.GetProperty("valueType").GetString());
             Assert.False(string.IsNullOrWhiteSpace(constant.GetProperty("valueOmittedReason").GetString()));
+            var dynamic = Assert.Single(names, item => item.GetProperty("name").GetString() == "DynamicInput");
+            Assert.Equal("Unavailable", dynamic.GetProperty("valueType").GetString());
+            Assert.Contains("dynamic", dynamic.GetProperty("valueOmittedReason").GetString(),
+                StringComparison.OrdinalIgnoreCase);
             Success(await client.CallAsync("file", "close", session, new() { ["save"] = true }, deadline.Token));
             session = SessionId(await client.CallAsync("file", "open", null, new() { ["path"] = path }, deadline.Token));
             Assert.Equal(4, (await Call("read", new() { ["name"] = createdName })).GetProperty("value")[1][1].GetDouble());

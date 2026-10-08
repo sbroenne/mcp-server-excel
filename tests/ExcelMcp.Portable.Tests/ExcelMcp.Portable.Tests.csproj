@@ -27,4 +27,7 @@
                       ReferenceOutputAssembly="false"
                       Condition="'$(OS)' != 'Windows_NT'" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Shared\TestClassificationArchitectureTests.cs" Link="Infrastructure\TestClassificationArchitectureTests.cs" />
+  </ItemGroup>
 </Project>

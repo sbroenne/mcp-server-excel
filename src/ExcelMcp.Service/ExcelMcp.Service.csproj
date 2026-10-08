@@ -32,6 +32,9 @@
   <ItemGroup>
     <ProjectReference Include="..\ExcelMcp.Core\ExcelMcp.Core.csproj" />
     <ProjectReference Include="..\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />
+    <ProjectReference Include="..\ExcelMcp.Generators\ExcelMcp.Generators.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 
   <!-- Allow CLI and MCP Server tests to access internals -->

@@ -5,6 +5,7 @@ using System.Runtime.Versioning;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Sbroenne.ExcelMcp.Tests.Infrastructure;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -430,9 +431,25 @@ public sealed class PluginBootstrapBuildTests(ITestOutputHelper output)
 
     private static string CreateSandbox(string name)
     {
-        var sandbox = Path.Combine(Path.GetTempPath(), $"ExcelMcp-{name}-{Guid.NewGuid():N}");
+        var sandbox = Path.Combine(ResolvePhysicalPath(Path.GetTempPath()), $"ExcelMcp-{name}-{Guid.NewGuid():N}");
         Directory.CreateDirectory(sandbox);
         return sandbox;
+    }
+
+    private static string ResolvePhysicalPath(string path)
+    {
+        var fullPath = Path.GetFullPath(path);
+        var current = Path.GetPathRoot(fullPath)!;
+        foreach (var segment in fullPath[current.Length..].Split(Path.DirectorySeparatorChar, StringSplitOptions.RemoveEmptyEntries))
+        {
+            current = Path.Combine(current, segment);
+            var directory = new DirectoryInfo(current);
+            if (directory.Exists && directory.LinkTarget is not null)
+            {
+                current = directory.ResolveLinkTarget(true)!.FullName;
+            }
+        }
+        return Path.GetFullPath(current);
     }
 
     private static void DeleteDirectoryIfExists(string path)

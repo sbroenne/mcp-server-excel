@@ -62,6 +62,9 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Worksheet name; empty for a named range</param>
     /// <param name="rangeAddress">Exact starting cells, rectangle, disjoint areas, or named range</param>
+    [MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+        Evidence = "The current Windows contract changed after the Mac implementation was verified.",
+        Blocker = "macOS parity must be reverified against the current contract before enabling this action")]
     [ServiceAction("trace-precedents")]
     RangeFormulaTraceResult TracePrecedents(IExcelBatch batch, [AllowEmptyString] string sheetName,
         [RequiredParameter] string rangeAddress);
@@ -76,6 +79,9 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Worksheet name; empty for a named range</param>
     /// <param name="rangeAddress">Exact starting cells, rectangle, disjoint areas, or named range</param>
+    [MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+        Evidence = "The current Windows contract changed after the Mac implementation was verified.",
+        Blocker = "macOS parity must be reverified against the current contract before enabling this action")]
     [ServiceAction("trace-dependents")]
     RangeFormulaTraceResult TraceDependents(IExcelBatch batch, [AllowEmptyString] string sheetName,
         [RequiredParameter] string rangeAddress);
@@ -92,6 +98,7 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range - REQUIRED for cell addresses, use empty string for named ranges only</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1', 'A1:D10', 'B:D') or named range name (e.g., 'SalesData')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("get-values")]
     RangeValueResult GetValues(IExcelBatch batch, [AllowEmptyString] string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -135,7 +142,7 @@ public interface IRangeCommands
     /// <param name="rangeAddress">Cell range address (e.g., 'A1', 'A1:D10', 'B:D') or named range name</param>
     /// <param name="referenceStyle">a1 (default) or r1c1 native formula notation; range addresses remain A1</param>
     [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
-        Evidence = "Formula reads have CLI and MCP desktop coverage, including canonical error names and cellErrors metadata derived through Excel's non-mutating ERROR.TYPE evaluation when Apple Events returns a missing value.")]
+        Evidence = "Native Formula2/Formula2R1C1 rectangle reads use shared result shaping, distinguish text constants from formulas with native HasFormula, and map classic cell errors. Named, disjoint, structured-reference, spill-address, and unverified ERROR.TYPE variants fail explicitly.")]
     [ServiceAction("get-formulas")]
     RangeFormulaResult GetFormulas(IExcelBatch batch, [AllowEmptyString] string sheetName,
         [RequiredParameter] string rangeAddress, [FromString] FormulaReferenceStyle referenceStyle = FormulaReferenceStyle.A1);
@@ -151,6 +158,9 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Worksheet name, or empty string for a named range</param>
     /// <param name="rangeAddress">Exact range or named range to inspect completely</param>
+    [MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+        Evidence = "The current Windows contract changed after the Mac implementation was verified.",
+        Blocker = "macOS parity must be reverified against the current contract before enabling this action")]
     [ServiceAction("get-spill-info")]
     RangeSpillInfoResult GetSpillInfo(IExcelBatch batch, [AllowEmptyString] string sheetName,
         [RequiredParameter] string rangeAddress);
@@ -171,7 +181,7 @@ public interface IRangeCommands
     /// <param name="overwritePolicy">reject-nonempty (default) rejects existing content before writing, including formulas displaying blank. allow permits authorized replacement. Checks cover direct destinations, not future formula spills; inspection failure stops the write.</param>
     /// <param name="referenceStyle">a1 (default) or r1c1 native formula notation; relative R1C1 references use each destination cell</param>
     [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
-        Evidence = "Native Formula2/Formula2R1C1 writes preserve mixed merge diagnostics: Excel reports false for mixed ranges, so write preflight checks each cell. Public CLI/MCP acceptance verifies top-left allowance, intersecting-range rejection, and unchanged state.")]
+        Evidence = "Native Formula2/Formula2R1C1 writes normalize formulas, text, numbers, booleans, and empty cells; shared dimensions, overwrite checks, and mixed-range merge preflight run before mutation. CLI/MCP acceptance verifies inline and file inputs through save/reopen.")]
     [ServiceAction("set-formulas")]
     OperationResult SetFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress,
         List<List<object?>>? formulas = null, string? formulasFile = null,
@@ -202,6 +212,7 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address to clear (e.g., 'A1:D10')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("clear-all")]
     OperationResult ClearAll(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -213,6 +224,7 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address to clear (e.g., 'A1:D10')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("clear-contents")]
     OperationResult ClearContents(IExcelBatch batch, [AllowEmptyString] string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -224,6 +236,7 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address to clear (e.g., 'A1:D10')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("clear-formats")]
     OperationResult ClearFormats(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -246,6 +259,9 @@ public interface IRangeCommands
     /// <param name="transpose">Exchange source rows and columns; validation uses transposed destination dimensions</param>
     /// <param name="skipBlanks">Preserve destinations corresponding to native blank source cells; formulas displaying blank are not skipped</param>
     /// <param name="overwritePolicy">reject-nonempty (default) checks every content-writing destination, including expansion/repetition, but excludes skipped source blanks. allow permits intentional replacement. Formats/validation preserve content and need no overwrite permission. Neither policy bypasses sheet protection.</param>
+    [MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+        Evidence = "The current Windows contract changed after the Mac implementation was verified.",
+        Blocker = "macOS parity must be reverified against the current contract before enabling this action")]
     [ServiceAction("copy")]
     RangeCopyResult Copy(IExcelBatch batch, [RequiredParameter] string sourceSheet,
         [RequiredParameter] string sourceRange, [RequiredParameter] string targetSheet,
@@ -263,6 +279,7 @@ public interface IRangeCommands
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
     /// <returns>2D array of format codes (e.g., [["$#,##0.00", "0.00%"], ["m/d/yyyy", "General"]])</returns>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("get-number-formats")]
     RangeNumberFormatResult GetNumberFormats(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -274,6 +291,7 @@ public interface IRangeCommands
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
     /// <param name="formatCode">Number format code in US locale (e.g., '#,##0.00' for numbers, 'mm/dd/yyyy' for dates, '0.00%' for percentages, 'General' for default, '@' for text)</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("set-number-format")]
     OperationResult SetNumberFormat(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] string formatCode);
 
@@ -287,6 +305,9 @@ public interface IRangeCommands
     /// <param name="rangeAddress">Cell range address matching formats dimensions</param>
     /// <param name="formats">2D array of format codes - same dimensions as target range (e.g., [['#,##0.00', '0.00%'], ['mm/dd/yyyy', 'General']]). Optional if formatsFile is provided.</param>
     /// <param name="formatsFile">Path to a JSON file containing 2D array of format codes. Alternative to inline formats parameter.</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "CLI and MCP applied and independently read back mixed two-dimensional number-format matrices.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.")]
     [ServiceAction("set-number-formats")]
     OperationResult SetNumberFormats(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<string>>? formats = null, string? formatsFile = null);
 
@@ -298,6 +319,10 @@ public interface IRangeCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Blocked, false,
+        Evidence = "On populated sheets, CLI and MCP both received the empty-sheet $A$1 fallback because JXA used range returned a missing object. JXA special cells also returned a missing object and typed AppleScript returned parameter error -50.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.",
+        Blocker = "the native routes cannot return a populated live used range without approximating Worksheet.UsedRange semantics")]
     [ServiceAction("get-used-range")]
     RangeValueResult GetUsedRange(IExcelBatch batch, string sheetName);
 
@@ -308,6 +333,10 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="cellAddress">Single cell address (e.g., 'B5') - expands to contiguous data region around this cell</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Blocked, false,
+        Evidence = "Native CurrentRegion probes returned a missing object through JXA and parameter error -50 through typed AppleScript.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.",
+        Blocker = "the native current-region candidate has no verified route and has not completed real CLI and MCP acceptance")]
     [ServiceAction("get-current-region")]
     RangeValueResult GetCurrentRegion(IExcelBatch batch, string sheetName, [RequiredParameter] string cellAddress);
 
@@ -318,6 +347,9 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range address (e.g., 'A1:D10')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "CLI and MCP returned absolute address, dimensions, number format, and positive range geometry.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.")]
     [ServiceAction("get-info")]
     RangeInfoResult GetInfo(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -335,6 +367,9 @@ public interface IRangeCommands
     /// <param name="sheetName">Worksheet name, or empty string for a named range</param>
     /// <param name="rangeAddress">Exact range or named range to inspect; all matching areas are returned</param>
     /// <param name="cellKind">Cell selector: formulas, constants, blanks, errors, or visible</param>
+    [MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+        Evidence = "The current Windows contract changed after the Mac implementation was verified.",
+        Blocker = "macOS parity must be reverified against the current contract before enabling this action")]
     [ServiceAction("get-special-cells")]
     SpecialCellsResult GetSpecialCells(IExcelBatch batch, [AllowEmptyString] string sheetName,
         [RequiredParameter] string rangeAddress, [RequiredParameter, FromString] SpecialCellKind cellKind);

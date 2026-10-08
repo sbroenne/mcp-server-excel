@@ -62,20 +62,33 @@ elseif ($Local) {
         $selections['McpServer'] = 'FullyQualifiedName~McpToolSurfaceTests|FullyQualifiedName~CalculationGuidanceContractTests|FullyQualifiedName~GeneratedMcpParameterTests|FullyQualifiedName~UsageAnalyticsWeightsTests'
     }
     foreach ($path in $ChangedPaths) {
-        if ($path -match '^tests[/\\]ExcelMcp\.(Core|CLI|ComInterop|McpServer|Service|SkillGeneration|Packaging|ScriptSafety)\.Tests[/\\]') {
+        if ($path -match '^tests[/\\]ExcelMcp\.(Core|CLI|ComInterop|McpServer|Portable|Service|SkillGeneration|Packaging|ScriptSafety)\.Tests[/\\]') {
             $selections[$Matches[1]] = 'RequiresExcel=false'
         }
+        if ($path -match '^src[/\\]ExcelMcp\.Service[/\\]Mac[/\\]') {
+            $selections['Portable'] = 'RequiresExcel=false'
+        }
         if ($path -match '^tests[/\\]Shared[/\\]' -and $path -notmatch '[/\\](GeneratedAssetsFixture|PackagingScriptTestHelper)\.cs$') {
-            foreach ($project in @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service', 'SkillGeneration', 'Packaging', 'ScriptSafety')) {
+            foreach ($project in @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service', 'SkillGeneration', 'Packaging', 'ScriptSafety', 'Portable')) {
                 $selections[$project] = 'RequiresExcel=false'
             }
         }
     }
 }
 else {
-    foreach ($project in @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service', 'SkillGeneration', 'Packaging', 'ScriptSafety')) {
+    foreach ($project in @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service', 'SkillGeneration', 'Packaging', 'ScriptSafety', 'Portable')) {
         $selections[$project] = 'RequiresExcel=false'
     }
+}
+if ($Local -and -not $ChangedPaths.Count -and -not $HookTests -and -not $Contracts -and
+    -not $SkillTests -and -not $PackagingTests -and -not $IsWindows) {
+    foreach ($project in @('Portable', 'SkillGeneration')) {
+        $selections[$project] = 'RequiresExcel!=true&RunType!=OnDemand'
+    }
+}
+if (-not $IsWindows -and -not $Group -and $selections.Contains('Packaging')) {
+    Write-Host 'Packaging tests are not supported by the local non-Windows runner; not run on this host.'
+    [void]$selections.Remove('Packaging')
 }
 if (-not $ResultsDirectory) { $ResultsDirectory = Join-Path $root "TestResults\excel-free-$([Guid]::NewGuid().ToString('N'))" }
 if ($selections.Count -eq 0) {
@@ -83,8 +96,16 @@ if ($selections.Count -eq 0) {
     Write-Host 'No local Excel-free tests selected.'
 }
 foreach ($entry in $selections.GetEnumerator()) {
+    if (-not $IsWindows -and $entry.Key -in @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service')) {
+        Write-Host "$($entry.Key) tests require Microsoft.WindowsDesktop.App; not run on this host."
+        continue
+    }
     $project = Join-Path $root "tests\ExcelMcp.$($entry.Key).Tests\ExcelMcp.$($entry.Key).Tests.csproj"
-    $filter = "RequiresExcel=false&RunType!=OnDemand&($($entry.Value))"
+    $filter = if ($entry.Value.StartsWith('RequiresExcel!=true&', [StringComparison]::Ordinal)) {
+        $entry.Value
+    } else {
+        "RequiresExcel=false&RunType!=OnDemand&($($entry.Value))"
+    }
     Invoke-TestStage -Project $project -Filter $filter -ResultsDirectory $ResultsDirectory -Name $entry.Key
 }
 if ($runAzureInfrastructureTests) {

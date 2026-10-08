@@ -1,6 +1,8 @@
 using System.Diagnostics;
+using System.Globalization;
+using System.IO.Compression;
 using System.Runtime.InteropServices;
-using Excel = Microsoft.Office.Interop.Excel;
+using System.Xml.Linq;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Tests.Helpers;
 using Xunit;

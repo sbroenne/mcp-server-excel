@@ -34,8 +34,10 @@ public enum FileAction
     [System.Text.Json.Serialization.JsonStringEnumMemberName("create")]
     Create,
 
-    /// <summary>Checks whether a workbook path can be used without opening it.</summary>
-    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
+    /// <summary>Validates file metadata and ordinary workbook openability through Excel.</summary>
+    [MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+        Evidence = "The Windows contract validates ordinary workbooks through a temporary read-only Excel open.",
+        Blocker = "macOS file-test parity requires a verified temporary read-only open and cleanup route")]
     [System.Text.Json.Serialization.JsonStringEnumMemberName("test")]
     Test
 }

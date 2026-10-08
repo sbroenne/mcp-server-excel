@@ -6,6 +6,7 @@ using Xunit;
 
 namespace Sbroenne.ExcelMcp.Portable.Tests;
 
+[Trait("RequiresExcel", "false")]
 public sealed class MacScreenshotProtocolTests
 {
     [Fact]
@@ -131,68 +132,7 @@ public sealed class MacScreenshotProtocolTests
     }
 
     [Fact]
-    public void PreparedGeometry_ParsesExactOfficeDesktopContract()
-    {
-        using var document = JsonDocument.Parse(PreparedGeometryJson());
-
-        var result = MacScreenshotPreparedGeometry.Parse(document.RootElement);
-
-        Assert.Equal("capture-token", result.CaptureToken);
-        Assert.Equal("file:///exact/owned.xlsx", result.WorkbookUrl);
-        Assert.Equal("worksheet-id", result.WorksheetId);
-        Assert.Equal("Data", result.WorksheetName);
-        Assert.Equal("Data!B2:D8", result.RangeAddress);
-        Assert.Equal(42, result.WindowNumber);
-        Assert.Equal(new MacScreenshotScreenRect(220, 320, 820, 1120), result.ScreenRect);
-        Assert.Equal(
-            new MacScreenshotScreenRect(40, 60, 2440, 1860),
-            result.ExcelWindowScreenRect);
-    }
-
-    [Theory]
-    [InlineData("\"left\": 220", "\"left\": 220.5", "integral 'left'")]
-    [InlineData("\"width\": 600", "\"width\": 601", "inconsistent edges")]
-    [InlineData("\"unit\": \"physicalPixel\"", "\"unit\": \"point\"", "unsupported coordinate")]
-    [InlineData(
-        "\"origin\": \"topLeftGlobalScreen\"",
-        "\"origin\": \"bottomLeftGlobalScreen\"",
-        "unsupported coordinate")]
-    public void PreparedGeometry_RejectsUnprovenOrInexactCoordinates(
-        string original,
-        string replacement,
-        string expectedMessage)
-    {
-        var invalid = PreparedGeometryJson().Replace(
-            original,
-            replacement,
-            StringComparison.Ordinal);
-        using var document = JsonDocument.Parse(invalid);
-
-        var error = Assert.Throws<InvalidOperationException>(() =>
-            MacScreenshotPreparedGeometry.Parse(document.RootElement));
-
-        Assert.Contains(expectedMessage, error.Message, StringComparison.Ordinal);
-    }
-
-    [Theory]
-    [InlineData("\"errorMessage\": null,", "")]
-    [InlineData("\"type\": \"workbook\"", "\"type\": \"chart\"")]
-    public void PreparedGeometry_RejectsIncompleteOrNonWorkbookEnvelope(
-        string original,
-        string replacement)
-    {
-        var invalid = PreparedGeometryJson().Replace(
-            original,
-            replacement,
-            StringComparison.Ordinal);
-        using var document = JsonDocument.Parse(invalid);
-
-        Assert.Throws<InvalidOperationException>(() =>
-            MacScreenshotPreparedGeometry.Parse(document.RootElement));
-    }
-
-    [Fact]
-    public void WindowIdentity_CorrelatesExactWorkbookAndOfficeWindow()
+    public void WindowIdentity_CorrelatesExactWorkbookAndRequestedWindow()
     {
         var expectedPath = Path.GetFullPath("owned.xlsx");
         using var document = JsonDocument.Parse(
@@ -203,23 +143,6 @@ public sealed class MacScreenshotProtocolTests
         Assert.Equal(123, identity.ProcessId);
         Assert.Equal(456u, identity.WindowId);
         Assert.Equal(42, identity.WindowNumber);
-    }
-
-    [Fact]
-    public void PreparedGeometry_CreatesOnlyCorrelatedCaptureRequest()
-    {
-        using var document = JsonDocument.Parse(PreparedGeometryJson());
-        var geometry = MacScreenshotPreparedGeometry.Parse(document.RootElement);
-        var identity = new MacScreenshotWindowIdentity("/exact/owned.xlsx", 123, 456, 42);
-
-        var request = geometry.CreateCaptureRequest(identity, 2400, 1800, "medium");
-
-        Assert.Equal(new MacScreenshotPixelRect(180, 260, 600, 800), request.CropPixels);
-        Assert.Equal(123, request.ProcessId);
-        Assert.Equal(456u, request.WindowId);
-        Assert.Equal("medium", request.Quality);
-        Assert.Throws<InvalidOperationException>(() =>
-            geometry.CreateCaptureRequest(identity with { WindowNumber = 43 }, 2400, 1800, "medium"));
     }
 
     [Fact]
@@ -359,36 +282,4 @@ public sealed class MacScreenshotProtocolTests
         return result;
     }
 
-    private static string PreparedGeometryJson() =>
-        """
-        {
-          "success": true,
-          "errorMessage": null,
-          "captureToken": "capture-token",
-          "workbookUrl": "file:///exact/owned.xlsx",
-          "worksheet": { "id": "worksheet-id", "name": "Data" },
-          "range": { "address": "Data!B2:D8" },
-          "excelWindow": { "windowNumber": 42, "type": "workbook" },
-          "screenRect": {
-            "left": 220,
-            "top": 320,
-            "right": 820,
-            "bottom": 1120,
-            "width": 600,
-            "height": 800,
-            "unit": "physicalPixel",
-            "origin": "topLeftGlobalScreen"
-          },
-          "excelWindowScreenRect": {
-            "left": 40,
-            "top": 60,
-            "right": 2440,
-            "bottom": 1860,
-            "width": 2400,
-            "height": 1800,
-            "unit": "physicalPixel",
-            "origin": "topLeftGlobalScreen"
-          }
-        }
-        """;
 }

@@ -22,6 +22,13 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// ExcelMcp does not configure VBA trust settings for you.
 /// </summary>
 [ServiceCategory("Vba")]
+[MacCapability(
+    MacCapabilityTier.Unsupported,
+    MacImplementationStatus.Blocked,
+    false,
+    Evidence = "Excel for Mac 16.113.1 Apple Events exposes no VBProject, VBComponents, or CodeModule surface.",
+    ExcelApiVersion = "Excel for Mac 16.113.1 Apple Events dictionary.",
+    Blocker = "no supported local macOS API can satisfy the VBA source contract; ExcelMcp does not ship a VBA helper or change project-model trust")]
 [McpTool("vba", Title = "VBA Operations", Destructive = true, Category = "automation",
     Description = "Import standard VBA modules, update or delete module code, and run procedures in macro-enabled workbooks (.xlsm). VBA project editing requires Trust Center access; running an existing macro does not. ExcelMcp does not configure Trust Center settings.")]
 [McpReadOnlyActions("list", "view")]

@@ -119,6 +119,7 @@ PAGES: tuple[Page, ...] = (
          drop_prefixes=("Complete installation",)),
     Page("installation-mcp-server.md", "docs/INSTALLATION-MCP-SERVER.md", "/installation-mcp-server/"),
     Page("installation-cli.md", "docs/INSTALLATION-CLI.md", "/installation-cli/"),
+    Page("macos-support.md", "specs/MACOS-SUPPORT.md", "/macos-support/"),
     Page("architecture.md", "docs/ARCHITECTURE.md", "/architecture/", demote_h1=False),
     Page("use-cases.md", "docs/USE-CASES.md", "/use-cases/", demote_h1=False),
     Page("mcp-server.md", "src/ExcelMcp.McpServer/README.md", "/mcp-server/",

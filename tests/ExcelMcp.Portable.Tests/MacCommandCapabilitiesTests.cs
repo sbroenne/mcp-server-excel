@@ -4,18 +4,19 @@ using Xunit;
 
 namespace Sbroenne.ExcelMcp.Portable.Tests;
 
+[Trait("RequiresExcel", "false")]
 public sealed class MacCommandCapabilitiesTests
 {
     [Theory]
     [InlineData("sheet.create")]
-    [InlineData("sheet.set-visibility")]
-    [InlineData("sheet.get-visibility")]
-    [InlineData("sheet.show")]
-    [InlineData("sheet.hide")]
-    [InlineData("sheet.very-hide")]
-    [InlineData("sheet.set-tab-color")]
-    [InlineData("sheet.get-tab-color")]
-    [InlineData("sheet.clear-tab-color")]
+    [InlineData("worksheetstyle.set-visibility")]
+    [InlineData("worksheetstyle.get-visibility")]
+    [InlineData("worksheetstyle.show")]
+    [InlineData("worksheetstyle.hide")]
+    [InlineData("worksheetstyle.very-hide")]
+    [InlineData("worksheetstyle.set-tab-color")]
+    [InlineData("worksheetstyle.get-tab-color")]
+    [InlineData("worksheetstyle.clear-tab-color")]
     [InlineData("range.get-number-formats")]
     [InlineData("range.set-number-format")]
     [InlineData("rangeformat.set-column-width")]
@@ -77,27 +78,22 @@ public sealed class MacCommandCapabilitiesTests
     [Theory]
     [InlineData("sheet.copy")]
     [InlineData("sheet.move")]
-    public void SheetReordering_UsesDisabledOfficeAddInCandidate(string command)
+    public void SheetReordering_RemainsUnsupported(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
 
         Assert.False(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.OfficeAddIn, capability.RequiredTier);
-        Assert.Equal("Partial", capability.ImplementationStatus);
+        Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
+        Assert.Equal("Blocked", capability.ImplementationStatus);
     }
 
     [Theory]
-    [InlineData("range.copy")]
-    [InlineData("range.copy-values")]
-    [InlineData("range.copy-formulas")]
     [InlineData("range.get-info")]
     [InlineData("range.set-number-formats")]
     [InlineData("rangeformat.auto-fit-columns")]
     [InlineData("rangeformat.auto-fit-rows")]
     [InlineData("rangeformat.merge-cells")]
     [InlineData("rangeformat.unmerge-cells")]
-    [InlineData("rangelink.set-cell-lock")]
-    [InlineData("rangelink.get-cell-lock")]
     public void RangeExpansion_ProvenCommandsAreNative(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
@@ -137,16 +133,25 @@ public sealed class MacCommandCapabilitiesTests
     }
 
     [Fact]
-    public void MergeInfo_RemainsBlockedWithoutMergeAreaReadback()
+    public void MergeInfo_RemainsBlockedBeforePublicAcceptance()
     {
         var capability = MacCommandCapabilities.Get("rangeformat.get-merge-info");
 
         Assert.False(capability.IsAvailable);
         Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
         Assert.Equal("Blocked", capability.ImplementationStatus);
-        Assert.Contains("merge area", capability.Evidence, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("missing object", capability.Evidence, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("-50", capability.Evidence, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("range.get-formulas")]
+    [InlineData("range.set-formulas")]
+    public void AcceptedNativeFormulaActionsAreAvailableWithoutHelpers(string command)
+    {
+        var capability = MacCommandCapabilities.Get(command);
+
+        Assert.True(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Native, capability.RequiredTier);
+        Assert.Equal("Implemented", capability.ImplementationStatus);
     }
 
     [Theory]
@@ -288,13 +293,13 @@ public sealed class MacCommandCapabilitiesTests
     [InlineData("table.create")]
     [InlineData("chart.create-from-range")]
     [InlineData("pivottable.create-from-range")]
-    public void OfficeAddInCommands_ReportTheirRequiredTier(string command)
+    public void UnverifiedObjectModelCommands_RemainUnsupported(string command)
     {
         var capability = MacCommandCapabilities.Get(command);
 
         Assert.False(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.OfficeAddIn, capability.RequiredTier);
-        Assert.Contains("Office.js", capability.UnavailableMessage, StringComparison.Ordinal);
+        Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
+        Assert.NotEmpty(capability.UnavailableMessage);
     }
 
     [Theory]
@@ -306,15 +311,13 @@ public sealed class MacCommandCapabilitiesTests
     [InlineData("pivottablecalc.get-data")]
     [InlineData("pivottablecalc.set-grand-totals")]
     [InlineData("slicer.create-table-slicer")]
-    public void OfficeAddInCandidate_IsRoutableOnlyWhenExplicitlyEnabled(string command)
+    public void FormerOfficeAddInCandidates_CannotBypassTheCapabilityGate(string command)
     {
-        var capability = MacCommandCapabilities.Get(
-            command,
-            officeCandidateEnabled: true);
+        var capability = MacCommandCapabilities.Get(command);
 
-        Assert.True(capability.IsAvailable);
-        Assert.Equal(MacCapabilityTier.OfficeAddIn, capability.RequiredTier);
-        Assert.Empty(capability.UnavailableMessage);
+        Assert.False(capability.IsAvailable);
+        Assert.Equal(MacCapabilityTier.Unsupported, capability.RequiredTier);
+        Assert.NotEmpty(capability.UnavailableMessage);
     }
 
     [Theory]
@@ -423,32 +426,10 @@ public sealed class MacCommandCapabilitiesTests
     }
 
     [Fact]
-    public void OfficeAddInInventory_DistinguishesImplementedCandidatesFromApiLimitations()
+    public void Inventory_DoesNotAdvertiseOfficeAddInCandidates()
     {
-        var candidates = MacOfficeActionCatalog.All
-            .Select(item => item.Command)
-            .ToHashSet(StringComparer.Ordinal);
-
-        Assert.NotEmpty(candidates);
-        Assert.All(
-            MacCommandCapabilities.Inventory.Where(item => candidates.Contains(item.Command)),
-            item =>
-            {
-                Assert.Equal(MacCapabilityTier.OfficeAddIn, item.RequiredTier);
-                Assert.Equal("Partial", item.ImplementationStatus);
-                Assert.False(item.IsAvailable);
-                Assert.Contains("activate the task-pane", item.Blocker, StringComparison.OrdinalIgnoreCase);
-            });
-        Assert.All(
-            MacCommandCapabilities.Inventory.Where(item =>
-                item.PlannedTier == "MacLimitation"
-                && item.Command.StartsWith("chart.", StringComparison.Ordinal)),
-            item =>
-            {
-                Assert.Equal(MacCapabilityTier.Unsupported, item.RequiredTier);
-                Assert.Equal("Blocked", item.ImplementationStatus);
-                Assert.DoesNotContain(item.Command, candidates);
-            });
+        Assert.DoesNotContain(MacCommandCapabilities.Inventory,
+            item => item.RequiredTier.ToString() == "OfficeAddIn");
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -9,7 +10,7 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class ServiceFileCommandsTests
 {
     [Fact]
-    public void Test_ExistingWorkbookRemainsStructurallyUnvalidated()
+    public void Test_ExistingValidFile_ReturnsSuccess()
     {
         // Arrange - Create a valid file
         var testFile = _fixture.CreateTestFile();
@@ -21,18 +22,14 @@ public sealed partial class ServiceFileCommandsTests
 
         // Assert
         Assert.True(info.Exists);
-        Assert.False(info.IsValid);
-        Assert.True(info.PreflightPassed);
+        Assert.True(info.IsValid);
         Assert.True(info.Success);
-        Assert.False(info.CanOpen);
+        Assert.True(info.CanOpen);
         Assert.False(info.WillOpenReadOnly);
         Assert.False(info.RequiresVisibleSession);
         Assert.Equal(".xlsx", info.Extension);
         Assert.True(info.Size > 0);
-        Assert.NotNull(info.Message);
-        Assert.Contains("opaque", info.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("file(action: 'open')", info.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("session open", info.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Null(info.Message);
         Assert.Equal(lastWriteTime, File.GetLastWriteTimeUtc(testFile));
         Assert.Equal(bytes, File.ReadAllBytes(testFile));
         Assert.Equal(0, _fixture.SessionCount);
@@ -49,7 +46,6 @@ public sealed partial class ServiceFileCommandsTests
         // Assert
         Assert.False(info.Exists);
         Assert.False(info.IsValid);
-        Assert.False(info.PreflightPassed);
         Assert.False(info.Success);
         Assert.False(info.CanOpen);
         Assert.Null(info.IsError);
@@ -71,8 +67,7 @@ public sealed partial class ServiceFileCommandsTests
 
         Assert.True(info.Exists);
         Assert.False(info.IsValid);
-        Assert.True(info.PreflightPassed);
-        Assert.True(info.Success);
+        Assert.False(info.Success);
         Assert.False(info.CanOpen);
         Assert.NotNull(info.Message);
         Assert.Contains("valid Excel workbook", info.Message, StringComparison.OrdinalIgnoreCase);
@@ -108,8 +103,12 @@ public sealed partial class ServiceFileCommandsTests
         Assert.Equal(0, _fixture.SessionCount);
     }
 
-    [Fact]
-    public void Test_DoesNotInferValidityFromWorkbookContents()
+    [Theory]
+    [InlineData("timeout", nameof(TimeoutException))]
+    [InlineData("cancellation", nameof(OperationCanceledException))]
+    public void Test_ValidationControlFlowFailure_ReturnsServiceError(
+        string failure,
+        string expectedExceptionType)
     {
         var testFile = _fixture.CreateTestFile();
         var bytes = File.ReadAllBytes(testFile);
@@ -180,7 +179,6 @@ public sealed partial class ServiceFileCommandsTests
         // Assert
         Assert.True(info.Exists);
         Assert.False(info.IsValid);
-        Assert.False(info.PreflightPassed);
         Assert.False(info.Success);
         Assert.False(info.CanOpen);
         Assert.Equal(expectedExt, info.Extension);

@@ -6,6 +6,7 @@ using Xunit;
 
 namespace Sbroenne.ExcelMcp.Portable.Tests;
 
+[Trait("RequiresExcel", "false")]
 public sealed class MacNamedRangeArgumentsTests
 {
     [Theory]

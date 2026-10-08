@@ -97,12 +97,27 @@ public sealed class ValidationSelectionTests
     }
 
     [Fact]
+    public async Task PortableChanges_SelectPortableTestsAndPreserveMainSelection()
+    {
+        var result = await RunAsync("""
+            $portable = Get-ValidationPlan -Paths 'tests/ExcelMcp.Portable.Tests/MacAppleEventTests.cs'
+            if ('Portable' -notin $portable.FastProjects) { throw 'Portable regressions missing.' }
+            $runtime = Get-ValidationPlan -Paths 'src/ExcelMcp.Service/Mac/MacNativeRange.cs'
+            foreach ($project in @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service', 'Portable')) {
+                if ($project -notin $runtime.FastProjects) { throw "Missing $project." }
+            }
+            if ($runtime.ToolingProjects.Count) { throw 'Runtime changes selected unrelated publication tooling.' }
+            """);
+        Assert.True(result.ExitCode == 0, result.Output);
+    }
+
+    [Fact]
     public async Task MixedPaths_UnionGroupsAndNormalizeWindowsPaths()
     {
         var result = await RunAsync("""
             $plan = Get-ValidationPlan -Paths @('src\ExcelMcp.Core\Commands\Range\Deleted.cs', 'src/ExcelMcp.Core/Commands/PowerQuery/Renamed.cs')
             if (($plan.ExcelGroups -join ',') -ne 'Acceptance,Data,Editing') { throw "Wrong union: $($plan.ExcelGroups)" }
-            if (($plan.FastProjects -join ',') -ne 'CLI,ComInterop,Core,McpServer,Service') { throw 'Shared runtime coverage missing.' }
+            if (($plan.FastProjects -join ',') -ne 'CLI,ComInterop,Core,McpServer,Portable,Service') { throw 'Shared runtime coverage missing.' }
             """);
         Assert.True(result.ExitCode == 0, result.Output);
     }

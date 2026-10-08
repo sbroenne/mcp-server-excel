@@ -85,8 +85,8 @@ public sealed class GenerateMacActionInventory : Microsoft.Build.Utilities.Task
         builder.AppendLine();
         builder.AppendLine(
             "`Partial` means the selected implementation exists but remains gated on its recorded " +
-            "real-Excel acceptance step. `Blocked` means the reviewed Apple Events and Office.js " +
-            "surfaces cannot preserve the exact public contract; use the recorded alternative.");
+            "real-Excel acceptance step. `Blocked` means no macOS route has been verified " +
+            "to preserve the exact public contract; use the recorded alternative.");
         builder.AppendLine();
         var enabledCount = actions.Count(action => action.IsAvailable);
         builder.AppendLine(

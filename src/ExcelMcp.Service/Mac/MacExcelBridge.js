@@ -22,18 +22,6 @@ function findWorkbookByPath(excel, filePath) {
     return null;
 }
 
-function findWorkbookByName(excel, filePath) {
-    const targetName = $.NSString.stringWithString(filePath).lastPathComponent.js.toLocaleLowerCase();
-    const workbooks = excel.workbooks;
-    for (let index = 0; index < workbooks.length; index++) {
-        const candidate = workbooks[index];
-        if (candidate.name().toLocaleLowerCase() === targetName) {
-            return candidate;
-        }
-    }
-    return null;
-}
-
 function workbookByPath(excel, filePath) {
     const workbook = findWorkbookByPath(excel, filePath);
     if (workbook) return workbook;
@@ -502,8 +490,9 @@ function requireWritableMergeTarget(excel, range) {
         return;
     }
     throw new Error(
-        "Cannot write values or formulas to merged cells on macOS because Excel's Apple Events API " +
-        "cannot reliably identify the merged range's top-left cell. Unmerge it first or use the Windows backend.");
+        "Cannot write values or formulas to merged cells on macOS because the current scripted route " +
+        "cannot reliably identify the merged range's top-left cell. Native property-reference validation " +
+        "has not completed public acceptance. No write was attempted. Use the Windows backend for this variant.");
 }
 
 function requireUnmergedCopyRange(range) {
@@ -616,14 +605,45 @@ function requiredNamedItem(workbook, name) {
     return item;
 }
 
+function parseDirectNamedRangeReference(reference) {
+    return reference.match(
+        /^=(?:'((?:[^']|'')+)'|([^'!\[\],()]+))!(\$?[A-Z]{1,3}\$?[1-9]\d*(?::\$?[A-Z]{1,3}\$?[1-9]\d*)?|\$?[A-Z]{1,3}:\$?[A-Z]{1,3}|\$?[1-9]\d*:\$?[1-9]\d*)$/i);
+}
+
+function hasMultipleDirectNamedRangeAreas(reference) {
+    if (!reference.startsWith("=")) return false;
+    const areas = [];
+    let quotedSheet = false;
+    let start = 1;
+    for (let index = 1; index < reference.length; index++) {
+        if (reference[index] === "'") {
+            if (quotedSheet && reference[index + 1] === "'") {
+                index++;
+            } else {
+                quotedSheet = !quotedSheet;
+            }
+        } else if (reference[index] === "," && !quotedSheet) {
+            areas.push(reference.substring(start, index).trim());
+            start = index + 1;
+        }
+    }
+    if (quotedSheet || areas.length === 0) return false;
+    areas.push(reference.substring(start).trim());
+    return areas.every(area => parseDirectNamedRangeReference(area.startsWith("=") ? area : `=${area}`) !== null);
+}
+
 function namedItemRange(workbook, item) {
     const name = item.name();
     const reference = item.references();
-    const direct = reference.match(
-        /^=(?:'((?:[^']|'')+)'|([^'!\[\],()]+))!(\$?[A-Z]{1,3}\$?[1-9]\d*(?::\$?[A-Z]{1,3}\$?[1-9]\d*)?|\$?[A-Z]{1,3}:\$?[A-Z]{1,3}|\$?[1-9]\d*:\$?[1-9]\d*)$/i);
+    const direct = parseDirectNamedRangeReference(reference);
     if (direct) {
         const sheetName = direct[1] ? direct[1].replace(/''/g, "'") : direct[2];
         return worksheetByName(workbook, sheetName).ranges.byName(direct[3]);
+    }
+    if (reference.trimStart().startsWith("=")) {
+        throw Object.assign(
+            new Error("Native macOS named-range reads and writes support direct A1 references only; dynamic, constant-only, and other formula-based references are unsupported."),
+            { category: "PlatformNotSupported" });
     }
     const leaf = name.substring(name.lastIndexOf("!") + 1).toLowerCase();
     const names = workbook.namedItems;
@@ -670,22 +690,27 @@ function namedRangeList(workbook, filePath) {
         if (localName.startsWith("_xlnm.") || localName === "_filterdatabase") continue;
         const info = { name, refersTo: item.references(), valueType: "Unavailable" };
         try {
-            const range = namedItemRange(workbook, item);
-            if (range.areas().length > 1) {
+            if (hasMultipleDirectNamedRangeAreas(item.references())) {
                 info.valueType = "MultiAreaRange";
                 info.valueOmittedReason = "Named range resolves to multiple areas; list omits multi-area value previews.";
             } else {
-                const count = Number(range.rows.length) * Number(range.columns.length);
-                if (!Number.isSafeInteger(count) || count < 1) {
-                    throw new Error("Excel returned an invalid named range cell count.");
-                }
-                info.cellCount = count;
-                if (count > 10000) {
-                    info.valueType = "RangeTooLarge";
-                    info.valueOmittedReason =
-                        `Named range contains ${count} cells, which exceeds the list preview limit of 10000.`;
+                const range = namedItemRange(workbook, item);
+                if (range.areas().length > 1) {
+                    info.valueType = "MultiAreaRange";
+                    info.valueOmittedReason = "Named range resolves to multiple areas; list omits multi-area value previews.";
                 } else {
-                    Object.assign(info, namedRangeValue(range));
+                    const count = Number(range.rows.length) * Number(range.columns.length);
+                    if (!Number.isSafeInteger(count) || count < 1) {
+                        throw new Error("Excel returned an invalid named range cell count.");
+                    }
+                    info.cellCount = count;
+                    if (count > 10000) {
+                        info.valueType = "RangeTooLarge";
+                        info.valueOmittedReason =
+                            `Named range contains ${count} cells, which exceeds the list preview limit of 10000.`;
+                    } else {
+                        Object.assign(info, namedRangeValue(range));
+                    }
                 }
             }
         } catch (error) {
@@ -707,7 +732,7 @@ function dispatchNamedRange(workbook, command, args) {
     else if (command === "namedrange.write") namedItemRange(workbook, item).value2 = args.parsedValue;
     else if (command === "namedrange.read") {
         return Object.assign(
-            { name: args.name, refersTo: item.references() },
+            { success: true, filePath: args.filePath, name: args.name, refersTo: item.references() },
             namedRangeValue(namedItemRange(workbook, item)));
     } else {
         requireSupported(command, []);
@@ -722,37 +747,6 @@ function run(argv) {
     excel.includeStandardAdditions = false;
 
     try {
-        if (command === "session.prepare-open") {
-            if (findWorkbookByPath(excel, args.filePath)) {
-                throw new Error("Workbook is already open in shared Excel. Reuse its owning session or close it before opening a new session.");
-            }
-            if (findWorkbookByName(excel, args.filePath)) {
-                throw new Error("A workbook with the same name is already open in shared Excel. Close it before opening this workbook.");
-            }
-            return json({ success: true, errorMessage: "" });
-        }
-        if (command === "session.open") {
-            let workbook = null;
-            for (let attempt = 0; attempt < 100 && !workbook; attempt++) {
-                workbook = findWorkbookByPath(excel, args.filePath);
-                if (!workbook) delay(0.1);
-            }
-            if (!workbook) throw new Error("LaunchServices did not open the requested workbook within ten seconds.");
-            workbook.windows[0].visible = !!args.show;
-            return json({ success: true, errorMessage: "" });
-        }
-        if (command === "session.close") {
-            const workbook = workbookByPath(excel, args.filePath);
-            workbook.close({ saving: args.save ? "yes" : "no" });
-            return json({ success: true, errorMessage: "" });
-        }
-        if (command === "session.is-open") {
-            return json({
-                success: true,
-                errorMessage: "",
-                open: !!findWorkbookByPath(excel, args.filePath)
-            });
-        }
 
         const workbook = workbookByPath(excel, args.filePath);
         if (command.startsWith("namedrange.")) {
@@ -767,23 +761,6 @@ function run(argv) {
                 windowId: identity.windowId,
                 windowNumber: identity.windowNumber
             });
-        }
-        if (command === "sheet.list") {
-            const sheets = workbook.worksheets;
-            const result = [];
-            for (let index = 0; index < sheets.length; index++) {
-                result.push({
-                    name: sheets[index].name(),
-                    index: index + 1,
-                    visible: currentSheetVisibility(sheets[index]).value === -1
-                });
-            }
-            return json({ success: true, filePath: args.filePath, worksheets: result });
-        }
-        if (command === "sheet.rename") {
-            const sheet = worksheetByName(workbook, args.oldName);
-            sheet.name = args.newName;
-            return json({ success: true, filePath: args.filePath, oldName: args.oldName, newName: args.newName });
         }
         if (command === "sheet.set-visibility"
             || command === "sheet.get-visibility"

@@ -52,6 +52,9 @@ public interface IRangeFormatCommands
     /// <param name="sheetName">Worksheet name; empty for named ranges</param>
     /// <param name="rangeAddress">Exact scope; whole intersecting dimensions are returned without a cap</param>
     /// <param name="axis">rows or columns</param>
+    [MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+        Evidence = "The current Windows contract changed after the Mac implementation was verified.",
+        Blocker = "macOS parity must be reverified against the current contract before enabling this action")]
     [ServiceAction("get-visibility")]
     RangeVisibilityResult GetVisibility(IExcelBatch batch, [AllowEmptyString] string sheetName,
         [RequiredParameter] string rangeAddress, [RequiredParameter][FromString] VisibilityAxis axis);
@@ -67,6 +70,9 @@ public interface IRangeFormatCommands
     /// <param name="rangeAddress">Exact scope selecting whole intersecting rows or columns</param>
     /// <param name="axis">rows or columns</param>
     /// <param name="hidden">Required true to hide or false to show; native stored dimensions are retained</param>
+    [MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+        Evidence = "The current Windows contract changed after the Mac implementation was verified.",
+        Blocker = "macOS parity must be reverified against the current contract before enabling this action")]
     [ServiceAction("set-visibility")]
     OperationResult SetVisibility(IExcelBatch batch, [AllowEmptyString] string sheetName,
         [RequiredParameter] string rangeAddress, [RequiredParameter][FromString] VisibilityAxis axis,
@@ -83,6 +89,9 @@ public interface IRangeFormatCommands
     /// <param name="sheetName">Worksheet name, or empty string for a named range</param>
     /// <param name="rangeAddress">Exact range or named range to inspect completely</param>
     /// <param name="view">stored (default), displayed, or both formatting snapshots</param>
+    [MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+        Evidence = "The current Windows contract changed after the Mac implementation was verified.",
+        Blocker = "macOS parity must be reverified against the current contract before enabling this action")]
     [ServiceAction("get-format")]
     RangeFormatReadResult GetFormat(IExcelBatch batch, [AllowEmptyString] string sheetName,
         [RequiredParameter] string rangeAddress, [FromString] FormatView view = FormatView.Stored);
@@ -123,6 +132,9 @@ public interface IRangeFormatCommands
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddresses">One or more target range addresses; all are validated before writing</param>
     /// <param name="formatOptions">Typed JSON object: fontName, fontSize, bold, italic, underline (none/single/double/singleAccounting/doubleAccounting), strikethrough, subscript, superscript, themeFont (0 none/1 major/2 minor), fontColor/fontThemeColor/fontTintAndShade, fillColor/fillThemeColor/fillTintAndShade, borders (position, lineStyle, weight, color/themeColor/tintAndShade), horizontalAlignment, verticalAlignment, wrapText, shrinkToFit, indentLevel (0-15), readingOrder (context/leftToRight/rightToLeft), orientation, numberFormat. Theme-color indices 1-12; tints -1 to 1. Border positions Left/Top/Bottom/Right/InsideHorizontal/InsideVertical/DiagonalUp/DiagonalDown. Nested keys remain camelCase.</param>
+    [MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+        Evidence = "The current Windows contract changed after the Mac implementation was verified.",
+        Blocker = "macOS parity must be reverified against the current contract before enabling this action")]
     [ServiceAction("format")]
     OperationResult Format(
         IExcelBatch batch,
@@ -198,6 +210,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Column range to auto-fit (e.g., 'A:D' or 'A1:D100')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "CLI and MCP auto-fitted complete selected columns and independently read back the persisted width.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.")]
     [ServiceAction("auto-fit-columns")]
     OperationResult AutoFitColumns(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -207,6 +222,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Row range to auto-fit (e.g., '1:10' or 'A1:D100')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "CLI and MCP auto-fitted complete selected rows and independently read back the persisted height.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.")]
     [ServiceAction("auto-fit-rows")]
     OperationResult AutoFitRows(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -218,6 +236,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range to merge into a single cell (e.g., 'A1:D1')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "CLI and MCP invoked the declared merge command and required fresh merged-state verification before success.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.")]
     [ServiceAction("merge-cells")]
     OperationResult MergeCells(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -227,6 +248,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range to unmerge (e.g., 'A1:D1')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+        Evidence = "CLI and MCP invoked the declared unmerge command and required fresh unmerged-state verification before success.",
+        ExcelApiVersion = "Excel for Mac 16.113.1.")]
     [ServiceAction("unmerge-cells")]
     OperationResult UnmergeCells(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -236,6 +260,9 @@ public interface IRangeFormatCommands
     /// </summary>
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Cell range to check for merged cells (e.g., 'A1:D10')</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Blocked, false,
+        Evidence = "Direct native merge-area property references return the exact top-left row/column for horizontal and rectangular merges in MacNativeFormulaApiTests. Dereferencing the returned merge-area object instead failed with OSStatus -1728.",
+        Blocker = "complete distinct-area discovery, exact addresses, result shaping, and public CLI/MCP acceptance remain incomplete")]
     [ServiceAction("get-merge-info")]
     RangeMergeInfoResult GetMergeInfo(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress);
 
@@ -248,6 +275,7 @@ public interface IRangeFormatCommands
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Column range to set width (e.g., 'A:A' or 'A1:D100')</param>
     /// <param name="columnWidth">Width in Excel character-width units, not points. Standard width is approximately 8.43. Range: 0.25-409.</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("set-column-width")]
     OperationResult SetColumnWidth(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] double columnWidth);
 
@@ -258,6 +286,7 @@ public interface IRangeFormatCommands
     /// <param name="sheetName">Name of the worksheet</param>
     /// <param name="rangeAddress">Row range to set height (e.g., '1:10' or 'A1:D100')</param>
     /// <param name="rowHeight">Height in points (1 point = 1/72 inch, approx 0.35mm). Default row height ~15 points. Range: 0-409 points.</param>
+    [MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true)]
     [ServiceAction("set-row-height")]
     OperationResult SetRowHeight(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] double rowHeight);
 }

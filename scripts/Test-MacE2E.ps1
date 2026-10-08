@@ -16,7 +16,8 @@ param(
     [string]$PipeName,
     [switch]$IncludePythonInExcel,
     [switch]$IncludeRangeExpansion,
-    [switch]$IncludeNamedRanges
+    [switch]$IncludeNamedRanges,
+    [string]$ResultsDirectory
 )
 
 Set-StrictMode -Version Latest
@@ -24,6 +25,10 @@ $ErrorActionPreference = 'Stop'
 if (-not $IsMacOS) { throw 'This runner requires macOS desktop Excel.' }
 $root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'spikes/macos/MacTestEnvironment.ps1')
+. (Join-Path $PSScriptRoot 'Invoke-TestStage.ps1')
+if (-not $ResultsDirectory) {
+    $ResultsDirectory = Join-Path $root "TestResults/mac-e2e-$([guid]::NewGuid().ToString('N'))"
+}
 
 $pipe = if ([string]::IsNullOrWhiteSpace($PipeName)) { "em-$([guid]::NewGuid().ToString('N'))" } else { $PipeName }
 if ([Text.Encoding]::UTF8.GetByteCount((Join-Path ([IO.Path]::GetTempPath()) "CoreFxPipe_$pipe")) -gt 104) {
@@ -103,24 +108,29 @@ $environment = @{
     EXCELMCP_MAC_NAMED_RANGE_E2E = if ($IncludeNamedRanges) { '1' } else { '0' }
 }
 try {
-    $filter = 'FullyQualifiedName~MacExcelE2ETests|FullyQualifiedName~MacRangeEditE2ETests'
+    $filter = 'FullyQualifiedName~MacExcelE2ETests|FullyQualifiedName~MacRangeEditE2ETests|FullyQualifiedName~MacNativeSessionE2ETests|FullyQualifiedName~MacNativeWorksheetE2ETests|FullyQualifiedName~MacAppleEventDesktopTests|FullyQualifiedName~MacNativeFormulaApiTests|FullyQualifiedName~MacNativeFormulaE2ETests'
     if ($IncludeNamedRanges) {
         $filter += '|FullyQualifiedName~MacNamedRangeE2ETests'
     }
-    $test = Invoke-MacTestCommand dotnet @(
+    $discovery = Invoke-MacTestCommand dotnet @(
         'test', 'tests/ExcelMcp.Portable.Tests/ExcelMcp.Portable.Tests.csproj',
         '-c', 'Release', '--no-build', '--nologo', '-v', 'minimal',
-        '--filter', $filter, '--blame-hang-timeout', '5m'
-    ) 1800 $environment
-    Write-Host $test.stdout
-    if (-not [string]::IsNullOrWhiteSpace($test.stderr)) { Write-Host $test.stderr }
-    $expectedPassed = 22
-    if ($IncludeNamedRanges) { $expectedPassed += 2 }
-    $expectedSkipped = 0
-    $expectedTotal = $expectedPassed + $expectedSkipped
-    $summaryPattern = "Passed!.*Failed:\s*0\b.*Passed:\s*$expectedPassed\b.*Skipped:\s*$expectedSkipped\b.*Total:\s*$expectedTotal\b"
-    if ($test.exitCode -ne 0 -or $test.stdout -notmatch $summaryPattern) {
-        throw "Expected $expectedPassed passed and $expectedSkipped skipped macOS workflows; missing or failed cases are not success."
+        '--filter', $filter, '--list-tests'
+    ) 120 $environment
+    if ($discovery.exitCode -ne 0) {
+        throw "Mac acceptance discovery failed: $($discovery.stdout) $($discovery.stderr)"
+    }
+    $expectedTests = @([regex]::Matches($discovery.stdout, '(?m)^\s+(Sbroenne\.ExcelMcp\.Portable\.Tests\.[^\r\n]+)\r?$') |
+        ForEach-Object { $_.Groups[1].Value })
+    if ($expectedTests.Count -eq 0 -or @($expectedTests | Sort-Object -Unique).Count -ne $expectedTests.Count) {
+        throw 'Mac acceptance discovery returned an empty or duplicate test selection.'
+    }
+    Invoke-TestStage -Project 'tests/ExcelMcp.Portable.Tests/ExcelMcp.Portable.Tests.csproj' `
+        -Filter $filter -ResultsDirectory $ResultsDirectory -Name MacAcceptance -Environment $environment
+    [xml]$report = Get-Content -LiteralPath (Join-Path $ResultsDirectory 'MacAcceptance.trx') -Raw
+    $executedTests = @($report.TestRun.Results.UnitTestResult | ForEach-Object { $_.testName })
+    if (@(Compare-Object $expectedTests $executedTests).Count -ne 0) {
+        throw 'Mac acceptance did not execute exactly the discovered cases. Missing workflows are not success.'
     }
 }
 finally {

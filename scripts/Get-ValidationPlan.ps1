@@ -26,7 +26,7 @@ function Get-ValidationPlan {
     $toolingSelections = @{}
     $codeQl = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     $excel = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-    $allProjects = @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service')
+    $allProjects = @('CLI', 'ComInterop', 'Core', 'McpServer', 'Portable', 'Service')
     $allExcel = @('Acceptance', 'Data', 'Desktop', 'Editing', 'Infrastructure', 'Lifecycle', 'Reporting', 'VBA')
     $fullTooling = $false
     $npmTests = $false
@@ -158,7 +158,7 @@ function Get-ValidationPlan {
                 $infrastructureDiagnostics = $true
             }
         }
-        if ($path -match '^tests/ExcelMcp\.(CLI|ComInterop|Core|McpServer|Service)\.Tests/') {
+        if ($path -match '^tests/ExcelMcp\.(CLI|ComInterop|Core|McpServer|Portable|Service)\.Tests/') {
             $project = $Matches[1]
             [void]$fast.Add($project)
             if ($project -eq 'CLI') { [void]$process.Add($project) }

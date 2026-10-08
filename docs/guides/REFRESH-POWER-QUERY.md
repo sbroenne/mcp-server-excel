@@ -10,7 +10,7 @@ privacy levels, native connectors, and the Data Model all behave exactly as they
 do when you click **Data → Refresh All** yourself.
 
 On macOS, every Power Query action returns `PlatformNotSupported`. Excel for Mac
-exposes no supported Apple Events or Office.js API that satisfies the contract,
+exposes no direct Apple Events API that satisfies the contract,
 and ExcelMcp does not inspect workbook packages or ship a VBA helper. See
 [macOS support](../../specs/MACOS-SUPPORT.md#power-query-and-vba-limitations).
 

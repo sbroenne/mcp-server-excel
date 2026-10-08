@@ -279,12 +279,7 @@ public partial class RangeCommands
         string requestedRangeAddress,
         List<string> mergedRanges)
     {
-        string rangeLabel = mergedRanges.Count == 1 ? "Merged range" : "Merged ranges";
-        throw new OperationFailureException(
-            OperationFailureCategory.Conflict,
-            $"Cannot write to range '{requestedRangeAddress}' because the write intersects merged cells. " +
-            $"{rangeLabel}: {string.Join(", ", mergedRanges)}. " +
-            "Write only to each merged range's top-left cell, or unmerge the affected range before writing.");
+        RangeCommandValidation.ThrowMergedCellWriteError(requestedRangeAddress, mergedRanges);
     }
 
     /// <summary>
@@ -292,14 +287,6 @@ public partial class RangeCommands
     /// </summary>
     private static void ValidateRectangularRowWidths<T>(List<List<T>> rows, int expectedColumnCount, string parameterName, string itemType)
     {
-        for (int rowIndex = 0; rowIndex < rows.Count; rowIndex++)
-        {
-            if (rows[rowIndex].Count != expectedColumnCount)
-            {
-                throw new ArgumentException(
-                    $"{itemType} array row {rowIndex + 1} column count ({rows[rowIndex].Count}) doesn't match range column count ({expectedColumnCount})",
-                    parameterName);
-            }
-        }
+        RangeCommandValidation.ValidateRowWidths(rows, expectedColumnCount, parameterName, itemType);
     }
 }

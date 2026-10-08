@@ -5,7 +5,6 @@ namespace Sbroenne.ExcelMcp.Service.Mac;
 internal enum MacCapabilityTier
 {
     Native,
-    OfficeAddIn,
     OptionalNativeHelper,
     Unsupported
 }
@@ -39,21 +38,10 @@ internal static class MacCommandCapabilities
 
     public static string InventoryJson => MacActionInventory.Json;
 
-    public static MacCommandCapability Get(
-        string command,
-        bool officeCandidateEnabled = false)
+    public static MacCommandCapability Get(string command)
     {
         if (ByCommand.TryGetValue(command, out var capability))
         {
-            if (officeCandidateEnabled && MacOfficeActionCatalog.TryGet(command, out _))
-            {
-                return capability with
-                {
-                    IsAvailable = true,
-                    RequiredTier = MacCapabilityTier.OfficeAddIn,
-                    UnavailableMessage = string.Empty
-                };
-            }
             return capability;
         }
 

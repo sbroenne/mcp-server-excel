@@ -53,6 +53,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Sbroenne.ExcelMcp.Core.Tests" />
+    <InternalsVisibleTo Include="Sbroenne.ExcelMcp.Service" />
+    <InternalsVisibleTo Include="Sbroenne.ExcelMcp.Portable.Tests" />
   </ItemGroup>
 
   <ItemGroup>

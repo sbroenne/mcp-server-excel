@@ -172,6 +172,17 @@ public sealed class PreCommitScriptTests
     }
 
     [Fact]
+    public async Task ToolingChangesBuildSelectedTestProjectsBeforeRunningThem()
+    {
+        var result = await RunHookAsync("scripts/Build-Plugins.ps1");
+
+        Assert.True(result.ExitCode == 0, result.Output);
+        Assert.Contains("test-project-build-ran", result.Output, StringComparison.Ordinal);
+        Assert.Contains("-Group Tooling", result.Output, StringComparison.Ordinal);
+        Assert.Contains("excelmcp-validation-", result.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task BuildFailure_PreservesNativeDiagnostics()
     {
         var result = await RunHookAsync("src/ExcelMcp.Core/Command.cs", failure: "dotnet");
@@ -220,6 +231,7 @@ public sealed class PreCommitScriptTests
                 ("check-dynamic-casts", "casts-check-ran"),
                 ("check-workbook-package-access", "package-access-check-ran"),
                 ("Stop-ExcelMcpProcesses", "cleanup-ran"),
+                ("Build-CiInputs", "test-project-build-ran"),
                 ("Invoke-ExcelFreeTests", "excel-free-tests-ran"),
                 ("Invoke-ExcelTests", "excel-feature-tests-ran"),
                 ("Test-E2E", "e2e-ran"),

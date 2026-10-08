@@ -1,9 +1,11 @@
 using System.Reflection;
+using System.Text.Json.Nodes;
 using Sbroenne.ExcelMcp.Service.Mac;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Portable.Tests;
 
+[Trait("RequiresExcel", "false")]
 public sealed class MacRangeBridgeContractTests
 {
     private const string ResourceName = "Sbroenne.ExcelMcp.Service.Mac.MacExcelBridge.js";
@@ -26,10 +28,25 @@ public sealed class MacRangeBridgeContractTests
     [Fact]
     public void SheetList_NormalizesVisibilityInsteadOfComparingToBooleanFalse()
     {
-        var script = ReadBridgeScript();
+        var result = MacNativeWorksheet.CreateList("owned.xlsx",
+            new JsonArray("Visible", "Hidden", "VeryHidden"),
+            new JsonArray(MacExcelDictionary.SheetVisible, MacExcelDictionary.SheetHidden, MacExcelDictionary.SheetVeryHidden));
+        Assert.True(result.Success);
+        Assert.True(string.IsNullOrEmpty(result.ErrorMessage));
+        Assert.Equal("owned.xlsx", result.FilePath);
+        Assert.Equal([1, 2, 3], result.Worksheets.Select(sheet => sheet.Index));
+        Assert.Equal([true, false, false], result.Worksheets.Select(sheet => sheet.Visible));
+    }
 
-        Assert.Contains("visible: currentSheetVisibility(sheets[index]).value === -1", script, StringComparison.Ordinal);
-        Assert.DoesNotContain("visible() !== false", script, StringComparison.Ordinal);
+    [Theory]
+    [InlineData("null", "[]")]
+    [InlineData("[\"Sheet1\"]", "[]")]
+    [InlineData("[\"\"]", "[4095]")]
+    [InlineData("[\"Sheet1\"]", "[4095]")]
+    public void SheetList_RejectsMalformedOrUnknownNativeState(string names, string visibility)
+    {
+        Assert.Throws<InvalidOperationException>(() => MacNativeWorksheet.CreateList(
+            "owned.xlsx", JsonNode.Parse(names), JsonNode.Parse(visibility)));
     }
 
     [Fact]

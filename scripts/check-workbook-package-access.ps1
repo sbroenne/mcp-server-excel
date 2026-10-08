@@ -1,103 +1,75 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    Rejects direct workbook package access in production, tests, and scripts.
+    Rejects direct Excel workbook package XML access from production source.
 
 .DESCRIPTION
-    Workbook files are opaque. ExcelMcp may copy an intact Excel-authored
-    workbook, but it must not create, inspect, parse, or mutate workbook ZIP,
-    OOXML, relationship, custom XML, or DataMashup internals.
-
-    ZIP handling used only for distribution/plugin packaging is explicitly
-    excluded because those archives are not workbook files.
+    ExcelMcp controls workbooks through desktop Excel COM. ZIP/OOXML inspection
+    is allowed in tests for fixture construction and concrete verification, but
+    production source must not parse or modify workbook package parts.
 #>
 
 param(
     [string]$RootPath
 )
 
-$ErrorActionPreference = 'Stop'
-$rootDir = if ([string]::IsNullOrWhiteSpace($RootPath)) {
-    Split-Path -Parent $PSScriptRoot
-}
-else {
-    [IO.Path]::GetFullPath($RootPath)
-}
-$scanRoots = @('src', 'tests', 'scripts')
-$sourceExtensions = @('.cs', '.js', '.mjs', '.ps1', '.psm1', '.sh')
-$distributionZipAllowList = @(
-    'scripts/Build-ReleasePackages.ps1',
-    'scripts/Test-DistributionPackages.ps1'
-)
+$ErrorActionPreference = "Stop"
 
-$violations = [Collections.Generic.List[object]]::new()
-foreach ($scanRoot in $scanRoots) {
-    $absoluteRoot = Join-Path $rootDir $scanRoot
-    if (-not (Test-Path -LiteralPath $absoluteRoot -PathType Container)) {
+if ([string]::IsNullOrWhiteSpace($RootPath)) {
+    $RootPath = Split-Path -Parent $PSScriptRoot
+}
+
+$sourceRoot = Join-Path $RootPath "src"
+if (-not (Test-Path -LiteralPath $sourceRoot -PathType Container)) {
+    throw "Source directory not found: $sourceRoot"
+}
+
+$violations = [System.Collections.Generic.List[object]]::new()
+$workbookPartPattern = '(?i)(?:\[Content_Types\]\.xml|(?:^|["''\\/])xl[\\/](?:workbook|worksheets|_rels|sharedStrings|styles|theme|connections|pivot|charts?)[^"''\r\n]*\.xml)'
+$openXmlApiPattern = '(?i)(?:DocumentFormat\.OpenXml|SpreadsheetDocument|OpenXmlPackage|WorkbookPart|WorksheetPart|System\.IO\.Packaging)'
+$zipApiPattern = '(?i)(?:System\.IO\.Compression|ZipArchive|ZipFile)'
+$xmlApiPattern = '(?i)(?:System\.Xml|XDocument|XmlDocument|XmlReader|XElement)'
+
+foreach ($file in Get-ChildItem -LiteralPath $sourceRoot -Recurse -File |
+             Where-Object { $_.Extension -in @(".cs", ".csproj", ".props", ".targets") }) {
+    $relativeSourcePath = [IO.Path]::GetRelativePath($sourceRoot, $file.FullName)
+    $pathSegments = $relativeSourcePath -split '[\\/]'
+    if ($pathSegments -contains "bin" -or $pathSegments -contains "obj") {
         continue
     }
-    foreach ($file in Get-ChildItem -LiteralPath $absoluteRoot -Recurse -File) {
-        if ($sourceExtensions -notcontains $file.Extension -or
-            $file.FullName -match '[/\\](bin|obj|node_modules)[/\\]') {
-            continue
-        }
 
-        $relativePath = [IO.Path]::GetRelativePath($rootDir, $file.FullName)
-        $relativePath = $relativePath.Replace('\', '/')
-        if ($relativePath -in @(
-                'scripts/check-workbook-package-access.ps1',
-                'tests/ExcelMcp.SkillGeneration.Tests/WorkbookPackageAccessGuardTests.cs')) {
-            continue
-        }
-        $content = @(Get-Content -LiteralPath $file.FullName)
-        for ($lineIndex = 0; $lineIndex -lt $content.Count; $lineIndex++) {
-            $line = $content[$lineIndex]
-            $reason = $null
-            $normalizedLine = $line.Replace('\', '/')
-            if ($normalizedLine.Contains(
-                    'xl/workbook.xml',
-                    [StringComparison]::OrdinalIgnoreCase) -or
-                $line -match '(?i)(\[Content_Types\]\.xml|DataMashup|MacPowerQueryPackage|MacWorkbookPackage)') {
-                $reason = 'workbook package internals'
-            }
-            elseif ($line -match '(?i)(System\.IO\.Packaging|DocumentFormat\.OpenXml)') {
-                $reason = 'workbook package library'
-            }
-            elseif ($line -match '(?i)(System\.IO\.Compression|\bZipArchive\b|\bZipFile\b)') {
-                $isDistributionArchive =
-                    $relativePath.StartsWith(
-                        'tests/ExcelMcp.SkillGeneration.Tests/',
-                        [StringComparison]::Ordinal) -or
-                    $distributionZipAllowList -contains $relativePath
-                if (-not $isDistributionArchive) {
-                    $reason = 'direct ZIP access outside distribution packaging'
-                }
-            }
+    $content = Get-Content -LiteralPath $file.FullName -Raw
+    $reasons = [System.Collections.Generic.List[string]]::new()
 
-            if ($reason) {
-                $violations.Add([PSCustomObject]@{
-                    File = $relativePath
-                    Line = $lineIndex + 1
-                    Reason = $reason
-                    Code = $line.Trim()
-                })
-            }
-        }
+    if ($content -match $openXmlApiPattern) {
+        $reasons.Add("Open XML or package API")
+    }
+    if ($content -match $workbookPartPattern) {
+        $reasons.Add("Excel workbook package part path")
+    }
+    if ($file.Extension -eq ".cs" -and
+        $content -match $zipApiPattern -and
+        $content -match $xmlApiPattern) {
+        $reasons.Add("combined ZIP and XML processing")
+    }
+
+    if ($reasons.Count -gt 0) {
+        $relativePath = [IO.Path]::GetRelativePath($RootPath, $file.FullName)
+        $violations.Add([PSCustomObject]@{
+            Path = $relativePath
+            Reasons = $reasons -join ", "
+        })
     }
 }
 
 if ($violations.Count -eq 0) {
-    Write-Host 'Workbook package access check passed' -ForegroundColor Green
+    Write-Host "No production Excel workbook package XML access found." -ForegroundColor Green
     exit 0
 }
 
-Write-Host 'Direct workbook package access is prohibited:' -ForegroundColor Red
+Write-Host "Production Excel workbook package XML access is forbidden:" -ForegroundColor Red
 foreach ($violation in $violations) {
-    Write-Host (
-        "  {0}:{1}: {2}: {3}" -f
-        $violation.File,
-        $violation.Line,
-        $violation.Reason,
-        $violation.Code) -ForegroundColor Yellow
+    Write-Host "  $($violation.Path): $($violation.Reasons)" -ForegroundColor Yellow
 }
+Write-Host "Use Excel COM in production. ZIP/OOXML access belongs only in tests." -ForegroundColor Red
 exit 1

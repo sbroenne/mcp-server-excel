@@ -38,6 +38,9 @@ public interface ITableColumnCommands
     /// <param name="columnName">Name of the column to filter</param>
     /// <param name="options">Native operator and its applicable criteria; nested keys remain camelCase</param>
     /// <exception cref="InvalidOperationException">Table or column not found</exception>
+    [MacCapability(MacCapabilityTier.Unsupported, MacImplementationStatus.Blocked, false,
+        Evidence = "The current Windows contract changed after the Mac implementation was verified.",
+        Blocker = "macOS parity must be reverified against the current contract before enabling this action")]
     [ServiceAction("apply-filter")]
     OperationResult ApplyFilter(IExcelBatch batch, string tableName, string columnName, [RequiredParameter] FilterOptions options);
 

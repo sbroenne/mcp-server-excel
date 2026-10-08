@@ -5,7 +5,7 @@ capability-gated subset, not full Windows parity or a production-support
 commitment. Failed or cancelled mutations can partly apply; reconcile the
 surviving session before retrying. Windows retains the complete COM backend and
 is not reclassified as experimental. macOS combines a native
-Apple Events backend with optional Office.js and ScreenCaptureKit tiers.
+Apple Events backend with an optional ScreenCaptureKit tier.
 Unsupported or unproven actions fail with `PlatformNotSupported`; they never
 return success-shaped approximations.
 
@@ -25,32 +25,32 @@ Use the Windows backend when a workflow requires an unavailable action.
 | Feature | macOS beta limitation |
 |---------|-----------------------|
 | Power Query | All actions: M authoring/inspection, load destinations, and refresh. |
-| VBA | All source/module actions and macro execution; no VBA helper or automatic trust setup. |
+| VBA | All public source/module actions and arbitrary macro execution. The optional helper handshake/build infrastructure is not public VBA support; artifact acceptance is pending and trust stays user-controlled. |
 | Data Model, DAX, and OLAP | Model tables/relationships, measures, DAX queries/DMVs, and OLAP/Data Model PivotTables. |
-| Tables, PivotTables, charts, and slicers | All public actions remain gated, including ordinary worksheet Tables and PivotTables. Optional Office.js handlers do not make them supported. |
+| Tables, PivotTables, charts, and slicers | All public actions remain gated, including ordinary worksheet Tables and PivotTables. |
 | Connections and QueryTables | All public actions, including imports, refresh, and connection management. Native candidates are not enabled. |
-| Advanced visuals and worksheet features | Conditional formatting, rich font/fill/border styling, validation, comments, drawings, shapes, sparklines, outlines, protection, page setup, and window/Agent Mode control. Basic number formats, sizing, cell locking, tab color, and visibility are enabled. |
+| Advanced visuals and worksheet features | Conditional formatting, rich font/fill/border styling, validation, comments, drawings, shapes, sparklines, outlines, protection, page setup, and window/Agent Mode control. Basic number formats, sizing, tab color, and visibility are enabled. Cell protection is gated until its current contract is reverified. |
 | Screenshots and XML Maps | All public actions remain gated; helper/API presence is not accepted end-to-end support. |
 | Python in Excel | Result reads are unsupported. Licensed `PY()` formula writes are enabled; this does not imply result-read support. |
-| Range and worksheet variants | UsedRange, CurrentRegion, merge-area inspection, writes to merged cells (including the Windows top-left exception), find/replace/sort, disjoint row/column editing, worksheet copy/move, and cross-workbook selection via worksheet `filePath`. Cell/row/column insertion/deletion, value/formula copies, merge/unmerge, and the accepted exact-workbook lifecycle variants are enabled. |
-| Other What-If and calculation actions | All Scenario actions and application-global calculation-mode get/set. Goal Seek, one-/two-variable Data Tables, and explicit calculation are enabled. |
-| File/platform variants | New `.xlsm` creation, advanced workbook save/export operations, Intel Macs, Linux, and headless servers. `.xlsx` creation uses an intact Excel-authored template. |
+| Range and worksheet variants | UsedRange, CurrentRegion, public merge-area inspection, general value writes to merged cells, find/replace/sort, disjoint row/column editing, worksheet copy/move, and cross-workbook selection via worksheet `filePath`. Named-range reads/writes support direct A1 references; dynamic, constant-only, and other formula-based named references fail explicitly, and list reports their values as unavailable. Named-range, disjoint, structured-reference, and spill-address formula variants fail explicitly. Worksheet create/rename in workbooks containing chart sheets is gated before mutation. Cell/row/column insertion/deletion, merge/unmerge, rectangular formula reads/writes, and the accepted exact-workbook lifecycle variants are enabled. |
+| Other What-If and calculation actions | All Scenario actions, calculation settings/precision, application-scope calculation, full/rebuild calculation, and disjoint/structured-reference/spill calculation addresses. Normal sheet and rectangular range calculation, Goal Seek, and one-/two-variable Data Tables are enabled. |
+| File/platform variants | File test, new `.xlsm` creation, advanced workbook save/export operations, Intel Macs, Linux, and headless servers. `.xlsx` creation uses an intact Excel-authored template. |
 
 The [generated action inventory](../docs/MACOS-ACTION-INVENTORY.md) is the
 authoritative per-action list. `Partial` means unavailable in this beta, not
 partially usable; only actions marked enabled can be dispatched. Installing the
-optional bridge does not bypass that gate. No workbook-package inspection,
+optional helper does not bypass that gate. No workbook-package inspection,
 dialog automation, security changes, or alternative workflows approximate
 unsupported operations.
 
 ## Non-negotiable workbook boundary
 
-Excel workbook files are opaque.
+Production code, tests, scripts, and fixtures treat Excel workbook files as opaque.
 
 - Never create, parse, inspect, or mutate workbook ZIP, OOXML, relationship,
   custom XML, or DataMashup internals.
-- This prohibition applies to production code, tests, fixtures, scripts, and
-  indirect use through package or Open XML libraries.
+- This prohibition includes indirect use through package or Open XML libraries.
+  Mac acceptance verifies workbook behavior through supported Excel APIs.
 - An intact workbook authored by Excel may be copied as an opaque whole file.
 - Workbook content changes must use supported Excel object models.
 - If neither route can satisfy the public contract, report the operation as
@@ -64,7 +64,16 @@ pre-commit validation.
 - MCP Server and `excelcli` share the same Service contracts, validation,
   routing, and result models.
 - Windows uses COM and keeps its existing session and process-ownership model.
-- macOS uses serialized JXA/Apple Events requests against exact workbook paths.
+- macOS uses serialized Apple Events requests against exact workbook paths.
+  Session lifecycle, worksheet listing/creation/rename, rectangular formula reads/writes,
+  and normal sheet/range calculation use native C# events; remaining
+  scripting routes stay until equivalent native acceptance.
+- Both platforms dispatch through Core interfaces with generated typed
+  arguments, defaults, and result serialization. Mac batches reject COM callbacks.
+- The optional helper is independently versioned. A native read-only handshake
+  checks supported helper major and action-required primitives before helper
+  mutation. Missing or incompatible helpers fail explicitly; installation never
+  bypasses the action inventory. See [installation](../docs/INSTALLATION.md#optional-macos-native-helper).
 - CLI IPC uses current-user-only Unix named pipes and a stable, hashed
   per-user identity.
 - The Mac daemon never terminates shared Excel and never closes a workbook it
@@ -79,7 +88,7 @@ pre-commit validation.
   `canClose: false`; operations, repeated open/create, and automatic cleanup
   cannot touch it. Reconcile the workbook and pending dialogs before restarting
   the client.
-- A timed-out native mutation or uncertain Office.js mutation also makes the
+- A timed-out native mutation also makes the
   exact session recovery-only with `canClose: false`. ExcelMcp never races the
   in-flight operation with save, close, rollback, or shutdown cleanup and never
   discards earlier valid edits. Reconcile the workbook manually, then restart
@@ -113,12 +122,10 @@ authentic Excel-authored macro-enabled template whose provenance and runtime
 behavior are accepted. Renaming `.xlsx` bytes or synthesizing macro project
 state is not permitted.
 
-`file test` checks the absolute path, extension, existence, size, timestamp,
-lock state, read access, and the existing IRM/AIP preflight. `preflightPassed`
-reports those access checks, not structural validity or openability. It does
-not inspect workbook structure and therefore leaves `isValid=false` and
-`canOpen=false`; `file(action: 'open')` or CLI `session open` asks Excel to
-validate the file.
+MCP `file(action: 'test')` and CLI `session test` are gated on macOS until a
+temporary read-only Excel open and cleanup route matches Windows validation.
+Path-level checks alone must not replace workbook validity or openability.
+Explicit open/create operations retain their existing access preflight.
 
 ## Enabled native beta capabilities
 
@@ -153,23 +160,50 @@ Verified native coverage includes:
 - exact workbook create/open/close and owned-session cleanup;
 - worksheet list/create/rename/delete;
 - worksheet visibility and tab color;
-- range values, formulas, number formats, clear operations, explicit row and
-  column sizing, copy variants, bounded metadata, auto-fit, merge/unmerge, and
-  cell locking for the accepted variants;
-- calculation, Goal Seek, one- and two-variable Data Tables;
+- range values, number formats, clear operations, explicit row and
+  column sizing, bounded metadata, auto-fit, and merge/unmerge;
+- rectangular A1/R1C1 formula reads/writes with shared error diagnostics,
+  blank-valued formula occupancy, default overwrite rejection, and save/reopen persistence;
+- normal sheet and rectangular range calculation without changing the mode or
+  active worksheet, or calculating dirty formulas in unrelated ranges, sheets,
+  or workbooks;
+- Goal Seek and one- and two-variable Data Tables;
 - native cell insertion/deletion with explicit Down/Right or Up/Left shifts,
   and single-area entire-row/column insertion/deletion, including formula
   adjustment and save/reopen persistence; disjoint row/column selections fail
   before mutation rather than editing only their first area;
 - licensed Python in Excel formula writes through `Range.Formula2`;
-- the accepted named-range lifecycle variants;
+- direct-reference named-range list/create/read/write/update/delete; dynamic,
+  constant-only, and other formula-based named-reference values remain
+  explicitly unsupported;
 - screenshot identity infrastructure remains experimental and does not enable
   either public screenshot action.
 
-Known native Apple Events gaps remain gated, including UsedRange,
+Previously accepted copy, cell protection, and calculation settings actions
+are gated again because their current Windows contracts changed. Earlier
+desktop evidence does not establish parity for those new contracts.
+
+Unaccepted native Apple Events routes remain gated, including UsedRange,
 CurrentRegion, merge-area inspection, worksheet copy/move, application-global
 calculation-mode mutation in shared Excel, and any action whose declared
 dictionary surface did not survive real CLI/MCP acceptance.
+
+The isolated native Formula2 spike now preserves A1/R1C1 matrices, relative
+references, spills, explicit `@`, blank-valued formula detection, and
+save/reopen persistence. Direct merge-area property references also identify
+top-left cells. Returned merge-area object dereferences failed with
+OSStatus -1728; direct property references are the verified route. These APIs
+do not require the optional helper. Public rectangular formula reads/writes
+now use shared validation and result shaping, with CLI/MCP acceptance for
+mixed error/number/blank-valued formula matrices and persistence. Additional
+merged-cell, spill, and file-input cases remain acceptance
+work, not proof supplied by the isolated API spike.
+
+Formula writes preserve automatic, manual, and semiautomatic modes through both
+entry points. Normal sheet/range calculation uses the shared current Windows
+validation and result contract. Desktop acceptance verifies dirty-cell updates
+and unchanged sentinels in unrelated scopes and workbooks; application-global,
+full/rebuild, and unsupported address variants fail before mutation.
 
 Python in Excel result reads remain gated because Excel 16.113.2 rejected the
 native Apple Events read through the public MCP entry point after accepting the
@@ -188,15 +222,14 @@ Excel-authored fixture.
 ## Power Query and VBA limitations
 
 Power Query lifecycle operations are unsupported on macOS. Excel 16.113.1
-Apple Events exposes no `Workbook.Queries` surface, and Office.js exposes no
-equivalent Power Query authoring, M inspection, load-state, or refresh API.
+Apple Events exposes no `Workbook.Queries` surface.
 ExcelMcp does not inspect `DataMashup` or any other workbook package content and
 does not ship a VBA add-in to bridge the missing API. The complete Power Query
 contract remains available on Windows.
 
 VBA source operations are also unsupported on macOS. Apple Events exposes no
-`VBProject`, `VBComponents`, or `CodeModule` surface, and Office.js exposes no
-VBA project API. Although Excel's dictionary declares `run VB macro`, it cannot
+`VBProject`, `VBComponents`, or `CodeModule` surface.
+Although Excel's dictionary declares `run VB macro`, it cannot
 provide the exact-workbook qualification, bounded argument behavior,
 prompt-free trust state, and timeout reconciliation required by the public
 `vba.run` contract without workbook-resident helper code. ExcelMcp therefore
@@ -204,36 +237,29 @@ does not install an add-in, request macro approval, or change VBA project-model
 trust. The complete VBA contract remains available on Windows.
 
 Scenario create/show share the same limitation: Apple Events exposes existing
-scenario elements and selected mutation commands but no create or show command,
-while Office.js exposes no Scenario API. Native list/update/delete/summary
+scenario elements and selected mutation commands but no create or show command.
+Native list/update/delete/summary
 candidates require a separately Excel-authored scenario fixture.
 
 These actions use the `Unsupported` tier with `Blocked` evidence and generated
 `MacLimitation` execution plans. They fail before workbook dispatch;
 there is no environment-variable opt-in or hidden helper route.
 
-## Removed VBA helper design
+## VBA helper evaluation
 
-The spike evaluated a signed `.xlam` bridge, but rejected it as a product
-architecture because it would require per-machine macro and certificate trust,
-Windows-only signing, helper upgrades, and VBA project-model security changes.
-The helper source, protocol, runtime routing, packaging, acceptance scripts, and
-trust instructions are not part of the macOS product.
+The earlier helper design is being replaced with a separately versioned
+`.xlam` build artifact. Maintainers build it locally using Excel and publish
+it in a `helper-vX.Y.Z` GitHub release. Users install it explicitly through
+Excel's add-in manager; ordinary server releases do not rebuild it.
 
-## Optional Office.js tier
+The candidate helper exposes stable object-model primitives rather than
+duplicating public command logic. The server will verify its presence, major
+version, and the primitives required by each action before mutation. A
+compatible older helper continues to serve actions it supports. None of
+these candidate actions is enabled until real Excel acceptance proves parity.
 
-The optional Office.js foundation has explicit install, activation, health,
-upgrade, and removal lifecycle; authenticated loopback HTTPS; exact
-workbook/session binding; correlated serialized requests; deadlines; and
-runtime requirement-set negotiation.
-
-Installation proves only health. The 65 source-contract methods carrying
-`OfficeAddInAction` have matching repository handlers, requirement-set gates,
-and Excel-free contract tests. They remain `Partial` and unavailable until
-user-mediated activation and exact public CLI/MCP acceptance succeed. The
-other formerly planned Office.js actions are explicit `MacLimitation` entries:
-the reviewed API omits contract-critical identity, type, source, or result
-metadata, and ExcelMcp does not return partial success or guessed values.
+There is no Office.js tier, task pane, localhost certificate, or hosted
+manifest. ExcelMcp does not change macro security or approve installation.
 
 ## Permissions and dialogs
 

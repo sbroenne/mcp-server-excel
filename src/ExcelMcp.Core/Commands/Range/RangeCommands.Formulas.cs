@@ -145,12 +145,7 @@ public partial class RangeCommands
         int column,
         List<RangeCellError> cellErrors)
     {
-        if (!ExcelErrorMapper.TryGet(cellValue, out int errorCode, out var error))
-        {
-            return cellValue;
-        }
-
-        return ConvertMappedErrorForRead(cellValue, formula, row, column, cellErrors, errorCode, error);
+        return RangeFormulaResults.ConvertErrorForRead(cellValue, formula, row, column, cellErrors);
     }
 
     private static string ConvertMappedErrorForRead(
@@ -162,20 +157,7 @@ public partial class RangeCommands
         int errorCode,
         ExcelErrorMapper.ExcelErrorInfo error)
     {
-        cellErrors.Add(new RangeCellError
-        {
-            CellAddress = $"{GetColumnLetter(column)}{row}",
-            ErrorName = error.Name,
-            Formula = string.IsNullOrEmpty(formula) ? null : formula,
-            Row = row,
-            Column = column,
-            CurrentValue = cellValue,
-            ErrorCode = errorCode,
-            ErrorMessage = $"{error.Name} - {error.Description}",
-            Suggestion = error.Suggestion
-        });
-
-        return error.Name;
+        return RangeFormulaResults.ConvertMappedErrorForRead(cellValue, formula, row, column, cellErrors, errorCode, error);
     }
 
     /// <summary>
@@ -183,14 +165,7 @@ public partial class RangeCommands
     /// </summary>
     private static string GetColumnLetter(int columnIndex)
     {
-        string columnName = string.Empty;
-        while (columnIndex > 0)
-        {
-            columnIndex--;
-            columnName = Convert.ToChar('A' + (columnIndex % 26)) + columnName;
-            columnIndex /= 26;
-        }
-        return columnName;
+        return RangeCommandValidation.ColumnLetter(columnIndex);
     }
 
     /// <inheritdoc />
@@ -304,7 +279,6 @@ public partial class RangeCommands
 
     private static void ValidateFormulaReferenceStyle(FormulaReferenceStyle referenceStyle)
     {
-        if (!Enum.IsDefined(referenceStyle))
-            throw new ArgumentOutOfRangeException(nameof(referenceStyle));
+        RangeCommandValidation.ValidateFormulaReferenceStyle(referenceStyle);
     }
 }

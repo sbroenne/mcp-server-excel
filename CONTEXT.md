@@ -29,14 +29,18 @@ variant stays gated when the Mac APIs cannot preserve that exact contract.
   Excel process; on macOS it owns only the exact workbook inside shared desktop
   Excel. A session stays open across operations until it is closed.
 - **Session ID:** The identifier returned when a workbook is opened or created. Later operations use it to select the session.
-- **Batch (`IExcelBatch`):** The Windows internal object that keeps Excel and its
-  workbook open and runs COM work on Excel's required thread.
+- **Batch (`IExcelBatch`):** The command execution context for an owned workbook.
+  Windows runs COM callbacks on Excel's required thread. The internal Mac adapter
+  sends bounded automation requests and explicitly rejects COM callbacks and references.
 - **Core command:** A Windows Excel behavior implementation under
   `src/ExcelMcp.Core`; annotated interfaces also define the shared generated
   public contract used by both platforms.
-- **Mac backend:** The Service adapter that sends bounded Apple Events through
-  OSAKit and explicitly gates operations that do not have verified parity.
-- **Service:** The shared command router and session owner used by both entry points.
+- **Mac backend:** The Service adapter that sends bounded Apple Events and
+  explicitly gates operations that do not have verified parity. Session
+  lifecycle, worksheet listing/creation/rename, rectangular formula reads/writes, and
+  normal sheet/range calculation use direct C# native events; remaining commands use OSAKit while
+  their native replacements are being implemented and verified.
+- **Service:** The shared generated command router and platform session owner used by both entry points.
 - **Daemon host:** The CLI process component that owns named-pipe acceptance,
   connection limits, idle shutdown, and connection draining around the Service.
 - **Service bridge:** The MCP host component that owns one in-process Service
@@ -58,6 +62,10 @@ variant stays gated when the Mac APIs cannot preserve that exact contract.
 - On macOS, one session owns one exact workbook in shared desktop Excel and must
   never terminate Excel or close unknown user workbooks.
 - Operations inside one session run in order on one Excel thread.
+- Both platforms use the same generated typed argument binding, defaults, and
+  result serialization. Platform command sets select the Windows implementation
+  or Mac transport adapter behind each Core interface. Excel-specific validation
+  and remaining scripting logic still need native/shared-semantic migration.
 - Different sessions have separate public namespaces. The same workbook cannot
   be opened in multiple sessions; macOS also serializes open preflight,
   LaunchServices handoff, and attachment across participating processes.

@@ -40,12 +40,6 @@ multiple steps. "Leave the workbook open" means retain its session, not show a
 hidden Excel window. Authentication may require visible Excel; explain that exception.
 See [window management](window.md#visibility-and-placement).
 
-Apple Silicon macOS support is experimental beta. Use only the
-[enabled Mac actions](https://excelmcpserver.dev/macos-support/); Windows-only
-styling, model, refresh, and visual workflows below are not Mac workarounds.
-Failed or cancelled mutations can partly apply. Reconcile the surviving session
-and workbook state before retrying.
-
 ## Sessions and failures
 
 - Use the returned session ID on every follow-up. CLI and MCP sessions are
@@ -60,9 +54,6 @@ and workbook state before retrying.
   earlier work. There is no tool-level undo for discarded edits.
 - Cancellation is not undo. After failure, inspect the surviving session and
   affected objects before retrying. A failed operation can partly apply.
-  On Mac, an uncertain dispatched mutation or open requires reconciliation,
-  not an automatic retry. Never close an unconfirmed handoff or terminate
-  shared Excel.
 - Save only the intended successful result. For a session opened exclusively for
   a job, close without saving after failure. Do not discard another user's
   existing session or earlier unsaved work.
@@ -102,16 +93,16 @@ Use US number-format codes; Excel displays them in the user's locale. Preserve
 existing formats and fixed layouts unless a change is requested. See
 [ranges and formatting](range.md) for examples.
 
-On Windows, for costly bulk writes get the current calculation mode with `get-mode`, switch
+For costly bulk writes, get the current calculation mode with `get-settings`, switch
 to manual, calculate after writing, and **restore the prior mode** in `finally`.
 After a timeout or cancellation, inspect the session listing before attempting
-restoration. If the session was removed or invalidated, do not call `set-mode`;
+restoration. If the session was removed or invalidated, do not call `set-settings`;
 report that restoration could not be completed. Do not blindly reopen the
 workbook or repeat writes.
 Reads and operations needing intermediate results do not need manual mode.
 Value/formula writes attempt to restore the prior mode rather than always
 forcing calculation. Restoration can fail without failing the write; use
-`get-mode` when subsequent work depends on the mode. Automatic normally
+`get-settings` when subsequent work depends on the mode. Automatic normally
 recalculates dependent formulas after restoration; manual needs explicit
 calculation. Semi-automatic excludes what-if data tables, not ordinary worksheet
 Tables. Successful writes do not establish completion of asynchronous refreshes

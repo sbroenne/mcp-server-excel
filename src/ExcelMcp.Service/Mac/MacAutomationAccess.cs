@@ -60,7 +60,7 @@ public static class MacAutomationAccess
     }
 
     [DllImport(AppleEvents)]
-    private static extern int AECreateDesc(uint descriptorType, byte[] data, int dataSize, out Descriptor result);
+    private static extern int AECreateDesc(uint descriptorType, byte[] data, nint dataSize, out Descriptor result);
 
     [DllImport(AppleEvents)]
     private static extern int AEDeterminePermissionToAutomateTarget(

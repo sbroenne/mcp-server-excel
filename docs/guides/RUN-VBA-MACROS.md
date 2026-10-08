@@ -9,8 +9,8 @@ meaningful to Excel's VBA host.
 
 !!! note "Platform availability"
     VBA commands require the Windows COM backend. They are unsupported on
-    macOS because Apple Events exposes no VBA project object model and
-    Office.js exposes no equivalent API. ExcelMcp does not ship a VBA helper
+    macOS because Apple Events exposes no VBA project object model.
+    ExcelMcp does not currently ship a verified VBA helper
     add-in, request macro approval, or change macro or VBA project-model trust.
 
 ## One-time setup for project access on Windows: enable VBA trust

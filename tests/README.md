@@ -18,9 +18,9 @@ pwsh -NoProfile -File scripts/Test-MacE2E.ps1 -SkipBuild
 ```
 
 The E2E lane requires interactive Excel for Mac and accepted Automation
-permission. Office.js candidates additionally require user-controlled
-certificate trust and exact-workbook activation; they remain unavailable until
-accepted. See [Mac support and limitations](../specs/MACOS-SUPPORT.md).
+permission. Helper-backed candidates require a user-installed helper and
+explicit macro approval; they remain unavailable until accepted.
+See [Mac support and limitations](../specs/MACOS-SUPPORT.md).
 Never overlap Excel testhosts, fixtures, or CLI/MCP E2E runs.
 
 ## Quick Start
@@ -191,9 +191,9 @@ reopen behavior is the subject of the test. Do not pool a live Excel
 application, batch, or workbook across unrelated tests or classes. A reviewed
 class-scoped Service fixture may share one session as described below.
 
-Tests may construct or inspect ZIP/OOXML workbook parts for fixtures and
-concrete verification. This is a test-only exception: never move that package
-access into production code or use it instead of exercising Excel COM behavior.
+There is no test-only workbook-package exception. Construct fixtures and verify
+their concrete state through supported Excel APIs, including for helper and
+native capability spikes.
 
 ### Persistent Service class fixtures
 
@@ -386,6 +386,22 @@ Choose a group listed in the saved plan; an unselected or empty group is an erro
 Omitting the group retains the complete Excel-free run; existing
 `-Local`, `-Contracts`, `-HookTests`, `-SkillTests`, and `-PackagingTests`
 selections remain supported.
+
+For the native macOS session lifecycle, set `EXCELMCP_MAC_E2E=1`
+and select `FullyQualifiedName~MacNativeSessionE2ETests|FullyQualifiedName~MacNativeWorksheetE2ETests`
+in the Portable project.
+The official `Test-MacE2E.ps1` includes these cases, native Apple Event
+acceptance, and `MacNativeFormulaApiTests` alongside the original workflows.
+The formula API spike verifies A1/R1C1 matrix writes, spill and explicit `@`
+behavior, blank-valued formula detection, merged top-left property references,
+and save/reopen persistence. It does not enable public formula or merged-cell
+actions. The runner derives expected cases from
+compiled test discovery, requires a fully passing TRX report, and checks that
+the executed cases match discovery. `-ResultsDirectory` selects a new evidence
+directory. Gated formula-dependent failures remain failures; native passes do
+not replace those workflows.
+The CLI apphost requires `DOTNET_ROOT` to point to the installed .NET runtime.
+Run this selection sequentially with every other desktop Excel test command.
 
 Generated MCP parameter tests inspect our emitted method declarations directly.
 Protocol checks cover our names, descriptions, selected output fields, and

@@ -2,8 +2,27 @@ using Xunit;
 
 namespace Sbroenne.ExcelMcp.Portable.Tests;
 
+[Trait("RequiresExcel", "false")]
 public sealed class MacE2ERunnerContractTests
 {
+    [Fact]
+    public void RunnerRetainsExistingWorkflowsAndIncludesNativeAcceptanceWithoutCopiedCounts()
+    {
+        var script = File.ReadAllText(Path.Combine(FindRepository(), "scripts", "Test-MacE2E.ps1"));
+        Assert.Contains("FullyQualifiedName~MacExcelE2ETests", script, StringComparison.Ordinal);
+        Assert.Contains("FullyQualifiedName~MacRangeEditE2ETests", script, StringComparison.Ordinal);
+        Assert.Contains("FullyQualifiedName~MacNativeSessionE2ETests", script, StringComparison.Ordinal);
+        Assert.Contains("FullyQualifiedName~MacNativeWorksheetE2ETests", script, StringComparison.Ordinal);
+        Assert.Contains("FullyQualifiedName~MacAppleEventDesktopTests", script, StringComparison.Ordinal);
+        Assert.Contains("FullyQualifiedName~MacNativeFormulaApiTests", script, StringComparison.Ordinal);
+        Assert.Contains("FullyQualifiedName~MacNativeFormulaE2ETests", script, StringComparison.Ordinal);
+        Assert.Contains("--list-tests", script, StringComparison.Ordinal);
+        Assert.Contains("Invoke-TestStage", script, StringComparison.Ordinal);
+        Assert.Contains("Compare-Object", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("$expectedPassed = 22", script, StringComparison.Ordinal);
+        Assert.DoesNotContain("$summaryPattern", script, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void Runner_LaunchesExcelNormallyBeforeNonPromptingAutomationCheck()
     {

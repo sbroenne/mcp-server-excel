@@ -36,7 +36,7 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
         ["0", "0.00"],
         ["@", "#,##0"]
     ];
-    private static readonly string[] InitialSheetNames = ["Data", "Spare"];
+    private static readonly string[] InitialSheetNames = ["Spare", "Data"];
     private static readonly double[][] FormattedCopyValues = [[46000.5, 123.456789]];
     private static readonly string[][] FormattedCopyFormats = [["yyyy-mm-dd", "$0.00"]];
     private static readonly int[][] ProtectedOverwriteValue = [[999]];
@@ -768,7 +768,8 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
 
     internal static JsonElement Success(JsonElement result)
     {
-        Assert.True(result.GetProperty("success").GetBoolean(), result.GetRawText());
+        Assert.True(result.TryGetProperty("success", out var success), result.GetRawText());
+        Assert.True(success.GetBoolean(), result.GetRawText());
         if (result.TryGetProperty("errorMessage", out var error))
         {
             Assert.True(error.ValueKind == JsonValueKind.Null || string.IsNullOrEmpty(error.GetString()), result.GetRawText());
@@ -779,7 +780,11 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
     internal static string SessionId(JsonElement result)
     {
         Success(result);
-        var property = result.TryGetProperty("session_id", out var id) ? id : result.GetProperty("sessionId");
+        var property = result.TryGetProperty("workbook_session_id", out var id)
+            ? id
+            : result.TryGetProperty("session_id", out id)
+                ? id
+                : result.GetProperty("sessionId");
         Assert.False(string.IsNullOrWhiteSpace(property.GetString()));
         return property.GetString()!;
     }
@@ -874,19 +879,32 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
             if (_mcp is not null)
             {
                 args["action"] = action;
-                if (sessionId is not null) { args["session_id"] = sessionId; }
+                if (sessionId is not null) { args["workbook_session_id"] = sessionId; }
                 if (tool == "file" && action == "open")
                 {
                     args["timeout_seconds"] =
                         UsesExtendedOpenTimeout() ? 60 : 15;
                 }
-                var mcpTool = tool switch
+                if (tool == "file" && args.Remove("path", out var filePath))
                 {
-                    "sheet" => "worksheet",
-                    "worksheetstyle" => "worksheet_style",
-                    "rangeformat" => "range_format",
-                    "rangeedit" => "range_edit",
-                    "rangelink" => "range_link",
+                    args["file_path"] = filePath;
+                }
+                var mcpTool = (tool, action) switch
+                {
+                    ("file", "list") => "file_read",
+                    ("namedrange", "list" or "read") => "namedrange_read",
+                    ("sheet", "list") => "worksheet_read",
+                    ("sheet", _) => "worksheet",
+                    ("worksheetstyle", "get-tab-color" or "get-visibility" or "get-protection"
+                        or "get-comment" or "get-image-count" or "get-shape-count" or "get-page-setup"
+                        or "get-page-breaks" or "get-outline-info") => "worksheet_style_read",
+                    ("worksheetstyle", _) => "worksheet_style",
+                    ("range", "get-values" or "get-formulas" or "get-spill-info" or "validate-formulas"
+                        or "get-number-formats" or "get-info" or "get-current-region" or "get-used-range") => "range_read",
+                    ("rangeformat", _) => "range_format",
+                    ("rangeedit", _) => "range_edit",
+                    ("rangelink", _) => "range_link",
+                    ("powerquery", "list" or "view" or "get-load-config") => "powerquery_read",
                     _ => tool
                 };
                 var result = await _mcp.CallToolAsync(mcpTool, args, cancellationToken: cancellationToken);
@@ -915,7 +933,7 @@ public sealed class MacExcelE2ETests(ITestOutputHelper output)
                 if (tool == "file" && action == "open")
                 {
                     command.AddRange([
-                        "--timeout",
+                        "--timeout-seconds",
                         UsesExtendedOpenTimeout() ? "60" : "15"
                     ]);
                 }

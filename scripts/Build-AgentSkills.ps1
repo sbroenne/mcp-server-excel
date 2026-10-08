@@ -26,7 +26,10 @@ $ErrorActionPreference = "Stop"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $SkillsDir = Join-Path $RepoRoot "skills"
 $SharedDir = Join-Path $RepoRoot "docs\reference"
-$SkillNames = @('excel-cli', 'excel-cli-report-formatting', 'excel-mcp-report-formatting')
+$SkillNames = @('excel-cli')
+foreach ($component in @('cli', 'mcp')) {
+    $SkillNames += "excel-$component-report-formatting"
+}
 . (Join-Path $PSScriptRoot 'PackageHelpers.ps1')
 
 function Copy-SharedReferences {
@@ -124,7 +127,7 @@ try {
         Write-Host "Generated complete skills at $OutputPath"
     }
     else {
-        Copy-Item -LiteralPath (Join-Path $RepoRoot 'docs/AGENT-SKILLS.md') (Join-Path $StagingDir 'README.md')
+        Copy-Item -LiteralPath (Join-Path $RepoRoot 'docs\AGENT-SKILLS.md') (Join-Path $StagingDir 'README.md')
         $zip = Join-Path $StagingDir "excel-skills-v$Version.zip"
         Compress-Archive -LiteralPath $SkillsStagingDir,(Join-Path $StagingDir 'README.md') -DestinationPath $zip
         Install-PackageOutput -Source $zip -Destination (Join-Path $OutputPath (Split-Path $zip -Leaf))

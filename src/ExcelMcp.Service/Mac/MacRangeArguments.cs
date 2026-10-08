@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Sbroenne.ExcelMcp.Core.Utilities;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
 
 namespace Sbroenne.ExcelMcp.Service.Mac;
 
@@ -13,6 +14,14 @@ internal static class MacRangeArguments
             return;
         }
 
+        if (action is "get-formulas" or "set-formulas")
+        {
+            if (action == "set-formulas")
+                RangeCommandValidation.ValidateOverwritePolicy(
+                    arguments["overwritePolicy"]?.Deserialize<OverwritePolicy>(ServiceProtocol.JsonOptions) ?? OverwritePolicy.RejectNonempty);
+            RangeCommandValidation.ValidateFormulaReferenceStyle(
+                arguments["referenceStyle"]?.Deserialize<FormulaReferenceStyle>(ServiceProtocol.JsonOptions) ?? FormulaReferenceStyle.A1);
+        }
         if (action == "set-values")
         {
             var values = arguments["values"]?.Deserialize<List<List<object?>>>(ServiceProtocol.JsonOptions);
@@ -24,10 +33,10 @@ internal static class MacRangeArguments
         }
         else if (action == "set-formulas")
         {
-            var formulas = arguments["formulas"]?.Deserialize<List<List<string>>>(ServiceProtocol.JsonOptions);
+            var formulas = arguments["formulas"]?.Deserialize<List<List<object?>>>(ServiceProtocol.JsonOptions);
             var formulasFile = arguments["formulasFile"]?.GetValue<string>();
             arguments["formulas"] = JsonSerializer.SerializeToNode(
-                ParameterTransforms.ResolveFormulasOrFile(formulas, formulasFile),
+                ParameterTransforms.ResolveFormulaCellsOrFile(formulas, formulasFile),
                 ServiceProtocol.JsonOptions);
             arguments.Remove("formulasFile");
         }

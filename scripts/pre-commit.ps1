@@ -64,6 +64,18 @@ try {
             [string[]]$platformProperties = if ([OperatingSystem]::IsWindows()) { @() } else { @('-p:EnableWindowsTargeting=true') }
             dotnet build Sbroenne.ExcelMcp.sln -c Release -p:NuGetAudit=false @platformProperties --verbosity minimal
         }
+        if ($plan.ToolingProjects.Count -gt 0) {
+            $planFile = Join-Path ([IO.Path]::GetTempPath()) "excelmcp-validation-$([guid]::NewGuid().ToString('N')).json"
+            try {
+                $plan | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $planFile
+                Invoke-Check 'Building selected Excel-free test projects' {
+                    & (Join-Path $PSScriptRoot 'Build-CiInputs.ps1') -PlanFile $planFile -Group Tooling
+                }
+            }
+            finally {
+                if (Test-Path -LiteralPath $planFile) { Remove-Item -LiteralPath $planFile -Force }
+            }
+        }
         Invoke-Check 'Running focused Excel-free tests' {
             & (Join-Path $PSScriptRoot 'Invoke-ExcelFreeTests.ps1') -Local -HookTests:$plan.HookTests -Contracts:$plan.Excel -SkillTests:$plan.SkillTests -PackagingTests:$plan.PackagingTests -ChangedPaths $paths
         }

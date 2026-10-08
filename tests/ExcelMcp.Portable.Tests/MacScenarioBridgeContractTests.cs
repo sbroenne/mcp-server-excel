@@ -4,6 +4,7 @@ using Xunit;
 
 namespace Sbroenne.ExcelMcp.Portable.Tests;
 
+[Trait("RequiresExcel", "false")]
 public sealed class MacScenarioBridgeContractTests
 {
     private const string ResourceName = "Sbroenne.ExcelMcp.Service.Mac.MacExcelBridge.js";

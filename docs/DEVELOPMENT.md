@@ -4,7 +4,7 @@
 support is experimental beta, with [explicit feature gates](../specs/MACOS-SUPPORT.md).
 COM, STA, Windows tray, and Windows test commands below are Windows-specific.
 Native Mac changes require their own real Excel evidence, not a cross-target
-build or Office.js mock test.
+build or mocked transport test.
 
 For Mac validation, use PowerShell 7 and the SDK selected by `global.json`:
 
@@ -137,19 +137,10 @@ ExcelMcp tests behavior through real desktop Excel. Windows COM integration
 tests and macOS Apple Events E2E tests remain separate because neither can
 substitute for the other.
 
-The optional Office.js bridge has Excel-independent protocol, authentication,
-identity, timeout, and lifecycle tests under `office-addin/test`. Run:
-
-```bash
-cd office-addin
-npm run check
-npm test
-```
-
-These checks do not establish Excel behavior. A feature action may be enabled
+Excel-independent transport checks do not establish Excel behavior. A feature action may be enabled
 only after a prompt-free real Excel workflow proves its public CLI and MCP
-contracts. Add-in sideload activation and localhost certificate trust remain
-user-mediated; do not automate dialogs or weaken localhost, macro, or VBA
+contracts. Helper installation and macro approval remain
+user-mediated; do not automate dialogs or weaken macro or VBA
 security to make a smoke test pass.
 
 ```

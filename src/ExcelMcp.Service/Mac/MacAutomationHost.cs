@@ -1,6 +1,8 @@
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
+using Sbroenne.ExcelMcp.Core.Commands.Range;
+using Sbroenne.ExcelMcp.Core.Commands.Calculation;
 
 namespace Sbroenne.ExcelMcp.Service.Mac;
 
@@ -11,7 +13,7 @@ public static class MacAutomationHost
 
     public static bool TryRun(string[] args, out int exitCode)
     {
-        if (args.Length != 3 || !string.Equals(args[0], Marker, StringComparison.Ordinal))
+        if (args.Length != 4 || !string.Equals(args[0], Marker, StringComparison.Ordinal))
         {
             exitCode = 0;
             return false;
@@ -20,6 +22,7 @@ public static class MacAutomationHost
         try
         {
             RequireSelfParent(args[2]);
+            var timeout = ReadTimeout(args[3]);
             var permission = MacAutomationAccess.Check();
             if (permission != 0)
             {
@@ -36,31 +39,175 @@ public static class MacAutomationHost
                 return true;
             }
 
-            using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(ResourceName)
-                ?? throw new InvalidOperationException($"Embedded macOS bridge '{ResourceName}' was not found.");
-            using var reader = new StreamReader(stream);
             var arguments = Console.In.ReadToEnd();
             var result = args[1] switch
             {
-                "sheet.create" or "sheet.delete" => MutateWorksheet(args[1], arguments),
+                "session.prepare-open" or "session.open" or "session.close" or "session.is-open" =>
+                    RunNativeSessionCommand(args[1], arguments, timeout),
+                "sheet.list" => ListNativeWorksheets(arguments, timeout),
+                "sheet.check-name-scope" => CheckNativeNameScope(arguments, timeout),
+                "helper.check" => JsonSerializer.Serialize(
+                    new { success = true, helper = MacNativeHelper.Check(timeout) }, ServiceProtocol.JsonOptions),
+                "helper.build" => BuildNativeHelper(arguments, timeout),
+                "sheet.create" => CreateNativeWorksheet(arguments, timeout),
+                "sheet.rename" => RenameNativeWorksheet(arguments, timeout),
+                "calculation.calculate" => CalculateNativeScope(arguments, timeout),
+                "range.describe" or "range.read-data" or "range.set-formulas" => RunNativeRange(args[1], arguments, timeout),
+                "sheet.delete" => DeleteWorksheet(arguments),
                 "namedrange.create" or "namedrange.delete" => MutateNamedRange(args[1], arguments),
-                _ => MacOsaScriptRuntime.Execute(reader.ReadToEnd(), args[1], arguments)
+                _ => ExecuteBridge(args[1], arguments)
             };
             Console.Out.Write(result);
             exitCode = 0;
         }
         catch (Exception ex)
         {
-            Console.Out.Write(JsonSerializer.Serialize(new
-            {
-                success = false,
-                errorCategory = "ComInterop",
-                errorMessage = ex.Message
-            }, ServiceProtocol.JsonOptions));
+            Console.Out.Write(SerializeFailure(ex));
             exitCode = 0;
         }
 
         return true;
+    }
+
+    internal static string SerializeFailure(Exception error) =>
+        JsonSerializer.Serialize(new
+        {
+            success = false,
+            errorCategory = error is MacExcelOperationException helperError ? helperError.ErrorCategory
+                : error is TimeoutException ? "Timeout"
+                : error is PlatformNotSupportedException ? "PlatformNotSupported" : "ComInterop",
+            errorMessage = error.Message,
+            exceptionType = (error as MacExcelOperationException)?.RemoteExceptionType,
+            innerError = (error as MacExcelOperationException)?.RemoteInnerError
+        }, ServiceProtocol.JsonOptions);
+
+    internal static TimeSpan ReadTimeout(string ticks)
+    {
+        if (!long.TryParse(ticks, System.Globalization.NumberStyles.None,
+                System.Globalization.CultureInfo.InvariantCulture, out var value)
+            || value <= 0)
+        {
+            throw new InvalidOperationException("Mac automation timeout must be a positive tick count.");
+        }
+
+        var timeout = TimeSpan.FromTicks(value);
+        MacAppleEvents.TimeoutTicks(timeout);
+        return timeout;
+    }
+
+    private static string CalculateNativeScope(string arguments, TimeSpan timeout)
+    {
+        using var document = JsonDocument.Parse(arguments);
+        var root = document.RootElement;
+        var result = MacNativeCalculation.Calculate(root.GetProperty("filePath").GetString()!,
+            root.GetProperty("scope").Deserialize<CalculationScope>(ServiceProtocol.JsonOptions),
+            root.GetProperty("sheetName").GetString()!,
+            root.TryGetProperty("rangeAddress", out var address) ? address.GetString() : null, timeout);
+        return JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions);
+    }
+
+    private static string RunNativeRange(string command, string arguments, TimeSpan timeout)
+    {
+        using var document = JsonDocument.Parse(arguments);
+        var root = document.RootElement;
+        var path = root.GetProperty("filePath").GetString()!;
+        var sheet = root.GetProperty("sheetName").GetString()!;
+        var address = root.GetProperty("rangeAddress").GetString()!;
+        var style = root.TryGetProperty("referenceStyle", out var referenceStyle)
+            ? referenceStyle.Deserialize<FormulaReferenceStyle>(ServiceProtocol.JsonOptions) : FormulaReferenceStyle.A1;
+        object result = command switch
+        {
+            "range.describe" => MacNativeRange.Describe(path, sheet, address, root.GetProperty("forWrite").GetBoolean(), timeout),
+            "range.read-data" => MacNativeRange.ReadData(path, sheet, address, style, timeout),
+            "range.set-formulas" => MacNativeRange.SetFormulas(path, sheet, address,
+                root.GetProperty("formulas").Deserialize<List<List<string>>>(ServiceProtocol.JsonOptions)!, style, timeout),
+            _ => throw new InvalidOperationException($"Unknown native range command: {command}")
+        };
+        return JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions);
+    }
+
+    private static string BuildNativeHelper(string arguments, TimeSpan timeout)
+    {
+        using var document = JsonDocument.Parse(arguments);
+        var path = document.RootElement.GetProperty("workbookPath").GetString();
+        var output = document.RootElement.GetProperty("outputPath").GetString();
+        var version = document.RootElement.GetProperty("helperVersion").GetString();
+        ArgumentException.ThrowIfNullOrWhiteSpace(path);
+        ArgumentException.ThrowIfNullOrWhiteSpace(output);
+        ArgumentException.ThrowIfNullOrWhiteSpace(version);
+        return JsonSerializer.Serialize(new { success = true, helper = MacNativeHelper.Build(path, output, version, timeout) },
+            ServiceProtocol.JsonOptions);
+    }
+
+    private static string CheckNativeNameScope(string arguments, TimeSpan timeout)
+    {
+        using var document = JsonDocument.Parse(arguments);
+        MacNativeWorksheet.CheckNameScope(document.RootElement.GetProperty("filePath").GetString()!, timeout);
+        return JsonSerializer.Serialize(new { success = true }, ServiceProtocol.JsonOptions);
+    }
+
+    private static string RunNativeSessionCommand(string command, string arguments, TimeSpan timeout)
+    {
+        using var document = JsonDocument.Parse(arguments);
+        var filePath = document.RootElement.GetProperty("filePath").GetString();
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        switch (command)
+        {
+            case "session.prepare-open":
+                MacNativeWorkbook.PrepareOpen(filePath, timeout);
+                break;
+            case "session.open":
+                MacNativeWorkbook.Attach(filePath, document.RootElement.GetProperty("show").GetBoolean(), timeout);
+                break;
+            case "session.close":
+                MacNativeWorkbook.Close(filePath, document.RootElement.GetProperty("save").GetBoolean(), timeout);
+                break;
+            case "session.is-open":
+                return JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    errorMessage = "",
+                    open = MacNativeWorkbook.IsOpen(filePath, timeout)
+                }, ServiceProtocol.JsonOptions);
+            default:
+                throw new InvalidOperationException($"Unknown native Mac session command: {command}");
+        }
+        return JsonSerializer.Serialize(new { success = true, errorMessage = "" }, ServiceProtocol.JsonOptions);
+    }
+
+    private static string ExecuteBridge(string command, string arguments)
+    {
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(ResourceName)
+            ?? throw new InvalidOperationException($"Embedded macOS bridge '{ResourceName}' was not found.");
+        using var reader = new StreamReader(stream);
+        return MacOsaScriptRuntime.Execute(reader.ReadToEnd(), command, arguments);
+    }
+
+    private static string ListNativeWorksheets(string arguments, TimeSpan timeout)
+    {
+        using var document = JsonDocument.Parse(arguments);
+        var filePath = document.RootElement.GetProperty("filePath").GetString();
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        return JsonSerializer.Serialize(MacNativeWorksheet.List(filePath, timeout), ServiceProtocol.JsonOptions);
+    }
+
+    private static string CreateNativeWorksheet(string arguments, TimeSpan timeout)
+    {
+        using var document = JsonDocument.Parse(arguments);
+        var filePath = document.RootElement.GetProperty("filePath").GetString();
+        var sheetName = document.RootElement.GetProperty("sheetName").GetString();
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sheetName);
+        return JsonSerializer.Serialize(MacNativeWorksheet.Create(filePath, sheetName, timeout), ServiceProtocol.JsonOptions);
+    }
+
+    private static string RenameNativeWorksheet(string arguments, TimeSpan timeout)
+    {
+        using var document = JsonDocument.Parse(arguments);
+        var root = document.RootElement;
+        var result = MacNativeWorksheet.Rename(root.GetProperty("filePath").GetString()!,
+            root.GetProperty("oldName").GetString()!, root.GetProperty("newName").GetString()!, timeout);
+        return JsonSerializer.Serialize(result, ServiceProtocol.JsonOptions);
     }
 
     private static void RequireSelfParent(string parentProcessId)
@@ -101,29 +248,14 @@ public static class MacAutomationHost
     [System.Runtime.InteropServices.DllImport("/usr/lib/libSystem.B.dylib")]
     private static extern int getppid();
 
-    private static string MutateWorksheet(string command, string arguments)
+    private static string DeleteWorksheet(string arguments)
     {
         using var document = JsonDocument.Parse(arguments);
         var filePath = document.RootElement.GetProperty("filePath").GetString();
         ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
-        string mutation;
-        if (command == "sheet.create")
-        {
-            var sheetName = document.RootElement.GetProperty("sheetName").GetString();
-            ArgumentException.ThrowIfNullOrWhiteSpace(sheetName);
-            mutation = $"""
-                tell workbook targetWorkbookIndex
-                    set createdWorksheet to make new worksheet at end
-                    set name of createdWorksheet to "{EscapeAppleScript(sheetName)}"
-                end tell
-                """;
-        }
-        else
-        {
-            var sheetName = document.RootElement.GetProperty("sheetName").GetString();
-            ArgumentException.ThrowIfNullOrWhiteSpace(sheetName);
-            mutation = $"delete worksheet \"{EscapeAppleScript(sheetName)}\" of workbook targetWorkbookIndex";
-        }
+        var sheetName = document.RootElement.GetProperty("sheetName").GetString();
+        ArgumentException.ThrowIfNullOrWhiteSpace(sheetName);
+        var mutation = $"delete worksheet \"{EscapeAppleScript(sheetName)}\" of workbook targetWorkbookIndex";
         return ExecuteWorkbookScript(filePath, mutation);
     }
 

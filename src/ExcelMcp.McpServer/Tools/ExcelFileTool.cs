@@ -120,7 +120,7 @@ public static partial class ExcelFileTool
 
             if (action is FileAction.Open or FileAction.Create)
             {
-                var pathError = ExcelToolsBase.ValidateWindowsPath(file_path);
+                var pathError = ExcelToolsBase.ValidateAbsolutePath(file_path);
                 if (pathError is not null)
                     return pathError;
             }

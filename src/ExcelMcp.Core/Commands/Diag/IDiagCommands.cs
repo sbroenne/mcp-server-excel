@@ -9,6 +9,9 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Diag;
 /// and error handling — no Excel COM session needed.
 /// </summary>
 [ServiceCategory("Diag")]
+[MacCapability(MacCapabilityTier.Native, MacImplementationStatus.Implemented, true,
+    Evidence = "The shared sessionless Service implementation is platform-independent and portable tests prove macOS requests never dispatch to Excel.",
+    ExcelApiVersion = "No Excel API required.")]
 [NoSession]
 public interface IDiagCommands
 {

@@ -4,6 +4,7 @@ using Xunit;
 
 namespace Sbroenne.ExcelMcp.Portable.Tests;
 
+[Trait("RequiresExcel", "false")]
 public sealed class MacRangeArgumentsTests : IDisposable
 {
     private readonly string _directory = Directory.CreateTempSubdirectory("excelmcp-mac-range-args-").FullName;
@@ -49,6 +50,43 @@ public sealed class MacRangeArgumentsTests : IDisposable
             () => MacRangeArguments.Prepare("range", "set-number-formats", new JsonObject()));
 
         Assert.Contains("formats", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Prepare_SetFormulas_NormalizesMixedFormulaCells()
+    {
+        var arguments = new JsonObject
+        {
+            ["formulas"] = new JsonArray
+            {
+                new JsonArray("=A1+1", "Label", 5.86, true, null)
+            }
+        };
+
+        MacRangeArguments.Prepare("range", "set-formulas", arguments);
+
+        Assert.Equal("=A1+1", arguments["formulas"]![0]![0]!.GetValue<string>());
+        Assert.Equal("Label", arguments["formulas"]![0]![1]!.GetValue<string>());
+        Assert.Equal("5.86", arguments["formulas"]![0]![2]!.GetValue<string>());
+        Assert.Equal("TRUE", arguments["formulas"]![0]![3]!.GetValue<string>());
+        Assert.Equal(string.Empty, arguments["formulas"]![0]![4]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void Prepare_SetFormulas_NormalizesMixedFormulaCellsFromFile()
+    {
+        var path = Path.Combine(_directory, "formulas.json");
+        File.WriteAllText(path, """[["=A1+1","Label",5.86,true,null]]""");
+        var arguments = new JsonObject { ["formulasFile"] = path };
+
+        MacRangeArguments.Prepare("range", "set-formulas", arguments);
+
+        Assert.Equal("=A1+1", arguments["formulas"]![0]![0]!.GetValue<string>());
+        Assert.Equal("Label", arguments["formulas"]![0]![1]!.GetValue<string>());
+        Assert.Equal("5.86", arguments["formulas"]![0]![2]!.GetValue<string>());
+        Assert.Equal("TRUE", arguments["formulas"]![0]![3]!.GetValue<string>());
+        Assert.Equal(string.Empty, arguments["formulas"]![0]![4]!.GetValue<string>());
+        Assert.False(arguments.ContainsKey("formulasFile"));
     }
 
     public void Dispose() => Directory.Delete(_directory, recursive: true);

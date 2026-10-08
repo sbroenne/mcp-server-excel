@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
@@ -8,14 +9,11 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public partial class RangeCommands
 {
     private const int InspectionBlockCells = 16_384;
-    private const int ConflictExampleLimit = 10;
+    private const int ConflictExampleLimit = RangeCommandValidation.ConflictExampleLimit;
 
     private static void ValidateOverwritePolicy(OverwritePolicy overwritePolicy)
     {
-        if (!Enum.IsDefined(overwritePolicy))
-        {
-            throw new ArgumentOutOfRangeException(nameof(overwritePolicy), overwritePolicy, "Unknown overwrite policy.");
-        }
+        RangeCommandValidation.ValidateOverwritePolicy(overwritePolicy);
     }
 
     private static (int Rows, int Columns) GetContentDimensions(Excel.Range range)
@@ -49,13 +47,7 @@ public partial class RangeCommands
         Excel.Range range, List<List<T>> payload, string parameterName, string itemType)
     {
         var dimensions = GetContentDimensions(range);
-        ValidateRectangularRowWidths(payload, dimensions.Columns, parameterName, itemType);
-        if (payload.Count != dimensions.Rows)
-        {
-            throw new ArgumentException(
-                $"{itemType} array row count ({payload.Count}) doesn't match range row count ({dimensions.Rows}).",
-                parameterName);
-        }
+        RangeCommandValidation.ValidateDimensions(payload, dimensions.Rows, dimensions.Columns, parameterName, itemType);
     }
 
     private static Excel.Range ResolveCopyDestination(Excel.Range source, Excel.Range target, bool transpose)
@@ -155,7 +147,7 @@ public partial class RangeCommands
                         {
                             object? value = GetInspectionCell(values, rows, dimensions.Columns, row, column);
                             object? formula = GetInspectionCell(formulas, rows, dimensions.Columns, row, column);
-                            if (value is null && !(formula is string text && text.StartsWith('=')))
+                            if (!RangeCommandValidation.IsOccupied(value, formula))
                             {
                                 continue;
                             }
@@ -211,12 +203,6 @@ public partial class RangeCommands
 
     private static void ThrowOccupiedDestination(string sheetName, List<string> conflicts, bool truncated)
     {
-        throw new OperationFailureException(
-            OperationFailureCategory.Conflict,
-            $"Cannot write to occupied cells on sheet '{sheetName}' with overwrite_policy='reject-nonempty'. " +
-            $"Conflicting addresses: {string.Join(", ", conflicts)}" +
-            (truncated ? " (additional conflicts not listed)." : ".") +
-            " No write was attempted. Choose an empty destination, or use overwrite_policy='allow' " +
-            "(CLI: --overwrite-policy allow) only when replacing existing content is authorized.");
+        RangeCommandValidation.ThrowOccupiedDestination(sheetName, conflicts, truncated);
     }
 }

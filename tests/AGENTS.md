@@ -31,10 +31,6 @@ Commands and prerequisites: [tests/README.md](README.md#quick-start).
   actual boundary and isolation their subject requires.
 - Cleanup always runs, preserves primary and cleanup failures, and never
   silently recreates a failed shared session.
-- Treat workbook files as opaque in tests and fixtures. Do not construct,
-  inspect, parse, or mutate ZIP/OOXML workbook parts. Copy intact
-  Excel-authored templates when a saved fixture is required, and verify
-  behavior only through supported Excel APIs.
 - Use a unique workbook per isolated test or per reviewed persistent Service
   class. Do not combine `IClassFixture<T>` with a collection fixture on the same
   class: it can create competing Excel sessions.

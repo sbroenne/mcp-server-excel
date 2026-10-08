@@ -122,7 +122,6 @@ nav:
     - MCP Server: installation-mcp-server.md
     - CLI: installation-cli.md
     - Experimental macOS beta support: macos-support.md
-    - Optional macOS Office.js bridge: installation-macos-officejs.md
   - MCP Server: mcp-server.md
   - CLI: cli.md
   - Workflow guidance:

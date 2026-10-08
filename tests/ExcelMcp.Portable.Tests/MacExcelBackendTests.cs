@@ -8,6 +8,7 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.Portable.Tests;
 
 [Collection("Mac backend state")]
+[Trait("RequiresExcel", "false")]
 public sealed class MacExcelBackendTests
 {
     private static string TestPath(string name) => Path.Combine(Path.GetTempPath(), name);
@@ -72,6 +73,9 @@ public sealed class MacExcelBackendTests
 
             switch (AutomationCommand(start))
             {
+                case "sheet.list":
+                    return new MacProcessResult(0,
+                        """{"success":true,"errorMessage":"","worksheets":[{"name":"Sheet1","index":1,"visible":true}]}""", "");
                 case "sheet.rename":
                     await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
                     break;
@@ -104,7 +108,7 @@ public sealed class MacExcelBackendTests
             });
 
             Assert.False(response.Success);
-            Assert.Equal("Timeout", response.ErrorCategory);
+            Assert.True(response.ErrorCategory == "Timeout", response.ErrorMessage);
             Assert.Equal(0, closeCalls);
             var listed = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
             using var listJson = JsonDocument.Parse(listed.Result!);
@@ -158,7 +162,7 @@ public sealed class MacExcelBackendTests
             });
 
             Assert.False(response.Success);
-            Assert.Equal("PlatformNotSupported", response.ErrorCategory);
+            Assert.True(response.ErrorCategory == "PlatformNotSupported", response.ErrorMessage);
             Assert.DoesNotContain("analysis.list-scenarios", dispatched);
         }
         finally
@@ -208,6 +212,59 @@ public sealed class MacExcelBackendTests
             new { filePath = TestPath("test.xlsx") },
             TimeSpan.FromSeconds(5),
             allowFailureResult: true));
+    }
+
+    [Fact]
+    public async Task AutomationChild_ReceivesTheRemainingOperationBudget()
+    {
+        var budgets = new List<TimeSpan>();
+        var backend = new MacExcelBackend(async (start, _, cancellationToken) =>
+        {
+            if (start.FileName != "/usr/bin/open")
+            {
+                var marker = start.ArgumentList.IndexOf(MacAutomationHost.Marker);
+                Assert.True(marker >= 0);
+                Assert.Equal(marker + 4, start.ArgumentList.Count);
+                Assert.Equal(Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    start.ArgumentList[marker + 2]);
+                budgets.Add(TimeSpan.FromTicks(long.Parse(start.ArgumentList[marker + 3],
+                    System.Globalization.CultureInfo.InvariantCulture)));
+            }
+            await Task.Delay(20, cancellationToken);
+            return new MacProcessResult(0, """{"success":true,"errorMessage":""}""", "");
+        });
+
+        await backend.InvokeAsync("session.open", new { filePath = TestPath("budget.xlsx") },
+            TimeSpan.FromSeconds(5));
+
+        Assert.Equal(2, budgets.Count);
+        Assert.InRange(budgets[0], TimeSpan.FromTicks(1), TimeSpan.FromSeconds(5));
+        Assert.InRange(budgets[1], TimeSpan.FromTicks(1), budgets[0] - TimeSpan.FromMilliseconds(20));
+    }
+
+    [Fact]
+    public async Task NativeEventTimeout_RemainsATimeoutWithUncertainOutcome()
+    {
+        var backend = new MacExcelBackend((_, _, _) => Task.FromResult(new MacProcessResult(
+            0, """{"success":false,"errorCategory":"Timeout","errorMessage":"Excel Apple Event timed out; its outcome may be uncertain."}""", "")));
+
+        var error = await Assert.ThrowsAsync<TimeoutException>(() => backend.InvokeAsync(
+            "session.is-open", new { filePath = TestPath("native-timeout.xlsx") }, TimeSpan.FromSeconds(5)));
+        Assert.Contains("uncertain", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task NativeAttachmentTimeout_RetainsTheUncertainOpenOutcome()
+    {
+        var backend = new MacExcelBackend((start, _, _) => Task.FromResult(new MacProcessResult(
+            0, start.FileName != "/usr/bin/open" && AutomationCommand(start) == "session.open"
+                ? """{"success":false,"errorCategory":"Timeout","errorMessage":"Native attachment timed out."}"""
+                : """{"success":true,"errorMessage":""}""", "")));
+
+        var error = await Assert.ThrowsAsync<MacExcelOperationException>(() => backend.InvokeAsync(
+            "session.open", new { filePath = TestPath("native-attachment-timeout.xlsx") }, TimeSpan.FromSeconds(5)));
+        Assert.Equal("RecoveryRequired", error.ErrorCategory);
+        Assert.Contains("uncertain", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -369,7 +426,10 @@ public sealed class MacExcelBackendTests
         {
             if (start.FileName != "/usr/bin/open" && AutomationCommand(start).StartsWith("sheet.", StringComparison.Ordinal))
                 sheetDispatches++;
-            return Task.FromResult(new MacProcessResult(0, """{"success":true,"errorMessage":""}""", ""));
+            var result = start.FileName != "/usr/bin/open" && AutomationCommand(start) == "sheet.list"
+                ? """{"success":true,"errorMessage":"","worksheets":[{"name":"Sheet1","index":1}]}"""
+                : """{"success":true,"errorMessage":""}""";
+            return Task.FromResult(new MacProcessResult(0, result, ""));
         });
         var directory = Directory.CreateTempSubdirectory("excelmcp-path-routing-");
         try
@@ -397,7 +457,7 @@ public sealed class MacExcelBackendTests
             });
 
             Assert.False(response.Success);
-            Assert.Equal("PlatformNotSupported", response.ErrorCategory);
+            Assert.True(response.ErrorCategory == "PlatformNotSupported", response.ErrorMessage);
             Assert.Contains("session workbook", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
             Assert.Equal(0, sheetDispatches);
 
@@ -409,7 +469,7 @@ public sealed class MacExcelBackendTests
                 Args = JsonSerializer.Serialize(arguments)
             });
             Assert.True(matchingPath.Success, matchingPath.ErrorMessage);
-            Assert.Equal(1, sheetDispatches);
+            Assert.Equal(command == "sheet.create" ? 3 : 1, sheetDispatches);
         }
         finally
         {

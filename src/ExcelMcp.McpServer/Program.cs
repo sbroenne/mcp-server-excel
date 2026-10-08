@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using OpenTelemetry.Metrics;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
+using Sbroenne.ExcelMcp.Service.Mac;
 
 namespace Sbroenne.ExcelMcp.McpServer;
 
@@ -19,7 +20,15 @@ namespace Sbroenne.ExcelMcp.McpServer;
 public class Program
 {
     private static int _globalExceptionHandlersRegistered;
-    public static Task<int> Main(string[] args) => RunAsync(args);
+    public static Task<int> Main(string[] args)
+    {
+        if (MacAutomationHost.TryRun(args, out var automationExitCode))
+        {
+            return Task.FromResult(automationExitCode);
+        }
+
+        return RunAsync(args);
+    }
 
     internal static async Task<int> RunAsync(
         string[] args,
@@ -86,7 +95,7 @@ public class Program
                 };
 
                 options.ServerInstructions = """
-                    Automates desktop Microsoft Excel on Windows.
+                    Automates desktop Microsoft Excel on Windows or the capability-gated Apple Silicon macOS beta.
                     Use file_read list to find the intended workbook; do not guess paths or choose an unrelated session.
                     Open/create and file_read list entries return workbook_session_id. Pass it as workbook_session_id to session-based tools, and only supply parameters for the chosen action.
                     Calls in one session execute serially, but concurrent requests and responses have no guaranteed order.
@@ -390,7 +399,7 @@ public class Program
 /// to detect the broken pipe and trigger graceful shutdown, ensuring COM handles
 /// are released and the Excel process is not orphaned.
 ///
-/// Only activates when stdin is a named pipe (the normal stdio MCP transport case).
+/// Only activates on Windows when stdin is a named pipe (the normal stdio MCP transport case).
 /// Terminal, debugger, test harness, and file-redirection launches are left alone --
 /// they shut down through their own normal mechanisms.
 /// </summary>
@@ -419,11 +428,13 @@ internal static class StdinPipeMonitor
     /// broken-pipe detection.
     /// </summary>
     public static Timer? Start(IHostApplicationLifetime lifetime) =>
-        Start(lifetime, GetStdHandle(StdInputHandle));
+        OperatingSystem.IsWindows()
+            ? Start(lifetime, GetStdHandle(StdInputHandle))
+            : null;
 
     internal static Timer? Start(IHostApplicationLifetime lifetime, IntPtr handle)
     {
-        if (handle == IntPtr.Zero || handle == new IntPtr(-1))
+        if (!OperatingSystem.IsWindows() || handle == IntPtr.Zero || handle == new IntPtr(-1))
             return null;
 
         if (GetFileType(handle) != FileTypePipe)

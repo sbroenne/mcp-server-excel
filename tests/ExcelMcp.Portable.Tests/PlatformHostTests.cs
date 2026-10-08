@@ -8,10 +8,11 @@ using Xunit;
 
 namespace Sbroenne.ExcelMcp.Portable.Tests;
 
+[Trait("RequiresExcel", "false")]
 public sealed class PlatformHostTests
 {
     [Fact]
-    public void FileOutputSchema_DistinguishesPreflightFromWorkbookValidity()
+    public void FileOutputSchema_PreservesTheWindowsValidationContract()
     {
         var options = new JsonSerializerOptions(JsonSerializerOptions.Default)
         {
@@ -22,7 +23,7 @@ public sealed class PlatformHostTests
         var schema = options.GetJsonSchemaAsNode(tool.OutputSchemaType!);
         var properties = schema["properties"]!.AsObject();
 
-        Assert.True(properties.ContainsKey("preflightPassed"));
+        Assert.False(properties.ContainsKey("preflightPassed"));
         Assert.True(properties.ContainsKey("isValid"));
         Assert.True(properties.ContainsKey("canOpen"));
     }

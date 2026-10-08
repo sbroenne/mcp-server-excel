@@ -5,8 +5,6 @@ public enum MacCapabilityTier
 {
     /// <summary>Built into the Apple Events backend without an optional helper.</summary>
     Native,
-    /// <summary>Optional Office.js add-in.</summary>
-    OfficeAddIn,
     /// <summary>No selected macOS implementation tier.</summary>
     Unsupported,
     /// <summary>Optional native window-capture helper with explicit screen permission.</summary>

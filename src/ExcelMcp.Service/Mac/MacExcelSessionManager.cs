@@ -148,7 +148,7 @@ internal sealed class MacExcelSessionManager : IDisposable
         if (session.UnsafeReason is not null)
         {
             throw new InvalidOperationException(
-                $"Session '{sessionId}' is unsafe after an uncertain Office.js mutation: " +
+                $"Session '{sessionId}' is unsafe after an uncertain Excel mutation: " +
                 session.UnsafeReason);
         }
 
@@ -170,7 +170,7 @@ internal sealed class MacExcelSessionManager : IDisposable
             if (session.UnsafeReason is not null)
             {
                 throw new InvalidOperationException(
-                    $"Session '{sessionId}' is unsafe after an uncertain Office.js mutation: " +
+                    $"Session '{sessionId}' is unsafe after an uncertain Excel mutation: " +
                     session.UnsafeReason);
             }
             return await operation(session);

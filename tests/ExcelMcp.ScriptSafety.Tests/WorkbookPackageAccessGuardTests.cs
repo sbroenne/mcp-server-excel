@@ -15,7 +15,7 @@ public sealed class WorkbookPackageAccessGuardTests
         "check-workbook-package-access.ps1");
 
     [Fact]
-    public async Task ProductionWorkbookPackageAccess_IsRejected()
+    public async Task ProductionWorkbookPackageXmlAccess_IsRejected()
     {
         var result = await RunGuardAsync(
             ("src/Runtime/ZipXmlReader.cs", """
@@ -37,47 +37,36 @@ public sealed class WorkbookPackageAccessGuardTests
         Assert.Contains(@"src\Runtime\ZipXmlReader.cs", output, StringComparison.Ordinal);
         Assert.Contains(@"src\Runtime\OpenXmlReader.cs", output, StringComparison.Ordinal);
         Assert.Contains(@"src\Runtime\PartPathReader.cs", output, StringComparison.Ordinal);
-        Assert.Contains("Direct workbook package access is prohibited", result.Output, StringComparison.Ordinal);
+        Assert.Contains("Use Excel COM in production", result.Output, StringComparison.Ordinal);
     }
 
     [Fact]
-    public async Task TestWorkbookPackageAccess_IsRejected()
+    public async Task TestPackageAccessAndUnrelatedXmlOrZipProcessing_AreAllowed()
     {
         var result = await RunGuardAsync(
             ("tests/Fixtures/WorkbookPackageFixture.cs", """
                 using System.IO.Compression;
                 using System.Xml.Linq;
                 const string WorkbookPart = "xl/workbook.xml";
-                """));
-
-        Assert.NotEqual(0, result.ExitCode);
-        Assert.Contains(
-            "tests/Fixtures/WorkbookPackageFixture.cs",
-            result.Output.Replace('\\', '/'),
-            StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task UnrelatedXmlAndDistributionArchiveProcessing_AreAllowed()
-    {
-        var result = await RunGuardAsync(
+                """),
             ("src/Runtime/XmlInputValidator.cs", """
                 using System.Xml;
                 using System.Xml.Linq;
                 var document = XDocument.Parse(xml);
                 """),
-            ("scripts/Test-DistributionPackages.ps1", """
+            ("src/Runtime/DownloadArchive.cs", """
                 using System.IO.Compression;
                 using var archive = ZipFile.OpenRead(path);
                 """),
-            ("scripts/Build-ReleasePackages.ps1", """
+            ("src/Runtime/obj/GeneratedWorkbookReader.cs", """
                 using System.IO.Compression;
-                using var extension = ZipFile.OpenRead(vsixPath);
+                using System.Xml.Linq;
+                const string WorkbookPart = "xl/workbook.xml";
                 """));
 
         Assert.Equal(0, result.ExitCode);
         Assert.Contains(
-            "Workbook package access check passed",
+            "No production Excel workbook package XML access found.",
             result.Output,
             StringComparison.Ordinal);
     }
@@ -88,7 +77,7 @@ public sealed class WorkbookPackageAccessGuardTests
         var sandbox = Path.Combine(
             Path.GetTempPath(),
             $"ExcelMcpPackageGuard-{Guid.NewGuid():N}");
-        Directory.CreateDirectory(sandbox);
+        Directory.CreateDirectory(Path.Combine(sandbox, "src"));
 
         try
         {

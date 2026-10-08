@@ -5,6 +5,7 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.Portable.Tests;
 
 [Collection("Mac backend state")]
+[Trait("RequiresExcel", "false")]
 public sealed class MacExcelSessionManagerTests
 {
     private static string TestPath(string name) => Path.Combine(Path.GetTempPath(), name);

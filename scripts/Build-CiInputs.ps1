@@ -16,7 +16,7 @@ if ($plan.SourceChecksGroup -eq $Group) {
         'Tooling' { @($plan.ToolingProjects) }
     }
     $allowed = switch ($Group) {
-        'Fast' { @('CLI', 'ComInterop', 'Core', 'McpServer', 'Service') }
+        'Fast' { @('CLI', 'ComInterop', 'Core', 'McpServer', 'Portable', 'Service') }
         'Process' { @('CLI') }
         'Tooling' { @('Packaging', 'ScriptSafety', 'SkillGeneration') }
     }

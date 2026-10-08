@@ -16,14 +16,37 @@ internal sealed class MacExcelBackend
         _runProcess = runProcess ?? RunProcessAsync;
     }
 
+    internal async Task<MacHelperInfo> RequireHelperAsync(IReadOnlyCollection<string> requiredPrimitives, TimeSpan timeout)
+    {
+        var result = await InvokeAsync("helper.check", new { }, timeout);
+        if (!result.TryGetProperty("helper", out var helper))
+        {
+            throw new MacExcelOperationException("HelperMalformed", "Excel did not return a helper handshake.");
+        }
+        return MacHelperProtocol.Validate(helper.GetRawText(), requiredPrimitives);
+    }
+
     public async Task<JsonElement> InvokeAsync(
         string command,
         object? arguments,
         TimeSpan timeout,
         bool allowFailureResult = false)
     {
+        var started = Stopwatch.GetTimestamp();
         using var timeoutCts = new CancellationTokenSource(timeout);
         var serializedArguments = JsonSerializer.Serialize(arguments, ServiceProtocol.JsonOptions);
+
+        TimeSpan RemainingTime()
+        {
+            timeoutCts.Token.ThrowIfCancellationRequested();
+            var remaining = timeout - Stopwatch.GetElapsedTime(started);
+            if (remaining <= TimeSpan.Zero)
+            {
+                timeoutCts.Cancel();
+                timeoutCts.Token.ThrowIfCancellationRequested();
+            }
+            return remaining;
+        }
 
         try
         {
@@ -39,7 +62,7 @@ internal sealed class MacExcelBackend
                     ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
                     try
                     {
-                        await InvokeScriptAsync("session.prepare-open", serializedArguments, timeoutCts.Token);
+                        await InvokeScriptAsync("session.prepare-open", serializedArguments, RemainingTime(), timeoutCts.Token);
                     }
                     catch (MacExcelOperationException error)
                         when (error.Message.Contains("OSStatus -600", StringComparison.Ordinal))
@@ -55,7 +78,7 @@ internal sealed class MacExcelBackend
                         {
                             try
                             {
-                                await InvokeScriptAsync("session.prepare-open", serializedArguments, timeoutCts.Token);
+                                await InvokeScriptAsync("session.prepare-open", serializedArguments, RemainingTime(), timeoutCts.Token);
                                 break;
                             }
                             catch (MacExcelOperationException startupError)
@@ -76,7 +99,7 @@ internal sealed class MacExcelBackend
                     {
                         var result = await _runProcess(handoff, null, timeoutCts.Token);
                         EnsureSuccessfulExit("LaunchServices handoff", result);
-                        var attached = await InvokeScriptAsync(command, serializedArguments, timeoutCts.Token);
+                        var attached = await InvokeScriptAsync(command, serializedArguments, RemainingTime(), timeoutCts.Token);
                         if (!attached.TryGetProperty("success", out var success)
                             || success.ValueKind != JsonValueKind.True
                             || (attached.TryGetProperty("errorMessage", out var error)
@@ -87,7 +110,7 @@ internal sealed class MacExcelBackend
                         return attached;
                     }
                     catch (Exception error) when (error is OperationCanceledException
-                        or InvalidOperationException or IOException or InvalidDataException or JsonException or Win32Exception)
+                        or TimeoutException or InvalidOperationException or IOException or InvalidDataException or JsonException or Win32Exception)
                     {
                         throw new MacExcelOperationException(
                             "RecoveryRequired",
@@ -107,6 +130,7 @@ internal sealed class MacExcelBackend
             return await InvokeScriptAsync(
                 command,
                 serializedArguments,
+                RemainingTime(),
                 timeoutCts.Token,
                 allowFailureResult);
         }
@@ -121,10 +145,11 @@ internal sealed class MacExcelBackend
     private async Task<JsonElement> InvokeScriptAsync(
         string command,
         string arguments,
+        TimeSpan timeout,
         CancellationToken cancellationToken,
         bool allowFailureResult = false)
     {
-        var startInfo = CreateAutomationStartInfo(command);
+        var startInfo = CreateAutomationStartInfo(command, timeout);
         var result = await _runProcess(startInfo, arguments, cancellationToken);
         EnsureSuccessfulExit(command, result);
 
@@ -140,15 +165,21 @@ internal sealed class MacExcelBackend
             var category = root.TryGetProperty("errorCategory", out var errorCategory)
                 ? errorCategory.GetString()
                 : null;
+            if (category == "Timeout")
+            {
+                throw new TimeoutException(message ?? "Excel Apple Event timed out; its outcome may be uncertain.");
+            }
             throw new MacExcelOperationException(
                 category ?? "ComInterop",
-                message ?? "Unknown Mac Excel error.");
+                message ?? "Unknown Mac Excel error.",
+                remoteExceptionType: root.TryGetProperty("exceptionType", out var exceptionType) ? exceptionType.GetString() : null,
+                remoteInnerError: root.TryGetProperty("innerError", out var innerError) ? innerError.GetString() : null);
         }
 
         return root;
     }
 
-    private static ProcessStartInfo CreateAutomationStartInfo(string command)
+    private static ProcessStartInfo CreateAutomationStartInfo(string command, TimeSpan timeout)
     {
         var processPath = Environment.ProcessPath
             ?? throw new InvalidOperationException("Current process path is unavailable.");
@@ -170,6 +201,8 @@ internal sealed class MacExcelBackend
         startInfo.ArgumentList.Add(MacAutomationHost.Marker);
         startInfo.ArgumentList.Add(command);
         startInfo.ArgumentList.Add(Environment.ProcessId.ToString(
+            System.Globalization.CultureInfo.InvariantCulture));
+        startInfo.ArgumentList.Add(timeout.Ticks.ToString(
             System.Globalization.CultureInfo.InvariantCulture));
         return startInfo;
     }
@@ -255,8 +288,20 @@ internal sealed class MacExcelBackend
 internal sealed record MacProcessResult(int ExitCode, string StandardOutput, string StandardError);
 
 internal sealed class MacExcelOperationException(
-    string errorCategory, string message, Exception? innerException = null)
+    string errorCategory, string message, Exception? innerException = null,
+    string? remoteExceptionType = null, string? remoteInnerError = null)
     : InvalidOperationException(message, innerException)
 {
     public string ErrorCategory { get; } = errorCategory;
+    public string? RemoteExceptionType { get; } = remoteExceptionType;
+    public string? RemoteInnerError { get; } = remoteInnerError;
+
+    internal ServiceResponse ToServiceResponse() => new()
+    {
+        Success = false,
+        ErrorCategory = ErrorCategory,
+        ErrorMessage = RemoteExceptionType is null ? Message : $"{RemoteExceptionType}: {Message}",
+        ExceptionType = RemoteExceptionType ?? GetType().Name,
+        InnerError = RemoteInnerError
+    };
 }

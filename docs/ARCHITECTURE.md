@@ -2,9 +2,9 @@
 
 ExcelMcp controls the actual Microsoft Excel desktop application—not just
 `.xlsx` files. Windows uses the complete COM backend. Apple Silicon macOS packages use
-a capability-gated Apple Events backend for the verified workbook, worksheet
-lifecycle/style, range, formula, clear, calculation, Goal Seek, and Data Table
-subset. **macOS support is experimental beta**, not full Windows parity.
+a capability-gated Apple Events backend for the verified operation subset in
+the [generated action inventory](MACOS-ACTION-INVENTORY.md).
+**macOS support is experimental beta**, not full Windows parity.
 Desktop acceptance has run on Apple Silicon; Intel Macs are unsupported. See
 [macOS support and limitations](../specs/MACOS-SUPPORT.md).
 
@@ -57,17 +57,25 @@ explain the reasons and tradeoffs behind these boundaries.
    invokes the service in-process.
 6. **Source generators** (`src/ExcelMcp.Generators*`) generate CLI commands,
    MCP schemas, and skill manifests from Core interfaces.
-7. **Optional Office.js bridge** (`office-addin`) provides an action-gated
-   localhost HTTPS broker and Excel task pane for future Mac capability tiers.
-   It is not required by the base backend and currently exposes health only.
 
 ## Platform backends
 
+Both platforms use the same generated typed dispatch, defaults, and result
+serialization. A generated platform command set registers Core interfaces with
+Windows commands or Mac transport adapters. Mac batches reject COM callbacks
+and references; platform-specific session lifetime remains separate. Remaining
+Excel-specific validation and scripting logic are still being migrated.
+
 ExcelMcp intentionally drives Excel rather than rewriting workbook packages.
-On Windows, COM provides the complete 326-operation surface, including Power
+On Windows, COM provides the complete public operation surface, including Power
 Query, the Data Model, PivotTables, VBA, charts, and formatting. On macOS,
-OSAKit sends bounded Apple Events from the same process identity that performs
-the non-prompting Automation permission check. Unsupported actions return
+session preflight, attachment, open-state checks, close, worksheet listing/creation/rename,
+rectangular formula reads/writes, and normal sheet/range calculation use direct C# Apple
+Events. Remaining operation routes still use OSAKit while their native
+replacements are implemented and verified. Both run in a bounded automation
+child with the non-prompting permission check and owning-parent identity
+verification. Native calls receive the remaining operation deadline; a native
+timeout remains a timeout, not a successful result. Unsupported actions return
 `PlatformNotSupported`.
 
 Windows sessions own an Excel process. macOS sessions own only an exact
@@ -75,13 +83,11 @@ workbook inside the user's shared Excel application; they never terminate
 Excel or close unrelated workbooks. Existing macOS files are handed to Excel
 through LaunchServices and attached by exact path.
 
-The optional Office.js tier is a separate, versioned capability boundary. Its
-broker authenticates the local channel, binds an Office.js runtime to the exact
-saved workbook URL and ExcelMcp session, serializes requests, enforces
-deadlines/cancellation, and negotiates `ExcelApi` requirement sets plus the
-running Excel version. No feature is routed through this tier until real Excel
-proves the full public contract through both entry points. See
-[Office.js bridge setup and security](MACOS-OFFICEJS.md).
+There is no Office.js add-in or hosted broker. A separately versioned,
+user-installed VBA helper is being evaluated for object-model operations that
+Excel's Apple Events dictionary cannot expose. Helper installation alone does
+not enable an action; public contracts remain gated until desktop parity is
+verified.
 
 ## CLI desktop integration
 

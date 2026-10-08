@@ -1,9 +1,4 @@
-# Calculation Mode
-
-**Platform scope:** Windows supports all actions below. Experimental Apple
-Silicon macOS supports `calculate`, but not `get-mode` or `set-mode`. On Mac,
-write the requested blocks and calculate explicitly without changing the mode.
-See [macOS beta limitations](https://github.com/sbroenne/mcp-server-excel/blob/main/specs/MACOS-SUPPORT.md#not-supported-in-the-macos-beta).
+# Calculation settings
 
 Calculation is not the same as data refresh. Recalculating formulas does not
 reload external sources, and a successful write does not prove that cloud
@@ -27,7 +22,7 @@ inspect the current mode when subsequent work depends on it.
 Semi-automatic excludes What-If data tables, not ordinary worksheet Tables.
 Read the relevant calculated values before treating a result as verified.
 
-## Preserve the Workbook's Mode (Windows)
+## Preserve the application's mode
 
 Manual mode can avoid repeated expensive recalculation during bulk edits.
 One rectangular write is already batched; there is no universal size threshold
@@ -47,10 +42,21 @@ restoration could not be completed.
 
 ## Calculation scope and precision {#actions}
 
-Application settings affect all workbooks in the session's owned Excel process,
+On Windows, application settings affect all workbooks in the session's owned Excel process,
 not other Excel processes. Use application-wide calculation when dependencies
 cross worksheets; deeper recalculation and dependency rebuilds also require
 that scope.
+
+The experimental macOS backend supports `calculate` with `scope=sheet` or
+`scope=range` and `kind=normal`. Range scope accepts one rectangular A1 address.
+It preserves the calculation mode and active worksheet and does not calculate
+dirty formulas outside the requested scope. Application scope, full/rebuild,
+and disjoint, structured-reference, or spill addresses fail explicitly before
+mutation because shared Excel is not owned by the session.
+
+macOS `get-settings`, `set-settings`, and `set-precision` remain unavailable.
+Use scoped calculation in the existing mode; the Windows settings workflow
+above does not authorize changing shared Mac application state.
 
 Precision-as-displayed belongs to the workbook. Enabling it permanently rounds
 stored numbers to their displayed precision. Disabling it does not recover lost

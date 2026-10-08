@@ -42,15 +42,7 @@ internal static class RangeMergeDiscovery
         {
             long cellCount = Convert.ToInt64(range.CountLarge, CultureInfo.InvariantCulture);
             if (cellCount > MaxMergedRangeScanCells)
-            {
-                string rangeAddress = Convert.ToString(range.Address, CultureInfo.InvariantCulture)
-                    ?? "(unknown range)";
-                throw new InvalidOperationException(
-                    $"Cannot inspect merged cells in range '{rangeAddress}' because it contains " +
-                    $"{cellCount.ToString("N0", CultureInfo.InvariantCulture)} cells, exceeding the safe scan limit " +
-                    $"of {MaxMergedRangeScanCells.ToString("N0", CultureInfo.InvariantCulture)} cells. " +
-                    "Use a smaller range for this operation, or unmerge the affected cells before retrying.");
-            }
+                RequireSafeScanCount(cellCount, Convert.ToString(range.Address, CultureInfo.InvariantCulture) ?? "(unknown range)");
 
             cells = range.Cells;
             int boundedCellCount = checked((int)cellCount);
@@ -91,6 +83,16 @@ internal static class RangeMergeDiscovery
         }
 
         return mergedRanges;
+    }
+
+    internal static void RequireSafeScanCount(long cellCount, string rangeAddress)
+    {
+        if (cellCount > MaxMergedRangeScanCells)
+            throw new InvalidOperationException(
+                $"Cannot inspect merged cells in range '{rangeAddress}' because it contains " +
+                $"{cellCount.ToString("N0", CultureInfo.InvariantCulture)} cells, exceeding the safe scan limit " +
+                $"of {MaxMergedRangeScanCells.ToString("N0", CultureInfo.InvariantCulture)} cells. " +
+                "Use a smaller range for this operation, or unmerge the affected cells before retrying.");
     }
 
     private static bool TryGetSingleMergedArea(dynamic range, out string mergedAreaAddress)

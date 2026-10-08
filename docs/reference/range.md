@@ -49,6 +49,95 @@ collapsed groups. Filter and outline information provides context, not proof
 of the cause. Showing rows does not clear filters or groups; those can hide
 them again. Protection is not bypassed.
 
+## Reusable cell styles
+
+Use `workbook` actions `list-cell-styles` / `get-cell-style` to discover native
+definitions. `create-cell-style` captures exactly one source cell, using MCP
+`style_name`, `source_sheet_name`, and `source_cell_address` (CLI
+`--style-name`, `--source-sheet-name`, `--source-cell-address`), without modifying
+the source. The source worksheet must be visible; hidden sheets are rejected
+without changing visibility. Its temporary activation restores the prior view.
+Apply it separately with `range_format` / `rangeformat` `set-style`.
+
+`update-cell-style` takes an MCP `style_options` object or CLI `--style-options`
+JSON string. Nested keys stay camelCase; `formatOptions` reuses the shared
+visual payload, except inside borders are range-only. Omitted inclusion flags
+are preserved, including false. Changing a custom definition can affect every
+existing user throughout the workbook. Built-in styles are read-only through
+these lifecycle actions. `delete-cell-style` removes the custom name from
+existing users; Excel determines retained formatting. No tool-level undo or
+native-failure rollback is promised.
+
+## Reusable table and dashboard styles
+
+Use `workbook` `list-table-styles` / `get-table-style` to discover native
+table/Pivot/slicer/timeline definitions, including all unset elements.
+`create-table-style` clones an existing definition, using MCP `style_name` and
+`source_style_name` (CLI `--style-name`, `--source-style-name`), without applying
+it. `update-table-style` takes an MCP `table_style_options` object or CLI
+`--table-style-options` JSON string. Nested keys remain camelCase.
+
+Selected `elements` use exact native `elementType` names from inspection.
+They support differential font emphasis/theme colors, solid fills, and six
+outer/inside borders, but not font names/sizes, scripts or diagonal borders.
+Only row/column stripe elements accept `stripeSize`; an unset stripe needs
+formatting in the same request because its size alone does not create a native
+definition. `clear: true` removes an
+element and cannot be combined with formatting. Omitted elements/settings stay
+unchanged. Native unset/default properties are reported rather than invented.
+
+Apply a definition with `table` `set-style`, MCP `pivottable_calc` / CLI
+`pivottablecalc` `set-layout-options`, or `slicer` `set-layout`. Custom updates
+can affect all existing users. Built-in styles remain read-only.
+`delete-table-style` can remove formatting from existing users; Excel determines
+the fallback. Saving stays explicit; no native-failure rollback is promised.
+
+## Cell protection
+
+`range_link` (MCP) / `rangelink` (CLI) `set-cell-protection` changes only supplied
+`locked` and MCP `formula_hidden` / CLI `--formula-hidden` flags. Named and
+disjoint scopes preserve gaps. `get-cell-protection` returns both native flags
+for every requested cell, with no first-cell or mixed-state fallback.
+The old cell-lock actions are removed, not aliases.
+
+```mcp
+range_link(action: 'set-cell-protection', session_id: sessionId, sheet_name: 'Sales', range_address: 'B2:B10', locked: true, formula_hidden: true)
+range_link(action: 'get-cell-protection', session_id: sessionId, sheet_name: 'Sales', range_address: 'B2:B10')
+```
+
+```cli
+excelcli -q rangelink set-cell-protection --session $sessionId --sheet Sales --range B2:B10 --locked true --formula-hidden true
+excelcli -q rangelink get-cell-protection --session $sessionId --sheet Sales --range B2:B10
+```
+
+Enforcement requires worksheet protection. Formula hiding affects Excel's UI,
+not tool formula reads or file encryption. Do not describe it as secret storage.
+
+## Row and column visibility
+
+`range_format` `get-visibility` and `set-visibility` require MCP `axis` or CLI
+`--axis` (`rows` or `columns`). Scope addresses select every intersecting whole
+row or column, including named or disjoint ranges; gaps remain unchanged.
+For `set-visibility`, MCP `hidden` or CLI `--hidden` must explicitly be true
+or false. Hiding and showing preserve Excel's stored dimensions, but reads
+report native current size, which can be zero while hidden. Row sizes are in
+points; column sizes are in Excel character-width units.
+
+Hidden cause is undetermined. Outline level, sheet filter mode, and ordinary
+worksheet AutoFilter data-row membership are context, not proof of a manual,
+filter, or grouping cause; table-filter membership is not exhaustive. Showing
+does not clear filters or groups, and sheet protection is not bypassed.
+
+```mcp
+range_format(action: 'set-visibility', session_id: sessionId, sheet_name: 'Sales', range_address: 'A2:A4', axis: 'rows', hidden: true)
+range_format(action: 'get-visibility', session_id: sessionId, sheet_name: 'Sales', range_address: 'A2:A4', axis: 'rows')
+```
+
+```cli
+excelcli -q rangeformat set-visibility --session $sessionId --sheet Sales --range A2:A4 --axis rows --hidden true
+excelcli -q rangeformat get-visibility --session $sessionId --sheet Sales --range A2:A4 --axis rows
+```
+
 ## Protected writes and copies
 
 Content writes reject occupied direct destinations unless intentional replacement
