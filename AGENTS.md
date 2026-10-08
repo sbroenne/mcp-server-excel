@@ -27,7 +27,7 @@ Paths are relative to the repository root.
 | Work | Required guidance |
 | --- | --- |
 | `src/**/*.cs` | [Runtime boundaries](docs/agents/rules/architecture-patterns.md) |
-| Core commands/action models, Service, CLI, MCP, or generators | [Generated contracts](docs/agents/rules/coverage-prevention-strategy.md) |
+| Core commands/action models, Service, CLI, MCP, generators, or `.github/usage-analytics-weights.json` | [Generated contracts](docs/agents/rules/coverage-prevention-strategy.md) |
 | Core or ComInterop C# | [COM safety](docs/agents/rules/excel-com-interop.md) |
 | Connection commands/sanitizer or connection tests/helpers/fixtures | [Connections](docs/agents/rules/excel-connection-types-guide.md) |
 | `tests/**/*.cs` | [Testing strategy](tests/AGENTS.md) |
@@ -131,6 +131,10 @@ behavior are not unnecessary complexity.
   cancellation, and session recovery; a timeout must not become success.
 - Core contracts must agree across generated Service, CLI options/batch JSON,
   MCP schemas, and manual tool exceptions, including defaults and timeouts.
+- Added, renamed, or removed MCP actions and CLI commands must update
+  `.github/usage-analytics-weights.json`. Check that each new effort level
+  matches the work: reads are light, edits are medium, and refresh, evaluation,
+  macro runs, and model or PivotTable building are heavy.
 - MCP stdout, including bootstrap output, is JSON-RPC only.
 - Agent-facing descriptions, server instructions, skills, and recovery messages
   must agree with actual defaults and advertised capabilities. Flag stale input

@@ -51,7 +51,7 @@ public sealed partial class PersistentServiceRangeFormulaTests
             [15]
         ]);
 
-        var formulas = new List<List<string>>
+        var formulas = new List<List<object?>>
         {
             new() { "=A1*2", "=A2*2", "=A3*2" }
         };
@@ -102,7 +102,7 @@ public sealed partial class PersistentServiceRangeFormulaTests
 
         // Step 3: Add formulas for Total Sales (column F)
         // Using SUM function for each row
-        var totalFormulas = new List<List<string>>
+        var totalFormulas = new List<List<object?>>
         {
             new() { "=SUM(B2:E2)" },
             new() { "=SUM(B3:E3)" },
@@ -114,7 +114,7 @@ public sealed partial class PersistentServiceRangeFormulaTests
 
         // Step 4: Add formulas for Performance Rating (column G)
         // Using IF and AVERAGE functions
-        var performanceFormulas = new List<List<string>>
+        var performanceFormulas = new List<List<object?>>
         {
             new() { """=IF(AVERAGE(B2:E2)>20000,"Excellent",IF(AVERAGE(B2:E2)>15000,"Good","Average"))""" },
             new() { """=IF(AVERAGE(B3:E3)>20000,"Excellent",IF(AVERAGE(B3:E3)>15000,"Good","Average"))""" },
@@ -127,7 +127,7 @@ public sealed partial class PersistentServiceRangeFormulaTests
         // Step 5: Add summary statistics row with complex formulas
         _commands.SetValues(batch, sheetName, "A7", [["TOTALS"]]);
 
-        var summaryFormulas = new List<List<string>>
+        var summaryFormulas = new List<List<object?>>
         {
             new()
             {
@@ -144,7 +144,7 @@ public sealed partial class PersistentServiceRangeFormulaTests
 
         // Step 6: Add growth rate calculation (comparing Q4 to Q1)
         _commands.SetValues(batch, sheetName, "H1", [["Growth Rate"]]);
-        var growthFormulas = new List<List<string>>
+        var growthFormulas = new List<List<object?>>
         {
             new() { "=TEXT((E2-B2)/B2,\"0.0%\")" },
             new() { "=TEXT((E3-B3)/B3,\"0.0%\")" },
@@ -238,7 +238,7 @@ public sealed partial class PersistentServiceRangeFormulaTests
         ]);
 
         // Act - Set formulas on test sheet that reference data sheet
-        var formulas = new List<List<string>>
+        var formulas = new List<List<object?>>
         {
             new() { $"='{dataSheetName}'!A1", $"='{dataSheetName}'!A2", $"='{dataSheetName}'!A3" },
             new() { $"=SUM('{dataSheetName}'!A1:A3)", $"=AVERAGE('{dataSheetName}'!A1:A3)", $"=MAX('{dataSheetName}'!A1:A3)" }
@@ -291,7 +291,7 @@ public sealed partial class PersistentServiceRangeFormulaTests
         ]);
 
         // Act - Set formulas with different reference types
-        var formulas = new List<List<string>>
+        var formulas = new List<List<object?>>
         {
             new() { "=$A$1",      "=A1",       "=$A1",      "=A$1" },
             new() { "=$A$1*2",    "=A1*2",     "=$A1*2",    "=A$1*2" },
@@ -376,7 +376,7 @@ public sealed partial class PersistentServiceRangeFormulaTests
         }
         _commands.SetValues(batch, sheetName, $"A1:C{rowCount}", sourceValues);
 
-        var formulas = new List<List<string>>();
+        var formulas = new List<List<object?>>();
         for (int i = 1; i <= rowCount; i++)
         {
             formulas.Add([$"=A{i}+B{i}+C{i}"]);
@@ -446,7 +446,7 @@ public sealed partial class PersistentServiceRangeFormulaTests
         ]);
 
         // Create 16 formulas referencing the cells above (simulating user's table header formulas)
-        var formulas = new List<List<string>>
+        var formulas = new List<List<object?>>
         {
             new()
             {
@@ -482,14 +482,14 @@ public sealed partial class PersistentServiceRangeFormulaTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        var jaggedFormulas = new List<List<string>>
+        var jaggedFormulas = new List<List<object?>>
         {
             new() { "=1", "=2", "=3", "=4", "=5", "=6", "=7", "=8", "=9", "=10", "=11", "=12", "=13", "=14" },
             new() { "=15", "=16", "=17", "=18", "=19", "=20", "=21", "=22", "=23", "=24", "=25", "=26", "=27" }
         };
         var original = Enumerable.Range(1, 3)
             .Select(row => Enumerable.Range(1, 14)
-                .Select(column => $"={row * 100}+{column}").ToList()).ToList();
+                .Select(column => (object?)$"={row * 100}+{column}").ToList()).ToList();
         var seeded = _commands.SetFormulas(batch, sheetName, "A1:N3", original);
         Assert.True(seeded.Success, seeded.ErrorMessage);
 
@@ -509,12 +509,46 @@ public sealed partial class PersistentServiceRangeFormulaTests
         }
     }
 
-    private static void AssertFormulaMatrix(List<List<string>> expected, List<List<string>> actual)
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SetFormulas_MixedConstantsAndFormulas_WritesTypedCells(bool useFile)
+    {
+        var batch = _fixture.BatchToken;
+        var sheetName = _fixture.CreateTestSheet(batch);
+        var file = Path.Combine(Path.GetTempPath(), $"ExcelMcp_formulas_{Guid.NewGuid():N}.json");
+        try
+        {
+            File.WriteAllText(file, """[["Label", 5.86, true, null, "=1+1"]]""");
+
+            var result = useFile
+                ? _commands.SetFormulas(batch, sheetName, "A1:E1", formulasFile: file)
+                : _commands.SetFormulas(batch, sheetName, "A1:E1", [["Label", 5.86, true, null, "=1+1"]]);
+
+            Assert.True(result.Success, result.ErrorMessage);
+            var values = Assert.Single(_commands.GetValues(batch, sheetName, "A1:E1").Values);
+            Assert.Equal("Label", values[0]);
+            Assert.IsNotType<string>(values[1]);
+            Assert.Equal(5.86, Convert.ToDouble(values[1], System.Globalization.CultureInfo.InvariantCulture));
+            Assert.Equal(true, values[2]);
+            Assert.Null(values[3]);
+            Assert.Equal(2.0, Convert.ToDouble(values[4], System.Globalization.CultureInfo.InvariantCulture));
+            var formulas = _commands.GetFormulas(batch, sheetName, "A1:E1");
+            Assert.True(formulas.Success, formulas.ErrorMessage);
+            Assert.Equal("=1+1", Assert.Single(formulas.Formulas)[4]);
+        }
+        finally
+        {
+            File.Delete(file);
+        }
+    }
+
+    private static void AssertFormulaMatrix(List<List<object?>> expected, List<List<string>> actual)
     {
         Assert.Equal(expected.Count, actual.Count);
         for (var row = 0; row < expected.Count; row++)
         {
-            Assert.Equal(expected[row], actual[row]);
+            Assert.Equal(expected[row].Cast<string>(), actual[row]);
         }
     }
 

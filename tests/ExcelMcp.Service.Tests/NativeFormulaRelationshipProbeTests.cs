@@ -28,7 +28,7 @@ public sealed class NativeFormulaRelationshipProbeTests(
         var otherName = _fixture.CreateTestSheet(_fixture.BatchToken);
         Assert.True(_commands.SetValues(_fixture.BatchToken, sourceName, "A1:A3", [[2], [3], [4]]).Success);
         Assert.True(_commands.SetValues(_fixture.BatchToken, otherName, "A1", [[7]]).Success);
-        List<List<string>> formulas =
+        List<List<object?>> formulas =
         [
             ["=SUM(A1,A3)", "=B1*2", $"='{otherName}'!A1", $"=A1+'{otherName}'!A1",
                 "=INDIRECT(\"A2\")", "=OFFSET(A1,1,0)", "=1+2"]

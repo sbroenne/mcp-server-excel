@@ -13,6 +13,9 @@
 # JSON files
 *.json text
 
+# Squad validates casting state hashes against exact file bytes.
+.squad/casting/*.json text eol=lf
+
 # PowerShell scripts
 *.ps1 text eol=crlf
 *.psm1 text eol=crlf

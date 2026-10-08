@@ -1,3 +1,4 @@
+using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -59,7 +60,7 @@ public partial class RangeCommands
                         {
                             string formula = formulas[r, c]?.ToString() ?? string.Empty;
                             object? cellValue = values[r, c];
-                            string returnedFormula = formula.StartsWith('=') ? formula : string.Empty;
+                            string returnedFormula = IsReturnedFormula((Excel.Range)range, r, c, formula, cellValue) ? formula : string.Empty;
 
                             // Only return actual formulas (starting with =), not values
                             formulaRow.Add(returnedFormula);
@@ -83,8 +84,8 @@ public partial class RangeCommands
                     string formula = formulaOrArray?.ToString() ?? string.Empty;
                     object? cellValue = valueOrArray;
 
-                    // Only return actual formulas (starting with =), not values
-                    string returnedFormula = formula.StartsWith('=') ? formula : string.Empty;
+                    // Only return actual formulas, not text constants that start with "="
+                    string returnedFormula = IsReturnedFormula((Excel.Range)range, 1, 1, formula, cellValue) ? formula : string.Empty;
                     result.Formulas.Add([returnedFormula]);
                     result.Values.Add([
                         ConvertErrorForRead(
@@ -109,6 +110,32 @@ public partial class RangeCommands
                 ComUtilities.Release(ref range);
             }
         });
+    }
+
+    /// <summary>
+    /// A text constant such as "=abc" reports its text through Formula, exactly like a formula.
+    /// Only when the formula text equals the displayed text is the cell ambiguous; then ask Excel.
+    /// </summary>
+    private static bool IsReturnedFormula(Excel.Range range, int row, int column, string formula, object? cellValue)
+    {
+        if (!formula.StartsWith('='))
+            return false;
+        if (cellValue is not string text || !string.Equals(text, formula, StringComparison.Ordinal))
+            return true;
+
+        Excel.Range? cells = null;
+        Excel.Range? cell = null;
+        try
+        {
+            cells = range.Cells;
+            cell = (Excel.Range)cells[row, column];
+            return Convert.ToBoolean(cell.HasFormula, CultureInfo.InvariantCulture);
+        }
+        finally
+        {
+            ComUtilities.Release(ref cell);
+            ComUtilities.Release(ref cells);
+        }
     }
 
     internal static object? ConvertErrorForRead(
@@ -168,14 +195,14 @@ public partial class RangeCommands
 
     /// <inheritdoc />
     public OperationResult SetFormulas(IExcelBatch batch, string sheetName, string rangeAddress,
-        List<List<string>>? formulas = null, string? formulasFile = null,
+        List<List<object?>>? formulas = null, string? formulasFile = null,
         OverwritePolicy overwritePolicy = OverwritePolicy.RejectNonempty,
         FormulaReferenceStyle referenceStyle = FormulaReferenceStyle.A1)
     {
         ValidateOverwritePolicy(overwritePolicy);
         ValidateFormulaReferenceStyle(referenceStyle);
-        // Resolve formulas from inline parameter or file
-        var resolvedFormulas = ParameterTransforms.ResolveFormulasOrFile(formulas, formulasFile);
+        // Resolve cells from inline parameter or file; constants become invariant text Excel's Formula property parses
+        var resolvedFormulas = ParameterTransforms.ResolveFormulaCellsOrFile(formulas, formulasFile);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-formulas" };
 
