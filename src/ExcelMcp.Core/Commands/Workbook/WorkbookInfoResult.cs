@@ -25,7 +25,7 @@ public sealed class WorkbookInfoResult : ResultBase
     /// <summary>Whether Excel considers all workbook changes saved.</summary>
     public bool Saved { get; set; }
 
-    /// <summary>Whether Excel's cloud AutoSave is currently enabled for this workbook.</summary>
+    /// <summary>Whether Excel's cloud AutoSave is currently enabled; false when the installed Excel has no AutoSave support.</summary>
     public bool AutoSaveOn { get; set; }
 
     /// <summary>Whether the workbook is open read-only.</summary>

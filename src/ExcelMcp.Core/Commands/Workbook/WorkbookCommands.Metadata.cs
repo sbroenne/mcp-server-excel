@@ -27,7 +27,7 @@ public partial class WorkbookCommands
                 Format = GetFormatName(fileFormat),
                 FormatCode = Convert.ToInt32(fileFormat, CultureInfo.InvariantCulture),
                 Saved = context.Book.Saved,
-                AutoSaveOn = context.Book.AutoSaveOn,
+                AutoSaveOn = ExcelCapabilities.ReadAutoSave(() => context.Book.AutoSaveOn),
                 ReadOnly = context.Book.ReadOnly,
                 HasPassword = context.Book.HasPassword,
                 WriteReserved = context.Book.WriteReserved

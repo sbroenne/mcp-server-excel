@@ -17,6 +17,45 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 public sealed class ExcelCapabilitiesTests
 {
     [Theory]
+    [InlineData(unchecked((int)0x80020003), false)]
+    [InlineData(unchecked((int)0x80020006), false)]
+    [InlineData(unchecked((int)0x80004001), false)]
+    [InlineData(unchecked((int)0x80020003), true)]
+    [InlineData(unchecked((int)0x80020006), true)]
+    [InlineData(unchecked((int)0x80004001), true)]
+    public void AutoSave_UnavailableMember_ReadsFalseAndAllowsDisable(int hresult, bool writing)
+    {
+        if (writing)
+            ExcelCapabilities.DisableAutoSave(() => throw new COMException("Unsupported AutoSave", hresult));
+        else
+            Assert.False(ExcelCapabilities.ReadAutoSave(() => throw new COMException("Unsupported AutoSave", hresult)));
+    }
+
+    [Theory]
+    [InlineData(unchecked((int)0x800A03EC))]
+    [InlineData(unchecked((int)0x80010001))]
+    [InlineData(unchecked((int)0x80010108))]
+    [InlineData(unchecked((int)0x80070005))]
+    public void AutoSave_UnexpectedReadOrWriteFailure_Propagates(int hresult)
+    {
+        var error = new COMException("AutoSave failed", hresult);
+        Assert.Same(error, Assert.Throws<COMException>(() => ExcelCapabilities.ReadAutoSave(() => throw error)));
+        Assert.Same(error, Assert.Throws<COMException>(() => ExcelCapabilities.DisableAutoSave(() => throw error)));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AutoSave_SupportedMember_ReturnsLiveValueAndDisables(bool enabled)
+    {
+        Assert.Equal(enabled, ExcelCapabilities.ReadAutoSave(() => enabled));
+        enabled = !enabled;
+        Assert.Equal(enabled, ExcelCapabilities.ReadAutoSave(() => enabled));
+        ExcelCapabilities.DisableAutoSave(() => enabled = false);
+        Assert.False(enabled);
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void SupportsFormula2_CachesSuccessfulDecision(bool supported)

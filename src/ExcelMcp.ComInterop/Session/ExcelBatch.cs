@@ -445,7 +445,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     {
                         // Cloud AutoSave would otherwise persist edits before an explicit save
                         // and defeat close(save:false).
-                        wb.AutoSaveOn = false;
+                        ExcelCapabilities.DisableAutoSave(() => wb.AutoSaveOn = false);
                     }
                     AfterWorkbookOpenHookForTests?.Invoke(tempExcel, wb);
 

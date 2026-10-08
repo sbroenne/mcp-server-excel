@@ -24,6 +24,10 @@ IRM/AIP restrictions. Inspect `workbook_read` action `get-info` or
 editing. When `autoSaveOn` is true, Excel can persist changes without an explicit
 save.
 
+Excel versions without the AutoSave property report `autoSaveOn: false`; there
+is no AutoSave feature to disable on those versions. Only known unavailable-member
+errors are treated this way. Other AutoSave read or write failures remain errors.
+
 `file_read` action `test` and `excelcli session test` report that URL validation
 requires interactive opening. They do not download the workbook or probe a local
 file. Returned `exists: false`, zero size, and `isIrmProtected: false` are unknown
