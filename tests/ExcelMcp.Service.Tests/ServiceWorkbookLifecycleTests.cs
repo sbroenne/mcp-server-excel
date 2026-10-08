@@ -391,6 +391,59 @@ public sealed partial class ServiceWorkbookLifecycleTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SlowReadinessInspection_AllowsSaveAndCloseWithPersistedEdits(bool saveAs)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var path = Path.Join(directory, "slow-readiness.xlsx");
+            var targetPath = Path.Join(directory, "slow-readiness-saved-as.xlsx");
+            var session = await CreateSessionAsync(service, path);
+            sessions[session] = 0;
+            await WriteMarkerAsync(service, session, "Slow inspection persisted");
+            var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(session));
+            var inspections = 0;
+            batch.BeforeRefreshStateReadHookForTests = () =>
+            {
+                Interlocked.Increment(ref inspections);
+                Thread.Sleep(TimeSpan.FromSeconds(1.5));
+            };
+            try
+            {
+                Assert.Equal(WorkbookRefreshState.Ready, batch.GetRefreshState());
+                Assert.True(service.SessionManager.ValidateClose(session).CanClose);
+                if (saveAs)
+                {
+                    var response = await service.ProcessAsync(new ServiceRequest
+                    {
+                        Command = "workbook.save-as",
+                        SessionId = session,
+                        Args = JsonSerializer.Serialize(new { targetPath }, ServiceProtocol.JsonOptions)
+                    });
+                    RequireSuccess(response);
+                    Assert.Equal(targetPath, batch.WorkbookPath, ignoreCase: true);
+                    Assert.True(batch.Execute((context, _) => context.Book.Saved));
+                }
+                await CloseSessionAsync(service, session, save: !saveAs);
+                sessions.TryRemove(session, out _);
+                Assert.True(inspections >= 3, "Save and close must inspect actual Excel readiness.");
+                Assert.False(batch.HasTimedOutOperation);
+            }
+            finally
+            {
+                batch.BeforeRefreshStateReadHookForTests = null;
+                if (service.SessionManager.GetSession(session) is not null)
+                    batch.Execute((_, _) => 0);
+            }
+
+            var reopened = await OpenSessionAsync(service, saveAs ? targetPath : path);
+            sessions[reopened] = 0;
+            Assert.Equal("Slow inspection persisted", await ReadMarkerAsync(service, reopened));
+        });
+    }
+
+    [Theory]
     [InlineData("range.set-values")]
     [InlineData("sheet.create")]
     public async Task ReadOnlyWorkbook_RejectsWritesAndRetainsSavedContents(string command)

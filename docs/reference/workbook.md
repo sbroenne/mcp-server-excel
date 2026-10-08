@@ -112,6 +112,11 @@ Excel to finish, check `canClose` through MCP `file_read` action `list` or
 `excelcli session list`, inspect the refreshed values, then retry. A zero
 `activeOperations` count alone is not proof that Excel is idle.
 
+Readiness inspection waits at most one second for queued work. If inspection
+has already started, it can use the session's operation timeout to finish
+checking a large workbook. A scan that exceeds that additional deadline reports
+an unconfirmed state without saving or closing the workbook.
+
 The same session listing exposes `excelState` and `blockingReason`. When
 `excelState` is `dialogOpen`, check the Excel window for a prompt before simply
 waiting longer. The server observes window ownership without reading dialog

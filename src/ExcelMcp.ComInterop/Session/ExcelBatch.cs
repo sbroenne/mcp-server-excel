@@ -69,6 +69,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     internal static Func<ExcelProcessIdentity, bool>? FailedStartupExitConfirmationHook { get; set; }
 
     internal static Action? WorkItemQueuedHookForTests { get; set; }
+    internal Action? BeforeRefreshStateReadHookForTests { get; set; }
 
     // COM state (STA thread only)
     private Excel.Application? _excel;
@@ -1046,7 +1047,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         }
         try
         {
-            // Observational probes must neither wait behind a long query nor poison the session.
+            // Keep queued probes short without imposing the same deadline on a started COM scan.
             return completion.Task.WaitAsync(TimeSpan.FromSeconds(1)).GetAwaiter().GetResult();
         }
         catch (TimeoutException)
@@ -1054,14 +1055,26 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             if (work.TryDiscard())
             {
                 completion.TrySetResult(WorkbookRefreshState.Unknown);
+                _logger.LogWarning("Excel refresh-state inspection expired in the queue; save and close remain blocked");
+                return WorkbookRefreshState.Unknown;
             }
-            _logger.LogWarning("Excel refresh-state inspection timed out; save and close remain blocked");
-            return WorkbookRefreshState.Unknown;
+            try
+            {
+                return completion.Task.WaitAsync(_operationTimeout).GetAwaiter().GetResult();
+            }
+            catch (TimeoutException)
+            {
+                _logger.LogWarning(
+                    "Started Excel refresh-state inspection did not complete within {Timeout}; save and close remain blocked",
+                    _operationTimeout);
+                return WorkbookRefreshState.Unknown;
+            }
         }
     }
 
     private WorkbookRefreshState ReadRefreshState()
     {
+        BeforeRefreshStateReadHookForTests?.Invoke();
         var dialogState = ExcelDialogProbe.Read(_excelProcessIdentity, _logger);
         if (dialogState != WorkbookRefreshState.Ready) return dialogState;
         foreach (var workbook in _workbooks!.Values)
