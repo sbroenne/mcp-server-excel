@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Xunit;
 
@@ -388,6 +389,8 @@ public sealed class ParameterTransformsFileTests : IDisposable
     [InlineData("[[\"=1\", [1, 2]]]", "formulas[0][1]")]
     [InlineData("[[\"=1\"], [\"=2\", {\"a\": 1}]]", "formulas[1][1]")]
     [InlineData("[[\"=1\"], null]", "formulas[1]")]
+    [InlineData("[[\"=1\", 1e400]]", "formulas[0][1]")]
+    [InlineData("[[\"=1\", -1e400]]", "formulas[0][1]")]
     public void ResolveFormulaCellsOrFile_UnsupportedCell_NamesPosition(string json, string position)
     {
         var path = CreateTempFile("unsupported.json", json);
@@ -396,6 +399,18 @@ public sealed class ParameterTransformsFileTests : IDisposable
             () => ParameterTransforms.ResolveFormulaCellsOrFile(null, path));
 
         Assert.Contains(position, ex.Message, StringComparison.Ordinal);
+        Assert.Equal("formulas", ex.ParamName);
+    }
+
+    [Fact]
+    public void ResolveFormulaCellsOrFile_InlineOutOfRangeJsonNumber_NamesPosition()
+    {
+        var cell = JsonDocument.Parse("1e400").RootElement;
+
+        var ex = Assert.Throws<ArgumentException>(
+            () => ParameterTransforms.ResolveFormulaCellsOrFile([["=1", cell]], null));
+
+        Assert.Contains("formulas[0][1]", ex.Message, StringComparison.Ordinal);
         Assert.Equal("formulas", ex.ParamName);
     }
 
