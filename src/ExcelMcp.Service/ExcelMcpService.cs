@@ -821,6 +821,7 @@ public sealed class ExcelMcpService : IDisposable
                 ConnectionCommands.ValidateRefreshControlReadiness(batch!);
             }
             if (string.Equals(request.Command, ServiceRegistry.Connection.GetAccountSettingsCommand, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(request.Command, ServiceRegistry.Connection.SetAccountSettingsCommand, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(request.Command, ServiceRegistry.Connection.ClearAccountHintCommand, StringComparison.OrdinalIgnoreCase))
             {
                 ConnectionCommands.ValidateAccountSettingsReadiness(batch!);

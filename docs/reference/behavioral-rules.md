@@ -104,6 +104,11 @@ the query. Cancellation uses MCP `connection` action `cancel-refresh` or
 `excelcli connection cancel-refresh`. Use the session listing to check readiness
 and retry after completion.
 
+When using `set-properties`, change an OLEDB provider and background-refresh mode
+in separate requests. A combined provider transition and `backgroundQuery` change
+(MCP `background_query`, CLI `--background-query`) is rejected before any writes,
+so refresh capability is checked against the connection's actual current provider.
+
 For Power BI/Analysis Services MSOLAP OLEDB connections, inspect saved sign-in
 settings with MCP `connection_read` action `get-account-settings`, inputs
 `workbook_session_id` and `connection_name` (CLI:
@@ -114,17 +119,38 @@ It does not expose their account or secret values. Unconfigured modes are null;
 unrecognized mode values are reported as `Unrecognized`, not echoed.
 These settings do not establish which account is currently authenticated.
 
+To change selected settings, use MCP `connection` action `set-account-settings`,
+inputs `workbook_session_id`, `connection_name`, and at least one of
+`account_hint`, `interactive_login`, or `identity_mode` (CLI:
+`excelcli connection set-account-settings --session <id> --connection-name <name>`
+with `--account-hint`, `--interactive-login`, or `--identity-mode`).
+Omitted settings are preserved. `account_hint` must be nonblank; use
+`clear-account-hint` to remove it. The setter replaces `User ID`/`UID` aliases
+with the requested `User ID`, without returning the account value.
+`interactive_login` accepts `Default`, `Enabled`, `Disabled`, or `Always`;
+`identity_mode` accepts `Default`, `CurrentUser`, `Connection`, or `Process`.
+An explicitly supplied `Default` is a stored provider setting, not omission.
+The setter reports `changed: false` when all supplied values already match.
+
+An explicit `User ID` overrides `Identity Mode`; `Integrated Security` and other
+existing settings can also affect interactive sign-in behavior. This action
+stores the requested settings only: it does not choose an account, authenticate,
+force a prompt, or test source access. It cannot set passwords, tokens, or
+`EffectiveUserName` impersonation, and verifies that unrelated properties remain
+unchanged. Like clearing a hint, it requires idle, writable Excel, supports only
+MSOLAP OLEDB connections, and does not refresh or save.
+
 If the user requests removing a saved account hint, use MCP `connection` action
 `clear-account-hint` with the same inputs (CLI:
 `excelcli connection clear-account-hint --session <id> --connection-name <name>`).
 Only `User ID`/`UID` on that exact connection are removed; passwords, tokens,
 server impersonation, and other settings are preserved and checked by readback.
-An absent hint returns `changed: false`. Both actions require idle Excel; clearing
+An absent hint returns `changed: false`. All account-setting actions require idle Excel; writing
 also requires a writable workbook. Power Query, ODBC, and non-MSOLAP providers
 are unsupported. Do not reconstruct a full connection string from the redacted
 `view` result to make this change.
 
-Clearing a hint does not sign out, delete Office/Windows credentials, force a new
+Setting or clearing a hint does not sign out, delete Office/Windows credentials, force a new
 account-selection prompt, refresh, or save. Provider account choices may remain
 cached for the Excel process lifetime. Refresh and save explicitly when requested.
 If readback fails after a write, the workbook may be changed; inspect it before

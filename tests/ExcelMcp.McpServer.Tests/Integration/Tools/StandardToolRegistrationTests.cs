@@ -96,6 +96,7 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     [InlineData("connection", "test", true)]
     [InlineData("connection", "get-account-settings", true)]
     [InlineData("connection", "clear-account-hint", false)]
+    [InlineData("connection", "set-account-settings", false)]
     [InlineData("range", "trace-precedents", true)]
     [InlineData("range", "trace-dependents", true)]
     [InlineData("window", "get-view", false)]

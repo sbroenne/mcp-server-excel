@@ -12,6 +12,32 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 public sealed class ConnectionAccountSettingsParsingTests
 {
     [Theory]
+    [InlineData(null, null, null)]
+    [InlineData("", null, null)]
+    [InlineData(" ", 0, null)]
+    [InlineData("fixture\0account", null, null)]
+    [InlineData("fixture-account", 999, null)]
+    [InlineData("fixture-account", null, 999)]
+    public void UpdateValidation_RejectsInvalidInputsWithoutEchoingAccount(
+        string? hint, int? interactive, int? identity)
+    {
+        var error = Assert.Throws<ArgumentException>(() =>
+            ConnectionCommands.ValidateAccountSettingsUpdate(hint,
+                interactive.HasValue ? (ConnectionInteractiveLogin)interactive.Value : null,
+                identity.HasValue ? (ConnectionIdentityMode)identity.Value : null));
+        Assert.DoesNotContain("fixture", error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData(0, 0)]
+    [InlineData(1, 1)]
+    [InlineData(2, 2)]
+    [InlineData(3, 3)]
+    public void UpdateValidation_AcceptsEveryExplicitMode(int interactive, int identity) =>
+        ConnectionCommands.ValidateAccountSettingsUpdate(
+            null, (ConnectionInteractiveLogin)interactive, (ConnectionIdentityMode)identity);
+
+    [Theory]
     [InlineData("Provider=MSOLAP")]
     [InlineData("OLEDB;Provider=MSOLAP.8")]
     [InlineData("oledb;provider=msolap.7")]

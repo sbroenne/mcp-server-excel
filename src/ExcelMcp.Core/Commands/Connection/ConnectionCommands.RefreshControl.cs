@@ -69,7 +69,7 @@ public partial class ConnectionCommands
         var state = batch is IExcelBatchRefreshState refreshState
             ? refreshState.GetRefreshState()
             : WorkbookRefreshState.Unknown;
-        if (state is WorkbookRefreshState.Busy or WorkbookRefreshState.Unknown)
+        if (state is not (WorkbookRefreshState.Ready or WorkbookRefreshState.Refreshing))
         {
             ExcelBusyException.ThrowIfNotReady(state, "inspect or cancel refresh");
         }

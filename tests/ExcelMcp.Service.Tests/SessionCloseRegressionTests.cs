@@ -16,6 +16,42 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed class SessionCloseRegressionTests
 {
     [Theory]
+    [InlineData("get-refresh-status", 2)]
+    [InlineData("get-refresh-status", 3)]
+    [InlineData("get-refresh-status", 4)]
+    [InlineData("cancel-refresh", 2)]
+    [InlineData("cancel-refresh", 3)]
+    [InlineData("cancel-refresh", 4)]
+    public async Task ConnectionRefreshControls_RejectUnavailableExcelBeforeQueuingCom(string action, int state)
+    {
+        using var service = new ExcelMcpService();
+        var batch = new FakeBatch
+        {
+            WorkbookPath = CreateFakeWorkbookPath(),
+            RefreshState = (WorkbookRefreshState)state
+        };
+        const string session = "refresh-controls-busy";
+        RegisterSession(service, session, batch, addKnownSessionId: true);
+        try
+        {
+            var response = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "connection." + action,
+                SessionId = session,
+                Args = """{"connectionName":"Selected"}"""
+            });
+            Assert.False(response.Success);
+            Assert.Equal("Busy", response.ErrorCategory);
+            Assert.Equal(0, batch.ExecuteCalls);
+            Assert.Same(batch, service.SessionManager.GetSession(session));
+        }
+        finally
+        {
+            batch.RefreshState = WorkbookRefreshState.Ready;
+        }
+    }
+
+    [Theory]
     [InlineData("get-account-settings", 1)]
     [InlineData("get-account-settings", 2)]
     [InlineData("get-account-settings", 3)]
@@ -24,6 +60,10 @@ public sealed class SessionCloseRegressionTests
     [InlineData("clear-account-hint", 2)]
     [InlineData("clear-account-hint", 3)]
     [InlineData("clear-account-hint", 4)]
+    [InlineData("set-account-settings", 1)]
+    [InlineData("set-account-settings", 2)]
+    [InlineData("set-account-settings", 3)]
+    [InlineData("set-account-settings", 4)]
     public async Task ConnectionAccountSettings_RejectsNonReadyExcelBeforeQueuingCom(string action, int state)
     {
         using var service = new ExcelMcpService();

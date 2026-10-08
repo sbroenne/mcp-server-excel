@@ -13,6 +13,16 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
 public sealed class ConnectionRefreshWaitTests
 {
     [Fact]
+    public void OlapCapability_DynamicNumericConnectionType_IsConverted()
+    {
+        dynamic connection = new System.Dynamic.ExpandoObject();
+        connection.Type = 2d;
+        var method = typeof(ConnectionCommands).GetMethod("IsOlapConnection", BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.NotNull(method);
+        Assert.False(Assert.IsType<bool>(method.Invoke(null, [(object)connection])));
+    }
+
+    [Fact]
     public void RefreshWait_CancelledBeforeIdleRead_DoesNotReturnSuccess()
     {
         using var cancelled = new CancellationTokenSource();

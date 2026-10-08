@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Xunit;
@@ -24,6 +25,7 @@ public sealed class SharePointWorkbookTests(ITestOutputHelper output)
         var sheetName = $"McpTest_{Guid.NewGuid():N}"[..30];
         const string marker = "SharePoint saved marker";
         string? session = null;
+        Exception? failure = null;
         try
         {
             session = await OpenAsync(url);
@@ -75,11 +77,27 @@ public sealed class SharePointWorkbookTests(ITestOutputHelper output)
             session = await OpenAsync(normalizedUrl);
             Assert.Equal(originalSheets, await ReadSheetNamesAsync(session));
         }
+        catch (Exception ex)
+        {
+            failure = ex;
+        }
         finally
         {
             if (session != null)
-                await CloseAsync(session, save: false);
+            {
+                try
+                {
+                    await CloseAsync(session, save: false);
+                }
+                catch (Exception cleanup)
+                {
+                    failure = failure == null ? cleanup :
+                        new AggregateException("SharePoint verification and session cleanup failed.", failure, cleanup);
+                }
+            }
         }
+        if (failure != null)
+            ExceptionDispatchInfo.Capture(failure).Throw();
     }
 
     private async Task<string> OpenAsync(string url)

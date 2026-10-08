@@ -17,6 +17,34 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Collection("Sequential")]
 public sealed class InProcessCliCommandTests
 {
+    [Fact]
+    public async Task ConnectionAccountSettings_SetMapsTypedInputsWithoutEchoingAccount()
+    {
+        const string result = """{"success":true,"changed":true,"accountHintPresent":true,"interactiveLogin":"Always","identityMode":"CurrentUser"}""";
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = result });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "connection", "set-account-settings", "--session", "account-session",
+                "--connection-name", "Sales", "--account-hint", "fixture-account",
+                "--interactive-login", "Always", "--identity-mode", "CurrentUser"],
+            CreateRuntime(factory, output, error));
+        Assert.Equal(0, exitCode);
+        var request = Assert.Single(factory.Requests);
+        Assert.Equal("connection.set-account-settings", request.Command);
+        Assert.Equal("account-session", request.SessionId);
+        using var args = JsonDocument.Parse(request.Args!);
+        Assert.Equal("Sales", args.RootElement.GetProperty("connectionName").GetString());
+        Assert.Equal("fixture-account", args.RootElement.GetProperty("accountHint").GetString());
+        Assert.Equal("Always", args.RootElement.GetProperty("interactiveLogin").GetString());
+        Assert.Equal("CurrentUser", args.RootElement.GetProperty("identityMode").GetString());
+        using var actual = JsonDocument.Parse(output.ToString());
+        Assert.True(actual.RootElement.GetProperty("changed").GetBoolean());
+        Assert.Equal("Always", actual.RootElement.GetProperty("interactiveLogin").GetString());
+        Assert.DoesNotContain("fixture-account", output.ToString(), StringComparison.Ordinal);
+        Assert.Empty(error.ToString());
+    }
+
     [Theory]
     [InlineData("get-account-settings", """{"success":true,"accountHintPresent":true,"passwordPresent":false,"impersonationPresent":false,"identityMode":"Connection"}""")]
     [InlineData("clear-account-hint", """{"success":true,"changed":true,"accountHintPresent":false}""")]

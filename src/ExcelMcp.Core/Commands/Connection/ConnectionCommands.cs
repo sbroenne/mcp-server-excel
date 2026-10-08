@@ -1,3 +1,4 @@
+using System.Data.Common;
 using System.Globalization;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
@@ -664,7 +665,7 @@ public partial class ConnectionCommands : IConnectionCommands
 
     private static bool IsOlapConnection(dynamic connection)
     {
-        int connectionType = connection.Type;
+        int connectionType = Convert.ToInt32(connection.Type, CultureInfo.InvariantCulture);
         if (connectionType != 1) return false;
 
         Excel.OLEDBConnection? oledb = null;
@@ -681,6 +682,43 @@ public partial class ConnectionCommands : IConnectionCommands
 
     private static void UpdateConnectionProperties(dynamic conn, ConnectionDefinition definition)
     {
+        int connType = Convert.ToInt32(conn.Type, CultureInfo.InvariantCulture);
+        if (connType == 1 && definition.BackgroundQuery.HasValue &&
+            !string.IsNullOrWhiteSpace(definition.ConnectionString))
+        {
+            string current;
+            Excel.OLEDBConnection? providerConnection = null;
+            try
+            {
+                providerConnection = conn.OLEDBConnection;
+                current = Convert.ToString(providerConnection.Connection, CultureInfo.InvariantCulture)
+                    ?? throw new InvalidOperationException("The OLEDB connection string could not be read.");
+            }
+            finally
+            {
+                ComUtilities.Release(ref providerConnection);
+            }
+            static DbConnectionStringBuilder Parse(string value)
+            {
+                value = value.Trim();
+                return new DbConnectionStringBuilder
+                {
+                    ConnectionString = value.StartsWith("OLEDB;", StringComparison.OrdinalIgnoreCase) ? value[6..] : value
+                };
+            }
+            var before = Parse(current);
+            var after = Parse(definition.ConnectionString);
+            before.TryGetValue("Provider", out var currentProvider);
+            after.TryGetValue("Provider", out var targetProvider);
+            if (!string.Equals(
+                Convert.ToString(currentProvider, CultureInfo.InvariantCulture),
+                Convert.ToString(targetProvider, CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException(
+                    "Change the OLEDB provider and backgroundQuery in separate calls. " +
+                    "No connection properties have been changed.", nameof(definition));
+            }
+        }
         bool isOlap = IsOlapConnection(conn);
         if (isOlap && definition.BackgroundQuery == true)
         {
@@ -696,8 +734,6 @@ public partial class ConnectionCommands : IConnectionCommands
             {
                 conn.Description = definition.Description;
             }
-
-            int connType = conn.Type;
 
             if (connType == 1) // OLEDB
             {

@@ -1922,6 +1922,13 @@ public class ConnectionAccountSettingsResult : ResultBase
     public string? IdentityMode { get; set; }
 }
 
+/// <summary>Safe result of updating explicitly supplied workbook account-hint or sign-in settings.</summary>
+public class ConnectionAccountSettingsUpdateResult : ConnectionAccountSettingsResult
+{
+    /// <summary>Whether any explicitly requested account-hint or sign-in setting changed.</summary>
+    public bool Changed { get; set; }
+}
+
 /// <summary>Result of removing workbook-scoped account hints, not cached sign-in credentials.</summary>
 public class ConnectionAccountHintClearResult : ResultBase
 {
