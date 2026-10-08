@@ -195,14 +195,14 @@ public partial class RangeCommands
 
     /// <inheritdoc />
     public OperationResult SetFormulas(IExcelBatch batch, string sheetName, string rangeAddress,
-        List<List<string>>? formulas = null, string? formulasFile = null,
+        List<List<object?>>? formulas = null, string? formulasFile = null,
         OverwritePolicy overwritePolicy = OverwritePolicy.RejectNonempty,
         FormulaReferenceStyle referenceStyle = FormulaReferenceStyle.A1)
     {
         ValidateOverwritePolicy(overwritePolicy);
         ValidateFormulaReferenceStyle(referenceStyle);
-        // Resolve formulas from inline parameter or file
-        var resolvedFormulas = ParameterTransforms.ResolveFormulasOrFile(formulas, formulasFile);
+        // Resolve cells from inline parameter or file; constants become invariant text Excel's Formula property parses
+        var resolvedFormulas = ParameterTransforms.ResolveFormulaCellsOrFile(formulas, formulasFile);
 
         var result = new OperationResult { FilePath = batch.WorkbookPath, Action = "set-formulas" };
 

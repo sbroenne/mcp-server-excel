@@ -26,7 +26,7 @@ public sealed partial class PersistentServiceRangeFormulaValidationTests
             [30]
         ]));
 
-        var formulas = new List<List<string>> {
+        var formulas = new List<List<object?>> {
             new() { "=SUM(A1:A3)" },
             new() { "=AVERAGE(A1:A3)" },
             new() { "=COUNT(A1:A3)" }
@@ -52,13 +52,34 @@ public sealed partial class PersistentServiceRangeFormulaValidationTests
 
     [Fact]
     [Trait("Feature", "Range")]
+    public void ValidateFormulas_WithConstantsAndFormulas_TreatsConstantsAsValid()
+    {
+        var batch = _fixture.BatchToken;
+        var sheetName = _fixture.CreateTestSheet(batch);
+
+        var result = _commands.ValidateFormulas(batch, sheetName, "A1:E1",
+            [["Label", 5.86, true, null, "=1+1"]]);
+
+        RequireSuccess(result);
+        Assert.True(result.IsValid);
+        Assert.Equal(5, result.FormulaCount);
+        Assert.Equal(5, result.ValidCount);
+        Assert.Equal(0, result.ErrorCount);
+        Assert.Null(result.Errors);
+        Assert.Equal(["Label", "5.86", "TRUE", "", "=1+1"], Assert.Single(result.Formulas));
+        var values = RequireSuccess(_commands.GetValues(batch, sheetName, "A1:E1"));
+        Assert.All(Assert.Single(values.Values), Assert.Null);
+    }
+
+    [Fact]
+    [Trait("Feature", "Range")]
     public void ValidateFormulas_WithUndefinedFunction_DetectsError()
     {
         // Arrange - use shared file
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        var formulas = new List<List<string>> {
+        var formulas = new List<List<object?>> {
             new() { "=GETVM3(4,16,\"region\")" }  // Missing XA2. namespace
         };
         RequireSuccess(_commands.SetValues(batch, sheetName, "B1", [["guard"]]));
@@ -91,7 +112,7 @@ public sealed partial class PersistentServiceRangeFormulaValidationTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        var formulas = new List<List<string>> {
+        var formulas = new List<List<object?>> {
             new() { "=GETAKS(2,4)" },     // Missing XA2.
             new() { "=XA2.GETVM3(4,16,\"region\")" }  // Correct
         };
@@ -122,7 +143,7 @@ public sealed partial class PersistentServiceRangeFormulaValidationTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        var formulas = new List<List<string>> {
+        var formulas = new List<List<object?>> {
             new() { "=SUM(UnknownSheet!A1:A10)" }
         };
         RequireSuccess(_commands.SetValues(batch, sheetName, "B1", [["guard"]]));
@@ -149,7 +170,7 @@ public sealed partial class PersistentServiceRangeFormulaValidationTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        var formulas = new List<List<string>> {
+        var formulas = new List<List<object?>> {
             new() { "=SUM(A1:A3" }  // Missing closing parenthesis
         };
         RequireSuccess(_commands.SetValues(batch, sheetName, "B1", [["guard"]]));
@@ -177,7 +198,7 @@ public sealed partial class PersistentServiceRangeFormulaValidationTests
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
 
-        var formulas = new List<List<string>> {
+        var formulas = new List<List<object?>> {
             new() { "" }  // Empty (no formula)
         };
         RequireSuccess(_commands.SetValues(batch, sheetName, "B1", [["guard"]]));
