@@ -81,7 +81,7 @@ public partial class PivotTableCommands
                     throw new InvalidOperationException($"Disconnect this PivotTable from slicer/timeline caches before changing its connection: {string.Join(", ", before.ConnectedSlicerCaches)}. Connected controls are not rebuilt.");
                 ct.ThrowIfCancellationRequested();
                 phase = "changing the connection";
-                pivot.ChangeConnection(target);
+                ExecuteConnectionChange(() => pivot.ChangeConnection(target), ct);
                 ComUtilities.Release(ref cache);
                 phase = "reading the changed connection";
                 cache = pivot.PivotCache();
@@ -92,6 +92,7 @@ public partial class PivotTableCommands
             }
             catch (COMException ex)
             {
+                ct.ThrowIfCancellationRequested();
                 throw new InvalidOperationException(
                     $"Excel failed while {phase}. The connection may have changed; inspect get-connection before retrying. No changes have been rolled back.", ex);
             }
@@ -105,6 +106,21 @@ public partial class PivotTableCommands
                 ComUtilities.Release(ref pivot);
             }
         }, timeoutCts.Token);
+    }
+
+    private static void ExecuteConnectionChange(Action changeConnection, CancellationToken ct)
+    {
+        ct.ThrowIfCancellationRequested();
+        OleMessageFilter.SetPendingCancellationToken(ct);
+        try
+        {
+            changeConnection();
+            ct.ThrowIfCancellationRequested();
+        }
+        finally
+        {
+            OleMessageFilter.ClearPendingCancellationToken();
+        }
     }
 
     private static Excel.PivotTable FindPivotOnSheet(Excel.Workbook book, string sheetName,

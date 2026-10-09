@@ -14,8 +14,10 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed class PersistentServicePivotConnectionTests(PersistentServiceWorkbookFixture fixture) :
     PersistentServiceWorkbookTestBase(fixture), IClassFixture<PersistentServiceWorkbookFixture>
 {
-    [Fact]
-    public async Task SetConnection_ExternalPivotUsesTargetAndPreservesLayoutAndOtherPivot()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SetConnection_ExternalPivotUsesTargetAndPreservesLayoutAndOtherPivot(bool useOdbc)
     {
         var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);
         var prefix = $"External_{Guid.NewGuid():N}";
@@ -28,8 +30,8 @@ public sealed class PersistentServicePivotConnectionTests(PersistentServiceWorkb
         Directory.CreateDirectory(targetDirectory);
         var targetFile = Path.Combine(targetDirectory, Path.GetFileName(oldFile));
         File.WriteAllText(targetFile, "Region,Sales\r\nNorth,15\r\nSouth,25\r\n");
-        CreateExternalConnection(oldConnection, oldFile);
-        CreateExternalConnection(targetConnection, targetFile);
+        CreateExternalConnection(oldConnection, oldFile, useOdbc);
+        CreateExternalConnection(targetConnection, targetFile, useOdbc);
         CreateExternalPivot(sheet, "A1", selected, oldConnection);
         CreateExternalPivot(sheet, "G1", other, oldConnection);
         var commands = _fixture.CreateCommands<IPersistentPivotTableCommands>();
@@ -84,6 +86,99 @@ public sealed class PersistentServicePivotConnectionTests(PersistentServiceWorkb
         var persistedData = _fixture.Send("pivottablecalc.get-data", new { pivotTableName = selected });
         Assert.Equal(data.Result, persistedData.Result);
         Assert.Equal("PivotStyleMedium9", RequireSuccess(commands.GetLayoutOptions(_fixture.BatchToken, selected)).StyleName);
+    }
+
+    [Theory]
+    [InlineData("different-type", "same OLEDB/ODBC type")]
+    [InlineData("text", "ordinary external connection")]
+    [InlineData("powerquery", "Power Query targets")]
+    [InlineData("olap", "existing OLAP mode")]
+    public async Task SetConnection_IncompatibleTargetPreservesConnectionAndData(string kind, string expectedError)
+    {
+        var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);
+        var prefix = $"Target_{Guid.NewGuid():N}";
+        var original = prefix + "_original";
+        var target = prefix + "_target";
+        var pivot = prefix + "_pivot";
+        var file = _fixture.CreateInputFile(".csv", "Region,Sales\r\nNorth,10\r\nSouth,20\r\n");
+        CreateExternalConnection(original, file);
+        CreateExternalPivot(sheet, "A1", pivot, original);
+        var commands = _fixture.CreateCommands<IPersistentPivotTableCommands>();
+        RequireSuccess(commands.AddRowField(_fixture.BatchToken, pivot, "Region"));
+        RequireSuccess(commands.AddValueField(_fixture.BatchToken, pivot, "Sales"));
+        if (kind == "different-type")
+            CreateExternalConnection(target, file, useOdbc: true);
+        else
+            CreateIncompatibleTarget(target, file, kind, sheet);
+
+        var before = _fixture.Send("pivottable.get-connection", new { sheetName = sheet, pivotTableName = pivot });
+        Assert.True(before.Success, before.ErrorMessage);
+        var beforeData = _fixture.Send("pivottablecalc.get-data", new { pivotTableName = pivot });
+        Assert.True(beforeData.Success, beforeData.ErrorMessage);
+        var failure = await _fixture.SendForFailureAsync("pivottable.set-connection",
+            new { sheetName = sheet, pivotTableName = pivot, connectionName = target });
+        Assert.False(failure.Success);
+        Assert.Contains(expectedError, failure.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        var after = _fixture.Send("pivottable.get-connection", new { sheetName = sheet, pivotTableName = pivot });
+        Assert.True(after.Success, after.ErrorMessage);
+        Assert.Equal(before.Result, after.Result);
+        var afterData = _fixture.Send("pivottablecalc.get-data", new { pivotTableName = pivot });
+        Assert.True(afterData.Success, afterData.ErrorMessage);
+        Assert.Equal(beforeData.Result, afterData.Result);
+    }
+
+    private void CreateIncompatibleTarget(string name, string file, string kind, string sheetName)
+    {
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Connections? connections = null;
+            Excel.WorkbookConnection? connection = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? destination = null;
+            Excel.QueryTables? queries = null;
+            Excel.QueryTable? query = null;
+            Excel.OLEDBConnection? oleDb = null;
+            try
+            {
+                connections = context.Book.Connections;
+                if (kind == "text")
+                {
+                    sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                    destination = sheet.Range["M1"];
+                    queries = sheet.QueryTables;
+                    query = queries.Add($"TEXT;{file}", destination);
+                    query.TextFileParseType = Excel.XlTextParsingType.xlDelimited;
+                    query.TextFileCommaDelimiter = true;
+                    Assert.True(query.Refresh(false));
+                    connection = query.WorkbookConnection;
+                    connection.Name = name;
+                    Assert.Equal(Excel.XlConnectionType.xlConnectionTypeTEXT, connection.Type);
+                }
+                else
+                {
+                    connection = connections.Add2(name, "Synthetic incompatible PivotTable target",
+                        kind == "powerquery"
+                            ? $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={name};Extended Properties=\"\""
+                            : "OLEDB;Provider=MSOLAP;Data Source=localhost;Initial Catalog=SyntheticCube;",
+                        kind == "powerquery" ? $"SELECT * FROM [{name}]" : "SyntheticCube",
+                        kind == "powerquery" ? Excel.XlCmdType.xlCmdSql : Excel.XlCmdType.xlCmdCube);
+                    Assert.Equal(Excel.XlConnectionType.xlConnectionTypeOLEDB, connection.Type);
+                    oleDb = connection.OLEDBConnection;
+                    Assert.Equal(kind == "olap", oleDb.OLAP);
+                }
+                Assert.Equal(name, connection.Name);
+            }
+            finally
+            {
+                ComUtilities.Release(ref oleDb);
+                ComUtilities.Release(ref connection);
+                ComUtilities.Release(ref query);
+                ComUtilities.Release(ref queries);
+                ComUtilities.Release(ref destination);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref connections);
+            }
+        });
     }
 
     [Theory]
@@ -202,25 +297,39 @@ public sealed class PersistentServicePivotConnectionTests(PersistentServiceWorkb
         Assert.Equal(name, result.RootElement.GetProperty("pivotTableName").GetString());
     }
 
-    private void CreateExternalConnection(string name, string file)
+    private void CreateExternalConnection(string name, string file, bool useOdbc = false)
     {
         _fixture.ExecuteRawVerification((context, _) =>
         {
             Excel.Connections? connections = null;
             Excel.WorkbookConnection? connection = null;
             Excel.OLEDBConnection? oleDb = null;
+            Excel.ODBCConnection? odbc = null;
             try
             {
                 connections = context.Book.Connections;
                 connection = connections.Add2(name, "Synthetic external PivotTable fixture",
-                    $"OLEDB;Provider=Microsoft.ACE.OLEDB.12.0;Data Source={Path.GetDirectoryName(file)};Extended Properties=\"Text;HDR=Yes;FMT=Delimited\";",
+                    useOdbc
+                        ? $"ODBC;Driver={{Microsoft Access Text Driver (*.txt, *.csv)}};DefaultDir={Path.GetDirectoryName(file)};"
+                        : $"OLEDB;Provider=Microsoft.ACE.OLEDB.12.0;Data Source={Path.GetDirectoryName(file)};Extended Properties=\"Text;HDR=Yes;FMT=Delimited\";",
                     $"SELECT Region, Sales FROM [{Path.GetFileName(file)}]", Excel.XlCmdType.xlCmdSql);
-                oleDb = connection.OLEDBConnection;
-                oleDb.BackgroundQuery = false;
+                Assert.Equal(useOdbc ? Excel.XlConnectionType.xlConnectionTypeODBC
+                    : Excel.XlConnectionType.xlConnectionTypeOLEDB, connection.Type);
+                if (useOdbc)
+                {
+                    odbc = connection.ODBCConnection;
+                    odbc.BackgroundQuery = false;
+                }
+                else
+                {
+                    oleDb = connection.OLEDBConnection;
+                    oleDb.BackgroundQuery = false;
+                }
                 Assert.Equal(name, connection.Name);
             }
             finally
             {
+                ComUtilities.Release(ref odbc);
                 ComUtilities.Release(ref oleDb);
                 ComUtilities.Release(ref connection);
                 ComUtilities.Release(ref connections);
