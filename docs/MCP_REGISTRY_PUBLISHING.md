@@ -84,7 +84,11 @@ The workflow:
 - Required runtimes come from the exact released source's launcher manifest,
   passed through `-NpmLauncherManifestPath`: x64 is required, and ARM64 is
   required when declared. Undeclared runtimes are not required
-- Polls up to 3 times with 10-minute intervals
+- The workflow passes `-Attempts 7`, keeping the validator's default
+  `-RetrySeconds 600`: seven attempts with six 10-minute waits provide a
+  60-minute propagation wait budget
+- The publication job has a 75-minute timeout, leaving time for metadata
+  requests, checkout, and registry publication beyond those waits
 - Decodes the NuGet README response as UTF-8 when NuGet returns
   `application/octet-stream`
 
