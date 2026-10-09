@@ -112,7 +112,7 @@ The release shares prepared inputs instead of repeating builds in each package j
 5. **create-release** → Prepares a draft, uploads and verifies all GitHub assets and checksums, then publishes it with prepared notes
 6. **publish** → Publishes npm and NuGet packages
 7. **publish-vscode** → Publishes the already verified VSIX independently
-8. **publish-mcp-registry** → Waits for matching npm/NuGet metadata and registers the release
+8. **publish-mcp-registry** → Waits for matching npm/NuGet metadata and registers the release. The workflow makes seven validation attempts with six 10-minute waits (60 minutes of propagation waiting), within a 75-minute publication-job timeout.
 9. **publish-plugins** → Calls the reusable publisher after GitHub assets exist, passing exact release identity and prepared plugins
 
 Registry propagation failures do not suppress plugin publication or GitHub assets.

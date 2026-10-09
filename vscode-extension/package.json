@@ -2,7 +2,7 @@
   "name": "excel-mcp",
   "displayName": "Excel MCP Server",
   "description": "Automate real Microsoft Excel from VS Code with GitHub Copilot. Refresh Power Query, calculate formulas, build PivotTables, and run DAX and VBA. Requires Windows and desktop Excel.",
-  "version": "2.3.7",
+  "version": "2.3.8",
   "publisher": "sbroenne",
   "icon": "icon.png",
   "repository": {
