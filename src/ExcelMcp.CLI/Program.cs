@@ -19,7 +19,7 @@ internal sealed class Program
 
     private static async Task<int> Main(string[] args)
     {
-        CliTelemetry.Initialize();
+        CliTelemetry.Enable();
         try
         {
             return await RunAsync(args);
