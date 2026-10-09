@@ -101,8 +101,46 @@ features do not cover provider-dependent Data Model behavior.
 Inspect the source, shared cache users, and connected controls before changing
 data or cache settings. A supported regular source replacement retains the
 same field schema and isolates the selected PivotTable; connected slicers and
-timelines must first be deliberately disconnected. External/model source
-replacement is not supported here.
+timelines must first be deliberately disconnected. `set-source` does not
+replace external or workbook Data Model sources.
+
+Use `get-connection` to inspect a PivotTable's connection and `set-connection`
+to request a native connection change for an external PivotTable.
+Select both the worksheet and PivotTable
+name: names can repeat on different worksheets. The target is an existing
+workbook connection with the same OLEDB/ODBC type and OLAP mode, and must expose
+compatible fields and measures. The action asks Excel to change the connection
+in place rather than recreating the PivotTable. Excel may reject OLAP
+connection changes even when the connection type and fields match; there is
+no cache-rebuilding fallback.
+
+```mcp
+pivottable_read(action: 'get-connection', workbook_session_id: sessionId, sheet_name: 'Summary', pivot_table_name: 'SalesPivot')
+pivottable(action: 'set-connection', workbook_session_id: sessionId, sheet_name: 'Summary', pivot_table_name: 'SalesPivot', connection_name: 'CurrentConnection')
+```
+
+```cli
+excelcli -q pivottable get-connection --session $sessionId --sheet Summary --pivot-table-name SalesPivot
+excelcli -q pivottable set-connection --session $sessionId --sheet Summary --pivot-table-name SalesPivot --connection-name CurrentConnection
+```
+
+The result reports the actual connection name and cache index, worksheet-qualified
+shared-cache users, and connected slicer/timeline caches. Cache indexes can change
+when Excel reorganizes caches; they are not permanent identifiers. Connection
+strings and account details are not returned.
+
+`set-connection` rejects shared caches and connected slicers/timelines rather
+than changing other summaries or rebuilding controls. Disconnect controls
+deliberately before changing their source. Worksheet-backed PivotTables, the
+workbook's internal Data Model, and Power Query connection targets are not
+converted by this action. Requesting the already-current connection is a no-op.
+
+Changing a connection does not delete the old one or explicitly refresh the
+PivotTable, although Excel may contact the provider during the change. Inspect
+the returned state, then refresh and read the data. Only delete an old connection
+after checking that no other PivotTables, worksheet queries, model tables, or
+formulas still use it. Excel does not rewrite connection names embedded in
+CUBE formulas or VBA.
 
 Shared-cache settings can affect other summaries and therefore restrict edits.
 After a failed write, inspect the actual state; do not assume rollback or

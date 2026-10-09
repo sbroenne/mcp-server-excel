@@ -22,8 +22,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// </summary>
 [ServiceCategory("PivotTable")]
 [McpTool("pivottable", Title = "PivotTable Operations", Destructive = true, Category = "analysis",
-    Description = "Create, refresh, delete, and change sources/cache options for PivotTables. Prefer refresh over delete+recreate to preserve field configs. REFRESH: Call after configuring fields with pivottable_field. CREATE: create-from-range, create-from-table, create-from-datamodel. TIMEOUT: 5 min for DataModel. SOURCE: set-source isolates worksheet-backed caches; connected slicers/timelines must first be disconnected. Shared cache options cannot change unrelated PivotTables. STYLING: Use pivottable_calc set-layout-options for native styles and preserveFormatting. Use pivottable_field for field management.")]
-[McpReadOnlyActions("list", "read", "get-source", "get-cache-options")]
+    Description = "Create, refresh, delete, and change sources/cache options for PivotTables. Prefer refresh over delete+recreate to preserve field configs. REFRESH: Call after configuring fields with pivottable_field. CREATE: create-from-range, create-from-table, create-from-datamodel. TIMEOUT: 5 min for DataModel. SOURCE: set-source isolates worksheet-backed caches; set-connection changes one external PivotTable to an existing workbook connection with a compatible field schema. Inspect the connection, shared cache users and connected controls before changing it. Connected slicers/timelines must first be disconnected; set-connection rejects shared caches and workbook Data Model conversion. Shared cache options cannot change unrelated PivotTables. STYLING: Use pivottable_calc set-layout-options for native styles and preserveFormatting. Use pivottable_field for field management.")]
+[McpReadOnlyActions("list", "read", "get-source", "get-cache-options", "get-connection")]
 public interface IPivotTableCommands
 {
     // === LIFECYCLE OPERATIONS ===
@@ -125,6 +125,23 @@ public interface IPivotTableCommands
     [ServiceAction("set-source")]
     PivotSourceResult SetSource(IExcelBatch batch, string pivotTableName, string sourceSheetName,
         string? sourceRangeAddress = null, string? tableName = null);
+
+    /// <summary>Reads the selected PivotTable's connection identity, cache, shared users and connected controls without returning a connection string.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="sheetName">Worksheet containing the PivotTable; required because names can repeat across worksheets.</param>
+    /// <param name="pivotTableName">Exact PivotTable name on sheetName.</param>
+    [ServiceAction("get-connection")]
+    PivotConnectionResult GetConnection(IExcelBatch batch, string sheetName, string pivotTableName);
+
+    /// <summary>Uses Excel's native ChangeConnection to redirect one external PivotTable to an existing OLEDB or ODBC connection without recreating it. The target must expose compatible fields/measures. Rejects worksheet/Data Model sources, shared caches and connected slicers/timelines before writes. Does not delete connections or explicitly refresh; Excel may contact the provider during the change. Inspect get-connection after a failure; changes are not rolled back.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="sheetName">Worksheet containing the PivotTable; required because names can repeat across worksheets.</param>
+    /// <param name="pivotTableName">Exact external PivotTable name on sheetName.</param>
+    /// <param name="connectionName">Existing workbook connection of the same type and OLAP mode, with compatible fields/measures.</param>
+    /// <param name="timeout">Optional cancellation timeout in whole seconds from 1 through 2147483; defaults to five minutes. The session operation timeout may be shorter.</param>
+    [ServiceAction("set-connection")]
+    PivotConnectionResult SetConnection(IExcelBatch batch, string sheetName, string pivotTableName,
+        string connectionName, TimeSpan? timeout = null);
 
     /// <summary>
     /// Gets refresh, retention, and source-data settings for a PivotTable and its PivotCache.
