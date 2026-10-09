@@ -445,8 +445,9 @@ dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Releas
 
 ExcelMcp uses Azure Application Insights for anonymous usage telemetry. The MCP
 Server uses WorkerService integration and also reports sanitized crashes; the CLI
-uses the base SDK for command telemetry. Telemetry is **opt-out** (enabled by
-default in release builds).
+sends command telemetry through OpenTelemetry and the Azure Monitor exporter
+(the Application Insights SDK supplies only its event and request data types).
+Telemetry is **opt-out** (enabled by default in release builds).
 
 ### **How It Works**
 
@@ -652,7 +653,8 @@ Runtime:
   Allowlisted telemetry construction
       │ (exception messages and stacks are omitted)
       ▼
-  TelemetryClient → ingestion privacy transform → Application Insights
+  TelemetryClient (MCP Server) or OpenTelemetry + Azure Monitor exporter (CLI)
+      → ingestion privacy transform → Application Insights
 ```
 
 ### **Files Overview**
@@ -662,7 +664,7 @@ Runtime:
 | `Telemetry/ExcelMcpTelemetry.cs` | Static helper for tracking events |
 | `ExcelMcp.CLI/Telemetry/CliTelemetry.cs` | CLI command telemetry and lifecycle |
 | `ExcelMcp.CLI/Telemetry/DeferredTelemetrySink.cs` | Creates the CLI telemetry sink in the background and bounds its shutdown |
-| `ExcelMcp.CLI/Telemetry/ApplicationInsightsTelemetrySink.cs` | CLI sink that owns the Application Insights client |
+| `ExcelMcp.CLI/Telemetry/OpenTelemetryTelemetrySink.cs` | CLI sink that owns the OpenTelemetry SDK and the Azure Monitor exporter |
 | `ExcelMcp.CLI/Telemetry/ICliTelemetrySink.cs` | Destination contract for CLI command telemetry |
 | `Telemetry/SensitiveDataRedactor.cs` | Redacts sensitive local diagnostic text |
 | Entry-point `Program.cs` files | Application Insights lifecycle configuration |

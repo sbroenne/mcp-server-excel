@@ -4,8 +4,8 @@ using Sbroenne.ExcelMcp.CLI.Infrastructure;
 namespace Sbroenne.ExcelMcp.CLI.Telemetry;
 
 /// <summary>
-/// Creates the real sink on a background task so the SDK's unavoidable start-up
-/// lookup overlaps the command's own work. A command that never tracks anything
+/// Creates the real sink on a background task so building the telemetry SDK
+/// overlaps the command's own work. A command that never tracks anything
 /// (help, version, the background service) never waits for it. The initialization
 /// timeout is one budget counted from <see cref="Start"/>, shared by every call.
 /// </summary>

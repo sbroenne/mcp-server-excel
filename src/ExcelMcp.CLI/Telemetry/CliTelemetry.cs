@@ -32,9 +32,19 @@ internal static class CliTelemetry
     private static readonly AsyncLocal<InvocationTelemetryState?> CurrentInvocationTelemetry = new();
     private static readonly string SessionId = Guid.NewGuid().ToString("N")[..8];
     private static readonly string UserId = GenerateAnonymousUserId();
+
+    /// <summary>
+    /// The role, instance and version reported with every record. The telemetry items
+    /// carry it in their context, and the sink sends it as resource attributes.
+    /// </summary>
+    internal static readonly TelemetryIdentity Identity = new(
+        RoleName: "ExcelMcp.CLI",
+        RoleInstance: $"instance-{UserId[..8]}",
+        Version: GetVersion());
+
     private static readonly DeferredTelemetrySink TelemetrySink = new(
         CreateTelemetrySink,
-        // Covers the SDK's own 2-second Azure VM metadata lookup with margin.
+        // Creating the SDK takes a few hundred milliseconds; this is a generous bound.
         initializationTimeout: TimeSpan.FromSeconds(5),
         // The budget the flush always had; it now also covers disposing the SDK.
         shutdownTimeout: TimeSpan.FromSeconds(2));
@@ -288,12 +298,12 @@ internal static class CliTelemetry
             ? null
             : TelemetryConfig.ConnectionString;
 
-    private static ApplicationInsightsTelemetrySink? CreateTelemetrySink()
+    private static OpenTelemetryTelemetrySink? CreateTelemetrySink()
     {
         var connectionString = GetConnectionString();
         return connectionString == null || !Volatile.Read(ref _enabled)
             ? null
-            : ApplicationInsightsTelemetrySink.Create(connectionString);
+            : OpenTelemetryTelemetrySink.Create(connectionString, Identity);
     }
 
     private static void TrackCommandInvocation(
@@ -432,9 +442,9 @@ internal static class CliTelemetry
     {
         telemetry.Context.User.Id ??= UserId;
         telemetry.Context.Session.Id ??= SessionId;
-        telemetry.Context.Cloud.RoleName ??= "ExcelMcp.CLI";
-        telemetry.Context.Cloud.RoleInstance = $"instance-{UserId[..8]}";
-        telemetry.Context.Component.Version = GetVersion();
+        telemetry.Context.Cloud.RoleName ??= Identity.RoleName;
+        telemetry.Context.Cloud.RoleInstance = Identity.RoleInstance;
+        telemetry.Context.Component.Version = Identity.Version;
     }
 
     private static string GetVersion() =>
