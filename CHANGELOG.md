@@ -11,6 +11,16 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.3.9] - 2026-10-09
+
+### Minor Changes
+
+- [#1088](https://github.com/sbroenne/mcp-server-excel/pull/1088) [`de1f950`](https://github.com/sbroenne/mcp-server-excel/commit/de1f950c335e9d9bd8f4ed9509fd2f5a96388367) Thanks [@sbroenne](https://github.com/sbroenne)! - Inspect the workbook connection of a PivotTable and request a native connection change for one external PivotTable through both the CLI and MCP. Select the worksheet and PivotTable name to avoid changing a similarly named table on another sheet. The operation keeps the existing PivotTable and leaves connection deletion and refresh as separate steps. Excel and the provider determine whether an OLAP connection change is supported.
+
+### Patch Changes
+
+- [#1086](https://github.com/sbroenne/mcp-server-excel/pull/1086) [`3803d7b`](https://github.com/sbroenne/mcp-server-excel/commit/3803d7bf3f64208a7b1deac6724b7ee7eb71f8b1) Thanks [@sbroenne](https://github.com/sbroenne)! - Allow more time for published packages to become available before updating the MCP Registry listing.
+
 ## [2.3.8] - 2026-10-08
 
 ### Minor Changes
