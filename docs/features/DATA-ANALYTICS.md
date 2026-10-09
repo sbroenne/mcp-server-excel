@@ -78,13 +78,13 @@ is a displayed query result, not a calculated table inside the model.
 
 ---
 
-## PivotTables (45 operations)
+## PivotTables (47 operations)
 
 - **Build summaries:** Create PivotTables from ranges, worksheet Tables, or the Data Model, then configure rows, columns, values, and filters.
 - **Choose calculations:** Set aggregation and Show Values As independently; use calculated fields for regular PivotTables or supported calculated members for model-backed ones.
 - **Explore data:** Filter, sort, group, expand or collapse supported items, and drill into regular PivotTable source rows.
 - **Control presentation:** Use Compact, Tabular, or Outline layouts, repeated labels, styles, subtotals, and grand totals.
-- **Maintain sources:** Inspect refresh/cache settings and shared users, or change a supported source without rebuilding unrelated PivotTables.
+- **Maintain sources:** Inspect refresh/cache settings and shared users, change a worksheet source, or request a native connection change for one external PivotTable without rebuilding it. Native connection changes depend on Excel and the provider.
 
 Regular and Data Model PivotTables have different capabilities. Native grouping,
 calculated filters, item expansion, and drill-through described here are

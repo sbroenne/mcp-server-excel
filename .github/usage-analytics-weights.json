@@ -271,11 +271,13 @@
         "delete": "medium",
         "drill-through": "heavy",
         "get-cache-options": "light",
+        "get-connection": "light",
         "get-source": "light",
         "list": "light",
         "read": "light",
         "refresh": "heavy",
         "set-cache-options": "medium",
+        "set-connection": "medium",
         "set-source": "heavy"
       }
     },

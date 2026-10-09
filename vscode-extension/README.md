@@ -54,7 +54,7 @@ exclusive access while automating it.
 
 ## Key Features
 
-Excel MCP Server (excel-mcp) provides **60 MCP tools across 31 feature areas, with 391 operations**:
+Excel MCP Server (excel-mcp) provides **60 MCP tools across 31 feature areas, with 393 operations**:
 
 - **Power Query & M code** - Import data, create and edit queries, refresh results, and choose load destinations.
 - **Power Pivot & DAX** - Build Data Models, create measures, and manage relationships.
@@ -64,7 +64,7 @@ Excel MCP Server (excel-mcp) provides **60 MCP tools across 31 feature areas, wi
 - **Python in Excel** - Write and run `=PY()` formulas using Excel's cloud Python engine.
 - **Watch Copilot work** - See Excel side by side with live status feedback.
 
-[See all 60 MCP tools and 391 operations](https://excelmcpserver.dev/features/).
+[See all 60 MCP tools and 393 operations](https://excelmcpserver.dev/features/).
 Tool workflows are tested with real AI assistants using
 [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering).
 
