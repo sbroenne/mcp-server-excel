@@ -103,6 +103,7 @@ public sealed class ExcelGroupExecution(string root, IProcessRunner runner)
                     DeadlineSeconds = 5400,
                     HangTimeout = "10m",
                     ListTests = options.ListTests,
+                    ReconcileCases = true,
                     Environment = new Dictionary<string, string> { ["EXCELMCP_CLI_PIPE"] = pipe }
                 });
             }

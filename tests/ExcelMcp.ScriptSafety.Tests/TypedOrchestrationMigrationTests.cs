@@ -93,14 +93,17 @@ public sealed class TypedOrchestrationMigrationTests
         var groups = File.ReadAllText(Path.Combine(root, "tools", "ExcelMcp.Build", "ExcelGroupExecution.cs"));
         var validation = File.ReadAllText(Path.Combine(root, "tools", "ExcelMcp.Build", "ValidationExecution.cs"));
         var policy = File.ReadAllText(Path.Combine(root, "tools", "ExcelMcp.Build", "ValidationPolicy.cs"));
-        Assert.Contains("ReconcileCases = true", groups, StringComparison.Ordinal);
-        Assert.Contains("reconcileCases: true", validation, StringComparison.Ordinal);
+        Assert.Equal(2, CountOccurrences(groups, "ReconcileCases = true"));
+        Assert.Equal(2, CountOccurrences(validation, "reconcileCases: true"));
         Assert.Contains("Stop-ExcelCliService.ps1", groups, StringComparison.Ordinal);
         Assert.Contains("Stop-ExcelCliService.ps1", validation, StringComparison.Ordinal);
         Assert.Contains("Stop-ExcelCliService", policy, StringComparison.Ordinal);
         Assert.DoesNotContain("Stop-ExcelMcpProcesses.ps1", groups, StringComparison.Ordinal);
         Assert.DoesNotContain("Stop-ExcelMcpProcesses.ps1", validation, StringComparison.Ordinal);
     }
+
+    private static int CountOccurrences(string source, string value) =>
+        (source.Length - source.Replace(value, "", StringComparison.Ordinal).Length) / value.Length;
 
     [Fact]
     public void FocusedGroupedBuild_KeepsOnlyItsOwningProject()

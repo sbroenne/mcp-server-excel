@@ -103,7 +103,7 @@ public sealed class ValidationExecution(string root, IProcessRunner runner)
             {
                 await _tests.RunAsync("ComInterop",
                     "RequiresExcel=true&RunType=OnDemand&FullyQualifiedName!~BeginBatch_RealIrmWorkbook&Locale!=ja-JP",
-                    Path.Combine(results, "Infrastructure"), excel: true, listOnly, pipe, deadlineSeconds);
+                    Path.Combine(results, "Infrastructure"), excel: true, listOnly, pipe, deadlineSeconds, reconcileCases: true);
             }
             if (plan.FullE2E && !listOnly)
             {
