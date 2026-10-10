@@ -1,4 +1,4 @@
-name: Sync Squad Labels
+name: '[Squad] Sync Labels'
 
 on:
   push:

@@ -1,4 +1,4 @@
-name: Excel Runner Validation
+name: '[Excel Runner] Validation'
 
 on:
   workflow_dispatch:

@@ -1,4 +1,4 @@
-name: Excel Runner Maintenance
+name: '[Excel Runner] Maintenance'
 
 on:
   schedule:

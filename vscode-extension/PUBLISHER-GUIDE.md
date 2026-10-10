@@ -102,7 +102,7 @@ This guide walks you through publishing your VS Code extension to the marketplac
 
 3. **Watch the workflow**:
    - Go to **Actions** tab in GitHub
-   - Watch the "Release All Components" workflow run
+   - Watch the "[Release] All Components" workflow run
    - It will:
      - Build all components (MCP Server, CLI, VS Code Extension, MCPB)
      - Publish to NuGet (MCP Server, CLI)

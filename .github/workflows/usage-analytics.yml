@@ -1,4 +1,4 @@
-name: Weekly Usage Analytics
+name: '[Analytics] Weekly Usage'
 
 on:
   schedule:

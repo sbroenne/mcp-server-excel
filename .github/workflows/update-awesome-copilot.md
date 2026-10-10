@@ -1,5 +1,5 @@
 ---
-name: Update Awesome Copilot
+name: "[Maintenance] Update Awesome Copilot"
 description: Compare actually listed Excel plugins and submit one guarded fork PR only for real content changes.
 on:
   workflow_dispatch:

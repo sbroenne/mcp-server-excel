@@ -10,7 +10,7 @@
 # All required acceptance stages remain local prerequisites and are
 # explicitly attested in the pull request testing checklist.
 
-name: CI Gate
+name: '[CI] Gate'
 
 on:
   pull_request:
