@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Build;
+using System.ComponentModel;
 using System.Text.Json;
 using Xunit;
 
@@ -58,6 +59,26 @@ public sealed class TypedOrchestrationMigrationTests
         }
         Assert.Equal(["Sbroenne.ExcelMcp.sln"], execution.BuildProjects(plan));
         Assert.Throws<InvalidOperationException>(() => execution.BuildProjects(plan, "Unknown"));
+    }
+
+    [Fact]
+    public async Task ExcelValidation_CleansUpAndPreservesUnexpectedPrimaryAndCleanupFailures()
+    {
+        if (!OperatingSystem.IsWindows()) { return; }
+        var plan = new ValidationPlan { Excel = true };
+        plan.ExcelSelections.Add(new ExcelSelection("CLI", "FullyQualifiedName~Example", "Acceptance"));
+        var runner = new CleanupFailureRunner();
+        var results = Path.Combine(Path.GetTempPath(), $"ExcelMcp.Cleanup.{Guid.NewGuid():N}");
+        try
+        {
+            var exception = await Assert.ThrowsAsync<AggregateException>(() =>
+                new ValidationExecution(TypedValidationPolicyTests.Root, runner).TestAsync(plan, null, results));
+            Assert.IsType<UnauthorizedAccessException>(exception.InnerExceptions[0]);
+            Assert.IsType<Win32Exception>(exception.InnerExceptions[1]);
+            Assert.Equal("pwsh", runner.CleanupExecutable);
+            Assert.Contains("Stop-ExcelMcpProcesses.ps1", string.Join(' ', runner.CleanupArguments), StringComparison.Ordinal);
+        }
+        finally { if (Directory.Exists(results)) { Directory.Delete(results, recursive: true); } }
     }
 
     [Fact]
@@ -136,6 +157,24 @@ public sealed class TypedOrchestrationMigrationTests
             throw new InvalidOperationException("Builds must check command results.");
     }
 
+    private sealed class CleanupFailureRunner : IProcessRunner
+    {
+        public string? CleanupExecutable { get; private set; }
+        public string[] CleanupArguments { get; private set; } = [];
+
+        public Task<ProcessResult> RunAsync(string executable, IEnumerable<string> arguments, TimeSpan deadline,
+            IReadOnlyDictionary<string, string>? environment = null, bool preserveGitContext = false) =>
+            throw new UnauthorizedAccessException("test host launch failure");
+
+        public Task<ProcessResult> CheckedAsync(string executable, IEnumerable<string> arguments, TimeSpan deadline,
+            IReadOnlyDictionary<string, string>? environment = null, bool preserveGitContext = false)
+        {
+            CleanupExecutable = executable;
+            CleanupArguments = arguments.ToArray();
+            throw new Win32Exception("owned cleanup launch failure");
+        }
+    }
+
     private sealed class InventoryRunner : IProcessRunner
     {
         public List<string> Owners { get; } = [];
@@ -158,7 +197,7 @@ public sealed class TypedOrchestrationMigrationTests
                 new("Mixed", "Mixed.Macro", "VBA", true, true, false)
             }));
             await File.WriteAllTextAsync(Path.Combine(Path.GetDirectoryName(path)!, $"{owner}-inventory.trx"),
-                """<TestRun><Results><UnitTestResult outcome="Passed"/></Results><ResultSummary outcome="Completed"><Counters total="1" passed="1" executed="1"/></ResultSummary></TestRun>""");
+                """<TestRun><Results><UnitTestResult outcome="Passed"/></Results><ResultSummary outcome="Completed"><Counters total="1" passed="1" executed="1" failed="0" notExecuted="0"/></ResultSummary></TestRun>""");
             return new ProcessResult(0, "fixture", "");
         }
         public Task<ProcessResult> CheckedAsync(string executable, IEnumerable<string> arguments, TimeSpan deadline,

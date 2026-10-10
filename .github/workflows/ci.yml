@@ -6,8 +6,8 @@
 #
 # `Docs Site` always reports and builds changed website inputs. `CI Gate` verifies that
 # change detection and all selected jobs succeeded. Main/manual runs are complete.
-# The Excel-dependent gates — the CLI workflow, stale-build graceful-save
-# acceptance, and MCP workflow scenarios — are intentionally NOT run here:
+# The Excel-dependent gates — the CLI workflow and MCP workflow scenarios —
+# are intentionally NOT run here:
 # GitHub-hosted `windows-latest` runners do not have Microsoft Excel installed.
 # Selected Excel behavior and affected acceptance stages remain local checks.
 
@@ -304,6 +304,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
       - name: Verify every selected result
         shell: pwsh
         env:

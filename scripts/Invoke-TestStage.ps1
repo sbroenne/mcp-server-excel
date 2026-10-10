@@ -16,13 +16,14 @@ function Invoke-TestStage {
         [ValidateRange(1, 28800)][int]$DeadlineSeconds = 1800,
         [string]$HangTimeout = '5m',
         [hashtable]$Environment = @{},
-        [switch]$ListTests
+        [switch]$ListTests,
+        [switch]$ReconcileCases
     )
     Invoke-ExcelMcpBuild -Arguments @('stage') -OptionsParameter '--stage-options' -Options @{
         Project = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Project)
         Filter = $Filter
         ResultsDirectory = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ResultsDirectory)
         Name = $Name; DeadlineSeconds = $DeadlineSeconds; HangTimeout = $HangTimeout
-        Environment = $Environment; ListTests = [bool]$ListTests
+        Environment = $Environment; ListTests = [bool]$ListTests; ReconcileCases = [bool]$ReconcileCases
     }
 }

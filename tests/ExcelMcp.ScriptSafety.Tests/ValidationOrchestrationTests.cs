@@ -32,6 +32,17 @@ public sealed class ValidationOrchestrationTests
             if (-not $adapter.Contains('Invoke-ExcelMcpBuild')) { throw 'Shared build execution was not wired.' }
             $executor = Get-Content .\tools\ExcelMcp.Build\ValidationExecution.cs -Raw
             if (-not $executor.Contains('--disable-build-servers')) { throw 'Preparatory build can retain a locking build server.' }
+            $gate = [regex]::Match($workflow, '(?s)  ci-gate:\r?\n(.*?)(?=\r?\n  [a-zA-Z0-9_-]+:\r?\n|$)').Groups[1].Value
+            if (-not $gate.Contains('actions/setup-dotnet') -or -not $gate.Contains('global-json-file: global.json')) {
+                throw 'CI completion runner does not set up the repository SDK.'
+            }
+            $stage = Get-Content .\scripts\Invoke-TestStage.ps1 -Raw
+            $e2e = Get-Content .\scripts\Test-E2E.ps1 -Raw
+            if (-not $stage.Contains('[switch]$ReconcileCases') -or
+                -not $stage.Contains('ReconcileCases = [bool]$ReconcileCases') -or
+                -not $e2e.Contains('Invoke-TestStage @parameters -ReconcileCases')) {
+                throw 'Acceptance case reconciliation is not wired through its supported entry point.'
+            }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
     }
@@ -193,7 +204,7 @@ public sealed class ValidationOrchestrationTests
             $file = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.Report.$([Guid]::NewGuid().ToString('N')).trx"
             try {
                 $results = '<UnitTestResult outcome="Passed"/>' * {{passed}}
-                '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results>' + $results + '</Results><ResultSummary outcome="{{outcome}}"><Counters total="{{total}}" passed="{{passed}}" executed="{{total}}"/></ResultSummary></TestRun>' |
+                '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results>' + $results + '</Results><ResultSummary outcome="{{outcome}}"><Counters total="{{total}}" passed="{{passed}}" executed="{{total}}" failed="0" notExecuted="0"/></ResultSummary></TestRun>' |
                     Set-Content -LiteralPath $file
                 Assert-TestReport -Path $file
             } finally { Remove-Item -LiteralPath $file }

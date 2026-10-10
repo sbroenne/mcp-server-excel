@@ -190,7 +190,7 @@ public sealed class TestSelectionTests
             Output.AppendLine(owner + " : " + filter);
             Directory.CreateDirectory(results);
             File.WriteAllText(Path.Combine(results, $"{owner}.trx"),
-                """<TestRun><Results><UnitTestResult outcome="Passed"/></Results><ResultSummary outcome="Completed"><Counters total="1" passed="1" executed="1"/></ResultSummary></TestRun>""");
+                """<TestRun><Results><UnitTestResult outcome="Passed"/></Results><ResultSummary outcome="Completed"><Counters total="1" passed="1" executed="1" failed="0" notExecuted="0"/></ResultSummary></TestRun>""");
             return Task.FromResult(new ProcessResult(fail ? 23 : 0, "fixture-stdout", "fixture-stderr"));
         }
 

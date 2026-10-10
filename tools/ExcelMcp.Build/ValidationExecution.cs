@@ -113,10 +113,10 @@ public sealed class ValidationExecution(string root, IProcessRunner runner)
                 Console.Error.WriteLine(result.Output);
             }
         }
-        catch (Exception primary) when (primary is InvalidOperationException or IOException or TimeoutException or ArgumentException or System.Xml.XmlException)
+        catch (Exception primary)
         {
             try { await CleanupAsync(); }
-            catch (Exception cleanup) when (cleanup is InvalidOperationException or IOException or TimeoutException)
+            catch (Exception cleanup)
             {
                 throw new AggregateException("Selected tests and owned cleanup failed.", primary, cleanup);
             }

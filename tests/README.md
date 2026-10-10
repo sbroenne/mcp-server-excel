@@ -547,12 +547,12 @@ use the shared changed-area policy, not complete E2E after every runtime edit.
 Run affected real-Excel
 groups separately, including when changing Excel-dependent tests.
 
-`Test-E2E.ps1` defaults to three sequential stages: independent executable CLI
-scenarios, the linked stale-build save/rebuild/reopen regression, and independent
+`Test-E2E.ps1` defaults to two sequential stages: independent executable CLI
+workflow scenarios, including save/reopen coverage, and independent
 real-protocol MCP scenarios. Each stage has a separate TRX report and a hard
 execution deadline. Empty selections, skipped tests, failures, and assembly
-cleanup failures fail the run. `-Stages Cli`, `-Stages Rebuild`, or `-Stages Mcp`
-is a focused run, not complete runtime acceptance. `Test-CliWorkflow.ps1` is a
+cleanup failures fail the run. `-Stages Cli` or `-Stages Mcp` is a focused run,
+not complete runtime acceptance. `Test-CliWorkflow.ps1` is a
 compatible wrapper for the CLI stage, including `-PipeName` and `-KeepFile`.
 The CLI stage includes independently selectable `CliNative*AcceptanceTests`
 for ranges, formatting, conditional rules, PivotTables, slicers, drawings,

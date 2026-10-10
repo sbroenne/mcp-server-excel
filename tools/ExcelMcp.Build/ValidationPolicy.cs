@@ -256,7 +256,7 @@ public sealed partial class ValidationPolicy(string root)
         else if (Matches(path, @"^scripts/(Test-E2E|Test-CliWorkflow|Test-CliApiCoverage|Stop-ExcelMcpProcesses)\.ps1$"))
         {
             plan.FullE2E = true;
-            AddClasses(plan, Catalog.ForOwner("CLI").Where(type => type.Name is "CliWorkflowAcceptanceTests" or "PreBuildGracefulSaveAcceptanceTests"), "Acceptance");
+            AddClasses(plan, Catalog.ForOwner("CLI").Where(type => type.Name == "CliWorkflowAcceptanceTests"), "Acceptance");
             AddClasses(plan, Catalog.ForOwner("McpServer").Where(type => type.Name == "McpServerSmokeTests"), "Acceptance");
             plan.Reasons.Add($"{path} -> affected acceptance/cleanup boundary");
         }
