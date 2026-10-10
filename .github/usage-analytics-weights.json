@@ -527,7 +527,12 @@
         "delete": "medium",
         "import": "medium",
         "list": "light",
+        "read": "light",
+        "replace-procedure": "medium",
+        "references": "light",
         "run": "heavy",
+        "search": "light",
+        "status": "light",
         "update": "medium",
         "view": "light"
       }

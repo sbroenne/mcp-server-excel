@@ -1,4 +1,6 @@
+using System.Text.Json;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 
@@ -215,6 +217,338 @@ End Sub";
         Assert.Contains("Updated", viewResult.Code);
         Assert.DoesNotContain("OriginalCode", viewResult.Code);
         AssertStoredCode(updatedCode, viewResult.Code);
+    }
+
+    [Fact]
+    public void ScriptCommands_ReadAndReplaceProcedure_PreservesOtherModuleSource()
+    {
+        const string moduleName = "ProcedureEditModule";
+        const string initialCode = """
+            Option Explicit
+
+            Public Function Target( _
+                ByVal value As String) As String
+                Target = value
+            End Function
+
+            Private Sub Retained()
+            End Sub
+            """;
+        const string replacementCode = """
+            Public Function Target( _
+                ByVal value As String) As String
+                Target = "changed-" & value
+            End Function
+            """;
+
+        var batch = _fixture.BatchToken;
+        Import(batch, moduleName, initialCode);
+
+        var listed = RequireSuccess(_scriptCommands.List(batch));
+        var info = Assert.Single(listed.Scripts, script => script.Name == moduleName);
+        var targetInfo = Assert.Single(info.ProcedureDetails, procedure => procedure.Name == "Target");
+        Assert.Equal("Function", targetInfo.Kind);
+        Assert.True(targetInfo.StartLine > 1);
+        Assert.True(targetInfo.LineCount >= 4);
+        Assert.Contains("Target", info.Procedures);
+
+        var procedureRead = RequireSuccess(_scriptCommands.Read(
+            batch,
+            moduleName,
+            "Target",
+            "Function",
+            null,
+            null));
+        Assert.Equal(targetInfo.StartLine, procedureRead.StartLine);
+        Assert.Equal(targetInfo.LineCount, procedureRead.TotalLineCount);
+        Assert.False(procedureRead.HasMore);
+        Assert.NotNull(procedureRead.SourceHash);
+        Assert.Contains("ByVal value As String", procedureRead.Code);
+
+        var lineRead = RequireSuccess(_scriptCommands.Read(
+            batch,
+            moduleName,
+            null,
+            null,
+            1,
+            2));
+        Assert.Equal(1, lineRead.StartLine);
+        Assert.Equal(2, lineRead.ReturnedLineCount);
+        Assert.Contains("Option Explicit", lineRead.Code);
+
+        var replacement = RequireSuccess(_scriptCommands.ReplaceProcedure(
+            batch,
+            moduleName,
+            "Target",
+            "Function",
+            procedureRead.SourceHash!,
+            replacementCode));
+        Assert.Equal("Target", replacement.ProcedureName);
+        Assert.Equal("Function", replacement.ProcedureKind);
+        Assert.NotEqual(procedureRead.SourceHash, replacement.SourceHash);
+        Assert.Contains("does not confirm", replacement.Message, StringComparison.OrdinalIgnoreCase);
+
+        var fullModule = RequireSuccess(_scriptCommands.View(batch, moduleName));
+        Assert.Contains("Option Explicit", fullModule.Code);
+        Assert.Contains("Private Sub Retained()", fullModule.Code);
+        Assert.Contains("changed-", fullModule.Code);
+        Assert.DoesNotContain("Target = value", fullModule.Code);
+
+        var updatedRead = RequireSuccess(_scriptCommands.Read(
+            batch,
+            moduleName,
+            "Target",
+            "Function",
+            null,
+            null));
+        Assert.Equal(replacement.SourceHash, updatedRead.SourceHash);
+    }
+
+    [Fact]
+    public void ScriptCommands_ReplaceProcedure_PreservesLeadingCommentsAndTrailingWhitespace()
+    {
+        const string moduleName = "CommentedProcedureModule";
+        const string original = "Option Explicit\n\n' Target documentation\nPublic Sub Target()\n    Debug.Print \"old\"\nEnd Sub\n\n' Keep this note\nPrivate Sub Retained()\nEnd Sub\n\n";
+        const string replacement = "Public Sub Target()\n    Debug.Print \"new\"\nEnd Sub";
+        var batch = _fixture.BatchToken;
+        Import(batch, moduleName, original);
+        var before = RequireSuccess(_scriptCommands.View(batch, moduleName)).Code;
+        var read = RequireSuccess(_scriptCommands.Read(batch, moduleName, "Target", "Sub", null, null));
+
+        RequireSuccess(_scriptCommands.ReplaceProcedure(
+            batch, moduleName, "Target", "Sub", read.SourceHash!, replacement));
+
+        var after = RequireSuccess(_scriptCommands.View(batch, moduleName)).Code;
+        Assert.Equal(before.Replace("\"old\"", "\"new\"", StringComparison.Ordinal), after);
+
+        var lastRead = RequireSuccess(_scriptCommands.Read(batch, moduleName, "Retained", "Sub", null, null));
+        RequireSuccess(_scriptCommands.ReplaceProcedure(
+            batch, moduleName, "Retained", "Sub", lastRead.SourceHash!,
+            "Private Sub Retained()\n    Debug.Print \"last\"\nEnd Sub"));
+        Assert.Equal(
+            after.Replace("Private Sub Retained()\r\nEnd Sub",
+                "Private Sub Retained()\r\n    Debug.Print \"last\"\r\nEnd Sub", StringComparison.Ordinal),
+            RequireSuccess(_scriptCommands.View(batch, moduleName)).Code);
+    }
+
+    [Fact]
+    public async Task ScriptCommands_ReplaceProcedure_RejectsStaleSourceWithoutChangingIt()
+    {
+        const string moduleName = "StaleProcedureModule";
+        const string original = "Public Sub UpdateMe()\nEnd Sub";
+        const string concurrentUpdate = "Public Sub UpdateMe()\n    Debug.Print \"newer\"\nEnd Sub";
+        const string attemptedUpdate = "Public Sub UpdateMe()\n    Debug.Print \"stale\"\nEnd Sub";
+
+        var batch = _fixture.BatchToken;
+        Import(batch, moduleName, original);
+        var oldRead = RequireSuccess(_scriptCommands.Read(
+            batch,
+            moduleName,
+            "UpdateMe",
+            "Sub",
+            null,
+            null));
+        RequireSuccess(_scriptCommands.Update(batch, moduleName, concurrentUpdate));
+
+        var response = await _fixture.SendForFailureAsync(
+            "vba.replace-procedure",
+            new
+            {
+                moduleName,
+                procedureName = "UpdateMe",
+                procedureKind = "Sub",
+                expectedSourceHash = oldRead.SourceHash,
+                vbaCode = attemptedUpdate
+            });
+        Assert.Equal(OperationFailureCategory.Conflict.ToString(), response.ErrorCategory);
+        AssertStoredCode(
+            concurrentUpdate,
+            RequireSuccess(_scriptCommands.Read(
+                batch,
+                moduleName,
+                "UpdateMe",
+                "Sub",
+                null,
+                null)).Code);
+    }
+
+    [Fact]
+    public async Task ScriptCommands_ReplaceProcedure_RejectsExtraProcedureWithoutChangingTarget()
+    {
+        const string moduleName = "InvalidProcedureModule";
+        const string original = "Public Sub KeepMe()\nEnd Sub";
+        const string invalidReplacement = "Public Sub KeepMe()\nEnd Sub\nPublic Sub Extra()\nEnd Sub";
+
+        var batch = _fixture.BatchToken;
+        Import(batch, moduleName, original);
+        var read = RequireSuccess(_scriptCommands.Read(batch, moduleName, "KeepMe", "Sub", null, null));
+
+        var response = await _fixture.SendForFailureAsync(
+            "vba.replace-procedure",
+            new
+            {
+                moduleName,
+                procedureName = "KeepMe",
+                procedureKind = "Sub",
+                expectedSourceHash = read.SourceHash,
+                vbaCode = invalidReplacement
+            });
+        Assert.Equal(OperationFailureCategory.InvalidInput.ToString(), response.ErrorCategory);
+        AssertStoredCode(
+            original,
+            RequireSuccess(_scriptCommands.Read(batch, moduleName, "KeepMe", "Sub", null, null)).Code);
+    }
+
+    [Fact]
+    public void ScriptCommands_ReadLongProcedure_ReturnsContinuationDetails()
+    {
+        const string moduleName = "LongProcedureModule";
+        string body = string.Join(
+            Environment.NewLine,
+            Enumerable.Range(1, 510).Select(line => $"    Debug.Print {line}"));
+        string code = $"Public Sub LongOne(){Environment.NewLine}{body}{Environment.NewLine}End Sub";
+
+        var batch = _fixture.BatchToken;
+        Import(batch, moduleName, code);
+
+        var firstPart = RequireSuccess(_scriptCommands.Read(batch, moduleName, "LongOne", "Sub", null, null));
+
+        Assert.Equal(500, firstPart.ReturnedLineCount);
+        Assert.True(firstPart.HasMore);
+        Assert.Equal(firstPart.StartLine + 500, firstPart.NextStartLine);
+
+        var secondPart = RequireSuccess(_scriptCommands.Read(
+            batch,
+            moduleName,
+            null,
+            null,
+            firstPart.NextStartLine,
+            500));
+
+        Assert.False(secondPart.HasMore);
+        Assert.True(secondPart.ReturnedLineCount > 0);
+        Assert.Contains("End Sub", secondPart.Code);
+    }
+
+    [Fact]
+    public void ScriptCommands_Search_ReturnsLimitedLocatedMatchesAndHonorsOptions()
+    {
+        const string moduleName = "SearchModule";
+        var batch = _fixture.BatchToken;
+        Import(batch, moduleName,
+            "Public Sub Target()\n    Debug.Print \"needle needle needles\"\n    Debug.Print \"NEEDLE\"\nEnd Sub");
+        Import(batch, "OtherSearchModule", "Public Sub Other()\n    Debug.Print \"needle\"\nEnd Sub");
+        var before = RequireSuccess(_scriptCommands.View(batch, moduleName)).Code;
+
+        var response = _fixture.Send("vba.search", new { searchText = "needle", maxMatches = 2 });
+        using var limited = JsonDocument.Parse(response.Result!);
+        Assert.True(limited.RootElement.GetProperty("hasMore").GetBoolean());
+        Assert.Equal(2, limited.RootElement.GetProperty("matches").GetArrayLength());
+        Assert.All(limited.RootElement.GetProperty("matches").EnumerateArray(), match =>
+        {
+            Assert.Contains(match.GetProperty("moduleName").GetString(), new[] { moduleName, "OtherSearchModule" });
+            Assert.Equal(2, match.GetProperty("line").GetInt32());
+            Assert.True(match.GetProperty("column").GetInt32() > 1);
+            Assert.Contains("needle", match.GetProperty("excerpt").GetString());
+        });
+
+        response = _fixture.Send("vba.search",
+            new { searchText = "needle", moduleName, wholeWord = true, matchCase = true });
+        using var exact = JsonDocument.Parse(response.Result!);
+        var matches = exact.RootElement.GetProperty("matches").EnumerateArray().ToArray();
+        Assert.Equal(2, matches.Length);
+        Assert.False(exact.RootElement.GetProperty("hasMore").GetBoolean());
+        Assert.All(matches, match => Assert.Equal(moduleName, match.GetProperty("moduleName").GetString()));
+        Assert.Equal(18, matches[0].GetProperty("column").GetInt32());
+        Assert.Equal(25, matches[1].GetProperty("column").GetInt32());
+
+        response = _fixture.Send("vba.search", new { searchText = "not-present", moduleName });
+        using var empty = JsonDocument.Parse(response.Result!);
+        Assert.Empty(empty.RootElement.GetProperty("matches").EnumerateArray());
+        Assert.False(empty.RootElement.GetProperty("hasMore").GetBoolean());
+        Assert.Equal(before, RequireSuccess(_scriptCommands.View(batch, moduleName)).Code);
+    }
+
+    [Theory]
+    [InlineData("", 50)]
+    [InlineData("needle", 0)]
+    [InlineData("needle", 101)]
+    [InlineData("two\nlines", 50)]
+    public async Task ScriptCommands_Search_RejectsInvalidLimitsAndText(string searchText, int maxMatches)
+    {
+        var response = await _fixture.SendForFailureAsync("vba.search", new { searchText, maxMatches });
+        Assert.Equal(OperationFailureCategory.InvalidInput.ToString(), response.ErrorCategory);
+    }
+
+    [Fact]
+    public async Task ScriptCommands_ReplacePropertyGet_PreservesLetAccessorAndComments()
+    {
+        const string moduleName = "PropertyProcedureModule";
+        const string code = "Option Explicit\nPrivate mValue As String\n\n' Getter documentation\nPublic Property Get Value() As String\n    Value = mValue\nEnd Property\n\n' Setter documentation\nPublic Property Let Value(ByVal newValue As String)\n    mValue = newValue\nEnd Property";
+        var batch = _fixture.BatchToken;
+        Import(batch, moduleName, code);
+        var before = RequireSuccess(_scriptCommands.View(batch, moduleName)).Code;
+        var read = RequireSuccess(_scriptCommands.Read(batch, moduleName, "Value", "Property Get", null, null));
+        var ambiguous = await _fixture.SendForFailureAsync("vba.read", new { moduleName, procedureName = "Value" });
+        Assert.Equal(OperationFailureCategory.InvalidInput.ToString(), ambiguous.ErrorCategory);
+
+        RequireSuccess(_scriptCommands.ReplaceProcedure(batch, moduleName, "Value", "Property Get", read.SourceHash!,
+            "Public Property Get Value() As String\n    Value = \"changed\"\nEnd Property"));
+        Assert.Equal(before.Replace("Value = mValue", "Value = \"changed\"", StringComparison.Ordinal),
+            RequireSuccess(_scriptCommands.View(batch, moduleName)).Code);
+        var details = Assert.Single(RequireSuccess(_scriptCommands.List(batch)).Scripts, script => script.Name == moduleName)
+            .ProcedureDetails;
+        Assert.Contains(details, procedure => procedure.Kind == "Property Get" && procedure.BodyStartLine > procedure.StartLine);
+        Assert.Contains(details, procedure => procedure.Kind == "Property Let");
+    }
+
+    [Fact]
+    public async Task ScriptCommands_Search_BoundsExcerptsAndReportsMissingModule()
+    {
+        const string moduleName = "LongSearchModule";
+        var batch = _fixture.BatchToken;
+        Import(batch, moduleName,
+            "Public Sub Target()\n    Debug.Print \"" + new string('x', 250) + "needle" + new string('y', 250) + "\"\nEnd Sub");
+        var response = _fixture.Send("vba.search", new { searchText = "needle", moduleName, maxMatches = 1 });
+        using var result = JsonDocument.Parse(response.Result!);
+        Assert.False(result.RootElement.GetProperty("hasMore").GetBoolean());
+        var match = Assert.Single(result.RootElement.GetProperty("matches").EnumerateArray());
+        Assert.Equal(200, match.GetProperty("excerpt").GetString()!.Length);
+        Assert.Contains("needle", match.GetProperty("excerpt").GetString());
+        Assert.Equal(268, match.GetProperty("column").GetInt32());
+        var missing = await _fixture.SendForFailureAsync("vba.search",
+            new { searchText = "needle", moduleName = "NoSuchModule" });
+        Assert.Equal(OperationFailureCategory.NotFound.ToString(), missing.ErrorCategory);
+    }
+
+    [Fact]
+    public void ScriptCommands_References_ReportsExcelAndVbaLibrariesWithoutChangingCode()
+    {
+        var response = _fixture.Send("vba.references", new { });
+        using var result = JsonDocument.Parse(response.Result!);
+        var references = result.RootElement.GetProperty("references").EnumerateArray().ToArray();
+        Assert.False(result.RootElement.GetProperty("hasBrokenReferences").GetBoolean());
+        Assert.Contains(references, reference => reference.GetProperty("name").GetString() == "Excel");
+        Assert.Contains(references, reference => reference.GetProperty("name").GetString() == "VBA");
+        Assert.All(references, reference =>
+        {
+            Assert.False(reference.GetProperty("isBroken").GetBoolean());
+            Assert.True(Guid.TryParse(reference.GetProperty("libraryId").GetString(), out _));
+            Assert.True(reference.GetProperty("major").GetInt32() >= 0);
+            Assert.True(reference.GetProperty("minor").GetInt32() >= 0);
+        });
+    }
+
+    [Fact]
+    public void ScriptCommands_Status_ReportsAccessibleUnlockedIdleProject()
+    {
+        var response = _fixture.Send("vba.status", new { });
+        using var result = JsonDocument.Parse(response.Result!);
+        Assert.True(result.RootElement.GetProperty("projectAccess").GetBoolean());
+        Assert.Equal("None", result.RootElement.GetProperty("protection").GetString());
+        Assert.Equal("Design", result.RootElement.GetProperty("mode").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(result.RootElement.GetProperty("projectName").GetString()));
+        Assert.False(result.RootElement.TryGetProperty("accessMessage", out _));
     }
 
     [Fact]
