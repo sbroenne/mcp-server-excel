@@ -88,7 +88,7 @@ git push origin --delete feature/your-feature-name
 
 1. **Ensure all changes are merged** to `main` via PRs
 
-2. Run **Release All Components** from GitHub Actions and select a semantic
+2. Run **[Release] All Components** from GitHub Actions and select a semantic
    version bump or custom version.
 3. The workflow compiles pending changesets, updates versions, builds and
    publishes all deliverables, creates the tag, and creates the GitHub release.

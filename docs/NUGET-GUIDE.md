@@ -170,7 +170,7 @@ MCP Server + CLI (released together via release.yml workflow_dispatch)
 
 Releases are triggered via the GitHub Actions UI, not by pushing package-specific tags:
 
-1. Go to **Actions → Release All Components → Run workflow**
+1. Go to **Actions → [Release] All Components → Run workflow**
 2. Select a version bump type (patch/minor/major) or enter a custom version
 3. Run the workflow — it builds, packs, and publishes both NuGet packages, creates the GitHub release, and tags the commit (e.g. `v1.2.2`)
 4. Monitor the run at https://github.com/sbroenne/mcp-server-excel/actions

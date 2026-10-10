@@ -4,7 +4,7 @@ on:
   issues:
     types: [assigned]
   workflow_run:
-    workflows: [Copilot cloud agent, Excel Runner Validation]
+    workflows: [Copilot cloud agent, '[Excel Runner] Validation']
     types: [requested, completed]
   schedule:
     - cron: '*/5 * * * *'
