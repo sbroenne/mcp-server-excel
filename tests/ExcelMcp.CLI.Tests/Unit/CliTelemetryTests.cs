@@ -493,4 +493,33 @@ public sealed class CliTelemetryTests
 
         Assert.False(tracked);
     }
+
+    [Theory]
+    [InlineData("--help")]
+    [InlineData("-h")]
+    [InlineData("--HELP")]
+    [InlineData("-H")]
+    [InlineData("sheet --help")]
+    [InlineData("--help sheet")]
+    [InlineData("range get-values --file book.xlsx -h")]
+    public void IsHelpRequest_HelpFlagAnywhere_ReturnsTrue(string commandLine)
+    {
+        Assert.True(CliTelemetry.IsHelpRequest(commandLine.Split(' ')));
+    }
+
+    [Theory]
+    [InlineData("diag ping")]
+    [InlineData("sheet list --file book.xlsx")]
+    [InlineData("service start")]
+    [InlineData("range get-values --helpful")]
+    public void IsHelpRequest_NoHelpFlag_ReturnsFalse(string commandLine)
+    {
+        Assert.False(CliTelemetry.IsHelpRequest(commandLine.Split(' ')));
+    }
+
+    [Fact]
+    public void IsHelpRequest_NoArguments_ReturnsFalse()
+    {
+        Assert.False(CliTelemetry.IsHelpRequest([]));
+    }
 }

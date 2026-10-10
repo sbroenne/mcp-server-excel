@@ -17,12 +17,20 @@ internal sealed class Program
         ["--input", "-i", "--values", "--formulas", "--formats", "--rows"],
         StringComparer.OrdinalIgnoreCase);
 
-    private static async Task<int> Main(string[] args)
+    private static Task<int> Main(string[] args) => RunEntryPointAsync(args);
+
+    /// <summary>
+    /// The process entry path: enables telemetry, runs the command, then flushes.
+    /// Tests call it directly so they cover the same routes as <c>Main</c>.
+    /// </summary>
+    internal static async Task<int> RunEntryPointAsync(
+        string[] args,
+        CliCommandRuntime? runtime = null)
     {
-        CliTelemetry.Initialize();
+        CliTelemetry.Enable();
         try
         {
-            return await RunAsync(args);
+            return await RunAsync(args, runtime);
         }
         finally
         {
@@ -80,7 +88,8 @@ internal sealed class Program
                     break;
                 }
             }
-            return RunServiceDaemon(pipeNameOverride);
+            var daemonRunner = CliCommandRuntime.Current.ServiceDaemonRunner ?? RunServiceDaemon;
+            return daemonRunner(pipeNameOverride);
         }
 
         if (showBanner) RenderHeader();
