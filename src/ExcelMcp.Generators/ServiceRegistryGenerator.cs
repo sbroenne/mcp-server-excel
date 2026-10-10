@@ -1160,12 +1160,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
     }
 
     private static bool IsRequiredParameter(ParameterInfo parameter)
-    {
-        return parameter.IsRequired ||
-               (!parameter.HasDefault &&
-                !parameter.TypeName.EndsWith("?") &&
-                !parameter.IsParams);
-    }
+        => parameter.RequiresValue;
 
     private static void GenerateArgsClass(StringBuilder sb, MethodInfo method)
     {
@@ -1198,107 +1193,10 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
     /// All other types are made nullable.
     /// </summary>
     private static string MakeArgsPropertyType(ParameterInfo p)
-    {
-        if (IsTimeSpanType(p.TypeName))
-            return "int?";
-
-        // Enums and FileOrValue inputs stay strings so service handlers can normalize them.
-        if (p.IsFromString || p.IsFileOrValue || p.IsEnum)
-            return "string?";
-
-        var typeName = p.TypeName;
-        if (typeName.EndsWith("?"))
-            return typeName;
-
-        return typeName + "?";
-    }
+        => p.ServiceTypeName;
 
     private static List<ExposedParameter> GetAllExposedParameters(ServiceInfo info)
-    {
-        var result = new Dictionary<string, ExposedParameter>(StringComparer.OrdinalIgnoreCase);
-
-        foreach (var method in info.Methods)
-        {
-            foreach (var p in method.Parameters)
-            {
-                var isRequired = IsRequiredParameter(p);
-
-                if (p.IsFileOrValue)
-                {
-                    // Add both value and file params - prefer non-empty descriptions
-                    if (!result.TryGetValue(p.Name, out var existing) ||
-                        (string.IsNullOrEmpty(existing.Description) && !string.IsNullOrEmpty(p.XmlDocDescription)))
-                    {
-                        var ep = new ExposedParameter(p.Name, "string?", p.XmlDocDescription, "null");
-                        if (result.TryGetValue(p.Name, out var prev))
-                            ep.RequiredByActions.AddRange(prev.RequiredByActions);
-                        result[p.Name] = ep;
-                    }
-                    if (isRequired)
-                        result[p.Name].RequiredByActions.Add(method.ActionName);
-                    if (!result[p.Name].ApplicableByActions.Contains(method.ActionName, StringComparer.OrdinalIgnoreCase))
-                        result[p.Name].ApplicableByActions.Add(method.ActionName);
-
-                    var fileParamName = $"{p.Name}{p.FileSuffix}";
-                    if (!result.TryGetValue(fileParamName, out var fileParameter))
-                    {
-                        fileParameter = new ExposedParameter(
-                            fileParamName,
-                            "string?",
-                            $"Path to a readable file containing {p.Name}; use instead of inline {p.Name}, not together",
-                            "null");
-                        result[fileParamName] = fileParameter;
-                    }
-                    if (!fileParameter.ApplicableByActions.Contains(method.ActionName, StringComparer.OrdinalIgnoreCase))
-                        fileParameter.ApplicableByActions.Add(method.ActionName);
-                }
-                else if (p.IsFromString && p.IsEnum)
-                {
-                    var exposedName = p.ExposedName ?? p.Name;
-                    if (!result.TryGetValue(exposedName, out var existing) ||
-                        (string.IsNullOrEmpty(existing.Description) && !string.IsNullOrEmpty(p.XmlDocDescription)))
-                    {
-                        var ep = new ExposedParameter(exposedName, "string?", p.XmlDocDescription, "null");
-                        if (result.TryGetValue(exposedName, out var prev))
-                            ep.RequiredByActions.AddRange(prev.RequiredByActions);
-                        result[exposedName] = ep;
-                    }
-                    if (isRequired)
-                        result[exposedName].RequiredByActions.Add(method.ActionName);
-                    if (!result[exposedName].ApplicableByActions.Contains(method.ActionName, StringComparer.OrdinalIgnoreCase))
-                        result[exposedName].ApplicableByActions.Add(method.ActionName);
-                }
-                else
-                {
-                    var exposedName = p.ExposedName ?? p.Name;
-                    if (!result.TryGetValue(exposedName, out var existing) ||
-                        (string.IsNullOrEmpty(existing.Description) && !string.IsNullOrEmpty(p.XmlDocDescription)))
-                    {
-                        var typeName = IsTimeSpanType(p.TypeName)
-                            ? "int?"
-                            : p.TypeName.EndsWith("?") ? p.TypeName : $"{p.TypeName}?";
-                        var ep = new ExposedParameter(exposedName, typeName, p.XmlDocDescription, "null");
-                        if (result.TryGetValue(exposedName, out var prev))
-                            ep.RequiredByActions.AddRange(prev.RequiredByActions);
-                        result[exposedName] = ep;
-                    }
-                    if (isRequired)
-                        result[exposedName].RequiredByActions.Add(method.ActionName);
-                    if (!result[exposedName].ApplicableByActions.Contains(method.ActionName, StringComparer.OrdinalIgnoreCase))
-                        result[exposedName].ApplicableByActions.Add(method.ActionName);
-                }
-            }
-        }
-
-        // Set total action count on all params
-        var totalActions = info.Methods.Count;
-        foreach (var ep in result.Values)
-        {
-            ep.TotalActionCount = totalActions;
-        }
-
-        return result.Values.ToList();
-    }
+        => ServiceInfoExtractor.GetAllExposedParameters(info);
 
     private static string BuildForwardArgs(MethodInfo method, List<ExposedParameter> allParams)
     {
@@ -1405,35 +1303,36 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("public static partial class ServiceRegistry");
         sb.AppendLine("{");
-        sb.AppendLine("    /// <summary>Validates supplied MCP names using the generated action contracts.</summary>");
-        sb.AppendLine("    public static void ValidateMcpActionParameters(string tool, string action, System.Collections.Generic.IEnumerable<string> names)");
+        sb.AppendLine("    /// <summary>Action input contracts, including specialized worksheet and screenshot handlers.</summary>");
+        sb.AppendLine("    public static (string Name, bool Required, bool AllowsEmpty)[] GetMcpActionParameters(string tool, string action)");
         sb.AppendLine("    {");
-        sb.AppendLine("        switch (tool)");
+        sb.AppendLine("        return (tool, action) switch");
         sb.AppendLine("        {");
-        foreach (var category in categories.OrderBy(c => c.McpToolName, StringComparer.Ordinal))
+        foreach (var category in categories)
         {
-            sb.AppendLine($"            case \"{category.McpToolName}\":");
-            foreach (var toolName in category.Methods
-                         .Select(method => method.McpTool)
-                         .Where(toolName => toolName != category.McpToolName)
-                         .Distinct(StringComparer.Ordinal)
-                         .OrderBy(toolName => toolName, StringComparer.Ordinal))
+            foreach (var method in category.Methods)
             {
-                sb.AppendLine($"            case \"{toolName}\":");
+                var parameters = ServiceInfoExtractor.GetAllExposedParameters(category)
+                    .Where(parameter => parameter.ApplicableByActions.Contains(method.ActionName))
+                    .Select(parameter =>
+                    {
+                        var original = method.Parameters.FirstOrDefault(p =>
+                            (p.ExposedName ?? p.Name) == parameter.Name);
+                        var required = original?.IsFileOrValue != true &&
+                            parameter.RequiredByActions.Contains(method.ActionName);
+                        return $"(\"{StringHelper.ToSnakeCase(parameter.Name)}\", {required.ToString().ToLowerInvariant()}, {(original?.AllowsEmptyString == true).ToString().ToLowerInvariant()})";
+                    }).ToList();
+                parameters.Insert(0, "(\"action\", true, false)");
+                if (!category.NoSession && method.HasBatchParameter)
+                    parameters.Insert(1, "(\"workbook_session_id\", true, false)");
+                var toolName = category.CategoryPascal == "Sheet"
+                    ? method.ActionName == "list" ? "worksheet_read" : "worksheet"
+                    : method.McpTool;
+                sb.AppendLine($"            (\"{toolName}\", \"{method.ActionName}\") => new (string, bool, bool)[] {{ {string.Join(", ", parameters)} }},");
             }
-            sb.AppendLine($"                {category.CategoryPascal}.ValidateActionParameters(action, names.Select(name => name switch");
-            sb.AppendLine("                {");
-            foreach (var parameter in ServiceInfoExtractor.GetAllExposedParameters(category))
-            {
-                var name = parameter.Name;
-                sb.AppendLine($"                    \"{StringHelper.ToSnakeCase(name)}\" => \"{parameter.Name}\",");
-            }
-            sb.AppendLine("                    _ => name");
-            sb.AppendLine("                }), allowFileParameters: true);");
-            sb.AppendLine("                return;");
         }
-        sb.AppendLine("            default: throw new System.ArgumentException($\"Unknown tool: {tool}\");");
-        sb.AppendLine("        }");
+        sb.AppendLine("            _ => throw new System.ArgumentException($\"Unknown contract: {tool}.{action}.\")");
+        sb.AppendLine("        };");
         sb.AppendLine("    }");
         sb.AppendLine();
         sb.AppendLine("    /// <summary>Validates a generated service command before transport dispatch.</summary>");

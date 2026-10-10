@@ -174,7 +174,7 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
         AssertFailureEnvelope(document.RootElement, "range_read.get-used-range",
             nameof(ArgumentException), expectedErrorCategory: "InvalidInput");
         var error = document.RootElement.GetProperty("errorMessage").GetString();
-        Assert.Contains("sheetName", error, StringComparison.Ordinal);
+        Assert.Contains("sheet_name", error, StringComparison.Ordinal);
         Assert.DoesNotContain("session", error, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -353,7 +353,7 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
         using var document = ParseJsonResult(json, $"worksheet.{action}");
         Assert.False(document.RootElement.GetProperty("success").GetBoolean());
         var error = document.RootElement.GetProperty("errorMessage").GetString();
-        Assert.Contains("sourceFile", error, StringComparison.Ordinal);
+        Assert.Contains("source_file", error, StringComparison.Ordinal);
         Assert.DoesNotContain("session", error, StringComparison.OrdinalIgnoreCase);
 
         var arguments = Arguments(action);

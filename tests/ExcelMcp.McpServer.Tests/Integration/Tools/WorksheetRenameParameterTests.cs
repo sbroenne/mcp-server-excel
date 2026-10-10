@@ -98,7 +98,7 @@ public sealed class WorksheetRenameParameterTests(
         using var result = JsonDocument.Parse(resultText);
         Assert.False(result.RootElement.GetProperty("success").GetBoolean());
         Assert.Contains(
-            "old_name is required for rename action",
+            "Parameter 'old_name' is required for worksheet.rename",
             result.RootElement.GetProperty("errorMessage").GetString(),
             StringComparison.Ordinal);
     }

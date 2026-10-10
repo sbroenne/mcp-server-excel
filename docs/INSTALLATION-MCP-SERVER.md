@@ -407,6 +407,15 @@ The npm version command above checks the npm-launched executable, not an
 existing server launched by a different installation. A restart does not upgrade
 an older binary MCPB or a standalone executable.
 
+After upgrading or restarting, reconnect the client and refresh its discovered
+tool definitions (`tools/list`). Parameter names, defaults, and available
+actions must come from the running server, not definitions cached from a
+previous connection. The standard MCP initialization response reports the
+running server version (`serverInfo.version`); use that version when reporting
+a rejected call. If the client still offers old inputs, use its tool-refresh
+control or start a fresh connection/session. ExcelMcp cannot force every client
+to discard its cached tool definitions.
+
 **Standalone exe:**
 
 1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
