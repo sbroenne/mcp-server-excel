@@ -407,15 +407,15 @@ public sealed partial class ValidationPolicy(string root)
         if (!path.EndsWith(".md", StringComparison.Ordinal) && path != "LICENSE") { return false; }
         if (Matches(path, @"^(skills/|\.github/plugins/|docs/AGENT-SKILLS\.md$|docs/reference/report-formatting\.md$|\.github/workflows/update-awesome-copilot\.md$)")) { return false; }
         if (Matches(path, @"(^|/)(AGENTS|CLAUDE)\.md$|^\.github/copilot-instructions\.md$")) { return true; }
-        var cli = Matches(path, @"^src/ExcelMcp\.CLI/README\.md$|^npm-packages/excelcli[^/]*/README\.md$|^README\.md$|^(CHANGELOG\.md|LICENSE)$");
-        var mcp = Matches(path, @"^src/ExcelMcp\.McpServer/README\.md$|^npm-packages/mcp-server-excel[^/]*/README\.md$|^README\.md$|^(CHANGELOG\.md|LICENSE)$");
+        var cli = Matches(path, @"^src/ExcelMcp\.CLI/README\.md$|^npm-packages/excelcli[^/]*/README\.md$|^(CHANGELOG\.md|LICENSE)$");
+        var mcp = Matches(path, @"^src/ExcelMcp\.McpServer/README\.md$|^npm-packages/mcp-server-excel[^/]*/README\.md$|^(CHANGELOG\.md|LICENSE)$");
         var extension = Matches(path, @"^vscode-extension/(README\.md|LICENSE|CHANGELOG\.md)$|^(CHANGELOG\.md|LICENSE)$");
         var mcpb = path is "LICENSE" or "CHANGELOG.md";
         plan.Cli |= cli;
         plan.Mcp |= mcp;
         plan.Extension |= extension;
         plan.Mcpb |= mcpb;
-        if (cli || mcp || extension || mcpb)
+        if ((cli || mcp || extension || mcpb) && !path.Equals("README.md", StringComparison.OrdinalIgnoreCase))
         {
             AddFeature(plan, "Packaging", ["Packaging"], "Distributed documentation");
         }
