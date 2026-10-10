@@ -1,0 +1,332 @@
+name: '[Squad] Triage'
+
+on:
+  issues:
+    types: [labeled]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  triage:
+    if: github.event.label.name == 'squad'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 #v4
+
+      - name: Triage issue via Lead agent
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b #v7
+        with:
+          script: |
+            const fs = require('fs');
+            const issue = context.payload.issue;
+
+            const teamFile = '.squad/team.md';
+            if (!fs.existsSync(teamFile)) {
+              core.warning('No .squad/team.md found — cannot triage');
+              return;
+            }
+
+            const content = fs.readFileSync(teamFile, 'utf8');
+            const lines = content.split('\n');
+
+            // Check if @copilot is on the team
+            const hasCopilot = content.includes('🤖 Coding Agent');
+            const copilotAutoAssign = content.includes('<!-- copilot-auto-assign: true -->');
+
+            // Parse @copilot capability profile
+            let goodFitKeywords = [];
+            let needsReviewKeywords = [];
+            let notSuitableKeywords = [];
+
+            if (hasCopilot) {
+              // Extract capability tiers from team.md
+              const goodFitMatch = content.match(/🟢\s*Good fit[^:]*:\s*(.+)/i);
+              const needsReviewMatch = content.match(/🟡\s*Needs review[^:]*:\s*(.+)/i);
+              const notSuitableMatch = content.match(/🔴\s*Not suitable[^:]*:\s*(.+)/i);
+
+              if (goodFitMatch) {
+                goodFitKeywords = goodFitMatch[1].toLowerCase().split(',').map(s => s.trim());
+              } else {
+                goodFitKeywords = ['bug fix', 'test coverage', 'lint', 'format', 'dependency update', 'small feature', 'scaffolding', 'doc fix', 'documentation'];
+              }
+              if (needsReviewMatch) {
+                needsReviewKeywords = needsReviewMatch[1].toLowerCase().split(',').map(s => s.trim());
+              } else {
+                needsReviewKeywords = ['medium feature', 'refactoring', 'api endpoint', 'migration'];
+              }
+              if (notSuitableMatch) {
+                notSuitableKeywords = notSuitableMatch[1].toLowerCase().split(',').map(s => s.trim());
+              } else {
+                notSuitableKeywords = ['architecture', 'system design', 'security', 'auth', 'encryption', 'performance'];
+              }
+            }
+
+            const members = [];
+            let inMembersTable = false;
+            for (const line of lines) {
+              if (line.match(/^##\s+(Members|Team Roster)/i)) {
+                inMembersTable = true;
+                continue;
+              }
+              if (inMembersTable && line.startsWith('## ')) {
+                break;
+              }
+              if (inMembersTable && line.startsWith('|') && !line.includes('---') && !line.includes('Name')) {
+                const cells = line.split('|').map(c => c.trim()).filter(Boolean);
+                if (cells.length >= 2 && cells[0] !== 'Scribe') {
+                  members.push({
+                    name: cells[0],
+                    role: cells[1]
+                  });
+                }
+              }
+            }
+
+            const routingFile = '.squad/routing.md';
+            let routingContent = '';
+            if (fs.existsSync(routingFile)) {
+              routingContent = fs.readFileSync(routingFile, 'utf8');
+            }
+
+            function findLead(teamMembers) {
+              const hasRoleToken = (member, token) => {
+                const roleWords = member.role.toLowerCase().match(/[a-z0-9]+/g) || [];
+                return roleWords.includes(token);
+              };
+              return teamMembers.find(member => hasRoleToken(member, 'lead')) ||
+                teamMembers.find(member => hasRoleToken(member, 'architect'));
+            }
+
+            function slugify(t) { return t.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+
+            function tableCells(line) {
+              const cells = line.trim().split('|');
+              if (cells[0] === '') cells.shift();
+              if (cells[cells.length - 1] === '') cells.pop();
+              return cells.map(cell => cell.trim());
+            }
+
+            function normalizeRouteDestination(value) {
+              return value
+                .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+                .replace(/[*_`]/g, '')
+                .replace(/\p{Extended_Pictographic}/gu, '')
+                .replace(/[\u200d\ufe0f]/g, '')
+                .trim()
+                .toLowerCase()
+                .replace(/\s+/g, ' ');
+            }
+
+            function routingRules(markdown, teamMembers) {
+              const routingLines = markdown.split('\n');
+              const rules = [];
+
+              for (let index = 0; index < routingLines.length; index++) {
+                const line = routingLines[index];
+                if (!line.trim().startsWith('|')) continue;
+
+                const headers = tableCells(line).map(cell => cell.toLowerCase());
+                const workTypeIndex = headers.indexOf('work type');
+                const routeIndex = headers.findIndex(header =>
+                  header === 'route to' ||
+                  header === 'agent' ||
+                  header === 'primary' ||
+                  header === 'primary agent'
+                );
+                const examplesIndex = headers.indexOf('examples');
+                if (workTypeIndex < 0 || routeIndex < 0) continue;
+
+                for (let rowIndex = index + 2; rowIndex < routingLines.length; rowIndex++) {
+                  const row = routingLines[rowIndex];
+                  if (!row.trim().startsWith('|')) break;
+                  const cells = tableCells(row);
+                  const workType = cells[workTypeIndex] || '';
+                  const routeCell = cells[routeIndex] || '';
+                  const examples = examplesIndex >= 0 ? (cells[examplesIndex] || '') : '';
+                  if (!workType || !routeCell) continue;
+
+                  const destinationName = normalizeRouteDestination(routeCell);
+                  const member = teamMembers.find(candidate =>
+                    normalizeRouteDestination(candidate.name) === destinationName
+                  );
+                  if (member) rules.push({ member, workType, examples });
+                }
+                break;
+              }
+
+              return rules;
+            }
+
+            function routeScore(issueText, rule) {
+              const genericWorkTypeTokens = new Set([
+                'agent', 'engineer', 'engineering', 'management', 'owner',
+                'specialist', 'system', 'work',
+              ]);
+
+              function tokens(value) {
+                return value.toLowerCase().match(/[a-z0-9]+(?:[+#.][a-z0-9+#.]*)?(?<!\.)/g) || [];
+              }
+
+              function containsPhrase(haystack, needle) {
+                if (needle.length === 0 || needle.length > haystack.length) return false;
+                return haystack.some((_, index) =>
+                  needle.every((token, offset) => haystack[index + offset] === token)
+                );
+              }
+
+              const issueTokens = tokens(issueText);
+              const workTypeTokens = tokens(rule.workType)
+                .filter(token => !genericWorkTypeTokens.has(token));
+              const rawPhrases = [rule.workType, ...workTypeTokens, ...rule.examples.split(/[,;]+/)]
+                .flatMap(phrase => phrase.includes('/') ? [phrase, ...phrase.split('/')] : [phrase]);
+
+              return rawPhrases.reduce((best, phrase) => {
+                const phraseTokens = tokens(phrase);
+                if (!containsPhrase(issueTokens, phraseTokens)) return best;
+                const specificity = phraseTokens.length * 100;
+                return Math.max(best, specificity);
+              }, 0);
+            }
+
+            function selectRoutingAssignment(issueText, routingContent, teamMembers, lead) {
+              const scoredRoutes = routingRules(routingContent, teamMembers)
+                .map(rule => ({ rule, score: routeScore(issueText, rule) }))
+                .filter(candidate => candidate.score > 0)
+                .sort((left, right) => right.score - left.score);
+
+              if (scoredRoutes.length === 0) {
+                return { member: lead, workType: null };
+              }
+
+              const bestScore = scoredRoutes[0].score;
+              const bestRoutes = scoredRoutes.filter(candidate => candidate.score === bestScore);
+              const bestMembers = new Set(bestRoutes.map(candidate =>
+                normalizeRouteDestination(candidate.rule.member.name)
+              ));
+              if (bestMembers.size !== 1) {
+                return { member: lead, workType: null };
+              }
+
+              const best = bestRoutes[0];
+              return { member: best.rule.member, workType: best.rule.workType };
+            }
+
+            const lead = findLead(members);
+            if (!lead) {
+              core.warning('No Lead role found in team roster — cannot triage');
+              return;
+            }
+
+            // Build triage context
+            const memberList = members.map(m =>
+              `- **${m.name}** (${m.role}) → label: \`squad:${slugify(m.name)}\``
+            ).join('\n');
+
+            // Determine best assignee based on issue content and routing
+            const issueText = `${issue.title}\n${issue.body || ''}`.toLowerCase();
+
+            let assignedMember = null;
+            let triageReason = '';
+            let copilotTier = null;
+
+            // First, evaluate @copilot fit if enabled
+            if (hasCopilot) {
+              const isNotSuitable = notSuitableKeywords.some(kw => issueText.includes(kw));
+              const isGoodFit = !isNotSuitable && goodFitKeywords.some(kw => issueText.includes(kw));
+              const isNeedsReview = !isNotSuitable && !isGoodFit && needsReviewKeywords.some(kw => issueText.includes(kw));
+
+              if (isGoodFit) {
+                copilotTier = 'good-fit';
+                assignedMember = { name: '@copilot', role: 'Coding Agent' };
+                triageReason = '🟢 Good fit for @copilot — matches capability profile';
+              } else if (isNeedsReview) {
+                copilotTier = 'needs-review';
+                assignedMember = { name: '@copilot', role: 'Coding Agent' };
+                triageReason = '🟡 Routing to @copilot (needs review) — a squad member should review the PR';
+              } else if (isNotSuitable) {
+                copilotTier = 'not-suitable';
+                // Fall through to normal routing
+              }
+            }
+
+            // If not routed to @copilot, score the repository's current routing table.
+            if (!assignedMember) {
+              const assignment = selectRoutingAssignment(issueText, routingContent, members, lead);
+              assignedMember = assignment.member;
+              triageReason = assignment.workType
+                ? `Matched routing rule "${assignment.workType}"`
+                : 'No specific domain match — assigned to Lead for further analysis';
+            }
+
+            const isCopilot = assignedMember.name === '@copilot';
+            const assignLabel = isCopilot ? 'squad:copilot' : `squad:${slugify(assignedMember.name)}`;
+
+            // Add the member-specific label
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: [assignLabel]
+            });
+
+            // Apply default triage verdict
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              labels: ['go:needs-research']
+            });
+
+            // Auto-assign @copilot if enabled
+            if (isCopilot && copilotAutoAssign) {
+              try {
+                await github.rest.issues.addAssignees({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  assignees: ['copilot']
+                });
+              } catch (err) {
+                core.warning(`Could not auto-assign @copilot: ${err.message}`);
+              }
+            }
+
+            // Build copilot evaluation note
+            let copilotNote = '';
+            if (hasCopilot && !isCopilot) {
+              if (copilotTier === 'not-suitable') {
+                copilotNote = `\n\n**@copilot evaluation:** 🔴 Not suitable — issue involves work outside the coding agent's capability profile.`;
+              } else {
+                copilotNote = `\n\n**@copilot evaluation:** No strong capability match — routed to squad member.`;
+              }
+            }
+
+            // Post triage comment
+            const comment = [
+              `### 🏗️ Squad Triage — ${lead.name} (${lead.role})`,
+              '',
+              `**Issue:** #${issue.number} — ${issue.title}`,
+              `**Assigned to:** ${assignedMember.name} (${assignedMember.role})`,
+              `**Reason:** ${triageReason}`,
+              copilotTier === 'needs-review' ? `\n⚠️ **PR review recommended** — a squad member should review @copilot's work on this one.` : '',
+              copilotNote,
+              '',
+              `---`,
+              '',
+              `**Team roster:**`,
+              memberList,
+              hasCopilot ? `- **@copilot** (Coding Agent) → label: \`squad:copilot\`` : '',
+              '',
+              `> To reassign, remove the current \`squad:*\` label and add the correct one.`,
+            ].filter(Boolean).join('\n');
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: comment
+            });
+
+            core.info(`Triaged issue #${issue.number} → ${assignedMember.name} (${assignLabel})`);

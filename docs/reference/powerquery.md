@@ -68,15 +68,24 @@ named connections as a shortcut.
 
 ### Staging queries and batch refresh
 
-`refresh-all` attempts every stored query. A definition-only staging query has
-no independently refreshable connection or table, so it makes the action fail.
-This is not a transaction: other loaded queries may already have refreshed.
-Engine errors are also reported, not skipped or converted into success.
+`refresh-all` refreshes every loaded query in the workbook. Parameter queries
+and definition-only staging queries have no connection or table of their own,
+so they are skipped and listed in `skippedQueries`; Excel evaluates them when
+the loaded queries that use them refresh. Do not load a staging query onto a
+sheet or into the model merely to make batch refresh pass.
 
-Inspect `get-load-config` to identify loaded destinations. Refresh each intended
-loaded query by name; Excel evaluates its referenced staging definitions as part
-of that refresh. Refresh dependent PivotTables separately afterward. Do not load
-a staging query onto a sheet or into the model merely to make batch refresh pass.
+When one query fails, `refresh-all` records it in `failedQueries` (with its
+error message and category) and keeps refreshing the rest. The result then has
+`success: false`, and the CLI exits with code 1. When every failed query has the
+same category, the result's top-level `errorCategory` repeats it. This is not a
+transaction:
+queries listed in `refreshedQueries` keep their new data. Engine errors are
+reported, not hidden or converted into success. A timeout, cancellation (by the
+caller or by Excel), or lost Excel connection stops the whole run instead.
+
+To refresh only selected queries, inspect `get-load-config` to identify loaded
+destinations and refresh each intended loaded query by name. Refresh dependent
+PivotTables separately afterward.
 
 For a staging definition used by the already-loaded `Financials` query:
 

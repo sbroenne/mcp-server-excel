@@ -11,6 +11,7 @@ public partial class ConnectionCommands
     /// <inheritdoc />
     public RefreshStatusResult GetRefreshStatus(IExcelBatch batch, string connectionName)
     {
+        ValidateRefreshControlReadiness(batch);
         return batch.Execute((ctx, ct) =>
         {
             Excel.WorkbookConnection? connection = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
@@ -40,6 +41,7 @@ public partial class ConnectionCommands
     /// <inheritdoc />
     public RefreshCancellationResult CancelRefresh(IExcelBatch batch, string connectionName)
     {
+        ValidateRefreshControlReadiness(batch);
         return batch.Execute((ctx, ct) =>
         {
             Excel.WorkbookConnection? connection = PowerQueryHelpers.FindConnectionByExactName(ctx.Book, connectionName);
@@ -57,6 +59,20 @@ public partial class ConnectionCommands
                 ComUtilities.Release(ref connection);
             }
         });
+    }
+
+    /// <summary>
+    /// Rejects inaccessible refresh controls before Service workbook-access checks can queue behind a query.
+    /// </summary>
+    public static void ValidateRefreshControlReadiness(IExcelBatch batch)
+    {
+        var state = batch is IExcelBatchRefreshState refreshState
+            ? refreshState.GetRefreshState()
+            : WorkbookRefreshState.Unknown;
+        if (state is not (WorkbookRefreshState.Ready or WorkbookRefreshState.Refreshing))
+        {
+            ExcelBusyException.ThrowIfNotReady(state, "inspect or cancel refresh");
+        }
     }
 
     private static (bool Supported, bool Refreshing) ReadRefreshStatus(Excel.WorkbookConnection connection)

@@ -36,7 +36,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 ///
 /// NUMBER FORMATS: Use US locale format codes (e.g., '#,##0.00', 'mm/dd/yyyy', '0.00%').
 /// </summary>
-[ServiceCategory("range", "Range")]
+[ServiceCategory("Range")]
 [McpTool("range", Title = "Range Operations", Destructive = true, Category = "data",
     Description = "Write values and formulas, set number formats, copy ranges, and clear content or formatting. set-formulas accepts reference_style='a1' (default) or 'r1c1'; range addresses stay A1. Relative R1C1 references use each destination cell. " +
         "copy: Required paste_kind (all/values/formulas/formats/validation); transpose and skip_blanks default false. Formats/validation preserve content and need no overwrite permission. Formats include number formats, protection, and applicable conditional rules. All kinds require unmerged rectangular sources/destinations and a single-cell anchor or dimensions that are whole multiples of the source's paste dimensions, including transpose. Uses Excel's clipboard and clears owned copy mode on exit. " +
@@ -44,7 +44,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
         "CLEAR ACTIONS HAVE NO TOOL-LEVEL UNDO: clear-all removes values, formulas, and formats; clear-contents removes values/formulas; clear-formats removes formats. Check the intended target before clearing. Use range_edit for insert/delete/find/sort/fill/auto-fill/create-series. Use range_format for styling/validation. Use range_link for hyperlinks/protection. " +
         "Value/formula writes attempt to restore the prior calculation mode; restoration can fail without failing the write. Verify the mode when subsequent work depends on it; manual mode needs explicit calculation. Use calculation_mode for recalculation. " +
         "EXCEL TABLES: If user asks to 'format as table', 'create a table', 'put data in an Excel Table' — do NOT try to use range for this. Use table(action:'create') on the data range to create a proper Excel Table with filter arrows, banded rows, and automatic expansion. " +
-        "DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Strict ISO dates such as '2025-01-15' are stored as native Excel dates; prefix an ISO-looking value with an apostrophe when it must remain text. " +
+        "DATA FORMAT: 2D JSON arrays [[row1col1,row1col2],[row2col1,row2col2]]. Strict ISO dates such as '2025-01-15' are stored as native Excel dates; prefix an ISO-looking value with an apostrophe when it must remain text. In set-values, strings starting with '=' are written as formulas and every other cell keeps its value; prefix text with an apostrophe (\"'=\") when it must stay text. " +
         "MERGED CELLS: Writes that intersect merged cells fail unless the target is only the merged range's top-left cell; the error identifies affected merged ranges. " +
         "FILE INPUT: For set-values/set-formulas, provide EITHER inline values/formulas OR a valuesFile/formulasFile path to a .json or .csv file. Prefer file input for large datasets. Use clear-contents (not clear-all) to preserve formatting. NAMED RANGES: Use sheetName='' and rangeAddress=namedRangeName.")]
 [McpReadOnlyActions("get-values", "get-formulas", "get-spill-info", "validate-formulas", "get-number-formats",
@@ -106,6 +106,8 @@ public interface IRangeCommands
     /// Writes that intersect merged cells fail unless the target is only the merged range's top-left cell.
     /// Strict ISO dates such as "2025-01-15" are stored as native Excel dates.
     /// Prefix an ISO-looking value with an apostrophe to preserve it as text.
+    /// Strings starting with "=" are written as formulas; all other cells in the same write keep their values.
+    /// Prefix with an apostrophe ("'=") to store such a string as text.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range - REQUIRED for cell addresses, use empty string for named ranges only</param>
@@ -160,13 +162,13 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address matching formulas dimensions (e.g., 'A1:B2' for 2x2 formula array)</param>
-    /// <param name="formulas">2D array of formulas to set - include '=' prefix (e.g., [['=A1+B1', '=SUM(A:A)'], ['=C1*2', '=AVERAGE(B:B)']]). Optional if formulasFile is provided.</param>
-    /// <param name="formulasFile">Path to a JSON file containing the formulas as a 2D array. Alternative to inline formulas parameter.</param>
+    /// <param name="formulas">2D array of cells to set. Formulas need the '=' prefix (e.g., [['=A1+B1', '=SUM(A:A)'], ['=C1*2', '=AVERAGE(B:B)']]). Cells may also be text, numbers, true/false, or null (empty cell), so labels and constants can sit beside formulas (e.g., [['Label', 5.86, true, null, '=1+1']]). Optional if formulasFile is provided.</param>
+    /// <param name="formulasFile">Path to a JSON file containing the cells as a 2D array, with the same cell kinds as formulas. Alternative to inline formulas parameter.</param>
     /// <param name="overwritePolicy">reject-nonempty (default) rejects existing content before writing, including formulas displaying blank. allow permits authorized replacement. Checks cover direct destinations, not future formula spills; inspection failure stops the write.</param>
     /// <param name="referenceStyle">a1 (default) or r1c1 native formula notation; relative R1C1 references use each destination cell</param>
     [ServiceAction("set-formulas")]
     OperationResult SetFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress,
-        List<List<string>>? formulas = null, string? formulasFile = null,
+        List<List<object?>>? formulas = null, string? formulasFile = null,
         [FromString] OverwritePolicy overwritePolicy = OverwritePolicy.RejectNonempty,
         [FromString] FormulaReferenceStyle referenceStyle = FormulaReferenceStyle.A1);
 
@@ -174,14 +176,15 @@ public interface IRangeCommands
     /// Validates formulas for syntax errors, undefined functions, and other issues without applying them.
     /// Detects common problems like undefined functions (e.g., GETVM3 without XA2. namespace),
     /// invalid references, syntax errors, and circular references.
+    /// Accepts the same cells as set-formulas; text, numbers, true/false, and empty cells count as valid constants.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address to validate</param>
-    /// <param name="formulas">2D array of formulas to validate - include '=' prefix</param>
-    /// <param name="formulasFile">Path to a JSON file containing the formulas to validate. Alternative to inline formulas parameter.</param>
+    /// <param name="formulas">2D array of cells to validate. Formulas need the '=' prefix; text, numbers, true/false, and null are valid constants.</param>
+    /// <param name="formulasFile">Path to a JSON file containing the cells to validate. Alternative to inline formulas parameter.</param>
     [ServiceAction("validate-formulas")]
-    RangeFormulaValidationResult ValidateFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<string>>? formulas = null, string? formulasFile = null);
+    RangeFormulaValidationResult ValidateFormulas(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, List<List<object?>>? formulas = null, string? formulasFile = null);
 
     // === CLEAR OPERATIONS ===
 

@@ -11,7 +11,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// WRITE: value is data to store; invariant numeric and Boolean strings become typed values, while other input remains text.
 /// TIP: use range get-values/set-values with the named range as the range address for bulk data read/write.
 /// </summary>
-[ServiceCategory("namedrange", "NamedRange")]
+[ServiceCategory("NamedRange")]
 [McpTool("namedrange", Title = "Named Range Operations", Destructive = true, Category = "data",
     Description = "Create, update, delete, and write named ranges for formulas/parameters. Create/update use reference for the cell reference (e.g., Sheet1!$A$1). Write uses value: invariant numeric and Boolean strings become typed values; other input remains text. For bulk data writes, use range with the named range as range_address.")]
 [McpReadOnlyActions("list", "read")]

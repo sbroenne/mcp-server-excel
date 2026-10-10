@@ -18,8 +18,24 @@ public sealed partial class DrawingCommands
             try
             {
                 group = selection.Group();
-                ApplyName(group, groupName);
-                return LayoutResult(batch, [ReadDrawingObject(group, sheetName, ct)]);
+                string currentName = group.Name;
+                string step = "Reading the new group";
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(groupName))
+                    {
+                        step = $"Renaming the new group to '{groupName}'";
+                        group.Name = groupName;
+                        currentName = groupName;
+                        step = "Reading the new group";
+                    }
+
+                    return LayoutResult(batch, [ReadDrawingObject(group, sheetName, ct)]);
+                }
+                catch (Exception ex) when (CreatedObjectFailure.CanReport(ex))
+                {
+                    throw CreatedObjectFailure.Create("group", currentName, sheetName, step, ex);
+                }
             }
             finally
             {
@@ -104,10 +120,27 @@ public sealed partial class DrawingCommands
                     throw new ArgumentException("Offsets must produce finite drawing positions within Excel's numeric range.");
                 copies = selection.Duplicate();
                 copy = copies.Item(1);
-                ApplyName(copy, newName);
-                copy.Left = left;
-                copy.Top = top;
-                return ReadLayoutRange(batch, copies, sheetName, ct);
+                string currentName = copy.Name;
+                string step = "Positioning the new copy";
+                try
+                {
+                    if (!string.IsNullOrWhiteSpace(newName))
+                    {
+                        step = $"Renaming the new copy to '{newName}'";
+                        copy.Name = newName;
+                        currentName = newName;
+                        step = "Positioning the new copy";
+                    }
+
+                    copy.Left = left;
+                    copy.Top = top;
+                    step = "Reading the new copy";
+                    return ReadLayoutRange(batch, copies, sheetName, ct);
+                }
+                catch (Exception ex) when (CreatedObjectFailure.CanReport(ex))
+                {
+                    throw CreatedObjectFailure.Create("copy", currentName, sheetName, step, ex);
+                }
             }
             finally
             {
@@ -143,8 +176,9 @@ public sealed partial class DrawingCommands
 
     private static void ValidateLayoutName(string? name)
     {
-        if (name != null && (string.IsNullOrWhiteSpace(name) || name.Length > 255))
-            throw new ArgumentException("A supplied drawing name must be nonempty and at most 255 characters.", nameof(name));
+        // Excel accepts drawing names up to 254 characters.
+        if (name != null && (string.IsNullOrWhiteSpace(name) || name.Length > 254))
+            throw new ArgumentException("A supplied drawing name must be nonempty and at most 254 characters.", nameof(name));
     }
 
     private static void EnsureUniqueLayoutName(Excel.Shapes shapes, string? name, CancellationToken ct)

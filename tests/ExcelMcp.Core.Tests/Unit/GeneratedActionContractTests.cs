@@ -25,6 +25,19 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 public sealed class GeneratedActionContractTests
 {
     [Theory]
+    [InlineData("""{"precisionAsDisplayed":false}""", false)]
+    [InlineData("""{"precisionAsDisplayed":false,"allowPrecisionLoss":null}""", false)]
+    [InlineData("""{"precisionAsDisplayed":false,"allowPrecisionLoss":false}""", false)]
+    [InlineData("""{"precisionAsDisplayed":false,"allowPrecisionLoss":true}""", true)]
+    public void OptionalBooleanDispatch_AppliesDefaultOnlyAfterActionValidation(string argsJson, bool expected)
+    {
+        var (commands, proxy) = CreateProxy<ICalculationModeCommands>();
+        ServiceRegistry.CalculationMode.DispatchToCore(commands, CalculationModeAction.SetPrecision, null!, argsJson);
+        Assert.Equal(1, proxy.CallCount);
+        Assert.Equal(expected, proxy.LastArguments![2]);
+    }
+
+    [Theory]
     [InlineData("rename", "oldName", "")]
     [InlineData("rename", "oldName", "   ")]
     [InlineData("copy", "sourceName", "")]
@@ -98,7 +111,7 @@ public sealed class GeneratedActionContractTests
         foreach (var contract in contracts)
         {
             var category = contract.GetCustomAttribute<ServiceCategoryAttribute>()!;
-            var name = category.PascalName ?? char.ToUpperInvariant(category.Category[0]) + category.Category[1..];
+            var name = category.PascalName;
             Assert.True(names.Add(name), $"Duplicate generated category: {name}");
             var registry = Assert.Single(generated, type => type.Name == name);
             var expected = contract.GetMethods().Select(method =>
@@ -125,6 +138,78 @@ public sealed class GeneratedActionContractTests
                     $"{name}.{field.Name} maps to '{mapped}'.");
             }
         }
+    }
+
+    [Fact]
+    public void EveryCategory_UsesTheSameGroupNameForBatchAndCli()
+    {
+        var registries = typeof(ServiceRegistry).GetNestedTypes(BindingFlags.Public)
+            .Where(type => type.GetField("ValidActions") != null).ToArray();
+        Assert.NotEmpty(registries);
+        foreach (var registry in registries)
+        {
+            var batchGroup = Assert.IsType<string>(registry.GetField("Category")!.GetRawConstantValue());
+            var cliGroup = Assert.IsType<string>(registry.GetField("CliCommandName")!.GetRawConstantValue());
+            Assert.True(batchGroup == cliGroup,
+                $"{registry.Name}: batch group '{batchGroup}' differs from CLI group '{cliGroup}'.");
+            Assert.True(ServiceRegistry.ValidActionsByCategory.ContainsKey(cliGroup), cliGroup);
+        }
+    }
+
+    [Theory]
+    [InlineData("calculationmode.get-settings", "{}")]
+    [InlineData("datamodelrelationship.list-relationships", "{}")]
+    [InlineData("worksheetstyle.get-tab-color", """{"sheetName":"Sheet1"}""")]
+    [InlineData("powerquery.refresh", """{"queryName":"Probe","timeoutSeconds":60}""")]
+    [InlineData("powerquery.refresh-all", """{"timeoutSeconds":60}""")]
+    [InlineData("vba.run", """{"procedureName":"Main","timeoutSeconds":60}""")]
+    [InlineData("connection.refresh", """{"connectionName":"Probe","timeoutSeconds":60}""")]
+    [InlineData("datamodel.refresh", """{"timeoutSeconds":60}""")]
+    [InlineData("pivottable.refresh", """{"pivotTableName":"Probe","timeoutSeconds":60}""")]
+    public void RawCommandValidation_AcceptsCliGroupAndParameterNames(string command, string argsJson)
+    {
+        ServiceRegistry.ValidateCommandArguments(command, argsJson);
+    }
+
+    [Theory]
+    [InlineData("calculation.get-settings", "calculation", "calculationmode")]
+    [InlineData("datamodelrel.list-relationships", "datamodelrel", "datamodelrelationship")]
+    [InlineData("sheetstyle.get-tab-color", "sheetstyle", "worksheetstyle")]
+    public void RawCommandValidation_RejectsUnknownGroupAndListsValidGroups(
+        string command,
+        string suppliedGroup,
+        string expectedValidGroup)
+    {
+        var exception = Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.ValidateCommandArguments(command, "{}"));
+
+        Assert.Contains($"'{suppliedGroup}'", exception.Message, StringComparison.Ordinal);
+        Assert.Contains(expectedValidGroup, exception.Message, StringComparison.Ordinal);
+        Assert.Contains("session", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RawCommandValidation_RejectsStyleActionOnSheetAndListsSheetActions()
+    {
+        var exception = Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.ValidateCommandArguments("sheet.get-tab-color", """{"sheetName":"Sheet1"}"""));
+
+        Assert.Contains("get-tab-color", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("rename", exception.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void RawCommandValidation_RejectsOldTimeoutNameAndListsValidParametersWithDescriptions()
+    {
+        var exception = Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.ValidateCommandArguments(
+                "powerquery.refresh",
+                """{"queryName":"Probe","timeout":60}"""));
+
+        Assert.Contains("timeout", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("timeoutSeconds", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("queryName", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("whole seconds", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
 
     [Theory]
@@ -189,10 +274,10 @@ public sealed class GeneratedActionContractTests
     public void CalculationDispatch_RejectsUnknownEnumsBeforeCoreDispatch(string action, string argsJson)
     {
         var (commands, proxy) = CreateProxy<ICalculationModeCommands>();
-        Assert.True(ServiceRegistry.Calculation.TryParseAction(action, out var parsedAction));
+        Assert.True(ServiceRegistry.CalculationMode.TryParseAction(action, out var parsedAction));
 
         Assert.Throws<ArgumentException>(() =>
-            ServiceRegistry.Calculation.DispatchToCore(commands, parsedAction, null!, argsJson));
+            ServiceRegistry.CalculationMode.DispatchToCore(commands, parsedAction, null!, argsJson));
 
         Assert.Equal(0, proxy.CallCount);
     }
@@ -251,7 +336,7 @@ public sealed class GeneratedActionContractTests
         string parameterValue)
     {
         var exception = Assert.Throws<ArgumentException>(() =>
-            ServiceRegistry.Calculation.RouteCliArgs(
+            ServiceRegistry.CalculationMode.RouteCliArgs(
                 action,
                 mode: parameterValue,
                 scope: action == "calculate" ? "workbook" : null));
@@ -275,7 +360,7 @@ public sealed class GeneratedActionContractTests
                 "load-to",
                 queryName: "Probe",
                 loadDestination: "worksheet",
-                timeout: 30));
+                timeoutSeconds: 30));
         Assert.Contains("timeout", loadToException.Message, StringComparison.Ordinal);
     }
 
@@ -307,7 +392,7 @@ public sealed class GeneratedActionContractTests
     {
         var exception = Assert.Throws<ArgumentException>(() =>
             ServiceRegistry.ValidateCommandArguments(
-                "calculation.calculate",
+                "calculationmode.calculate",
                 """{"scope":"workbook","mode":null}"""));
 
         Assert.Contains("mode", exception.Message, StringComparison.Ordinal);
@@ -353,8 +438,8 @@ public sealed class GeneratedActionContractTests
     [Theory]
     [InlineData(
         "powerquery.refresh",
-        """{"queryName":"Probe","Timeout":60}""",
-        "Timeout")]
+        """{"queryName":"Probe","TimeoutSeconds":60}""",
+        "TimeoutSeconds")]
     [InlineData(
         "powerquery.evaluate",
         """{"MCodeFile":"query.m"}""",
@@ -395,7 +480,7 @@ public sealed class GeneratedActionContractTests
     }
 
     [Theory]
-    [InlineData("""{"queryName":"Probe","Timeout":null}""", "Timeout")]
+    [InlineData("""{"queryName":"Probe","TimeoutSeconds":null}""", "TimeoutSeconds")]
     [InlineData("""{"queryName":"Probe","unexpected":null}""", "unexpected")]
     public void RawActionValidation_RejectsInvalidNullPropertyNames(
         string argsJson,
@@ -574,7 +659,7 @@ public sealed class GeneratedActionContractTests
             powerQueryCommands,
             PowerQueryAction.Refresh,
             null!,
-            """{"queryName":"Probe","timeout":0}""");
+            """{"queryName":"Probe","timeoutSeconds":0}""");
         Assert.Equal(TimeSpan.Zero, Assert.IsType<TimeSpan>(powerQueryProxy.LastArguments![2]));
 
         var (connectionCommands, connectionProxy) = CreateProxy<IConnectionCommands>();
@@ -582,7 +667,7 @@ public sealed class GeneratedActionContractTests
             connectionCommands,
             ConnectionAction.Refresh,
             null!,
-            """{"connectionName":"Probe","timeout":1}""");
+            """{"connectionName":"Probe","timeoutSeconds":1}""");
         Assert.Equal(TimeSpan.FromSeconds(1), Assert.IsType<TimeSpan>(connectionProxy.LastArguments![2]));
 
         var (dataModelCommands, dataModelProxy) = CreateProxy<IDataModelCommands>();
@@ -590,7 +675,7 @@ public sealed class GeneratedActionContractTests
             dataModelCommands,
             DataModelAction.Refresh,
             null!,
-            """{"timeout":2147483}""");
+            """{"timeoutSeconds":2147483}""");
         Assert.Equal(TimeSpan.FromSeconds(2147483), Assert.IsType<TimeSpan>(dataModelProxy.LastArguments![2]));
 
         var (pivotCommands, pivotProxy) = CreateProxy<IPivotTableCommands>();
@@ -598,7 +683,7 @@ public sealed class GeneratedActionContractTests
             pivotCommands,
             PivotTableAction.Refresh,
             null!,
-            """{"pivotTableName":"Probe","timeout":60}""");
+            """{"pivotTableName":"Probe","timeoutSeconds":60}""");
         Assert.Equal(TimeSpan.FromSeconds(60), Assert.IsType<TimeSpan>(pivotProxy.LastArguments![2]));
 
         var (vbaCommands, vbaProxy) = CreateProxy<IVbaCommands>();
@@ -606,14 +691,14 @@ public sealed class GeneratedActionContractTests
             vbaCommands,
             VbaAction.Run,
             null!,
-            """{"procedureName":"Probe","timeout":2147483}""");
+            """{"procedureName":"Probe","timeoutSeconds":2147483}""");
         Assert.Equal(TimeSpan.FromSeconds(2147483), Assert.IsType<TimeSpan>(vbaProxy.LastArguments![2]));
     }
 
     [Theory]
-    [InlineData("""{"queryName":"Probe","timeout":-1}""")]
-    [InlineData("""{"queryName":"Probe","timeout":2147484}""")]
-    [InlineData("""{"queryName":"Probe","timeout":"600"}""")]
+    [InlineData("""{"queryName":"Probe","timeoutSeconds":-1}""")]
+    [InlineData("""{"queryName":"Probe","timeoutSeconds":2147484}""")]
+    [InlineData("""{"queryName":"Probe","timeoutSeconds":"600"}""")]
     public void RawDispatch_RejectsInvalidTimeoutSecondsBeforeCoreDispatch(string argsJson)
     {
         var (commands, proxy) = CreateProxy<IPowerQueryCommands>();
@@ -657,7 +742,7 @@ public sealed class GeneratedActionContractTests
                 connectionCommands,
                 ConnectionAction.Refresh,
                 null!,
-                """{"connectionName":"Probe","timeout":0}"""));
+                """{"connectionName":"Probe","timeoutSeconds":0}"""));
         Assert.Equal(0, connectionProxy.CallCount);
 
         var (dataModelCommands, dataModelProxy) = CreateProxy<IDataModelCommands>();
@@ -666,7 +751,7 @@ public sealed class GeneratedActionContractTests
                 dataModelCommands,
                 DataModelAction.Refresh,
                 null!,
-                """{"timeout":0}"""));
+                """{"timeoutSeconds":0}"""));
         Assert.Equal(0, dataModelProxy.CallCount);
     }
 
@@ -677,17 +762,17 @@ public sealed class GeneratedActionContractTests
             ServiceRegistry.PowerQuery.RouteCliArgs(
                 "refresh",
                 queryName: "Probe",
-                timeout: -1));
+                timeoutSeconds: -1));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             ServiceRegistry.Connection.RouteCliArgs(
                 "refresh",
                 connectionName: "Probe",
-                timeout: 0));
+                timeoutSeconds: 0));
         Assert.Throws<ArgumentOutOfRangeException>(() =>
             ServiceRegistry.Vba.RouteCliArgs(
                 "run",
                 procedureName: "Probe",
-                timeout: ParameterTransforms.MaximumTimeoutSeconds + 1));
+                timeoutSeconds: ParameterTransforms.MaximumTimeoutSeconds + 1));
     }
 
     [Theory]
@@ -710,11 +795,11 @@ public sealed class GeneratedActionContractTests
         var routeParameter = typeof(ServiceRegistry.PowerQuery)
             .GetMethod(nameof(ServiceRegistry.PowerQuery.RouteCliArgs))!
             .GetParameters()
-            .Single(parameter => parameter.Name == "timeout");
+            .Single(parameter => parameter.Name == "timeoutSeconds");
         var actionParameter = typeof(ServiceRegistry.PowerQuery)
             .GetMethod(nameof(ServiceRegistry.PowerQuery.RouteAction))!
             .GetParameters()
-            .Single(parameter => parameter.Name == "timeout");
+            .Single(parameter => parameter.Name == "timeoutSeconds");
 
         Assert.Equal(typeof(int?), routeParameter.ParameterType);
         Assert.Equal(typeof(int?), actionParameter.ParameterType);
@@ -735,9 +820,9 @@ public sealed class GeneratedActionContractTests
     [InlineData("window.show", false)]
     [InlineData("chart.export-image", false)]
     [InlineData("xmlmap.export-xml", false)]
-    [InlineData("calculation.set-settings", false)]
-    [InlineData("calculation.calculate", false)]
-    [InlineData("calculation.set-precision", true)]
+    [InlineData("calculationmode.set-settings", false)]
+    [InlineData("calculationmode.calculate", false)]
+    [InlineData("calculationmode.set-precision", true)]
     public void WorkbookWriteAccess_UsesGeneratedActionPolicy(string command, bool requiresEditAccess)
     {
         var (batch, proxy) = CreateProxy<IExcelBatch>();

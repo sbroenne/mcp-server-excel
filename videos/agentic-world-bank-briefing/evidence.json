@@ -1,0 +1,54 @@
+{
+  "recording": "2026-10-07_10-25-42.mp4 (OBS capture, kept outside the repository)",
+  "recordingStartUtc": "2026-10-07T08:25:42Z",
+  "model": "claude-opus-5.5",
+  "client": "GitHub Copilot CLI (autopilot)",
+  "servers": {
+    "excel": "Excel MCP Server 2.3.3",
+    "powerpoint": "PowerPoint MCP Server 0.3.1"
+  },
+  "humanInput": {
+    "prompts": 1,
+    "interventions": 0,
+    "promptWords": 112
+  },
+  "timeline": {
+    "promptUtc": "2026-10-07T08:26:04Z",
+    "researchStartUtc": "2026-10-07T08:26:24Z",
+    "storyFoundUtc": "2026-10-07T08:27:30Z",
+    "excelFirstUtc": "2026-10-07T08:28:00Z",
+    "powerpointFirstUtc": "2026-10-07T08:43:25Z",
+    "doneUtc": "2026-10-07T09:04:38Z",
+    "totalMinutes": 38.6
+  },
+  "toolCalls": {
+    "other": 58,
+    "powerpointFailed": 5,
+    "powerpoint": 372,
+    "total": 612,
+    "excel": 182,
+    "excelFailed": 11
+  },
+  "usage": {
+    "aiCredits": 962.16,
+    "premiumRequests": 15
+  },
+  "outputs": {
+    "deck": "WDI_Briefing_2000-2024.pptx (7 slides)",
+    "agentChecks": "19 of 19 pass",
+    "workbook": "WDI_Development_2000-2024.xlsx"
+  },
+  "independentVerification": "All slide headline numbers re-computed from live World Bank WDI API (lastupdated 2026-07-13) and match.",
+  "issuesFiled": [
+    "sbroenne/mcp-server-powerpoint#108",
+    "sbroenne/mcp-server-excel#1067",
+    "sbroenne/mcp-server-excel#1068",
+    "sbroenne/mcp-server-excel#1072",
+    "sbroenne/mcp-server-excel#1073"
+  ],
+  "skippedInVideo": {
+    "fromElapsed": "24:38",
+    "toElapsed": "30:18",
+    "reason": "PowerPoint chart data window stuck open (sbroenne/mcp-server-powerpoint#108), then PowerPoint crashed; the agent reopened the deck and rebuilt the lost charts."
+  }
+}

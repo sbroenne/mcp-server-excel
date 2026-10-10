@@ -73,7 +73,7 @@ public sealed class CalculationSettingsResult : OperationResult
 /// Full/rebuild calculation applies to all workbooks in the owned application, not other Excel processes.
 /// Precision-as-displayed permanently rounds stored values; disabling it does not recover lost digits.
 /// </summary>
-[ServiceCategory("calculation", "Calculation")]
+[ServiceCategory("CalculationMode")]
 [McpTool("calculation_mode", Title = "Calculation Settings", Destructive = true, Category = "settings",
     Description = "Change native calculation settings and explicitly recalculate formulas. set-settings replaces set-mode. " +
         "Mode, iteration_enabled, maximum_iterations, maximum_change and calculate_before_save affect the owned Excel application; omitted set-settings inputs stay unchanged. " +

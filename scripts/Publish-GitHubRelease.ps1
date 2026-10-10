@@ -51,6 +51,19 @@ function Get-Release {
     return $release
 }
 
+function Wait-ForCreatedDraft {
+    param([int]$Attempts = 10, [int]$DelaySeconds = 2)
+    for ($attempt = 1; $attempt -le $Attempts; $attempt++) {
+        $release = Get-Release
+        if ($null -ne $release) {
+            if (-not $release.draft) { throw 'GitHub did not create the expected draft.' }
+            return $release
+        }
+        if ($attempt -lt $Attempts) { Start-Sleep -Seconds $DelaySeconds }
+    }
+    throw "GitHub did not make the created draft visible after $Attempts attempts."
+}
+
 function Assert-Assets {
     param($Release, [switch]$AllowMissing)
     $missing = @()
@@ -127,8 +140,7 @@ if ($null -eq $release) {
     Invoke-Gh -Arguments @('release', 'create', $tag, '--repo', $Repository, '--draft',
         '--verify-tag', '--target', $ReleaseCommit, '--title', "ExcelMcp $Version",
         '--notes-file', $NotesFile) | Out-Null
-    $release = Get-Release
-    if ($null -eq $release -or -not $release.draft) { throw 'GitHub did not create the expected draft.' }
+    $release = Wait-ForCreatedDraft
 }
 if ($release.draft) {
     if ($release.immutable) { throw 'An immutable release cannot be edited as a draft.' }

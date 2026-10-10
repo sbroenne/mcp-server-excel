@@ -612,11 +612,10 @@ public class McpToolGenerator : IIncrementalGenerator
                         preProcessingCode: preProcessingCode));
                 }
             }
-            else if (ep.TypeName.Contains("TimeSpan"))
+            else if (pInfo?.IsTimeout == true)
             {
-                // Public timeout inputs are whole seconds. Conversion happens once in service dispatch.
-                var secondsName = ep.Name + "Seconds";
-                var snakeSecondsName = StringHelper.ToSnakeCase(secondsName);
+                // Public timeout inputs are whole seconds (exposed as timeoutSeconds). Conversion happens once in service dispatch.
+                var snakeSecondsName = StringHelper.ToSnakeCase(ep.Name);
                 var minimumSeconds = info.Category == "powerquery" ? 0 : 1;
                 result.Add(new McpParameter(
                     name: snakeSecondsName,
@@ -629,8 +628,7 @@ public class McpToolGenerator : IIncrementalGenerator
                     defaultExpression: "null",
                     preProcessingCode: null));
             }
-            else if (ep.TypeName.StartsWith("System.Collections.Generic.List<string>") ||
-                     ep.TypeName.StartsWith("List<string>"))
+            else if (pInfo?.IsStringList == true)
             {
                 // List<string> → string (JSON array) in MCP, parse via ParseJsonList
                 var localVarName = $"_{ep.Name}Parsed";
@@ -648,7 +646,7 @@ public class McpToolGenerator : IIncrementalGenerator
             else
             {
                 // Direct passthrough — type matches between MCP and RouteAction
-                var mcpType = ep.TypeName;
+                var mcpType = ep.McpTypeName;
 
                 // All exposed params are optional in MCP (not all actions use every param).
                 // Use null as the category-wide omission sentinel, even when an individual action

@@ -399,6 +399,67 @@ public partial class ConditionalFormattingCommands
 
     // === parse helpers (string -> Excel COM enum int) ===
 
+    /// <summary>
+    /// Checks the text options a rule type uses before Excel creates the rule, so a typo
+    /// does not leave a half-configured rule behind.
+    /// </summary>
+    private static void ValidateRuleOptions(
+        string normalizedType,
+        string? interiorPattern,
+        string? borderStyle,
+        string?[] colorScaleTypes,
+        string? dataBarDirection,
+        string?[] dataBarTypes,
+        string? iconSetId,
+        string?[] iconThresholdTypes,
+        int? rank,
+        bool? top10Percent,
+        string? topBottom,
+        string? aboveBelow)
+    {
+        if (normalizedType is "cellvalue" or "expression" or "top10" or "aboveaverage" or "uniquevalues"
+            or "timeperiod" or "blankscondition")
+        {
+            if (!string.IsNullOrEmpty(interiorPattern)) { _ = ParseInteriorPattern(interiorPattern); }
+            if (!string.IsNullOrEmpty(borderStyle)) { _ = FormattingHelpers.ParseBorderStyle(borderStyle); }
+        }
+
+        string?[] thresholdTypes = normalizedType switch
+        {
+            "colorscale" => colorScaleTypes,
+            "databar" => dataBarTypes,
+            "iconset" => iconThresholdTypes,
+            _ => []
+        };
+        foreach (var thresholdType in thresholdTypes)
+        {
+            if (!string.IsNullOrEmpty(thresholdType)) { _ = ParseConditionValueType(thresholdType); }
+        }
+
+        switch (normalizedType)
+        {
+            case "databar" when !string.IsNullOrEmpty(dataBarDirection):
+                _ = ParseDataBarDirection(dataBarDirection);
+                break;
+            case "iconset" when !string.IsNullOrEmpty(iconSetId):
+                _ = ParseIconSetId(iconSetId);
+                break;
+            case "top10":
+                if (!string.IsNullOrEmpty(topBottom)) { _ = ParseTopBottom(topBottom); }
+                int maxRank = top10Percent == true ? 100 : 1000;
+                if (rank is { } value && (value < 1 || value > maxRank))
+                {
+                    throw new ArgumentException(
+                        $"Invalid rank: {value}. Use 1 to 1000 for a count of items, or 1 to 100 when top10Percent is true.",
+                        nameof(rank));
+                }
+                break;
+            case "aboveaverage" when !string.IsNullOrEmpty(aboveBelow):
+                _ = ParseAboveBelow(aboveBelow);
+                break;
+        }
+    }
+
     private static int ParseConditionValueType(string type)
     {
         return type.ToLowerInvariant().Replace("-", "").Replace(" ", "") switch

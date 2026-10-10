@@ -104,6 +104,16 @@ public sealed class ParameterInfo
     public bool IsEnum { get; }
     public bool IsJsonObject { get; }
     public string? XmlDocDescription { get; }
+    public bool RequiresValue => IsRequired || (!HasDefault && !TypeName.EndsWith("?") && !IsParams);
+    public bool IsTimeout => TypeName.Contains("TimeSpan", StringComparison.Ordinal);
+    public bool IsStringList => TypeName.StartsWith("System.Collections.Generic.List<string>", StringComparison.Ordinal) ||
+        TypeName.StartsWith("List<string>", StringComparison.Ordinal);
+    public string RouteTypeName => IsTimeout ? "int?" :
+        IsFileOrValue || (IsFromString && IsEnum) ? "string?" : NullableTypeName;
+    public string ServiceTypeName => IsTimeout ? "int?" :
+        IsFromString || IsFileOrValue || IsEnum ? "string?" : NullableTypeName;
+    public string McpTypeName => IsEnum || IsStringList ? "string?" : RouteTypeName;
+    private string NullableTypeName => TypeName.EndsWith("?") ? TypeName : $"{TypeName}?";
 
     /// <summary>
     /// The fully qualified enum type name when IsFromString and IsEnum are both true.
@@ -160,6 +170,7 @@ public sealed class ExposedParameter
     public string TypeName { get; set; }
     public string? Description { get; }
     public string? DefaultValue { get; }
+    public string McpTypeName { get; set; }
 
     /// <summary>Action names where this parameter is required (non-nullable, no default, or [RequiredParameter]).</summary>
     public List<string> RequiredByActions { get; } = new();
@@ -172,6 +183,7 @@ public sealed class ExposedParameter
     {
         Name = name;
         TypeName = typeName;
+        McpTypeName = typeName;
         Description = description;
         DefaultValue = defaultValue;
     }

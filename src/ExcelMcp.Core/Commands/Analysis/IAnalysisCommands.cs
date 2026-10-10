@@ -8,7 +8,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Analysis;
 /// Excel what-if analysis with Goal Seek, scenarios, scenario reports, and one- or two-variable data tables.
 /// Solver is excluded because it is an optional VBA add-in that must be enabled by the user and is not part of the Excel PIA.
 /// </summary>
-[ServiceCategory("analysis", "Analysis")]
+[ServiceCategory("Analysis")]
 [McpTool("analysis", Title = "What-If Analysis", Destructive = true, Category = "analysis",
     Description = "Run Excel what-if analysis using the native Excel COM object model. GOAL SEEK adjusts one input cell until a formula reaches a numeric goal. SCENARIOS create, update, show, delete, and summarize named input sets on a worksheet. DATA TABLES create one- or two-variable sensitivity tables from a prepared worksheet model. Solver is not exposed because Microsoft implements it as an optional VBA add-in that must be manually enabled and referenced, not as a reliable Excel PIA API.")]
 [McpReadOnlyActions("list-scenarios")]

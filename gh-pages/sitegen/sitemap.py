@@ -44,6 +44,19 @@ VIDEOS = [
         "player_loc": "https://www.youtube.com/embed/47HJPZbcta4",
         "duration": "154",
     },
+    {
+        "page_path": "samples/world-bank-briefing/",
+        "thumbnail": "https://i.ytimg.com/vi/_z-twdXG2fA/maxresdefault.jpg",
+        "title": "Agentic Workflow: One AI Agent Turns World Bank Data into Excel and PowerPoint",
+        "description": (
+            "One request to an AI agent: it researched World Bank data, built a "
+            "checked Excel analysis with Excel MCP Server, then a 7-slide executive "
+            "briefing with PowerPoint MCP Server in 39 minutes. Download both files."
+        ),
+        "player_loc": "https://www.youtube.com/embed/_z-twdXG2fA",
+        "duration": "161",
+        "publication_date": "2026-10-07T07:24:43-07:00",
+    },
 ]
 
 # Matches the snippet includes in the wrapper pages, e.g.

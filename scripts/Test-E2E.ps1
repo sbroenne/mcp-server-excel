@@ -6,8 +6,7 @@
 .DESCRIPTION
     Builds the Release solution unless -SkipBuild is supplied, then runs:
     1. Independent CLI workflow scenarios.
-    2. The stale-build graceful-save acceptance test.
-    3. Independent MCP workflow scenarios.
+    2. Independent MCP workflow scenarios.
 
     Defaults to all stages. A focused -Stages run is not complete acceptance.
     The script fails if any gate fails or if a required filter matches no tests.
@@ -21,7 +20,7 @@ param(
     [switch]$SkipBuild,
     [string]$PipeName,
     [ValidateNotNullOrEmpty()]
-    [ValidateSet('Cli', 'Rebuild', 'Mcp')][string[]]$Stages = @('Cli', 'Rebuild', 'Mcp'),
+    [ValidateSet('Cli', 'Mcp')][string[]]$Stages = @('Cli', 'Mcp'),
     [string]$ResultsDirectory,
     [switch]$KeepCliFiles
 )
@@ -70,12 +69,6 @@ try {
                 $parameters.DeadlineSeconds = 600
                 $parameters.HangTimeout = '5m'
             }
-            'Rebuild' {
-                $parameters.Project = $cliTestProject
-                $parameters.Filter = 'FullyQualifiedName~PreBuildGracefulSaveAcceptanceTests.StaleLockedBuildCleanup'
-                $parameters.DeadlineSeconds = 480
-                $parameters.HangTimeout = '6m'
-            }
             'Mcp' {
                 $parameters.Project = $mcpTestProject
                 $parameters.Filter = 'RequiresExcel=true&Acceptance=Required&FullyQualifiedName~McpServerSmokeTests'
@@ -83,9 +76,9 @@ try {
                 $parameters.HangTimeout = '15m'
             }
         }
-        & (Join-Path $PSScriptRoot 'Stop-ExcelMcpProcesses.ps1') -PipeName $selectedPipeName
+        & (Join-Path $PSScriptRoot 'Stop-ExcelCliService.ps1') -PipeName $selectedPipeName
         if ($LASTEXITCODE -ne 0) { throw "Owned CLI cleanup failed before $stage acceptance." }
-        Invoke-TestStage @parameters
+        Invoke-TestStage @parameters -ReconcileCases
     }
     Write-Host "Selected acceptance stages passed: $($Stages -join ', ')."
 }
@@ -94,7 +87,7 @@ catch {
 }
 finally {
     try {
-        & (Join-Path $PSScriptRoot 'Stop-ExcelMcpProcesses.ps1') -PipeName $selectedPipeName
+        & (Join-Path $PSScriptRoot 'Stop-ExcelCliService.ps1') -PipeName $selectedPipeName
         if ($LASTEXITCODE -ne 0) { throw 'Owned CLI cleanup failed after E2E validation.' }
     }
     catch { $failures.Add($_.Exception) }

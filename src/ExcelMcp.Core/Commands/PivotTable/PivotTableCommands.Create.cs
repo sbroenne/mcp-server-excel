@@ -31,7 +31,6 @@ public partial class PivotTableCommands
             dynamic? pivotCache = null;
             dynamic? pivotTable = null;
             dynamic? sourceRows = null;
-            dynamic? tableRange2 = null;
 
             try
             {
@@ -45,26 +44,8 @@ public partial class PivotTableCommands
                     throw new InvalidOperationException($"Source range must contain headers and at least one data row. Found {sourceRowCount} rows");
                 }
 
-                pivotCaches = ctx.Book.PivotCaches();
-                string sourceDataRef = $"'{sourceSheet}'!{sourceRange}";
-
-                pivotCache = pivotCaches.Create(
-                    SourceType: 1,
-                    SourceData: sourceDataRef,
-                    Version: 4
-                );
-
-                destWorksheet = ctx.Book.Worksheets[destinationSheet];
-                destRangeObj = destWorksheet.Range[destinationCell];
-
-                pivotTable = pivotCache.CreatePivotTable(
-                    TableDestination: destRangeObj,
-                    TableName: pivotTableName
-                );
-
-                pivotTable.RefreshTable();
-
                 var availableFields = new List<string>();
+                var blankHeaderColumns = new List<int>();
 
                 dynamic? headerRow = null;
                 try
@@ -72,10 +53,14 @@ public partial class PivotTableCommands
                     headerRow = sourceRows[1];
                     var headerValues = ExcelValueNormalizer.Normalize(headerRow.Value2);
 
-                    foreach (var value in headerValues.Values[0])
+                    for (int column = 0; column < headerValues.ColumnCount; column++)
                     {
-                        var header = value?.ToString();
-                        if (!string.IsNullOrWhiteSpace(header))
+                        var header = headerValues.Values[0][column]?.ToString();
+                        if (string.IsNullOrWhiteSpace(header))
+                        {
+                            blankHeaderColumns.Add(column + 1);
+                        }
+                        else
                         {
                             availableFields.Add(header);
                         }
@@ -85,19 +70,43 @@ public partial class PivotTableCommands
                     {
                         throw new InvalidOperationException($"No field headers found in source range. Header row has {headerValues.ColumnCount} columns.");
                     }
+
+                    if (blankHeaderColumns.Count > 0)
+                    {
+                        throw new InvalidOperationException(
+                            $"Every source column must have a field header. Header row contains blank field name(s) in column(s): " +
+                            $"{string.Join(", ", blankHeaderColumns)}.");
+                    }
                 }
                 finally
                 {
                     ComUtilities.Release(ref headerRow);
                 }
 
-                tableRange2 = pivotTable.TableRange2;
+                destWorksheet = ctx.Book.Worksheets[destinationSheet];
+                destRangeObj = destWorksheet.Range[destinationCell];
+
+                pivotCaches = ctx.Book.PivotCaches();
+                string sourceDataRef = $"'{sourceSheet.Replace("'", "''", StringComparison.Ordinal)}'!{sourceRange}";
+
+                pivotCache = pivotCaches.Create(
+                    SourceType: 1,
+                    SourceData: sourceDataRef,
+                    Version: 4
+                );
+
+                pivotTable = pivotCache.CreatePivotTable(
+                    TableDestination: destRangeObj,
+                    TableName: pivotTableName
+                );
+
+                string rangeAddress = FinishCreatedPivotTable(pivotTable, pivotTableName, destinationSheet);
                 return new PivotTableCreateResult
                 {
                     Success = true,
                     PivotTableName = pivotTableName,
                     SheetName = destinationSheet,
-                    Range = tableRange2.Address,
+                    Range = rangeAddress,
                     SourceData = sourceDataRef,
                     SourceRowCount = sourceRowCount - 1,
                     AvailableFields = availableFields,
@@ -106,7 +115,6 @@ public partial class PivotTableCommands
             }
             finally
             {
-                ComUtilities.Release(ref tableRange2);
                 ComUtilities.Release(ref sourceRows);
                 ComUtilities.Release(ref pivotTable);
                 ComUtilities.Release(ref pivotCache);
@@ -138,7 +146,6 @@ public partial class PivotTableCommands
             dynamic? tableRange = null;
             dynamic? tableRows = null;
             dynamic? tableSheet = null;
-            dynamic? tableRange2 = null;
 
             try
             {
@@ -229,6 +236,10 @@ public partial class PivotTableCommands
                     ComUtilities.Release(ref headerRowCol);
                 }
 
+                // Resolve the destination before Excel creates anything.
+                destWorksheet = ctx.Book.Worksheets[destinationSheet];
+                destRangeObj = destWorksheet.Range[destinationCell];
+
                 // Create PivotCache from table
                 pivotCaches = ctx.Book.PivotCaches();
                 tableSheet = table.Parent;
@@ -240,25 +251,18 @@ public partial class PivotTableCommands
                     SourceData: sourceDataRef
                 );
 
-                // Create PivotTable
-                destWorksheet = ctx.Book.Worksheets[destinationSheet];
-                destRangeObj = destWorksheet.Range[destinationCell];
-
                 pivotTable = pivotCache.CreatePivotTable(
                     TableDestination: destRangeObj,
                     TableName: pivotTableName
                 );
 
-                // Refresh to materialize layout
-                pivotTable.RefreshTable();
-
-                tableRange2 = pivotTable.TableRange2;
+                string rangeAddress = FinishCreatedPivotTable(pivotTable, pivotTableName, destinationSheet);
                 return new PivotTableCreateResult
                 {
                     Success = true,
                     PivotTableName = pivotTableName,
                     SheetName = destinationSheet,
-                    Range = tableRange2.Address,
+                    Range = rangeAddress,
                     SourceData = sourceDataRef,
                     SourceRowCount = rowCount - 1,
                     AvailableFields = headers,
@@ -267,7 +271,6 @@ public partial class PivotTableCommands
             }
             finally
             {
-                ComUtilities.Release(ref tableRange2);
                 ComUtilities.Release(ref pivotTable);
                 ComUtilities.Release(ref pivotCache);
                 ComUtilities.Release(ref pivotCaches);
@@ -299,7 +302,6 @@ public partial class PivotTableCommands
             dynamic? pivotCaches = null;
             dynamic? pivotCache = null;
             dynamic? pivotTable = null;
-            dynamic? tableRange2 = null;
 
             try
             {
@@ -398,7 +400,11 @@ public partial class PivotTableCommands
                     throw new InvalidOperationException($"Data Model table '{tableName}' has no columns");
                 }
 
-                // STEP 2: Create PivotCache from Data Model
+                // STEP 2: Resolve the destination before Excel creates anything.
+                destWorksheet = ctx.Book.Worksheets[destinationSheet];
+                destRangeObj = destWorksheet.Range[destinationCell];
+
+                // STEP 3: Create PivotCache from Data Model
                 // Using xlExternal (2) with "ThisWorkbookDataModel" connection
                 pivotCaches = ctx.Book.PivotCaches();
 
@@ -408,25 +414,19 @@ public partial class PivotTableCommands
                     SourceData: "ThisWorkbookDataModel"
                 );
 
-                // STEP 3: Create PivotTable from cache
-                destWorksheet = ctx.Book.Worksheets[destinationSheet];
-                destRangeObj = destWorksheet.Range[destinationCell];
-
+                // STEP 4: Create PivotTable from cache, then refresh to materialize its structure
                 pivotTable = pivotCache.CreatePivotTable(
                     TableDestination: destRangeObj,
                     TableName: pivotTableName
                 );
 
-                // STEP 4: Refresh to materialize the PivotTable structure
-                pivotTable.RefreshTable();
-
-                tableRange2 = pivotTable.TableRange2;
+                string rangeAddress = FinishCreatedPivotTable(pivotTable, pivotTableName, destinationSheet);
                 return new PivotTableCreateResult
                 {
                     Success = true,
                     PivotTableName = pivotTableName,
                     SheetName = destinationSheet,
-                    Range = tableRange2.Address,
+                    Range = rangeAddress,
                     SourceData = $"ThisWorkbookDataModel[{tableName}]",
                     SourceRowCount = recordCount,
                     AvailableFields = headers,
@@ -435,7 +435,6 @@ public partial class PivotTableCommands
             }
             finally
             {
-                ComUtilities.Release(ref tableRange2);
                 ComUtilities.Release(ref pivotTable);
                 ComUtilities.Release(ref pivotCache);
                 ComUtilities.Release(ref pivotCaches);
@@ -445,5 +444,34 @@ public partial class PivotTableCommands
                 ComUtilities.Release(ref model);
             }
         });
+    }
+
+    /// <summary>
+    /// Refreshes a newly created PivotTable and reads its location. If either step fails, the error
+    /// names the PivotTable that remains in the workbook.
+    /// </summary>
+    private static string FinishCreatedPivotTable(dynamic pivotTable, string pivotTableName, string sheetName)
+    {
+        dynamic? tableRange2 = null;
+        string step = $"Refreshing the new PivotTable '{pivotTableName}'";
+        try
+        {
+            if (!pivotTable.RefreshTable())
+            {
+                throw new InvalidOperationException("Excel did not refresh the new PivotTable.");
+            }
+
+            step = $"Reading the location of the new PivotTable '{pivotTableName}'";
+            tableRange2 = pivotTable.TableRange2;
+            return tableRange2.Address;
+        }
+        catch (Exception ex) when (CreatedObjectFailure.CanReport(ex))
+        {
+            throw CreatedObjectFailure.Create("PivotTable", pivotTableName, sheetName, step, ex);
+        }
+        finally
+        {
+            ComUtilities.Release(ref tableRange2);
+        }
     }
 }

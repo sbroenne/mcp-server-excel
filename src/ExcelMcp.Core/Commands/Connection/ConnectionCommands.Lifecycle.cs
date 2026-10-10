@@ -48,15 +48,10 @@ public partial class ConnectionCommands
                             IsPowerQuery = PowerQueryHelpers.IsPowerQueryConnection(conn),
                             BackgroundQuery = GetBackgroundQuerySetting(conn),
                             RefreshOnFileOpen = GetRefreshOnFileOpenSetting(conn),
-                            LastRefresh = GetLastRefreshDate(conn)
+                            LastRefresh = GetLastRefreshDate(conn, batch.Logger)
                         };
 
                         result.Connections.Add(connInfo);
-                    }
-                    catch (System.Runtime.InteropServices.COMException)
-                    {
-                        // Skip connections that have COM access issues
-                        continue;
                     }
                     finally
                     {
@@ -116,7 +111,7 @@ public partial class ConnectionCommands
                     ConnectionString = sanitizedConnectionString,
                     CommandText = result.CommandText,
                     CommandType = result.CommandType,
-                    Properties = GetConnectionProperties(conn)
+                    Properties = GetConnectionProperties(conn, batch.Logger)
                 };
 
                 result.DefinitionJson = JsonSerializer.Serialize(definition, s_jsonOptions);
@@ -208,14 +203,16 @@ public partial class ConnectionCommands
         dynamic? subConnection = null;
         bool originalBackgroundQuery = false;
         bool canRestoreBackgroundQuery = false;
-        bool supportsRefreshing = false;
+        Exception? refreshFailure = null;
+        COMException? restoreFailure = null;
 
         try
         {
             try
             {
                 subConnection = GetTypedSubConnection(connection);
-                if (subConnection != null)
+                if (subConnection != null
+                    && (connection.Type != Excel.XlConnectionType.xlConnectionTypeOLEDB || !subConnection.OLAP))
                 {
                     originalBackgroundQuery = subConnection.BackgroundQuery;
                     canRestoreBackgroundQuery = true;
@@ -235,7 +232,7 @@ public partial class ConnectionCommands
                     subConnection.BackgroundQuery = false;
                 }
             }
-            catch (COMException)
+            catch (COMException ex) when (ex.HResult is unchecked((int)0x80020003) or unchecked((int)0x80004001))
             {
                 // Provider doesn't support BackgroundQuery — proceed with default behavior.
             }
@@ -257,74 +254,46 @@ public partial class ConnectionCommands
                 OleMessageFilter.ClearPendingCancellationToken();
             }
 
-            try
-            {
-                supportsRefreshing = subConnection != null;
-                if (supportsRefreshing)
-                {
-                    _ = subConnection.Refreshing;
-                }
-            }
-            catch (COMException)
-            {
-                supportsRefreshing = false;
-            }
-            catch (RuntimeBinderException)
-            {
-                supportsRefreshing = false;
-            }
-
-            if (supportsRefreshing)
+            if (ReadRefreshStatus(connection).Supported)
             {
                 WaitForConnectionRefreshCompletion(
-                    () =>
-                    {
-                        try
-                        {
-                            return subConnection.Refreshing;
-                        }
-                        catch (COMException)
-                        {
-                            return false;
-                        }
-                        catch (RuntimeBinderException)
-                        {
-                            return false;
-                        }
-                    },
-                    () =>
-                    {
-                        try
-                        {
-                            subConnection.CancelRefresh();
-                        }
-                        catch (COMException)
-                        {
-                            // Provider does not support cancellation.
-                        }
-                        catch (RuntimeBinderException)
-                        {
-                            // Provider does not expose cancellation.
-                        }
-                    },
+                    () => ReadRefreshStatus(connection).Refreshing,
+                    () => CancelTypedRefresh(connection, ""),
                     cancellationToken);
             }
         }
+        catch (Exception ex)
+        {
+            refreshFailure = ex;
+        }
         finally
         {
-            if (canRestoreBackgroundQuery && subConnection != null)
+            try
             {
-                try
+                if (canRestoreBackgroundQuery && subConnection != null)
                 {
                     subConnection.BackgroundQuery = originalBackgroundQuery;
                 }
-                catch (COMException)
-                {
-                    // Ignore inability to restore provider-specific setting.
-                }
             }
-
-            ComUtilities.Release(ref subConnection);
+            catch (COMException ex)
+            {
+                restoreFailure = ex;
+            }
+            finally
+            {
+                ComUtilities.Release(ref subConnection);
+            }
+        }
+        if (restoreFailure != null)
+        {
+            throw new InvalidOperationException(
+                "Could not restore the connection's original BackgroundQuery setting after the refresh attempt. " +
+                "Inspect the connection before retrying.",
+                refreshFailure == null ? restoreFailure : new AggregateException(refreshFailure, restoreFailure));
+        }
+        if (refreshFailure != null)
+        {
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(refreshFailure).Throw();
         }
     }
 
@@ -339,6 +308,7 @@ public partial class ConnectionCommands
         var sw = System.Diagnostics.Stopwatch.StartNew();
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             if (!isRefreshing())
                 return;
 
@@ -354,9 +324,19 @@ public partial class ConnectionCommands
                     break;
             }
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException ex)
         {
-            cancelRefresh();
+            try
+            {
+                cancelRefresh();
+            }
+            catch (Exception cancelFailure) when (cancelFailure is COMException or RuntimeBinderException)
+            {
+                throw new OperationCanceledException(
+                    "Refresh was cancelled or timed out, but Excel could not confirm cancellation. " +
+                    "The query may still be running; inspect refresh status before saving or closing.",
+                    new AggregateException(ex, cancelFailure), cancellationToken);
+            }
             throw;
         }
     }

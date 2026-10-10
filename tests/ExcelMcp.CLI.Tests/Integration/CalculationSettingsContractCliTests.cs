@@ -28,7 +28,7 @@ public sealed class CalculationSettingsContractCliTests
         });
         Assert.True(result.ExitCode == 0, result.Stdout + result.Stderr);
         Assert.NotNull(captured);
-        Assert.Equal("calculation.set-settings", captured.Command);
+        Assert.Equal("calculationmode.set-settings", captured.Command);
         using var args = JsonDocument.Parse(captured.Args!);
         Assert.False(args.RootElement.GetProperty("iterationEnabled").GetBoolean());
         Assert.Equal(37, args.RootElement.GetProperty("maximumIterations").GetInt32());
@@ -102,7 +102,7 @@ public sealed class CalculationSettingsContractCliTests
             return new ServiceResponse
             {
                 Success = false,
-                Command = "calculation.calculate",
+                Command = "calculationmode.calculate",
                 SessionId = "session-1",
                 ErrorCategory = "InvalidInput",
                 ExceptionType = nameof(ArgumentException),
@@ -112,7 +112,7 @@ public sealed class CalculationSettingsContractCliTests
 
         Assert.Equal(1, result.ExitCode);
         Assert.NotNull(captured);
-        Assert.Equal("calculation.calculate", captured.Command);
+        Assert.Equal("calculationmode.calculate", captured.Command);
         using var json = JsonDocument.Parse(result.Stdout);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal("InvalidInput", json.RootElement.GetProperty("errorCategory").GetString());

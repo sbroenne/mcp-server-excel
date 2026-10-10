@@ -16,7 +16,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Slicer;
 /// and accept captions or MDX unique names; unknown or ambiguous items fail before changing the filter.
 /// Empty list clears filter (shows all items). Set clearFirst=false to add to existing selection.
 /// </summary>
-[ServiceCategory("slicer", "Slicer")]
+[ServiceCategory("Slicer")]
 [McpTool("slicer", Title = "Slicer Operations", Destructive = true, Category = "analysis",
     Description = "Create, configure, and delete visual filtering controls for PivotTables and Tables. Creation requires a unique slicer_name, an existing destination_sheet, and a position; names and positions are not generated. TIMELINES: create-timeline, set-timeline-selection, clear-timeline-selection; use calendar dates, not ordinary item selection. update-slicer patches typed appearance settings in points. connect-pivottable/disconnect-pivottable require the existing shared PivotCache and do not rebuild it. A PivotTable slicer filters only its connected PivotTables, not every dashboard chart. A Table slicer filters its Table, not a separate PivotTable cache. PIVOTTABLE SLICERS: create-slicer, set-slicer-selection, delete-slicer. TABLE SLICERS: create-table-slicer, set-table-slicer-selection, delete-table-slicer. SELECTION: selected_items is JSON-array text; '[]' clears the filter. Selection replaces by default; clear_first=false adds. Data Model/OLAP create-slicer returns captions; selection accepts captions or MDX unique names and rejects unknown/ambiguous items before changing the filter. Adding to a cleared Data Model filter keeps it cleared.")]
 [McpReadOnlyActions("get-slicer", "list-slicers", "list-table-slicers")]

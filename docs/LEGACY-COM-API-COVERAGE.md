@@ -15,7 +15,7 @@ safe for an automation server, and testable against a real Excel instance.
 | Built-in and custom document properties | `workbook` list/get/set/delete properties | Supports deterministic workbook metadata without opening property dialogs. |
 | Workbook scenarios | `analysis` scenario lifecycle and summary actions | Manages named changing-cell sets and creates Excel summary reports. |
 | Workbook links | `workbook` list/update/break external links | Exposes explicit link inspection and mutation without update prompts. |
-| Worksheet page setup | `sheetstyle` get/set page setup | Covers orientation, fit-to-page, and centering metadata without invoking print UI. |
+| Worksheet page setup | `worksheetstyle` get/set page setup | Covers orientation, fit-to-page, and centering metadata without invoking print UI. |
 
 XML content is parsed with DTD processing disabled. XML schemas and import data
 must each use exactly one inline value or readable file alias (`schemaFile` /

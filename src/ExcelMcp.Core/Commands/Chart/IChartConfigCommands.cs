@@ -30,7 +30,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 ///
 /// Use chart for lifecycle operations (create, delete, move, fit-to-range).
 /// </summary>
-[ServiceCategory("chartconfig", "ChartConfig")]
+[ServiceCategory("ChartConfig")]
 [McpTool("chart_config", Title = "Chart Configuration", Destructive = true, Category = "analysis",
     Description = "Configure chart data, series, titles, axes, labels, legends, styling, and trendlines. Add-series requires valuesRange; series/point indices are 1-based. set-series-axis-group assigns Primary/Secondary. set-error-bars uses typed error_bar_options. set-point-format uses point_options; marker points support their own colors/style/size, not transparency/outline weight. Per-series writes reject PivotCharts; use pivottable_field for their fields. Prefer explicit axis selectors Category, Value, CategorySecondary, and ValueSecondary. Legacy aliases Primary=Category and Secondary=Value both use the primary axis group. Placement: 1=move and size with cells, 2=move only, 3=free floating. Use chart for lifecycle and native image export.")]
 [McpReadOnlyActions("get-error-bars", "get-point-format", "get-series-settings", "get-axis-number-format",
@@ -98,7 +98,7 @@ public interface IChartConfigCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="chartName">Name of the chart</param>
-    /// <param name="sourceRange">New data source range (e.g., Sheet1!A1:D10)</param>
+    /// <param name="sourceRange">New data source range (e.g., Sheet1!A1:D10). Separate cell blocks on one sheet are allowed (e.g., A1:A10,C1:D10); the first block supplies category labels and must precede the other blocks in worksheet order (top to bottom, then left to right). Blocks without a sheet name use the first block's sheet, or the chart's own sheet when the first block has none.</param>
     [ServiceAction("set-source-range")]
     OperationResult SetSourceRange(
         IExcelBatch batch,

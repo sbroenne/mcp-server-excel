@@ -26,7 +26,7 @@ its official COM API. It can refresh Power Query, recalculate formulas, evaluate
 DAX, run VBA and Python `=PY()`, and preserve PivotTables, charts, macros, the
 Data Model, and workbook formatting.
 
-**60 MCP tools across 31 feature areas, with 388 operations**, cover end-to-end Excel automation.
+**60 MCP tools across 31 feature areas, with 393 operations**, cover end-to-end Excel automation.
 
 > [!IMPORTANT]
 > Requires **Windows**, **Microsoft Excel 2016 or later**, and an interactive
@@ -55,7 +55,7 @@ while automating them.
 - **[Automation & advanced](https://excelmcpserver.dev/features/automation-advanced/):**
   VBA, Python in Excel, Goal Seek, scenarios, data tables, windows, and XML Maps.
 
-Explore the [capabilities behind all 388 operations](https://excelmcpserver.dev/features/).
+Explore the [capabilities behind all 393 operations](https://excelmcpserver.dev/features/).
 Current command details come from CLI help or the MCP tool descriptions.
 
 ## See It in Action

@@ -16,6 +16,102 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration;
 public sealed class SessionManagerStartupShutdownTests
 {
     [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void Startup_RequiresProcessIdentityBeforeOpeningWorkbook(bool transientFailure, bool createNew)
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"startup-identity-{Guid.NewGuid():N}.xlsx");
+        if (!createNew)
+            File.Copy(Path.Combine(AppContext.BaseDirectory,
+                "Integration", "Session", "TestFiles", "batch-test-static.xlsx"), path);
+
+        using var manager = new SessionManager();
+        using var owned = new OwnedExcelProcessScope();
+        var identities = new List<ExcelProcessIdentity>();
+        var attempts = 0;
+        var opened = false;
+        string? session = null;
+        Exception? failure = null;
+        var cleanupFailures = new List<Exception>();
+        ExcelBatch.TrackProcessIdentityHookForTests = processId =>
+        {
+            var identity = SessionManager.TrackExcelProcessIdentity(processId);
+            Assert.NotNull(identity);
+            identities.Add(identity.Value);
+            attempts++;
+            return transientFailure && attempts > 1 ? identity : null;
+        };
+        ExcelBatch.AfterWorkbookOpenHookForTests = (_, _) => opened = true;
+        try
+        {
+            var startupFailure = Record.Exception(() => session = createNew
+                ? manager.CreateSessionForNewFile(path)
+                : manager.CreateSession(path));
+            if (transientFailure)
+            {
+                Assert.Null(startupFailure);
+                Assert.Equal(2, attempts);
+                Assert.True(opened);
+                var batch = Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(session!));
+                Assert.Equal(WorkbookRefreshState.Ready,
+                    Assert.IsAssignableFrom<IExcelBatchRefreshState>(batch).GetRefreshState());
+                Assert.True(manager.ValidateClose(session!).CanClose);
+                SessionWorkbookAssertions.WriteMarker(batch, "Identity capture recovered");
+                batch.Save();
+                Assert.True(manager.CloseSession(session!, save: false));
+                session = null;
+                ExcelBatch.TrackProcessIdentityHookForTests = null;
+                session = manager.CreateSession(path);
+                Assert.Equal("Identity capture recovered", SessionWorkbookAssertions.ReadMarker(
+                    Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(session))));
+                Assert.True(manager.ValidateClose(session).CanClose);
+            }
+            else
+            {
+                var error = Assert.IsType<InvalidOperationException>(startupFailure);
+                Assert.Contains("process identity", error.ToString(), StringComparison.OrdinalIgnoreCase);
+                Assert.Equal(3, attempts);
+                Assert.False(opened);
+                Assert.Null(session);
+                Assert.Equal(0, manager.ActiveSessionCount);
+                Assert.Empty(GetField<ConcurrentDictionary<string, string>>(manager, "_activeFilePaths"));
+                if (createNew) Assert.False(File.Exists(path));
+                owned.AssertAllExited();
+            }
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
+        }
+        finally
+        {
+            ExcelBatch.TrackProcessIdentityHookForTests = null;
+            ExcelBatch.AfterWorkbookOpenHookForTests = null;
+            if (session != null)
+                CaptureCleanup(() => manager.CloseSession(session, save: false, force: true));
+            CaptureCleanup(manager.Dispose);
+            CaptureCleanup(() => owned.AssertAllExited());
+            foreach (var identity in identities.Where(OwnedProcessGuard.TryConfirmExited).Distinct())
+                SessionManager.UntrackExcelProcess(identity);
+            CaptureCleanup(() => File.Delete(path));
+        }
+        if (cleanupFailures.Count > 0)
+        {
+            if (failure != null) cleanupFailures.Insert(0, failure);
+            throw new AggregateException("Process identity startup regression or cleanup failed.", cleanupFailures);
+        }
+        if (failure != null) ExceptionDispatchInfo.Capture(failure).Throw();
+
+        void CaptureCleanup(Action cleanup)
+        {
+            try { cleanup(); }
+            catch (Exception ex) { cleanupFailures.Add(ex); }
+        }
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Dispose_DuringStartup_RejectsLateSessionAndReleasesOwnership(bool createNew)

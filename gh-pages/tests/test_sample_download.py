@@ -18,7 +18,7 @@ GH_PAGES = Path(__file__).resolve().parent.parent
 
 
 class SampleDownloadTests(unittest.TestCase):
-    def test_sitemap_describes_both_videos_on_their_own_pages(self):
+    def test_sitemap_describes_each_video_on_its_own_page(self):
         pages = [
             SimpleNamespace(
                 src_uri=source,
@@ -27,6 +27,7 @@ class SampleDownloadTests(unittest.TestCase):
             for source, url in [
                 ("index.md", "https://excelmcpserver.dev/"),
                 ("samples/world-in-motion.md", "https://excelmcpserver.dev/samples/world-in-motion/"),
+                ("samples/world-bank-briefing.md", "https://excelmcpserver.dev/samples/world-bank-briefing/"),
             ]
         ]
         env = Environment(loader=FileSystemLoader(GH_PAGES / "overrides"), autoescape=True)
@@ -41,6 +42,7 @@ class SampleDownloadTests(unittest.TestCase):
         expected = {
             "https://excelmcpserver.dev/": ("wbw3-hPcE2o", "121"),
             "https://excelmcpserver.dev/samples/world-in-motion/": ("47HJPZbcta4", "154"),
+            "https://excelmcpserver.dev/samples/world-bank-briefing/": ("_z-twdXG2fA", "161"),
         }
         for url, (video_id, duration) in expected.items():
             with self.subTest(url=url):
@@ -73,7 +75,11 @@ class SampleDownloadTests(unittest.TestCase):
             hooks.on_env(env, {"site_url": "https://example.test/docs/"}, Files([]))
         self.assertEqual(
             [video["page_url"] for video in env.globals["videos"]],
-            ["https://example.test/docs/", "https://example.test/docs/samples/world-in-motion/"],
+            [
+                "https://example.test/docs/",
+                "https://example.test/docs/samples/world-in-motion/",
+                "https://example.test/docs/samples/world-bank-briefing/",
+            ],
         )
 
     def test_assets_are_copied_without_changing_the_source(self):

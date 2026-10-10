@@ -6,6 +6,32 @@ For the complete release history, see [CHANGELOG.md](../CHANGELOG.md).
 AI assistants should discover the current contract through MCP `tools/list` or
 `excelcli --help` rather than relying on hardcoded parameter lists.
 
+## Unreleased - Consistent Command and Timeout Names
+
+`excelcli batch` now uses the same command group names as the CLI. Old batch
+names are no longer accepted:
+
+| Old batch command | New batch command |
+|---|---|
+| `calculation.<action>` | `calculationmode.<action>` |
+| `datamodelrel.<action>` | `datamodelrelationship.<action>` |
+| `sheetstyle.<action>`, and style actions under `sheet.<action>` (tab color, visibility, grouping, outlines, page setup, protection, comments, images, shapes) | `worksheetstyle.<action>` |
+
+Timeout settings use one name per entry point. Values are whole seconds.
+
+| Entry point | Old name | New name |
+|---|---|---|
+| CLI (`session open`, `session create`, `session test`, and every refresh or `vba run` command) | `--timeout` | `--timeout-seconds` |
+| Batch JSON arguments | `timeout` | `timeoutSeconds` |
+| MCP | `timeout_seconds` | unchanged |
+
+MCP `file` (`open`, `create`) and `file_read` (`test`) now take `file_path`
+instead of `path`, matching every other MCP tool. Batch `session.create` no
+longer accepts the unused `macroEnabled` argument.
+
+Unknown command groups, actions, or arguments now return an error that lists
+the valid choices, including a short description of each valid argument.
+
 ## Unreleased - MCP Read-Only Endpoints
 
 MCP actions marked read-only now appear on dedicated `<tool>_read` endpoints.

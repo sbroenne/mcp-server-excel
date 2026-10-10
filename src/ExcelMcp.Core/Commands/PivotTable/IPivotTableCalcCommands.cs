@@ -23,7 +23,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// - 1 = Tabular (each field in separate column - best for export/analysis)
 /// - 2 = Outline (hierarchical with expand/collapse)
 /// </summary>
-[ServiceCategory("pivottablecalc", "PivotTableCalc")]
+[ServiceCategory("PivotTableCalc")]
 [McpTool("pivottable_calc", Title = "PivotTable Calc Operations", Destructive = true, Category = "analysis",
     Description = "Create/delete PivotTable calculated fields and members, and configure layout. CALCULATED FIELDS: Create formulas like =Revenue-Cost, then add to Values with pivottable_field. CALCULATED MEMBERS: MDX expressions (OLAP/Data Model only). LAYOUT: 0=Compact, 1=Tabular, 2=Outline. Use pivottable for lifecycle, pivottable_field for field management.")]
 [McpReadOnlyActions("get-data", "list-calculated-fields", "list-calculated-members", "get-layout-options")]

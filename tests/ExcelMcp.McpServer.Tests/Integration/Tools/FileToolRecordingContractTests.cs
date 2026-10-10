@@ -16,6 +16,44 @@ public sealed class FileToolRecordingContractTests(
     private readonly RecordingProgramTransportFixture _fixture = fixture;
 
     [Fact]
+    public async Task Open_SharePointUrl_DispatchesWithoutLocalFileExistenceCheck()
+    {
+        const string url = "https://contoso.sharepoint.com/sites/Test/Shared%20Documents/Test.xlsx?web=1";
+        const string normalizedUrl = "https://contoso.sharepoint.com/sites/Test/Shared%20Documents/Test.xlsx";
+        var call = await _fixture.CallToolAsync(
+            "file",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "open",
+                ["file_path"] = url,
+                ["show"] = true
+            },
+            new ServiceResponse
+            {
+                Success = true,
+                Result = JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    sessionId = "sharepoint-session",
+                    filePath = normalizedUrl
+                }, ServiceProtocol.JsonOptions)
+            },
+            "session.open",
+            expectedSessionId: null,
+            expectedArgsJson: JsonSerializer.Serialize(new
+            {
+                filePath = url,
+                show = true,
+                timeoutSeconds = 120
+            }, ServiceProtocol.JsonOptions));
+
+        using var result = JsonDocument.Parse(call.JsonResult);
+        Assert.True(result.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("sharepoint-session", result.RootElement.GetProperty("workbook_session_id").GetString());
+        Assert.Equal(normalizedUrl, result.RootElement.GetProperty("filePath").GetString());
+    }
+
+    [Fact]
     public async Task Test_DispatchesTimeoutToReadOnlyValidationOpen()
     {
         var path = Path.Join(
@@ -44,7 +82,7 @@ public sealed class FileToolRecordingContractTests(
             new Dictionary<string, object?>
             {
                 ["action"] = "test",
-                ["path"] = path,
+                ["file_path"] = path,
                 ["timeout_seconds"] = 45
             },
             response,
@@ -97,7 +135,7 @@ public sealed class FileToolRecordingContractTests(
                 new Dictionary<string, object?>
                 {
                     ["action"] = action,
-                    ["path"] = path,
+                    ["file_path"] = path,
                     ["show"] = false,
                     ["timeout_seconds"] = 120
                 },
@@ -149,9 +187,11 @@ public sealed class FileToolRecordingContractTests(
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task List_PreservesOperationAndVisibilityFields(bool isExcelVisible)
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    public async Task List_PreservesOperationAndVisibilityFields(bool isExcelVisible, bool canClose)
     {
         var response = new ServiceResponse
         {
@@ -168,7 +208,9 @@ public sealed class FileToolRecordingContractTests(
                         filePath = @"C:\workbook.xlsx",
                         isExcelVisible,
                         activeOperations = 0,
-                        canClose = true
+                        canClose,
+                        excelState = canClose ? "ready" : "dialogOpen",
+                        blockingReason = canClose ? null : "Check the Excel window for a prompt."
                     }
                 }
             }, ServiceProtocol.JsonOptions)
@@ -194,7 +236,46 @@ public sealed class FileToolRecordingContractTests(
         Assert.Equal(@"C:\workbook.xlsx", session.GetProperty("filePath").GetString());
         Assert.Equal(isExcelVisible, session.GetProperty("isExcelVisible").GetBoolean());
         Assert.Equal(0, session.GetProperty("activeOperations").GetInt32());
-        Assert.True(session.GetProperty("canClose").GetBoolean());
+        Assert.Equal(canClose, session.GetProperty("canClose").GetBoolean());
+        Assert.Equal(canClose ? "ready" : "dialogOpen", session.GetProperty("excelState").GetString());
+        if (!canClose)
+        {
+            Assert.Equal("Check the Excel window for a prompt.", session.GetProperty("blockingReason").GetString());
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Close_NativeRefreshBusy_PreservesFailureAndDoesNotClaimSave(bool save)
+    {
+        const string message = "Cannot close: an Excel refresh is running. Changes remain in the open workbook.";
+        var call = await _fixture.CallToolAsync(
+            "file",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "close",
+                ["workbook_session_id"] = "busy-session",
+                ["save"] = save
+            },
+            new ServiceResponse
+            {
+                Success = false,
+                Command = "session.close",
+                SessionId = "busy-session",
+                ErrorCategory = "Busy",
+                ErrorMessage = message
+            },
+            "session.close",
+            "busy-session",
+            JsonSerializer.Serialize(new { save }, ServiceProtocol.JsonOptions));
+        using var result = JsonDocument.Parse(call.JsonResult);
+        Assert.False(result.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(result.RootElement.GetProperty("isError").GetBoolean());
+        Assert.Equal("Busy", result.RootElement.GetProperty("errorCategory").GetString());
+        Assert.Equal(message, result.RootElement.GetProperty("errorMessage").GetString());
+        Assert.Equal("busy-session", result.RootElement.GetProperty("workbook_session_id").GetString());
+        Assert.False(result.RootElement.TryGetProperty("saved", out _));
     }
 
     [Fact]
@@ -277,7 +358,7 @@ public sealed class FileToolRecordingContractTests(
         var arguments = new Dictionary<string, object?>
         {
             ["action"] = "open",
-            ["path"] = path,
+            ["file_path"] = path,
             ["show"] = false,
             ["timeout_seconds"] = 120
         };

@@ -18,7 +18,7 @@ public sealed class PersistentServiceCalculationSettingsTests(
     [Fact]
     public void Settings_ReadsNativeIterationAndPrecisionState()
     {
-        var response = _fixture.Send("calculation.get-settings", new { });
+        var response = _fixture.Send("calculationmode.get-settings", new { });
         using var result = JsonDocument.Parse(response.Result!);
         Assert.Equal("application", result.RootElement.GetProperty("settingsScope").GetString());
         Assert.False(result.RootElement.GetProperty("precisionAsDisplayed").GetBoolean());
@@ -31,17 +31,17 @@ public sealed class PersistentServiceCalculationSettingsTests(
     [Fact]
     public void Settings_ChangesIterationWithoutChangingModeAndRestoresIt()
     {
-        var previous = _fixture.Send("calculation.get-settings", new { });
+        var previous = _fixture.Send("calculationmode.get-settings", new { });
         using var original = JsonDocument.Parse(previous.Result!);
         var failure = Record.Exception(() =>
         {
-            _fixture.Send("calculation.set-settings", new
+            _fixture.Send("calculationmode.set-settings", new
             {
                 iterationEnabled = true,
                 maximumIterations = 37,
                 maximumChange = 0.0002
             });
-            var response = _fixture.Send("calculation.get-settings", new { });
+            var response = _fixture.Send("calculationmode.get-settings", new { });
             using var result = JsonDocument.Parse(response.Result!);
             Assert.True(result.RootElement.GetProperty("iterationEnabled").GetBoolean());
             Assert.Equal(37, result.RootElement.GetProperty("maximumIterations").GetInt32());
@@ -59,19 +59,19 @@ public sealed class PersistentServiceCalculationSettingsTests(
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
         var calculation = _fixture.CreateCommands<ICalculationModeCommands>();
-        var previous = _fixture.Send("calculation.get-settings", new { });
+        var previous = _fixture.Send("calculationmode.get-settings", new { });
         using var original = JsonDocument.Parse(previous.Result!);
         var failure = Record.Exception(() =>
         {
             Assert.True(calculation.SetSettings(_fixture.BatchToken, CalculationMode.Manual).Success);
             RequireSuccess(_commands.SetValues(_fixture.BatchToken, sheetName, "A1", [[7d]]));
             RequireSuccess(_commands.SetFormulas(_fixture.BatchToken, sheetName, "B1", [["=A1*3"]]));
-            _fixture.Send("calculation.calculate", new { scope = "application" });
+            _fixture.Send("calculationmode.calculate", new { scope = "application" });
             AssertValue(21d);
             RequireSuccess(_commands.SetValues(_fixture.BatchToken, sheetName, "A1", [[11d]],
                 overwritePolicy: OverwritePolicy.Allow));
             AssertValue(21d);
-            _fixture.Send("calculation.calculate", new { scope = "application", kind });
+            _fixture.Send("calculationmode.calculate", new { scope = "application", kind });
             AssertValue(33d);
             var retained = calculation.GetSettings(_fixture.BatchToken);
             Assert.True(retained.Success);
@@ -95,9 +95,9 @@ public sealed class PersistentServiceCalculationSettingsTests(
     [InlineData(100, -1)]
     public async Task Settings_InvalidLimitsRejectBeforeChangingMode(int iterations, double change)
     {
-        var previous = _fixture.Send("calculation.get-settings", new { });
+        var previous = _fixture.Send("calculationmode.get-settings", new { });
         using var original = JsonDocument.Parse(previous.Result!);
-        var rejected = await _fixture.SendForFailureAsync("calculation.set-settings", new
+        var rejected = await _fixture.SendForFailureAsync("calculationmode.set-settings", new
         {
             mode = "manual",
             iterationEnabled = !original.RootElement.GetProperty("iterationEnabled").GetBoolean(),
@@ -109,7 +109,7 @@ public sealed class PersistentServiceCalculationSettingsTests(
         Assert.Equal(nameof(ArgumentOutOfRangeException), rejected.ExceptionType);
         Assert.Contains(iterations is < 1 or > 32767 ? "maximumIterations" : "maximumChange",
             rejected.ErrorMessage, StringComparison.Ordinal);
-        var retained = _fixture.Send("calculation.get-settings", new { });
+        var retained = _fixture.Send("calculationmode.get-settings", new { });
         using var result = JsonDocument.Parse(retained.Result!);
         Assert.Equal(original.RootElement.GetProperty("modeValue").GetInt32(),
             result.RootElement.GetProperty("modeValue").GetInt32());
@@ -135,23 +135,23 @@ public sealed class PersistentServiceCalculationSettingsTests(
         string scope, string? sheetName, string? rangeAddress, string parameter)
     {
         var targetSheet = _fixture.CreateTestSheet(_fixture.BatchToken);
-        var previous = _fixture.Send("calculation.get-settings", new { });
+        var previous = _fixture.Send("calculationmode.get-settings", new { });
         using var original = JsonDocument.Parse(previous.Result!);
         var failure = await Record.ExceptionAsync(async () =>
         {
-            _fixture.Send("calculation.set-settings", new { mode = "manual" });
+            _fixture.Send("calculationmode.set-settings", new { mode = "manual" });
             Assert.True(_commands.SetValues(_fixture.BatchToken, targetSheet, "A1", [[10d]]).Success);
             Assert.True(_commands.SetFormulas(_fixture.BatchToken, targetSheet, "B1", [["=A1+5"]]).Success);
-            _fixture.Send("calculation.calculate", new { scope = "application" });
+            _fixture.Send("calculationmode.calculate", new { scope = "application" });
             Assert.True(_commands.SetValues(_fixture.BatchToken, targetSheet, "A1", [[99d]],
                 overwritePolicy: OverwritePolicy.Allow).Success);
             var beforeValues = _commands.GetValues(_fixture.BatchToken, targetSheet, "B1");
             Assert.True(beforeValues.Success);
             Assert.Equal(15d, Convert.ToDouble(beforeValues.Values[0][0],
                 System.Globalization.CultureInfo.InvariantCulture));
-            var beforeSettings = _fixture.Send("calculation.get-settings", new { });
+            var beforeSettings = _fixture.Send("calculationmode.get-settings", new { });
 
-            var rejected = await _fixture.SendForFailureAsync("calculation.calculate", new
+            var rejected = await _fixture.SendForFailureAsync("calculationmode.calculate", new
             {
                 scope,
                 sheetName = sheetName == "target" ? targetSheet : sheetName,
@@ -161,10 +161,10 @@ public sealed class PersistentServiceCalculationSettingsTests(
             Assert.False(rejected.Success);
             Assert.Equal("InvalidInput", rejected.ErrorCategory);
             Assert.Equal(nameof(ArgumentException), rejected.ExceptionType);
-            Assert.Equal("calculation.calculate", rejected.Command);
+            Assert.Equal("calculationmode.calculate", rejected.Command);
             Assert.Null(rejected.Result);
             Assert.Contains(parameter, rejected.ErrorMessage, StringComparison.Ordinal);
-            var afterSettings = _fixture.Send("calculation.get-settings", new { });
+            var afterSettings = _fixture.Send("calculationmode.get-settings", new { });
             Assert.Equal(beforeSettings.Result, afterSettings.Result);
             var afterValues = _commands.GetValues(_fixture.BatchToken, targetSheet, "B1");
             Assert.True(afterValues.Success);
@@ -180,7 +180,7 @@ public sealed class PersistentServiceCalculationSettingsTests(
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
         Assert.True(_commands.SetValues(_fixture.BatchToken, sheetName, "A1", [[1.2345]]).Success);
         Assert.True(_commands.SetNumberFormat(_fixture.BatchToken, sheetName, "A1", "0.00").Success);
-        var rejected = await _fixture.SendForFailureAsync("calculation.set-precision", new
+        var rejected = await _fixture.SendForFailureAsync("calculationmode.set-precision", new
         {
             precisionAsDisplayed = true
         });
@@ -191,21 +191,21 @@ public sealed class PersistentServiceCalculationSettingsTests(
             System.Globalization.CultureInfo.InvariantCulture));
         var failure = Record.Exception(() =>
         {
-            var enabled = _fixture.Send("calculation.set-precision", new
+            var enabled = _fixture.Send("calculationmode.set-precision", new
             {
                 precisionAsDisplayed = true,
                 allowPrecisionLoss = true
             });
             using var result = JsonDocument.Parse(enabled.Result!);
             Assert.True(result.RootElement.GetProperty("precisionAsDisplayed").GetBoolean());
-            _fixture.Send("calculation.set-precision", new { precisionAsDisplayed = false });
+            _fixture.Send("calculationmode.set-precision", new { precisionAsDisplayed = false });
             var rounded = _commands.GetValues(_fixture.BatchToken, sheetName, "A1");
             Assert.True(rounded.Success);
             Assert.Equal(1.23, Convert.ToDouble(rounded.Values[0][0],
                 System.Globalization.CultureInfo.InvariantCulture));
         });
         var cleanup = Record.Exception(() =>
-            _fixture.Send("calculation.set-precision", new { precisionAsDisplayed = false }));
+            _fixture.Send("calculationmode.set-precision", new { precisionAsDisplayed = false }));
         ThrowCombinedFailure(failure, cleanup);
     }
 
@@ -213,11 +213,11 @@ public sealed class PersistentServiceCalculationSettingsTests(
     public void Settings_IterationActuallyEvaluatesCircularFormulaAndRestoresSettings()
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
-        var previous = _fixture.Send("calculation.get-settings", new { });
+        var previous = _fixture.Send("calculationmode.get-settings", new { });
         using var original = JsonDocument.Parse(previous.Result!);
         var failure = Record.Exception(() =>
         {
-            _fixture.Send("calculation.set-settings", new
+            _fixture.Send("calculationmode.set-settings", new
             {
                 mode = "manual",
                 iterationEnabled = true,
@@ -226,7 +226,7 @@ public sealed class PersistentServiceCalculationSettingsTests(
             });
             Assert.True(_commands.SetFormulas(_fixture.BatchToken, sheetName, "A1",
                 [["=IF(A1<5,A1+1,A1)"]]).Success);
-            _fixture.Send("calculation.calculate", new { scope = "application", kind = "rebuild" });
+            _fixture.Send("calculationmode.calculate", new { scope = "application", kind = "rebuild" });
             var values = _commands.GetValues(_fixture.BatchToken, sheetName, "A1");
             Assert.True(values.Success);
             Assert.Equal(5d, Convert.ToDouble(values.Values[0][0],
@@ -242,7 +242,7 @@ public sealed class PersistentServiceCalculationSettingsTests(
     private void RestoreSettingsAndThrowFailure(JsonElement original, Exception? failure)
     {
         var cleanup = Record.Exception(() =>
-            _fixture.Send("calculation.set-settings", new
+            _fixture.Send("calculationmode.set-settings", new
             {
                 mode = original.GetProperty("mode").GetString(),
                 iterationEnabled = original.GetProperty("iterationEnabled").GetBoolean(),

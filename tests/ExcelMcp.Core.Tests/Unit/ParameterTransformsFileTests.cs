@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Xunit;
 
@@ -319,6 +320,139 @@ public sealed class ParameterTransformsFileTests : IDisposable
 
         Assert.Contains("formats", ex.Message);
         Assert.Contains("formatsFile", ex.Message);
+    }
+
+    // === ResolveFormulaCellsOrFile: formulas mixed with constants ===
+
+    private static readonly string[] s_mixedFormulaCellsExpected =
+        ["Label", "5.86", "TRUE", "", "=1+1", "FALSE", "42", "-1500"];
+
+    private const string MixedFormulaCellsJson =
+        "[[\"Label\", 5.86, true, null, \"=1+1\", false, 42, -1.5e3]]";
+
+    [Fact]
+    public void ResolveFormulaCellsOrFile_JsonFile_AcceptsNumbersBooleansAndNull()
+    {
+        var path = CreateTempFile("mixed.json", MixedFormulaCellsJson);
+
+        var result = ParameterTransforms.ResolveFormulaCellsOrFile(null, path);
+
+        Assert.Equal(s_mixedFormulaCellsExpected, Assert.Single(result));
+    }
+
+    [Fact]
+    public void ResolveFormulaCellsOrFile_InlineJsonElements_AcceptsNumbersBooleansAndNull()
+    {
+        var inline = System.Text.Json.JsonSerializer.Deserialize<List<List<object?>>>(MixedFormulaCellsJson)!;
+        Assert.IsType<System.Text.Json.JsonElement>(inline[0][1]);
+
+        var result = ParameterTransforms.ResolveFormulaCellsOrFile(inline, null);
+
+        Assert.Equal(s_mixedFormulaCellsExpected, Assert.Single(result));
+    }
+
+    [Fact]
+    public void ResolveFormulaCellsOrFile_InlineClrValues_AcceptsNumbersBooleansAndNull()
+    {
+        var inline = new List<List<object?>>
+        {
+            new() { "Label", 5.86, true, null, "=1+1", false, 42, -1500m }
+        };
+
+        var result = ParameterTransforms.ResolveFormulaCellsOrFile(inline, null);
+
+        Assert.Equal(s_mixedFormulaCellsExpected, Assert.Single(result));
+    }
+
+    [Fact]
+    public void ResolveFormulaCellsOrFile_CommaDecimalCulture_WritesInvariantNumbers()
+    {
+        var previous = System.Globalization.CultureInfo.CurrentCulture;
+        try
+        {
+            System.Globalization.CultureInfo.CurrentCulture = new System.Globalization.CultureInfo("de-DE");
+            var path = CreateTempFile("mixed_de.json", "[[5.86, 1234.5]]");
+
+            var fromFile = ParameterTransforms.ResolveFormulaCellsOrFile(null, path);
+            var inline = ParameterTransforms.ResolveFormulaCellsOrFile([[5.86, 1234.5f]], null);
+
+            Assert.Equal(["5.86", "1234.5"], Assert.Single(fromFile));
+            Assert.Equal(["5.86", "1234.5"], Assert.Single(inline));
+        }
+        finally
+        {
+            System.Globalization.CultureInfo.CurrentCulture = previous;
+        }
+    }
+
+    [Theory]
+    [InlineData("[[\"=1\", [1, 2]]]", "formulas[0][1]")]
+    [InlineData("[[\"=1\"], [\"=2\", {\"a\": 1}]]", "formulas[1][1]")]
+    [InlineData("[[\"=1\"], null]", "formulas[1]")]
+    [InlineData("[[\"=1\", 1e400]]", "formulas[0][1]")]
+    [InlineData("[[\"=1\", -1e400]]", "formulas[0][1]")]
+    public void ResolveFormulaCellsOrFile_UnsupportedCell_NamesPosition(string json, string position)
+    {
+        var path = CreateTempFile("unsupported.json", json);
+
+        var ex = Assert.Throws<ArgumentException>(
+            () => ParameterTransforms.ResolveFormulaCellsOrFile(null, path));
+
+        Assert.Contains(position, ex.Message, StringComparison.Ordinal);
+        Assert.Equal("formulas", ex.ParamName);
+    }
+
+    [Fact]
+    public void ResolveFormulaCellsOrFile_InlineOutOfRangeJsonNumber_NamesPosition()
+    {
+        var cell = JsonDocument.Parse("1e400").RootElement;
+
+        var ex = Assert.Throws<ArgumentException>(
+            () => ParameterTransforms.ResolveFormulaCellsOrFile([["=1", cell]], null));
+
+        Assert.Contains("formulas[0][1]", ex.Message, StringComparison.Ordinal);
+        Assert.Equal("formulas", ex.ParamName);
+    }
+
+    [Fact]
+    public void ResolveFormulaCellsOrFile_NonFiniteClrNumber_NamesPosition()
+    {
+        var ex = Assert.Throws<ArgumentException>(
+            () => ParameterTransforms.ResolveFormulaCellsOrFile([["=1", double.NaN]], null));
+
+        Assert.Contains("formulas[0][1]", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ResolveFormulaCellsOrFile_NeitherProvided_ThrowsArgumentException()
+    {
+        var ex = Assert.Throws<ArgumentException>(
+            () => ParameterTransforms.ResolveFormulaCellsOrFile(null, null));
+
+        Assert.Contains("formulas", ex.Message);
+        Assert.Contains("formulasFile", ex.Message);
+    }
+
+    [Fact]
+    public void ResolveFormulaCellsOrFile_FileNotFound_ThrowsFileNotFoundException()
+    {
+        var missingPath = Path.Combine(_tempDir, "no_such_formulas.json");
+
+        var ex = Assert.Throws<FileNotFoundException>(
+            () => ParameterTransforms.ResolveFormulaCellsOrFile(null, missingPath));
+
+        Assert.Contains(missingPath, ex.Message);
+    }
+
+    [Fact]
+    public void ResolveFormulaCellsOrFile_InvalidJson_ThrowsArgumentException()
+    {
+        var path = CreateTempFile("bad_mixed.json", "not json at all");
+
+        var ex = Assert.Throws<ArgumentException>(
+            () => ParameterTransforms.ResolveFormulaCellsOrFile(null, path));
+
+        Assert.Contains("Invalid JSON", ex.Message);
     }
 
     // === ParseCsvToRows ===

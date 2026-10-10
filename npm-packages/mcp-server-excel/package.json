@@ -1,7 +1,7 @@
 {
   "name": "@sbroenne/mcp-server-excel",
   "version": "0.0.0-development",
-  "description": "Excel automation MCP server for Windows, distributed through npm.",
+  "description": "Automate Microsoft Excel from chat with rich MCP tools for workbooks, formulas, Power Query, PivotTables, charts, and more. Requires Windows and desktop Excel.",
   "license": "MIT",
   "type": "module",
   "bin": {

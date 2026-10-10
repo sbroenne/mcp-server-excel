@@ -11,6 +11,82 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.3.9] - 2026-10-09
+
+### Minor Changes
+
+- [#1088](https://github.com/sbroenne/mcp-server-excel/pull/1088) [`de1f950`](https://github.com/sbroenne/mcp-server-excel/commit/de1f950c335e9d9bd8f4ed9509fd2f5a96388367) Thanks [@sbroenne](https://github.com/sbroenne)! - Inspect the workbook connection of a PivotTable and request a native connection change for one external PivotTable through both the CLI and MCP. Select the worksheet and PivotTable name to avoid changing a similarly named table on another sheet. The operation keeps the existing PivotTable and leaves connection deletion and refresh as separate steps. Excel and the provider determine whether an OLAP connection change is supported.
+
+### Patch Changes
+
+- [#1086](https://github.com/sbroenne/mcp-server-excel/pull/1086) [`3803d7b`](https://github.com/sbroenne/mcp-server-excel/commit/3803d7bf3f64208a7b1deac6724b7ee7eb71f8b1) Thanks [@sbroenne](https://github.com/sbroenne)! - Allow more time for published packages to become available before updating the MCP Registry listing.
+
+## [2.3.8] - 2026-10-08
+
+### Minor Changes
+
+- [#1083](https://github.com/sbroenne/mcp-server-excel/pull/1083) [`47f8cc9`](https://github.com/sbroenne/mcp-server-excel/commit/47f8cc9ba2724a520fdbcc497ad93b08ea87e31e) Thanks [@sbroenne](https://github.com/sbroenne)! - Inspect sign-in settings, set selected account-hint and sign-in modes, or remove a selected Power BI/Analysis Services connection's saved account hint through MCP or CLI. Account and secret values are not returned. Passwords, tokens, server impersonation, and unspecified settings are preserved; the actions do not clear shared credentials, sign in or out, refresh, or save automatically.
+
+- [#1083](https://github.com/sbroenne/mcp-server-excel/pull/1083) [`47f8cc9`](https://github.com/sbroenne/mcp-server-excel/commit/47f8cc9ba2724a520fdbcc497ad93b08ea87e31e) Thanks [@sbroenne](https://github.com/sbroenne)! - Open existing SharePoint and OneDrive for Business workbooks directly from their HTTPS file URLs in MCP and excelcli, without syncing or downloading a separate copy first. Visible Excel handles sign-in and editing permissions; cloud AutoSave is disabled so explicit save and discard behavior stays consistent with local workbooks.
+
+  Workbook information now reports the live AutoSave status through `autoSaveOn`. Older Excel versions without AutoSave report it as disabled and can still open cloud workbooks; unexpected AutoSave access errors remain failures.
+
+### Patch Changes
+
+- [#1083](https://github.com/sbroenne/mcp-server-excel/pull/1083) [`47f8cc9`](https://github.com/sbroenne/mcp-server-excel/commit/47f8cc9ba2724a520fdbcc497ad93b08ea87e31e) Thanks [@sbroenne](https://github.com/sbroenne)! - Prevent simultaneous shutdown requests from stopping the service while a busy workbook is retained for recovery.
+
+- [#1083](https://github.com/sbroenne/mcp-server-excel/pull/1083) [`47f8cc9`](https://github.com/sbroenne/mcp-server-excel/commit/47f8cc9ba2724a520fdbcc497ad93b08ea87e31e) Thanks [@sbroenne](https://github.com/sbroenne)! - MCP and CLI session listings now distinguish an open Excel dialog from a busy query and explain when to check Excel for a prompt. Detection works without calling Excel, includes dialogs hosted in another process, and never reads credentials or responds to prompts. Save and close remain blocked until Excel is ready.
+
+- [#1083](https://github.com/sbroenne/mcp-server-excel/pull/1083) [`47f8cc9`](https://github.com/sbroenne/mcp-server-excel/commit/47f8cc9ba2724a520fdbcc497ad93b08ea87e31e) Thanks [@sbroenne](https://github.com/sbroenne)! - Retain the workbook and service when Excel rejects the final shutdown save as busy, preserving the original COM error for inspection and retry. Remove sessions whose Excel process has exited from the daemon's idle count so abandoned sessions do not prevent idle shutdown.
+
+- [#1083](https://github.com/sbroenne/mcp-server-excel/pull/1083) [`47f8cc9`](https://github.com/sbroenne/mcp-server-excel/commit/47f8cc9ba2724a520fdbcc497ad93b08ea87e31e) Thanks [@sbroenne](https://github.com/sbroenne)! - Keep the workbook and session usable when a refresh starts between the initial readiness check and closing. Retry closing after the refresh completes; any save already completed before the refusal remains saved.
+
+- [#1083](https://github.com/sbroenne/mcp-server-excel/pull/1083) [`47f8cc9`](https://github.com/sbroenne/mcp-server-excel/commit/47f8cc9ba2724a520fdbcc497ad93b08ea87e31e) Thanks [@sbroenne](https://github.com/sbroenne)! - Fix Power BI/MSOLAP connection inspection and refresh when Excel does not expose background-query settings. Save, Save As, and close now check Excel's live refresh state, keep unfinished work open, and report busy errors without incorrectly blaming a file lock.
+
+  Require confirmed Excel process ownership during startup, retrying temporary identity-capture failures and rejecting startup before opening or creating a workbook if ownership cannot be confirmed.
+
+  Allow a started readiness inspection to finish within the session operation timeout, so an idle large workbook is not permanently blocked from saving or closing by the short queue deadline.
+
+  Refuse service shutdown when readiness blocks saving, retaining the workbook and service for recovery instead of disposing unsaved edits. Product CLI stop respects refusal and pending-request timeouts rather than force-stopping the owned processes.
+
+- [#1083](https://github.com/sbroenne/mcp-server-excel/pull/1083) [`47f8cc9`](https://github.com/sbroenne/mcp-server-excel/commit/47f8cc9ba2724a520fdbcc497ad93b08ea87e31e) Thanks [@sbroenne](https://github.com/sbroenne)! - Reject browser pages and text responses masquerading as Excel workbooks instead of reporting a successful open. Unsupported SharePoint links now explain how to obtain a direct workbook address or use an existing local workbook.
+
+## [2.3.7] - 2026-10-08
+
+### Patch Changes
+
+- [#1081](https://github.com/sbroenne/mcp-server-excel/pull/1081) [`872a568`](https://github.com/sbroenne/mcp-server-excel/commit/872a568bc3d079d0d145ece8cc00f327cddb4408) Thanks [@sbroenne](https://github.com/sbroenne)! - **Formula blocks can mix in numbers, true/false, and blanks** ([#1072](https://github.com/sbroenne/mcp-server-excel/issues/1072)): `range set-formulas` and `range validate-formulas` now accept JSON numbers, `true`/`false`, and `null` (an empty cell) next to formulas and text, both inline in `formulas` and in a `formulasFile`. Numbers keep their exact value in any Excel language, and `validate-formulas` treats these constants as valid instead of reporting them as errors.
+
+## [2.3.6] - 2026-10-07
+
+### Patch Changes
+
+- [#1078](https://github.com/sbroenne/mcp-server-excel/pull/1078) [`c38fdac`](https://github.com/sbroenne/mcp-server-excel/commit/c38fdac668ce88c62367599eb1f7006fab1f3aad) Thanks [@sbroenne](https://github.com/sbroenne)! - Clarify the Excel MCP and CLI plugin and npm package descriptions so users can tell which integration fits their workflow and see the desktop Excel requirement.
+
+- [#1080](https://github.com/sbroenne/mcp-server-excel/pull/1080) [`7374c25`](https://github.com/sbroenne/mcp-server-excel/commit/7374c25e983d0d6da1ffd61f5ce776994b830599) Thanks [@sbroenne](https://github.com/sbroenne)! - **`set-values` no longer blanks other cells when one value starts with `=`** ([#1065](https://github.com/sbroenne/mcp-server-excel/issues/1065)). Writing a mix of numbers, text, dates, and formulas now keeps every value: only the cells starting with `=` become formulas. Before, every other cell in the range was silently cleared while the command reported success.
+
+  **`get-formulas` no longer reports text that starts with `=` as a formula.** Cells holding text such as `'=abc` now return an empty formula and their text as the value. The `set-values` result message now reads `Wrote N formula(s); other cells kept as values` when formulas are written.
+
+## [2.3.5] - 2026-10-07
+
+### Patch Changes
+
+- [#1076](https://github.com/sbroenne/mcp-server-excel/pull/1076) [`39f20a1`](https://github.com/sbroenne/mcp-server-excel/commit/39f20a13268ffc08df9838d9125dcbcd51ba0692) Thanks [@sbroenne](https://github.com/sbroenne)! - **Consistent command and timeout names** ([#1066](https://github.com/sbroenne/mcp-server-excel/issues/1066)): `excelcli batch` now accepts the same command group names as the CLI (`calculationmode`, `datamodelrelationship`, `worksheetstyle`). Timeouts are named `--timeout-seconds` in the CLI, `timeoutSeconds` in batch JSON, and `timeout_seconds` in MCP. MCP `file` and `file_read` now take `file_path` instead of `path`. Mistyped commands or arguments now return a list of the valid choices. These are breaking changes; see [Breaking Changes](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/BREAKING-CHANGES.md).
+
+## [2.3.4] - 2026-10-07
+
+### Patch Changes
+
+- [#1070](https://github.com/sbroenne/mcp-server-excel/pull/1070) [`fb5b8a1`](https://github.com/sbroenne/mcp-server-excel/commit/fb5b8a1e346e532fefba4d994b4c111328322e9f) Thanks [@sbroenne](https://github.com/sbroenne)! - Charts can now use data made of separate cell blocks on one sheet, such as labels in M4:M29 and values in O4:S29 (`M4:M29,O4:S29`), when creating a chart or changing its source. Bad input for charts, drawing objects, PivotTables, slicers, timelines and conditional formats is now rejected before anything is added to the workbook. If Excel still fails after creating the object, the error now names what was left behind and where, instead of showing a bare Excel error code.
+
+- [#1069](https://github.com/sbroenne/mcp-server-excel/pull/1069) [`6126f0b`](https://github.com/sbroenne/mcp-server-excel/commit/6126f0bb79e60ed26ed33391096b93f88153b050) Thanks [@sbroenne](https://github.com/sbroenne)! - Power Query `refresh-all` now works on workbooks that contain parameter or connection-only queries: it skips them, refreshes every loaded query, and keeps going when one query fails. The result lists which queries were refreshed, skipped, and failed (with each failure's error), and reports `success: false` when any query failed. `excelcli` now exits with code 1 whenever a command's result reports `success: false`, matching how the MCP Server flags the same result as an error.
+
+## [2.3.3] - 2026-10-06
+
+### Patch Changes
+
+- [#1062](https://github.com/sbroenne/mcp-server-excel/pull/1062) [`b1256d3`](https://github.com/sbroenne/mcp-server-excel/commit/b1256d342f22e488adcf625c84cc78da23f0f95f) Thanks [@sbroenne](https://github.com/sbroenne)! - Add a bounded workbook overview with worksheet, table, and named-range metadata plus optional limited value and formula previews.
+
 ## [2.3.1] - 2026-10-05
 
 ### Major Changes

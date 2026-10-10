@@ -28,7 +28,7 @@ know the operation names — but they are useful when scripting.
     The assistant opens a session, refreshes, then closes it:
 
     ```text
-    file(action: 'open', path: 'C:\reports\Q3-report.xlsx')
+    file(action: 'open', file_path: 'C:\reports\Q3-report.xlsx')
     powerquery(action: 'refresh', query_name: 'SalesData', timeout_seconds: 300)
     file(action: 'close', save: true)
     ```
@@ -37,7 +37,7 @@ know the operation names — but they are useful when scripting.
 
     ```powershell
     $session = (excelcli -q session open C:\reports\Q3-report.xlsx | ConvertFrom-Json).sessionId
-    excelcli -q powerquery refresh --session $session --query-name SalesData --timeout 300
+    excelcli -q powerquery refresh --session $session --query-name SalesData --timeout-seconds 300
     excelcli -q session close --session $session --save
     ```
 
@@ -50,13 +50,13 @@ fast instead of holding the session.
 
 | Timeout | Configure it with | Applies to | Default and range |
 |---|---|---|---|
-| Session operation timeout | MCP `file open/create` `timeout_seconds`; CLI `session open/create --timeout` | Workbook startup and operations that do not supply a dedicated data-operation timeout, including Power Query `create`, `update`, and `evaluate` | 120 seconds; 10–3600 |
-| Refresh/data-operation timeout | The refresh action's MCP `timeout_seconds`, CLI `--timeout`, or batch `timeout` | Power Query `refresh` and `refresh-all`; `load-to` uses the same 30-minute default but has no caller override | Power Query omitted/`0`: 1800 seconds; explicit range 0–2147483. Other timeout-bearing categories use 1–2147483. |
+| Session operation timeout | MCP `file open/create` `timeout_seconds`; CLI `session open/create --timeout-seconds` | Workbook startup and operations that do not supply a dedicated data-operation timeout, including Power Query `create`, `update`, and `evaluate` | 120 seconds; 10–3600 |
+| Refresh/data-operation timeout | The refresh action's MCP `timeout_seconds`, CLI `--timeout-seconds`, or batch `timeoutSeconds` | Power Query `refresh` and `refresh-all`; `load-to` uses the same 30-minute default but has no caller override | Power Query omitted/`0`: 1800 seconds; explicit range 0–2147483. Other timeout-bearing categories use 1–2147483. |
 
 A dedicated refresh/data-operation timeout replaces the session operation wait
 for that operation; the two limits are not layered. `powerquery load-to` has no
 caller timeout option and uses the fixed 30-minute data-operation timeout;
-passing `timeout` is rejected as action-inapplicable rather than ignored.
+passing `timeoutSeconds` is rejected as action-inapplicable rather than ignored.
 
 ## Refresh everything
 
@@ -65,6 +65,13 @@ Use the `refresh-all` action to refresh every query in the workbook:
 ```powershell
 excelcli -q powerquery refresh-all --session $session
 ```
+
+The result lists `refreshedQueries`, `skippedQueries`, and `failedQueries`.
+Parameter and connection-only queries are skipped because they have nothing of
+their own to refresh; Excel evaluates them when the loaded queries that use
+them refresh. If one query fails, the others still refresh, the result reports
+`success: false`, and `excelcli` exits with code 1. Queries that already
+refreshed keep their new data.
 
 ## Test M code before you save it
 

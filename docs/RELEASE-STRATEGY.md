@@ -86,7 +86,7 @@ workflow runs (see [Changelog Generation](#changelog-generation) below).
 
 ### 2. Run the Release Workflow
 
-1. Go to **Actions** → **Release All Components** → **Run workflow**
+1. Go to **Actions** → **[Release] All Components** → **Run workflow**
 2. Select the version bump type:
    - **patch** (default): `1.5.6` → `1.5.7`
    - **minor**: `1.5.6` → `1.6.0`
@@ -118,7 +118,7 @@ operations rather than implementing separate packaging rules.
 5. **create-release** → Prepares a draft, uploads and verifies all GitHub assets and checksums, then publishes it with prepared notes
 6. **publish** → Publishes npm and NuGet packages
 7. **publish-vscode** → Publishes the already verified VSIX independently
-8. **publish-mcp-registry** → Waits for matching npm/NuGet metadata and registers the release
+8. **publish-mcp-registry** → Waits for matching npm/NuGet metadata and registers the release. The workflow makes seven validation attempts with six 10-minute waits (60 minutes of propagation waiting), within a 75-minute publication-job timeout.
 9. **publish-plugins** → Calls the reusable publisher after GitHub assets exist, passing exact release identity and prepared plugins
 
 Registry propagation failures do not suppress plugin publication or GitHub assets.
@@ -138,6 +138,9 @@ The publisher first looks up a published release by tag. If that endpoint
 returns HTTP 404, it searches all authenticated release-list pages for the
 exact, case-sensitive draft tag. Duplicate matches or invalid release state
 block publication; other API failures are not treated as a missing release.
+After creating a draft, the publisher retries that lookup up to ten times,
+waiting two seconds between attempts, because GitHub may not expose a new draft
+immediately.
 
 Replaying an already published release verifies matching assets and does not
 replace them or edit notes. Missing or mismatched immutable assets fail visibly.

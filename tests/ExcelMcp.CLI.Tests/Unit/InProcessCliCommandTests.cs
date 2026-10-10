@@ -18,6 +18,146 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 public sealed class InProcessCliCommandTests
 {
     [Fact]
+    public async Task ConnectionAccountSettings_SetMapsTypedInputsWithoutEchoingAccount()
+    {
+        const string result = """{"success":true,"changed":true,"accountHintPresent":true,"interactiveLogin":"Always","identityMode":"CurrentUser"}""";
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = result });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "connection", "set-account-settings", "--session", "account-session",
+                "--connection-name", "Sales", "--account-hint", "fixture-account",
+                "--interactive-login", "Always", "--identity-mode", "CurrentUser"],
+            CreateRuntime(factory, output, error));
+        Assert.Equal(0, exitCode);
+        var request = Assert.Single(factory.Requests);
+        Assert.Equal("connection.set-account-settings", request.Command);
+        Assert.Equal("account-session", request.SessionId);
+        using var args = JsonDocument.Parse(request.Args!);
+        Assert.Equal("Sales", args.RootElement.GetProperty("connectionName").GetString());
+        Assert.Equal("fixture-account", args.RootElement.GetProperty("accountHint").GetString());
+        Assert.Equal("Always", args.RootElement.GetProperty("interactiveLogin").GetString());
+        Assert.Equal("CurrentUser", args.RootElement.GetProperty("identityMode").GetString());
+        using var actual = JsonDocument.Parse(output.ToString());
+        Assert.True(actual.RootElement.GetProperty("changed").GetBoolean());
+        Assert.Equal("Always", actual.RootElement.GetProperty("interactiveLogin").GetString());
+        Assert.DoesNotContain("fixture-account", output.ToString(), StringComparison.Ordinal);
+        Assert.Empty(error.ToString());
+    }
+
+    [Theory]
+    [InlineData("get-account-settings", """{"success":true,"accountHintPresent":true,"passwordPresent":false,"impersonationPresent":false,"identityMode":"Connection"}""")]
+    [InlineData("clear-account-hint", """{"success":true,"changed":true,"accountHintPresent":false}""")]
+    public async Task ConnectionAccountSettings_MapsExactConnectionAndPreservesResults(string action, string result)
+    {
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = result });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "connection", action, "--session", "account-session", "--connection-name", "Sales"],
+            CreateRuntime(factory, output, error));
+        Assert.Equal(0, exitCode);
+        var request = Assert.Single(factory.Requests);
+        Assert.Equal("connection." + action, request.Command);
+        Assert.Equal("account-session", request.SessionId);
+        using var args = JsonDocument.Parse(request.Args!);
+        Assert.Equal("Sales", args.RootElement.GetProperty("connectionName").GetString());
+        Assert.Single(args.RootElement.EnumerateObject());
+        using var expected = JsonDocument.Parse(result);
+        using var actual = JsonDocument.Parse(output.ToString());
+        foreach (var property in expected.RootElement.EnumerateObject())
+            Assert.Equal(property.Value.GetRawText(), actual.RootElement.GetProperty(property.Name).GetRawText());
+        Assert.Empty(error.ToString());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SessionClose_NativeRefreshBusy_PreservesFailureAndExitCode(bool save)
+    {
+        const string message = "Cannot close: an Excel refresh is running. Changes remain in the open workbook.";
+        var factory = new RecordingClientFactory(new ServiceResponse
+        {
+            Success = false,
+            Command = "session.close",
+            SessionId = "busy-session",
+            ErrorCategory = "Busy",
+            ErrorMessage = message
+        });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        string[] arguments = save
+            ? ["--quiet", "session", "close", "--session", "busy-session", "--save"]
+            : ["--quiet", "session", "close", "--session", "busy-session"];
+        var exitCode = await Program.RunAsync(arguments, CreateRuntime(factory, output, error));
+
+        Assert.Equal(1, exitCode);
+        var request = Assert.Single(factory.Requests);
+        Assert.Equal("session.close", request.Command);
+        Assert.Equal("busy-session", request.SessionId);
+        using var args = JsonDocument.Parse(request.Args!);
+        Assert.Equal(save, args.RootElement.GetProperty("save").GetBoolean());
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.False(result.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("Busy", result.RootElement.GetProperty("errorCategory").GetString());
+        Assert.Equal(message, result.RootElement.GetProperty("errorMessage").GetString());
+        Assert.False(result.RootElement.TryGetProperty("saved", out _));
+        Assert.Empty(error.ToString());
+    }
+
+    [Theory]
+    [InlineData("busy")]
+    [InlineData("dialogOpen")]
+    public async Task SessionList_NativeRefreshWithoutTrackedWork_PreservesCannotClose(string excelState)
+    {
+        var daemonConnection = new RecordingDaemonConnection(new ServiceResponse
+        {
+            Success = true,
+            Result = $$"""{"success":true,"sessions":[{"sessionId":"busy-session","activeOperations":0,"canClose":false,"excelState":"{{excelState}}","blockingReason":"Check Excel before retrying."}]}"""
+        }, new DaemonConnectionPolicy.DaemonFailureState(DaemonConnectionPolicy.RunningState, true));
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "session", "list"],
+            CreateRuntime(new RecordingClientFactory(), output, error, daemonConnection: daemonConnection));
+        Assert.Equal(0, exitCode);
+        Assert.Equal("session.list", Assert.Single(daemonConnection.Requests).Command);
+        using var result = JsonDocument.Parse(output.ToString());
+        var session = Assert.Single(result.RootElement.GetProperty("sessions").EnumerateArray());
+        Assert.Equal(0, session.GetProperty("activeOperations").GetInt32());
+        Assert.False(session.GetProperty("canClose").GetBoolean());
+        Assert.Equal(excelState, session.GetProperty("excelState").GetString());
+        Assert.Equal("Check Excel before retrying.", session.GetProperty("blockingReason").GetString());
+        Assert.Empty(error.ToString());
+    }
+
+    [Fact]
+    public async Task SessionOpen_SharePointUrl_ForwardsUrlAndVisibilityToSharedService()
+    {
+        const string url = "https://contoso-my.sharepoint.com/personal/test/Documents/Test.xlsx?web=1";
+        var factory = new RecordingClientFactory(new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":true,"sessionId":"remote-session"}"""
+        });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "session", "open", url, "--show"],
+            CreateRuntime(factory, output, error));
+
+        Assert.Equal(0, exitCode);
+        var request = Assert.Single(factory.Requests);
+        Assert.Equal("session.open", request.Command);
+        using var args = JsonDocument.Parse(request.Args!);
+        Assert.Equal(url, args.RootElement.GetProperty("filePath").GetString());
+        Assert.True(args.RootElement.GetProperty("show").GetBoolean());
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.Equal("remote-session", result.RootElement.GetProperty("sessionId").GetString());
+        Assert.Empty(error.ToString());
+    }
+
+    [Fact]
     public async Task RunAsync_ReturnsBeforePendingCommandCompletesAndTracksFinalOutcome()
     {
         var response = new TaskCompletionSource<ServiceResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -541,6 +681,118 @@ public sealed class InProcessCliCommandTests
             Assert.Equal(0, envelope.RootElement.GetProperty("count").GetInt32());
             Assert.Empty(envelope.RootElement.GetProperty("sessions").EnumerateArray());
             Assert.False(envelope.RootElement.TryGetProperty("running", out _));
+        }
+    }
+
+    [Fact]
+    public async Task ServiceCommand_ResultReportsSuccessFalse_PrintsResultAndExitsNonzero()
+    {
+        const string result = """{"success":false,"errorMessage":"1 of 2 queries failed to refresh: 'Broken'.","refreshedQueries":["Good"],"skippedQueries":[],"failedQueries":[{"queryName":"Broken","errorCategory":"Expression","errorMessage":"[Expression.Error] bad","exceptionType":"COMException","hresult":"0x800A03EC"}]}""";
+        var telemetry = new List<(string Command, bool Succeeded, string? ErrorCategory, bool ExpectedNegative)>();
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = result });
+        var output = new StringWriter();
+        var error = new StringWriter();
+
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "powerquery", "refresh-all", "--session", "session-1"],
+            CreateRuntime(factory, output, error,
+                telemetryObserver: (command, _, succeeded, errorCategory, expectedNegative) =>
+                    telemetry.Add((command, succeeded, errorCategory, expectedNegative))));
+
+        Assert.Equal(1, exitCode);
+        Assert.Empty(error.ToString());
+        Assert.Equal("powerquery.refresh-all", Assert.Single(factory.Requests).Command);
+        Assert.Equal(result, output.ToString().Trim());
+        var tracked = Assert.Single(telemetry);
+        Assert.False(tracked.Succeeded);
+        Assert.False(tracked.ExpectedNegative);
+    }
+
+    [Fact]
+    public async Task ServiceCommand_ResultReportsSuccessFalseWithOutputPath_DoesNotReportWrittenFile()
+    {
+        const string result = """{"success":false,"errorMessage":"Range is empty."}""";
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = result });
+        var output = new StringWriter();
+        var outputPath = Path.Combine(Path.GetTempPath(), $"excelcli-negative-{Guid.NewGuid():N}.json");
+
+        try
+        {
+            var exitCode = await Program.RunAsync(
+                ["--quiet", "powerquery", "refresh-all", "--session", "session-1", "--output", outputPath],
+                CreateRuntime(factory, output, new StringWriter()));
+
+            Assert.Equal(1, exitCode);
+            Assert.False(File.Exists(outputPath));
+            Assert.Equal(result, output.ToString().Trim());
+        }
+        finally
+        {
+            File.Delete(outputPath);
+        }
+    }
+
+    [Fact]
+    public async Task Batch_ResultReportsSuccessFalse_MarksLineFailedAndHonorsStopOnError()
+    {
+        const string negative = """{"success":false,"errorMessage":"1 of 1 queries failed to refresh: 'Broken'.","errorCategory":"Expression"}""";
+        var factory = new RecordingClientFactory(
+            new ServiceResponse { Success = true, Result = negative },
+            new ServiceResponse { Success = true, Result = """{"success":true}""" });
+        var output = new StringWriter();
+        var runtime = CreateRuntime(
+            factory,
+            output,
+            new StringWriter(),
+            """
+            {"command":"powerquery.refresh-all","sessionId":"session-1"}
+            {"command":"diag.echo","args":{"message":"after"}}
+            """);
+
+        var exitCode = await Program.RunAsync(["--quiet", "batch", "--stop-on-error"], runtime);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal("powerquery.refresh-all", Assert.Single(factory.Requests).Command);
+        using var line = JsonDocument.Parse(Assert.Single(
+            output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)));
+        Assert.False(line.RootElement.GetProperty("success").GetBoolean());
+        Assert.False(line.RootElement.GetProperty("result").GetProperty("success").GetBoolean());
+        Assert.Equal(
+            "1 of 1 queries failed to refresh: 'Broken'.",
+            line.RootElement.GetProperty("error").GetString());
+    }
+
+    [Fact]
+    public async Task Batch_FileTestCanOpenFalse_MarksLineFailedAndContinues()
+    {
+        var factory = new RecordingClientFactory(
+            new ServiceResponse { Success = true, Result = """{"success":false,"canOpen":false}""" },
+            new ServiceResponse { Success = true, Result = """{"success":true}""" });
+        var output = new StringWriter();
+        var runtime = CreateRuntime(
+            factory,
+            output,
+            new StringWriter(),
+            """
+            {"command":"session.test","args":{"filePath":"C:\\workbooks\\missing.xlsx"}}
+            {"command":"diag.echo","args":{"message":"after"}}
+            """);
+
+        var exitCode = await Program.RunAsync(["--quiet", "batch"], runtime);
+
+        Assert.Equal(1, exitCode);
+        Assert.Equal(2, factory.Requests.Count);
+        var lines = output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(2, lines.Length);
+        using (var first = JsonDocument.Parse(lines[0]))
+        {
+            Assert.False(first.RootElement.GetProperty("success").GetBoolean());
+            Assert.False(first.RootElement.GetProperty("result").GetProperty("canOpen").GetBoolean());
+            Assert.False(string.IsNullOrWhiteSpace(first.RootElement.GetProperty("error").GetString()));
+        }
+        using (var second = JsonDocument.Parse(lines[1]))
+        {
+            Assert.True(second.RootElement.GetProperty("success").GetBoolean());
         }
     }
 

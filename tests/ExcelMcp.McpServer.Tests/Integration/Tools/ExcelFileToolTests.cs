@@ -25,7 +25,7 @@ public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBa
         var missingDirectory = Path.Join(Path.GetTempPath(), $"Missing_{Guid.NewGuid():N}");
         var invalidPath = Path.Join(missingDirectory, "test.xlsx");
 
-        var result = await CallToolAsync("file", new() { ["action"] = "create", ["path"] = invalidPath, ["timeout_seconds"] = 300 });
+        var result = await CallToolAsync("file", new() { ["action"] = "create", ["file_path"] = invalidPath, ["timeout_seconds"] = 300 });
 
         Output.WriteLine($"Result: {result}");
 
@@ -43,7 +43,7 @@ public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBa
     {
         const string invalidPath = @"relative\test.xlsx";
 
-        var result = await CallToolAsync("file", new() { ["action"] = "create", ["path"] = invalidPath, ["timeout_seconds"] = 300 });
+        var result = await CallToolAsync("file", new() { ["action"] = "create", ["file_path"] = invalidPath, ["timeout_seconds"] = 300 });
 
         Output.WriteLine($"Result: {result}");
 
@@ -60,7 +60,7 @@ public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBa
     public async Task Create_NullPath_ReturnsJsonError()
     {
         // Act - null path should be caught and returned as JSON error
-        var result = await CallToolAsync("file", new() { ["action"] = "create", ["path"] = null, ["timeout_seconds"] = 300 });
+        var result = await CallToolAsync("file", new() { ["action"] = "create", ["file_path"] = null, ["timeout_seconds"] = 300 });
 
         Output.WriteLine($"Result: {result}");
 
@@ -71,7 +71,8 @@ public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBa
         // ExecuteToolAction uses "success" and "errorMessage" for error responses
         Assert.False(json.GetProperty("success").GetBoolean());
         Assert.True(json.TryGetProperty("errorMessage", out var errorMsg));
-        Assert.Contains("path is required", errorMsg.GetString());
+        Assert.Contains("file_path", errorMsg.GetString());
+        Assert.Contains("required", errorMsg.GetString());
     }
 
     [Fact]
@@ -81,7 +82,7 @@ public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBa
         var fakePath = @"C:\NonExistent\fake.xlsx";
 
         // Act
-        var result = await CallToolAsync("file_read", new() { ["action"] = "test", ["path"] = fakePath, ["timeout_seconds"] = 300 });
+        var result = await CallToolAsync("file_read", new() { ["action"] = "test", ["file_path"] = fakePath, ["timeout_seconds"] = 300 });
 
         Output.WriteLine($"Result: {result}");
 
@@ -107,7 +108,7 @@ public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBa
                 dataSpaceName);
 
             // Act
-            var result = await CallToolAsync("file_read", new() { ["action"] = "test", ["path"] = tempPath, ["timeout_seconds"] = 300 });
+            var result = await CallToolAsync("file_read", new() { ["action"] = "test", ["file_path"] = tempPath, ["timeout_seconds"] = 300 });
 
             Output.WriteLine($"Result: {result}");
 

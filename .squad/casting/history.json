@@ -1,0 +1,23 @@
+{
+  "universe_usage_history": [
+    {
+      "universe": "descriptive",
+      "used_at": "2026-10-06T17:10:20.668+02:00"
+    }
+  ],
+  "assignment_cast_snapshots": {
+    "excelmcp-initial-20261006T171020": {
+      "universe": "descriptive",
+      "agents": [
+        "lead",
+        "runtime-engineer",
+        "entry-points-engineer",
+        "quality-engineer",
+        "docs-extension-engineer"
+      ],
+      "created_at": "2026-10-06T17:10:20.668+02:00"
+    }
+  },
+  "transaction_id": "636afc77-9247-4840-b4a4-5a84f77b944e",
+  "registry_revision": 2
+}

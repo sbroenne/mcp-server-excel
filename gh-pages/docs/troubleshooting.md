@@ -66,7 +66,7 @@ Rights-managed files need Excel visible so the sign-in or policy prompt can
 appear. Keep Excel on screen while opening:
 
 ```powershell
-excelcli session open "D:\Docs\Protected.xlsx" --show --timeout 120
+excelcli session open "D:\Docs\Protected.xlsx" --show --timeout-seconds 120
 ```
 
 With the MCP Server, ask your assistant to *"show me Excel while you work"* so

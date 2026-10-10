@@ -27,8 +27,8 @@ public partial class TableCommands
             dynamic? slicerCache = null;
             dynamic? slicers = null;
             dynamic? slicer = null;
-            dynamic? destSheet = null;
-            dynamic? destRange = null;
+            Excel.Worksheet? destSheet = null;
+            Excel.Range? destRange = null;
 
             try
             {
@@ -45,8 +45,18 @@ public partial class TableCommands
                     };
                 }
 
+                // Check everything that can fail before Excel creates a slicer cache:
+                // a cache created for a request that then fails stays in the workbook.
+                SlicerPlacement.ValidateNewControlName((Excel.SlicerCaches)slicerCaches, slicerName, ct);
+                (destSheet, destRange) = SlicerPlacement.ResolveDestination(ctx.Book, destinationSheet, position, ct);
+
+                // Get position in points from the cell reference
+                double top = Convert.ToDouble(destRange.Top);
+                double left = Convert.ToDouble(destRange.Left);
+
                 // Check if a SlicerCache already exists for this column on this table
                 slicerCache = FindExistingTableSlicerCache(slicerCaches, table, columnName);
+                bool createdCache = false;
 
                 if (slicerCache == null)
                 {
@@ -55,21 +65,21 @@ public partial class TableCommands
                     // The Add method (without SlicerCacheType) accepts ListObject as source
                     // Note: Add2 does NOT accept ListObject per Microsoft documentation
                     slicerCache = slicerCaches.Add(table, columnName);
+                    createdCache = true;
                 }
-
-                // Get destination sheet and calculate position from cell reference
-                destSheet = ctx.Book.Worksheets[destinationSheet];
-                destRange = destSheet.Range[position];
-
-                // Get position in points from the cell reference
-                double top = Convert.ToDouble(destRange.Top);
-                double left = Convert.ToDouble(destRange.Left);
 
                 // Add visual Slicer to the cache
                 // Slicers.Add(SlicerDestination, Level, Name, Caption, Top, Left, Width, Height)
                 // For non-OLAP sources, Level should be Type.Missing or omitted
                 slicers = slicerCache.Slicers;
-                slicer = slicers.Add(destSheet, Type.Missing, slicerName, slicerName, top, left);
+                try
+                {
+                    slicer = slicers.Add(destSheet, Type.Missing, slicerName, slicerName, top, left);
+                }
+                catch (Exception ex) when (createdCache && CreatedObjectFailure.CanReport(ex))
+                {
+                    throw SlicerPlacement.LeftoverCache((Excel.SlicerCache)slicerCache, columnName, ex);
+                }
 
                 // Build result
                 var result = BuildTableSlicerResult(slicer, slicerCache, columnName, tableName);

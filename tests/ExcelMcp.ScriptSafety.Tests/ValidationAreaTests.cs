@@ -180,8 +180,15 @@ public sealed class ValidationAreaTests
             if (($plan.CodeQlLanguages -join ',') -ne 'actions,csharp,javascript-typescript,python') {
                 throw 'Full language coverage lost.'
             }
+            if (($plan.CiTestGroups -join ',') -ne 'Fast,Process,Tooling') { throw 'Full groups missing.' }
             foreach ($owner in @('Packaging','ScriptSafety','SkillGeneration')) {
                 if (-not $plan.ToolingFilters[$owner]) { throw "$owner has no selected cases." }
+            }
+            foreach ($project in $plan.ToolingProjects) {
+                if ($plan.ToolingFilters.$project -ne 'RequiresExcel=false') { throw 'Full tooling selection narrowed.' }
+            }
+            foreach ($component in @('Cli','Mcp','Extension','Mcpb','Skills','Plugins')) {
+                if (-not $plan.$component) { throw "Missing $component package." }
             }
             """);
         Assert.True(result.ExitCode == 0, result.Output);

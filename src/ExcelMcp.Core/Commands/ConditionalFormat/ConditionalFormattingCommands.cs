@@ -79,6 +79,11 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         {
             if (!string.IsNullOrEmpty(color)) { _ = FormattingHelpers.ParseColor(color); }
         }
+        ValidateRuleOptions(normalizedType, interiorPattern, borderStyle,
+            [colorScaleMinType, colorScaleMidType, colorScaleMaxType],
+            dataBarDirection, [dataBarMinType, dataBarMaxType],
+            iconSetId, [iconThreshold1Type, iconThreshold2Type, iconThreshold3Type, iconThreshold4Type],
+            rank, top10Percent, topBottom, aboveBelow);
 
         return batch.Execute((ctx, ct) =>
         {
@@ -109,76 +114,90 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                         throw new ArgumentOutOfRangeException(nameof(priority), "Priority must not exceed the greatest native worksheet priority plus one.");
                 }
 
-                switch (normalizedType)
+                int rulesBefore = Convert.ToInt32(formatConditions.Count, System.Globalization.CultureInfo.InvariantCulture);
+                try
                 {
-                    case "cellvalue":
-                    case "expression":
-                        createdRule = AddBasicRule(formatConditions, normalizedType, operatorType, formula1, formula2,
-                            interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
-                        break;
+                    switch (normalizedType)
+                    {
+                        case "cellvalue":
+                        case "expression":
+                            createdRule = AddBasicRule(formatConditions, normalizedType, operatorType, formula1, formula2,
+                                interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+                            break;
 
-                    case "colorscale":
-                        createdRule = AddColorScaleRule(formatConditions,
-                            colorScaleMinType, colorScaleMinValue, colorScaleMinColor,
-                            colorScaleMidType, colorScaleMidValue, colorScaleMidColor,
-                            colorScaleMaxType, colorScaleMaxValue, colorScaleMaxColor);
-                        break;
+                        case "colorscale":
+                            createdRule = AddColorScaleRule(formatConditions,
+                                colorScaleMinType, colorScaleMinValue, colorScaleMinColor,
+                                colorScaleMidType, colorScaleMidValue, colorScaleMidColor,
+                                colorScaleMaxType, colorScaleMaxValue, colorScaleMaxColor);
+                            break;
 
-                    case "databar":
-                        createdRule = AddDataBarRule(formatConditions,
-                            dataBarColor, dataBarNegativeColor, dataBarDirection, dataBarShowValue,
-                            dataBarMinType, dataBarMinValue, dataBarMaxType, dataBarMaxValue);
-                        break;
+                        case "databar":
+                            createdRule = AddDataBarRule(formatConditions,
+                                dataBarColor, dataBarNegativeColor, dataBarDirection, dataBarShowValue,
+                                dataBarMinType, dataBarMinValue, dataBarMaxType, dataBarMaxValue);
+                            break;
 
-                    case "iconset":
-                        createdRule = AddIconSetRule(ctx.Book, formatConditions,
-                            iconSetId, iconSetReverse, iconSetShowIconOnly,
-                            new[]
-                            {
-                                (iconThreshold1Type, iconThreshold1Value),
-                                (iconThreshold2Type, iconThreshold2Value),
-                                (iconThreshold3Type, iconThreshold3Value),
-                                (iconThreshold4Type, iconThreshold4Value)
-                            });
-                        break;
+                        case "iconset":
+                            createdRule = AddIconSetRule(ctx.Book, formatConditions,
+                                iconSetId, iconSetReverse, iconSetShowIconOnly,
+                                new[]
+                                {
+                                    (iconThreshold1Type, iconThreshold1Value),
+                                    (iconThreshold2Type, iconThreshold2Value),
+                                    (iconThreshold3Type, iconThreshold3Value),
+                                    (iconThreshold4Type, iconThreshold4Value)
+                                });
+                            break;
 
-                    case "top10":
-                        createdRule = AddTop10Rule(formatConditions, rank, top10Percent, topBottom,
-                            interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
-                        break;
+                        case "top10":
+                            createdRule = AddTop10Rule(formatConditions, rank, top10Percent, topBottom,
+                                interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+                            break;
 
-                    case "aboveaverage":
-                        createdRule = AddAboveAverageRule(formatConditions, aboveBelow,
-                            interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
-                        break;
+                        case "aboveaverage":
+                            createdRule = AddAboveAverageRule(formatConditions, aboveBelow,
+                                interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+                            break;
 
-                    case "uniquevalues":
-                        createdRule = AddUniqueValuesRule(formatConditions, false,
-                            interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
-                        break;
+                        case "uniquevalues":
+                            createdRule = AddUniqueValuesRule(formatConditions, false,
+                                interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+                            break;
 
-                    case "timeperiod":
-                        createdRule = AddTimePeriodRule(formatConditions, datePeriod,
-                            interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
-                        break;
+                        case "timeperiod":
+                            createdRule = AddTimePeriodRule(formatConditions, datePeriod,
+                                interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+                            break;
 
-                    case "blankscondition":
-                        createdRule = AddSimpleRule(formatConditions, 10 /* xlBlanksCondition */,
-                            interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
-                        break;
+                        case "blankscondition":
+                            createdRule = AddSimpleRule(formatConditions, 10 /* xlBlanksCondition */,
+                                interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
+                            break;
 
-                    default:
-                        throw new ArgumentException(
-                            $"Invalid conditional formatting type: '{ruleType}'. " +
-                            "Valid values: cellValue, expression, colorScale, dataBar, top10, iconSet, uniqueValues, blanksCondition, timePeriod, aboveAverage");
+                        default:
+                            throw new ArgumentException(
+                                $"Invalid conditional formatting type: '{ruleType}'. " +
+                                "Valid values: cellValue, expression, colorScale, dataBar, top10, iconSet, uniqueValues, blanksCondition, timePeriod, aboveAverage");
+                    }
+
+                    if (stopIfTrue.HasValue)
+                        SetNativeStopIfTrue(createdRule!, stopIfTrue.Value);
+                    if (priority.HasValue && GetNativePriority(createdRule!) != priority.Value)
+                        SetNativePriority(createdRule!, priority.Value);
+                    if (priority.HasValue && GetNativePriority(createdRule!) != priority.Value)
+                        throw new InvalidOperationException("Excel did not apply the requested new-rule priority. List worksheet rules before retrying.");
                 }
-
-                if (stopIfTrue.HasValue)
-                    SetNativeStopIfTrue(createdRule!, stopIfTrue.Value);
-                if (priority.HasValue && GetNativePriority(createdRule!) != priority.Value)
-                    SetNativePriority(createdRule!, priority.Value);
-                if (priority.HasValue && GetNativePriority(createdRule!) != priority.Value)
-                    throw new InvalidOperationException("Excel did not apply the requested new-rule priority. List worksheet rules before retrying.");
+                catch (Exception ex) when (CreatedObjectFailure.CanReport(ex)
+                    && Convert.ToInt32(formatConditions.Count, System.Globalization.CultureInfo.InvariantCulture) > rulesBefore)
+                {
+                    string actualSheet = sheet.Name;
+                    throw CreatedObjectFailure.CreateDescribed(
+                        $"Setting up the {ruleType} rule",
+                        $"a {ruleType} rule on range '{rangeAddress}' of sheet '{actualSheet}'",
+                        $"The {ruleType} rule remains on range '{rangeAddress}' of sheet '{actualSheet}'; list the rules there, then fix or remove it if appropriate.",
+                        ex);
+                }
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Dummy return for batch.Execute
             }
             finally

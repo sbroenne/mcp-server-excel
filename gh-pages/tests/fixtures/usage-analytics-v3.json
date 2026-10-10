@@ -1,0 +1,383 @@
+{
+  "schemaVersion": 3,
+  "generatedAtUtc": "2026-10-07T06:00:00Z",
+  "windows": {
+    "reportingDays": 90,
+    "comparisonDays": 14,
+    "trendWeeks": 12,
+    "entryPointSinceUtc": "2026-09-28T00:00:00Z",
+    "entryPointMinimumUsers": 10
+  },
+  "weights": {
+    "light": 1,
+    "medium": 3,
+    "heavy": 10
+  },
+  "privacy": {
+    "excluded": [
+      "user identifiers",
+      "session identifiers",
+      "names and account details",
+      "locations",
+      "workbook contents",
+      "cell values and formulas",
+      "prompts and messages",
+      "file names and paths",
+      "error messages and stack traces"
+    ]
+  },
+  "summary": {
+    "users": 100,
+    "toolInvocations": 1000,
+    "repeatUserRate": 60,
+    "workUnits": 2500,
+    "unweightedActions": 9
+  },
+  "comparison": {
+    "currentUsers": 50,
+    "previousUsers": 40,
+    "userChangePct": 25,
+    "currentInvocations": 600,
+    "previousInvocations": 400,
+    "invocationChangePct": 50,
+    "currentWorkUnits": 300,
+    "previousWorkUnits": 200,
+    "workChangePct": 50.0
+  },
+  "heavyWork": {
+    "users": 100,
+    "heavyUsers": 25,
+    "heavyUserSharePct": 25.0
+  },
+  "weekly": [
+    {
+      "week": "2026-08-09",
+      "users": 30,
+      "actions": 300,
+      "workUnits": 300
+    },
+    {
+      "week": "2026-08-16",
+      "users": 40,
+      "actions": 500,
+      "workUnits": 500
+    }
+  ],
+  "versionAdoption": [
+    {
+      "week": "2026-08-09",
+      "version": "2.0.2",
+      "users": 30,
+      "sharePct": 75
+    },
+    {
+      "week": "2026-08-09",
+      "version": "2.0.3",
+      "users": 10,
+      "sharePct": 25
+    },
+    {
+      "week": "2026-08-16",
+      "version": "2.0.3",
+      "users": 40,
+      "sharePct": 100
+    }
+  ],
+  "operations": [
+    {
+      "name": "range/get-values",
+      "invocations": 500,
+      "users": 10
+    },
+    {
+      "name": "rare/action",
+      "invocations": 9,
+      "users": 9
+    }
+  ],
+  "toolFamilies": [
+    {
+      "name": "range",
+      "invocations": 500,
+      "users": 10,
+      "sharePct": 50,
+      "workUnits": 500,
+      "workSharePct": 20.0
+    }
+  ],
+  "heroFeatures": [
+    {
+      "name": "tables-ranges",
+      "invocations": 500,
+      "users": 10,
+      "sharePct": 50,
+      "workUnits": 500,
+      "workSharePct": 20.0
+    },
+    {
+      "name": "power-query",
+      "invocations": 200,
+      "users": 5,
+      "sharePct": 20,
+      "workUnits": 2000,
+      "workSharePct": 80.0
+    }
+  ],
+  "operationsByWork": [
+    {
+      "name": "powerquery/refresh",
+      "level": "heavy",
+      "actions": 200,
+      "users": 5,
+      "workUnits": 2000,
+      "workSharePct": 80.0
+    },
+    {
+      "name": "range/get-values",
+      "level": "light",
+      "actions": 500,
+      "users": 10,
+      "workUnits": 500,
+      "workSharePct": 20.0
+    }
+  ],
+  "unweightedActions": [
+    {
+      "name": "rare/action",
+      "actions": 9
+    }
+  ],
+  "entryPoints": [
+    {
+      "name": "mcp-server",
+      "enoughData": true,
+      "users": 40,
+      "actions": 500,
+      "workUnits": 1400,
+      "actionsPerUser": 12.5,
+      "workUnitsPerUser": 35.0
+    },
+    {
+      "name": "cli",
+      "enoughData": false
+    }
+  ],
+  "entryPointFeatures": [
+    {
+      "entryPoint": "mcp-server",
+      "name": "power-query",
+      "actions": 100,
+      "actionSharePct": 20.0,
+      "workUnits": 1000,
+      "workSharePct": 71.43
+    },
+    {
+      "entryPoint": "mcp-server",
+      "name": "tables-ranges",
+      "actions": 400,
+      "actionSharePct": 80.0,
+      "workUnits": 400,
+      "workSharePct": 28.57
+    }
+  ],
+  "entryPointOperations": [
+    {
+      "entryPoint": "mcp-server",
+      "name": "range/get-values",
+      "actions": 400,
+      "workUnits": 400
+    },
+    {
+      "entryPoint": "mcp-server",
+      "name": "powerquery/refresh",
+      "actions": 100,
+      "workUnits": 1000
+    }
+  ],
+  "habits": {
+    "windowDays": 30,
+    "minimumUsers": 10,
+    "assistantSessions": {
+      "enoughData": true,
+      "sessions": 50,
+      "medianActions": 5.0,
+      "multiFeatureSessions": 20,
+      "multiFeatureSharePct": 40.0,
+      "sizes": [
+        {
+          "size": "1",
+          "enoughData": false
+        },
+        {
+          "size": "2-10",
+          "enoughData": true,
+          "sessions": 30,
+          "actions": 150,
+          "sessionSharePct": 60.0,
+          "actionSharePct": 5.0
+        },
+        {
+          "size": "11-50",
+          "enoughData": true,
+          "sessions": 0,
+          "actions": 0,
+          "sessionSharePct": 0,
+          "actionSharePct": 0
+        },
+        {
+          "size": "51-200",
+          "enoughData": true,
+          "sessions": 0,
+          "actions": 0,
+          "sessionSharePct": 0,
+          "actionSharePct": 0
+        },
+        {
+          "size": "201+",
+          "enoughData": true,
+          "sessions": 10,
+          "actions": 2840,
+          "sessionSharePct": 20.0,
+          "actionSharePct": 94.67
+        }
+      ]
+    },
+    "featurePairs": [
+      {
+        "first": "tables-ranges",
+        "second": "worksheets-connections",
+        "sessions": 20,
+        "sharePct": 40.0
+      }
+    ],
+    "returningUsers": {
+      "enoughData": true,
+      "newUsers": 200,
+      "returnedAfterWeek": 100,
+      "returnedAfterWeekPct": 50.0,
+      "returnedAfterThreeWeeks": 50,
+      "returnedAfterThreeWeeksPct": 25.0
+    },
+    "featureWait": [
+      {
+        "name": "power-query",
+        "actions": 200,
+        "typicalSeconds": 2.83,
+        "slowSeconds": 33.0
+      },
+      {
+        "name": "tables-ranges",
+        "actions": 500,
+        "typicalSeconds": 0.06,
+        "slowSeconds": 0.8
+      }
+    ],
+    "weekdays": [
+      {
+        "day": "Monday",
+        "enoughData": true,
+        "actions": 400,
+        "users": 20
+      },
+      {
+        "day": "Tuesday",
+        "enoughData": true,
+        "actions": 400,
+        "users": 20
+      },
+      {
+        "day": "Saturday",
+        "enoughData": false
+      },
+      {
+        "day": "Sunday",
+        "enoughData": true,
+        "actions": 80,
+        "users": 10
+      }
+    ],
+    "workdayAverageActions": 20,
+    "weekendAverageActions": 10,
+    "weekdayWeeks": 8,
+    "firstAdvancedUseWindowDays": 60,
+    "firstAdvancedUse": [
+      {
+        "name": "power-query",
+        "users": 40,
+        "firstDay": 30,
+        "firstWeek": 6,
+        "later": 4,
+        "firstDayPct": 75.0
+      },
+      {
+        "name": "vba",
+        "users": 20,
+        "firstDay": 10,
+        "firstWeek": 5,
+        "later": 5,
+        "firstDayPct": 50.0
+      }
+    ]
+  },
+  "downloads": {
+    "collectedUtc": "2026-10-07T06:00:00Z",
+    "channels": [
+      {
+        "key": "npm-mcp-server",
+        "label": "npm: MCP Server",
+        "total": 75
+      },
+      {
+        "key": "npm-cli",
+        "label": "npm: command line",
+        "total": 15
+      },
+      {
+        "key": "github-releases",
+        "label": "GitHub release files",
+        "total": 109
+      },
+      {
+        "key": "vscode",
+        "label": "VS Code extension installs",
+        "total": 250
+      }
+    ],
+    "npmWeekly": [
+      {
+        "week": "2026-08-09",
+        "mcpServer": 70,
+        "cli": 14,
+        "total": 84
+      }
+    ],
+    "releases": [
+      {
+        "version": "2.0.3",
+        "published": "2026-08-14",
+        "downloads": 45
+      },
+      {
+        "version": "2.0.2",
+        "published": "2026-08-01",
+        "downloads": 64
+      }
+    ],
+    "snapshotChannels": [
+      "github-releases",
+      "vscode"
+    ],
+    "snapshots": [
+      {
+        "date": "2026-10-07",
+        "totals": {
+          "github-releases": 109,
+          "vscode": 250
+        }
+      }
+    ],
+    "weeklyGains": []
+  },
+  "interpretation": "## What changed\n\nTest summary.",
+  "interpretationModel": "test-model"
+}

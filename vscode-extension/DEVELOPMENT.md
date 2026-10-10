@@ -202,7 +202,7 @@ For every user-visible extension change:
 1. Add a patch changeset from the repository root with `npx changeset`.
 2. Do not manually edit package versions or either changelog copy.
 3. Open a pull request and let CI validate the package.
-4. Use the unified **Release All Components** workflow after merge.
+4. Use the unified **[Release] All Components** workflow after merge.
 
 The release workflow calculates one version for all deliverables, compiles the
 changesets into the root changelog, packages the extension, publishes it to the

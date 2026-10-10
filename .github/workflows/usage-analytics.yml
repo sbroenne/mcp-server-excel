@@ -1,4 +1,4 @@
-name: Weekly Usage Analytics
+name: '[Analytics] Weekly Usage'
 
 on:
   schedule:
@@ -9,6 +9,7 @@ on:
       - 'scripts/*UsageAnalytics*.ps1'
       - 'gh-pages/**'
       - '.github/usage-analytics.json'
+      - '.github/usage-analytics-weights.json'
   workflow_dispatch:
     inputs:
       publish:
@@ -55,8 +56,24 @@ jobs:
           tenant-id: ${{ vars.AZURE_TENANT_ID }}
           subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
 
+      - name: Restore last published report
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Keeps the weekly download snapshots; a missing report keeps the bootstrap copy.
+          $previousPath = Join-Path $env:RUNNER_TEMP "usage-analytics-previous.json"
+          Copy-Item -LiteralPath .github/usage-analytics.json -Destination $previousPath
+          ./scripts/Restore-UsageAnalytics.ps1 `
+            -Repository '${{ github.repository }}' `
+            -Branch 'analytics-data' `
+            -ReportPath $previousPath `
+            -RemotePath '.github/usage-analytics.json'
+
       - name: Query sanitized aggregate telemetry
         shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           $workspaceId = az monitor log-analytics workspace show `
             --resource-group excelmcp-observability `
@@ -72,7 +89,9 @@ jobs:
           New-Item -ItemType Directory -Path $agentDirectory | Out-Null
           ./scripts/Update-UsageAnalytics.ps1 `
             -WorkspaceId $workspaceId `
-            -OutputPath (Join-Path $agentDirectory "analytics.json")
+            -OutputPath (Join-Path $agentDirectory "analytics.json") `
+            -PreviousReportPath (Join-Path $env:RUNNER_TEMP "usage-analytics-previous.json") `
+            -Repository '${{ github.repository }}'
 
       - name: End Azure session
         if: always()
@@ -106,7 +125,7 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
 
       - name: Install Copilot CLI
-        run: npm install --global @github/copilot@1.0.80
+        run: npm install --global @github/copilot@1.0.93
 
       - name: Interpret and validate sanitized aggregates
         shell: pwsh

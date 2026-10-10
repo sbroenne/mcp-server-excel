@@ -25,7 +25,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 ///
 /// Use chartconfig for series, titles, legends, styles, placement mode.
 /// </summary>
-[ServiceCategory("chart", "Chart")]
+[ServiceCategory("Chart")]
 [McpTool("chart", Title = "Chart Operations", Destructive = true, Category = "analysis",
     Description = "Create, move, fit, delete, and export embedded charts. POSITIONING: targetRange='F2:K15' (PREFERRED, cell-relative) or left/top (points, 72pts=1in) or OMIT BOTH for auto-positioning below content. COLLISION DETECTION: Automatically warns if chart overlaps data or other charts. CREATE: create-from-range (cell range), create-from-table (Excel Table), create-from-pivottable (verified live PivotChart; fails rather than returning a static chart). Use chart_config for series, titles, legends, and styling.")]
 [McpReadOnlyActions("list", "read")]
@@ -68,7 +68,7 @@ public interface IChartCommands
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Target worksheet name</param>
-    /// <param name="sourceRangeAddress">Data range for the chart (e.g., A1:D10)</param>
+    /// <param name="sourceRangeAddress">Data range for the chart (e.g., A1:D10). Separate cell blocks on one sheet are allowed (e.g., A1:A10,C1:D10); the first block supplies category labels and must precede the other blocks in worksheet order (top to bottom, then left to right). Blocks without a sheet name use the first block's sheet, or the target worksheet when the first block has none.</param>
     /// <param name="chartType">Type of chart to create</param>
     /// <param name="left">Left position in points from worksheet edge</param>
     /// <param name="top">Top position in points from worksheet edge</param>

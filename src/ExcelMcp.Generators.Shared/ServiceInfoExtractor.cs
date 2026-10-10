@@ -12,9 +12,15 @@ namespace Sbroenne.ExcelMcp.Generators.Common;
 /// </summary>
 public static class ServiceInfoExtractor
 {
+    /// <summary>
+    /// Derives the command group name shared by MCP routing, CLI commands, and batch files:
+    /// the MCP tool name without underscores, or the lowercased PascalName when there is no MCP tool.
+    /// </summary>
+    public static string GetCommandGroupName(string? mcpToolName, string pascalName) =>
+        mcpToolName is not null ? mcpToolName.Replace("_", "") : pascalName.ToLowerInvariant();
+
     public static ServiceInfo? ExtractServiceInfo(INamedTypeSymbol interfaceSymbol)
     {
-        string? category = null;
         string? pascalName = null;
         string? mcpTool = null;
         bool noSession = false;
@@ -33,11 +39,7 @@ public static class ServiceInfoExtractor
             {
                 if (attr.ConstructorArguments.Length > 0)
                 {
-                    category = attr.ConstructorArguments[0].Value?.ToString();
-                }
-                if (attr.ConstructorArguments.Length > 1)
-                {
-                    pascalName = attr.ConstructorArguments[1].Value?.ToString();
+                    pascalName = attr.ConstructorArguments[0].Value?.ToString();
                 }
             }
             else if (attrName == "McpToolAttribute")
@@ -87,8 +89,11 @@ public static class ServiceInfoExtractor
             }
         }
 
-        if (category is null)
+        if (string.IsNullOrEmpty(pascalName))
             return null;
+
+        // One group name for MCP routing, CLI commands, and batch files.
+        var category = GetCommandGroupName(mcpTool, pascalName!);
 
         // Extract interface-level XML documentation
         var interfaceSummary = ExtractInterfaceSummary(interfaceSymbol);
@@ -127,8 +132,7 @@ public static class ServiceInfoExtractor
             }
         }
 
-        // Use explicit pascalName if provided, otherwise derive from category
-        var categoryPascal = pascalName ?? StringHelper.ToPascalCase(category);
+        var categoryPascal = pascalName!;
 
         return new ServiceInfo(
             category,
@@ -255,6 +259,12 @@ public static class ServiceInfoExtractor
             {
                 allowsEmptyString = true;
             }
+        }
+
+        // Timeouts are whole seconds on every surface, so the public name says so (timeout → timeoutSeconds).
+        if (TypeNameHelper.GetTypeName(param.Type).Contains("TimeSpan"))
+        {
+            exposedName = (exposedName ?? param.Name) + "Seconds";
         }
 
         // Detect if this is an enum type (including Nullable<Enum>)
@@ -384,49 +394,20 @@ public static class ServiceInfoExtractor
         {
             foreach (var p in method.Parameters)
             {
-                // Get the exposed name (from attribute or original name)
-                var exposedName = p.ExposedName ?? p.Name;
+                var exposedName = p.IsFileOrValue ? p.Name : p.ExposedName ?? p.Name;
+                AddParameter(paramMap, exposedName, p.RouteTypeName, p.XmlDocDescription, method, p);
 
-                if (!paramMap.TryGetValue(exposedName, out var existing))
-                {
-                    existing = new ExposedParameter(exposedName, p.TypeName, p.XmlDocDescription);
-                    paramMap[exposedName] = existing;
-                }
-                else if (p.TypeName.EndsWith("?") && !existing.TypeName.EndsWith("?"))
-                {
-                    // If any method declares this parameter as nullable, upgrade to nullable.
-                    // MCP parameters are shared across all actions and must be compatible with ALL uses.
-                    existing.TypeName = p.TypeName;
-                }
-
-                // Track if this param is required for this action
-                var isRequired = p.IsRequired ||
-                                 (!p.HasDefault && !p.TypeName.EndsWith("?") && !p.IsParams);
-                if (isRequired)
-                {
-                    existing.RequiredByActions.Add(method.ActionName);
-                }
-                if (!existing.ApplicableByActions.Contains(method.ActionName, StringComparer.OrdinalIgnoreCase))
-                {
-                    existing.ApplicableByActions.Add(method.ActionName);
-                }
-
-                // If FileOrValue, also add the file variant
                 if (p.IsFileOrValue && p.FileSuffix != null)
                 {
-                    var fileParamName = exposedName + p.FileSuffix;
-                    if (!paramMap.TryGetValue(fileParamName, out var fileParameter))
-                    {
-                        fileParameter = new ExposedParameter(
-                            fileParamName,
-                            "string?",
-                            $"Path to a readable file containing {exposedName}; use instead of inline {exposedName}, not together");
-                        paramMap[fileParamName] = fileParameter;
-                    }
-                    if (!fileParameter.ApplicableByActions.Contains(method.ActionName, StringComparer.OrdinalIgnoreCase))
-                    {
-                        fileParameter.ApplicableByActions.Add(method.ActionName);
-                    }
+                    var fileParameterName = $"{p.Name}{p.FileSuffix}";
+                    AddParameter(
+                        paramMap,
+                        fileParameterName,
+                        "string?",
+                        $"Path to a readable file containing {p.Name}; use instead of inline {p.Name}, not together",
+                        method,
+                        p,
+                        required: false);
                 }
             }
         }
@@ -440,6 +421,36 @@ public static class ServiceInfoExtractor
 
         return paramMap.Values.ToList();
     }
+
+    private static void AddParameter(
+        Dictionary<string, ExposedParameter> paramMap,
+        string name,
+        string typeName,
+        string? description,
+        MethodInfo method,
+        ParameterInfo parameter,
+        bool? required = null)
+    {
+        if (!paramMap.TryGetValue(name, out var existing) ||
+            (string.IsNullOrEmpty(existing.Description) && !string.IsNullOrEmpty(description)))
+        {
+            var replacement = new ExposedParameter(name, typeName, description, "null");
+            replacement.McpTypeName = required == false ? "string?" : parameter.McpTypeName;
+            if (existing != null)
+            {
+                replacement.RequiredByActions.AddRange(existing.RequiredByActions);
+                replacement.ApplicableByActions.AddRange(existing.ApplicableByActions);
+            }
+            paramMap[name] = existing = replacement;
+        }
+
+        var isRequired = required ?? parameter.RequiresValue;
+        if (isRequired && !existing.RequiredByActions.Contains(method.ActionName, StringComparer.OrdinalIgnoreCase))
+            existing.RequiredByActions.Add(method.ActionName);
+        if (!existing.ApplicableByActions.Contains(method.ActionName, StringComparer.OrdinalIgnoreCase))
+            existing.ApplicableByActions.Add(method.ActionName);
+    }
+
 }
 
 /// <summary>

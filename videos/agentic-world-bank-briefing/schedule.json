@@ -1,0 +1,228 @@
+{
+  "duration": 161,
+  "scenes": [
+    {
+      "id": "s1",
+      "title": "Hook",
+      "start": 0,
+      "end": 13
+    },
+    {
+      "id": "s2",
+      "title": "The ask",
+      "start": 13,
+      "end": 27
+    },
+    {
+      "id": "s3",
+      "title": "Research",
+      "start": 27,
+      "end": 42
+    },
+    {
+      "id": "s4",
+      "title": "Excel MCP Server",
+      "start": 42,
+      "end": 72
+    },
+    {
+      "id": "s5",
+      "title": "Hand-off",
+      "start": 72,
+      "end": 82
+    },
+    {
+      "id": "s6",
+      "title": "PowerPoint MCP Server",
+      "start": 82,
+      "end": 110
+    },
+    {
+      "id": "s7",
+      "title": "The briefing",
+      "start": 110,
+      "end": 130
+    },
+    {
+      "id": "s8",
+      "title": "Scoreboard",
+      "start": 130,
+      "end": 147
+    },
+    {
+      "id": "s9",
+      "title": "How this video was made",
+      "start": 147,
+      "end": 161
+    }
+  ],
+  "clips": [
+    {
+      "id": "ask",
+      "start": 13,
+      "end": 27,
+      "speed": 1,
+      "srcStart": 15
+    },
+    {
+      "id": "research",
+      "start": 27,
+      "end": 42,
+      "speed": 7.4667,
+      "srcStart": 26
+    },
+    {
+      "id": "excel",
+      "start": 42,
+      "end": 72,
+      "speed": 30.8333,
+      "srcStart": 138
+    },
+    {
+      "id": "ppt-a",
+      "start": 82,
+      "end": 103.5,
+      "speed": 20.3256,
+      "srcStart": 1063
+    },
+    {
+      "id": "ppt-b",
+      "start": 103.5,
+      "end": 110,
+      "speed": 18.4615,
+      "srcStart": 1840
+    }
+  ],
+  "voice": [
+    {
+      "id": "01a",
+      "start": 0.3,
+      "end": 2.092
+    },
+    {
+      "id": "01b",
+      "start": 2.4,
+      "end": 8.736
+    },
+    {
+      "id": "01c",
+      "start": 9,
+      "end": 12.733
+    },
+    {
+      "id": "02a",
+      "start": 13.6,
+      "end": 18.805
+    },
+    {
+      "id": "02b",
+      "start": 19.2,
+      "end": 22.72
+    },
+    {
+      "id": "03a",
+      "start": 27.6,
+      "end": 29.584
+    },
+    {
+      "id": "03b",
+      "start": 30,
+      "end": 37.403
+    },
+    {
+      "id": "03c",
+      "start": 37.9,
+      "end": 39.244
+    },
+    {
+      "id": "04a",
+      "start": 42.6,
+      "end": 47.357
+    },
+    {
+      "id": "04b",
+      "start": 47.8,
+      "end": 55.949
+    },
+    {
+      "id": "04c",
+      "start": 56.6,
+      "end": 58.541
+    },
+    {
+      "id": "04d",
+      "start": 62.5,
+      "end": 66.212
+    },
+    {
+      "id": "05a",
+      "start": 72.6,
+      "end": 77.571
+    },
+    {
+      "id": "05b",
+      "start": 78,
+      "end": 80.24
+    },
+    {
+      "id": "06a",
+      "start": 82.6,
+      "end": 84.861
+    },
+    {
+      "id": "06b",
+      "start": 85.2,
+      "end": 92.027
+    },
+    {
+      "id": "06c",
+      "start": 92.4,
+      "end": 99.355
+    },
+    {
+      "id": "06d",
+      "start": 104.2,
+      "end": 108.445
+    },
+    {
+      "id": "07a",
+      "start": 110.5,
+      "end": 112.804
+    },
+    {
+      "id": "07b",
+      "start": 113.4,
+      "end": 116.28
+    },
+    {
+      "id": "07c",
+      "start": 117,
+      "end": 120.029
+    },
+    {
+      "id": "07d",
+      "start": 120.8,
+      "end": 123.659
+    },
+    {
+      "id": "08a",
+      "start": 130.6,
+      "end": 136.573
+    },
+    {
+      "id": "08b",
+      "start": 137,
+      "end": 143.144
+    },
+    {
+      "id": "09a",
+      "start": 147.6,
+      "end": 150.907
+    },
+    {
+      "id": "09b",
+      "start": 151.4,
+      "end": 160.083
+    }
+  ]
+}

@@ -18,8 +18,8 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
 
     [Theory]
     [InlineData("calculation_mode", "calculate", "mode", "mode", "manual")]
-    [InlineData("powerquery", "delete", "m_code", "mCode", "let Source = 1 in Source")]
-    [InlineData("powerquery", "delete", "m_code_file", "mCodeFile", "missing-query.pq")]
+    [InlineData("powerquery", "delete", "m_code", "m_code", "let Source = 1 in Source")]
+    [InlineData("powerquery", "delete", "m_code_file", "m_code_file", "missing-query.pq")]
     public async Task ToolCall_RejectsParameterFromAnotherActionWithStructuredJson(
         string toolName,
         string action,
@@ -103,7 +103,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
             nameof(ArgumentException),
             expectedErrorCategory: "InvalidInput");
         Assert.Contains(
-            "sheetName",
+            "sheet_name",
             document.RootElement.GetProperty("errorMessage").GetString(),
             StringComparison.Ordinal);
         Assert.DoesNotContain(
@@ -284,7 +284,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
     }
 
     [Fact]
-    public async Task FileCreate_ForwardsMacroEnabledThroughSessionProtocol()
+    public async Task FileCreate_DoesNotSendRemovedMacroEnabledParameter()
     {
         var path = Path.Join(Path.GetTempPath(), $"{Guid.NewGuid():N}.xlsx");
         await File.WriteAllTextAsync(path, string.Empty);
@@ -295,7 +295,7 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
                 new Dictionary<string, object?>
                 {
                     ["action"] = "create",
-                    ["path"] = path
+                    ["file_path"] = path
                 });
 
             using var document = ParseJsonResult(result, "file.create");

@@ -2,9 +2,9 @@
 
 - Keep workflow SDK setup compatible with `global.json`. Preserve analyzer and
   warning-as-error settings in `Directory.Build.props` and `.editorconfig`.
-- CLI pre-build cleanup remains enabled on self-hosted desktops even when
-  `CI=true`; live owned daemons can otherwise lock rebuild output. Hosted CI
-  still skips it, and isolated cleanup-client builds retain their recursion guard.
+- CLI pre-build service stopping remains enabled on self-hosted desktops even
+  when `CI=true`; live local daemons can otherwise lock rebuild output. Hosted CI
+  skips it. Do not add temporary cleanup-client builds or graceful shutdown waits.
 - `ci.yml` has Excel-free runtime and documentation gates. Local pre-commit
   selects checks by changed paths; preserve runtime/non-runtime and merge-parent
   handling so imported changes do not trigger unrelated Excel E2E.
@@ -39,9 +39,12 @@
   not writable compiled outputs. Packages build their own required binaries.
   Hosted test partitions use separate checkouts so rebuild tests cannot race
   packaging. Selection and local Excel group commands: `tests/README.md`.
-- Local CLI builds invoke `scripts\Stop-ExcelMcpProcesses.ps1`. Preserve its
-  pipe-scoped process ownership; builds in one worktree must not stop another's
-  Excel sessions.
+- Local CLI builds invoke `scripts\Stop-ExcelCliService.ps1` once. Forcibly stop
+  only background CLI services from this worktree's output, validating PID/start
+  time and terminating through the same retained native process handle. Builds
+  do not save workbooks or terminate Excel, MCP, foreground CLI, or
+  other worktrees' services. Test-run cleanup passes an explicit private pipe.
+  Preserve ordinary product save/close and explicit service-stop safeguards.
 - `release.yml` owns versions and changelog generation. Do not dispatch it as a
   test. Authorized merges use squash.
 

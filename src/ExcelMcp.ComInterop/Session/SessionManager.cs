@@ -379,13 +379,15 @@ public sealed class SessionManager : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        if (!File.Exists(filePath))
+        string normalizedPath = WorkbookLocation.Normalize(filePath);
+        bool isRemote = WorkbookLocation.IsRemote(normalizedPath);
+        if (isRemote && !show)
+            throw new ArgumentException("SharePoint workbooks require show=true so Excel authentication and permission prompts remain visible.", nameof(show));
+
+        if (!isRemote && !File.Exists(normalizedPath))
         {
             throw new FileNotFoundException($"Excel file not found: {filePath}. To create a new file, use the 'create' action instead of 'open'.", filePath);
         }
-
-        // Normalize file path for comparison
-        string normalizedPath = Path.GetFullPath(filePath);
 
         // Generate unique session ID
         string sessionId = Guid.NewGuid().ToString("N");
@@ -402,7 +404,7 @@ public sealed class SessionManager : IDisposable
             // Reject external file-access failures after the in-process path claim,
             // so a duplicate session reports its canonical ownership error instead
             // of being mistaken for an unrelated OS-level file lock.
-            if (!FileAccessValidator.IsIrmProtected(normalizedPath))
+            if (!isRemote && !FileAccessValidator.IsIrmProtected(normalizedPath))
             {
                 FileAccessValidator.ValidateFileNotLocked(normalizedPath);
             }
@@ -414,7 +416,7 @@ public sealed class SessionManager : IDisposable
                     show,
                     operationTimeout,
                     startupTimeout,
-                    filePath));
+                    normalizedPath));
 
             PublishSession(sessionId, normalizedPath, batch, show, origin);
 
@@ -443,7 +445,7 @@ public sealed class SessionManager : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
-        var normalizedPath = Path.GetFullPath(filePath);
+        var normalizedPath = WorkbookLocation.Normalize(filePath);
         var reservationId = $"validation-{Guid.NewGuid():N}";
         if (!TryClaimFilePath(normalizedPath, reservationId))
         {
@@ -454,7 +456,8 @@ public sealed class SessionManager : IDisposable
         IExcelBatch? batch = null;
         try
         {
-            FileAccessValidator.ValidateFileNotLocked(normalizedPath);
+            if (!WorkbookLocation.IsRemote(normalizedPath))
+                FileAccessValidator.ValidateFileNotLocked(normalizedPath);
             batch = _sessionCreationPipeline.Execute(
                 () => ExcelSession.BeginReadOnlyValidation(
                     normalizedPath,
@@ -811,7 +814,7 @@ public sealed class SessionManager : IDisposable
             return new CloseValidationResult(false, false, 0, "Session ID is required");
         }
 
-        if (!_activeSessions.ContainsKey(sessionId))
+        if (!_activeSessions.TryGetValue(sessionId, out var batch))
         {
             return new CloseValidationResult(false, false, 0, $"Session '{sessionId}' not found");
         }
@@ -828,15 +831,32 @@ public sealed class SessionManager : IDisposable
 
         var activeOps = GetActiveOperationCount(sessionId);
         var isVisible = IsExcelVisible(sessionId);
+        var refreshState = GetRefreshState(batch);
 
-        if (activeOps > 0)
+        if (activeOps > 0 && refreshState != WorkbookRefreshState.DialogOpen)
         {
             return new CloseValidationResult(true, isVisible, activeOps,
-                $"Cannot close: {activeOps} operation(s) still running. Wait for operations to complete before closing.");
+                $"Cannot close: {activeOps} operation(s) still running. Wait for operations to complete before closing.")
+            {
+                RefreshState = refreshState == WorkbookRefreshState.Ready ? WorkbookRefreshState.Busy : refreshState
+            };
         }
 
-        return new CloseValidationResult(true, isVisible, 0, null);
+        try
+        {
+            ExcelBusyException.ThrowIfNotReady(refreshState, "close");
+            return new CloseValidationResult(true, isVisible, activeOps, null) { RefreshState = refreshState };
+        }
+        catch (ExcelBusyException ex)
+        {
+            return new CloseValidationResult(true, isVisible, activeOps, ex.Message) { RefreshState = refreshState };
+        }
     }
+
+    private static WorkbookRefreshState GetRefreshState(IExcelBatch batch) =>
+        batch is IExcelBatchRefreshState refreshState
+            ? refreshState.GetRefreshState()
+            : WorkbookRefreshState.Unknown;
 
     /// <summary>
     /// Closes the specified session with optional save.
@@ -882,6 +902,14 @@ public sealed class SessionManager : IDisposable
                 _closingSessions.TryRemove(sessionId, out _);
             }
 
+            var refreshState = !resolvedFailedTeardown && !force && !batch.HasTimedOutOperation
+                ? GetRefreshState(batch)
+                : WorkbookRefreshState.Ready;
+            if (refreshState == WorkbookRefreshState.DialogOpen)
+            {
+                ExcelBusyException.ThrowIfNotReady(refreshState, "close");
+            }
+
             // Check for running operations (unless force is true)
             if (!resolvedFailedTeardown && !force)
             {
@@ -899,6 +927,11 @@ public sealed class SessionManager : IDisposable
                 throw new InvalidOperationException(
                     $"A previous operation on session '{sessionId}' timed out or was cancelled. " +
                     "Close without saving and reopen the workbook before retrying.");
+            }
+
+            if (!resolvedFailedTeardown && !force && !batch.HasTimedOutOperation)
+            {
+                ExcelBusyException.ThrowIfNotReady(refreshState, "close");
             }
 
             if (!resolvedFailedTeardown)
@@ -929,7 +962,8 @@ public sealed class SessionManager : IDisposable
                 }
             }
 
-            CloseSessionSync(sessionId, batch);
+            BeforeCloseSessionHookForTests?.Invoke();
+            CloseSessionSync(sessionId, batch, force);
             closeSucceeded = true;
             return true;
         }
@@ -942,7 +976,9 @@ public sealed class SessionManager : IDisposable
         }
     }
 
-    private void CloseSessionSync(string sessionId, IExcelBatch batch)
+    internal Action? BeforeCloseSessionHookForTests { get; set; }
+
+    private void CloseSessionSync(string sessionId, IExcelBatch batch, bool force)
     {
         if (string.IsNullOrWhiteSpace(sessionId))
         {
@@ -951,7 +987,11 @@ public sealed class SessionManager : IDisposable
 
         try
         {
-            batch.Dispose();
+            CloseBatch(batch, force);
+        }
+        catch (ExcelBusyException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -969,6 +1009,15 @@ public sealed class SessionManager : IDisposable
         }
 
         _sessionLocks.TryRemove(sessionId, out _);
+    }
+
+    private static void CloseBatch(IExcelBatch batch, bool force = false)
+    {
+        if (!force && !batch.HasTimedOutOperation && batch.IsExcelProcessAlive()
+            && batch is IExcelBatchCloseState closeState)
+            closeState.Close();
+        else
+            batch.Dispose();
     }
 
     private static bool TryConfirmFailedTeardown(IExcelBatch batch) =>
@@ -1124,7 +1173,7 @@ public sealed class SessionManager : IDisposable
     /// <param name="filePath">Previously reserved workbook path</param>
     public void ReleaseSessionFilePathReservation(string sessionId, string filePath)
     {
-        var normalizedPath = Path.GetFullPath(filePath);
+        var normalizedPath = WorkbookLocation.Normalize(filePath);
         lock (_filePathReservationLock)
         {
             if (!_sessionFilePathReservations.TryGetValue(sessionId, out var reservedPath) ||
@@ -1205,9 +1254,6 @@ public sealed class SessionManager : IDisposable
                 return;
             _disposed = true;
             sessions = _activeSessions.ToArray();
-            foreach (var sessionId in _activeSessions.Keys)
-                RemoveSessionTracking(sessionId, removeSessionLock: true);
-            _activeFilePaths.Clear();
         }
 
         var failures = new List<Exception>();
@@ -1224,6 +1270,14 @@ public sealed class SessionManager : IDisposable
                     session.Save(saveTimeout.Token);
                     _logger.LogInformation("Auto-saved session for {Path} before shutdown", session.WorkbookPath);
                 }
+                catch (ExcelBusyException ex)
+                {
+                    failures.Add(new InvalidOperationException(
+                        $"Shutdown refused for session '{sessionId}': {ex.Message}", ex));
+                    _logger.LogWarning(ex,
+                        "Shutdown refused for session {SessionId}; workbook and session remain open", sessionId);
+                    continue;
+                }
                 catch (Exception ex)
                 {
                     failures.Add(new InvalidOperationException(
@@ -1237,7 +1291,15 @@ public sealed class SessionManager : IDisposable
             {
                 // Dispose sequentially - ExcelBatch.Dispose() handles its own Excel cleanup
                 // via ExcelShutdownService with proper timeouts and retry logic
-                session.Dispose();
+                CloseBatch(session);
+            }
+            catch (ExcelBusyException ex)
+            {
+                failures.Add(new InvalidOperationException(
+                    $"Shutdown refused for session '{sessionId}': {ex.Message}", ex));
+                _logger.LogWarning(ex,
+                    "Shutdown refused for session {SessionId}; workbook and session remain open", sessionId);
+                continue;
             }
             catch (Exception ex)
             {
@@ -1246,6 +1308,16 @@ public sealed class SessionManager : IDisposable
                 failures.Add(failure);
                 _logger.LogError(ex, "Failed to dispose session {SessionId}", sessionId);
             }
+            lock (_filePathReservationLock)
+                RemoveSessionTracking(sessionId, removeSessionLock: true);
+        }
+
+        lock (_filePathReservationLock)
+        {
+            if (_activeSessions.IsEmpty)
+                _activeFilePaths.Clear();
+            else
+                _disposed = false;
         }
 
         if (failures.Count > 0)
@@ -1296,6 +1368,20 @@ public sealed record CloseValidationResult(
     int ActiveOperationCount,
     string? BlockingReason)
 {
+    internal WorkbookRefreshState RefreshState { get; init; } = WorkbookRefreshState.Unknown;
+
+    /// <summary>
+    /// Live Excel readiness, including owned modal dialogs; unknown is not proof of readiness.
+    /// </summary>
+    public string ExcelState => RefreshState switch
+    {
+        WorkbookRefreshState.Ready => "ready",
+        WorkbookRefreshState.Refreshing => "refreshing",
+        WorkbookRefreshState.Busy => "busy",
+        WorkbookRefreshState.DialogOpen => "dialogOpen",
+        _ => "unknown"
+    };
+
     /// <summary>
     /// Whether the session can be closed (no blocking conditions).
     /// </summary>

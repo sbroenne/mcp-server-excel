@@ -77,6 +77,39 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
     }
 
     [Fact]
+    public void GetRefreshState_StartedInspectionExceedsDeadline_RemainsUnknownWithoutPoisoningBatch()
+    {
+        using var owned = new OwnedExcelProcessScope();
+        using var batch = ExcelSession.BeginBatchWithTimeouts(
+            show: false,
+            operationTimeout: TimeSpan.FromSeconds(2),
+            startupTimeout: ComInteropConstants.DefaultOperationTimeout,
+            _testFileCopy!);
+        var implementation = Assert.IsType<ExcelBatch>(batch);
+        implementation.BeforeRefreshStateReadHookForTests = () => Thread.Sleep(TimeSpan.FromSeconds(4));
+        var failure = Record.Exception(() =>
+        {
+            var elapsed = Stopwatch.StartNew();
+            Assert.Equal(WorkbookRefreshState.Unknown, implementation.GetRefreshState());
+            Assert.InRange(elapsed.Elapsed, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(6));
+            Assert.False(batch.HasTimedOutOperation);
+        });
+        implementation.BeforeRefreshStateReadHookForTests = null;
+        using var recoveryLifetime = new CancellationTokenSource();
+        var recoveryFailure = Record.Exception(() =>
+        {
+            Assert.Equal(1, batch.Execute((_, _) => 1, recoveryLifetime.Token));
+            Assert.Equal(WorkbookRefreshState.Ready, implementation.GetRefreshState());
+        });
+        var disposalFailure = Record.Exception(batch.Dispose);
+        var processFailure = Record.Exception(() => owned.AssertAllExited());
+        var failures = new[] { failure, recoveryFailure, disposalFailure, processFailure }
+            .OfType<Exception>().ToArray();
+        if (failures.Length > 0)
+            throw new AggregateException("Readiness deadline regression or cleanup failed.", failures);
+    }
+
+    [Fact]
     public void BeginBatch_OpenTimeoutOverride_IsHonored()
     {
         using var batch = ExcelSession.BeginBatch(

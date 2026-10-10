@@ -1,7 +1,7 @@
 {
   "name": "@sbroenne/excelcli-win32-arm64",
   "version": "0.0.0-development",
-  "description": "Windows ARM64 runtime for the ExcelMcp CLI.",
+  "description": "Windows ARM64 runtime for @sbroenne/excelcli, the Microsoft Excel automation CLI. Requires desktop Excel.",
   "license": "MIT",
   "main": "excelcli.exe",
   "files": [

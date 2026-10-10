@@ -76,45 +76,98 @@ try {
                 Users = 5; SharePct = 20
             }
         )
-        reliability = @(
-            @{
-                Name = "range/get-values"; Actions = 100; ExpectedNegatives = 3
-                Failures = 7; FailureRate = 7; InputState = 2
-                ExternalDependency = 1; TimeoutCancellation = 1
-                ExcelRuntime = 1; InternalProductFault = 1; Unclassified = 1
-                Users = 8
-            },
-            @{
-                Name = "file/close"; Actions = 100; ExpectedNegatives = 0
-                Failures = 3; FailureRate = 3; InputState = 3
-                ExternalDependency = 0; TimeoutCancellation = 0
-                ExcelRuntime = 0; InternalProductFault = 0; Unclassified = 0
-                Users = 8
+        downloadSources = @{
+            npm = @{
+                "npm-mcp-server" = @(
+                    @{ day = "2026-08-08"; downloads = 0 }
+                    foreach ($offset in 0..6) {
+                        @{ day = ([DateTime]"2026-08-09").AddDays($offset).ToString("yyyy-MM-dd"); downloads = 10 }
+                    }
+                    @{ day = "2026-08-16"; downloads = 5 }
+                )
+                "npm-cli" = @(
+                    @{ day = "2026-08-08"; downloads = 0 }
+                    foreach ($offset in 0..6) {
+                        @{ day = ([DateTime]"2026-08-09").AddDays($offset).ToString("yyyy-MM-dd"); downloads = 2 }
+                    }
+                    @{ day = "2026-08-16"; downloads = 1 }
+                )
             }
+            releases = @(
+                @{
+                    tag = "v2.0.4"; publishedAt = "2026-08-15T10:00:00Z"; draft = $true
+                    assets = @(@{ name = "ExcelMcp-MCP-Server-2.0.4-windows.zip"; downloads = 999 })
+                },
+                @{
+                    tag = "v2.0.3"; publishedAt = "2026-08-14T10:00:00Z"; draft = $false
+                    assets = @(
+                        @{ name = "ExcelMcp-MCP-Server-2.0.3-windows.zip"; downloads = 40 },
+                        @{ name = "excel-mcp-2.0.3.vsix"; downloads = 5 },
+                        @{ name = "SHA256SUMS"; downloads = 100 },
+                        @{ name = "RELEASE-INPUTS.json"; downloads = 7 }
+                    )
+                },
+                @{
+                    tag = "v2.0.2"; publishedAt = "2026-08-01T10:00:00Z"; draft = $false
+                    assets = @(
+                        @{ name = "ExcelMcp-MCP-Server-2.0.2-windows.zip"; downloads = 60 },
+                        @{ name = "excel-mcp-2.0.2.mcpb"; downloads = 4 }
+                    )
+                }
+            )
+            vscodeInstalls = 250
+        }
+        actionCounts = @(
+            @{ Name = "range/get-values"; Actions = 500; Users = 10 },
+            @{ Name = "powerquery/refresh"; Actions = 200; Users = 5 },
+            @{ Name = "rare/action"; Actions = 9; Users = 9 },
+            @{ Name = "file/open"; Actions = 200; Users = 20 }
         )
-        failureClasses = @(
-            @{ Bucket = "expected-negative"; Actions = 3; Users = 2 },
-            @{ Bucket = "input-state"; Actions = 2; Users = 2 },
-            @{ Bucket = "external-dependency"; Actions = 1; Users = 1 },
-            @{ Bucket = "timeout-cancellation"; Actions = 1; Users = 1 },
-            @{ Bucket = "excel-runtime"; Actions = 1; Users = 1 },
-            @{ Bucket = "internal-product-fault"; Actions = 1; Users = 1 },
-            @{ Bucket = "unclassified"; Actions = 1; Users = 1 }
+        weeklyActions = @(
+            @{ Week = "2026-08-09"; Name = "range/get-values"; Actions = 300 },
+            @{ Week = "2026-08-16"; Name = "range/get-values"; Actions = 300 },
+            @{ Week = "2026-08-16"; Name = "powerquery/refresh"; Actions = 20 },
+            @{ Week = "2026-08-16"; Name = "file/open"; Actions = 50 }
         )
-        versionReliability = @(
-            @{
-                Version = "2.0.5"; Actions = 700; ExpectedNegatives = 3
-                Failures = 7; FailureRate = 1; InputState = 2
-                ExternalDependency = 1; TimeoutCancellation = 1
-                ExcelRuntime = 1; InternalProductFault = 1; Unclassified = 1
-                Users = 20
-            }
+        comparisonActions = @(
+            @{ Name = "range/get-values"; CurrentActions = 100; PreviousActions = 100 },
+            @{ Name = "powerquery/refresh"; CurrentActions = 20; PreviousActions = 10 },
+            @{ Name = "rare/action"; CurrentActions = 5; PreviousActions = 0 }
         )
-        exceptions = @(
-            @{
-                Category = "background-task-problem"
-                Exceptions = 12; Users = 10; Sessions = 11
-            }
+        heavyWork = @(@{ Users = 100; HeavyUsers = 25 })
+        entryPoints = @(
+            @{ EntryPoint = "mcp-server"; Users = 40; Actions = 600 },
+            @{ EntryPoint = "cli"; Users = 9; Actions = 50 }
+        )
+        entryPointActions = @(
+            @{ EntryPoint = "mcp-server"; Name = "range/get-values"; Actions = 400 },
+            @{ EntryPoint = "mcp-server"; Name = "powerquery/refresh"; Actions = 100 },
+            @{ EntryPoint = "mcp-server"; Name = "file/open"; Actions = 100 },
+            @{ EntryPoint = "cli"; Name = "range/get-values"; Actions = 50 }
+        )
+        assistantSessions = @(
+            @{ Size = "1"; Sessions = 10; Actions = 10; MultiFeatureSessions = 0; Users = 4 },
+            @{ Size = "2-10"; Sessions = 30; Actions = 150; MultiFeatureSessions = 10; Users = 20 },
+            @{ Size = "201+"; Sessions = 10; Actions = 2840; MultiFeatureSessions = 10; Users = 12 }
+        )
+        assistantSessionMedian = @(@{ MedianActions = 5.0; Users = 30 })
+        featurePairs = @(
+            @{ First = "tables-ranges"; Second = "worksheets-connections"; Sessions = 20; Users = 12 }
+        )
+        returningUsers = @(@{ NewUsers = 200; ReturnedAfterWeek = 100; ReturnedAfterThreeWeeks = 50 })
+        featureWait = @(
+            @{ Feature = "power-query"; Actions = 200; Users = 12; TypicalMs = 2834.6; SlowMs = 33012.0 },
+            @{ Feature = "tables-ranges"; Actions = 500; Users = 30; TypicalMs = 61.9; SlowMs = 791.3 }
+        )
+        weekdays = @(
+            @{ Day = 0; Actions = 80; Users = 10 },
+            @{ Day = 1; Actions = 400; Users = 20 },
+            @{ Day = 2; Actions = 400; Users = 20 },
+            @{ Day = 6; Actions = 80; Users = 5 }
+        )
+        firstAdvancedUse = @(
+            @{ Feature = "power-query"; Users = 40; FirstDay = 30; FirstWeek = 6; Later = 4 },
+            @{ Feature = "vba"; Users = 20; FirstDay = 10; FirstWeek = 5; Later = 5 }
         )
     }
     $fixturePath = Write-TestFile "fixture.json" ($fixture | ConvertTo-Json -Depth 8)
@@ -127,22 +180,29 @@ try {
         "Workbook open or close actions entered the public report."
     Assert-True ($null -eq $analytics.operations[0].PSObject.Properties["successRate"]) `
         "Historical success rates entered the public report."
-    Assert-True ($analytics.schemaVersion -eq 2) "Categorized analytics schema was not emitted."
-    Assert-True ($analytics.reliability[0].name -eq "range/get-values") `
-        "Categorized reliability data was not included."
-    Assert-True ($analytics.reliability[0].expectedNegatives -eq 3) `
-        "Expected negative outcomes were not separated."
-    Assert-True ($analytics.reliability[0].internalProductFault -eq 1) `
-        "Internal product faults were not separated."
-    Assert-True ($analytics.reliability[0].unclassified -eq 1) `
-        "Unclassified failures were hidden."
-    Assert-True (($analytics.failureClasses | Where-Object name -eq "unclassified").actions -eq 1) `
-        "The explicit unclassified bucket was not published."
-    Assert-True ($analytics.reliability.Count -eq 1) `
-        "Workbook lifecycle failures entered the public report."
-    Assert-True (
-        $analytics.windows.categorizedReliabilityMinimumVersion -eq "2.0.5") `
-        "The categorized reliability version boundary is missing."
+    Assert-True ($analytics.schemaVersion -eq 3) "Weighted analytics schema was not emitted."
+    Assert-True ($null -eq $analytics.PSObject.Properties["reliability"] -and
+        $null -eq $analytics.PSObject.Properties["exceptions"]) `
+        "Reliability data entered the usage report; it has its own report."
+    $downloads = $analytics.downloads
+    Assert-True (($downloads.channels.key -join ",") -eq
+        "npm-mcp-server,npm-cli,github-releases,vscode") `
+        "Download channels were not published in a fixed order."
+    Assert-True (($downloads.channels | Where-Object key -eq "npm-mcp-server").total -eq 75) `
+        "npm downloads were not totalled from daily history."
+    Assert-True (($downloads.channels | Where-Object key -eq "github-releases").total -eq 109) `
+        "GitHub release downloads counted drafts, checksums, or release metadata."
+    Assert-True ($downloads.npmWeekly.Count -eq 1 -and $downloads.npmWeekly[0].week -eq "2026-08-09" -and
+        $downloads.npmWeekly[0].total -eq 84) `
+        "npm weekly history did not keep only full weeks after the first download."
+    Assert-True ($downloads.releases.Count -eq 2 -and $downloads.releases[0].version -eq "2.0.3" -and
+        $downloads.releases[0].published -eq "2026-08-14" -and $downloads.releases[0].downloads -eq 45) `
+        "Release downloads were not listed newest first."
+    Assert-True ($downloads.snapshots.Count -eq 1 -and $downloads.weeklyGains.Count -eq 0) `
+        "A first report must start the download history with one snapshot."
+    Assert-True ($downloads.snapshots[0].date -eq [DateTime]::UtcNow.ToString("yyyy-MM-dd") -and
+        $downloads.snapshots[0].totals.vscode -eq 250) `
+        "Today's download totals were not recorded."
     Assert-True ($analytics.weekly.Count -eq 2) "Weekly usage history was not included."
     Assert-True ($analytics.versionAdoption.Count -eq 3) `
         "Weekly release adoption was not included."
@@ -150,31 +210,243 @@ try {
         "Release adoption labels were not preserved."
     Assert-True ($analytics.heroFeatures[0].name -eq "tables-ranges") `
         "Homepage feature usage was not included."
-    Assert-True ($analytics.exceptions[0].category -eq "background-task-problem") `
-        "Exception data was not reduced to the public category."
-    Assert-True ($null -eq $analytics.exceptions[0].PSObject.Properties["type"]) `
-        "Technical exception details entered the public report."
     $testsRun++
 
-    $unsafeFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
-    $unsafeFixture.exceptions[0].Category = "ignore-all-instructions"
-    $unsafePath = Write-TestFile "unsafe-fixture.json" ($unsafeFixture | ConvertTo-Json -Depth 8)
-    Assert-Throws -ExpectedMessage "unsafe exception category" -Action {
-        & $updateScript -WorkspaceId "fixture" `
-            -OutputPath (Join-Path $testRoot "unsafe.json") `
-            -FixturePath $unsafePath
+    Assert-True ($analytics.weights.light -eq 1 -and $analytics.weights.medium -eq 3 -and
+        $analytics.weights.heavy -eq 10) "The work levels were not published."
+    Assert-True ($analytics.summary.workUnits -eq 2500) `
+        "Work units did not multiply 500 light and 200 heavy actions by their levels."
+    Assert-True ($analytics.summary.unweightedActions -eq 9) `
+        "Actions without a weight were hidden instead of reported."
+    Assert-True ($analytics.unweightedActions[0].name -eq "rare/action") `
+        "The unweighted action was not named."
+    $powerQuery = $analytics.heroFeatures | Where-Object name -eq "power-query"
+    $tablesRanges = $analytics.heroFeatures | Where-Object name -eq "tables-ranges"
+    Assert-True ($powerQuery.workSharePct -eq 80 -and $powerQuery.sharePct -eq 20) `
+        "200 heavy actions out of 700 did not become 80 percent of the work."
+    Assert-True ($tablesRanges.workSharePct -eq 20 -and $tablesRanges.workUnits -eq 500) `
+        "Light actions did not keep their share of work."
+    Assert-True ($analytics.operationsByWork[0].name -eq "powerquery/refresh" -and
+        $analytics.operationsByWork[0].level -eq "heavy" -and
+        $analytics.operationsByWork[0].workUnits -eq 2000) `
+        "Actions were not ranked by work."
+    Assert-True ($analytics.toolFamilies[0].workUnits -eq 500 -and
+        $analytics.toolFamilies[0].workSharePct -eq 20) `
+        "Tool families did not receive work units."
+    Assert-True ($analytics.weekly[0].workUnits -eq 300 -and $analytics.weekly[1].workUnits -eq 500) `
+        "Weekly work units were not calculated or included workbook open and close actions."
+    Assert-True ($analytics.comparison.currentWorkUnits -eq 300 -and
+        $analytics.comparison.previousWorkUnits -eq 200 -and
+        $analytics.comparison.workChangePct -eq 50) `
+        "The two-week work comparison is wrong."
+    Assert-True ($analytics.heavyWork.heavyUserSharePct -eq 25) `
+        "The share of users doing heavy work is missing."
+    $testsRun++
+
+    $accountFixture = $fixture.Clone()
+    $accountFixture.actionCounts = @(
+        @{ Name = "connection/get-account-settings"; Actions = 20; Users = 10 },
+        @{ Name = "connection/clear-account-hint"; Actions = 20; Users = 10 },
+        @{ Name = "connection/set-account-settings"; Actions = 20; Users = 10 }
+    )
+    $accountFixturePath = Write-TestFile "account-fixture.json" ($accountFixture | ConvertTo-Json -Depth 8)
+    $accountReportPath = Join-Path $testRoot "account-analytics.json"
+    & $updateScript -WorkspaceId "fixture" -OutputPath $accountReportPath -FixturePath $accountFixturePath
+    $accountReport = Get-Content -LiteralPath $accountReportPath -Raw | ConvertFrom-Json
+    Assert-True ($accountReport.summary.workUnits -eq 140) `
+        "Account actions did not use their configured light/medium/medium weights."
+    $accountRead = $accountReport.operationsByWork | Where-Object name -eq "connection/get-account-settings"
+    Assert-True ($accountRead.workUnits -eq 20 -and $accountRead.level -eq "light") `
+        "Account inspection did not receive its configured light weight."
+    $originalWeights = [IO.File]::ReadAllText((Join-Path $PSScriptRoot "../.github/usage-analytics-weights.json"))
+    $changedWeights = $originalWeights.Replace('"get-account-settings": "light"', '"get-account-settings": "medium"')
+    Assert-True ($changedWeights -ne $originalWeights) "The account weight mutation did not change the source mapping."
+    $changedWeightsPath = Write-TestFile "changed-account-weights.json" $changedWeights
+    & $updateScript -WorkspaceId "fixture" -OutputPath $accountReportPath -FixturePath $accountFixturePath `
+        -WeightsPath $changedWeightsPath
+    $changedReport = Get-Content -LiteralPath $accountReportPath -Raw | ConvertFrom-Json
+    $changedRead = $changedReport.operationsByWork | Where-Object name -eq "connection/get-account-settings"
+    Assert-True ($changedReport.summary.workUnits -eq 180 -and
+        $changedRead.workUnits -eq 60 -and $changedRead.level -eq "medium") `
+        "Changing the account inspection weight did not change the produced report aggregate."
+    $testsRun++
+
+    $mcp = $analytics.entryPoints | Where-Object name -eq "mcp-server"
+    $cli = $analytics.entryPoints | Where-Object name -eq "cli"
+    Assert-True ($mcp.enoughData -and $mcp.actions -eq 500 -and $mcp.workUnits -eq 1400 -and
+        $mcp.actionsPerUser -eq 12.5 -and $mcp.workUnitsPerUser -eq 35) `
+        "The MCP Server entry point summary is wrong."
+    Assert-True (-not $cli.enoughData -and $null -eq $cli.PSObject.Properties["users"]) `
+        "An entry point below the minimum group size published its numbers."
+    Assert-True ($null -eq ($analytics.entryPointFeatures | Where-Object entryPoint -eq "cli") -and
+        $null -eq ($analytics.entryPointOperations | Where-Object entryPoint -eq "cli")) `
+        "An entry point below the minimum group size published its details."
+    $mcpPowerQuery = $analytics.entryPointFeatures |
+        Where-Object { $_.entryPoint -eq "mcp-server" -and $_.name -eq "power-query" }
+    Assert-True ($mcpPowerQuery.actionSharePct -eq 20 -and $mcpPowerQuery.workSharePct -eq 71.43) `
+        "Entry point feature shares are wrong."
+    Assert-True ($analytics.windows.entryPointMinimumUsers -eq 10) `
+        "The entry point minimum group size is missing."
+    $testsRun++
+
+    $habits = $analytics.habits
+    Assert-True ($habits.assistantSessions.enoughData -and
+        $habits.assistantSessions.sessions -eq 50 -and
+        $habits.assistantSessions.medianActions -eq 5 -and
+        $habits.assistantSessions.multiFeatureSharePct -eq 40) `
+        "The AI assistant session summary is wrong."
+    Assert-True (($habits.assistantSessions.sizes.size -join ",") -eq "1,2-10,11-50,51-200,201+") `
+        "Session sizes are not listed in a fixed order with empty sizes kept."
+    $singleSessions = $habits.assistantSessions.sizes | Where-Object size -eq "1"
+    $emptySessions = $habits.assistantSessions.sizes | Where-Object size -eq "11-50"
+    Assert-True (-not $singleSessions.enoughData -and
+        $null -eq $singleSessions.PSObject.Properties["sessions"] -and
+        $null -eq $singleSessions.PSObject.Properties["sessionSharePct"] -and
+        $emptySessions.enoughData -and $emptySessions.sessions -eq 0) `
+        "A session size used by fewer than the minimum number of users was published."
+    $longSessions = $habits.assistantSessions.sizes | Where-Object size -eq "201+"
+    Assert-True ($longSessions.enoughData -and
+        $longSessions.sessionSharePct -eq 20 -and $longSessions.actionSharePct -eq 94.67) `
+        "Long sessions did not get their share of sessions and actions."
+    Assert-True ($habits.featurePairs[0].sharePct -eq 40 -and
+        $null -eq $habits.featurePairs[0].PSObject.Properties["users"]) `
+        "Areas used together are wrong or publish a user count."
+    Assert-True ($habits.returningUsers.enoughData -and
+        $habits.returningUsers.returnedAfterWeekPct -eq 50 -and
+        $habits.returningUsers.returnedAfterThreeWeeksPct -eq 25) `
+        "Returning user shares are wrong."
+    Assert-True ($habits.featureWait[0].name -eq "power-query" -and
+        $habits.featureWait[0].typicalSeconds -eq 2.83 -and
+        $habits.featureWait[0].slowSeconds -eq 33) `
+        "Typical waits were not converted to seconds."
+    $saturday = $habits.weekdays | Where-Object day -eq "Saturday"
+    Assert-True (($habits.weekdays.day -join ",") -eq "Monday,Tuesday,Saturday,Sunday" -and
+        $habits.workdayAverageActions -eq 20 -and $habits.weekendAverageActions -eq 10) `
+        "Weekday use is not in Monday-first order or the per-day averages are wrong."
+    Assert-True (-not $saturday.enoughData -and
+        $null -eq $saturday.PSObject.Properties["actions"] -and
+        $null -eq $saturday.PSObject.Properties["users"]) `
+        "A weekday used by fewer than the minimum number of users was published."
+    Assert-True ($habits.firstAdvancedUse[0].name -eq "power-query" -and
+        $habits.firstAdvancedUse[0].firstDayPct -eq 75 -and
+        $habits.firstAdvancedUseWindowDays -eq 60) `
+        "First use of advanced areas is wrong or does not state its window."
+    $habitQuerySource = [IO.File]::ReadAllText($updateScript)
+    $firstUseQuery = [regex]::Match($habitQuerySource, '(?s)firstAdvancedUse = @".*?"@').Value
+    Assert-True ($firstUseQuery -match 'FirstSeen > ago\(\$\{firstAdvancedCohortDays\}d\)') `
+        "First use of advanced areas does not limit itself to people who started inside the window."
+    $sessionQuery = [regex]::Match($habitQuerySource, '(?s)assistantSessions = @".*?"@').Value
+    Assert-True ($sessionQuery -match 'Users=dcount\(UserId\)') `
+        "Session sizes do not count users, so small groups cannot be hidden."
+    foreach ($queryName in "assistantSessions", "assistantSessionMedian", "featurePairs") {
+        $query = [regex]::Match($habitQuerySource, "(?s)$queryName = @`".*?`"@").Value
+        Assert-True ($query -match 'by UserId, SessionId\r?\n') `
+            "$queryName must group by person and session; SessionId alone repeats across people."
+    }
+
+    $smallHabitFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $smallHabitFixture.assistantSessionMedian[0].Users = 9
+    $smallHabitFixture.returningUsers[0].NewUsers = 9
+    $smallHabitFixture.returningUsers[0].ReturnedAfterWeek = 3
+    $smallHabitFixture.returningUsers[0].ReturnedAfterThreeWeeks = 1
+    $smallHabitPath = Write-TestFile "small-habit-fixture.json" ($smallHabitFixture | ConvertTo-Json -Depth 8)
+    $smallHabitOutput = Join-Path $testRoot "small-habits.json"
+    & $updateScript -WorkspaceId "fixture" -OutputPath $smallHabitOutput -FixturePath $smallHabitPath
+    $smallHabits = (Get-Content -LiteralPath $smallHabitOutput -Raw | ConvertFrom-Json).habits
+    Assert-True (-not $smallHabits.assistantSessions.enoughData -and
+        $null -eq $smallHabits.assistantSessions.PSObject.Properties["sessions"] -and
+        $null -eq $smallHabits.assistantSessions.PSObject.Properties["sizes"]) `
+        "Session figures from fewer than the minimum number of users were published."
+    Assert-True (-not $smallHabits.returningUsers.enoughData -and
+        $null -eq $smallHabits.returningUsers.PSObject.Properties["newUsers"] -and
+        $null -eq $smallHabits.returningUsers.PSObject.Properties["returnedAfterWeekPct"]) `
+        "A returning-user group smaller than the minimum was published."
+    $yearFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $yearDays = @(
+        for ($offset = 0; $offset -lt 60 * 7; $offset++) {
+            @{ day = ([DateTime]"2025-08-10").AddDays($offset).ToString("yyyy-MM-dd"); downloads = 1 }
+        }
+    )
+    $yearFixture.downloadSources.npm."npm-mcp-server" = $yearDays
+    $yearFixture.downloadSources.npm."npm-cli" = $yearDays
+    $yearPath = Write-TestFile "year-fixture.json" ($yearFixture | ConvertTo-Json -Depth 8)
+    $yearOutput = Join-Path $testRoot "year.json"
+    & $updateScript -WorkspaceId "fixture" -OutputPath $yearOutput -FixturePath $yearPath
+    $yearWeekly = (Get-Content -LiteralPath $yearOutput -Raw | ConvertFrom-Json).downloads.npmWeekly
+    Assert-True ($yearWeekly.Count -eq 52 -and $yearWeekly[-1].total -eq 14) `
+        "npm weekly history does not cover the last 12 months."
+    $unsafeHabitCases = @{
+        "session size" = { param($f) $f.assistantSessions[0].Size = "huge" }
+        "homepage-feature" = { param($f) $f.featurePairs[0].Second = "private-workbook" }
+        "weekday" = { param($f) $f.weekdays[0].Day = 9 }
+    }
+    foreach ($case in $unsafeHabitCases.GetEnumerator()) {
+        $unsafeHabitFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+        & $case.Value $unsafeHabitFixture
+        $unsafeHabitPath = Write-TestFile "unsafe-habit-fixture.json" ($unsafeHabitFixture | ConvertTo-Json -Depth 8)
+        Assert-Throws -ExpectedMessage $case.Key -Action {
+            & $updateScript -WorkspaceId "fixture" `
+                -OutputPath (Join-Path $testRoot "unsafe-habit-report.json") `
+                -FixturePath $unsafeHabitPath
+        }
     }
     $testsRun++
 
-    $unsafeClassFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
-    $unsafeClassFixture.reliability = @()
-    $unsafeClassFixture.failureClasses[0].Bucket = "private-error-message"
-    $unsafeClassPath = Write-TestFile "unsafe-class-fixture.json" `
-        ($unsafeClassFixture | ConvertTo-Json -Depth 8)
-    Assert-Throws -ExpectedMessage "unsafe failure class" -Action {
-        & $updateScript -WorkspaceId "fixture" `
-            -OutputPath (Join-Path $testRoot "unsafe-class.json") `
-            -FixturePath $unsafeClassPath
+    $largeCliFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $largeCliFixture.entryPoints[1].Users = 10
+    $largeCliPath = Write-TestFile "large-cli-fixture.json" ($largeCliFixture | ConvertTo-Json -Depth 8)
+    $largeCliAnalyticsPath = Join-Path $testRoot "large-cli.json"
+    & $updateScript -WorkspaceId "fixture" -OutputPath $largeCliAnalyticsPath -FixturePath $largeCliPath
+    $largeCli = (Get-Content -LiteralPath $largeCliAnalyticsPath -Raw | ConvertFrom-Json).entryPoints |
+        Where-Object name -eq "cli"
+    Assert-True ($largeCli.enoughData -and $largeCli.users -eq 10 -and $largeCli.workUnits -eq 50) `
+        "An entry point at the minimum group size was hidden."
+    $testsRun++
+
+    . (Join-Path $PSScriptRoot "UsageAnalyticsWeights.ps1")
+    $weights = Read-UsageAnalyticsWeights -Path (Join-Path $PSScriptRoot "../.github/usage-analytics-weights.json")
+    Assert-True ($weights.ToolMap["rangeformat"] -eq "range_format") `
+        "CLI category names are not mapped to MCP tool names."
+    Assert-True ($weights.ToolMap["range_read"] -eq "range") `
+        "Read-only MCP tool names are not mapped to their base tool."
+    Assert-True ($weights.SplitMap["sheet/set-tab-color"] -eq "worksheet_style/set-tab-color" -and
+        $weights.SplitMap["sheet/list"] -eq "worksheet/list") `
+        "CLI sheet actions are not split between worksheet tools."
+    Assert-True ($weights.ToolMap["session"] -eq "file" -and $weights.ExcludedActions -contains "file/open") `
+        "CLI session open and close are not treated like workbook open and close."
+    Assert-True ($weights.HeavyNames -contains "powerquery/refresh" -and
+        $weights.HeavyNames -notcontains "range/get-values") `
+        "Heavy actions were not identified."
+    $prelude = New-UsageAnalyticsQueryPrelude -Weights $weights
+    Assert-True ($prelude.Contains("'rangeformat', 'range_format', 'tables-ranges'")) `
+        "The query lookup does not combine CLI and MCP spellings."
+    Assert-True ($prelude.Contains("'sheet/set-tab-color', 'worksheet_style/set-tab-color', 'worksheets-connections'")) `
+        "The query lookup does not split CLI sheet actions."
+    Assert-True ($prelude.Contains("coalesce(tostring(Properties['EntryPoint']), 'mcp-server')")) `
+        "Rows recorded before the entry point label are not counted as MCP Server."
+    Assert-True ($prelude -match "let excludedNames = dynamic\(\['file/open', 'file/close'\]\)") `
+        "Excluded actions are not removed after names are combined."
+    $testsRun++
+
+    $validWeights = Get-Content -LiteralPath (Join-Path $PSScriptRoot "../.github/usage-analytics-weights.json") -Raw
+    $invalidWeights = @{
+        "unknown level" = $validWeights.Replace('"get-values": "light"', '"get-values": "enormous"')
+        "positive whole number" = $validWeights.Replace('"heavy": 10', '"heavy": 0')
+        "exactly light 1" = $validWeights.Replace('"heavy": 10', '"heavy": 9')
+        "medium 3, and heavy 10" = $validWeights.Replace('"heavy": 10', '"heavy": 10, "huge": 30')
+        "repeat" = $validWeights.Replace('"get-values": "light",', '"get-values": "light", "get-values": "heavy",')
+        "unknown tool" = $validWeights.Replace('"rangeformat": ["range_format"]', '"rangeformat": ["range_formats"]')
+        "unknown feature" = $validWeights.Replace('"feature": "power-query"', '"feature": "power-queries"')
+    }
+    foreach ($case in $invalidWeights.GetEnumerator()) {
+        Assert-True ($case.Value -ne $validWeights) "Invalid weights case '$($case.Key)' did not change the file."
+        $invalidWeightsPath = Write-TestFile "invalid-weights.json" $case.Value
+        Assert-Throws -ExpectedMessage $case.Key -Action {
+            & $updateScript -WorkspaceId "fixture" `
+                -OutputPath (Join-Path $testRoot "invalid-weights-report.json") `
+                -FixturePath $fixturePath `
+                -WeightsPath $invalidWeightsPath
+        }
     }
     $testsRun++
 
@@ -187,16 +459,70 @@ try {
         "The action comparison does not guard an empty previous window."
     $testsRun++
 
-    $invalidReliabilityFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
-    $invalidReliabilityFixture.operations = @()
-    $invalidReliabilityFixture.reliability[0].Name = "unsafe name"
-    $invalidReliabilityPath = Write-TestFile "invalid-reliability-fixture.json" `
-        ($invalidReliabilityFixture | ConvertTo-Json -Depth 8)
-    Assert-Throws -ExpectedMessage "unsafe reliability dimension" -Action {
-        & $updateScript -WorkspaceId "fixture" `
-            -OutputPath (Join-Path $testRoot "invalid-reliability.json") `
-            -FixturePath $invalidReliabilityPath
+    $today = [DateTime]::UtcNow.ToString("yyyy-MM-dd")
+    $previousReport = $analytics | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+    $previousReport.downloads.snapshots = @(
+        [pscustomobject]@{
+            date = "2026-08-01"
+            totals = [pscustomobject]@{
+                "nuget-mcp-server" = 400; "github-releases" = 100; vscode = 200
+            }
+        },
+        [pscustomobject]@{
+            date = $today
+            totals = [pscustomobject]@{
+                "github-releases" = 999; vscode = 999
+            }
+        }
+    )
+    $previousReportPath = Write-TestFile "previous-report.json" ($previousReport | ConvertTo-Json -Depth 10)
+    $carriedPath = Join-Path $testRoot "carried.json"
+    & $updateScript -WorkspaceId "fixture" -OutputPath $carriedPath -FixturePath $fixturePath `
+        -PreviousReportPath $previousReportPath
+    $carried = (Get-Content -LiteralPath $carriedPath -Raw | ConvertFrom-Json).downloads
+    Assert-True ($carried.snapshots.Count -eq 2 -and $carried.snapshots[0].date -eq "2026-08-01") `
+        "Earlier download snapshots were not carried forward."
+    Assert-True ($carried.snapshots[1].date -eq $today -and $carried.snapshots[1].totals.vscode -eq 250) `
+        "A second run on the same day did not replace that day's snapshot."
+    Assert-True ($carried.weeklyGains.Count -eq 1 -and $carried.weeklyGains[0].week -eq "2026-08-01" -and
+        $carried.weeklyGains[0].total -eq 59 -and $carried.weeklyGains[0].channels.vscode -eq 50 -and
+        $null -eq $carried.weeklyGains[0].channels.PSObject.Properties["nuget-mcp-server"] -and
+        $null -eq $carried.snapshots[0].totals.PSObject.Properties["nuget-mcp-server"]) `
+        "Download gains were not calculated between snapshots, or a retired channel was kept."
+    $testsRun++
+
+    $bootstrapCarriedPath = Join-Path $testRoot "bootstrap-carried.json"
+    & $updateScript -WorkspaceId "fixture" -OutputPath $bootstrapCarriedPath -FixturePath $fixturePath `
+        -PreviousReportPath (Join-Path $PSScriptRoot "../.github/usage-analytics.json")
+    $bootstrapCarried = (Get-Content -LiteralPath $bootstrapCarriedPath -Raw | ConvertFrom-Json).downloads
+    Assert-True ($bootstrapCarried.snapshots.Count -ge 1 -and
+        $bootstrapCarried.snapshots[-1].date -eq $today) `
+        "The checked-in report could not seed the download history."
+    $testsRun++
+
+    $brokenPreviousReport = $previousReport | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+    $brokenPreviousReport.downloads.snapshots[0].totals.PSObject.Properties.Remove("vscode")
+    $brokenPreviousPath = Write-TestFile "broken-previous.json" ($brokenPreviousReport | ConvertTo-Json -Depth 10)
+    Assert-Throws -ExpectedMessage "snapshot is missing 'vscode'" -Action {
+        & $updateScript -WorkspaceId "fixture" -OutputPath (Join-Path $testRoot "broken.json") `
+            -FixturePath $fixturePath -PreviousReportPath $brokenPreviousPath
     }
+    Assert-Throws -ExpectedMessage "does not exist" -Action {
+        & $updateScript -WorkspaceId "fixture" -OutputPath (Join-Path $testRoot "missing.json") `
+            -FixturePath $fixturePath -PreviousReportPath (Join-Path $testRoot "no-such-report.json")
+    }
+    $testsRun++
+
+    $unsafeDownloadFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
+    $unsafeDownloadFixture.downloadSources.releases[1].tag = "v2.0.3 see private notes"
+    $unsafeDownloadPath = Write-TestFile "unsafe-download-fixture.json" `
+        ($unsafeDownloadFixture | ConvertTo-Json -Depth 8)
+    Assert-Throws -ExpectedMessage "unsafe release version" -Action {
+        & $updateScript -WorkspaceId "fixture" `
+            -OutputPath (Join-Path $testRoot "unsafe-download.json") `
+            -FixturePath $unsafeDownloadPath
+    }
+    $testsRun++
 
     $invalidFeatureFixture = $fixture | ConvertTo-Json -Depth 8 | ConvertFrom-Json
     $invalidFeatureFixture.families = @()
@@ -237,17 +563,17 @@ try {
 
 Users increased by 25 percent while the report covered 1,000 actions.
 
-## How well it worked
-
-The categorized data includes 7 failures and 3 expected negative results across 100 actions.
-
 ## How people use it
 
-Release 2.0.5 reported 7 failures across 700 actions.
+Release 2.0.3 was used by 40 people in the latest full week.
+
+## Where people get it
+
+The VS Code extension shows 250 installs, and npm recorded 84 downloads in one full week. Downloads count downloads, not people.
 
 ## What we will improve
 
-Investigate the 12 background task problems before changing behavior.
+Review the 200 heavy data actions before changing behavior.
 "@
     $interpretationPath = Write-TestFile "interpretation.md" $interpretation
     $reportPath = Join-Path $testRoot "report.json"
@@ -287,6 +613,8 @@ Investigate the 12 background task problems before changing behavior.
         "The initial prompt does not leave room below the validation limit."
     Assert-True ($copilotRequests[1] -like "*failed validation*") `
         "The retry prompt does not explain why another draft is required."
+    Assert-True (@($copilotRequests | Where-Object { $_ -like "*--model claude-opus-5.5 *" }).Count -eq 2) `
+        "Every interpretation request must pin the report model."
     Assert-True ($retryReport.interpretation -eq $interpretation.Trim()) `
         "The regenerated interpretation was not assembled into the report."
     $testsRun++
@@ -373,7 +701,21 @@ Investigate the 12 background task problems before changing behavior.
         "Restore script did not replace the bootstrap report."
     $testsRun++
 
-    $unsupported = $interpretation.Replace("12 background", "999 background")
+    $schemaTwoReport = $report | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+    $schemaTwoReport.schemaVersion = 2
+    $schemaTwoText = $schemaTwoReport | ConvertTo-Json -Depth 10
+    $restoredContent = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($schemaTwoText))
+    & $restoreScript `
+        -Repository "owner/repository" `
+        -Branch "analytics-data" `
+        -ReportPath $bootstrapPath `
+        -RemotePath ".github/usage-analytics.json" `
+        -ApiInvoker $restoreInvoker
+    Assert-True ([IO.File]::ReadAllText($bootstrapPath) -eq $schemaTwoText) `
+        "Restore script rejected a report from before work weighting."
+    $testsRun++
+
+    $unsupported = $interpretation.Replace("84 downloads", "999 downloads")
     $unsupportedPath = Write-TestFile "unsupported.md" $unsupported
     Assert-Throws -ExpectedMessage "unsupported numeric claim '999'" -Action {
         & $completeScript `
@@ -383,7 +725,7 @@ Investigate the 12 background task problems before changing behavior.
     }
     $testsRun++
 
-    $unsupportedVersion = $interpretation.Replace("Release 2.0.5", "Release 2.0.9")
+    $unsupportedVersion = $interpretation.Replace("Release 2.0.3", "Release 2.0.9")
     $unsupportedVersionPath = Write-TestFile "unsupported-version.md" $unsupportedVersion
     Assert-Throws -ExpectedMessage "unsupported numeric claim '2.0.9'" -Action {
         & $completeScript `
@@ -394,7 +736,7 @@ Investigate the 12 background task problems before changing behavior.
     $testsRun++
 
     $jargonInterpretation = $interpretation.Replace(
-        "background task problems",
+        "heavy data actions",
         "sanitized AggregateException records")
     $jargonInterpretationPath = Write-TestFile "jargon-interpretation.md" $jargonInterpretation
     Assert-Throws -ExpectedMessage "forbidden technical jargon" -Action {

@@ -136,7 +136,7 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
         var createJson = await CallToolAsync("file", new Dictionary<string, object?>
         {
             ["action"] = "create",
-            ["path"] = workbookPath
+            ["file_path"] = workbookPath
         });
 
         AssertSetupSuccess(createJson, $"file.create ({Path.GetFileName(workbookPath)})");

@@ -20,8 +20,9 @@ MCP tool descriptions; the linked guides explain practical decisions and workflo
 Creating or loading a query can execute its data sources. Evaluation also runs
 code and temporarily changes the workbook, so it is not a read-only audit.
 Failed loads can leave objects behind; inspect what survived before retrying.
-Definition-only staging queries cannot refresh independently, and a batch
-refresh failure does not roll back loads that already finished.
+Workbook-wide refresh skips parameter and definition-only staging queries,
+keeps going past a failed query, and names each refreshed, skipped, and failed
+query. A failure does not roll back loads that already finished.
 
 M code is preserved unless remote formatting is requested. Remote formatting
 sends code to an external service and needs consent.
@@ -77,13 +78,13 @@ is a displayed query result, not a calculated table inside the model.
 
 ---
 
-## PivotTables (45 operations)
+## PivotTables (47 operations)
 
 - **Build summaries:** Create PivotTables from ranges, worksheet Tables, or the Data Model, then configure rows, columns, values, and filters.
 - **Choose calculations:** Set aggregation and Show Values As independently; use calculated fields for regular PivotTables or supported calculated members for model-backed ones.
 - **Explore data:** Filter, sort, group, expand or collapse supported items, and drill into regular PivotTable source rows.
 - **Control presentation:** Use Compact, Tabular, or Outline layouts, repeated labels, styles, subtotals, and grand totals.
-- **Maintain sources:** Inspect refresh/cache settings and shared users, or change a supported source without rebuilding unrelated PivotTables.
+- **Maintain sources:** Inspect refresh/cache settings and shared users, change a worksheet source, or request a native connection change for one external PivotTable without rebuilding it. Native connection changes depend on Excel and the provider.
 
 Regular and Data Model PivotTables have different capabilities. Native grouping,
 calculated filters, item expansion, and drill-through described here are
@@ -99,11 +100,12 @@ also constrain source changes.
 
 ---
 
-## Data Connections (11 operations)
+## Data Connections (14 operations)
 
 - **Connect existing sources:** Create, inspect, and maintain supported OLEDB or ODBC workbook connections.
 - **Refresh and troubleshoot:** Test access, refresh data, inspect active refresh state, or cancel a supported refresh.
 - **Manage loads:** Load supported connections to worksheets or remove their associated load objects.
+- **Manage account settings:** Inspect, set selected sign-in settings, or remove a selected MSOLAP connection's saved account hint without clearing shared credentials.
 
 The appropriate provider or driver must be installed. Power Query connections
 use Power Query behavior rather than ordinary OLEDB/ODBC connection handling.

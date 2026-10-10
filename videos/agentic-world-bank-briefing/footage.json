@@ -1,0 +1,17 @@
+{
+  "recording": "2026-10-07_10-25-42.mp4",
+  "recordingNote": "Raw OBS capture of the timed run (2736x1824, 30 fps). Kept outside the repository; footage after 32:40 is unusable because another window covers the screen.",
+  "promptAt": 22,
+  "doneAt": 2336,
+  "crops": {
+    "terminal": "1068:1632:14:82",
+    "full": "2708:1632:14:82"
+  },
+  "clips": [
+    { "id": "ask", "crop": "terminal", "srcStart": 15, "srcEnd": 29, "duration": 14 },
+    { "id": "research", "crop": "terminal", "srcStart": 26, "srcEnd": 138, "duration": 15 },
+    { "id": "excel", "crop": "full", "srcStart": 138, "srcEnd": 1063, "duration": 30 },
+    { "id": "ppt-a", "crop": "full", "srcStart": 1063, "srcEnd": 1500, "duration": 21.5 },
+    { "id": "ppt-b", "crop": "full", "srcStart": 1840, "srcEnd": 1960, "duration": 6.5 }
+  ]
+}

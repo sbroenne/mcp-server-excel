@@ -120,13 +120,13 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
         await AssertSuccessAsync(
             "worksheet_style",
             OutlineArgs("group"),
-            "sheet.group",
+            "worksheetstyle.group",
             """{"sheetName":"Outline","rangeAddress":"2:5","axis":"Rows"}""",
             args => Assert.Equal("Rows", args.GetProperty("axis").GetString()));
         await AssertSuccessAsync(
             "worksheet_style",
             OutlineArgs("ungroup"),
-            "sheet.ungroup",
+            "worksheetstyle.ungroup",
             """{"sheetName":"Outline","rangeAddress":"2:5","axis":"Rows"}""");
         await AssertSuccessAsync("worksheet_style", new()
         {
@@ -136,7 +136,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
             ["summary_row"] = "above",
             ["summary_column"] = "left",
             ["automatic_styles"] = true
-        }, "sheet.set-outline-settings",
+        }, "worksheetstyle.set-outline-settings",
         """{"sheetName":"Outline","summaryRow":"above","summaryColumn":"left","automaticStyles":true}""", args =>
         {
             Assert.Equal("above", args.GetProperty("summaryRow").GetString());
@@ -149,14 +149,14 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
             ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "Outline",
             ["row_levels"] = 1
-        }, "sheet.show-outline-levels",
+        }, "worksheetstyle.show-outline-levels",
             """{"sheetName":"Outline","rowLevels":1}""",
             args => Assert.Equal(1, args.GetProperty("rowLevels").GetInt32()));
 
         var infoJson = await CallAsync(
             "worksheet_style_read",
             OutlineArgs("get-outline-info"),
-            "sheet.get-outline-info",
+            "worksheetstyle.get-outline-info",
             """{"sheetName":"Outline","rangeAddress":"2:5","axis":"Rows"}""",
             """{"success":true,"outlineLevel":2,"summaryRow":"above","summaryColumn":"left","hidden":true}""");
         using (var info = JsonDocument.Parse(infoJson))
@@ -172,7 +172,7 @@ public sealed class WorksheetViewOutlineHyperlinkToolTests(
             ["action"] = "clear-outline",
             ["workbook_session_id"] = SessionId,
             ["sheet_name"] = "Outline"
-        }, "sheet.clear-outline", """{"sheetName":"Outline"}""");
+        }, "worksheetstyle.clear-outline", """{"sheetName":"Outline"}""");
     }
 
     [Fact]

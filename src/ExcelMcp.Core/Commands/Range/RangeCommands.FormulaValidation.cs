@@ -13,10 +13,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public partial class RangeCommands
 {
     /// <inheritdoc />
-    public RangeFormulaValidationResult ValidateFormulas(IExcelBatch batch, string sheetName, string rangeAddress, List<List<string>>? formulas = null, string? formulasFile = null)
+    public RangeFormulaValidationResult ValidateFormulas(IExcelBatch batch, string sheetName, string rangeAddress, List<List<object?>>? formulas = null, string? formulasFile = null)
     {
-        // Resolve formulas from inline parameter or file
-        var resolvedFormulas = ParameterTransforms.ResolveFormulasOrFile(formulas, formulasFile);
+        // Resolve formula cells (formulas, text, numbers, booleans, null) from inline parameter or file
+        var resolvedFormulas = ParameterTransforms.ResolveFormulaCellsOrFile(formulas, formulasFile);
 
         var result = new RangeFormulaValidationResult
         {
@@ -46,8 +46,8 @@ public partial class RangeCommands
                     // Generate cell address for error reporting
                     string cellAddress = GetCellAddress(currentRow, currentCol);
 
-                    // Skip empty formulas (cells without formulas)
-                    if (string.IsNullOrWhiteSpace(formula))
+                    // Empty cells and constants (text, numbers, booleans) are valid; only '=' formulas need checks
+                    if (string.IsNullOrWhiteSpace(formula) || !formula.StartsWith('='))
                     {
                         validCount++;
                         currentCol++;
@@ -93,20 +93,6 @@ public partial class RangeCommands
     private static List<FormulaValidationError> ValidateSingleFormula(string formula, string cellAddress, int row, int col)
     {
         var errors = new List<FormulaValidationError>();
-
-        if (!formula.StartsWith('='))
-        {
-            errors.Add(new FormulaValidationError
-            {
-                CellAddress = cellAddress,
-                Row = row,
-                Column = col,
-                Formula = formula,
-                Message = "Formula must start with '=' character",
-                Category = "syntax-error"
-            });
-            return errors;
-        }
 
         string formulaContent = formula[1..]; // Remove leading =
 

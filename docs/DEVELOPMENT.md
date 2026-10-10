@@ -88,7 +88,7 @@ git push origin --delete feature/your-feature-name
 
 1. **Ensure all changes are merged** to `main` via PRs
 
-2. Run **Release All Components** from GitHub Actions and select a semantic
+2. Run **[Release] All Components** from GitHub Actions and select a semantic
    version bump or custom version.
 3. The workflow compiles pending changesets, updates versions, builds and
    publishes all deliverables, creates the tag, and creates the GitHub release.
@@ -137,8 +137,8 @@ tests/
 **During Development (Fast Feedback):**
 ```powershell
 # Quick validation - run tests for specific feature
-& .\scripts\Test-ExcelBehavior.ps1 -Project Service -Filter 'Feature=PowerQuery&RunType!=OnDemand'
-& .\scripts\Test-ExcelBehavior.ps1 -Project Service -Filter 'Feature=DataModel&RunType!=OnDemand'
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Release --filter 'RequiresExcel=true&Feature=PowerQuery&RunType!=OnDemand' --blame-hang-timeout 5m --logger trx
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Release --filter 'RequiresExcel=true&Feature=DataModel&RunType!=OnDemand' --blame-hang-timeout 5m --logger trx
 ```
 
 **Before Commit:** Rerun affected tests and applicable repository checks.
@@ -195,7 +195,7 @@ Before creating a PR, ensure:
 
 ```powershell
 # Example: select the project and feature affected by the change
-& .\scripts\Test-ExcelBehavior.ps1 -Project Service -Filter 'Feature=PowerQuery&RunType!=OnDemand'
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Release --filter 'RequiresExcel=true&Feature=PowerQuery&RunType!=OnDemand' --blame-hang-timeout 5m --logger trx
 
 # Code builds without warnings
 dotnet build -c Release
@@ -204,21 +204,21 @@ dotnet build -c Release
 ```
 
 Before the CLI project replaces its output, local builds call
-`scripts\Stop-ExcelMcpProcesses.ps1` once. The script delegates cleanup to
-`excelcli service stop`. Cleanup is scoped to `EXCELMCP_CLI_PIPE` and validates
-tracked PID start times. Excel identities remain recorded for their daemon
-generation through shutdown, so a failed final Excel exit cannot lose ownership
-metadata. Daemon, startup, and tracker mutexes use separate semantic namespaces
-over a case-insensitive SHA-256 pipe identity, so case variants, suffixes,
-separators, special characters, and long pipe names cannot collide across
-pipes or mutex roles. If the normal
-CLI binary predates ownership-lifecycle sources, the
-script first builds a current cleanup client in an isolated temporary output;
-this stops the tracked daemon before its loaded normal-output assemblies are
-replaced. A true first build with no CLI binary remains a safe no-op. Cleanup
-never sweeps all Excel processes. `Test-E2E.ps1` and
-`Test-CliWorkflow.ps1` allocate a private pipe for each invocation so parallel
-worktrees cannot stop each other's daemon or Excel instances.
+`scripts\Stop-ExcelCliService.ps1` once. It forcibly stops background CLI services
+whose executable is this worktree's Debug or Release output, after checking the
+`service run` command and PID/start-time identity. It retains a native process
+handle through verification and termination, so a reused PID cannot redirect
+termination to another process. **Builds do not save workbooks;
+unsaved work in those development sessions may be lost.** No temporary helper is
+built, and no Excel, MCP, foreground CLI, or other worktree's process is stopped.
+No matching service is a no-op; a real query or termination failure fails the
+build. Hosted CI skips the step; self-hosted desktops retain it.
+
+The optional `-PipeName` argument limits test-run cleanup to the selected pipe.
+Builds stop all eligible local CLI services, regardless of `EXCELMCP_CLI_PIPE`.
+`Test-E2E.ps1` and `Test-CliWorkflow.ps1` allocate a private pipe per invocation.
+Normal `excelcli service stop` and CLI/MCP workbook save/close safeguards remain
+unchanged; the direct force-stop policy applies only to development tooling.
 
 **For Complex Features:**
 - ✅ Add integration tests for all Excel operations
@@ -437,8 +437,8 @@ dotnet restore
 # Build release version
 dotnet build -c Release
 
-# Ordered local acceptance with discovery and saved results (requires Excel).
-& .\scripts\Test-ExcelBehavior.ps1 -Full
+# Run integration tests for the affected feature (requires Excel).
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Release --filter 'RequiresExcel=true&Feature=PowerQuery&RunType!=OnDemand' --blame-hang-timeout 5m --logger trx
 
 # Test the built executable
 .\src\ExcelMcp.CLI\bin\Release\net10.0\excelcli.exe --version
@@ -563,6 +563,81 @@ gh workflow run usage-analytics.yml -f publish=false
 ```
 
 After inspecting the artifact, publish a validated run with `publish=true`.
+
+#### Effort levels and share of work
+
+The report shows each feature's **share of actions** (every action counts once)
+next to its **share of work** (each action multiplied by a fixed effort level).
+`.github/usage-analytics-weights.json` is the single source of truth for those
+levels, for which homepage feature each tool belongs to, and for how CLI command
+categories map to MCP tools. The collection script reads it to build its
+queries, so no level or mapping is copied into the scripts.
+
+Pick a level by the kind of work Excel does, not by measured duration (duration
+mostly reflects workbook size and the user's machine):
+
+| Level | Weight | Use for |
+| --- | --- | --- |
+| `light` | 1 | Reads, lists, and lookups; window actions; CLI service and diagnostic commands |
+| `medium` | 3 | Changes to cells, formats, sheets, tables, charts, names, or code; screenshots and image export |
+| `heavy` | 10 | Power Query, Data Model, and connection refresh or evaluation; creating queries, models, relationships, and PivotTables; running macros; what-if analysis |
+
+Actions that existed only in older releases have no level. The report lists
+them as `unweightedActions` and leaves them out of share of work. Opening and
+closing workbooks remain excluded through `excludedActions`.
+
+The report also compares command line (`excelcli`) and AI assistant (MCP
+Server) use, starting from the release that first recorded the entry point.
+A group with fewer than `entryPointMinimumUsers` users shows only that it lacks
+enough data.
+
+The `habits` section of the report describes how people work: session size and
+areas used together, whether new users return, typical wait by area, weekday
+versus weekend use, and how soon people first try advanced areas. Session
+figures cover the AI assistant (MCP Server) only, because every `excelcli`
+command runs as its own process. Waits depend on workbook size and the
+user's machine, so they show which areas are heavier, not product speed.
+Every habit group needs at least `minimumUsers` users, and small groups are
+handled in one of two ways. Session size, weekday, and returning-user groups
+that are too small are published only as `enoughData: false` but still count
+toward totals and averages. Areas used together, typical wait by area, and
+first use of advanced areas leave out too-small rows entirely. First use of
+advanced areas covers only people first seen in the last
+`firstAdvancedUseWindowDays` days, well inside the 90-day log retention.
+
+Reliability (failures and errors) is not part of this report; it is covered by
+a separate reliability report.
+
+The `downloads` section reads public download counters without extra secrets:
+npm (daily history for the `@sbroenne/mcp-server-excel` and
+`@sbroenne/excelcli` launchers; the platform packages they install are left out
+to avoid double counting), GitHub release files (`.zip`,
+`.vsix`, and `.mcpb` only; checksums and release metadata are fetched by
+automation), and VS Code Marketplace installs. GitHub and the
+Marketplace only publish running totals, so the collect job restores the last
+published report and `Update-UsageAnalytics.ps1 -PreviousReportPath` carries
+its dated `snapshots` forward, adds today's totals (replacing a same-day entry),
+and stores the gain between snapshots in `weeklyGains`, with `days` between the
+two snapshots. When reports are not six to eight days apart, the page charts the
+average week of that gap and marks the bar. Downloads count
+downloads, not people, and the channels overlap. npm weekly history covers the
+last 52 full weeks.
+
+NuGet is deliberately left out. Every version, even old ones nobody would pick,
+collects roughly the same couple of hundred downloads from automated mirrors and
+scanners, so the totals mostly reflect how many versions were released. The
+npm launchers, standalone executables, VS Code extension, and Claude Desktop
+bundle never download from NuGet, and the version check asks GitHub.
+
+The written summary is generated by GitHub Copilot CLI with the model pinned by
+`Invoke-UsageAnalyticsReport.ps1 -Model` (default `claude-opus-5.5`), so weekly
+summaries do not change when the CLI default model changes.
+
+Test the scripts locally without Azure access:
+
+```powershell
+.\scripts\Test-UsageAnalytics.ps1
+```
 
 ### **Telemetry Architecture**
 

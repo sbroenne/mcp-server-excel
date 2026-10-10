@@ -23,7 +23,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// </list>
 /// <para><b>Resource Cost:</b> Each ExcelBatch = one Excel.Application process (~50-100MB+ memory)</para>
 /// </remarks>
-internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
+internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcelBatchRefreshState, IExcelBatchCloseState
 {
     // P/Invoke for getting process ID from window handle
     [DllImport("user32.dll")]
@@ -41,7 +41,9 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     private readonly Channel<IExcelWorkItem> _workQueue;
     private readonly Thread _staThread;
     private readonly CancellationTokenSource _shutdownCts;
+    private readonly Lock _disposeLock = new();
     private int _disposed; // 0 = not disposed, 1 = disposed (using int for Interlocked.CompareExchange)
+    private int _executingWorkItem;
     private int? _excelProcessId; // Excel.exe process ID for force-kill if needed
     private ExcelProcessIdentity? _excelProcessIdentity;
     private volatile bool _isExcelVisible;
@@ -61,12 +63,14 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     /// </summary>
     internal static Action<string, CancellationToken>? BeforeWorkbookOpenHook { get; set; }
     internal static Action<object, object>? AfterWorkbookOpenHookForTests { get; set; }
+    internal static Func<int, ExcelProcessIdentity?>? TrackProcessIdentityHookForTests { get; set; }
 
     internal static Func<ExcelProcessIdentity, bool>? FailedStartupTerminationHook { get; set; }
 
     internal static Func<ExcelProcessIdentity, bool>? FailedStartupExitConfirmationHook { get; set; }
 
     internal static Action? WorkItemQueuedHookForTests { get; set; }
+    internal Action? BeforeRefreshStateReadHookForTests { get; set; }
 
     // COM state (STA thread only)
     private Excel.Application? _excel;
@@ -269,8 +273,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                 }
                 tempExcel.DisplayAlerts = false;
 
-                // Capture Excel process ID for force-kill scenarios (hung Excel, dead RPC connection)
-                // Retry with delay: Excel's HWND may not be immediately available under system load.
+                // Readiness probes and teardown require both PID and start time.
+                // Retry when Excel's window or process identity is not available yet.
                 try
                 {
                     const int maxRetries = 3;
@@ -287,28 +291,26 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                             {
                                 _excelProcessId = (int)processId;
                                 _excelProcessIdentity =
-                                    SessionManager.TrackExcelProcessIdentity(_excelProcessId.Value);
-                                _logger.LogDebug("Captured Excel process ID via Hwnd: {ProcessId} (attempt {Attempt})",
-                                    _excelProcessId, attempt);
-                                break;
+                                    TrackProcessIdentityHookForTests is { } trackIdentity
+                                        ? trackIdentity(_excelProcessId.Value)
+                                        : SessionManager.TrackExcelProcessIdentity(_excelProcessId.Value);
+                                if (_excelProcessIdentity.HasValue)
+                                {
+                                    _logger.LogDebug("Captured Excel process identity via Hwnd: {ProcessId} (attempt {Attempt})",
+                                        _excelProcessId, attempt);
+                                    break;
+                                }
                             }
                         }
 
                         if (attempt < maxRetries)
                         {
-                            _logger.LogDebug("Hwnd not available yet (attempt {Attempt}/{Max}), retrying in {Delay}ms",
+                            _logger.LogDebug("Excel process identity not available yet (attempt {Attempt}/{Max}), retrying in {Delay}ms",
                                 attempt, maxRetries, retryDelayMs);
                             Thread.Sleep(retryDelayMs);
                         }
                     }
 
-                    if (!_excelProcessId.HasValue)
-                    {
-                        _logger.LogWarning(
-                            "Could not determine Excel process ID via Hwnd after {MaxRetries} attempts. " +
-                            "Force-kill will be disabled for this session to avoid killing unrelated Excel instances.",
-                            maxRetries);
-                    }
                 }
                 catch (ExcelProcessPersistenceException ex)
                 {
@@ -317,7 +319,14 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to capture Excel process ID. Force-kill will not be available.");
+                    _logger.LogWarning(ex, "Failed to capture Excel process identity during startup.");
+                }
+                if (!_excelProcessIdentity.HasValue)
+                {
+                    _logger.LogError("Excel startup cannot continue without a confirmed process identity.");
+                    throw new InvalidOperationException(
+                        "Could not capture Excel process identity. No workbook has been opened or created, " +
+                        "and no session was published. Retry opening the workbook.");
                 }
 
                 // Workbook macro execution must remain available for explicit VBA operations on
@@ -349,7 +358,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                 foreach (var path in _allWorkbookPaths)
                 {
                     Excel.Workbook wb;
-                    string normalizedPath = Path.GetFullPath(path);
+                    string normalizedPath = WorkbookLocation.Normalize(path);
+                    bool isRemote = WorkbookLocation.IsRemote(normalizedPath);
 
                     if (_createNewFile)
                     {
@@ -385,7 +395,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                     else
                     {
                         // OPEN EXISTING FILE: Validate and open
-                        bool isIrm = FileAccessValidator.IsIrmProtected(normalizedPath);
+                        bool isIrm = !isRemote && FileAccessValidator.IsIrmProtected(normalizedPath);
 
                         if (isIrm)
                         {
@@ -399,7 +409,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                                 "IRM-protected file detected: {FileName}. Excel determines editing permissions.",
                                 Path.GetFileName(normalizedPath));
                         }
-                        else
+                        else if (!isRemote)
                         {
                             // CRITICAL: Check if file is locked at OS level BEFORE attempting Excel COM open
                             FileAccessValidator.ValidateFileNotLocked(path);
@@ -434,7 +444,13 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
 
                     tempWorkbooks[normalizedPath] = wb;
                     AfterWorkbookOpenHookForTests?.Invoke(tempExcel, wb);
-
+                    WorkbookLocation.ValidateOpenedWorkbookFormat(normalizedPath, wb.FileFormat);
+                    if (isRemote && !wb.ReadOnly)
+                    {
+                        // Cloud AutoSave would otherwise persist edits before an explicit save
+                        // and defeat close(save:false).
+                        ExcelCapabilities.DisableAutoSave(() => wb.AutoSaveOn = false);
+                    }
                     if (path == _workbookPath)
                     {
                         primaryWorkbook = wb;
@@ -492,7 +508,15 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                                 continue;
                             }
 
-                            work.TryExecute();
+                            Interlocked.Exchange(ref _executingWorkItem, 1);
+                            try
+                            {
+                                work.TryExecute();
+                            }
+                            finally
+                            {
+                                Interlocked.Exchange(ref _executingWorkItem, 0);
+                            }
                         }
                     }
                     catch (OperationCanceledException)
@@ -708,7 +732,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
         return
             $"Excel startup timed out after {_startupTimeout.TotalSeconds} seconds while opening '{Path.GetFileName(_workbookPath)}'. " +
             "The workbook may be blocked on an interactive dialog, enterprise authentication, IRM/AIP prompt, external-link prompt, or an unresponsive open. " +
-            "Corrective action: retry the file open/create with a larger timeout_seconds value (CLI: --timeout <seconds>) if the workbook is just slow, " +
+            "Corrective action: retry the file open/create with a larger timeout_seconds value (CLI: --timeout-seconds <seconds>) if the workbook is just slow, " +
             $"or retry with show=true (CLI: --show) so Excel is visible for prompts.{protectedWorkbookHint}";
     }
 
@@ -743,7 +767,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
     public void UpdateWorkbookPath(string workbookPath)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
-        var normalizedPath = Path.GetFullPath(workbookPath);
+        var normalizedPath = WorkbookLocation.Normalize(workbookPath);
 
         Execute((_, _) =>
         {
@@ -752,7 +776,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                 throw new InvalidOperationException("Workbooks not initialized");
             }
 
-            var previousPath = Path.GetFullPath(_workbookPath);
+            var previousPath = WorkbookLocation.Normalize(_workbookPath);
             if (!_workbooks.Remove(previousPath, out var workbook))
             {
                 throw new InvalidOperationException($"Tracked workbook '{previousPath}' was not found.");
@@ -820,7 +844,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
         if (_workbooks == null)
             throw new InvalidOperationException("Workbooks not initialized");
 
-        string normalizedPath = Path.GetFullPath(filePath);
+        string normalizedPath = WorkbookLocation.Normalize(filePath);
         if (_workbooks.TryGetValue(normalizedPath, out var workbook))
         {
             return workbook;
@@ -982,8 +1006,12 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
 
     public void Save(CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        ExcelBusyException.ThrowIfNotReady(GetRefreshState(), "save");
         Execute((ctx, ct) =>
         {
+            ExcelBusyException.ThrowIfNotReady(
+                ReadRefreshState(), "save");
             ExcelShutdownService.SaveWorkbookWithTimeout(
                 _workbook!,
                 Path.GetFileName(_workbookPath),
@@ -993,17 +1021,105 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
         }, cancellationToken);
     }
 
+    public WorkbookRefreshState GetRefreshState()
+    {
+        if (_disposed != 0 || _operationTimedOut)
+        {
+            return WorkbookRefreshState.Unknown;
+        }
+        // Window inspection must not queue behind COM work blocked by a modal prompt.
+        var dialogState = ExcelDialogProbe.Read(_excelProcessIdentity, _logger);
+        if (dialogState != WorkbookRefreshState.Ready)
+        {
+            return dialogState;
+        }
+        if (Volatile.Read(ref _executingWorkItem) != 0)
+        {
+            return WorkbookRefreshState.Busy;
+        }
+
+        var completion = new TaskCompletionSource<WorkbookRefreshState>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var work = new ExcelWorkItem<WorkbookRefreshState>(
+            ReadRefreshState, completion);
+        if (!_workQueue.Writer.TryWrite(work))
+        {
+            return WorkbookRefreshState.Unknown;
+        }
+        try
+        {
+            // Keep queued probes short without imposing the same deadline on a started COM scan.
+            return completion.Task.WaitAsync(TimeSpan.FromSeconds(1)).GetAwaiter().GetResult();
+        }
+        catch (TimeoutException)
+        {
+            if (work.TryDiscard())
+            {
+                completion.TrySetResult(WorkbookRefreshState.Unknown);
+                _logger.LogWarning("Excel refresh-state inspection expired in the queue; save and close remain blocked");
+                return WorkbookRefreshState.Unknown;
+            }
+            try
+            {
+                return completion.Task.WaitAsync(_operationTimeout).GetAwaiter().GetResult();
+            }
+            catch (TimeoutException)
+            {
+                _logger.LogWarning(
+                    "Started Excel refresh-state inspection did not complete within {Timeout}; save and close remain blocked",
+                    _operationTimeout);
+                return WorkbookRefreshState.Unknown;
+            }
+        }
+    }
+
+    private WorkbookRefreshState ReadRefreshState()
+    {
+        BeforeRefreshStateReadHookForTests?.Invoke();
+        var dialogState = ExcelDialogProbe.Read(_excelProcessIdentity, _logger);
+        if (dialogState != WorkbookRefreshState.Ready) return dialogState;
+        foreach (var workbook in _workbooks!.Values)
+        {
+            var state = WorkbookRefreshProbe.Read(_excel!, workbook, _logger);
+            if (state != WorkbookRefreshState.Ready) return state;
+        }
+        return WorkbookRefreshState.Ready;
+    }
+
+    public void Close()
+    {
+        lock (_disposeLock)
+        {
+            if (_disposed != 0) return;
+            Execute((_, _) =>
+            {
+                ExcelBusyException.ThrowIfNotReady(ReadRefreshState(), "close");
+                // Commit shutdown on the STA only after readiness is confirmed.
+                Interlocked.Exchange(ref _disposed, 1);
+                _shutdownCts.Cancel();
+                _workQueue.Writer.TryComplete();
+            });
+            CompleteDispose();
+        }
+    }
+
     public void Dispose()
     {
-        var callingThread = Environment.CurrentManagedThreadId;
-
-        // Use Interlocked.CompareExchange for thread-safe disposal check
-        // Returns 0 if exchange succeeded (was not disposed), 1 if already disposed
-        if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+        lock (_disposeLock)
         {
-            _logger.LogDebug("[Thread {CallingThread}] Dispose skipped - already disposed for {FileName}", callingThread, Path.GetFileName(_workbookPath));
-            return; // Already disposed
+            if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
+            {
+                _logger.LogDebug("[Thread {CallingThread}] Dispose skipped - already disposed for {FileName}",
+                    Environment.CurrentManagedThreadId, Path.GetFileName(_workbookPath));
+                return;
+            }
+            CompleteDispose();
         }
+    }
+
+    private void CompleteDispose()
+    {
+        var callingThread = Environment.CurrentManagedThreadId;
 
         _logger.LogDebug("[Thread {CallingThread}] Dispose starting for {FileName}", callingThread, Path.GetFileName(_workbookPath));
 
@@ -1013,7 +1129,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
 
         // Then complete the work queue
         _logger.LogDebug("[Thread {CallingThread}] Completing work queue for {FileName}", callingThread, Path.GetFileName(_workbookPath));
-        _workQueue.Writer.Complete();
+        _workQueue.Writer.TryComplete();
 
         _logger.LogDebug("[Thread {CallingThread}] Waiting for STA thread (Id={STAThread}) to exit for {FileName}", callingThread, _staThread?.ManagedThreadId ?? -1, Path.GetFileName(_workbookPath));
 

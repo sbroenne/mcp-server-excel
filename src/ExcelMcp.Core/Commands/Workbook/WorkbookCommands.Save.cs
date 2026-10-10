@@ -17,11 +17,16 @@ public partial class WorkbookCommands
         var resolvedFormat = ResolveSaveFormat(normalizedPath, format);
         ValidateSaveExtension(normalizedPath, resolvedFormat);
 
+        ExcelBusyException.ThrowIfNotReady(
+            batch is IExcelBatchRefreshState state ? state.GetRefreshState() : WorkbookRefreshState.Unknown,
+            "save-as");
         var targetAccepted = false;
         try
         {
             return batch.Execute((context, _) =>
             {
+                ExcelBusyException.ThrowIfNotReady(
+                    WorkbookRefreshProbe.Read(context.App, context.Book, batch.Logger), "save-as");
                 var originalFullName = context.Book.FullName;
                 var displayAlerts = context.App.DisplayAlerts;
                 try

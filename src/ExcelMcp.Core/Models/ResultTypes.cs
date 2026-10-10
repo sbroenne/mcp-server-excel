@@ -1615,6 +1615,94 @@ public class PowerQueryRefreshResult : ResultBase
 }
 
 /// <summary>
+/// Result for refreshing every Power Query in a workbook. Each query appears in exactly
+/// one of the refreshed, skipped, or failed lists. Failures are not rolled back: queries
+/// listed as refreshed keep their new data even when the result is unsuccessful.
+/// </summary>
+public class PowerQueryRefreshAllResult : OperationResult
+{
+    /// <summary>
+    /// Queries whose worksheet, Data Model, or workbook connection loads were refreshed.
+    /// </summary>
+    public List<string> RefreshedQueries { get; set; } = [];
+
+    /// <summary>
+    /// Queries with nothing to refresh on their own, such as parameter and
+    /// connection-only staging queries.
+    /// </summary>
+    public List<PowerQueryRefreshSkip> SkippedQueries { get; set; } = [];
+
+    /// <summary>
+    /// Queries whose refresh failed. The operation continued with the remaining queries.
+    /// </summary>
+    public List<PowerQueryRefreshFailure> FailedQueries { get; set; } = [];
+
+    /// <summary>
+    /// Failure category shared by every failed query; omitted when no query failed or
+    /// the failed queries have different (or unknown) categories.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ErrorCategory
+    {
+        get
+        {
+            var categories = FailedQueries.Select(f => f.ErrorCategory).Distinct().ToList();
+            return categories.Count == 1 ? categories[0] : null;
+        }
+    }
+}
+
+/// <summary>
+/// A query that refresh-all did not refresh because it has nothing to refresh on its own.
+/// </summary>
+public class PowerQueryRefreshSkip
+{
+    /// <summary>
+    /// Name of the skipped query
+    /// </summary>
+    public string QueryName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Why the query was skipped
+    /// </summary>
+    public string Reason { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// A query whose refresh failed during refresh-all.
+/// </summary>
+public class PowerQueryRefreshFailure
+{
+    /// <summary>
+    /// Name of the failed query
+    /// </summary>
+    public string QueryName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Classified failure category (for example Expression, Privacy, Connectivity), when known
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ErrorCategory { get; set; }
+
+    /// <summary>
+    /// Error message reported for this query
+    /// </summary>
+    public string ErrorMessage { get; set; } = string.Empty;
+
+    /// <summary>
+    /// .NET exception type that reported the failure
+    /// </summary>
+    public string ExceptionType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// HRESULT from the underlying Excel/COM failure, when available
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyName("hresult")]
+    public string? HResult { get; set; }
+}
+
+/// <summary>
 /// Result for Power Query error checking
 /// </summary>
 public class PowerQueryErrorCheckResult : ResultBase
@@ -1811,6 +1899,45 @@ public class ConnectionPropertiesResult : ResultBase
     /// Refresh period in minutes (0 = no automatic refresh)
     /// </summary>
     public int RefreshPeriod { get; set; }
+}
+
+/// <summary>
+/// Safe account-setting inspection for an MSOLAP connection; never contains account or secret values.
+/// </summary>
+public class ConnectionAccountSettingsResult : ResultBase
+{
+    /// <summary>Exact workbook connection name.</summary>
+    public string ConnectionName { get; set; } = "";
+    /// <summary>Whether a User ID or UID setting exists, including an empty setting.</summary>
+    public bool AccountHintPresent { get; set; }
+    /// <summary>Whether a Password or PWD setting exists; not evidence of a valid saved password.</summary>
+    public bool PasswordPresent { get; set; }
+    /// <summary>Whether EffectiveUserName server impersonation is configured.</summary>
+    public bool ImpersonationPresent { get; set; }
+    /// <summary>Excel's password-saving setting, distinct from shared credential caches.</summary>
+    public bool SavePassword { get; set; }
+    /// <summary>Recognized Interactive Login value, null if absent, or Unrecognized.</summary>
+    public string? InteractiveLogin { get; set; }
+    /// <summary>Recognized Identity Mode value, null if absent, or Unrecognized.</summary>
+    public string? IdentityMode { get; set; }
+}
+
+/// <summary>Safe result of updating explicitly supplied workbook account-hint or sign-in settings.</summary>
+public class ConnectionAccountSettingsUpdateResult : ConnectionAccountSettingsResult
+{
+    /// <summary>Whether any explicitly requested account-hint or sign-in setting changed.</summary>
+    public bool Changed { get; set; }
+}
+
+/// <summary>Result of removing workbook-scoped account hints, not cached sign-in credentials.</summary>
+public class ConnectionAccountHintClearResult : ResultBase
+{
+    /// <summary>Exact workbook connection name.</summary>
+    public string ConnectionName { get; set; } = "";
+    /// <summary>Whether any User ID/UID setting was removed.</summary>
+    public bool Changed { get; set; }
+    /// <summary>Whether an account hint remains after successful readback.</summary>
+    public bool AccountHintPresent { get; set; }
 }
 
 #endregion

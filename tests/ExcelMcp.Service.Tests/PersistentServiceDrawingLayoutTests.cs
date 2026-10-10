@@ -293,7 +293,7 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
     {
         var sheet = CreateObjects();
         var before = _fixture.Send("drawing.list-objects", new { sheetName = sheet }).Result;
-        _fixture.Send("sheet.set-protection", new { sheetName = sheet, isProtected = true });
+        _fixture.Send("worksheetstyle.set-protection", new { sheetName = sheet, isProtected = true });
         var failure = await Record.ExceptionAsync(async () =>
         {
             using var input = JsonDocument.Parse(args);
@@ -305,7 +305,7 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
             Assert.Equal(before, _fixture.Send("drawing.list-objects", new { sheetName = sheet }).Result);
         });
         var cleanup = Record.Exception(() =>
-            _fixture.Send("sheet.set-protection", new { sheetName = sheet, isProtected = false }));
+            _fixture.Send("worksheetstyle.set-protection", new { sheetName = sheet, isProtected = false }));
         if (cleanup is not null)
             failure = PersistentServiceCleanupFailures.Combine(failure, cleanup);
         if (failure is not null)
@@ -348,6 +348,30 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
         Assert.Equal(3, document.RootElement.GetProperty("drawingObjects").GetArrayLength());
         Assert.Equal(before, list.Result);
         Assert.Equal(actionBefore, ReadNativeOrderAndAction(sheet, "First"));
+    }
+
+    [Theory]
+    [InlineData("drawing.group-objects")]
+    [InlineData("drawing.duplicate-object")]
+    public async Task NameExcelRejects_IsRejectedBeforeChangingObjects(string command)
+    {
+        // Excel accepts drawing names up to 254 characters; 255 fails only after the group or copy exists.
+        var sheet = CreateObjects();
+        var name = new string('G', 255);
+        var before = _fixture.Send("drawing.list-objects", new { sheetName = sheet }).Result;
+
+        var response = command == "drawing.group-objects"
+            ? await _fixture.SendForFailureAsync(command, new
+            {
+                sheetName = sheet,
+                objectNames = new List<string> { "First", "Second" },
+                groupName = name
+            })
+            : await _fixture.SendForFailureAsync(command, new { sheetName = sheet, objectName = "First", newName = name });
+
+        Assert.False(response.Success);
+        Assert.Contains("at most 254 characters", response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal(before, _fixture.Send("drawing.list-objects", new { sheetName = sheet }).Result);
     }
 
     private string CreateObjects()

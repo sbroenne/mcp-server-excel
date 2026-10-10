@@ -162,3 +162,8 @@ internal interface IExcelBatchTeardownState
 {
     bool TryConfirmOwnedProcessTeardown();
 }
+
+internal interface IExcelBatchCloseState
+{
+    void Close();
+}

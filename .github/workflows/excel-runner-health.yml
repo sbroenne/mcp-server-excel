@@ -1,4 +1,4 @@
-name: Excel Runner Maintenance Health
+name: '[Excel Runner] Maintenance Health'
 
 on:
   schedule:

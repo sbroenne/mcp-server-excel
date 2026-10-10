@@ -94,6 +94,9 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     [Theory]
     [InlineData("range_format", "validate-range", false)]
     [InlineData("connection", "test", true)]
+    [InlineData("connection", "get-account-settings", true)]
+    [InlineData("connection", "clear-account-hint", false)]
+    [InlineData("connection", "set-account-settings", false)]
     [InlineData("range", "trace-precedents", true)]
     [InlineData("range", "trace-dependents", true)]
     [InlineData("window", "get-view", false)]
@@ -357,7 +360,7 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         var sessions = schema.GetProperty("properties").GetProperty("sessions");
 
         var properties = sessions.GetProperty("items").GetProperty("properties");
-        foreach (var name in new[] { "workbook_session_id", "filePath", "isExcelVisible", "activeOperations", "canClose" })
+        foreach (var name in new[] { "workbook_session_id", "filePath", "isExcelVisible", "activeOperations", "canClose", "excelState", "blockingReason" })
         {
             Assert.True(properties.TryGetProperty(name, out _),
                 $"File session output schema does not describe {name}.");

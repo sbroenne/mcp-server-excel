@@ -1,4 +1,4 @@
-name: Release All Components
+name: '[Release] All Components'
 
 on:
   workflow_dispatch:

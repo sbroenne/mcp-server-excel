@@ -1,4 +1,4 @@
-name: Publish MCP Registry
+name: '[Publishing] MCP Registry'
 
 on:
   workflow_call:
@@ -46,6 +46,7 @@ jobs:
     name: Publish Exact Release
     needs: resolve
     runs-on: windows-latest
+    timeout-minutes: 75
     environment: mcp-registry
     permissions:
       contents: read
@@ -67,7 +68,8 @@ jobs:
           ./automation/scripts/Test-McpRegistryPublication.ps1 `
             -ServerJsonPath source/src/ExcelMcp.McpServer/.mcp/server.json `
             -NpmLauncherManifestPath source/npm-packages/mcp-server-excel/package.json `
-            -Version '${{ needs.resolve.outputs.version }}'
+            -Version '${{ needs.resolve.outputs.version }}' `
+            -Attempts 7
       - name: Publish MCP registry entry
         shell: pwsh
         run: |

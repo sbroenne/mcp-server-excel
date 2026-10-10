@@ -159,7 +159,7 @@ if (-not (Test-Path -LiteralPath $contractsPath)) {
     Write-Host "ERROR: Generated MCP contracts are missing. Complete a Release build first." -ForegroundColor Red
     exit 1
 }
-foreach ($match in [regex]::Matches((Get-Content -LiteralPath $contractsPath -Raw), 'case\s+"([^"]+_read)"\s*:')) {
+foreach ($match in [regex]::Matches((Get-Content -LiteralPath $contractsPath -Raw), '\("([^"]+_read)",\s*"[^"]+"\)\s*=>')) {
     [void]$expectedReadToolNames.Add($match.Groups[1].Value)
 }
 $mcpSearchDirs = @(

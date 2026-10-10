@@ -32,9 +32,9 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// - Syntax: SELECT * FROM $SYSTEM.SchemaRowset (ONLY SELECT * supported)
 /// - Use DISCOVER_SCHEMA_ROWSETS to list all available DMVs
 ///
-/// Use datamodelrel for relationships between tables.
+/// Use datamodelrelationship for relationships between tables.
 /// </summary>
-[ServiceCategory("datamodel", "DataModel")]
+[ServiceCategory("DataModel")]
 [McpTool("datamodel", Title = "Data Model Operations", Destructive = true, Category = "analysis",
     Description = "Create/update/delete DAX measures, rename or remove Data Model tables, and refresh the model. Worksheet Tables and Data Model tables are separate: refresh the model after changing a worksheet source. Power Query refresh synchronizes data loaded to the model. DAX is preserved by default; formatDax=true sends formulas to daxformatter.com and requires user consent. daxFormulaFile supports longer measure expressions. Use datamodel_relationship for relationships and table add-to-data-model to add worksheet data.")]
 [McpReadOnlyActions("list-tables", "list-columns", "read-table", "read-info", "read-connection", "list-measures", "read", "evaluate", "execute-dmv")]

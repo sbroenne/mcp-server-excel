@@ -51,7 +51,7 @@ public class WindowInfoResult : OperationResult
 /// 'set-split' creates movable panes and disables frozen panes.
 /// Zoom must be between 10 and 400 percent.
 /// </summary>
-[ServiceCategory("window", "Window")]
+[ServiceCategory("Window")]
 [McpTool("window", Title = "Window Management", Destructive = false, Category = "settings",
     Description = "Control Excel window visibility, position, state, status bar, and worksheet-specific views. VIEW: get-view, freeze-panes, unfreeze-panes, set-split, set-zoom, and set-display-options for gridlines, headings, outline symbols, and formulas. get-view activates the workbook window and requested worksheet without restoring the prior active view; it is not inspection-only. freeze-panes uses row/column counts above and left of the pane boundary. set-split creates movable panes and disables frozen panes. Zoom range: 10-400. VISIBILITY: show makes Excel visible and brings it to front; hide hides it. WINDOW STATE: normal, minimized, maximized. ARRANGE presets: left-half, right-half, top-half, bottom-half, center, full-screen.")]
 [McpReadOnlyActions("get-context", "get-info")]
