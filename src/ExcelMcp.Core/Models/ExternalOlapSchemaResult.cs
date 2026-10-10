@@ -184,9 +184,10 @@ public sealed class ExternalOlapMemberInfo
     public string? Name { get; set; }
 
     /// <summary>
-    /// Provider member ordinal, which may not be unique and is not used for paging.
+    /// Provider member ordinal, when supplied; it may not be unique and is not used for paging.
     /// </summary>
-    public long Ordinal { get; set; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public long? Ordinal { get; set; }
 
     /// <summary>
     /// Provider member type, when supplied.

@@ -237,6 +237,69 @@ public sealed partial class AutomationSafetyTests
         finally { Directory.Delete(root, true); }
     }
 
+    [Fact]
+    public async Task TestE2E_DefaultRunSelectsExternalOlapServiceTest()
+    {
+        var root = NewSandbox();
+        try
+        {
+            var scripts = Directory.CreateDirectory(Path.Combine(root, "scripts")).FullName;
+            File.Copy(
+                Path.Combine(RepoRoot, "scripts", "Test-E2E.ps1"),
+                Path.Combine(scripts, "Test-E2E.ps1"));
+            var captured = Path.Combine(root, "stages.jsonl");
+            File.WriteAllText(Path.Combine(scripts, "Invoke-TestStage.ps1"), $$"""
+                function Invoke-TestStage {
+                    param(
+                        [string]$Project, [string]$Filter, [string]$ResultsDirectory,
+                        [string]$Name, [int]$DeadlineSeconds, [string]$HangTimeout,
+                        [hashtable]$Environment, [switch]$ReconcileCases
+                    )
+                    [pscustomobject]@{
+                        project = $Project; filter = $Filter; name = $Name
+                        deadline = $DeadlineSeconds; hangTimeout = $HangTimeout
+                        reconcileCases = [bool]$ReconcileCases
+                    } | ConvertTo-Json -Compress | Add-Content -LiteralPath '{{Quote(captured)}}'
+                    $global:LASTEXITCODE = 0
+                }
+                """);
+            File.WriteAllText(
+                Path.Combine(scripts, "Stop-ExcelCliService.ps1"),
+                "$global:LASTEXITCODE = 0");
+
+            var script = Path.Combine(scripts, "Test-E2E.ps1");
+            var result = await RunAsync(root, $$"""
+                & '{{Quote(script)}}' -SkipBuild -ResultsDirectory '{{Quote(Path.Combine(root, "results"))}}'
+                """);
+
+            Assert.Equal(0, result.ExitCode);
+            var stages = File.ReadAllLines(captured)
+                .Select(line => System.Text.Json.JsonDocument.Parse(line))
+                .ToArray();
+            try
+            {
+                Assert.Equal(3, stages.Length);
+                var olap = stages[2].RootElement;
+                Assert.Equal("Olap", olap.GetProperty("name").GetString());
+                Assert.EndsWith(
+                    Path.Combine("tests", "ExcelMcp.Service.Tests", "ExcelMcp.Service.Tests.csproj"),
+                    olap.GetProperty("project").GetString(),
+                    StringComparison.OrdinalIgnoreCase);
+                Assert.Equal(
+                    "RequiresExcel=true&FullyQualifiedName~ExternalOlapSchema_UsesSelectedCubeAndContinuesThroughService",
+                    olap.GetProperty("filter").GetString());
+                Assert.True(olap.GetProperty("reconcileCases").GetBoolean());
+                Assert.Equal(600, olap.GetProperty("deadline").GetInt32());
+                Assert.Equal("5m", olap.GetProperty("hangTimeout").GetString());
+            }
+            finally
+            {
+                foreach (var stage in stages) { stage.Dispose(); }
+            }
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
     [Theory]
     [InlineData(23, true)]
     [InlineData(0, false)]

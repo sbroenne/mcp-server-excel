@@ -43,19 +43,19 @@ public partial class ConnectionCommands
                 adoConnection = GetAdoConnection(connectionName, oledbConnection);
                 string cubeName = GetExternalOlapCubeName(connectionName, oledbConnection);
 
-                var dimensionRows = ExecuteSchemaQuery(
+                var dimensionRows = OpenSchemaRowset(
                     adoConnection,
-                    ExternalOlapSchemaMapper.BuildDimensionQuery(cubeName),
+                    ExternalOlapSchemaMapper.BuildDimensionRequest(cubeName),
                     connectionName,
                     ct);
-                var hierarchyRows = ExecuteSchemaQuery(
+                var hierarchyRows = OpenSchemaRowset(
                     adoConnection,
-                    ExternalOlapSchemaMapper.BuildHierarchyQuery(cubeName),
+                    ExternalOlapSchemaMapper.BuildHierarchyRequest(cubeName),
                     connectionName,
                     ct);
-                var levelRows = ExecuteSchemaQuery(
+                var levelRows = OpenSchemaRowset(
                     adoConnection,
-                    ExternalOlapSchemaMapper.BuildLevelQuery(cubeName),
+                    ExternalOlapSchemaMapper.BuildLevelRequest(cubeName),
                     connectionName,
                     ct);
 
@@ -128,18 +128,18 @@ public partial class ConnectionCommands
                     levelUniqueName,
                     normalizedSearch,
                     pageSize);
-                string? afterUniqueName = continuationToken is null
+                var position = continuationToken is null
                     ? null
                     : ExternalOlapSchemaMapper.ReadContinuationToken(continuationToken, scope);
 
-                var hierarchyRows = ExecuteSchemaQuery(
+                var hierarchyRows = OpenSchemaRowset(
                     adoConnection,
-                    ExternalOlapSchemaMapper.BuildHierarchyQuery(cubeName, hierarchyUniqueName),
+                    ExternalOlapSchemaMapper.BuildHierarchyRequest(cubeName, hierarchyUniqueName),
                     connectionName,
                     ct);
-                var levelRows = ExecuteSchemaQuery(
+                var levelRows = OpenSchemaRowset(
                     adoConnection,
-                    ExternalOlapSchemaMapper.BuildLevelQuery(cubeName, levelUniqueName),
+                    ExternalOlapSchemaMapper.BuildLevelRequest(cubeName, levelUniqueName),
                     connectionName,
                     ct);
                 var levelSchema = ExternalOlapSchemaMapper.MapSchema(
@@ -153,26 +153,25 @@ public partial class ConnectionCommands
                     ? levelSchema.Levels.Single().MemberCount
                     : null;
 
-                int queryLimit = normalizedSearch is null
+                int readLimit = normalizedSearch is null
                     ? pageSize + 1
                     : MaximumOlapMemberRowsScanned + 1;
-                var memberRows = ExecuteSchemaQuery(
+                var memberRows = OpenSchemaRowset(
                     adoConnection,
-                    ExternalOlapSchemaMapper.BuildMembersQuery(
+                    ExternalOlapSchemaMapper.BuildMembersRequest(
                         cubeName,
                         hierarchyUniqueName,
-                        levelUniqueName,
-                        afterUniqueName,
-                        queryLimit),
+                        levelUniqueName),
                     connectionName,
-                    ct);
+                    ct,
+                    position,
+                    readLimit);
                 var mappedMembers = ExternalOlapSchemaMapper.MapMembers(memberRows);
                 var page = ExternalOlapSchemaMapper.SelectMemberPage(
                     mappedMembers,
                     pageSize,
                     normalizedSearch,
-                    MaximumOlapMemberRowsScanned,
-                    afterUniqueName);
+                    MaximumOlapMemberRowsScanned);
 
                 result.Members = page.Members;
                 result.ReturnedCount = page.Members.Count;
@@ -181,8 +180,12 @@ public partial class ConnectionCommands
                 result.OmittedCount = totalCount.HasValue
                     ? Math.Max(0, totalCount.Value - page.Members.Count)
                     : null;
-                result.ContinuationToken = page.HasMore && page.NextAfterUniqueName is not null
-                    ? ExternalOlapSchemaMapper.CreateContinuationToken(scope, page.NextAfterUniqueName)
+                result.ContinuationToken = page.HasMore && page.LastConsumedUniqueName is not null
+                    ? ExternalOlapSchemaMapper.CreateContinuationToken(
+                        scope,
+                        new OlapMemberPosition(
+                            (position?.Offset ?? 0) + page.ScannedCount,
+                            page.LastConsumedUniqueName))
                     : null;
                 result.Success = true;
                 return result;
@@ -293,11 +296,13 @@ public partial class ConnectionCommands
         return cubeName;
     }
 
-    private static List<IReadOnlyDictionary<string, object?>> ExecuteSchemaQuery(
+    private static List<IReadOnlyDictionary<string, object?>> OpenSchemaRowset(
         dynamic adoConnection,
-        string query,
+        OlapSchemaRequest request,
         string connectionName,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        OlapMemberPosition? startAfter = null,
+        int? maximumRows = null)
     {
         dynamic? recordset = null;
         dynamic? fields = null;
@@ -305,14 +310,19 @@ public partial class ConnectionCommands
         {
             try
             {
-                recordset = adoConnection.Execute(query);
+                recordset = adoConnection.OpenSchema(request.Schema, request.Restrictions);
                 if (recordset is null)
                 {
                     throw new InvalidOperationException(
-                        "The OLAP provider returned no result for a schema query.");
+                        "The OLAP provider returned no result for a schema rowset request.");
                 }
 
                 fields = recordset.Fields;
+                if (startAfter is not null)
+                {
+                    SkipToPosition(recordset, fields, startAfter, cancellationToken);
+                }
+
                 int fieldCount = Convert.ToInt32(fields.Count, CultureInfo.InvariantCulture);
                 var columnNames = new string[fieldCount];
                 for (int i = 0; i < fieldCount; i++)
@@ -331,7 +341,8 @@ public partial class ConnectionCommands
                 }
 
                 var rows = new List<IReadOnlyDictionary<string, object?>>();
-                while (!Convert.ToBoolean(recordset.EOF, CultureInfo.InvariantCulture))
+                while ((maximumRows is null || rows.Count < maximumRows)
+                    && !Convert.ToBoolean(recordset.EOF, CultureInfo.InvariantCulture))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var row = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
@@ -388,6 +399,46 @@ public partial class ConnectionCommands
         }
     }
 
+    private static void SkipToPosition(
+        dynamic recordset,
+        dynamic fields,
+        OlapMemberPosition position,
+        CancellationToken cancellationToken)
+    {
+        for (int index = 0; index < position.Offset; index++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (Convert.ToBoolean(recordset.EOF, CultureInfo.InvariantCulture))
+            {
+                throw MemberListChanged();
+            }
+
+            if (index == position.Offset - 1)
+            {
+                dynamic? field = null;
+                try
+                {
+                    field = fields.Item("MEMBER_UNIQUE_NAME");
+                    string? uniqueName = Convert.ToString(field.Value, CultureInfo.InvariantCulture);
+                    if (!string.Equals(uniqueName, position.LastUniqueName, StringComparison.Ordinal))
+                    {
+                        throw MemberListChanged();
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref field);
+                }
+            }
+
+            recordset.MoveNext();
+        }
+    }
+
+    private static InvalidOperationException MemberListChanged() =>
+        new("The OLAP member list changed since the previous page was read. "
+            + "Search again without continuationToken.");
+
     private static InvalidOperationException CreateOlapQueryError(
         string connectionName,
         int hresult,
@@ -402,7 +453,8 @@ public partial class ConnectionCommands
             || lowerMessage.Contains("not authorized", StringComparison.Ordinal)
             || lowerMessage.Contains("login failed", StringComparison.Ordinal)
             ? "The current Excel user was denied access to OLAP metadata."
-            : lowerMessage.Contains("not recognized", StringComparison.Ordinal)
+            : hresult == unchecked((int)0x800A0CB3)
+                || lowerMessage.Contains("not recognized", StringComparison.Ordinal)
                 || lowerMessage.Contains("not supported", StringComparison.Ordinal)
                 || lowerMessage.Contains("unsupported", StringComparison.Ordinal)
                 ? "The selected provider does not support the required OLAP schema rowset."

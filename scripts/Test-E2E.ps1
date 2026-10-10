@@ -7,9 +7,11 @@
     Builds the Release solution unless -SkipBuild is supplied, then runs:
     1. Independent CLI workflow scenarios.
     2. Independent MCP workflow scenarios.
+    3. External OLAP schema discovery through the Service boundary.
 
-    Defaults to all stages. A focused -Stages run is not complete acceptance.
-    The script fails if any gate fails or if a required filter matches no tests.
+    Defaults to all stages. The OLAP stage requires a configured test cube.
+    A focused -Stages run is not complete acceptance. The script fails if any
+    gate fails or if a required filter matches no tests.
 
 .EXAMPLE
     & .\scripts\Test-E2E.ps1
@@ -20,7 +22,7 @@ param(
     [switch]$SkipBuild,
     [string]$PipeName,
     [ValidateNotNullOrEmpty()]
-    [ValidateSet('Cli', 'Mcp')][string[]]$Stages = @('Cli', 'Mcp'),
+    [ValidateSet('Cli', 'Mcp', 'Olap')][string[]]$Stages = @('Cli', 'Mcp', 'Olap'),
     [string]$ResultsDirectory,
     [switch]$KeepCliFiles
 )
@@ -29,6 +31,7 @@ $ErrorActionPreference = 'Stop'
 $rootDir = Split-Path -Parent $PSScriptRoot
 $cliTestProject = Join-Path $rootDir 'tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj'
 $mcpTestProject = Join-Path $rootDir 'tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj'
+$serviceTestProject = Join-Path $rootDir 'tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj'
 . (Join-Path $PSScriptRoot 'Invoke-TestStage.ps1')
 if (-not $ResultsDirectory) { $ResultsDirectory = Join-Path $rootDir "TestResults\e2e-$([Guid]::NewGuid().ToString('N'))" }
 $previousPipeName = $env:EXCELMCP_CLI_PIPE
@@ -74,6 +77,12 @@ try {
                 $parameters.Filter = 'RequiresExcel=true&Acceptance=Required&FullyQualifiedName~McpServerSmokeTests'
                 $parameters.DeadlineSeconds = 900
                 $parameters.HangTimeout = '15m'
+            }
+            'Olap' {
+                $parameters.Project = $serviceTestProject
+                $parameters.Filter = 'RequiresExcel=true&FullyQualifiedName~ExternalOlapSchema_UsesSelectedCubeAndContinuesThroughService'
+                $parameters.DeadlineSeconds = 600
+                $parameters.HangTimeout = '5m'
             }
         }
         & (Join-Path $PSScriptRoot 'Stop-ExcelCliService.ps1') -PipeName $selectedPipeName
