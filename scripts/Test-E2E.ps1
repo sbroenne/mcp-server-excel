@@ -111,6 +111,9 @@ finally {
         if ($olapCube -and -not $olapCube.Process.HasExited) {
             # Atoti runs Python and Java child processes; stop the whole owned tree by PID.
             taskkill.exe /PID $olapCube.Process.Id /T /F | Out-Null
+            if ($LASTEXITCODE -ne 0 -and -not $olapCube.Process.HasExited) {
+                $failures.Add([InvalidOperationException]::new("OLAP test cube cleanup failed for PID $($olapCube.Process.Id)."))
+            }
         }
         if ($null -eq $previousPipeName) {
             Remove-Item Env:EXCELMCP_CLI_PIPE -ErrorAction SilentlyContinue
