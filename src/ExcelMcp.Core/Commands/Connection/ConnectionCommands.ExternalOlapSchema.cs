@@ -43,23 +43,23 @@ public partial class ConnectionCommands
                 adoConnection = GetAdoConnection(connectionName, oledbConnection);
                 string cubeName = GetExternalOlapCubeName(connectionName, oledbConnection);
 
-                var dimensionRows = OpenSchemaRowset(
+                List<IReadOnlyDictionary<string, object?>> dimensionRows = OpenSchemaRowset(
                     adoConnection,
                     ExternalOlapSchemaMapper.BuildDimensionRequest(cubeName),
                     connectionName,
                     ct);
-                var hierarchyRows = OpenSchemaRowset(
+                List<IReadOnlyDictionary<string, object?>> hierarchyRows = OpenSchemaRowset(
                     adoConnection,
                     ExternalOlapSchemaMapper.BuildHierarchyRequest(cubeName),
                     connectionName,
                     ct);
-                var levelRows = OpenSchemaRowset(
+                List<IReadOnlyDictionary<string, object?>> levelRows = OpenSchemaRowset(
                     adoConnection,
                     ExternalOlapSchemaMapper.BuildLevelRequest(cubeName),
                     connectionName,
                     ct);
 
-                var mapped = ExternalOlapSchemaMapper.MapSchema(
+                ExternalOlapSchemaResult mapped = ExternalOlapSchemaMapper.MapSchema(
                     connectionName,
                     dimensionRows,
                     hierarchyRows,
@@ -132,17 +132,17 @@ public partial class ConnectionCommands
                     ? null
                     : ExternalOlapSchemaMapper.ReadContinuationToken(continuationToken, scope);
 
-                var hierarchyRows = OpenSchemaRowset(
+                List<IReadOnlyDictionary<string, object?>> hierarchyRows = OpenSchemaRowset(
                     adoConnection,
                     ExternalOlapSchemaMapper.BuildHierarchyRequest(cubeName, hierarchyUniqueName),
                     connectionName,
                     ct);
-                var levelRows = OpenSchemaRowset(
+                List<IReadOnlyDictionary<string, object?>> levelRows = OpenSchemaRowset(
                     adoConnection,
                     ExternalOlapSchemaMapper.BuildLevelRequest(cubeName, levelUniqueName),
                     connectionName,
                     ct);
-                var levelSchema = ExternalOlapSchemaMapper.MapSchema(
+                ExternalOlapSchemaResult levelSchema = ExternalOlapSchemaMapper.MapSchema(
                     connectionName,
                     Array.Empty<IReadOnlyDictionary<string, object?>>(),
                     hierarchyRows,
@@ -156,7 +156,7 @@ public partial class ConnectionCommands
                 int readLimit = normalizedSearch is null
                     ? pageSize + 1
                     : MaximumOlapMemberRowsScanned + 1;
-                var memberRows = OpenSchemaRowset(
+                List<IReadOnlyDictionary<string, object?>> memberRows = OpenSchemaRowset(
                     adoConnection,
                     ExternalOlapSchemaMapper.BuildMembersRequest(
                         cubeName,
@@ -166,8 +166,8 @@ public partial class ConnectionCommands
                     ct,
                     position,
                     readLimit);
-                var mappedMembers = ExternalOlapSchemaMapper.MapMembers(memberRows);
-                var page = ExternalOlapSchemaMapper.SelectMemberPage(
+                List<ExternalOlapMemberInfo> mappedMembers = ExternalOlapSchemaMapper.MapMembers(memberRows);
+                OlapMemberPage page = ExternalOlapSchemaMapper.SelectMemberPage(
                     mappedMembers,
                     pageSize,
                     normalizedSearch,

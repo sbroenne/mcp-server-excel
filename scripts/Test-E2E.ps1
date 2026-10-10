@@ -9,7 +9,9 @@
     2. Independent MCP workflow scenarios.
     3. External OLAP schema discovery through the Service boundary.
 
-    Defaults to all stages. The OLAP stage requires a configured test cube.
+    Defaults to all stages. The OLAP stage uses EXCELMCP_TEST_OLAP_* when set;
+    otherwise it starts the synthetic Atoti cube via Start-OlapTestCube.ps1
+    (requires Python) and stops it afterwards.
     A focused -Stages run is not complete acceptance. The script fails if any
     gate fails or if a required filter matches no tests.
 
@@ -43,6 +45,7 @@ else {
 }
 $env:EXCELMCP_CLI_PIPE = $selectedPipeName
 $failures = [Collections.Generic.List[Exception]]::new()
+$olapCube = $null
 
 Push-Location $rootDir
 try {
@@ -79,6 +82,10 @@ try {
                 $parameters.HangTimeout = '15m'
             }
             'Olap' {
+                if ([string]::IsNullOrWhiteSpace($env:EXCELMCP_TEST_OLAP_CONNECTION_STRING)) {
+                    $olapCube = & (Join-Path $PSScriptRoot 'Start-OlapTestCube.ps1')
+                    foreach ($key in $olapCube.Settings.Keys) { $parameters.Environment[$key] = $olapCube.Settings[$key] }
+                }
                 $parameters.Project = $serviceTestProject
                 $parameters.Filter = 'RequiresExcel=true&FullyQualifiedName~ExternalOlapSchema_UsesSelectedCubeAndContinuesThroughService'
                 $parameters.DeadlineSeconds = 600
@@ -101,6 +108,10 @@ finally {
     }
     catch { $failures.Add($_.Exception) }
     finally {
+        if ($olapCube -and -not $olapCube.Process.HasExited) {
+            # Atoti runs Python and Java child processes; stop the whole owned tree by PID.
+            taskkill.exe /PID $olapCube.Process.Id /T /F | Out-Null
+        }
         if ($null -eq $previousPipeName) {
             Remove-Item Env:EXCELMCP_CLI_PIPE -ErrorAction SilentlyContinue
         }

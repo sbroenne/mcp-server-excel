@@ -17,11 +17,39 @@ public sealed partial class PersistentServiceConnectionTests
         string levelUniqueName = Environment.GetEnvironmentVariable(
             "EXCELMCP_TEST_OLAP_LEVEL")!;
         var connectionName = UniqueConnectionName("ExternalOlap");
+        var pivotSheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
 
+        try
+        {
+            CreateOlapPivotTable(connectionString, cubeName, connectionName, pivotSheetName);
+            AssertSchemaAndMemberPaging(connectionName, hierarchyUniqueName, levelUniqueName);
+        }
+        finally
+        {
+            _fixture.Send("sheet.delete", new { sheetName = pivotSheetName });
+            _fixture.ForgetSheet(pivotSheetName);
+        }
+    }
+
+    // Excel only keeps an OLAP session open while a PivotTable uses the connection,
+    // which is how users reach external cubes in practice.
+    private void CreateOlapPivotTable(
+        string connectionString,
+        string cubeName,
+        string connectionName,
+        string pivotSheetName)
+    {
         _fixture.ExecuteRawVerification((context, _) =>
         {
             Excel.Connections? connections = null;
             Excel.WorkbookConnection? connection = null;
+            Excel.OLEDBConnection? oledbConnection = null;
+            Excel.PivotCaches? pivotCaches = null;
+            Excel.PivotCache? pivotCache = null;
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? destination = null;
+            Excel.PivotTable? pivotTable = null;
             try
             {
                 connections = context.Book.Connections;
@@ -35,14 +63,40 @@ public sealed partial class PersistentServiceConnectionTests
                     false);
                 Assert.Equal(connectionName, connection.Name);
                 _fixture.RegisterConnectionForCleanup(connectionName);
+                oledbConnection = connection.OLEDBConnection;
+                oledbConnection.MaintainConnection = true;
+
+                pivotCaches = context.Book.PivotCaches();
+                pivotCache = pivotCaches.Create(
+                    Excel.XlPivotTableSourceType.xlExternal,
+                    connection,
+                    Excel.XlPivotTableVersionList.xlPivotTableVersion15);
+                sheets = context.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[pivotSheetName];
+                destination = sheet.Range["A3"];
+                pivotTable = pivotCache.CreatePivotTable(destination, connectionName + "_Pivot");
+                Assert.NotNull(pivotTable);
             }
             finally
             {
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref pivotTable);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref destination);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref sheet);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref sheets);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref pivotCache);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref pivotCaches);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref oledbConnection);
                 Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref connection);
                 Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref connections);
             }
         });
+    }
 
+    private void AssertSchemaAndMemberPaging(
+        string connectionName,
+        string hierarchyUniqueName,
+        string levelUniqueName)
+    {
         var schema = RequireSuccess(_connections.DiscoverOlapSchema(
             _fixture.BatchToken,
             connectionName,

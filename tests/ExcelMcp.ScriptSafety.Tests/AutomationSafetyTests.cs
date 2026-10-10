@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Globalization;
+using System.Text.Json;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
@@ -259,6 +261,8 @@ public sealed partial class AutomationSafetyTests
                         project = $Project; filter = $Filter; name = $Name
                         deadline = $DeadlineSeconds; hangTimeout = $HangTimeout
                         reconcileCases = [bool]$ReconcileCases
+                        olapConnection = $Environment['EXCELMCP_TEST_OLAP_CONNECTION_STRING']
+                        olapCube = $Environment['EXCELMCP_TEST_OLAP_CUBE']
                     } | ConvertTo-Json -Compress | Add-Content -LiteralPath '{{Quote(captured)}}'
                     $global:LASTEXITCODE = 0
                 }
@@ -266,13 +270,29 @@ public sealed partial class AutomationSafetyTests
             File.WriteAllText(
                 Path.Combine(scripts, "Stop-ExcelCliService.ps1"),
                 "$global:LASTEXITCODE = 0");
+            var cubePidFile = Path.Combine(root, "cube.pid");
+            var childPidFile = Path.Combine(root, "cube-child.pid");
+            File.WriteAllText(Path.Combine(scripts, "Start-OlapTestCube.ps1"), $$"""
+                $child = "Start-Process pwsh -ArgumentList '-NoProfile','-Command','Start-Sleep 120' -PassThru | ForEach-Object { `$_.Id } | Set-Content '{{Quote(childPidFile)}}'; Start-Sleep 120"
+                $process = Start-Process pwsh -ArgumentList '-NoProfile', '-Command', $child -PassThru
+                $process.Id | Set-Content '{{Quote(cubePidFile)}}'
+                while (-not (Test-Path '{{Quote(childPidFile)}}')) { Start-Sleep -Milliseconds 100 }
+                [pscustomobject]@{
+                    Process = $process
+                    Settings = @{
+                        EXCELMCP_TEST_OLAP_CONNECTION_STRING = 'stub-connection'
+                        EXCELMCP_TEST_OLAP_CUBE = 'StubCube'
+                    }
+                }
+                """);
 
             var script = Path.Combine(scripts, "Test-E2E.ps1");
             var result = await RunAsync(root, $$"""
+                Remove-Item Env:EXCELMCP_TEST_OLAP_CONNECTION_STRING -ErrorAction SilentlyContinue
                 & '{{Quote(script)}}' -SkipBuild -ResultsDirectory '{{Quote(Path.Combine(root, "results"))}}'
                 """);
 
-            Assert.Equal(0, result.ExitCode);
+            Assert.True(result.ExitCode == 0, result.Output);
             var stages = File.ReadAllLines(captured)
                 .Select(line => System.Text.Json.JsonDocument.Parse(line))
                 .ToArray();
@@ -291,6 +311,14 @@ public sealed partial class AutomationSafetyTests
                 Assert.True(olap.GetProperty("reconcileCases").GetBoolean());
                 Assert.Equal(600, olap.GetProperty("deadline").GetInt32());
                 Assert.Equal("5m", olap.GetProperty("hangTimeout").GetString());
+                Assert.Equal("stub-connection", olap.GetProperty("olapConnection").GetString());
+                Assert.Equal("StubCube", olap.GetProperty("olapCube").GetString());
+                Assert.Equal(JsonValueKind.Null, stages[0].RootElement.GetProperty("olapConnection").ValueKind);
+                foreach (var pidFile in new[] { cubePidFile, childPidFile })
+                {
+                    var pid = int.Parse(File.ReadAllText(pidFile).Trim(), CultureInfo.InvariantCulture);
+                    Assert.False(IsRunning(pid), $"Cube process {pid} from {Path.GetFileName(pidFile)} is still running.");
+                }
             }
             finally
             {
@@ -342,6 +370,16 @@ public sealed partial class AutomationSafetyTests
         => Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"ExcelMcp.Automation.{Guid.NewGuid():N}")).FullName;
 
     private static string Quote(string value) => value.Replace("'", "''", StringComparison.Ordinal);
+
+    private static bool IsRunning(int pid)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            return !process.HasExited;
+        }
+        catch (ArgumentException) { return false; }
+    }
 
     private static async Task<(int ExitCode, string Output)> RunAsync(string root, string body)
     {

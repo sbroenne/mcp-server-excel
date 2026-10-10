@@ -491,11 +491,18 @@ changing Excel-dependent tests.
 
 `Test-E2E.ps1` defaults to three sequential stages: independent executable CLI
 scenarios, independent real-protocol MCP scenarios, and external OLAP schema
-discovery through the Service boundary. The OLAP stage requires the
+discovery through the Service boundary. The OLAP stage uses the
 `EXCELMCP_TEST_OLAP_CONNECTION_STRING`, `EXCELMCP_TEST_OLAP_CUBE`,
-`EXCELMCP_TEST_OLAP_HIERARCHY`, and `EXCELMCP_TEST_OLAP_LEVEL` settings. If
-they are missing, the integration test is skipped and the strict E2E runner
-fails rather than treating the test as passed. Each stage has a separate TRX
+`EXCELMCP_TEST_OLAP_HIERARCHY`, and `EXCELMCP_TEST_OLAP_LEVEL` settings when
+they are set. Otherwise it runs `scripts\Start-OlapTestCube.ps1`, which starts
+a small synthetic Atoti cube (`scripts\olap_test_cube.py`) on a free localhost
+port, supplies those settings to the stage, and stops the cube afterwards. The
+first run needs Python and internet access; it installs a pinned Atoti version
+into `%LOCALAPPDATA%\emo`. Atoti Community Edition is free for non-commercial
+use and sends usage telemetry. The test creates a PivotTable on the connection
+because Excel exposes the open cube link only while a PivotTable uses it. If
+the test is skipped, the strict E2E runner fails rather than treating the test
+as passed. Each stage has a separate TRX
 report and a hard execution deadline. Empty selections, skipped tests,
 failures, and assembly cleanup failures fail the run. Focused `-Stages` runs
 are not complete runtime acceptance. `Test-CliWorkflow.ps1` remains a
@@ -519,7 +526,8 @@ stage report is rejected so stale evidence cannot turn a failed run green.
 For a full validation pass, run all solution test projects with
 `RunType!=OnDemand`, then run the complete three-stage E2E. The OLAP E2E stage
 explicitly selects its OnDemand Service integration test so it is not omitted
-by that normal-suite filter. Configure its cube settings before the run.
+by that normal-suite filter. It starts its own test cube unless cube settings
+are already configured.
 Normal Service VBA and screenshot tests are also included; their prerequisites
 must be satisfied, not silently skipped. Run screenshots separately from
 other Excel tests when investigating them because they use the interactive
