@@ -82,7 +82,9 @@ try {
                 $parameters.HangTimeout = '15m'
             }
             'Olap' {
-                if ([string]::IsNullOrWhiteSpace($env:EXCELMCP_TEST_OLAP_CONNECTION_STRING)) {
+                $olapSettings = @($env:EXCELMCP_TEST_OLAP_CONNECTION_STRING, $env:EXCELMCP_TEST_OLAP_CUBE,
+                    $env:EXCELMCP_TEST_OLAP_HIERARCHY, $env:EXCELMCP_TEST_OLAP_LEVEL)
+                if (@($olapSettings | Where-Object { [string]::IsNullOrWhiteSpace($_) }).Count -gt 0) {
                     $olapCube = & (Join-Path $PSScriptRoot 'Start-OlapTestCube.ps1')
                     foreach ($key in $olapCube.Settings.Keys) { $parameters.Environment[$key] = $olapCube.Settings[$key] }
                 }

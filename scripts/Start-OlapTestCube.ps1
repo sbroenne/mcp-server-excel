@@ -54,7 +54,15 @@ $process = Start-Process -FilePath $python -ArgumentList @("`"$cubeScript`"", $p
 $deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
 while (-not ((Test-Path $logPath) -and (Select-String -Path $logPath -Pattern '^READY' -Quiet))) {
     if ($process.HasExited -or [DateTime]::UtcNow -gt $deadline) {
-        if (-not $process.HasExited) { taskkill.exe /PID $process.Id /T /F | Out-Null }
+        if (-not $process.HasExited) {
+            taskkill.exe /PID $process.Id /T /F | Out-Null
+            if ($LASTEXITCODE -ne 0 -and -not $process.HasExited) {
+                try { $process.Kill($true) } catch { }
+            }
+            if (-not $process.WaitForExit(10000)) {
+                throw "The OLAP test cube did not start on port $port and could not be stopped (PID $($process.Id))."
+            }
+        }
         $errorText = if (Test-Path "$logPath.err") { Get-Content "$logPath.err" -Tail 20 | Out-String } else { '' }
         throw "The OLAP test cube did not start on port $port. $errorText"
     }
