@@ -94,6 +94,29 @@ filters need not clear manual selections or other fields. Use the actual placed
 field and displayed Values captions rather than guessing from source names.
 Multiple filters are not automatically authorized by adding another criterion.
 
+For a Data Model report filter, use `set-report-filter` rather than
+`set-field-filter`. Target the worksheet and PivotTable together, and pass exact
+OLAP member unique names (for example,
+`[RegionTable].[Region].&[North]`). An empty `selected_items` list shows all
+members; one or several names select those members only. This changes only the
+chosen PivotTable's report filter, not the Data Model or other reports.
+For All, pass `selected_items: []` in MCP or `--selected-items '[]'` in the CLI.
+
+```mcp
+pivottable_field(action: 'set-report-filter', workbook_session_id: sessionId, sheet_name: 'Summary', pivot_table_name: 'SalesPivot', field_name: '[RegionTable].[Region]', selected_items: ['[RegionTable].[Region].&[North]', '[RegionTable].[Region].&[West]'])
+```
+
+```cli
+excelcli -q pivottablefield set-report-filter --session $sessionId --sheet Summary --pivot-table-name SalesPivot --field-name '[RegionTable].[Region]' --selected-items '["[RegionTable].[Region].&[North]","[RegionTable].[Region].&[West]"]'
+```
+
+The result reports the actual selected member names. If
+`mayHavePartiallyChanged` is true after a failure, inspect the PivotTable
+before retrying. The result also reports `rollbackAttempted`; this operation
+does not automatically undo a failed filter change.
+The operation defers updates on the selected PivotTable where supported, but
+does not guarantee a particular number of provider queries.
+
 Repeated labels require a noncompact layout. Expand/collapse targets one
 visible parent item, not every member. These calculated-filter and item-expansion
 features do not cover provider-dependent Data Model behavior.

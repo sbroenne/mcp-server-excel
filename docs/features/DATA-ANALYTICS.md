@@ -78,7 +78,7 @@ is a displayed query result, not a calculated table inside the model.
 
 ---
 
-## PivotTables (47 operations)
+## PivotTables (48 operations)
 
 - **Build summaries:** Create PivotTables from ranges, worksheet Tables, or the Data Model, then configure rows, columns, values, and filters.
 - **Choose calculations:** Set aggregation and Show Values As independently; use calculated fields for regular PivotTables or supported calculated members for model-backed ones.

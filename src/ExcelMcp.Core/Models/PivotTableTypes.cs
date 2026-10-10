@@ -726,6 +726,33 @@ public class PivotFieldFilterResult : ResultBase
 }
 
 /// <summary>
+/// Result for selecting items in an OLAP PivotTable report filter.
+/// </summary>
+public class PivotReportFilterResult : ResultBase
+{
+    /// <summary>Worksheet containing the target PivotTable.</summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>Name of the target PivotTable.</summary>
+    public string PivotTableName { get; set; } = string.Empty;
+
+    /// <summary>Exact CubeField unique name.</summary>
+    public string FieldName { get; set; } = string.Empty;
+
+    /// <summary>Exact member unique names currently selected; empty when ShowAll is true.</summary>
+    public List<string> SelectedItems { get; set; } = [];
+
+    /// <summary>Whether the report filter currently shows every item.</summary>
+    public bool ShowAll { get; set; }
+
+    /// <summary>Whether Excel may have partially changed the report filter before failure.</summary>
+    public bool MayHavePartiallyChanged { get; set; }
+
+    /// <summary>Whether the operation attempted to undo a failed filter change; this action does not attempt rollback.</summary>
+    public bool RollbackAttempted { get; set; }
+}
+
+/// <summary>
 /// Information about a calculated field in a regular PivotTable
 /// </summary>
 public class CalculatedFieldInfo

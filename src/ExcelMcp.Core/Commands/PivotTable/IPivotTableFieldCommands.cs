@@ -185,6 +185,22 @@ public interface IPivotTableFieldCommands
     PivotFieldFilterResult SetFieldFilter(IExcelBatch batch, string pivotTableName,
         string fieldName, List<string> selectedValues);
 
+    /// <summary>
+    /// Sets the selected members of an OLAP/Data Model report filter on one PivotTable.
+    /// Pass an empty selectedItems list to show all members. Member names must be exact
+    /// unique names returned by Excel. This operation does not change the Data Model or
+    /// other PivotTables. A failed write may have partially changed the filter.
+    /// </summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="sheetName">Worksheet containing the target PivotTable.</param>
+    /// <param name="pivotTableName">Exact PivotTable name on the worksheet.</param>
+    /// <param name="fieldName">Exact OLAP CubeField unique name.</param>
+    /// <param name="selectedItems">Member unique names to show; empty means show all.</param>
+    /// <returns>The actual available and selected member unique names.</returns>
+    [ServiceAction("set-report-filter")]
+    PivotReportFilterResult SetReportFilter(IExcelBatch batch, string sheetName,
+        string pivotTableName, string fieldName, List<string> selectedItems);
+
     /// <summary>Reads every native calculated filter on a placed regular PivotTable field. Manual item visibility is separate.</summary>
     /// <param name="batch">Excel batch session.</param>
     /// <param name="pivotTableName">Selected PivotTable.</param>

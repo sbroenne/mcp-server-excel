@@ -320,6 +320,7 @@
         "set-field-function": "medium",
         "set-field-name": "medium",
         "set-item-expansion": "medium",
+        "set-report-filter": "medium",
         "sort-field": "medium",
         "ungroup-field": "medium"
       }

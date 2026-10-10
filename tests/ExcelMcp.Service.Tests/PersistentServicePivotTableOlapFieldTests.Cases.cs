@@ -182,6 +182,214 @@ public partial class PersistentServicePivotTableOlapFieldTests
         }
     }
 
+    [Fact]
+    [Trait("Speed", "Medium")]
+    [Trait("Category", "OLAP")]
+    public void ReportFilter_DataModel_ExcelSupportsSingleMultipleAndClearAll()
+    {
+        var (sheetName, pivotName) = CreateIsolatedPivot();
+        const string fieldName = "[RegionalSalesTable].[Region]";
+        var batch = _fixture.BatchToken;
+        var row = _pivotCommands.AddRowField(batch, pivotName, fieldName);
+        Assert.True(row.Success, row.ErrorMessage);
+        var value = _pivotCommands.AddValueField(
+            batch, pivotName, "[Measures].[TotalRevenue]", AggregationFunction.Sum, null);
+        Assert.True(value.Success, value.ErrorMessage);
+        var refreshed = _pivotCommands.Refresh(batch, pivotName);
+        Assert.True(refreshed.Success, refreshed.ErrorMessage);
+        var untouchedPivotName = $"Untouched_{Guid.NewGuid():N}";
+        var untouchedCreated = _pivotCommands.CreateFromDataModel(
+            batch, "RegionalSalesTable", sheetName, "G1", untouchedPivotName);
+        Assert.True(untouchedCreated.Success, untouchedCreated.ErrorMessage);
+        value = _pivotCommands.AddValueField(
+            batch, untouchedPivotName, "[Measures].[TotalRevenue]", AggregationFunction.Sum, null);
+        Assert.True(value.Success, value.ErrorMessage);
+        refreshed = _pivotCommands.Refresh(batch, untouchedPivotName);
+        Assert.True(refreshed.Success, refreshed.ErrorMessage);
+
+        var memberNames = _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.PivotTables? pivots = null;
+            Excel.PivotTable? pivot = null;
+            Excel.CubeFields? cubeFields = null;
+            Excel.CubeField? cubeField = null;
+            Excel.PivotFields? fields = null;
+            Excel.PivotField? field = null;
+            Excel.PivotItems? items = null;
+            Excel.PivotItem? item = null;
+            try
+            {
+                sheets = context.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[sheetName];
+                pivots = (Excel.PivotTables)sheet.PivotTables();
+                pivot = pivots.Item(pivotName);
+                cubeFields = pivot.CubeFields;
+                cubeField = cubeFields[fieldName];
+                fields = cubeField.PivotFields;
+                field = fields.Item(1);
+                items = field.PivotItems();
+                var names = new List<string>();
+                for (int index = 1; index <= items.Count; index++)
+                {
+                    item = items.Item(index);
+                    names.Add(item.Name);
+                    ComUtilities.Release(ref item);
+                }
+                return names;
+            }
+            finally
+            {
+                ComUtilities.Release(ref item);
+                ComUtilities.Release(ref items);
+                ComUtilities.Release(ref field);
+                ComUtilities.Release(ref fields);
+                ComUtilities.Release(ref cubeField);
+                ComUtilities.Release(ref cubeFields);
+                ComUtilities.Release(ref pivot);
+                ComUtilities.Release(ref pivots);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
+        Assert.True(memberNames.Count >= 2,
+            $"Expected at least two region members; received {memberNames.Count}.");
+        var removed = _pivotCommands.RemoveField(batch, pivotName, fieldName);
+        Assert.True(removed.Success, removed.ErrorMessage);
+        var placed = _pivotCommands.AddFilterField(batch, pivotName, fieldName);
+        Assert.True(placed.Success, placed.ErrorMessage);
+        refreshed = _pivotCommands.Refresh(batch, pivotName);
+        Assert.True(refreshed.Success, refreshed.ErrorMessage);
+
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.PivotTables? pivots = null;
+            Excel.PivotTable? pivot = null;
+            Excel.CubeFields? cubeFields = null;
+            Excel.CubeField? cubeField = null;
+            Excel.PivotFields? fields = null;
+            Excel.PivotField? field = null;
+            try
+            {
+                sheets = context.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[sheetName];
+                pivots = (Excel.PivotTables)sheet.PivotTables();
+                pivot = pivots.Item(pivotName);
+                cubeFields = pivot.CubeFields;
+                cubeField = cubeFields[fieldName];
+                fields = cubeField.PivotFields;
+                field = fields.Item(1);
+                Assert.Equal((int)PivotFieldArea.Filter, (int)cubeField.Orientation);
+            }
+            finally
+            {
+                ComUtilities.Release(ref field);
+                ComUtilities.Release(ref fields);
+                ComUtilities.Release(ref cubeField);
+                ComUtilities.Release(ref cubeFields);
+                ComUtilities.Release(ref pivot);
+                ComUtilities.Release(ref pivots);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
+
+        var selected = _pivotCommands.SetReportFilter(
+            batch, sheetName, pivotName, fieldName, [memberNames[0], memberNames[1]]);
+        Assert.True(selected.Success, selected.ErrorMessage);
+        Assert.False(selected.ShowAll);
+        Assert.Equal([memberNames[0], memberNames[1]], selected.SelectedItems);
+        Assert.False(selected.MayHavePartiallyChanged);
+
+        var multiSelected = _pivotCommands.GetData(batch, pivotName);
+        Assert.True(multiSelected.Success, multiSelected.ErrorMessage);
+        Assert.Equal(22000, ReadScalar(multiSelected));
+        var untouched = _pivotCommands.GetData(batch, untouchedPivotName);
+        Assert.True(untouched.Success, untouched.ErrorMessage);
+        Assert.Equal(49000, ReadScalar(untouched));
+
+        selected = _pivotCommands.SetReportFilter(
+            batch, sheetName, pivotName, fieldName, [memberNames[0], memberNames[1]]);
+        Assert.True(selected.Success, selected.ErrorMessage);
+        Assert.Equal([memberNames[0], memberNames[1]], selected.SelectedItems);
+
+        selected = _pivotCommands.SetReportFilter(batch, sheetName, pivotName, fieldName, [memberNames[0]]);
+        Assert.True(selected.Success, selected.ErrorMessage);
+        Assert.False(selected.ShowAll);
+        Assert.Equal([memberNames[0]], selected.SelectedItems);
+        var singleSelected = _pivotCommands.GetData(batch, pivotName);
+        Assert.True(singleSelected.Success, singleSelected.ErrorMessage);
+        Assert.Equal(11500, ReadScalar(singleSelected));
+        untouched = _pivotCommands.GetData(batch, untouchedPivotName);
+        Assert.True(untouched.Success, untouched.ErrorMessage);
+        Assert.Equal(49000, ReadScalar(untouched));
+
+        selected = _pivotCommands.SetReportFilter(
+            batch, sheetName, pivotName, fieldName, [memberNames[0], memberNames[1]]);
+        Assert.True(selected.Success, selected.ErrorMessage);
+        Assert.Equal([memberNames[0], memberNames[1]], selected.SelectedItems);
+
+        selected = _pivotCommands.SetReportFilter(batch, sheetName, pivotName, fieldName, []);
+        Assert.True(selected.Success, selected.ErrorMessage);
+        Assert.True(selected.ShowAll);
+        Assert.Empty(selected.SelectedItems);
+        Assert.False(selected.MayHavePartiallyChanged);
+        var allSelected = _pivotCommands.GetData(batch, pivotName);
+        Assert.True(allSelected.Success, allSelected.ErrorMessage);
+        Assert.Equal(49000, ReadScalar(allSelected));
+        untouched = _pivotCommands.GetData(batch, untouchedPivotName);
+        Assert.True(untouched.Success, untouched.ErrorMessage);
+        Assert.Equal(49000, ReadScalar(untouched));
+
+        var rejected = _pivotCommands.SetReportFilter(
+            batch, sheetName, pivotName, fieldName, ["[RegionalSalesTable].[Region].&[Missing]"]);
+        Assert.False(rejected.Success);
+        Assert.True(rejected.MayHavePartiallyChanged);
+        Assert.False(rejected.RollbackAttempted);
+        Assert.False(string.IsNullOrWhiteSpace(rejected.ErrorMessage));
+        allSelected = _pivotCommands.GetData(batch, pivotName);
+        Assert.True(allSelected.Success, allSelected.ErrorMessage);
+        Assert.Equal(49000, ReadScalar(allSelected));
+
+        rejected = _pivotCommands.SetReportFilter(batch, sheetName, pivotName, fieldName, [" "]);
+        Assert.False(rejected.Success);
+        Assert.False(rejected.MayHavePartiallyChanged);
+        rejected = _pivotCommands.SetReportFilter(
+            batch, sheetName, pivotName, fieldName, [memberNames[0], memberNames[0]]);
+        Assert.False(rejected.Success);
+        Assert.False(rejected.MayHavePartiallyChanged);
+
+        rejected = _pivotCommands.SetReportFilter(
+            batch, $"{sheetName}_missing", pivotName, fieldName, [memberNames[0]]);
+        Assert.False(rejected.Success);
+        Assert.False(rejected.MayHavePartiallyChanged);
+
+        removed = _pivotCommands.RemoveField(batch, pivotName, fieldName);
+        Assert.True(removed.Success, removed.ErrorMessage);
+        row = _pivotCommands.AddRowField(batch, pivotName, fieldName);
+        Assert.True(row.Success, row.ErrorMessage);
+        rejected = _pivotCommands.SetReportFilter(
+            batch, sheetName, pivotName, fieldName, [memberNames[0]]);
+        Assert.False(rejected.Success);
+        Assert.False(rejected.MayHavePartiallyChanged);
+        Assert.Contains("report-filter area", rejected.ErrorMessage);
+        AssertCubeFieldOrientation(sheetName, pivotName, fieldName, PivotFieldArea.Row);
+
+        static double ReadScalar(PivotTableDataResult result)
+        {
+            var values = result.Values
+                .SelectMany(row => row)
+                .Where(value => value is not null &&
+                    double.TryParse(value.ToString(), System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out _))
+                .Select(value => Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture));
+            return Assert.Single(values);
+        }
+    }
+
     /// <summary>
     /// Regression test for Issue #217: Auto-create DAX measures when adding value fields to OLAP PivotTables.
     ///
