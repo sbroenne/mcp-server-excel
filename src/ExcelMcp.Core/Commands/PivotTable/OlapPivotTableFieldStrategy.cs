@@ -579,8 +579,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             // OLAP limitation: Cannot set Caption on CubeFields via COM
             throw new InvalidOperationException(
                 $"Cannot rename OLAP field '{fieldName}' to '{customName}'. " +
-                "Field names in OLAP PivotTables are derived from the Data Model definition. " +
-                "To change field names: (1) Open Data Model in Excel, (2) Rename the dimension/hierarchy, (3) Refresh the PivotTable. " +
+                "Field names in OLAP PivotTables come from the Data Model definition or, for an external cube server, from the cube itself. " +
+                "To change field names: (1) Rename the dimension/hierarchy in the Data Model, or on the cube server, (2) Refresh the PivotTable. " +
                 "Reference: https://learn.microsoft.com/en-us/excel/vba/api/excel.cubefield.caption");
         }
         catch (Exception ex)
@@ -616,7 +616,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             if (model == null)
             {
                 throw new InvalidOperationException(
-                    $"Cannot update measure '{fieldName}' - workbook has no Data Model");
+                    $"Cannot update measure '{fieldName}' - workbook has no Data Model. A measure from an external cube server is defined on the server and must be changed there.");
             }
 
             // Normalize field name - extract measure name from [Measures].[Name] format if present
@@ -647,7 +647,9 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
             if (measure == null)
             {
-                throw new InvalidOperationException($"Measure '{fieldName}' not found in Data Model");
+                throw new InvalidOperationException(
+                    $"Measure '{fieldName}' not found in the workbook Data Model. " +
+                    "Only Data Model measures can be changed here; a measure from an external cube server is defined on the server and must be changed there.");
             }
 
             // Parse the current formula to extract table and column
@@ -874,8 +876,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             {
                 Success = false,
                 ErrorMessage = $"Manual date grouping is not supported for OLAP PivotTables. " +
-                              $"Date hierarchies must be defined in the Data Model. " +
-                              $"Use Power Pivot to create date hierarchies (Year > Quarter > Month > Day) on the '{fieldName}' column.",
+                              $"Date hierarchies must be defined in the Data Model, or on the cube server for an external cube. " +
+                              $"Use Power Pivot (or the cube's own design) to create date hierarchies (Year > Quarter > Month > Day) for '{fieldName}'.",
                 FieldName = fieldName,
                 FilePath = workbookPath,
                 WorkflowHint = "For OLAP PivotTables: 1) Open Power Pivot, 2) Create date hierarchy on date column, " +
@@ -911,8 +913,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             {
                 Success = false,
                 ErrorMessage = $"Manual numeric grouping is not supported for OLAP PivotTables. " +
-                              $"Numeric grouping must be defined in the Data Model. " +
-                              $"Use Power Pivot to create calculated columns with range logic on the '{fieldName}' column.",
+                              $"Numeric grouping must be defined in the Data Model, or on the cube server for an external cube. " +
+                              $"Use Power Pivot (or the cube's own design) to create range logic for '{fieldName}'.",
                 FieldName = fieldName,
                 FilePath = workbookPath,
                 WorkflowHint = "For OLAP PivotTables: 1) Open Power Pivot, 2) Create calculated column with range logic " +

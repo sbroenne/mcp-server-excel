@@ -83,4 +83,68 @@ public sealed partial class PersistentServiceConnectionTests
             _fixture.ForgetSheet(sheetName);
         }
     }
+
+    [ConfiguredExternalOlapFact]
+    [Trait("RunType", "OnDemand")]
+    public void ExternalOlapPivotTable_ChangeMeasureAndGroupingCommandsReportCubeLimits()
+    {
+        string connectionString = Environment.GetEnvironmentVariable(
+            "EXCELMCP_TEST_OLAP_CONNECTION_STRING")!;
+        string cubeName = Environment.GetEnvironmentVariable("EXCELMCP_TEST_OLAP_CUBE")!;
+        string hierarchy = Environment.GetEnvironmentVariable("EXCELMCP_TEST_OLAP_HIERARCHY")!;
+        var connectionName = UniqueConnectionName("ExternalOlapLimits");
+        var pivotName = connectionName + "_Pivot";
+        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        var batch = _fixture.BatchToken;
+        var pivots = _fixture.CreateCommands<IPersistentPivotTableCommands>();
+
+        try
+        {
+            CreateOlapPivotTable(connectionString, cubeName, connectionName, sheetName);
+            var measure = RequireSuccess(pivots.ListFields(batch, pivotName)).Fields
+                .Select(field => field.Name)
+                .First(name => name.StartsWith("[Measures].", StringComparison.OrdinalIgnoreCase));
+            RequireSuccess(pivots.AddRowField(batch, pivotName, hierarchy));
+            RequireSuccess(pivots.AddValueField(batch, pivotName, measure));
+            RequireSuccess(pivots.Refresh(batch, pivotName));
+            var before = System.Text.Json.JsonSerializer.Serialize(RequireSuccess(pivots.GetData(batch, pivotName)).Values);
+
+            var attempts = new (string Name, Func<ResultBase> Run, string ExpectedText)[]
+            {
+                ("function", () => pivots.SetFieldFunction(batch, pivotName, measure, AggregationFunction.Average), "cube server"),
+                ("rename", () => pivots.SetFieldName(batch, pivotName, measure, "Renamed"), "cube"),
+                ("date grouping", () => pivots.GroupByDate(batch, pivotName, hierarchy, DateGroupingInterval.Months), "cube server"),
+                ("numeric grouping", () => pivots.GroupByNumeric(batch, pivotName, measure, 0, 100, 10), "cube server"),
+            };
+            foreach (var (name, run, expectedText) in attempts)
+            {
+                bool success;
+                string? errorMessage;
+                try
+                {
+                    var result = run();
+                    success = result.Success;
+                    errorMessage = result.ErrorMessage;
+                }
+                catch (InvalidOperationException ex)
+                {
+                    success = false;
+                    errorMessage = ex.Message;
+                }
+
+                Assert.False(success, $"{name} should be refused for a server cube.");
+                Assert.Contains(expectedText, errorMessage, StringComparison.OrdinalIgnoreCase);
+                Assert.DoesNotContain("workbook has no Data Model", errorMessage ?? "");
+            }
+
+            Assert.Equal(before, System.Text.Json.JsonSerializer.Serialize(RequireSuccess(pivots.GetData(batch, pivotName)).Values));
+            Assert.Contains(RequireSuccess(pivots.ListFields(batch, pivotName)).Fields,
+                field => field.Name == measure && field.Area == PivotFieldArea.Value);
+        }
+        finally
+        {
+            _fixture.Send("sheet.delete", new { sheetName });
+            _fixture.ForgetSheet(sheetName);
+        }
+    }
 }
