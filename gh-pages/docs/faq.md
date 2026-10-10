@@ -31,7 +31,7 @@ limitations - you don't need to memorize commands.
 
 ### CLI or MCP Server - which should I install?
 
-Both expose the **same 393 operations**. Use the **MCP Server** for
+Both expose the **same 395 operations**. Use the **MCP Server** for
 conversational AI (Claude Desktop, VS Code Chat); use the **CLI** (`excelcli`)
 for coding agents and scripting, where it uses ~64% fewer tokens. You can
 install both. See [Installation](installation.md).
