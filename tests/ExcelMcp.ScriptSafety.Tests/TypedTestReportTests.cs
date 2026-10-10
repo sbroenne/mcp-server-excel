@@ -151,6 +151,28 @@ public sealed class TypedTestReportTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
+    [Fact]
+    public async Task RunAsync_ReconciliationRejectsAnOmittedDiscoveredCase()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"ExcelMcp.Reconcile.{Guid.NewGuid():N}");
+        Directory.CreateDirectory(root);
+        var project = Path.Combine(root, "tests", "ExcelMcp.CLI.Tests", "ExcelMcp.CLI.Tests.csproj");
+        var results = Path.Combine(root, "results");
+        Directory.CreateDirectory(Path.GetDirectoryName(project)!);
+        await File.WriteAllTextAsync(project, "<Project/>");
+        var runner = new ReconcileRunner(includeOmittedCase: true);
+        try
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                new TestExecution(root, runner).RunAsync(
+                    "CLI", "fixture", results, excel: true, reconcileCases: true));
+            Assert.Equal(2, runner.Commands.Count);
+            Assert.Contains("--list-tests", runner.Commands[0]);
+            Assert.DoesNotContain("--list-tests", runner.Commands[1]);
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     private static string WriteReport(IReadOnlyDictionary<string, string> counters, IReadOnlyList<string> cases)
     {
         var file = Path.Combine(Path.GetTempPath(), $"ExcelMcp.Report.{Guid.NewGuid():N}.trx");
@@ -165,7 +187,7 @@ public sealed class TypedTestReportTests
         return file;
     }
 
-    private sealed class ReconcileRunner : IProcessRunner
+    private sealed class ReconcileRunner(bool includeOmittedCase = false) : IProcessRunner
     {
         public List<string[]> Commands { get; } = [];
 
@@ -179,10 +201,13 @@ public sealed class TypedTestReportTests
             Commands.Add(command);
             if (command.Contains("--list-tests", StringComparer.Ordinal))
             {
-                return new ProcessResult(0, "The following Tests are available:\n    Suite.Case", "");
+                var secondCase = includeOmittedCase ? "\n    Suite.OmittedCase" : "";
+                return new ProcessResult(0, $"The following Tests are available:\n    Suite.Case{secondCase}", "");
             }
             var resultsDirectory = command[Array.IndexOf(command, "--results-directory") + 1];
-            await File.WriteAllTextAsync(Path.Combine(resultsDirectory, "acceptance.trx"), """
+            var logger = command.Single(argument => argument.StartsWith("trx;LogFileName=", StringComparison.Ordinal));
+            var report = logger["trx;LogFileName=".Length..];
+            await File.WriteAllTextAsync(Path.Combine(resultsDirectory, report), """
                 <TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
                   <Results><UnitTestResult testName="Suite.Case" outcome="Passed"/></Results>
                   <ResultSummary outcome="Completed">

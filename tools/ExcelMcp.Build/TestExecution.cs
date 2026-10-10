@@ -103,7 +103,8 @@ public sealed class TestStageOptions
 
 public sealed class TestExecution(string root, IProcessRunner runner)
 {
-    public async Task RunAsync(string owner, string filter, string results, bool excel, bool listOnly = false, string? pipe = null, int? deadlineSeconds = null)
+    public async Task RunAsync(string owner, string filter, string results, bool excel, bool listOnly = false, string? pipe = null,
+        int? deadlineSeconds = null, bool reconcileCases = false)
     {
         var options = new TestStageOptions
         {
@@ -113,7 +114,8 @@ public sealed class TestExecution(string root, IProcessRunner runner)
             Name = owner,
             DeadlineSeconds = deadlineSeconds ?? (excel ? 7200 : 1800),
             HangTimeout = excel ? "10m" : "5m",
-            ListTests = listOnly
+            ListTests = listOnly,
+            ReconcileCases = reconcileCases
         };
         if (pipe is not null) { options.Environment["EXCELMCP_CLI_PIPE"] = pipe; }
         await RunStageAsync(options);

@@ -195,7 +195,7 @@ public sealed class PreCommitScriptTests
                 ("check-success-flag", "success-check-ran"),
                 ("check-dynamic-casts", "casts-check-ran"),
                 ("check-workbook-package-access", "package-access-check-ran"),
-                ("Stop-ExcelMcpProcesses", "cleanup-ran"),
+                ("Stop-ExcelCliService", "cleanup-ran"),
                 ("Invoke-ExcelFreeTests", "excel-free-tests-ran"),
                 ("Invoke-ExcelTests", "excel-feature-tests-ran"),
                 ("Test-E2E", "e2e-ran"),

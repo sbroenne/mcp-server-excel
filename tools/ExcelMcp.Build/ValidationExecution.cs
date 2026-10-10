@@ -97,7 +97,7 @@ public sealed class ValidationExecution(string root, IProcessRunner runner)
                 var filters = string.Join('|', selection.SelectMany(item => item.Filter.Split('|')).Distinct(StringComparer.Ordinal));
                 var required = plan.FullE2E ? "&Acceptance!=Required" : "";
                 await _tests.RunAsync(selection.Key, $"RequiresExcel=true&RunType!=OnDemand{required}&({filters})",
-                    Path.Combine(results, "Excel"), excel: true, listOnly, pipe, deadlineSeconds);
+                    Path.Combine(results, "Excel"), excel: true, listOnly, pipe, deadlineSeconds, reconcileCases: true);
             }
             if (plan.InfrastructureDiagnostics)
             {
@@ -128,7 +128,7 @@ public sealed class ValidationExecution(string root, IProcessRunner runner)
         {
             if (listOnly || !plan.ExcelSelections.Any(selection => selection.Project == "CLI") && !plan.FullE2E) { return; }
             var result = await runner.CheckedAsync("pwsh",
-                ["-NoProfile", "-File", Path.Combine(root, "scripts", "Stop-ExcelMcpProcesses.ps1"), "-PipeName", pipe],
+                ["-NoProfile", "-File", Path.Combine(root, "scripts", "Stop-ExcelCliService.ps1"), "-PipeName", pipe],
                 TimeSpan.FromMinutes(5));
             Console.Error.WriteLine(result.Output);
         }

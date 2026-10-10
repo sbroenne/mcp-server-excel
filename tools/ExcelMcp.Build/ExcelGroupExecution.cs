@@ -87,6 +87,7 @@ public sealed class ExcelGroupExecution(string root, IProcessRunner runner)
                         DeadlineSeconds = options.DeadlineSeconds,
                         HangTimeout = "10m",
                         ListTests = options.ListTests,
+                        ReconcileCases = true,
                         Environment = new Dictionary<string, string> { ["EXCELMCP_CLI_PIPE"] = pipe }
                     });
                 }
@@ -111,11 +112,11 @@ public sealed class ExcelGroupExecution(string root, IProcessRunner runner)
         {
             if (!options.ListTests)
             {
-                var result = await runner.CheckedAsync("pwsh", ["-NoProfile", "-File", Path.Combine(root, "scripts", "Stop-ExcelMcpProcesses.ps1"), "-PipeName", pipe], TimeSpan.FromMinutes(5));
+                var result = await runner.CheckedAsync("pwsh", ["-NoProfile", "-File", Path.Combine(root, "scripts", "Stop-ExcelCliService.ps1"), "-PipeName", pipe], TimeSpan.FromMinutes(5));
                 Console.Error.WriteLine(result.Output);
             }
         }
-        catch (Exception cleanup) when (cleanup is InvalidOperationException or IOException or TimeoutException)
+        catch (Exception cleanup)
         {
             if (primary is not null) { throw new AggregateException("Excel validation and owned cleanup failed.", primary, cleanup); }
             throw;

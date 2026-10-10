@@ -253,7 +253,7 @@ public sealed partial class ValidationPolicy(string root)
             AddFeature(plan, "ScriptSafety", ["AutomationSafety"], "Owning script safety");
             plan.Reasons.Add($"{path} -> script safety only");
         }
-        else if (Matches(path, @"^scripts/(Test-E2E|Test-CliWorkflow|Test-CliApiCoverage|Stop-ExcelMcpProcesses)\.ps1$"))
+        else if (Matches(path, @"^scripts/(Test-E2E|Test-CliWorkflow|Test-CliApiCoverage|Stop-ExcelCliService)\.ps1$"))
         {
             plan.FullE2E = true;
             AddClasses(plan, Catalog.ForOwner("CLI").Where(type => type.Name == "CliWorkflowAcceptanceTests"), "Acceptance");

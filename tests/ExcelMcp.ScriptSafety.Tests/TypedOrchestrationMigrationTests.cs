@@ -76,9 +76,30 @@ public sealed class TypedOrchestrationMigrationTests
             Assert.IsType<UnauthorizedAccessException>(exception.InnerExceptions[0]);
             Assert.IsType<Win32Exception>(exception.InnerExceptions[1]);
             Assert.Equal("pwsh", runner.CleanupExecutable);
-            Assert.Contains("Stop-ExcelMcpProcesses.ps1", string.Join(' ', runner.CleanupArguments), StringComparison.Ordinal);
+            var cleanupScript = Path.GetFullPath(Path.Combine(TypedValidationPolicyTests.Root, "scripts", "Stop-ExcelCliService.ps1"));
+            Assert.True(File.Exists(cleanupScript));
+            Assert.Contains(cleanupScript, runner.CleanupArguments, StringComparer.OrdinalIgnoreCase);
         }
         finally { if (Directory.Exists(results)) { Directory.Delete(results, recursive: true); } }
+    }
+
+    [Fact]
+    public void ExcelExecutionPaths_ReconcileCasesAndUseTheExistingCleanupScript()
+    {
+        var root = TypedValidationPolicyTests.Root;
+        var cleanupScript = Path.Combine(root, "scripts", "Stop-ExcelCliService.ps1");
+        Assert.True(File.Exists(cleanupScript));
+
+        var groups = File.ReadAllText(Path.Combine(root, "tools", "ExcelMcp.Build", "ExcelGroupExecution.cs"));
+        var validation = File.ReadAllText(Path.Combine(root, "tools", "ExcelMcp.Build", "ValidationExecution.cs"));
+        var policy = File.ReadAllText(Path.Combine(root, "tools", "ExcelMcp.Build", "ValidationPolicy.cs"));
+        Assert.Contains("ReconcileCases = true", groups, StringComparison.Ordinal);
+        Assert.Contains("reconcileCases: true", validation, StringComparison.Ordinal);
+        Assert.Contains("Stop-ExcelCliService.ps1", groups, StringComparison.Ordinal);
+        Assert.Contains("Stop-ExcelCliService.ps1", validation, StringComparison.Ordinal);
+        Assert.Contains("Stop-ExcelCliService", policy, StringComparison.Ordinal);
+        Assert.DoesNotContain("Stop-ExcelMcpProcesses.ps1", groups, StringComparison.Ordinal);
+        Assert.DoesNotContain("Stop-ExcelMcpProcesses.ps1", validation, StringComparison.Ordinal);
     }
 
     [Fact]

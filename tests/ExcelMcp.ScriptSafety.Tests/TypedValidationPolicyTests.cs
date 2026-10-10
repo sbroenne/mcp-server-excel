@@ -193,7 +193,7 @@ public sealed class TypedValidationPolicyTests
     [InlineData("scripts/Test-E2E.ps1")]
     [InlineData("scripts/Test-CliWorkflow.ps1")]
     [InlineData("scripts/Test-CliApiCoverage.ps1")]
-    [InlineData("scripts/Stop-ExcelMcpProcesses.ps1")]
+    [InlineData("scripts/Stop-ExcelCliService.ps1")]
     public void AcceptanceChanges_LeaveRequiredOnlyCasesToTheAcceptanceRunner(string path)
     {
         var plan = Policy.Select([path]);
