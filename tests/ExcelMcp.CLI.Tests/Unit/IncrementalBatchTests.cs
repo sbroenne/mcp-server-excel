@@ -150,11 +150,16 @@ public sealed class IncrementalBatchTests
         Assert.Null(requests[4].SessionId);
     }
 
-    [Fact]
-    public async Task Stream_FailedClose_KeepsSessionForInspection()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FailedClose_KeepsSessionForInspection(bool stream)
     {
         var requests = new List<ServiceRequest>();
-        var result = await InProcessCliHelper.RunAsync(["batch", "--stream", "--session", "captured"], request =>
+        string[] args = stream
+            ? ["batch", "--stream", "--session", "captured"]
+            : ["batch", "--session", "captured"];
+        var result = await InProcessCliHelper.RunAsync(args, request =>
         {
             requests.Add(request);
             return new ServiceResponse
@@ -167,7 +172,89 @@ public sealed class IncrementalBatchTests
         }, "{\"command\":\"session.close\"}\n{\"command\":\"diag.ping\"}\n");
         Assert.Equal(1, result.ExitCode);
         Assert.Equal(2, requests.Count);
+        Assert.Equal("captured", requests[0].SessionId);
         Assert.Equal("captured", requests[1].SessionId);
+    }
+
+    [Fact]
+    public async Task Stream_InitialConnectionFailure_ReportsIndexedResult_ThenRetries()
+    {
+        using var input = new LiveInput();
+        using var output = new FlushedOutput();
+        using var error = new StringWriter();
+        var factory = new RecordingFactory(_ => new ServiceResponse { Success = true, Result = "{\"marker\":456}" });
+        factory.ConnectFailures.Enqueue(new IOException("Daemon did not become ready"));
+        var runtime = new CliCommandRuntime(factory, input, output, error, isOutputRedirected: true);
+        var invocation = Program.RunAsync(["--quiet", "batch", "--stream"], runtime);
+        try
+        {
+            input.Send("{\"command\":\"diag.ping\"}");
+            using var failed = JsonDocument.Parse(await output.NextLineAsync());
+            Assert.Equal(0, failed.RootElement.GetProperty("index").GetInt32());
+            Assert.Equal("diag.ping", failed.RootElement.GetProperty("command").GetString());
+            Assert.False(failed.RootElement.GetProperty("success").GetBoolean());
+            Assert.Contains("Daemon did not become ready", failed.RootElement.GetProperty("error").GetString(), StringComparison.Ordinal);
+            Assert.False(invocation.IsCompleted);
+            Assert.Empty(factory.Requests);
+
+            input.Send("{\"command\":\"diag.ping\"}");
+            using var retried = JsonDocument.Parse(await output.NextLineAsync());
+            Assert.Equal(1, retried.RootElement.GetProperty("index").GetInt32());
+            Assert.True(retried.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal(456, retried.RootElement.GetProperty("result").GetProperty("marker").GetInt32());
+            Assert.Equal(2, factory.ConnectionCount);
+            Assert.Single(factory.Requests);
+
+            input.Complete();
+            Assert.Equal(1, await invocation.WaitAsync(TimeSpan.FromSeconds(5)));
+            Assert.True(factory.Disposed);
+        }
+        finally
+        {
+            input.Complete();
+            await invocation.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+    }
+
+    [Fact]
+    public async Task Stream_InitialConnectionFailure_WithStopOnError_ReportsResultAndStops()
+    {
+        using var input = new StringReader("{\"command\":\"diag.ping\"}\n{\"command\":\"diag.ping\"}\n");
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        var factory = new RecordingFactory(_ => new ServiceResponse { Success = true });
+        factory.ConnectFailures.Enqueue(new IOException("Daemon did not become ready"));
+        var runtime = new CliCommandRuntime(factory, input, output, error, isOutputRedirected: true);
+
+        Assert.Equal(1, await Program.RunAsync(["--quiet", "batch", "--stream", "--stop-on-error"], runtime));
+
+        var line = Assert.Single(output.ToString().Split('\n', StringSplitOptions.RemoveEmptyEntries));
+        using var failed = JsonDocument.Parse(line);
+        Assert.Equal(0, failed.RootElement.GetProperty("index").GetInt32());
+        Assert.False(failed.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(1, factory.ConnectionCount);
+        Assert.Empty(factory.Requests);
+    }
+
+    [Fact]
+    public async Task Stream_CancellationDuringConnect_Propagates()
+    {
+        using var input = new StringReader("{\"command\":\"diag.ping\"}\n");
+        using var output = new StringWriter();
+        using var error = new StringWriter();
+        using var cancellation = new CancellationTokenSource();
+        var factory = new RecordingFactory(_ => new ServiceResponse { Success = true });
+        factory.OnConnect = () =>
+        {
+            cancellation.Cancel();
+            cancellation.Token.ThrowIfCancellationRequested();
+        };
+        using var scope = CliCommandRuntime.Push(new CliCommandRuntime(factory, input, output, error, isOutputRedirected: true));
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            new BatchCommand().ExecuteAsync(null!, new BatchCommand.Settings { Stream = true }, cancellation.Token));
+        Assert.Equal(string.Empty, output.ToString());
+        Assert.Empty(factory.Requests);
     }
 
     [Fact]
@@ -310,10 +397,17 @@ public sealed class IncrementalBatchTests
         internal List<ServiceRequest> Requests { get; } = [];
         internal int ConnectionCount { get; private set; }
         internal bool Disposed { get; private set; }
+        internal Queue<Exception> ConnectFailures { get; } = new();
+        internal Action? OnConnect { get; set; }
 
         public Task<ICliRequestClient> ConnectAsync(CancellationToken cancellationToken)
         {
             ConnectionCount++;
+            OnConnect?.Invoke();
+            if (ConnectFailures.TryDequeue(out var failure))
+            {
+                return Task.FromException<ICliRequestClient>(failure);
+            }
             return Task.FromResult<ICliRequestClient>(new Client(this));
         }
 

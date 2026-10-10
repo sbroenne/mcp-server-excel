@@ -203,7 +203,9 @@ Use the same `group.action`, camelCase argument names, session selection, and
 `--stop-on-error` policy as ordinary batch. `--stream` accepts stdin only
 (`--input -` is also allowed); JSON arrays and multiline objects are not valid
 stream entries. Blank lines are ignored. Failed entries produce indexed error
-results, and the final exit code is nonzero if any entry failed. Cancellation
+results, and the final exit code is nonzero if any entry failed. If the service
+cannot be reached, that entry's result reports the communication error and the
+next command retries the connection. Cancellation
 ends the invocation. Inspect any partial workbook changes before continuing.
 
 Without `--stream`, batch still reads the complete input before executing.

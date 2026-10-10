@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Telemetry;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Generated;
 using Sbroenne.ExcelMcp.Service;
 using Spectre.Console.Cli;
@@ -194,10 +195,18 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
                 else
                 {
                     // Start/connect only when a valid command arrives, not while waiting on input.
-                    client ??= await CliCommandRuntime.Current.ClientFactory.ConnectAsync(cancellationToken);
-                    var outcome = await ExecuteEntryAsync(client, entry!, index, activeSession, cancellationToken);
-                    itemSucceeded = outcome.Succeeded;
-                    activeSession = outcome.ActiveSession;
+                    client ??= await TryConnectAsync(entry!, index, cancellationToken);
+                    if (client == null)
+                    {
+                        // Reported as this line's result; the next valid line retries the connection.
+                        itemSucceeded = false;
+                    }
+                    else
+                    {
+                        var outcome = await ExecuteEntryAsync(client, entry!, index, activeSession, cancellationToken);
+                        itemSucceeded = outcome.Succeeded;
+                        activeSession = outcome.ActiveSession;
+                    }
                 }
 
                 await CliCommandRuntime.Current.Output.FlushAsync(cancellationToken);
@@ -220,6 +229,40 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
             return 1;
         }
         return hasErrors ? 1 : 0;
+    }
+
+    /// <summary>
+    /// Connects for a streamed command. A failure is written as that command's indexed
+    /// result and returns null instead of ending the stream; cancellation still propagates.
+    /// </summary>
+    private static async Task<ICliRequestClient?> TryConnectAsync(
+        BatchEntry entry, int index, CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            return await CliCommandRuntime.Current.ClientFactory.ConnectAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            CliTelemetry.TrackLocalFailure(
+                entry.Command,
+                stopwatch.ElapsedMilliseconds,
+                OperationFailureClassifier.Classify(ex) ?? "ServiceUnavailable");
+            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new BatchResult
+            {
+                Index = index,
+                Command = entry.Command,
+                Success = false,
+                Error = $"Communication error: {ex.Message}"
+            }, BatchJsonOptions));
+            return null;
+        }
     }
 
     private static async Task<(bool Succeeded, string? ActiveSession)> ExecuteEntryAsync(
