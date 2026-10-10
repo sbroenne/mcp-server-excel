@@ -7,6 +7,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 
 internal sealed record OlapMemberSearchScope(
     string ConnectionName,
+    string CubeName,
     string HierarchyUniqueName,
     string LevelUniqueName,
     string? SearchText,
@@ -16,21 +17,22 @@ internal sealed record OlapMemberPage(
     List<ExternalOlapMemberInfo> Members,
     int ScannedCount,
     bool HasMore,
-    long? NextAfterOrdinal);
+    string? NextAfterUniqueName);
 
 internal static class ExternalOlapSchemaMapper
 {
-    private const int ContinuationTokenVersion = 1;
+    private const int ContinuationTokenVersion = 2;
     private const int MaximumContinuationTokenLength = 8192;
 
     private sealed record ContinuationPayload(
         int Version,
         string ConnectionName,
+        string CubeName,
         string HierarchyUniqueName,
         string LevelUniqueName,
         string? SearchText,
         int PageSize,
-        long AfterOrdinal);
+        string AfterUniqueName);
 
     public static ExternalOlapSchemaResult MapSchema(
         string connectionName,
@@ -143,12 +145,12 @@ internal static class ExternalOlapSchemaMapper
         int pageSize,
         string? searchText,
         int maximumScannedRows,
-        long? afterOrdinal)
+        string? afterUniqueName)
     {
         var members = new List<ExternalOlapMemberInfo>(pageSize);
         int scannedCount = 0;
         bool hasMore = false;
-        long? nextAfterOrdinal = afterOrdinal;
+        string? nextAfterUniqueName = afterUniqueName;
 
         foreach (var member in memberRows)
         {
@@ -164,67 +166,99 @@ internal static class ExternalOlapSchemaMapper
                 if (members.Count == pageSize)
                 {
                     hasMore = true;
-                    nextAfterOrdinal = members[^1].Ordinal;
+                    nextAfterUniqueName = members[^1].UniqueName;
                     break;
                 }
 
                 members.Add(member);
             }
 
-            nextAfterOrdinal = member.Ordinal;
+            nextAfterUniqueName = member.UniqueName;
         }
 
-        return new OlapMemberPage(members, scannedCount, hasMore, nextAfterOrdinal);
+        return new OlapMemberPage(members, scannedCount, hasMore, nextAfterUniqueName);
     }
 
     public static string BuildMembersQuery(
+        string cubeName,
         string hierarchyUniqueName,
         string levelUniqueName,
-        long? afterOrdinal,
+        string? afterUniqueName,
         int take)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(cubeName);
         ArgumentException.ThrowIfNullOrWhiteSpace(hierarchyUniqueName);
         ArgumentException.ThrowIfNullOrWhiteSpace(levelUniqueName);
         ArgumentOutOfRangeException.ThrowIfLessThan(take, 1);
 
         var query = new StringBuilder(
             $"SELECT TOP {take.ToString(CultureInfo.InvariantCulture)} * FROM $SYSTEM.MDSCHEMA_MEMBERS "
-            + $"WHERE [HIERARCHY_UNIQUE_NAME] = '{EscapeDmvString(hierarchyUniqueName)}' "
+            + $"WHERE [CUBE_NAME] = '{EscapeDmvString(cubeName)}' "
+            + $"AND [HIERARCHY_UNIQUE_NAME] = '{EscapeDmvString(hierarchyUniqueName)}' "
             + $"AND [LEVEL_UNIQUE_NAME] = '{EscapeDmvString(levelUniqueName)}'");
-        if (afterOrdinal.HasValue)
+        if (afterUniqueName is not null)
         {
-            query.Append(" AND [MEMBER_ORDINAL] > ");
-            query.Append(afterOrdinal.Value.ToString(CultureInfo.InvariantCulture));
+            query.Append(" AND [MEMBER_UNIQUE_NAME] > '");
+            query.Append(EscapeDmvString(afterUniqueName));
+            query.Append('\'');
         }
 
-        query.Append(" ORDER BY [MEMBER_ORDINAL] ASC");
+        query.Append(" ORDER BY [MEMBER_UNIQUE_NAME] ASC");
         return query.ToString();
     }
 
-    public static string BuildLevelQuery(string levelUniqueName)
+    public static string BuildDimensionQuery(string cubeName)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(levelUniqueName);
-        return "SELECT * FROM $SYSTEM.MDSCHEMA_LEVELS "
-            + $"WHERE [LEVEL_UNIQUE_NAME] = '{EscapeDmvString(levelUniqueName)}'";
+        ArgumentException.ThrowIfNullOrWhiteSpace(cubeName);
+        return "SELECT * FROM $SYSTEM.MDSCHEMA_DIMENSIONS "
+            + $"WHERE [CUBE_NAME] = '{EscapeDmvString(cubeName)}'";
     }
 
-    public static string BuildHierarchyQuery(string hierarchyUniqueName)
+    public static string BuildHierarchyQuery(string cubeName, string? hierarchyUniqueName = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(hierarchyUniqueName);
-        return "SELECT * FROM $SYSTEM.MDSCHEMA_HIERARCHIES "
-            + $"WHERE [HIERARCHY_UNIQUE_NAME] = '{EscapeDmvString(hierarchyUniqueName)}'";
+        ArgumentException.ThrowIfNullOrWhiteSpace(cubeName);
+        var query = new StringBuilder(
+            "SELECT * FROM $SYSTEM.MDSCHEMA_HIERARCHIES "
+            + $"WHERE [CUBE_NAME] = '{EscapeDmvString(cubeName)}'");
+        if (hierarchyUniqueName is not null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(hierarchyUniqueName);
+            query.Append(" AND [HIERARCHY_UNIQUE_NAME] = '");
+            query.Append(EscapeDmvString(hierarchyUniqueName));
+            query.Append('\'');
+        }
+
+        return query.ToString();
     }
 
-    public static string CreateContinuationToken(OlapMemberSearchScope scope, long afterOrdinal)
+    public static string BuildLevelQuery(string cubeName, string? levelUniqueName = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(cubeName);
+        var query = new StringBuilder(
+            "SELECT * FROM $SYSTEM.MDSCHEMA_LEVELS "
+            + $"WHERE [CUBE_NAME] = '{EscapeDmvString(cubeName)}'");
+        if (levelUniqueName is not null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(levelUniqueName);
+            query.Append(" AND [LEVEL_UNIQUE_NAME] = '");
+            query.Append(EscapeDmvString(levelUniqueName));
+            query.Append('\'');
+        }
+
+        return query.ToString();
+    }
+
+    public static string CreateContinuationToken(OlapMemberSearchScope scope, string afterUniqueName)
     {
         var payload = new ContinuationPayload(
             ContinuationTokenVersion,
             scope.ConnectionName,
+            scope.CubeName,
             scope.HierarchyUniqueName,
             scope.LevelUniqueName,
             scope.SearchText,
             scope.PageSize,
-            afterOrdinal);
+            afterUniqueName);
         var bytes = JsonSerializer.SerializeToUtf8Bytes(payload);
         return Convert.ToBase64String(bytes)
             .TrimEnd('=')
@@ -232,7 +266,7 @@ internal static class ExternalOlapSchemaMapper
             .Replace('/', '_');
     }
 
-    public static long ReadContinuationToken(string token, OlapMemberSearchScope expectedScope)
+    public static string ReadContinuationToken(string token, OlapMemberSearchScope expectedScope)
     {
         if (string.IsNullOrWhiteSpace(token) || token.Length > MaximumContinuationTokenLength)
         {
@@ -248,15 +282,17 @@ internal static class ExternalOlapSchemaMapper
             if (payload is null
                 || payload.Version != ContinuationTokenVersion
                 || !string.Equals(payload.ConnectionName, expectedScope.ConnectionName, StringComparison.Ordinal)
+                || !string.Equals(payload.CubeName, expectedScope.CubeName, StringComparison.Ordinal)
                 || !string.Equals(payload.HierarchyUniqueName, expectedScope.HierarchyUniqueName, StringComparison.Ordinal)
                 || !string.Equals(payload.LevelUniqueName, expectedScope.LevelUniqueName, StringComparison.Ordinal)
                 || !string.Equals(payload.SearchText, expectedScope.SearchText, StringComparison.Ordinal)
-                || payload.PageSize != expectedScope.PageSize)
+                || payload.PageSize != expectedScope.PageSize
+                || string.IsNullOrWhiteSpace(payload.AfterUniqueName))
             {
                 throw InvalidContinuationToken();
             }
 
-            return payload.AfterOrdinal;
+            return payload.AfterUniqueName;
         }
         catch (FormatException)
         {
@@ -321,7 +357,7 @@ internal static class ExternalOlapSchemaMapper
 
     private static ArgumentException InvalidContinuationToken() =>
         new(
-            "continuationToken is invalid or does not match the requested connection, hierarchy, level, search text, or page size.",
+            "continuationToken is invalid or does not match the requested connection, cube, hierarchy, level, search text, or page size.",
             "continuationToken");
 
     private static bool MatchesSearch(ExternalOlapMemberInfo member, string searchText) =>

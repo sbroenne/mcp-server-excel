@@ -61,16 +61,21 @@ public sealed class ExternalOlapSchemaTests
     public void BuildMembersQuery_UsesEscapedFiltersAndBoundedContinuation()
     {
         var query = ExternalOlapSchemaMapper.BuildMembersQuery(
+            "Sales'Cube",
             "[Date].[Calendar's]",
             "[Date].[Calendar's].[Month]",
-            afterOrdinal: 24,
+            afterUniqueName: "[Date].[Calendar].[Month].&[2024-02]",
             take: 51);
 
         Assert.Contains("SELECT TOP 51 *", query, StringComparison.Ordinal);
+        Assert.Contains("[CUBE_NAME] = 'Sales''Cube'", query, StringComparison.Ordinal);
         Assert.Contains("[HIERARCHY_UNIQUE_NAME] = '[Date].[Calendar''s]'", query, StringComparison.Ordinal);
         Assert.Contains("[LEVEL_UNIQUE_NAME] = '[Date].[Calendar''s].[Month]'", query, StringComparison.Ordinal);
-        Assert.Contains("[MEMBER_ORDINAL] > 24", query, StringComparison.Ordinal);
-        Assert.Contains("ORDER BY [MEMBER_ORDINAL]", query, StringComparison.Ordinal);
+        Assert.Contains("[MEMBER_UNIQUE_NAME] > '[Date].[Calendar].[Month].&[2024-02]'", query, StringComparison.Ordinal);
+        Assert.Contains("ORDER BY [MEMBER_UNIQUE_NAME]", query, StringComparison.Ordinal);
+        Assert.Contains("[CUBE_NAME] = 'Sales''Cube'", ExternalOlapSchemaMapper.BuildDimensionQuery("Sales'Cube"), StringComparison.Ordinal);
+        Assert.Contains("[CUBE_NAME] = 'Sales''Cube'", ExternalOlapSchemaMapper.BuildHierarchyQuery("Sales'Cube"), StringComparison.Ordinal);
+        Assert.Contains("[CUBE_NAME] = 'Sales''Cube'", ExternalOlapSchemaMapper.BuildLevelQuery("Sales'Cube"), StringComparison.Ordinal);
     }
 
     [Fact]
@@ -130,15 +135,22 @@ public sealed class ExternalOlapSchemaTests
     public void ContinuationToken_IsOpaqueAndBoundToItsQuery()
     {
         var scope = new OlapMemberSearchScope(
-            "SalesCube", "[Date].[Calendar]", "[Date].[Calendar].[Month]", "current", 50);
-        var token = ExternalOlapSchemaMapper.CreateContinuationToken(scope, 24);
+            "SalesCube", "Calendar Cube", "[Date].[Calendar]", "[Date].[Calendar].[Month]", "current", 50);
+        var token = ExternalOlapSchemaMapper.CreateContinuationToken(
+            scope,
+            "[Date].[Calendar].[Month].&[2024-02]");
 
         Assert.DoesNotContain("[Date]", token, StringComparison.Ordinal);
-        Assert.Equal(24, ExternalOlapSchemaMapper.ReadContinuationToken(token, scope));
+        Assert.Equal("[Date].[Calendar].[Month].&[2024-02]",
+            ExternalOlapSchemaMapper.ReadContinuationToken(token, scope));
         Assert.Throws<ArgumentException>(() =>
             ExternalOlapSchemaMapper.ReadContinuationToken(
                 token,
                 scope with { SearchText = "prior" }));
+        Assert.Throws<ArgumentException>(() =>
+            ExternalOlapSchemaMapper.ReadContinuationToken(
+                token,
+                scope with { CubeName = "Another Cube" }));
     }
 
     [Fact]
@@ -146,23 +158,26 @@ public sealed class ExternalOlapSchemaTests
     {
         var members = new[]
         {
-            Member("[Date].[Calendar].[Month].&[January]", "January", 0),
-            Member("[Date].[Calendar].[Month].&[February]", "February", 1),
-            Member("[Date].[Calendar].[Month].&[March]", "March", 2)
+            Member("[Date].[Calendar].[Month].&[A]", "January", 0),
+            Member("[Date].[Calendar].[Month].&[B]", "February", 0),
+            Member("[Date].[Calendar].[Month].&[C]", "March", 0)
         };
 
         var first = ExternalOlapSchemaMapper.SelectMemberPage(
-            members, pageSize: 2, searchText: null, maximumScannedRows: 10, afterOrdinal: null);
-        var remaining = members.Where(member => member.Ordinal > first.NextAfterOrdinal.GetValueOrDefault()).ToArray();
+            members, pageSize: 2, searchText: null, maximumScannedRows: 10, afterUniqueName: null);
+        var remaining = members
+            .Where(member => string.CompareOrdinal(member.UniqueName, first.NextAfterUniqueName) > 0)
+            .ToArray();
         var second = ExternalOlapSchemaMapper.SelectMemberPage(
             remaining, pageSize: 2, searchText: null, maximumScannedRows: 10,
-            afterOrdinal: first.NextAfterOrdinal);
+            afterUniqueName: first.NextAfterUniqueName);
 
         Assert.Equal(["January", "February"], first.Members.Select(member => member.Caption));
         Assert.True(first.HasMore);
-        Assert.Equal(1L, first.NextAfterOrdinal);
+        Assert.Equal("[Date].[Calendar].[Month].&[B]", first.NextAfterUniqueName);
         Assert.Equal("March", Assert.Single(second.Members).Caption);
         Assert.False(second.HasMore);
+        Assert.All(first.Members.Concat(second.Members), member => Assert.Equal(0, member.Ordinal));
     }
 
     [Fact]
@@ -170,24 +185,26 @@ public sealed class ExternalOlapSchemaTests
     {
         var members = new[]
         {
-            Member("[Date].[Calendar].[Relative Period].&[Prior Year]", "Prior Year", 0),
-            Member("[Date].[Calendar].[Relative Period].&[Prior Quarter]", "Prior Quarter", 1),
-            Member("[Date].[Calendar].[Relative Period].&[Current Month]", "Current Month", 2),
-            Member("[Date].[Calendar].[Relative Period].&[Next Month]", "Next Month", 3)
+            Member("[Date].[Calendar].[Relative Period].&[A]", "Prior Year", 0),
+            Member("[Date].[Calendar].[Relative Period].&[B]", "Prior Quarter", 0),
+            Member("[Date].[Calendar].[Relative Period].&[C]", "Current Month", 0),
+            Member("[Date].[Calendar].[Relative Period].&[D]", "Next Month", 0)
         };
 
         var first = ExternalOlapSchemaMapper.SelectMemberPage(
-            members, pageSize: 1, searchText: "current", maximumScannedRows: 2, afterOrdinal: null);
-        var remaining = members.Where(member => member.Ordinal > first.NextAfterOrdinal.GetValueOrDefault()).ToArray();
+            members, pageSize: 1, searchText: "current", maximumScannedRows: 2, afterUniqueName: null);
+        var remaining = members
+            .Where(member => string.CompareOrdinal(member.UniqueName, first.NextAfterUniqueName) > 0)
+            .ToArray();
         var second = ExternalOlapSchemaMapper.SelectMemberPage(
             remaining, pageSize: 1, searchText: "current", maximumScannedRows: 2,
-            afterOrdinal: first.NextAfterOrdinal);
+            afterUniqueName: first.NextAfterUniqueName);
 
         Assert.Empty(first.Members);
         Assert.True(first.HasMore);
-        Assert.Equal(1L, first.NextAfterOrdinal);
+        Assert.Equal("[Date].[Calendar].[Relative Period].&[B]", first.NextAfterUniqueName);
         var current = Assert.Single(second.Members);
-        Assert.Equal("[Date].[Calendar].[Relative Period].&[Current Month]", current.UniqueName);
+        Assert.Equal("[Date].[Calendar].[Relative Period].&[C]", current.UniqueName);
         Assert.Equal("Current Month", current.Caption);
         Assert.False(second.HasMore);
     }
@@ -197,12 +214,12 @@ public sealed class ExternalOlapSchemaTests
         values.ToDictionary(value => value.Name, value => value.Value, StringComparer.OrdinalIgnoreCase);
 
     private static ExternalOlapMemberInfo Member(string uniqueName, string caption, long ordinal) =>
-        new()
-        {
-            UniqueName = uniqueName,
-            Caption = caption,
-            Name = caption,
-            Ordinal = ordinal,
-            MemberType = 1
-        };
+        Assert.Single(ExternalOlapSchemaMapper.MapMembers(
+        [
+            Row(("MEMBER_UNIQUE_NAME", uniqueName),
+                ("MEMBER_CAPTION", caption),
+                ("MEMBER_NAME", caption),
+                ("MEMBER_ORDINAL", ordinal),
+                ("MEMBER_TYPE", 1))
+        ]));
 }

@@ -41,13 +41,23 @@ public partial class ConnectionCommands
             {
                 connection = GetExternalOlapConnection(ctx.Book, connectionName, out oledbConnection);
                 adoConnection = GetAdoConnection(connectionName, oledbConnection);
+                string cubeName = GetExternalOlapCubeName(connectionName, oledbConnection);
 
                 var dimensionRows = ExecuteSchemaQuery(
-                    adoConnection, "SELECT * FROM $SYSTEM.MDSCHEMA_DIMENSIONS", connectionName, ct);
+                    adoConnection,
+                    ExternalOlapSchemaMapper.BuildDimensionQuery(cubeName),
+                    connectionName,
+                    ct);
                 var hierarchyRows = ExecuteSchemaQuery(
-                    adoConnection, "SELECT * FROM $SYSTEM.MDSCHEMA_HIERARCHIES", connectionName, ct);
+                    adoConnection,
+                    ExternalOlapSchemaMapper.BuildHierarchyQuery(cubeName),
+                    connectionName,
+                    ct);
                 var levelRows = ExecuteSchemaQuery(
-                    adoConnection, "SELECT * FROM $SYSTEM.MDSCHEMA_LEVELS", connectionName, ct);
+                    adoConnection,
+                    ExternalOlapSchemaMapper.BuildLevelQuery(cubeName),
+                    connectionName,
+                    ct);
 
                 var mapped = ExternalOlapSchemaMapper.MapSchema(
                     connectionName,
@@ -91,15 +101,6 @@ public partial class ConnectionCommands
         }
 
         var normalizedSearch = string.IsNullOrWhiteSpace(searchText) ? null : searchText.Trim();
-        var scope = new OlapMemberSearchScope(
-            connectionName,
-            hierarchyUniqueName,
-            levelUniqueName,
-            normalizedSearch,
-            pageSize);
-        long? afterOrdinal = continuationToken is null
-            ? null
-            : ExternalOlapSchemaMapper.ReadContinuationToken(continuationToken, scope);
         var result = new ExternalOlapMemberSearchResult
         {
             FilePath = batch.WorkbookPath,
@@ -119,15 +120,26 @@ public partial class ConnectionCommands
             {
                 connection = GetExternalOlapConnection(ctx.Book, connectionName, out oledbConnection);
                 adoConnection = GetAdoConnection(connectionName, oledbConnection);
+                string cubeName = GetExternalOlapCubeName(connectionName, oledbConnection);
+                var scope = new OlapMemberSearchScope(
+                    connectionName,
+                    cubeName,
+                    hierarchyUniqueName,
+                    levelUniqueName,
+                    normalizedSearch,
+                    pageSize);
+                string? afterUniqueName = continuationToken is null
+                    ? null
+                    : ExternalOlapSchemaMapper.ReadContinuationToken(continuationToken, scope);
 
                 var hierarchyRows = ExecuteSchemaQuery(
                     adoConnection,
-                    ExternalOlapSchemaMapper.BuildHierarchyQuery(hierarchyUniqueName),
+                    ExternalOlapSchemaMapper.BuildHierarchyQuery(cubeName, hierarchyUniqueName),
                     connectionName,
                     ct);
                 var levelRows = ExecuteSchemaQuery(
                     adoConnection,
-                    ExternalOlapSchemaMapper.BuildLevelQuery(levelUniqueName),
+                    ExternalOlapSchemaMapper.BuildLevelQuery(cubeName, levelUniqueName),
                     connectionName,
                     ct);
                 var levelSchema = ExternalOlapSchemaMapper.MapSchema(
@@ -147,9 +159,10 @@ public partial class ConnectionCommands
                 var memberRows = ExecuteSchemaQuery(
                     adoConnection,
                     ExternalOlapSchemaMapper.BuildMembersQuery(
+                        cubeName,
                         hierarchyUniqueName,
                         levelUniqueName,
-                        afterOrdinal,
+                        afterUniqueName,
                         queryLimit),
                     connectionName,
                     ct);
@@ -159,7 +172,7 @@ public partial class ConnectionCommands
                     pageSize,
                     normalizedSearch,
                     MaximumOlapMemberRowsScanned,
-                    afterOrdinal);
+                    afterUniqueName);
 
                 result.Members = page.Members;
                 result.ReturnedCount = page.Members.Count;
@@ -168,8 +181,8 @@ public partial class ConnectionCommands
                 result.OmittedCount = totalCount.HasValue
                     ? Math.Max(0, totalCount.Value - page.Members.Count)
                     : null;
-                result.ContinuationToken = page.HasMore && page.NextAfterOrdinal.HasValue
-                    ? ExternalOlapSchemaMapper.CreateContinuationToken(scope, page.NextAfterOrdinal.Value)
+                result.ContinuationToken = page.HasMore && page.NextAfterUniqueName is not null
+                    ? ExternalOlapSchemaMapper.CreateContinuationToken(scope, page.NextAfterUniqueName)
                     : null;
                 result.Success = true;
                 return result;
@@ -251,6 +264,33 @@ public partial class ConnectionCommands
             throw new NotSupportedException(
                 $"Connection '{connectionName}' does not expose an Excel ADO session for OLAP schema discovery.");
         }
+    }
+
+    private static string GetExternalOlapCubeName(
+        string connectionName,
+        Excel.OLEDBConnection? oledbConnection)
+    {
+        if (oledbConnection is null || oledbConnection.CommandType != Excel.XlCmdType.xlCmdCube)
+        {
+            throw new InvalidOperationException(
+                $"Connection '{connectionName}' does not select an OLAP cube command.");
+        }
+
+        string? cubeName = oledbConnection.CommandText switch
+        {
+            string text => text.Trim(),
+            string[] { Length: 1 } text => text[0]?.Trim(),
+            object[] { Length: 1 } values =>
+                Convert.ToString(values[0], CultureInfo.InvariantCulture)?.Trim(),
+            _ => null
+        };
+        if (string.IsNullOrWhiteSpace(cubeName))
+        {
+            throw new InvalidOperationException(
+                $"Connection '{connectionName}' does not expose a selected OLAP cube name.");
+        }
+
+        return cubeName;
     }
 
     private static List<IReadOnlyDictionary<string, object?>> ExecuteSchemaQuery(

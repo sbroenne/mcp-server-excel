@@ -184,7 +184,7 @@ public sealed class ExternalOlapMemberInfo
     public string? Name { get; set; }
 
     /// <summary>
-    /// Provider ordinal used to continue bounded member reads.
+    /// Provider member ordinal, which may not be unique and is not used for paging.
     /// </summary>
     public long Ordinal { get; set; }
 
