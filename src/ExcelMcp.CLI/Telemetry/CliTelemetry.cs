@@ -42,12 +42,7 @@ internal static class CliTelemetry
         RoleInstance: $"instance-{UserId[..8]}",
         Version: GetVersion());
 
-    private static readonly DeferredTelemetrySink TelemetrySink = new(
-        CreateTelemetrySink,
-        // Creating the SDK takes a few hundred milliseconds; this is a generous bound.
-        initializationTimeout: TimeSpan.FromSeconds(5),
-        // The budget the flush always had; it now also covers disposing the SDK.
-        shutdownTimeout: TimeSpan.FromSeconds(2));
+    private static DeferredTelemetrySink TelemetrySink = CreateDeferredSink(CreateTelemetrySink);
     private static bool _enabled;
 
     /// <summary>
@@ -55,6 +50,30 @@ internal static class CliTelemetry
     /// so in-process callers such as tests never send telemetry.
     /// </summary>
     internal static void Enable() => Volatile.Write(ref _enabled, true);
+
+    /// <summary>
+    /// Routes telemetry to a fresh sink built by <paramref name="factory"/> until the
+    /// returned scope is disposed, which restores the previous sink and enabled state.
+    /// Lets entry-point tests observe whether telemetry is started. Callers must run in
+    /// a non-parallel test collection because the sink is process-wide.
+    /// </summary>
+    internal static IDisposable UseSinkFactoryForTesting(Func<ICliTelemetrySink?> factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        var previousSink = TelemetrySink;
+        var previousEnabled = Volatile.Read(ref _enabled);
+        TelemetrySink = CreateDeferredSink(factory);
+        return new TestSinkScope(previousSink, previousEnabled);
+    }
+
+    private static DeferredTelemetrySink CreateDeferredSink(Func<ICliTelemetrySink?> factory)
+    {
+        // Creating the SDK takes a few hundred milliseconds; this is a generous bound.
+        var initializationTimeout = TimeSpan.FromSeconds(5);
+        // The budget the flush always had; it now also covers disposing the SDK.
+        var shutdownTimeout = TimeSpan.FromSeconds(2);
+        return new DeferredTelemetrySink(factory, initializationTimeout, shutdownTimeout);
+    }
 
     internal static async Task<ServiceResponse> TrackCommandAsync(
         ServiceRequest request,
@@ -466,6 +485,16 @@ internal static class CliTelemetry
         catch (Exception)
         {
             return Guid.NewGuid().ToString("N")[..16];
+        }
+    }
+
+    private sealed class TestSinkScope(DeferredTelemetrySink previousSink, bool previousEnabled)
+        : IDisposable
+    {
+        public void Dispose()
+        {
+            TelemetrySink = previousSink;
+            Volatile.Write(ref _enabled, previousEnabled);
         }
     }
 
