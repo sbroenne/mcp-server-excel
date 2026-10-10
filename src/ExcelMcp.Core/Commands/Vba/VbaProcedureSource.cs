@@ -146,7 +146,7 @@ internal static class VbaProcedureSource
             current.Append(code);
             if (!continues)
             {
-                statements.Add(current.ToString());
+                statements.AddRange(SplitStatements(current.ToString()));
                 current.Clear();
             }
         }
@@ -157,6 +157,39 @@ internal static class VbaProcedureSource
         }
 
         return statements;
+    }
+
+    private static IEnumerable<string> SplitStatements(string line)
+    {
+        bool inString = false;
+        int start = 0;
+        for (int index = 0; index <= line.Length; index++)
+        {
+            if (index < line.Length && line[index] == '"')
+            {
+                if (inString && index + 1 < line.Length && line[index + 1] == '"')
+                {
+                    index++;
+                }
+                else
+                {
+                    inString = !inString;
+                }
+            }
+            else if (index == line.Length || line[index] == ':' && !inString)
+            {
+                string statement = line[start..index].Trim();
+                if (Regex.IsMatch(statement, @"^Rem(?:\s|$)", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+                {
+                    yield break;
+                }
+                if (statement.Length > 0)
+                {
+                    yield return statement;
+                }
+                start = index + 1;
+            }
+        }
     }
 
     private static string RemoveComment(string line)

@@ -47,11 +47,30 @@ public sealed class VbaProcedureSourceTests
     [InlineData("Sub First()\nEnd Sub\nSub Second()\nEnd Sub")]
     [InlineData("Sub First()\nEnd Function")]
     [InlineData("Option Explicit\nSub First()\nEnd Sub")]
+    [InlineData("Public Sub KeepMe()\nEnd Sub: Public Sub Extra()\nEnd Sub")]
+    [InlineData("Public Sub KeepMe(): End Sub: Public Sub Extra()\nEnd Sub")]
+    [InlineData("Public Sub KeepMe()\nDebug.Print \"text\": End Sub: Public Sub Extra()\nEnd Sub")]
     public void ParseSingleProcedure_AnythingBeyondOneProcedure_Throws(
         string source)
     {
         Assert.Throws<ArgumentException>(
             () => VbaProcedureSource.ParseSingleProcedure(source));
+    }
+
+    [Fact]
+    public void ParseSingleProcedure_ColonsInStatementsStringsAndComments_AcceptsOneProcedure()
+    {
+        const string source = """
+            Public Sub KeepMe()
+                Debug.Print "End Sub: Public Sub Extra()": Debug.Print "quoted "" : "" text"
+                ' End Sub: Public Sub Extra()
+                Debug.Print "ok": Rem End Sub: Public Sub Extra()
+            End Sub
+            """;
+
+        var result = VbaProcedureSource.ParseSingleProcedure(source);
+        Assert.Equal("KeepMe", result.Name);
+        Assert.Equal("Sub", result.Kind);
     }
 
     [Fact]

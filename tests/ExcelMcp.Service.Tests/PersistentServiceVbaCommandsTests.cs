@@ -372,12 +372,13 @@ End Sub";
                 null)).Code);
     }
 
-    [Fact]
-    public async Task ScriptCommands_ReplaceProcedure_RejectsExtraProcedureWithoutChangingTarget()
+    [Theory]
+    [InlineData("Public Sub KeepMe()\nEnd Sub\nPublic Sub Extra()\nEnd Sub")]
+    [InlineData("Public Sub KeepMe()\nEnd Sub: Public Sub Extra()\nEnd Sub")]
+    public async Task ScriptCommands_ReplaceProcedure_RejectsExtraProcedureWithoutChangingTarget(string invalidReplacement)
     {
         const string moduleName = "InvalidProcedureModule";
         const string original = "Public Sub KeepMe()\nEnd Sub";
-        const string invalidReplacement = "Public Sub KeepMe()\nEnd Sub\nPublic Sub Extra()\nEnd Sub";
 
         var batch = _fixture.BatchToken;
         Import(batch, moduleName, original);

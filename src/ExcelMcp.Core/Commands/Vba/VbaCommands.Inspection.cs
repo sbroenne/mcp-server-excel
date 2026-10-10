@@ -39,6 +39,10 @@ public partial class VbaCommands
                     AccessMessage = VbaTrustErrorMessage
                 };
             }
+            catch (COMException ex) when (ex.ErrorCode == GenericOfficeAutomationError)
+            {
+                throw new InvalidOperationException(BuildGenericComErrorMessage(ex), ex);
+            }
             finally
             {
                 ComUtilities.Release(ref project);
@@ -84,6 +88,10 @@ public partial class VbaCommands
             catch (COMException ex) when (IsVbaTrustError(ex))
             {
                 throw new OperationFailureException(OperationFailureCategory.Permissions, VbaTrustErrorMessage, ex);
+            }
+            catch (COMException ex) when (ex.ErrorCode == GenericOfficeAutomationError)
+            {
+                throw new InvalidOperationException(BuildGenericComErrorMessage(ex), ex);
             }
             finally
             {
@@ -207,6 +215,10 @@ public partial class VbaCommands
             catch (COMException ex) when (IsVbaTrustError(ex))
             {
                 throw new OperationFailureException(OperationFailureCategory.Permissions, VbaTrustErrorMessage, ex);
+            }
+            catch (COMException ex) when (ex.ErrorCode == GenericOfficeAutomationError)
+            {
+                throw new InvalidOperationException(BuildGenericComErrorMessage(ex), ex);
             }
             finally
             {
