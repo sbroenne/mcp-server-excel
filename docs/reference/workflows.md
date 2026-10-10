@@ -18,7 +18,14 @@ guide needed for an unresolved decision.
 
 MCP has no equivalent batch tool: await dependent calls. CLI batch avoids
 repeated process startup for a known sequence. It is not a transaction.
-Use individual commands when the next step needs inspection.
+Use individual commands when the next step needs inspection, or use
+`excelcli -q batch --stream` with a caller that can retain the process, read each
+result, and send the next command through its open stdin.
+
+Incremental mode consumes one complete NDJSON object per line and flushes each
+result immediately. It accepts stdin only; ordinary batch keeps its complete
+file/array input behavior. Closing streaming stdin ends the client, leaving
+workbook sessions open. It does not automatically save or close them.
 
 Batch commands use the same group and action names as the CLI
 (`group.action`, for example `worksheetstyle.set-tab-color`). Arguments use

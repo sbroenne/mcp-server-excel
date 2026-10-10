@@ -191,6 +191,26 @@ example, a `powerquery refresh-all` where one query failed), so scripts can
 check `$LASTEXITCODE`. In `batch` output, such a line has `success: false`, and
 `--stop-on-error` stops there.
 
+### Incremental batch input
+
+`excelcli -q batch --stream` keeps one client running for dependent commands.
+Send one complete JSON object per line on stdin; each result is flushed as one
+NDJSON line before the client waits for the next command. The caller can inspect
+that result and choose the next command while keeping stdin open. Closing stdin
+ends the client; it does not save or close open workbook sessions.
+
+Use the same `group.action`, camelCase argument names, session selection, and
+`--stop-on-error` policy as ordinary batch. `--stream` accepts stdin only
+(`--input -` is also allowed); JSON arrays and multiline objects are not valid
+stream entries. Blank lines are ignored. Failed entries produce indexed error
+results, and the final exit code is nonzero if any entry failed. Cancellation
+ends the invocation. Inspect any partial workbook changes before continuing.
+
+Without `--stream`, batch still reads the complete input before executing.
+An agent needs process tools that can write further input and read output from
+a retained process to use incremental mode. Discover unfamiliar command syntax
+with normal `--help`; streaming input does not add a help action.
+
 ### CI/CD Integration
 
 Excel COM requires a self-hosted Windows runner with desktop Excel installed; GitHub-hosted runners do not include Excel.
