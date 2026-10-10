@@ -100,9 +100,10 @@ also constrain source changes.
 
 ---
 
-## Data Connections (14 operations)
+## Data Connections (16 operations)
 
 - **Connect existing sources:** Create, inspect, and maintain supported OLEDB or ODBC workbook connections.
+- **Inspect external OLAP schemas:** Discover dimensions, hierarchies, and levels on a selected existing OLAP connection, then search or page through level members using unique names and display captions.
 - **Refresh and troubleshoot:** Test access, refresh data, inspect active refresh state, or cancel a supported refresh.
 - **Manage loads:** Load supported connections to worksheets or remove their associated load objects.
 - **Manage account settings:** Inspect, set selected sign-in settings, or remove a selected MSOLAP connection's saved account hint without clearing shared credentials.
@@ -111,7 +112,10 @@ The appropriate provider or driver must be installed. Power Query connections
 use Power Query behavior rather than ordinary OLEDB/ODBC connection handling.
 Connection details can contain credentials: do not publish them in reports or
 error summaries. Use direct text/web imports for simple imports and Power Query
-for transformations and modern connectors.
+for transformations and modern connectors. External OLAP schema discovery uses
+the selected connection's existing Excel authentication context; it does not
+refresh data, change PivotTable filters, save the workbook, or inspect the
+embedded Data Model.
 
 [Choosing an import workflow](../reference/querytable.md) |
 [Safe access and error handling](../reference/behavioral-rules.md)

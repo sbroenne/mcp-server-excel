@@ -64,6 +64,27 @@ public sealed partial class PersistentServiceConnectionTests
     }
 
     [Fact]
+    public void DiscoverOlapSchema_OdbcConnection_ReportsUnsupportedProviderWithoutExposingCredentials()
+    {
+        var connectionName = UniqueConnectionName("UnsupportedSchema");
+        const string secret = "schema-discovery-test-secret";
+        RequireSuccess(_connections.Create(
+            _fixture.BatchToken,
+            connectionName,
+            $@"ODBC;DSN=UnsupportedSchema;UID=test-user;PWD={secret}"));
+        _fixture.RegisterConnectionForCleanup(connectionName);
+        var retained = SeedRetainedConnection();
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            _connections.DiscoverOlapSchema(_fixture.BatchToken, connectionName));
+
+        Assert.Contains("external OLAP", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain(secret, error.Message, StringComparison.Ordinal);
+        AssertRetainedConnection(retained);
+        Assert.DoesNotContain(secret, ReadNativeConnection(connectionName).Source, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Create_DuplicateName_CreatesSecondConnection()
     {
         var connectionName = UniqueConnectionName("DuplicateTest");

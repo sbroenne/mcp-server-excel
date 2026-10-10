@@ -5,15 +5,15 @@ using Sbroenne.ExcelMcp.Core.Models;
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
 /// <summary>
-/// Data connections (OLEDB, ODBC, ODC import).
+/// Data connections (OLEDB, ODBC, ODC import) and read-only external OLAP schema discovery.
 /// TEXT/WEB/CSV: Use querytable for direct local imports or powerquery for transformations.
 /// Power Query connections auto-redirect to powerquery.
 /// TIMEOUT: Refresh accepts a caller timeout; load-to uses the 30-minute data-operation timeout.
 /// </summary>
 [ServiceCategory("Connection")]
 [McpTool("connection", Title = "Data Connection Operations", Destructive = true, Category = "query",
-    Description = "Create, change, import, delete, load, refresh, and cancel refreshes for data connections (OLEDB, ODBC, ODC import). Use querytable for direct text/web/CSV imports or powerquery for transformations. Power Query connections redirect by exact mashup Location identity. Delete/load-to cleanup follows the exact WorkbookConnection and preserves unrelated similarly named QueryTables. OLAP/MSOLAP connections refresh synchronously; background mode cannot be enabled. Refresh cancellation uses typed OLEDB/ODBC helpers. Refresh accepts a caller timeout; load-to uses the 30-minute data-operation timeout.")]
-[McpReadOnlyActions("list", "view", "test", "get-refresh-status", "get-properties", "get-account-settings")]
+    Description = "Create, change, import, delete, load, refresh, and cancel refreshes for data connections (OLEDB, ODBC, ODC import). Discover external OLAP dimensions, hierarchies, levels, and bounded member pages through an existing connection without refreshing data. Use querytable for direct text/web/CSV imports or powerquery for transformations. Power Query connections redirect by exact mashup Location identity. Delete/load-to cleanup follows the exact WorkbookConnection and preserves unrelated similarly named QueryTables. OLAP/MSOLAP connections refresh synchronously; background mode cannot be enabled. Refresh cancellation uses typed OLEDB/ODBC helpers. Refresh accepts a caller timeout; load-to uses the 30-minute data-operation timeout.")]
+[McpReadOnlyActions("list", "view", "test", "get-refresh-status", "get-properties", "get-account-settings", "discover-olap-schema", "search-olap-members")]
 public interface IConnectionCommands
 {
     /// <summary>
@@ -21,6 +21,46 @@ public interface IConnectionCommands
     /// </summary>
     [ServiceAction("list")]
     ConnectionListResult List(IExcelBatch batch);
+
+    /// <summary>
+    /// Discovers dimensions, hierarchies, and levels exposed by an existing external OLAP workbook connection.
+    /// Uses the connection's current Excel authentication context and does not refresh data or modify the workbook.
+    /// Embedded Data Model connections, Power Query connections, and non-OLAP providers are unsupported.
+    /// Unique names are returned separately from provider display captions. Connection strings and credentials are never returned.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="connectionName">Exact name of the existing external OLAP workbook connection</param>
+    /// <param name="hierarchyUniqueName">Optional exact provider hierarchy unique name filter</param>
+    /// <param name="levelUniqueName">Optional exact provider level unique name filter; must belong to the selected hierarchy when one is supplied</param>
+    [ServiceAction("discover-olap-schema")]
+    ExternalOlapSchemaResult DiscoverOlapSchema(
+        IExcelBatch batch,
+        [RequiredParameter, FromString("connectionName")] string connectionName,
+        string? hierarchyUniqueName = null,
+        string? levelUniqueName = null);
+
+    /// <summary>
+    /// Searches or lists a bounded page of members at an external OLAP hierarchy level.
+    /// Uses the existing workbook connection's Excel authentication context without refreshing or changing PivotTable filters.
+    /// Queries are scoped to the cube selected by the workbook connection. Continuation tokens are opaque and bound to the connection, cube, hierarchy, level, search text, and page size.
+    /// Provider totals are returned when available; totals for text-filtered searches may be unknown.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="connectionName">Exact name of the existing external OLAP workbook connection</param>
+    /// <param name="hierarchyUniqueName">Exact provider hierarchy unique name</param>
+    /// <param name="levelUniqueName">Exact provider level unique name in that hierarchy</param>
+    /// <param name="searchText">Optional case-insensitive text filter for member names, captions, and unique names</param>
+    /// <param name="continuationToken">Opaque token returned by a previous page request for the same query</param>
+    /// <param name="pageSize">Number of matching members to return, from 1 through 250; defaults to 100</param>
+    [ServiceAction("search-olap-members")]
+    ExternalOlapMemberSearchResult SearchOlapMembers(
+        IExcelBatch batch,
+        [RequiredParameter, FromString("connectionName")] string connectionName,
+        [RequiredParameter] string hierarchyUniqueName,
+        [RequiredParameter] string levelUniqueName,
+        string? searchText = null,
+        string? continuationToken = null,
+        int pageSize = 100);
 
     /// <summary>
     /// Views detailed connection information

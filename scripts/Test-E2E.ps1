@@ -7,9 +7,13 @@
     Builds the Release solution unless -SkipBuild is supplied, then runs:
     1. Independent CLI workflow scenarios.
     2. Independent MCP workflow scenarios.
+    3. External OLAP cube tests (schema discovery and PivotTables) through the Service boundary.
 
-    Defaults to all stages. A focused -Stages run is not complete acceptance.
-    The script fails if any gate fails or if a required filter matches no tests.
+    Defaults to all stages. The OLAP stage uses EXCELMCP_TEST_OLAP_* when set;
+    otherwise it starts the synthetic Atoti cube via Start-OlapTestCube.ps1
+    (requires Python) and stops it afterwards.
+    A focused -Stages run is not complete acceptance. The script fails if any
+    gate fails or if a required filter matches no tests.
 
 .EXAMPLE
     & .\scripts\Test-E2E.ps1
@@ -20,7 +24,7 @@ param(
     [switch]$SkipBuild,
     [string]$PipeName,
     [ValidateNotNullOrEmpty()]
-    [ValidateSet('Cli', 'Mcp')][string[]]$Stages = @('Cli', 'Mcp'),
+    [ValidateSet('Cli', 'Mcp', 'Olap')][string[]]$Stages = @('Cli', 'Mcp', 'Olap'),
     [string]$ResultsDirectory,
     [switch]$KeepCliFiles
 )
@@ -29,6 +33,7 @@ $ErrorActionPreference = 'Stop'
 $rootDir = Split-Path -Parent $PSScriptRoot
 $cliTestProject = Join-Path $rootDir 'tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj'
 $mcpTestProject = Join-Path $rootDir 'tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj'
+$serviceTestProject = Join-Path $rootDir 'tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj'
 . (Join-Path $PSScriptRoot 'Invoke-TestStage.ps1')
 if (-not $ResultsDirectory) { $ResultsDirectory = Join-Path $rootDir "TestResults\e2e-$([Guid]::NewGuid().ToString('N'))" }
 $previousPipeName = $env:EXCELMCP_CLI_PIPE
@@ -40,6 +45,7 @@ else {
 }
 $env:EXCELMCP_CLI_PIPE = $selectedPipeName
 $failures = [Collections.Generic.List[Exception]]::new()
+$olapCube = $null
 
 Push-Location $rootDir
 try {
@@ -75,6 +81,18 @@ try {
                 $parameters.DeadlineSeconds = 900
                 $parameters.HangTimeout = '15m'
             }
+            'Olap' {
+                $olapSettings = @($env:EXCELMCP_TEST_OLAP_CONNECTION_STRING, $env:EXCELMCP_TEST_OLAP_CUBE,
+                    $env:EXCELMCP_TEST_OLAP_HIERARCHY, $env:EXCELMCP_TEST_OLAP_LEVEL)
+                if (@($olapSettings | Where-Object { [string]::IsNullOrWhiteSpace($_) }).Count -gt 0) {
+                    $olapCube = & (Join-Path $PSScriptRoot 'Start-OlapTestCube.ps1')
+                    foreach ($key in $olapCube.Settings.Keys) { $parameters.Environment[$key] = $olapCube.Settings[$key] }
+                }
+                $parameters.Project = $serviceTestProject
+                $parameters.Filter = 'RequiresExcel=true&FullyQualifiedName~PersistentServiceConnectionTests.ExternalOlap'
+                $parameters.DeadlineSeconds = 600
+                $parameters.HangTimeout = '5m'
+            }
         }
         & (Join-Path $PSScriptRoot 'Stop-ExcelCliService.ps1') -PipeName $selectedPipeName
         if ($LASTEXITCODE -ne 0) { throw "Owned CLI cleanup failed before $stage acceptance." }
@@ -92,6 +110,13 @@ finally {
     }
     catch { $failures.Add($_.Exception) }
     finally {
+        if ($olapCube -and -not $olapCube.Process.HasExited) {
+            # Atoti runs Python and Java child processes; stop the whole owned tree by PID.
+            taskkill.exe /PID $olapCube.Process.Id /T /F | Out-Null
+            if ($LASTEXITCODE -ne 0 -and -not $olapCube.Process.HasExited) {
+                $failures.Add([InvalidOperationException]::new("OLAP test cube cleanup failed for PID $($olapCube.Process.Id)."))
+            }
+        }
         if ($null -eq $previousPipeName) {
             Remove-Item Env:EXCELMCP_CLI_PIPE -ErrorAction SilentlyContinue
         }
