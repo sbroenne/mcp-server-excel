@@ -25,6 +25,19 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 public sealed class GeneratedActionContractTests
 {
     [Theory]
+    [InlineData("""{"precisionAsDisplayed":false}""", false)]
+    [InlineData("""{"precisionAsDisplayed":false,"allowPrecisionLoss":null}""", false)]
+    [InlineData("""{"precisionAsDisplayed":false,"allowPrecisionLoss":false}""", false)]
+    [InlineData("""{"precisionAsDisplayed":false,"allowPrecisionLoss":true}""", true)]
+    public void OptionalBooleanDispatch_AppliesDefaultOnlyAfterActionValidation(string argsJson, bool expected)
+    {
+        var (commands, proxy) = CreateProxy<ICalculationModeCommands>();
+        ServiceRegistry.CalculationMode.DispatchToCore(commands, CalculationModeAction.SetPrecision, null!, argsJson);
+        Assert.Equal(1, proxy.CallCount);
+        Assert.Equal(expected, proxy.LastArguments![2]);
+    }
+
+    [Theory]
     [InlineData("rename", "oldName", "")]
     [InlineData("rename", "oldName", "   ")]
     [InlineData("copy", "sourceName", "")]

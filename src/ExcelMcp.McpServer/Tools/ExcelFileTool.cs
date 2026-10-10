@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
+using Sbroenne.ExcelMcp.Core.Attributes;
 using Sbroenne.ExcelMcp.Core.Utilities;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tools;
@@ -10,21 +11,6 @@ namespace Sbroenne.ExcelMcp.McpServer.Tools;
 [McpServerToolType]
 public static partial class ExcelFileTool
 {
-    internal static void ValidateActionParameters(string toolName, string action, IEnumerable<string> names)
-    {
-        string[] allowed = (toolName, action) switch
-        {
-            ("file", "open" or "create") => ["action", "file_path", "show", "timeout_seconds"],
-            ("file", "close") => ["action", "workbook_session_id", "save"],
-            ("file_read", "test") => ["action", "file_path", "timeout_seconds"],
-            ("file_read", "list") => ["action"],
-            _ => throw new ArgumentException("Unknown file action.")
-        };
-        var invalid = names.Except(allowed, StringComparer.Ordinal).ToArray();
-        if (invalid.Length > 0)
-            throw new ArgumentException($"Parameter(s) {string.Join(", ", invalid)} are not valid for {toolName} '{action}'.");
-    }
-
     /// <summary>
     /// Open/create workbooks and manage their sessions.
     /// Reuse the intended workbook's existing session or open/create one, then operate and close when authorized.
@@ -55,11 +41,13 @@ public static partial class ExcelFileTool
     public static partial Task<CallToolResult> ExcelFile(
         FileWriteAction action,
         ServiceBridge.ServiceBridge bridge,
+        [McpActionParameter("open", Required = true), McpActionParameter("create", Required = true)]
         [DefaultValue(null)] string? file_path,
+        [McpActionParameter("close", Required = true)]
         [DefaultValue(null)] string? workbook_session_id,
-        [DefaultValue(false)] bool save,
-        [DefaultValue(false)] bool show,
-        [DefaultValue(120)] int timeout_seconds,
+        [McpActionParameter("close"), DefaultValue(false)] bool save,
+        [McpActionParameter("open"), McpActionParameter("create"), DefaultValue(false)] bool show,
+        [McpActionParameter("open"), McpActionParameter("create"), DefaultValue(120)] int timeout_seconds,
         CancellationToken cancellationToken = default) =>
         ExecuteFileToolActionAsync(
             "file",
@@ -93,8 +81,8 @@ public static partial class ExcelFileTool
     public static partial Task<CallToolResult> ExcelFileRead(
         FileReadAction action,
         ServiceBridge.ServiceBridge bridge,
-        [DefaultValue(null)] string? file_path,
-        [DefaultValue(120)] int timeout_seconds = 120,
+        [McpActionParameter("test", Required = true), DefaultValue(null)] string? file_path,
+        [McpActionParameter("test"), DefaultValue(120)] int timeout_seconds = 120,
         CancellationToken cancellationToken = default) =>
         ExecuteFileToolActionAsync(
             "file_read",

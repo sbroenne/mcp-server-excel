@@ -44,28 +44,20 @@ internal static class ToolArgumentFilter
                         throw new ArgumentException($"Parameter '{name}' is required.");
                 }
 
-                if (tool.ProtocolTool.Name is "file" or "file_read")
+                McpActionContract.ValidateParameters(tool.ProtocolTool.Name, canonicalAction, arguments.Keys);
+                foreach (var parameter in McpActionContract.GetParameters(tool.ProtocolTool.Name, canonicalAction)
+                    .Where(parameter => parameter.Required))
                 {
-                    ExcelFileTool.ValidateActionParameters(tool.ProtocolTool.Name, canonicalAction, arguments.Keys);
-                }
-                else
-                {
-                    var names = arguments.Keys.Where(name => name is not ("action" or "workbook_session_id")).ToArray();
-                    try
-                    {
-                        ServiceRegistry.ValidateMcpActionParameters(
-                            tool.ProtocolTool.Name is "worksheet" or "worksheet_read"
-                                ? ServiceRegistry.Sheet.McpToolName
-                                : tool.ProtocolTool.Name,
-                            canonicalAction, names);
-                    }
-                    catch (ArgumentException ex)
-                    {
-                        throw new ArgumentException($"{ex.Message} Supplied MCP parameters: {string.Join(", ", names)}.");
-                    }
-                    if (tool.ProtocolTool.Name == "worksheet" && canonicalAction is "copy-to-file" or "move-to-file"
-                        && arguments.ContainsKey("workbook_session_id"))
-                        throw new ArgumentException("workbook_session_id is not used by atomic cross-file worksheet actions.");
+                    if (arguments.TryGetValue(parameter.Name, out var value) && value.ValueKind != JsonValueKind.Null)
+                        continue;
+                    if (parameter.Alternative is not null &&
+                        arguments.TryGetValue(parameter.Alternative, out var alternative) && alternative.ValueKind != JsonValueKind.Null)
+                        continue;
+                    var input = parameter.Alternative is null
+                        ? $"Parameter '{parameter.Name}'"
+                        : $"One of '{parameter.Name}' or '{parameter.Alternative}'";
+                    throw new ArgumentException(
+                        $"{input} is required for {tool.ProtocolTool.Name}.{canonicalAction}.");
                 }
             }
             catch (ArgumentException ex)

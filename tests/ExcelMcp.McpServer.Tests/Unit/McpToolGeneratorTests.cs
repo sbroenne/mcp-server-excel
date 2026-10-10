@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Sbroenne.ExcelMcp.Generators.Common;
 using Sbroenne.ExcelMcp.Generators.Mcp;
 using Xunit;
 
@@ -13,6 +14,49 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 [Trait("Speed", "Fast")]
 public sealed class McpToolGeneratorTests
 {
+    [Fact]
+    public void SharedToolContract_ProjectsTimeoutsAndRequirednessOnce()
+    {
+        var source = """
+            using System;
+            public sealed class ServiceCategoryAttribute(string name) : Attribute;
+            public sealed class McpToolAttribute(string name) : Attribute;
+            public sealed class RequiredParameterAttribute : Attribute;
+            [ServiceCategory("sample"), McpTool("sample")]
+            public interface ISampleCommands
+            {
+                string Refresh([RequiredParameter] int? limit = null, TimeSpan? timeout = null);
+            }
+            """;
+        var runtimeDirectory = Path.GetDirectoryName(typeof(object).Assembly.Location)!;
+        var references = new[]
+        {
+            MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
+            MetadataReference.CreateFromFile(Path.Combine(runtimeDirectory, "System.Runtime.dll"))
+        };
+        var compilation = CSharpCompilation.Create(
+            "SharedToolContractTests",
+            [CSharpSyntaxTree.ParseText(source)],
+            references,
+            new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        var interfaceSymbol = compilation.GetTypeByMetadataName("ISampleCommands");
+        Assert.NotNull(interfaceSymbol);
+
+        var serviceInfo = ServiceInfoExtractor.ExtractServiceInfo(interfaceSymbol);
+        Assert.NotNull(serviceInfo);
+        var parameters = ServiceInfoExtractor.GetAllExposedParameters(serviceInfo);
+
+        var limit = Assert.Single(parameters, parameter => parameter.Name == "limit");
+        Assert.Equal("int?", limit.TypeName);
+        Assert.Contains("refresh", limit.RequiredByActions);
+        Assert.Contains("refresh", limit.ApplicableByActions);
+
+        var timeout = Assert.Single(parameters, parameter => parameter.Name == "timeoutSeconds");
+        Assert.Equal("int?", timeout.TypeName);
+        Assert.Empty(timeout.RequiredByActions);
+        Assert.Contains("refresh", timeout.ApplicableByActions);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
