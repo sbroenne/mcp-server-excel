@@ -8,6 +8,8 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 [Trait("Feature", "PreCommit")]
 public sealed class ValidationAreaTests
 {
+    private static readonly string[] ToolingOwners = ["Packaging", "ScriptSafety", "SkillGeneration"];
+
     [Theory]
     [InlineData("tests/AGENTS.md", "")]
     [InlineData("tests/README.md", "")]
@@ -175,8 +177,15 @@ public sealed class ValidationAreaTests
     [Fact]
     public async Task FullSelection_PreservesAllLanguagesAndPerProjectFilters()
     {
-        var result = await ValidationSelectionTests.RunAsync("""
+        var catalog = new TestCatalog(TypedValidationPolicyTests.Root);
+        var expectedFilters = ToolingOwners
+            .ToDictionary(owner => owner, owner => string.Join('|', catalog.ForOwner(owner)
+                .Where(type => type.ExcelFree && !type.System)
+                .Select(type => type.FullName).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
+                .Select(name => $"FullyQualifiedName~{name}.")));
+        var result = await ValidationSelectionTests.RunAsync($$"""
             $plan = Get-ValidationPlan -Full
+            $expectedFilters = '{{System.Text.Json.JsonSerializer.Serialize(expectedFilters)}}' | ConvertFrom-Json -AsHashtable
             if (($plan.CodeQlLanguages -join ',') -ne 'actions,csharp,javascript-typescript,python') {
                 throw 'Full language coverage lost.'
             }
@@ -185,7 +194,9 @@ public sealed class ValidationAreaTests
                 if (-not $plan.ToolingFilters[$owner]) { throw "$owner has no selected cases." }
             }
             foreach ($project in $plan.ToolingProjects) {
-                if ($plan.ToolingFilters.$project -ne 'RequiresExcel=false') { throw 'Full tooling selection narrowed.' }
+                if ($plan.ToolingFilters.$project -cne $expectedFilters[$project]) {
+                    throw "Full tooling selection lost or added cases for $project."
+                }
             }
             foreach ($component in @('Cli','Mcp','Extension','Mcpb','Skills','Plugins')) {
                 if (-not $plan.$component) { throw "Missing $component package." }
