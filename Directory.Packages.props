@@ -19,11 +19,11 @@
     <!-- Application Insights Worker Service SDK for telemetry (Users, Sessions, Funnels, User Flows) -->
     <!-- Worker Service SDK provides proper DI integration, auto-collection modules, and host lifetime awareness -->
     <PackageVersion Include="Microsoft.ApplicationInsights.WorkerService" Version="3.1.2" />
-    <!-- Base SDK needed for tests that directly use TelemetryClient -->
+    <!-- Base SDK: the CLI uses only its EventTelemetry/RequestTelemetry data types -->
     <PackageVersion Include="Microsoft.ApplicationInsights" Version="3.1.2" />
     <PackageVersion Include="OpenTelemetry.Api" Version="1.18.0" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.18.0" />
-    <!-- Test-only: verifies dropped-metric View configuration in ExcelMcp.McpServer.Tests -->
+    <!-- CLI telemetry SDK; also verifies dropped-metric View configuration in ExcelMcp.McpServer.Tests -->
     <PackageVersion Include="OpenTelemetry" Version="1.18.0" />
     <PackageVersion Include="OpenTelemetry.Exporter.InMemory" Version="1.18.0" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.18.0" />

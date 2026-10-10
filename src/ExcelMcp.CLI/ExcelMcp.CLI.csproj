@@ -75,7 +75,11 @@
   <ItemGroup>
     <PackageReference Include="Spectre.Console" />
     <PackageReference Include="Spectre.Console.Cli" />
+    <!-- Microsoft.ApplicationInsights supplies the EventTelemetry/RequestTelemetry data types only;
+         CLI telemetry is sent through OpenTelemetry and the Azure Monitor exporter. -->
     <PackageReference Include="Microsoft.ApplicationInsights" />
+    <PackageReference Include="OpenTelemetry" />
+    <PackageReference Include="Azure.Monitor.OpenTelemetry.Exporter" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">
       <PrivateAssets>all</PrivateAssets>

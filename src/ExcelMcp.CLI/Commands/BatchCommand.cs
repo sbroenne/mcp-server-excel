@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Telemetry;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Generated;
 using Sbroenne.ExcelMcp.Service;
 using Spectre.Console.Cli;
@@ -33,10 +34,19 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         [CommandOption("--stop-on-error")]
         [Description("Stop execution on first error (default: continue all commands).")]
         public bool StopOnError { get; init; }
+
+        [CommandOption("--stream")]
+        [Description("Process stdin incrementally: one JSON command per line, one flushed result per command. Waits for more commands until EOF. Cannot be combined with an input file.")]
+        public bool Stream { get; init; }
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
+        if (settings.Stream)
+        {
+            return await ExecuteStreamingAsync(settings, cancellationToken);
+        }
+
         // Read commands from file or stdin
         List<BatchEntry> commands;
         try
@@ -111,7 +121,6 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         for (int i = 0; i < commands.Count; i++)
         {
             var cmd = commands[i];
-            var sessionId = cmd.SessionId ?? activeSession;
             if (validationErrors.TryGetValue(i, out var validationError))
             {
                 WriteValidationError(i, cmd.Command, validationError);
@@ -123,65 +132,9 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
                 }
                 continue;
             }
-            var argsJson = cmd.Args.HasValue && cmd.Args.Value.ValueKind != JsonValueKind.Undefined
-                ? cmd.Args.Value.GetRawText()
-                : null;
-
-            // Build the service request
-            var request = new ServiceRequest
-            {
-                Command = cmd.Command,
-                SessionId = sessionId,
-                Args = argsJson,
-                Source = "cli-batch"
-            };
-
-            ServiceResponse response;
-            try
-            {
-                response = await CliTelemetry.TrackCommandAsync(
-                    request,
-                    () => client.SendAsync(request, cancellationToken));
-            }
-            catch (Exception ex)
-            {
-                response = new ServiceResponse { Success = false, ErrorMessage = $"Communication error: {ex.Message}" };
-            }
-
-            // Auto-capture sessionId from session.open/create results
-            if (response.Success && activeSession == null &&
-                (cmd.Command.Equals("session.open", StringComparison.OrdinalIgnoreCase) ||
-                 cmd.Command.Equals("session.create", StringComparison.OrdinalIgnoreCase)))
-            {
-                activeSession = TryExtractSessionId(response.Result);
-            }
-
-            // Auto-clear session on session.close
-            if (response.Success &&
-                cmd.Command.Equals("session.close", StringComparison.OrdinalIgnoreCase) &&
-                string.Equals(sessionId, activeSession, StringComparison.OrdinalIgnoreCase))
-            {
-                activeSession = null;
-            }
-
-            // Output result as NDJSON line. A delivered result reporting success:false
-            // is a failed item, matching single-command exit codes and MCP isError.
-            var negativeResult = ServiceResultOutcome.TryReadNegative(
-                response.Success ? response.Result : null,
-                out var resultErrorMessage,
-                out _);
-            var itemSucceeded = response.Success && !negativeResult;
-            var output = new BatchResult
-            {
-                Index = i,
-                Command = cmd.Command,
-                Success = itemSucceeded,
-                Result = response.Success ? TryParseJsonElement(response.Result) : null,
-                Error = response.ErrorMessage ?? resultErrorMessage ??
-                    (negativeResult ? "Command reported success: false; see result for details." : null)
-            };
-
-            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(output, BatchJsonOptions));
+            var (itemSucceeded, nextSession) = await ExecuteEntryAsync(
+                client, cmd, i, activeSession, cancellationToken);
+            activeSession = nextSession;
 
             if (!itemSucceeded)
             {
@@ -191,6 +144,182 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         }
 
         return hasErrors ? 1 : 0;
+    }
+
+    private static async Task<int> ExecuteStreamingAsync(Settings settings, CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrEmpty(settings.InputFile) && settings.InputFile != "-")
+        {
+            WriteError("--stream reads NDJSON from stdin; omit --input or use --input -.");
+            return 1;
+        }
+
+        ICliRequestClient? client = null;
+        string? activeSession = settings.SessionId;
+        int index = 0;
+        bool hasErrors = false;
+        try
+        {
+            while (await CliCommandRuntime.Current.Input.ReadLineAsync(cancellationToken) is { } line)
+            {
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
+                BatchEntry? entry = null;
+                string? validationError = null;
+                var validationStopwatch = Stopwatch.StartNew();
+                try
+                {
+                    entry = JsonSerializer.Deserialize<BatchEntry>(line, BatchJsonOptions);
+                    if (entry == null || string.IsNullOrWhiteSpace(entry.Command))
+                    {
+                        throw new ArgumentException("Each line must be a JSON object with a nonempty 'command' field.");
+                    }
+                    var argsJson = entry.Args.HasValue && entry.Args.Value.ValueKind != JsonValueKind.Undefined
+                        ? entry.Args.Value.GetRawText()
+                        : null;
+                    ServiceRegistry.ValidateCommandArguments(entry.Command, argsJson);
+                }
+                catch (Exception ex) when (ex is ArgumentException or JsonException or IOException or UnauthorizedAccessException)
+                {
+                    validationError = ex.Message;
+                    var failedCommand = string.IsNullOrWhiteSpace(entry?.Command) ? "batch" : entry.Command;
+                    CliTelemetry.TrackLocalFailure(failedCommand, validationStopwatch.ElapsedMilliseconds, "InvalidInput");
+                }
+
+                bool itemSucceeded;
+                if (validationError != null)
+                {
+                    WriteValidationError(index, entry?.Command ?? string.Empty, validationError);
+                    itemSucceeded = false;
+                }
+                else
+                {
+                    // Start/connect only when a valid command arrives, not while waiting on input.
+                    client ??= await TryConnectAsync(entry!, index, cancellationToken);
+                    if (client == null)
+                    {
+                        // Reported as this line's result; the next valid line retries the connection.
+                        itemSucceeded = false;
+                    }
+                    else
+                    {
+                        var outcome = await ExecuteEntryAsync(client, entry!, index, activeSession, cancellationToken);
+                        itemSucceeded = outcome.Succeeded;
+                        activeSession = outcome.ActiveSession;
+                    }
+                }
+
+                await CliCommandRuntime.Current.Output.FlushAsync(cancellationToken);
+                index++;
+                if (!itemSucceeded)
+                {
+                    hasErrors = true;
+                    if (settings.StopOnError) break;
+                }
+            }
+        }
+        finally
+        {
+            client?.Dispose();
+        }
+
+        if (index == 0)
+        {
+            WriteError("No commands provided.");
+            return 1;
+        }
+        return hasErrors ? 1 : 0;
+    }
+
+    /// <summary>
+    /// Connects for a streamed command. A failure is written as that command's indexed
+    /// result and returns null instead of ending the stream; cancellation still propagates.
+    /// </summary>
+    private static async Task<ICliRequestClient?> TryConnectAsync(
+        BatchEntry entry, int index, CancellationToken cancellationToken)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        try
+        {
+            return await CliCommandRuntime.Current.ClientFactory.ConnectAsync(cancellationToken);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            CliTelemetry.TrackLocalFailure(
+                entry.Command,
+                stopwatch.ElapsedMilliseconds,
+                OperationFailureClassifier.Classify(ex) ?? "ServiceUnavailable");
+            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new BatchResult
+            {
+                Index = index,
+                Command = entry.Command,
+                Success = false,
+                Error = $"Communication error: {ex.Message}"
+            }, BatchJsonOptions));
+            return null;
+        }
+    }
+
+    private static async Task<(bool Succeeded, string? ActiveSession)> ExecuteEntryAsync(
+        ICliRequestClient client, BatchEntry cmd, int index, string? activeSession, CancellationToken cancellationToken)
+    {
+        var sessionId = cmd.SessionId ?? activeSession;
+        var request = new ServiceRequest
+        {
+            Command = cmd.Command,
+            SessionId = sessionId,
+            Args = cmd.Args.HasValue && cmd.Args.Value.ValueKind != JsonValueKind.Undefined
+                ? cmd.Args.Value.GetRawText()
+                : null,
+            Source = "cli-batch"
+        };
+
+        ServiceResponse response;
+        try
+        {
+            response = await CliTelemetry.TrackCommandAsync(
+                request, () => client.SendAsync(request, cancellationToken));
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            response = new ServiceResponse { Success = false, ErrorMessage = $"Communication error: {ex.Message}" };
+        }
+
+        var negativeResult = ServiceResultOutcome.TryReadNegative(
+            response.Success ? response.Result : null, out var resultErrorMessage, out _);
+        var itemSucceeded = response.Success && !negativeResult;
+        if (itemSucceeded && activeSession == null &&
+            (cmd.Command.Equals("session.open", StringComparison.OrdinalIgnoreCase) ||
+             cmd.Command.Equals("session.create", StringComparison.OrdinalIgnoreCase)))
+        {
+            activeSession = TryExtractSessionId(response.Result);
+        }
+        if (itemSucceeded && cmd.Command.Equals("session.close", StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(sessionId, activeSession, StringComparison.OrdinalIgnoreCase))
+        {
+            activeSession = null;
+        }
+
+        var output = new BatchResult
+        {
+            Index = index,
+            Command = cmd.Command,
+            Success = itemSucceeded,
+            Result = response.Success ? TryParseJsonElement(response.Result) : null,
+            Error = response.ErrorMessage ?? resultErrorMessage ??
+                (negativeResult ? "Command reported success: false; see result for details." : null)
+        };
+        CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(output, BatchJsonOptions));
+        return (itemSucceeded, activeSession);
     }
 
     private static void WriteValidationError(int index, string command, string error)
