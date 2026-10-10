@@ -149,7 +149,8 @@ public static class PackageFiles
     {
         var limit = timeout ?? TimeSpan.FromMinutes(2);
         var interval = retryInterval ?? TimeSpan.FromMilliseconds(500);
-        if (limit < TimeSpan.Zero || interval < TimeSpan.Zero) { throw new ArgumentOutOfRangeException(nameof(timeout)); }
+        if (limit < TimeSpan.Zero) { throw new ArgumentOutOfRangeException(nameof(timeout), limit, "The staging timeout must be non-negative."); }
+        if (interval < TimeSpan.Zero) { throw new ArgumentOutOfRangeException(nameof(retryInterval), interval, "The staging retry interval must be non-negative."); }
         remove ??= Delete;
         var clock = Stopwatch.StartNew();
         Exception? last = null;

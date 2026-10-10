@@ -249,5 +249,23 @@ public sealed class TypedPackageOperationsTests
         finally { Directory.Delete(sandbox, recursive: true); }
     }
 
+    [Theory]
+    [InlineData(-1, 0)]
+    [InlineData(0, -1)]
+    [Trait("Feature", "McpbPackaging")]
+    public void RemoveStagingDirectory_WhenTimeoutOrRetryIntervalIsNegative_UsesMatchingArgumentName(int timeoutMs, int retryMs)
+    {
+        var sandbox = NewSandbox();
+        try
+        {
+            var timeout = TimeSpan.FromMilliseconds(timeoutMs);
+            var retryInterval = TimeSpan.FromMilliseconds(retryMs);
+            var error = Assert.ThrowsAny<ArgumentOutOfRangeException>(() => PackageFiles.RemoveStaging(sandbox, timeout, retryInterval));
+            var expectedName = timeoutMs < 0 ? nameof(timeout) : nameof(retryInterval);
+            Assert.Equal(expectedName, error.ParamName);
+        }
+        finally { if (Directory.Exists(sandbox)) { Directory.Delete(sandbox, recursive: true); } }
+    }
+
     private static string NewSandbox() => Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"ExcelMcp.TypedPackages.{Guid.NewGuid():N}")).FullName;
 }
