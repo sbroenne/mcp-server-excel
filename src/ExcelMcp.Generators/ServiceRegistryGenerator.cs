@@ -1304,7 +1304,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("public static partial class ServiceRegistry");
         sb.AppendLine("{");
         sb.AppendLine("    /// <summary>Action input contracts, including specialized worksheet and screenshot handlers.</summary>");
-        sb.AppendLine("    public static (string Name, bool Required, bool AllowsEmpty)[] GetMcpActionParameters(string tool, string action)");
+        sb.AppendLine("    public static (string Name, bool Required, bool AllowsEmpty, string? Alternative)[] GetMcpActionParameters(string tool, string action)");
         sb.AppendLine("    {");
         sb.AppendLine("        return (tool, action) switch");
         sb.AppendLine("        {");
@@ -1318,17 +1318,19 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                     {
                         var original = method.Parameters.FirstOrDefault(p =>
                             (p.ExposedName ?? p.Name) == parameter.Name);
-                        var required = original?.IsFileOrValue != true &&
-                            parameter.RequiredByActions.Contains(method.ActionName);
-                        return $"(\"{StringHelper.ToSnakeCase(parameter.Name)}\", {required.ToString().ToLowerInvariant()}, {(original?.AllowsEmptyString == true).ToString().ToLowerInvariant()})";
+                        var required = parameter.RequiredByActions.Contains(method.ActionName);
+                        var alternative = original?.IsFileOrValue == true && required
+                            ? $"\"{StringHelper.ToSnakeCase(original.Name + original.FileSuffix)}\""
+                            : "null";
+                        return $"(\"{StringHelper.ToSnakeCase(parameter.Name)}\", {required.ToString().ToLowerInvariant()}, {(original?.AllowsEmptyString == true).ToString().ToLowerInvariant()}, {alternative})";
                     }).ToList();
-                parameters.Insert(0, "(\"action\", true, false)");
+                parameters.Insert(0, "(\"action\", true, false, null)");
                 if (!category.NoSession && method.HasBatchParameter)
-                    parameters.Insert(1, "(\"workbook_session_id\", true, false)");
+                    parameters.Insert(1, "(\"workbook_session_id\", true, false, null)");
                 var toolName = category.CategoryPascal == "Sheet"
                     ? method.ActionName == "list" ? "worksheet_read" : "worksheet"
                     : method.McpTool;
-                sb.AppendLine($"            (\"{toolName}\", \"{method.ActionName}\") => new (string, bool, bool)[] {{ {string.Join(", ", parameters)} }},");
+                sb.AppendLine($"            (\"{toolName}\", \"{method.ActionName}\") => new (string, bool, bool, string?)[] {{ {string.Join(", ", parameters)} }},");
             }
         }
         sb.AppendLine("            _ => throw new System.ArgumentException($\"Unknown contract: {tool}.{action}.\")");

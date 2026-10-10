@@ -11,7 +11,7 @@ internal static class McpActionContract
         .Where(method => method.Name is nameof(ExcelFileTool.ExcelFile) or nameof(ExcelFileTool.ExcelFileRead))
         .ToArray();
 
-    internal static (string Name, bool Required, bool AllowsEmpty)[] GetParameters(string tool, string action)
+    internal static (string Name, bool Required, bool AllowsEmpty, string? Alternative)[] GetParameters(string tool, string action)
     {
         if (tool is not ("file" or "file_read"))
             return ServiceRegistry.GetMcpActionParameters(tool, action);
@@ -21,8 +21,8 @@ internal static class McpActionContract
         return method.GetParameters()
             .SelectMany(parameter => parameter.GetCustomAttributes<McpActionParameterAttribute>()
                 .Where(attribute => attribute.Action == action)
-                .Select(attribute => (Name: parameter.Name!, Required: attribute.Required, AllowsEmpty: false)))
-            .Prepend(("action", true, false))
+                .Select(attribute => (Name: parameter.Name!, Required: attribute.Required, AllowsEmpty: false, Alternative: (string?)null)))
+            .Prepend(("action", true, false, (string?)null))
             .ToArray();
     }
 

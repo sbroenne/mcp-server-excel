@@ -48,9 +48,16 @@ internal static class ToolArgumentFilter
                 foreach (var parameter in McpActionContract.GetParameters(tool.ProtocolTool.Name, canonicalAction)
                     .Where(parameter => parameter.Required))
                 {
-                    if (!arguments.TryGetValue(parameter.Name, out var value) || value.ValueKind == JsonValueKind.Null)
-                        throw new ArgumentException(
-                            $"Parameter '{parameter.Name}' is required for {tool.ProtocolTool.Name}.{canonicalAction}.");
+                    if (arguments.TryGetValue(parameter.Name, out var value) && value.ValueKind != JsonValueKind.Null)
+                        continue;
+                    if (parameter.Alternative is not null &&
+                        arguments.TryGetValue(parameter.Alternative, out var alternative) && alternative.ValueKind != JsonValueKind.Null)
+                        continue;
+                    var input = parameter.Alternative is null
+                        ? $"Parameter '{parameter.Name}'"
+                        : $"One of '{parameter.Name}' or '{parameter.Alternative}'";
+                    throw new ArgumentException(
+                        $"{input} is required for {tool.ProtocolTool.Name}.{canonicalAction}.");
                 }
             }
             catch (ArgumentException ex)

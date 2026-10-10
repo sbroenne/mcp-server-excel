@@ -25,6 +25,28 @@ public sealed class UnifiedToolContractTests(RecordingProgramTransportFixture fi
     };
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RequiredFileOrValue_AcceptsEitherAlternative(bool useFile)
+    {
+        var arguments = new Dictionary<string, object?>
+        {
+            ["action"] = "evaluate",
+            ["workbook_session_id"] = "synthetic-session",
+            [useFile ? "m_code_file" : "m_code"] = "synthetic-contract-value"
+        };
+        var call = await fixture.CallToolAsync("powerquery", arguments,
+            new ServiceResponse { Success = true, Result = """{"success":true}""" },
+            "powerquery.evaluate",
+            JsonSerializer.Serialize(new
+            {
+                mCode = useFile ? null : "synthetic-contract-value",
+                mCodeFile = useFile ? "synthetic-contract-value" : null
+            }, ServiceProtocol.JsonOptions));
+        Assert.False(call.Result.IsError == true);
+    }
+
+    [Theory]
     [InlineData("omitted", null)]
     [InlineData("null", null)]
     [InlineData("default", false)]
@@ -59,6 +81,10 @@ public sealed class UnifiedToolContractTests(RecordingProgramTransportFixture fi
             var properties = tool.JsonSchema.GetProperty("properties");
             var actionNames = properties.GetProperty("action").GetProperty("enum")
                 .EnumerateArray().Select(value => value.GetString()!).ToArray();
+            foreach (var action in actionNames)
+                Assert.Equal(ExpectedParameters(tool.Name, action).Order(StringComparer.Ordinal),
+                    McpActionContract.GetParameters(tool.Name, action).Select(parameter => parameter.Name)
+                        .Order(StringComparer.Ordinal));
             var runtimeNames = actionNames.SelectMany(action =>
                     McpActionContract.GetParameters(tool.Name, action).Select(parameter => parameter.Name))
                 .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal);
@@ -78,6 +104,9 @@ public sealed class UnifiedToolContractTests(RecordingProgramTransportFixture fi
                 var expectedType = JsonType(parameter.ParameterType);
                 Assert.Contains(expectedType, SchemaTypes(schema));
                 var defaultAttribute = parameter.GetCustomAttribute<DefaultValueAttribute>();
+                if (defaultAttribute is not null)
+                    Assert.True(schema.TryGetProperty("default", out _),
+                        $"{tool.Name}.{parameter.Name}: missing explicit schema default.");
                 if (schema.TryGetProperty("default", out var advertisedDefault))
                 {
                     var value = defaultAttribute is not null
@@ -128,6 +157,17 @@ public sealed class UnifiedToolContractTests(RecordingProgramTransportFixture fi
                         type == typeof(List<string>) || parameter.GetCustomAttribute<FileOrValueAttribute>() is not null
                             ? "string" : JsonType(type);
                     Assert.Contains(expectedType, SchemaTypes(schema));
+                    if (parameter.GetCustomAttribute<FileOrValueAttribute>() is { } fileOrValue)
+                    {
+                        var runtimeInput = Assert.Single(McpActionContract.GetParameters(tool.Name, action),
+                            input => input.Name == inputName);
+                        var required = parameter.GetCustomAttribute<RequiredParameterAttribute>() is not null ||
+                            !parameter.IsOptional;
+                        Assert.Equal(required, runtimeInput.Required);
+                        Assert.Equal(required
+                            ? Regex.Replace($"{name}{fileOrValue.FileSuffix}", "(?<!^)[A-Z]", "_$0").ToLowerInvariant()
+                            : null, runtimeInput.Alternative);
+                    }
                     checkedInputs++;
                 }
             }
@@ -157,6 +197,13 @@ public sealed class UnifiedToolContractTests(RecordingProgramTransportFixture fi
                         arguments[required.Name] = null;
                     else
                         arguments.Remove(required.Name);
+                    if (required.Alternative is not null)
+                    {
+                        if (explicitNull)
+                            arguments[required.Alternative] = null;
+                        else
+                            arguments.Remove(required.Alternative);
+                    }
 
                     var result = await fixture.CallResultWithoutDispatchAsync(tool.Name, arguments);
                     Assert.True(result.IsError, $"{tool.Name}.{action}.{required.Name} accepted missing input.");
@@ -181,7 +228,7 @@ public sealed class UnifiedToolContractTests(RecordingProgramTransportFixture fi
             foreach (var action in Actions(tool.JsonSchema))
             {
                 var contract = McpActionContract.GetParameters(tool.Name, action);
-                var allowed = contract.Select(parameter => parameter.Name).ToHashSet(StringComparer.Ordinal);
+                var allowed = ExpectedParameters(tool.Name, action);
                 foreach (var property in properties.EnumerateObject().Where(property => !allowed.Contains(property.Name)))
                 {
                     foreach (var value in new[] { null, SampleValue(property.Value) })
@@ -205,6 +252,57 @@ public sealed class UnifiedToolContractTests(RecordingProgramTransportFixture fi
 
     private static IEnumerable<string> Actions(JsonElement schema) => schema.GetProperty("properties")
         .GetProperty("action").GetProperty("enum").EnumerateArray().Select(value => value.GetString()!);
+
+    private static HashSet<string> ExpectedParameters(string tool, string action)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal) { "action" };
+        if (tool is "file" or "file_read")
+        {
+            var method = typeof(Program).Assembly.GetTypes()
+                .Where(type => type.GetCustomAttribute<McpServerToolTypeAttribute>() is not null)
+                .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static))
+                .Single(method => method.GetCustomAttribute<McpServerToolAttribute>()?.Name == tool);
+            names.UnionWith(method.GetParameters().Where(parameter =>
+                parameter.GetCustomAttributes<McpActionParameterAttribute>().Any(attribute => attribute.Action == action))
+                .Select(parameter => parameter.Name!));
+            return names;
+        }
+
+        var source = Assert.Single(typeof(ISheetCommands).Assembly.GetTypes()
+            .Where(type => type.IsInterface && type.GetCustomAttribute<ServiceCategoryAttribute>() is not null)
+            .SelectMany(type => type.GetMethods().Select(method => (Type: type, Method: method))),
+            source =>
+            {
+                var baseTool = source.Type.GetCustomAttribute<McpToolAttribute>()?.ToolName
+                    ?? (source.Type == typeof(ISheetCommands) ? "worksheet" :
+                        source.Type.GetCustomAttribute<ServiceCategoryAttribute>()!.PascalName.ToLowerInvariant());
+                var sourceTool = source.Method.GetCustomAttribute<McpToolAttribute>()?.ToolName ?? baseTool;
+                var sourceAction = source.Method.GetCustomAttribute<ServiceActionAttribute>()?.Action
+                    ?? Regex.Replace(source.Method.Name, "(?<!^)[A-Z]", "-$0").ToLowerInvariant();
+                return (tool == sourceTool || tool == $"{sourceTool}_read") && action == sourceAction;
+            });
+        foreach (var parameter in source.Method.GetParameters())
+        {
+            if (parameter.ParameterType.Name == "IExcelBatch")
+            {
+                if (source.Type.GetCustomAttribute<NoSessionAttribute>() is null)
+                    names.Add("workbook_session_id");
+                continue;
+            }
+            if (parameter.ParameterType.IsGenericType &&
+                parameter.ParameterType.GetGenericTypeDefinition() == typeof(IProgress<>))
+                continue;
+            var fileOrValue = parameter.GetCustomAttribute<FileOrValueAttribute>();
+            var name = fileOrValue is not null ? parameter.Name! :
+                parameter.GetCustomAttribute<FromStringAttribute>()?.ExposedName ?? parameter.Name!;
+            if ((Nullable.GetUnderlyingType(parameter.ParameterType) ?? parameter.ParameterType) == typeof(TimeSpan))
+                name += "Seconds";
+            names.Add(Regex.Replace(name, "(?<!^)[A-Z]", "_$0").ToLowerInvariant());
+            if (fileOrValue is not null)
+                names.Add(Regex.Replace($"{name}{fileOrValue.FileSuffix}", "(?<!^)[A-Z]", "_$0").ToLowerInvariant());
+        }
+        return names;
+    }
 
     private static IEnumerable<string> SchemaTypes(JsonElement schema)
     {
