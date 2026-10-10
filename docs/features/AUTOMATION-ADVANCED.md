@@ -10,16 +10,24 @@ summaries below focus on capabilities and their important requirements.
 
 ---
 
-## VBA Macros (6 operations)
+## VBA Macros (11 operations)
 
-- **Inspect code:** Discover VBA components and procedures and read component code.
-- **Maintain modules:** Import standard modules, update existing component code, or remove components.
+- **Inspect code:** List procedures with their kinds and line numbers, read a selected procedure or up to 500 lines, or view the full module.
+- **Maintain code:** Import standard modules, update whole modules, replace one procedure only when its source has not changed, or remove components.
 - **Run procedures:** Execute existing VBA procedures with supported parameters.
+- **Find source:** Search literal text across modules with limited matches, line numbers, and short excerpts.
+- **Diagnose project access:** Inspect actual access, password protection, and execution mode without changing settings.
+- **Inspect dependencies:** List library references and flag broken ones without automatic repair.
 
 Listing or editing the VBA project requires Excel's manually configured trust
 setting. Running an existing macro does not require project-inspection trust,
 but Excel's macro security still applies. ExcelMcp does not enable trust or
 bypass security automatically. Retain a macro-enabled file format when saving code.
+Replacing procedure source confirms only that Excel stored the text; it does not
+confirm that the code compiles or runs correctly.
+Procedure replacement preserves introductory comments and surrounding blank lines.
+The status action reports blocked project access rather than guessing protection
+or execution mode when access is denied.
 
 [VBA walkthrough](../guides/RUN-VBA-MACROS.md)
 

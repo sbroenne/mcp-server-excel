@@ -86,7 +86,7 @@ workflow runs (see [Changelog Generation](#changelog-generation) below).
 
 ### 2. Run the Release Workflow
 
-1. Go to **Actions** → **Release All Components** → **Run workflow**
+1. Go to **Actions** → **[Release] All Components** → **Run workflow**
 2. Select the version bump type:
    - **patch** (default): `1.5.6` → `1.5.7`
    - **minor**: `1.5.6` → `1.6.0`

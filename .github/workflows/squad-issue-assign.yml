@@ -1,4 +1,4 @@
-name: Squad Issue Assign
+name: '[Squad] Issue Assign'
 
 on:
   issues:

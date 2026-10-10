@@ -1307,7 +1307,7 @@ public sealed class ReleaseMetadataScriptTests
             Path.Combine("src", "ExcelMcp.Core", "obj", "GeneratedFiles", "ExcelMcp.Generators",
                 "Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator", "ServiceRegistry.Contracts.g.cs"),
             string.Join(Environment.NewLine, Enumerable.Range(1, canonicalMcpTools - canonicalTools)
-                .Select(index => $"case \"tool-{index}_read\":")));
+                .Select(index => $"(\"tool-{index}_read\", \"list\") => new (string, bool, bool)[] {{ (\"action\", true, false) }},")));
         WriteFile(
             sandbox,
             Path.Combine("src", "ExcelMcp.McpServer", "Program.cs"),

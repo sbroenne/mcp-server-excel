@@ -71,7 +71,8 @@ public class ExcelFileToolTests(ITestOutputHelper output) : McpIntegrationTestBa
         // ExecuteToolAction uses "success" and "errorMessage" for error responses
         Assert.False(json.GetProperty("success").GetBoolean());
         Assert.True(json.TryGetProperty("errorMessage", out var errorMsg));
-        Assert.Contains("path is required", errorMsg.GetString());
+        Assert.Contains("file_path", errorMsg.GetString());
+        Assert.Contains("required", errorMsg.GetString());
     }
 
     [Fact]

@@ -54,6 +54,16 @@ explain the reasons and tradeoffs behind these boundaries.
 6. **Source generators** (`src/ExcelMcp.Generators*`) generate CLI commands,
    MCP schemas, and skill manifests from Core interfaces.
 
+The generators share parameter aggregation, requiredness, and input-type
+projections instead of reconstructing those rules separately. The MCP request
+filter checks action applicability and required inputs against that generated
+contract, including required inline-value/file alternatives. Worksheet
+and screenshot tools retain their specialized handlers but use the same Core
+action contract; file lifecycle inputs declare applicability beside their
+specialized tool signatures. The SDK still owns schema serialization and
+argument binding. Excel-free contract tests compare live SDK discovery with
+the runtime input rules, including omitted/null and action-inapplicable inputs.
+
 ## Real Excel automation
 
 ExcelMcp intentionally uses the Excel COM API rather than rewriting workbook

@@ -1,4 +1,4 @@
-name: Squad Heartbeat (Ralph)
+name: '[Squad] Heartbeat (Ralph)'
 # ⚠️ SYNC: This workflow is maintained in 4 locations. Changes must be applied to all:
 #   - templates/workflows/squad-heartbeat.yml (source template)
 #   - packages/squad-cli/templates/workflows/squad-heartbeat.yml (CLI package)

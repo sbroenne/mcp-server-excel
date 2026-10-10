@@ -1,7 +1,7 @@
 # Dependency Review Workflow
 # Scans pull requests for vulnerable dependencies before merging
 
-name: 'Dependency Review'
+name: '[Security] Dependency Review'
 
 on: 
   pull_request:
