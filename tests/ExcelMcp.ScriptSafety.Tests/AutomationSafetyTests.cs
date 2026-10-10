@@ -51,7 +51,12 @@ public sealed partial class AutomationSafetyTests
             Assert.NotEqual(0, invalid.ExitCode);
             if (script == "check-com-leaks.ps1")
             {
-                Assert.Contains("4 high-risk COM access pattern(s) detected.", invalid.Output, StringComparison.Ordinal);
+                Assert.Contains("4 com-leaks violation(s).", invalid.Output, StringComparison.Ordinal);
+                for (var index = 0; index < suspiciousCases.Length; index++)
+                {
+                    Assert.Contains($"Example.cs:{index + 1} - ", invalid.Output, StringComparison.Ordinal);
+                    Assert.Contains(suspiciousCases[index], invalid.Output, StringComparison.Ordinal);
+                }
             }
 
             File.WriteAllText(source, script == "check-com-leaks.ps1" ? """
@@ -291,6 +296,8 @@ public sealed partial class AutomationSafetyTests
             UseShellExecute = false,
             WorkingDirectory = root
         };
+        info.Environment["EXCELMCP_BUILD_ROOT"] = RepoRoot;
+        info.Environment["EXCELMCP_BUILD_DLL"] = typeof(Sbroenne.ExcelMcp.Build.ValidationPolicy).Assembly.Location;
         foreach (var argument in new[] { "-NoProfile", "-File", script }) { info.ArgumentList.Add(argument); }
         using var process = Process.Start(info)!;
         var stdout = process.StandardOutput.ReadToEndAsync();

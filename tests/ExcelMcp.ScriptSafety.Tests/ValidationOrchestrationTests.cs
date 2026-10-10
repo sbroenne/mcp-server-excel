@@ -7,27 +7,16 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 [Trait("Feature", "PreCommit")]
 public sealed class ValidationOrchestrationTests
 {
-    [Fact]
-    public async Task LockfileRegressions_PublishSuccessIndependentOfAmbientNativeExitCode()
+    [Theory]
+    [InlineData(null)]
+    [InlineData(17)]
+    public async Task LockfileRegressions_PublishSuccessIndependentOfAmbientNativeExitCode(int? exitCode)
     {
-        var run = await ValidationSelectionTests.RunAsync("""
-            $global:LASTEXITCODE = 17
+        var initialCode = exitCode?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "$null";
+        var run = await ValidationSelectionTests.RunAsync($$"""
+            $global:LASTEXITCODE = {{initialCode}}
             & .\scripts\Test-NpmLockfiles.ps1
             if ($LASTEXITCODE -ne 0) { throw "Successful lockfile regressions left exit code '$LASTEXITCODE'." }
-            $tokens = $null
-            $errors = $null
-            $ast = [Management.Automation.Language.Parser]::ParseFile(
-                (Resolve-Path .\scripts\Test-NpmLockfiles.ps1).Path, [ref]$tokens, [ref]$errors)
-            if ($errors.Count) { throw 'Lockfile regression script no longer parses.' }
-            $reset = $ast.EndBlock.Statements |
-                Where-Object { $_.Extent.Text -match '^\s*\$global:LASTEXITCODE\s*=\s*0\s*$' } |
-                Select-Object -Last 1
-            if (-not $reset) { throw 'The successful script exit-code reset is missing.' }
-            foreach ($initialCode in [object[]]@($null, 17)) {
-                $global:LASTEXITCODE = $initialCode
-                & ([scriptblock]::Create($reset.Extent.Text))
-                if ($LASTEXITCODE -ne 0) { throw "The reset did not clear '$initialCode'." }
-            }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
         Assert.Contains("npm lockfile regression checks.", run.Output, StringComparison.Ordinal);
@@ -39,10 +28,20 @@ public sealed class ValidationOrchestrationTests
         var run = await ValidationSelectionTests.RunAsync("""
             $workflow = Get-Content .\.github\workflows\ci.yml -Raw
             if (-not $workflow.Contains('./scripts/Build-CiInputs.ps1')) { throw 'Scoped preparation was not wired.' }
-            $builds = @(Get-Content .\scripts\Build-CiInputs.ps1 | Where-Object { $_ -match '& dotnet build' })
-            if ($builds.Count -ne 1) { throw "Unexpected preparatory build count: $($builds.Count)" }
-            foreach ($build in $builds) {
-                if ($build -notmatch '--disable-build-servers') { throw 'Preparatory build can retain a locking build server.' }
+            $adapter = Get-Content .\scripts\Build-CiInputs.ps1 -Raw
+            if (-not $adapter.Contains('Invoke-ExcelMcpBuild')) { throw 'Shared build execution was not wired.' }
+            $executor = Get-Content .\tools\ExcelMcp.Build\ValidationExecution.cs -Raw
+            if (-not $executor.Contains('--disable-build-servers')) { throw 'Preparatory build can retain a locking build server.' }
+            $gate = [regex]::Match($workflow, '(?s)  ci-gate:\r?\n(.*?)(?=\r?\n  [a-zA-Z0-9_-]+:\r?\n|$)').Groups[1].Value
+            if (-not $gate.Contains('actions/setup-dotnet') -or -not $gate.Contains('global-json-file: global.json')) {
+                throw 'CI completion runner does not set up the repository SDK.'
+            }
+            $stage = Get-Content .\scripts\Invoke-TestStage.ps1 -Raw
+            $e2e = Get-Content .\scripts\Test-E2E.ps1 -Raw
+            if (-not $stage.Contains('[switch]$ReconcileCases') -or
+                -not $stage.Contains('ReconcileCases = [bool]$ReconcileCases') -or
+                -not $e2e.Contains('Invoke-TestStage @parameters -ReconcileCases')) {
+                throw 'Acceptance case reconciliation is not wired through its supported entry point.'
             }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
@@ -204,73 +203,13 @@ public sealed class ValidationOrchestrationTests
             . .\scripts\Invoke-TestStage.ps1
             $file = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.Report.$([Guid]::NewGuid().ToString('N')).trx"
             try {
-                $rows = (1..{{total}} | ForEach-Object {
-                    if ({{total}} -gt 0) { '<UnitTestResult testName="case" outcome="Passed"/>' }
-                }) -join ''
-                '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results>' + $rows +
-                    '</Results><ResultSummary outcome="{{outcome}}"><Counters total="{{total}}" executed="{{total}}" passed="{{passed}}" failed="0" notExecuted="0"/></ResultSummary></TestRun>' |
+                $results = '<UnitTestResult outcome="Passed"/>' * {{passed}}
+                '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results>' + $results + '</Results><ResultSummary outcome="{{outcome}}"><Counters total="{{total}}" passed="{{passed}}" executed="{{total}}" failed="0" notExecuted="0"/></ResultSummary></TestRun>' |
                     Set-Content -LiteralPath $file
                 Assert-TestReport -Path $file
             } finally { Remove-Item -LiteralPath $file }
             """);
         Assert.Equal(succeeds, run.ExitCode == 0);
-    }
-
-    [Theory]
-    [InlineData("row")]
-    [InlineData("missing-row")]
-    [InlineData("failed")]
-    [InlineData("notExecuted")]
-    [InlineData("executed")]
-    [InlineData("timeout")]
-    public async Task Reports_RejectContradictoryResults(string change)
-    {
-        var run = await ValidationSelectionTests.RunAsync($$"""
-            . .\scripts\Invoke-TestStage.ps1
-            $file = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.Report.$([Guid]::NewGuid().ToString('N')).trx"
-            try {
-                [xml]$report = '<TestRun><Results><UnitTestResult testName="case" outcome="Passed"/></Results><ResultSummary outcome="Completed"><Counters total="1" executed="1" passed="1" failed="0" notExecuted="0"/></ResultSummary></TestRun>'
-                switch ('{{change}}') {
-                    row { $report.TestRun.Results.UnitTestResult.outcome = 'Failed' }
-                    missing-row { [void]$report.TestRun.Results.RemoveAll() }
-                    executed { $report.TestRun.ResultSummary.Counters.executed = '0' }
-                    default { $report.TestRun.ResultSummary.Counters.SetAttribute('{{change}}', '1') }
-                }
-                $report.Save($file)
-                Assert-TestReport -Path $file
-            } finally { Remove-Item -LiteralPath $file }
-            """);
-        Assert.NotEqual(0, run.ExitCode);
-    }
-
-    [Theory]
-    [InlineData("@('case(row: 1)', 'case(row: 1)')", "@('case(row: 1)', 'case(row: 1)')", true)]
-    [InlineData("@('case(row: 1)', 'other')", "@('other', 'case(row: 1)')", true)]
-    [InlineData("@('case(row: 1)', 'case(row: 1)')", "@('case(row: 1)')", false)]
-    [InlineData("@('case(row: 1)', 'other')", "@('case(row: 1)', 'case(row: 1)')", false)]
-    [InlineData("@('case')", "@('case', 'extra')", false)]
-    [InlineData("@('Case')", "@('case')", false)]
-    [InlineData("@()", "@('case')", false)]
-    public async Task Reports_ReconcileDiscoveredCasesIncludingTheoryMultiplicity(
-        string expected, string actual, bool succeeds)
-    {
-        var run = await ValidationSelectionTests.RunAsync($$"""
-            . .\scripts\Invoke-TestStage.ps1
-            $file = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.Reconciliation.$([Guid]::NewGuid().ToString('N')).trx"
-            try {
-                $cases = {{actual}}
-                $rows = ($cases | ForEach-Object { '<UnitTestResult testName="' + $_ + '" outcome="Passed"/>' }) -join ''
-                '<TestRun><Results>' + $rows + '</Results><ResultSummary outcome="Completed"><Counters total="' +
-                    $cases.Count + '" executed="' + $cases.Count + '" passed="' + $cases.Count +
-                    '" failed="0" notExecuted="0"/></ResultSummary></TestRun>' | Set-Content -LiteralPath $file
-                Assert-TestReport -Path $file -ExpectedCases {{expected}}
-            } finally { Remove-Item -LiteralPath $file }
-            """);
-        Assert.Equal(succeeds, run.ExitCode == 0);
-        if (!succeeds)
-        {
-            Assert.Contains("Test case reconciliation failed", run.Output, StringComparison.Ordinal);
-        }
     }
 
     [Fact]

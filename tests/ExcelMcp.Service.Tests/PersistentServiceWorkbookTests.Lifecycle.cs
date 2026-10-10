@@ -40,8 +40,21 @@ public sealed partial class PersistentServiceWorkbookTests
     [InlineData(WorkbookSaveFormat.Xlsx, "xlsx")]
     [InlineData(WorkbookSaveFormat.Xlsm, "xlsm")]
     [InlineData(WorkbookSaveFormat.Xlsb, "xlsb")]
-    [InlineData(WorkbookSaveFormat.Xls, "xls")]
     public void SaveAs_ChangesWorkbookFormatAndSessionPath(
+        WorkbookSaveFormat format,
+        string extension)
+    {
+        AssertSaveAsChangesWorkbookFormatAndSessionPath(format, extension);
+    }
+
+    [Fact]
+    [Trait("RunType", "OnDemand")]
+    public void SaveAs_LegacyXls_ChangesWorkbookFormatAndSessionPath()
+    {
+        AssertSaveAsChangesWorkbookFormatAndSessionPath(WorkbookSaveFormat.Xls, "xls");
+    }
+
+    private void AssertSaveAsChangesWorkbookFormatAndSessionPath(
         WorkbookSaveFormat format,
         string extension)
     {

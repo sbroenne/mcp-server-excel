@@ -65,7 +65,7 @@ try {
         switch ($stage) {
             'Cli' {
                 $parameters.Project = $cliTestProject
-                $parameters.Filter = 'RequiresExcel=true&FullyQualifiedName~CliWorkflowAcceptanceTests'
+                $parameters.Filter = 'RequiresExcel=true&Acceptance=Required&(FullyQualifiedName~CliWorkflowAcceptanceTests|FullyQualifiedName~CliNative)'
                 $parameters.DeadlineSeconds = 600
                 $parameters.HangTimeout = '5m'
             }

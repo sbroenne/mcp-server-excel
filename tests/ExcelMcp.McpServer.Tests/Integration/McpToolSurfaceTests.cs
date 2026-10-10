@@ -28,6 +28,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration;
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "ToolSurface")]
+[Trait("Feature", "GeneratedContracts")]
 [Trait("RequiresExcel", "false")]
 public class McpToolSurfaceTests(ITestOutputHelper output)
 {

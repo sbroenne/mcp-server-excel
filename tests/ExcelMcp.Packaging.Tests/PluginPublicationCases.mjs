@@ -905,8 +905,10 @@ export function registerWorkflowPolicyTests() {
             assert.equal(result.Excel, false);
         }
         const runner = fs.readFileSync(path.join(repoRoot, 'scripts', 'Invoke-ExcelFreeTests.ps1'), 'utf8');
-        assert.match(runner, /plan\.PackagingTests/);
-        assert.match(runner, /selections\['Packaging'\]/);
+        assert.match(runner, /Invoke-ExcelMcpBuild -Arguments @\('test-free'\)/);
+        const selection = fs.readFileSync(path.join(repoRoot, 'tools', 'ExcelMcp.Build', 'FreeTestSelection.cs'), 'utf8');
+        assert.match(selection, /options\.PackagingTests \|\| plan\.PackagingTests/);
+        assert.match(selection, /Add\("Packaging",/);
     });
 
 }

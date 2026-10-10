@@ -1,6 +1,4 @@
-using System.Diagnostics;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
@@ -22,15 +20,8 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
     };
     private string? _session;
 
-    public Task InitializeAsync() => Task.CompletedTask;
-
-    private async Task EnsureSessionAsync()
+    public async Task InitializeAsync()
     {
-        if (_session is not null)
-        {
-            return;
-        }
-
         var created = await SendAsync("session", "create", _workbook);
         _session = created.GetProperty("sessionId").GetString();
         Assert.False(string.IsNullOrWhiteSpace(_session));
@@ -40,7 +31,6 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
     [Fact]
     public async Task Lifecycle_SaveAndReopen_PreservesValue()
     {
-        await EnsureSessionAsync();
         await SendAsync("sheet", "create", "--session", Session, "--sheet-name", "Data");
         await WriteAsync("424242");
         await SendAsync("session", "close", "--session", Session, "--save");
@@ -57,7 +47,6 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
     [Fact]
     public async Task Editing_ProtectsOccupiedCellsAndDeletesOnlyDisposableSheet()
     {
-        await EnsureSessionAsync();
         await SendAsync("sheet", "create", "--session", Session, "--sheet-name", "Data");
         await WriteAsync("424242");
         var (result, json) = await CliProcessHelper.RunJsonAsync(
@@ -85,7 +74,6 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
     [Fact]
     public async Task Formatting_TypedAndRepeatedArgumentsRoundTrip()
     {
-        await EnsureSessionAsync();
         await SendAsync("sheet", "create", "--session", Session, "--sheet-name", "Data");
         var gapBefore = await SendAsync("rangeformat", "get-format", "--session", Session,
             "--sheet-name", "Data", "--range-address", "B1:B2");
@@ -123,56 +111,6 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
         Assert.True(rule.GetProperty("fontBold").GetBoolean());
         Assert.False(rule.GetProperty("fontItalic").GetBoolean());
         Assert.Equal("$B$1:$B$10", rule.GetProperty("appliesTo").GetString());
-    }
-
-    [Fact]
-    public async Task NativeApiCoverage_OperationsAndSavedStateRoundTrip()
-    {
-        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", ".."));
-        var startInfo = new ProcessStartInfo("pwsh")
-        {
-            WorkingDirectory = root,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            CreateNoWindow = true
-        };
-        foreach (var argument in new[]
-        {
-            "-NoProfile", "-File", Path.Combine(root, "scripts", "Test-CliApiCoverage.ps1"),
-            "-PipeName", _environment["EXCELMCP_CLI_PIPE"]
-        })
-        {
-            startInfo.ArgumentList.Add(argument);
-        }
-        if (Environment.GetEnvironmentVariable("EXCELMCP_CLI_WORKFLOW_KEEP_FILE") == "true")
-        {
-            startInfo.ArgumentList.Add("-KeepFile");
-        }
-        using var process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException("Native CLI coverage process did not start.");
-        var stdout = process.StandardOutput.ReadToEndAsync();
-        var stderr = process.StandardError.ReadToEndAsync();
-        using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(8));
-        try
-        {
-            await process.WaitForExitAsync(timeout.Token);
-        }
-        catch (OperationCanceledException exception) when (timeout.IsCancellationRequested)
-        {
-            try { process.Kill(entireProcessTree: true); }
-            catch (InvalidOperationException) when (process.HasExited) { }
-            await process.WaitForExitAsync();
-            throw new TimeoutException(
-                $"Native CLI coverage exceeded eight minutes.\n{await stdout}\n{await stderr}", exception);
-        }
-        var result = await stdout;
-        var errors = await stderr;
-        output.WriteLine(result);
-        Assert.True(process.ExitCode == 0, $"{result}\n{errors}");
-        var count = Regex.Match(result, @"(?m)^Passed: (\d+)\r?$").Groups[1].Value;
-        Assert.True(int.TryParse(count, out var passed) && passed >= 120, result);
-        Assert.Contains("Failed: 0", result, StringComparison.Ordinal);
     }
 
     public async Task DisposeAsync()

@@ -127,6 +127,11 @@ manually (preview first). See [Awesome Copilot setup](awesome-copilot-update-set
 
 ## Manual repair
 
+Current skill and plugin build commands forward to the internal SDK-native
+preparation tool. `EXCELMCP_BUILD_ROOT` can locate current tooling while an
+explicit source checkout remains the package input; it must not replace the
+requested tagged content. Preparation and publication remain separate.
+
 With publication authorization, rerun an existing release:
 
 ```powershell

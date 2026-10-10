@@ -141,10 +141,13 @@ dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Releas
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Release --filter 'RequiresExcel=true&Feature=DataModel&RunType!=OnDemand' --blame-hang-timeout 5m --logger trx
 ```
 
-**Before Commit:** Rerun the affected tests and applicable repository checks.
-Follow the [repository validation requirements](../AGENTS.md#build-and-validation)
-for runtime E2E. Do not run the full Excel integration suite during iteration.
-Use a hard execution timeout for every Excel-dependent test run.
+**Before Commit:** Rerun affected tests and applicable repository checks.
+The hook selects staged changes with the same C# policy used by PR CI, including
+affected dependencies. It does not automatically run every workbook feature or
+all acceptance scenarios after a feature-local edit. Full acceptance remains
+available explicitly and is selected for shared runtime boundaries.
+Use the [changed-area commands](../tests/README.md#changed-path-ci-selection);
+they retain hard deadlines and reject empty or failed selected test reports.
 
 **Session/Batch Code Changes (MANDATORY):**
 ```powershell

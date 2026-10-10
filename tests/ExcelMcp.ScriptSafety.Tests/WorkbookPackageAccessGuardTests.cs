@@ -98,6 +98,8 @@ public sealed class WorkbookPackageAccessGuardTests
                 RedirectStandardError = true,
                 CreateNoWindow = true
             };
+            startInfo.Environment["EXCELMCP_BUILD_ROOT"] = RepoRoot;
+            startInfo.Environment["EXCELMCP_BUILD_DLL"] = typeof(Sbroenne.ExcelMcp.Build.ValidationPolicy).Assembly.Location;
             startInfo.ArgumentList.Add("-NoProfile");
             startInfo.ArgumentList.Add("-File");
             startInfo.ArgumentList.Add(ScriptPath);
