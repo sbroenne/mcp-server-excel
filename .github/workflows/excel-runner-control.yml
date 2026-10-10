@@ -1,4 +1,4 @@
-name: Excel Runner Control
+name: '[Excel Runner] Control'
 
 on:
   issues:

@@ -1,4 +1,4 @@
-name: Publish MCP Registry
+name: '[Publishing] MCP Registry'
 
 on:
   workflow_call:

@@ -1,4 +1,4 @@
-name: Publish Plugins
+name: '[Publishing] Plugins'
 
 on:
   workflow_call:

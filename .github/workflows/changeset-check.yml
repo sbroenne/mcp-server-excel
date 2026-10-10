@@ -9,7 +9,7 @@
 # dependency bumps, internal refactors) should add the "skip-changelog" label
 # instead of a changeset.
 
-name: 'Changeset Check'
+name: '[Release] Changeset Check'
 
 on:
   pull_request:

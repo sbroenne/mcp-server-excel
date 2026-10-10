@@ -1,7 +1,7 @@
 # GitHub CodeQL Analysis Workflow
 # Performs advanced security scanning for code vulnerabilities
 
-name: "CodeQL Advanced Security"
+name: "[Security] CodeQL Advanced Security"
 
 on:
   push:
