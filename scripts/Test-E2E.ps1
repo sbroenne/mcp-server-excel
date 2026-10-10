@@ -7,7 +7,7 @@
     Builds the Release solution unless -SkipBuild is supplied, then runs:
     1. Independent CLI workflow scenarios.
     2. Independent MCP workflow scenarios.
-    3. External OLAP schema discovery through the Service boundary.
+    3. External OLAP cube tests (schema discovery and PivotTables) through the Service boundary.
 
     Defaults to all stages. The OLAP stage uses EXCELMCP_TEST_OLAP_* when set;
     otherwise it starts the synthetic Atoti cube via Start-OlapTestCube.ps1
@@ -87,7 +87,7 @@ try {
                     foreach ($key in $olapCube.Settings.Keys) { $parameters.Environment[$key] = $olapCube.Settings[$key] }
                 }
                 $parameters.Project = $serviceTestProject
-                $parameters.Filter = 'RequiresExcel=true&FullyQualifiedName~ExternalOlapSchema_UsesSelectedCubeAndContinuesThroughService'
+                $parameters.Filter = 'RequiresExcel=true&FullyQualifiedName~PersistentServiceConnectionTests.ExternalOlap'
                 $parameters.DeadlineSeconds = 600
                 $parameters.HangTimeout = '5m'
             }

@@ -490,8 +490,9 @@ change runtime behavior. Run affected Excel tests separately, including when
 changing Excel-dependent tests.
 
 `Test-E2E.ps1` defaults to three sequential stages: independent executable CLI
-scenarios, independent real-protocol MCP scenarios, and external OLAP schema
-discovery through the Service boundary. The OLAP stage uses the
+scenarios, independent real-protocol MCP scenarios, and external OLAP cube
+tests through the Service boundary: schema discovery plus PivotTable field,
+measure, calculated-member, slicer, and chart commands on a server cube. The OLAP stage uses the
 `EXCELMCP_TEST_OLAP_CONNECTION_STRING`, `EXCELMCP_TEST_OLAP_CUBE`,
 `EXCELMCP_TEST_OLAP_HIERARCHY`, and `EXCELMCP_TEST_OLAP_LEVEL` settings when
 they are set. Otherwise it runs `scripts\Start-OlapTestCube.ps1`, which starts

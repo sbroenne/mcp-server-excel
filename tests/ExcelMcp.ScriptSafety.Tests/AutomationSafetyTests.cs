@@ -306,7 +306,7 @@ public sealed partial class AutomationSafetyTests
                     olap.GetProperty("project").GetString(),
                     StringComparison.OrdinalIgnoreCase);
                 Assert.Equal(
-                    "RequiresExcel=true&FullyQualifiedName~ExternalOlapSchema_UsesSelectedCubeAndContinuesThroughService",
+                    "RequiresExcel=true&FullyQualifiedName~PersistentServiceConnectionTests.ExternalOlap",
                     olap.GetProperty("filter").GetString());
                 Assert.True(olap.GetProperty("reconcileCases").GetBoolean());
                 Assert.Equal(600, olap.GetProperty("deadline").GetInt32());

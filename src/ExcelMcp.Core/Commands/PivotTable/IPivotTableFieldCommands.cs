@@ -73,7 +73,7 @@ public interface IPivotTableFieldCommands
     ///
     /// For OLAP PivotTables, supports TWO modes:
     /// 1. Pre-existing measure: fieldName = "Total Sales" or "[Measures].[Total Sales]"
-    ///    - Adds existing DAX measure without creating duplicate
+    ///    - Adds an existing Data Model or external cube measure without creating a duplicate
     ///    - aggregationFunction ignored (measure formula defines aggregation)
     /// 2. Auto-create measure: fieldName = "Sales" (column name)
     ///    - Creates new DAX measure with specified aggregation function
