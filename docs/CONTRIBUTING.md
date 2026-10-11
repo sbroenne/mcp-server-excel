@@ -88,19 +88,6 @@ environment's configured registry rather than a URL saved by another machine.
 Direct URL dependencies are not portable under this policy and must use
 registry versions or local dependencies instead.
 
-Run the focused checks from the repository root (no Excel required):
-
-```powershell
-pwsh -NoProfile -File scripts\Test-NpmLockfiles.ps1
-pwsh -NoProfile -File scripts\check-npm-lockfiles.ps1
-```
-
-The required CI Gate runs both checks with two-minute limits. The pre-commit
-hook checks the staged contents with `-Staged`. The guard discovers tracked
-`package-lock.json` and `npm-shrinkwrap.json` files at any depth, excludes
-`node_modules`, and reports offending filenames without exposing URLs or
-credentials. New lockfiles must be staged before the guard can discover them.
-
 ### Respect local package sources
 
 npm installs and .NET restores use the package manager's normal configuration

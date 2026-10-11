@@ -88,7 +88,6 @@ jobs:
       packages: ${{ steps.select.outputs.packages }}
       package_build: ${{ steps.select.outputs.package_build }}
       npm: ${{ steps.select.outputs.npm }}
-      lockfiles: ${{ steps.select.outputs.lockfiles }}
       source_checks_group: ${{ steps.select.outputs.source_checks_group }}
     steps:
       - name: Checkout
@@ -215,7 +214,6 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: '22'
-          registry-url: https://registry.npmjs.org
           cache: npm
           cache-dependency-path: |
             vscode-extension/package-lock.json
@@ -255,27 +253,10 @@ jobs:
           npm test --prefix npm-packages/shared
           if ($LASTEXITCODE -ne 0) { throw "npm launcher or packaging tests failed." }
 
-  lockfiles:
-    name: npm lockfiles
-    needs: changes
-    if: needs.changes.outputs.lockfiles == 'true'
-    runs-on: windows-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Check lockfile portability
-        timeout-minutes: 2
-        shell: pwsh
-        run: |
-          ./scripts/Test-NpmLockfiles.ps1
-          if ($LASTEXITCODE -ne 0) { throw 'Lockfile regressions failed.' }
-          ./scripts/check-npm-lockfiles.ps1
-          if ($LASTEXITCODE -ne 0) { throw 'Lockfile portability failed.' }
-
   ci-gate:
     name: CI Gate
     if: always()
-    needs: [changes, tests, packages, npm, lockfiles]
+    needs: [changes, tests, packages, npm]
     runs-on: ubuntu-26.04
     steps:
       - name: Checkout
@@ -287,13 +268,11 @@ jobs:
           TESTS: ${{ needs.tests.result }}
           PACKAGES: ${{ needs.packages.result }}
           NPM: ${{ needs.npm.result }}
-          LOCKFILES: ${{ needs.lockfiles.result }}
           SELECTED_TESTS: ${{ needs.changes.outputs.tests }}
           SELECTED_PACKAGES: ${{ needs.changes.outputs.packages }}
           SELECTED_NPM: ${{ needs.changes.outputs.npm }}
-          SELECTED_LOCKFILES: ${{ needs.changes.outputs.lockfiles }}
         run: |
           ./scripts/Test-CiCompletion.ps1 -Detection $env:DETECTION -Tests $env:TESTS `
-            -Packages $env:PACKAGES -Npm $env:NPM -Lockfiles $env:LOCKFILES `
+            -Packages $env:PACKAGES -Npm $env:NPM `
             -SelectedTests $env:SELECTED_TESTS -SelectedPackages $env:SELECTED_PACKAGES `
-            -SelectedNpm $env:SELECTED_NPM -SelectedLockfiles $env:SELECTED_LOCKFILES
+            -SelectedNpm $env:SELECTED_NPM

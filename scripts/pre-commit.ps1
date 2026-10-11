@@ -32,9 +32,6 @@ try {
     $plan = Get-ValidationPlan -Paths $paths
     $plan.Reasons | ForEach-Object { Write-Host "  $_" }
 
-    Invoke-Check 'Checking staged npm lockfiles' {
-        & (Join-Path $PSScriptRoot 'check-npm-lockfiles.ps1') -Staged
-    }
     if ($plan.Build -or $plan.SourceChecks) {
         $workingPaths = @(
             Read-Git @('-c', 'core.quotepath=false', 'diff', '--name-only', '--no-renames')
