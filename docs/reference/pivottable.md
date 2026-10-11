@@ -100,6 +100,7 @@ OLAP member unique names (for example,
 `[RegionTable].[Region].&[North]`). An empty `selected_items` list shows all
 members; one or several names select those members only. This changes only the
 chosen PivotTable's report filter, not the Data Model or other reports.
+Nonempty selections enable Excel's multiple-selection mode, even for one member.
 For All, pass `selected_items: []` in MCP or `--selected-items '[]'` in the CLI.
 
 ```mcp

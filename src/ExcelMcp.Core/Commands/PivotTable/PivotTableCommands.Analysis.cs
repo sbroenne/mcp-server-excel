@@ -131,11 +131,6 @@ public partial class PivotTableCommands
                 {
                     pivotField.ClearAllFilters();
                 }
-                else if (selectedItems.Count == 1)
-                {
-                    cubeField.EnableMultiplePageItems = false;
-                    pivotField.CurrentPageName = selectedItems[0];
-                }
                 else
                 {
                     cubeField.EnableMultiplePageItems = true;
@@ -144,6 +139,10 @@ public partial class PivotTableCommands
 
                 ReadReportFilterSelection(cubeField, pivotField, result);
                 result.Success = true;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -244,15 +243,15 @@ public partial class PivotTableCommands
         Excel.CubeField cubeField, Excel.PivotField pivotField,
         PivotReportFilterResult result)
     {
+        result.ShowAll = cubeField.AllItemsVisible;
+        if (result.ShowAll)
+        {
+            result.SelectedItems.Clear();
+            return;
+        }
+
         if (cubeField.EnableMultiplePageItems)
         {
-            if (cubeField.AllItemsVisible)
-            {
-                result.ShowAll = true;
-                result.SelectedItems.Clear();
-                return;
-            }
-
             var visibleItems = pivotField.VisibleItemsList;
             result.SelectedItems = visibleItems is Array items
                 ? items.Cast<object>().Select(item => item.ToString() ?? string.Empty).ToList()
@@ -260,12 +259,8 @@ public partial class PivotTableCommands
         }
         else
         {
-            var currentPageName = pivotField.CurrentPageName;
-            result.ShowAll = cubeField.AllItemsVisible &&
-                (string.IsNullOrEmpty(currentPageName) || currentPageName == "(All)");
-            result.SelectedItems = result.ShowAll ? [] : [currentPageName];
+            result.SelectedItems = [pivotField.CurrentPageName];
         }
-
     }
 
     /// <summary>

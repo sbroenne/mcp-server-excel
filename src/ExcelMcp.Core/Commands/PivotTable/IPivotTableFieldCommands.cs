@@ -196,7 +196,7 @@ public interface IPivotTableFieldCommands
     /// <param name="pivotTableName">Exact PivotTable name on the worksheet.</param>
     /// <param name="fieldName">Exact OLAP CubeField unique name.</param>
     /// <param name="selectedItems">Member unique names to show; empty means show all.</param>
-    /// <returns>The actual available and selected member unique names.</returns>
+    /// <returns>The actual selected member unique names and whether all members are shown.</returns>
     [ServiceAction("set-report-filter")]
     PivotReportFilterResult SetReportFilter(IExcelBatch batch, string sheetName,
         string pivotTableName, string fieldName, List<string> selectedItems);

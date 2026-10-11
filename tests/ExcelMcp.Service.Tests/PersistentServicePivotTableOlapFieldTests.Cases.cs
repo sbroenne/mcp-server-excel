@@ -283,6 +283,8 @@ public partial class PersistentServicePivotTableOlapFieldTests
                 fields = cubeField.PivotFields;
                 field = fields.Item(1);
                 Assert.Equal((int)PivotFieldArea.Filter, (int)cubeField.Orientation);
+                cubeField.EnableMultiplePageItems = false;
+                field.CurrentPageName = memberNames[0];
             }
             finally
             {
@@ -297,7 +299,18 @@ public partial class PersistentServicePivotTableOlapFieldTests
             }
         });
 
-        var selected = _pivotCommands.SetReportFilter(
+        var nativeSingle = _pivotCommands.GetData(batch, pivotName);
+        Assert.True(nativeSingle.Success, nativeSingle.ErrorMessage);
+        Assert.Equal(11500, ReadScalar(nativeSingle));
+        var selected = _pivotCommands.SetReportFilter(batch, sheetName, pivotName, fieldName, []);
+        Assert.True(selected.Success, selected.ErrorMessage);
+        Assert.True(selected.ShowAll);
+        Assert.Empty(selected.SelectedItems);
+        var clearedNativeSingle = _pivotCommands.GetData(batch, pivotName);
+        Assert.True(clearedNativeSingle.Success, clearedNativeSingle.ErrorMessage);
+        Assert.Equal(49000, ReadScalar(clearedNativeSingle));
+
+        selected = _pivotCommands.SetReportFilter(
             batch, sheetName, pivotName, fieldName, [memberNames[0], memberNames[1]]);
         Assert.True(selected.Success, selected.ErrorMessage);
         Assert.False(selected.ShowAll);
@@ -327,6 +340,14 @@ public partial class PersistentServicePivotTableOlapFieldTests
         Assert.True(untouched.Success, untouched.ErrorMessage);
         Assert.Equal(49000, ReadScalar(untouched));
 
+        selected = _pivotCommands.SetReportFilter(batch, sheetName, pivotName, fieldName, []);
+        Assert.True(selected.Success, selected.ErrorMessage);
+        Assert.True(selected.ShowAll);
+        Assert.Empty(selected.SelectedItems);
+        var clearedSingle = _pivotCommands.GetData(batch, pivotName);
+        Assert.True(clearedSingle.Success, clearedSingle.ErrorMessage);
+        Assert.Equal(49000, ReadScalar(clearedSingle));
+
         selected = _pivotCommands.SetReportFilter(
             batch, sheetName, pivotName, fieldName, [memberNames[0], memberNames[1]]);
         Assert.True(selected.Success, selected.ErrorMessage);
@@ -350,6 +371,8 @@ public partial class PersistentServicePivotTableOlapFieldTests
         Assert.True(rejected.MayHavePartiallyChanged);
         Assert.False(rejected.RollbackAttempted);
         Assert.False(string.IsNullOrWhiteSpace(rejected.ErrorMessage));
+        Assert.True(rejected.ShowAll);
+        Assert.Empty(rejected.SelectedItems);
         allSelected = _pivotCommands.GetData(batch, pivotName);
         Assert.True(allSelected.Success, allSelected.ErrorMessage);
         Assert.Equal(49000, ReadScalar(allSelected));
