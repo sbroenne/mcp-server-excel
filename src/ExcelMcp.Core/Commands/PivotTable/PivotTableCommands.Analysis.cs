@@ -140,11 +140,7 @@ public partial class PivotTableCommands
                 ReadReportFilterSelection(cubeField, pivotField, result);
                 result.Success = true;
             }
-            catch (OperationCanceledException)
-            {
-                throw;
-            }
-            catch (Exception ex)
+            catch (Exception ex) when (CreatedObjectFailure.CanReport(ex))
             {
                 result.Success = false;
                 result.ErrorMessage =
@@ -157,7 +153,7 @@ public partial class PivotTableCommands
                     {
                         ReadReportFilterSelection(cubeField, pivotField, result);
                     }
-                    catch (Exception readException)
+                    catch (Exception readException) when (CreatedObjectFailure.CanReport(readException))
                     {
                         result.ErrorMessage +=
                             $" Actual filter selection could not be read: {readException.Message}";
@@ -166,30 +162,35 @@ public partial class PivotTableCommands
             }
             finally
             {
-                if (manualUpdateChanged && pivot is not null)
+                try
                 {
-                    try
+                    if (manualUpdateChanged && pivot is not null)
                     {
-                        pivot.ManualUpdate = previousManualUpdate;
-                    }
-                    catch (Exception restoreException)
-                    {
-                        result.Success = false;
-                        result.MayHavePartiallyChanged = true;
-                        result.ErrorMessage = string.IsNullOrEmpty(result.ErrorMessage)
-                            ? $"Could not restore PivotTable update behavior: {restoreException.Message}"
-                            : $"{result.ErrorMessage} Could not restore PivotTable update behavior: {restoreException.Message}";
+                        try
+                        {
+                            pivot.ManualUpdate = previousManualUpdate;
+                        }
+                        catch (Exception restoreException) when (CreatedObjectFailure.CanReport(restoreException))
+                        {
+                            result.Success = false;
+                            result.MayHavePartiallyChanged = true;
+                            result.ErrorMessage = string.IsNullOrEmpty(result.ErrorMessage)
+                                ? $"Could not restore PivotTable update behavior: {restoreException.Message}"
+                                : $"{result.ErrorMessage} Could not restore PivotTable update behavior: {restoreException.Message}";
+                        }
                     }
                 }
-
-                ComUtilities.Release(ref pivotField);
-                ComUtilities.Release(ref pivotFields);
-                ComUtilities.Release(ref cubeField);
-                ComUtilities.Release(ref cubeFields);
-                ComUtilities.Release(ref pivot);
-                ComUtilities.Release(ref pivotTables);
-                ComUtilities.Release(ref sheet);
-                ComUtilities.Release(ref sheets);
+                finally
+                {
+                    ComUtilities.Release(ref pivotField);
+                    ComUtilities.Release(ref pivotFields);
+                    ComUtilities.Release(ref cubeField);
+                    ComUtilities.Release(ref cubeFields);
+                    ComUtilities.Release(ref pivot);
+                    ComUtilities.Release(ref pivotTables);
+                    ComUtilities.Release(ref sheet);
+                    ComUtilities.Release(ref sheets);
+                }
             }
 
             return result;

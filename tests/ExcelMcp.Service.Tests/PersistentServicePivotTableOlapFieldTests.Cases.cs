@@ -302,7 +302,53 @@ public partial class PersistentServicePivotTableOlapFieldTests
         var nativeSingle = _pivotCommands.GetData(batch, pivotName);
         Assert.True(nativeSingle.Success, nativeSingle.ErrorMessage);
         Assert.Equal(11500, ReadScalar(nativeSingle));
-        var selected = _pivotCommands.SetReportFilter(batch, sheetName, pivotName, fieldName, []);
+        var selected = _pivotCommands.SetReportFilter(
+            batch, sheetName, pivotName, fieldName, [memberNames[0], memberNames[1]]);
+        Assert.True(selected.Success, selected.ErrorMessage);
+        Assert.False(selected.ShowAll);
+        Assert.Equal([memberNames[0], memberNames[1]], selected.SelectedItems);
+        var nativeSingleToMulti = _pivotCommands.GetData(batch, pivotName);
+        Assert.True(nativeSingleToMulti.Success, nativeSingleToMulti.ErrorMessage);
+        Assert.Equal(22000, ReadScalar(nativeSingleToMulti));
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.PivotTables? pivots = null;
+            Excel.PivotTable? pivot = null;
+            Excel.CubeFields? cubes = null;
+            Excel.CubeField? cube = null;
+            Excel.PivotFields? fields = null;
+            Excel.PivotField? field = null;
+            try
+            {
+                sheets = context.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[sheetName];
+                pivots = (Excel.PivotTables)sheet.PivotTables();
+                pivot = pivots.Item(pivotName);
+                cubes = pivot.CubeFields;
+                cube = cubes[fieldName];
+                fields = cube.PivotFields;
+                field = fields.Item(1);
+                cube.EnableMultiplePageItems = false;
+                field.CurrentPageName = memberNames[0];
+            }
+            finally
+            {
+                ComUtilities.Release(ref field);
+                ComUtilities.Release(ref fields);
+                ComUtilities.Release(ref cube);
+                ComUtilities.Release(ref cubes);
+                ComUtilities.Release(ref pivot);
+                ComUtilities.Release(ref pivots);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
+        nativeSingle = _pivotCommands.GetData(batch, pivotName);
+        Assert.True(nativeSingle.Success, nativeSingle.ErrorMessage);
+        Assert.Equal(11500, ReadScalar(nativeSingle));
+        selected = _pivotCommands.SetReportFilter(batch, sheetName, pivotName, fieldName, []);
         Assert.True(selected.Success, selected.ErrorMessage);
         Assert.True(selected.ShowAll);
         Assert.Empty(selected.SelectedItems);
