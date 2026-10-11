@@ -55,35 +55,6 @@ public sealed class GeneratedActionContractProtocolTests : McpIntegrationTestBas
     }
 
     [Fact]
-    public async Task ToolCall_RejectsExplicitNullParameterFromAnotherAction()
-    {
-        var result = await CallToolAsync(
-            "calculation_mode",
-            new Dictionary<string, object?>
-            {
-                ["action"] = "calculate",
-                ["workbook_session_id"] = "missing-session",
-                ["scope"] = "application",
-                ["mode"] = null
-            });
-
-        using var document = ParseJsonResult(result, "calculation.calculate");
-        AssertFailureEnvelope(
-            document.RootElement,
-            "calculation.calculate",
-            nameof(ArgumentException),
-            expectedErrorCategory: "InvalidInput");
-        Assert.Contains(
-            "mode",
-            document.RootElement.GetProperty("errorMessage").GetString(),
-            StringComparison.Ordinal);
-        Assert.DoesNotContain(
-            "session",
-            document.RootElement.GetProperty("errorMessage").GetString(),
-            StringComparison.OrdinalIgnoreCase);
-    }
-
-    [Fact]
     public async Task ToolCall_AllowEmptyRequiredStringRejectsExplicitNullBeforeDispatch()
     {
         var result = await CallToolAsync(

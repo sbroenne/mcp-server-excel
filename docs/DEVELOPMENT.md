@@ -327,8 +327,9 @@ public static Task<CallToolResult> ListWorksheets(
 `CallToolResult.IsError` and return structured JSON as well as JSON text; preserve
 Service categories, HRESULTs, inner context, and retry information. Unexpected
 exceptions and cancellation propagate to the SDK. Request filters reject unknown,
-misspelled, and action-inapplicable arguments, including explicitly supplied nulls
-and defaults. They also reject omitted fields listed as required in the tool's
+misspelled, and action-inapplicable arguments. An inapplicable argument whose
+value is null or equals its advertised schema default is ignored, because clients
+may send every advertised default. The filters also reject omitted fields listed as required in the tool's
 input schema with a structured `InvalidInput` response naming the missing field;
 the SDK still owns binding and injected parameters.
 

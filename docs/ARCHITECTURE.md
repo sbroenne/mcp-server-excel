@@ -57,7 +57,8 @@ explain the reasons and tradeoffs behind these boundaries.
 The generators share parameter aggregation, requiredness, and input-type
 projections instead of reconstructing those rules separately. The MCP request
 filter checks action applicability and required inputs against that generated
-contract, including required inline-value/file alternatives. Worksheet
+contract, including required inline-value/file alternatives. Inapplicable inputs
+set to null or their advertised default are ignored. Worksheet
 and screenshot tools retain their specialized handlers but use the same Core
 action contract; file lifecycle inputs declare applicability beside their
 specialized tool signatures. The SDK still owns schema serialization and

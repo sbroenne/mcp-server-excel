@@ -335,7 +335,6 @@ public class McpToolGenerator : IIncrementalGenerator
         {
             sb.AppendLine("        IProgress<ProgressNotificationValue> progress = default!,");
         }
-        sb.AppendLine("        RequestContext<CallToolRequestParams> requestContext = default!,");
         sb.AppendLine("        CancellationToken cancellationToken = default");
         sb.AppendLine("    )");
         sb.AppendLine("    {");
@@ -479,21 +478,6 @@ public class McpToolGenerator : IIncrementalGenerator
         sb.AppendLine($"{indent}    ServiceRegistry.{registryName}.ToActionString({serviceAction}),");
         sb.AppendLine($"{indent}    () =>");
         sb.AppendLine($"{indent}    {{");
-        if (mcpParams.Count > 0)
-        {
-            sb.AppendLine($"{indent}        ServiceRegistry.{registryName}.ValidateActionParameters(");
-            sb.AppendLine($"{indent}            ServiceRegistry.{registryName}.ToActionString({serviceAction}),");
-            sb.AppendLine($"{indent}            ServiceRegistry.GetSuppliedParameterNames(");
-            for (int i = 0; i < mcpParams.Count; i++)
-            {
-                var parameter = mcpParams[i];
-                var comma = i < mcpParams.Count - 1 ? "," : "),";
-                sb.AppendLine(
-                    $"{indent}                (\"{parameter.RouteActionParamName}\", requestContext.Params.Arguments?.ContainsKey(\"{parameter.Name}\") == true ? true : (bool?)null){comma}");
-            }
-            sb.AppendLine($"{indent}            allowFileParameters: true);");
-            sb.AppendLine();
-        }
         foreach (var parameter in mcpParams.Where(parameter => parameter.PreProcessingCode != null))
         {
             sb.AppendLine($"{indent}        {parameter.PreProcessingCode}");
