@@ -82,12 +82,13 @@ dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore
 Build with zero warnings. Use targeted tests; see the
 [testing strategy](tests/AGENTS.md). Run every Excel-dependent test command
 sequentially; never overlap Excel test fixtures, test hosts, or E2E runs.
-Runtime changes in Core, ComInterop, Service, CLI, MCP, or their generators also
-require `scripts\Test-E2E.ps1` locally with Excel, once against the final PR
-source, after the last runtime-affecting change. Rerun it if later commits
-change runtime behavior. During development, use focused checks; the commit hook
-does not repeat full E2E on every commit. Report final E2E as not run when Excel is unavailable;
-build-only checks do not cover COM.
+Use the changed-area plan from `tools\ExcelMcp.Build\ValidationPolicy.cs` for
+PR and local validation. Include affected dependencies, not unrelated features.
+Run its selected Excel cases locally; shared lifecycle changes also select
+acceptance and ComInterop diagnostics. `scripts\Test-E2E.ps1` remains an explicit
+complete acceptance command and the cloud runner's compatible entry point.
+Report selected Excel work as not run when Excel is unavailable; build-only
+checks do not cover COM. Unknown inputs must fail selection, not select everything.
 
 The Python evaluation suite under `llm-tests/` is on-demand only, not part of the
 normal development lifecycle. This includes offline checks, Excel fixture checks,
@@ -100,7 +101,8 @@ Run applicable existing checks, not replacement audits:
 
 ```powershell
 & .\scripts\check-com-leaks.ps1
-& .\scripts\Invoke-ExcelFreeTests.ps1 -Local -Contracts
+& .\build.ps1 plan --base-ref origin/main --output artifacts\validation-plan.json
+& .\build.ps1 validate --plan artifacts\validation-plan.json
 & .\scripts\check-success-flag.ps1
 & .\scripts\check-doc-counts.ps1 -SkipBuild
 & .\scripts\check-dynamic-casts.ps1
@@ -131,10 +133,6 @@ behavior are not unnecessary complexity.
   cancellation, and session recovery; a timeout must not become success.
 - Core contracts must agree across generated Service, CLI options/batch JSON,
   MCP schemas, and manual tool exceptions, including defaults and timeouts.
-- Added, renamed, or removed MCP actions and CLI commands must update
-  `.github/usage-analytics-weights.json`. Check that each new effort level
-  matches the work: reads are light, edits are medium, and refresh, evaluation,
-  macro runs, and model or PivotTable building are heavy.
 - MCP stdout, including bootstrap output, is JSON-RPC only.
 - Agent-facing descriptions, server instructions, skills, and recovery messages
   must agree with actual defaults and advertised capabilities. Flag stale input

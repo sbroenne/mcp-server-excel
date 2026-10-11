@@ -8,9 +8,10 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'Get-ValidationPlan.ps1')
-if ($Full -or -not $BaseRef -or $BaseRef -match '^0+$') {
+if ($Full) {
     $plan = Get-ValidationPlan -Full
 } else {
+    if (-not $BaseRef -or $BaseRef -match '^0+$') { throw 'A valid base revision or explicit -Full selection is required.' }
     $range = if ($Comparison -eq 'MergeBase') { "$BaseRef...$HeadRef" } else { "$BaseRef..$HeadRef" }
     $paths = @(git -c core.quotepath=false diff --name-only --no-renames $range)
     if ($LASTEXITCODE -ne 0) { throw 'Cannot determine changed validation inputs.' }
@@ -34,12 +35,16 @@ if ($env:GITHUB_OUTPUT) {
     @(
         "matrix=$matrix"
         "source_checks_group=$($plan.SourceChecksGroup)"
+        "documentation_counts=$($plan.DocumentationCounts)".ToLowerInvariant()
+        "full_solution_build=$($plan.FullSolutionBuild)".ToLowerInvariant()
+        "full_solution_build_group=$($plan.FullSolutionBuildGroup)"
         "tests=$($plan.CiTestGroups.Count -gt 0)".ToLowerInvariant()
         "packages=$($plan.Packages)".ToLowerInvariant()
         "package_build=$($plan.PackageBuild)".ToLowerInvariant()
         "codeql_matrix=$codeQlMatrix"
         "codeql=$($plan.CodeQlLanguages.Count -gt 0)".ToLowerInvariant()
         "npm=$($plan.NpmTests)".ToLowerInvariant()
+        "docs=$($plan.Docs)".ToLowerInvariant()
     ) | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8
 }
 $global:LASTEXITCODE = 0

@@ -28,17 +28,20 @@ for (const [component, packageName, commandName, arch] of products.flatMap(produ
 )) {
   test(`${component} ${arch} tarballs contain the matching runtime and shared launcher`, { timeout: 120_000 }, () => {
     const sandbox = mkdtempSync(join(tmpdir(), 'ExcelMcpNpmPack-'));
-    const executable = join(sandbox, `${commandName}.exe`);
+    const inputDirectory = join(sandbox, 'input');
+    const outputDirectory = join(sandbox, 'output');
+    const executable = join(inputDirectory, `${commandName}.exe`);
     const payload = executableFixture(arch);
     const sourceManifest = join(repoRoot, 'npm-packages', packageName, 'package.json');
     const originalManifest = readFileSync(sourceManifest, 'utf8');
     try {
+      mkdirSync(inputDirectory);
       writeFileSync(executable, payload);
       const result = spawnSync('pwsh', [
         '-NoProfile', '-File', join(repoRoot, 'scripts', 'Build-NpmPackages.ps1'),
         '-Component', component, '-Version', version,
         '-Architecture', arch,
-        '-RuntimeExecutable', executable, '-OutputDirectory', sandbox
+        '-RuntimeExecutable', executable, '-OutputDirectory', outputDirectory
       ], { encoding: 'utf8', timeout: 90_000 });
       assert.ifError(result.error);
       assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
@@ -83,13 +86,13 @@ for (const [component, packageName, commandName, arch] of products.flatMap(produ
       if (process.platform === 'win32' && process.arch !== arch) {
         const inspection = spawnSync('pwsh', [
           '-NoProfile', '-File', join(repoRoot, 'scripts', 'Test-NpmPackages.ps1'),
-          '-Component', component, '-Architecture', arch,
+          '-Component', component, '-Architecture', arch, '-ArchiveOnly',
           '-LauncherPackage', packages.LauncherPackage, '-RuntimePackage', packages.RuntimePackage
         ], { encoding: 'utf8', timeout: 25_000 });
         assert.ifError(inspection.error);
         assert.equal(inspection.status, 0, `${inspection.stdout}\n${inspection.stderr}`);
         assert.match(inspection.stdout, /archives validated/);
-        assert.match(inspection.stdout, /execution NOT RUN/);
+        assert.match(inspection.stdout, /Archive-only validation requested/);
       }
     } finally {
       rmSync(sandbox, { recursive: true, force: true });
@@ -97,13 +100,15 @@ for (const [component, packageName, commandName, arch] of products.flatMap(produ
   });
   test(`${component} rejects a mislabeled ${arch} runtime`, { timeout: 30_000 }, () => {
     const sandbox = mkdtempSync(join(tmpdir(), 'ExcelMcpNpmMismatch-'));
+    const inputDirectory = join(sandbox, 'input');
     try {
-      const executable = join(sandbox, `${commandName}.exe`);
+      mkdirSync(inputDirectory);
+      const executable = join(inputDirectory, `${commandName}.exe`);
       writeFileSync(executable, executableFixture(arch === 'arm64' ? 'x64' : 'arm64'));
       const result = spawnSync('pwsh', [
         '-NoProfile', '-File', join(repoRoot, 'scripts', 'Build-NpmPackages.ps1'),
         '-Component', component, '-Version', version, '-Architecture', arch,
-        '-RuntimeExecutable', executable, '-OutputDirectory', sandbox
+        '-RuntimeExecutable', executable, '-OutputDirectory', join(sandbox, 'output')
       ], { encoding: 'utf8', timeout: 25_000 });
       assert.ifError(result.error);
       assert.notEqual(result.status, 0);
@@ -129,13 +134,15 @@ for (const [name, payload] of [
 ]) {
   test(`packaging rejects ${name} before creating tarballs`, { timeout: 30_000 }, () => {
     const sandbox = mkdtempSync(join(tmpdir(), 'ExcelMcpNpmInvalid-'));
+    const inputDirectory = join(sandbox, 'input');
     try {
-      const executable = join(sandbox, 'runtime.exe');
+      mkdirSync(inputDirectory);
+      const executable = join(inputDirectory, 'runtime.exe');
       writeFileSync(executable, payload);
       const result = spawnSync('pwsh', [
         '-NoProfile', '-File', join(repoRoot, 'scripts', 'Build-NpmPackages.ps1'),
         '-Version', version, '-Architecture', 'arm64',
-        '-RuntimeExecutable', executable, '-OutputDirectory', sandbox
+        '-RuntimeExecutable', executable, '-OutputDirectory', join(sandbox, 'output')
       ], { encoding: 'utf8', timeout: 25_000 });
       assert.ifError(result.error);
       assert.notEqual(result.status, 0);

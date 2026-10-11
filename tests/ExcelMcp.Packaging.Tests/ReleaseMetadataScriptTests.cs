@@ -920,8 +920,10 @@ public sealed class ReleaseMetadataScriptTests
         Assert.DoesNotContain("Build-NpmPackages.ps1", preCommit, StringComparison.Ordinal);
         Assert.DoesNotContain("Test-NpmPackages.ps1", preCommit, StringComparison.Ordinal);
         var packages = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "Build-ReleasePackages.ps1"));
-        Assert.Contains("Build-NpmPackages.ps1", packages, StringComparison.Ordinal);
-        Assert.Contains("Test-NpmPackages.ps1", packages, StringComparison.Ordinal);
+        Assert.Contains("Invoke-TypedPackage", packages, StringComparison.Ordinal);
+        var execution = File.ReadAllText(Path.Combine(RepoRoot, "tools", "ExcelMcp.Build", "PackageExecution.cs"));
+        Assert.Contains("BuildNpmAsync", execution, StringComparison.Ordinal);
+        Assert.Contains("VerifyNpmAsync", execution, StringComparison.Ordinal);
         var ci = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci.yml"));
         Assert.Contains("Build-ReleasePackages.ps1", ci, StringComparison.Ordinal);
     }

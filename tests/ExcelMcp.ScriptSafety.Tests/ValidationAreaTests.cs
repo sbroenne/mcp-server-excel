@@ -1,3 +1,4 @@
+using Sbroenne.ExcelMcp.Build;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
@@ -7,6 +8,8 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 [Trait("Feature", "PreCommit")]
 public sealed class ValidationAreaTests
 {
+    private static readonly string[] ToolingOwners = ["Packaging", "ScriptSafety", "SkillGeneration"];
+
     [Theory]
     [InlineData("tests/AGENTS.md", "")]
     [InlineData("tests/README.md", "")]
@@ -31,37 +34,32 @@ public sealed class ValidationAreaTests
     [InlineData(".github/workflows/codeql.yml", "actions,csharp,javascript-typescript,python")]
     [InlineData(".github/codeql/codeql-config.yml", "actions,csharp,javascript-typescript,python")]
     [InlineData("scripts/Get-ValidationPlan.ps1", "actions,csharp,javascript-typescript,python")]
-    public async Task CodeQl_SelectsActualLanguageInputs(string path, string languages)
+    public void CodeQl_SelectsActualLanguageInputs(string path, string languages)
     {
-        var result = await ValidationSelectionTests.RunAsync($$"""
-            $plan = Get-ValidationPlan -Paths '{{path}}'
-            if (($plan.CodeQlLanguages -join ',') -cne '{{languages}}') {
-                throw "Wrong CodeQL languages: $($plan.CodeQlLanguages)"
-            }
-            """);
-        Assert.True(result.ExitCode == 0, result.Output);
+        Assert.Equal(languages, string.Join(',', ValidationPolicy.LanguagesForPath(path)));
     }
 
     [Fact]
     public async Task CodeQl_TrackedSourceFilesSelectTheirLanguage()
     {
-        var result = await ValidationSelectionTests.RunAsync("""
-            $paths = @(git -c core.quotepath=false ls-files -- '*.cs' '*.csproj' '*.sln' '*.props' '*.targets' `
-                '*.js' '*.jsx' '*.mjs' '*.cjs' '*.ts' '*.tsx' '*.mts' '*.cts' '*.py' '.github/workflows/*.yml')
-            if ($LASTEXITCODE -ne 0 -or -not $paths.Count) { throw 'Cannot inventory tracked language inputs.' }
-            foreach ($path in $paths) {
-                $language = switch -Regex ($path) {
-                    '\.(cs|csproj|sln|props|targets)$' { 'csharp'; break }
-                    '\.(js|jsx|mjs|cjs|ts|tsx|mts|cts)$' { 'javascript-typescript'; break }
-                    '\.py$' { 'python'; break }
-                    '^\.github/workflows/[^/]+\.yml$' { 'actions'; break }
-                }
-                if ($language -and $language -notin (Get-ValidationPlan -Paths $path).CodeQlLanguages) {
-                    throw "Tracked $language input has no analysis: $path"
-                }
-            }
-            """);
-        Assert.True(result.ExitCode == 0, result.Output);
+        var result = await new ProcessRunner(TypedValidationPolicyTests.Root).CheckedAsync("git",
+            ["-c", "core.quotepath=false", "ls-files", "--", "*.cs", "*.csproj", "*.sln", "*.props", "*.targets",
+             "*.js", "*.jsx", "*.mjs", "*.cjs", "*.ts", "*.tsx", "*.mts", "*.cts", "*.py", ".github/workflows/*.yml"],
+            TimeSpan.FromSeconds(30));
+        var paths = result.Output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+        Assert.NotEmpty(paths);
+        foreach (var path in paths)
+        {
+            var language = Path.GetExtension(path) switch
+            {
+                ".cs" or ".csproj" or ".sln" or ".props" or ".targets" => "csharp",
+                ".js" or ".jsx" or ".mjs" or ".cjs" or ".ts" or ".tsx" or ".mts" or ".cts" => "javascript-typescript",
+                ".py" => "python",
+                ".yml" => "actions",
+                _ => throw new InvalidOperationException($"Unexpected tracked input: {path}.")
+            };
+            Assert.Contains(language, ValidationPolicy.LanguagesForPath(path));
+        }
     }
 
     [Theory]
@@ -101,11 +99,11 @@ public sealed class ValidationAreaTests
     {
         var result = await ValidationSelectionTests.RunAsync("""
             $plan = Get-ValidationPlan -Paths 'src/ExcelMcp.Core/Commands/DataModel/DataModelCommands.Read.cs'
-            if (($plan.FastProjects -join ',') -ne 'CLI,ComInterop,Core,McpServer,Service') {
-                throw 'Shared runtime coverage lost.'
+            if (($plan.FastProjects -join ',') -ne 'Core') {
+                throw 'Unchanged adapters selected.'
             }
-            if (($plan.ProcessProjects -join ',') -ne 'CLI' -or -not $plan.Excel) {
-                throw 'Runtime acceptance coverage lost.'
+            if ($plan.ProcessProjects.Count -or -not $plan.Excel) {
+                throw 'Owning workbook coverage lost or unchanged process tests selected.'
             }
             if ($plan.ToolingProjects.Count) { throw 'Unrelated publication tests selected.' }
             $selected = @('Cli','Mcp','Extension','Mcpb','Skills','Plugins') | Where-Object { $plan.$_ }
@@ -139,8 +137,9 @@ public sealed class ValidationAreaTests
             if ($plan.ToolingFilters.Packaging -cne 'FullyQualifiedName~DocumentationCounts') {
                 throw "Packaging filter broadened: $($plan.ToolingFilters.Packaging)"
             }
-            if ($plan.ToolingFilters.ScriptSafety -cne 'RequiresExcel=false') {
-                throw 'Owning ScriptSafety coverage lost.'
+            if ($plan.ToolingFilters.ScriptSafety -notmatch 'TestSelectionTests' -or
+                $plan.ToolingFilters.ScriptSafety -match 'PreCommitScriptTests') {
+                throw 'Test-only selection was lost or broadened.'
             }
             """);
         Assert.True(result.ExitCode == 0, result.Output);
@@ -178,17 +177,26 @@ public sealed class ValidationAreaTests
     [Fact]
     public async Task FullSelection_PreservesAllLanguagesAndPerProjectFilters()
     {
-        var result = await ValidationSelectionTests.RunAsync("""
+        var catalog = new TestCatalog(TypedValidationPolicyTests.Root);
+        var expectedFilters = ToolingOwners
+            .ToDictionary(owner => owner, owner => string.Join('|', catalog.ForOwner(owner)
+                .Where(type => type.ExcelFree && !type.System)
+                .Select(type => type.FullName).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal)
+                .Select(name => $"FullyQualifiedName~{name}.")));
+        var result = await ValidationSelectionTests.RunAsync($$"""
             $plan = Get-ValidationPlan -Full
+            $expectedFilters = '{{System.Text.Json.JsonSerializer.Serialize(expectedFilters)}}' | ConvertFrom-Json -AsHashtable
             if (($plan.CodeQlLanguages -join ',') -ne 'actions,csharp,javascript-typescript,python') {
                 throw 'Full language coverage lost.'
             }
             if (($plan.CiTestGroups -join ',') -ne 'Fast,Process,Tooling') { throw 'Full groups missing.' }
             foreach ($owner in @('Packaging','ScriptSafety','SkillGeneration')) {
-                if ($plan.ToolingFilters[$owner] -cne 'RequiresExcel=false') { throw "$owner coverage narrowed." }
+                if (-not $plan.ToolingFilters[$owner]) { throw "$owner has no selected cases." }
             }
             foreach ($project in $plan.ToolingProjects) {
-                if ($plan.ToolingFilters.$project -ne 'RequiresExcel=false') { throw 'Full tooling selection narrowed.' }
+                if ($plan.ToolingFilters.$project -cne $expectedFilters[$project]) {
+                    throw "Full tooling selection lost or added cases for $project."
+                }
             }
             foreach ($component in @('Cli','Mcp','Extension','Mcpb','Skills','Plugins')) {
                 if (-not $plan.$component) { throw "Missing $component package." }
@@ -198,11 +206,12 @@ public sealed class ValidationAreaTests
     }
 
     [Theory]
-    [InlineData("tests/ExcelMcp.McpServer.Tests/Example.cs", "Fast",
+    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/CalculationGuidanceContractTests.cs", "Fast",
         "tests\\ExcelMcp.McpServer.Tests\\ExcelMcp.McpServer.Tests.csproj")]
     [InlineData("scripts/Publish-PreparedPlugins.ps1", "Tooling",
         "tests\\ExcelMcp.Packaging.Tests\\ExcelMcp.Packaging.Tests.csproj")]
-    [InlineData("src/ExcelMcp.Core/Commands/DataModel/Example.cs", "Fast", "Sbroenne.ExcelMcp.sln")]
+    [InlineData("src/ExcelMcp.Core/Commands/DataModel/Example.cs", "Fast",
+        "tests\\ExcelMcp.Core.Tests\\ExcelMcp.Core.Tests.csproj")]
     [InlineData("src/ExcelMcp.CLI/Program.cs", "Process",
         "tests\\ExcelMcp.CLI.Tests\\ExcelMcp.CLI.Tests.csproj")]
     [InlineData("doc-counts.json", "Tooling", "Sbroenne.ExcelMcp.sln")]
@@ -225,45 +234,50 @@ public sealed class ValidationAreaTests
     [InlineData("", true)]
     public async Task PreparatoryBuilds_ExecuteSelectedProjectAndPropagateFailures(string failure, bool succeeds)
     {
-        var result = await ValidationSelectionTests.RunAsync($$"""
-            $file = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.BuildExecution.$([Guid]::NewGuid().ToString('N')).json"
-            $global:calls = [Collections.Generic.List[string]]::new()
-            function global:dotnet {
-                $global:calls.Add($args -join ' ')
-                $global:LASTEXITCODE = if ($args[0] -eq '{{failure}}') { 17 } else { 0 }
-            }
-            try {
-                Get-ValidationPlan -Paths 'tests/ExcelMcp.McpServer.Tests/Example.cs' |
-                    ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $file
-                $caught = $null
-                try { & .\scripts\Build-CiInputs.ps1 -PlanFile $file -Group Fast } catch { $caught = $_ }
-                if ('{{failure}}') {
-                    if (-not $caught -or $caught.Exception.Message -notmatch '{{failure}} failed') {
-                        throw 'Native failure was not propagated.'
-                    }
-                } elseif ($caught -or $LASTEXITCODE -ne 0) { throw 'Successful preparation did not complete.' }
-                $expectedCalls = if ('{{failure}}' -eq 'restore') { 1 } else { 2 }
-                if ($global:calls.Count -ne $expectedCalls) { throw 'Unexpected native command count.' }
-                foreach ($call in $global:calls) {
-                    if ($call -notmatch 'tests.ExcelMcp\.McpServer\.Tests.ExcelMcp\.McpServer\.Tests\.csproj' -or
-                        $call -match '\.sln') { throw "Unexpected project build: $call" }
-                }
-                if ($expectedCalls -eq 2 -and $global:calls[1] -notmatch '--disable-build-servers') {
-                    throw 'Scoped build retained build servers.'
-                }
-                if ($caught) { throw $caught }
-            } finally {
-                Remove-Item -LiteralPath $file
-                Remove-Item Function:\dotnet
-            }
-            """);
-        Assert.Equal(succeeds, result.ExitCode == 0);
+        var root = TypedValidationPolicyTests.Root;
+        var plan = new ValidationPolicy(root).Select(["tests/ExcelMcp.McpServer.Tests/Integration/Tools/CalculationGuidanceContractTests.cs"]);
+        var runner = new BuildRunner(failure);
+        var error = await Record.ExceptionAsync(() => new ValidationExecution(root, runner).BuildAsync(plan, "Fast"));
+        Assert.Equal(succeeds, error is null);
+        if (!succeeds) { Assert.Contains(failure + " failed with exit code 17", error!.Message, StringComparison.Ordinal); }
+        Assert.Equal(failure == "restore" ? 1 : 2, runner.Commands.Count);
+        foreach (var command in runner.Commands)
+        {
+            Assert.Equal(Path.Combine(root, "tests", "ExcelMcp.McpServer.Tests", "ExcelMcp.McpServer.Tests.csproj"), command[1]);
+        }
+        Assert.Equal("restore", runner.Commands[0][0]);
+        if (runner.Commands.Count == 2)
+        {
+            Assert.Equal("build", runner.Commands[1][0]);
+            Assert.Contains("--disable-build-servers", runner.Commands[1]);
+            Assert.Contains("--no-restore", runner.Commands[1]);
+        }
+    }
+
+    private sealed class BuildRunner(string failure) : IProcessRunner
+    {
+        public List<string[]> Commands { get; } = [];
+        public Task<ProcessResult> CheckedAsync(string executable, IEnumerable<string> arguments, TimeSpan deadline,
+            IReadOnlyDictionary<string, string>? environment = null, bool preserveGitContext = false)
+        {
+            Assert.Equal("dotnet", executable);
+            Assert.Equal(TimeSpan.FromMinutes(20), deadline);
+            Assert.Null(environment);
+            Assert.False(preserveGitContext);
+            var command = arguments.ToArray();
+            Commands.Add(command);
+            if (command[0] == failure) { throw new InvalidOperationException(command[0] + " failed with exit code 17: native-root-cause"); }
+            return Task.FromResult(new ProcessResult(0, "fixture", ""));
+        }
+        public Task<ProcessResult> RunAsync(string executable, IEnumerable<string> arguments, TimeSpan deadline,
+            IReadOnlyDictionary<string, string>? environment = null, bool preserveGitContext = false) =>
+            throw new InvalidOperationException("Unexpected unchecked build command.");
     }
 
     [Theory]
-    [InlineData("{\"CiTestGroups\":[]}", "was not selected")]
-    [InlineData("{\"CiTestGroups\":[\"Fast\"],\"FastProjects\":[]}", "has no build projects")]
-    [InlineData("{\"CiTestGroups\":[\"Fast\"],\"FastProjects\":[\"Packaging\"]}", "Unexpected Fast project")]
+    [InlineData("{\"SchemaVersion\":1,\"CiTestGroups\":[]}", "was not selected")]
+    [InlineData("{\"SchemaVersion\":1,\"FastFilters\":{}}", "was not selected")]
+    [InlineData("{\"SchemaVersion\":1,\"FastFilters\":{\"Packaging\":\"RequiresExcel=false\"}}", "Unexpected Fast project")]
     public async Task PreparatoryBuilds_RejectInvalidSelections(string plan, string error)
     {
         var result = await ValidationSelectionTests.RunAsync($$"""

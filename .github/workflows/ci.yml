@@ -89,11 +89,18 @@ jobs:
       package_build: ${{ steps.select.outputs.package_build }}
       npm: ${{ steps.select.outputs.npm }}
       source_checks_group: ${{ steps.select.outputs.source_checks_group }}
+      documentation_counts: ${{ steps.select.outputs.documentation_counts }}
+      full_solution_build: ${{ steps.select.outputs.full_solution_build }}
+      full_solution_build_group: ${{ steps.select.outputs.full_solution_build_group }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
       - name: Select changed inputs
         id: select
         shell: pwsh
@@ -149,7 +156,7 @@ jobs:
         run: |
           ./scripts/Build-CiInputs.ps1 -PlanFile artifacts/ci-plan.json -Group '${{ matrix.group }}'
       - name: Generate complete skill inputs
-        if: matrix.group == needs.changes.outputs.source_checks_group
+        if: matrix.group == needs.changes.outputs.source_checks_group && needs.changes.outputs.documentation_counts == 'true'
         shell: pwsh
         run: ./scripts/Build-AgentSkills.ps1 -GenerateOnly
       - name: Selected Excel-free tests
@@ -165,10 +172,15 @@ jobs:
             & "./scripts/$script.ps1"
             if ($LASTEXITCODE -ne 0) { throw "$script failed." }
           }
+
+      - name: Documentation count checks
+        if: matrix.group == needs.changes.outputs.source_checks_group && needs.changes.outputs.documentation_counts == 'true'
+        shell: pwsh
+        run: |
           & ./scripts/check-doc-counts.ps1 -SkipBuild
           if ($LASTEXITCODE -ne 0) { throw 'Reviewed documentation counts are stale.' }
       - name: Verify entry-point builds
-        if: matrix.group == 'Fast' && matrix.group == needs.changes.outputs.source_checks_group
+        if: needs.changes.outputs.full_solution_build == 'true' && matrix.group == needs.changes.outputs.full_solution_build_group
         shell: pwsh
         run: |
           & ./src/ExcelMcp.CLI/bin/Release/net10.0-windows/excelcli.exe --help
@@ -199,7 +211,6 @@ jobs:
           name: ci-validation-plan
           path: artifacts
       - name: Setup .NET
-        if: needs.changes.outputs.package_build == 'true'
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
@@ -245,6 +256,10 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: npm-packages/shared/package-lock.json
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
       - name: npm launcher and packaging tests (MCP + CLI)
         shell: pwsh
         run: |
@@ -261,6 +276,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
       - name: Verify every selected result
         shell: pwsh
         env:

@@ -12,7 +12,9 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $cliPaths = @(
     (Join-Path $root 'src\ExcelMcp.CLI\bin\Release\net10.0-windows\excelcli.exe'),
-    (Join-Path $root 'src\ExcelMcp.CLI\bin\Debug\net10.0-windows\excelcli.exe')
+    (Join-Path $root 'src\ExcelMcp.CLI\bin\Debug\net10.0-windows\excelcli.exe'),
+    (Join-Path $root 'tests\ExcelMcp.CLI.Tests\bin\Release\net10.0-windows\excelcli.exe'),
+    (Join-Path $root 'tests\ExcelMcp.CLI.Tests\bin\Debug\net10.0-windows\excelcli.exe')
 )
 
 foreach ($candidate in Get-CimInstance Win32_Process -Filter "Name = 'excelcli.exe'") {

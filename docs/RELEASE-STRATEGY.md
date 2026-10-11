@@ -105,6 +105,12 @@ The workflow will:
 
 The release shares prepared inputs instead of repeating builds in each package job:
 
+`Build-ReleasePackages.ps1` forwards to the internal SDK-native tool under
+`tools\ExcelMcp.Build`. The same typed preparation is available locally through
+`build.ps1 package`; it builds and verifies output but never publishes it.
+Standalone preparation commands preserve their arguments and share these
+operations rather than implementing separate packaging rules.
+
 1. **version** → Calculates the version from the latest tag and dispatch input
 2. **prepare-release** → Compiles changesets once and uploads the exact metadata patch and notes
 3. **build-packages** → Applies that patch and calls `Build-ReleasePackages.ps1` for all NuGet, npm, runtime ZIP, VSIX, MCPB, skill and plugin outputs. ARM64 archives are checked here; `verify-arm64` then installs and executes both prepared npm distributions on native Windows ARM64 before tag creation.
