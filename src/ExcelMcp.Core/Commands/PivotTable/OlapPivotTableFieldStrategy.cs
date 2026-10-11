@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using System.Text.RegularExpressions;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -13,9 +14,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// CubeField is added to the PivotTable. Must call CreatePivotFields() first.
 /// Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.cubefield.createpivotfields
 /// </summary>
-public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
+public partial class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 {
-    private static readonly char[] FieldNameSeparators = ['[', ']', '.'];
     /// <inheritdoc/>
     public bool CanHandle(dynamic pivot)
     {
@@ -256,13 +256,16 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     public PivotFieldResult AddValueField(dynamic pivot, string fieldName, AggregationFunction aggregationFunction, string? customName, string workbookPath)
     {
         dynamic? cubeField = null;
+        dynamic? worksheet = null;
         dynamic? workbook = null;
         dynamic? model = null;
         dynamic? modelTables = null;
         dynamic? table = null;
         dynamic? measures = null;
         dynamic? newMeasure = null;
-        dynamic? formatObject;
+        dynamic? formatObject = null;
+        dynamic? dataField = null;
+        dynamic? pivotFields = null;
 
         try
         {
@@ -270,38 +273,45 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             // MODE 1: Add a measure the PivotTable already exposes (external cube or Data Model)
             // MODE 2: Auto-create DAX measure from a Data Model column (legacy behavior)
 
-            workbook = pivot.Parent.Parent; // PivotTable -> Worksheet -> Workbook
-            model = workbook.Model;
-
             // External cube measures exist only on the server, never in the workbook Data Model.
             string? existingMeasureName = null;
             cubeField = FindMeasureCubeField(pivot, fieldName);
-            if (cubeField != null)
+            if (cubeField == null)
             {
-                existingMeasureName = GetBareMeasureName(cubeField.Name?.ToString() ?? fieldName);
-            }
-            else if (model != null && IsExistingMeasure(model, fieldName, out existingMeasureName))
-            {
-                cubeField = FindMeasureCubeField(pivot, existingMeasureName!);
-                if (cubeField == null)
+                if (!UsesWorkbookDataModel(pivot))
                 {
                     throw new InvalidOperationException(
-                        $"Measure '{existingMeasureName}' exists in Data Model but not found in PivotTable CubeFields. Try refreshing the PivotTable.");
+                        $"Field '{fieldName}' is not a measure of the connected external cube. " +
+                        "Measures must be defined on the cube server; workbook DAX measures cannot be created for this PivotTable.");
+                }
+                worksheet = pivot.Parent;
+                workbook = worksheet.Parent;
+                model = workbook.Model;
+                if (model != null && IsExistingMeasure(model, fieldName, out existingMeasureName))
+                {
+                    cubeField = FindMeasureCubeField(pivot, existingMeasureName!);
+                    if (cubeField == null)
+                        throw new InvalidOperationException(
+                            $"Measure '{existingMeasureName}' exists in Data Model but not found in PivotTable CubeFields. Try refreshing the PivotTable.");
                 }
             }
 
             if (cubeField != null)
             {
-
+                existingMeasureName = GetBareMeasureName(cubeField.Name?.ToString() ?? fieldName);
                 // Check if measure is already in values area
                 int currentOrientation = Convert.ToInt32(cubeField.Orientation);
                 if (currentOrientation == XlPivotFieldOrientation.xlDataField)
                 {
+                    pivotFields = cubeField.PivotFields;
+                    dataField = pivotFields.Item(1);
+                    if (customName != null)
+                        dataField.Caption = customName;
                     return new PivotFieldResult
                     {
                         Success = true,
                         FieldName = existingMeasureName!,
-                        CustomName = cubeField.Caption?.ToString() ?? existingMeasureName!,
+                        CustomName = dataField.Caption,
                         Area = PivotFieldArea.Value,
                         DataType = "Cube",
                         FilePath = workbookPath
@@ -311,15 +321,14 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 // Add to values area using AddDataField (more reliable than setting Orientation directly)
                 // Setting cubeField.Orientation = xlDataField can fail with E_INVALIDARG (0x80070057)
                 // for CubeFields in certain states, while AddDataField works consistently
-                pivot.AddDataField(cubeField);
+                dataField = pivot.AddDataField(cubeField, customName ?? Type.Missing);
 
                 return new PivotFieldResult
                 {
                     Success = true,
                     FieldName = existingMeasureName!,
-                    CustomName = customName ?? cubeField.Caption?.ToString() ?? existingMeasureName!,
+                    CustomName = dataField.Caption,
                     Area = PivotFieldArea.Value,
-                    Function = aggregationFunction,
                     DataType = "Cube",
                     FilePath = workbookPath
                 };
@@ -394,44 +403,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
             // Find the measure in CubeFields - measures appear with [Measures]. prefix
             // Use CubeFieldType to ensure we only match measures, not hierarchies
-            dynamic? cubeFieldsForNewMeasure = null;
-            try
-            {
-                cubeFieldsForNewMeasure = pivot.CubeFields;
-                for (int i = 1; i <= cubeFieldsForNewMeasure.Count; i++)
-                {
-                    dynamic? cf = null;
-                    try
-                    {
-                        cf = cubeFieldsForNewMeasure.Item(i);
-                        string cfName = cf.Name?.ToString() ?? "";
-                        int cubeFieldType = Convert.ToInt32(cf.CubeFieldType);
-
-                        // Only match measures (CubeFieldType=2)
-                        if (cubeFieldType != XlCubeFieldType.xlMeasure)
-                            continue;
-
-                        // Check for exact match: [Measures].[MeasureName]
-                        string expectedCubeFieldName = $"[Measures].[{measureName}]";
-                        if (cfName.Equals(expectedCubeFieldName, StringComparison.OrdinalIgnoreCase) ||
-                            cfName.Equals(measureName, StringComparison.OrdinalIgnoreCase))
-                        {
-                            cubeField = cf;
-                            cf = null; // Transfer ownership
-                            break;
-                        }
-                    }
-                    finally
-                    {
-                        if (cf != null)
-                            ComUtilities.Release(ref cf);
-                    }
-                }
-            }
-            finally
-            {
-                ComUtilities.Release(ref cubeFieldsForNewMeasure);
-            }
+            cubeField = FindMeasureCubeField(pivot, measureName);
 
             if (cubeField == null)
             {
@@ -439,13 +411,13 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             }
 
             // Add to values area using AddDataField (more reliable than setting Orientation directly)
-            pivot.AddDataField(cubeField);
+            dataField = pivot.AddDataField(cubeField);
 
             return new PivotFieldResult
             {
                 Success = true,
                 FieldName = measureName,
-                CustomName = customName ?? measureName,
+                CustomName = dataField.Caption,
                 Area = PivotFieldArea.Value,
                 Function = aggregationFunction,
                 DataType = "Cube",
@@ -463,13 +435,16 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
         finally
         {
-            // Don't release formatObject - it's owned by the model
+            ComUtilities.Release(ref dataField);
+            ComUtilities.Release(ref pivotFields);
             ComUtilities.Release(ref newMeasure);
+            ComUtilities.Release(ref formatObject);
             ComUtilities.Release(ref measures);
             ComUtilities.Release(ref table);
             ComUtilities.Release(ref modelTables);
             ComUtilities.Release(ref model);
             ComUtilities.Release(ref workbook);
+            ComUtilities.Release(ref worksheet);
             ComUtilities.Release(ref cubeField);
         }
     }
@@ -602,15 +577,20 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// <inheritdoc/>
     public PivotFieldResult SetFieldFunction(dynamic pivot, string fieldName, AggregationFunction aggregationFunction, string workbookPath)
     {
+        dynamic? worksheet = null;
         dynamic? workbook = null;
         dynamic? model = null;
         dynamic? measures = null;
         dynamic? measure = null;
         try
         {
+            if (!UsesWorkbookDataModel(pivot))
+                throw new InvalidOperationException(
+                    $"Cannot update measure '{fieldName}' - an external cube measure is defined on the cube server and must be changed there.");
             // For OLAP PivotTables, we need to update the DAX measure in the Data Model
             // Get workbook and model
-            workbook = pivot.Parent.Parent;
+            worksheet = pivot.Parent;
+            workbook = worksheet.Parent;
             model = workbook.Model;
 
             if (model == null)
@@ -620,7 +600,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             }
 
             // Normalize field name - extract measure name from [Measures].[Name] format if present
-            string targetMeasureName = NormalizeMeasureName(fieldName);
+            string targetMeasureName = GetBareMeasureName(fieldName);
 
             // Find the measure by name
             measures = model.ModelMeasures;
@@ -659,7 +639,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             if (string.IsNullOrEmpty(parsedFormula.tableName) || string.IsNullOrEmpty(parsedFormula.columnName))
             {
                 throw new InvalidOperationException(
-                    $"Cannot update measure '{fieldName}' - unable to parse current formula: {currentFormula}");
+                    $"Cannot update measure '{fieldName}' - only a single aggregation of one Data Model column can be changed here. " +
+                    "Use datamodel update-measure to change a compound DAX formula.");
             }
 
             // Generate new DAX formula with the new aggregation function
@@ -695,6 +676,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             ComUtilities.Release(ref measures);
             ComUtilities.Release(ref model);
             ComUtilities.Release(ref workbook);
+            ComUtilities.Release(ref worksheet);
         }
     }
     /// <inheritdoc/>
@@ -991,16 +973,24 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         string workbookPath,
         ILogger? logger = null)
     {
-        dynamic? field = null;
+        Excel.CubeField? cubeField = null;
+        Excel.PivotFields? pivotFields = null;
         try
         {
-            // Get the field - for OLAP, use PivotFields (not CubeFields)
-            dynamic pivotFields = pivot.PivotFields;
-            field = pivotFields.Item(fieldName);
-
-            // OLAP PivotTables only support Automatic subtotals (index 1)
-            // Other subtotal types not available for OLAP data sources
-            field.Subtotals[1] = showSubtotals;
+            cubeField = (Excel.CubeField)GetFieldForManipulation(pivot, fieldName);
+            if (cubeField.Orientation is not (Excel.XlPivotFieldOrientation.xlRowField or Excel.XlPivotFieldOrientation.xlColumnField))
+                throw new InvalidOperationException("Subtotals require an OLAP hierarchy in the Row or Column area.");
+            pivotFields = cubeField.PivotFields;
+            for (int index = 1; index <= pivotFields.Count; index++)
+            {
+                Excel.PivotField? field = null;
+                try
+                {
+                    field = pivotFields.Item(index);
+                    field.Subtotals[1] = showSubtotals;
+                }
+                finally { ComUtilities.Release(ref field); }
+            }
 
             // NOTE: No RefreshTable() needed - Subtotals is a visual-only property
 
@@ -1035,7 +1025,8 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
         finally
         {
-            ComUtilities.Release(ref field);
+            ComUtilities.Release(ref pivotFields);
+            ComUtilities.Release(ref cubeField);
         }
     }
     /// <inheritdoc/>
@@ -1059,6 +1050,23 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     #region Helper Methods
+
+    private static bool UsesWorkbookDataModel(dynamic pivot)
+    {
+        Excel.PivotCache? cache = null;
+        Excel.WorkbookConnection? connection = null;
+        try
+        {
+            cache = ((Excel.PivotTable)pivot).PivotCache();
+            connection = cache.WorkbookConnection;
+            return connection?.Type == Excel.XlConnectionType.xlConnectionTypeMODEL;
+        }
+        finally
+        {
+            ComUtilities.Release(ref connection);
+            ComUtilities.Release(ref cache);
+        }
+    }
 
     /// <summary>
     /// Find the source table and column for a CubeField in the Data Model.
@@ -1090,34 +1098,11 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                     // EXACT MATCH ONLY - no partial matching
                     if (cfName.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
                     {
-                        // Parse hierarchical name format: [TableName].[ColumnName]
-                        // Example: "[RegionalSalesTable].[Sales]" -> table="RegionalSalesTable", column="Sales"
-                        if (cfName.Contains('[') && cfName.Contains(']'))
+                        var match = DataModelColumnName().Match(cfName);
+                        if (match.Success)
                         {
-                            var parts = cfName.Split(FieldNameSeparators, StringSplitOptions.RemoveEmptyEntries);
-                            if (parts.Length >= 2)
-                            {
-                                return (parts[0], parts[1]);
-                            }
-                        }
-
-                        // Fallback: If no hierarchical format, assume fieldName is the column
-                        // and try to infer table from the CubeField's SourceName property
-                        try
-                        {
-                            string sourceName = cf.SourceName?.ToString() ?? "";
-                            if (!string.IsNullOrEmpty(sourceName) && sourceName.Contains('['))
-                            {
-                                var sourceParts = sourceName.Split(FieldNameSeparators, StringSplitOptions.RemoveEmptyEntries);
-                                if (sourceParts.Length >= 2)
-                                {
-                                    return (sourceParts[0], sourceParts[1]);
-                                }
-                            }
-                        }
-                        catch (System.Runtime.InteropServices.COMException)
-                        {
-                            // SourceName property might not be available for this CubeField type
+                            return (match.Groups["table"].Value.Replace("]]", "]", StringComparison.Ordinal),
+                                match.Groups["column"].Value.Replace("]]", "]", StringComparison.Ordinal));
                         }
                     }
                 }
@@ -1160,7 +1145,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         };
 
         // DAX syntax: FUNCTION('TableName'[ColumnName])
-        return $"{daxFunction}('{tableName}'[{columnName}])";
+        return $"{daxFunction}('{tableName.Replace("'", "''", StringComparison.Ordinal)}'[{columnName.Replace("]", "]]", StringComparison.Ordinal)}])";
     }
 
     /// <summary>
@@ -1200,31 +1185,20 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// </summary>
     private static (string tableName, string columnName) ParseDaxFormula(string daxFormula)
     {
-        // Expected format: FUNCTION('TableName'[ColumnName])
-        // Extract table name from single quotes
-        int tableStart = daxFormula.IndexOf('\'');
-        int tableEnd = daxFormula.IndexOf('\'', tableStart + 1);
-
-        if (tableStart == -1 || tableEnd == -1)
-        {
-            return (string.Empty, string.Empty);
-        }
-
-        string tableName = daxFormula.Substring(tableStart + 1, tableEnd - tableStart - 1);
-
-        // Extract column name from square brackets
-        int columnStart = daxFormula.IndexOf('[', tableEnd);
-        int columnEnd = daxFormula.IndexOf(']', columnStart + 1);
-
-        if (columnStart == -1 || columnEnd == -1)
-        {
-            return (string.Empty, string.Empty);
-        }
-
-        string columnName = daxFormula.Substring(columnStart + 1, columnEnd - columnStart - 1);
-
-        return (tableName, columnName);
+        var match = SingleAggregationFormula().Match(daxFormula);
+        return match.Success
+            ? (match.Groups["table"].Value.Replace("''", "'", StringComparison.Ordinal),
+                match.Groups["column"].Value.Replace("]]", "]", StringComparison.Ordinal))
+            : (string.Empty, string.Empty);
     }
+
+    [GeneratedRegex(@"^\[(?<table>(?:[^\]]|\]\])+)\]\.\[(?<column>(?:[^\]]|\]\])+)\]$",
+        RegexOptions.CultureInvariant, 1000)]
+    private static partial Regex DataModelColumnName();
+
+    [GeneratedRegex(@"^\s*=?\s*(?:SUM|COUNT|AVERAGE|MAX|MIN|STDEV\.S|STDEV\.P|VAR\.S|VAR\.P)\s*\(\s*'(?<table>(?:[^']|'')+)'\s*\[(?<column>(?:[^\]]|\]\])+)\]\s*\)\s*$",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, 1000)]
+    private static partial Regex SingleAggregationFormula();
 
     /// <summary>
     /// Parse number format string and create appropriate ModelFormat object.
@@ -1526,24 +1500,6 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     /// <summary>
-    /// Normalize measure name by extracting it from [Measures].[Name] format if present.
-    /// Returns the bare measure name (e.g., "Total Sales" from "[Measures].[Total Sales]").
-    /// </summary>
-    private static string NormalizeMeasureName(string fieldName)
-    {
-        if (fieldName.StartsWith("[Measures].", StringComparison.OrdinalIgnoreCase))
-        {
-            // Remove [Measures]. prefix and extract name from brackets
-            var parts = fieldName.Split(FieldNameSeparators, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length >= 2)
-            {
-                return parts[1]; // "Total Sales" from "[Measures].[Total Sales]"
-            }
-        }
-        return fieldName;
-    }
-
-    /// <summary>
     /// Check if fieldName refers to an existing measure in the Data Model.
     /// Returns true if the measure exists, and outputs the measure name.
     /// Handles formats: "[Measures].[Name]" or "Name" (exact match only).
@@ -1561,7 +1517,7 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             }
 
             // Extract measure name from [Measures].[Name] format if present
-            string searchName = NormalizeMeasureName(fieldName);
+            string searchName = GetBareMeasureName(fieldName);
 
             // Search for measure by name (EXACT match only - no partial matching)
             // Partial matching causes disambiguation bugs where "ACR" could match "ACRTypeKey"

@@ -156,7 +156,7 @@ public sealed class ExternalOlapMemberSearchResult : ResultBase
     public long? OmittedCount { get; set; }
 
     /// <summary>
-    /// Number of provider rows examined to produce this page.
+    /// Number of provider rows read to establish the bounded, consistently ordered member list for this page.
     /// </summary>
     public int ScannedCount { get; set; }
 }

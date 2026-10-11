@@ -20,10 +20,9 @@ internal sealed record OlapMemberPage(
     string? LastConsumedUniqueName);
 
 /// <summary>
-/// Position in the provider's member order: the number of rows already consumed and the
-/// unique name of the last consumed row, used to detect a changed member list.
+/// Position in unique-name order, bound to the contents of the bounded member list.
 /// </summary>
-internal sealed record OlapMemberPosition(int Offset, string LastUniqueName);
+internal sealed record OlapMemberPosition(int Offset, string LastUniqueName, string MemberListDigest);
 
 /// <summary>
 /// A standard OLE DB for OLAP schema rowset request for ADO Connection.OpenSchema.
@@ -32,14 +31,16 @@ internal sealed record OlapSchemaRequest(int Schema, object?[] Restrictions);
 
 internal static class ExternalOlapSchemaMapper
 {
-    private const int ContinuationTokenVersion = 4;
+    private const int ContinuationTokenVersion = 5;
     private const int MaximumContinuationTokenLength = 8192;
+    internal const int MaximumMemberRows = 10000;
 
     private sealed record ContinuationPayload(
         int Version,
         string ScopeDigest,
         int Offset,
-        string LastUniqueName);
+        string LastUniqueName,
+        string MemberListDigest);
 
     public static ExternalOlapSchemaResult MapSchema(
         string connectionName,
@@ -184,6 +185,36 @@ internal static class ExternalOlapSchemaMapper
         return new OlapMemberPage(members, consumedCount, hasMore, lastConsumedUniqueName);
     }
 
+    public static List<ExternalOlapMemberInfo> OrderMembersForPaging(
+        IReadOnlyList<ExternalOlapMemberInfo> members,
+        OlapMemberPosition? position = null)
+    {
+        if (members.Count > MaximumMemberRows)
+        {
+            throw new InvalidOperationException(
+                $"The selected OLAP level exceeds the {MaximumMemberRows} member scan limit. Select a smaller level.");
+        }
+
+        var ordered = members.OrderBy(member => member.UniqueName, StringComparer.Ordinal).ToList();
+        if (ordered.Select(member => member.UniqueName).Distinct(StringComparer.Ordinal).Count() != ordered.Count)
+        {
+            throw new InvalidOperationException("The OLAP provider returned duplicate member unique names.");
+        }
+
+        if (position is not null && (position.Offset < 1 || position.Offset > ordered.Count
+            || ordered[position.Offset - 1].UniqueName != position.LastUniqueName
+            || !string.Equals(position.MemberListDigest, GetMemberListDigest(ordered), StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException(
+                "The OLAP member list changed since the previous page was read. Search again without continuationToken.");
+        }
+
+        return ordered;
+    }
+
+    public static string GetMemberListDigest(IReadOnlyList<ExternalOlapMemberInfo> members) =>
+        Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(members)));
+
     // ADO SchemaEnum values for the standard OLE DB for OLAP schema rowsets.
     internal const int AdSchemaDimensions = 33;
     internal const int AdSchemaHierarchies = 34;
@@ -232,16 +263,25 @@ internal static class ExternalOlapSchemaMapper
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(position.Offset, 1);
         ArgumentException.ThrowIfNullOrWhiteSpace(position.LastUniqueName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(position.MemberListDigest);
         var payload = new ContinuationPayload(
             ContinuationTokenVersion,
             GetScopeDigest(scope),
             position.Offset,
-            position.LastUniqueName);
+            position.LastUniqueName,
+            position.MemberListDigest);
         var bytes = JsonSerializer.SerializeToUtf8Bytes(payload);
-        return Convert.ToBase64String(bytes)
+        string token = Convert.ToBase64String(bytes)
             .TrimEnd('=')
             .Replace('+', '-')
             .Replace('/', '_');
+        if (token.Length > MaximumContinuationTokenLength)
+        {
+            throw new InvalidOperationException(
+                "The OLAP provider returned a member unique name too long for a continuation token.");
+        }
+
+        return token;
     }
 
     public static OlapMemberPosition ReadContinuationToken(string token, OlapMemberSearchScope expectedScope)
@@ -261,12 +301,14 @@ internal static class ExternalOlapSchemaMapper
                 || payload.Version != ContinuationTokenVersion
                 || !string.Equals(payload.ScopeDigest, GetScopeDigest(expectedScope), StringComparison.Ordinal)
                 || payload.Offset < 1
-                || string.IsNullOrWhiteSpace(payload.LastUniqueName))
+                || payload.Offset > MaximumMemberRows
+                || string.IsNullOrWhiteSpace(payload.LastUniqueName)
+                || string.IsNullOrWhiteSpace(payload.MemberListDigest))
             {
                 throw InvalidContinuationToken();
             }
 
-            return new OlapMemberPosition(payload.Offset, payload.LastUniqueName);
+            return new OlapMemberPosition(payload.Offset, payload.LastUniqueName, payload.MemberListDigest);
         }
         catch (FormatException)
         {

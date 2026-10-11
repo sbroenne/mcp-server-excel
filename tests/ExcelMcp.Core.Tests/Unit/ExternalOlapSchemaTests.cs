@@ -1,3 +1,4 @@
+using System.Globalization;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
@@ -155,10 +156,10 @@ public sealed class ExternalOlapSchemaTests
             "SalesCube", "Calendar Cube", "[Date].[Calendar]", "[Date].[Calendar].[Month]", "current", 50);
         var token = ExternalOlapSchemaMapper.CreateContinuationToken(
             scope,
-            new OlapMemberPosition(2, "[Date].[Calendar].[Month].&[2024-02]"));
+            new OlapMemberPosition(2, "[Date].[Calendar].[Month].&[2024-02]", new string('a', 64)));
 
         Assert.DoesNotContain("[Date]", token, StringComparison.Ordinal);
-        Assert.Equal(new OlapMemberPosition(2, "[Date].[Calendar].[Month].&[2024-02]"),
+        Assert.Equal(new OlapMemberPosition(2, "[Date].[Calendar].[Month].&[2024-02]", new string('a', 64)),
             ExternalOlapSchemaMapper.ReadContinuationToken(token, scope));
         Assert.Throws<ArgumentException>(() =>
             ExternalOlapSchemaMapper.ReadContinuationToken(
@@ -168,6 +169,17 @@ public sealed class ExternalOlapSchemaTests
             ExternalOlapSchemaMapper.ReadContinuationToken(
                 token,
                 scope with { CubeName = "Another Cube" }));
+        foreach (var differentScope in new[]
+        {
+            scope with { ConnectionName = "Another Connection" },
+            scope with { HierarchyUniqueName = "[Another Hierarchy]" },
+            scope with { LevelUniqueName = "[Another Level]" },
+            scope with { PageSize = 25 }
+        })
+        {
+            Assert.Throws<ArgumentException>(() =>
+                ExternalOlapSchemaMapper.ReadContinuationToken(token, differentScope));
+        }
     }
 
     [Fact]
@@ -176,7 +188,7 @@ public sealed class ExternalOlapSchemaTests
         var longText = new string('x', 7000);
         var scope = new OlapMemberSearchScope(
             longText, longText, longText, longText, longText, 50);
-        var position = new OlapMemberPosition(2, "[Date].[Calendar].[Month].&[2024-02]");
+        var position = new OlapMemberPosition(2, "[Date].[Calendar].[Month].&[2024-02]", new string('a', 64));
 
         var token = ExternalOlapSchemaMapper.CreateContinuationToken(scope, position);
 
@@ -184,6 +196,92 @@ public sealed class ExternalOlapSchemaTests
         Assert.Equal(position, ExternalOlapSchemaMapper.ReadContinuationToken(token, scope));
         Assert.Throws<ArgumentException>(() =>
             ExternalOlapSchemaMapper.ReadContinuationToken(token, scope with { SearchText = longText + "y" }));
+    }
+
+    [Fact]
+    public void MemberPaging_RefusesOversizedLevelsInsteadOfIssuingAnUnboundedCursor()
+    {
+        var members = Enumerable.Range(0, ExternalOlapSchemaMapper.MaximumMemberRows + 1)
+            .Select(index => Member($"[Month].&[{index}]", index.ToString(CultureInfo.InvariantCulture), 0)).ToArray();
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            ExternalOlapSchemaMapper.OrderMembersForPaging(members));
+
+        Assert.Contains("10000 member scan limit", error.Message, StringComparison.Ordinal);
+        Assert.Contains("smaller level", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void ContinuationToken_RefusesOversizedProviderMemberNames()
+    {
+        var scope = new OlapMemberSearchScope("Cube", "Cube", "[Hierarchy]", "[Level]", null, 100);
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            ExternalOlapSchemaMapper.CreateContinuationToken(
+                scope, new OlapMemberPosition(1, new string('x', 7000), new string('a', 64))));
+
+        Assert.Contains("unique name too long", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MemberPaging_DuplicateProviderNamesAreRejected()
+    {
+        var members = new[]
+        {
+            Member("[Month].&[A]", "January", 0),
+            Member("[Month].&[A]", "Duplicate January", 0)
+        };
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            ExternalOlapSchemaMapper.OrderMembersForPaging(members));
+
+        Assert.Contains("duplicate member unique names", error.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MemberPaging_ReorderedZeroOrdinalRowsResumeWithoutRepeatingOrSkipping()
+    {
+        var members = new[]
+        {
+            Member("[Month].&[C]", "March", 0),
+            Member("[Month].&[A]", "January", 0),
+            Member("[Month].&[B]", "February", 0)
+        };
+        var ordered = ExternalOlapSchemaMapper.OrderMembersForPaging(members);
+        var first = ExternalOlapSchemaMapper.SelectMemberPage(
+            ordered, pageSize: 2, searchText: null, maximumScannedRows: 10);
+        var position = new OlapMemberPosition(
+            first.ScannedCount, first.LastConsumedUniqueName!,
+            ExternalOlapSchemaMapper.GetMemberListDigest(ordered));
+        var resumed = ExternalOlapSchemaMapper.OrderMembersForPaging(members.Reverse().ToArray(), position);
+        var second = ExternalOlapSchemaMapper.SelectMemberPage(
+            resumed.Skip(position.Offset).ToArray(), pageSize: 2, searchText: null, maximumScannedRows: 10);
+
+        Assert.Equal(["January", "February"], first.Members.Select(member => member.Caption));
+        Assert.Equal("March", Assert.Single(second.Members).Caption);
+        Assert.False(second.HasMore);
+    }
+
+    [Fact]
+    public void MemberPaging_ChangedPrefixIsRejectedEvenWhenLastMemberStillMatches()
+    {
+        var original = new[]
+        {
+            Member("[Month].&[A]", "January", 0),
+            Member("[Month].&[B]", "February", 0),
+            Member("[Month].&[C]", "March", 0)
+        };
+        var position = new OlapMemberPosition(2, "[Month].&[B]",
+            ExternalOlapSchemaMapper.GetMemberListDigest(original));
+        var changed = new[]
+        {
+            Member("[Month].&[AA]", "Changed January", 0), original[1], original[2]
+        };
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            ExternalOlapSchemaMapper.OrderMembersForPaging(changed, position));
+        Assert.Contains("changed", error.Message, StringComparison.Ordinal);
+        Assert.Contains("without continuationToken", error.Message, StringComparison.Ordinal);
     }
 
     [Fact]

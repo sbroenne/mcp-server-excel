@@ -7,7 +7,7 @@
     Builds the Release solution unless -SkipBuild is supplied, then runs:
     1. Independent CLI workflow scenarios.
     2. Independent MCP workflow scenarios.
-    3. External OLAP cube tests (schema discovery and PivotTables) through the Service boundary.
+    3. External OLAP schema discovery and PivotTable tests through the Service boundary.
 
     Defaults to all stages. The OLAP stage uses EXCELMCP_TEST_OLAP_* when set;
     otherwise it starts the synthetic Atoti cube via Start-OlapTestCube.ps1
@@ -84,7 +84,11 @@ try {
             'Olap' {
                 $olapSettings = @($env:EXCELMCP_TEST_OLAP_CONNECTION_STRING, $env:EXCELMCP_TEST_OLAP_CUBE,
                     $env:EXCELMCP_TEST_OLAP_HIERARCHY, $env:EXCELMCP_TEST_OLAP_LEVEL)
-                if (@($olapSettings | Where-Object { [string]::IsNullOrWhiteSpace($_) }).Count -gt 0) {
+                $missingSettings = @($olapSettings | Where-Object { [string]::IsNullOrWhiteSpace($_) }).Count
+                if ($missingSettings -gt 0 -and $missingSettings -lt $olapSettings.Count) {
+                    throw 'Configure all four EXCELMCP_TEST_OLAP_ settings, or clear all four to use the synthetic cube.'
+                }
+                if ($missingSettings -eq $olapSettings.Count) {
                     $olapCube = & (Join-Path $PSScriptRoot 'Start-OlapTestCube.ps1')
                     foreach ($key in $olapCube.Settings.Keys) { $parameters.Environment[$key] = $olapCube.Settings[$key] }
                 }
@@ -110,13 +114,16 @@ finally {
     }
     catch { $failures.Add($_.Exception) }
     finally {
-        if ($olapCube -and -not $olapCube.Process.HasExited) {
-            # Atoti runs Python and Java child processes; stop the whole owned tree by PID.
-            taskkill.exe /PID $olapCube.Process.Id /T /F | Out-Null
-            if ($LASTEXITCODE -ne 0 -and -not $olapCube.Process.HasExited) {
-                $failures.Add([InvalidOperationException]::new("OLAP test cube cleanup failed for PID $($olapCube.Process.Id)."))
+        try {
+            if ($olapCube -and -not $olapCube.Process.HasExited) {
+                $olapCube.Process.Kill($true)
+                if (-not $olapCube.Process.WaitForExit(10000)) {
+                    throw "OLAP test cube cleanup timed out for PID $($olapCube.Process.Id)."
+                }
             }
         }
+        catch { $failures.Add($_.Exception) }
+        finally { if ($olapCube) { $olapCube.Process.Dispose() } }
         if ($null -eq $previousPipeName) {
             Remove-Item Env:EXCELMCP_CLI_PIPE -ErrorAction SilentlyContinue
         }

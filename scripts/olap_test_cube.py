@@ -17,6 +17,12 @@ sales = pd.DataFrame(
         "Id": range(len(months)),
         "Year": [month[:4] for month in months],
         "Month": months,
+        "RelativePeriod": [
+            "Prior Month" if month == "2025-10"
+            else "Current Month" if month == "2025-11"
+            else "Next Month" if month == "2025-12" else "Earlier Months"
+            for month in months
+        ],
         "Amount": [float(index + 1) for index in range(len(months))],
     }
 )

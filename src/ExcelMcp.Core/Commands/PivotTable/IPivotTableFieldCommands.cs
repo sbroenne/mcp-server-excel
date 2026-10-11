@@ -75,8 +75,8 @@ public interface IPivotTableFieldCommands
     /// 1. Pre-existing measure: fieldName = "Total Sales" or "[Measures].[Total Sales]"
     ///    - Adds an existing Data Model or external cube measure without creating a duplicate
     ///    - aggregationFunction ignored (measure formula defines aggregation)
-    /// 2. Auto-create measure: fieldName = "Sales" (column name)
-    ///    - Creates new DAX measure with specified aggregation function
+    /// 2. Auto-create measure: fieldName = "[SalesTable].[Sales]" (exact Data Model column CubeField name)
+    ///    - Creates a new workbook DAX measure with the specified aggregation function; external cube columns cannot create workbook measures
     ///    - customName becomes the measure name
     ///
     /// For Regular PivotTables: Adds column with aggregation function
@@ -117,7 +117,8 @@ public interface IPivotTableFieldCommands
     // === FIELD CONFIGURATION (WITH RESULT VERIFICATION) ===
 
     /// <summary>
-    /// Sets aggregation function for value field
+    /// Sets aggregation function for a value field. For Data Model measures, changes only a single aggregation of one column.
+    /// Compound DAX formulas must be changed explicitly with datamodel update-measure; external cube measures must be changed on the cube server.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>

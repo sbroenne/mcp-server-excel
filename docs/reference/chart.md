@@ -61,6 +61,9 @@ the [PivotTable fields](pivottable.md), not regular-chart series operations.
 Choose the source deliberately: a range, an Excel Table, or a PivotTable. The
 PivotTable action verifies a live PivotChart link; it fails rather than returning
 a static chart if Excel cannot establish it.
+If linking fails after Excel creates the chart, the error preserves the failure
+and identifies the chart left on its sheet. Inspect that chart before retrying;
+it may not have a live PivotTable link and is not deleted automatically.
 
 For monthly labels in A1:A6 and numeric series in B1:C6 on `Sheet1`:
 

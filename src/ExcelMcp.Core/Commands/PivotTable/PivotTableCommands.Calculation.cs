@@ -86,11 +86,7 @@ public partial class PivotTableCommands
                     (baseItemKind == PivotCalculationBaseItemKind.Named &&
                         !string.Equals(result.BaseItemName, baseItemName, StringComparison.Ordinal)))
                 {
-                    throw new InvalidOperationException(
-                        $"Excel did not apply the requested Show Values As settings for '{fieldName}'. " +
-                        $"Requested calculation: {calculation}; native calculation: {result.Calculation}. " +
-                        (isOlap ? "Use a source measure for this OLAP/Data Model calculation. " : "") +
-                        "Read list-fields and displayed data before retrying; failed writes do not promise rollback.");
+                    throw DescribeCalculationReadbackFailure(fieldName, calculation, result.Calculation, isOlap);
                 }
                 return result;
             }
@@ -104,6 +100,18 @@ public partial class PivotTableCommands
             }
         });
     }
+
+    internal static InvalidOperationException DescribeCalculationReadbackFailure(
+        string fieldName, PivotFieldCalculation requested, PivotFieldCalculation reported, bool isOlap) =>
+        new(
+            (isOlap
+                ? $"Excel accepted the Show Values As write for '{fieldName}', but its OLAP/Data Model native readback did not verify the requested settings. "
+                : $"Excel did not apply the requested Show Values As settings for '{fieldName}'. ") +
+            $"Requested calculation: {requested}; native calculation: {reported}. " +
+            (isOlap
+                ? "Displayed values may already have changed even when list-fields reports the previous calculation. " +
+                  "Inspect get-data before retrying or explicitly changing the calculation; no changes have been rolled back."
+                : "Read list-fields and displayed data before retrying; failed writes do not promise rollback."));
 
     private static bool UsesBaseItem(PivotFieldCalculation calculation) =>
         calculation is PivotFieldCalculation.DifferenceFrom or PivotFieldCalculation.PercentOf

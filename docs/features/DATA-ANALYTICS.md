@@ -117,6 +117,11 @@ the selected connection's existing Excel authentication context; it does not
 refresh data, change PivotTable filters, save the workbook, or inspect the
 embedded Data Model.
 
+Member paging reads up to 10,000 entries at the selected level and orders them by
+their provider unique names. Larger levels return an explicit error; choose a
+smaller level. A changed list invalidates its paging token rather than silently
+skipping or repeating entries.
+
 [Choosing an import workflow](../reference/querytable.md) |
 [Safe access and error handling](../reference/behavioral-rules.md)
 

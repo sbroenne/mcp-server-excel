@@ -661,6 +661,9 @@ Runtime:
 |------|---------|
 | `Telemetry/ExcelMcpTelemetry.cs` | Static helper for tracking events |
 | `ExcelMcp.CLI/Telemetry/CliTelemetry.cs` | CLI command telemetry and lifecycle |
+| `ExcelMcp.CLI/Telemetry/DeferredTelemetrySink.cs` | Creates the CLI telemetry sink in the background and bounds its shutdown |
+| `ExcelMcp.CLI/Telemetry/ApplicationInsightsTelemetrySink.cs` | CLI sink that owns the Application Insights client |
+| `ExcelMcp.CLI/Telemetry/ICliTelemetrySink.cs` | Destination contract for CLI command telemetry |
 | `Telemetry/SensitiveDataRedactor.cs` | Redacts sensitive local diagnostic text |
 | Entry-point `Program.cs` files | Application Insights lifecycle configuration |
 | CLI and MCP Server project files | MSBuild targets that generate `TelemetryConfig.g.cs` |

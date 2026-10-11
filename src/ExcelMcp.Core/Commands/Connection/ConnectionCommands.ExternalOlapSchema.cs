@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
 using Microsoft.CSharp.RuntimeBinder;
+using Microsoft.Extensions.Logging;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -47,17 +48,17 @@ public partial class ConnectionCommands
                     adoConnection,
                     ExternalOlapSchemaMapper.BuildDimensionRequest(cubeName),
                     connectionName,
-                    ct);
+                    ct, logger: batch.Logger);
                 List<IReadOnlyDictionary<string, object?>> hierarchyRows = OpenSchemaRowset(
                     adoConnection,
                     ExternalOlapSchemaMapper.BuildHierarchyRequest(cubeName),
                     connectionName,
-                    ct);
+                    ct, logger: batch.Logger);
                 List<IReadOnlyDictionary<string, object?>> levelRows = OpenSchemaRowset(
                     adoConnection,
                     ExternalOlapSchemaMapper.BuildLevelRequest(cubeName),
                     connectionName,
-                    ct);
+                    ct, logger: batch.Logger);
 
                 ExternalOlapSchemaResult mapped = ExternalOlapSchemaMapper.MapSchema(
                     connectionName,
@@ -136,12 +137,12 @@ public partial class ConnectionCommands
                     adoConnection,
                     ExternalOlapSchemaMapper.BuildHierarchyRequest(cubeName, hierarchyUniqueName),
                     connectionName,
-                    ct);
+                    ct, logger: batch.Logger);
                 List<IReadOnlyDictionary<string, object?>> levelRows = OpenSchemaRowset(
                     adoConnection,
                     ExternalOlapSchemaMapper.BuildLevelRequest(cubeName, levelUniqueName),
                     connectionName,
-                    ct);
+                    ct, logger: batch.Logger);
                 ExternalOlapSchemaResult levelSchema = ExternalOlapSchemaMapper.MapSchema(
                     connectionName,
                     Array.Empty<IReadOnlyDictionary<string, object?>>(),
@@ -153,9 +154,6 @@ public partial class ConnectionCommands
                     ? levelSchema.Levels.Single().MemberCount
                     : null;
 
-                int readLimit = normalizedSearch is null
-                    ? pageSize + 1
-                    : MaximumOlapMemberRowsScanned + 1;
                 List<IReadOnlyDictionary<string, object?>> memberRows = OpenSchemaRowset(
                     adoConnection,
                     ExternalOlapSchemaMapper.BuildMembersRequest(
@@ -164,18 +162,20 @@ public partial class ConnectionCommands
                         levelUniqueName),
                     connectionName,
                     ct,
-                    position,
-                    readLimit);
+                    ExternalOlapSchemaMapper.MaximumMemberRows + 1,
+                    batch.Logger);
                 List<ExternalOlapMemberInfo> mappedMembers = ExternalOlapSchemaMapper.MapMembers(memberRows);
+                List<ExternalOlapMemberInfo> orderedMembers = ExternalOlapSchemaMapper.OrderMembersForPaging(mappedMembers, position);
+                string memberListDigest = ExternalOlapSchemaMapper.GetMemberListDigest(orderedMembers);
                 OlapMemberPage page = ExternalOlapSchemaMapper.SelectMemberPage(
-                    mappedMembers,
+                    orderedMembers.Skip(position?.Offset ?? 0).ToArray(),
                     pageSize,
                     normalizedSearch,
                     MaximumOlapMemberRowsScanned);
 
                 result.Members = page.Members;
                 result.ReturnedCount = page.Members.Count;
-                result.ScannedCount = page.ScannedCount;
+                result.ScannedCount = memberRows.Count;
                 result.TotalCount = totalCount;
                 result.OmittedCount = totalCount.HasValue
                     ? Math.Max(0, totalCount.Value - page.Members.Count)
@@ -185,7 +185,8 @@ public partial class ConnectionCommands
                         scope,
                         new OlapMemberPosition(
                             (position?.Offset ?? 0) + page.ScannedCount,
-                            page.LastConsumedUniqueName))
+                            page.LastConsumedUniqueName,
+                            memberListDigest))
                     : null;
                 result.Success = true;
                 return result;
@@ -296,20 +297,25 @@ public partial class ConnectionCommands
         return cubeName;
     }
 
+    // ADO schema rowsets have no referenced PIA; late binding works with installed OLAP providers.
     private static List<IReadOnlyDictionary<string, object?>> OpenSchemaRowset(
         dynamic adoConnection,
         OlapSchemaRequest request,
         string connectionName,
         CancellationToken cancellationToken,
-        OlapMemberPosition? startAfter = null,
-        int? maximumRows = null)
+        int? maximumRows = null,
+        ILogger? logger = null)
     {
         dynamic? recordset = null;
         dynamic? fields = null;
+        bool readCompleted = false;
+        Exception? cleanupFailure = null;
+        var rows = new List<IReadOnlyDictionary<string, object?>>();
         try
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 recordset = adoConnection.OpenSchema(request.Schema, request.Restrictions);
                 if (recordset is null)
                 {
@@ -318,11 +324,6 @@ public partial class ConnectionCommands
                 }
 
                 fields = recordset.Fields;
-                if (startAfter is not null)
-                {
-                    SkipToPosition(recordset, fields, startAfter, cancellationToken);
-                }
-
                 int fieldCount = Convert.ToInt32(fields.Count, CultureInfo.InvariantCulture);
                 var columnNames = new string[fieldCount];
                 for (int i = 0; i < fieldCount; i++)
@@ -340,7 +341,6 @@ public partial class ConnectionCommands
                     }
                 }
 
-                var rows = new List<IReadOnlyDictionary<string, object?>>();
                 while ((maximumRows is null || rows.Count < maximumRows)
                     && !Convert.ToBoolean(recordset.EOF, CultureInfo.InvariantCulture))
                 {
@@ -348,6 +348,13 @@ public partial class ConnectionCommands
                     var row = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
                     for (int i = 0; i < fieldCount; i++)
                     {
+                        if (request.Schema == ExternalOlapSchemaMapper.AdSchemaMembers
+                            && columnNames[i].ToUpperInvariant() is not ("MEMBER_UNIQUE_NAME" or "MEMBER_CAPTION"
+                                or "MEMBER_NAME" or "MEMBER_ORDINAL" or "MEMBER_TYPE"))
+                        {
+                            continue;
+                        }
+
                         dynamic? field = null;
                         try
                         {
@@ -365,7 +372,7 @@ public partial class ConnectionCommands
                     recordset.MoveNext();
                 }
 
-                return rows;
+                readCompleted = true;
             }
             catch (COMException ex)
             {
@@ -379,65 +386,56 @@ public partial class ConnectionCommands
         }
         finally
         {
-            if (recordset is not null)
+            try
             {
-                try
+                if (recordset is not null)
                 {
-                    if (Convert.ToInt32(recordset.State, CultureInfo.InvariantCulture) == 1)
+                    try
                     {
-                        recordset.Close();
+                        if ((Convert.ToInt32(recordset.State, CultureInfo.InvariantCulture) & 1) != 0)
+                        {
+                            recordset.Close();
+                        }
+                    }
+                    catch (COMException ex)
+                    {
+                        if (readCompleted)
+                        {
+                            cleanupFailure = CreateOlapQueryError(connectionName, ex.HResult, ex.Message);
+                        }
+                        else
+                        {
+                            logger?.LogWarning("OLAP schema rowset cleanup failed (HRESULT 0x{HResult:X8}); preserving the query failure.",
+                                ex.HResult);
+                        }
+                    }
+                    catch (RuntimeBinderException)
+                    {
+                        if (readCompleted)
+                        {
+                            cleanupFailure = new NotSupportedException("The OLAP provider could not close its schema rowset.");
+                        }
+                        else
+                        {
+                            logger?.LogWarning("The OLAP provider could not close its schema rowset; preserving the query failure.");
+                        }
                     }
                 }
-                catch (Exception ex) when (ex is COMException or RuntimeBinderException)
-                {
-                    // Preserve the query result or primary provider failure; closing is cleanup only.
-                }
             }
-
-            ComUtilities.Release(ref fields);
-            ComUtilities.Release(ref recordset);
+            finally
+            {
+                ComUtilities.Release(ref fields);
+                ComUtilities.Release(ref recordset);
+            }
         }
-    }
 
-    private static void SkipToPosition(
-        dynamic recordset,
-        dynamic fields,
-        OlapMemberPosition position,
-        CancellationToken cancellationToken)
-    {
-        for (int index = 0; index < position.Offset; index++)
+        if (cleanupFailure is not null)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (Convert.ToBoolean(recordset.EOF, CultureInfo.InvariantCulture))
-            {
-                throw MemberListChanged();
-            }
-
-            if (index == position.Offset - 1)
-            {
-                dynamic? field = null;
-                try
-                {
-                    field = fields.Item("MEMBER_UNIQUE_NAME");
-                    string? uniqueName = Convert.ToString(field.Value, CultureInfo.InvariantCulture);
-                    if (!string.Equals(uniqueName, position.LastUniqueName, StringComparison.Ordinal))
-                    {
-                        throw MemberListChanged();
-                    }
-                }
-                finally
-                {
-                    ComUtilities.Release(ref field);
-                }
-            }
-
-            recordset.MoveNext();
+            throw cleanupFailure;
         }
-    }
 
-    private static InvalidOperationException MemberListChanged() =>
-        new("The OLAP member list changed since the previous page was read. "
-            + "Search again without continuationToken.");
+        return rows;
+    }
 
     private static InvalidOperationException CreateOlapQueryError(
         string connectionName,

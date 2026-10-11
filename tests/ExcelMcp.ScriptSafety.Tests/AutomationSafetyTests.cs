@@ -239,8 +239,10 @@ public sealed partial class AutomationSafetyTests
         finally { Directory.Delete(root, true); }
     }
 
-    [Fact]
-    public async Task TestE2E_DefaultRunSelectsExternalOlapServiceTest()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TestE2E_DefaultRunSelectsExternalOlapServiceTest(bool failOlapStage)
     {
         var root = NewSandbox();
         try
@@ -266,6 +268,9 @@ public sealed partial class AutomationSafetyTests
                         olapHierarchy = $Environment['EXCELMCP_TEST_OLAP_HIERARCHY']
                         olapLevel = $Environment['EXCELMCP_TEST_OLAP_LEVEL']
                     } | ConvertTo-Json -Compress | Add-Content -LiteralPath '{{Quote(captured)}}'
+                    if ($Name -eq 'Olap' -and ${{failOlapStage.ToString().ToLowerInvariant()}}) {
+                        throw 'Simulated OLAP stage failure.'
+                    }
                     $global:LASTEXITCODE = 0
                 }
                 """);
@@ -292,14 +297,15 @@ public sealed partial class AutomationSafetyTests
 
             var script = Path.Combine(scripts, "Test-E2E.ps1");
             var result = await RunAsync(root, $$"""
-                $env:EXCELMCP_TEST_OLAP_CONNECTION_STRING = 'stale-connection'
-                $env:EXCELMCP_TEST_OLAP_CUBE = 'stale-cube'
-                $env:EXCELMCP_TEST_OLAP_HIERARCHY = 'stale-hierarchy'
+                Remove-Item Env:EXCELMCP_TEST_OLAP_CONNECTION_STRING -ErrorAction SilentlyContinue
+                Remove-Item Env:EXCELMCP_TEST_OLAP_CUBE -ErrorAction SilentlyContinue
+                Remove-Item Env:EXCELMCP_TEST_OLAP_HIERARCHY -ErrorAction SilentlyContinue
                 Remove-Item Env:EXCELMCP_TEST_OLAP_LEVEL -ErrorAction SilentlyContinue
                 & '{{Quote(script)}}' -SkipBuild -ResultsDirectory '{{Quote(Path.Combine(root, "results"))}}'
                 """);
 
-            Assert.True(result.ExitCode == 0, result.Output);
+            Assert.Equal(!failOlapStage, result.ExitCode == 0);
+            if (failOlapStage) { Assert.Contains("Simulated OLAP stage failure", result.Output, StringComparison.Ordinal); }
             var stages = File.ReadAllLines(captured)
                 .Select(line => System.Text.Json.JsonDocument.Parse(line))
                 .ToArray();
@@ -330,6 +336,78 @@ public sealed partial class AutomationSafetyTests
             finally
             {
                 foreach (var stage in stages) { stage.Dispose(); }
+            }
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public async Task TestE2E_PartialCubeSettingsFailsBeforeStartingReplacementCube()
+    {
+        var root = NewSandbox();
+        try
+        {
+            var scripts = Directory.CreateDirectory(Path.Combine(root, "scripts")).FullName;
+            File.Copy(Path.Combine(RepoRoot, "scripts", "Test-E2E.ps1"), Path.Combine(scripts, "Test-E2E.ps1"));
+            File.WriteAllText(Path.Combine(scripts, "Invoke-TestStage.ps1"),
+                "function Invoke-TestStage { throw 'Test stage must not run.' }");
+            File.WriteAllText(Path.Combine(scripts, "Stop-ExcelCliService.ps1"), "$global:LASTEXITCODE = 0");
+            var launched = Path.Combine(root, "launched");
+            File.WriteAllText(Path.Combine(scripts, "Start-OlapTestCube.ps1"),
+                $"New-Item -ItemType File -Path '{Quote(launched)}'; throw 'Replacement cube started.'");
+
+            var result = await RunAsync(root, """
+                $env:EXCELMCP_TEST_OLAP_CONNECTION_STRING = 'configured-connection'
+                Remove-Item Env:EXCELMCP_TEST_OLAP_CUBE -ErrorAction SilentlyContinue
+                Remove-Item Env:EXCELMCP_TEST_OLAP_HIERARCHY -ErrorAction SilentlyContinue
+                Remove-Item Env:EXCELMCP_TEST_OLAP_LEVEL -ErrorAction SilentlyContinue
+                & .\scripts\Test-E2E.ps1 -SkipBuild -Stages Olap
+                """);
+
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("Configure all four EXCELMCP_TEST_OLAP_", result.Output, StringComparison.Ordinal);
+            Assert.False(File.Exists(launched), "Partial configuration must not silently select a different cube.");
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public async Task OlapCube_StartupTimeoutStopsOwnedParentAndChild()
+    {
+        var root = NewSandbox();
+        try
+        {
+            var parentPid = Path.Combine(root, "parent.pid");
+            var childPid = Path.Combine(root, "child.pid");
+            var source = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "Start-OlapTestCube.ps1"));
+            var start = source.IndexOf("$null = $process.Handle", StringComparison.Ordinal);
+            var end = source.IndexOf("[pscustomobject]@{", start, StringComparison.Ordinal);
+            Assert.True(start >= 0 && end > start);
+            var result = await RunAsync(root, $$"""
+                $child = "Start-Process pwsh -ArgumentList '-NoProfile','-Command','Start-Sleep 120' -PassThru | ForEach-Object { `$_.Id } | Set-Content '{{Quote(childPid)}}'; Start-Sleep 120"
+                $process = Start-Process pwsh -ArgumentList '-NoProfile','-Command',$child -PassThru
+                $process.Id | Set-Content '{{Quote(parentPid)}}'
+                $deadline = [DateTime]::UtcNow.AddSeconds(15)
+                while (-not (Test-Path '{{Quote(childPid)}}')) {
+                    if ([DateTime]::UtcNow -gt $deadline) { $process.Kill($true); throw 'Child startup deadline exceeded.' }
+                    Start-Sleep -Milliseconds 100
+                }
+                $StartupTimeoutSeconds = 1
+                $port = 12345
+                $logPath = '{{Quote(Path.Combine(root, "cube.log"))}}'
+                'startup diagnostic' | Set-Content "$logPath.err"
+                try {
+                    {{source[start..end]}}
+                }
+                catch { $_.Exception.ToString() | Write-Output; exit 1 }
+                """);
+
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("did not start on port 12345", result.Output, StringComparison.Ordinal);
+            Assert.Contains("startup diagnostic", result.Output, StringComparison.Ordinal);
+            foreach (var file in new[] { parentPid, childPid })
+            {
+                Assert.False(IsRunning(int.Parse(File.ReadAllText(file).Trim(), CultureInfo.InvariantCulture)));
             }
         }
         finally { Directory.Delete(root, true); }
@@ -403,13 +481,13 @@ public sealed partial class AutomationSafetyTests
         using var process = Process.Start(info)!;
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         try { await process.WaitForExitAsync(timeout.Token); }
         catch (OperationCanceledException)
         {
             process.Kill(entireProcessTree: true);
             await process.WaitForExitAsync();
-            throw new TimeoutException("Automation script exceeded its 30-second deadline.");
+            throw new TimeoutException("Automation script exceeded its 60-second deadline.");
         }
         return (process.ExitCode, await stdout + await stderr);
     }

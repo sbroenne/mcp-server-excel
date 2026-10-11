@@ -43,6 +43,8 @@ public interface IConnectionCommands
     /// Searches or lists a bounded page of members at an external OLAP hierarchy level.
     /// Uses the existing workbook connection's Excel authentication context without refreshing or changing PivotTable filters.
     /// Queries are scoped to the cube selected by the workbook connection. Continuation tokens are opaque and bound to the connection, cube, hierarchy, level, search text, and page size.
+    /// Reads at most 10,000 members from the selected level per call and pages in unique-name order. Larger levels fail explicitly; select a smaller level.
+    /// A changed member list invalidates the continuation token rather than skipping or repeating entries.
     /// Provider totals are returned when available; totals for text-filtered searches may be unknown.
     /// </summary>
     /// <param name="batch">Excel batch session</param>

@@ -8,7 +8,7 @@
     starts scripts\olap_test_cube.py on a free localhost port, waits until
     the cube serves XMLA, and returns the process plus the EXCELMCP_TEST_OLAP_* settings.
     The caller owns the returned process tree (Python plus a Java child) and must
-    stop it, for example with taskkill /PID <id> /T /F.
+    stop it through the retained process object with Kill($true) and WaitForExit().
 
     Atoti Community Edition is free for non-commercial use, sends usage telemetry, and
     needs internet access to activate its license. See
@@ -16,14 +16,14 @@
 
 .EXAMPLE
     $cube = & .\scripts\Start-OlapTestCube.ps1
-    try { ... } finally { taskkill.exe /PID $cube.Process.Id /T /F }
+    try { ... } finally { $cube.Process.Kill($true); $cube.Process.WaitForExit(); $cube.Process.Dispose() }
 #>
 
 [CmdletBinding()]
 param(
     # Short path avoids Windows long-path failures while pip installs Atoti.
     [string]$ToolDirectory = (Join-Path $env:LOCALAPPDATA 'emo'),
-    [int]$StartupTimeoutSeconds = 180
+    [ValidateRange(1, 1800)][int]$StartupTimeoutSeconds = 300
 )
 
 $ErrorActionPreference = 'Stop'
@@ -47,28 +47,40 @@ $port = ([Net.IPEndPoint]$listener.LocalEndpoint).Port
 $listener.Stop()
 
 $logPath = Join-Path ([IO.Path]::GetTempPath()) "excelmcp-olap-cube-$port.log"
-$env:ATOTI_HIDE_EULA_MESSAGE = 'True'
-$process = Start-Process -FilePath $python -ArgumentList @("`"$cubeScript`"", $port) `
+$process = Start-Process -FilePath $python -ArgumentList @('-u', "`"$cubeScript`"", $port) `
+    -Environment @{ ATOTI_HIDE_EULA_MESSAGE = 'True' } `
     -RedirectStandardOutput $logPath -RedirectStandardError "$logPath.err" -NoNewWindow -PassThru
-
+$null = $process.Handle
+$ready = $false
+$failures = [Collections.Generic.List[Exception]]::new()
 $deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
-while (-not ((Test-Path $logPath) -and (Select-String -Path $logPath -Pattern '^READY' -Quiet))) {
-    if ($process.HasExited -or [DateTime]::UtcNow -gt $deadline) {
-        if (-not $process.HasExited) {
-            taskkill.exe /PID $process.Id /T /F | Out-Null
-            if ($LASTEXITCODE -ne 0 -and -not $process.HasExited) {
-                try { $process.Kill($true) } catch { }
-            }
-            if (-not $process.WaitForExit(10000)) {
-                throw "The OLAP test cube did not start on port $port and could not be stopped (PID $($process.Id))."
+try {
+    while (-not $ready) {
+        if ($process.HasExited -or [DateTime]::UtcNow -gt $deadline) {
+            $errorText = Get-Content -LiteralPath "$logPath.err" -Tail 20 | Out-String
+            throw "The OLAP test cube did not start on port $port. Diagnostics: $logPath. $errorText"
+        }
+        $ready = (Test-Path -LiteralPath $logPath) -and
+            (Select-String -LiteralPath $logPath -Pattern '^READY$' -Quiet)
+        if (-not $ready) { Start-Sleep -Seconds 2 }
+    }
+}
+catch { $failures.Add($_.Exception) }
+finally {
+    if (-not $ready) {
+        try {
+            if (-not $process.HasExited) {
+                $process.Kill($true)
+                if (-not $process.WaitForExit(10000)) {
+                    throw "OLAP test cube cleanup timed out for PID $($process.Id)."
+                }
             }
         }
-        $errorText = if (Test-Path "$logPath.err") { Get-Content "$logPath.err" -Tail 20 | Out-String } else { '' }
-        throw "The OLAP test cube did not start on port $port. $errorText"
+        catch { $failures.Add($_.Exception) }
+        finally { $process.Dispose() }
     }
-
-    Start-Sleep -Seconds 2
 }
+if ($failures.Count) { throw [AggregateException]::new('OLAP test cube startup failed.', $failures) }
 
 [pscustomobject]@{
     Process = $process

@@ -47,6 +47,54 @@ public class PersistentServiceChartOlapTests(
         fixture.CreateCommands<IDataModelCommands>();
 
     [Fact]
+    public async Task CreateFromPivotTable_OlapNameRejectedAfterCreation_ReportsRetainedLinkedChart()
+    {
+        var (pivotName, sheetName) = PrepareRegionalPivot();
+        var batch = _fixture.BatchToken;
+        var before = RequireSuccess(_chartCommands.List(batch));
+        var pivotBefore = RequireSuccess(_pivotCommands.GetData(batch, pivotName));
+        var rejectedName = new string('x', 300);
+
+        // The same Excel shape-name limit is exercised by the range/table creation regressions.
+        var rejected = await _fixture.SendForFailureAsync("chart.create-from-pivottable", new
+        {
+            pivotTableName = pivotName,
+            sheetName,
+            chartType = "ColumnClustered",
+            left = 300,
+            top = 200,
+            width = 400,
+            height = 300,
+            chartName = rejectedName
+        });
+
+        Assert.False(rejected.Success);
+        // A rejected Shape.Name assignment can surface as ArgumentException, classified InvalidInput.
+        // The step and retained workbook object below establish that this was not prevalidation.
+        Assert.Equal("InvalidInput", rejected.ErrorCategory);
+        Assert.Equal(nameof(InvalidOperationException), rejected.ExceptionType);
+        Assert.False(string.IsNullOrWhiteSpace(rejected.InnerError));
+        Assert.Contains($"Renaming the new chart to '{rejectedName}' failed after Excel created", rejected.ErrorMessage);
+        Assert.DoesNotContain("No chart was kept", rejected.ErrorMessage);
+        var after = RequireSuccess(_chartCommands.List(batch));
+        var retained = Assert.Single(after.Charts, chart => chart.SheetName == sheetName &&
+            !before.Charts.Any(original => original.SheetName == chart.SheetName && original.Name == chart.Name));
+        LeftoverObjectAssert.Reported(rejected.ErrorMessage!, "chart", retained.Name, sheetName);
+        Assert.NotEqual(rejectedName, retained.Name);
+        Assert.True(retained.IsPivotChart);
+        Assert.Equal(pivotName, retained.LinkedPivotTable);
+        Assert.Equal(ChartType.ColumnClustered, retained.ChartType);
+        AssertRegionalSeries(retained.Name, pivotName, ChartType.ColumnClustered);
+        var read = RequireSuccess(_chartCommands.Read(batch, retained.Name));
+        Assert.Equal(300, read.Left);
+        Assert.Equal(200, read.Top);
+        Assert.Equal(400, read.Width);
+        Assert.Equal(300, read.Height);
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(pivotBefore),
+            System.Text.Json.JsonSerializer.Serialize(RequireSuccess(_pivotCommands.GetData(batch, pivotName))));
+    }
+
+    [Fact]
     public void ReadAndList_OlapColumnMembers_ReportPlottedSeriesAndFollowFilters()
     {
         var batch = _fixture.BatchToken;

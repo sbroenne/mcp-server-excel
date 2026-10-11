@@ -45,7 +45,8 @@ internal sealed class CliCommandRuntime
         bool isOutputRedirected,
         ICliDaemonConnection? daemonConnection = null,
         Func<Task<string?>>? latestVersionProvider = null,
-        Action<string, long, bool, string?, bool>? telemetryObserver = null)
+        Action<string, long, bool, string?, bool>? telemetryObserver = null,
+        Func<string?, int>? serviceDaemonRunner = null)
     {
         ArgumentNullException.ThrowIfNull(clientFactory);
         ArgumentNullException.ThrowIfNull(input);
@@ -60,6 +61,7 @@ internal sealed class CliCommandRuntime
         LatestVersionProvider = latestVersionProvider
             ?? (() => NuGetVersionChecker.GetLatestVersionAsync());
         TelemetryObserver = telemetryObserver;
+        ServiceDaemonRunner = serviceDaemonRunner;
     }
 
     internal static CliCommandRuntime Current =>
@@ -78,6 +80,9 @@ internal sealed class CliCommandRuntime
     internal ICliDaemonConnection DaemonConnection { get; }
     internal Func<Task<string?>> LatestVersionProvider { get; }
     internal Action<string, long, bool, string?, bool>? TelemetryObserver { get; }
+
+    /// <summary>Replaces the <c>service run</c> daemon host; null runs the real daemon.</summary>
+    internal Func<string?, int>? ServiceDaemonRunner { get; }
 
     internal static IDisposable Push(CliCommandRuntime runtime)
     {
