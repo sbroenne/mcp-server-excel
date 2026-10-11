@@ -15,9 +15,10 @@ showing it and bringing it forward. It requires an unlocked interactive desktop;
 disconnected Remote Desktop sessions can prevent capture.
 
 Protected sheets and initially hidden windows are supported without modifying
-the workbook or clipboard. Large ranges can be zoomed and stitched. If the
-result reports truncation, capture smaller areas rather than claiming that
-the whole sheet was checked.
+the workbook or clipboard. Capture handles Windows display scaling without
+changing the application's display settings. Large ranges can be zoomed and
+stitched. If the result reports truncation, capture smaller areas rather than
+claiming that the whole sheet was checked.
 
 ## Layout Checks
 

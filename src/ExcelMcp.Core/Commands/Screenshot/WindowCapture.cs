@@ -18,53 +18,6 @@ internal static class WindowCapture
     private const uint PwRenderFullContent = 0x00000002;
     private const int DefaultDpi = 96;
 
-    // DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2
-    private static readonly IntPtr PerMonitorAwareV2 = new(-4);
-
-    private static bool _dpiAwarenessRequested;
-    private static readonly Lock DpiAwarenessLock = new();
-
-    /// <summary>
-    /// Opts the process into per-monitor DPI awareness.
-    ///
-    /// Without this, Windows virtualizes window coordinates and PrintWindow output for the process,
-    /// while Excel keeps reporting physical pixels. The two coordinate spaces would then disagree
-    /// and every crop would land in the wrong place on a scaled display.
-    ///
-    /// Safe to call repeatedly and safe to fail: awareness may already be set by a manifest, and
-    /// these hosts (CLI daemon, MCP server, test host) create no windows of their own.
-    /// </summary>
-    public static void EnsureDpiAwareness()
-    {
-        if (_dpiAwarenessRequested)
-        {
-            return;
-        }
-
-        lock (DpiAwarenessLock)
-        {
-            if (_dpiAwarenessRequested)
-            {
-                return;
-            }
-
-            _dpiAwarenessRequested = true;
-
-            try
-            {
-                if (!SetProcessDpiAwarenessContext(PerMonitorAwareV2))
-                {
-                    SetProcessDPIAware();
-                }
-            }
-            catch (EntryPointNotFoundException)
-            {
-                try { SetProcessDPIAware(); } catch (EntryPointNotFoundException) { }
-            }
-            catch (DllNotFoundException) { }
-        }
-    }
-
     /// <summary>
     /// Gets the DPI of the monitor the window is on, falling back to 96 when unavailable.
     /// </summary>
@@ -156,14 +109,6 @@ internal static class WindowCapture
 
     [DllImport("user32.dll")]
     private static extern uint GetDpiForWindow(IntPtr hwnd);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetProcessDpiAwarenessContext(IntPtr value);
-
-    [DllImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetProcessDPIAware();
 
     [StructLayout(LayoutKind.Sequential)]
     private struct Rect
