@@ -76,6 +76,8 @@
     <PackageReference Include="Spectre.Console" />
     <PackageReference Include="Spectre.Console.Cli" />
     <PackageReference Include="Microsoft.ApplicationInsights" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">
       <PrivateAssets>all</PrivateAssets>
@@ -124,6 +126,8 @@ internal static class TelemetryConfig
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Include="..\Shared\TelemetrySettings.cs" Link="Telemetry\TelemetrySettings.cs" />
+    <Compile Include="..\Shared\LocalTelemetry.cs" Link="Telemetry\LocalTelemetry.cs" />
     <ProjectReference Include="..\ExcelMcp.Core\ExcelMcp.Core.csproj" />
     <ProjectReference Include="..\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />
     <ProjectReference Include="..\ExcelMcp.Service\ExcelMcp.Service.csproj" />

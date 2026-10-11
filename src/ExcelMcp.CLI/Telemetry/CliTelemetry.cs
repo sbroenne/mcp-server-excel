@@ -34,12 +34,17 @@ internal static class CliTelemetry
     private static readonly string UserId = GenerateAnonymousUserId();
     private static DeferredTelemetrySink TelemetrySink = CreateDeferredSink(CreateTelemetrySink);
     private static bool _enabled;
+    private static TelemetrySettings? _settings;
 
     /// <summary>
     /// Allows the real telemetry sink to be created. Called only by <c>Program.Main</c>,
     /// so in-process callers such as tests never send telemetry.
     /// </summary>
-    internal static void Enable() => Volatile.Write(ref _enabled, true);
+    internal static void Enable()
+    {
+        _settings = TelemetrySettings.Read(TelemetryConfig.ConnectionString);
+        Volatile.Write(ref _enabled, true);
+    }
 
     /// <summary>
     /// Routes telemetry to a fresh sink built by <paramref name="factory"/> until the
@@ -52,8 +57,9 @@ internal static class CliTelemetry
         ArgumentNullException.ThrowIfNull(factory);
         var previousSink = TelemetrySink;
         var previousEnabled = Volatile.Read(ref _enabled);
+        var previousSettings = _settings;
         TelemetrySink = CreateDeferredSink(factory);
-        return new TestSinkScope(previousSink, previousEnabled);
+        return new TestSinkScope(previousSink, previousEnabled, previousSettings);
     }
 
     private static DeferredTelemetrySink CreateDeferredSink(Func<ICliTelemetrySink?> factory)
@@ -301,18 +307,19 @@ internal static class CliTelemetry
 
     internal static void Flush() => TelemetrySink.Shutdown();
 
-    private static string? GetConnectionString() =>
-        string.IsNullOrEmpty(TelemetryConfig.ConnectionString)
-        || TelemetryConfig.ConnectionString.StartsWith("__", StringComparison.Ordinal)
-            ? null
-            : TelemetryConfig.ConnectionString;
-
-    private static ApplicationInsightsTelemetrySink? CreateTelemetrySink()
+    private static ICliTelemetrySink? CreateTelemetrySink()
     {
-        var connectionString = GetConnectionString();
-        return connectionString == null || !Volatile.Read(ref _enabled)
-            ? null
-            : ApplicationInsightsTelemetrySink.Create(connectionString);
+        if (!Volatile.Read(ref _enabled) || _settings == null)
+        {
+            return null;
+        }
+        return _settings.Mode switch
+        {
+            TelemetryMode.Off => null,
+            TelemetryMode.Local => new LocalTelemetrySink(_settings),
+            TelemetryMode.Azure => ApplicationInsightsTelemetrySink.Create(_settings.ConnectionString!),
+            _ => throw new InvalidOperationException("Unknown telemetry mode.")
+        };
     }
 
     private static void TrackCommandInvocation(
@@ -478,12 +485,14 @@ internal static class CliTelemetry
         }
     }
 
-    private sealed class TestSinkScope(DeferredTelemetrySink previousSink, bool previousEnabled)
+    private sealed class TestSinkScope(
+        DeferredTelemetrySink previousSink, bool previousEnabled, TelemetrySettings? previousSettings)
         : IDisposable
     {
         public void Dispose()
         {
             TelemetrySink = previousSink;
+            _settings = previousSettings;
             Volatile.Write(ref _enabled, previousEnabled);
         }
     }

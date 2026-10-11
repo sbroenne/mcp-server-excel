@@ -128,7 +128,7 @@ jobs:
           git apply --check prepared-release/release-metadata.patch
           git apply prepared-release/release-metadata.patch
           dotnet restore Sbroenne.ExcelMcp.sln
-          dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore -p:NuGetAudit=false
+          dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore
           .\scripts\Build-ReleasePackages.ps1 -Version $env:VERSION -OutputDirectory artifacts\release
       - name: Upload verified packages
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

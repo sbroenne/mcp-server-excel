@@ -8,29 +8,30 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 public sealed class ValidationOrchestrationTests
 {
     [Fact]
-    public async Task LockfileRegressions_PublishSuccessIndependentOfAmbientNativeExitCode()
+    public async Task CliAcceptance_WatchdogAllowsNativeWorkflowDeadline()
     {
         var run = await ValidationSelectionTests.RunAsync("""
-            $global:LASTEXITCODE = 17
-            & .\scripts\Test-NpmLockfiles.ps1
-            if ($LASTEXITCODE -ne 0) { throw "Successful lockfile regressions left exit code '$LASTEXITCODE'." }
             $tokens = $null
             $errors = $null
             $ast = [Management.Automation.Language.Parser]::ParseFile(
-                (Resolve-Path .\scripts\Test-NpmLockfiles.ps1).Path, [ref]$tokens, [ref]$errors)
-            if ($errors.Count) { throw 'Lockfile regression script no longer parses.' }
-            $reset = $ast.EndBlock.Statements |
-                Where-Object { $_.Extent.Text -match '^\s*\$global:LASTEXITCODE\s*=\s*0\s*$' } |
-                Select-Object -Last 1
-            if (-not $reset) { throw 'The successful script exit-code reset is missing.' }
-            foreach ($initialCode in [object[]]@($null, 17)) {
-                $global:LASTEXITCODE = $initialCode
-                & ([scriptblock]::Create($reset.Extent.Text))
-                if ($LASTEXITCODE -ne 0) { throw "The reset did not clear '$initialCode'." }
+                (Resolve-Path .\scripts\Test-E2E.ps1).Path, [ref]$tokens, [ref]$errors)
+            if ($errors.Count) { throw 'E2E script does not parse.' }
+            $selection = $ast.Find({
+                param($node)
+                $node -is [Management.Automation.Language.SwitchStatementAst] -and
+                $node.Condition.Extent.Text -eq '$stage'
+            }, $true)
+            if (-not $selection) { throw 'Acceptance stage selection missing.' }
+            $stage = 'Cli'
+            $parameters = @{}
+            & ([scriptblock]::Create($selection.Extent.Text))
+            if ($parameters.DeadlineSeconds -ne 600) { throw 'CLI hard deadline changed.' }
+            $watchdogSeconds = [int]::Parse($parameters.HangTimeout.TrimEnd('m')) * 60
+            if ($watchdogSeconds -le 480 -or $watchdogSeconds -ge $parameters.DeadlineSeconds) {
+                throw 'CLI watchdog must allow the eight-minute native workflow and collect diagnostics before the hard deadline.'
             }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
-        Assert.Contains("npm lockfile regression checks.", run.Output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -46,23 +47,6 @@ public sealed class ValidationOrchestrationTests
             }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
-    }
-
-    [Fact]
-    public async Task LockfileRegressionFailure_IsNotReportedAsSuccess()
-    {
-        var run = await ValidationSelectionTests.RunAsync("""
-            $sandbox = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.LockfileFailure.$([Guid]::NewGuid().ToString('N'))"
-            New-Item -ItemType Directory -Path $sandbox | Out-Null
-            try {
-                Copy-Item .\scripts\Test-NpmLockfiles.ps1 $sandbox
-                'Write-Host "Incorrect guard response."; exit 0' | Set-Content (Join-Path $sandbox check-npm-lockfiles.ps1)
-                $global:LASTEXITCODE = 0
-                & (Join-Path $sandbox Test-NpmLockfiles.ps1)
-            } finally { Remove-Item -LiteralPath $sandbox -Recurse -Force }
-            """);
-        Assert.NotEqual(0, run.ExitCode);
-        Assert.Contains("Guard assertion failed", run.Output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -185,8 +169,8 @@ public sealed class ValidationOrchestrationTests
     {
         var run = await ValidationSelectionTests.RunAsync($$"""
             & .\scripts\Test-CiCompletion.ps1 -Detection '{{detection}}' -Tests '{{result}}' `
-                -Packages skipped -Npm skipped -Lockfiles skipped -SelectedTests '{{selected}}' `
-                -SelectedPackages false -SelectedNpm false -SelectedLockfiles false
+                -Packages skipped -Npm skipped -SelectedTests '{{selected}}' `
+                -SelectedPackages false -SelectedNpm false
             """);
         Assert.Equal(succeeds, run.ExitCode == 0);
         if (succeeds) { Assert.Contains("All selected CI checks succeeded.", run.Output, StringComparison.Ordinal); }

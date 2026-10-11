@@ -75,7 +75,7 @@ if ($Update -and $AllowStaleAdvertisedCounts) {
 
 if (-not $SkipBuild) {
     Write-Host "Refreshing generated Release count metadata..." -ForegroundColor Cyan
-    & dotnet build (Join-Path $rootDir "Sbroenne.ExcelMcp.sln") --configuration Release --no-restore -p:NuGetAudit=false --verbosity minimal
+    & dotnet build (Join-Path $rootDir "Sbroenne.ExcelMcp.sln") --configuration Release --no-restore --verbosity minimal
     if ($LASTEXITCODE -ne 0) {
         Write-Host "ERROR: Core Release build failed. Run dotnet restore, then retry this check." -ForegroundColor Red
         exit 1

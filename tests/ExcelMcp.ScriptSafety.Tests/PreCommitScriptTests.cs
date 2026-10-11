@@ -157,7 +157,6 @@ public sealed class PreCommitScriptTests
     }
 
     [Theory]
-    [InlineData("check-npm-lockfiles")]
     [InlineData("check-com-leaks")]
     [InlineData("check-success-flag")]
     [InlineData("check-dynamic-casts")]
@@ -181,12 +180,11 @@ public sealed class PreCommitScriptTests
     }
 
     [Fact]
-    public async Task MergeCommit_UsesMergeParentAndStillGuardsLockfiles()
+    public async Task MergeCommit_UsesMergeParent()
     {
         var result = await RunHookAsync("README.md", merge: true);
         Assert.True(result.ExitCode == 0, result.Output);
         Assert.Contains("comparison-base=merge-parent", result.Output, StringComparison.Ordinal);
-        Assert.Contains("lockfile-ran -Staged", result.Output, StringComparison.Ordinal);
     }
 
     [Theory]
@@ -214,7 +212,6 @@ public sealed class PreCommitScriptTests
             }
             foreach (var (name, message) in new[]
             {
-                ("check-npm-lockfiles", "lockfile-ran"),
                 ("check-com-leaks", "com-check-ran"),
                 ("check-success-flag", "success-check-ran"),
                 ("check-dynamic-casts", "casts-check-ran"),
@@ -226,7 +223,7 @@ public sealed class PreCommitScriptTests
             })
             {
                 await File.WriteAllTextAsync(Path.Combine(scripts, $"{name}.ps1"),
-                    failure == "throw" && name == "check-npm-lockfiles"
+                    failure == "throw" && name == "check-com-leaks"
                         ? "throw 'check-root-cause'"
                         : name == failure
                         ? "Write-Host 'check-root-cause'; exit 19"

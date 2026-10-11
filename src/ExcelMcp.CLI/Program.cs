@@ -27,9 +27,18 @@ internal sealed class Program
         string[] args,
         CliCommandRuntime? runtime = null)
     {
-        CliTelemetry.Enable();
+        using var runtimeScope = CliCommandRuntime.Push(runtime ?? CliCommandRuntime.Current);
         try
         {
+            try
+            {
+                CliTelemetry.Enable();
+            }
+            catch (InvalidOperationException ex)
+            {
+                CliCommandRuntime.Current.Error.WriteLine(ex.Message);
+                return 1;
+            }
             return await RunAsync(args, runtime);
         }
         finally

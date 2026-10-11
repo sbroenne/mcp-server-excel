@@ -9,6 +9,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <DefineConstants>$(DefineConstants);CLI_TELEMETRY_TESTS</DefineConstants>
 
     <!-- Assembly and Namespace Configuration -->
     <AssemblyName>Sbroenne.ExcelMcp.CLI.Tests</AssemblyName>
@@ -22,6 +23,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="OpenTelemetry.Exporter.InMemory" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
@@ -29,6 +31,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\..\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj" />
     <ProjectReference Include="..\..\src\ExcelMcp.Core\ExcelMcp.Core.csproj" />
     <ProjectReference Include="..\..\src\ExcelMcp.Service\ExcelMcp.Service.csproj" />
@@ -41,10 +44,22 @@
     <Compile Include="..\Shared\ConfiguredIrmFactAttribute.cs" Link="Helpers\ConfiguredIrmFactAttribute.cs" />
     <Compile Include="..\Shared\SavedWorkbookTemplate.cs" Link="Helpers\SavedWorkbookTemplate.cs" />
     <Compile Include="..\Shared\TestClassificationArchitectureTests.cs" Link="Helpers\TestClassificationArchitectureTests.cs" />
+    <Compile Include="..\Shared\LocalTelemetryTests.cs" Link="Unit\LocalTelemetryTests.cs" />
+    <Compile Include="..\Shared\LocalOtlpReceiver.cs" Link="Helpers\LocalOtlpReceiver.cs" />
+    <Compile Include="..\Shared\LocalGrpcOtlpReceiver.cs" Link="Helpers\LocalGrpcOtlpReceiver.cs" />
   </ItemGroup>
 
   <ItemGroup>
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <Target Name="CopyCliToTestOutput" AfterTargets="Build">
+    <ItemGroup>
+      <CliFiles Include="$(MSBuildThisFileDirectory)..\..\src\ExcelMcp.CLI\bin\$(Configuration)\net10.0-windows\*.dll" />
+      <CliFiles Include="$(MSBuildThisFileDirectory)..\..\src\ExcelMcp.CLI\bin\$(Configuration)\net10.0-windows\excelcli.exe" />
+      <CliFiles Include="$(MSBuildThisFileDirectory)..\..\src\ExcelMcp.CLI\bin\$(Configuration)\net10.0-windows\excelcli.*.json" />
+    </ItemGroup>
+    <Copy SourceFiles="@(CliFiles)" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+  </Target>
 
 </Project>
