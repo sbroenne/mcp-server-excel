@@ -126,5 +126,6 @@ if ($failures.Count) { throw [AggregateException]::new('OLAP test cube startup f
         EXCELMCP_TEST_OLAP_CUBE = 'SalesCube'
         EXCELMCP_TEST_OLAP_HIERARCHY = '[Sales].[Calendar]'
         EXCELMCP_TEST_OLAP_LEVEL = '[Sales].[Calendar].[Month]'
+        EXCELMCP_TEST_OLAP_SYNTHETIC_FIXTURE = 'true'
     }
 }

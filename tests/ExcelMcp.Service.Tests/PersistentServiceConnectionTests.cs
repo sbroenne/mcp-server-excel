@@ -111,6 +111,8 @@ public sealed partial class PersistentServiceConnectionTests(
     [InlineData("cancel-refresh")]
     [InlineData("load-to")]
     [InlineData("test")]
+    [InlineData("discover-olap-schema")]
+    [InlineData("search-olap-members")]
     public void MissingConnection_AdditionalActions_PreserveConfigurationAndCells(string action)
     {
         var retained = SeedRetainedConnection();
@@ -127,6 +129,9 @@ public sealed partial class PersistentServiceConnectionTests(
             "cancel-refresh" => () => _connections.CancelRefresh(batch, "MissingConnection"),
             "load-to" => () => _connections.LoadTo(batch, "MissingConnection", sheet),
             "test" => () => _connections.Test(batch, "MissingConnection"),
+            "discover-olap-schema" => () => _connections.DiscoverOlapSchema(batch, "MissingConnection"),
+            "search-olap-members" => () => _connections.SearchOlapMembers(
+                batch, "MissingConnection", "[Date].[Calendar]", "[Date].[Calendar].[Month]"),
             _ => throw new ArgumentOutOfRangeException(nameof(action))
         };
 
