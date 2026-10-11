@@ -147,10 +147,10 @@ public partial class PivotTableCommands
             }
             finally
             {
-                ComUtilities.Release(ref cache);
-                ComUtilities.Release(ref rows);
                 ComUtilities.Release(ref style);
                 ComUtilities.Release(ref styles);
+                ComUtilities.Release(ref cache);
+                ComUtilities.Release(ref rows);
                 ComUtilities.Release(ref sheet);
                 ComUtilities.Release(ref pivot);
             }

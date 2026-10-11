@@ -280,7 +280,7 @@ public interface IPivotTableFieldCommands
     /// <param name="batch">Excel batch session.</param>
     /// <param name="pivotTableName">Selected PivotTable.</param>
     /// <param name="fieldName">Exact placed row/column field caption.</param>
-    /// <param name="functions">Selected subtotal functions, serialized as a JSON array.</param>
+    /// <param name="functions">Array of selected subtotal function names. CLI uses a JSON array string.</param>
     [ServiceAction("set-subtotal-functions")]
     PivotSubtotalResult SetSubtotalFunctions(IExcelBatch batch, string pivotTableName, string fieldName,
         List<PivotSubtotalFunction> functions);

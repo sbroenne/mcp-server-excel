@@ -140,8 +140,8 @@ the provider determines which empty members are available.
 
 For regular row/column fields, `get-subtotal-functions` returns the complete
 selection and `set-subtotal-functions` replaces it. An empty `functions` array
-removes subtotals; `Automatic` must stand alone. MCP takes a serialized JSON
-array, such as `functions: '["Sum","Average"]'`; CLI uses
+removes subtotals; `Automatic` must stand alone. MCP takes an actual array,
+such as `functions: ["Sum","Average"]`; CLI uses a JSON array string:
 `--functions '["Sum","Average"]'`. OLAP/Data Model continues to use
 automatic `set-subtotals`; custom subtotal functions are not supported there.
 

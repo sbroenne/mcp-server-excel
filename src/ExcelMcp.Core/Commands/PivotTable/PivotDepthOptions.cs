@@ -228,6 +228,7 @@ public sealed class PivotLayoutResult : OperationResult
 }
 
 /// <summary>Native regular-PivotTable subtotal slots.</summary>
+[System.Text.Json.Serialization.JsonConverter(typeof(System.Text.Json.Serialization.JsonStringEnumConverter<PivotSubtotalFunction>))]
 public enum PivotSubtotalFunction
 {
     /// <summary>Automatic subtotal.</summary>

@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
+using Sbroenne.ExcelMcp.Service;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -36,6 +37,27 @@ public sealed class GeneratedActionContractCliTests : IDisposable
         catch (UnauthorizedAccessException)
         {
         }
+    }
+
+    [Fact]
+    public async Task SubtotalFunctions_GeneratedCliParser_AcceptsDocumentedNames()
+    {
+        ServiceRequest? dispatched = null;
+        var result = await InProcessCliHelper.RunAsync(
+            ["pivottablefield", "set-subtotal-functions", "--session", "test-session",
+                "--pivot-table-name", "SalesPivot", "--field-name", "Region",
+                "--functions", """["Sum","Average"]"""],
+            request =>
+            {
+                dispatched = request;
+                return new ServiceResponse { Success = true, Result = """{"success":true}""" };
+            });
+        Assert.Equal(0, result.ExitCode);
+        Assert.NotNull(dispatched);
+        Assert.Equal("pivottablefield.set-subtotal-functions", dispatched.Command);
+        using var args = JsonDocument.Parse(dispatched.Args!);
+        Assert.Equal(["Sum", "Average"], args.RootElement.GetProperty("functions")
+            .EnumerateArray().Select(value => value.GetString()));
     }
 
     [Theory]
