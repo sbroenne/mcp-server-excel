@@ -489,12 +489,29 @@ E2E after the last runtime-affecting change, and rerun it if subsequent commits
 change runtime behavior. Run affected Excel tests separately, including when
 changing Excel-dependent tests.
 
-`Test-E2E.ps1` defaults to two sequential stages: independent executable CLI
-scenarios and independent
-real-protocol MCP scenarios. Each stage has a separate TRX report and a hard
-execution deadline. Empty selections, skipped tests, failures, and assembly
-cleanup failures fail the run. `-Stages Cli` or `-Stages Mcp`
-is a focused run, not complete runtime acceptance. `Test-CliWorkflow.ps1` is a
+`Test-E2E.ps1` defaults to three sequential stages: independent executable CLI
+scenarios, real-protocol MCP scenarios, and external OLAP PivotTable tests
+through the Service boundary. The OLAP stage covers field placement, measures,
+calculated members, slicers, charts, and unsupported cube operations.
+Configure all four `EXCELMCP_TEST_OLAP_CONNECTION_STRING`,
+`EXCELMCP_TEST_OLAP_CUBE`, `EXCELMCP_TEST_OLAP_HIERARCHY`, and
+`EXCELMCP_TEST_OLAP_LEVEL` settings to use a compatible external fixture.
+Partial settings fail rather than silently testing a different cube.
+With none set, `scripts\Start-OlapTestCube.ps1` starts the synthetic cube in
+`scripts\olap_test_cube.py` on a free localhost port and the runner stops its
+owned Python/Java process tree afterwards. The first run needs Python and
+internet access and installs Atoti 6.2.2 into `%LOCALAPPDATA%\emo`.
+Atoti Community Edition is free for non-commercial use, requires online license
+activation, and sends usage telemetry; see its
+[license](https://docs.activeviam.com/engine/python-sdk/latest/eula).
+The cube has 24 monthly records across 2024-2025, Amount values 1-24, a
+Year/Month Calendar hierarchy, and fixed Prior Month/Current Month/Next Month
+members for October/November/December 2025. Older records use Earlier Months.
+It contains no customer data.
+Excel keeps the cube connection open while the fixture PivotTable uses it.
+Each stage has a separate TRX report and a hard execution deadline. Empty
+selections, skipped tests, failures, and assembly cleanup failures fail the run.
+Focused `-Stages` runs are not complete runtime acceptance. `Test-CliWorkflow.ps1` is a
 compatible wrapper for the CLI stage, including `-PipeName` and `-KeepFile`.
 
 Development builds directly stop only CLI services from the current worktree
@@ -513,7 +530,9 @@ stage report is rejected so stale evidence cannot turn a failed run green.
 `-ListTests` discovers cases without starting workbook operations.
 
 For a full validation pass, run all solution test projects with
-`RunType!=OnDemand`. This filter includes normal Service VBA and screenshot
+`RunType!=OnDemand`, then run complete three-stage E2E. The OLAP E2E stage
+explicitly selects the OnDemand external-cube tests rather than skipping them.
+The normal filter includes Service VBA and screenshot
 tests; their prerequisites must be satisfied, not silently skipped. Run
 screenshots separately from other Excel tests when investigating them because
 they use the interactive desktop. Research diagnostics and external-service

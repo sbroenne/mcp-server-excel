@@ -399,6 +399,8 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
             Excel.Range? targetRangeObj = null;
             Excel.PivotLayout? pivotLayout = null;
             Excel.PivotTable? linkedPivotTable = null;
+            string? createdChartName = null;
+            string creationStep = $"Creating a linked PivotChart for '{pivotTableName}'";
 
             try
             {
@@ -445,58 +447,44 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 tableRange.Select();
                 shapes = worksheet.Shapes;
 
-                try
-                {
-                    pivotChartShape = shapes.AddChart2(
-                        Style: -1,
-                        XlChartType: (int)chartType,
-                        Left: finalLeft,
-                        Top: finalTop,
-                        Width: finalWidth,
-                        Height: finalHeight,
-                        NewLayout: true);
+                pivotChartShape = shapes.AddChart2(
+                    Style: -1,
+                    XlChartType: (int)chartType,
+                    Left: finalLeft,
+                    Top: finalTop,
+                    Width: finalWidth,
+                    Height: finalHeight,
+                    NewLayout: true);
+                createdChartName = "(name unavailable)";
+                creationStep = "Reading the new chart's identity";
+                createdChartName = pivotChartShape.Name ?? createdChartName;
 
-                    chart = pivotChartShape.Chart;
-                    chart.SetSourceData(tableRange);
-                }
-                catch (COMException ex)
-                {
-                    DeleteCreatedChart(pivotChartShape);
-                    throw new InvalidOperationException(
-                        $"Excel could not create a linked PivotChart from PivotTable '{pivotTableName}' " +
-                        $"with chart type '{chartType}'. The requested chart type or PivotTable layout " +
-                        "is not supported for PivotCharts.", ex);
-                }
+                creationStep = $"Binding the new chart to PivotTable '{pivotTableName}'";
+                chart = pivotChartShape.Chart;
+                chart.SetSourceData(tableRange);
 
-                try
-                {
-                    pivotLayout = chart.PivotLayout;
-                    linkedPivotTable = pivotLayout?.PivotTable;
-                }
-                catch (COMException ex)
-                {
-                    DeleteCreatedChart(pivotChartShape);
-                    throw new InvalidOperationException(
-                        $"Excel created a regular chart instead of a linked PivotChart for PivotTable " +
-                        $"'{pivotTableName}'. No chart was kept.", ex);
-                }
+                creationStep = $"Verifying the PivotChart link to '{pivotTableName}'";
+                pivotLayout = chart.PivotLayout;
+                linkedPivotTable = pivotLayout?.PivotTable;
 
                 string linkedPivotTableName = linkedPivotTable?.Name ?? string.Empty;
                 if (!linkedPivotTableName.Equals(pivotTableName, StringComparison.OrdinalIgnoreCase))
                 {
-                    DeleteCreatedChart(pivotChartShape);
                     throw new InvalidOperationException(
-                        $"Excel did not link the new PivotChart to PivotTable '{pivotTableName}'. " +
-                        "No chart was kept.");
+                        $"Excel did not link the new PivotChart to PivotTable '{pivotTableName}'.");
                 }
 
                 // Set custom name if provided
                 if (!string.IsNullOrWhiteSpace(chartName))
                 {
+                    creationStep = $"Renaming the new chart to '{chartName}'";
                     pivotChartShape.Name = chartName;
+                    createdChartName = chartName;
                 }
 
+                creationStep = "Reading the created PivotChart's details and collision warnings";
                 string finalName = pivotChartShape.Name?.ToString() ?? "Chart";
+                createdChartName = finalName;
 
                 // Collision detection
                 var warnings = ChartPositionHelpers.DetectCollisions(
@@ -519,6 +507,10 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 };
 
                 return result;
+            }
+            catch (Exception ex) when (createdChartName != null && CreatedObjectFailure.CanReport(ex))
+            {
+                throw DescribePivotChartCreationFailure(createdChartName, sheetName, creationStep, ex);
             }
             finally
             {
@@ -579,22 +571,9 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
         }
     }
 
-    private static void DeleteCreatedChart(Excel.Shape? chartShape)
-    {
-        if (chartShape == null)
-        {
-            return;
-        }
-
-        try
-        {
-            chartShape.Delete();
-        }
-        catch (COMException)
-        {
-            // Preserve the creation failure if Excel already removed the partial chart.
-        }
-    }
+    internal static InvalidOperationException DescribePivotChartCreationFailure(
+        string createdName, string sheetName, string step, Exception cause) =>
+        CreatedObjectFailure.Create("chart", createdName, sheetName, step, cause);
 
     /// <inheritdoc />
     public OperationResult Delete(IExcelBatch batch, string chartName)
