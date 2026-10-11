@@ -504,8 +504,11 @@ Configure all four `EXCELMCP_TEST_OLAP_CONNECTION_STRING`,
 Partial settings fail rather than silently testing a different cube.
 With none set, `scripts\Start-OlapTestCube.ps1` starts the synthetic cube in
 `scripts\olap_test_cube.py` on a free localhost port and the runner stops its
-owned Python/Java process tree afterwards. The first run needs Python and
-internet access and installs Atoti 6.2.2 into `%LOCALAPPDATA%\emo`.
+owned Python/Java process tree afterwards. The first run needs Python 3.12 or
+newer and internet access and installs Atoti 6.2.2 into `%LOCALAPPDATA%\emo`.
+Environment creation and package installation share a 300-second setup deadline;
+cube startup has a separate 300-second deadline before the OLAP test deadline.
+Timed-out setup stops its owned process tree and does not mark installation complete.
 Atoti Community Edition is free for non-commercial use, requires online license
 activation, and sends usage telemetry; see its
 [license](https://docs.activeviam.com/engine/python-sdk/latest/eula).

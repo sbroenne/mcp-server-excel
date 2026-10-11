@@ -4,7 +4,7 @@
     Starts the synthetic Atoti OLAP cube used by the external OLAP integration test.
 
 .DESCRIPTION
-    Creates a private Python environment with a pinned Atoti version (first run only),
+    Creates a private Python 3.12+ environment with a pinned Atoti version (first run only),
     starts scripts\olap_test_cube.py on a free localhost port, waits until
     the cube serves XMLA, and returns the process plus the EXCELMCP_TEST_OLAP_* settings.
     The caller owns the returned process tree (Python plus a Java child) and must
@@ -23,7 +23,8 @@
 param(
     # Short path avoids Windows long-path failures while pip installs Atoti.
     [string]$ToolDirectory = (Join-Path $env:LOCALAPPDATA 'emo'),
-    [ValidateRange(1, 1800)][int]$StartupTimeoutSeconds = 300
+    [ValidateRange(1, 1800)][int]$StartupTimeoutSeconds = 300,
+    [ValidateRange(1, 1800)][int]$SetupTimeoutSeconds = 300
 )
 
 $ErrorActionPreference = 'Stop'
@@ -32,12 +33,48 @@ $cubeScript = Join-Path $PSScriptRoot 'olap_test_cube.py'
 $python = Join-Path $ToolDirectory 'Scripts\python.exe'
 $marker = Join-Path $ToolDirectory "atoti-$atotiVersion.installed"
 
+function Invoke-OlapSetupProcess {
+    param([string]$Executable, [string[]]$Arguments, [DateTime]$Deadline)
+
+    $remaining = [int][Math]::Ceiling(($Deadline - [DateTime]::UtcNow).TotalMilliseconds)
+    if ($remaining -le 0) { throw 'OLAP environment setup exceeded its hard deadline.' }
+    $info = [Diagnostics.ProcessStartInfo]::new($Executable)
+    $info.UseShellExecute = $false
+    $info.RedirectStandardOutput = $true
+    $info.RedirectStandardError = $true
+    foreach ($argument in $Arguments) { $info.ArgumentList.Add($argument) }
+    $process = [Diagnostics.Process]::Start($info)
+    $stdout = $process.StandardOutput.ReadToEndAsync()
+    $stderr = $process.StandardError.ReadToEndAsync()
+    $failures = [Collections.Generic.List[Exception]]::new()
+    try {
+        if (-not $process.WaitForExit($remaining)) {
+            throw 'OLAP environment setup exceeded its hard deadline.'
+        }
+        if ($process.ExitCode -ne 0) {
+            throw "OLAP environment setup failed with exit code $($process.ExitCode): $($stderr.GetAwaiter().GetResult())"
+        }
+        if ($stdout.GetAwaiter().GetResult()) { Write-Host $stdout.Result }
+    }
+    catch { $failures.Add($_.Exception) }
+    finally {
+        try {
+            if (-not $process.HasExited) {
+                $process.Kill($true)
+                if (-not $process.WaitForExit(10000)) { throw "OLAP setup cleanup timed out for PID $($process.Id)." }
+            }
+        }
+        catch { $failures.Add($_.Exception) }
+        finally { $process.Dispose() }
+    }
+    if ($failures.Count) { throw [AggregateException]::new('OLAP environment setup failed.', $failures) }
+}
+
 if (-not (Test-Path $marker)) {
     Write-Host "Installing Atoti $atotiVersion into $ToolDirectory..." -ForegroundColor Cyan
-    python -m venv $ToolDirectory
-    if ($LASTEXITCODE -ne 0) { throw "Creating the OLAP test cube Python environment failed." }
-    & $python -m pip install --quiet --disable-pip-version-check "atoti==$atotiVersion"
-    if ($LASTEXITCODE -ne 0) { throw "Installing Atoti $atotiVersion failed." }
+    $setupDeadline = [DateTime]::UtcNow.AddSeconds($SetupTimeoutSeconds)
+    Invoke-OlapSetupProcess -Executable 'python' -Arguments @('-m', 'venv', $ToolDirectory) -Deadline $setupDeadline
+    Invoke-OlapSetupProcess -Executable $python -Arguments @('-m', 'pip', 'install', '--quiet', '--disable-pip-version-check', "atoti==$atotiVersion") -Deadline $setupDeadline
     New-Item -ItemType File -Path $marker -Force | Out-Null
 }
 
