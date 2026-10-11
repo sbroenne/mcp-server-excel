@@ -880,8 +880,9 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                               $"Use Power Pivot (or the cube's own design) to create date hierarchies (Year > Quarter > Month > Day) for '{fieldName}'.",
                 FieldName = fieldName,
                 FilePath = workbookPath,
-                WorkflowHint = "For OLAP PivotTables: 1) Open Power Pivot, 2) Create date hierarchy on date column, " +
-                               "3) Use RemoveField/AddField to place hierarchy levels in PivotTable areas."
+                WorkflowHint = "For a workbook Data Model, create a date hierarchy in Power Pivot. " +
+                               "For an external cube, use an existing date hierarchy or have it defined on the cube server. " +
+                               "Then use RemoveField/AddField to place its levels in PivotTable areas."
             };
         }
         catch (Exception ex)
@@ -917,8 +918,9 @@ public class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                               $"Use Power Pivot (or the cube's own design) to create range logic for '{fieldName}'.",
                 FieldName = fieldName,
                 FilePath = workbookPath,
-                WorkflowHint = "For OLAP PivotTables: 1) Open Power Pivot, 2) Create calculated column with range logic " +
-                               "(e.g., IF([Sales]<100, \"0-100\", IF([Sales]<200, \"100-200\", ...))), 3) Use that calculated column in PivotTable."
+                WorkflowHint = "For a workbook Data Model, create a calculated column with range logic in Power Pivot. " +
+                               "For an external cube, use an existing grouping field or have it defined on the cube server. " +
+                               "Then use that field in the PivotTable."
             };
         }
         catch (Exception ex)

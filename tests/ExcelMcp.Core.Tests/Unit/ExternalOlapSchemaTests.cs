@@ -171,6 +171,22 @@ public sealed class ExternalOlapSchemaTests
     }
 
     [Fact]
+    public void ContinuationToken_LongScopeRoundTripsWithinAcceptedLength()
+    {
+        var longText = new string('x', 7000);
+        var scope = new OlapMemberSearchScope(
+            longText, longText, longText, longText, longText, 50);
+        var position = new OlapMemberPosition(2, "[Date].[Calendar].[Month].&[2024-02]");
+
+        var token = ExternalOlapSchemaMapper.CreateContinuationToken(scope, position);
+
+        Assert.InRange(token.Length, 1, 8192);
+        Assert.Equal(position, ExternalOlapSchemaMapper.ReadContinuationToken(token, scope));
+        Assert.Throws<ArgumentException>(() =>
+            ExternalOlapSchemaMapper.ReadContinuationToken(token, scope with { SearchText = longText + "y" }));
+    }
+
+    [Fact]
     public void SelectMemberPage_ContinuesInProviderOrderWithoutSkippingMembers()
     {
         var members = new[]

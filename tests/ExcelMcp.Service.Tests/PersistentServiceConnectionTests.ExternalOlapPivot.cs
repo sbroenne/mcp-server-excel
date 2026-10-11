@@ -125,6 +125,12 @@ public sealed partial class PersistentServiceConnectionTests
                     var result = run();
                     success = result.Success;
                     errorMessage = result.ErrorMessage;
+                    if (name is "date grouping" or "numeric grouping")
+                    {
+                        var grouping = Assert.IsType<PivotFieldResult>(result);
+                        Assert.Contains("cube server", grouping.WorkflowHint, StringComparison.OrdinalIgnoreCase);
+                        Assert.Contains("workbook Data Model", grouping.WorkflowHint, StringComparison.OrdinalIgnoreCase);
+                    }
                 }
                 catch (InvalidOperationException ex)
                 {

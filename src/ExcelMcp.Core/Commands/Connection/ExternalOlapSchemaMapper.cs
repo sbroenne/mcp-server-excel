@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.Core.Models;
 
@@ -31,17 +32,12 @@ internal sealed record OlapSchemaRequest(int Schema, object?[] Restrictions);
 
 internal static class ExternalOlapSchemaMapper
 {
-    private const int ContinuationTokenVersion = 3;
+    private const int ContinuationTokenVersion = 4;
     private const int MaximumContinuationTokenLength = 8192;
 
     private sealed record ContinuationPayload(
         int Version,
-        string ConnectionName,
-        string CubeName,
-        string HierarchyUniqueName,
-        string LevelUniqueName,
-        string? SearchText,
-        int PageSize,
+        string ScopeDigest,
         int Offset,
         string LastUniqueName);
 
@@ -238,12 +234,7 @@ internal static class ExternalOlapSchemaMapper
         ArgumentException.ThrowIfNullOrWhiteSpace(position.LastUniqueName);
         var payload = new ContinuationPayload(
             ContinuationTokenVersion,
-            scope.ConnectionName,
-            scope.CubeName,
-            scope.HierarchyUniqueName,
-            scope.LevelUniqueName,
-            scope.SearchText,
-            scope.PageSize,
+            GetScopeDigest(scope),
             position.Offset,
             position.LastUniqueName);
         var bytes = JsonSerializer.SerializeToUtf8Bytes(payload);
@@ -268,12 +259,7 @@ internal static class ExternalOlapSchemaMapper
             var payload = JsonSerializer.Deserialize<ContinuationPayload>(bytes);
             if (payload is null
                 || payload.Version != ContinuationTokenVersion
-                || !string.Equals(payload.ConnectionName, expectedScope.ConnectionName, StringComparison.Ordinal)
-                || !string.Equals(payload.CubeName, expectedScope.CubeName, StringComparison.Ordinal)
-                || !string.Equals(payload.HierarchyUniqueName, expectedScope.HierarchyUniqueName, StringComparison.Ordinal)
-                || !string.Equals(payload.LevelUniqueName, expectedScope.LevelUniqueName, StringComparison.Ordinal)
-                || !string.Equals(payload.SearchText, expectedScope.SearchText, StringComparison.Ordinal)
-                || payload.PageSize != expectedScope.PageSize
+                || !string.Equals(payload.ScopeDigest, GetScopeDigest(expectedScope), StringComparison.Ordinal)
                 || payload.Offset < 1
                 || string.IsNullOrWhiteSpace(payload.LastUniqueName))
             {
@@ -291,6 +277,9 @@ internal static class ExternalOlapSchemaMapper
             throw InvalidContinuationToken();
         }
     }
+
+    private static string GetScopeDigest(OlapMemberSearchScope scope) =>
+        Convert.ToHexString(SHA256.HashData(JsonSerializer.SerializeToUtf8Bytes(scope)));
 
     private static void ThrowIfBlank(string? value)
     {
