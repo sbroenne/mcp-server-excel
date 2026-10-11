@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last Updated:** October 5, 2026
+**Last Updated:** October 11, 2026
 
 ## Overview
 
@@ -61,13 +61,25 @@ does not inspect response or error text. Unknown or missing categories remain
 
 ### Telemetry Infrastructure
 
-Telemetry is sent to **Azure Application Insights**, a Microsoft service. Data is:
+By default, released packages with an embedded connection string send telemetry
+to **Azure Application Insights**, a Microsoft service. Data is:
 - Transmitted over HTTPS
 - Stored in accordance with Microsoft's data handling policies
 - Retained for analytics purposes only
 - Filtered at ingestion so exception records without ExcelMcp's explicit
   sanitization marker are discarded
 - Filtered at ingestion so framework trace logs are discarded in full
+
+Set `EXCELMCP_TELEMETRY_MODE=off` to disable telemetry collection and delivery in
+either the CLI or MCP Server. Contributor builds without an embedded connection
+string default to off.
+
+Optional `EXCELMCP_TELEMETRY_MODE=local` sends only the approved operation
+telemetry above to a loopback OpenTelemetry receiver on your own machine. It
+overrides the embedded Azure destination and does not create an Azure telemetry
+client. It does not enable framework logs, raw exception details, or additional
+workbook data collection. Access to the local dashboard and any data it retains
+is your responsibility. See [local telemetry setup](docs/DEVELOPMENT.md#local-development-with-telemetry).
 
 ## How It Works
 

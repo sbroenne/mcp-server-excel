@@ -1,7 +1,9 @@
 # Azure Infrastructure
 
 This directory contains the Azure Application Insights infrastructure used for
-telemetry development and validation, and the dedicated Excel development VM.
+production telemetry, and the dedicated Excel development VM. Contributor
+telemetry testing uses in-memory tests and an optional local dashboard; see
+[telemetry development](../../docs/DEVELOPMENT.md#local-development-with-telemetry).
 
 ## Files
 
@@ -9,8 +11,6 @@ telemetry development and validation, and the dedicated Excel development VM.
 |---|---|
 | `appinsights.bicep` | Application Insights deployment entry point |
 | `appinsights.parameters.json` | Production telemetry deployment defaults |
-| `appinsights-test.bicep` | Test telemetry deployment entry point |
-| `appinsights-test.parameters.json` | Test telemetry deployment defaults |
 | `appinsights-resources.bicep` | Shared Application Insights resources and ingestion-time privacy transforms |
 | `deploy-appinsights.ps1` | Application Insights deployment helper |
 | `configure-analytics-oidc.ps1` | Read-only GitHub Actions workload identity setup |
