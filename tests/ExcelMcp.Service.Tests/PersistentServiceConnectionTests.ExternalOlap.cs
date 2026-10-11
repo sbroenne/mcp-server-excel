@@ -40,7 +40,8 @@ public sealed partial class PersistentServiceConnectionTests
             string before = System.Text.Json.JsonSerializer.Serialize(
                 RequireSuccess(pivots.ListFields(_fixture.BatchToken, connectionName + "_Pivot")).Fields);
             AssertSchemaAndMemberPaging(connectionName, hierarchyUniqueName, levelUniqueName);
-            if (cubeName == "SalesCube")
+            if (string.Equals(Environment.GetEnvironmentVariable(
+                "EXCELMCP_TEST_OLAP_SYNTHETIC_FIXTURE"), "true", StringComparison.OrdinalIgnoreCase))
             {
                 AssertSyntheticRelativePeriods(connectionName);
             }

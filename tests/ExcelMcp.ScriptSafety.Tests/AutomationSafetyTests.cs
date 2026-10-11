@@ -13,6 +13,17 @@ public sealed partial class AutomationSafetyTests
 {
     private static readonly string RepoRoot = FindRepoRoot();
 
+    [Fact]
+    public void OlapCube_DiscoveryUsesExplicitSyntheticFixtureMarker()
+    {
+        var setup = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "Start-OlapTestCube.ps1"));
+        Assert.Contains("EXCELMCP_TEST_OLAP_SYNTHETIC_FIXTURE = 'true'", setup, StringComparison.Ordinal);
+        var discovery = File.ReadAllText(Path.Combine(RepoRoot, "tests", "ExcelMcp.Service.Tests",
+            "PersistentServiceConnectionTests.ExternalOlap.cs"));
+        Assert.Contains("\"EXCELMCP_TEST_OLAP_SYNTHETIC_FIXTURE\"", discovery, StringComparison.Ordinal);
+        Assert.DoesNotContain("cubeName == \"SalesCube\"", discovery, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("check-com-leaks.ps1")]
     [InlineData("check-success-flag.ps1")]
@@ -267,6 +278,7 @@ public sealed partial class AutomationSafetyTests
                         olapCube = $Environment['EXCELMCP_TEST_OLAP_CUBE']
                         olapHierarchy = $Environment['EXCELMCP_TEST_OLAP_HIERARCHY']
                         olapLevel = $Environment['EXCELMCP_TEST_OLAP_LEVEL']
+                        syntheticFixture = $Environment['EXCELMCP_TEST_OLAP_SYNTHETIC_FIXTURE']
                     } | ConvertTo-Json -Compress | Add-Content -LiteralPath '{{Quote(captured)}}'
                     if ($Name -eq 'Olap' -and ${{failOlapStage.ToString().ToLowerInvariant()}}) {
                         throw 'Simulated OLAP stage failure.'
@@ -291,6 +303,7 @@ public sealed partial class AutomationSafetyTests
                         EXCELMCP_TEST_OLAP_CUBE = 'StubCube'
                         EXCELMCP_TEST_OLAP_HIERARCHY = 'StubHierarchy'
                         EXCELMCP_TEST_OLAP_LEVEL = 'StubLevel'
+                        EXCELMCP_TEST_OLAP_SYNTHETIC_FIXTURE = 'true'
                     }
                 }
                 """);
@@ -326,6 +339,8 @@ public sealed partial class AutomationSafetyTests
                 Assert.Equal("5m", olap.GetProperty("hangTimeout").GetString());
                 Assert.Equal("stub-connection", olap.GetProperty("olapConnection").GetString());
                 Assert.Equal("StubCube", olap.GetProperty("olapCube").GetString());
+                Assert.Equal("true", olap.GetProperty("syntheticFixture").GetString());
+                Assert.Equal(JsonValueKind.Null, stages[0].RootElement.GetProperty("syntheticFixture").ValueKind);
                 Assert.Equal(JsonValueKind.Null, stages[0].RootElement.GetProperty("olapConnection").ValueKind);
                 foreach (var pidFile in new[] { cubePidFile, childPidFile })
                 {

@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
@@ -128,6 +129,10 @@ public sealed class ExternalOlapSchemaErrorTests
         Assert.Contains($"0x{hresult:X8}", error.Message, StringComparison.Ordinal);
         Assert.DoesNotContain(Sentinel, error.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("private-host", error.Message, StringComparison.Ordinal);
+        Assert.Equal($"0x{hresult:X8}", OperationFailureClassifier.GetComHResult(error));
+        Assert.Equal("ComInterop", OperationFailureClassifier.Classify(error));
+        Assert.DoesNotContain("private-host", error.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain(Sentinel, error.ToString(), StringComparison.Ordinal);
     }
 
     public sealed class ErrorSchemaConnection(int hresult)
@@ -154,6 +159,9 @@ public sealed class ExternalOlapSchemaErrorTests
 
         Assert.Contains("0x80004005", error.Message, StringComparison.Ordinal);
         Assert.DoesNotContain(Sentinel, error.Message, StringComparison.Ordinal);
+        Assert.Equal("0x80004005", OperationFailureClassifier.GetComHResult(error));
+        Assert.Equal("ComInterop", OperationFailureClassifier.Classify(error));
+        Assert.DoesNotContain(Sentinel, error.ToString(), StringComparison.Ordinal);
     }
 
     [Fact]

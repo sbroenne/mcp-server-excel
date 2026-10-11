@@ -259,9 +259,12 @@ public partial class ConnectionCommands
         }
         catch (COMException ex)
         {
+#pragma warning disable CA2201 // Preserve the actual COM HRESULT without retaining sensitive provider text.
             throw new InvalidOperationException(
                 $"Excel did not expose an active ADO session for OLAP connection '{connectionName}'. "
-                + $"Schema discovery requires the existing connection session (HRESULT 0x{ex.HResult:X8}).");
+                + $"Schema discovery requires the existing connection session (HRESULT 0x{ex.HResult:X8}).",
+                new COMException("Excel could not expose the OLAP ADO session.", ex.HResult));
+#pragma warning restore CA2201
         }
         catch (RuntimeBinderException)
         {
@@ -457,9 +460,12 @@ public partial class ConnectionCommands
                 || lowerMessage.Contains("unsupported", StringComparison.Ordinal)
                 ? "The selected provider does not support the required OLAP schema rowset."
                 : "The provider could not return OLAP metadata; verify schema-rowset support and the current user's metadata permissions.";
+#pragma warning disable CA2201 // Preserve the actual COM HRESULT without retaining sensitive provider text.
         return new InvalidOperationException(
             $"OLAP schema discovery failed for connection '{connectionName}'. {reason} "
-            + $"(HRESULT 0x{hresult:X8}).");
+            + $"(HRESULT 0x{hresult:X8}).",
+            new COMException(reason, hresult));
+#pragma warning restore CA2201
     }
 
     private static void ValidateConnectionName(string connectionName)
