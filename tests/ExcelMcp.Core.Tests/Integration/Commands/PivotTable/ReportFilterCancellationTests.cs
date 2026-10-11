@@ -88,6 +88,15 @@ public sealed class ReportFilterCancellationTests(TempDirectoryFixture fixture) 
         public DisconnectedBatch Owner { get; set; } = null!;
         public Type ExcelType { get; set; } = null!;
 
+        public Excel.CubeFields CubeFields
+        {
+            get
+            {
+                Owner.CubeFieldsReadAttempted = true;
+                throw Owner.Failure;
+            }
+        }
+
         public static T Create<T>(DisconnectedBatch owner) where T : class
         {
             var value = DispatchProxy.Create<T, DisconnectedPivotObjects>();
@@ -99,17 +108,14 @@ public sealed class ReportFilterCancellationTests(TempDirectoryFixture fixture) 
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
-            if (ExcelType == typeof(Excel.Sheets) && targetMethod?.Name == "get_Item")
+            if (ExcelType == typeof(Excel.Sheets) && targetMethod?.Name == "get__Default")
                 return Create<Excel.Worksheet>(Owner);
             if (ExcelType == typeof(Excel.Worksheet) && targetMethod?.Name == "PivotTables")
                 return Create<Excel.PivotTables>(Owner);
             if (ExcelType == typeof(Excel.PivotTables) && targetMethod?.Name == "Item")
                 return Create<Excel.PivotTable>(Owner);
             if (ExcelType == typeof(Excel.PivotTable) && targetMethod?.Name == "get_CubeFields")
-            {
-                Owner.CubeFieldsReadAttempted = true;
-                throw Owner.Failure;
-            }
+                return CubeFields;
             throw new NotSupportedException($"Unexpected {ExcelType.Name} member: {targetMethod?.Name}");
         }
     }

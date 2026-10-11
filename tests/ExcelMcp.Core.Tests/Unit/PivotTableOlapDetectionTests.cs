@@ -1,7 +1,9 @@
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
+using Sbroenne.ExcelMcp.Core.Tests.Integration.Commands.PivotTable;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 
@@ -12,6 +14,23 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 [Trait("Speed", "Fast")]
 public sealed class PivotTableOlapDetectionTests
 {
+    [Fact]
+    public void DisconnectProxy_ReachesCubeFieldsThroughTypedExcelLookup()
+    {
+        var owner = new ReportFilterCancellationTests.DisconnectedBatch
+        {
+            Failure = new FailingPivot(ResiliencePipelines.RPC_E_DISCONNECTED).Failure
+        };
+        var sheets = ReportFilterCancellationTests.DisconnectedPivotObjects.Create<Excel.Sheets>(owner);
+        var sheet = (Excel.Worksheet)sheets["Sheet"];
+        var pivots = (Excel.PivotTables)sheet.PivotTables();
+        var pivot = pivots.Item("Pivot");
+
+        Assert.Same(owner.Failure,
+            Assert.Throws<COMException>(() => PivotTableHelpers.IsOlapPivotTable(pivot)));
+        Assert.True(owner.CubeFieldsReadAttempted);
+    }
+
     [Theory]
     [InlineData(ResiliencePipelines.RPC_E_CALL_FAILED)]
     [InlineData(ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE)]
