@@ -126,15 +126,44 @@ public partial class PivotTableCommands
                     manualUpdateChanged = true;
                 }
 
-                filterMutationStarted = true;
-                if (selectedItems.Count == 0)
+                Exception? mutationFailure = null;
+                try
                 {
-                    pivotField.ClearAllFilters();
+                    filterMutationStarted = true;
+                    if (selectedItems.Count == 0)
+                    {
+                        pivotField.ClearAllFilters();
+                    }
+                    else
+                    {
+                        cubeField.EnableMultiplePageItems = true;
+                        pivotField.VisibleItemsList = selectedItems.ToArray();
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    cubeField.EnableMultiplePageItems = true;
-                    pivotField.VisibleItemsList = selectedItems.ToArray();
+                    mutationFailure = ex;
+                }
+                if (manualUpdateChanged)
+                {
+                    try
+                    {
+                        pivot.ManualUpdate = previousManualUpdate;
+                    }
+                    catch (Exception restoreException) when (
+                        mutationFailure is not null && CreatedObjectFailure.CanReport(restoreException))
+                    {
+                        if (CreatedObjectFailure.CanReport(mutationFailure))
+                        {
+                            mutationFailure = new AggregateException(
+                                "Filter mutation and update restoration both failed.",
+                                mutationFailure, restoreException);
+                        }
+                    }
+                }
+                if (mutationFailure is not null)
+                {
+                    System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(mutationFailure).Throw();
                 }
 
                 ReadReportFilterSelection(cubeField, pivotField, result);
@@ -162,35 +191,14 @@ public partial class PivotTableCommands
             }
             finally
             {
-                try
-                {
-                    if (manualUpdateChanged && pivot is not null)
-                    {
-                        try
-                        {
-                            pivot.ManualUpdate = previousManualUpdate;
-                        }
-                        catch (Exception restoreException) when (CreatedObjectFailure.CanReport(restoreException))
-                        {
-                            result.Success = false;
-                            result.MayHavePartiallyChanged = true;
-                            result.ErrorMessage = string.IsNullOrEmpty(result.ErrorMessage)
-                                ? $"Could not restore PivotTable update behavior: {restoreException.Message}"
-                                : $"{result.ErrorMessage} Could not restore PivotTable update behavior: {restoreException.Message}";
-                        }
-                    }
-                }
-                finally
-                {
-                    ComUtilities.Release(ref pivotField);
-                    ComUtilities.Release(ref pivotFields);
-                    ComUtilities.Release(ref cubeField);
-                    ComUtilities.Release(ref cubeFields);
-                    ComUtilities.Release(ref pivot);
-                    ComUtilities.Release(ref pivotTables);
-                    ComUtilities.Release(ref sheet);
-                    ComUtilities.Release(ref sheets);
-                }
+                ComUtilities.Release(ref pivotField);
+                ComUtilities.Release(ref pivotFields);
+                ComUtilities.Release(ref cubeField);
+                ComUtilities.Release(ref cubeFields);
+                ComUtilities.Release(ref pivot);
+                ComUtilities.Release(ref pivotTables);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
             }
 
             return result;

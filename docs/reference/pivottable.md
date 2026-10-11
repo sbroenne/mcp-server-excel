@@ -140,10 +140,10 @@ chosen PivotTable's report filter, not the Data Model or other reports.
 Nonempty selections enable Excel's multiple-selection mode, even for one member.
 After reopening a workbook with an external OLAP source, refresh the PivotTable
 to reconnect before changing its report filter.
-For All, pass `selected_items: []` in MCP or `--selected-items '[]'` in the CLI.
+For All, pass `selected_items: '[]'` in MCP or `--selected-items '[]'` in the CLI.
 
 ```mcp
-pivottable_field(action: 'set-report-filter', workbook_session_id: sessionId, sheet_name: 'Summary', pivot_table_name: 'SalesPivot', field_name: '[RegionTable].[Region]', selected_items: ['[RegionTable].[Region].&[North]', '[RegionTable].[Region].&[West]'])
+pivottable_field(action: 'set-report-filter', workbook_session_id: sessionId, sheet_name: 'Summary', pivot_table_name: 'SalesPivot', field_name: '[RegionTable].[Region]', selected_items: '["[RegionTable].[Region].&[North]","[RegionTable].[Region].&[West]"]')
 ```
 
 ```cli
