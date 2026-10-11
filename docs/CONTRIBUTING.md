@@ -97,6 +97,9 @@ proxy settings, caches, and environment settings under the developer's or CI
 environment's control; do not overwrite them to work around a restore failure.
 Report an unavailable configured feed instead.
 
+Build and packaging commands leave NuGet vulnerability auditing at its default;
+do not disable it to work around a package-source or restore failure.
+
 NuGet publishing commands intentionally name the public publishing destination.
 That `dotnet nuget push --source` setting is not a restore-source override.
 Package-installation smoke checks use an isolated local-only feed to prove they

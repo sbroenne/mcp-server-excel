@@ -54,7 +54,7 @@ try {
     }
     if ($plan.Build) {
         Invoke-Check 'Building Release solution' {
-            dotnet build Sbroenne.ExcelMcp.sln -c Release -p:NuGetAudit=false --verbosity minimal
+            dotnet build Sbroenne.ExcelMcp.sln -c Release --verbosity minimal
         }
         Invoke-Check 'Running focused Excel-free tests' {
             & (Join-Path $PSScriptRoot 'Invoke-ExcelFreeTests.ps1') -Local -HookTests:$plan.HookTests -Contracts:$plan.Excel -SkillTests:$plan.SkillTests -PackagingTests:$plan.PackagingTests -ChangedPaths $paths
