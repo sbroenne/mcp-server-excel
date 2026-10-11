@@ -263,6 +263,8 @@ public sealed partial class AutomationSafetyTests
                         reconcileCases = [bool]$ReconcileCases
                         olapConnection = $Environment['EXCELMCP_TEST_OLAP_CONNECTION_STRING']
                         olapCube = $Environment['EXCELMCP_TEST_OLAP_CUBE']
+                        olapHierarchy = $Environment['EXCELMCP_TEST_OLAP_HIERARCHY']
+                        olapLevel = $Environment['EXCELMCP_TEST_OLAP_LEVEL']
                     } | ConvertTo-Json -Compress | Add-Content -LiteralPath '{{Quote(captured)}}'
                     $global:LASTEXITCODE = 0
                 }
@@ -282,13 +284,18 @@ public sealed partial class AutomationSafetyTests
                     Settings = @{
                         EXCELMCP_TEST_OLAP_CONNECTION_STRING = 'stub-connection'
                         EXCELMCP_TEST_OLAP_CUBE = 'StubCube'
+                        EXCELMCP_TEST_OLAP_HIERARCHY = 'StubHierarchy'
+                        EXCELMCP_TEST_OLAP_LEVEL = 'StubLevel'
                     }
                 }
                 """);
 
             var script = Path.Combine(scripts, "Test-E2E.ps1");
             var result = await RunAsync(root, $$"""
-                Remove-Item Env:EXCELMCP_TEST_OLAP_CONNECTION_STRING -ErrorAction SilentlyContinue
+                $env:EXCELMCP_TEST_OLAP_CONNECTION_STRING = 'stale-connection'
+                $env:EXCELMCP_TEST_OLAP_CUBE = 'stale-cube'
+                $env:EXCELMCP_TEST_OLAP_HIERARCHY = 'stale-hierarchy'
+                Remove-Item Env:EXCELMCP_TEST_OLAP_LEVEL -ErrorAction SilentlyContinue
                 & '{{Quote(script)}}' -SkipBuild -ResultsDirectory '{{Quote(Path.Combine(root, "results"))}}'
                 """);
 
