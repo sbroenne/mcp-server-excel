@@ -135,6 +135,7 @@ public partial class VbaCommands
                 // PIA gap: VBProject is in Microsoft.Vbe.Interop, not the Excel PIA.
                 // No .NET 5+ compatible NuGet package exists for VBE types.
                 vbaProject = ((dynamic)ctx.Book).VBProject;
+                EnsureProjectUnlocked((object)vbaProject);
                 vbComponents = vbaProject.VBComponents;
 
                 for (int i = 1; i <= vbComponents.Count; i++)

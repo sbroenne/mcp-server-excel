@@ -334,7 +334,7 @@ or authored skill ZIPs. Binary changes still select their consuming packages,
 including the extension when its bundled server changes. Standalone tooling
 test-project changes select their owning project, not every runtime project.
 The full partitions cover the complete normal Excel-free selection without overlap.
-Package, npm launcher, and lockfile checks have their own selections.
+Package and npm launcher checks have their own selections.
 Changes to `doc-counts.json` or `scripts\check-doc-counts.ps1` select the
 `Tooling` documentation-count regressions and source correctness checks,
 without unrelated runtime tests or packages. Source checks run once in `Fast`
@@ -489,12 +489,37 @@ E2E after the last runtime-affecting change, and rerun it if subsequent commits
 change runtime behavior. Run affected Excel tests separately, including when
 changing Excel-dependent tests.
 
-`Test-E2E.ps1` defaults to two sequential stages: independent executable CLI
-scenarios and independent
-real-protocol MCP scenarios. Each stage has a separate TRX report and a hard
-execution deadline. Empty selections, skipped tests, failures, and assembly
-cleanup failures fail the run. `-Stages Cli` or `-Stages Mcp`
-is a focused run, not complete runtime acceptance. `Test-CliWorkflow.ps1` is a
+`Test-E2E.ps1` defaults to three sequential stages: independent executable CLI
+scenarios, real-protocol MCP scenarios, and external OLAP PivotTable tests
+through the Service boundary. The OLAP stage covers field placement, measures,
+calculated members, slicers, charts, and unsupported cube operations. It also
+checks saved-and-reopened connection/layout/selection/chart state, multi-level
+Calendar rows with RelativePeriod columns and filters, compatible connection
+changes, rejected changes without altering either PivotTable, and failed refresh
+against a nonexistent cube followed by explicit repair. These are real Excel
+checks against the synthetic provider, not coverage of every server's behavior.
+Configure all four `EXCELMCP_TEST_OLAP_CONNECTION_STRING`,
+`EXCELMCP_TEST_OLAP_CUBE`, `EXCELMCP_TEST_OLAP_HIERARCHY`, and
+`EXCELMCP_TEST_OLAP_LEVEL` settings to use a compatible external fixture.
+Partial settings fail rather than silently testing a different cube.
+With none set, `scripts\Start-OlapTestCube.ps1` starts the synthetic cube in
+`scripts\olap_test_cube.py` on a free localhost port and the runner stops its
+owned Python/Java process tree afterwards. The first run needs Python 3.12 or
+newer and internet access and installs Atoti 6.2.2 into `%LOCALAPPDATA%\emo`.
+Environment creation and package installation share a 300-second setup deadline;
+cube startup has a separate 300-second deadline before the OLAP test deadline.
+Timed-out setup stops its owned process tree and does not mark installation complete.
+Atoti Community Edition is free for non-commercial use, requires online license
+activation, and sends usage telemetry; see its
+[license](https://docs.activeviam.com/engine/python-sdk/latest/eula).
+The cube has 24 monthly records across 2024-2025, Amount values 1-24, a
+Year/Month Calendar hierarchy, and fixed Prior Month/Current Month/Next Month
+members for October/November/December 2025. Older records use Earlier Months.
+It contains no customer data.
+Excel keeps the cube connection open while the fixture PivotTable uses it.
+Each stage has a separate TRX report and a hard execution deadline. Empty
+selections, skipped tests, failures, and assembly cleanup failures fail the run.
+Focused `-Stages` runs are not complete runtime acceptance. `Test-CliWorkflow.ps1` is a
 compatible wrapper for the CLI stage, including `-PipeName` and `-KeepFile`.
 
 Development builds directly stop only CLI services from the current worktree
@@ -504,7 +529,10 @@ safe-close tests remain. Test-run service stopping also specifies its private
 pipe so it cannot stop another local fixture's CLI service.
 The CLI stage also retains the expanded native API workflow in
 `Test-CliApiCoverage.ps1`, hosted by its own acceptance case with a private pipe
-and a hard deadline. MCP native formatting/style and report-depth assertions
+and an eight-minute hard deadline. Its nine-minute hang watchdog allows that
+deadline while collecting diagnostics before the complete CLI stage's
+ten-minute hard limit.
+MCP native formatting/style and report-depth assertions
 remain part of their independently reported acceptance scenarios.
 
 Reports and ownership journals go into a new `TestResults` directory by default.
@@ -513,7 +541,9 @@ stage report is rejected so stale evidence cannot turn a failed run green.
 `-ListTests` discovers cases without starting workbook operations.
 
 For a full validation pass, run all solution test projects with
-`RunType!=OnDemand`. This filter includes normal Service VBA and screenshot
+`RunType!=OnDemand`, then run complete three-stage E2E. The OLAP E2E stage
+explicitly selects the OnDemand external-cube tests rather than skipping them.
+The normal filter includes Service VBA and screenshot
 tests; their prerequisites must be satisfied, not silently skipped. Run
 screenshots separately from other Excel tests when investigating them because
 they use the interactive desktop. Research diagnostics and external-service
@@ -669,6 +699,21 @@ llm-tests/                          # LLM tool behavior validation (Manual)
 | **OnDemand** | Slow (3-5 min) | Excel + Windows | ❌ No (explicit only) |
 | **Diagnostics** | Slow (varies) | Excel + Windows | ❌ No (manual, excluded from CI) |
 | **LLM Tests** | Slow (varies) | Excel + GitHub Copilot | ❌ No (manual only) |
+
+## Optional Legacy `.xls` Checks
+
+The legacy `.xls` save and validation checks use `RunType=OnDemand` because
+their availability depends on the local Office policy for Excel 97-2003 files.
+They still verify the saved format, session path, workbook contents, and file
+preservation. The `.xlsx`, `.xlsm`, and `.xlsb` checks remain in the normal
+suite.
+
+Run them only on a machine whose existing Office policy permits legacy workbook
+files. These tests do not change Trust Center File Block settings:
+
+```powershell
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Release --filter 'RequiresExcel=true&RunType=OnDemand&FullyQualifiedName~LegacyXls' --blame-hang-timeout 5m --logger trx
+```
 
 ## Diagnostics Tests
 

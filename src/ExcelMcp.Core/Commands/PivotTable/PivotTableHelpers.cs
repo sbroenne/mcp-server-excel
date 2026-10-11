@@ -50,7 +50,7 @@ internal static class PivotTableHelpers
             return cubeFields != null && cubeFields.Count > 0;
         }
 #pragma warning disable CA1031 // COM interop: CubeFields property doesn't exist on non-OLAP PivotTables
-        catch (System.Runtime.InteropServices.COMException)
+        catch (System.Runtime.InteropServices.COMException ex) when (CreatedObjectFailure.CanReport(ex))
         {
             // CubeFields property not available or failed - not an OLAP PivotTable
             return false;

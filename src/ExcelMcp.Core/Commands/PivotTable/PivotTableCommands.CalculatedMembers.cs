@@ -79,6 +79,11 @@ public partial class PivotTableCommands
         string memberName, string formula, CalculatedMemberType type = CalculatedMemberType.Measure,
         int solveOrder = 0, string? displayFolder = null, string? numberFormat = null)
     {
+        if (!Enum.IsDefined(type))
+        {
+            throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown calculated member type.");
+        }
+
         return batch.Execute((ctx, ct) =>
         {
             dynamic? pivot = null;
@@ -107,7 +112,7 @@ public partial class PivotTableCommands
                     CalculatedMemberType.Member => XlCalculatedMemberType.xlCalculatedMember,
                     CalculatedMemberType.Set => XlCalculatedMemberType.xlCalculatedSet,
                     CalculatedMemberType.Measure => XlCalculatedMemberType.xlCalculatedMeasure,
-                    _ => XlCalculatedMemberType.xlCalculatedMeasure
+                    _ => throw new ArgumentOutOfRangeException(nameof(type), type, "Unknown calculated member type.")
                 };
 
                 // Use AddCalculatedMember (Excel 2013+) for full feature support
@@ -126,25 +131,10 @@ public partial class PivotTableCommands
                         numberFormat ?? Type.Missing
                     );
                 }
-                catch (System.Runtime.InteropServices.COMException comEx)
+                catch (COMException comEx)
                 {
-                    // MDX/DAX syntax errors or invalid formulas return specific COM errors
-                    // Convert these to user-friendly error messages
-                    string errorDetail = comEx.Message;
-                    bool isFormulaError = errorDetail.Contains("Query") ||
-                        errorDetail.Contains("syntax") ||
-                        comEx.HResult == unchecked((int)0x800A03EC);
-
-                    if (isFormulaError)
-                    {
-                        return new CalculatedMemberResult
-                        {
-                            Success = false,
-                            ErrorMessage = $"Invalid formula syntax for calculated {type}: {errorDetail}. Check MDX/DAX syntax and ensure referenced measures/dimensions exist."
-                        };
-                    }
-                    // Re-throw unknown COM errors
-                    throw;
+                    ct.ThrowIfCancellationRequested();
+                    throw DescribeCalculatedMemberFailure(comEx, type);
                 }
 
                 var result = new CalculatedMemberResult
@@ -155,7 +145,7 @@ public partial class PivotTableCommands
                     Type = GetCalculatedMemberType(Convert.ToInt32(newMember.Type)),
                     SolveOrder = Convert.ToInt32(newMember.SolveOrder),
                     IsValid = newMember.IsValid,
-                    WorkflowHint = $"Created calculated {type} '{memberName}'. Use add-value-field with fieldName='[Measures].[{memberName}]' to add it to the PivotTable values area."
+                    WorkflowHint = GetCalculatedMemberWorkflowHint(memberName, type)
                 };
 
                 // Try to get optional properties (may not exist on all calculated member types)
@@ -235,6 +225,32 @@ public partial class PivotTableCommands
             }
         });
     }
+
+    internal static bool IsCalculatedMemberFormulaError(COMException error) =>
+        error.Message.Contains("syntax", StringComparison.OrdinalIgnoreCase);
+
+    internal static string GetCalculatedMemberWorkflowHint(string memberName, CalculatedMemberType type)
+    {
+        var created = $"Created calculated {type} '{memberName}'.";
+        if (type != CalculatedMemberType.Measure)
+        {
+            return $"{created} Use list-calculated-members to inspect its name, formula, type, and validity.";
+        }
+
+        var fieldName = memberName.StartsWith("[Measures].", StringComparison.OrdinalIgnoreCase)
+            ? memberName
+            : $"[Measures].[{memberName.Replace("]", "]]", StringComparison.Ordinal)}]";
+        return $"{created} Use pivottable refresh to expose the measure in CubeFields, then pivottable_field (CLI: pivottablefield) add-value-field with field_name='{fieldName}' (CLI: --field-name) to add it to the PivotTable values area.";
+    }
+
+    internal static InvalidOperationException DescribeCalculatedMemberFailure(
+        COMException error, CalculatedMemberType type) =>
+        new(
+            (IsCalculatedMemberFormulaError(error)
+                ? $"Invalid formula syntax for calculated {type}: "
+                : $"Excel failed to create calculated {type}: ") +
+            $"{error.Message}. Inspect list-calculated-members before retrying; no changes have been rolled back.",
+            error);
 
     /// <summary>
     /// Converts COM calculated member type constant to enum

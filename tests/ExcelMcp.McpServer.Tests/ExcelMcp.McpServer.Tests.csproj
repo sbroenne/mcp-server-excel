@@ -34,6 +34,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <ProjectReference Include="..\..\src\ExcelMcp.McpServer\ExcelMcp.McpServer.csproj" />
     <ProjectReference Include="..\..\src\ExcelMcp.Core\ExcelMcp.Core.csproj" />
     <ProjectReference Include="..\..\src\ExcelMcp.CLI\ExcelMcp.CLI.csproj" />
@@ -45,6 +46,9 @@
     <Compile Include="..\Shared\TestRunExcelLifetime.cs" Link="Helpers\TestRunExcelLifetime.cs" />
     <Compile Include="..\Shared\ExcelLifetimeTestFramework.cs" Link="Helpers\ExcelLifetimeTestFramework.cs" />
     <Compile Include="..\Shared\TestClassificationArchitectureTests.cs" Link="Helpers\TestClassificationArchitectureTests.cs" />
+    <Compile Include="..\Shared\LocalTelemetryTests.cs" Link="Unit\LocalTelemetryTests.cs" />
+    <Compile Include="..\Shared\LocalOtlpReceiver.cs" Link="Helpers\LocalOtlpReceiver.cs" />
+    <Compile Include="..\Shared\LocalGrpcOtlpReceiver.cs" Link="Helpers\LocalGrpcOtlpReceiver.cs" />
   </ItemGroup>
 
   <ItemGroup>
@@ -67,10 +71,9 @@
     </PropertyGroup>
     <ItemGroup>
       <CliFiles Include="$(CliOutputDir)excelcli.exe" />
-      <CliFiles Include="$(CliOutputDir)excelcli.dll" />
+      <CliFiles Include="$(CliOutputDir)*.dll" />
       <CliFiles Include="$(CliOutputDir)excelcli.runtimeconfig.json" />
       <CliFiles Include="$(CliOutputDir)excelcli.deps.json" />
-      <CliFiles Include="$(CliOutputDir)Spectre.Console*.dll" />
     </ItemGroup>
     <Copy SourceFiles="@(CliFiles)"
           DestinationFolder="$(OutputPath)"

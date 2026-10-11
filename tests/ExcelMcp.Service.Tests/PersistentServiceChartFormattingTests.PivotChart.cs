@@ -70,7 +70,7 @@ public sealed partial class PersistentServiceChartFormattingTests
     }
 
     [Fact]
-    public void CreateFromPivotTable_UnsupportedPivotChartType_ThrowsWithoutLeavingRegularChart()
+    public async Task CreateFromPivotTable_UnsupportedPivotChartType_ReportsActualPartialState()
     {
         var batch = _fixture.BatchToken;
         var pivotTableName = $"UnsupportedPivot_{Guid.NewGuid():N}";
@@ -88,6 +88,13 @@ public sealed partial class PersistentServiceChartFormattingTests
             },
             "X",
             "Y");
+        var supported = RequireSuccess(_chartCommands.CreateFromPivotTable(
+            batch, pivotTableName, pivotSheetName, ChartType.ColumnClustered, 750, 50,
+            chartName: $"SupportedPivotChart_{Guid.NewGuid():N}"));
+        var supportedRead = RequireSuccess(_chartCommands.Read(batch, supported.ChartName));
+        Assert.True(supportedRead.IsPivotChart);
+        Assert.Equal(pivotTableName, supportedRead.LinkedPivotTable);
+        AssertSeriesData(supported.ChartName, 1, null, [1, 3, 5], [2, 4, 6], pivotSheetName);
         var before = RequireSuccess(_chartCommands.List(batch));
         var chartCountBefore = before.Charts.Count(
             chart => chart.SheetName == pivotSheetName);
@@ -95,27 +102,51 @@ public sealed partial class PersistentServiceChartFormattingTests
         var originalData = pivotCommands.GetData(batch, pivotTableName);
         RequireSuccess(originalData);
 
-        var exception = Assert.Throws<InvalidOperationException>(() =>
-            _chartCommands.CreateFromPivotTable(
-                batch,
-                pivotTableName,
-                pivotSheetName,
-                ChartType.XYScatter,
-                300,
-                50,
-                400,
-                300,
-                $"UnsupportedPivotChart_{Guid.NewGuid():N}"));
+        var rejected = await _fixture.SendForFailureAsync("chart.create-from-pivottable", new
+        {
+            pivotTableName,
+            sheetName = pivotSheetName,
+            chartType = "XYScatter",
+            left = 300,
+            top = 50,
+            width = 400,
+            height = 300,
+            chartName = $"UnsupportedPivotChart_{Guid.NewGuid():N}"
+        });
 
-        Assert.Contains(
-            "linked PivotChart",
-            exception.Message,
-            StringComparison.OrdinalIgnoreCase);
         var after = RequireSuccess(_chartCommands.List(batch));
-        var chartCountAfter = after.Charts.Count(
-            chart => chart.SheetName == pivotSheetName);
-        Assert.Equal(chartCountBefore, chartCountAfter);
-        Assert.Equal(before.Charts.Select(chart => chart.Name), after.Charts.Select(chart => chart.Name));
+        var retained = after.Charts.Where(chart => chart.SheetName == pivotSheetName)
+            .Where(chart => !before.Charts.Any(original =>
+                original.SheetName == chart.SheetName && original.Name == chart.Name)).ToList();
+        Assert.All(before.Charts, original => Assert.Contains(after.Charts,
+            chart => chart.SheetName == original.SheetName && chart.Name == original.Name));
+        Assert.DoesNotContain("No chart was kept", rejected.ErrorMessage);
+        if (retained.Count == 0)
+        {
+            // Excel can reject XYScatter in AddChart2, before any chart exists.
+            Assert.Equal("ComInterop", rejected.ErrorCategory);
+            Assert.Equal("COMException", rejected.ExceptionType);
+            Assert.DoesNotContain("failed after Excel created", rejected.ErrorMessage);
+            Assert.Equal(chartCountBefore, after.Charts.Count(chart => chart.SheetName == pivotSheetName));
+        }
+        else
+        {
+            var chart = Assert.Single(retained);
+            Assert.Equal(nameof(InvalidOperationException), rejected.ExceptionType);
+            LeftoverObjectAssert.Reported(rejected.ErrorMessage!, "chart", chart.Name, pivotSheetName);
+            Assert.True(
+                rejected.ErrorMessage!.Contains($"Binding the new chart to PivotTable '{pivotTableName}' failed", StringComparison.Ordinal) ||
+                rejected.ErrorMessage.Contains($"Verifying the PivotChart link to '{pivotTableName}' failed", StringComparison.Ordinal),
+                rejected.ErrorMessage);
+            Assert.Equal(ChartType.XYScatter, chart.ChartType);
+            var read = RequireSuccess(_chartCommands.Read(batch, chart.Name));
+            Assert.Equal(chart.Name, read.Name);
+            Assert.Equal(pivotSheetName, read.SheetName);
+            Assert.Equal(300, read.Left);
+            Assert.Equal(50, read.Top);
+            Assert.Equal(400, read.Width);
+            Assert.Equal(300, read.Height);
+        }
         var data = pivotCommands.GetData(batch, pivotTableName);
         RequireSuccess(data);
         Assert.Equal(originalData.Values.Count, data.Values.Count);
@@ -123,6 +154,7 @@ public sealed partial class PersistentServiceChartFormattingTests
         {
             Assert.Equal(originalData.Values[index], data.Values[index]);
         }
+        AssertSeriesData(supported.ChartName, 1, null, [1, 3, 5], [2, 4, 6], pivotSheetName);
     }
 
     [Fact]

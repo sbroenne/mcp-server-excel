@@ -32,6 +32,7 @@ public partial class VbaCommands
                 // PIA gap: VBProject is in Microsoft.Vbe.Interop, not the Excel PIA.
                 // No .NET 5+ compatible NuGet package exists for VBE types (ThammimTech.Microsoft.Vbe.Interop targets .NET Framework only).
                 vbaProject = ((dynamic)ctx.Book).VBProject;
+                EnsureProjectUnlocked((object)vbaProject);
                 vbComponents = vbaProject.VBComponents;
 
                 for (int i = 1; i <= vbComponents.Count; i++)
@@ -46,36 +47,17 @@ public partial class VbaCommands
 
                         string typeStr = GetVbaModuleTypeName(type);
 
-                        var procedures = new List<string>();
                         codeModule = component.CodeModule;
                         int moduleLineCount = codeModule.CountOfLines;
-
-                        // Parse procedures from code
-                        for (int line = 1; line <= moduleLineCount; line++)
-                        {
-                            string codeLine = codeModule.Lines[line, 1];
-                            string trimmedLine = codeLine.TrimStart();
-                            if (trimmedLine.StartsWith("Sub ", StringComparison.Ordinal) ||
-                                trimmedLine.StartsWith("Function ", StringComparison.Ordinal) ||
-                                trimmedLine.StartsWith("Public Sub ", StringComparison.Ordinal) ||
-                                trimmedLine.StartsWith("Public Function ", StringComparison.Ordinal) ||
-                                trimmedLine.StartsWith("Private Sub ", StringComparison.Ordinal) ||
-                                trimmedLine.StartsWith("Private Function ", StringComparison.Ordinal))
-                            {
-                                string procName = ExtractProcedureName(codeLine);
-                                if (!string.IsNullOrEmpty(procName))
-                                {
-                                    procedures.Add(procName);
-                                }
-                            }
-                        }
+                        List<VbaProcedureInfo> procedureDetails = GetProcedures((object)codeModule, ct);
 
                         result.Scripts.Add(new ScriptInfo
                         {
                             Name = name,
                             Type = typeStr,
                             LineCount = moduleLineCount,
-                            Procedures = procedures
+                            Procedures = procedureDetails.Select(procedure => procedure.Name).ToList(),
+                            ProcedureDetails = procedureDetails
                         });
                     }
                     finally
@@ -136,6 +118,7 @@ public partial class VbaCommands
                 // PIA gap: VBProject is in Microsoft.Vbe.Interop, not the Excel PIA.
                 // No .NET 5+ compatible NuGet package exists for VBE types.
                 vbaProject = ((dynamic)ctx.Book).VBProject;
+                EnsureProjectUnlocked((object)vbaProject);
                 vbComponents = vbaProject.VBComponents;
 
                 // Find the specified module
@@ -160,25 +143,9 @@ public partial class VbaCommands
                             result.Code = codeModule.Lines[1, result.LineCount];
                         }
 
-                        // Parse procedures
-                        for (int line = 1; line <= result.LineCount; line++)
-                        {
-                            string codeLine = codeModule.Lines[line, 1];
-                            string trimmedLine = codeLine.TrimStart();
-                            if (trimmedLine.StartsWith("Sub ", StringComparison.Ordinal) ||
-                                trimmedLine.StartsWith("Function ", StringComparison.Ordinal) ||
-                                trimmedLine.StartsWith("Public Sub ", StringComparison.Ordinal) ||
-                                trimmedLine.StartsWith("Public Function ", StringComparison.Ordinal) ||
-                                trimmedLine.StartsWith("Private Sub ", StringComparison.Ordinal) ||
-                                trimmedLine.StartsWith("Private Function ", StringComparison.Ordinal))
-                            {
-                                string procName = ExtractProcedureName(codeLine);
-                                if (!string.IsNullOrEmpty(procName))
-                                {
-                                    result.Procedures.Add(procName);
-                                }
-                            }
-                        }
+                        result.Procedures = GetProcedures((object)codeModule, ct)
+                            .Select(procedure => procedure.Name)
+                            .ToList();
 
                         break;
                     }
@@ -237,6 +204,7 @@ public partial class VbaCommands
                 // PIA gap: VBProject is in Microsoft.Vbe.Interop, not the Excel PIA.
                 // No .NET 5+ compatible NuGet package exists for VBE types.
                 vbaProject = ((dynamic)ctx.Book).VBProject;
+                EnsureProjectUnlocked((object)vbaProject);
                 vbComponents = vbaProject.VBComponents;
 
                 // Check if module already exists
@@ -308,6 +276,7 @@ public partial class VbaCommands
                 // PIA gap: VBProject is in Microsoft.Vbe.Interop, not the Excel PIA.
                 // No .NET 5+ compatible NuGet package exists for VBE types.
                 vbaProject = ((dynamic)ctx.Book).VBProject;
+                EnsureProjectUnlocked((object)vbaProject);
                 vbComponents = vbaProject.VBComponents;
 
                 for (int i = 1; i <= vbComponents.Count; i++)
@@ -369,4 +338,3 @@ public partial class VbaCommands
         });
     }
 }
-

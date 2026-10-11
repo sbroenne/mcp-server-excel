@@ -816,7 +816,7 @@ public partial class PersistentServicePivotTableOlapFieldTests
     private void AssertMeasureValue(string measureName, double expected)
     {
         var result = _dataModelCommands.Evaluate(
-            _fixture.BatchToken, $"EVALUATE ROW(\"Value\", [{measureName}])");
+            _fixture.BatchToken, $"EVALUATE ROW(\"Value\", [{measureName.Replace("]", "]]", StringComparison.Ordinal)}])");
         Assert.True(result.Success, result.ErrorMessage);
         Assert.Equal("[Value]", Assert.Single(result.Columns));
         Assert.Equal(expected, Convert.ToDouble(

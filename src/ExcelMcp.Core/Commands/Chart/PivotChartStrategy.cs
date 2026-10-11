@@ -178,7 +178,16 @@ public class PivotChartStrategy : IChartStrategy
         // Get title
         if (chart.HasTitle)
         {
-            info.Title = chart.ChartTitle.Text?.ToString() ?? string.Empty;
+            dynamic? chartTitle = null;
+            try
+            {
+                chartTitle = chart.ChartTitle;
+                info.Title = chartTitle.Text?.ToString() ?? string.Empty;
+            }
+            finally
+            {
+                ComUtilities.Release(ref chartTitle!);
+            }
         }
 
         // Get legend

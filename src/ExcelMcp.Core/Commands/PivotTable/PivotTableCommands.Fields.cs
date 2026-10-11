@@ -59,76 +59,10 @@ public partial class PivotTableCommands
     /// </summary>
     private static PivotFieldListResult ListCubeFieldsAsync(dynamic cubeFields, string filePath)
     {
-        var fields = new List<PivotFieldInfo>();
-
-        int fieldCount = cubeFields.Count;
-
-        for (int i = 1; i <= fieldCount; i++)
-        {
-            dynamic? cubeField = null;
-            try
-            {
-                cubeField = cubeFields.Item(i);
-
-                // Get field name
-                string fieldName;
-                try
-                {
-                    fieldName = cubeField.Name?.ToString() ?? $"CubeField{i}";
-                }
-                catch (System.Runtime.InteropServices.COMException)
-                {
-                    fieldName = $"CubeField{i}";
-                }
-
-                // Get orientation - for CubeFields, check if it has a corresponding PivotField
-                int orientation = XlPivotFieldOrientation.xlHidden;
-                try
-                {
-                    dynamic? pivotField = cubeField.PivotFields?.Item(1);
-                    if (pivotField != null)
-                    {
-                        orientation = Convert.ToInt32(pivotField.Orientation);
-                        ComUtilities.Release(ref pivotField);
-                    }
-                }
-                catch (System.Runtime.InteropServices.COMException)
-                {
-                    orientation = XlPivotFieldOrientation.xlHidden;
-                }
-
-                var fieldInfo = new PivotFieldInfo
-                {
-                    Name = fieldName,
-                    Area = orientation switch
-                    {
-                        XlPivotFieldOrientation.xlRowField => PivotFieldArea.Row,
-                        XlPivotFieldOrientation.xlColumnField => PivotFieldArea.Column,
-                        XlPivotFieldOrientation.xlPageField => PivotFieldArea.Filter,
-                        XlPivotFieldOrientation.xlDataField => PivotFieldArea.Value,
-                        _ => PivotFieldArea.Hidden
-                    },
-                    CustomName = string.Empty,
-                    Position = 0,
-                    DataType = "Cube"
-                };
-
-                fields.Add(fieldInfo);
-            }
-            catch (System.Runtime.InteropServices.COMException)
-            {
-                // Skip field if COM access fails - continue with other fields
-            }
-            finally
-            {
-                ComUtilities.Release(ref cubeField);
-            }
-        }
-
         return new PivotFieldListResult
         {
             Success = true,
-            Fields = fields,
+            Fields = GetCubeFieldsInfo(cubeFields),
             FilePath = filePath
         };
     }

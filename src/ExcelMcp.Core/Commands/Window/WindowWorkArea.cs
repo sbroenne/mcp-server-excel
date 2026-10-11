@@ -1,6 +1,6 @@
 using System.ComponentModel;
-using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
+using Sbroenne.ExcelMcp.Core.Utilities;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Window;
 
@@ -11,7 +11,6 @@ internal static class WindowWorkArea
 {
     private const uint MonitorDefaultToNearest = 2;
     private const double PointsPerInch = 72;
-    private static readonly IntPtr PerMonitorAwareV2 = new(-4);
 
     public static WindowBounds GetBoundsInPoints(IntPtr hwnd)
     {
@@ -20,40 +19,7 @@ internal static class WindowWorkArea
             throw new ArgumentException("A valid Excel window handle is required.", nameof(hwnd));
         }
 
-        IntPtr previousDpiContext = SetThreadDpiAwarenessContext(PerMonitorAwareV2);
-        if (previousDpiContext == IntPtr.Zero)
-        {
-            throw new Win32Exception(
-                Marshal.GetLastWin32Error(),
-                "Could not enable per-monitor DPI awareness while resolving the Excel monitor.");
-        }
-
-        WindowBounds bounds = default;
-        Exception? failure = null;
-        try
-        {
-            bounds = ResolveBounds(hwnd);
-        }
-        catch (Exception exception)
-        {
-            failure = exception;
-        }
-        finally
-        {
-            if (SetThreadDpiAwarenessContext(previousDpiContext) == IntPtr.Zero && failure is null)
-            {
-                failure = new Win32Exception(
-                    Marshal.GetLastWin32Error(),
-                    "Could not restore the thread DPI awareness context.");
-            }
-        }
-
-        if (failure is not null)
-        {
-            ExceptionDispatchInfo.Capture(failure).Throw();
-        }
-
-        return bounds;
+        return DpiAwareness.Execute(() => ResolveBounds(hwnd));
     }
 
     private static WindowBounds ResolveBounds(IntPtr hwnd)
@@ -102,9 +68,6 @@ internal static class WindowWorkArea
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern uint GetDpiForWindow(IntPtr hwnd);
-
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr SetThreadDpiAwarenessContext(IntPtr dpiContext);
 
     [StructLayout(LayoutKind.Sequential)]
     private struct MonitorInfo

@@ -101,6 +101,10 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     [InlineData("range", "trace-dependents", true)]
     [InlineData("window", "get-view", false)]
     [InlineData("pythoninexcel", "get-result", false)]
+    [InlineData("vba", "search", true)]
+    [InlineData("vba", "references", true)]
+    [InlineData("vba", "status", true)]
+    [InlineData("vba", "replace-procedure", false)]
     public async Task Discovery_InspectionActionsUseAccurateEndpoints(string toolName, string action, bool readOnly)
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
@@ -145,6 +149,11 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     [InlineData("chart", "target_range")]
     [InlineData("screenshot", "range_address")]
     [InlineData("screenshot", "quality")]
+    [InlineData("vba_read", "search_text")]
+    [InlineData("vba_read", "module_name")]
+    [InlineData("vba_read", "whole_word")]
+    [InlineData("vba_read", "match_case")]
+    [InlineData("vba_read", "max_matches")]
     public async Task ParameterDescriptions_PreserveDeclaredMetadata(string toolName, string parameter)
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);

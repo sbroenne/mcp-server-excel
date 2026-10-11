@@ -4,10 +4,8 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Channel;
 using Microsoft.ApplicationInsights.DataContracts;
-using Microsoft.ApplicationInsights.Extensibility;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
@@ -34,29 +32,43 @@ internal static class CliTelemetry
     private static readonly AsyncLocal<InvocationTelemetryState?> CurrentInvocationTelemetry = new();
     private static readonly string SessionId = Guid.NewGuid().ToString("N")[..8];
     private static readonly string UserId = GenerateAnonymousUserId();
-    private static TelemetryClient? _telemetryClient;
-    private static TelemetryConfiguration? _telemetryConfiguration;
+    private static DeferredTelemetrySink TelemetrySink = CreateDeferredSink(CreateTelemetrySink);
+    private static bool _enabled;
+    private static TelemetrySettings? _settings;
 
-    internal static void Initialize()
+    /// <summary>
+    /// Allows the real telemetry sink to be created. Called only by <c>Program.Main</c>,
+    /// so in-process callers such as tests never send telemetry.
+    /// </summary>
+    internal static void Enable()
     {
-        var connectionString = GetConnectionString();
-        if (connectionString == null)
-        {
-            return;
-        }
+        _settings = TelemetrySettings.Read(TelemetryConfig.ConnectionString);
+        Volatile.Write(ref _enabled, true);
+    }
 
-        try
-        {
-            _telemetryConfiguration = TelemetryConfiguration.CreateDefault();
-            _telemetryConfiguration.ConnectionString = connectionString;
-            _telemetryClient = new TelemetryClient(_telemetryConfiguration);
-        }
-        catch (Exception)
-        {
-            _telemetryClient = null;
-            _telemetryConfiguration?.Dispose();
-            _telemetryConfiguration = null;
-        }
+    /// <summary>
+    /// Routes telemetry to a fresh sink built by <paramref name="factory"/> until the
+    /// returned scope is disposed, which restores the previous sink and enabled state.
+    /// Lets entry-point tests observe whether telemetry is started. Callers must run in
+    /// a non-parallel test collection because the sink is process-wide.
+    /// </summary>
+    internal static IDisposable UseSinkFactoryForTesting(Func<ICliTelemetrySink?> factory)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        var previousSink = TelemetrySink;
+        var previousEnabled = Volatile.Read(ref _enabled);
+        var previousSettings = _settings;
+        TelemetrySink = CreateDeferredSink(factory);
+        return new TestSinkScope(previousSink, previousEnabled, previousSettings);
+    }
+
+    private static DeferredTelemetrySink CreateDeferredSink(Func<ICliTelemetrySink?> factory)
+    {
+        // Covers the SDK's own 2-second Azure VM metadata lookup with margin.
+        var initializationTimeout = TimeSpan.FromSeconds(5);
+        // The budget the flush always had; it now also covers disposing the SDK.
+        var shutdownTimeout = TimeSpan.FromSeconds(2);
+        return new DeferredTelemetrySink(factory, initializationTimeout, shutdownTimeout);
     }
 
     internal static async Task<ServiceResponse> TrackCommandAsync(
@@ -189,8 +201,11 @@ internal static class CliTelemetry
     /// request, and failures raised before one is sent, are still measured.
     /// Regular commands emit their final outcome; batches retain per-item telemetry.
     /// </summary>
-    internal static int TrackCliInvocation(string[] args, Func<int> operation) =>
-        TrackCliInvocation(args, operation, TrackCommandInvocation);
+    internal static int TrackCliInvocation(string[] args, Func<int> operation)
+    {
+        StartTelemetryUnlessHelp(args);
+        return TrackCliInvocation(args, operation, TrackCommandInvocation);
+    }
 
     internal static int TrackCliInvocation(
         string[] args,
@@ -198,15 +213,18 @@ internal static class CliTelemetry
         Action<string, long, bool, string?, bool> trackInvocation) =>
         TrackCliInvocationAsync(args, () => Task.FromResult(operation()), trackInvocation).GetAwaiter().GetResult();
 
-    internal static Task<int> TrackCliInvocationAsync(string[] args, Func<Task<int>> operation) =>
-        TrackCliInvocationAsync(args, operation, TrackCommandInvocation);
+    internal static Task<int> TrackCliInvocationAsync(string[] args, Func<Task<int>> operation)
+    {
+        StartTelemetryUnlessHelp(args);
+        return TrackCliInvocationAsync(args, operation, TrackCommandInvocation);
+    }
 
     internal static async Task<int> TrackCliInvocationAsync(
         string[] args,
         Func<Task<int>> operation,
         Action<string, long, bool, string?, bool> trackInvocation)
     {
-        if (args.Any(arg => HelpFlags.Contains(arg, StringComparer.OrdinalIgnoreCase)))
+        if (IsHelpRequest(args))
         {
             return await operation();
         }
@@ -250,6 +268,21 @@ internal static class CliTelemetry
         }
     }
 
+    internal static bool IsHelpRequest(string[] args) =>
+        args.Any(arg => HelpFlags.Contains(arg, StringComparer.OrdinalIgnoreCase));
+
+    /// <summary>
+    /// Starts creating the telemetry SDK so its start-up cost overlaps the command's
+    /// own work. Help requests are never tracked, so they never start it.
+    /// </summary>
+    private static void StartTelemetryUnlessHelp(string[] args)
+    {
+        if (!IsHelpRequest(args))
+        {
+            TelemetrySink.Start();
+        }
+    }
+
     private static bool IsBatchCommand(string[] args) =>
         args.Length > 0 && string.Equals(args[0], "batch", StringComparison.OrdinalIgnoreCase);
 
@@ -272,33 +305,22 @@ internal static class CliTelemetry
         return $"{category}.{action}";
     }
 
-    internal static void Flush()
+    internal static void Flush() => TelemetrySink.Shutdown();
+
+    private static ICliTelemetrySink? CreateTelemetrySink()
     {
-        if (_telemetryClient == null)
+        if (!Volatile.Read(ref _enabled) || _settings == null)
         {
-            return;
+            return null;
         }
-
-        try
+        return _settings.Mode switch
         {
-            _telemetryClient.FlushAsync(CancellationToken.None).Wait(TimeSpan.FromSeconds(2));
-        }
-        catch (Exception)
-        {
-        }
-        finally
-        {
-            _telemetryConfiguration?.Dispose();
-            _telemetryConfiguration = null;
-            _telemetryClient = null;
-        }
+            TelemetryMode.Off => null,
+            TelemetryMode.Local => new LocalTelemetrySink(_settings),
+            TelemetryMode.Azure => ApplicationInsightsTelemetrySink.Create(_settings.ConnectionString!),
+            _ => throw new InvalidOperationException("Unknown telemetry mode.")
+        };
     }
-
-    private static string? GetConnectionString() =>
-        string.IsNullOrEmpty(TelemetryConfig.ConnectionString)
-        || TelemetryConfig.ConnectionString.StartsWith("__", StringComparison.Ordinal)
-            ? null
-            : TelemetryConfig.ConnectionString;
 
     private static void TrackCommandInvocation(
         string command,
@@ -307,11 +329,6 @@ internal static class CliTelemetry
         string? errorCategory,
         bool expectedNegative)
     {
-        if (_telemetryClient == null)
-        {
-            return;
-        }
-
         try
         {
             var (eventTelemetry, requestTelemetry) =
@@ -321,8 +338,7 @@ internal static class CliTelemetry
                     succeeded,
                     errorCategory,
                     expectedNegative);
-            _telemetryClient.TrackEvent(eventTelemetry);
-            _telemetryClient.TrackRequest(requestTelemetry);
+            TelemetrySink.Track(eventTelemetry, requestTelemetry);
         }
         catch (Exception)
         {
@@ -466,6 +482,18 @@ internal static class CliTelemetry
         catch (Exception)
         {
             return Guid.NewGuid().ToString("N")[..16];
+        }
+    }
+
+    private sealed class TestSinkScope(
+        DeferredTelemetrySink previousSink, bool previousEnabled, TelemetrySettings? previousSettings)
+        : IDisposable
+    {
+        public void Dispose()
+        {
+            TelemetrySink = previousSink;
+            _settings = previousSettings;
+            Volatile.Write(ref _enabled, previousEnabled);
         }
     }
 

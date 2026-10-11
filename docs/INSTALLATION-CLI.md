@@ -301,9 +301,13 @@ VBA commands require **"Trust access to the VBA project object model"** to be en
 This is a security setting that must be enabled manually. ExcelMcp does not provide a `setup-vba-trust` or `check-vba-trust` command and never modifies Trust Center settings automatically.
 
 Current VBA support is procedural and module-focused:
-- `vba list` and `vba view` inspect existing VBA components and procedures
+- `vba status` reports blocked access, password protection, and execution mode without changing settings
+- `vba references` lists libraries and flags broken references without repairing them
+- `vba search` returns limited literal-text matches with source locations and short excerpts
+- `vba list`, `vba view`, and `vba read` inspect modules and bounded procedure source
 - `vba import` creates a new standard module from inline code or `--vba-code-file`
-- `vba update`, `vba delete`, and `vba run` work against existing component/procedure names
+- `vba replace-procedure` changes one procedure only if its source has not changed and preserves surrounding comments; `vba update` still replaces a whole module
+- `vba delete` removes components and `vba run` executes existing procedures
 
 For complete VBA command usage and a macro-enabled workbook example, see
 [Automation & Advanced Features](features/AUTOMATION-ADVANCED.md).

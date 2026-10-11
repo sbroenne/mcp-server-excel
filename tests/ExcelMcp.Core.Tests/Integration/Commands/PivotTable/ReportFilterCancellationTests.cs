@@ -42,13 +42,18 @@ public sealed class ReportFilterCancellationTests(TempDirectoryFixture fixture) 
     [InlineData(ResiliencePipelines.RPC_E_CALL_FAILED)]
     [InlineData(ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE)]
     [InlineData(ResiliencePipelines.RPC_E_DISCONNECTED)]
-    public void SetReportFilter_DisconnectedWorkbook_PropagatesOriginalFailure(int hresult)
+    [InlineData(ResiliencePipelines.RPC_E_CALL_FAILED, true)]
+    [InlineData(ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE, true)]
+    [InlineData(ResiliencePipelines.RPC_E_DISCONNECTED, true)]
+    public void SetReportFilter_DisconnectedWorkbook_PropagatesOriginalFailure(
+        int hresult, bool disconnectAtCubeFields = false)
     {
         using var innerBatch = ExcelSession.BeginBatch(fixture.CreateTestFile());
         using var batch = DispatchProxy.Create<IExcelBatch, DisconnectedBatch>();
         var proxy = (DisconnectedBatch)batch;
         proxy.Inner = innerBatch;
-        // Excel disconnects nondeterministically; inject its COM error at the workbook read.
+        proxy.DisconnectAtCubeFields = disconnectAtCubeFields;
+        // Excel disconnects nondeterministically; inject its COM error at the selected read.
 #pragma warning disable CA2201
         proxy.Failure = new COMException("Injected Excel disconnect.", hresult);
 #pragma warning restore CA2201
@@ -58,6 +63,7 @@ public sealed class ReportFilterCancellationTests(TempDirectoryFixture fixture) 
 
         Assert.Same(proxy.Failure, error);
         Assert.True(proxy.WorkbookReadAttempted);
+        Assert.Equal(disconnectAtCubeFields, proxy.CubeFieldsReadAttempted);
     }
 
     public class DisconnectedWorkbook : DispatchProxy
@@ -69,9 +75,42 @@ public sealed class ReportFilterCancellationTests(TempDirectoryFixture fixture) 
             if (targetMethod?.Name == "get_Worksheets")
             {
                 Owner.WorkbookReadAttempted = true;
+                if (Owner.DisconnectAtCubeFields)
+                    return DisconnectedPivotObjects.Create<Excel.Sheets>(Owner);
                 throw Owner.Failure;
             }
             throw new NotSupportedException($"Unexpected workbook member: {targetMethod?.Name}");
+        }
+    }
+
+    public class DisconnectedPivotObjects : DispatchProxy
+    {
+        public DisconnectedBatch Owner { get; set; } = null!;
+        public Type ExcelType { get; set; } = null!;
+
+        public static T Create<T>(DisconnectedBatch owner) where T : class
+        {
+            var value = DispatchProxy.Create<T, DisconnectedPivotObjects>();
+            var proxy = (DisconnectedPivotObjects)(object)value;
+            proxy.Owner = owner;
+            proxy.ExcelType = typeof(T);
+            return value;
+        }
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            if (ExcelType == typeof(Excel.Sheets) && targetMethod?.Name == "get_Item")
+                return Create<Excel.Worksheet>(Owner);
+            if (ExcelType == typeof(Excel.Worksheet) && targetMethod?.Name == "PivotTables")
+                return Create<Excel.PivotTables>(Owner);
+            if (ExcelType == typeof(Excel.PivotTables) && targetMethod?.Name == "Item")
+                return Create<Excel.PivotTable>(Owner);
+            if (ExcelType == typeof(Excel.PivotTable) && targetMethod?.Name == "get_CubeFields")
+            {
+                Owner.CubeFieldsReadAttempted = true;
+                throw Owner.Failure;
+            }
+            throw new NotSupportedException($"Unexpected {ExcelType.Name} member: {targetMethod?.Name}");
         }
     }
 
@@ -80,6 +119,8 @@ public sealed class ReportFilterCancellationTests(TempDirectoryFixture fixture) 
         public IExcelBatch Inner { get; set; } = null!;
         public COMException Failure { get; set; } = null!;
         public bool WorkbookReadAttempted { get; set; }
+        public bool DisconnectAtCubeFields { get; set; }
+        public bool CubeFieldsReadAttempted { get; set; }
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
