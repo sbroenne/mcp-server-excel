@@ -1198,7 +1198,7 @@ public partial class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// Parse DAX formula to extract table and column names.
     /// Handles formats like: SUM('TableName'[ColumnName]), COUNT('Table'[Column]), etc.
     /// </summary>
-    private static (string tableName, string columnName) ParseDaxFormula(string daxFormula)
+    internal static (string tableName, string columnName) ParseDaxFormula(string daxFormula)
     {
         var match = SingleAggregationFormula().Match(daxFormula);
         return match.Success

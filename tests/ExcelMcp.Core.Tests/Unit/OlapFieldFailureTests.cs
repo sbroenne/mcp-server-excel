@@ -8,6 +8,14 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 public sealed class OlapFieldFailureTests
 {
     [Theory]
+    [InlineData("SUM('O''Brien'[Net]]Amount])", "O'Brien", "Net]Amount")]
+    [InlineData("COUNT('O''''Brien'[Net]]]]Amount])", "O''Brien", "Net]]Amount")]
+    public void SingleAggregation_DecodesTableAndColumnEscapes(string formula, string table, string column)
+    {
+        Assert.Equal((table, column), OlapPivotTableFieldStrategy.ParseDaxFormula(formula));
+    }
+
+    [Theory]
     [InlineData("[Measures].[Margin]]Pct]", "Margin]Pct")]
     [InlineData("[Measures].[Margin]]]]Pct]", "Margin]]Pct")]
     [InlineData("[Measures].[Amount.SUM]", "Amount.SUM")]
