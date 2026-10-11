@@ -280,9 +280,9 @@ public sealed partial class AutomationSafetyTests
             var cubePidFile = Path.Combine(root, "cube.pid");
             var childPidFile = Path.Combine(root, "cube-child.pid");
             File.WriteAllText(Path.Combine(scripts, "Start-OlapTestCube.ps1"), $$"""
-                $child = "Start-Process pwsh -ArgumentList '-NoProfile','-Command','Start-Sleep 120' -PassThru | ForEach-Object { `$_.Id } | Set-Content '{{Quote(childPidFile)}}'; Start-Sleep 120"
+                $child = "Start-Process pwsh -ArgumentList '-NoProfile','-Command','Start-Sleep 120' -PassThru | ForEach-Object { @{ pid = `$_.Id; started = `$_.StartTime.ToUniversalTime().Ticks } | ConvertTo-Json } | Set-Content '{{Quote(childPidFile)}}'; Start-Sleep 120"
                 $process = Start-Process pwsh -ArgumentList '-NoProfile', '-Command', $child -PassThru
-                $process.Id | Set-Content '{{Quote(cubePidFile)}}'
+                @{ pid = $process.Id; started = $process.StartTime.ToUniversalTime().Ticks } | ConvertTo-Json | Set-Content '{{Quote(cubePidFile)}}'
                 while (-not (Test-Path '{{Quote(childPidFile)}}')) { Start-Sleep -Milliseconds 100 }
                 [pscustomobject]@{
                     Process = $process
@@ -329,7 +329,8 @@ public sealed partial class AutomationSafetyTests
                 Assert.Equal(JsonValueKind.Null, stages[0].RootElement.GetProperty("olapConnection").ValueKind);
                 foreach (var pidFile in new[] { cubePidFile, childPidFile })
                 {
-                    var pid = int.Parse(File.ReadAllText(pidFile).Trim(), CultureInfo.InvariantCulture);
+                    using var identity = JsonDocument.Parse(File.ReadAllText(pidFile));
+                    var pid = identity.RootElement.GetProperty("pid").GetInt32();
                     Assert.False(IsRunning(pid), $"Cube process {pid} from {Path.GetFileName(pidFile)} is still running.");
                 }
             }
@@ -338,7 +339,11 @@ public sealed partial class AutomationSafetyTests
                 foreach (var stage in stages) { stage.Dispose(); }
             }
         }
-        finally { Directory.Delete(root, true); }
+        finally
+        {
+            try { StopOwnedProcesses(root, "cube.pid", "cube-child.pid"); }
+            finally { Directory.Delete(root, true); }
+        }
     }
 
     [Fact]
@@ -384,9 +389,9 @@ public sealed partial class AutomationSafetyTests
             var end = source.IndexOf("[pscustomobject]@{", start, StringComparison.Ordinal);
             Assert.True(start >= 0 && end > start);
             var result = await RunAsync(root, $$"""
-                $child = "Start-Process pwsh -ArgumentList '-NoProfile','-Command','Start-Sleep 120' -PassThru | ForEach-Object { `$_.Id } | Set-Content '{{Quote(childPid)}}'; Start-Sleep 120"
+                $child = "Start-Process pwsh -ArgumentList '-NoProfile','-Command','Start-Sleep 120' -PassThru | ForEach-Object { @{ pid = `$_.Id; started = `$_.StartTime.ToUniversalTime().Ticks } | ConvertTo-Json } | Set-Content '{{Quote(childPid)}}'; Start-Sleep 120"
                 $process = Start-Process pwsh -ArgumentList '-NoProfile','-Command',$child -PassThru
-                $process.Id | Set-Content '{{Quote(parentPid)}}'
+                @{ pid = $process.Id; started = $process.StartTime.ToUniversalTime().Ticks } | ConvertTo-Json | Set-Content '{{Quote(parentPid)}}'
                 $deadline = [DateTime]::UtcNow.AddSeconds(15)
                 while (-not (Test-Path '{{Quote(childPid)}}')) {
                     if ([DateTime]::UtcNow -gt $deadline) { $process.Kill($true); throw 'Child startup deadline exceeded.' }
@@ -407,10 +412,15 @@ public sealed partial class AutomationSafetyTests
             Assert.Contains("startup diagnostic", result.Output, StringComparison.Ordinal);
             foreach (var file in new[] { parentPid, childPid })
             {
-                Assert.False(IsRunning(int.Parse(File.ReadAllText(file).Trim(), CultureInfo.InvariantCulture)));
+                using var identity = JsonDocument.Parse(File.ReadAllText(file));
+                Assert.False(IsRunning(identity.RootElement.GetProperty("pid").GetInt32()));
             }
         }
-        finally { Directory.Delete(root, true); }
+        finally
+        {
+            try { StopOwnedProcesses(root, "parent.pid", "child.pid"); }
+            finally { Directory.Delete(root, true); }
+        }
     }
 
     [Theory]
@@ -451,6 +461,49 @@ public sealed partial class AutomationSafetyTests
         finally { Directory.Delete(root, true); }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OlapCube_SetupHasDeadlineAndStopsOwnedChildOnTimeout(bool timeout)
+    {
+        var root = NewSandbox();
+        try
+        {
+            var script = Path.Combine(RepoRoot, "scripts", "Start-OlapTestCube.ps1");
+            var childFile = Path.Combine(root, "setup-child.pid");
+            var result = await RunAsync(root, $$"""
+                $ast = [Management.Automation.Language.Parser]::ParseFile('{{Quote(script)}}', [ref]$null, [ref]$null)
+                $function = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Invoke-OlapSetupProcess' }, $true)
+                if (-not $function) { throw 'Missing bounded OLAP setup function.' }
+                . ([scriptblock]::Create($function.Extent.Text))
+                $body = @'
+                $child = Start-Process pwsh -ArgumentList '-NoProfile','-Command','Start-Sleep 120' -PassThru
+                @{ pid = $child.Id; started = $child.StartTime.ToUniversalTime().Ticks } | ConvertTo-Json | Set-Content '{{Quote(childFile)}}'
+                Start-Sleep 120
+                '@
+                if (-not ${{timeout.ToString().ToLowerInvariant()}}) { $body = "Write-Output 'setup-success'" }
+                Invoke-OlapSetupProcess -Executable 'pwsh' -Arguments @('-NoProfile','-Command',$body) -Deadline ([DateTime]::UtcNow.AddSeconds(5))
+                """);
+
+            Assert.Equal(!timeout, result.ExitCode == 0);
+            if (timeout)
+            {
+                Assert.Contains("setup exceeded its hard deadline", result.Output, StringComparison.Ordinal);
+                using var identity = JsonDocument.Parse(File.ReadAllText(childFile));
+                Assert.False(IsRunning(identity.RootElement.GetProperty("pid").GetInt32()));
+            }
+            else { Assert.Contains("setup-success", result.Output, StringComparison.Ordinal); }
+            var source = File.ReadAllText(script);
+            Assert.Contains("-Arguments @('-m', 'venv', $ToolDirectory) -Deadline $setupDeadline", source, StringComparison.Ordinal);
+            Assert.Contains("\"atoti==$atotiVersion\") -Deadline $setupDeadline", source, StringComparison.Ordinal);
+        }
+        finally
+        {
+            try { StopOwnedProcesses(root, "setup-child.pid"); }
+            finally { Directory.Delete(root, true); }
+        }
+    }
+
     private static string NewSandbox()
         => Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"ExcelMcp.Automation.{Guid.NewGuid():N}")).FullName;
 
@@ -464,6 +517,26 @@ public sealed partial class AutomationSafetyTests
             return !process.HasExited;
         }
         catch (ArgumentException) { return false; }
+    }
+
+    private static void StopOwnedProcesses(string root, params string[] identityFiles)
+    {
+        foreach (var file in identityFiles)
+        {
+            var path = Path.Combine(root, file);
+            if (!File.Exists(path)) { continue; }
+            using var identity = JsonDocument.Parse(File.ReadAllText(path));
+            Process process;
+            try { process = Process.GetProcessById(identity.RootElement.GetProperty("pid").GetInt32()); }
+            catch (ArgumentException) { continue; }
+            using (process)
+            {
+                if (process.HasExited || process.StartTime.ToUniversalTime().Ticks !=
+                    identity.RootElement.GetProperty("started").GetInt64()) { continue; }
+                process.Kill(entireProcessTree: true);
+                Assert.True(process.WaitForExit(10000), $"Owned process {process.Id} did not stop.");
+            }
+        }
     }
 
     private static async Task<(int ExitCode, string Output)> RunAsync(string root, string body)
