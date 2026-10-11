@@ -16,7 +16,7 @@ telemetry development and validation, and the dedicated Excel development VM.
 | `configure-analytics-oidc.ps1` | Read-only GitHub Actions workload identity setup |
 | `excel-runner.bicep` | Dedicated Windows Excel development VM, network, password vault and shutdown protection |
 | `install-excel-office.ps1` | SYSTEM worker for current 64-bit Excel 2024 Retail installation |
-| `install-excel-toolchain.ps1` | SYSTEM worker for the repository SDK, Git, PowerShell 7, Node.js 22 and Python 3.13/pip |
+| `install-excel-toolchain.ps1` | SYSTEM worker for the repository SDK, Git, PowerShell 7, Node.js 24 LTS and Python 3.13/pip |
 | `setup-excel-desktop.ps1` | Dedicated non-admin desktop account, secure automatic logon and profile initialization |
 | `excel-desktop-access.bicep` | Free Developer Bastion for temporary private activation access |
 | `update-excel-runner.ps1` | Bounded Windows Update and separate Click-to-Run Excel servicing |
@@ -154,12 +154,14 @@ It does not install or activate Excel. Activation remains a user sign-in step.
 Run `scripts\Install-ExcelAgentToolchain.ps1` after desktop preparation, with the
 VM deallocated. It follows the upstream prerequisite installer and SYSTEM worker
 pattern and the SDK version and roll-forward policy in `global.json`. It installs
-Git for Windows, PowerShell 7, Node.js 22 and signed 64-bit Python 3.13 with pip,
+Git for Windows, PowerShell 7, Node.js 24 LTS and signed 64-bit Python 3.13 with pip,
 and verifies their actual executables and versions.
 Downloads require a valid signature from the expected publisher. Installer
 processes have bounded deadlines and retain their real exit codes. The worker
 runs from an administrator-protected directory. Reruns retain matching tools
 and refuse an unexpected Node.js major version rather than silently replacing it.
+Existing Node.js 22 installations therefore need an explicitly approved upgrade
+to Node.js 24 LTS while the runner is idle before rerunning toolchain provisioning.
 
 The helper refuses an unowned or running VM and a registered coding runner,
 checks the policy-owned identity's direct roles and dedicated-vault access,

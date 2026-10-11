@@ -307,7 +307,7 @@ human commits.
 
 ## Local checks and workflow compilation
 
-Requirements: selected .NET SDK (`global.json`), PowerShell, Node.js 22+, Git,
+Requirements: selected .NET SDK (`global.json`), PowerShell, Node.js 24 LTS, Git,
 GitHub CLI and public read access. No desktop Excel is needed for these scripts.
 
 ```powershell

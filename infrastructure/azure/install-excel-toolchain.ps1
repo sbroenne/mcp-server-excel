@@ -211,7 +211,7 @@ function Get-RunnerToolchainState {
     $powershellVersion = (& $pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()') -join ''
     if ($LASTEXITCODE -ne 0 -or $powershellVersion -notmatch '^7\.') { throw 'PowerShell 7 verification failed.' }
     $nodeVersion = (& $node --version) -join ''
-    if ($LASTEXITCODE -ne 0 -or $nodeVersion -notmatch '^v22\.') { throw 'Node.js 22 verification failed.' }
+    if ($LASTEXITCODE -ne 0 -or $nodeVersion -notmatch '^v24\.') { throw 'Node.js 24 LTS verification failed.' }
     $cloud = Get-RunnerCloudToolState
     return @{
         sdk = $selectedSdk; requiredSdk = $SdkVersion; rollForward = $RollForward
@@ -315,15 +315,15 @@ switch ($Action) {
             if (Test-Path -LiteralPath $node) {
                 $current = (& $node --version) -join ''
                 if ($LASTEXITCODE -ne 0) { throw 'Existing Node.js version check failed.' }
-                $nodeMatches = $current -match '^v22\.'
+                $nodeMatches = $current -match '^v24\.'
                 if (-not $nodeMatches) { throw 'An unexpected Node.js major version is installed; do not silently replace it.' }
             }
             if (-not $nodeMatches) {
                 $releases = Invoke-RestMethod 'https://nodejs.org/dist/index.json' -TimeoutSec 60
                 $release = $releases | Where-Object {
-                    $_.version -match '^v22\.' -and $_.lts -is [string] -and $_.files -contains 'win-x64-msi'
+                    $_.version -match '^v24\.' -and $_.lts -is [string] -and $_.files -contains 'win-x64-msi'
                 } | Select-Object -First 1
-                if (-not $release) { throw 'Could not resolve a supported Node.js 22 x64 installer.' }
+                if (-not $release) { throw 'Could not resolve a supported Node.js 24 LTS x64 installer.' }
                 Install-RunnerPrerequisite "https://nodejs.org/dist/$($release.version)/node-$($release.version)-x64.msi" `
                     'node.msi' Node '' -Msi
             }
