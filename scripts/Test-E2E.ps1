@@ -67,7 +67,7 @@ try {
                 $parameters.Project = $cliTestProject
                 $parameters.Filter = 'RequiresExcel=true&FullyQualifiedName~CliWorkflowAcceptanceTests'
                 $parameters.DeadlineSeconds = 600
-                $parameters.HangTimeout = '10m'
+                $parameters.HangTimeout = '9m'
             }
             'Mcp' {
                 $parameters.Project = $mcpTestProject

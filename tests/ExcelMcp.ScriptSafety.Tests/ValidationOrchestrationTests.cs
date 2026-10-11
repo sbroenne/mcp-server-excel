@@ -27,8 +27,8 @@ public sealed class ValidationOrchestrationTests
             & ([scriptblock]::Create($selection.Extent.Text))
             if ($parameters.DeadlineSeconds -ne 600) { throw 'CLI hard deadline changed.' }
             $watchdogSeconds = [int]::Parse($parameters.HangTimeout.TrimEnd('m')) * 60
-            if ($watchdogSeconds -le 480 -or $watchdogSeconds -gt $parameters.DeadlineSeconds) {
-                throw 'CLI watchdog must allow the eight-minute native workflow without extending the hard deadline.'
+            if ($watchdogSeconds -le 480 -or $watchdogSeconds -ge $parameters.DeadlineSeconds) {
+                throw 'CLI watchdog must allow the eight-minute native workflow and collect diagnostics before the hard deadline.'
             }
             """);
         Assert.True(run.ExitCode == 0, run.Output);

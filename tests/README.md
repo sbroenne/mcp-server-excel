@@ -504,8 +504,9 @@ safe-close tests remain. Test-run service stopping also specifies its private
 pipe so it cannot stop another local fixture's CLI service.
 The CLI stage also retains the expanded native API workflow in
 `Test-CliApiCoverage.ps1`, hosted by its own acceptance case with a private pipe
-and an eight-minute hard deadline. Its hang watchdog must allow that deadline;
-the complete CLI stage retains a ten-minute hard limit.
+and an eight-minute hard deadline. Its nine-minute hang watchdog allows that
+deadline while collecting diagnostics before the complete CLI stage's
+ten-minute hard limit.
 MCP native formatting/style and report-depth assertions
 remain part of their independently reported acceptance scenarios.
 
