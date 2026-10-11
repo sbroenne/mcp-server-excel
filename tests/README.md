@@ -492,7 +492,12 @@ changing Excel-dependent tests.
 `Test-E2E.ps1` defaults to three sequential stages: independent executable CLI
 scenarios, real-protocol MCP scenarios, and external OLAP PivotTable tests
 through the Service boundary. The OLAP stage covers field placement, measures,
-calculated members, slicers, charts, and unsupported cube operations.
+calculated members, slicers, charts, and unsupported cube operations. It also
+checks saved-and-reopened connection/layout/selection/chart state, multi-level
+Calendar rows with RelativePeriod columns and filters, compatible connection
+changes, rejected changes without altering either PivotTable, and failed refresh
+against a nonexistent cube followed by explicit repair. These are real Excel
+checks against the synthetic provider, not coverage of every server's behavior.
 Configure all four `EXCELMCP_TEST_OLAP_CONNECTION_STRING`,
 `EXCELMCP_TEST_OLAP_CUBE`, `EXCELMCP_TEST_OLAP_HIERARCHY`, and
 `EXCELMCP_TEST_OLAP_LEVEL` settings to use a compatible external fixture.

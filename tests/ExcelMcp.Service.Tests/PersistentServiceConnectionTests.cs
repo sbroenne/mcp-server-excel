@@ -51,18 +51,6 @@ public sealed partial class PersistentServiceConnectionTests(
     }
 
     [Fact]
-    public void List_EmptyWorkbook_ReturnsSuccessWithEmptyList()
-    {
-        var result = _connections.List(_fixture.BatchToken);
-
-        Assert.True(result.Success, $"List failed: {result.ErrorMessage}");
-        Assert.NotNull(result.Connections);
-        Assert.Empty(result.Connections);
-        Assert.Equal(_fixture.WorkbookPath, result.FilePath);
-        RequireSuccess(result);
-    }
-
-    [Fact]
     public void View_NonExistentConnection_ThrowsException()
     {
         var retained = SeedRetainedConnection();

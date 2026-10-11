@@ -17,6 +17,8 @@ name (`[Measures].[Amount.SUM]`) or bare name (`Amount.SUM`). Dots in a
 measure name are not hierarchy separators. The requested aggregation is ignored
 because the source measure defines it. Only workbook Data Model columns can
 automatically create DAX measures.
+Closing brackets use MDX escaping in qualified names: bare `Margin]Pct` is
+`[Measures].[Margin]]Pct]`.
 
 `set-field-function` changes only a single-column aggregation measure in the
 workbook Data Model. It must not replace a compound formula or change an
@@ -85,6 +87,10 @@ another `[Measures]` prefix (`pivottable_field` input `field_name`, CLI
 inspect them with `list-calculated-members` instead.
 
 ## Refresh, layout, and grouping
+
+Hierarchy subtotal changes apply one level at a time. A provider failure reports
+the completed levels and the attempted level, whose state may also have changed.
+Nothing is rolled back; inspect the hierarchy before retrying.
 
 Refresh sources before their summaries. Worksheet-source edits may need a model
 refresh, followed by PivotTable refresh; Power Query refresh updates its model

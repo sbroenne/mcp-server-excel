@@ -55,6 +55,30 @@ public partial class PersistentServicePivotTableOlapFieldTests
     }
 
     [Theory]
+    [InlineData("Margin]Pct")]
+    [InlineData("[Measures].[Margin]]Pct]")]
+    public void AddValueField_EscapedMeasureNameResolvesAndUpdatesExactModelMeasure(string fieldName)
+    {
+        var batch = _fixture.BatchToken;
+        var (_, pivot) = CreateIsolatedPivot();
+        RequireSuccess(_dataModelCommands.CreateMeasure(
+            batch, "RegionalSalesTable", "Margin]Pct", "SUM('RegionalSalesTable'[Sales])"));
+        _fixture.RegisterDataModelMeasureForCleanup("Margin]Pct");
+        RequireSuccess(_pivotCommands.Refresh(batch, pivot));
+
+        var added = RequireSuccess(_pivotCommands.AddValueField(batch, pivot, fieldName));
+
+        Assert.Equal("Margin]Pct", added.FieldName);
+        AssertMeasureValue("Margin]Pct", 49000);
+        RequireSuccess(_pivotCommands.SetFieldFunction(
+            batch, pivot, "[Measures].[Margin]]Pct]", AggregationFunction.Count));
+        Assert.Equal("COUNT('RegionalSalesTable'[Sales])",
+            Assert.Single(RequireSuccess(_dataModelCommands.ListMeasures(batch, "RegionalSalesTable")).Measures,
+                measure => measure.Name == "Margin]Pct").FormulaPreview);
+        AssertMeasureValue("Margin]Pct", 8);
+    }
+
+    [Theory]
     [InlineData("SUM('RegionalSalesTable'[Sales]) * 2")]
     [InlineData("SUM('RegionalSalesTable'[Sales]) + SUM('RegionalSalesTable'[Units])")]
     public void SetFieldFunction_CompoundMeasureIsRejectedWithoutChangingFormula(string formula)

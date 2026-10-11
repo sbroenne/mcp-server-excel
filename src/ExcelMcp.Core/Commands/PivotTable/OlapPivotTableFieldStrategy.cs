@@ -975,6 +975,8 @@ public partial class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     {
         Excel.CubeField? cubeField = null;
         Excel.PivotFields? pivotFields = null;
+        var completedLevels = new List<string>();
+        string? attemptedLevel = null;
         try
         {
             cubeField = (Excel.CubeField)GetFieldForManipulation(pivot, fieldName);
@@ -986,8 +988,12 @@ public partial class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 Excel.PivotField? field = null;
                 try
                 {
+                    attemptedLevel = $"level {index}";
                     field = pivotFields.Item(index);
+                    attemptedLevel = field.Name;
                     field.Subtotals[1] = showSubtotals;
+                    completedLevels.Add(attemptedLevel);
+                    attemptedLevel = null;
                 }
                 finally { ComUtilities.Release(ref field); }
             }
@@ -1019,7 +1025,7 @@ public partial class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             {
                 Success = false,
                 FieldName = fieldName,
-                ErrorMessage = $"Failed to set OLAP subtotals: {ex.Message}",
+                ErrorMessage = DescribeSubtotalFailure(ex, completedLevels, attemptedLevel),
                 FilePath = workbookPath
             };
         }
@@ -1050,6 +1056,15 @@ public partial class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     #region Helper Methods
+
+    internal static string DescribeSubtotalFailure(Exception error, IReadOnlyList<string> completedLevels, string? attemptedLevel)
+    {
+        return $"Failed to set OLAP subtotals: {error.Message}. " +
+            $"Levels updated: {(completedLevels.Count == 0 ? "none" : string.Join(", ", completedLevels))}. " +
+            $"Attempted level: {attemptedLevel ?? "none"}" +
+            (attemptedLevel is null ? ". " : "; it may also have changed before the failure. ") +
+            "No changes have been rolled back. Inspect the hierarchy before retrying.";
+    }
 
     private static bool UsesWorkbookDataModel(dynamic pivot)
     {
@@ -1453,7 +1468,7 @@ public partial class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// </summary>
     private static dynamic? FindMeasureCubeField(dynamic pivot, string name)
     {
-        string qualified = $"[Measures].[{name}]";
+        string qualified = GetQualifiedMeasureName(name);
         dynamic? cubeFields = null;
         try
         {
@@ -1491,13 +1506,16 @@ public partial class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     // "[Measures].[Amount.SUM]" -> "Amount.SUM"; dots inside a measure name are preserved.
-    private static string GetBareMeasureName(string cubeFieldName)
+    internal static string GetBareMeasureName(string cubeFieldName)
     {
         const string prefix = "[Measures].[";
         return cubeFieldName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && cubeFieldName.EndsWith(']')
-            ? cubeFieldName[prefix.Length..^1]
+            ? cubeFieldName[prefix.Length..^1].Replace("]]", "]", StringComparison.Ordinal)
             : cubeFieldName;
     }
+
+    internal static string GetQualifiedMeasureName(string name) =>
+        $"[Measures].[{GetBareMeasureName(name).Replace("]", "]]", StringComparison.Ordinal)}]";
 
     /// <summary>
     /// Check if fieldName refers to an existing measure in the Data Model.
