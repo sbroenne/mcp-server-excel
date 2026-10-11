@@ -20,7 +20,7 @@ on:
         persist-credentials: false
     - uses: actions/setup-node@v7
       with:
-        node-version: '22'
+        node-version: '24'
     - name: Trusted authenticated discovery - no upstream execution
       env:
         GH_TOKEN: ${{ github.token }}
@@ -62,7 +62,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-node@v7
         with:
-          node-version: '22'
+          node-version: '24'
       - uses: actions/download-artifact@v8
         with:
           name: awesome-copilot-discovery
@@ -131,7 +131,7 @@ safe-outputs:
             persist-credentials: false
         - uses: actions/setup-node@v7
           with:
-            node-version: '22'
+            node-version: '24'
         - uses: actions/download-artifact@v8
           with:
             name: awesome-copilot-precheck

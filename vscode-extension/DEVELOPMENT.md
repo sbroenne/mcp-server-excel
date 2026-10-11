@@ -98,7 +98,7 @@ manifest. Runtime skill discovery reads the matching frontmatter from
 
 - Windows
 - The .NET SDK pinned by the repository `global.json`
-- Node.js 22.12+ and npm, compatible with the locked Vitest and vsce versions
+- Node.js 24 LTS and npm, compatible with the locked Vitest and vsce versions
 - Microsoft Excel for end-to-end MCP testing
 
 Install locked dependencies:
