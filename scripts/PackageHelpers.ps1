@@ -41,7 +41,7 @@ function Publish-PackageRuntime {
     dotnet publish (Join-Path $RepoRoot "src\ExcelMcp.$projectName\ExcelMcp.$projectName.csproj") `
         -c Release -r "win-$Architecture" --self-contained true -p:PublishSingleFile=true `
         -p:IncludeNativeLibrariesForSelfExtract=true -p:PublishTrimmed=false `
-        -p:PublishReadyToRun=false -p:NuGetAudit=false "-p:Version=$Version" `
+        -p:PublishReadyToRun=false "-p:Version=$Version" `
         -o $OutputDirectory --verbosity minimal
     if ($LASTEXITCODE -ne 0) { throw "$Component runtime publish failed with exit code $LASTEXITCODE." }
 }

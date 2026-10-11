@@ -18,10 +18,17 @@ public sealed class LocalTelemetryConfigurationTests
     [Fact]
     public void ConfigureTelemetry_LocalMode_RegistersLocalDeliveryWithoutAzure()
     {
-        var previous = Environment.GetEnvironmentVariable("EXCELMCP_TELEMETRY_MODE");
+        var variables = new Dictionary<string, string?>
+        {
+            [TelemetrySettings.ModeVariable] = "local",
+            ["OTEL_EXPORTER_OTLP_ENDPOINT"] = null,
+            ["OTEL_EXPORTER_OTLP_PROTOCOL"] = null
+        };
+        var previous = variables.Keys.ToDictionary(key => key, Environment.GetEnvironmentVariable);
         try
         {
-            Environment.SetEnvironmentVariable("EXCELMCP_TELEMETRY_MODE", "local");
+            foreach (var pair in variables)
+                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
             var builder = Host.CreateApplicationBuilder();
             Program.ConfigureTelemetry(builder);
 
@@ -31,9 +38,9 @@ public sealed class LocalTelemetryConfigurationTests
         }
         finally
         {
-            Environment.SetEnvironmentVariable("EXCELMCP_TELEMETRY_MODE", previous);
+            foreach (var pair in previous)
+                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
         }
-
     }
 
     [Theory]

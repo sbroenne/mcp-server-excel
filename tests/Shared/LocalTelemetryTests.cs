@@ -17,8 +17,10 @@ namespace Sbroenne.ExcelMcp.Tests.Telemetry;
 [Trait("Speed", "Fast")]
 [Trait("RequiresExcel", "false")]
 #if CLI_TELEMETRY_TESTS
+[Collection("Sequential")]
 [Trait("Layer", "CLI")]
 #else
+[Collection("ProgramTransport")]
 [Trait("Layer", "McpServer")]
 #endif
 public sealed class LocalTelemetryTests
@@ -144,6 +146,41 @@ public sealed class LocalTelemetryTests
         Assert.Equal(2, requests.Count);
         Assert.Contains(requests, request => request.Path == "/v1/traces" && request.Payload.Contains("worksheet_read/list", StringComparison.Ordinal));
         Assert.Contains(requests, request => request.Path == "/v1/logs" && request.Payload.Contains("Outcome", StringComparison.Ordinal));
+        Assert.All(requests, request => Assert.Contains("ExcelMcp.Test", request.Payload));
+        Assert.All(requests, request => Assert.DoesNotContain("localhost.invalid", request.Payload));
+    }
+
+    [Fact]
+    public async Task LocalPipeline_DefaultGrpc_DeliversEventsAndRequestsToLoopback()
+    {
+        await using var receiver = await LocalGrpcOtlpReceiver.StartAsync();
+        var variables = new Dictionary<string, string>
+        {
+            [TelemetrySettings.ModeVariable] = "local",
+            ["OTEL_EXPORTER_OTLP_ENDPOINT"] = receiver.Endpoint
+        };
+        var settings = TelemetrySettings.Resolve(EmbeddedAzure, key => variables.GetValueOrDefault(key));
+        Assert.Equal("grpc", settings.Protocol);
+        using var telemetry = new LocalTelemetry(settings, "ExcelMcp.Test");
+        var eventTelemetry = new EventTelemetry("worksheet_read/list");
+        eventTelemetry.Properties["Outcome"] = "succeeded";
+        telemetry.Track(eventTelemetry);
+        telemetry.Track(new RequestTelemetry
+        {
+            Name = "worksheet_read/list",
+            Timestamp = DateTimeOffset.UtcNow.AddMilliseconds(-10),
+            Duration = TimeSpan.FromMilliseconds(10),
+            Success = true,
+            ResponseCode = "200"
+        });
+        Assert.True(telemetry.Flush());
+        var requests = receiver.Requests;
+        Assert.Equal(2, requests.Count);
+        Assert.Contains(requests, request => request.Path == "/opentelemetry.proto.collector.trace.v1.TraceService/Export"
+            && request.Payload.Contains("worksheet_read/list", StringComparison.Ordinal));
+        Assert.Contains(requests, request => request.Path == "/opentelemetry.proto.collector.logs.v1.LogsService/Export"
+            && request.Payload.Contains("worksheet_read/list", StringComparison.Ordinal)
+            && request.Payload.Contains("Outcome", StringComparison.Ordinal));
         Assert.All(requests, request => Assert.Contains("ExcelMcp.Test", request.Payload));
         Assert.All(requests, request => Assert.DoesNotContain("localhost.invalid", request.Payload));
     }

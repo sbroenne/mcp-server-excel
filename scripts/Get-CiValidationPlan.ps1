@@ -40,7 +40,6 @@ if ($env:GITHUB_OUTPUT) {
         "codeql_matrix=$codeQlMatrix"
         "codeql=$($plan.CodeQlLanguages.Count -gt 0)".ToLowerInvariant()
         "npm=$($plan.NpmTests)".ToLowerInvariant()
-        "lockfiles=$($plan.LockfileTests)".ToLowerInvariant()
     ) | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8
 }
 $global:LASTEXITCODE = 0

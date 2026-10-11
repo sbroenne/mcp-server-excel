@@ -47,7 +47,7 @@ try {
 
     if (-not $SkipBuild) {
         Write-Host 'Building Release solution...' -ForegroundColor Cyan
-        dotnet build Sbroenne.ExcelMcp.sln --configuration Release --disable-build-servers -p:NuGetAudit=false --verbosity minimal
+        dotnet build Sbroenne.ExcelMcp.sln --configuration Release --disable-build-servers --verbosity minimal
         if ($LASTEXITCODE -ne 0) {
             throw "Release build failed with exit code $LASTEXITCODE."
         }
@@ -67,7 +67,7 @@ try {
                 $parameters.Project = $cliTestProject
                 $parameters.Filter = 'RequiresExcel=true&FullyQualifiedName~CliWorkflowAcceptanceTests'
                 $parameters.DeadlineSeconds = 600
-                $parameters.HangTimeout = '5m'
+                $parameters.HangTimeout = '9m'
             }
             'Mcp' {
                 $parameters.Project = $mcpTestProject

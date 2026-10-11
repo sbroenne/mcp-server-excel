@@ -3,6 +3,7 @@ using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Utilities;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 
@@ -194,8 +195,11 @@ public class ScreenshotCommands : IScreenshotCommands
     /// </summary>
     private static ScreenshotResult ExportRangeAsImage(dynamic app, dynamic sheet, dynamic range, string sheetName, string rangeAddress, ScreenshotQuality quality)
     {
-        WindowCapture.EnsureDpiAwareness();
+        return DpiAwareness.Execute<ScreenshotResult>(() => CaptureRangeImage(app, sheet, range, sheetName, rangeAddress, quality));
+    }
 
+    private static ScreenshotResult CaptureRangeImage(dynamic app, dynamic sheet, dynamic range, string sheetName, string rangeAddress, ScreenshotQuality quality)
+    {
         dynamic? window = null;
         dynamic? previousSheet = null;
         Bitmap? composed = null;

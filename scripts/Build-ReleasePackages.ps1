@@ -78,7 +78,7 @@ try {
         $project = Join-Path $root "src\ExcelMcp.$projectName\ExcelMcp.$projectName.csproj"
         if ($Components -contains $component) {
             Invoke-PackageStep "$component NuGet package" {
-                dotnet pack $project -c Release "-p:Version=$Version" -p:NuGetAudit=false -o (Join-Path $OutputDirectory 'nuget')
+                dotnet pack $project -c Release "-p:Version=$Version" -o (Join-Path $OutputDirectory 'nuget')
             }
             $toolDir = Join-Path $OutputDirectory "installed-$component"
             $packageId = "Sbroenne.ExcelMcp.$projectName"

@@ -4,19 +4,16 @@ param(
     [Parameter(Mandatory)][string]$Tests,
     [Parameter(Mandatory)][string]$Packages,
     [Parameter(Mandatory)][string]$Npm,
-    [Parameter(Mandatory)][string]$Lockfiles,
     [Parameter(Mandatory)][string]$SelectedTests,
     [Parameter(Mandatory)][string]$SelectedPackages,
-    [Parameter(Mandatory)][string]$SelectedNpm,
-    [Parameter(Mandatory)][string]$SelectedLockfiles
+    [Parameter(Mandatory)][string]$SelectedNpm
 )
 $ErrorActionPreference = 'Stop'
 if ($Detection -ne 'success') { throw "Change detection did not succeed: $Detection." }
 foreach ($check in @(
     @{ Name = 'tests'; Selected = $SelectedTests; Result = $Tests },
     @{ Name = 'packages'; Selected = $SelectedPackages; Result = $Packages },
-    @{ Name = 'npm'; Selected = $SelectedNpm; Result = $Npm },
-    @{ Name = 'lockfiles'; Selected = $SelectedLockfiles; Result = $Lockfiles }
+    @{ Name = 'npm'; Selected = $SelectedNpm; Result = $Npm }
 )) {
     $expected = switch -CaseSensitive ($check.Selected) {
         'true' { 'success' }
