@@ -103,6 +103,7 @@ if ((Get-FileHash -LiteralPath (Join-Path `$directory '$name') -Algorithm SHA256
         $state.tools.git -notmatch '^git version \d+\.\d+\.\d+\.windows\.\d+$' -or
         $state.tools.powershell -notmatch '^7\.\d+\.\d+$' -or
         $state.tools.node -notmatch '^v24\.\d+\.\d+$' -or
+        [version]$state.tools.node.Substring(1) -lt [version]'24.11.0' -or
         $state.tools.python -notmatch '^Python 3\.13\.\d+$' -or
         $state.tools.bash -notmatch '^GNU bash, version \d+\.\d+' -or
         $state.tools.jq -ne 'jq-1.8.2' -or $state.runnerRegistered -ne $false) {

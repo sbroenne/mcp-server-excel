@@ -162,6 +162,9 @@ runs from an administrator-protected directory. Reruns retain matching tools
 and refuse an unexpected Node.js major version rather than silently replacing it.
 Existing Node.js 22 installations therefore need an explicitly approved upgrade
 to Node.js 24 LTS while the runner is idle before rerunning toolchain provisioning.
+Existing Node.js 24 versions earlier than 24.11.0 are not accepted; explicitly
+upgrade them to LTS while the runner is idle before rerunning provisioning.
+Node.js 24.11.0 was the first LTS release in that major line.
 
 The helper refuses an unowned or running VM and a registered coding runner,
 checks the policy-owned identity's direct roles and dedicated-vault access,
