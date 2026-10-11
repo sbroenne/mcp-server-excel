@@ -26,7 +26,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 [ServiceCategory("PivotTableCalc")]
 [McpTool("pivottable_calc", Title = "PivotTable Calc Operations", Destructive = true, Category = "analysis",
     Description = "Create/delete PivotTable calculated fields and members, and configure layout. CALCULATED FIELDS: Create formulas like =Revenue-Cost, then add to Values with pivottable_field. CALCULATED MEMBERS: MDX expressions (OLAP/Data Model only). LAYOUT: 0=Compact, 1=Tabular, 2=Outline. Use pivottable for lifecycle, pivottable_field for field management.")]
-[McpReadOnlyActions("get-data", "list-calculated-fields", "list-calculated-members", "get-layout-options")]
+[McpReadOnlyActions("get-data", "list-calculated-fields", "list-calculated-members", "get-layout-options", "list-calculated-items")]
 public interface IPivotTableCalcCommands
 {
     // === ANALYSIS OPERATIONS (WITH DATA VALIDATION) ===
@@ -73,6 +73,32 @@ public interface IPivotTableCalcCommands
     /// </remarks>
     [ServiceAction("list-calculated-fields")]
     CalculatedFieldListResult ListCalculatedFields(IExcelBatch batch, string pivotTableName);
+
+    /// <summary>Creates a calculated item in a regular row/column field (for example =North+South). Not supported for OLAP/Data Model or grouped fields. Adds an item and can increase grand totals; no automatic rollback.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="pivotTableName">Selected PivotTable.</param>
+    /// <param name="fieldName">Exact placed row/column field caption.</param>
+    /// <param name="itemName">New item name, which must not already exist.</param>
+    /// <param name="formula">Excel calculated-item formula using English field/item references.</param>
+    [ServiceAction("create-calculated-item")]
+    PivotCalculatedItemsResult CreateCalculatedItem(IExcelBatch batch, string pivotTableName,
+        string fieldName, string itemName, string formula);
+
+    /// <summary>Lists calculated items and their formulas in a regular row/column field.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="pivotTableName">Selected PivotTable.</param>
+    /// <param name="fieldName">Exact placed row/column field caption.</param>
+    [ServiceAction("list-calculated-items")]
+    PivotCalculatedItemsResult ListCalculatedItems(IExcelBatch batch, string pivotTableName, string fieldName);
+
+    /// <summary>Deletes one calculated item from a regular row/column field. Does not delete source data; changes displayed totals.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="pivotTableName">Selected PivotTable.</param>
+    /// <param name="fieldName">Exact placed row/column field caption.</param>
+    /// <param name="itemName">Exact calculated item name from list-calculated-items.</param>
+    [ServiceAction("delete-calculated-item")]
+    PivotCalculatedItemsResult DeleteCalculatedItem(IExcelBatch batch, string pivotTableName,
+        string fieldName, string itemName);
 
     /// <summary>
     /// Deletes a calculated field from a regular PivotTable.
@@ -168,7 +194,7 @@ public interface IPivotTableCalcCommands
     [ServiceAction("set-layout")]
     OperationResult SetLayout(IExcelBatch batch, string pivotTableName, int rowLayout);
 
-    /// <summary>Reads native PivotTable style/refresh formatting and the complete per-row-field layout, including repeated labels.</summary>
+    /// <summary>Reads native PivotTable style, blank/error display, printing, OLAP empty-axis options, and per-row layout/labels/separators.</summary>
     /// <param name="batch">Excel batch session.</param>
     /// <param name="pivotTableName">Selected PivotTable.</param>
     [ServiceAction("get-layout-options")]
@@ -177,7 +203,7 @@ public interface IPivotTableCalcCommands
     /// <summary>Updates selected native layout/style options; omitted settings remain unchanged. Repeated labels require noncompact row layout.</summary>
     /// <param name="batch">Excel batch session.</param>
     /// <param name="pivotTableName">Selected PivotTable.</param>
-    /// <param name="layoutOptions">Typed row layout, repeated labels, style name, preserveFormatting, and header/banding options.</param>
+    /// <param name="layoutOptions">Selected row layout/labels, style, preserveFormatting, headers/banding, mergeLabels, displayNullString/nullString, displayErrorString/errorString, printTitles, repeatItemsOnEachPrintedPage, blankLineAfterEachItem (all row fields), and OLAP-only showEmptyRows/showEmptyColumns.</param>
     [ServiceAction("set-layout-options")]
     PivotLayoutResult SetLayoutOptions(IExcelBatch batch, string pivotTableName, PivotLayoutOptions layoutOptions);
 

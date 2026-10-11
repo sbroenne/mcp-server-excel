@@ -33,6 +33,7 @@ public partial class PivotTableCommands
             Excel.TableStyles? styles = null;
             Excel.TableStyle? style = null;
             Excel.PivotFields? rows = null;
+            Excel.PivotCache? cache = null;
             try
             {
                 pivot = (Excel.PivotTable)FindPivotTable(ctx.Book, name);
@@ -40,6 +41,10 @@ public partial class PivotTableCommands
                 if (options is not null && sheet.ProtectContents)
                     throw new InvalidOperationException("Unprotect the PivotTable worksheet before changing its layout.");
                 rows = (Excel.PivotFields)pivot.RowFields;
+                cache = pivot.PivotCache();
+                bool isOlap = cache.OLAP;
+                if (!isOlap && (options?.ShowEmptyRows is not null || options?.ShowEmptyColumns is not null))
+                    throw new NotSupportedException("showEmptyRows/showEmptyColumns support OLAP/Data Model only. For regular row/column fields use set-field-options.");
                 if (options?.StyleName is not null)
                 {
                     styles = ctx.Book.TableStyles;
@@ -79,6 +84,42 @@ public partial class PivotTableCommands
                         pivot.ShowTableStyleColumnHeaders = options.ShowColumnHeaders.Value;
                     if (options.AllowMultipleFilters.HasValue)
                         pivot.AllowMultipleFilters = options.AllowMultipleFilters.Value;
+                    if (options.MergeLabels.HasValue)
+                        pivot.MergeLabels = options.MergeLabels.Value;
+                    if (options.NullString is not null)
+                        pivot.NullString = options.NullString;
+                    if (options.DisplayNullString.HasValue)
+                        pivot.DisplayNullString = options.DisplayNullString.Value;
+                    if (options.ErrorString is not null)
+                        pivot.ErrorString = options.ErrorString;
+                    if (options.DisplayErrorString.HasValue)
+                        pivot.DisplayErrorString = options.DisplayErrorString.Value;
+                    if (options.PrintTitles.HasValue)
+                        pivot.PrintTitles = options.PrintTitles.Value;
+                    if (options.RepeatItemsOnEachPrintedPage.HasValue)
+                        pivot.RepeatItemsOnEachPrintedPage = options.RepeatItemsOnEachPrintedPage.Value;
+                    if (options.ShowEmptyRows.HasValue)
+                        pivot.DisplayEmptyRow = options.ShowEmptyRows.Value;
+                    if (options.ShowEmptyColumns.HasValue)
+                        pivot.DisplayEmptyColumn = options.ShowEmptyColumns.Value;
+                    if (options.BlankLineAfterEachItem.HasValue)
+                    {
+                        for (int index = 1; index <= rows.Count; index++)
+                        {
+                            ct.ThrowIfCancellationRequested();
+                            Excel.PivotField? field = null;
+                            try
+                            {
+                                field = rows.Item(index);
+                                if (options.BlankLineAfterEachItem.HasValue)
+                                    field.LayoutBlankLine = options.BlankLineAfterEachItem.Value;
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref field);
+                            }
+                        }
+                    }
                 }
                 return new PivotLayoutResult
                 {
@@ -92,14 +133,24 @@ public partial class PivotTableCommands
                     ShowRowHeaders = pivot.ShowTableStyleRowHeaders,
                     ShowColumnHeaders = pivot.ShowTableStyleColumnHeaders,
                     AllowMultipleFilters = pivot.AllowMultipleFilters,
+                    MergeLabels = pivot.MergeLabels,
+                    DisplayNullString = pivot.DisplayNullString,
+                    NullString = pivot.NullString,
+                    DisplayErrorString = pivot.DisplayErrorString,
+                    ErrorString = pivot.ErrorString,
+                    PrintTitles = pivot.PrintTitles,
+                    RepeatItemsOnEachPrintedPage = pivot.RepeatItemsOnEachPrintedPage,
+                    ShowEmptyRows = isOlap ? pivot.DisplayEmptyRow : null,
+                    ShowEmptyColumns = isOlap ? pivot.DisplayEmptyColumn : null,
                     RowFields = ReadRowLayouts(rows, ct)
                 };
             }
             finally
             {
-                ComUtilities.Release(ref rows);
                 ComUtilities.Release(ref style);
                 ComUtilities.Release(ref styles);
+                ComUtilities.Release(ref cache);
+                ComUtilities.Release(ref rows);
                 ComUtilities.Release(ref sheet);
                 ComUtilities.Release(ref pivot);
             }
@@ -140,7 +191,8 @@ public partial class PivotTableCommands
                 {
                     FieldName = field.Name,
                     RowLayout = field.LayoutCompactRow ? 0 : field.LayoutForm == Excel.XlLayoutFormType.xlTabular ? 1 : 2,
-                    RepeatLabels = field.RepeatLabels
+                    RepeatLabels = field.RepeatLabels,
+                    BlankLineAfterEachItem = field.LayoutBlankLine
                 });
             }
             finally

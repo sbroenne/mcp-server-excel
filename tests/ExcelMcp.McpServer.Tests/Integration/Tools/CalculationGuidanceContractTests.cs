@@ -22,6 +22,27 @@ public sealed class CalculationGuidanceContractTests : McpIntegrationTestBase
     }
 
     [Fact]
+    public async Task SubtotalFunctions_AuthoredInputMatchesNativeArraySchema()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var tool = Assert.Single(tools, value => value.Name == "pivottable_field");
+        var functions = tool.JsonSchema.GetProperty("properties").GetProperty("functions");
+        var type = functions.GetProperty("type");
+        Assert.True(type.ValueKind == JsonValueKind.Array
+            ? type.EnumerateArray().Any(value => value.GetString() == "array")
+            : type.GetString() == "array");
+        var items = functions.GetProperty("items");
+        Assert.Equal("string", items.GetProperty("type").GetString());
+        var names = items.GetProperty("enum").EnumerateArray().Select(value => value.GetString()).ToArray();
+        Assert.Contains("Sum", names);
+        Assert.Contains("Average", names);
+        var guidance = await File.ReadAllTextAsync(
+            Path.Combine(FindRepoRoot(), "docs", "reference", "pivottable.md"), TestCancellationToken);
+        Assert.Contains("""functions: ["Sum","Average"]""", guidance);
+        Assert.DoesNotContain("""functions: '["Sum","Average"]'""", guidance);
+    }
+
+    [Fact]
     public async Task AuthoredCalculationExamples_MatchGeneratedToolSchema()
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);

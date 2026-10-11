@@ -150,6 +150,28 @@ public sealed partial class PersistentServicePivotTableTests
     [Fact]
     [Trait("Speed", "Medium")]
     [Trait("Category", "Regular")]
+    public void SetReportFilter_RegularPivot_IsRejectedWithoutChangingLayout()
+    {
+        var batch = _fixture.BatchToken;
+        var created = _pivotCommands.CreateFromRange(
+            batch, _salesSheetName, "A1:D6", _salesSheetName, "F1", "TestPivot");
+        RequireSuccess(created);
+        var added = _pivotCommands.AddFilterField(batch, "TestPivot", "Region");
+        RequireSuccess(added);
+
+        var result = _pivotCommands.SetReportFilter(
+            batch, _salesSheetName, "TestPivot", "Region", ["North"]);
+
+        Assert.False(result.Success);
+        Assert.Contains("not an OLAP/Data Model PivotTable", result.ErrorMessage);
+        Assert.False(result.MayHavePartiallyChanged);
+        AssertNativeField("TestPivot", "Region", PivotFieldArea.Filter);
+        AssertOriginalSales();
+    }
+
+    [Fact]
+    [Trait("Speed", "Medium")]
+    [Trait("Category", "Regular")]
     public void RemoveField_ExistingField_RemovesFromPivot()
     {
         // Arrange
