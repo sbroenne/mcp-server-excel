@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Globalization;
+using System.Text.Json;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
@@ -238,6 +240,190 @@ public sealed partial class AutomationSafetyTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TestE2E_DefaultRunSelectsExternalOlapServiceTest(bool failOlapStage)
+    {
+        var root = NewSandbox();
+        try
+        {
+            var scripts = Directory.CreateDirectory(Path.Combine(root, "scripts")).FullName;
+            File.Copy(
+                Path.Combine(RepoRoot, "scripts", "Test-E2E.ps1"),
+                Path.Combine(scripts, "Test-E2E.ps1"));
+            var captured = Path.Combine(root, "stages.jsonl");
+            File.WriteAllText(Path.Combine(scripts, "Invoke-TestStage.ps1"), $$"""
+                function Invoke-TestStage {
+                    param(
+                        [string]$Project, [string]$Filter, [string]$ResultsDirectory,
+                        [string]$Name, [int]$DeadlineSeconds, [string]$HangTimeout,
+                        [hashtable]$Environment, [switch]$ReconcileCases
+                    )
+                    [pscustomobject]@{
+                        project = $Project; filter = $Filter; name = $Name
+                        deadline = $DeadlineSeconds; hangTimeout = $HangTimeout
+                        reconcileCases = [bool]$ReconcileCases
+                        olapConnection = $Environment['EXCELMCP_TEST_OLAP_CONNECTION_STRING']
+                        olapCube = $Environment['EXCELMCP_TEST_OLAP_CUBE']
+                        olapHierarchy = $Environment['EXCELMCP_TEST_OLAP_HIERARCHY']
+                        olapLevel = $Environment['EXCELMCP_TEST_OLAP_LEVEL']
+                    } | ConvertTo-Json -Compress | Add-Content -LiteralPath '{{Quote(captured)}}'
+                    if ($Name -eq 'Olap' -and ${{failOlapStage.ToString().ToLowerInvariant()}}) {
+                        throw 'Simulated OLAP stage failure.'
+                    }
+                    $global:LASTEXITCODE = 0
+                }
+                """);
+            File.WriteAllText(
+                Path.Combine(scripts, "Stop-ExcelCliService.ps1"),
+                "$global:LASTEXITCODE = 0");
+            var cubePidFile = Path.Combine(root, "cube.pid");
+            var childPidFile = Path.Combine(root, "cube-child.pid");
+            File.WriteAllText(Path.Combine(scripts, "Start-OlapTestCube.ps1"), $$"""
+                $child = "Start-Process pwsh -ArgumentList '-NoProfile','-Command','Start-Sleep 120' -PassThru | ForEach-Object { @{ pid = `$_.Id; started = `$_.StartTime.ToUniversalTime().Ticks } | ConvertTo-Json } | Set-Content '{{Quote(childPidFile)}}'; Start-Sleep 120"
+                $process = Start-Process pwsh -ArgumentList '-NoProfile', '-Command', $child -PassThru
+                @{ pid = $process.Id; started = $process.StartTime.ToUniversalTime().Ticks } | ConvertTo-Json | Set-Content '{{Quote(cubePidFile)}}'
+                while (-not (Test-Path '{{Quote(childPidFile)}}')) { Start-Sleep -Milliseconds 100 }
+                [pscustomobject]@{
+                    Process = $process
+                    Settings = @{
+                        EXCELMCP_TEST_OLAP_CONNECTION_STRING = 'stub-connection'
+                        EXCELMCP_TEST_OLAP_CUBE = 'StubCube'
+                        EXCELMCP_TEST_OLAP_HIERARCHY = 'StubHierarchy'
+                        EXCELMCP_TEST_OLAP_LEVEL = 'StubLevel'
+                    }
+                }
+                """);
+
+            var script = Path.Combine(scripts, "Test-E2E.ps1");
+            var result = await RunAsync(root, $$"""
+                Remove-Item Env:EXCELMCP_TEST_OLAP_CONNECTION_STRING -ErrorAction SilentlyContinue
+                Remove-Item Env:EXCELMCP_TEST_OLAP_CUBE -ErrorAction SilentlyContinue
+                Remove-Item Env:EXCELMCP_TEST_OLAP_HIERARCHY -ErrorAction SilentlyContinue
+                Remove-Item Env:EXCELMCP_TEST_OLAP_LEVEL -ErrorAction SilentlyContinue
+                & '{{Quote(script)}}' -SkipBuild -ResultsDirectory '{{Quote(Path.Combine(root, "results"))}}'
+                """);
+
+            Assert.Equal(!failOlapStage, result.ExitCode == 0);
+            if (failOlapStage) { Assert.Contains("Simulated OLAP stage failure", result.Output, StringComparison.Ordinal); }
+            var stages = File.ReadAllLines(captured)
+                .Select(line => System.Text.Json.JsonDocument.Parse(line))
+                .ToArray();
+            try
+            {
+                Assert.Equal(3, stages.Length);
+                var olap = stages[2].RootElement;
+                Assert.Equal("Olap", olap.GetProperty("name").GetString());
+                Assert.EndsWith(
+                    Path.Combine("tests", "ExcelMcp.Service.Tests", "ExcelMcp.Service.Tests.csproj"),
+                    olap.GetProperty("project").GetString(),
+                    StringComparison.OrdinalIgnoreCase);
+                Assert.Equal(
+                    "RequiresExcel=true&FullyQualifiedName~PersistentServiceConnectionTests.ExternalOlapPivotTable",
+                    olap.GetProperty("filter").GetString());
+                Assert.True(olap.GetProperty("reconcileCases").GetBoolean());
+                Assert.Equal(600, olap.GetProperty("deadline").GetInt32());
+                Assert.Equal("5m", olap.GetProperty("hangTimeout").GetString());
+                Assert.Equal("stub-connection", olap.GetProperty("olapConnection").GetString());
+                Assert.Equal("StubCube", olap.GetProperty("olapCube").GetString());
+                Assert.Equal(JsonValueKind.Null, stages[0].RootElement.GetProperty("olapConnection").ValueKind);
+                foreach (var pidFile in new[] { cubePidFile, childPidFile })
+                {
+                    using var identity = JsonDocument.Parse(File.ReadAllText(pidFile));
+                    var pid = identity.RootElement.GetProperty("pid").GetInt32();
+                    Assert.False(IsRunning(pid), $"Cube process {pid} from {Path.GetFileName(pidFile)} is still running.");
+                }
+            }
+            finally
+            {
+                foreach (var stage in stages) { stage.Dispose(); }
+            }
+        }
+        finally
+        {
+            try { StopOwnedProcesses(root, "cube.pid", "cube-child.pid"); }
+            finally { Directory.Delete(root, true); }
+        }
+    }
+
+    [Fact]
+    public async Task TestE2E_PartialCubeSettingsFailsBeforeStartingReplacementCube()
+    {
+        var root = NewSandbox();
+        try
+        {
+            var scripts = Directory.CreateDirectory(Path.Combine(root, "scripts")).FullName;
+            File.Copy(Path.Combine(RepoRoot, "scripts", "Test-E2E.ps1"), Path.Combine(scripts, "Test-E2E.ps1"));
+            File.WriteAllText(Path.Combine(scripts, "Invoke-TestStage.ps1"),
+                "function Invoke-TestStage { throw 'Test stage must not run.' }");
+            File.WriteAllText(Path.Combine(scripts, "Stop-ExcelCliService.ps1"), "$global:LASTEXITCODE = 0");
+            var launched = Path.Combine(root, "launched");
+            File.WriteAllText(Path.Combine(scripts, "Start-OlapTestCube.ps1"),
+                $"New-Item -ItemType File -Path '{Quote(launched)}'; throw 'Replacement cube started.'");
+
+            var result = await RunAsync(root, """
+                $env:EXCELMCP_TEST_OLAP_CONNECTION_STRING = 'configured-connection'
+                Remove-Item Env:EXCELMCP_TEST_OLAP_CUBE -ErrorAction SilentlyContinue
+                Remove-Item Env:EXCELMCP_TEST_OLAP_HIERARCHY -ErrorAction SilentlyContinue
+                Remove-Item Env:EXCELMCP_TEST_OLAP_LEVEL -ErrorAction SilentlyContinue
+                & .\scripts\Test-E2E.ps1 -SkipBuild -Stages Olap
+                """);
+
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("Configure all four EXCELMCP_TEST_OLAP_", result.Output, StringComparison.Ordinal);
+            Assert.False(File.Exists(launched), "Partial configuration must not silently select a different cube.");
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public async Task OlapCube_StartupTimeoutStopsOwnedParentAndChild()
+    {
+        var root = NewSandbox();
+        try
+        {
+            var parentPid = Path.Combine(root, "parent.pid");
+            var childPid = Path.Combine(root, "child.pid");
+            var source = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "Start-OlapTestCube.ps1"));
+            var start = source.IndexOf("$null = $process.Handle", StringComparison.Ordinal);
+            var end = source.IndexOf("[pscustomobject]@{", start, StringComparison.Ordinal);
+            Assert.True(start >= 0 && end > start);
+            var result = await RunAsync(root, $$"""
+                $child = "Start-Process pwsh -ArgumentList '-NoProfile','-Command','Start-Sleep 120' -PassThru | ForEach-Object { @{ pid = `$_.Id; started = `$_.StartTime.ToUniversalTime().Ticks } | ConvertTo-Json } | Set-Content '{{Quote(childPid)}}'; Start-Sleep 120"
+                $process = Start-Process pwsh -ArgumentList '-NoProfile','-Command',$child -PassThru
+                @{ pid = $process.Id; started = $process.StartTime.ToUniversalTime().Ticks } | ConvertTo-Json | Set-Content '{{Quote(parentPid)}}'
+                $deadline = [DateTime]::UtcNow.AddSeconds(15)
+                while (-not (Test-Path '{{Quote(childPid)}}')) {
+                    if ([DateTime]::UtcNow -gt $deadline) { $process.Kill($true); throw 'Child startup deadline exceeded.' }
+                    Start-Sleep -Milliseconds 100
+                }
+                $StartupTimeoutSeconds = 1
+                $port = 12345
+                $logPath = '{{Quote(Path.Combine(root, "cube.log"))}}'
+                'startup diagnostic' | Set-Content "$logPath.err"
+                try {
+                    {{source[start..end]}}
+                }
+                catch { $_.Exception.ToString() | Write-Output; exit 1 }
+                """);
+
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("did not start on port 12345", result.Output, StringComparison.Ordinal);
+            Assert.Contains("startup diagnostic", result.Output, StringComparison.Ordinal);
+            foreach (var file in new[] { parentPid, childPid })
+            {
+                using var identity = JsonDocument.Parse(File.ReadAllText(file));
+                Assert.False(IsRunning(identity.RootElement.GetProperty("pid").GetInt32()));
+            }
+        }
+        finally
+        {
+            try { StopOwnedProcesses(root, "parent.pid", "child.pid"); }
+            finally { Directory.Delete(root, true); }
+        }
+    }
+
+    [Theory]
     [InlineData(23, true)]
     [InlineData(0, false)]
     [InlineData(0, true)]
@@ -275,10 +461,83 @@ public sealed partial class AutomationSafetyTests
         finally { Directory.Delete(root, true); }
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OlapCube_SetupHasDeadlineAndStopsOwnedChildOnTimeout(bool timeout)
+    {
+        var root = NewSandbox();
+        try
+        {
+            var script = Path.Combine(RepoRoot, "scripts", "Start-OlapTestCube.ps1");
+            var childFile = Path.Combine(root, "setup-child.pid");
+            var result = await RunAsync(root, $$"""
+                $ast = [Management.Automation.Language.Parser]::ParseFile('{{Quote(script)}}', [ref]$null, [ref]$null)
+                $function = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Invoke-OlapSetupProcess' }, $true)
+                if (-not $function) { throw 'Missing bounded OLAP setup function.' }
+                . ([scriptblock]::Create($function.Extent.Text))
+                $body = @'
+                $child = Start-Process pwsh -ArgumentList '-NoProfile','-Command','Start-Sleep 120' -PassThru
+                @{ pid = $child.Id; started = $child.StartTime.ToUniversalTime().Ticks } | ConvertTo-Json | Set-Content '{{Quote(childFile)}}'
+                Start-Sleep 120
+                '@
+                if (-not ${{timeout.ToString().ToLowerInvariant()}}) { $body = "Write-Output 'setup-success'" }
+                Invoke-OlapSetupProcess -Executable 'pwsh' -Arguments @('-NoProfile','-Command',$body) -Deadline ([DateTime]::UtcNow.AddSeconds(5))
+                """);
+
+            Assert.Equal(!timeout, result.ExitCode == 0);
+            if (timeout)
+            {
+                Assert.Contains("setup exceeded its hard deadline", result.Output, StringComparison.Ordinal);
+                using var identity = JsonDocument.Parse(File.ReadAllText(childFile));
+                Assert.False(IsRunning(identity.RootElement.GetProperty("pid").GetInt32()));
+            }
+            else { Assert.Contains("setup-success", result.Output, StringComparison.Ordinal); }
+            var source = File.ReadAllText(script);
+            Assert.Contains("-Arguments @('-m', 'venv', $ToolDirectory) -Deadline $setupDeadline", source, StringComparison.Ordinal);
+            Assert.Contains("\"atoti==$atotiVersion\") -Deadline $setupDeadline", source, StringComparison.Ordinal);
+        }
+        finally
+        {
+            try { StopOwnedProcesses(root, "setup-child.pid"); }
+            finally { Directory.Delete(root, true); }
+        }
+    }
+
     private static string NewSandbox()
         => Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"ExcelMcp.Automation.{Guid.NewGuid():N}")).FullName;
 
     private static string Quote(string value) => value.Replace("'", "''", StringComparison.Ordinal);
+
+    private static bool IsRunning(int pid)
+    {
+        try
+        {
+            using var process = Process.GetProcessById(pid);
+            return !process.HasExited;
+        }
+        catch (ArgumentException) { return false; }
+    }
+
+    private static void StopOwnedProcesses(string root, params string[] identityFiles)
+    {
+        foreach (var file in identityFiles)
+        {
+            var path = Path.Combine(root, file);
+            if (!File.Exists(path)) { continue; }
+            using var identity = JsonDocument.Parse(File.ReadAllText(path));
+            Process process;
+            try { process = Process.GetProcessById(identity.RootElement.GetProperty("pid").GetInt32()); }
+            catch (ArgumentException) { continue; }
+            using (process)
+            {
+                if (process.HasExited || process.StartTime.ToUniversalTime().Ticks !=
+                    identity.RootElement.GetProperty("started").GetInt64()) { continue; }
+                process.Kill(entireProcessTree: true);
+                Assert.True(process.WaitForExit(10000), $"Owned process {process.Id} did not stop.");
+            }
+        }
+    }
 
     private static async Task<(int ExitCode, string Output)> RunAsync(string root, string body)
     {
@@ -295,13 +554,13 @@ public sealed partial class AutomationSafetyTests
         using var process = Process.Start(info)!;
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
         try { await process.WaitForExitAsync(timeout.Token); }
         catch (OperationCanceledException)
         {
             process.Kill(entireProcessTree: true);
             await process.WaitForExitAsync();
-            throw new TimeoutException("Automation script exceeded its 30-second deadline.");
+            throw new TimeoutException("Automation script exceeded its 60-second deadline.");
         }
         return (process.ExitCode, await stdout + await stderr);
     }

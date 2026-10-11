@@ -45,27 +45,31 @@ public class PersistentServicePivotTableCalculatedMembersTests(
     }
 
     /// <summary>
-    /// Tests that an invalid measure formula returns a public error response.
+    /// Tests that an unsupported calculated measure is not misdiagnosed as invalid MDX.
     /// </summary>
     [Fact]
-    public void CreateCalculatedMember_InvalidMeasureFormula_ReturnsError()
+    public void CreateCalculatedMember_DataModelMeasure_ReturnsGenericErrorAndPreservesState()
     {
         Assert.True(_creationResult.Success, "Data Model fixture must be created successfully");
 
         var batch = _fixture.BatchToken;
         CreateGuardSet();
         var before = ReadState();
-        var result = _pivotCommands.CreateCalculatedMember(
+        var error = Assert.Throws<InvalidOperationException>(() => _pivotCommands.CreateCalculatedMember(
             batch,
             "DataModelPivot",
-            "[Measures].[InvalidMeasure]",
-            "NOT VALID MDX(",
-            CalculatedMemberType.Measure);
+            "[Measures].[UnsupportedMeasure]",
+            "1",
+            CalculatedMemberType.Measure));
 
-        Assert.False(result.Success);
+        Assert.Contains("ComInterop/InvalidOperationException", error.Message);
+        Assert.Contains("0x800A03EC", error.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Contains(
-            "Invalid formula syntax for calculated Measure",
-            result.ErrorMessage);
+            "Excel failed to create calculated Measure",
+            error.Message);
+        Assert.DoesNotContain("Invalid formula syntax", error.Message);
+        Assert.Contains("list-calculated-members", error.Message);
+        Assert.Contains("no changes have been rolled back", error.Message);
         Assert.Equal(before, ReadState());
     }
 

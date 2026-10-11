@@ -10,6 +10,21 @@ Current commands and inputs come from CLI help or MCP tool descriptions.
 |--------|----------------------|
 | Worksheet Table or range | Ordinary aggregations and regular calculated fields |
 | Data Model | DAX measures and model relationships |
+| External OLAP cube | Existing server measures and cube hierarchies; supported client calculated members use MDX |
+
+For an existing cube measure, `add-value-field` accepts its exact qualified
+name (`[Measures].[Amount.SUM]`) or bare name (`Amount.SUM`). Dots in a
+measure name are not hierarchy separators. The requested aggregation is ignored
+because the source measure defines it. Only workbook Data Model columns can
+automatically create DAX measures.
+Closing brackets use MDX escaping in qualified names: bare `Margin]Pct` is
+`[Measures].[Margin]]Pct]`.
+
+`set-field-function` changes only a single-column aggregation measure in the
+workbook Data Model. It must not replace a compound formula or change an
+unrelated workbook measure with the same name as a server measure.
+Use `datamodel update-measure` for an intentional compound DAX formula change.
+External measures must be changed on the cube server.
 
 ## Calculated fields are calculations on aggregates
 
@@ -54,11 +69,28 @@ Differences from a previous item depend on current sort/filter order. Parent
 percentages depend on the relevant row/column hierarchy. Do not turn native
 blank/error results into zero.
 
-Excel does not expose every model-backed base-field/item setting and can ignore
-additional calculations on model measures. Use a source measure when native
-settings cannot establish the result. Read back settings and displayed data.
+Excel does not expose every model-backed base-field/item setting. An OLAP/Data
+Model calculation write can change displayed values while the native getter
+still reports the previous calculation. A readback mismatch returns a verification
+failure, not proof that the write was ignored or rolled back. Inspect `get-data`
+as well as `list-fields` before retrying or explicitly changing the calculation.
+Use a source measure when native settings cannot establish the result.
+
+Calculated-member creation reports formula syntax only when Excel's diagnostic
+explicitly identifies syntax. A generic Excel or provider failure is not proof
+of an invalid formula. After a failure, inspect `list-calculated-members` before
+retrying; the operation does not promise rollback.
+For a created measure, run `pivottable refresh` to expose it in CubeFields before
+`add-value-field`. Use its qualified name without adding
+another `[Measures]` prefix (`pivottable_field` input `field_name`, CLI
+`pivottablefield --field-name`). Created members and sets are not value fields;
+inspect them with `list-calculated-members` instead.
 
 ## Refresh, layout, and grouping
+
+Hierarchy subtotal changes apply one level at a time. A provider failure reports
+the completed levels and the attempted level, whose state may also have changed.
+Nothing is rolled back; inspect the hierarchy before retrying.
 
 Refresh sources before their summaries. Worksheet-source edits may need a model
 refresh, followed by PivotTable refresh; Power Query refresh updates its model
@@ -66,9 +98,11 @@ load but does not replace the dependent PivotTable refresh.
 
 - `sort-field` orders the selected field's labels in ascending or descending
   order, including Data Model fields identified by their exact CubeField name.
-- `set-field-name` updates the displayed value-field caption when the selected
+- `set-field-name` updates a regular PivotTable's displayed value-field caption when the selected
   source field is in Values; it does not rename the source worksheet column.
   Use MCP `field_name` / `custom_name` or CLI `--field-name` / `--custom-name`.
+  OLAP hierarchy/measure names come from the Data Model or external cube;
+  this action does not rename them.
 - `set-field-format` accepts invariant Excel number formats. A bare dollar sign
   remains a literal dollar sign, not the machine's regional currency. Escaped or
   quoted literals and bracketed currency/locale codes remain intact. Excel may
@@ -81,6 +115,9 @@ number formats, not plain-cell styling that refresh can overwrite.
 
 Grouping and calculated fields described here belong to regular PivotTables.
 For model-backed summaries, use source grouping columns and DAX measures.
+For external cubes, use server-defined hierarchies and grouping fields.
+`set-subtotals` accepts the exact OLAP CubeField hierarchy name and changes
+automatic subtotals on its levels; the hierarchy must be placed in Rows or Columns.
 Drill-through on a regular value cell creates a new sheet of underlying rows;
 it is not a read-only audit.
 
