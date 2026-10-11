@@ -334,7 +334,7 @@ or authored skill ZIPs. Binary changes still select their consuming packages,
 including the extension when its bundled server changes. Standalone tooling
 test-project changes select their owning project, not every runtime project.
 The full partitions cover the complete normal Excel-free selection without overlap.
-Package, npm launcher, and lockfile checks have their own selections.
+Package and npm launcher checks have their own selections.
 Changes to `doc-counts.json` or `scripts\check-doc-counts.ps1` select the
 `Tooling` documentation-count regressions and source correctness checks,
 without unrelated runtime tests or packages. Source checks run once in `Fast`
@@ -504,7 +504,10 @@ safe-close tests remain. Test-run service stopping also specifies its private
 pipe so it cannot stop another local fixture's CLI service.
 The CLI stage also retains the expanded native API workflow in
 `Test-CliApiCoverage.ps1`, hosted by its own acceptance case with a private pipe
-and a hard deadline. MCP native formatting/style and report-depth assertions
+and an eight-minute hard deadline. Its nine-minute hang watchdog allows that
+deadline while collecting diagnostics before the complete CLI stage's
+ten-minute hard limit.
+MCP native formatting/style and report-depth assertions
 remain part of their independently reported acceptance scenarios.
 
 Reports and ownership journals go into a new `TestResults` directory by default.

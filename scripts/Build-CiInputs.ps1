@@ -36,7 +36,7 @@ if ($ListProjects) {
         $path = Join-Path $root $project
         & dotnet restore $path
         if ($LASTEXITCODE -ne 0) { throw "Restore failed: $project." }
-        & dotnet build $path -c Release --no-restore --disable-build-servers -p:NuGetAudit=false
+        & dotnet build $path -c Release --no-restore --disable-build-servers
         if ($LASTEXITCODE -ne 0) { throw "Build failed: $project." }
     }
 }

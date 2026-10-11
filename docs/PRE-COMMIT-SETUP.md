@@ -29,8 +29,8 @@ Run the same checks manually:
 
 ## What runs locally
 
-Every commit is checked for direct commits to `main` and nonportable staged
-npm lockfiles. Further checks are selected from staged paths by
+Every commit is checked for direct commits to `main`. Further checks are
+selected from staged paths by
 `scripts\Get-ValidationPlan.ps1`.
 
 | Changed inputs | Release build | Final-source E2E reminder | Release artifact creation |

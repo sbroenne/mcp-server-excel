@@ -32,9 +32,6 @@ try {
     $plan = Get-ValidationPlan -Paths $paths
     $plan.Reasons | ForEach-Object { Write-Host "  $_" }
 
-    Invoke-Check 'Checking staged npm lockfiles' {
-        & (Join-Path $PSScriptRoot 'check-npm-lockfiles.ps1') -Staged
-    }
     if ($plan.Build -or $plan.SourceChecks) {
         $workingPaths = @(
             Read-Git @('-c', 'core.quotepath=false', 'diff', '--name-only', '--no-renames')
@@ -57,7 +54,7 @@ try {
     }
     if ($plan.Build) {
         Invoke-Check 'Building Release solution' {
-            dotnet build Sbroenne.ExcelMcp.sln -c Release -p:NuGetAudit=false --verbosity minimal
+            dotnet build Sbroenne.ExcelMcp.sln -c Release --verbosity minimal
         }
         Invoke-Check 'Running focused Excel-free tests' {
             & (Join-Path $PSScriptRoot 'Invoke-ExcelFreeTests.ps1') -Local -HookTests:$plan.HookTests -Contracts:$plan.Excel -SkillTests:$plan.SkillTests -PackagingTests:$plan.PackagingTests -ChangedPaths $paths

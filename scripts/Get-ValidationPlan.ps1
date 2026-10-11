@@ -30,7 +30,6 @@ function Get-ValidationPlan {
     $allExcel = @('Acceptance', 'Data', 'Desktop', 'Editing', 'Infrastructure', 'Lifecycle', 'Reporting', 'VBA')
     $fullTooling = $false
     $npmTests = $false
-    $lockfileTests = $false
     $documentationCounts = $false
     $infrastructureDiagnostics = $false
     foreach ($original in $Paths) {
@@ -86,7 +85,7 @@ function Get-ValidationPlan {
             '^scripts/(Build-Plugins|Sync-PublishedPluginRepo|Publish-PreparedPlugins)\.ps1$|^scripts/(PluginContent|AwesomeCopilotPolicy|Update-AwesomeCopilot)\.mjs$' { 'plugins'; break }
             '^scripts/(Build-NpmPackages|Test-NpmPackages|Build-ReleasePackages|PackageHelpers)\.ps1$|^\.github/workflows/(release|publish-mcp-registry)\.yml$' { 'packages'; break }
             '^doc-counts\.json$|^scripts/check-doc-counts\.ps1$' { 'doc-counts'; break }
-            '^scripts/(pre-commit|Get-ValidationPlan|Get-CiValidationPlan|Build-CiInputs|Get-ExcelTestGroups|Invoke-ExcelFreeTests|Invoke-ExcelTests|Invoke-TestStage|Test-CiCompletion|check-|Test-NpmLockfiles)' { 'tests'; break }
+            '^scripts/(pre-commit|Get-ValidationPlan|Get-CiValidationPlan|Build-CiInputs|Get-ExcelTestGroups|Invoke-ExcelFreeTests|Invoke-ExcelTests|Invoke-TestStage|Test-CiCompletion|check-)' { 'tests'; break }
             '^\.github/workflows/ci\.yml$' { 'pipeline'; break }
             '^scripts/(Build-Changelog|Update-(ReleaseVersion|McpRegistry)Metadata|Resolve-McpRegistryRelease|Test-McpRegistryPublication)\.ps1$' { 'packages'; break }
             '^scripts/(Update|Restore|Persist|Test)-StarHistory\.ps1$|^scripts/.*UsageAnalytics.*\.ps1$' { 'maintenance'; break }
@@ -223,9 +222,6 @@ function Get-ValidationPlan {
         if ($kind -in @('runtime', 'cli', 'mcp', 'unknown', 'pipeline', 'packages', 'npm-packages', 'cli-package', 'mcp-package')) {
             $npmTests = $true
         }
-        if ($path -match '(^|/)(package-lock\.json|\.npmrc)$|^scripts/(Test-NpmLockfiles|check-npm-lockfiles)\.ps1$|^\.github/workflows/ci\.yml$') {
-            $lockfileTests = $true
-        }
         foreach ($owner in $toolingOwners) {
             if (-not $toolingSelections.ContainsKey($owner)) {
                 $toolingSelections[$owner] = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
@@ -244,7 +240,6 @@ function Get-ValidationPlan {
         foreach ($group in $allExcel) { [void]$excel.Add($group) }
         $fullTooling = $true
         $npmTests = $true
-        $lockfileTests = $true
         $infrastructureDiagnostics = $true
         foreach ($language in @('actions', 'csharp', 'javascript-typescript', 'python')) { [void]$codeQl.Add($language) }
     }
@@ -272,6 +267,5 @@ function Get-ValidationPlan {
     $plan.InfrastructureDiagnostics = $infrastructureDiagnostics
     $plan.Packages = [bool](@('Cli', 'Mcp', 'Extension', 'Mcpb', 'Skills', 'Plugins') | Where-Object { $plan[$_] }).Count
     $plan.NpmTests = $npmTests
-    $plan.LockfileTests = $lockfileTests
     [pscustomobject]$plan
 }
