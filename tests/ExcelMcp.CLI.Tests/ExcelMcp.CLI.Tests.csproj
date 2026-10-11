@@ -9,6 +9,7 @@
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
+    <DefineConstants>$(DefineConstants);CLI_TELEMETRY_TESTS</DefineConstants>
 
     <!-- Assembly and Namespace Configuration -->
     <AssemblyName>Sbroenne.ExcelMcp.CLI.Tests</AssemblyName>
@@ -22,6 +23,7 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="OpenTelemetry.Exporter.InMemory" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
@@ -41,6 +43,8 @@
     <Compile Include="..\Shared\ConfiguredIrmFactAttribute.cs" Link="Helpers\ConfiguredIrmFactAttribute.cs" />
     <Compile Include="..\Shared\SavedWorkbookTemplate.cs" Link="Helpers\SavedWorkbookTemplate.cs" />
     <Compile Include="..\Shared\TestClassificationArchitectureTests.cs" Link="Helpers\TestClassificationArchitectureTests.cs" />
+    <Compile Include="..\Shared\LocalTelemetryTests.cs" Link="Unit\LocalTelemetryTests.cs" />
+    <Compile Include="..\Shared\LocalOtlpReceiver.cs" Link="Helpers\LocalOtlpReceiver.cs" />
   </ItemGroup>
 
   <ItemGroup>

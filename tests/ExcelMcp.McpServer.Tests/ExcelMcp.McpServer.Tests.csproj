@@ -45,6 +45,8 @@
     <Compile Include="..\Shared\TestRunExcelLifetime.cs" Link="Helpers\TestRunExcelLifetime.cs" />
     <Compile Include="..\Shared\ExcelLifetimeTestFramework.cs" Link="Helpers\ExcelLifetimeTestFramework.cs" />
     <Compile Include="..\Shared\TestClassificationArchitectureTests.cs" Link="Helpers\TestClassificationArchitectureTests.cs" />
+    <Compile Include="..\Shared\LocalTelemetryTests.cs" Link="Unit\LocalTelemetryTests.cs" />
+    <Compile Include="..\Shared\LocalOtlpReceiver.cs" Link="Helpers\LocalOtlpReceiver.cs" />
   </ItemGroup>
 
   <ItemGroup>

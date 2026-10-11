@@ -47,6 +47,14 @@ public static class ExcelMcpTelemetry
     /// Enables Users/Sessions analytics in Azure Portal.
     /// </summary>
     private static TelemetryClient? _telemetryClient;
+    private static LocalTelemetry? _localTelemetry;
+
+    internal static void SetLocalTelemetry(LocalTelemetry? telemetry)
+    {
+        _telemetryClient = null;
+        _localTelemetry = telemetry;
+        TrackSessionStart();
+    }
 
     /// <summary>
     /// Sets the TelemetryClient instance for sending Custom Events.
@@ -55,6 +63,7 @@ public static class ExcelMcpTelemetry
     internal static void SetTelemetryClient(TelemetryClient client)
     {
         _telemetryClient = client;
+        _localTelemetry = null;
 
         // Track session start to ensure Users/Sessions blades have data
         // This event fires once per MCP server process startup
@@ -68,13 +77,14 @@ public static class ExcelMcpTelemetry
     /// </summary>
     private static void TrackSessionStart()
     {
-        if (_telemetryClient == null) return;
+        if (_telemetryClient == null && _localTelemetry == null) return;
 
         var telemetry = new EventTelemetry("SessionStart");
         telemetry.Properties["SessionId"] = SessionId;
         telemetry.Properties["AppVersion"] = GetVersion();
         ApplyContext(telemetry);
-        _telemetryClient.TrackEvent(telemetry);
+        _telemetryClient?.TrackEvent(telemetry);
+        _localTelemetry?.Track(telemetry);
     }
 
     /// <summary>
@@ -85,6 +95,11 @@ public static class ExcelMcpTelemetry
     /// </summary>
     public static void Flush()
     {
+        if (_localTelemetry != null)
+        {
+            _localTelemetry.Flush();
+            return;
+        }
         if (_telemetryClient == null) return;
 
         try
@@ -129,12 +144,14 @@ public static class ExcelMcpTelemetry
         long durationMs,
         ToolInvocationResult result)
     {
-        if (_telemetryClient == null) return;
+        if (_telemetryClient == null && _localTelemetry == null) return;
 
         var (eventTelemetry, requestTelemetry) =
             CreateToolInvocationTelemetry(toolName, action, durationMs, result);
-        _telemetryClient.TrackEvent(eventTelemetry);
-        _telemetryClient.TrackRequest(requestTelemetry);
+        _telemetryClient?.TrackEvent(eventTelemetry);
+        _telemetryClient?.TrackRequest(requestTelemetry);
+        _localTelemetry?.Track(eventTelemetry);
+        _localTelemetry?.Track(requestTelemetry);
     }
 
     internal static (EventTelemetry Event, RequestTelemetry Request)
@@ -239,10 +256,11 @@ public static class ExcelMcpTelemetry
     /// <param name="source">Source of the exception (e.g., "AppDomain.UnhandledException")</param>
     public static void TrackUnhandledException(Exception exception, string source)
     {
-        if (_telemetryClient == null || exception == null) return;
+        if ((_telemetryClient == null && _localTelemetry == null) || exception == null) return;
 
         var telemetry = CreateSanitizedExceptionTelemetry(exception, source);
-        _telemetryClient.TrackException(telemetry);
+        _telemetryClient?.TrackException(telemetry);
+        _localTelemetry?.Track(telemetry);
     }
 
     internal static ExceptionTelemetry CreateSanitizedExceptionTelemetry(

@@ -32,8 +32,12 @@ internal sealed class DeferredTelemetrySink(
         try
         {
             var (initialization, deadline) = EnsureStarted();
-            if (!initialization.Wait(deadline.Remaining)
-                || initialization.Result is not { } sink)
+            if (!initialization.Wait(deadline.Remaining))
+            {
+                Console.Error.WriteLine("Telemetry initialization timed out; operation telemetry was not recorded.");
+                return;
+            }
+            if (initialization.Result is not { } sink)
             {
                 return;
             }
@@ -44,6 +48,7 @@ internal sealed class DeferredTelemetrySink(
         }
         catch (Exception)
         {
+            Console.Error.WriteLine("Telemetry recording failed; the command result is unchanged.");
         }
     }
 
@@ -75,11 +80,15 @@ internal sealed class DeferredTelemetrySink(
             // Tracking implies the sink was created, so this task is already complete.
             if (initialization.Result is { } sink)
             {
-                Task.Run(() => FlushAndDisposeAsync(sink)).Wait(shutdownTimeout);
+                if (!Task.Run(() => FlushAndDisposeAsync(sink)).Wait(shutdownTimeout))
+                {
+                    Console.Error.WriteLine("Telemetry shutdown timed out; buffered telemetry may not have been delivered.");
+                }
             }
         }
         catch (Exception)
         {
+            Console.Error.WriteLine("Telemetry shutdown failed; buffered telemetry may not have been delivered.");
         }
     }
 
@@ -105,6 +114,7 @@ internal sealed class DeferredTelemetrySink(
         }
         catch (Exception)
         {
+            Console.Error.WriteLine("Telemetry initialization failed; operation telemetry was not recorded.");
             return null;
         }
     }
@@ -117,6 +127,7 @@ internal sealed class DeferredTelemetrySink(
         }
         catch (Exception)
         {
+            Console.Error.WriteLine("Telemetry flush failed; buffered telemetry may not have been delivered.");
         }
         finally
         {
@@ -126,6 +137,7 @@ internal sealed class DeferredTelemetrySink(
             }
             catch (Exception)
             {
+                Console.Error.WriteLine("Telemetry disposal failed.");
             }
         }
     }
