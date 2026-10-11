@@ -670,6 +670,21 @@ llm-tests/                          # LLM tool behavior validation (Manual)
 | **Diagnostics** | Slow (varies) | Excel + Windows | ❌ No (manual, excluded from CI) |
 | **LLM Tests** | Slow (varies) | Excel + GitHub Copilot | ❌ No (manual only) |
 
+## Optional Legacy `.xls` Checks
+
+The legacy `.xls` save and validation checks use `RunType=OnDemand` because
+their availability depends on the local Office policy for Excel 97-2003 files.
+They still verify the saved format, session path, workbook contents, and file
+preservation. The `.xlsx`, `.xlsm`, and `.xlsb` checks remain in the normal
+suite.
+
+Run them only on a machine whose existing Office policy permits legacy workbook
+files. These tests do not change Trust Center File Block settings:
+
+```powershell
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Release --filter 'RequiresExcel=true&RunType=OnDemand&FullyQualifiedName~LegacyXls' --blame-hang-timeout 5m --logger trx
+```
+
 ## Diagnostics Tests
 
 Diagnostics tests are research/exploratory tests in `ExcelMcp.Diagnostics.Tests` that document the actual behavior of Excel's COM APIs without our abstraction layer. These tests are **excluded from CI** to keep automation focused on core functionality.
