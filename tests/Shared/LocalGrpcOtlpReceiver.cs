@@ -13,12 +13,12 @@ namespace Sbroenne.ExcelMcp.Tests.Telemetry;
 internal sealed class LocalGrpcOtlpReceiver : IAsyncDisposable
 {
     private readonly WebApplication _server;
-    private readonly ConcurrentQueue<(string Path, string Payload)> _requests = new();
+    private readonly ConcurrentQueue<(string Path, string Payload, IReadOnlyDictionary<string, string> Headers)> _requests = new();
 
     private LocalGrpcOtlpReceiver(WebApplication server) => _server = server;
 
     internal string Endpoint => _server.Urls.Single();
-    internal IReadOnlyList<(string Path, string Payload)> Requests => _requests.ToArray();
+    internal IReadOnlyList<(string Path, string Payload, IReadOnlyDictionary<string, string> Headers)> Requests => _requests.ToArray();
 
     internal static async Task<LocalGrpcOtlpReceiver> StartAsync()
     {
@@ -57,7 +57,9 @@ internal sealed class LocalGrpcOtlpReceiver : IAsyncDisposable
         var trailing = new byte[1];
         if (await context.Request.Body.ReadAsync(trailing, context.RequestAborted) != 0)
             throw new InvalidOperationException("Expected exactly one gRPC export message.");
-        _requests.Enqueue((context.Request.Path.Value!, Encoding.UTF8.GetString(body)));
+        var headers = context.Request.Headers.ToDictionary(
+            header => header.Key, header => header.Value.ToString(), StringComparer.OrdinalIgnoreCase);
+        _requests.Enqueue((context.Request.Path.Value!, Encoding.UTF8.GetString(body), headers));
 
         // An empty protobuf ExportResponse still needs a gRPC frame and success trailer.
         context.Response.ContentType = "application/grpc";

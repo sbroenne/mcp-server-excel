@@ -12,7 +12,7 @@ internal sealed class LocalOtlpReceiver : IAsyncDisposable
     private readonly CancellationTokenSource _shutdown = new();
     private readonly Task _server;
     private readonly byte[] _response;
-    private readonly ConcurrentQueue<(string Path, string Payload)> _requests = new();
+    private readonly ConcurrentQueue<(string Path, string Payload, IReadOnlyDictionary<string, string> Headers)> _requests = new();
 
     internal LocalOtlpReceiver(string? redirect = null)
     {
@@ -25,7 +25,7 @@ internal sealed class LocalOtlpReceiver : IAsyncDisposable
     }
 
     internal string Endpoint { get; }
-    internal IReadOnlyList<(string Path, string Payload)> Requests => _requests.ToArray();
+    internal IReadOnlyList<(string Path, string Payload, IReadOnlyDictionary<string, string> Headers)> Requests => _requests.ToArray();
 
     private async Task ServeAsync()
     {
@@ -54,7 +54,11 @@ internal sealed class LocalOtlpReceiver : IAsyncDisposable
                     throw new InvalidOperationException("Local OTLP request body exceeds the test limit.");
                 var body = new byte[size];
                 await stream.ReadExactlyAsync(body, _shutdown.Token);
-                _requests.Enqueue((path, Encoding.UTF8.GetString(body)));
+                var requestHeaders = headers.Skip(1).ToDictionary(
+                    header => header[..header.IndexOf(':')],
+                    header => header[(header.IndexOf(':') + 1)..].Trim(),
+                    StringComparer.OrdinalIgnoreCase);
+                _requests.Enqueue((path, Encoding.UTF8.GetString(body), requestHeaders));
                 await stream.WriteAsync(_response, _shutdown.Token);
             }
         }

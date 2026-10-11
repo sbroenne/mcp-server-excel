@@ -202,6 +202,66 @@ public sealed class LocalTelemetryTests
         Assert.True(logs.Disposed);
     }
 
+    [Theory]
+    [InlineData("grpc")]
+    [InlineData("http/protobuf")]
+    public async Task LocalPipeline_AmbientCredentialHeaders_AreNotSent(string protocol)
+    {
+        var variables = new Dictionary<string, string>
+        {
+            ["OTEL_EXPORTER_OTLP_HEADERS"] = "x-test-general=synthetic-general-credential",
+            ["OTEL_EXPORTER_OTLP_TRACES_HEADERS"] = "x-test-traces=synthetic-traces-credential",
+            ["OTEL_EXPORTER_OTLP_LOGS_HEADERS"] = "x-test-logs=synthetic-logs-credential"
+        };
+        var previous = variables.Keys.ToDictionary(key => key, Environment.GetEnvironmentVariable);
+        try
+        {
+            foreach (var pair in variables)
+                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
+            await using var httpReceiver = new LocalOtlpReceiver();
+            await using var grpcReceiver = await LocalGrpcOtlpReceiver.StartAsync();
+            var settings = TelemetrySettings.Resolve(null, key => key switch
+            {
+                TelemetrySettings.ModeVariable => "local",
+                "OTEL_EXPORTER_OTLP_PROTOCOL" => protocol,
+                "OTEL_EXPORTER_OTLP_ENDPOINT" => protocol == "grpc" ? grpcReceiver.Endpoint : httpReceiver.Endpoint,
+                _ => Environment.GetEnvironmentVariable(key)
+            });
+            using var telemetry = new LocalTelemetry(settings, "ExcelMcp.Test");
+            telemetry.Track(new EventTelemetry("sheet/list"));
+            telemetry.Track(new RequestTelemetry
+            {
+                Name = "sheet/list",
+                Timestamp = DateTimeOffset.UtcNow.AddMilliseconds(-10),
+                Duration = TimeSpan.FromMilliseconds(10),
+                Success = true,
+                ResponseCode = "200"
+            });
+            Assert.True(telemetry.Flush());
+            var requests = protocol == "grpc" ? grpcReceiver.Requests : httpReceiver.Requests;
+            Assert.Equal(2, requests.Count);
+            Assert.Contains(requests, request => request.Path.Contains(
+                protocol == "grpc" ? "TraceService/Export" : "/v1/traces", StringComparison.Ordinal));
+            Assert.Contains(requests, request => request.Path.Contains(
+                protocol == "grpc" ? "LogsService/Export" : "/v1/logs", StringComparison.Ordinal));
+            Assert.All(requests, request =>
+            {
+                Assert.Contains("sheet/list", request.Payload);
+                foreach (var pair in variables)
+                {
+                    var sentinel = pair.Value.Split('=');
+                    Assert.False(request.Headers.ContainsKey(sentinel[0]));
+                    Assert.DoesNotContain(request.Headers.Values, value => value.Contains(sentinel[1], StringComparison.Ordinal));
+                }
+            });
+        }
+        finally
+        {
+            foreach (var pair in previous)
+                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
+        }
+    }
+
     [Fact]
     public async Task LocalPipeline_Redirect_DoesNotForwardTelemetryToAnotherEndpoint()
     {
