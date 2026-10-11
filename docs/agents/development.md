@@ -52,7 +52,7 @@ AGENTS.md so reviews do not depend on opening another document.
 
 ## Windows setup
 
-Install PowerShell 7, the .NET SDK selected by `global.json`, and Node.js 22.
+Install PowerShell 7, the .NET SDK selected by `global.json`, and Node.js 24 LTS.
 Website work also needs Python 3.13. Use the checked-in lockfiles:
 
 ```powershell

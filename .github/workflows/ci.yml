@@ -141,7 +141,7 @@ jobs:
         if: matrix.group == 'Tooling'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: '22'
+          node-version: '24'
           package-manager-cache: false
       # Separate checkouts keep rebuild/process regressions from racing packaging.
       - name: Restore and build selected inputs
@@ -213,7 +213,7 @@ jobs:
         if: needs.changes.outputs.package_build == 'true'
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: '22'
+          node-version: '24'
           cache: npm
           cache-dependency-path: |
             vscode-extension/package-lock.json
@@ -242,7 +242,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: '22'
+          node-version: '24'
           cache: npm
           cache-dependency-path: npm-packages/shared/package-lock.json
       - name: npm launcher and packaging tests (MCP + CLI)
