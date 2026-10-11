@@ -276,7 +276,81 @@ public partial class PivotTableCommands
     /// Sorts a field
     /// </summary>
     public PivotFieldResult SortField(IExcelBatch batch, string pivotTableName,
-        string fieldName, SortDirection direction = SortDirection.Ascending)
-        => ExecuteWithStrategy<PivotFieldResult>(batch, pivotTableName,
-            (strategy, pivot) => strategy.SortField(pivot, fieldName, direction, batch.WorkbookPath));
+        string fieldName, SortDirection direction = SortDirection.Ascending, string? dataFieldName = null)
+    {
+        if (!Enum.IsDefined(direction))
+            throw new ArgumentOutOfRangeException(nameof(direction));
+        if (dataFieldName is null)
+            return ExecuteWithStrategy<PivotFieldResult>(batch, pivotTableName,
+                (strategy, pivot) => strategy.SortField(pivot, fieldName, direction, batch.WorkbookPath));
+        ArgumentException.ThrowIfNullOrWhiteSpace(pivotTableName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(fieldName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(dataFieldName);
+        return batch.Execute((ctx, ct) =>
+        {
+            Excel.PivotTable? pivot = null;
+            Excel.Worksheet? sheet = null;
+            Excel.PivotCache? cache = null;
+            Excel.CubeFields? cubes = null;
+            Excel.CubeField? cube = null;
+            Excel.PivotFields? levels = null;
+            Excel.PivotFields? values = null;
+            Excel.PivotField? value = null;
+            Excel.PivotField? field = null;
+            try
+            {
+                pivot = (Excel.PivotTable)FindPivotTable(ctx.Book, pivotTableName);
+                sheet = (Excel.Worksheet)pivot.Parent;
+                if (sheet.ProtectContents)
+                    throw new InvalidOperationException("Unprotect the PivotTable worksheet before sorting.");
+                cache = pivot.PivotCache();
+                bool isOlap = cache.OLAP;
+                if (isOlap)
+                {
+                    cubes = pivot.CubeFields;
+                    cube = cubes[fieldName];
+                    if (cube.Orientation is not (Excel.XlPivotFieldOrientation.xlRowField or Excel.XlPivotFieldOrientation.xlColumnField))
+                        throw new ArgumentException("Place the OLAP hierarchy on the row or column axis before sorting.");
+                    levels = cube.PivotFields;
+                    if (levels.Count == 0)
+                        throw new ArgumentException("Place the OLAP hierarchy on the row or column axis before sorting.");
+                    field = levels.Item(1);
+                }
+                else
+                {
+                    field = FindCalculationBaseField(pivot, fieldName, ct);
+                }
+                RequireAxisField(field);
+                values = (Excel.PivotFields)pivot.DataFields;
+                value = FindValueField(values, dataFieldName, ct);
+                string sortBy = isOlap ? value.SourceName : value.Name;
+                ct.ThrowIfCancellationRequested();
+                var order = direction == SortDirection.Ascending
+                    ? Excel.XlSortOrder.xlAscending : Excel.XlSortOrder.xlDescending;
+                field.AutoSort((int)order, sortBy);
+                if (field.AutoSortOrder != (int)order || field.AutoSortField != sortBy)
+                    throw new InvalidOperationException("Excel did not apply the requested Values sort. Inspect get-data before retrying.");
+                return new PivotFieldResult
+                {
+                    Success = true,
+                    FilePath = batch.WorkbookPath,
+                    FieldName = fieldName,
+                    CustomName = field.Caption,
+                    Area = (PivotFieldArea)field.Orientation
+                };
+            }
+            finally
+            {
+                ComUtilities.Release(ref value);
+                ComUtilities.Release(ref values);
+                ComUtilities.Release(ref field);
+                ComUtilities.Release(ref levels);
+                ComUtilities.Release(ref cube);
+                ComUtilities.Release(ref cubes);
+                ComUtilities.Release(ref cache);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref pivot);
+            }
+        });
+    }
 }

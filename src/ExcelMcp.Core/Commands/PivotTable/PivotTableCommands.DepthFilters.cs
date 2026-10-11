@@ -157,7 +157,7 @@ public partial class PivotTableCommands
                 pivot = (Excel.PivotTable)FindPivotTable(ctx.Book, pivotTableName);
                 cache = pivot.PivotCache();
                 if (cache.OLAP)
-                    throw new NotSupportedException("These native field-filter/expansion operations support regular PivotTables only. OLAP/Data Model filtering and hierarchy expansion are provider-dependent.");
+                    throw new NotSupportedException("This field operation supports regular PivotTables only. For OLAP/Data Model use report filters, source measures, automatic set-subtotals, or layoutOptions.showEmptyRows/showEmptyColumns as appropriate.");
                 sheet = (Excel.Worksheet)pivot.Parent;
                 if (mutation && sheet.ProtectContents)
                     throw new InvalidOperationException("Unprotect the PivotTable worksheet before using this field operation.");

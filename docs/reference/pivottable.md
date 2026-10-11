@@ -98,6 +98,11 @@ load but does not replace the dependent PivotTable refresh.
 
 - `sort-field` orders the selected field's labels in ascending or descending
   order, including Data Model fields identified by their exact CubeField name.
+  To sort by values instead, supply MCP `data_field_name` or CLI
+  `--data-field-name`, using the exact `valueFields.fieldName` returned by
+  `list-fields`. This distinguishes repeated Values instances (for example Sum
+  and Average of Sales). OLAP sorting uses the selected measure on the
+  hierarchy's first placed level.
 - `set-field-name` updates a regular PivotTable's displayed value-field caption when the selected
   source field is in Values; it does not rename the source worksheet column.
   Use MCP `field_name` / `custom_name` or CLI `--field-name` / `--custom-name`.
@@ -123,6 +128,48 @@ it is not a read-only audit.
 
 Use a verified live [PivotChart](chart.md) when a chart must follow fields and
 filters, rather than a regular chart of displayed cells.
+
+## Additional reporting controls
+
+`get-field-options` and `set-field-options` read/change whether a regular
+row or column field includes items with no data (MCP `show_all_items`, CLI
+`--show-all-items`). These show cached items, not categories absent from the
+source. OLAP/Data Model uses `set-layout-options` with nested
+`layoutOptions.showEmptyRows` and `layoutOptions.showEmptyColumns` instead;
+the provider determines which empty members are available.
+
+For regular row/column fields, `get-subtotal-functions` returns the complete
+selection and `set-subtotal-functions` replaces it. An empty `functions` array
+removes subtotals; `Automatic` must stand alone. MCP takes a serialized JSON
+array, such as `functions: '["Sum","Average"]'`; CLI uses
+`--functions '["Sum","Average"]'`. OLAP/Data Model continues to use
+automatic `set-subtotals`; custom subtotal functions are not supported there.
+
+`create-calculated-item`, `list-calculated-items`, and `delete-calculated-item`
+operate on items inside a regular row/column field, not numeric source columns
+or Values instances. For example, in a Region field with North and South,
+`item_name: 'Combined', formula: '=North+South'` (CLI `--item-name Combined
+--formula '=North+South'`) adds a new Combined row. That row participates in
+grand totals and may double-count the underlying sales. Creation requires a
+new item name. Deletion accepts only an existing calculated item, never a source
+item. Calculated-item writes reject PivotTables with grouped fields; OLAP/Data
+Model calculations must use source measures or supported calculated members.
+
+`set-layout-options` also accepts the following nested `layoutOptions` keys
+(MCP top-level `layout_options`, CLI `--layout-options`):
+
+- `displayNullString` / `nullString` and `displayErrorString` / `errorString`
+  control custom blank/error text in Values cells. Text may be empty. Set the
+  corresponding display flag explicitly to enable or disable replacement;
+  this is presentation, not a change to source values.
+- `mergeLabels`, `printTitles`, and `repeatItemsOnEachPrintedPage` control
+  merged labels and repeated printed headings/items for the whole PivotTable.
+- `blankLineAfterEachItem` applies blank separators to every placed row field.
+  `get-layout-options` returns each row field's actual separator setting.
+
+Omitted options leave their settings unchanged. Read the returned native
+settings and `get-data` to check the result. Failures do not promise rollback;
+inspect the affected report before retrying or deliberately undoing a change.
 
 ## Native filters, layout, and source changes
 

@@ -23,11 +23,10 @@ public partial class PivotTableCommands
     ///
     /// OLAP LIMITATION:
     /// - OLAP PivotTables only support Automatic subtotals
-    /// - Regular PivotTables can choose Sum, Count, Average, etc. (future enhancement)
+    /// - Regular PivotTables can choose Sum, Count, Average, etc. through set-subtotal-functions.
     /// </remarks>
     public PivotFieldResult SetSubtotals(IExcelBatch batch, string pivotTableName, string fieldName, bool showSubtotals)
         => ExecuteWithStrategy<PivotFieldResult>(batch, pivotTableName,
             (strategy, pivot) => strategy.SetSubtotals(pivot, fieldName, showSubtotals, batch.WorkbookPath, batch.Logger));
 }
-
 

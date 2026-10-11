@@ -151,6 +151,26 @@ public sealed class PivotLayoutOptions
     public bool? ShowColumnHeaders { get; set; }
     /// <summary>Permit multiple native calculated filters on each field.</summary>
     public bool? AllowMultipleFilters { get; set; }
+    /// <summary>Merge and center outer row/column labels.</summary>
+    public bool? MergeLabels { get; set; }
+    /// <summary>Enable custom text for empty Values cells.</summary>
+    public bool? DisplayNullString { get; set; }
+    /// <summary>Text for empty Values cells, including empty string.</summary>
+    public string? NullString { get; set; }
+    /// <summary>Enable custom text for Values errors.</summary>
+    public bool? DisplayErrorString { get; set; }
+    /// <summary>Text for Values errors, including empty string.</summary>
+    public string? ErrorString { get; set; }
+    /// <summary>Repeat PivotTable headings when printing.</summary>
+    public bool? PrintTitles { get; set; }
+    /// <summary>Repeat row, column, and item labels on each printed page.</summary>
+    public bool? RepeatItemsOnEachPrintedPage { get; set; }
+    /// <summary>Insert a blank line after each item for every placed row field.</summary>
+    public bool? BlankLineAfterEachItem { get; set; }
+    /// <summary>OLAP only: include row-axis members with no data.</summary>
+    public bool? ShowEmptyRows { get; set; }
+    /// <summary>OLAP only: include column-axis members with no data.</summary>
+    public bool? ShowEmptyColumns { get; set; }
 }
 
 /// <summary>Per-row-field native layout, including mixed configurations.</summary>
@@ -162,6 +182,8 @@ public sealed class PivotRowLayoutInfo
     public int RowLayout { get; set; }
     /// <summary>Native repeated-label setting.</summary>
     public bool RepeatLabels { get; set; }
+    /// <summary>Native blank separator after each item.</summary>
+    public bool BlankLineAfterEachItem { get; set; }
 }
 
 /// <summary>Complete native PivotTable style and row layout.</summary>
@@ -183,8 +205,97 @@ public sealed class PivotLayoutResult : OperationResult
     public bool ShowColumnHeaders { get; set; }
     /// <summary>Native permission for multiple calculated filters on each field.</summary>
     public bool AllowMultipleFilters { get; set; }
+    /// <summary>Native merge-label setting.</summary>
+    public bool MergeLabels { get; set; }
+    /// <summary>Whether custom empty-cell text is enabled.</summary>
+    public bool DisplayNullString { get; set; }
+    /// <summary>Native empty-cell text.</summary>
+    public string NullString { get; set; } = string.Empty;
+    /// <summary>Whether custom error-cell text is enabled.</summary>
+    public bool DisplayErrorString { get; set; }
+    /// <summary>Native error-cell text.</summary>
+    public string ErrorString { get; set; } = string.Empty;
+    /// <summary>Native repeat-heading setting for printing.</summary>
+    public bool PrintTitles { get; set; }
+    /// <summary>Native repeat-item setting for printed pages.</summary>
+    public bool RepeatItemsOnEachPrintedPage { get; set; }
+    /// <summary>OLAP empty-row setting; null for regular PivotTables.</summary>
+    public bool? ShowEmptyRows { get; set; }
+    /// <summary>OLAP empty-column setting; null for regular PivotTables.</summary>
+    public bool? ShowEmptyColumns { get; set; }
     /// <summary>Every placed row field.</summary>
     public List<PivotRowLayoutInfo> RowFields { get; set; } = [];
+}
+
+/// <summary>Native regular-PivotTable subtotal slots.</summary>
+public enum PivotSubtotalFunction
+{
+    /// <summary>Automatic subtotal.</summary>
+    Automatic = 1,
+    /// <summary>Sum.</summary>
+    Sum,
+    /// <summary>Count of nonempty values.</summary>
+    Count,
+    /// <summary>Average.</summary>
+    Average,
+    /// <summary>Maximum.</summary>
+    Max,
+    /// <summary>Minimum.</summary>
+    Min,
+    /// <summary>Product.</summary>
+    Product,
+    /// <summary>Count of numeric values.</summary>
+    CountNumbers,
+    /// <summary>Sample standard deviation.</summary>
+    StdDev,
+    /// <summary>Population standard deviation.</summary>
+    StdDevP,
+    /// <summary>Sample variance.</summary>
+    Var,
+    /// <summary>Population variance.</summary>
+    VarP
+}
+
+/// <summary>Native field visibility options.</summary>
+public sealed class PivotFieldOptionsResult : OperationResult
+{
+    /// <summary>Selected PivotTable.</summary>
+    public string PivotTableName { get; set; } = string.Empty;
+    /// <summary>Placed field caption.</summary>
+    public string FieldName { get; set; } = string.Empty;
+    /// <summary>Show items with no data.</summary>
+    public bool ShowAllItems { get; set; }
+}
+
+/// <summary>Complete selected subtotal functions.</summary>
+public sealed class PivotSubtotalResult : OperationResult
+{
+    /// <summary>Selected PivotTable.</summary>
+    public string PivotTableName { get; set; } = string.Empty;
+    /// <summary>Placed field caption.</summary>
+    public string FieldName { get; set; } = string.Empty;
+    /// <summary>Enabled native subtotal functions.</summary>
+    public List<PivotSubtotalFunction> Functions { get; set; } = [];
+}
+
+/// <summary>A calculated item in a regular field.</summary>
+public sealed class PivotCalculatedItemInfo
+{
+    /// <summary>Exact item name.</summary>
+    public string Name { get; set; } = string.Empty;
+    /// <summary>English Excel formula.</summary>
+    public string Formula { get; set; } = string.Empty;
+}
+
+/// <summary>Complete calculated-item inventory after the operation.</summary>
+public sealed class PivotCalculatedItemsResult : OperationResult
+{
+    /// <summary>Selected PivotTable.</summary>
+    public string PivotTableName { get; set; } = string.Empty;
+    /// <summary>Placed field caption.</summary>
+    public string FieldName { get; set; } = string.Empty;
+    /// <summary>All calculated items in the field.</summary>
+    public List<PivotCalculatedItemInfo> Items { get; set; } = [];
 }
 
 /// <summary>Selected native item expansion.</summary>

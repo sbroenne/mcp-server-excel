@@ -28,7 +28,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 [ServiceCategory("PivotTableField")]
 [McpTool("pivottable_field", Title = "PivotTable Field Operations", Destructive = true, Category = "analysis",
     Description = "PivotTable field management: add/remove/configure fields, filtering, sorting, and grouping. IMPORTANT: Field placement modifies structure only - call pivottable(refresh) after configuring, especially for OLAP/Data Model PivotTables. FIELD AREAS: Row (categories), Column (headers), Value (aggregation: Sum/Count/Average/Max/Min/etc.), Filter (report-level). SHOW VALUES AS: set-field-calculation targets an exact displayed Values name, independently of aggregation, and verifies native settings. OLAP/Data Model BaseField/BaseItem are unavailable; ignored native calculations fail with source-measure guidance. GROUPING: date (Days/Months/Quarters/Years), numeric (start/end/interval). NUMBER FORMAT: US format codes. Use pivottable for lifecycle, pivottable_calc for calculated fields.")]
-[McpReadOnlyActions("list-fields", "get-field-filters", "get-item-expansion")]
+[McpReadOnlyActions("list-fields", "get-field-filters", "get-item-expansion", "get-field-options", "get-subtotal-functions")]
 public interface IPivotTableFieldCommands
 {
     // === FIELD MANAGEMENT (WITH IMMEDIATE VALIDATION) ===
@@ -249,9 +249,41 @@ public interface IPivotTableFieldCommands
     /// <param name="fieldName">Name of the field to sort</param>
     /// <param name="direction">Sort direction</param>
     /// <returns>Applied sort configuration and preview of changes</returns>
+    /// <param name="dataFieldName">Optional exact displayed Values caption to sort by its values instead of labels.</param>
     [ServiceAction("sort-field")]
     PivotFieldResult SortField(IExcelBatch batch, string pivotTableName,
-        string fieldName, [FromString] SortDirection direction = SortDirection.Ascending);
+        string fieldName, [FromString] SortDirection direction = SortDirection.Ascending, string? dataFieldName = null);
+
+    /// <summary>Reads a regular row/column field's setting for showing items with no data.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="pivotTableName">Selected PivotTable.</param>
+    /// <param name="fieldName">Exact placed row/column field caption.</param>
+    [ServiceAction("get-field-options")]
+    PivotFieldOptionsResult GetFieldOptions(IExcelBatch batch, string pivotTableName, string fieldName);
+
+    /// <summary>Shows or hides items with no data in a regular row/column field. OLAP uses layoutOptions.showEmptyRows/showEmptyColumns instead.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="pivotTableName">Selected PivotTable.</param>
+    /// <param name="fieldName">Exact placed row/column field caption.</param>
+    /// <param name="showAllItems">Include cached items even when the current report has no data for them.</param>
+    [ServiceAction("set-field-options")]
+    PivotFieldOptionsResult SetFieldOptions(IExcelBatch batch, string pivotTableName, string fieldName, bool showAllItems);
+
+    /// <summary>Reads all selected native subtotal functions on a regular row/column field.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="pivotTableName">Selected PivotTable.</param>
+    /// <param name="fieldName">Exact placed row/column field caption.</param>
+    [ServiceAction("get-subtotal-functions")]
+    PivotSubtotalResult GetSubtotalFunctions(IExcelBatch batch, string pivotTableName, string fieldName);
+
+    /// <summary>Replaces subtotal functions on a regular row/column field. Empty list hides subtotals; Automatic cannot be combined with others. OLAP supports only automatic subtotals through set-subtotals.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="pivotTableName">Selected PivotTable.</param>
+    /// <param name="fieldName">Exact placed row/column field caption.</param>
+    /// <param name="functions">Selected subtotal functions, serialized as a JSON array.</param>
+    [ServiceAction("set-subtotal-functions")]
+    PivotSubtotalResult SetSubtotalFunctions(IExcelBatch batch, string pivotTableName, string fieldName,
+        List<PivotSubtotalFunction> functions);
 
     // === GROUPING OPERATIONS (DATE AND NUMERIC) ===
 
