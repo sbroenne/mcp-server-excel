@@ -8,6 +8,33 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 public sealed class ValidationOrchestrationTests
 {
     [Fact]
+    public async Task CliAcceptance_WatchdogAllowsNativeWorkflowDeadline()
+    {
+        var run = await ValidationSelectionTests.RunAsync("""
+            $tokens = $null
+            $errors = $null
+            $ast = [Management.Automation.Language.Parser]::ParseFile(
+                (Resolve-Path .\scripts\Test-E2E.ps1).Path, [ref]$tokens, [ref]$errors)
+            if ($errors.Count) { throw 'E2E script does not parse.' }
+            $selection = $ast.Find({
+                param($node)
+                $node -is [Management.Automation.Language.SwitchStatementAst] -and
+                $node.Condition.Extent.Text -eq '$stage'
+            }, $true)
+            if (-not $selection) { throw 'Acceptance stage selection missing.' }
+            $stage = 'Cli'
+            $parameters = @{}
+            & ([scriptblock]::Create($selection.Extent.Text))
+            if ($parameters.DeadlineSeconds -ne 600) { throw 'CLI hard deadline changed.' }
+            $watchdogSeconds = [int]::Parse($parameters.HangTimeout.TrimEnd('m')) * 60
+            if ($watchdogSeconds -le 480 -or $watchdogSeconds -gt $parameters.DeadlineSeconds) {
+                throw 'CLI watchdog must allow the eight-minute native workflow without extending the hard deadline.'
+            }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
+    }
+
+    [Fact]
     public async Task CiPreparatoryBuilds_DisableBuildServers()
     {
         var run = await ValidationSelectionTests.RunAsync("""
