@@ -334,7 +334,7 @@ or authored skill ZIPs. Binary changes still select their consuming packages,
 including the extension when its bundled server changes. Standalone tooling
 test-project changes select their owning project, not every runtime project.
 The full partitions cover the complete normal Excel-free selection without overlap.
-Package, npm launcher, and lockfile checks have their own selections.
+Package and npm launcher checks have their own selections.
 Changes to `doc-counts.json` or `scripts\check-doc-counts.ps1` select the
 `Tooling` documentation-count regressions and source correctness checks,
 without unrelated runtime tests or packages. Source checks run once in `Fast`
