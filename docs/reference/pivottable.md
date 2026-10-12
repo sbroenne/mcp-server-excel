@@ -27,9 +27,11 @@ Names are sorted for stable comparisons. `selectedMemberCount` reports the
 full count when known, while `membersTruncated` and `snapshotComplete` make an
 incomplete result explicit.
 
-For each placed field, `fieldSelections` identifies the semantic field name and
+For each placed row, column, or filter field, `fieldSelections` identifies the semantic field name and
 area, reports whether its exact selection and native filters were available,
-and lists selected members when `showAll` is false. An All selection has
+and lists selected members when `showAll` is false. Excel's automatic Values
+field, which appears when a PivotTable has two or more value fields, is not
+listed; value fields are reported in `valueFields`. An All selection has
 `showAll: true` and no selected member list. For OLAP and Data Model
 hierarchies, `fieldName` is the hierarchy unique name, `caption` is the
 displayed caption, and `selectedMemberUniqueNames` combines the selections from

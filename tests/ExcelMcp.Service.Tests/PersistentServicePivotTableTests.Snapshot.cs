@@ -136,6 +136,36 @@ public sealed partial class PersistentServicePivotTableTests
         Assert.Null(product.SelectedMemberCount);
     }
 
+    [Fact]
+    public void Read_MultipleValueFieldsExcludeValuesPlaceholderAndReturnCompleteSnapshot()
+    {
+        var batch = _fixture.BatchToken;
+        var pivotName = $"SnapVals_{Guid.NewGuid():N}"[..24];
+        RequireSuccess(_pivotCommands.CreateFromRange(
+            batch, _salesSheetName, "A1:D6", _salesSheetName, "F2", pivotName));
+        RequireSuccess(_pivotCommands.AddColumnField(batch, pivotName, "Region"));
+        RequireSuccess(_pivotCommands.AddValueField(batch, pivotName, "Sales"));
+        RequireSuccess(_pivotCommands.AddValueField(
+            batch, pivotName, "Sales", AggregationFunction.Count, "Count of Sales"));
+
+        var snapshot = RequireSuccess(_pivotCommands.Read(batch, pivotName, _salesSheetName));
+
+        Assert.True(snapshot.FieldSelectionsAvailable);
+        Assert.True(snapshot.SnapshotComplete);
+        var region = Assert.Single(snapshot.FieldSelections);
+        Assert.Equal("Region", region.FieldName);
+        Assert.Equal(PivotFieldArea.Column, region.Area);
+        Assert.Equal(1, region.Position);
+        Assert.True(region.SelectionStateAvailable);
+        Assert.True(region.ShowAll);
+        Assert.True(region.FiltersAvailable);
+        Assert.Empty(region.Filters);
+        Assert.True(snapshot.ValueFieldsAvailable);
+        Assert.Equal(["Sum of Sales", "Count of Sales"], snapshot.ValueFields.Select(value => value.FieldName));
+        Assert.Equal([AggregationFunction.Sum, AggregationFunction.Count],
+            snapshot.ValueFields.Select(value => value.Function));
+    }
+
     private static void AssertSumOfSalesValueField(PivotTableInfoResult snapshot)
     {
         var value = Assert.Single(snapshot.ValueFields);

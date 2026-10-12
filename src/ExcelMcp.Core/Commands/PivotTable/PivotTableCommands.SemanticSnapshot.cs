@@ -140,8 +140,13 @@ public partial class PivotTableCommands
         CancellationToken cancellationToken,
         int maxSelectedMembers)
     {
-        var sourceName = PivotTableSnapshotHelpers.TryReadSnapshotProperty(
-            () => field.SourceName?.ToString());
+        // PIA gap: typed SourceName is a string, but Excel's multi-value "Values" placeholder returns an error value (#N/A).
+        var rawSourceName = PivotTableSnapshotHelpers.TryReadSnapshotProperty(() => (object?)((dynamic)field).SourceName);
+        if (rawSourceName.Value is int)
+            return null;
+
+        var sourceName = new PivotSnapshotProperty<string>(
+            rawSourceName.Available, rawSourceName.Value?.ToString(), rawSourceName.ErrorMessage);
         var nativeName = PivotTableSnapshotHelpers.TryReadSnapshotProperty(
             () => field.Name?.ToString());
         string fieldName = !string.IsNullOrWhiteSpace(sourceName.Value)
