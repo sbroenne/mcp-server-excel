@@ -124,7 +124,7 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             ["workbook_session_id"] = session,
             ["sheet_name"] = "InspectorHidden"
         }), "Hide inspector seed");
-        var inspection = await CallToolAsync("workbook_read", new()
+        var inspection = await CallToolAsync("workbook", new()
         {
             ["action"] = "inspect-document",
             ["workbook_session_id"] = session

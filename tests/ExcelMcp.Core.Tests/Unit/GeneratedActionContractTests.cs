@@ -842,6 +842,8 @@ public sealed class GeneratedActionContractTests
     [InlineData("workbook.save-as", false)]
     [InlineData("workbook.save-copy-as", false)]
     [InlineData("workbook.export-fixed-format", false)]
+    [InlineData("workbook.inspect-document", false)]
+    [InlineData("workbook.fix-document-inspector", true)]
     [InlineData("window.show", false)]
     [InlineData("chart.export-image", false)]
     [InlineData("xmlmap.export-xml", false)]

@@ -12,10 +12,10 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 public sealed class DocumentInspectorProtocolTests(RecordingProgramTransportFixture fixture)
 {
     [Fact]
-    public async Task Inspect_ForwardsReadOnlyActionAndNativeFindings()
+    public async Task Inspect_ForwardsStateChangingActionAndNativeFindings()
     {
         const string payload = """{"success":true,"inspectors":[{"index":3,"name":"Hidden &Worksheets","statusCode":1,"status":"issue-found","results":"One finding"}]}""";
-        var call = await fixture.CallToolAsync("workbook_read", new()
+        var call = await fixture.CallToolAsync("workbook", new()
         {
             ["action"] = "inspect-document",
             ["workbook_session_id"] = "session-1"
@@ -44,7 +44,7 @@ public sealed class DocumentInspectorProtocolTests(RecordingProgramTransportFixt
     public async Task NativeFailure_IsProtocolErrorWithPartialResults()
     {
         const string payload = """{"success":false,"errorMessage":"Native inspector failed","inspectors":[{"index":1,"statusCode":2,"results":"Native error"}]}""";
-        var call = await fixture.CallToolAsync("workbook_read", new()
+        var call = await fixture.CallToolAsync("workbook", new()
         {
             ["action"] = "inspect-document",
             ["workbook_session_id"] = "session-1"
@@ -74,18 +74,25 @@ public sealed class DocumentInspectorProtocolTests(RecordingProgramTransportFixt
     }
 
     [Fact]
-    public async Task Discovery_SeparatesInspectionFromDestructiveFixAndExplainsLimits()
+    public async Task Discovery_InspectionDoesNotAdvertiseReadOnlyAndExplainsLimits()
     {
         var tools = await fixture.ListToolsAsync();
         var read = Assert.Single(tools, tool => tool.Name == "workbook_read");
         var write = Assert.Single(tools, tool => tool.Name == "workbook");
         Assert.True(read.ProtocolTool.Annotations?.ReadOnlyHint == true);
+        Assert.True(write.ProtocolTool.Annotations?.ReadOnlyHint == false);
         Assert.True(write.ProtocolTool.Annotations?.DestructiveHint == true);
-        Assert.Contains("inspect-document", read.Description, StringComparison.Ordinal);
+        var readActions = read.JsonSchema.GetProperty("properties").GetProperty("action").ToString();
+        Assert.Contains("\"inspect\"", readActions, StringComparison.Ordinal);
+        Assert.DoesNotContain("inspect-document", readActions, StringComparison.Ordinal);
+        Assert.Contains("inspect-document", write.JsonSchema.GetProperty("properties")
+            .GetProperty("action").ToString(), StringComparison.Ordinal);
+        Assert.Contains("inspect-document", write.Description, StringComparison.Ordinal);
         Assert.DoesNotContain("fix-document-inspector", read.JsonSchema.GetProperty("properties")
             .GetProperty("action").ToString(), StringComparison.Ordinal);
         Assert.Contains("fix-document-inspector", write.Description, StringComparison.Ordinal);
-        Assert.Contains("comments/revisions and document properties", read.Description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("comments/revisions and document properties", write.Description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("unsaved", write.Description, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("no tool-level undo", write.Description, StringComparison.OrdinalIgnoreCase);
         var properties = write.JsonSchema.GetProperty("properties");
         Assert.Contains(properties.GetProperty("inspector_index").GetProperty("type").EnumerateArray(),

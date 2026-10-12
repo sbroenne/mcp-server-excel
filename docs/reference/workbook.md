@@ -91,7 +91,7 @@ reports an error rather than presenting it as empty.
 
 ## Document Inspector
 
-Use MCP `workbook_read` action `inspect-document` or
+Use MCP `workbook` action `inspect-document` or
 `excelcli workbook inspect-document --session <session-id>` to run Excel's
 available Document Inspector modules. Unlike `inspect`, which summarizes
 workbook contents, this checks categories of hidden information.
@@ -105,7 +105,9 @@ Completed checks remain in the result when another module reports an error.
 Inspection does not request removals or save the workbook. However, Excel's
 native inspector modules can mark a saved workbook as having unsaved changes,
 even when they report no findings. The response includes `savedBefore` and
-`savedAfter`; ExcelMcp does not reset that flag to hide the change.
+`savedAfter`; ExcelMcp does not reset that flag to hide the change. For this
+reason, MCP exposes inspection through `workbook`, not the read-only
+`workbook_read` tool. Inspection still supports read-only workbooks.
 
 This is not a full privacy audit or a guarantee that sensitive information is
 absent. Excel exposes only some built-in modules and installed custom inspectors.
