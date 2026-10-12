@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "excel-mcp",
   "version": "0.0.0",
-  "description": "Automate Microsoft Excel from chat with rich MCP tools for workbooks, formulas, Power Query, PivotTables, charts, and more. Requires Windows and desktop Excel.",
+  "description": "Let an AI assistant create and update Microsoft Excel workbooks: work with cells, formulas, Power Query, PivotTables, charts, and VBA in the desktop app. Requires Windows, desktop Excel 2016 or later, and Node.js 18 or later.",
   "author": {
     "name": "Stefan Brönner",
     "email": "3026464+sbroenne@users.noreply.github.com",
@@ -15,10 +15,12 @@
     "excel",
     "windows",
     "mcp",
+    "automation",
+    "formulas",
     "power-query",
     "dax",
     "pivottable",
-    "vba",
-    "com-interop"
+    "charts",
+    "vba"
   ]
 }

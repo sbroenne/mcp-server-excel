@@ -1,32 +1,30 @@
 # Excel MCP Plugin
 
-**Model Context Protocol server for natural language Excel automation**
+**Let your AI assistant create and update Microsoft Excel workbooks: work with
+cells, formulas, Power Query, PivotTables, charts, and VBA in the desktop app.**
 
-This plugin provides an npx launch configuration for GitHub Copilot and the
-optional `excel-mcp-report-formatting` skill for requested report presentation.
-Use natural language and native tool schemas for ordinary Excel automation;
-general workflows and recovery remain in the
-[documentation](https://excelmcpserver.dev/reference/).
+Ask your assistant to enter data, write formulas, refresh Power Query, build
+PivotTables and charts, work with DAX, or run VBA. ExcelMcp operates the actual
+Excel application, so Excel handles calculations and workbook features.
 
-**Best for:** Conversational AI workflows (GitHub Copilot Chat, Claude Desktop, Cursor) where rich tool schemas and persistent connections matter more than token efficiency.
+**Requires Windows, desktop Excel 2016 or later, an MCP-compatible client, and
+Node.js 18 or later with `npx`. ExcelMcp runs in an interactive desktop session.**
 
----
+## What you can ask your assistant to do
 
-## Prerequisites
+| Request | Result |
+|---|---|
+| "Create a sales tracker with Date, Product, Quantity, Unit Price, and Total columns." | A workbook with a table and formulas. |
+| "Create a PivotTable showing revenue by region, then add a chart." | A summary and chart built in Excel. |
+| "Refresh the Power Query queries in this workbook and save it." | Updated query results saved in the workbook. |
+| "Show me Excel while you work." | Excel is visible as the assistant makes changes. |
 
-- **Windows** with Microsoft Excel 2016 or later (COM interop required)
-- **Node.js 18 or later** with `npx`
-- **GitHub Copilot extension** or other MCP-compatible client
+The server provides 60 MCP tools across 31 feature areas and 408 operations,
+including Power Query, DAX and the Data Model, PivotTables, tables, charts,
+worksheets, formulas, VBA, and more. See the
+[complete feature reference](https://excelmcpserver.dev/features/).
 
----
-
-## Installation
-
-### Option 1: VS Code Extension (Recommended)
-
-Install the [Excel MCP VS Code extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) for one-click setup with GitHub Copilot.
-
-### Option 2: Plugin Marketplace
+## Install
 
 Install from [Awesome Copilot](https://github.com/github/awesome-copilot), the
 default marketplace in current Copilot clients:
@@ -35,7 +33,7 @@ default marketplace in current Copilot clients:
 copilot plugin install excel-mcp@awesome-copilot
 ```
 
-Alternatively, install from our direct marketplace:
+Or use the direct marketplace:
 
 ```powershell
 copilot plugin marketplace add sbroenne/mcp-server-excel-plugins
@@ -44,143 +42,54 @@ copilot plugin install excel-mcp@mcp-server-excel-plugins
 
 Choose one marketplace for this plugin; do not install both copies.
 
-### Option 3: Manual Installation
-
-1. Install the plugin
-2. Let the plugin run the latest `@sbroenne/mcp-server-excel` package through `npx`
-3. Or add the standalone binary to your MCP client configuration manually (see [MCP Server Installation Guide](https://excelmcpserver.dev/installation-mcp-server/))
-
-### Runtime Launch
-
-The plugin does **not** bundle `mcp-excel.exe`. Its Agent Plugins 1.0 `mcp.json`
-launches the public npm package directly:
+The plugin includes its MCP launch configuration and runs the published npm
+package through `npx`:
 
 ```powershell
 npx -y @sbroenne/mcp-server-excel@latest
 ```
 
-The plugin supplies this configuration itself. No global helper or separate
-entry in `~/.copilot/mcp-config.json` is required.
+You do not need to add a separate MCP server entry to
+`~/.copilot/mcp-config.json`. For another MCP-compatible client, follow the
+[MCP Server installation guide](https://excelmcpserver.dev/installation-mcp-server/).
 
----
+## MCP or CLI?
 
-## What You Can Do
+Use the MCP Server when you want your assistant to find and use Excel tools in a
+conversation. Use the
+[CLI plugin](https://github.com/sbroenne/mcp-server-excel/tree/main/.github/plugins/excel-cli)
+for scripts and coding-agent workflows.
 
-**60 MCP tools across 31 feature areas, with 408 operations** for comprehensive Excel automation:
+In one comparison using the same task and AI model, the CLI used about 59,000 AI
+tokens and MCP used 163,000 (about 64% fewer with CLI). This is one measured
+result, not a promise; results vary by task, model, and AI client. See the
+[benchmark context](https://github.com/sbroenne/mcp-server-excel/blob/f10926db28c8fc295e15374f4177e3b11ab4bd49/docs/ARCHITECTURE.md).
 
-### Core Operations
+## More features
 
-- **Power Query** (12 ops) — Create, update, refresh; optional remote M code formatting
-- **Data Model/DAX** (20 ops) — Measures, relationships, source metadata, EVALUATE queries
-- **PivotTables** (35 ops) — Fields, grouping, cache options, drill-through, calculations
-- **Excel Tables** (27 ops) — Lifecycle, filtering, sorting, DAX-backed tables
-- **Charts** (33 ops) — Combo series, plotting, placement, formatting, labels, trendlines
-- **Ranges** (51 ops) — Values, formulas, hyperlinks, threaded comments, formatting, validation
-- **Worksheets** (33 ops) — Lifecycle, outlines, protection, notes, images, shapes, page setup
-- **Workbooks** (15 ops) — Metadata, properties, Save As/copy, PDF/XPS, external links
+- **Workbooks and data:** create or open workbooks, edit ranges and tables, and work with formulas.
+- **Analysis:** refresh Power Query, query the Data Model with DAX, and build PivotTables and slicers.
+- **Reports:** create and format charts, worksheets, and conditional formatting.
+- **Automation:** manage connections, run VBA, and automate Excel windows.
+- **Protected workbooks:** detect IRM/AIP protection and open Excel visibly for sign-in.
 
-### Advanced Features
+M and DAX code stays on your computer by default. If you enable
+`formatMCode=true` or `formatDax=true`, the corresponding code is sent to
+powerqueryformatter.com or daxformatter.com for formatting. Only enable these
+options when you want to send code to those services.
 
-- **VBA** (6 ops) — Module import/export, run procedures, version control
-- **Connections** (11 ops) — OLEDB/ODBC connections with refresh status and cancellation
-- **QueryTables** (9 ops) — Text/CSV and legacy HTML imports
-- **Drawing Objects** (14 ops) — Shapes, Forms controls, and sparklines
-- **What-If Analysis** (8 ops) — Goal Seek, scenarios, summaries, data tables
-- **XML Maps** (6 ops) — Schemas, XPath mapping, secure import/export
-- **Slicers** (8 ops) — Interactive filtering for PivotTables and Tables
-- **Conditional Formatting** (4 ops) — Add and clear rules; list range or worksheet rules
-- **Named Ranges** (6 ops) — Create, update, delete named ranges
-- **Calculation Mode** (3 ops) — Get/set mode, trigger recalculation (performance optimization)
-- **Python in Excel** (2 ops) — Set/get `=PY()` formulas and results
-- **Screenshot** (2 ops) — Capture ranges/sheets as PNG for visual verification
-- **Window Management** (15 ops) — Show/hide, panes, zoom, display options, positioning
+## Supported clients
 
-### File Operations
+- GitHub Copilot
+- Claude Desktop
+- Cursor
+- Cline
+- Windsurf
+- Other MCP-compatible clients
 
-- **File Operations** (5 ops) — Create, open, close, list, and test files
-- **IRM/AIP Support** — Auto-detects protected files, opens with Excel visible for authentication
+## Support
 
-**Complete documentation:** [Full Feature Reference](https://excelmcpserver.dev/features/)
-
----
-
-## Why MCP Server?
-
-| Interface | Best For | Key Benefit |
-|-----------|----------|-------------|
-| **MCP Server** | Conversational AI (Claude, Copilot Chat) | Rich tool discovery, persistent sessions |
-| **CLI** (`excelcli`) | Coding agents | 64% fewer tokens |
-
-**Use MCP Server when:** You're having a conversation with an AI about Excel, and you want it to discover available operations through tool schemas instead of reading skill documentation.
-
----
-
-## Example Use Cases
-
-**"Create a sales tracker with Date, Product, Quantity, Unit Price, and Total columns"**  
-→ AI creates the workbook, adds headers, enters sample data, and builds formulas
-
-**"Create a PivotTable from this data showing total sales by Product, then add a chart"**  
-→ AI creates PivotTable, configures fields, and adds a linked visualization
-
-**"Import products.csv with Power Query, load to Data Model, create a Total Revenue measure"**  
-→ AI imports data, adds to Power Pivot, and creates DAX measures for analysis
-
-**"Create a slicer for the Region field so I can filter interactively"**  
-→ AI adds slicers connected to PivotTables or Tables for point-and-click filtering
-
-**"Put this data in A1: Name, Age / Alice, 30 / Bob, 25"**  
-→ AI writes data directly to cells using natural delimiters you provide
-
-**"Show me Excel while you work"**  
-→ AI makes Excel visible so you can watch changes happen in real-time
-
----
-
-## Key Features
-
-### Powered by the Real Excel Engine
-
-ExcelMcp drives the **actual Excel application** through its official COM API — not a file parser. That means it can:
-
-- ✅ Run live operations — refresh Power Query, recalculate, refresh PivotTables and the Data Model, evaluate DAX, run VBA and Python `=PY()`
-- ✅ Edit existing workbooks safely — formulas, PivotTables, charts, macros and formatting stay intact
-- ✅ Show changes live in Excel as the AI works
-- ✅ Use native Excel validation and error handling
-
-### AI-Powered Workflows
-
-- 💬 Natural language Excel commands through AI assistants
-- 🔄 Optimize Power Query M code for performance and readability
-- 📊 Build complex DAX measures with AI guidance
-- 📋 Automate repetitive data transformations and formatting
-- 👀 **Show Excel Mode** — Watch changes live as AI works
-- 🚀 **npm-first launch** — Run the newest published MCP package through `npx`
-
-### Optional Remote Code Formatting
-
-- M and DAX code is preserved locally by default.
-- Setting `formatMCode=true` sends M code to powerqueryformatter.com.
-- Setting `formatDax=true` sends DAX to daxformatter.com.
-- Remote formatting requires explicit user consent and adds network latency.
-
----
-
-## Supported AI Assistants
-
-- ✅ GitHub Copilot (VS Code, Visual Studio)
-- ✅ Claude Desktop
-- ✅ Cursor
-- ✅ Cline (VS Code Extension)
-- ✅ Windsurf
-- ✅ Any MCP-compatible client
-
----
-
-## Resources
-
-- **Documentation:** [excelmcpserver.dev](https://excelmcpserver.dev/)
-- **Installation Guide:** [excelmcpserver.dev/installation-mcp-server](https://excelmcpserver.dev/installation-mcp-server/)
-- **GitHub Repository:** [github.com/sbroenne/mcp-server-excel](https://github.com/sbroenne/mcp-server-excel)
-- **Issues:** [github.com/sbroenne/mcp-server-excel/issues](https://github.com/sbroenne/mcp-server-excel/issues)
-- **License:** MIT
+- [Documentation](https://excelmcpserver.dev/)
+- [MCP Server installation guide](https://excelmcpserver.dev/installation-mcp-server/)
+- [Issues](https://github.com/sbroenne/mcp-server-excel/issues)
+- MIT License
