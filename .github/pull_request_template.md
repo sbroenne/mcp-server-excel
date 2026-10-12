@@ -65,7 +65,7 @@ If yes, follow [generated contract guidance](https://github.com/sbroenne/mcp-ser
 
 ## Checklist
 - [ ] Self-review of code completed
-- [ ] Independent pre-PR review of the complete branch diff completed; confirmed findings addressed
+- [ ] Independent pre-PR review of the complete branch diff completed; confirmed findings addressed; followed by `ponytail-review` when available
 - [ ] Followed AGENTS.md and matching task guides
 - [ ] Updated directly affected documentation and agent-facing metadata
 - [ ] Preserved errors, cancellation, and documented session recovery; no success-shaped fallback
