@@ -15,8 +15,8 @@ Current commands and inputs come from CLI help or MCP tool descriptions.
 ## Read a bounded configuration snapshot
 
 `pivottable` action `read` returns the PivotTable layout together with exact
-selected members, native label/value filters, Values-field settings, and
-whether Excel is deferring updates. It does not return report cell values,
+selected members, native label/value filters, and Values-field settings. It
+does not return report cell values,
 refresh the PivotTable, or save the workbook.
 
 Use MCP `sheet_name` (CLI `--sheet`) to choose the exact worksheet when
