@@ -459,7 +459,10 @@ public class PivotTableInfoResult : ResultBase
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ValueFieldsError { get; set; }
 
-    /// <summary>Whether Excel is deferring PivotTable updates; null means unavailable.</summary>
+    /// <summary>
+    /// Whether Excel is deferring PivotTable updates; null means unavailable.
+    /// Excel turns this off when the code that set it finishes, so a separate read normally reports false.
+    /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public bool? ManualUpdate { get; set; }
 

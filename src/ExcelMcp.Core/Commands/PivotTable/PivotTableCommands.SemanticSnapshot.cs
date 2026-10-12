@@ -356,7 +356,7 @@ public partial class PivotTableCommands
         }
         finally
         {
-            for (int index = 0; index < levelFields.Count; index++)
+            for (int index = levelFields.Count - 1; index >= 0; index--)
             {
                 var levelField = levelFields[index];
                 ComUtilities.Release(ref levelField);

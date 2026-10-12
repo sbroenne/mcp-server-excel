@@ -166,6 +166,31 @@ public sealed partial class PersistentServicePivotTableTests
             snapshot.ValueFields.Select(value => value.Function));
     }
 
+    [Fact]
+    public void Read_SheetNameSelectsSameNamedPivotOnRequestedSheet()
+    {
+        var batch = _fixture.BatchToken;
+        var pivotName = $"SnapDup_{Guid.NewGuid():N}"[..24];
+        var otherSheetName = $"Dup_{Guid.NewGuid():N}"[..31];
+        RequireSuccess(_pivotCommands.CreateFromRange(
+            batch, _salesSheetName, "A1:D6", _salesSheetName, "F2", pivotName));
+        RequireSuccess(_pivotCommands.AddRowField(batch, pivotName, "Region"));
+        _fixture.CreateNamedTestSheet(batch, otherSheetName);
+        CreateSameNamedPivotWithProductColumn(pivotName, otherSheetName);
+
+        var other = RequireSuccess(_pivotCommands.Read(batch, pivotName, otherSheetName));
+        var sales = RequireSuccess(_pivotCommands.Read(batch, pivotName, _salesSheetName));
+
+        Assert.Equal(otherSheetName, other.PivotTable.SheetName);
+        var product = Assert.Single(other.FieldSelections);
+        Assert.Equal("Product", product.FieldName);
+        Assert.Equal(PivotFieldArea.Column, product.Area);
+        Assert.Equal(_salesSheetName, sales.PivotTable.SheetName);
+        var region = Assert.Single(sales.FieldSelections);
+        Assert.Equal("Region", region.FieldName);
+        Assert.Equal(PivotFieldArea.Row, region.Area);
+    }
+
     private static void AssertSumOfSalesValueField(PivotTableInfoResult snapshot)
     {
         var value = Assert.Single(snapshot.ValueFields);
@@ -178,6 +203,44 @@ public sealed partial class PersistentServicePivotTableTests
         Assert.Null(value.BaseFieldName);
         Assert.Null(value.BaseItemKind);
         Assert.Null(value.BaseItemName);
+    }
+
+    private void CreateSameNamedPivotWithProductColumn(string pivotName, string targetSheetName)
+    {
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Worksheet? sheet = null;
+            Excel.PivotTables? pivots = null;
+            Excel.PivotTable? source = null;
+            Excel.PivotCache? cache = null;
+            Excel.Worksheet? target = null;
+            Excel.Range? destination = null;
+            Excel.PivotTable? copy = null;
+            Excel.PivotField? product = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(context.Book, _salesSheetName);
+                pivots = (Excel.PivotTables)sheet!.PivotTables();
+                source = pivots.Item(pivotName);
+                cache = source.PivotCache();
+                target = ComUtilities.FindSheet(context.Book, targetSheetName);
+                destination = target!.Range["A3"];
+                copy = cache.CreatePivotTable(destination, pivotName);
+                product = (Excel.PivotField)copy.PivotFields("Product");
+                product.Orientation = Excel.XlPivotFieldOrientation.xlColumnField;
+            }
+            finally
+            {
+                ComUtilities.Release(ref product);
+                ComUtilities.Release(ref copy);
+                ComUtilities.Release(ref destination);
+                ComUtilities.Release(ref target);
+                ComUtilities.Release(ref cache);
+                ComUtilities.Release(ref source);
+                ComUtilities.Release(ref pivots);
+                ComUtilities.Release(ref sheet);
+            }
+        });
     }
 
     private void SetRegularReportFilter(

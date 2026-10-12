@@ -56,6 +56,75 @@ public sealed partial class PersistentServiceConnectionTests
         Assert.True(calendar.MembersTruncated);
     }
 
+    [ConfiguredExternalOlapFact]
+    [Trait("RunType", "OnDemand")]
+    public void ExternalOlapPivotTable_ReadReturnsNativeFilterOnSecondLevel()
+    {
+        var (sheet, pivot, _) = CreateConfiguredExternalPivot("ExternalOlapLevelFilter");
+        var batch = _fixture.BatchToken;
+        var pivots = _fixture.CreateCommands<IPersistentPivotTableCommands>();
+        RequireSuccess(pivots.AddRowField(batch, pivot, ExternalCalendar));
+        RequireSuccess(pivots.AddValueField(batch, pivot, ExternalAmountMeasure));
+        AddMonthCaptionFilter(sheet, pivot, "2025-11");
+
+        var snapshot = RequireSuccess(pivots.Read(batch, pivot, sheet));
+
+        Assert.True(snapshot.SnapshotComplete);
+        var calendar = Assert.Single(snapshot.FieldSelections);
+        Assert.Equal(ExternalCalendar, calendar.FieldName);
+        Assert.True(calendar.FiltersAvailable);
+        var filter = Assert.Single(calendar.Filters);
+        Assert.Equal("[Sales].[Calendar].[Month]", filter.LevelUniqueName);
+        Assert.Equal("CaptionEquals", filter.Type);
+        Assert.Equal("2025-11", filter.Value1);
+        Assert.Null(filter.Value2);
+        Assert.Null(filter.DataFieldName);
+    }
+
+    private void AddMonthCaptionFilter(string sheetName, string pivotName, string caption)
+    {
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Worksheet? sheet = null;
+            Excel.PivotTables? pivots = null;
+            Excel.PivotTable? pivot = null;
+            Excel.CubeFields? fields = null;
+            Excel.CubeField? calendar = null;
+            Excel.PivotFields? levels = null;
+            Excel.PivotField? year = null;
+            Excel.PivotField? month = null;
+            Excel.PivotFilters? filters = null;
+            Excel.PivotFilter? filter = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                pivots = sheet!.PivotTables();
+                pivot = pivots.Item(pivotName);
+                fields = pivot.CubeFields;
+                calendar = fields[ExternalCalendar];
+                levels = calendar.PivotFields;
+                year = levels.Item(1);
+                month = levels.Item(2);
+                year.DrilledDown = true;
+                filters = month.PivotFilters;
+                filter = filters.Add2(Excel.XlPivotFilterType.xlCaptionEquals, Value1: caption);
+            }
+            finally
+            {
+                ComUtilities.Release(ref filter);
+                ComUtilities.Release(ref filters);
+                ComUtilities.Release(ref month);
+                ComUtilities.Release(ref year);
+                ComUtilities.Release(ref levels);
+                ComUtilities.Release(ref calendar);
+                ComUtilities.Release(ref fields);
+                ComUtilities.Release(ref pivot);
+                ComUtilities.Release(ref pivots);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+    }
+
     private void SelectExternalYearAndMonth(string sheetName, string pivotName)
     {
         _fixture.ExecuteRawVerification((context, _) =>
