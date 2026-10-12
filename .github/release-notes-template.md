@@ -1,59 +1,47 @@
 ## ExcelMcp {{VERSION}}
 
+Let your AI assistant create and update real Microsoft Excel workbooks: cells,
+formulas, Power Query, PivotTables, charts, and VBA. MCP and CLI offer the same
+features. Coding agents can use either; the CLI usually uses fewer AI tokens,
+though results vary by task, model, and client.
+
 ### What's New
 {{CHANGELOG}}
 
-### Installation Options
+### Get started
 
-**VS Code Extension** (Recommended)
-- Search "ExcelMcp" in VS Code Marketplace and click Install
-- Or download `excel-mcp-{{VERSION}}.vsix` below
-- Self-contained: no .NET runtime or SDK required
-- Includes the MCP Server and `excel-mcp` skill; install the CLI separately
+**Requires Windows, desktop Excel 2016 or later, and a signed-in interactive
+desktop session.**
 
-**Claude Desktop (MCPB)**
-- Download `excel-mcp-{{VERSION}}.mcpb` and double-click to install
-- Requires Node.js/npm with npx on PATH; launches the npm server with `@latest`
-- Older binary MCPB installations need a one-time replacement with this bundle
+| Where you work | Setup |
+| --- | --- |
+| VS Code with GitHub Copilot | Install **Excel MCP Server** from the [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp). |
+| GitHub Copilot plugins | Install `excel-mcp`, `excel-cli`, or both from [Awesome Copilot](https://github.com/github/awesome-copilot). |
+| Claude Desktop | Download `excel-mcp-{{VERSION}}.mcpb` below and double-click to install. |
+| Another MCP client | [Set up the MCP Server](https://excelmcpserver.dev/installation-mcp-server/). |
+| An agent that runs terminal commands | [Set up the CLI](https://excelmcpserver.dev/installation-cli/). |
 
-**npm MCP Server** (Primary — no .NET runtime required)
-```powershell
-npx -y @sbroenne/mcp-server-excel@latest
-```
+Node.js 18 or later with npm and `npx` is required for the plugins, Claude
+Desktop bundle, and npm installations. The VS Code extension and standalone
+executables do not need Node.js or .NET. NuGet tools require .NET 10.
 
-**npm CLI** (Primary — no .NET runtime required)
-```powershell
-npx -y @sbroenne/excelcli@latest --help
-# Or install the command on your PATH:
-npm install --global @sbroenne/excelcli@latest
-```
+The plugins and VS Code extension include optional report-formatting guidance;
+no separate skill download is needed. See the
+[installation guide](https://excelmcpserver.dev/installation/) for setup,
+updates, and troubleshooting.
 
-**Standalone Executables** (no .NET runtime required)
-- MCP Server: Download `ExcelMcp-MCP-Server-{{VERSION}}-windows.zip`, extract `mcp-excel.exe`
-- CLI: Download `ExcelMcp-CLI-{{VERSION}}-windows.zip`, extract `excelcli.exe`
-- Add the exe(s) to your PATH, then configure your MCP client with command `mcp-excel`
+### Downloads
 
-**NuGet (.NET Tool)** (Secondary — requires .NET 10 runtime)
-```powershell
-dotnet tool install --global Sbroenne.ExcelMcp.McpServer
-dotnet tool install --global Sbroenne.ExcelMcp.CLI
-```
+| Release asset | What it contains |
+| --- | --- |
+| `excel-mcp-{{VERSION}}.vsix` | VS Code extension for manual installation. |
+| `excel-mcp-{{VERSION}}.mcpb` | Claude Desktop bundle that launches the MCP Server through npm. |
+| `ExcelMcp-MCP-Server-{{VERSION}}-windows.zip` | Standalone MCP Server (`mcp-excel.exe`). |
+| `ExcelMcp-CLI-{{VERSION}}-windows.zip` | Standalone CLI (`excelcli.exe`). |
 
-**Report-formatting guidance** (optional)
-- Included in the `excel-cli` and `excel-mcp` plugins
-- The VS Code Extension registers `excel-mcp-report-formatting`
-
-### Requirements
-- Windows OS
-- Microsoft Excel 2016+
-- Interactive Windows desktop with Excel available to the signed-in user
-- Node.js 18+ with npm/npx for npm and MCPB installation
-- No .NET runtime required for npm, VS Code Extension, MCPB, or standalone executables
-- .NET 10 Runtime required for NuGet (.NET tool) installation only
-
-`@latest` is resolved when launching, subject to normal npm caching. It does not
-replace a running server or CLI service. Finish and explicitly save/close
-workbook sessions before restarting to use an updated runtime.
+Before updating, finish your work and explicitly save and close workbook
+sessions. Restart the MCP Server or CLI service to use the updated version;
+installing an update does not replace a running process.
 
 ### Documentation
 - [Website](https://excelmcpserver.dev/)
