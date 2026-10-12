@@ -5,10 +5,10 @@
 [![NuGet](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.CLI.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Excel automation designed primarily for coding agents using terminal commands.**
+**Excel automation for coding agents through terminal commands.**
 
-Agents discover available operations through built-in CLI help. The CLI can also
-be used from scripts.
+Agents discover available operations through built-in CLI help. The CLI offers
+the same features as the MCP Server and usually uses fewer AI tokens.
 
 > **Primary distribution: npm or standalone executable** — Run `npx -y @sbroenne/excelcli@latest --help` or download `excelcli.exe` from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required.
 > **Secondary distribution: NuGet .NET tool** — `dotnet tool install --global Sbroenne.ExcelMcp.CLI` (requires .NET 10 runtime).
@@ -17,11 +17,11 @@ The CLI provides 31 feature command categories with 408 operations matching the 
 
 | Interface | Best For | Why |
 |-----------|----------|-----|
-| **CLI** (`excelcli`) | Coding agents using terminal commands | Built-in help without loading MCP tool definitions |
-| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery, persistent connection |
+| **CLI** (`excelcli`) | Agents that can run terminal commands | Built-in help without loading MCP tool definitions, usually with fewer AI tokens |
+| **MCP Server** | Any MCP-compatible client | Tool discovery, persistent connection |
 
-Scripting examples below demonstrate secondary uses; coding agents are the
-primary audience. Excel still requires an interactive Windows desktop.
+Coding agents can use either one; the choice is technical. Excel still requires
+an interactive Windows desktop.
 
 ➡️ **[Learn more and see examples](https://excelmcpserver.dev/)**
 

@@ -3,29 +3,32 @@
 [![npm version](https://img.shields.io/npm/v/%40sbroenne%2Fexcelcli)](https://www.npmjs.com/package/@sbroenne/excelcli)
 [![GitHub stars](https://img.shields.io/github/stars/sbroenne/mcp-server-excel?style=flat&label=GitHub%20stars)](https://github.com/sbroenne/mcp-server-excel)
 
-**Excel automation designed primarily for coding agents using terminal commands.**
+**Let your coding agent create and update Microsoft Excel workbooks from the
+terminal: work with cells, formulas, Power Query, PivotTables, charts, and VBA
+in the desktop app.**
 
-Agents use built-in CLI help to work with real Microsoft Excel workbooks,
-formulas, Power Query, PivotTables, charts, and VBA. The CLI can also be used
-from scripts.
-
-Use `excelcli` to enter data, write formulas, refresh Power Query, build PivotTables
-and charts, or automate repeatable workbook tasks. ExcelMcp operates the actual
-Excel application, so Excel handles calculations and workbook features.
+Ask your agent to enter data, write formulas, refresh Power Query, build
+PivotTables and charts, work with DAX, or run VBA. The agent runs `excelcli`
+commands and learns them from the built-in help. ExcelMcp operates the actual
+Excel application, so Excel handles calculations and workbook features. The
+CLI offers the same features as the Excel MCP Server and usually uses fewer AI
+tokens.
 
 **Requires Windows, desktop Excel 2016 or later, and Node.js 18 or later with
 `npx`. ExcelMcp runs in an interactive desktop session.**
 
 ## What you can ask your agent to do
 
-- "Create a sales workbook with a table, a revenue formula, and a chart."
-- "Refresh the Power Query queries in this workbook and save it."
-- "Add a PivotTable showing total sales by region."
-- "Put this data into a worksheet and format the totals."
+| Request | Result |
+| --- | --- |
+| "Create a sales tracker with Date, Product, Quantity, Unit Price, and Total columns." | A workbook with a table and formulas. |
+| "Create a PivotTable showing revenue by region, then add a chart." | A summary and chart built in Excel. |
+| "Refresh the Power Query queries in this workbook and save it." | Updated query results saved in the workbook. |
+| "Put this data into a worksheet and format the totals." | Formatted data ready to read. |
 
-The CLI provides 31 feature command categories with 408 operations for Power
-Query, DAX and the Data Model, PivotTables, tables, charts, formulas, VBA,
-worksheets, workbook files, and more. See the
+The CLI provides 31 feature command categories with 408 operations, including
+Power Query, DAX and the Data Model, PivotTables, tables, charts, worksheets,
+formulas, VBA, and more. See the
 [complete feature reference](https://excelmcpserver.dev/features/).
 
 ## Install
@@ -46,88 +49,58 @@ copilot plugin install excel-cli@mcp-server-excel-plugins
 
 Choose one marketplace for this plugin; do not install both copies.
 
-## Run the CLI
-
-The plugin does not bundle `excelcli.exe` or add the `excelcli` command to your
-PATH. Its wrapper launches the current npm package with `npx`:
+The plugin runs the published npm package through `npx`, so you do not need to
+install `excelcli` separately or change your PATH:
 
 ```powershell
 npx -y @sbroenne/excelcli@latest --help
 ```
 
-No global helper, PATH change, or separate runtime installation is needed.
-For quoted JSON arguments in Windows PowerShell, use the plugin's
-`bin\start-cli.ps1` wrapper:
+For quoted JSON arguments in Windows PowerShell, the agent can use the plugin's
+`bin\start-cli.ps1` wrapper instead. For other coding agents, or to install
+`excelcli` as a command on your PATH, follow the
+[CLI installation guide](https://excelmcpserver.dev/installation-cli/).
 
-```powershell
-& "C:\Path\To\Installed\excel-cli\bin\start-cli.ps1" --help
-```
+## CLI or MCP?
 
-Use the installed plugin directory in place of the example path. The examples
-below use `excelcli` for readability; if you have not installed the standalone
-CLI, substitute `npx -y @sbroenne/excelcli@latest` or use the wrapper.
+The CLI and the
+[MCP plugin](https://github.com/sbroenne/mcp-server-excel/tree/main/.github/plugins/excel-mcp)
+give your agent the same Excel features, so install one or the other. The
+difference is only technical:
 
-```powershell
-# Create a workbook
-excelcli -q session create C:\Reports\Sales.xlsx
-
-# Write headers and data
-excelcli -q range set-values --session <id> --sheet Sheet1 `
-  --range A1:C1 `
-  --values '[["Date","Product","Revenue"]]'
-excelcli -q range set-values --session <id> --sheet Sheet1 `
-  --range A2:C3 `
-  --values '[["2024-01-15","Widget",1500],["2024-01-16","Gadget",2300]]'
-
-# Create a table, then save and close
-excelcli -q table create --session <id> --sheet Sheet1 `
-  --table-name SalesData --range A1:C3
-excelcli -q session close --session <id> --save
-```
-
-### Optional standalone installation
-
-If you prefer to install the CLI separately from the plugin, choose one:
-
-**Windows executable**
-
-1. Download `ExcelMcp-CLI-{version}-windows.zip` from
-   [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest).
-2. Extract `excelcli.exe` to a permanent folder, such as `C:\Tools\ExcelMcp\`.
-3. Add that folder to your PATH.
-
-**.NET global tool**
-
-```powershell
-dotnet tool install --global Sbroenne.ExcelMcp.CLI
-# Requires the .NET 10 Runtime
-```
-
-## CLI or MCP Server?
-
-Both interfaces automate the same Excel operations:
-
-| Interface | Good fit | Context |
+| Interface | Works with | Context |
 |---|---|---|
-| CLI (`excelcli`) | Coding agents using terminal commands | CLI help instead of MCP tool schemas |
-| MCP Server | Conversational tool discovery | 60 tool schemas loaded into context |
+| CLI (`excelcli`) | Agents that can run terminal commands | Built-in help, read only when needed |
+| MCP Server | Any MCP-compatible client | 60 tool schemas loaded into context |
 
-In one comparison using the same task and AI model, the CLI used about 59,000 AI
+Coding agents can use either one. The CLI usually uses fewer AI tokens because
+the agent does not load every tool definition up front. In one comparison using the same task and AI model, the CLI used about 59,000 AI
 tokens and MCP used 163,000 (about 64% fewer with CLI). This is one measured
 result, not a promise; results vary by task, model, and AI client. See the
 [benchmark context](https://github.com/sbroenne/mcp-server-excel/blob/f10926db28c8fc295e15374f4177e3b11ab4bd49/docs/ARCHITECTURE.md).
 
 ## More features
 
-- **Workbooks and files:** create, open, save, close, and export workbooks.
-- **Data and formulas:** read and write ranges, tables, formulas, and named ranges.
-- **Analysis:** use Power Query, DAX, the Data Model, PivotTables, and slicers.
+- **Workbooks and data:** create, open, save, and close workbooks; edit ranges, tables, and formulas.
+- **Analysis:** refresh Power Query, query the Data Model with DAX, and build PivotTables and slicers.
 - **Reports:** create and format charts, worksheets, and conditional formatting.
 - **Automation:** manage connections, run VBA, and automate Excel windows.
 - **Protected workbooks:** detect IRM/AIP protection and open Excel visibly for sign-in.
+- **Sessions:** keep a workbook open across commands so the agent can work step by step.
+
+M and DAX code stays on your computer by default. If you turn on M or DAX
+code formatting, the corresponding code is sent to powerqueryformatter.com or
+daxformatter.com. Only turn it on when you want to send code to those services.
+
+## Supported agents
+
+- GitHub Copilot CLI
+- Other coding agents that can run terminal commands, using the
+  [CLI installation guide](https://excelmcpserver.dev/installation-cli/)
 
 ## Support
 
 - [Documentation](https://excelmcpserver.dev/)
+- [CLI installation guide](https://excelmcpserver.dev/installation-cli/)
 - [Issues](https://github.com/sbroenne/mcp-server-excel/issues)
 - MIT License

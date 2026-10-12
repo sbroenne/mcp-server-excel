@@ -1,8 +1,8 @@
 # Installing the CLI - ExcelMcp
 
-Installation instructions for the ExcelMcp **CLI** (`excelcli`), designed primarily
-for coding agents that use terminal commands and built-in CLI help. It can also
-be used from scripts. Looking for the MCP Server instead? See the
+Installation instructions for the ExcelMcp **CLI** (`excelcli`), for coding
+agents that run terminal commands. It offers the same features as the MCP
+Server and usually uses fewer AI tokens. Looking for the MCP Server instead? See the
 [MCP Server Installation Guide](INSTALLATION-MCP-SERVER.md).
 
 ## System Requirements
@@ -35,8 +35,7 @@ The current **excel-cli GitHub Copilot plugin** runs the public npm package thro
 `npx -y @sbroenne/excelcli@latest`; npm manages package resolution and caching.
 No separate CLI installation is needed for plugin-driven flows. The **VS Code
 extension** does *not* include the CLI (it only bundles the MCP server); use
-`npx` or install the CLI separately for agent workflows outside the plugin.
-It can also be used from scripts. For direct use:
+`npx` or install the CLI separately for agent workflows outside the plugin. For direct use:
 
 Use npm (below) or download the standalone executable if you prefer not to
 install Node.js.

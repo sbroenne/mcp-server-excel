@@ -16,7 +16,7 @@ Node.js 18 or later with `npx`. ExcelMcp runs in an interactive desktop session.
 ## What you can ask your assistant to do
 
 | Request | Result |
-|---|---|
+| --- | --- |
 | "Create a sales tracker with Date, Product, Quantity, Unit Price, and Total columns." | A workbook with a table and formulas. |
 | "Create a PivotTable showing revenue by region, then add a chart." | A summary and chart built in Excel. |
 | "Refresh the Power Query queries in this workbook and save it." | Updated query results saved in the workbook. |
@@ -58,13 +58,18 @@ You do not need to add a separate MCP server entry to
 
 ## MCP or CLI?
 
-Use the MCP Server when you want your assistant to find and use Excel tools in a
-conversation. Use the
+The MCP Server and the
 [CLI plugin](https://github.com/sbroenne/mcp-server-excel/tree/main/.github/plugins/excel-cli)
-primarily for coding agents using terminal commands. The CLI can also be used
-from scripts.
+give your assistant the same Excel features, so install one or the other. The
+difference is only technical:
 
-In one comparison using the same task and AI model, the CLI used about 59,000 AI
+| Interface | Works with | Context |
+|---|---|---|
+| MCP Server | Any MCP-compatible client | 60 tool schemas loaded into context |
+| CLI (`excelcli`) | Agents that can run terminal commands | Built-in help, read only when needed |
+
+Coding agents can use either one. The CLI usually uses fewer AI tokens because
+the agent does not load every tool definition up front. In one comparison using the same task and AI model, the CLI used about 59,000 AI
 tokens and MCP used 163,000 (about 64% fewer with CLI). This is one measured
 result, not a promise; results vary by task, model, and AI client. See the
 [benchmark context](https://github.com/sbroenne/mcp-server-excel/blob/f10926db28c8fc295e15374f4177e3b11ab4bd49/docs/ARCHITECTURE.md).

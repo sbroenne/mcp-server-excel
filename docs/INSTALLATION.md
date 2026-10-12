@@ -6,8 +6,8 @@ or both:
 
 - **MCP Server**: for AI assistants that support MCP, such as GitHub Copilot,
   Claude Desktop, Cursor, and Windsurf.
-- **CLI** (`excelcli`): mainly for coding agents that run terminal commands. You
-  can also use it from your own scripts.
+- **CLI** (`excelcli`): the same features as terminal commands. Coding agents
+  can use either; the CLI usually uses fewer AI tokens.
 
 ## What you need
 
@@ -24,7 +24,7 @@ or both:
 | GitHub Copilot plugins | The `excel-mcp` plugin, the `excel-cli` plugin, or both; listed in [Awesome Copilot](https://github.com/github/awesome-copilot) | [MCP plugin](INSTALLATION-MCP-SERVER.md#github-copilot-plugin), [CLI plugin](INSTALLATION-CLI.md#github-copilot-plugin) |
 | Claude Desktop | The one-click Claude Desktop extension | [Claude Desktop setup](guides/CLAUDE-DESKTOP.md) |
 | Another MCP client | The MCP Server through npm | [Manual MCP setup](INSTALLATION-MCP-SERVER.md#manual-mcp-setup-all-mcp-clients) |
-| A coding agent that runs terminal commands | The CLI through npm | [CLI with npm](INSTALLATION-CLI.md#npm-primary) |
+| Coding agents (fewer AI tokens) | The CLI through npm | [CLI with npm](INSTALLATION-CLI.md#npm-primary) |
 | A computer without npm | The standalone MCP Server or CLI download | [MCP Server download](INSTALLATION-MCP-SERVER.md#option-b-standalone-executable), [CLI download](INSTALLATION-CLI.md#standalone-executable-also-primary) |
 
 The VS Code extension sets up the MCP Server only. If your agent also runs

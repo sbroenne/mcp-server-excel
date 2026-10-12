@@ -244,12 +244,12 @@ workflow:
 
 | Interface | Best for | Why |
 |-----------|----------|-----|
-| **CLI** (`excelcli`) | Coding agents using terminal commands | Built-in help without loading MCP tool definitions. |
-| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery and a persistent connection. Better for interactive, exploratory workflows. |
+| **CLI** (`excelcli`) | Agents that can run terminal commands | Built-in help without loading MCP tool definitions, usually with fewer AI tokens. |
+| **MCP Server** | Any MCP-compatible client | Tool discovery and a persistent connection. |
 
 [MCP Server docs](mcp-server.md){ .md-button } [CLI docs](cli.md){ .md-button }
 
-The CLI is designed primarily for coding agents. It can also be used from scripts.
+Coding agents can use either one; the choice is technical.
 
 ## GitHub star history
 
