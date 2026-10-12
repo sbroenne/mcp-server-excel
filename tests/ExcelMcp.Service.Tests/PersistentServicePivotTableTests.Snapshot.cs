@@ -72,7 +72,6 @@ public sealed partial class PersistentServicePivotTableTests
 
         Assert.True(snapshot.FieldSelectionsAvailable);
         Assert.True(snapshot.ValueFieldsAvailable);
-        Assert.False(snapshot.ManualUpdate);
         Assert.Equal(100, snapshot.MaxSelectedMembers);
         Assert.True(snapshot.SnapshotComplete);
         Assert.Equal(["Product", "Region"], snapshot.FieldSelections.Select(selection => selection.FieldName));

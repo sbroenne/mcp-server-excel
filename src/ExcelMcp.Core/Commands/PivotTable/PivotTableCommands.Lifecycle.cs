@@ -292,8 +292,6 @@ public partial class PivotTableCommands
                 var fieldsResult = fieldSnapshot.Value;
                 var valueFieldsState = PivotTableSnapshotHelpers.TryReadSnapshotProperty(
                     () => ReadAllValueFieldCalculations((Excel.PivotTable)pivot, batch.WorkbookPath, ct));
-                var manualUpdate = PivotTableSnapshotHelpers.TryReadSnapshotProperty(
-                    () => Convert.ToBoolean(pivot.ManualUpdate));
 
                 var fields = fieldSnapshot.Available ? fieldsResult.Fields : [];
                 var fieldSelections = fieldSnapshot.Available ? fieldsResult.Selections : [];
@@ -312,13 +310,10 @@ public partial class PivotTableCommands
                     FieldSelectionsError = fieldSnapshot.ErrorMessage,
                     ValueFieldsAvailable = valueFieldsState.Available,
                     ValueFieldsError = valueFieldsState.ErrorMessage,
-                    ManualUpdate = manualUpdate.Value,
-                    UpdateStateError = manualUpdate.ErrorMessage,
                     MaxSelectedMembers = maxSelectedMembers,
                     SnapshotComplete = olapState.Available &&
                         fieldSnapshot.Available &&
                         valueFieldsState.Available &&
-                        manualUpdate.Available &&
                         fieldSelections.All(selection =>
                             selection.FieldIdentityAvailable &&
                             selection.LayoutAvailable &&
