@@ -29,7 +29,8 @@ public interface IPivotTableCommands
     // === LIFECYCLE OPERATIONS ===
 
     /// <summary>
-    /// Lists all PivotTables in workbook with structure details
+    /// Lists all PivotTables in workbook with structure details.
+    /// Each PivotTable's layoutError reports a detected #SPILL! layout failure even when the list succeeds.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <returns>List of PivotTables with names, sheets, ranges, source data, field counts, last refresh</returns>
@@ -39,6 +40,7 @@ public interface IPivotTableCommands
     /// <summary>
     /// Gets PivotTable configuration, current layout, and a bounded semantic snapshot
     /// of selected members and native label/value filters.
+    /// pivotTable.layoutError reports a detected #SPILL! layout failure even when the read succeeds.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>

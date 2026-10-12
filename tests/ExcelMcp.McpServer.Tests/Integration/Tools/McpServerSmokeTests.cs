@@ -90,6 +90,96 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
     }
 
     [Fact]
+    [Trait("Acceptance", "Required")]
+    public async Task DocumentInspector_ReportsAndRemovesOnlyHiddenWorksheet()
+    {
+        var created = await CallToolAsync("file", new()
+        {
+            ["action"] = "create",
+            ["file_path"] = _testExcelFile
+        });
+        AssertSuccess(created, "Create inspector workbook");
+        var session = GetJsonProperty(created, "workbook_session_id");
+        Assert.NotNull(session);
+        foreach (var name in new[] { "Retained", "InspectorHidden" })
+        {
+            AssertSuccess(await CallToolAsync("worksheet", new()
+            {
+                ["action"] = "create",
+                ["workbook_session_id"] = session,
+                ["sheet_name"] = name
+            }), "Create inspector seed sheet");
+            AssertSuccess(await CallToolAsync("range", new()
+            {
+                ["action"] = "set-values",
+                ["workbook_session_id"] = session,
+                ["sheet_name"] = name,
+                ["range_address"] = "A1",
+                ["values"] = new object[][] { [424242] }
+            }), "Write inspector seed");
+        }
+        AssertSuccess(await CallToolAsync("worksheet_style", new()
+        {
+            ["action"] = "hide",
+            ["workbook_session_id"] = session,
+            ["sheet_name"] = "InspectorHidden"
+        }), "Hide inspector seed");
+        var inspection = await CallToolAsync("workbook", new()
+        {
+            ["action"] = "inspect-document",
+            ["workbook_session_id"] = session
+        });
+        AssertSuccess(inspection, "Inspect document");
+        using var inspected = JsonDocument.Parse(inspection);
+        var selected = Assert.Single(inspected.RootElement.GetProperty("inspectors").EnumerateArray(),
+            item => item.GetProperty("statusCode").GetInt32() == 1);
+        var fixedResult = await CallToolAsync("workbook", new()
+        {
+            ["action"] = "fix-document-inspector",
+            ["workbook_session_id"] = session,
+            ["inspector_index"] = selected.GetProperty("index").GetInt32(),
+            ["inspector_name"] = selected.GetProperty("name").GetString()
+        });
+        AssertSuccess(fixedResult, "Fix selected inspector");
+        using var fixedDocument = JsonDocument.Parse(fixedResult);
+        Assert.Equal(0, fixedDocument.RootElement.GetProperty("fix").GetProperty("statusCode").GetInt32());
+        Assert.Equal(0, fixedDocument.RootElement.GetProperty("inspection").GetProperty("statusCode").GetInt32());
+        var sheets = await CallToolAsync("worksheet_read", new()
+        {
+            ["action"] = "list",
+            ["workbook_session_id"] = session
+        });
+        AssertSuccess(sheets, "Verify inspector removed sheet");
+        using var sheetDocument = JsonDocument.Parse(sheets);
+        Assert.DoesNotContain(sheetDocument.RootElement.GetProperty("worksheets").EnumerateArray(),
+            sheet => sheet.GetProperty("name").GetString() == "InspectorHidden");
+        var retained = await CallToolAsync("range_read", new()
+        {
+            ["action"] = "get-values",
+            ["workbook_session_id"] = session,
+            ["sheet_name"] = "Retained",
+            ["range_address"] = "A1"
+        });
+        AssertSuccess(retained, "Verify retained value");
+        using var retainedDocument = JsonDocument.Parse(retained);
+        Assert.Equal(424242, retainedDocument.RootElement.GetProperty("values")[0][0].GetInt32());
+        var info = await CallToolAsync("workbook_read", new()
+        {
+            ["action"] = "get-info",
+            ["workbook_session_id"] = session
+        });
+        AssertSuccess(info, "Verify no automatic save");
+        using var infoDocument = JsonDocument.Parse(info);
+        Assert.False(infoDocument.RootElement.GetProperty("saved").GetBoolean());
+        AssertSuccess(await CallToolAsync("file", new()
+        {
+            ["action"] = "close",
+            ["workbook_session_id"] = session,
+            ["save"] = false
+        }), "Close inspector workbook");
+    }
+
+    [Fact]
     public async Task DaxMeasureWrites_NativeCommaSyntax_PreserveAndEvaluate()
     {
         var created = await CallToolAsync("file", new()

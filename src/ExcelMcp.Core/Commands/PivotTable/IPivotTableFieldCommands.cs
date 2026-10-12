@@ -79,7 +79,9 @@ public interface IPivotTableFieldCommands
     ///    - Creates a new workbook DAX measure with the specified aggregation function; external cube columns cannot create workbook measures
     ///    - customName becomes the measure name
     ///
-    /// For Regular PivotTables: Adds column with aggregation function
+    /// For Regular PivotTables: Adds column with aggregation function.
+    /// Reports failure if Excel leaves the PivotTable collapsed to a #SPILL! cell.
+    /// The field change is not rolled back; inspect pivottable read/list layoutError and nearby cells before recovery.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>

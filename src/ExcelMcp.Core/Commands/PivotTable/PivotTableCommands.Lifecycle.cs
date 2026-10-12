@@ -49,6 +49,7 @@ public partial class PivotTableCommands
 
                                 // Get properties with defensive error handling
                                 string? range = null;
+                                string? layoutError = null;
                                 string? sourceData = null;
                                 int rowFieldCount = 0;
                                 int columnFieldCount = 0;
@@ -59,6 +60,7 @@ public partial class PivotTableCommands
                                 try
                                 {
                                     range = pivot.TableRange2.Address;
+                                    layoutError = PivotTableHelpers.GetLayoutError((Microsoft.Office.Interop.Excel.PivotTable)pivot);
                                 }
                                 catch (System.Runtime.InteropServices.COMException)
                                 {
@@ -132,6 +134,7 @@ public partial class PivotTableCommands
                                     Name = pivotName,
                                     SheetName = sheetName,
                                     Range = range ?? "(unavailable)",
+                                    LayoutError = layoutError,
                                     SourceData = sourceData ?? string.Empty,
                                     RowFieldCount = rowFieldCount,
                                     ColumnFieldCount = columnFieldCount,
@@ -215,6 +218,7 @@ public partial class PivotTableCommands
                 try
                 {
                     info.Range = pivot.TableRange2.Address;
+                    info.LayoutError = PivotTableHelpers.GetLayoutError((Microsoft.Office.Interop.Excel.PivotTable)pivot);
                 }
                 catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
                 {
