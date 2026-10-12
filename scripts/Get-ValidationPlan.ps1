@@ -54,6 +54,7 @@ function Get-ValidationPlan {
             foreach ($language in @('actions', 'csharp', 'javascript-typescript', 'python')) { [void]$codeQl.Add($language) }
         }
         $kind = switch -Regex ($path) {
+            '^scripts/IssueTriage\.mjs$|^\.github/workflows/issue-triage\.(md|lock\.yml)$' { 'issue-triage'; break }
             '^skills/|^docs/reference/report-formatting\.md$' { 'skills'; break }
             '^\.github/plugins/|^\.github/workflows/(publish-plugins\.yml|update-awesome-copilot\.(md|lock\.yml))$' { 'plugins'; break }
             '(^|/)(AGENTS|CLAUDE)\.md$|^\.github/copilot-instructions\.md$' { 'documentation'; break }
@@ -98,6 +99,12 @@ function Get-ValidationPlan {
         }
         $plan.Reasons.Add("$path -> $kind")
         if ($kind -eq 'documentation') { continue }
+        if ($kind -eq 'issue-triage') {
+            $plan.Build = $true
+            $plan.HookTests = $true
+            [void]$toolingOwners.Add('ScriptSafety')
+            [void]$tooling.Add('Feature=AutomationSafety')
+        }
         if ($kind -in @('runtime', 'cli', 'mcp', 'unknown')) {
             $plan.Build = $true
             $plan.Excel = $true
