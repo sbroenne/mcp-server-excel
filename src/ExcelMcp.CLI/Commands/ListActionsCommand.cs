@@ -30,7 +30,7 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
             var key = settings.CommandName.Trim().ToLowerInvariant();
             if (!actionsByCommand.TryGetValue(key, out var actions))
             {
-                var error = new { success = false, error = $"Unknown command '{key}'." };
+                var error = new { success = false, errorMessage = $"Unknown command '{key}'." };
                 CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(error, ServiceProtocol.JsonOptions));
                 return 1;
             }
@@ -68,4 +68,3 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
         public string? CommandName { get; init; }
     }
 }
-

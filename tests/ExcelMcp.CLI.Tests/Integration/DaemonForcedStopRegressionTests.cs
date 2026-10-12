@@ -977,7 +977,7 @@ public sealed class DaemonForcedStopRegressionTests
             Assert.False(response.RootElement.GetProperty("success").GetBoolean());
             Assert.Contains(
                 "malformed",
-                response.RootElement.GetProperty("error").GetString(),
+                response.RootElement.GetProperty("errorMessage").GetString(),
                 StringComparison.OrdinalIgnoreCase);
             Assert.True(File.Exists(trackingFile));
         }

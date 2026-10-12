@@ -36,5 +36,7 @@ and save/close behavior through native `--help`; do not invent syntax.
 Inspect the existing workbook state relevant to the request. Preserve unrelated
 contents and save only the authorized result. If an operation fails, inspect its
 reported partial state rather than assuming rollback or automatically cleaning up.
+For JSON errors, read `errorMessage` as the single error-text field; use
+`errorCategory` when present to guide recovery.
 Load `excel-cli-report-formatting` only for requested report presentation, not
 ordinary Excel reads or targeted updates.
