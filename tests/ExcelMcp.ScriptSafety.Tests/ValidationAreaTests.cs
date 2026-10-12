@@ -43,6 +43,25 @@ public sealed class ValidationAreaTests
     }
 
     [Fact]
+    public async Task IssueTriage_SelectsAutomationChecksWithoutExcelOrPackaging()
+    {
+        var result = await ValidationSelectionTests.RunAsync("""
+            foreach ($path in @('scripts/IssueTriage.mjs', '.github/workflows/issue-triage.md',
+                '.github/workflows/issue-triage.lock.yml')) {
+                $plan = Get-ValidationPlan -Paths $path
+                if ($plan.Excel -or $plan.Packages -or $plan.FastProjects.Count -or $plan.ProcessProjects.Count) {
+                    throw "Unrelated runtime or packaging checks selected for $path"
+                }
+                if (($plan.ToolingProjects -join ',') -cne 'ScriptSafety' -or
+                    $plan.ToolingFilters.ScriptSafety -cne 'Feature=AutomationSafety') {
+                    throw "Missing automation checks for $path"
+                }
+            }
+            """);
+        Assert.True(result.ExitCode == 0, result.Output);
+    }
+
+    [Fact]
     public async Task CodeQl_TrackedSourceFilesSelectTheirLanguage()
     {
         var result = await ValidationSelectionTests.RunAsync("""
