@@ -831,7 +831,7 @@ public sealed class ReleaseMetadataScriptTests
             Directory.CreateDirectory(fakeNpxDirectory);
             await File.WriteAllTextAsync(
                 Path.Combine(fakeNpxDirectory, "npx.cmd"),
-                "@echo off\r\nexit /b 0\r\n");
+                "@echo off\r\ndel \"%~dp0..\\.changeset\\pending-release-note.md\"\r\nexit /b 0\r\n");
 
             var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
             var result = await RunPowerShellScriptAsync(

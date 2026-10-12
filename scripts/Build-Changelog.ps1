@@ -69,6 +69,14 @@ if ($Version -notmatch '^\d+\.\d+\.\d+$') {
 }
 & $updateReleaseVersionScript -RepoRoot $RepoRoot -Version $Version -ValidateOnly
 
+# Capture pending fragments before Changesets consumes them so the empty-section
+# guard still detects notes that were not written to the changelog.
+$pendingFragmentNames = @(
+    Get-ChildItem -LiteralPath (Join-Path $RepoRoot '.changeset') -Filter '*.md' -File |
+        Where-Object { $_.Name -ne 'README.md' } |
+        ForEach-Object Name
+)
+
 # --- Step 1: snapshot the changelog body (everything after the title line) before
 # changesets mutates the file. changesets always inserts its new section
 # immediately after line 1, leaving everything else untouched, so a suffix match
@@ -127,12 +135,8 @@ else {
 }
 
 if ([string]::IsNullOrWhiteSpace($newSection)) {
-    $pendingFragments = @(
-        Get-ChildItem -LiteralPath (Join-Path $RepoRoot '.changeset') -Filter '*.md' -File |
-            Where-Object { $_.Name -ne 'README.md' }
-    )
-    if ($pendingFragments.Count -gt 0) {
-        $fragmentNames = ($pendingFragments | ForEach-Object Name) -join ', '
+    if ($pendingFragmentNames.Count -gt 0) {
+        $fragmentNames = $pendingFragmentNames -join ', '
         throw "Pending changeset fragments were not included in CHANGELOG.md: $fragmentNames"
     }
 
