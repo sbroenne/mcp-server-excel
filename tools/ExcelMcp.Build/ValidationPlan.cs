@@ -18,7 +18,6 @@ public sealed class ValidationPlan
     public bool Extension { get; set; }
     public bool ExtensionTests { get; set; }
     public bool Mcpb { get; set; }
-    public bool Skills { get; set; }
     public bool Plugins { get; set; }
     public bool Docs { get; set; }
     public bool NpmTests { get; set; }
@@ -42,7 +41,7 @@ public sealed class ValidationPlan
     public string FullSolutionBuildGroup => !FullSolutionBuild ? "" :
         CiTestGroups.Contains(SourceChecksGroup, StringComparer.Ordinal) ? SourceChecksGroup : CiTestGroups.FirstOrDefault() ?? "";
     public bool PackageBuild => Cli || Mcp || Extension;
-    public bool Packages => PackageBuild || Mcpb || Skills || Plugins;
+    public bool Packages => PackageBuild || Mcpb || Plugins;
     public string SourceChecksGroup => SourceChecks && FastFilters.Count > 0 ? "Fast" : DocumentationCounts || SourceChecks ? "Tooling" : "";
 }
 

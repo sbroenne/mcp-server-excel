@@ -2,6 +2,7 @@ using System.Text.Json;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
 using Sbroenne.ExcelMcp.McpServer.Tools;
+using Sbroenne.ExcelMcp.Service;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
@@ -296,6 +297,49 @@ public sealed class ExcelToolsBaseTelemetryTests
         Assert.True(root.GetProperty("isError").GetBoolean());
         Assert.Equal("InvalidInput", root.GetProperty("errorCategory").GetString());
         Assert.Contains("file 'open'", root.GetProperty("errorMessage").GetString());
+    }
+
+    [Fact]
+    public void SerializeServiceResponse_WritesOnlyErrorMessage()
+    {
+        var json = ExcelToolsBase.SerializeServiceResponse(new ServiceResponse
+        {
+            Success = false,
+            Command = "workbook.read",
+            ErrorMessage = "Workbook is unavailable.",
+            ErrorCategory = "SessionNotFound"
+        });
+
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        Assert.Equal("Workbook is unavailable.", root.GetProperty("errorMessage").GetString());
+        Assert.False(root.TryGetProperty("error", out _));
+    }
+
+    [Fact]
+    public void SerializeToolError_WritesOnlyErrorMessage()
+    {
+        var json = ExcelToolsBase.SerializeToolError(
+            "range get-values",
+            null,
+            new ArgumentException("Invalid range."));
+
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        Assert.Equal("range get-values failed: Invalid range.", root.GetProperty("errorMessage").GetString());
+        Assert.False(root.TryGetProperty("error", out _));
+    }
+
+    [Fact]
+    public void ValidateWindowsPath_WritesOnlyErrorMessage()
+    {
+        var json = ExcelToolsBase.ValidateWindowsPath("relative.xlsx");
+
+        Assert.NotNull(json);
+        using var document = JsonDocument.Parse(json);
+        var root = document.RootElement;
+        Assert.False(string.IsNullOrWhiteSpace(root.GetProperty("errorMessage").GetString()));
+        Assert.False(root.TryGetProperty("error", out _));
     }
 
     private static async Task<string> Execute(

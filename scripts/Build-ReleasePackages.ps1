@@ -6,8 +6,8 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Cli', 'Mcp', 'Extension', 'Mcpb', 'Skills', 'Plugins')]
-    [string[]]$Components = @('Cli', 'Mcp', 'Extension', 'Mcpb', 'Skills', 'Plugins'),
+    [ValidateSet('Cli', 'Mcp', 'Extension', 'Mcpb', 'Plugins')]
+    [string[]]$Components = @('Cli', 'Mcp', 'Extension', 'Mcpb', 'Plugins'),
     [string]$BaseRef,
     [string]$HeadRef = 'HEAD',
     [string]$Version,

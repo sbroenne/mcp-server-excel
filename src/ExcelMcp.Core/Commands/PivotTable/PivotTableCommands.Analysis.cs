@@ -54,6 +54,94 @@ public partial class PivotTableCommands
         => ExecuteWithStrategy<PivotFieldFilterResult>(batch, pivotTableName,
             (strategy, pivot) => strategy.SetFieldFilter(pivot, fieldName, selectedValues, batch.WorkbookPath));
 
+    /// <summary>Reads an OLAP report filter from exactly one worksheet PivotTable.</summary>
+    public PivotReportFilterResult GetReportFilter(
+        IExcelBatch batch, string sheetName, string pivotTableName, string fieldName)
+    {
+        var validationError = ValidateReportFilterTarget(sheetName, pivotTableName, fieldName);
+        var result = new PivotReportFilterResult
+        {
+            SheetName = sheetName,
+            PivotTableName = pivotTableName,
+            FieldName = fieldName,
+            FilePath = batch.WorkbookPath
+        };
+        if (validationError is not null)
+        {
+            result.ErrorMessage = validationError;
+            return result;
+        }
+
+        return batch.Execute((ctx, ct) =>
+        {
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.PivotTables? pivotTables = null;
+            Excel.PivotTable? pivot = null;
+            Excel.CubeFields? cubeFields = null;
+            Excel.CubeField? cubeField = null;
+            Excel.PivotFields? pivotFields = null;
+            Excel.PivotField? pivotField = null;
+            string failurePhase = "resolve-target";
+
+            try
+            {
+                ct.ThrowIfCancellationRequested();
+                sheets = ctx.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[sheetName];
+                pivotTables = (Excel.PivotTables)sheet.PivotTables();
+                pivot = pivotTables.Item(pivotTableName);
+                if (!PivotTableHelpers.IsOlapPivotTable(pivot))
+                {
+                    throw new InvalidOperationException(
+                        $"PivotTable '{pivotTableName}' on worksheet '{sheetName}' is not an OLAP/Data Model PivotTable.");
+                }
+
+                cubeFields = pivot.CubeFields;
+                cubeField = GetReportFilterCubeField(cubeFields, fieldName);
+                if (Convert.ToInt32(cubeField.Orientation,
+                        System.Globalization.CultureInfo.InvariantCulture) != XlPivotFieldOrientation.xlPageField)
+                {
+                    throw new InvalidOperationException(
+                        $"OLAP field '{fieldName}' must be in the report-filter area before its selection can be read.");
+                }
+
+                pivotFields = cubeField.PivotFields;
+                if (pivotFields.Count == 0)
+                {
+                    throw new InvalidOperationException(
+                        $"OLAP report-filter field '{fieldName}' has no PivotField available.");
+                }
+                pivotField = pivotFields.Item(1);
+
+                failurePhase = "read-filter-state";
+                ReadReportFilterSelection(cubeField, pivotField, result);
+                result.Success = true;
+            }
+            catch (Exception ex) when (CreatedObjectFailure.CanReport(ex))
+            {
+                result.Success = false;
+                result.FailurePhase = failurePhase;
+                result.ErrorMessage =
+                    $"Failed to read report filter '{fieldName}' on PivotTable '{pivotTableName}' " +
+                    $"in worksheet '{sheetName}' during {failurePhase}: {ex.Message}";
+            }
+            finally
+            {
+                ComUtilities.Release(ref pivotField);
+                ComUtilities.Release(ref pivotFields);
+                ComUtilities.Release(ref cubeField);
+                ComUtilities.Release(ref cubeFields);
+                ComUtilities.Release(ref pivot);
+                ComUtilities.Release(ref pivotTables);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+
+            return result;
+        });
+    }
+
     /// <summary>
     /// Sets an OLAP report filter on exactly one worksheet PivotTable.
     /// An empty selection means all members.
@@ -83,11 +171,14 @@ public partial class PivotTableCommands
                 SheetName = sheetName,
                 PivotTableName = pivotTableName,
                 FieldName = fieldName,
+                RequestedItems = [.. selectedItems],
                 FilePath = batch.WorkbookPath
             };
             var filterMutationStarted = false;
             var manualUpdateChanged = false;
             var previousManualUpdate = false;
+            var previousMultiplePageItems = false;
+            string failurePhase = "resolve-target";
 
             try
             {
@@ -103,7 +194,7 @@ public partial class PivotTableCommands
                 }
 
                 cubeFields = pivot.CubeFields;
-                cubeField = cubeFields[fieldName];
+                cubeField = GetReportFilterCubeField(cubeFields, fieldName);
                 if (Convert.ToInt32(cubeField.Orientation,
                         System.Globalization.CultureInfo.InvariantCulture) != XlPivotFieldOrientation.xlPageField)
                 {
@@ -119,7 +210,10 @@ public partial class PivotTableCommands
                 }
                 pivotField = pivotFields.Item(1);
 
+                failurePhase = "capture-state";
                 previousManualUpdate = pivot.ManualUpdate;
+                previousMultiplePageItems = cubeField.EnableMultiplePageItems;
+                failurePhase = "defer-update";
                 if (!previousManualUpdate)
                 {
                     pivot.ManualUpdate = true;
@@ -127,25 +221,39 @@ public partial class PivotTableCommands
                 }
 
                 Exception? mutationFailure = null;
+                string? mutationFailurePhase = null;
                 try
                 {
                     filterMutationStarted = true;
                     if (selectedItems.Count == 0)
                     {
+                        failurePhase = "clear-selection";
                         pivotField.ClearAllFilters();
+                    }
+                    else if (selectedItems.Count == 1 && !previousMultiplePageItems)
+                    {
+                        failurePhase = "set-single-selection";
+                        pivotField.CurrentPageName = selectedItems[0];
                     }
                     else
                     {
-                        cubeField.EnableMultiplePageItems = true;
+                        if (!previousMultiplePageItems)
+                        {
+                            failurePhase = "enable-multiple-selection";
+                            cubeField.EnableMultiplePageItems = true;
+                        }
+                        failurePhase = "assign-selected-items";
                         pivotField.VisibleItemsList = selectedItems.ToArray();
                     }
                 }
                 catch (Exception ex)
                 {
                     mutationFailure = ex;
+                    mutationFailurePhase = failurePhase;
                 }
                 if (manualUpdateChanged)
                 {
+                    failurePhase = "restore-update";
                     try
                     {
                         pivot.ManualUpdate = previousManualUpdate;
@@ -163,21 +271,25 @@ public partial class PivotTableCommands
                 }
                 if (mutationFailure is not null)
                 {
+                    failurePhase = mutationFailurePhase ?? failurePhase;
                     System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(mutationFailure).Throw();
                 }
 
+                failurePhase = "read-filter-state";
                 ReadReportFilterSelection(cubeField, pivotField, result);
                 result.Success = true;
             }
             catch (Exception ex) when (CreatedObjectFailure.CanReport(ex))
             {
                 result.Success = false;
+                result.FailurePhase = failurePhase;
                 result.ErrorMessage =
                     $"Failed to set report filter '{fieldName}' on PivotTable '{pivotTableName}' " +
-                    $"in worksheet '{sheetName}': {ex.Message}";
+                    $"in worksheet '{sheetName}' during {failurePhase}: {ex.Message}";
                 result.MayHavePartiallyChanged = filterMutationStarted;
                 if (filterMutationStarted && cubeField is not null && pivotField is not null)
                 {
+                    failurePhase = "read-filter-state-after-failure";
                     try
                     {
                         ReadReportFilterSelection(cubeField, pivotField, result);
@@ -209,28 +321,16 @@ public partial class PivotTableCommands
         string workbookPath, string sheetName, string pivotTableName, string fieldName,
         List<string> selectedItems)
     {
-        string? error = null;
-        if (string.IsNullOrWhiteSpace(sheetName))
-        {
-            error = "Worksheet name must not be empty.";
-        }
-        else if (string.IsNullOrWhiteSpace(pivotTableName))
-        {
-            error = "PivotTable name must not be empty.";
-        }
-        else if (string.IsNullOrWhiteSpace(fieldName))
-        {
-            error = "Field name must not be empty.";
-        }
-        else if (selectedItems is null)
+        string? error = ValidateReportFilterTarget(sheetName, pivotTableName, fieldName);
+        if (error is null && selectedItems is null)
         {
             error = "Selected items must be provided; use an empty list to show all members.";
         }
-        else if (selectedItems.Any(string.IsNullOrWhiteSpace))
+        else if (error is null && selectedItems!.Any(string.IsNullOrWhiteSpace))
         {
             error = "Selected member names must not be empty.";
         }
-        else if (selectedItems.Count != selectedItems.Distinct(StringComparer.Ordinal).Count())
+        else if (error is null && selectedItems!.Count != selectedItems.Distinct(StringComparer.Ordinal).Count())
         {
             error = "Selected member names must not contain duplicates.";
         }
@@ -244,32 +344,72 @@ public partial class PivotTableCommands
                 SheetName = sheetName,
                 PivotTableName = pivotTableName,
                 FieldName = fieldName,
+                RequestedItems = selectedItems is null ? null : [.. selectedItems],
                 FilePath = workbookPath
             };
+    }
+
+    private static string? ValidateReportFilterTarget(
+        string sheetName, string pivotTableName, string fieldName)
+    {
+        if (string.IsNullOrWhiteSpace(sheetName))
+        {
+            return "Worksheet name must not be empty.";
+        }
+        if (string.IsNullOrWhiteSpace(pivotTableName))
+        {
+            return "PivotTable name must not be empty.";
+        }
+        return string.IsNullOrWhiteSpace(fieldName) ? "Field name must not be empty." : null;
+    }
+
+    private static Excel.CubeField GetReportFilterCubeField(Excel.CubeFields cubeFields, string fieldName)
+    {
+        try
+        {
+            return cubeFields[fieldName];
+        }
+        catch (System.Runtime.InteropServices.COMException ex) when (
+            ex.HResult == unchecked((int)0x8002000B))
+        {
+            throw new ArgumentException(
+                $"Field '{fieldName}' was not found. Use the exact hierarchy unique name returned by " +
+                "pivottable_field(list-fields), not a level-qualified name.",
+                nameof(fieldName),
+                ex);
+        }
     }
 
     private static void ReadReportFilterSelection(
         Excel.CubeField cubeField, Excel.PivotField pivotField,
         PivotReportFilterResult result)
     {
+        result.FieldArea = PivotFieldArea.Filter;
+        result.MultipleSelectionEnabled = cubeField.EnableMultiplePageItems;
+        if (!result.MultipleSelectionEnabled)
+        {
+            string currentPageName = pivotField.CurrentPageName;
+            result.ShowAll = string.IsNullOrWhiteSpace(currentPageName)
+                || string.Equals(currentPageName, "(All)", StringComparison.OrdinalIgnoreCase)
+                || currentPageName.EndsWith(".[All]", StringComparison.OrdinalIgnoreCase);
+            result.SelectedItems = result.ShowAll ? [] : [currentPageName];
+            result.SelectionStateAvailable = true;
+            return;
+        }
+
         result.ShowAll = cubeField.AllItemsVisible;
         if (result.ShowAll)
         {
             result.SelectedItems.Clear();
+            result.SelectionStateAvailable = true;
             return;
         }
 
-        if (cubeField.EnableMultiplePageItems)
-        {
-            var visibleItems = pivotField.VisibleItemsList;
-            result.SelectedItems = visibleItems is Array items
-                ? items.Cast<object>().Select(item => item.ToString() ?? string.Empty).ToList()
-                : [];
-        }
-        else
-        {
-            result.SelectedItems = [pivotField.CurrentPageName];
-        }
+        var visibleItems = pivotField.VisibleItemsList;
+        result.SelectedItems = visibleItems is Array items
+            ? items.Cast<object>().Select(item => item.ToString() ?? string.Empty).ToList()
+            : [];
+        result.SelectionStateAvailable = true;
     }
 
     /// <summary>

@@ -75,7 +75,7 @@ public sealed class IrmProtectedWorkbookRegressionTests : IDisposable
         Assert.Equal(1, result.ExitCode);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
 
-        var error = json.RootElement.GetProperty("error").GetString();
+        var error = json.RootElement.GetProperty("errorMessage").GetString();
         Assert.NotNull(error);
         Assert.Contains("IRM/AIP-protected workbook", error, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("show=true", error, StringComparison.OrdinalIgnoreCase);
@@ -123,7 +123,7 @@ public sealed class IrmProtectedWorkbookRegressionTests : IDisposable
             else
             {
                 Assert.False(json.RootElement.GetProperty("success").GetBoolean());
-                var error = json.RootElement.GetProperty("error").GetString();
+                var error = json.RootElement.GetProperty("errorMessage").GetString();
                 Assert.False(string.IsNullOrWhiteSpace(error));
                 Assert.DoesNotContain("show=true", error, StringComparison.OrdinalIgnoreCase);
             }

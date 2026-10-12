@@ -40,6 +40,25 @@ public sealed class ValidationAreaTests
     }
 
     [Fact]
+    public async Task IssueTriage_SelectsAutomationChecksWithoutExcelOrPackaging()
+    {
+        var result = await ValidationSelectionTests.RunAsync("""
+            foreach ($path in @('scripts/IssueTriage.mjs', '.github/workflows/issue-triage.md',
+                '.github/workflows/issue-triage.lock.yml')) {
+                $plan = Get-ValidationPlan -Paths $path
+                if ($plan.Excel -or $plan.Packages -or $plan.FastProjects.Count -or $plan.ProcessProjects.Count) {
+                    throw "Unrelated runtime or packaging checks selected for $path"
+                }
+                if (($plan.ToolingProjects -join ',') -cne 'ScriptSafety' -or
+                    $plan.ToolingFilters.ScriptSafety -notmatch 'IssueTriageScriptTests') {
+                    throw "Missing automation checks for $path"
+                }
+            }
+            """);
+        Assert.True(result.ExitCode == 0, result.Output);
+    }
+
+    [Fact]
     public async Task CodeQl_TrackedSourceFilesSelectTheirLanguage()
     {
         var result = await new ProcessRunner(TypedValidationPolicyTests.Root).CheckedAsync("git",
@@ -75,7 +94,7 @@ public sealed class ValidationAreaTests
     [InlineData("npm-packages/mcp-server-excel-win32-x64/README.md", "Mcp")]
     [InlineData("npm-packages/mcp-server-excel-win32-arm64/README.md", "Mcp")]
     [InlineData("README.md", "Cli,Mcp")]
-    [InlineData("docs/AGENT-SKILLS.md", "Skills")]
+    [InlineData("docs/AGENT-SKILLS.md", "")]
     [InlineData("CHANGELOG.md", "Cli,Mcp,Extension,Mcpb")]
     [InlineData("LICENSE", "Cli,Mcp,Extension,Mcpb")]
     public async Task Documentation_SelectsPackageContentsWithoutRuntimeTests(string path, string components)
@@ -85,9 +104,9 @@ public sealed class ValidationAreaTests
             if ($plan.Excel -or $plan.FastProjects.Count -or $plan.ProcessProjects.Count) {
                 throw 'Documentation selected runtime validation.'
             }
-            $selected = @('Cli','Mcp','Extension','Mcpb','Skills','Plugins') | Where-Object { $plan.$_ }
+            $selected = @('Cli','Mcp','Extension','Mcpb','Plugins') | Where-Object { $plan.$_ }
             if (($selected -join ',') -cne '{{components}}') { throw "Wrong packages: $selected" }
-            $owner = if (-not '{{components}}') { '' } elseif ('{{components}}' -eq 'Skills') { 'SkillGeneration' } else { 'Packaging' }
+            $owner = if ('{{path}}' -eq 'docs/AGENT-SKILLS.md') { 'SkillGeneration' } elseif (-not '{{components}}') { '' } else { 'Packaging' }
             if (($plan.ToolingProjects -join ',') -cne $owner) { throw 'Package documentation checks were not selected.' }
             if ($owner -and -not $plan.ToolingFilters[$owner]) { throw 'Package documentation has no test filter.' }
             """);
@@ -106,7 +125,7 @@ public sealed class ValidationAreaTests
                 throw 'Owning workbook coverage lost or unchanged process tests selected.'
             }
             if ($plan.ToolingProjects.Count) { throw 'Unrelated publication tests selected.' }
-            $selected = @('Cli','Mcp','Extension','Mcpb','Skills','Plugins') | Where-Object { $plan.$_ }
+            $selected = @('Cli','Mcp','Extension','Mcpb','Plugins') | Where-Object { $plan.$_ }
             if (($selected -join ',') -ne 'Cli,Mcp,Extension') { throw "Wrong binary packages: $selected" }
             """);
         Assert.True(result.ExitCode == 0, result.Output);
@@ -198,9 +217,40 @@ public sealed class ValidationAreaTests
                     throw "Full tooling selection lost or added cases for $project."
                 }
             }
-            foreach ($component in @('Cli','Mcp','Extension','Mcpb','Skills','Plugins')) {
+            foreach ($component in @('Cli','Mcp','Extension','Mcpb','Plugins')) {
                 if (-not $plan.$component) { throw "Missing $component package." }
             }
+            """);
+        Assert.True(result.ExitCode == 0, result.Output);
+    }
+
+    [Theory]
+    [InlineData("skills/excel-cli/SKILL.md", "Extension,Plugins")]
+    [InlineData("scripts/Build-AgentSkills.ps1", "Extension,Plugins")]
+    [InlineData("docs/AGENT-SKILLS.md", "")]
+    [InlineData("scripts/Build-ReleasePackages.ps1", "Cli,Mcp,Extension,Mcpb,Plugins")]
+    [InlineData(".github/workflows/ci.yml", "")]
+    [InlineData("", "Cli,Mcp,Extension,Mcpb,Plugins")]
+    public async Task PackageSelection_WorkflowAndPlansOnlySelectSupportedComponents(string path, string expected)
+    {
+        var result = await ValidationSelectionTests.RunAsync($$"""
+            $plan = if ('{{path}}') { Get-ValidationPlan -Paths '{{path}}' } else { Get-ValidationPlan -Full }
+            $plan = $plan | ConvertTo-Json -Depth 10 | ConvertFrom-Json
+            if ($plan.PSObject.Properties.Name -contains 'Skills') { throw 'Retired Skills package is still in the CI plan.' }
+            $workflow = Get-Content .github/workflows/ci.yml -Raw
+            $match = [regex]::Match($workflow, '\$components = @\((?<components>[^)]+)\)')
+            if (-not $match.Success) { throw 'Package workflow selection not found.' }
+            $components = @([regex]::Matches($match.Groups['components'].Value, "'([^']+)'") |
+                ForEach-Object { $_.Groups[1].Value })
+            $supported = (Get-Command .\scripts\Build-ReleasePackages.ps1).Parameters['Components'].Attributes |
+                Where-Object { $_ -is [Management.Automation.ValidateSetAttribute] } |
+                ForEach-Object { $_.ValidValues }
+            if (($components -join ',') -cne ($supported -join ',')) { throw 'Workflow components do not match the package builder.' }
+            $selected = @($components | Where-Object { $plan.$_ })
+            if (($selected -join ',') -cne '{{expected}}') { throw "Wrong packages: $selected" }
+            if ($plan.Packages -ne ($selected.Count -gt 0)) { throw 'Package job selection disagrees with its components.' }
+            if ('{{path}}' -in @('skills/excel-cli/SKILL.md','scripts/Build-AgentSkills.ps1','docs/AGENT-SKILLS.md') -and
+                -not $plan.SkillTests) { throw 'Generated skill validation was lost.' }
             """);
         Assert.True(result.ExitCode == 0, result.Output);
     }

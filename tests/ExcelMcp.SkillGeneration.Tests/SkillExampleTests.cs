@@ -39,7 +39,7 @@ public sealed class SkillExampleTests
                 var source = Directory.CreateDirectory(Path.Combine(root, "skills", $"excel-{surface}-report-formatting")).FullName;
                 File.WriteAllText(Path.Combine(source, "SKILL.md"), "Authored skill");
             }
-            var output = new AuthoredPackages(root).Skills("1.2.3", null, generateOnly: true, prepared: null);
+            var output = new AuthoredPackages(root).Skills("1.2.3", null, generateOnly: true);
             Assert.Equal(["excel-cli", "excel-cli-report-formatting", "excel-mcp-report-formatting"],
                 Directory.GetDirectories(output).Select(Path.GetFileName).Order(StringComparer.Ordinal));
             Assert.Equal("Authored CLI discovery", File.ReadAllText(Path.Combine(output, "excel-cli", "SKILL.md")));

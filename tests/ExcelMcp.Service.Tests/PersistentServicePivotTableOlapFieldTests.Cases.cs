@@ -259,8 +259,28 @@ public partial class PersistentServicePivotTableOlapFieldTests
         Assert.True(removed.Success, removed.ErrorMessage);
         var placed = _pivotCommands.AddFilterField(batch, pivotName, fieldName);
         Assert.True(placed.Success, placed.ErrorMessage);
+        var wrongIdentifier = _pivotCommands.SetReportFilter(
+            batch, sheetName, pivotName, $"{fieldName}.[Region]", []);
+        Assert.False(wrongIdentifier.Success);
+        Assert.Contains("pivottable_field(list-fields)", wrongIdentifier.ErrorMessage);
+        Assert.False(wrongIdentifier.MayHavePartiallyChanged);
         refreshed = _pivotCommands.Refresh(batch, pivotName);
         Assert.True(refreshed.Success, refreshed.ErrorMessage);
+        var filterState = _pivotCommands.GetReportFilter(batch, sheetName, pivotName, fieldName);
+        Assert.True(filterState.Success, filterState.ErrorMessage);
+        Assert.Equal(PivotFieldArea.Filter, filterState.FieldArea);
+        Assert.True(filterState.SelectionStateAvailable);
+        string currentPageName = ReadCurrentPageName();
+        bool currentPageIsAll = IsAllCurrentPageName(currentPageName);
+        Assert.Equal(currentPageIsAll, filterState.ShowAll);
+        if (currentPageIsAll)
+        {
+            Assert.Empty(filterState.SelectedItems);
+        }
+        else
+        {
+            Assert.Equal([currentPageName], filterState.SelectedItems);
+        }
 
         _fixture.ExecuteRawVerification((context, _) =>
         {
@@ -302,11 +322,18 @@ public partial class PersistentServicePivotTableOlapFieldTests
         var nativeSingle = _pivotCommands.GetData(batch, pivotName);
         Assert.True(nativeSingle.Success, nativeSingle.ErrorMessage);
         Assert.Equal(11500, ReadScalar(nativeSingle));
+        filterState = _pivotCommands.GetReportFilter(batch, sheetName, pivotName, fieldName);
+        Assert.True(filterState.Success, filterState.ErrorMessage);
+        Assert.False(filterState.MultipleSelectionEnabled);
+        Assert.Equal([memberNames[0]], filterState.SelectedItems);
         var selected = _pivotCommands.SetReportFilter(
             batch, sheetName, pivotName, fieldName, [memberNames[0], memberNames[1]]);
         Assert.True(selected.Success, selected.ErrorMessage);
         Assert.False(selected.ShowAll);
+        Assert.Equal([memberNames[0], memberNames[1]], selected.RequestedItems);
         Assert.Equal([memberNames[0], memberNames[1]], selected.SelectedItems);
+        Assert.True(selected.SelectionStateAvailable);
+        Assert.True(selected.MultipleSelectionEnabled);
         var nativeSingleToMulti = _pivotCommands.GetData(batch, pivotName);
         Assert.True(nativeSingleToMulti.Success, nativeSingleToMulti.ErrorMessage);
         Assert.Equal(22000, ReadScalar(nativeSingleToMulti));
@@ -351,7 +378,24 @@ public partial class PersistentServicePivotTableOlapFieldTests
         selected = _pivotCommands.SetReportFilter(batch, sheetName, pivotName, fieldName, []);
         Assert.True(selected.Success, selected.ErrorMessage);
         Assert.True(selected.ShowAll);
+        Assert.True(selected.SelectionStateAvailable);
+        Assert.False(selected.MultipleSelectionEnabled);
         Assert.Empty(selected.SelectedItems);
+        filterState = _pivotCommands.GetReportFilter(batch, sheetName, pivotName, fieldName);
+        Assert.True(filterState.Success, filterState.ErrorMessage);
+        Assert.False(filterState.MultipleSelectionEnabled);
+        currentPageName = ReadCurrentPageName();
+        currentPageIsAll = IsAllCurrentPageName(currentPageName);
+        Assert.Equal(currentPageIsAll, filterState.ShowAll);
+        Assert.True(filterState.SelectionStateAvailable);
+        if (currentPageIsAll)
+        {
+            Assert.Empty(filterState.SelectedItems);
+        }
+        else
+        {
+            Assert.Equal([currentPageName], filterState.SelectedItems);
+        }
         var clearedNativeSingle = _pivotCommands.GetData(batch, pivotName);
         Assert.True(clearedNativeSingle.Success, clearedNativeSingle.ErrorMessage);
         Assert.Equal(49000, ReadScalar(clearedNativeSingle));
@@ -379,6 +423,12 @@ public partial class PersistentServicePivotTableOlapFieldTests
         Assert.True(selected.Success, selected.ErrorMessage);
         Assert.False(selected.ShowAll);
         Assert.Equal([memberNames[0]], selected.SelectedItems);
+        Assert.True(selected.MultipleSelectionEnabled);
+        filterState = _pivotCommands.GetReportFilter(batch, sheetName, pivotName, fieldName);
+        Assert.True(filterState.Success, filterState.ErrorMessage);
+        Assert.False(filterState.ShowAll);
+        Assert.True(filterState.MultipleSelectionEnabled);
+        Assert.Equal([memberNames[0]], filterState.SelectedItems);
         var singleSelected = _pivotCommands.GetData(batch, pivotName);
         Assert.True(singleSelected.Success, singleSelected.ErrorMessage);
         Assert.Equal(11500, ReadScalar(singleSelected));
@@ -414,11 +464,19 @@ public partial class PersistentServicePivotTableOlapFieldTests
         var rejected = _pivotCommands.SetReportFilter(
             batch, sheetName, pivotName, fieldName, ["[RegionalSalesTable].[Region].&[Missing]"]);
         Assert.False(rejected.Success);
+        Assert.Equal(["[RegionalSalesTable].[Region].&[Missing]"], rejected.RequestedItems);
         Assert.True(rejected.MayHavePartiallyChanged);
         Assert.False(rejected.RollbackAttempted);
+        Assert.True(rejected.SelectionStateAvailable);
+        Assert.Equal("assign-selected-items", rejected.FailurePhase);
         Assert.False(string.IsNullOrWhiteSpace(rejected.ErrorMessage));
         Assert.True(rejected.ShowAll);
         Assert.Empty(rejected.SelectedItems);
+        filterState = _pivotCommands.GetReportFilter(batch, sheetName, pivotName, fieldName);
+        Assert.True(filterState.Success, filterState.ErrorMessage);
+        Assert.True(filterState.ShowAll);
+        Assert.True(filterState.SelectionStateAvailable);
+        Assert.Empty(filterState.SelectedItems);
         allSelected = _pivotCommands.GetData(batch, pivotName);
         Assert.True(allSelected.Success, allSelected.ErrorMessage);
         Assert.Equal(49000, ReadScalar(allSelected));
@@ -446,6 +504,46 @@ public partial class PersistentServicePivotTableOlapFieldTests
         Assert.False(rejected.MayHavePartiallyChanged);
         Assert.Contains("report-filter area", rejected.ErrorMessage);
         AssertCubeFieldOrientation(sheetName, pivotName, fieldName, PivotFieldArea.Row);
+
+        string ReadCurrentPageName() => _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.PivotTables? pivots = null;
+            Excel.PivotTable? pivot = null;
+            Excel.CubeFields? cubes = null;
+            Excel.CubeField? cube = null;
+            Excel.PivotFields? fields = null;
+            Excel.PivotField? field = null;
+            try
+            {
+                sheets = context.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[sheetName];
+                pivots = (Excel.PivotTables)sheet.PivotTables();
+                pivot = pivots.Item(pivotName);
+                cubes = pivot.CubeFields;
+                cube = cubes[fieldName];
+                fields = cube.PivotFields;
+                field = fields.Item(1);
+                return field.CurrentPageName;
+            }
+            finally
+            {
+                ComUtilities.Release(ref field);
+                ComUtilities.Release(ref fields);
+                ComUtilities.Release(ref cube);
+                ComUtilities.Release(ref cubes);
+                ComUtilities.Release(ref pivot);
+                ComUtilities.Release(ref pivots);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
+
+        static bool IsAllCurrentPageName(string currentPageName) =>
+            string.IsNullOrWhiteSpace(currentPageName)
+            || string.Equals(currentPageName, "(All)", StringComparison.OrdinalIgnoreCase)
+            || currentPageName.EndsWith(".[All]", StringComparison.OrdinalIgnoreCase);
 
         static double ReadScalar(PivotTableDataResult result)
         {

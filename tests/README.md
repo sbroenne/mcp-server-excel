@@ -345,7 +345,7 @@ script-safety checks. Each Tooling project has its own filter, so a script-safet
 change cannot broaden a documentation-count or publication selection in another
 project. Runtime source changes select owning behavior and necessary boundaries,
 but do not automatically select publication tests, metadata-only MCPB/plugins,
-or authored skill ZIPs. Binary changes still select their consuming packages,
+or standalone skill ZIPs (which are no longer published). Binary changes still select their consuming packages,
 including the extension when its bundled server changes.
 Bundled-server-only edits still compile and inspect the VSIX, but do not rerun
 the unchanged extension source suite. Extension source inputs and explicit full
@@ -461,7 +461,7 @@ Excel-free distribution and script checks have separate projects:
 `ExcelMcp.Packaging.Tests` owns release metadata, plugin publication, package
 contents, and launch wrappers; `ExcelMcp.ScriptSafety.Tests` owns commit hooks,
 validation selection, and script safety. `ExcelMcp.SkillGeneration.Tests` owns
-only skill preparation, references, native examples, and standalone skill ZIPs.
+only skill preparation, references, and native examples.
 Changed paths select the owning checks locally and in CI. Full validation runs
 all three projects. Changes to the shared packaging helpers select both skill
 and packaging checks, without unrelated runtime tests.
@@ -730,7 +730,7 @@ tests/
 ├── ExcelMcp.McpServer.Tests/      # MCP protocol layer (Integration)
 ├── ExcelMcp.CLI.Tests/            # CLI wrapper (Integration)
 ├── ExcelMcp.ComInterop.Tests/     # COM utilities and session infrastructure
-├── ExcelMcp.SkillGeneration.Tests/ # Skill preparation and standalone skill ZIPs
+├── ExcelMcp.SkillGeneration.Tests/ # Skill preparation and native examples
 ├── ExcelMcp.Packaging.Tests/        # Packaging, releases, and plugin publication
 └── ExcelMcp.ScriptSafety.Tests/     # Commit hooks and script safety
 

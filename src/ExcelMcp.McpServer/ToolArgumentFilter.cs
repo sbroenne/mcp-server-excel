@@ -44,7 +44,10 @@ internal static class ToolArgumentFilter
                         throw new ArgumentException($"Parameter '{name}' is required.");
                 }
 
-                McpActionContract.ValidateParameters(tool.ProtocolTool.Name, canonicalAction, arguments.Keys);
+                // Clients may send every advertised default, so only meaningful values must apply to the action.
+                McpActionContract.ValidateParameters(tool.ProtocolTool.Name, canonicalAction, arguments
+                    .Where(argument => !IsAdvertisedDefault(argument.Value, properties.GetProperty(argument.Key)))
+                    .Select(argument => argument.Key));
                 foreach (var parameter in McpActionContract.GetParameters(tool.ProtocolTool.Name, canonicalAction)
                     .Where(parameter => parameter.Required))
                 {
@@ -68,6 +71,10 @@ internal static class ToolArgumentFilter
 
             return next(request, cancellationToken);
         };
+
+    private static bool IsAdvertisedDefault(JsonElement value, JsonElement schema) =>
+        value.ValueKind == JsonValueKind.Null ||
+        (schema.TryGetProperty("default", out var defaultValue) && JsonElement.DeepEquals(value, defaultValue));
 
     private static void ValidateValueKind(string name, JsonElement value, JsonElement schema)
     {

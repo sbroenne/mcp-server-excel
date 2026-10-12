@@ -30,7 +30,7 @@ Unlike file-parser libraries that rewrite `.xlsx` files directly, ExcelMcp drive
 1. **VS Code Extension** - [One-click install](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) for GitHub Copilot
 2. **npm** - Run through `npx` with no .NET installation or manual executable setup
 3. **Standalone exe** - Works with Claude Desktop, Cursor, Cline, Windsurf, and other MCP clients
-4. **MCP Registry** - Find us at [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/v0/servers?search=io.github.sbroenne/mcp-server-excel) as `io.github.sbroenne/mcp-server-excel`
+4. **MCP Registry** - Find us at [registry.modelcontextprotocol.io](https://registry.modelcontextprotocol.io/v0.1/servers/io.github.sbroenne%2Fmcp-server-excel/versions/latest) as `io.github.sbroenne/mcp-server-excel`
 
 **Manual Installation (All MCP Clients):**
 
@@ -71,9 +71,9 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 
 ## 🛠️ What You Can Do
 
-**60 MCP tools across 31 feature areas, with 408 operations** covering Power Query, Data Model/DAX, What-If Analysis, PivotTables, Excel Tables, Charts, Drawings, VBA, Ranges, Worksheets, Workbooks, QueryTables, XML Maps, Connections, Named Ranges, File/Session management, Calculation Mode, Slicers, Conditional Formatting, Screenshots, and Window Management.
+**60 MCP tools across 31 feature areas, with 411 operations** covering Power Query, Data Model/DAX, What-If Analysis, PivotTables, Excel Tables, Charts, Drawings, VBA, Ranges, Worksheets, Workbooks, QueryTables, XML Maps, Connections, Named Ranges, File/Session management, Calculation Mode, Slicers, Conditional Formatting, Screenshots, and Window Management.
 
-📚 **[Feature Overview →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)** - Capabilities grouped by goal. Current actions and inputs for all 408 operations are described by the server's tools.
+📚 **[Feature Overview →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)** - Capabilities grouped by goal. Current actions and inputs for all 411 operations are described by the server's tools.
 
 **AI-Powered Workflows:**
 - 💬 Natural language Excel commands through GitHub Copilot, Claude, or ChatGPT
@@ -127,7 +127,7 @@ explicit calculation before relying on dependent values.
 - **[GitHub Repository](https://github.com/sbroenne/mcp-server-excel)** - Source code, issues, discussions
 - **[MCP Server Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION-MCP-SERVER.md)** - Detailed setup for all platforms
 - **[VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)** - One-click installation
-- **[CLI Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)** - Comprehensive commands for RPA and CI/CD automation
+- **[CLI Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)** - the same features as terminal commands for coding agents, usually with fewer AI tokens
 
 **License:** MIT  
 **Privacy:** [PRIVACY.md](https://github.com/sbroenne/mcp-server-excel/blob/main/PRIVACY.md)

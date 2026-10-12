@@ -40,8 +40,13 @@ Commands and prerequisites: [tests/README.md](README.md#quick-start).
   collection; separate Excel testhosts must not overlap. `RequiresExcel=false`
   alone does not establish parallel safety or low cost.
 - Positive tests assert successful prerequisites and verification responses,
-  then concrete workbook state and returned fields. Setup failure or an
-  expected error is not a successful positive test.
+  then exact values for every result field or workbook state the change adds
+  or advertises. Tests must fail if those fields are unexpectedly empty,
+  default, or stuck at one value. Cover each value of status flags (for example,
+  complete and incomplete) and promised data shapes (for example, multi-level
+  hierarchies, captions differing from names, and collections larger than a
+  requested bound). Setup failure or an expected error is not a successful
+  positive test.
 - Verify inside the test after the operation and before cleanup. No exception,
   success alone, object existence, or a loose count is not an outcome check.
   Replacements prove old/new state; refresh changes the source first;

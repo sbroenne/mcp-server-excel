@@ -26,7 +26,7 @@ its official COM API. It can refresh Power Query, recalculate formulas, evaluate
 DAX, run VBA and Python `=PY()`, and preserve PivotTables, charts, macros, the
 Data Model, and workbook formatting.
 
-**60 MCP tools across 31 feature areas, with 408 operations**, cover end-to-end Excel automation.
+**60 MCP tools across 31 feature areas, with 411 operations**, cover end-to-end Excel automation.
 
 > [!IMPORTANT]
 > Requires **Windows**, **Microsoft Excel 2016 or later**, and an interactive
@@ -38,8 +38,17 @@ Data Model, and workbook formatting.
 |---|---|
 | **VS Code** | [Install the extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) |
 | **Claude Desktop or another MCP client** | [Install the MCP Server](https://excelmcpserver.dev/installation-mcp-server/) |
-| **Coding agents and scripts** | [Install the CLI](https://excelmcpserver.dev/installation-cli/) |
+| **Coding agents (fewer AI tokens)** | [Install the CLI](https://excelmcpserver.dev/installation-cli/) |
 | **Not sure which to choose?** | [Read the installation overview](https://excelmcpserver.dev/installation/) |
+
+For **GitHub Copilot CLI**, install either plugin from the
+[Awesome Copilot Excel listings](https://github.com/github/awesome-copilot/blob/main/plugins/external.json):
+
+```powershell
+copilot plugin install excel-mcp@awesome-copilot
+# Or, for command-line Excel automation:
+copilot plugin install excel-cli@awesome-copilot
+```
 
 Close open Excel workbooks before starting; ExcelMcp requires exclusive access
 while automating them.
@@ -55,7 +64,7 @@ while automating them.
 - **[Automation & advanced](https://excelmcpserver.dev/features/automation-advanced/):**
   VBA, Python in Excel, Goal Seek, scenarios, data tables, windows, and XML Maps.
 
-Explore the [capabilities behind all 408 operations](https://excelmcpserver.dev/features/).
+Explore the [capabilities behind all 411 operations](https://excelmcpserver.dev/features/).
 Current command details come from CLI help or the MCP tool descriptions.
 
 ## See It in Action
@@ -76,12 +85,13 @@ the workbook normally.
 
 ## MCP Server or CLI?
 
-Both entry points expose the same Core commands and behavior.
+Both entry points expose the same Core commands and behavior, so the choice is
+technical. Coding agents can use either one.
 
-| Interface | Best for | Why |
+| Interface | Works with | Why |
 |---|---|---|
-| **MCP Server** | Conversational assistants and exploratory work | Rich schemas, tool discovery, and persistent sessions |
-| **CLI (`excelcli`)** | Coding agents, automation, and scripts | One compact tool surface and substantially lower token usage |
+| **MCP Server** | Any MCP-compatible client | Tool discovery and persistent sessions |
+| **CLI (`excelcli`)** | Agents that can run terminal commands | Built-in help without loading MCP tool definitions, usually with fewer AI tokens |
 
 The MCP Server calls the ExcelMcp service in-process. The CLI uses a background
 daemon so workbook sessions persist across commands.

@@ -78,7 +78,7 @@ is a displayed query result, not a calculated table inside the model.
 
 ---
 
-## PivotTables (55 operations)
+## PivotTables (56 operations)
 
 - **Build summaries:** Create PivotTables from ranges, worksheet Tables, or the Data Model, then configure rows, columns, values, and filters.
 - **Choose calculations:** Set aggregation and Show Values As independently; use calculated fields/items for regular PivotTables or supported calculated members for model-backed ones.
@@ -113,9 +113,21 @@ use Power Query behavior rather than ordinary OLEDB/ODBC connection handling.
 Connection details can contain credentials: do not publish them in reports or
 error summaries. Use direct text/web imports for simple imports and Power Query
 for transformations and modern connectors. External OLAP schema discovery uses
-the selected connection's existing Excel authentication context; it does not
-refresh data, change PivotTable filters, save the workbook, or inspect the
-embedded Data Model.
+the selected connection's existing Excel authentication context and requires
+Excel to expose its active ADO session. Do not refresh automatically. If the user
+authorizes a refresh, use MCP tool `connection` action `refresh` with the same
+exact `connection_name`, or CLI `excelcli connection refresh --connection-name`
+with that exact name and the same session. Check that refresh succeeded, then
+retry MCP `connection_read` action `discover-olap-schema` or
+`search-olap-members` (CLI: `excelcli connection discover-olap-schema` or
+`excelcli connection search-olap-members`). Refresh may update workbook data or
+require interactive sign-in, and does not guarantee that Excel will expose the
+session. If refresh fails, report that error and stop this recovery path. If
+discovery still fails, report the unavailable session, not a definitive
+unsupported-provider diagnosis. Ask the user to complete any sign-in in desktop
+Excel. Discovery does not refresh
+data, change PivotTable filters, save the workbook, or inspect the embedded
+Data Model. Never include credentials or connection strings in a request.
 
 Member paging reads up to 10,000 entries at the selected level and orders them by
 their provider unique names. Larger levels return an explicit error; choose a

@@ -53,7 +53,7 @@ public sealed class PythonInExcelTimeoutRegressionTests : IDisposable
 
             Assert.Equal(1, getResult.ExitCode);
             Assert.False(getJson.RootElement.GetProperty("success").GetBoolean());
-            Assert.Contains("session operation timeout", getJson.RootElement.GetProperty("error").GetString());
+            Assert.Contains("session operation timeout", getJson.RootElement.GetProperty("errorMessage").GetString());
 
             var (listResult, listJsonDocument) = await CliProcessHelper.RunJsonAsync(
                 ["session", "list"],

@@ -1,6 +1,9 @@
 # Installing the CLI - ExcelMcp
 
-Installation instructions for the ExcelMcp **CLI** (`excelcli`) — the entry point for scripting, RPA, CI/CD pipelines, and coding agents that prefer a token-efficient single-tool interface. Looking for the MCP Server instead? See the [MCP Server Installation Guide](INSTALLATION-MCP-SERVER.md).
+Installation instructions for the ExcelMcp **CLI** (`excelcli`), for coding
+agents that run terminal commands. It offers the same features as the MCP
+Server and usually uses fewer AI tokens. Looking for the MCP Server instead? See the
+[MCP Server Installation Guide](INSTALLATION-MCP-SERVER.md).
 
 ## System Requirements
 
@@ -32,7 +35,7 @@ The current **excel-cli GitHub Copilot plugin** runs the public npm package thro
 `npx -y @sbroenne/excelcli@latest`; npm manages package resolution and caching.
 No separate CLI installation is needed for plugin-driven flows. The **VS Code
 extension** does *not* include the CLI (it only bundles the MCP server); use
-`npx` or install the CLI separately for scripting outside the plugin. For direct use:
+`npx` or install the CLI separately for agent workflows outside the plugin. For direct use:
 
 Use npm (below) or download the standalone executable if you prefer not to
 install Node.js.
@@ -119,7 +122,7 @@ excelcli -q session close --session "SESSION_ID"
 
 ## GitHub Copilot Plugin
 
-**Best for:** GitHub Copilot CLI users who want token-efficient scripting/skill guidance through the plugin marketplace
+**Best for:** GitHub Copilot CLI users whose agents work through terminal commands and built-in CLI help
 
 The plugin is listed in [Awesome Copilot](https://github.com/github/awesome-copilot),
 the default marketplace in current Copilot clients:

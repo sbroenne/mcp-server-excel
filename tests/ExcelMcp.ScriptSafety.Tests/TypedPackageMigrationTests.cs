@@ -34,6 +34,6 @@ public sealed class TypedPackageMigrationTests
         Assert.Contains("SkillGeneration", plan.ToolingProjects);
         Assert.False(plan.Excel);
         Assert.False(plan.FullE2E);
-        Assert.True(plan.Cli && plan.Mcp && plan.Extension && plan.Mcpb && plan.Skills && plan.Plugins);
+        Assert.True(plan.Cli && plan.Mcp && plan.Extension && plan.Mcpb && plan.Plugins);
     }
 }

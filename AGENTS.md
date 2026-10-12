@@ -157,6 +157,15 @@ behavior are not unnecessary complexity.
 - Coding-agent assignments requesting repository changes authorize delivery
   commits and a PR. Otherwise ask before commit/push. Merging and publishing
   require separate authorization.
+- Before opening a PR or pushing further changes to one, run an independent
+  review of the complete branch diff in a fresh context (for example, a
+  code-review subagent) against the Code Review Rules. Fix confirmed findings
+  and repeat until no high-confidence findings remain. After that review, run
+  `ponytail-review` when available on the complete branch diff, following its
+  scope in the Code Review Rules. Then verify that the PR description and
+  changeset claim only what the diff does, and search the whole repository,
+  including samples, workflows, `.squad` templates, and docs, for stale
+  references to anything renamed or removed.
 - Before finalizing a PR, resolve every review thread after addressing it, or
   dismiss it with a clear recorded reason when no change is appropriate. Never
   leave review comments unanswered or unresolved.

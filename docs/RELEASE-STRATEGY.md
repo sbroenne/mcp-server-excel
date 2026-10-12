@@ -13,7 +13,6 @@ All ExcelMcp components are released together with a single version tag:
 | **VS Code Extension** | VSIX + Marketplace | — | Self-contained — bundles MCP Server and its skill |
 | **MCPB** | Claude Desktop bundle | — | Direct npx configuration with `@latest`; requires Node.js/npm on PATH |
 | **GitHub Copilot Plugins** | Published plugin marketplace | — | `excel-mcp` and `excel-cli` plugins with npx launch configuration, an argument-safe CLI wrapper, and skills |
-| **Agent Skills** | GitHub Release ZIP | Direct skill extraction | Reusable skill packages for AI coding assistants (`npx skills add`) |
 
 ## Unified Release Workflow
 
@@ -31,15 +30,14 @@ When you run the release workflow, all components are released together:
 2. **MCP Server** → npm launcher and Windows runtime packages + standalone self-contained exe ZIP [primary] + NuGet pack [secondary]
 3. **VS Code Extension** → Self-contained Windows x64 and ARM64 VSIX packages (bundle the MCP executable and skill) → VS Code Marketplace
 4. **MCPB** → Claude Desktop bundle (`.mcpb` file)
-5. **Agent Skills** → ZIP package for AI coding assistants
-6. **GitHub Copilot Plugins** → `publish-plugins.yml` compares prepared output and
+5. **GitHub Copilot Plugins** → `publish-plugins.yml` compares prepared output and
    publishes only real content changes; unchanged plugins retain their prior
    version/tag while npx launchers use the latest npm runtime, with npm-managed
    resolution and caching (see
    [Plugin Publishing](../.github/workflows/docs/publish-plugins-setup.md))
-7. **NuGet** → Both packages published to NuGet.org (secondary channel)
-8. **MCP Registry** → Updated after NuGet and npm propagation
-9. **GitHub Release** → Created with all artifacts and the prepared changelog notes
+6. **NuGet** → Both packages published to NuGet.org (secondary channel)
+7. **MCP Registry** → Updated after NuGet and npm propagation
+8. **GitHub Release** → Created with all artifacts and the prepared changelog notes
 
 ### Release Artifacts
 
@@ -57,7 +55,6 @@ When you run the release workflow, all components are released together:
 | `RELEASE-INPUTS.json` and `release-metadata.patch` | Build-input record and exact metadata patch | GitHub Release (workflow path/source commit, patch digest, final release commit/tag, and artifact digests; not a signed provenance attestation) |
 | `Sbroenne.ExcelMcp.CLI.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `excelcli.exe`, requires .NET 10 runtime) |
 | `Sbroenne.ExcelMcp.McpServer.{version}.nupkg` | NuGet | NuGet.org (secondary — contains `mcp-excel.exe`, requires .NET 10 runtime) |
-| `excel-skills-v{version}.zip` | ZIP | GitHub Release (contains `excel-cli-report-formatting` + `excel-mcp-report-formatting` skills for direct extraction) |
 | `excel-mcp-{version}.vsix` | VSIX | GitHub Release + VS Code Marketplace (Windows x64; self-contained MCP executable and skill) |
 | `excel-mcp-{version}-win32-arm64.vsix` | VSIX | GitHub Release + VS Code Marketplace (Windows ARM64; self-contained native ARM64 MCP executable and skill) |
 | `excel-mcp-{version}.mcpb` | MCPB | GitHub Release (Claude Desktop metadata bundle; server fetched through npx with `@latest`) |
@@ -96,7 +93,7 @@ workflow runs (see [Changelog Generation](#changelog-generation) below).
 The workflow will:
 1. Calculate the next version from the latest git tag
 2. Consume the counts reviewed in the source PR and compile pending changesets into the current release changelog
-3. Build all components (npm packages, standalone exes, and NuGet packages), packaging the generated documentation where applicable
+3. Build all components (npm packages, standalone exes, and NuGet packages), preparing generated guidance for the plugins and VS Code extension
 4. Commit the generated release metadata and create the git tag (`v1.5.7`) at that commit
 5. Publish to npm, NuGet.org, VS Code Marketplace, and MCP Registry
 6. Create the GitHub Release with all artifacts and the prepared release notes
@@ -113,7 +110,7 @@ operations rather than implementing separate packaging rules.
 
 1. **version** → Calculates the version from the latest tag and dispatch input
 2. **prepare-release** → Compiles changesets once and uploads the exact metadata patch and notes
-3. **build-packages** → Applies that patch and calls `Build-ReleasePackages.ps1` for all NuGet, npm, runtime ZIP, VSIX, MCPB, skill and plugin outputs. ARM64 archives are checked here; `verify-arm64` then installs and executes both prepared npm distributions on native Windows ARM64 before tag creation.
+3. **build-packages** → Applies that patch and calls `Build-ReleasePackages.ps1` for all NuGet, npm, runtime ZIP, VSIX, MCPB, and plugin outputs. ARM64 archives are checked here; `verify-arm64` then installs and executes both prepared npm distributions on native Windows ARM64 before tag creation.
 4. **create-tag** → Applies the same patch, checks that `main` has not advanced, commits only allowed release metadata, then tags that commit
 5. **create-release** → Prepares a draft, uploads and verifies all GitHub assets and checksums, then publishes it with prepared notes
 6. **publish** → Publishes npm and NuGet packages
@@ -128,7 +125,7 @@ Other destinations retain their documented recovery procedures.
 
 ### GitHub asset integrity and replay
 
-`scripts\Publish-GitHubRelease.ps1` requires all seven prepared GitHub package
+`scripts\Publish-GitHubRelease.ps1` requires all six prepared GitHub package
 assets before creating a draft. It includes the exact metadata patch and
 `RELEASE-INPUTS.json`, then calculates checksums for the complete payload.
 Only draft assets may be replaced. Before publishing, every expected GitHub
@@ -166,7 +163,7 @@ before enabling it or tightening release-writer permissions.
 
 After workflow completes:
 
-- [ ] GitHub Release created with all artifacts (MCP Server ZIP, CLI ZIP, `SHA256SUMS`, VSIX, MCPB, skills ZIP)
+- [ ] GitHub Release created with all artifacts (MCP Server ZIP, CLI ZIP, `SHA256SUMS`, VSIX, MCPB, plugin ZIP)
 - [ ] All six npm packages (MCP Server and CLI launchers plus their x64 and ARM64 Windows runtimes) are available at the release version
 - [ ] NuGet packages available on NuGet.org (may take 10-30 min for full propagation)
 - [ ] VS Code Marketplace updated (verify self-contained extension works without .NET)
@@ -285,7 +282,8 @@ The release workflow injects the correct version from the tag.
 3. **At release time**, the `prepare-release` job in `release.yml` runs `scripts/Build-Changelog.ps1 -Version <version> -Date <date>`, which:
    - Runs `npx changeset version` to consume every pending fragment, deleting them.
    - Normalizes the tool's generated version header to this repo's `## [X.Y.Z] - YYYY-MM-DD` (Keep a Changelog) style.
-   - Extracts the new section verbatim into `release_notes_body.md`, used directly as the "What's New" body of the GitHub Release.
+   - Extracts the generated section into `release_notes_body.md` and runs `Format-ReleaseNotes.ps1` for the GitHub Release's "What's New" section. Release notes use plain headings and description-first entries with PR links, omit commit links and maintainer self-thanks, and preserve other contributor credits. `CHANGELOG.md` keeps the original generated entries. Separate changes from the same PR remain separate entries.
+   - Stops release preparation if pending fragments do not produce a changelog section, instead of silently publishing placeholder notes.
 4. **Artifact builds** consume that prepared changelog, so packaged VS Code and MCPB changelog files include the version being released.
 5. **After all builds pass**, the `create-tag` job regenerates the metadata using the same release date and verifies it byte-for-byte against the prepared artifact. It commits `CHANGELOG.md`, synchronized version metadata, and consumed `.changeset/*.md` deletions to `main` through the Git Data API, then points the release tag at that exact commit.
 

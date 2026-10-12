@@ -27,8 +27,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// </summary>
 [ServiceCategory("PivotTableField")]
 [McpTool("pivottable_field", Title = "PivotTable Field Operations", Destructive = true, Category = "analysis",
-    Description = "PivotTable field management: add/remove/configure fields, filtering, sorting, and grouping. IMPORTANT: Field placement modifies structure only - call pivottable(refresh) after configuring, especially for OLAP/Data Model PivotTables. FIELD AREAS: Row (categories), Column (headers), Value (aggregation: Sum/Count/Average/Max/Min/etc.), Filter (report-level). SHOW VALUES AS: set-field-calculation targets an exact displayed Values name, independently of aggregation, and verifies native settings. OLAP/Data Model BaseField/BaseItem are unavailable; ignored native calculations fail with source-measure guidance. GROUPING: date (Days/Months/Quarters/Years), numeric (start/end/interval). NUMBER FORMAT: US format codes. Use pivottable for lifecycle, pivottable_calc for calculated fields.")]
-[McpReadOnlyActions("list-fields", "get-field-filters", "get-item-expansion", "get-field-options", "get-subtotal-functions")]
+    Description = "PivotTable field management: add/remove/configure fields, filtering, sorting, and grouping. Use the targeted read action for bounded, exact OLAP/Data Model report-filter state and set-report-filter to change one PivotTable's member selection. Use the exact hierarchy unique name returned by field listing, not a level-qualified name. IMPORTANT: Field placement modifies structure only - call pivottable(refresh) after configuring, especially for OLAP/Data Model PivotTables. FIELD AREAS: Row (categories), Column (headers), Value (aggregation: Sum/Count/Average/Max/Min/etc.), Filter (report-level). SHOW VALUES AS: set-field-calculation targets an exact displayed Values name, independently of aggregation, and verifies native settings. OLAP/Data Model BaseField/BaseItem are unavailable; ignored native calculations fail with source-measure guidance. GROUPING: date (Days/Months/Quarters/Years), numeric (start/end/interval). NUMBER FORMAT: US format codes. Use pivottable for lifecycle, pivottable_calc for calculated fields.")]
+[McpReadOnlyActions("list-fields", "get-field-filters", "get-report-filter", "get-item-expansion", "get-field-options", "get-subtotal-functions")]
 public interface IPivotTableFieldCommands
 {
     // === FIELD MANAGEMENT (WITH IMMEDIATE VALIDATION) ===
@@ -79,7 +79,9 @@ public interface IPivotTableFieldCommands
     ///    - Creates a new workbook DAX measure with the specified aggregation function; external cube columns cannot create workbook measures
     ///    - customName becomes the measure name
     ///
-    /// For Regular PivotTables: Adds column with aggregation function
+    /// For Regular PivotTables: Adds column with aggregation function.
+    /// Reports failure if Excel leaves the PivotTable collapsed to a #SPILL! cell.
+    /// The field change is not rolled back; inspect pivottable read/list layoutError and nearby cells before recovery.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>
@@ -189,18 +191,35 @@ public interface IPivotTableFieldCommands
     /// <summary>
     /// Sets the selected members of an OLAP/Data Model report filter on one PivotTable.
     /// Pass an empty selectedItems list to show all members. Member names must be exact
-    /// unique names returned by Excel. This operation does not change the Data Model or
-    /// other PivotTables. A failed write may have partially changed the filter.
+    /// unique names returned by Excel. fieldName must be the exact hierarchy unique name
+    /// returned by list-fields, not a level-qualified name. This operation does not
+    /// change the Data Model or other PivotTables. A failed write may have partially
+    /// changed the filter; RequestedItems and SelectedItems distinguish the request
+    /// from successfully read actual state.
     /// </summary>
     /// <param name="batch">Excel batch session.</param>
     /// <param name="sheetName">Worksheet containing the target PivotTable.</param>
     /// <param name="pivotTableName">Exact PivotTable name on the worksheet.</param>
     /// <param name="fieldName">Exact OLAP CubeField unique name.</param>
     /// <param name="selectedItems">Member unique names to show; empty means show all.</param>
-    /// <returns>The actual selected member unique names and whether all members are shown.</returns>
+    /// <returns>The request, actual selected member names, All state, selection mode, and failure phase.</returns>
     [ServiceAction("set-report-filter")]
     PivotReportFilterResult SetReportFilter(IExcelBatch batch, string sheetName,
         string pivotTableName, string fieldName, List<string> selectedItems);
+
+    /// <summary>
+    /// Reads the exact state of one placed OLAP/Data Model report filter.
+    /// The result is limited to the selected hierarchy; it does not list hidden
+    /// fields or every Values instance.
+    /// </summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="sheetName">Worksheet containing the target PivotTable.</param>
+    /// <param name="pivotTableName">Exact PivotTable name on the worksheet.</param>
+    /// <param name="fieldName">Exact hierarchy unique name returned by list-fields, not a level name.</param>
+    /// <returns>Exact selected member unique names, All state, selection mode, and placement for this hierarchy.</returns>
+    [ServiceAction("get-report-filter")]
+    PivotReportFilterResult GetReportFilter(
+        IExcelBatch batch, string sheetName, string pivotTableName, string fieldName);
 
     /// <summary>Reads every native calculated filter on a placed regular PivotTable field. Manual item visibility is separate.</summary>
     /// <param name="batch">Excel batch session.</param>

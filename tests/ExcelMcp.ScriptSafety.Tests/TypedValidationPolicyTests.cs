@@ -132,7 +132,7 @@ public sealed class TypedValidationPolicyTests
         Assert.Contains("SkillGeneration", plan.ToolingProjects);
         Assert.Contains("TypedProcessRunnerTests", plan.ToolingFilters["ScriptSafety"], StringComparison.Ordinal);
         Assert.Contains("TypedPackageOperationsTests", plan.ToolingFilters["Packaging"], StringComparison.Ordinal);
-        Assert.True(plan.Cli && plan.Mcp && plan.Extension && plan.Mcpb && plan.Skills && plan.Plugins);
+        Assert.True(plan.Cli && plan.Mcp && plan.Extension && plan.Mcpb && plan.Plugins);
         Assert.False(plan.Excel);
         Assert.False(plan.FullE2E);
     }

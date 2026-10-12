@@ -23,12 +23,12 @@ public sealed partial class AuthoredPackages(string root, Action<string, string>
     private static readonly string[] PluginNames = ["excel-cli", "excel-mcp"];
     private static readonly string[] RetiredSkills = ["excel-mcp"];
 
-    public string Skills(string? version, string? output, bool generateOnly, string? prepared)
+    public string Skills(string? version, string? output, bool generateOnly)
     {
-        version = RequiredVersion(version ?? (generateOnly ? PackageVersion() : null));
-        output = Path.GetFullPath(output ?? (generateOnly ? @"artifacts\generated-skills" : @"artifacts\skills"), root);
-        prepared = Path.GetFullPath(prepared ?? @"artifacts\generated-skills", root);
-        PackageFiles.AssertOutput(output, root, generateOnly ? [] : [prepared]);
+        if (!generateOnly) { throw new ArgumentException("This script only prepares generated skills. Use -GenerateOnly."); }
+        version = RequiredVersion(version ?? PackageVersion());
+        output = Path.GetFullPath(output ?? @"artifacts\generated-skills", root);
+        PackageFiles.AssertOutput(output, root);
         var stage = NewStage("skills");
         try
         {
@@ -36,9 +36,9 @@ public sealed partial class AuthoredPackages(string root, Action<string, string>
             foreach (var name in SkillNames)
             {
                 var destination = Path.Combine(stagedSkills, name);
-                PackageFiles.Copy(Path.Combine(generateOnly ? Path.Combine(root, "skills") : prepared, name), destination);
+                PackageFiles.Copy(Path.Combine(root, "skills", name), destination);
                 var formatting = name.EndsWith("-report-formatting", StringComparison.Ordinal);
-                if (generateOnly && formatting)
+                if (formatting)
                 {
                     var surface = name.StartsWith("excel-cli-", StringComparison.Ordinal) ? "cli" : "mcp";
                     var content = File.ReadAllText(Path.Combine(root, "docs", "reference", "report-formatting.md")).Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
@@ -56,31 +56,17 @@ public sealed partial class AuthoredPackages(string root, Action<string, string>
                 File.WriteAllText(Path.Combine(destination, "VERSION"), version);
             }
             Directory.CreateDirectory(output);
-            if (generateOnly)
+            foreach (var name in SkillNames) { PackageFiles.Install(Path.Combine(stagedSkills, name), Path.Combine(output, name)); }
+            foreach (var retired in RetiredSkills)
             {
-                foreach (var name in SkillNames) { PackageFiles.Install(Path.Combine(stagedSkills, name), Path.Combine(output, name)); }
-                foreach (var retired in RetiredSkills)
+                var legacy = Path.Combine(output, retired);
+                if (!Directory.Exists(legacy)) { continue; }
+                PackageFiles.AssertOutput(legacy, root);
+                if (!File.Exists(Path.Combine(legacy, "SKILL.md")) || !File.Exists(Path.Combine(legacy, "VERSION")))
                 {
-                    var legacy = Path.Combine(output, retired);
-                    if (!Directory.Exists(legacy)) { continue; }
-                    PackageFiles.AssertOutput(legacy, root);
-                    if (!File.Exists(Path.Combine(legacy, "SKILL.md")) || !File.Exists(Path.Combine(legacy, "VERSION")))
-                    {
-                        throw new InvalidOperationException($"Refusing to remove unrecognized retired skill output: {legacy}");
-                    }
-                    PackageFiles.Delete(legacy);
+                    throw new InvalidOperationException($"Refusing to remove unrecognized retired skill output: {legacy}");
                 }
-            }
-            else
-            {
-                PackageFiles.Copy(Path.Combine(root, "docs", "AGENT-SKILLS.md"), Path.Combine(stage, "README.md"));
-                var archive = Path.Combine(Path.GetDirectoryName(stage)!, $"excel-skills-v{version}-{Guid.NewGuid():N}.zip");
-                try
-                {
-                    _archive(stage, archive);
-                    PackageFiles.Install(archive, Path.Combine(output, $"excel-skills-v{version}.zip"));
-                }
-                finally { PackageFiles.Delete(archive); }
+                PackageFiles.Delete(legacy);
             }
             return output;
         }

@@ -29,9 +29,8 @@ attempting publication. Never print the credential.
 `release.yml` builds and verifies every package through
 `scripts\Build-ReleasePackages.ps1`. Each standalone runtime is published once;
 the extension reuses the MCP executable, while the Claude bundle contains a
-direct npx configuration rather than a runtime. Complete skills are
-generated once for the package set and consumed by the skill ZIP, plugins, and
-extension.
+direct npx configuration rather than a runtime. Complete skills are generated once for the package set and consumed by the
+plugins and extension.
 
 After GitHub Release assets and npm packages exist, the release calls
 `publish-plugins.yml` as a reusable workflow with the exact tag, final release

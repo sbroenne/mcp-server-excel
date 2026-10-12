@@ -121,7 +121,7 @@ public sealed class ValidationSelectionTests
             foreach ($project in $plan.ToolingProjects) {
                 if (-not $plan.ToolingFilters.$project) { throw 'Full tooling selection has no cases.' }
             }
-            foreach ($component in @('Cli','Mcp','Extension','Mcpb','Skills','Plugins')) {
+            foreach ($component in @('Cli','Mcp','Extension','Mcpb','Plugins')) {
                 if (-not $plan.$component) { throw "Missing $component package." }
             }
             """);

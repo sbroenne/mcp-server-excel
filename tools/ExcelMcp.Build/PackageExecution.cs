@@ -10,7 +10,7 @@ namespace Sbroenne.ExcelMcp.Build;
 public sealed class PackageOptions
 {
     public string Operation { get; set; } = "Release";
-    public string[] Components { get; set; } = ["Cli", "Mcp", "Extension", "Mcpb", "Skills", "Plugins"];
+    public string[] Components { get; set; } = ["Cli", "Mcp", "Extension", "Mcpb", "Plugins"];
     public string? Version { get; set; }
     public string? OutputDirectory { get; set; }
     public string? SkillsDirectory { get; set; }
@@ -36,14 +36,14 @@ public sealed class PackageOptions
 public sealed partial class PackageExecution(string root, PackageCommands? native = null)
 {
     private readonly PackageCommands _commands = native ?? new();
-    private static readonly HashSet<string> Components = new(StringComparer.Ordinal) { "Cli", "Mcp", "Extension", "Mcpb", "Skills", "Plugins" };
+    private static readonly HashSet<string> Components = new(StringComparer.Ordinal) { "Cli", "Mcp", "Extension", "Mcpb", "Plugins" };
 
     public async Task ExecuteAsync(PackageOptions options)
     {
         var authored = new AuthoredPackages(root);
         switch (options.Operation)
         {
-            case "Skills": Console.WriteLine(authored.Skills(options.Version, options.OutputDirectory, options.GenerateOnly, options.SkillsDirectory)); break;
+            case "Skills": Console.WriteLine(authored.Skills(options.Version, options.OutputDirectory, options.GenerateOnly)); break;
             case "Plugins":
                 Console.WriteLine(authored.Plugins(options.Version, options.OutputDirectory, options.SkillsDirectory));
                 Console.WriteLine("[ok] excel-mcp - npx config and skill");
@@ -80,7 +80,6 @@ public sealed partial class PackageExecution(string root, PackageCommands? nativ
                 "Mcp" => plan.Mcp,
                 "Extension" => plan.Extension,
                 "Mcpb" => plan.Mcpb,
-                "Skills" => plan.Skills,
                 "Plugins" => plan.Plugins,
                 _ => false
             }).ToArray();
@@ -92,10 +91,10 @@ public sealed partial class PackageExecution(string root, PackageCommands? nativ
         var authored = new AuthoredPackages(root);
         var version = AuthoredPackages.RequiredVersion(options.Version ?? authored.PackageVersion());
         var skills = options.SkillsDirectory is null ? null : Path.GetFullPath(options.SkillsDirectory, root);
-        var needsSkills = selected.Any(component => component is "Skills" or "Plugins" or "Extension");
+        var needsSkills = selected.Any(component => component is "Plugins" or "Extension");
         if (skills is not null && needsSkills)
         {
-            var requiredSkills = selected.Any(component => component is "Skills" or "Plugins")
+            var requiredSkills = selected.Contains("Plugins")
                 ? new[] { "excel-cli", "excel-cli-report-formatting", "excel-mcp-report-formatting" }
                 : ["excel-mcp-report-formatting"];
             foreach (var name in requiredSkills)
@@ -140,8 +139,7 @@ public sealed partial class PackageExecution(string root, PackageCommands? nativ
             ZipFile.CreateFromDirectory(stage, Path.Combine(output, component == "Cli" ? $"ExcelMcp-CLI-{version}-windows.zip" : $"ExcelMcp-MCP-Server-{version}-windows.zip"));
         }
         if (selected.Contains("Mcpb")) { authored.Mcpb(version, Path.Combine(output, "mcpb")); }
-        if (needsSkills && skills is null) { skills = authored.Skills(version, Path.Combine(output, "generated-skills"), generateOnly: true, prepared: null); }
-        if (selected.Contains("Skills")) { authored.Skills(version, Path.Combine(output, "skills"), generateOnly: false, skills); }
+        if (needsSkills && skills is null) { skills = authored.Skills(version, Path.Combine(output, "generated-skills"), generateOnly: true); }
         if (selected.Contains("Plugins"))
         {
             var plugins = authored.Plugins(version, Path.Combine(output, "plugins"), skills);

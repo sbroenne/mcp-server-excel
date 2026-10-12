@@ -70,10 +70,11 @@ public sealed class CliDaemonTests(ITestOutputHelper output) : CliDaemonTestBase
         Assert.Equal(1, result.ExitCode);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
 
-        var error = json.RootElement.GetProperty("error").GetString();
+        var error = json.RootElement.GetProperty("errorMessage").GetString();
         Assert.NotNull(error);
         Assert.Contains("not responding", error, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("service stop", error, StringComparison.OrdinalIgnoreCase);
+        Assert.False(json.RootElement.TryGetProperty("error", out _));
     }
 
     [Fact]
@@ -92,7 +93,7 @@ public sealed class CliDaemonTests(ITestOutputHelper output) : CliDaemonTestBase
         Assert.Equal(1, result.ExitCode);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
 
-        var error = json.RootElement.GetProperty("error").GetString();
+        var error = json.RootElement.GetProperty("errorMessage").GetString();
         Assert.NotNull(error);
         Assert.Contains("not responding", error, StringComparison.OrdinalIgnoreCase);
         Assert.Contains("service stop", error, StringComparison.OrdinalIgnoreCase);
@@ -135,7 +136,7 @@ public sealed class CliDaemonStartupTests(ITestOutputHelper output) : CliDaemonT
         using var json = JsonDocument.Parse(result.Stdout);
         Assert.Equal(1, result.ExitCode);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
-        Assert.Contains("ready", json.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ready", json.RootElement.GetProperty("errorMessage").GetString(), StringComparison.OrdinalIgnoreCase);
         Assert.InRange(stopwatch.Elapsed, TimeSpan.FromSeconds(29), TimeSpan.FromSeconds(37));
     }
 
@@ -159,7 +160,7 @@ public sealed class CliDaemonStartupTests(ITestOutputHelper output) : CliDaemonT
         using var json = JsonDocument.Parse(result.Stdout);
         Assert.Equal(1, result.ExitCode);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
-        Assert.Contains("ready", json.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ready", json.RootElement.GetProperty("errorMessage").GetString(), StringComparison.OrdinalIgnoreCase);
         Assert.InRange(stopwatch.Elapsed, TimeSpan.FromSeconds(29), TimeSpan.FromSeconds(36));
         Assert.False(DaemonAutoStart.IsDaemonMutexHeld(_testPipeName));
         Assert.False(DaemonAutoStart.IsDaemonStartupInProgress(_testPipeName));
@@ -266,7 +267,7 @@ public sealed class CliDaemonObservationTests(ITestOutputHelper output) : CliDae
         Assert.True(json.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal("stopped", json.RootElement.GetProperty("daemonState").GetString());
         Assert.False(json.RootElement.GetProperty("running").GetBoolean());
-        Assert.False(json.RootElement.TryGetProperty("error", out _));
+        Assert.False(json.RootElement.TryGetProperty("errorMessage", out _));
     }
 
     [Fact]
@@ -282,7 +283,7 @@ public sealed class CliDaemonObservationTests(ITestOutputHelper output) : CliDae
         Assert.Equal("stopped", json.RootElement.GetProperty("daemonState").GetString());
         Assert.Equal(0, json.RootElement.GetProperty("count").GetInt32());
         Assert.Empty(json.RootElement.GetProperty("sessions").EnumerateArray());
-        Assert.False(json.RootElement.TryGetProperty("error", out _));
+        Assert.False(json.RootElement.TryGetProperty("errorMessage", out _));
     }
 
     [Fact]
@@ -303,7 +304,7 @@ public sealed class CliDaemonObservationTests(ITestOutputHelper output) : CliDae
         Assert.Equal("starting", json.RootElement.GetProperty("daemonState").GetString());
         Assert.False(json.RootElement.GetProperty("running").GetBoolean());
         Assert.False(json.RootElement.TryGetProperty("processId", out _));
-        Assert.Contains("timed out", json.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("timed out", json.RootElement.GetProperty("errorMessage").GetString(), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -324,7 +325,7 @@ public sealed class CliDaemonObservationTests(ITestOutputHelper output) : CliDae
         Assert.Equal("starting", json.RootElement.GetProperty("daemonState").GetString());
         Assert.False(json.RootElement.GetProperty("running").GetBoolean());
         Assert.False(json.RootElement.TryGetProperty("sessions", out _));
-        Assert.Contains("timed out", json.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("timed out", json.RootElement.GetProperty("errorMessage").GetString(), StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -354,7 +355,7 @@ public sealed class CliDaemonObservationTests(ITestOutputHelper output) : CliDae
         Assert.Equal("running", json.RootElement.GetProperty("daemonState").GetString());
         Assert.Equal(0, json.RootElement.GetProperty("count").GetInt32());
         Assert.Empty(json.RootElement.GetProperty("sessions").EnumerateArray());
-        Assert.False(json.RootElement.TryGetProperty("error", out _));
+        Assert.False(json.RootElement.TryGetProperty("errorMessage", out _));
     }
 
     [Fact]
@@ -374,7 +375,7 @@ public sealed class CliDaemonObservationTests(ITestOutputHelper output) : CliDae
         Assert.Equal("unresponsive", json.RootElement.GetProperty("daemonState").GetString());
         Assert.True(json.RootElement.GetProperty("running").GetBoolean());
 
-        var error = json.RootElement.GetProperty("error").GetString();
+        var error = json.RootElement.GetProperty("errorMessage").GetString();
         Assert.NotNull(error);
         Assert.Contains("timed out", error, StringComparison.OrdinalIgnoreCase);
     }
@@ -406,7 +407,7 @@ public sealed class CliDaemonObservationTests(ITestOutputHelper output) : CliDae
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal("unresponsive", json.RootElement.GetProperty("daemonState").GetString());
         Assert.True(json.RootElement.GetProperty("running").GetBoolean());
-        Assert.Contains("timed out", json.RootElement.GetProperty("error").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("timed out", json.RootElement.GetProperty("errorMessage").GetString(), StringComparison.OrdinalIgnoreCase);
         Assert.InRange(stopwatch.Elapsed, TimeSpan.Zero, TimeSpan.FromSeconds(14));
     }
 
@@ -428,7 +429,7 @@ public sealed class CliDaemonObservationTests(ITestOutputHelper output) : CliDae
         Assert.True(json.RootElement.GetProperty("running").GetBoolean());
         Assert.False(json.RootElement.TryGetProperty("sessions", out _));
 
-        var error = json.RootElement.GetProperty("error").GetString();
+        var error = json.RootElement.GetProperty("errorMessage").GetString();
         Assert.NotNull(error);
         Assert.Contains("timed out", error, StringComparison.OrdinalIgnoreCase);
     }
@@ -459,7 +460,7 @@ public sealed class CliDaemonObservationTests(ITestOutputHelper output) : CliDae
             Assert.Equal("stopped", json.RootElement.GetProperty("daemonState").GetString());
             Assert.Equal(0, json.RootElement.GetProperty("count").GetInt32());
             Assert.Empty(json.RootElement.GetProperty("sessions").EnumerateArray());
-            Assert.False(json.RootElement.TryGetProperty("error", out _));
+            Assert.False(json.RootElement.TryGetProperty("errorMessage", out _));
             Assert.False(json.RootElement.TryGetProperty("isError", out _));
         }
         finally
@@ -528,7 +529,7 @@ public sealed class CliDaemonLifecycleTests(ITestOutputHelper output) : CliDaemo
         Assert.Equal("running", json.RootElement.GetProperty("daemonState").GetString());
         Assert.Equal(0, json.RootElement.GetProperty("count").GetInt32());
         Assert.Empty(json.RootElement.GetProperty("sessions").EnumerateArray());
-        Assert.False(json.RootElement.TryGetProperty("error", out _));
+        Assert.False(json.RootElement.TryGetProperty("errorMessage", out _));
     }
 
     [Fact]

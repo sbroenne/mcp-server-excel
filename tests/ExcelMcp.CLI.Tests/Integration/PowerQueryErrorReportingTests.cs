@@ -64,9 +64,7 @@ public sealed class PowerQueryErrorReportingTests : IAsyncLifetime
         Assert.True(refreshJson.RootElement.GetProperty("isError").GetBoolean());
         Assert.Equal("Privacy", refreshJson.RootElement.GetProperty("errorCategory").GetString());
         Assert.Equal("PowerQueryCommandException", refreshJson.RootElement.GetProperty("exceptionType").GetString());
-        Assert.Equal(
-            refreshJson.RootElement.GetProperty("error").GetString(),
-            refreshJson.RootElement.GetProperty("errorMessage").GetString());
+        Assert.False(refreshJson.RootElement.TryGetProperty("error", out _));
         Assert.Equal("0x800A03EC", refreshJson.RootElement.GetProperty("hresult").GetString());
         AssertOptionalNonEmptyStringProperty(refreshJson.RootElement, "innerError");
         Assert.Contains("Formula.Firewall", refreshJson.RootElement.GetProperty("errorMessage").GetString(), StringComparison.OrdinalIgnoreCase);

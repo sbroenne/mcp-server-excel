@@ -29,6 +29,33 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
     }
 
     [Fact]
+    public async Task DocumentInspector_ReportsAndRemovesOnlyHiddenWorksheet()
+    {
+        await SendAsync("sheet", "create", "--session", Session, "--sheet-name", "Data");
+        await WriteAsync("424242");
+        await SendAsync("sheet", "create", "--session", Session, "--sheet-name", "InspectorHidden");
+        await SendAsync("range", "set-values", "--session", Session, "--sheet-name", "InspectorHidden",
+            "--range-address", "A1", "--values", "[[123]]");
+        await SendAsync("worksheetstyle", "hide", "--session", Session, "--sheet-name", "InspectorHidden");
+        var inspection = await SendAsync("workbook", "inspect-document", "--session", Session);
+        var selected = Assert.Single(inspection.GetProperty("inspectors").EnumerateArray(),
+            item => item.GetProperty("statusCode").GetInt32() == 1);
+        var before = await SendAsync("sheet", "list", "--session", Session);
+        Assert.Contains(before.GetProperty("worksheets").EnumerateArray(),
+            sheet => sheet.GetProperty("name").GetString() == "InspectorHidden");
+        var fixedResult = await SendAsync("workbook", "fix-document-inspector", "--session", Session,
+            "--inspector-index", selected.GetProperty("index").GetInt32().ToString(System.Globalization.CultureInfo.InvariantCulture),
+            "--inspector-name", selected.GetProperty("name").GetString()!);
+        Assert.Equal(0, fixedResult.GetProperty("fix").GetProperty("statusCode").GetInt32());
+        Assert.Equal(0, fixedResult.GetProperty("inspection").GetProperty("statusCode").GetInt32());
+        var after = await SendAsync("sheet", "list", "--session", Session);
+        Assert.DoesNotContain(after.GetProperty("worksheets").EnumerateArray(),
+            sheet => sheet.GetProperty("name").GetString() == "InspectorHidden");
+        Assert.Equal(424242, (await ReadAsync()).GetProperty("values")[0][0].GetInt32());
+        Assert.False((await SendAsync("workbook", "get-info", "--session", Session)).GetProperty("saved").GetBoolean());
+    }
+
+    [Fact]
     public async Task Lifecycle_SaveAndReopen_PreservesValue()
     {
         await SendAsync("sheet", "create", "--session", Session, "--sheet-name", "Data");

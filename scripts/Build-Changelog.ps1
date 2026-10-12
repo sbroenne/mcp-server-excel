@@ -11,7 +11,7 @@
       2. Synchronizes all persistent source-tree version metadata with the real
          release version. Build-time placeholder manifests remain unchanged.
       3. Extracts the newly-inserted section body to a separate file so it can be
-         used verbatim as GitHub Release notes.
+         formatted for GitHub Release notes without changing CHANGELOG.md.
 
     This is NOT a dry run: it changes CHANGELOG.md and release metadata and
     deletes consumed fragments in .changeset/. Use a disposable checkout for preview.
@@ -68,6 +68,14 @@ if ($Version -notmatch '^\d+\.\d+\.\d+$') {
     throw "Version '$Version' must be a plain semver value without a leading 'v' (e.g. 1.9.1)."
 }
 & $updateReleaseVersionScript -RepoRoot $RepoRoot -Version $Version -ValidateOnly
+
+# Capture pending fragments before Changesets consumes them so the empty-section
+# guard still detects notes that were not written to the changelog.
+$pendingFragmentNames = @(
+    Get-ChildItem -LiteralPath (Join-Path $RepoRoot '.changeset') -Filter '*.md' -File |
+        Where-Object { $_.Name -ne 'README.md' } |
+        ForEach-Object Name
+)
 
 # --- Step 1: snapshot the changelog body (everything after the title line) before
 # changesets mutates the file. changesets always inserts its new section
@@ -127,6 +135,11 @@ else {
 }
 
 if ([string]::IsNullOrWhiteSpace($newSection)) {
+    if ($pendingFragmentNames.Count -gt 0) {
+        $fragmentNames = $pendingFragmentNames -join ', '
+        throw "Pending changeset fragments were not included in CHANGELOG.md: $fragmentNames"
+    }
+
     & $updateReleaseVersionScript -RepoRoot $RepoRoot -Version $Version
     Write-Output 'No pending changesets found — nothing to add to the changelog.'
     Set-Content -LiteralPath $OutputNotesPath -Value "_No changes recorded for this release._" -NoNewline
@@ -135,7 +148,11 @@ if ([string]::IsNullOrWhiteSpace($newSection)) {
 
 # --- Step 4: normalize the first non-blank line (changesets' own version header,
 # e.g. "## excelmcp@1.9.1" or "## 1.9.1") to the Keep a Changelog style used here.
-$newSectionLines = $newSection -split "`r?`n"
+$newSectionLines = @(
+    $newSection -split "`r?`n" | ForEach-Object {
+        if ($_ -match '^[ \t]+$') { '' } else { $_ }
+    }
+)
 $headerIdx = 0
 while ($headerIdx -lt $newSectionLines.Count -and [string]::IsNullOrWhiteSpace($newSectionLines[$headerIdx])) {
     $headerIdx++
@@ -178,13 +195,13 @@ Set-Content -LiteralPath $changelogPath -Value $finalContent -NoNewline
 # release version.
 & $updateReleaseVersionScript -RepoRoot $RepoRoot -Version $Version
 
-# --- Step 7: write the release-notes body (verbatim section content, no header
-# duplication needed since GitHub Release titles already carry the version).
+# --- Step 7: format the extracted body for GitHub Release notes only.
 $notesBody = ($newSectionLines[($headerIdx + 1)..($newSectionLines.Count - 1)] -join "`n").Trim()
 if ([string]::IsNullOrWhiteSpace($notesBody)) {
     $notesBody = '_No notable changes recorded for this release._'
 }
 Set-Content -LiteralPath $OutputNotesPath -Value $notesBody -NoNewline
+& (Join-Path $PSScriptRoot 'Format-ReleaseNotes.ps1') -Path $OutputNotesPath
 
 Write-Output "CHANGELOG.md updated with ## [$Version] - $Date"
 Write-Output "Release notes body written to $OutputNotesPath"

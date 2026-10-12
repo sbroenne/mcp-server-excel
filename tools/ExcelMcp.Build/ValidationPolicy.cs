@@ -26,7 +26,7 @@ public sealed partial class ValidationPolicy(string root)
             plan.DocumentationCounts = true;
             plan.Docs = true;
             plan.ExtensionTests = true;
-            plan.Cli = plan.Mcp = plan.Extension = plan.Mcpb = plan.Skills = plan.Plugins = true;
+            plan.Cli = plan.Mcp = plan.Extension = plan.Mcpb = plan.Plugins = true;
             plan.NpmTests = plan.InfrastructureDiagnostics = true;
             foreach (var language in new[] { "actions", "csharp", "javascript-typescript", "python" })
             {
@@ -130,7 +130,7 @@ public sealed partial class ValidationPolicy(string root)
             AddFeature(plan, "ScriptSafety", ["PreCommit"], "Build and selection");
             AddClasses(plan, Catalog.ForOwner("Packaging"), "Build-tool package consumers");
             AddClasses(plan, Catalog.ForOwner("SkillGeneration"), "Build-tool skill consumers");
-            plan.Cli = plan.Mcp = plan.Extension = plan.Mcpb = plan.Skills = plan.Plugins = true;
+            plan.Cli = plan.Mcp = plan.Extension = plan.Mcpb = plan.Plugins = true;
             plan.Reasons.Add($"{path} -> shared build-tool consumers and package preparation");
         }
         else if (Matches(path, @"^tools/ExcelMcp\.Build/(PackageFiles|AuthoredPackages|RuntimePackages|PackageExecution)\.cs$"))
@@ -138,7 +138,7 @@ public sealed partial class ValidationPolicy(string root)
             AddFeature(plan, "Packaging", ["Packaging", "McpbPackaging", "PluginBootstrap", "PluginSkillVersion", "PluginPublication"], "Typed package operations");
             AddFeature(plan, "SkillGeneration", ["SkillGeneration"], "Typed prepared skills");
             AddClasses(plan, Catalog.ForOwner("ScriptSafety").Where(type => type.Name == "TypedPackageMigrationTests"), "Package adapters");
-            plan.Cli = plan.Mcp = plan.Extension = plan.Mcpb = plan.Skills = plan.Plugins = true;
+            plan.Cli = plan.Mcp = plan.Extension = plan.Mcpb = plan.Plugins = true;
             plan.Reasons.Add($"{path} -> direct package and prepared-skill consumers, not workbook tests");
         }
         else if (Matches(path, @"^(tools/ExcelMcp\.Build/|build\.ps1$|scripts/(Get-ValidationPlan|Get-CiValidationPlan|Build-CiInputs|Invoke-BuildTool|Invoke-ExcelFreeTests|Invoke-ExcelTests|Get-ExcelTestGroups|Invoke-TestStage|Test-CiCompletion|pre-commit)\.ps1$|\.github/workflows/ci\.yml$)"))
@@ -215,7 +215,6 @@ public sealed partial class ValidationPolicy(string root)
         else if (Matches(path, @"^(skills/|docs/reference/report-formatting\.md$|scripts/Build-AgentSkills\.ps1$|docs/AGENT-SKILLS\.md$)"))
         {
             AddFeature(plan, "SkillGeneration", ["SkillGeneration"], "Skill preparation");
-            plan.Skills = true;
             if (path != "docs/AGENT-SKILLS.md") { plan.Plugins = plan.Extension = true; }
             plan.Reasons.Add($"{path} -> prepared skill consumers");
         }
@@ -241,8 +240,13 @@ public sealed partial class ValidationPolicy(string root)
         else if (Matches(path, @"^(scripts/(Build-NpmPackages|Test-NpmPackages|Build-ReleasePackages|PackageHelpers|Build-Changelog|Update-(ReleaseVersion|McpRegistry)Metadata|Resolve-McpRegistryRelease|Test-McpRegistryPublication)\.ps1$|\.github/workflows/(release|publish-mcp-registry)\.yml$|package(-lock)?\.json$|\.npmrc$)"))
         {
             AddFeature(plan, "Packaging", ["Packaging", "McpbPackaging", "ReleaseMetadata", "PluginSkillVersion"], "Package preparation");
-            plan.Cli = plan.Mcp = plan.Extension = plan.Mcpb = plan.Skills = plan.Plugins = true;
+            plan.Cli = plan.Mcp = plan.Extension = plan.Mcpb = plan.Plugins = true;
             plan.Reasons.Add($"{path} -> package preparation consumers");
+        }
+        else if (Matches(path, @"^scripts/IssueTriage\.mjs$|^\.github/workflows/issue-triage\.(md|lock\.yml)$"))
+        {
+            AddFeature(plan, "ScriptSafety", ["AutomationSafety"], "Issue triage automation");
+            plan.Reasons.Add($"{path} -> issue triage automation checks, not runtime or package consumers");
         }
         else if (Matches(path, @"^scripts/check-(com-leaks|success-flag|dynamic-casts|workbook-package-access)\.ps1$"))
         {
@@ -407,7 +411,7 @@ public sealed partial class ValidationPolicy(string root)
     private bool SelectDocumentation(ValidationPlan plan, string path)
     {
         if (!path.EndsWith(".md", StringComparison.Ordinal) && path != "LICENSE") { return false; }
-        if (Matches(path, @"^(mcpb/|skills/|\.github/plugins/|docs/AGENT-SKILLS\.md$|docs/reference/report-formatting\.md$|\.github/workflows/update-awesome-copilot\.md$)")) { return false; }
+        if (Matches(path, @"^(mcpb/|skills/|\.github/plugins/|docs/AGENT-SKILLS\.md$|docs/reference/report-formatting\.md$|\.github/workflows/(update-awesome-copilot|issue-triage)\.md$)")) { return false; }
         if (Matches(path, @"(^|/)(AGENTS|CLAUDE)\.md$|^\.github/copilot-instructions\.md$")) { return true; }
         var cli = Matches(path, @"^README\.md$|^src/ExcelMcp\.CLI/README\.md$|^npm-packages/excelcli[^/]*/README\.md$|^(CHANGELOG\.md|LICENSE)$");
         var mcp = Matches(path, @"^README\.md$|^src/ExcelMcp\.McpServer/README\.md$|^npm-packages/mcp-server-excel[^/]*/README\.md$|^(CHANGELOG\.md|LICENSE)$");

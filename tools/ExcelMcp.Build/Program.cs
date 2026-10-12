@@ -60,7 +60,7 @@ internal static class Program
                             ? JsonSerializer.Deserialize<PackageOptions>(await File.ReadAllTextAsync(file), JsonOptions) ?? throw new ArgumentException("Package options are empty.")
                             : new PackageOptions
                             {
-                                Components = (options.Get("--components") ?? "Cli,Mcp,Extension,Mcpb,Skills,Plugins").Split(',', StringSplitOptions.RemoveEmptyEntries),
+                                Components = (options.Get("--components") ?? "Cli,Mcp,Extension,Mcpb,Plugins").Split(',', StringSplitOptions.RemoveEmptyEntries),
                                 Version = options.Get("--version"),
                                 OutputDirectory = options.Get("--output"),
                                 SkillsDirectory = options.Get("--skills-directory"),

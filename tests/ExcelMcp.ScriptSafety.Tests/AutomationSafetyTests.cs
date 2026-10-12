@@ -213,7 +213,7 @@ public sealed partial class AutomationSafetyTests
     [InlineData("src/ExcelMcp.CLI/Program.cs", "Cli")]
     [InlineData("src/ExcelMcp.McpServer/Program.cs", "Mcp,Extension")]
     [InlineData("npm-packages/shared/launcher.js", "Cli,Mcp")]
-    [InlineData(".npmrc", "Cli,Mcp,Extension,Mcpb,Skills,Plugins")]
+    [InlineData(".npmrc", "Cli,Mcp,Extension,Mcpb,Plugins")]
     [InlineData("README.md", "Cli,Mcp")]
     public async Task PackageSelection_ExcludesUnrelatedDistributions(string path, string expected)
     {
@@ -223,7 +223,7 @@ public sealed partial class AutomationSafetyTests
             var result = await RunAsync(root, $$"""
                 . '{{Quote(Path.Combine(RepoRoot, "scripts", "Get-ValidationPlan.ps1"))}}'
                 $plan = Get-ValidationPlan -Paths '{{path}}'
-                $selected = @('Cli','Mcp','Extension','Mcpb','Skills','Plugins') | Where-Object { $plan.$_ }
+                $selected = @('Cli','Mcp','Extension','Mcpb','Plugins') | Where-Object { $plan.$_ }
                 if (($selected -join ',') -ne '{{expected}}') { throw "Wrong package selection: $selected" }
                 """);
             Assert.True(result.ExitCode == 0, result.Output);

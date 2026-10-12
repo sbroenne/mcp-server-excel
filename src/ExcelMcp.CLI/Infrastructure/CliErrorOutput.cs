@@ -76,7 +76,6 @@ internal static class CliErrorOutput
         return JsonSerializer.Serialize(new ErrorEnvelope
         {
             Success = false,
-            Error = errorMessage ?? "Unknown error.",
             ErrorMessage = errorMessage ?? "Unknown error.",
             ErrorCategory = errorCategory,
             Command = command,
@@ -93,8 +92,6 @@ internal static class CliErrorOutput
     private sealed class ErrorEnvelope
     {
         public bool Success { get; init; }
-
-        public string Error { get; init; } = string.Empty;
 
         public string ErrorMessage { get; init; } = string.Empty;
 

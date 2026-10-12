@@ -5,19 +5,23 @@
 [![NuGet](https://img.shields.io/nuget/v/Sbroenne.ExcelMcp.CLI.svg)](https://www.nuget.org/packages/Sbroenne.ExcelMcp.CLI)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Command-line interface for Excel automation — preferred by coding agents.**
+**Excel automation for coding agents through terminal commands.**
+
+Agents discover available operations through built-in CLI help. The CLI offers
+the same features as the MCP Server and usually uses fewer AI tokens.
 
 > **Primary distribution: npm or standalone executable** — Run `npx -y @sbroenne/excelcli@latest --help` or download `excelcli.exe` from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest). No .NET runtime required.
 > **Secondary distribution: NuGet .NET tool** — `dotnet tool install --global Sbroenne.ExcelMcp.CLI` (requires .NET 10 runtime).
 
-The CLI provides 31 feature command categories with 408 operations matching the MCP Server, plus `session`, `service`, and `batch` commands — the same capabilities without loading 31 tool schemas into context.
+The CLI provides 31 feature command categories with 411 operations matching the MCP Server, plus `session`, `service`, and `batch` commands — the same capabilities without loading 31 tool schemas into context.
 
 | Interface | Best For | Why |
 |-----------|----------|-----|
-| **CLI** (`excelcli`) | Coding agents (Copilot, Cursor, Windsurf) | **64% fewer tokens** - single tool, no large schemas |
-| **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery, persistent connection |
+| **CLI** (`excelcli`) | Agents that can run terminal commands | Built-in help without loading MCP tool definitions, usually with fewer AI tokens |
+| **MCP Server** | Any MCP-compatible client | Tool discovery, persistent connection |
 
-Also perfect for RPA workflows, CI/CD pipelines, batch processing, and automated testing.
+Coding agents can use either one; the choice is technical. Excel still requires
+an interactive Windows desktop.
 
 ➡️ **[Learn more and see examples](https://excelmcpserver.dev/)**
 
@@ -67,7 +71,7 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 ## 📋 What You Can Do
 
-ExcelMcp.CLI provides **408 operations** across 31 feature command categories including Power Query, Python in Excel, Data Model/DAX, What-If Analysis, PivotTables, Excel Tables, Charts, Drawings, VBA, Ranges, Worksheets, Workbooks, QueryTables, XML Maps, Connections, and Window Management.
+ExcelMcp.CLI provides **411 operations** across 31 feature command categories including Power Query, Python in Excel, Data Model/DAX, What-If Analysis, PivotTables, Excel Tables, Charts, Drawings, VBA, Ranges, Worksheets, Workbooks, QueryTables, XML Maps, Connections, and Window Management.
 
 Drives the **actual Excel application** via COM — not a file-format parser — so live operations (Power Query refresh, recalculation, DAX evaluation, VBA execution) run for real and existing workbooks stay intact.
 

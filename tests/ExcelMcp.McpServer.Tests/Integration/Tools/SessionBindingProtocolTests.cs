@@ -445,10 +445,10 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
         Assert.False(root.GetProperty("success").GetBoolean(), $"{operationName} unexpectedly succeeded.");
         Assert.True(root.GetProperty("isError").GetBoolean(), $"{operationName} should return isError=true.");
         Assert.Equal(expectedExceptionType, root.GetProperty("exceptionType").GetString());
-        var error = root.GetProperty("error").GetString();
         var errorMessage = root.GetProperty("errorMessage").GetString();
+
         Assert.False(string.IsNullOrWhiteSpace(errorMessage), $"{operationName} should return errorMessage.");
-        Assert.Equal(errorMessage, error);
+        Assert.False(root.TryGetProperty("error", out _), $"{operationName} should not duplicate errorMessage as 'error'.");
         Assert.Equal(expectedErrorCategory, root.GetProperty("errorCategory").GetString());
     }
 }
