@@ -12,7 +12,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 [ServiceCategory("Connection")]
 [McpTool("connection", Title = "Data Connection Operations", Destructive = true, Category = "query",
-    Description = "Create, change, import, delete, load, refresh, and cancel refreshes for data connections (OLEDB, ODBC, ODC import). Discover external OLAP dimensions, hierarchies, levels, and bounded member pages through an existing connection without refreshing data. Discovery requires Excel to expose the connection's active ADO session; authenticate or open the connection in Excel and retry if needed. Providers that do not expose the session are unsupported; credentials and connection strings are never accepted or returned. Use querytable for direct text/web/CSV imports or powerquery for transformations. Power Query connections redirect by exact mashup Location identity. Delete/load-to cleanup follows the exact WorkbookConnection and preserves unrelated similarly named QueryTables. OLAP/MSOLAP connections refresh synchronously; background mode cannot be enabled. Refresh cancellation uses typed OLEDB/ODBC helpers. Refresh accepts a caller timeout; load-to uses the 30-minute data-operation timeout.")]
+    Description = "Create, change, import, delete, load, refresh, and cancel refreshes for data connections (OLEDB, ODBC, ODC import). Discover external OLAP dimensions, hierarchies, levels, and bounded member pages through an existing connection without refreshing data. Discovery requires Excel to expose the connection's active ADO session; an unavailable session returns recovery guidance. Credentials and connection strings are never accepted or returned. Use querytable for direct text/web/CSV imports or powerquery for transformations. Power Query connections redirect by exact mashup Location identity. Delete/load-to cleanup follows the exact WorkbookConnection and preserves unrelated similarly named QueryTables. OLAP/MSOLAP connections refresh synchronously; background mode cannot be enabled. Refresh cancellation uses typed OLEDB/ODBC helpers. Refresh accepts a caller timeout; load-to uses the 30-minute data-operation timeout.")]
 [McpReadOnlyActions("list", "view", "test", "get-refresh-status", "get-properties", "get-account-settings", "discover-olap-schema", "search-olap-members")]
 public interface IConnectionCommands
 {
@@ -24,8 +24,7 @@ public interface IConnectionCommands
 
     /// <summary>
     /// Discovers dimensions, hierarchies, and levels exposed by an existing external OLAP workbook connection.
-    /// Requires Excel to expose the connection's active ADO session. If unavailable, authenticate or open the
-    /// existing connection in Excel and retry; some providers do not expose this session and are unsupported.
+    /// Requires Excel to expose the connection's active ADO session; an unavailable session returns recovery guidance.
     /// This operation does not refresh data or modify the workbook.
     /// Embedded Data Model connections, Power Query connections, and non-OLAP providers are unsupported.
     /// Unique names are returned separately from provider display captions. Connection strings and credentials are never returned.
@@ -43,8 +42,7 @@ public interface IConnectionCommands
 
     /// <summary>
     /// Searches or lists a bounded page of members at an external OLAP hierarchy level.
-    /// Requires Excel to expose the connection's active ADO session. If unavailable, authenticate or open the
-    /// existing connection in Excel and retry; some providers do not expose this session and are unsupported.
+    /// Requires Excel to expose the connection's active ADO session; an unavailable session returns recovery guidance.
     /// Uses the existing workbook connection's Excel authentication context without refreshing or changing PivotTable filters.
     /// Queries are scoped to the cube selected by the workbook connection. Continuation tokens are opaque and bound to the connection, cube, hierarchy, level, search text, and page size.
     /// Reads at most 10,000 members from the selected level per call and pages in unique-name order. Larger levels fail explicitly; select a smaller level.

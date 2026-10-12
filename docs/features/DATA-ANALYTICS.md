@@ -114,9 +114,18 @@ Connection details can contain credentials: do not publish them in reports or
 error summaries. Use direct text/web imports for simple imports and Power Query
 for transformations and modern connectors. External OLAP schema discovery uses
 the selected connection's existing Excel authentication context and requires
-Excel to expose its active ADO session. If it is unavailable, authenticate or
-open the existing connection in Excel and retry; some providers do not expose
-this session and cannot use this discovery path. Discovery does not refresh
+Excel to expose its active ADO session. Do not refresh automatically. If the user
+authorizes a refresh, use MCP tool `connection` action `refresh` with the same
+exact `connection_name`, or CLI `excelcli connection refresh --connection-name`
+with that exact name and the same session. Check that refresh succeeded, then
+retry MCP `connection_read` action `discover-olap-schema` or
+`search-olap-members` (CLI: `excelcli connection discover-olap-schema` or
+`excelcli connection search-olap-members`). Refresh may update workbook data or
+require interactive sign-in, and does not guarantee that Excel will expose the
+session. If refresh fails, report that error and stop this recovery path. If
+discovery still fails, report the unavailable session, not a definitive
+unsupported-provider diagnosis. Ask the user to complete any sign-in in desktop
+Excel. Discovery does not refresh
 data, change PivotTable filters, save the workbook, or inspect the embedded
 Data Model. Never include credentials or connection strings in a request.
 

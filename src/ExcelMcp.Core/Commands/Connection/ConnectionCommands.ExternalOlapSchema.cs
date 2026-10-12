@@ -15,9 +15,14 @@ public partial class ConnectionCommands
     private const int MaximumOlapMemberPageSize = 250;
     private const int MaximumOlapMemberRowsScanned = 1000;
     private const string AdoSessionPrerequisites =
-        "To retry, authenticate or open the existing connection in Excel, then run discovery again. " +
-        "Discovery does not refresh data. If Excel still does not expose an ADO session, this provider " +
-        "does not support this discovery path; use provider-supported metadata access outside ExcelMcp. " +
+        "Discovery does not refresh data. Do not refresh automatically. If the user authorizes a refresh, " +
+        "call MCP tool connection with action refresh and connection_name set to this exact connection " +
+        "(CLI: excelcli connection refresh --connection-name with this exact connection name and the same session), " +
+        "check that refresh succeeded, then retry the failed discovery action. Refresh may update workbook data " +
+        "or require interactive sign-in and does not guarantee an ADO session will be exposed. " +
+        "If refresh fails, report that error and stop this recovery path. If discovery still fails, report that " +
+        "Excel has not exposed the required session; this alone does not prove the provider is unsupported. " +
+        "If sign-in is needed, ask the user to complete it in desktop Excel; do not attempt unattended credential prompts. " +
         "Do not include connection strings or credentials in a request.";
 
     /// <inheritdoc />

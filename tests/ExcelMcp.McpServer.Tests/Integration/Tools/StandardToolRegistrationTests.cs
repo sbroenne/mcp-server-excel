@@ -219,6 +219,19 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public async Task OlapDiscoveryDescription_StatesPrerequisiteWithoutEmbeddingRecoveryWorkflow()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var description = tools.Single(t => t.Name == "connection_read").Description;
+        Assert.NotNull(description);
+        Assert.Contains("active ADO session", description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("recovery guidance", description, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("check that refresh succeeded", description, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("authenticate or open", description, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("providers do not expose this session and are unsupported", description, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
     public async Task PercentageLabelDescription_DoesNotPromiseHarmlessUnsupportedWrites()
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
