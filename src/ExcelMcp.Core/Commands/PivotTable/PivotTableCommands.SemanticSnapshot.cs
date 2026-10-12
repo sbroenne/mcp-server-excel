@@ -51,7 +51,7 @@ public partial class PivotTableCommands
                 {
                     cubeField = cubeFields[index];
                     var selection = ReadOlapFieldSelection(
-                        cubeField, pivotTableName, workbookPath, cancellationToken);
+                        cubeField, pivotTableName, workbookPath, cancellationToken, maxSelectedMembers);
                     if (selection is null)
                         continue;
 
@@ -234,16 +234,18 @@ public partial class PivotTableCommands
         Excel.CubeField cubeField,
         string pivotTableName,
         string workbookPath,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int maxSelectedMembers)
     {
         var name = PivotTableSnapshotHelpers.TryReadSnapshotProperty(() => cubeField.Name);
+        var caption = PivotTableSnapshotHelpers.TryReadSnapshotProperty(() => cubeField.Caption);
         var orientation = PivotTableSnapshotHelpers.TryReadSnapshotProperty(
             () => Convert.ToInt32(cubeField.Orientation, System.Globalization.CultureInfo.InvariantCulture));
         string fieldName = name.Value ?? string.Empty;
         var result = new PivotFieldSelectionSnapshot
         {
             FieldName = fieldName,
-            Caption = fieldName,
+            Caption = caption.Available ? caption.Value : null,
             FieldIdentityAvailable = name.Available && !string.IsNullOrWhiteSpace(fieldName),
             IdentityError = name.ErrorMessage,
             LayoutAvailable = false,
@@ -277,7 +279,7 @@ public partial class PivotTableCommands
         result.Position = position.Value;
         result.LayoutAvailable = true;
         Excel.PivotFields? levels = null;
-        Excel.PivotField? pivotField = null;
+        var levelFields = new List<Excel.PivotField>();
         try
         {
             var levelsResult = PivotTableSnapshotHelpers.TryReadSnapshotProperty(
@@ -306,19 +308,24 @@ public partial class PivotTableCommands
                 return result;
             }
 
-            var pivotFieldResult = PivotTableSnapshotHelpers.TryReadSnapshotProperty(
-                () => (Excel.PivotField)levels.Item(1));
-            if (!pivotFieldResult.Available || pivotFieldResult.Value is null)
+            for (int levelIndex = 1; levelIndex <= countResult.Value; levelIndex++)
             {
-                result.SelectionError = pivotFieldResult.ErrorMessage ??
-                    "Excel did not expose a PivotField for this placed hierarchy.";
-                result.FiltersError = result.SelectionError;
-                return result;
+                cancellationToken.ThrowIfCancellationRequested();
+                var levelResult = PivotTableSnapshotHelpers.TryReadSnapshotProperty(
+                    () => (Excel.PivotField)levels.Item(levelIndex));
+                if (!levelResult.Available || levelResult.Value is null)
+                {
+                    result.SelectionError = levelResult.ErrorMessage ??
+                        $"Excel did not expose level {levelIndex} of this placed hierarchy.";
+                    result.FiltersError = result.SelectionError;
+                    return result;
+                }
+
+                levelFields.Add(levelResult.Value);
             }
 
-            pivotField = pivotFieldResult.Value;
             var memberState = PivotTableSnapshotHelpers.TryReadSnapshotProperty(
-                () => ReadOlapMemberState(cubeField, pivotField, result, cancellationToken));
+                () => ReadOlapMemberState(cubeField, levelFields, result, maxSelectedMembers, cancellationToken));
             if (!memberState.Available || memberState.Value is null)
             {
                 result.SelectionError = memberState.ErrorMessage;
@@ -336,27 +343,53 @@ public partial class PivotTableCommands
             }
 
             var filters = PivotTableSnapshotHelpers.TryReadSnapshotProperty(
-                () => ReadPivotFilters(pivotField, pivotTableName, workbookPath, cancellationToken));
+                () => ReadOlapLevelFilters(levelFields, pivotTableName, workbookPath, cancellationToken));
             result.FiltersAvailable = filters.Available;
             result.FiltersError = filters.ErrorMessage;
             if (filters.Available && filters.Value is not null)
-            {
-                result.Filters = filters.Value.Filters.Select(filter => new PivotSnapshotFilter
-                {
-                    Type = filter.Type,
-                    Value1 = filter.Value1,
-                    Value2 = filter.Value2,
-                    DataFieldName = filter.DataFieldName
-                }).ToList();
-            }
+                result.Filters = filters.Value;
         }
         finally
         {
-            ComUtilities.Release(ref pivotField);
+            for (int index = 0; index < levelFields.Count; index++)
+            {
+                var levelField = levelFields[index];
+                ComUtilities.Release(ref levelField);
+            }
+
             ComUtilities.Release(ref levels);
         }
 
         return result;
+    }
+
+    private static List<PivotSnapshotFilter> ReadOlapLevelFilters(
+        List<Excel.PivotField> levelFields,
+        string pivotTableName,
+        string workbookPath,
+        CancellationToken cancellationToken)
+    {
+        var filters = new List<PivotSnapshotFilter>();
+        foreach (var levelField in levelFields)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            int orientation = Convert.ToInt32(levelField.Orientation, System.Globalization.CultureInfo.InvariantCulture);
+            if (orientation == (int)PivotFieldArea.Hidden)
+                continue;
+
+            string levelName = levelField.Name;
+            var levelFilters = ReadPivotFilters(levelField, pivotTableName, workbookPath, cancellationToken);
+            filters.AddRange(levelFilters.Filters.Select(filter => new PivotSnapshotFilter
+            {
+                LevelUniqueName = levelName,
+                Type = filter.Type,
+                Value1 = filter.Value1,
+                Value2 = filter.Value2,
+                DataFieldName = filter.DataFieldName
+            }));
+        }
+
+        return filters;
     }
 
     private static SnapshotMemberState ReadRegularMemberState(
@@ -365,20 +398,83 @@ public partial class PivotTableCommands
         int maxMembers,
         CancellationToken cancellationToken)
     {
-        if (selection.Area == PivotFieldArea.Filter)
+        bool isFilter = selection.Area == PivotFieldArea.Filter;
+        bool? multiple = isFilter ? field.EnableMultiplePageItems : null;
+        if (field.AllItemsVisible)
+            return new SnapshotMemberState(true, multiple, null, []);
+
+        if (isFilter && multiple == false)
         {
-            bool multiple = field.EnableMultiplePageItems;
-            if (!multiple)
+            Excel.PivotItem? currentPage = null;
+            try
             {
-                string currentPage = field.CurrentPageName ?? string.Empty;
-                bool showAll = IsAllPivotMember(currentPage);
+                currentPage = (Excel.PivotItem)field.CurrentPage;
+                string currentPageName = currentPage.Name ?? string.Empty;
+                bool showAll = IsAllPivotMember(currentPageName);
                 var names = new BoundedMemberNames(maxMembers);
                 if (!showAll)
-                    names.Add(currentPage);
+                    names.Add(currentPageName);
                 return new SnapshotMemberState(showAll, false, showAll ? null : names.Count, names.Names);
+            }
+            finally
+            {
+                ComUtilities.Release(ref currentPage);
             }
         }
 
+        // Excel reports every member as visible for report-filter fields, so only row and
+        // column fields can read the visible members without walking every member.
+        return isFilter
+            ? ReadAllRegularMembers(field, multiple, maxMembers, cancellationToken)
+            : ReadVisibleRegularMembers(field, maxMembers, cancellationToken);
+    }
+
+    private static SnapshotMemberState ReadVisibleRegularMembers(
+        Excel.PivotField field,
+        int maxMembers,
+        CancellationToken cancellationToken)
+    {
+        object? visibleItems = null;
+        try
+        {
+            // PIA gap: typed PivotField.VisibleItems() fails without an index; late binding returns
+            // the visible-item collection so only visible members are read.
+            visibleItems = ((dynamic)field).VisibleItems;
+            // PIA gap: the late-bound visible-item collection exposes Count only through IDispatch.
+            int visibleCount = Convert.ToInt32(((dynamic)visibleItems!).Count, System.Globalization.CultureInfo.InvariantCulture);
+            if (visibleCount == 0)
+                throw new NotSupportedException("Excel returned no visible items, so the field's selection state is unknown.");
+
+            var names = new BoundedMemberNames(maxMembers);
+            for (int index = 1; index <= visibleCount; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Excel.PivotItem? item = null;
+                try
+                {
+                    item = (Excel.PivotItem)field.VisibleItems(index);
+                    names.Add(item.Name);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref item);
+                }
+            }
+
+            return new SnapshotMemberState(false, null, visibleCount, names.Names);
+        }
+        finally
+        {
+            ComUtilities.Release(ref visibleItems);
+        }
+    }
+
+    private static SnapshotMemberState ReadAllRegularMembers(
+        Excel.PivotField field,
+        bool? multiple,
+        int maxMembers,
+        CancellationToken cancellationToken)
+    {
         Excel.PivotItems? items = null;
         try
         {
@@ -411,7 +507,7 @@ public partial class PivotTableCommands
             bool showAll = visibleCount == count;
             return new SnapshotMemberState(
                 showAll,
-                selection.Area == PivotFieldArea.Filter ? true : null,
+                multiple,
                 showAll ? null : visibleCount,
                 names.Names);
         }
@@ -423,8 +519,9 @@ public partial class PivotTableCommands
 
     private static SnapshotMemberState ReadOlapMemberState(
         Excel.CubeField cubeField,
-        Excel.PivotField pivotField,
+        List<Excel.PivotField> levelFields,
         PivotFieldSelectionSnapshot selection,
+        int maxMembers,
         CancellationToken cancellationToken)
     {
         if (selection.Area == PivotFieldArea.Filter)
@@ -432,9 +529,9 @@ public partial class PivotTableCommands
             bool multiple = cubeField.EnableMultiplePageItems;
             if (!multiple)
             {
-                string currentPage = pivotField.CurrentPageName ?? string.Empty;
+                string currentPage = levelFields[0].CurrentPageName ?? string.Empty;
                 bool showAll = IsAllPivotMember(currentPage);
-                var names = new BoundedMemberNames(PivotTableSnapshotHelpers.MaximumMaxSelectedMembers);
+                var names = new BoundedMemberNames(maxMembers);
                 if (!showAll)
                     names.Add(currentPage);
                 return new SnapshotMemberState(showAll, false, showAll ? null : names.Count, names.Names);
@@ -442,21 +539,28 @@ public partial class PivotTableCommands
         }
 
         if (cubeField.AllItemsVisible)
-            return new SnapshotMemberState(true, selection.Area == PivotFieldArea.Filter, null, []);
+            return new SnapshotMemberState(true, selection.Area == PivotFieldArea.Filter ? true : null, null, []);
 
-        var visibleItems = pivotField.VisibleItemsList;
-        if (visibleItems is not Array items)
-            throw new NotSupportedException("Excel did not return a member list for this OLAP hierarchy.");
-
-        var selectedNames = new BoundedMemberNames(PivotTableSnapshotHelpers.MaximumMaxSelectedMembers);
-        foreach (object? item in items)
+        // Each level keeps its own selection; unique names carry the level path, so the
+        // union across levels is the hierarchy's exact selection.
+        var selectedNames = new BoundedMemberNames(maxMembers);
+        foreach (var levelField in levelFields)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            string? memberName = item?.ToString();
-            if (string.IsNullOrWhiteSpace(memberName))
-                throw new NotSupportedException("Excel returned a selected OLAP member without a semantic unique name.");
-            selectedNames.Add(memberName);
+            if (levelField.VisibleItemsList is not Array items)
+                throw new NotSupportedException("Excel did not return a member list for an OLAP hierarchy level.");
+
+            foreach (object? item in items)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                string? memberName = item?.ToString();
+                if (!string.IsNullOrWhiteSpace(memberName))
+                    selectedNames.Add(memberName);
+            }
         }
+
+        if (selectedNames.Count == 0)
+            throw new NotSupportedException("Excel reported a filtered OLAP hierarchy but returned no selected member unique names.");
 
         return new SnapshotMemberState(
             false,

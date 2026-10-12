@@ -30,7 +30,11 @@ incomplete result explicit.
 For each placed field, `fieldSelections` identifies the semantic field name and
 area, reports whether its exact selection and native filters were available,
 and lists selected members when `showAll` is false. An All selection has
-`showAll: true` and no selected member list. `fieldSelectionsAvailable`,
+`showAll: true` and no selected member list. For OLAP and Data Model
+hierarchies, `fieldName` is the hierarchy unique name, `caption` is the
+displayed caption, and `selectedMemberUniqueNames` combines the selections from
+every level of the hierarchy; each unique name includes its level path. Native
+filters on OLAP levels include `levelUniqueName`. `fieldSelectionsAvailable`,
 `valueFieldsAvailable`, and `isOlapAvailable` distinguish unavailable
 configuration getters from empty results; inspect their matching error fields
 instead of assuming an empty list means no fields or selections.

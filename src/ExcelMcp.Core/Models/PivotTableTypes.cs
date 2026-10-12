@@ -536,6 +536,10 @@ public sealed class PivotFieldSelectionSnapshot
 /// <summary>Native label/value filter criteria with unstable collection indexes omitted.</summary>
 public sealed class PivotSnapshotFilter
 {
+    /// <summary>OLAP level unique name that owns this filter; absent for regular fields.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LevelUniqueName { get; set; }
+
     /// <summary>Filter type without Excel's xl prefix.</summary>
     public string Type { get; set; } = string.Empty;
 
