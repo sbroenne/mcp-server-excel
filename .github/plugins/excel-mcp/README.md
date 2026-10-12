@@ -1,12 +1,10 @@
 # Excel MCP Plugin
 
 [![npm version](https://img.shields.io/npm/v/%40sbroenne%2Fmcp-server-excel)](https://www.npmjs.com/package/@sbroenne/mcp-server-excel)
-[![npm downloads per month](https://img.shields.io/npm/dm/%40sbroenne%2Fmcp-server-excel?label=downloads%2Fmonth)](https://www.npmjs.com/package/@sbroenne/mcp-server-excel)
+[![GitHub stars](https://img.shields.io/github/stars/sbroenne/mcp-server-excel?style=flat&label=GitHub%20stars)](https://github.com/sbroenne/mcp-server-excel)
 
 **Let your AI assistant create and update Microsoft Excel workbooks: work with
 cells, formulas, Power Query, PivotTables, charts, and VBA in the desktop app.**
-
-The download badge counts npm package downloads, not unique users.
 
 Ask your assistant to enter data, write formulas, refresh Power Query, build
 PivotTables and charts, work with DAX, or run VBA. ExcelMcp operates the actual

@@ -1,12 +1,10 @@
 # Excel CLI Plugin
 
 [![npm version](https://img.shields.io/npm/v/%40sbroenne%2Fexcelcli)](https://www.npmjs.com/package/@sbroenne/excelcli)
-[![npm downloads per month](https://img.shields.io/npm/dm/%40sbroenne%2Fexcelcli?label=downloads%2Fmonth)](https://www.npmjs.com/package/@sbroenne/excelcli)
+[![GitHub stars](https://img.shields.io/github/stars/sbroenne/mcp-server-excel?style=flat&label=GitHub%20stars)](https://github.com/sbroenne/mcp-server-excel)
 
 **Run commands and scripts to work with real Microsoft Excel workbooks, formulas,
 Power Query, PivotTables, charts, and VBA.**
-
-The download badge counts npm package downloads, not unique users.
 
 Use `excelcli` to enter data, write formulas, refresh Power Query, build PivotTables
 and charts, or automate repeatable workbook tasks. ExcelMcp operates the actual
