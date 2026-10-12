@@ -125,6 +125,42 @@ public class PersistentServicePivotTableDataModelTests(
             data.Values.Skip(1).Take(5).Select(row => row[0]));
     }
 
+    [Fact]
+    public void Read_DataModelReportFilterReturnsExactSelectedMember()
+    {
+        Assert.True(
+            PersistentServiceDataModelFixture.CreationResult.Success,
+            "Data Model fixture must be created successfully");
+
+        var batch = _fixture.BatchToken;
+        var sheet = _fixture.CreateTestSheet(batch);
+        const string pivotName = "SemanticSnapshotFilterPivot";
+        const string fieldName = "[CustomersTable].[Name]";
+        const string memberName = "[CustomersTable].[Name].&[Acme Corp]";
+        RequireSuccess(_pivotCommands.CreateFromDataModel(
+            batch, "CustomersTable", sheet, "H1", pivotName));
+        RequireSuccess(_pivotCommands.AddFilterField(batch, pivotName, fieldName));
+        RequireSuccess(_pivotCommands.SetReportFilter(
+            batch, sheet, pivotName, fieldName, [memberName]));
+
+        var snapshot = RequireSuccess(_pivotCommands.Read(
+            batch, pivotName, sheet, maxSelectedMembers: 1));
+
+        Assert.True(snapshot.IsOlapAvailable);
+        Assert.True(snapshot.IsOlap);
+        Assert.True(snapshot.FieldSelectionsAvailable);
+        Assert.True(snapshot.ValueFieldsAvailable);
+        var selection = Assert.Single(snapshot.FieldSelections,
+            item => item.FieldName == fieldName);
+        Assert.Equal(PivotFieldArea.Filter, selection.Area);
+        Assert.True(selection.LayoutAvailable);
+        Assert.True(selection.SelectionStateAvailable);
+        Assert.False(selection.ShowAll);
+        Assert.Equal([memberName], selection.SelectedMemberUniqueNames);
+        Assert.Equal(1, selection.SelectedMemberCount);
+        Assert.False(selection.MembersTruncated);
+    }
+
     private void AssertNativeData(string sheetName, string pivotName, double expected)
     {
         _fixture.ExecuteRawVerification((context, _) =>
@@ -159,4 +195,3 @@ public class PersistentServicePivotTableDataModelTests(
         });
     }
 }
-

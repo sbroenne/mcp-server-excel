@@ -352,6 +352,30 @@ public sealed class GeneratedActionContractTests
         Assert.Equal(0, proxy.CallCount);
     }
 
+    [Fact]
+    public void PivotTableReadDispatch_UsesOptionalWorksheetAndMemberLimit()
+    {
+        var (commands, proxy) = CreateProxy<IPivotTableCommands>();
+
+        ServiceRegistry.PivotTable.DispatchToCore(
+            commands,
+            PivotTableAction.Read,
+            null!,
+            """{"pivotTableName":"Probe","sheetName":"Summary","maxSelectedMembers":25}""");
+
+        Assert.Equal("Summary", proxy.LastArguments![2]);
+        Assert.Equal(25, proxy.LastArguments[3]);
+
+        ServiceRegistry.PivotTable.DispatchToCore(
+            commands,
+            PivotTableAction.Read,
+            null!,
+            """{"pivotTableName":"Probe"}""");
+
+        Assert.Null(proxy.LastArguments![2]);
+        Assert.Equal(PivotTableSnapshotHelpers.DefaultMaxSelectedMembers, proxy.LastArguments[3]);
+    }
+
     [Theory]
     [InlineData("calculate", "mode", "manual")]
     [InlineData("get-settings", "mode", "manual")]
