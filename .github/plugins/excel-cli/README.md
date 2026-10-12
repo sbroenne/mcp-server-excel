@@ -65,7 +65,7 @@ For quoted JSON arguments in Windows PowerShell, the agent can use the plugin's
 
 The CLI and the
 [MCP plugin](https://github.com/sbroenne/mcp-server-excel/tree/main/.github/plugins/excel-mcp)
-give your agent the same Excel features, so install one or the other. The
+give your agent the same Excel features. You can install either or both; the
 difference is only technical:
 
 | Interface | Works with | Context |
@@ -88,9 +88,10 @@ result, not a promise; results vary by task, model, and AI client. See the
 - **Protected workbooks:** detect IRM/AIP protection and open Excel visibly for sign-in.
 - **Sessions:** keep a workbook open across commands so the agent can work step by step.
 
-M and DAX code stays on your computer by default. If you turn on M or DAX
-code formatting, the corresponding code is sent to powerqueryformatter.com or
-daxformatter.com. Only turn it on when you want to send code to those services.
+M and DAX code stays on your computer by default. If you set `--format-m-code`
+or `--format-dax` to `true`, the corresponding code is sent to
+powerqueryformatter.com or daxformatter.com. Only turn it on when you want to
+send code to those services.
 
 ## Supported agents
 

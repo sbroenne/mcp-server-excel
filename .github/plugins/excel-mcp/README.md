@@ -60,8 +60,8 @@ You do not need to add a separate MCP server entry to
 
 The MCP Server and the
 [CLI plugin](https://github.com/sbroenne/mcp-server-excel/tree/main/.github/plugins/excel-cli)
-give your assistant the same Excel features, so install one or the other. The
-difference is only technical:
+give your assistant the same Excel features. You can install either or both;
+the difference is only technical:
 
 | Interface | Works with | Context |
 |---|---|---|

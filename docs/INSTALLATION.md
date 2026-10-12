@@ -14,7 +14,8 @@ or both:
 - Windows
 - Desktop Microsoft Excel 2016 or later
 - A signed-in Windows desktop session, because Excel runs as a desktop app
-- Node.js 18 or later, only if you install through npm
+- Node.js 18 or later for the GitHub Copilot plugins, the Claude Desktop
+  extension, or installation through npm
 
 ## Pick your setup
 
