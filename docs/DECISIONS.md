@@ -18,6 +18,7 @@ presence does not make them automatically loaded instructions.
 | [ADR-007](ADR-007-LOCAL-ACCESS-AND-TELEMETRY.md) | Local access and privacy boundaries | Current |
 | [ADR-008](ADR-008-GUIDANCE-SOURCE-OWNERSHIP.md) | Product and contributor guidance sources | Current |
 | [ADR-009](ADR-009-COORDINATED-RELEASE-OUTPUTS.md) | Release and publication ownership | Current |
+| [ADR-010](ADR-010-CHANGED-AREA-VALIDATION.md) | Shared changed-area validation and internal build tooling | Current |
 
 ## Maintaining decisions
 

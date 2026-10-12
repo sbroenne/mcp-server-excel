@@ -28,18 +28,14 @@ Check only completed, applicable items; explain anything not run below.
 
 - [ ] Behavioral fix has a focused regression that failed before the fix
 - [ ] Required Release build completed with zero warnings
-- [ ] Affected Excel tests passed with a focused `dotnet test` filter; recorded the command and TRX results
-- [ ] Runtime changes in Core/ComInterop/Service/CLI/MCP or generators passed local `scripts\Test-E2E.ps1` once against final PR source
+- [ ] Affected tests and dependencies selected by the changed-area plan passed
+- [ ] Selected Excel cases, including acceptance and infrastructure diagnostics when selected, passed locally with desktop Excel
 - [ ] Applicable Excel-free, contract, and source checks passed
 - [ ] Assertions verify returned fields and actual Excel state, including partial state or recovery after failure
 - [ ] Excel-dependent commands ran sequentially; cleanup affected only owned sessions/process identities
 
-## Test Commands
-```powershell
-# Record each exact command and its result (passed, failed, or not run with reason).
-# Record results directories where applicable.
-# -SkipBuild requires a successful Release solution build in this worktree.
-```
+Briefly state what passed, failed, or was not run, with a reason for anything
+not run. Do not duplicate GitHub's check results or include a command transcript.
 
 Desktop Excel is required for COM/E2E checks; ordinary GitHub-hosted runners do
 not have it. Report unavailable Excel checks as not run. Documentation/configuration-only

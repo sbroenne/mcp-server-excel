@@ -62,7 +62,7 @@ public sealed partial class PersistentServiceSheetTests
         var error = Assert.Throws<InvalidOperationException>(() =>
             _sheetCommands.AddShape(batch, sheetName, "not-a-cell"));
 
-        Assert.Contains("sheet.add-shape failed", error.Message, StringComparison.Ordinal);
+        Assert.Contains("worksheetstyle.add-shape failed", error.Message, StringComparison.Ordinal);
         Assert.Equal(before, CaptureObjectGuardCells(sheetName));
         Assert.Equal(0, RequireSuccess(_sheetCommands.GetShapeCount(batch, sheetName)).ShapeCount);
     }
@@ -130,7 +130,7 @@ public sealed partial class PersistentServiceSheetTests
         var error = Assert.Throws<InvalidOperationException>(() =>
             _sheetCommands.AddImage(batch, sheetName, missingPath, "B2"));
 
-        Assert.Contains("sheet.add-image failed", error.Message, StringComparison.Ordinal);
+        Assert.Contains("worksheetstyle.add-image failed", error.Message, StringComparison.Ordinal);
         Assert.Equal(before, CaptureObjectGuardCells(sheetName));
         Assert.Equal(0, RequireSuccess(_sheetCommands.GetImageCount(batch, sheetName)).ImageCount);
     }
@@ -151,7 +151,7 @@ public sealed partial class PersistentServiceSheetTests
 
         var error = Assert.Throws<InvalidOperationException>(() =>
             _sheetCommands.SetProtection(batch, sheetName, false, "wrong-password"));
-        Assert.Contains("sheet.set-protection failed", error.Message, StringComparison.Ordinal);
+        Assert.Contains("worksheetstyle.set-protection failed", error.Message, StringComparison.Ordinal);
         Assert.True(RequireSuccess(_sheetCommands.GetProtection(batch, sheetName)).IsProtected);
         AssertNativeProtection(sheetName, true);
         Assert.Equal(before, CaptureObjectGuardCells(sheetName));

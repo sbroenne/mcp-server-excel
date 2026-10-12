@@ -5,13 +5,15 @@ instructions; review tasks use the root [Code Review Rules](../AGENTS.md#code-re
 
 ## Commands
 
-During development, use `dotnet test` with a filter for the affected project,
-class, or feature. Retain TRX results and use `--blame-hang-timeout` for Excel
-tests. Run each Excel-dependent command sequentially. Use
-`scripts\Invoke-ExcelTests.ps1` only for explicit group or complete-suite runs;
-its shared runner sets hard execution deadlines. Returning control while a
-test keeps running is not a timeout. Final runtime acceptance uses
-`scripts\Test-E2E.ps1` as required by the root rules.
+Use `build.ps1 plan` and `build.ps1 validate --plan <path>` for affected
+behavior and dependencies, and retain the selected results. Use
+`scripts\Invoke-ExcelTests.ps1` for explicit Excel group runs after a Release
+build; `scripts\Test-E2E.ps1` runs complete CLI/MCP acceptance. These runners
+set hard execution deadlines; returning control while a test keeps running
+is not a timeout.
+PR and commit checks share the typed changed-area policy. A test-only change
+selects its class and actual helper consumers; shared changes include affected
+dependencies. Empty or unknown selections must not be presented as passed tests.
 Session/batch infrastructure changes also require relevant ComInterop OnDemand
 tests. Core OnDemand tests are optional diagnostics, not mandatory CI gates.
 VBA needs Trust Center access; run screenshots separately because they use

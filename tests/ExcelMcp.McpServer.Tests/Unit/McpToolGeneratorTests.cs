@@ -9,6 +9,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 
 [Trait("Category", "Unit")]
 [Trait("Feature", "McpToolGeneration")]
+[Trait("Feature", "GeneratedContracts")]
 [Trait("Layer", "McpServer")]
 [Trait("RequiresExcel", "false")]
 [Trait("Speed", "Fast")]

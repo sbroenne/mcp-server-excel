@@ -1,7 +1,7 @@
 # GitHub CodeQL Analysis Workflow
 # Performs advanced security scanning for code vulnerabilities
 
-name: "[Security] CodeQL Advanced Security"
+name: "CodeQL Advanced Security"
 
 on:
   push:
@@ -41,6 +41,11 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Setup .NET for selection
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
 
       - name: Select changed language inputs
         id: select

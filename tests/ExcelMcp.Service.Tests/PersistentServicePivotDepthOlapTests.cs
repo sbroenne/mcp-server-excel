@@ -44,7 +44,7 @@ public sealed class PersistentServicePivotDepthOlapTests(PersistentServiceDataMo
         Assert.False(failure.Success);
         Assert.Equal(nameof(NotSupportedException), failure.ExceptionType);
         Assert.Contains(action.StartsWith("pivottablefield.", StringComparison.Ordinal)
-                ? "These native field-filter/expansion operations support regular PivotTables only"
+                ? "This field operation supports regular PivotTables only"
                 : "Source inspection/replacement supports worksheet-backed regular PivotTables only",
             failure.ErrorMessage, StringComparison.Ordinal);
         var after = _fixture.Send("pivottablecalc.get-data", new { pivotTableName = "DataModelPivot" });

@@ -15,6 +15,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration;
 [Trait("Speed", "Fast")]
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "UsageAnalytics")]
+[Trait("Feature", "GeneratedContracts")]
 [Trait("RequiresExcel", "false")]
 public class UsageAnalyticsWeightsTests
 {

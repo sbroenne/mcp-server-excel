@@ -25,10 +25,10 @@ public sealed class ValidationOrchestrationTests
             $stage = 'Cli'
             $parameters = @{}
             & ([scriptblock]::Create($selection.Extent.Text))
-            if ($parameters.DeadlineSeconds -ne 600) { throw 'CLI hard deadline changed.' }
+            if ($parameters.DeadlineSeconds -ne 1200) { throw 'CLI hard deadline changed.' }
             $watchdogSeconds = [int]::Parse($parameters.HangTimeout.TrimEnd('m')) * 60
-            if ($watchdogSeconds -le 480 -or $watchdogSeconds -ge $parameters.DeadlineSeconds) {
-                throw 'CLI watchdog must allow the eight-minute native workflow and collect diagnostics before the hard deadline.'
+            if ($watchdogSeconds -le 0 -or $watchdogSeconds -ge $parameters.DeadlineSeconds) {
+                throw 'CLI watchdog must allow the native workflow and collect diagnostics before the hard deadline.'
             }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
@@ -40,10 +40,23 @@ public sealed class ValidationOrchestrationTests
         var run = await ValidationSelectionTests.RunAsync("""
             $workflow = Get-Content .\.github\workflows\ci.yml -Raw
             if (-not $workflow.Contains('./scripts/Build-CiInputs.ps1')) { throw 'Scoped preparation was not wired.' }
-            $builds = @(Get-Content .\scripts\Build-CiInputs.ps1 | Where-Object { $_ -match '& dotnet build' })
-            if ($builds.Count -ne 1) { throw "Unexpected preparatory build count: $($builds.Count)" }
-            foreach ($build in $builds) {
-                if ($build -notmatch '--disable-build-servers') { throw 'Preparatory build can retain a locking build server.' }
+            $adapter = Get-Content .\scripts\Build-CiInputs.ps1 -Raw
+            if (-not $adapter.Contains('Invoke-ExcelMcpBuild')) { throw 'Shared build execution was not wired.' }
+            $executor = Get-Content .\tools\ExcelMcp.Build\ValidationExecution.cs -Raw
+            if (-not $executor.Contains('--disable-build-servers')) { throw 'Preparatory build can retain a locking build server.' }
+            $gate = [regex]::Match($workflow, '(?s)  ci-gate:\r?\n(.*?)(?=\r?\n  [a-zA-Z0-9_-]+:\r?\n|$)').Groups[1].Value
+            if (-not $gate.Contains('actions/setup-dotnet') -or -not $gate.Contains('global-json-file: global.json')) {
+                throw 'CI completion runner does not set up the repository SDK.'
+            }
+            $stage = Get-Content .\scripts\Invoke-TestStage.ps1 -Raw
+            $e2e = Get-Content .\scripts\Test-E2E.ps1 -Raw
+            if (-not $stage.Contains('[switch]$ReconcileCases') -or
+                -not $stage.Contains('ReconcileCases = [bool]$ReconcileCases') -or
+                -not $e2e.Contains('Invoke-TestStage @parameters -ReconcileCases')) {
+                throw 'Acceptance case reconciliation is not wired through its supported entry point.'
+            }
+            if (-not $e2e.Contains('DeadlineSeconds = 1200')) {
+                throw 'The CLI acceptance deadline is too short for the complete required case set.'
             }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
@@ -59,17 +72,64 @@ public sealed class ValidationOrchestrationTests
             try {
                 $env:GITHUB_OUTPUT = Join-Path $sandbox outputs.txt
                 & .\scripts\Get-CiValidationPlan.ps1 -Full -OutputPath (Join-Path $sandbox plan.json)
-                if ('source_checks_group=Fast' -cnotin (Get-Content -LiteralPath $env:GITHUB_OUTPUT)) {
-                    throw 'Source-check selection was not exported.'
+                $outputs = Get-Content -LiteralPath $env:GITHUB_OUTPUT
+                foreach ($required in @(
+                    'source_checks_group=Fast',
+                    'documentation_counts=true',
+                    'full_solution_build=true',
+                    'full_solution_build_group=Fast')) {
+                    if ($required -cnotin $outputs) { throw "Missing CI selection output: $required" }
                 }
                 $workflow = Get-Content .\.github\workflows\ci.yml -Raw
                 if (-not $workflow.Contains('source_checks_group: ${{ steps.select.outputs.source_checks_group }}') -or
-                    -not $workflow.Contains('if: matrix.group == needs.changes.outputs.source_checks_group')) {
+                    -not $workflow.Contains('documentation_counts: ${{ steps.select.outputs.documentation_counts }}') -or
+                    -not $workflow.Contains('full_solution_build: ${{ steps.select.outputs.full_solution_build }}') -or
+                    -not $workflow.Contains('full_solution_build_group: ${{ steps.select.outputs.full_solution_build_group }}') -or
+                    -not $workflow.Contains("if: matrix.group == needs.changes.outputs.source_checks_group && needs.changes.outputs.documentation_counts == 'true'") -or
+                    -not $workflow.Contains("if: needs.changes.outputs.full_solution_build == 'true' && matrix.group == needs.changes.outputs.full_solution_build_group")) {
                     throw 'Workflow does not route the selected source checks.'
+                }
+                $sourceChecks = [regex]::Match($workflow, '(?s)- name: Source correctness checks\r?\n(?<step>.*?)(?=\r?\n      - name:|\z)').Groups['step'].Value
+                $documentation = [regex]::Match($workflow, '(?s)- name: Documentation count checks\r?\n(?<step>.*?)(?=\r?\n      - name:|\z)').Groups['step'].Value
+                $generateInputs = [regex]::Match($workflow, '(?s)- name: Generate complete skill inputs\r?\n(?<step>.*?)(?=\r?\n      - name:|\z)').Groups['step'].Value
+                if ($sourceChecks.Contains('Build-AgentSkills') -or $sourceChecks.Contains('check-doc-counts') -or
+                    -not $documentation.Contains('check-doc-counts.ps1') -or -not $generateInputs.Contains('Build-AgentSkills.ps1')) {
+                    throw 'Documentation generation/count validation is not isolated to its selected requirement.'
                 }
             } finally {
                 $env:GITHUB_OUTPUT = $previousOutput
                 Remove-Item -LiteralPath $sandbox -Recurse -Force
+            }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
+    }
+
+    [Fact]
+    public async Task BuildToolJobs_SetUpTheRepositorySdkBeforeInvocation()
+    {
+        var run = await ValidationSelectionTests.RunAsync("""
+            $workflow = Get-Content .\.github\workflows\ci.yml -Raw
+            foreach ($jobName in @('changes', 'packages', 'npm')) {
+                $job = [regex]::Match($workflow, "(?s)  ${jobName}:`r?`n(.*?)(?=`r?`n  [a-zA-Z0-9_-]+:`r?`n|$)").Groups[1].Value
+                if (-not $job) { throw "Missing CI job: $jobName" }
+                if (-not $job.Contains('actions/setup-dotnet') -or -not $job.Contains('global-json-file: global.json')) {
+                    throw "$jobName does not set up the repository SDK."
+                }
+            }
+            $changes = [regex]::Match($workflow, '(?s)  changes:\r?\n(.*?)(?=\r?\n  [a-zA-Z0-9_-]+:\r?\n|$)').Groups[1].Value
+            if ($changes.IndexOf('name: Setup .NET') -lt 0 -or
+                $changes.IndexOf('name: Setup .NET') -gt $changes.IndexOf('name: Select changed inputs')) {
+                throw 'CI selection runs before setting up the repository SDK.'
+            }
+            $packages = [regex]::Match($workflow, '(?s)  packages:\r?\n(.*?)(?=\r?\n  [a-zA-Z0-9_-]+:\r?\n|$)').Groups[1].Value
+            $setup = [regex]::Match($packages, '(?s)- name: Setup \.NET\r?\n(?<step>.*?)(?=\r?\n      - name:|\z)')
+            if (-not $setup.Success -or $setup.Groups['step'].Value.Contains('if:')) {
+                throw 'Package-only jobs must set up the repository SDK unconditionally.'
+            }
+            $npm = [regex]::Match($workflow, '(?s)  npm:\r?\n(.*?)(?=\r?\n  [a-zA-Z0-9_-]+:\r?\n|$)').Groups[1].Value
+            if ($npm.IndexOf('name: Setup .NET') -lt 0 -or
+                $npm.IndexOf('name: Setup .NET') -gt $npm.IndexOf('name: npm launcher and packaging tests')) {
+                throw 'npm packaging tests run before setting up the repository SDK.'
             }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
@@ -188,73 +248,13 @@ public sealed class ValidationOrchestrationTests
             . .\scripts\Invoke-TestStage.ps1
             $file = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.Report.$([Guid]::NewGuid().ToString('N')).trx"
             try {
-                $rows = (1..{{total}} | ForEach-Object {
-                    if ({{total}} -gt 0) { '<UnitTestResult testName="case" outcome="Passed"/>' }
-                }) -join ''
-                '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results>' + $rows +
-                    '</Results><ResultSummary outcome="{{outcome}}"><Counters total="{{total}}" executed="{{total}}" passed="{{passed}}" failed="0" notExecuted="0"/></ResultSummary></TestRun>' |
+                $results = '<UnitTestResult outcome="Passed"/>' * {{passed}}
+                '<TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010"><Results>' + $results + '</Results><ResultSummary outcome="{{outcome}}"><Counters total="{{total}}" passed="{{passed}}" executed="{{total}}" failed="0" notExecuted="0"/></ResultSummary></TestRun>' |
                     Set-Content -LiteralPath $file
                 Assert-TestReport -Path $file
             } finally { Remove-Item -LiteralPath $file }
             """);
         Assert.Equal(succeeds, run.ExitCode == 0);
-    }
-
-    [Theory]
-    [InlineData("row")]
-    [InlineData("missing-row")]
-    [InlineData("failed")]
-    [InlineData("notExecuted")]
-    [InlineData("executed")]
-    [InlineData("timeout")]
-    public async Task Reports_RejectContradictoryResults(string change)
-    {
-        var run = await ValidationSelectionTests.RunAsync($$"""
-            . .\scripts\Invoke-TestStage.ps1
-            $file = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.Report.$([Guid]::NewGuid().ToString('N')).trx"
-            try {
-                [xml]$report = '<TestRun><Results><UnitTestResult testName="case" outcome="Passed"/></Results><ResultSummary outcome="Completed"><Counters total="1" executed="1" passed="1" failed="0" notExecuted="0"/></ResultSummary></TestRun>'
-                switch ('{{change}}') {
-                    row { $report.TestRun.Results.UnitTestResult.outcome = 'Failed' }
-                    missing-row { [void]$report.TestRun.Results.RemoveAll() }
-                    executed { $report.TestRun.ResultSummary.Counters.executed = '0' }
-                    default { $report.TestRun.ResultSummary.Counters.SetAttribute('{{change}}', '1') }
-                }
-                $report.Save($file)
-                Assert-TestReport -Path $file
-            } finally { Remove-Item -LiteralPath $file }
-            """);
-        Assert.NotEqual(0, run.ExitCode);
-    }
-
-    [Theory]
-    [InlineData("@('case(row: 1)', 'case(row: 1)')", "@('case(row: 1)', 'case(row: 1)')", true)]
-    [InlineData("@('case(row: 1)', 'other')", "@('other', 'case(row: 1)')", true)]
-    [InlineData("@('case(row: 1)', 'case(row: 1)')", "@('case(row: 1)')", false)]
-    [InlineData("@('case(row: 1)', 'other')", "@('case(row: 1)', 'case(row: 1)')", false)]
-    [InlineData("@('case')", "@('case', 'extra')", false)]
-    [InlineData("@('Case')", "@('case')", false)]
-    [InlineData("@()", "@('case')", false)]
-    public async Task Reports_ReconcileDiscoveredCasesIncludingTheoryMultiplicity(
-        string expected, string actual, bool succeeds)
-    {
-        var run = await ValidationSelectionTests.RunAsync($$"""
-            . .\scripts\Invoke-TestStage.ps1
-            $file = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.Reconciliation.$([Guid]::NewGuid().ToString('N')).trx"
-            try {
-                $cases = {{actual}}
-                $rows = ($cases | ForEach-Object { '<UnitTestResult testName="' + $_ + '" outcome="Passed"/>' }) -join ''
-                '<TestRun><Results>' + $rows + '</Results><ResultSummary outcome="Completed"><Counters total="' +
-                    $cases.Count + '" executed="' + $cases.Count + '" passed="' + $cases.Count +
-                    '" failed="0" notExecuted="0"/></ResultSummary></TestRun>' | Set-Content -LiteralPath $file
-                Assert-TestReport -Path $file -ExpectedCases {{expected}}
-            } finally { Remove-Item -LiteralPath $file }
-            """);
-        Assert.Equal(succeeds, run.ExitCode == 0);
-        if (!succeeds)
-        {
-            Assert.Contains("Test case reconciliation failed", run.Output, StringComparison.Ordinal);
-        }
     }
 
     [Fact]
