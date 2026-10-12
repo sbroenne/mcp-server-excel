@@ -15,13 +15,40 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Workbook;
 /// </summary>
 [ServiceCategory("Workbook")]
 [McpTool("workbook", Title = "Workbook Operations", Destructive = true, Category = "structure",
-    Description = "TABLE STYLES: create-table-style clones source_style_name without applying it; update-table-style takes a table_style_options object with native elementType names and differential formatting; delete-table-style can remove formatting from existing users. Font name/size, scripts and diagonal borders are unsupported. Built-in styles are read-only. Apply separately with table set-style, pivottable_calc set-layout-options, or slicer set-layout. "
+    Description = "DOCUMENT INSPECTOR: fix-document-inspector requires inspector_index and the exact inspector_name returned by document inspection and removes an entire selected category, potentially including worksheets and data, with no tool-level undo or automatic save. Native inspector coverage is not a full privacy audit; comments/revisions and document properties are excluded. "
+        + "TABLE STYLES: create-table-style clones source_style_name without applying it; update-table-style takes a table_style_options object with native elementType names and differential formatting; delete-table-style can remove formatting from existing users. Font name/size, scripts and diagonal borders are unsupported. Built-in styles are read-only. Apply separately with table set-style, pivottable_calc set-layout-options, or slicer set-layout. "
         + "inspect returns bounded worksheet, table, and visible named-range metadata; an optional cell preview requires sheet_name and is limited before reading. Hidden sheets are identified, not skipped; protected-sheet read failures are reported. "
         + "Change workbook document properties, protection and view options, save/copy workbooks, export fixed-format PDF/XPS, update/break external Excel links, and manage native themes and cell styles. CELL STYLES: create-cell-style captures exactly one visible source cell without modifying it; temporarily activates its worksheet and restores the prior view. Hidden source sheets are rejected without changing visibility. update-cell-style changes a custom definition and can affect all existing users throughout the workbook; omitted inclusion flags are preserved. delete-cell-style removes the custom name from existing users; Excel determines retained formatting. Built-in styles are read-only. Apply styles separately with range_format set-style. THEME: apply-theme takes an existing absolute-path .thmx file and changes theme-sensitive formatting throughout the workbook; fixed RGB remains fixed. Saving stays explicit. BREAK-EXTERNAL-LINK HAS NO TOOL-LEVEL UNDO: replaces linked formulas with their current values. SAVE-AS formats: auto, xlsx, xlsm, xlsb, xls; the active session follows the new path. DOCUMENT PROPERTIES: built-in properties can be updated; custom properties can be created, updated, and deleted. Printing and print preview are excluded because default-printer output and modal preview are unsafe for unattended automation.")]
-[McpReadOnlyActions("inspect", "list-table-styles", "get-table-style", "list-cell-styles", "get-cell-style", "get-info",
+[McpReadOnlyActions("inspect", "inspect-document", "list-table-styles", "get-table-style", "list-cell-styles", "get-cell-style", "get-info",
     "get-theme", "list-document-properties", "get-document-property", "list-external-links", "get-protection", "get-view-options")]
 public interface IWorkbookCommands
 {
+    /// <summary>
+    /// Runs every available native Document Inspector module without requesting edits or saving.
+    /// Returns each module's index, localized name, native status and result text.
+    /// Reports savedBefore/savedAfter because native modules can mark a saved workbook unsaved even without a fix.
+    /// Not a full privacy audit: comments/revisions and document properties are not exposed by this collection.
+    /// Module availability depends on the installed Excel version and custom inspectors.
+    /// Findings are successful inspections; native errors or no available modules are failures.
+    /// Distinct from inspect, which returns a bounded workbook content overview.
+    /// </summary>
+    [ServiceAction("inspect-document")]
+    DocumentInspectionResult InspectDocument(IExcelBatch batch);
+
+    /// <summary>
+    /// Runs the native fix for exactly one selected Document Inspector module and reinspects it.
+    /// May remove every item in the selected category, including hidden worksheets and their data.
+    /// No tool-level undo or automatic save; existing Excel AutoSave may persist edits.
+    /// Rejects read-only or structure/window-protected workbooks before mutation.
+    /// Failure may leave partial changes; inspect the workbook before deciding what to do next.
+    /// </summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="inspectorIndex">One-based inspector index returned by inspect-document; not a fixed category identifier.</param>
+    /// <param name="inspectorName">Exact localized native name returned by inspect-document, including any ampersands. Must still match the selected index.</param>
+    [ServiceAction("fix-document-inspector")]
+    DocumentInspectorFixResult FixDocumentInspector(IExcelBatch batch,
+        [RequiredParameter] int inspectorIndex, [RequiredParameter] string inspectorName);
+
     /// <summary>
     /// Returns bounded workbook structure and optionally a bounded preview from one selected worksheet.
     /// Hidden worksheets are included with their visibility. Counts and omitted-item totals describe the selected scope.

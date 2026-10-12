@@ -95,9 +95,10 @@ open a modal preview.
 
 ---
 
-## Workbook (28 operations)
+## Workbook (30 operations)
 
 - **Inspect and describe:** Get a bounded worksheet/table/name overview with optional previews, read workbook state, and manage document properties, protection, and view settings.
+- **Inspect hidden information:** Run Excel's available Document Inspector modules and explicitly remove findings from one selected category.
 - **Use themes and styles:** Inspect or apply Office themes and create, inspect, update, or delete supported custom cell and Table styles.
 - **Save and publish:** Change supported file formats, save a requested copy, or export PDF/XPS output.
 - **Manage external links:** Inspect or refresh linked workbook sources, or deliberately replace linked formulas with their values.
@@ -105,6 +106,12 @@ open a modal preview.
 Changing a theme or shared style can affect existing content throughout the
 workbook. Built-in styles are inspectable but not editable through the custom
 style lifecycle. Native failures do not promise rollback.
+
+Document inspection is separate from the workbook content overview. Only modules
+exposed by Excel are checked; comments/revisions and document properties are not
+included. It is not a complete privacy audit. A selected native fix can delete an
+entire category, including hidden worksheets and their data, without tool-level
+undo or an automatic save.
 
 Changing file formats can remove features; saving a macro-enabled workbook as
 `.xlsx` removes its VBA content. Breaking an external link is permanent once
