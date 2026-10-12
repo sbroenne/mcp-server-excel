@@ -36,51 +36,13 @@ install route and our direct marketplace alternative.
 
 ---
 
-## Agent Skills Installation (Cross-Platform)
+## Optional Report-Formatting Guidance
 
 **Best for:** Optional presentation guidance for requested Excel reports.
 
-The VS Code extension registers `excel-mcp-report-formatting`. Plugins remain
-`excel-mcp` and `excel-cli`; their contained skills have narrower names and scope.
-After the release containing this change is published, install directly with:
-
-```powershell
-# CLI report-formatting skill
-npx skills add sbroenne/mcp-server-excel-plugins --skill excel-cli-report-formatting
-
-# MCP report-formatting skill
-npx skills add sbroenne/mcp-server-excel-plugins --skill excel-mcp-report-formatting
-
-# Interactive install - select one or both formatting skills
-npx skills add sbroenne/mcp-server-excel-plugins
-
-# Install for specific agents
-npx skills add sbroenne/mcp-server-excel-plugins --skill excel-cli-report-formatting -a cursor
-npx skills add sbroenne/mcp-server-excel-plugins --skill excel-mcp-report-formatting -a claude-code
-
-# Install both skills
-npx skills add sbroenne/mcp-server-excel-plugins --skill '*'
-
-# Install globally (user-wide)
-npx skills add sbroenne/mcp-server-excel-plugins --skill excel-cli-report-formatting --global
-```
-
-**Supports 43+ agents** including claude-code, github-copilot, cursor, windsurf, gemini-cli, codex, goose, cline, continue, replit, and more.
-
-**Manual Installation:**
-
-Existing broad `excel-cli` and `excel-mcp` standalone skills remain installed
-until removed with the client's skill manager. Keep plugin/server configuration.
-Use complete prepared packages, not source entries without their references.
-
-1. Download `excel-skills-v{version}.zip` from [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-2. The package contains both skills:
-   - `skills/excel-cli-report-formatting/` - presentation through `excelcli`
-   - `skills/excel-mcp-report-formatting/` - presentation through MCP tools
-3. Extract the skill(s) you need to your AI assistant's skills directory:
-   - Copilot: `~/.copilot/skills/<skill-name>/`
-   - Claude Code: `.claude/skills/<skill-name>/`
-   - Cursor: `.cursor/skills/<skill-name>/`
+The `excel-mcp` and `excel-cli` plugins include report-formatting guidance.
+The VS Code extension registers `excel-mcp-report-formatting`. No separate
+skill installation or download is needed.
 
 **See:** [Agent Skills Documentation](../docs/AGENT-SKILLS.md)
 
