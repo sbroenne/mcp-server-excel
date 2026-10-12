@@ -14,7 +14,6 @@ function Get-ValidationPlan {
         Mcp = $false
         Extension = $false
         Mcpb = $false
-        Skills = $false
         SkillTests = $false
         PackagingTests = $false
         AzureInfrastructureTests = $false
@@ -106,7 +105,6 @@ function Get-ValidationPlan {
         }
         if ($kind -in @('runtime', 'cli', 'cli-package', 'npm-packages', 'packages', 'pipeline', 'unknown', 'cli-docs', 'runtime-docs', 'distribution-docs')) { $plan.Cli = $true }
         if ($kind -in @('runtime', 'mcp', 'mcp-package', 'npm-packages', 'packages', 'pipeline', 'unknown', 'mcp-docs', 'runtime-docs', 'distribution-docs')) { $plan.Mcp = $true }
-        if ($kind -in @('skills', 'skill-docs', 'packages', 'pipeline', 'unknown')) { $plan.Skills = $true }
         if ($kind -in @('extension', 'extension-docs', 'skills', 'packages', 'pipeline', 'runtime', 'mcp', 'unknown', 'distribution-docs')) { $plan.Extension = $true }
         if ($kind -in @('mcpb', 'packages', 'pipeline', 'unknown', 'distribution-docs')) { $plan.Mcpb = $true }
         if ($kind -in @('plugins', 'skills', 'packages', 'pipeline', 'unknown')) { $plan.Plugins = $true }
@@ -234,7 +232,7 @@ function Get-ValidationPlan {
     }
     if ($Full) {
         $plan.Reasons.Add('Complete validation requested.')
-        foreach ($flag in @('Build', 'Excel', 'SourceChecks', 'Cli', 'Mcp', 'Extension', 'Mcpb', 'Skills', 'Plugins')) { $plan[$flag] = $true }
+        foreach ($flag in @('Build', 'Excel', 'SourceChecks', 'Cli', 'Mcp', 'Extension', 'Mcpb', 'Plugins')) { $plan[$flag] = $true }
         foreach ($project in $allProjects) { [void]$fast.Add($project) }
         [void]$process.Add('CLI')
         foreach ($group in $allExcel) { [void]$excel.Add($group) }
@@ -265,7 +263,7 @@ function Get-ValidationPlan {
     $plan.ExcelGroups = @($excel | Sort-Object)
     $plan.SourceChecksGroup = if ($fast.Count -and ($plan.SourceChecks -or $fullTooling)) { 'Fast' } elseif ($documentationCounts) { 'Tooling' } else { '' }
     $plan.InfrastructureDiagnostics = $infrastructureDiagnostics
-    $plan.Packages = [bool](@('Cli', 'Mcp', 'Extension', 'Mcpb', 'Skills', 'Plugins') | Where-Object { $plan[$_] }).Count
+    $plan.Packages = [bool](@('Cli', 'Mcp', 'Extension', 'Mcpb', 'Plugins') | Where-Object { $plan[$_] }).Count
     $plan.NpmTests = $npmTests
     [pscustomobject]$plan
 }

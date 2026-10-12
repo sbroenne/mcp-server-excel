@@ -86,8 +86,8 @@ public sealed class DiagCommandTests
 
         Assert.Equal(1, result.ExitCode);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
-        Assert.Contains("message", json.RootElement.GetProperty("error").GetString());
-        Assert.Contains("required", json.RootElement.GetProperty("error").GetString());
+        Assert.Contains("message", json.RootElement.GetProperty("errorMessage").GetString());
+        Assert.Contains("required", json.RootElement.GetProperty("errorMessage").GetString());
     }
 
     [Fact]
@@ -108,7 +108,7 @@ public sealed class DiagCommandTests
 
         Assert.NotEqual(0, result.ExitCode);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
-        Assert.Contains("totally-bogus-flag", json.RootElement.GetProperty("error").GetString());
+        Assert.Contains("totally-bogus-flag", json.RootElement.GetProperty("errorMessage").GetString());
     }
 
     [Fact]
@@ -120,7 +120,7 @@ public sealed class DiagCommandTests
         Assert.Equal(1, result.ExitCode);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
 
-        var error = json.RootElement.GetProperty("error").GetString();
+        var error = json.RootElement.GetProperty("errorMessage").GetString();
         Assert.Contains("pivotTableName", error);
         Assert.Contains("fieldName", error);
         Assert.Contains("slicerName", error);
@@ -176,8 +176,8 @@ public sealed class DiagCommandTests
 
         Assert.Equal(1, result.ExitCode);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
-        Assert.Contains("name", json.RootElement.GetProperty("error").GetString());
-        Assert.Contains("required", json.RootElement.GetProperty("error").GetString());
+        Assert.Contains("name", json.RootElement.GetProperty("errorMessage").GetString());
+        Assert.Contains("required", json.RootElement.GetProperty("errorMessage").GetString());
     }
 
     [Fact]
@@ -189,8 +189,8 @@ public sealed class DiagCommandTests
 
         Assert.Equal(1, result.ExitCode);
         Assert.False(json.RootElement.GetProperty("success").GetBoolean());
-        Assert.Contains("count", json.RootElement.GetProperty("error").GetString());
-        Assert.Contains("required", json.RootElement.GetProperty("error").GetString());
+        Assert.Contains("count", json.RootElement.GetProperty("errorMessage").GetString());
+        Assert.Contains("required", json.RootElement.GetProperty("errorMessage").GetString());
     }
 
     // ============================================
@@ -232,11 +232,12 @@ public sealed class DiagCommandTests
     {
         var (_, json) = await CliProcessHelper.RunJsonAsync("diag echo");
 
-        // Error responses must have 'success' and 'error' properties
+        // Error responses must have 'success' and 'errorMessage' properties.
         Assert.True(json.RootElement.TryGetProperty("success", out var success));
         Assert.False(success.GetBoolean());
-        Assert.True(json.RootElement.TryGetProperty("error", out var error));
+        Assert.True(json.RootElement.TryGetProperty("errorMessage", out var error));
         Assert.False(string.IsNullOrWhiteSpace(error.GetString()));
+        Assert.False(json.RootElement.TryGetProperty("error", out _));
     }
 
     [Fact]
@@ -248,8 +249,8 @@ public sealed class DiagCommandTests
         Assert.True(json.RootElement.TryGetProperty("success", out var success));
         Assert.True(success.GetBoolean());
 
-        // Success responses must NOT have 'error' property (Rule 1)
-        Assert.False(json.RootElement.TryGetProperty("error", out _),
-            "Success response must not contain 'error' property (Rule 1: Success flag must match reality)");
+        // Success responses must NOT have an error message (Rule 1).
+        Assert.False(json.RootElement.TryGetProperty("errorMessage", out _),
+            "Success response must not contain 'errorMessage' property (Rule 1: Success flag must match reality)");
     }
 }

@@ -72,6 +72,7 @@ public sealed class CliErrorOutputTests
         Assert.False(root.GetProperty("success").GetBoolean());
         Assert.Equal(category, root.GetProperty("errorCategory").GetString());
         Assert.Equal("Original operation context", root.GetProperty("errorMessage").GetString());
+        Assert.False(root.TryGetProperty("error", out _));
         Assert.Equal("Original cause", root.GetProperty("innerError").GetString());
         Assert.Equal("datamodel.evaluate", root.GetProperty("command").GetString());
         Assert.Equal("test-session", root.GetProperty("sessionId").GetString());

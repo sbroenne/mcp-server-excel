@@ -205,7 +205,8 @@ Discover current actions, inputs, and limits through CLI help or MCP tool
 descriptions. Do not rely on a copied command catalogue. Session waits and
 data-refresh waits serve different purposes.
 
-Read `errorMessage`, `errorCategory`, and `suggestedNextActions` when present.
+Read `errorMessage` as the single error-text field, and use `errorCategory` and
+`suggestedNextActions` when present.
 Correct input, prerequisites, or access before retrying. Missing Data Model tables
 and missing MSOLAP installation are different failures. A generic Excel error
 does not establish a VBA trust problem or invalid query. Never change security

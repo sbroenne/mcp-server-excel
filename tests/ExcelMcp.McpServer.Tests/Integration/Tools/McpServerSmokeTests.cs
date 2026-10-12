@@ -1847,7 +1847,7 @@ in
                 listVbaJson.RootElement.GetProperty("errorCategory").GetString());
             Assert.Contains(
                 "macro-enabled",
-                listVbaJson.RootElement.GetProperty("error").GetString());
+                listVbaJson.RootElement.GetProperty("errorMessage").GetString());
         }
         _output.WriteLine("  ✓ vba: List rejected the unsupported .xlsx format");
         await CloseSmokeWorkbookAsync(sessionId);

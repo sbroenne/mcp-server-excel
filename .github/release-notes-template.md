@@ -39,10 +39,9 @@ dotnet tool install --global Sbroenne.ExcelMcp.McpServer
 dotnet tool install --global Sbroenne.ExcelMcp.CLI
 ```
 
-**Agent Skills** (optional report formatting)
-- VS Code Extension registers `excel-mcp-report-formatting`
-- Install via Skills CLI: `npx skills add sbroenne/mcp-server-excel-plugins --skill excel-cli-report-formatting` or `--skill excel-mcp-report-formatting`
-- Or download `excel-skills-v{{VERSION}}.zip`
+**Report-formatting guidance** (optional)
+- Included in the `excel-cli` and `excel-mcp` plugins
+- The VS Code Extension registers `excel-mcp-report-formatting`
 
 ### Requirements
 - Windows OS

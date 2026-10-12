@@ -27,7 +27,7 @@ internal sealed class ServiceStartCommand : AsyncCommand
         }
         catch (Exception ex)
         {
-            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new { success = false, error = ex.Message }, ServiceProtocol.JsonOptions));
+            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new { success = false, errorMessage = ex.Message }, ServiceProtocol.JsonOptions));
             return 1;
         }
     }
@@ -85,7 +85,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
                 }
 
                 CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
-                    new { success = false, error = $"Service acknowledged shutdown but did not exit within {ShutdownWaitTimeout.TotalSeconds:0} seconds." },
+                    new { success = false, errorMessage = $"Service acknowledged shutdown but did not exit within {ShutdownWaitTimeout.TotalSeconds:0} seconds." },
                     ServiceProtocol.JsonOptions));
                 return 1;
             }
@@ -119,7 +119,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
                 new
                 {
                     success = false,
-                    error = response.ErrorMessage ?? "Daemon is running but not responding, and the tracked daemon process could not be stopped."
+                    errorMessage = response.ErrorMessage ?? "Daemon is running but not responding, and the tracked daemon process could not be stopped."
                 },
                 ServiceProtocol.JsonOptions));
             return 1;
@@ -148,7 +148,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
                 new
                 {
                     success = false,
-                    error = $"Daemon is running but not responding, and the tracked daemon process could not be stopped. {ex.GetType().Name}: {ex.Message}"
+                    errorMessage = $"Daemon is running but not responding, and the tracked daemon process could not be stopped. {ex.GetType().Name}: {ex.Message}"
                 },
                 ServiceProtocol.JsonOptions));
             return 1;
@@ -201,7 +201,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
                 new
                 {
                     success = false,
-                    error = cleanupResult.ErrorMessage
+                    errorMessage = cleanupResult.ErrorMessage
                         ?? $"One or more processes tracked for CLI pipe '{pipeName}' could not be stopped."
                 },
                 ServiceProtocol.JsonOptions));
