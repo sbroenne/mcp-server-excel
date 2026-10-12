@@ -11,6 +11,46 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.3.10] - 2026-10-12
+
+### Minor Changes
+
+- [#1106](https://github.com/sbroenne/mcp-server-excel/pull/1106) [`22438fd`](https://github.com/sbroenne/mcp-server-excel/commit/22438fd33ea20ef3ae1f0d446c9b3af640ff100b) Thanks [@sbroenne](https://github.com/sbroenne)! - Add PivotTable sorting by a selected Values field, visibility of items with no data, custom blank and error text, selectable subtotal functions, calculated items, and additional layout and printing controls. Both MCP and `excelcli` expose the same controls, with explicit limits for OLAP and Data Model reports.
+
+- [#1105](https://github.com/sbroenne/mcp-server-excel/pull/1105) [`2a07f13`](https://github.com/sbroenne/mcp-server-excel/commit/2a07f130be365a087e0fc753a17cfd173ecd2254) Thanks [@sbroenne](https://github.com/sbroenne)! - External OLAP connections can now list dimensions, hierarchies, levels, and bounded member searches using Excel's existing connection session.
+
+  Member searches page in provider unique-name order over a bounded list of up to 10,000 entries. Larger levels fail explicitly instead of scanning without a limit. Paging tokens keep fixed-size fingerprints of the search settings and member list, so long search text does not produce an unusable token and a changed list cannot silently skip or repeat entries.
+
+### Patch Changes
+
+- [#1115](https://github.com/sbroenne/mcp-server-excel/pull/1115) [`13c0371`](https://github.com/sbroenne/mcp-server-excel/commit/13c03718eb36403f73b1af7955f38b8870c632fc) Thanks [@sbroenne](https://github.com/sbroenne)! - Fix MCP tool calls from Claude Code in Claude Desktop being rejected. The MCP Server now ignores inputs that do not apply to the chosen action when they are empty or set to their advertised default. Real values sent to the wrong action are still rejected with a message naming the input.
+
+- [#1104](https://github.com/sbroenne/mcp-server-excel/pull/1104) [`0950171`](https://github.com/sbroenne/mcp-server-excel/commit/0950171dfda9451b518c1cea3ce28a5a1e6ef5a0) Thanks [@sbroenne](https://github.com/sbroenne)! - VBA listing now shows procedure kinds and line ranges, and bounded reads can return one procedure or up to 500 lines at a time. A new guarded procedure replacement action edits only the selected procedure when its source has not changed since it was read.
+
+  Procedure replacement preserves surrounding comments and blank lines. New read-only actions search VBA source with limited results, flag missing library references, and report project access, password protection, and execution mode without changing Excel settings.
+
+- [#1091](https://github.com/sbroenne/mcp-server-excel/pull/1091) [`d15b720`](https://github.com/sbroenne/mcp-server-excel/commit/d15b720879dc8bd3910209959a192f0084b8e76a) Thanks [@beresfordsalmon](https://github.com/beresfordsalmon)! - **`excelcli` no longer pauses while telemetry starts and stops**: `--help`, `--version` and the background service skip telemetry setup, and the telemetry library's own health reports, delivery counters and Live Metrics connection are turned off. Usage telemetry is unchanged.
+
+- [#1112](https://github.com/sbroenne/mcp-server-excel/pull/1112) [`b2e03e0`](https://github.com/sbroenne/mcp-server-excel/commit/b2e03e0dc160030f5c503f7373142f5fef1ffec2) Thanks [@sbroenne](https://github.com/sbroenne)! - Fix adding existing external cube measures to PivotTables, including measure names containing dots or escaped closing brackets. Explain which field changes must be made on the cube server rather than in the workbook Data Model.
+
+  Return actual OLAP field captions and positions, and apply automatic subtotals using hierarchy names. Preserve compound DAX formulas when changing an aggregation instead of silently replacing their calculation.
+
+  Report completed and uncertain hierarchy levels when a subtotal update fails, without claiming that partial changes were rolled back.
+
+- [#1110](https://github.com/sbroenne/mcp-server-excel/pull/1110) [`5905840`](https://github.com/sbroenne/mcp-server-excel/commit/59058409cf562d3ba56f25c668f967b797235e42) Thanks [@sbroenne](https://github.com/sbroenne)! - Fix incorrectly cropped range and sheet screenshots on scaled Windows displays, without changing the application's display settings. Canceled captures remain reported as canceled even if restoring display settings also fails, with both errors retained.
+
+- [#1113](https://github.com/sbroenne/mcp-server-excel/pull/1113) [`55aecaa`](https://github.com/sbroenne/mcp-server-excel/commit/55aecaa4f110a6eb3ff25ff23653080387e5a367) Thanks [@sbroenne](https://github.com/sbroenne)! - Both the CLI and MCP Server now support turning telemetry off or viewing approved operation telemetry in a local OpenTelemetry dashboard without Azure access. Contributor builds remain off by default, and released packages keep their existing Azure destination unless explicitly overridden.
+
+- [#1112](https://github.com/sbroenne/mcp-server-excel/pull/1112) [`b2e03e0`](https://github.com/sbroenne/mcp-server-excel/commit/b2e03e0dc160030f5c503f7373142f5fef1ffec2) Thanks [@sbroenne](https://github.com/sbroenne)! - Calculated-member creation no longer diagnoses generic Excel or provider failures as formula syntax errors. Errors preserve the underlying Excel exception and direct callers to inspect calculated members before retrying; unknown member types are rejected before changing the workbook.
+
+  Calculated-member guidance preserves qualified measure names and no longer suggests adding members or sets to Values. PivotChart creation failures retain the created chart, its identity, and the underlying failure instead of deleting it or claiming rollback; PivotChart title reads release the acquired title reference.
+
+  OLAP Show Values As readback mismatches now report verification failure rather than claiming Excel ignored the write. Recovery guidance warns that displayed values may already have changed and directs callers to inspect the data; no automatic rollback is performed.
+
+- [#1106](https://github.com/sbroenne/mcp-server-excel/pull/1106) [`22438fd`](https://github.com/sbroenne/mcp-server-excel/commit/22438fd33ea20ef3ae1f0d446c9b3af640ff100b) Thanks [@sbroenne](https://github.com/sbroenne)! - **OLAP and Data Model PivotTable report filters** ([#1096](https://github.com/sbroenne/mcp-server-excel/issues/1096)): select one or multiple members, or clear the selection to show all, on a specific PivotTable.
+
+- [#1103](https://github.com/sbroenne/mcp-server-excel/pull/1103) [`5f8521c`](https://github.com/sbroenne/mcp-server-excel/commit/5f8521c49bbdc81dec164b126d619b8d355103a2) Thanks [@sbroenne](https://github.com/sbroenne)! - MCP calls now check action-specific required inputs consistently before execution and report incompatible parameters using the tool's advertised names. Tool contract checks cover generated and specialized tools to prevent definitions from drifting from the running server.
+
 ## [2.3.9] - 2026-10-09
 
 ### Minor Changes

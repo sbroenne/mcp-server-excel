@@ -8,9 +8,9 @@ defaults, and safety.
 
 | Skill | Entry point | Distribution |
 |-------|-------------|--------------|
-| `excel-cli` | Plugin's argument-safe npx launcher | `excel-cli` plugin, skill ZIP (requires the plugin launcher) |
-| `excel-cli-report-formatting` | `excelcli` | `excel-cli` plugin, standalone skill ZIP |
-| `excel-mcp-report-formatting` | Excel MCP tools | `excel-mcp` plugin, VS Code extension, standalone skill ZIP |
+| `excel-cli` | Plugin's argument-safe npx launcher | `excel-cli` plugin |
+| `excel-cli-report-formatting` | `excelcli` | `excel-cli` plugin |
+| `excel-mcp-report-formatting` | Excel MCP tools | `excel-mcp` plugin, VS Code extension |
 
 The MCPB configures the server; it does not install agent skills.
 General workflows, limitations, and recovery guidance live in
@@ -64,26 +64,12 @@ claude plugin install excel-mcp@mcp-server-excel-plugins
 claude plugin install excel-cli@mcp-server-excel-plugins
 ```
 
-After the release containing this change is published, direct skill installation
-uses the new identities:
-
-```powershell
-npx skills add sbroenne/mcp-server-excel-plugins --skill excel-cli-report-formatting
-npx skills add sbroenne/mcp-server-excel-plugins --skill excel-mcp-report-formatting
-```
-
-The VS Code extension registers only `excel-mcp-report-formatting`.
+Report-formatting guidance is distributed with the `excel-mcp` and `excel-cli`
+plugins and the VS Code extension. The VS Code extension registers only
+`excel-mcp-report-formatting`.
 The source repository contains the three actual skill directories; the
-prepared release packages add the formatting skills' entry-point-specific reference.
-Use a complete prepared package when installing manually.
-
-Existing standalone skill installations are not automatically updated or
-removed. Replace the former broad `excel-cli` skill with the small discovery
-skill when updating the CLI plugin. Remove the retired broad `excel-mcp` skill
-using your client's skill manager; MCP discovery comes from the server configuration.
-Do not remove the plugins or their MCP/CLI launch configuration merely because
-the skill identities changed. Local source edits do not update installed copies
-or publish new packages.
+prepared skills add the formatting skills' entry-point-specific reference.
+Local source edits do not update installed copies or publish new plugins.
 
 ## Authoring and packaging
 
@@ -109,8 +95,8 @@ Preparation writes complete skills to `artifacts\generated-skills`.
 `Build-AgentSkills.ps1` copies CLI discovery without references. For the formatting
 skills it selects only `report-formatting.md`, renders its matching
 `cli` or `mcp` fenced examples, and links supporting topics to the website.
-The ZIP, plugins, and extension consume the same prepared output. Ordinary
-M, DAX, JSON, and other language fences are preserved; no flag translation occurs.
+Plugins and the extension consume the same prepared output. Ordinary M, DAX,
+JSON, and other language fences are preserved; no flag translation occurs.
 
 Do not edit generated, packaged, installed, or published copies. Validate both
 formatting skill directories and the CLI discovery skill with the public loader

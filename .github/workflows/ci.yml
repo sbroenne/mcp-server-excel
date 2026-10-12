@@ -226,7 +226,7 @@ jobs:
         shell: pwsh
         run: |
           $plan = Get-Content artifacts/ci-plan.json -Raw | ConvertFrom-Json
-          $components = @('Cli','Mcp','Extension','Mcpb','Skills','Plugins') | Where-Object { $plan.$_ }
+          $components = @('Cli','Mcp','Extension','Mcpb','Plugins') | Where-Object { $plan.$_ }
           if (-not $components) { throw 'Selected package job has no components.' }
           ./scripts/Build-ReleasePackages.ps1 -Components $components -SkillsDirectory artifacts/generated-skills
           if ($LASTEXITCODE -ne 0) { throw 'Selected package validation failed.' }
