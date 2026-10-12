@@ -418,6 +418,138 @@ public class PivotTableInfoResult : ResultBase
     /// List of all fields in the PivotTable
     /// </summary>
     public List<PivotFieldInfo> Fields { get; set; } = [];
+
+    /// <summary>
+    /// Semantic member selections and native filters for placed fields. Member names
+    /// use field/member names rather than Excel's internal cache identifiers.
+    /// </summary>
+    public List<PivotFieldSelectionSnapshot> FieldSelections { get; set; } = [];
+
+    /// <summary>Native settings for each displayed Values field.</summary>
+    public List<Commands.PivotTable.PivotFieldCalculationResult> ValueFields { get; set; } = [];
+
+    /// <summary>Whether this PivotTable uses an OLAP or Data Model cache.</summary>
+    public bool IsOlap { get; set; }
+
+    /// <summary>Whether Excel's cache type could be read.</summary>
+    public bool IsOlapAvailable { get; set; }
+
+    /// <summary>Why Excel's cache type could not be read.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? IsOlapError { get; set; }
+
+    /// <summary>Whether the placed-field selection snapshot was read successfully.</summary>
+    public bool FieldSelectionsAvailable { get; set; }
+
+    /// <summary>Why the placed-field selection snapshot could not be read.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? FieldSelectionsError { get; set; }
+
+    /// <summary>Whether native settings for all displayed Values fields were read.</summary>
+    public bool ValueFieldsAvailable { get; set; }
+
+    /// <summary>Why native settings for displayed Values fields could not be read.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? ValueFieldsError { get; set; }
+
+    /// <summary>Whether Excel is deferring PivotTable updates; null means unavailable.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? ManualUpdate { get; set; }
+
+    /// <summary>The caller's maximum returned selected members across all fields.</summary>
+    public int MaxSelectedMembers { get; set; }
+
+    /// <summary>False when any selection/filter state is unavailable or member names were truncated.</summary>
+    public bool SnapshotComplete { get; set; }
+
+    /// <summary>Explains why the update state could not be read.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? UpdateStateError { get; set; }
+}
+
+/// <summary>Selection and calculated-filter state for one placed PivotTable field.</summary>
+public sealed class PivotFieldSelectionSnapshot
+{
+    /// <summary>Meaning-based regular field name or exact OLAP hierarchy unique name.</summary>
+    public string FieldName { get; set; } = string.Empty;
+
+    /// <summary>Displayed field caption where Excel provides one.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Caption { get; set; }
+
+    /// <summary>Whether a semantic field name was read successfully.</summary>
+    public bool FieldIdentityAvailable { get; set; }
+
+    /// <summary>Why a semantic field name could not be read.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? IdentityError { get; set; }
+
+    /// <summary>Whether field area and position were read successfully.</summary>
+    public bool LayoutAvailable { get; set; }
+
+    /// <summary>Why field area or position could not be read.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LayoutError { get; set; }
+
+    /// <summary>Current field location and position.</summary>
+    public PivotFieldArea Area { get; set; }
+
+    /// <summary>One-based position within the field area.</summary>
+    public int Position { get; set; }
+
+    /// <summary>Whether Excel's exact member selection state was read successfully.</summary>
+    public bool SelectionStateAvailable { get; set; }
+
+    /// <summary>True when all members are selected; null when unavailable.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? ShowAll { get; set; }
+
+    /// <summary>Whether multi-selection is enabled for a report-filter field; null when not applicable or unavailable.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? MultipleSelectionEnabled { get; set; }
+
+    /// <summary>Exact selected semantic member names, sorted ordinally and bounded by the request.</summary>
+    public List<string> SelectedMemberUniqueNames { get; set; } = [];
+
+    /// <summary>Total selected members when the selection is not All and the complete state was read.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? SelectedMemberCount { get; set; }
+
+    /// <summary>True when selected member names were omitted to honor the requested output bound.</summary>
+    public bool MembersTruncated { get; set; }
+
+    /// <summary>Why Excel's selection state could not be read.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? SelectionError { get; set; }
+
+    /// <summary>Whether native label/value filters were read successfully.</summary>
+    public bool FiltersAvailable { get; set; }
+
+    /// <summary>Native label/value filters, without unstable collection indexes.</summary>
+    public List<PivotSnapshotFilter> Filters { get; set; } = [];
+
+    /// <summary>Why native filters could not be read.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? FiltersError { get; set; }
+}
+
+/// <summary>Native label/value filter criteria with unstable collection indexes omitted.</summary>
+public sealed class PivotSnapshotFilter
+{
+    /// <summary>Filter type without Excel's xl prefix.</summary>
+    public string Type { get; set; } = string.Empty;
+
+    /// <summary>First native filter criterion, when present.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public object? Value1 { get; set; }
+
+    /// <summary>Second native filter criterion for interval filters.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public object? Value2 { get; set; }
+
+    /// <summary>Semantic name of the Values field for value/top filters.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? DataFieldName { get; set; }
 }
 
 /// <summary>

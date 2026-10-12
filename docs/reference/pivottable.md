@@ -12,6 +12,39 @@ Current commands and inputs come from CLI help or MCP tool descriptions.
 | Data Model | DAX measures and model relationships |
 | External OLAP cube | Existing server measures and cube hierarchies; supported client calculated members use MDX |
 
+## Read a bounded configuration snapshot
+
+`pivottable` action `read` returns the PivotTable layout together with exact
+selected members, native label/value filters, Values-field settings, and
+whether Excel is deferring updates. It does not return report cell values,
+refresh the PivotTable, or save the workbook.
+
+Use MCP `sheet_name` (CLI `--sheet`) to choose the exact worksheet when
+PivotTable names may repeat. MCP `max_selected_members` (CLI
+`--max-selected-members`) sets the maximum number of selected member names
+returned across all fields; it defaults to 100 and accepts 1 through 1000.
+Names are sorted for stable comparisons. `selectedMemberCount` reports the
+full count when known, while `membersTruncated` and `snapshotComplete` make an
+incomplete result explicit.
+
+For each placed field, `fieldSelections` identifies the semantic field name and
+area, reports whether its exact selection and native filters were available,
+and lists selected members when `showAll` is false. An All selection has
+`showAll: true` and no selected member list. `fieldSelectionsAvailable`,
+`valueFieldsAvailable`, and `isOlapAvailable` distinguish unavailable
+configuration getters from empty results; inspect their matching error fields
+instead of assuming an empty list means no fields or selections.
+`snapshotComplete` is false when required state could not be read or the member
+bound truncated the result.
+
+```mcp
+pivottable(action: 'read', workbook_session_id: sessionId, pivot_table_name: 'SalesPivot', sheet_name: 'Summary', max_selected_members: 50)
+```
+
+```cli
+excelcli -q pivottable read --session $sessionId --pivot-table-name SalesPivot --sheet Summary --max-selected-members 50
+```
+
 For an existing cube measure, `add-value-field` accepts its exact qualified
 name (`[Measures].[Amount.SUM]`) or bare name (`Amount.SUM`). Dots in a
 measure name are not hierarchy separators. The requested aggregation is ignored

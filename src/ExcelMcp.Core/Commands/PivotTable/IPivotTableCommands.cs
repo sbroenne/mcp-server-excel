@@ -22,7 +22,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// </summary>
 [ServiceCategory("PivotTable")]
 [McpTool("pivottable", Title = "PivotTable Operations", Destructive = true, Category = "analysis",
-    Description = "Create, refresh, delete, and change sources/cache options for PivotTables. Prefer refresh over delete+recreate to preserve field configs. REFRESH: Call after configuring fields with pivottable_field. CREATE: create-from-range, create-from-table, create-from-datamodel. TIMEOUT: 5 min for DataModel. SOURCE: set-source isolates worksheet-backed caches; set-connection changes one external PivotTable to an existing workbook connection with a compatible field schema. Inspect the connection, shared cache users and connected controls before changing it. Connected slicers/timelines must first be disconnected; set-connection rejects shared caches and workbook Data Model conversion. Shared cache options cannot change unrelated PivotTables. STYLING: Use pivottable_calc set-layout-options for native styles and preserveFormatting. Use pivottable_field for field management.")]
+    Description = "Create, refresh, delete, and change sources/cache options for PivotTables. read returns field layout plus a bounded semantic snapshot of exact selected members and native label/value filters; supply sheet_name to select the exact PivotTable when names may repeat, and max_selected_members to bound returned member names (check snapshotComplete and membersTruncated). Unavailable getters are marked unavailable, not treated as empty selections. The read action does not return PivotTable cells, refresh, or save. Prefer refresh over delete+recreate to preserve field configs. REFRESH: Call after configuring fields with pivottable_field. CREATE: create-from-range, create-from-table, create-from-datamodel. TIMEOUT: 5 min for DataModel. SOURCE: set-source isolates worksheet-backed caches; set-connection changes one external PivotTable to an existing workbook connection with a compatible field schema. Inspect the connection, shared cache users and connected controls before changing it. Connected slicers/timelines must first be disconnected; set-connection rejects shared caches and workbook Data Model conversion. Shared cache options cannot change unrelated PivotTables. STYLING: Use pivottable_calc set-layout-options for native styles and preserveFormatting. Use pivottable_field for field management.")]
 [McpReadOnlyActions("list", "read", "get-source", "get-cache-options", "get-connection")]
 public interface IPivotTableCommands
 {
@@ -37,13 +37,20 @@ public interface IPivotTableCommands
     PivotTableListResult List(IExcelBatch batch);
 
     /// <summary>
-    /// Gets complete PivotTable configuration and current layout
+    /// Gets PivotTable configuration, current layout, and a bounded semantic snapshot
+    /// of selected members and native label/value filters.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>
+    /// <param name="sheetName">Optional exact worksheet for selecting a PivotTable when names may repeat.</param>
+    /// <param name="maxSelectedMembers">Maximum member names returned across all fields (1 through 1000; default 100).</param>
     /// <returns>All fields with positions, aggregation functions, filter states</returns>
     [ServiceAction("read")]
-    PivotTableInfoResult Read(IExcelBatch batch, string pivotTableName);
+    PivotTableInfoResult Read(
+        IExcelBatch batch,
+        string pivotTableName,
+        string? sheetName = null,
+        int maxSelectedMembers = PivotTableSnapshotHelpers.DefaultMaxSelectedMembers);
 
     /// <summary>
     /// Creates PivotTable from Excel range with auto-detection of headers
