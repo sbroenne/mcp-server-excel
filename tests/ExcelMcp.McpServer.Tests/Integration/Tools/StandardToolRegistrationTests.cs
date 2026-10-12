@@ -99,6 +99,7 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     [InlineData("connection", "set-account-settings", false)]
     [InlineData("range", "trace-precedents", true)]
     [InlineData("range", "trace-dependents", true)]
+    [InlineData("pivottable_field", "get-report-filter", true)]
     [InlineData("window", "get-view", false)]
     [InlineData("pythoninexcel", "get-result", false)]
     [InlineData("vba", "search", true)]

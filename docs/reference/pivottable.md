@@ -183,24 +183,39 @@ For an OLAP/Data Model report filter, use `set-report-filter` rather than
 OLAP member unique names (for example,
 `[RegionTable].[Region].&[North]`). An empty `selected_items` list shows all
 members; one or several names select those members only. This changes only the
-chosen PivotTable's report filter, not the Data Model or other reports.
-Nonempty selections enable Excel's multiple-selection mode, even for one member.
-After reopening a workbook with an external OLAP source, refresh the PivotTable
-to reconnect before changing its report filter.
+chosen PivotTable's report filter, not the Data Model or other reports. Use the
+exact hierarchy unique name returned by `list-fields` for `field_name`, not a
+level-qualified name. A one-member selection preserves the field's existing
+single- or multiple-selection mode; selecting several members enables Excel's
+multiple-selection mode when needed.
+After reopening a workbook with an external OLAP source, Excel may require an
+explicit PivotTable refresh to reconnect before the filter can be changed;
+refreshing can update source data, so it is not done automatically.
 For All, pass `selected_items: '[]'` in MCP or `--selected-items '[]'` in the CLI.
+
+Use `get-report-filter` with the same worksheet, PivotTable, and hierarchy to
+read one report filter without returning every PivotTable field or Values
+instance. It returns the exact selected member unique names, All state,
+selection mode, and field placement. `selectionStateAvailable: false` means
+Excel could not read the state; do not interpret empty `selectedItems` as All
+unless `showAll` is true and the state is available.
 
 ```mcp
 pivottable_field(action: 'set-report-filter', workbook_session_id: sessionId, sheet_name: 'Summary', pivot_table_name: 'SalesPivot', field_name: '[RegionTable].[Region]', selected_items: '["[RegionTable].[Region].&[North]","[RegionTable].[Region].&[West]"]')
+pivottable_field(action: 'get-report-filter', workbook_session_id: sessionId, sheet_name: 'Summary', pivot_table_name: 'SalesPivot', field_name: '[RegionTable].[Region]')
 ```
 
 ```cli
 excelcli -q pivottablefield set-report-filter --session $sessionId --sheet Summary --pivot-table-name SalesPivot --field-name '[RegionTable].[Region]' --selected-items '["[RegionTable].[Region].&[North]","[RegionTable].[Region].&[West]"]'
+excelcli -q pivottablefield get-report-filter --session $sessionId --sheet Summary --pivot-table-name SalesPivot --field-name '[RegionTable].[Region]'
 ```
 
-The result reports the actual selected member names. If
-`mayHavePartiallyChanged` is true after a failure, inspect the PivotTable
-before retrying. The result also reports `rollbackAttempted`; this operation
-does not automatically undo a failed filter change.
+The write result separates `requestedItems` from `selectedItems`, which reports
+the actual state when Excel allowed readback. `failurePhase` identifies the
+failing operation phase. If `mayHavePartiallyChanged` is true after a failure,
+inspect the filter with `get-report-filter` before retrying. The result also
+reports `rollbackAttempted`; this operation does not automatically undo a
+failed filter change.
 The operation defers updates on the selected PivotTable where supported, but
 does not guarantee a particular number of provider queries.
 

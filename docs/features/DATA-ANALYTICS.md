@@ -78,7 +78,7 @@ is a displayed query result, not a calculated table inside the model.
 
 ---
 
-## PivotTables (55 operations)
+## PivotTables (56 operations)
 
 - **Build summaries:** Create PivotTables from ranges, worksheet Tables, or the Data Model, then configure rows, columns, values, and filters.
 - **Choose calculations:** Set aggregation and Show Values As independently; use calculated fields/items for regular PivotTables or supported calculated members for model-backed ones.
@@ -113,9 +113,12 @@ use Power Query behavior rather than ordinary OLEDB/ODBC connection handling.
 Connection details can contain credentials: do not publish them in reports or
 error summaries. Use direct text/web imports for simple imports and Power Query
 for transformations and modern connectors. External OLAP schema discovery uses
-the selected connection's existing Excel authentication context; it does not
-refresh data, change PivotTable filters, save the workbook, or inspect the
-embedded Data Model.
+the selected connection's existing Excel authentication context and requires
+Excel to expose its active ADO session. If it is unavailable, authenticate or
+open the existing connection in Excel and retry; some providers do not expose
+this session and cannot use this discovery path. Discovery does not refresh
+data, change PivotTable filters, save the workbook, or inspect the embedded
+Data Model. Never include credentials or connection strings in a request.
 
 Member paging reads up to 10,000 entries at the selected level and orders them by
 their provider unique names. Larger levels return an explicit error; choose a

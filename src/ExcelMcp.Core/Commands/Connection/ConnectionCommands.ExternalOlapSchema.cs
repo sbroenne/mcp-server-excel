@@ -14,6 +14,11 @@ public partial class ConnectionCommands
 {
     private const int MaximumOlapMemberPageSize = 250;
     private const int MaximumOlapMemberRowsScanned = 1000;
+    private const string AdoSessionPrerequisites =
+        "To retry, authenticate or open the existing connection in Excel, then run discovery again. " +
+        "Discovery does not refresh data. If Excel still does not expose an ADO session, this provider " +
+        "does not support this discovery path; use provider-supported metadata access outside ExcelMcp. " +
+        "Do not include connection strings or credentials in a request.";
 
     /// <inheritdoc />
     public ExternalOlapSchemaResult DiscoverOlapSchema(
@@ -251,8 +256,7 @@ public partial class ConnectionCommands
             dynamic? adoConnection = oledbConnection?.ADOConnection;
             if (adoConnection is null)
             {
-                throw new InvalidOperationException(
-                    $"Connection '{connectionName}' has no active Excel ADO session for OLAP schema discovery.");
+                throw new InvalidOperationException(GetAdoConnectionUnavailableMessage(connectionName));
             }
 
             return adoConnection;
@@ -261,17 +265,20 @@ public partial class ConnectionCommands
         {
 #pragma warning disable CA2201 // Preserve the actual COM HRESULT without retaining sensitive provider text.
             throw new InvalidOperationException(
-                $"Excel did not expose an active ADO session for OLAP connection '{connectionName}'. "
-                + $"Schema discovery requires the existing connection session (HRESULT 0x{ex.HResult:X8}).",
+                $"{GetAdoConnectionUnavailableMessage(connectionName)} (HRESULT 0x{ex.HResult:X8}).",
                 new COMException("Excel could not expose the OLAP ADO session.", ex.HResult));
 #pragma warning restore CA2201
         }
         catch (RuntimeBinderException)
         {
             throw new NotSupportedException(
-                $"Connection '{connectionName}' does not expose an Excel ADO session for OLAP schema discovery.");
+                GetAdoConnectionUnavailableMessage(connectionName));
         }
     }
+
+    private static string GetAdoConnectionUnavailableMessage(string connectionName) =>
+        $"Excel did not expose an active ADO session for OLAP connection '{connectionName}'. " +
+        AdoSessionPrerequisites;
 
     private static string GetExternalOlapCubeName(
         string connectionName,
