@@ -314,6 +314,7 @@
         "clear-field-filters": "medium",
         "get-field-filters": "light",
         "get-field-options": "light",
+        "get-report-filter": "light",
         "get-subtotal-functions": "light",
         "get-item-expansion": "light",
         "group-by-date": "medium",

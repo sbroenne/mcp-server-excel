@@ -739,11 +739,28 @@ public class PivotReportFilterResult : ResultBase
     /// <summary>Exact CubeField unique name.</summary>
     public string FieldName { get; set; } = string.Empty;
 
+    /// <summary>The placement of the inspected hierarchy; report-filter reads require Filter.</summary>
+    public PivotFieldArea FieldArea { get; set; }
+
+    /// <summary>Member unique names supplied to the write request; null for read-only inspection.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? RequestedItems { get; set; }
+
     /// <summary>Exact member unique names currently selected; empty when ShowAll is true.</summary>
     public List<string> SelectedItems { get; set; } = [];
 
     /// <summary>Whether the report filter currently shows every item.</summary>
     public bool ShowAll { get; set; }
+
+    /// <summary>Whether exact selected-member state was read successfully; false means the state is unknown.</summary>
+    public bool SelectionStateAvailable { get; set; }
+
+    /// <summary>Whether Excel currently allows multiple page items for this hierarchy.</summary>
+    public bool MultipleSelectionEnabled { get; set; }
+
+    /// <summary>The operation phase that failed, when a failure was reported.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? FailurePhase { get; set; }
 
     /// <summary>Whether Excel may have partially changed the report filter before failure.</summary>
     public bool MayHavePartiallyChanged { get; set; }

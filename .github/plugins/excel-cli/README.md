@@ -26,7 +26,7 @@ tokens.
 | "Refresh the Power Query queries in this workbook and save it." | Updated query results saved in the workbook. |
 | "Put this data into a worksheet and format the totals." | Formatted data ready to read. |
 
-The CLI provides 31 feature command categories with 408 operations, including
+The CLI provides 31 feature command categories with 409 operations, including
 Power Query, DAX and the Data Model, PivotTables, tables, charts, worksheets,
 formulas, VBA, and more. See the
 [complete feature reference](https://excelmcpserver.dev/features/).

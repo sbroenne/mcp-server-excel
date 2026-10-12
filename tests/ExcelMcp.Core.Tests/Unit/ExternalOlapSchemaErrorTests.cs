@@ -16,6 +16,29 @@ public sealed class ExternalOlapSchemaErrorTests
     private const string Sentinel = "sentinel-provider-secret";
 
     [Fact]
+    public void AdoSessionFailureExplainsHowToRetryWithoutRefreshingOrExposingCredentials()
+    {
+        var method = typeof(ConnectionCommands).GetMethod(
+            "GetAdoConnectionUnavailableMessage", BindingFlags.NonPublic | BindingFlags.Static);
+        Assert.NotNull(method);
+
+        var message = Assert.IsType<string>(method.Invoke(null, ["ExternalOlap"]));
+
+        Assert.Contains("Do not refresh automatically", message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("user authorizes", message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("connection_name", message, StringComparison.Ordinal);
+        Assert.Contains("excelcli connection refresh --connection-name", message, StringComparison.Ordinal);
+        Assert.Contains("check that refresh succeeded", message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("may update workbook data", message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not guarantee", message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not refresh data", message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("does not prove", message, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("provider does not support this discovery path", message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("ExternalOlap", message, StringComparison.Ordinal);
+        Assert.DoesNotContain(Sentinel, message, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void SchemaRowset_MembersReadOnlyRequiredColumns()
     {
         var method = typeof(ConnectionCommands).GetMethod(
