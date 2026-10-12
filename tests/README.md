@@ -365,7 +365,8 @@ solution, as required by `check-doc-counts.ps1 -SkipBuild`. Ordinary source guar
 do not force a full build. All preparatory builds disable
 build servers so rebuild regressions do not inherit assembly locks. Package
 commands build their own required binaries without a preceding solution build;
-metadata-only packages do not require .NET setup. NuGet and npm caches hold
+metadata-only packages avoid product runtime builds, but still require the
+repository SDK from `global.json` for the internal build tool. NuGet and npm caches hold
 dependency downloads, not shared compiled outputs.
 `Docs Site` always reports, but builds the site only when its inputs changed.
 The required `CI Gate` always reports and rejects
