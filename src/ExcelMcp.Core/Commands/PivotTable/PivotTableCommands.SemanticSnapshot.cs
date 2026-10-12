@@ -133,7 +133,7 @@ public partial class PivotTableCommands
             .ToList();
     }
 
-    private static PivotFieldSelectionSnapshot? ReadRegularFieldSelection(
+    internal static PivotFieldSelectionSnapshot? ReadRegularFieldSelection(
         Excel.PivotField field,
         string pivotTableName,
         string workbookPath,
@@ -170,7 +170,8 @@ public partial class PivotTableCommands
             LayoutAvailable = false,
             LayoutError = orientation.ErrorMessage,
             SelectionStateAvailable = false,
-            SelectionError = "The field identity or placement could not be read."
+            SelectionError = "The field identity or placement could not be read.",
+            FiltersError = "The field identity or placement could not be read."
         };
 
         if (!orientation.Available)
@@ -235,7 +236,7 @@ public partial class PivotTableCommands
         return result;
     }
 
-    private static PivotFieldSelectionSnapshot? ReadOlapFieldSelection(
+    internal static PivotFieldSelectionSnapshot? ReadOlapFieldSelection(
         Excel.CubeField cubeField,
         string pivotTableName,
         string workbookPath,
@@ -256,7 +257,8 @@ public partial class PivotTableCommands
             LayoutAvailable = false,
             LayoutError = orientation.ErrorMessage ?? name.ErrorMessage,
             SelectionStateAvailable = false,
-            SelectionError = "The hierarchy identity or placement could not be read."
+            SelectionError = "The hierarchy identity or placement could not be read.",
+            FiltersError = "The hierarchy identity or placement could not be read."
         };
 
         if (!orientation.Available)
