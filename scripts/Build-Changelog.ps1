@@ -127,6 +127,15 @@ else {
 }
 
 if ([string]::IsNullOrWhiteSpace($newSection)) {
+    $pendingFragments = @(
+        Get-ChildItem -LiteralPath (Join-Path $RepoRoot '.changeset') -Filter '*.md' -File |
+            Where-Object { $_.Name -ne 'README.md' }
+    )
+    if ($pendingFragments.Count -gt 0) {
+        $fragmentNames = ($pendingFragments | ForEach-Object Name) -join ', '
+        throw "Pending changeset fragments were not included in CHANGELOG.md: $fragmentNames"
+    }
+
     & $updateReleaseVersionScript -RepoRoot $RepoRoot -Version $Version
     Write-Output 'No pending changesets found — nothing to add to the changelog.'
     Set-Content -LiteralPath $OutputNotesPath -Value "_No changes recorded for this release._" -NoNewline
@@ -135,7 +144,11 @@ if ([string]::IsNullOrWhiteSpace($newSection)) {
 
 # --- Step 4: normalize the first non-blank line (changesets' own version header,
 # e.g. "## excelmcp@1.9.1" or "## 1.9.1") to the Keep a Changelog style used here.
-$newSectionLines = $newSection -split "`r?`n"
+$newSectionLines = @(
+    $newSection -split "`r?`n" | ForEach-Object {
+        if ($_ -match '^[ \t]+$') { '' } else { $_ }
+    }
+)
 $headerIdx = 0
 while ($headerIdx -lt $newSectionLines.Count -and [string]::IsNullOrWhiteSpace($newSectionLines[$headerIdx])) {
     $headerIdx++

@@ -793,6 +793,69 @@ public sealed class ReleaseMetadataScriptTests
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "ReleaseMetadata")]
+    public void Changesets_VersionPrivateNotesPackageWithoutTagging()
+    {
+        using var config = JsonDocument.Parse(
+            File.ReadAllText(Path.Combine(RepoRoot, ".changeset", "config.json")));
+        var privatePackages = config.RootElement.GetProperty("privatePackages");
+        Assert.True(privatePackages.GetProperty("version").GetBoolean());
+        Assert.False(privatePackages.GetProperty("tag").GetBoolean());
+
+        using var package = JsonDocument.Parse(File.ReadAllText(Path.Combine(RepoRoot, "package.json")));
+        Assert.True(package.RootElement.GetProperty("private").GetBoolean());
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "ReleaseMetadata")]
+    public async Task BuildChangelog_FailsWhenPendingFragmentsProduceNoEntries()
+    {
+        var sandbox = CreateSandbox();
+        try
+        {
+            CopyReleaseMetadataFiles(sandbox);
+            CopyFile(RepoRoot, sandbox, "CHANGELOG.md");
+            CopyFile(RepoRoot, sandbox, Path.Combine(".changeset", "config.json"));
+            WriteFile(
+                sandbox,
+                Path.Combine(".changeset", "pending-release-note.md"),
+                """
+                ---
+                "excelmcp": patch
+                ---
+
+                A pending release note.
+                """);
+
+            var fakeNpxDirectory = Path.Combine(sandbox, "tools");
+            Directory.CreateDirectory(fakeNpxDirectory);
+            await File.WriteAllTextAsync(
+                Path.Combine(fakeNpxDirectory, "npx.cmd"),
+                "@echo off\r\nexit /b 0\r\n");
+
+            var path = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+            var result = await RunPowerShellScriptAsync(
+                BuildChangelogScript,
+                ["-Version", "9.8.7", "-RepoRoot", sandbox],
+                sandbox,
+                new Dictionary<string, string>
+                {
+                    ["PATH"] = fakeNpxDirectory + Path.PathSeparator + path
+                });
+
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("pending-release-note.md", result.CombinedOutput, StringComparison.Ordinal);
+            Assert.False(File.Exists(Path.Combine(sandbox, "release_notes_body.md")));
+        }
+        finally
+        {
+            Directory.Delete(sandbox, recursive: true);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "ReleaseMetadata")]
     public void ReleaseFlow_UsesAndCommitsCanonicalVersionUpdater()
     {
         var buildChangelog = File.ReadAllText(BuildChangelogScript);

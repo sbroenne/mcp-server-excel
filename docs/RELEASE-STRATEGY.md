@@ -279,7 +279,8 @@ The release workflow injects the correct version from the tag.
 3. **At release time**, the `prepare-release` job in `release.yml` runs `scripts/Build-Changelog.ps1 -Version <version> -Date <date>`, which:
    - Runs `npx changeset version` to consume every pending fragment, deleting them.
    - Normalizes the tool's generated version header to this repo's `## [X.Y.Z] - YYYY-MM-DD` (Keep a Changelog) style.
-   - Extracts the new section verbatim into `release_notes_body.md`, used directly as the "What's New" body of the GitHub Release.
+   - Extracts the generated section into `release_notes_body.md`, used directly as the "What's New" body of the GitHub Release.
+   - Stops release preparation if pending fragments do not produce a changelog section, instead of silently publishing placeholder notes.
 4. **Artifact builds** consume that prepared changelog, so packaged VS Code and MCPB changelog files include the version being released.
 5. **After all builds pass**, the `create-tag` job regenerates the metadata using the same release date and verifies it byte-for-byte against the prepared artifact. It commits `CHANGELOG.md`, synchronized version metadata, and consumed `.changeset/*.md` deletions to `main` through the Git Data API, then points the release tag at that exact commit.
 
