@@ -11,7 +11,7 @@
       2. Synchronizes all persistent source-tree version metadata with the real
          release version. Build-time placeholder manifests remain unchanged.
       3. Extracts the newly-inserted section body to a separate file so it can be
-         used verbatim as GitHub Release notes.
+         formatted for GitHub Release notes without changing CHANGELOG.md.
 
     This is NOT a dry run: it changes CHANGELOG.md and release metadata and
     deletes consumed fragments in .changeset/. Use a disposable checkout for preview.
@@ -195,13 +195,13 @@ Set-Content -LiteralPath $changelogPath -Value $finalContent -NoNewline
 # release version.
 & $updateReleaseVersionScript -RepoRoot $RepoRoot -Version $Version
 
-# --- Step 7: write the release-notes body (verbatim section content, no header
-# duplication needed since GitHub Release titles already carry the version).
+# --- Step 7: format the extracted body for GitHub Release notes only.
 $notesBody = ($newSectionLines[($headerIdx + 1)..($newSectionLines.Count - 1)] -join "`n").Trim()
 if ([string]::IsNullOrWhiteSpace($notesBody)) {
     $notesBody = '_No notable changes recorded for this release._'
 }
 Set-Content -LiteralPath $OutputNotesPath -Value $notesBody -NoNewline
+& (Join-Path $PSScriptRoot 'Format-ReleaseNotes.ps1') -Path $OutputNotesPath
 
 Write-Output "CHANGELOG.md updated with ## [$Version] - $Date"
 Write-Output "Release notes body written to $OutputNotesPath"

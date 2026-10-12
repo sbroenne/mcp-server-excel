@@ -127,7 +127,7 @@ explicit calculation before relying on dependent values.
 - **[GitHub Repository](https://github.com/sbroenne/mcp-server-excel)** - Source code, issues, discussions
 - **[MCP Server Installation Guide](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/INSTALLATION-MCP-SERVER.md)** - Detailed setup for all platforms
 - **[VS Code Extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp)** - One-click installation
-- **[CLI Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)** - Comprehensive commands for RPA and CI/CD automation
+- **[CLI Documentation](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.CLI/README.md)** - the same features as terminal commands for coding agents, usually with fewer AI tokens
 
 **License:** MIT  
 **Privacy:** [PRIVACY.md](https://github.com/sbroenne/mcp-server-excel/blob/main/PRIVACY.md)

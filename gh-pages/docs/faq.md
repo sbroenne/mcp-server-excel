@@ -31,10 +31,11 @@ limitations - you don't need to memorize commands.
 
 ### CLI or MCP Server - which should I install?
 
-Both expose the **same 409 operations**. Use the **MCP Server** for
-conversational AI (Claude Desktop, VS Code Chat); use the **CLI** (`excelcli`)
-for coding agents and scripting, where it uses ~64% fewer tokens. You can
-install both. See [Installation](installation.md).
+Both expose the **same 409 operations**, so the choice is technical. Use the
+**MCP Server** with any MCP-compatible assistant. Coding agents that can run
+terminal commands can use either; the **CLI** (`excelcli`) usually uses fewer
+AI tokens because the agent reads command help only when needed. See
+[Installation](installation.md).
 
 ### Which AI assistants does it work with?
 

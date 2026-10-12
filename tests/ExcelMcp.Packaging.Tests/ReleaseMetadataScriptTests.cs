@@ -1204,6 +1204,117 @@ public sealed class ReleaseMetadataScriptTests
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "ReleaseMetadata")]
+    public async Task ReleaseNotes_UsePlainHeadingsAndThankOnlyOutsideContributors()
+    {
+        var sandbox = CreateSandbox();
+        try
+        {
+            var notesPath = Path.Combine(sandbox, "release_notes_body.md");
+            await File.WriteAllTextAsync(
+                notesPath,
+                """
+                ### Major Changes
+
+                - [#7](https://github.com/sbroenne/mcp-server-excel/pull/7) [`abc1234`](https://github.com/sbroenne/mcp-server-excel/commit/abc1234def) Thanks [@sbroenne](https://github.com/sbroenne)! - Removed an old action.
+
+                ### Minor Changes
+
+                - [#9](https://github.com/sbroenne/mcp-server-excel/pull/9) [`1234567`](https://github.com/sbroenne/mcp-server-excel/commit/1234567abc) Thanks [@sbroenne](https://github.com/sbroenne)! - Add PivotTable sorting.
+
+                  Second paragraph stays.
+
+                ### Patch Changes
+
+                - [#8](https://github.com/sbroenne/mcp-server-excel/pull/8) [`7654321`](https://github.com/sbroenne/mcp-server-excel/commit/7654321abc) Thanks [@helper](https://github.com/helper)! - Faster CLI startup.
+                """);
+
+            var result = await RunPowerShellScriptAsync(
+                Path.Combine(RepoRoot, "scripts", "Format-ReleaseNotes.ps1"),
+                ["-Path", notesPath]);
+
+            Assert.True(result.ExitCode == 0, result.CombinedOutput);
+            var notes = (await File.ReadAllTextAsync(notesPath)).ReplaceLineEndings("\n");
+            Assert.Equal(
+                """
+                #### Breaking changes
+
+                - Removed an old action. ([#7](https://github.com/sbroenne/mcp-server-excel/pull/7))
+
+                #### New features
+
+                - Add PivotTable sorting. ([#9](https://github.com/sbroenne/mcp-server-excel/pull/9))
+
+                  Second paragraph stays.
+
+                #### Fixes and improvements
+
+                - Faster CLI startup. ([#8](https://github.com/sbroenne/mcp-server-excel/pull/8)) Thanks [@helper](https://github.com/helper)!
+                """.ReplaceLineEndings("\n"),
+                notes);
+
+            result = await RunPowerShellScriptAsync(
+                Path.Combine(RepoRoot, "scripts", "Format-ReleaseNotes.ps1"),
+                ["-Path", notesPath]);
+            Assert.True(result.ExitCode == 0, result.CombinedOutput);
+            Assert.Equal(notes, (await File.ReadAllTextAsync(notesPath)).ReplaceLineEndings("\n"));
+        }
+        finally
+        {
+            Directory.Delete(sandbox, recursive: true);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "ReleaseMetadata")]
+    public void ReleaseNotes_ChangelogBuilderFormatsOnlyTheReleaseNotesBody()
+    {
+        var script = File.ReadAllText(BuildChangelogScript);
+        var formatIndex = script.IndexOf("Format-ReleaseNotes.ps1", StringComparison.Ordinal);
+        Assert.True(formatIndex > 0, "Build-Changelog.ps1 must format the release-notes body.");
+        Assert.True(
+            formatIndex > script.IndexOf("Set-Content -LiteralPath $OutputNotesPath -Value $notesBody", StringComparison.Ordinal),
+            "Release notes must be formatted after the body is written, leaving CHANGELOG.md unchanged.");
+    }
+
+    [Theory]
+    [InlineData("sbroenne,helper", "helper")]
+    [InlineData("helper,sbroenne,contributor", "helper,contributor")]
+    [InlineData("helper,contributor", "helper,contributor")]
+    [InlineData("sbroenne,sbroenne", "")]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "ReleaseMetadata")]
+    public async Task ReleaseNotes_PreservesMultipleOutsideContributorCredits(string authors, string remainingAuthors)
+    {
+        var sandbox = CreateSandbox();
+        try
+        {
+            var notesPath = Path.Combine(sandbox, "notes.md");
+            var credits = string.Join(", ", authors.Split(',').Select(author =>
+                $"[@{author}](https://github.com/{author})"));
+            await File.WriteAllTextAsync(notesPath,
+                $"- [#9](https://github.com/sbroenne/mcp-server-excel/pull/9) [`abc1234`](https://github.com/sbroenne/mcp-server-excel/commit/abc1234) Thanks {credits}! - Add sorting.");
+            var result = await RunPowerShellScriptAsync(
+                Path.Combine(RepoRoot, "scripts", "Format-ReleaseNotes.ps1"),
+                ["-Path", notesPath]);
+            Assert.True(result.ExitCode == 0, result.CombinedOutput);
+            var expected = "- Add sorting. ([#9](https://github.com/sbroenne/mcp-server-excel/pull/9))";
+            if (remainingAuthors.Length > 0)
+            {
+                expected += " Thanks " + string.Join(", ", remainingAuthors.Split(',').Select(author =>
+                    $"[@{author}](https://github.com/{author})")) + "!";
+            }
+            Assert.Equal(expected, await File.ReadAllTextAsync(notesPath));
+        }
+        finally
+        {
+            Directory.Delete(sandbox, recursive: true);
+        }
+    }
+
+    [Fact]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "ReleaseMetadata")]
     public async Task UpdateMetadata_RejectsMissingMcpServerPackage()
     {
         var sandbox = CreateSandbox();

@@ -1,5 +1,8 @@
 # ExcelMcp CLI
 
+Excel automation for coding agents through terminal commands. It offers the
+same features as the Excel MCP Server and usually uses fewer AI tokens.
+
 Run the self-contained Excel automation CLI through npm:
 
 ```powershell
