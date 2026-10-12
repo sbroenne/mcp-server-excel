@@ -11,6 +11,16 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.3.12] - 2026-10-12
+
+### Minor Changes
+
+- [#1131](https://github.com/sbroenne/mcp-server-excel/pull/1131) [`6fcdae6`](https://github.com/sbroenne/mcp-server-excel/commit/6fcdae6095c5e8e73b82cd8092ca41ecd74707b4) Thanks [@sbroenne](https://github.com/sbroenne)! - Inspect hidden workbook information using Excel's available Document Inspector checks through MCP or `excelcli`. Explicitly remove findings from one selected category, with clear warnings about category-wide deletion and incomplete inspection coverage.
+
+### Patch Changes
+
+- [#1128](https://github.com/sbroenne/mcp-server-excel/pull/1128) [`fb80f83`](https://github.com/sbroenne/mcp-server-excel/commit/fb80f83f579971c2cd715fefc879cc2d51a581d7) Thanks [@copilot-swe-agent](https://github.com/apps/copilot-swe-agent)! - Report a failure when adding a PivotTable value field leaves the summary blocked with `#SPILL!`, instead of reporting success. PivotTable read and list results now expose the layout problem. Field changes remain available for inspection and are not automatically undone.
+
 ## [2.3.11] - 2026-10-12
 
 ### Major Changes
