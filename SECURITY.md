@@ -9,7 +9,7 @@ ExcelMcp ships frequent releases (multiple per month). We only support the **lat
 | Latest release         | :white_check_mark: |
 | Any older release      | :x: Please upgrade  |
 
-Check the [Releases page](https://github.com/sbroenne/mcp-server-excel/releases) for the current latest version, and keep your installation up to date via the CLI's built-in auto-update, `npx skills`, the VS Code extension, or NuGet.
+Check the [Releases page](https://github.com/sbroenne/mcp-server-excel/releases) for the current latest version, and keep your installation up to date via the CLI's built-in auto-update, the VS Code extension, or NuGet.
 
 ## Security Features
 

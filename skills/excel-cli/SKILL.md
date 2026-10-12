@@ -16,12 +16,6 @@ installed or restore the retired GitHub-release downloader.
 
 For the plugin-bundled copy of this skill, `..\..\bin\start-cli.ps1` relative to
 the directory containing this `SKILL.md` locates the plugin launcher.
-For a standalone skill installation (including the skill ZIP), that relative
-path does not apply: the skill package does not contain the launcher. Locate
-the actual installed `excel-cli` plugin through the client's plugin listing
-and installation directory instead; do not resolve the launcher relative to
-the standalone skill. If the required plugin is absent, report that prerequisite
-rather than invoking a nonexistent file.
 Replace `<plugin-root>` below with that plugin's actual installed directory:
 
 ```powershell

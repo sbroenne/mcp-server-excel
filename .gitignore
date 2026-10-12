@@ -250,7 +250,7 @@ Directory.Build.props.user
 
 # Skills - generated files (SKILL.md + references) are auto-staged by pre-commit hook.
 # Source of truth: skills/shared/*.md (copied to references/ during Release build)
-# All tracked because `npx skills add` pulls from the repo tree.
+# Authored skill sources are tracked; generated copies belong to their packages.
 vscode-extension/skills/*
 llm-tests/aitest-reports/
 

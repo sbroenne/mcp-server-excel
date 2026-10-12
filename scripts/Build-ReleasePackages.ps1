@@ -7,8 +7,8 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('Cli', 'Mcp', 'Extension', 'Mcpb', 'Skills', 'Plugins')]
-    [string[]]$Components = @('Cli', 'Mcp', 'Extension', 'Mcpb', 'Skills', 'Plugins'),
+    [ValidateSet('Cli', 'Mcp', 'Extension', 'Mcpb', 'Plugins')]
+    [string[]]$Components = @('Cli', 'Mcp', 'Extension', 'Mcpb', 'Plugins'),
     [string]$BaseRef,
     [string]$HeadRef = 'HEAD',
     [string]$Version,
@@ -53,7 +53,7 @@ try {
     if (-not $IsWindows) { throw 'Package installation checks require Windows (not Excel).' }
     if (-not $Version) { $Version = (Get-Content package.json -Raw | ConvertFrom-Json).version }
     if ($Version -notmatch '^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$') { throw 'A valid package version is required.' }
-    if ($SkillsDirectory -and @($Components | Where-Object { $_ -in @('Skills', 'Extension', 'Plugins') }).Count) {
+    if ($SkillsDirectory -and @($Components | Where-Object { $_ -in @('Extension', 'Plugins') }).Count) {
         foreach ($name in @('excel-cli-report-formatting', 'excel-mcp-report-formatting')) {
             $stamp = Join-Path $SkillsDirectory "$name\VERSION"
             if (-not (Test-Path -LiteralPath $stamp -PathType Leaf) -or (Get-Content -LiteralPath $stamp -Raw).Trim() -ne $Version) {
@@ -150,15 +150,10 @@ try {
                 -OutputDir (Join-Path $OutputDirectory 'mcpb')
         }
     }
-    if (-not $SkillsDirectory -and @($Components | Where-Object { $_ -in @('Skills', 'Extension', 'Plugins') }).Count) {
+    if (-not $SkillsDirectory -and @($Components | Where-Object { $_ -in @('Extension', 'Plugins') }).Count) {
         $SkillsDirectory = Join-Path $OutputDirectory 'generated-skills'
         Invoke-PackageStep 'Complete generated skills' {
             & (Join-Path $PSScriptRoot 'Build-AgentSkills.ps1') -GenerateOnly -Version $Version -OutputDir $SkillsDirectory
-        }
-    }
-    if ($Components -contains 'Skills') {
-        Invoke-PackageStep 'Skill package' {
-            & (Join-Path $PSScriptRoot 'Build-AgentSkills.ps1') -Version $Version -SkillsDirectory $SkillsDirectory -OutputDir (Join-Path $OutputDirectory 'skills')
         }
     }
     if ($Components -contains 'Plugins') {
