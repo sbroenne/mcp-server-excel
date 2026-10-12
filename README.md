@@ -41,6 +41,15 @@ Data Model, and workbook formatting.
 | **Coding agents and scripts** | [Install the CLI](https://excelmcpserver.dev/installation-cli/) |
 | **Not sure which to choose?** | [Read the installation overview](https://excelmcpserver.dev/installation/) |
 
+For **GitHub Copilot CLI**, install either plugin from the
+[Awesome Copilot Excel listings](https://github.com/github/awesome-copilot/blob/main/plugins/external.json):
+
+```powershell
+copilot plugin install excel-mcp@awesome-copilot
+# Or, for command-line Excel automation:
+copilot plugin install excel-cli@awesome-copilot
+```
+
 Close open Excel workbooks before starting; ExcelMcp requires exclusive access
 while automating them.
 
