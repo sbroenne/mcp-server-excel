@@ -22,7 +22,7 @@ Node.js 18 or later with `npx`. ExcelMcp runs in an interactive desktop session.
 | "Refresh the Power Query queries in this workbook and save it." | Updated query results saved in the workbook. |
 | "Show me Excel while you work." | Excel is visible as the assistant makes changes. |
 
-The server provides 60 MCP tools across 31 feature areas and 408 operations,
+The server provides 60 MCP tools across 31 feature areas, with 408 operations,
 including Power Query, DAX and the Data Model, PivotTables, tables, charts,
 worksheets, formulas, VBA, and more. See the
 [complete feature reference](https://excelmcpserver.dev/features/).

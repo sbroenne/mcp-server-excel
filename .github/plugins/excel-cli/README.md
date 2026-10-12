@@ -20,8 +20,9 @@ Excel application, so Excel handles calculations and workbook features.
 - "Add a PivotTable showing total sales by region."
 - "Put this data into a worksheet and format the totals."
 
-The CLI covers Power Query, DAX and the Data Model, PivotTables, tables, charts,
-formulas, VBA, worksheets, workbook files, and more. See the
+The CLI provides 31 feature command categories with 408 operations for Power
+Query, DAX and the Data Model, PivotTables, tables, charts, formulas, VBA,
+worksheets, workbook files, and more. See the
 [complete feature reference](https://excelmcpserver.dev/features/).
 
 ## Install
@@ -101,9 +102,12 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 ## CLI or MCP Server?
 
-Both interfaces automate the same Excel operations. The CLI is a good fit for
-scripts and coding-agent workflows; the MCP Server is a good fit for
-conversational tool discovery.
+Both interfaces automate the same Excel operations:
+
+| Interface | Good fit | Context |
+|---|---|---|
+| CLI (`excelcli`) | Scripts and coding-agent workflows | CLI help instead of MCP tool schemas |
+| MCP Server | Conversational tool discovery | 60 tool schemas loaded into context |
 
 In one comparison using the same task and AI model, the CLI used about 59,000 AI
 tokens and MCP used 163,000 (about 64% fewer with CLI). This is one measured
