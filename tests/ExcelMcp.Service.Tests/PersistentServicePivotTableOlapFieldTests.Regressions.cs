@@ -8,6 +8,24 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public partial class PersistentServicePivotTableOlapFieldTests
 {
     [Fact]
+    public void AddValueField_UnknownOlapField_PreservesStrategyFailure()
+    {
+        var batch = _fixture.BatchToken;
+        var (_, pivot) = CreateIsolatedPivot();
+        var before = RequireSuccess(_pivotCommands.Read(batch, pivot)).PivotTable;
+
+        var result = _pivotCommands.AddValueField(batch, pivot, "MissingMeasure");
+
+        Assert.False(result.Success);
+        Assert.Contains("Cannot determine table and column for field 'MissingMeasure'",
+            result.ErrorMessage, StringComparison.Ordinal);
+        var after = RequireSuccess(_pivotCommands.Read(batch, pivot)).PivotTable;
+        Assert.Equal(before.Range, after.Range);
+        Assert.Equal(before.ValueFieldCount, after.ValueFieldCount);
+        Assert.Equal(before.LayoutError, after.LayoutError);
+    }
+
+    [Fact]
     public void AddValueField_DottedColumnPreservesTheExactDataModelColumn()
     {
         var batch = _fixture.BatchToken;

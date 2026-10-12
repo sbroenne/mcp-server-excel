@@ -88,6 +88,15 @@ inspect them with `list-calculated-members` instead.
 
 ## Refresh, layout, and grouping
 
+Adding a value field can make a PivotTable overlap another PivotTable. Excel may
+accept the field but collapse the displayed summary to one `#SPILL!` cell.
+`pivottablefield add-value-field` (MCP `pivottable_field` action `add-value-field`)
+reports this as a failure. The field change remains; nothing is rolled back.
+Use `pivottable read` or `pivottable list` (MCP `pivottable` actions `read`/`list`)
+to inspect `layoutError`, the range, and field counts. These inspection operations
+can succeed while reporting a layout failure. Inspect nearby PivotTables and cells
+before deciding how to recover.
+
 Hierarchy subtotal changes apply one level at a time. A provider failure reports
 the completed levels and the attempted level, whose state may also have changed.
 Nothing is rolled back; inspect the hierarchy before retrying.

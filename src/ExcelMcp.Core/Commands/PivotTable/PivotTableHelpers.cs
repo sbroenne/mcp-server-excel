@@ -1,5 +1,8 @@
+using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
@@ -9,6 +12,31 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// </summary>
 internal static class PivotTableHelpers
 {
+    /// <summary>
+    /// Detects Excel's silent collapse of a blocked PivotTable to a single #SPILL! cell.
+    /// Empty or otherwise small PivotTables are not layout failures.
+    /// </summary>
+    internal static string? GetLayoutError(Excel.PivotTable pivot)
+    {
+        Excel.Range? range = null;
+        try
+        {
+            range = pivot.TableRange1;
+            if (range is not null && Convert.ToDouble((object)range.CountLarge, CultureInfo.InvariantCulture) == 1
+                && ExcelErrorMapper.TryGet((object?)range.Value2, out _, out var error)
+                && error.Name == "#SPILL!")
+            {
+                return $"PivotTable '{pivot.Name}' is not drawn: its range {range.Address} contains #SPILL!. " +
+                    "The layout may overlap another PivotTable or be blocked by occupied cells.";
+            }
+            return null;
+        }
+        finally
+        {
+            ComUtilities.Release(ref range);
+        }
+    }
+
     /// <summary>
     /// Gets the area name for display purposes from a pivot field orientation.
     /// </summary>
