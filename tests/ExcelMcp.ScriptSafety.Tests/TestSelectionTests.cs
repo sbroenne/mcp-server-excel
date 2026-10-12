@@ -181,7 +181,8 @@ public sealed class TestSelectionTests
             var owner = Regex.Match(command[1], @"ExcelMcp\.(\w+)\.Tests\.csproj$").Groups[1].Value;
             Assert.NotEmpty(owner);
             var filter = command[Array.IndexOf(command, "--filter") + 1];
-            Assert.Contains("RequiresExcel=false&RunType!=OnDemand", filter, StringComparison.Ordinal);
+            Assert.StartsWith("RequiresExcel=false&", filter, StringComparison.Ordinal);
+            Assert.Contains("RunType!=OnDemand", filter, StringComparison.Ordinal);
             var results = command[Array.IndexOf(command, "--results-directory") + 1];
             Assert.NotNull(environment);
             Assert.Equal(Path.Combine(results, $"{owner}-ownership"), environment["EXCELMCP_TEST_OWNERSHIP_DIRECTORY"]);

@@ -70,8 +70,10 @@ public sealed class ValidationExecution(string root, IProcessRunner runner)
             if (filters.Count == 0) { throw new InvalidOperationException($"{selected} has no selected tests."); }
             foreach (var (owner, filter) in filters)
             {
-                var kind = selected switch { "Fast" => "&AdapterTestKind!=System", "Process" => "&AdapterTestKind=System", _ => "" };
-                await _tests.RunAsync(owner, $"RequiresExcel=false&RunType!=OnDemand{kind}&({filter})",
+                var kind = selected switch { "Fast" => "AdapterTestKind!=System", "Process" => "AdapterTestKind=System", _ => "" };
+                var normalFilter = kind.Length == 0 ? filter : $"{kind}&({filter})";
+                var onDemand = selected == "Tooling" ? plan.ToolingOnDemandFilters.GetValueOrDefault(owner) : null;
+                await _tests.RunAsync(owner, FreeTestSelection.ExcelFreeFilter(normalFilter, onDemand),
                     Path.Combine(results, selected), excel: false, listOnly, deadlineSeconds: deadlineSeconds);
             }
         }
@@ -143,6 +145,10 @@ public sealed class ValidationExecution(string root, IProcessRunner runner)
         };
         if (!owners.Order(StringComparer.Ordinal).SequenceEqual(filters.Keys, StringComparer.Ordinal)) { throw new InvalidOperationException($"Missing or unexpected {group} project filters."); }
         if (filters.Values.Any(string.IsNullOrWhiteSpace)) { throw new InvalidOperationException($"Missing {group} test filter."); }
+        if (group == "Tooling" && plan.ToolingOnDemandFilters.Any(item => !filters.ContainsKey(item.Key) || string.IsNullOrWhiteSpace(item.Value)))
+        {
+            throw new InvalidOperationException("Selected OnDemand cases require an owning Tooling project and a nonempty filter.");
+        }
         return filters;
     }
 

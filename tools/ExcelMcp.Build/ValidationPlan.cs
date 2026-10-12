@@ -26,6 +26,7 @@ public sealed class ValidationPlan
     public SortedDictionary<string, string> FastFilters { get; } = new(StringComparer.Ordinal);
     public SortedDictionary<string, string> ProcessFilters { get; } = new(StringComparer.Ordinal);
     public SortedDictionary<string, string> ToolingFilters { get; } = new(StringComparer.Ordinal);
+    public SortedDictionary<string, string> ToolingOnDemandFilters { get; } = new(StringComparer.Ordinal);
     public List<ExcelSelection> ExcelSelections { get; } = [];
     public SortedSet<string> BuildProjects { get; } = new(StringComparer.Ordinal);
     public SortedSet<string> CodeQlLanguages { get; } = new(StringComparer.Ordinal);

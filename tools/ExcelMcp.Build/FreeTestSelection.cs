@@ -21,6 +21,7 @@ public static class FreeTestSelection
     public static IReadOnlyList<FreeTestProject> Select(string root, FreeTestOptions options, ValidationPlan? savedPlan = null)
     {
         var selections = new Dictionary<string, string>(StringComparer.Ordinal);
+        var onDemand = new Dictionary<string, string>(StringComparer.Ordinal);
         if (options.Group is { } group)
         {
             var plan = savedPlan ?? new ValidationPolicy(root).Select([], full: true);
@@ -36,6 +37,10 @@ public static class FreeTestSelection
                     "Process" => $"AdapterTestKind=System&({filter})",
                     _ => filter
                 };
+                if (group == "Tooling" && plan.ToolingOnDemandFilters.TryGetValue(owner, out var selectedOnDemand))
+                {
+                    onDemand[owner] = selectedOnDemand;
+                }
             }
         }
         else if (options.PlanFile is not null) { throw new ArgumentException("PlanFile requires an explicit Group."); }
@@ -47,16 +52,21 @@ public static class FreeTestSelection
             if (options.SkillTests || plan.SkillTests) { Add("SkillGeneration", plan.ToolingFilters.GetValueOrDefault("SkillGeneration") ?? "Feature=SkillGeneration"); }
             if (options.PackagingTests || plan.PackagingTests) { Add("Packaging", plan.ToolingFilters.GetValueOrDefault("Packaging") ?? "RequiresExcel=false"); }
             if (options.Contracts) { foreach (var owner in new[] { "Core", "CLI", "McpServer" }) { Add(owner, "Feature=GeneratedContracts"); } }
+            foreach (var (owner, filter) in plan.ToolingOnDemandFilters) { onDemand[owner] = filter; }
         }
         else
         {
             foreach (var owner in new[] { "CLI", "ComInterop", "Core", "McpServer", "Service", "SkillGeneration", "Packaging", "ScriptSafety" }) { selections[owner] = "RequiresExcel=false"; }
         }
-        return selections.Select(item => new FreeTestProject(item.Key, $"RequiresExcel=false&RunType!=OnDemand&({item.Value})")).ToArray();
+        return selections.Select(item => new FreeTestProject(item.Key, ExcelFreeFilter(item.Value, onDemand.GetValueOrDefault(item.Key)))).ToArray();
 
         void Add(string owner, string filter) => selections[owner] = selections.TryGetValue(owner, out var previous)
             ? string.Join('|', previous.Split('|').Concat(filter.Split('|')).Distinct(StringComparer.Ordinal)) : filter;
     }
+
+    internal static string ExcelFreeFilter(string filter, string? onDemandFilter = null) =>
+        onDemandFilter is null ? $"RequiresExcel=false&RunType!=OnDemand&({filter})"
+        : $"RequiresExcel=false&((RunType!=OnDemand&({filter}))|(RunType=OnDemand&({onDemandFilter})))";
 
     public static async Task ExecuteAsync(string root, FreeTestOptions options, IProcessRunner runner, ValidationPlan? plan = null)
     {

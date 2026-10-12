@@ -14,6 +14,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Trait("Layer", "CLI")]
 [Trait("Category", "Unit")]
 [Trait("Feature", "Telemetry")]
+[Trait("Feature", "GeneratedContracts")]
 [Trait("Speed", "Fast")]
 [Trait("RequiresExcel", "false")]
 public sealed class UsageAnalyticsWeightsTests

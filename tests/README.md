@@ -354,6 +354,11 @@ runs select that suite. Manual package preparation retains its full checks unles
 Standalone tooling test-project changes select their owning project, not every
 runtime project.
 The full partitions cover the complete normal Excel-free selection without overlap.
+Changes to `infrastructure\azure\configure-analytics-oidc.ps1` or
+`infrastructure\azure\deploy-appinsights.ps1` also record the Azure preview and
+subscription-restoration checks in `ToolingOnDemandFilters`. Both local and
+saved-plan Tooling runs include these selected `RunType=OnDemand` cases alongside
+the normal safety checks; unrelated OnDemand diagnostics remain excluded.
 Package and npm launcher checks have their own selections.
 Changes to `doc-counts.json` or `scripts\check-doc-counts.ps1` select the
 `Tooling` documentation-count regressions and source correctness checks,
@@ -403,9 +408,11 @@ Choose a group listed in the saved plan; an unselected or empty group is an erro
 Omitting the group retains the complete Excel-free run; existing
 `-Local`, `-Contracts`, `-HookTests`, `-SkillTests`, and `-PackagingTests`
 selections remain supported. `-Local -Contracts` includes generated routing,
+MCP generation and registration, both CLI and MCP usage-analytics mappings,
 the advertised MCP tool surface, and authored calculation examples checked
-against the published schema. Tests retain their existing feature traits as
-well as `Feature=GeneratedContracts`.
+against the published schema. Contract and generator changes select these same
+suites. Tests retain their existing feature traits as well as
+`Feature=GeneratedContracts`.
 
 These commands forward to the internal .NET tool. `Invoke-TestStage.ps1` uses
 the same hard deadlines, owned-process environment and strict report checks as

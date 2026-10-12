@@ -258,7 +258,15 @@ public sealed partial class ValidationPolicy(string root)
         {
             plan.Reasons.Add($"{path} -> operational maintenance, outside automated validation");
         }
-        else if (Matches(path, @"^(scripts/check-|scripts/tests/|infrastructure/azure/(configure-analytics-oidc|deploy-appinsights)\.ps1$|videos/excel-mcp-intro/Capture-Evidence\.ps1$)"))
+        else if (Matches(path, @"^infrastructure/azure/(configure-analytics-oidc|deploy-appinsights)\.ps1$"))
+        {
+            AddFeature(plan, "ScriptSafety", ["AutomationSafety"], "Azure infrastructure safety");
+            plan.ToolingOnDemandFilters["ScriptSafety"] =
+                "FullyQualifiedName=Sbroenne.ExcelMcp.ScriptSafety.Tests.AutomationSafetyTests.AzurePreview_NeverMutatesAndRejectsFailedReads|" +
+                "FullyQualifiedName=Sbroenne.ExcelMcp.ScriptSafety.Tests.AutomationSafetyTests.AnalyticsOidc_SwitchesToSelectedTenantAndRestoresOriginalSubscription";
+            plan.Reasons.Add($"{path} -> automation safety and selected Azure OnDemand cases");
+        }
+        else if (Matches(path, @"^(scripts/check-|scripts/tests/|videos/excel-mcp-intro/Capture-Evidence\.ps1$)"))
         {
             AddFeature(plan, "ScriptSafety", ["AutomationSafety"], "Owning script safety");
             plan.Reasons.Add($"{path} -> script safety only");
