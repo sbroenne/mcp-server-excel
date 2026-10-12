@@ -362,6 +362,13 @@ public class PivotTableInfo
     public string Range { get; set; } = string.Empty;
 
     /// <summary>
+    /// Detected layout failure, such as a PivotTable collapsed to a single #SPILL! cell.
+    /// Read/list can succeed while reporting this failure; field changes are not rolled back.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? LayoutError { get; set; }
+
+    /// <summary>
     /// Source data reference
     /// </summary>
     public string SourceData { get; set; } = string.Empty;

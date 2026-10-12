@@ -205,7 +205,22 @@ public partial class PivotTableCommands
         string fieldName, AggregationFunction aggregationFunction = AggregationFunction.Sum,
         string? customName = null)
         => ExecuteWithStrategy<PivotFieldResult>(batch, pivotTableName,
-            (strategy, pivot) => strategy.AddValueField(pivot, fieldName, aggregationFunction, customName, batch.WorkbookPath));
+            (strategy, pivot) =>
+            {
+                var result = strategy.AddValueField(pivot, fieldName, aggregationFunction, customName, batch.WorkbookPath);
+                if (!result.Success)
+                {
+                    return result;
+                }
+                var layoutError = PivotTableHelpers.GetLayoutError((Microsoft.Office.Interop.Excel.PivotTable)pivot);
+                if (layoutError is not null)
+                {
+                    throw new InvalidOperationException(
+                        $"Value field '{fieldName}' was added, but {layoutError} " +
+                        "The field change has not been rolled back. Inspect the PivotTable and nearby cells before deciding how to recover.");
+                }
+                return result;
+            });
 
     /// <summary>
     /// Adds a field to the Filter area
