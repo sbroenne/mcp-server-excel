@@ -243,12 +243,16 @@ export async function dispatch(snapshot, value, read = api, { enabled = false, r
     if (state.result_hash !== hash(value)) fail('Dispatch result does not match the published assessment.');
     if (!value.easy_fix.eligible) return setStatus('blocked', 'not an eligible easy fix');
     if (issue.assignees.length) return setStatus('blocked', 'already assigned; existing ownership is preserved');
-    if (/\b(security|authenticat\w*|authoriz\w*|encrypt\w*|credentials?|passwords?|permissions?)\b/i.test(`${issue.title}\n${issue.body}`)) {
+    const securityContext = [issue.title, issue.body, ...issue.labels.map(label => label.name),
+        ...comments.filter(item => item.user?.type !== 'Bot').map(item => item.body)].join('\n');
+    if (/\b(security|authenticat\w*|authoriz\w*|encrypt\w*|credentials?|passwords?|permissions?)\b/i.test(securityContext)) {
         return setStatus('blocked', 'security or access-control work needs human review');
     }
     const pulls = await pages(`${prefix}/pulls?state=open`, read);
     const issueReference = new RegExp(`(?:#${snapshot.issue_number}\\b|/${repository}/issues/${snapshot.issue_number}\\b)`);
-    if (pulls.some(pull => issueReference.test(pull.body ?? ''))) return setStatus('blocked', 'an open PR already references this issue');
+    if (pulls.some(pull => issueReference.test(`${pull.title ?? ''}\n${pull.body ?? ''}`))) {
+        return setStatus('blocked', 'an open PR already references this issue');
+    }
     const user = await read('user');
     if (user.login !== 'sbroenne') fail('Assignment credential must belong to the repository owner for existing Excel runner admission.');
     const repo = await read(prefix);

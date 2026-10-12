@@ -39,8 +39,10 @@ paths, scripts, workflows, infrastructure, and dependency changes are excluded.
 Possible duplicates, missing details, unclear intended behavior, security or
 access-control changes, architecture work, and broad refactoring do not qualify.
 
-Existing assignees or an open PR referencing the issue prevent a new automatic
-handoff. The workflow does not replace human ownership. Per-issue concurrency
+Existing assignees or an open PR referencing the issue in its title or body
+prevent a new automatic handoff. Security-related wording in the issue, current
+labels, or non-bot comments also blocks assignment. The workflow does not replace
+human ownership. Per-issue concurrency
 serializes its reruns, and a bot-owned pending receipt is saved before assignment.
 A lost API response leaves that receipt pending rather than blindly starting a
 second task. Issue edits, human comments, ownership changes, and default-branch

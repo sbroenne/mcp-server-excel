@@ -192,12 +192,16 @@ test('successful dispatch persists state and repeated runs never assign twice', 
 });
 
 test('assigned issues, linked PRs and security-sensitive issues do not launch fixes', async () => {
-    for (const scenario of ['assigned', 'pull', 'security']) {
+    for (const scenario of ['assigned', 'pull', 'pull-title', 'security', 'security-label', 'security-comment']) {
         const { state, api, snapshot } = await ready();
         await publish(snapshot, result(), api);
         if (scenario === 'assigned') state.issue.assignees.push({ login: 'someone' });
         if (scenario === 'pull') state.pulls.push({ number: 88, body: 'Fixes #42', state: 'open' });
+        if (scenario === 'pull-title') state.pulls.push({ number: 88, title: 'Fix #42', body: '', state: 'open' });
         if (scenario === 'security') state.issue.body = 'Fix authentication and credential validation.';
+        if (scenario === 'security-label') state.issue.labels.push({ name: 'security' });
+        if (scenario === 'security-comment') state.comments.push({
+            id: 99, user: { id: 1, type: 'User' }, body: 'This is credential validation work.' });
         const fresh = await prepare(42, api);
         const outcome = await dispatch(fresh, result(), api, { enabled: true });
         assert.equal(outcome.status, 'blocked');
@@ -209,13 +213,18 @@ test('uncertain assignment response leaves a pending receipt and is never blindl
     const { state, api, snapshot } = await ready();
     await publish(snapshot, result(), api);
     const failing = async (endpoint, options) => {
-        if (endpoint.endsWith('/assignees')) throw new Error('Connection lost after submit.');
+        if (endpoint.endsWith('/assignees')) {
+            await api(endpoint, options);
+            throw new Error('Connection lost after submit.');
+        }
         return api(endpoint, options);
     };
     await assert.rejects(dispatch(snapshot, result(), failing, { enabled: true }), /Connection lost/);
     assert.equal(ownedState(state.comments[0], 42).handoff, 'pending');
-    assert.equal((await dispatch(snapshot, result(), api, { enabled: true })).status, 'already-started');
-    assert.equal(state.issue.assignees.length, 0);
+    const fresh = await prepare(42, api);
+    assert.equal((await dispatch(fresh, result(), api, { enabled: true })).status, 'already-started');
+    assert.equal(state.issue.assignees.length, 1);
+    assert.equal(state.calls.filter(call => call.endpoint.endsWith('/assignees')).length, 1);
 });
 
 test('wrong credential owner fails before assignment', async () => {
@@ -276,23 +285,26 @@ test('workflow preserves Squad and existing runner settings', () => {
 });
 
 test('generated workflow makes the validated target available to the agent and isolates assignment', () => {
-    const lock = fs.readFileSync(path.join(root, '.github', 'workflows', 'issue-triage.lock.yml'), 'utf8');
-    const job = name => {
-        const match = lock.match(new RegExp(`^  ${name}:\\n([\\s\\S]*?)(?=^  [\\w-]+:|$(?![\\s\\S]))`, 'm'));
+    const source = fs.readFileSync(path.join(root, '.github', 'workflows', 'issue-triage.lock.yml'), 'utf8');
+    const job = (lock, name) => {
+        const match = lock.match(new RegExp(`^  ${name}:\\r?\\n([\\s\\S]*?)(?=^  [\\w-]+:|$(?![\\s\\S]))`, 'm'));
         assert.ok(match, `Missing generated job ${name}`);
         return match[1];
     };
-    assert.match(job('agent'), /needs:[\s\S]*? - pre_activation/);
-    assert.match(job('agent'), /timeout-minutes: 20/);
-    assert.match(job('pre_activation'), /issue_number: \$\{\{ steps.target.outputs.issue_number \}\}/);
-    assert.match(job('publish_triage'), /needs.detection.outputs.detection_success == 'true'/);
-    assert.match(job('publish_triage'), /GH_TOKEN: \$\{\{ secrets.COPILOT_ASSIGN_TOKEN \}\}/);
-    assert.doesNotMatch(job('agent'), /COPILOT_ASSIGN_TOKEN|issues: write|contents: write/);
-    assert.match(lock, /group: issue-triage-\$\{\{ github.event.issue.number \|\| inputs.issue_number \}\}/);
-    const manifest = JSON.parse(lock.split('\n').find(line => line.startsWith('# gh-aw-manifest: ')).slice(18));
-    assert.deepEqual(manifest.mcp_servers.find(server => server.name === 'safeoutputs').tools,
-        ['missing_data', 'missing_tool', 'noop', 'publish_triage']);
-    assert.ok(manifest.actions.every(action => /^[a-f0-9]{40}$/.test(action.sha)));
+    for (const newline of ['\n', '\r\n']) {
+        const lock = source.replace(/\r?\n/g, newline);
+        assert.match(job(lock, 'agent'), /needs:[\s\S]*? - pre_activation/);
+        assert.match(job(lock, 'agent'), /timeout-minutes: 20/);
+        assert.match(job(lock, 'pre_activation'), /issue_number: \$\{\{ steps.target.outputs.issue_number \}\}/);
+        assert.match(job(lock, 'publish_triage'), /needs.detection.outputs.detection_success == 'true'/);
+        assert.match(job(lock, 'publish_triage'), /GH_TOKEN: \$\{\{ secrets.COPILOT_ASSIGN_TOKEN \}\}/);
+        assert.doesNotMatch(job(lock, 'agent'), /COPILOT_ASSIGN_TOKEN|issues: write|contents: write/);
+        assert.match(lock, /group: issue-triage-\$\{\{ github.event.issue.number \|\| inputs.issue_number \}\}/);
+        const manifest = JSON.parse(lock.split('\n').find(line => line.startsWith('# gh-aw-manifest: ')).slice(18));
+        assert.deepEqual(manifest.mcp_servers.find(server => server.name === 'safeoutputs').tools,
+            ['missing_data', 'missing_tool', 'noop', 'publish_triage']);
+        assert.ok(manifest.actions.every(action => /^[a-f0-9]{40}$/.test(action.sha)));
+    }
 });
 
 test('CLI prepare, publish and dispatch use the same guards, without persisting issue data', async () => {
