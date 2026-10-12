@@ -32,7 +32,8 @@ $headings = @{
     'Patch Changes' = 'Fixes and improvements'
 }
 
-$entryPattern = '^- (?:(?<pr>\[#\d+\]\([^)]+\)) )?(?:\[`[0-9a-f]+`\]\([^)]+\) )?(?:Thanks (?<thanks>\[@(?<login>[^\]]+)\]\([^)]+\))! )?- (?<text>.*)$'
+$authorPattern = '\[@(?<login>[^\]]+)\]\([^)]+\)'
+$entryPattern = '^- (?:(?<pr>\[#\d+\]\([^)]+\)) )?(?:\[`[0-9a-f]+`\]\([^)]+\) )?(?:Thanks (?<thanks>' + $authorPattern + '(?:, ' + $authorPattern + ')*)! )?- (?<text>.*)$'
 
 $lines = (Get-Content -LiteralPath $Path -Raw) -split "`r?`n"
 $output = foreach ($line in $lines) {
@@ -46,8 +47,13 @@ $output = foreach ($line in $lines) {
         if ($Matches.pr) {
             $entry += " ($($Matches.pr))"
         }
-        if ($Matches.thanks -and $Matches.login -ne $Maintainer) {
-            $entry += " Thanks $($Matches.thanks)!"
+        if ($Matches.thanks) {
+            $credits = @([regex]::Matches($Matches.thanks, $authorPattern) |
+                Where-Object { $_.Groups['login'].Value -ne $Maintainer } |
+                ForEach-Object { $_.Value })
+            if ($credits.Count -gt 0) {
+                $entry += " Thanks $($credits -join ', ')!"
+            }
         }
         $entry
         continue

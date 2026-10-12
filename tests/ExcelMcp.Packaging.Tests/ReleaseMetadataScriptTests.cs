@@ -1277,6 +1277,41 @@ public sealed class ReleaseMetadataScriptTests
             "Release notes must be formatted after the body is written, leaving CHANGELOG.md unchanged.");
     }
 
+    [Theory]
+    [InlineData("sbroenne,helper", "helper")]
+    [InlineData("helper,sbroenne,contributor", "helper,contributor")]
+    [InlineData("helper,contributor", "helper,contributor")]
+    [InlineData("sbroenne,sbroenne", "")]
+    [Trait("Category", "Integration")]
+    [Trait("Feature", "ReleaseMetadata")]
+    public async Task ReleaseNotes_PreservesMultipleOutsideContributorCredits(string authors, string remainingAuthors)
+    {
+        var sandbox = CreateSandbox();
+        try
+        {
+            var notesPath = Path.Combine(sandbox, "notes.md");
+            var credits = string.Join(", ", authors.Split(',').Select(author =>
+                $"[@{author}](https://github.com/{author})"));
+            await File.WriteAllTextAsync(notesPath,
+                $"- [#9](https://github.com/sbroenne/mcp-server-excel/pull/9) [`abc1234`](https://github.com/sbroenne/mcp-server-excel/commit/abc1234) Thanks {credits}! - Add sorting.");
+            var result = await RunPowerShellScriptAsync(
+                Path.Combine(RepoRoot, "scripts", "Format-ReleaseNotes.ps1"),
+                ["-Path", notesPath]);
+            Assert.True(result.ExitCode == 0, result.CombinedOutput);
+            var expected = "- Add sorting. ([#9](https://github.com/sbroenne/mcp-server-excel/pull/9))";
+            if (remainingAuthors.Length > 0)
+            {
+                expected += " Thanks " + string.Join(", ", remainingAuthors.Split(',').Select(author =>
+                    $"[@{author}](https://github.com/{author})")) + "!";
+            }
+            Assert.Equal(expected, await File.ReadAllTextAsync(notesPath));
+        }
+        finally
+        {
+            Directory.Delete(sandbox, recursive: true);
+        }
+    }
+
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "ReleaseMetadata")]
