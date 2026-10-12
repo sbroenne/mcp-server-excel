@@ -36,9 +36,9 @@ public sealed class SkillSourceSafetyTests
     }
 
     [Fact]
-    public async Task BuildAgentSkills_RequiresExplicitVersion()
+    public async Task BuildAgentSkills_RejectsPackagingMode()
     {
-        var sandbox = CreateSandbox("agent-skills-version-required");
+        var sandbox = CreateSandbox("agent-skills-packaging-rejected");
         try
         {
             var result = await RunPowerShellFileAsync(
@@ -46,7 +46,7 @@ public sealed class SkillSourceSafetyTests
                 ["-OutputDir", Path.GetRelativePath(RepoRoot, Path.Combine(sandbox, "skills"))]);
 
             Assert.NotEqual(0, result.ExitCode);
-            Assert.Contains("Version is required", result.CombinedOutput, StringComparison.Ordinal);
+            Assert.Contains("This script only prepares generated skills", result.CombinedOutput, StringComparison.Ordinal);
         }
         finally
         {

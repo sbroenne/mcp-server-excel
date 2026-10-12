@@ -1,25 +1,23 @@
 <#
 .SYNOPSIS
-    Generates and packages the Excel MCP and CLI agent skills.
+    Generates the Excel MCP and CLI agent skills.
 
 .DESCRIPTION
     GenerateOnly prepares CLI discovery and the two report-formatting skills.
-    Packaging consumes that prepared output without regenerating it.
     CLI syntax and action lists are discovered through native --help, not copied
-    into the skill package.
+    into the generated skills.
 
 .EXAMPLE
     .\Build-AgentSkills.ps1 -GenerateOnly
 
 .EXAMPLE
-    .\Build-AgentSkills.ps1 -Version 1.2.0
+    .\Build-AgentSkills.ps1 -GenerateOnly -Version 1.2.0
 #>
 [CmdletBinding()]
 param(
     [string]$OutputDir,
     [string]$Version,
-    [switch]$GenerateOnly,
-    [string]$SkillsDirectory
+    [switch]$GenerateOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -60,15 +58,13 @@ function Copy-SharedReferences {
     Write-Host "  Prepared formatting reference for $Surface" -ForegroundColor Green
 }
 
-if ($GenerateOnly) {
-    if (-not $OutputDir) { $OutputDir = 'artifacts\generated-skills' }
-    if (-not $Version) { $Version = (Get-Content (Join-Path $RepoRoot 'package.json') -Raw | ConvertFrom-Json).version }
+if (-not $GenerateOnly) {
+    throw 'This script only prepares generated skills. Use -GenerateOnly.'
 }
-elseif (-not $OutputDir) {
-    $OutputDir = 'artifacts\skills'
-}
+if (-not $OutputDir) { $OutputDir = 'artifacts\generated-skills' }
+if (-not $Version) { $Version = (Get-Content (Join-Path $RepoRoot 'package.json') -Raw | ConvertFrom-Json).version }
 if ([string]::IsNullOrWhiteSpace($Version)) {
-    throw "Version is required. Pass -Version <version>."
+    throw "A skill version is required."
 }
 $Version = $Version.Trim()
 $OutputPath = [IO.Path]::GetFullPath($OutputDir, $RepoRoot)
@@ -79,7 +75,6 @@ if ($OutputPath -eq [IO.Path]::GetPathRoot($OutputPath) -or
     $OutputPath -eq $SkillsDir) {
     throw "Skill output must not overlap source files: $OutputPath"
 }
-if (-not $SkillsDirectory) { $SkillsDirectory = Join-Path $RepoRoot 'artifacts\generated-skills' }
 $StagingDir = Join-Path ([IO.Path]::GetTempPath()) "excel-skills-$([guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Path $StagingDir -Force | Out-Null
 try {
@@ -87,15 +82,10 @@ try {
     New-Item -ItemType Directory -Path $SkillsStagingDir -Force | Out-Null
     foreach ($name in $SkillNames) {
         $destination = Join-Path $SkillsStagingDir $name
-        if ($GenerateOnly) {
-            Copy-Item -LiteralPath (Join-Path $SkillsDir $name) -Destination $destination -Recurse
-            if ($name.EndsWith('-report-formatting')) {
-                $component = if ($name.StartsWith('excel-cli-')) { 'cli' } else { 'mcp' }
-                Copy-SharedReferences -SkillPath $destination -Surface $component
-            }
-        }
-        else {
-            Copy-Item -LiteralPath (Join-Path $SkillsDirectory $name) -Destination $destination -Recurse
+        Copy-Item -LiteralPath (Join-Path $SkillsDir $name) -Destination $destination -Recurse
+        if ($name.EndsWith('-report-formatting')) {
+            $component = if ($name.StartsWith('excel-cli-')) { 'cli' } else { 'mcp' }
+            Copy-SharedReferences -SkillPath $destination -Surface $component
         }
         $requiredFiles = @('SKILL.md')
         if ($name.EndsWith('-report-formatting')) { $requiredFiles += 'references\report-formatting.md' }
@@ -105,31 +95,22 @@ try {
         Set-Content -LiteralPath (Join-Path $destination 'VERSION') -Value $Version -Encoding utf8 -NoNewline
     }
     New-Item -ItemType Directory -Path $OutputPath -Force | Out-Null
-    if ($GenerateOnly) {
-        foreach ($name in $SkillNames) {
-            $destination = Join-Path $OutputPath $name
-            Install-PackageOutput -Source (Join-Path $SkillsStagingDir $name) -Destination $destination
-        }
-        foreach ($retired in @('excel-mcp')) {
-            $legacy = Join-Path $OutputPath $retired
-            if (Test-Path -LiteralPath $legacy) {
-                Assert-PackageOutputPath -Path $legacy -RepoRoot $RepoRoot
-                if (-not (Test-Path -LiteralPath (Join-Path $legacy 'SKILL.md')) -or
-                    -not (Test-Path -LiteralPath (Join-Path $legacy 'VERSION'))) {
-                    throw "Refusing to remove unrecognized retired skill output: $legacy"
-                }
-                Remove-Item -LiteralPath $legacy -Recurse -Force
+    foreach ($name in $SkillNames) {
+        $destination = Join-Path $OutputPath $name
+        Install-PackageOutput -Source (Join-Path $SkillsStagingDir $name) -Destination $destination
+    }
+    foreach ($retired in @('excel-mcp')) {
+        $legacy = Join-Path $OutputPath $retired
+        if (Test-Path -LiteralPath $legacy) {
+            Assert-PackageOutputPath -Path $legacy -RepoRoot $RepoRoot
+            if (-not (Test-Path -LiteralPath (Join-Path $legacy 'SKILL.md')) -or
+                -not (Test-Path -LiteralPath (Join-Path $legacy 'VERSION'))) {
+                throw "Refusing to remove unrecognized retired skill output: $legacy"
             }
+            Remove-Item -LiteralPath $legacy -Recurse -Force
         }
-        Write-Host "Generated complete skills at $OutputPath"
     }
-    else {
-        Copy-Item -LiteralPath (Join-Path $RepoRoot 'docs\AGENT-SKILLS.md') (Join-Path $StagingDir 'README.md')
-        $zip = Join-Path $StagingDir "excel-skills-v$Version.zip"
-        Compress-Archive -LiteralPath $SkillsStagingDir,(Join-Path $StagingDir 'README.md') -DestinationPath $zip
-        Install-PackageOutput -Source $zip -Destination (Join-Path $OutputPath (Split-Path $zip -Leaf))
-        Write-Host "Created $OutputPath\excel-skills-v$Version.zip"
-    }
+    Write-Host "Generated complete skills at $OutputPath"
 }
 finally { Remove-Item -LiteralPath $StagingDir -Recurse -Force }
 $global:LASTEXITCODE = 0

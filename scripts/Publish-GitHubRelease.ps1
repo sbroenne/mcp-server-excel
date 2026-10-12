@@ -93,7 +93,6 @@ $requiredNames = @(
     "ExcelMcp-CLI-$Version-windows.zip",
     "ExcelMcp-MCP-Server-$Version-windows.zip",
     "excel-plugins-v$Version.zip",
-    "excel-skills-v$Version.zip",
     "excel-mcp-$Version.vsix",
     "excel-mcp-$Version-win32-arm64.vsix",
     "excel-mcp-$Version.mcpb"
