@@ -89,6 +89,58 @@ populated.
 If Excel cannot read a protected or otherwise inaccessible range, the operation
 reports an error rather than presenting it as empty.
 
+## Document Inspector
+
+Use MCP `workbook` action `inspect-document` or
+`excelcli workbook inspect-document --session <session-id>` to run Excel's
+available Document Inspector modules. Unlike `inspect`, which summarizes
+workbook contents, this checks categories of hidden information.
+
+Each returned inspector includes its one-based `index`, exact localized `name`,
+native `statusCode`, stable `status` (`ok`, `issue-found`, `error`, or `unknown`),
+and localized `results` text. Findings do not mean inspection failed. Native
+errors, unknown status codes, or no available modules are reported as failures.
+Completed checks remain in the result when another module reports an error.
+
+Inspection does not request removals or save the workbook. However, Excel's
+native inspector modules can mark a saved workbook as having unsaved changes,
+even when they report no findings. The response includes `savedBefore` and
+`savedAfter`; ExcelMcp does not reset that flag to hide the change. For this
+reason, MCP exposes inspection through `workbook`, not the read-only
+`workbook_read` tool. Inspection still supports read-only workbooks.
+
+This is not a full privacy audit or a guarantee that sensitive information is
+absent. Excel exposes only some built-in modules and installed custom inspectors.
+Comments/revisions and document properties are not included in this collection.
+Module availability and names depend on the installed Excel version and language;
+do not assume a particular category always has the same index.
+
+To request removal, use `fix-document-inspector` with both the returned index and
+the exact name, including any ampersands:
+
+```text
+MCP: workbook(action: 'fix-document-inspector', workbook_session_id: sessionId,
+     inspector_index: selected.index, inspector_name: selected.name)
+CLI: excelcli workbook fix-document-inspector --session <session-id>
+     --inspector-index <returned-index> --inspector-name "<returned-name>"
+```
+
+The index and name must still match the live collection. Read-only or
+structure/window-protected workbooks are rejected before removal.
+
+**Removal is category-wide, not item-by-item.** For example, fixing hidden
+worksheets can delete the hidden worksheets and all their data and affect
+formulas referring to them. Request it only when that entire removal is intended.
+There is no tool-level undo. The action does not save automatically, although
+existing Excel AutoSave can persist changes independently. Save explicitly to
+keep changes.
+
+The response includes the native `fix` outcome and a new `inspection` of the
+selected module. Success requires a successful fix and no remaining findings.
+An error does not promise rollback: changes may already have occurred. Inspect
+the workbook's current state before deciding whether another action is needed.
+The server does not display its own confirmation dialog.
+
 ## Save and publish
 
 Opening or creating a workbook requires a confirmed Excel process ID and start

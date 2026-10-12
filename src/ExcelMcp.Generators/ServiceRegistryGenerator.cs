@@ -1409,13 +1409,14 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
     }
 
     // Save As/copy/export defer output permissions to Excel; application and
-    // window controls do not require editing the workbook.
+    // window controls do not require editing the workbook. Native inspection can
+    // change the saved flag, but does not require workbook edit access.
     private static bool RequiresWritableWorkbook(ServiceInfo info, MethodInfo method) =>
         !info.NoSession && method.HasBatchParameter && !method.McpToolReadOnly &&
         info.Category is not ("window" or "screenshot") &&
         (info.Category != "calculationmode" || method.ActionName == "set-precision") &&
         (info.Category != "chart" || method.ActionName != "export-image") &&
-        (info.Category != "workbook" || method.ActionName is not ("save-as" or "save-copy-as" or "export-fixed-format"));
+        (info.Category != "workbook" || method.ActionName is not ("save-as" or "save-copy-as" or "export-fixed-format" or "inspect-document"));
 
     private static string GenerateCliManifest(List<ServiceInfo> categories)
     {

@@ -9,6 +9,7 @@ using Sbroenne.ExcelMcp.Core.Commands.Analysis;
 using Sbroenne.ExcelMcp.Core.Commands.Calculation;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
+using Sbroenne.ExcelMcp.Core.Commands.Workbook;
 using Sbroenne.ExcelMcp.Core.Commands.XmlMap;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
@@ -24,6 +25,30 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 [Trait("RequiresExcel", "false")]
 public sealed class GeneratedActionContractTests
 {
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("""{"inspectorIndex":3}""")]
+    [InlineData("""{"inspectorName":"Hidden &Worksheets"}""")]
+    [InlineData("""{"inspectorIndex":3,"inspectorName":" "}""")]
+    public void DocumentInspectorDispatch_RequiresExactSelectionBeforeCore(string argsJson)
+    {
+        var (commands, proxy) = CreateProxy<IWorkbookCommands>();
+        Assert.Throws<ArgumentException>(() =>
+            ServiceRegistry.Workbook.DispatchToCore(commands, WorkbookAction.FixDocumentInspector, null!, argsJson));
+        Assert.Equal(0, proxy.CallCount);
+    }
+
+    [Fact]
+    public void DocumentInspectorDispatch_PreservesBatchJsonSelection()
+    {
+        var (commands, proxy) = CreateProxy<IWorkbookCommands>();
+        ServiceRegistry.Workbook.DispatchToCore(commands, WorkbookAction.FixDocumentInspector, null!,
+            """{"inspectorIndex":3,"inspectorName":"Hidden &Worksheets"}""");
+        Assert.Equal(1, proxy.CallCount);
+        Assert.Equal(3, Assert.IsType<int>(proxy.LastArguments![1]));
+        Assert.Equal("Hidden &Worksheets", Assert.IsType<string>(proxy.LastArguments[2]));
+    }
+
     [Theory]
     [InlineData("""{"precisionAsDisplayed":false}""", false)]
     [InlineData("""{"precisionAsDisplayed":false,"allowPrecisionLoss":null}""", false)]
@@ -817,6 +842,8 @@ public sealed class GeneratedActionContractTests
     [InlineData("workbook.save-as", false)]
     [InlineData("workbook.save-copy-as", false)]
     [InlineData("workbook.export-fixed-format", false)]
+    [InlineData("workbook.inspect-document", false)]
+    [InlineData("workbook.fix-document-inspector", true)]
     [InlineData("window.show", false)]
     [InlineData("chart.export-image", false)]
     [InlineData("xmlmap.export-xml", false)]
