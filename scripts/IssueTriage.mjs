@@ -244,8 +244,9 @@ export async function dispatch(snapshot, value, read = api, { enabled = false, r
     if (!value.easy_fix.eligible) return setStatus('blocked', 'not an eligible easy fix');
     if (issue.assignees.length) return setStatus('blocked', 'already assigned; existing ownership is preserved');
     const securityContext = [issue.title, issue.body, ...issue.labels.map(label => label.name),
-        ...comments.filter(item => item.user?.type !== 'Bot').map(item => item.body)].join('\n');
-    if (/\b(security|authenticat\w*|authoriz\w*|encrypt\w*|credentials?|passwords?|permissions?)\b/i.test(securityContext)) {
+        ...comments.filter(item => item.user?.type !== 'Bot').map(item => item.body),
+        value.summary, value.easy_fix.reason, ...value.easy_fix.validation].join('\n');
+    if (/\b(security|authenticat\w*|authoriz\w*|encrypt\w*|credentials?|passwords?|permissions?|tokens?|oauth\w*|api[\s_-]*keys?|access[\s_-]*control|vulnerabilit\w*|exploits?|secrets?)\b/i.test(securityContext)) {
         return setStatus('blocked', 'security or access-control work needs human review');
     }
     const pulls = await pages(`${prefix}/pulls?state=open`, read);

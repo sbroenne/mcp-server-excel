@@ -41,7 +41,11 @@ access-control changes, architecture work, and broad refactoring do not qualify.
 
 Existing assignees or an open PR referencing the issue in its title or body
 prevent a new automatic handoff. Security-related wording in the issue, current
-labels, or non-bot comments also blocks assignment. The workflow does not replace
+labels, non-bot comments, or the assessment summary, reason, or validation
+objectives also blocks assignment, including token/key, OAuth, access-control,
+and vulnerability reports. This conservative wording check can block harmless
+reports too; it is not proof that every security issue can be recognized.
+The workflow does not replace
 human ownership. Per-issue concurrency
 serializes its reruns, and a bot-owned pending receipt is saved before assignment.
 A lost API response leaves that receipt pending rather than blindly starting a

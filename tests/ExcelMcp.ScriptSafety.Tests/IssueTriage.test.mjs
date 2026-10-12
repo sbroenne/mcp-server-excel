@@ -209,6 +209,29 @@ test('assigned issues, linked PRs and security-sensitive issues do not launch fi
     }
 });
 
+test('security wording in issue and assessment text blocks otherwise eligible fixes', async () => {
+    for (const wording of ['API token rotation fails', 'OAuth refresh fails', 'API key validation fails',
+        'access control is broken', 'a vulnerability needs correction']) {
+        for (const location of ['title', 'body', 'label', 'comment', 'summary', 'reason', 'validation']) {
+            const { state, api } = fixture();
+            const value = result();
+            if (location === 'title' || location === 'body') state.issue[location] = wording;
+            if (location === 'label') state.issue.labels.push({ name: wording });
+            if (location === 'comment') state.comments.push({
+                id: 99, user: { id: 1, type: 'User' }, body: wording });
+            if (location === 'summary') value.summary = wording;
+            if (location === 'reason') value.easy_fix.reason = wording;
+            if (location === 'validation') value.easy_fix.validation = [wording];
+            const snapshot = await prepare(42, api);
+            await publish(snapshot, value, api);
+            const outcome = await dispatch(snapshot, value, api, { enabled: true });
+            assert.equal(outcome.status, 'blocked', `${location}: ${wording}`);
+            assert.match(outcome.detail, /security or access-control/);
+            assert.equal(state.calls.filter(call => call.endpoint.endsWith('/assignees')).length, 0);
+        }
+    }
+});
+
 test('uncertain assignment response leaves a pending receipt and is never blindly retried', async () => {
     const { state, api, snapshot } = await ready();
     await publish(snapshot, result(), api);
