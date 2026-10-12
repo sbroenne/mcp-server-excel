@@ -11,6 +11,18 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.3.11] - 2026-10-12
+
+### Major Changes
+
+- [#1122](https://github.com/sbroenne/mcp-server-excel/pull/1122) [`2ee7f73`](https://github.com/sbroenne/mcp-server-excel/commit/2ee7f732efc7b2210a1a5a3f77a29d0c77394f85) Thanks [@sbroenne](https://github.com/sbroenne)! - **Consistent error output**: MCP and `excelcli` failure replies now use only `errorMessage` for the error text. Update consumers that read the removed `error` field.
+
+### Patch Changes
+
+- [#1126](https://github.com/sbroenne/mcp-server-excel/pull/1126) [`eebcd9e`](https://github.com/sbroenne/mcp-server-excel/commit/eebcd9e5bd22448a8a0cc41f6ac92bdaff08392a) Thanks [@sbroenne](https://github.com/sbroenne)! - GitHub releases no longer include a separate Agent Skills ZIP. Report-formatting guidance remains available through the Excel MCP and CLI plugins and the VS Code extension.
+
+- [#1127](https://github.com/sbroenne/mcp-server-excel/pull/1127) [`d4d7fdb`](https://github.com/sbroenne/mcp-server-excel/commit/d4d7fdb9707c782ab99604889867123e6f3a6f9d) Thanks [@sbroenne](https://github.com/sbroenne)! - OLAP report filters now preserve their selection mode for single-member changes, report requested and actual filter state separately, and support a bounded read-only state check. External schema discovery now explains how to prepare Excel's active connection session and when the provider cannot support discovery.
+
 ## [2.3.10] - 2026-10-12
 
 ### Minor Changes
