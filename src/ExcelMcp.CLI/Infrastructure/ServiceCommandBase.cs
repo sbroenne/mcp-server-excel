@@ -169,7 +169,7 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
         catch (Exception ex)
         {
             CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
-                new { success = false, error = $"Failed to write output: {ex.Message}" },
+                new { success = false, errorMessage = $"Failed to write output: {ex.Message}" },
                 ServiceProtocol.JsonOptions));
             return 1;
         }

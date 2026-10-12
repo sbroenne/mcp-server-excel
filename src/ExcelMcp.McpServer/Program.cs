@@ -116,6 +116,7 @@ public class Program
                     After timeout or cancellation, inspect file_read list before restoring.
                     If the session was removed or invalidated, do not call set-settings; report that restoration could not be completed.
                     Writes do not force calculation in every mode; manual mode needs explicit calculation.
+                    Failed tool replies use errorMessage as the single error-text field. Read errorCategory and suggestedNextActions when present.
                     Execute clear authorized work without repeated approval. Discover facts with tools; ask a focused question
                     only when the target, essential result, or destructive permission remains unclear.
                     Audits and proposals are read-only: no edits, refresh, recalculation, or temporary workbook objects without authorization.

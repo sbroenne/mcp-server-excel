@@ -226,7 +226,7 @@ public sealed class InProcessCliCommandTests
         }
         else
         {
-            Assert.Equal("Unknown command 'unknown'.", result.RootElement.GetProperty("error").GetString());
+            Assert.Equal("Unknown command 'unknown'.", result.RootElement.GetProperty("errorMessage").GetString());
         }
         Assert.Empty(error.ToString());
     }
@@ -423,10 +423,8 @@ public sealed class InProcessCliCommandTests
         Assert.True(root.GetProperty("isError").GetBoolean());
         Assert.Equal(
             "Workbook is already open; close the file and retry with exclusive access.",
-            root.GetProperty("error").GetString());
-        Assert.Equal(
-            "Workbook is already open; close the file and retry with exclusive access.",
             root.GetProperty("errorMessage").GetString());
+        Assert.False(root.TryGetProperty("error", out _));
         Assert.Equal("ComInterop", root.GetProperty("errorCategory").GetString());
         Assert.Equal(nameof(IOException), root.GetProperty("exceptionType").GetString());
         Assert.Equal("session.open", root.GetProperty("command").GetString());
@@ -674,7 +672,7 @@ public sealed class InProcessCliCommandTests
             Assert.True(envelope.RootElement.GetProperty("running").GetBoolean());
             Assert.Equal(
                 "controlled transport failure",
-                envelope.RootElement.GetProperty("error").GetString());
+                envelope.RootElement.GetProperty("errorMessage").GetString());
         }
         else
         {
@@ -759,7 +757,7 @@ public sealed class InProcessCliCommandTests
         Assert.False(line.RootElement.GetProperty("result").GetProperty("success").GetBoolean());
         Assert.Equal(
             "1 of 1 queries failed to refresh: 'Broken'.",
-            line.RootElement.GetProperty("error").GetString());
+            line.RootElement.GetProperty("errorMessage").GetString());
     }
 
     [Fact]
@@ -788,7 +786,7 @@ public sealed class InProcessCliCommandTests
         {
             Assert.False(first.RootElement.GetProperty("success").GetBoolean());
             Assert.False(first.RootElement.GetProperty("result").GetProperty("canOpen").GetBoolean());
-            Assert.False(string.IsNullOrWhiteSpace(first.RootElement.GetProperty("error").GetString()));
+            Assert.False(string.IsNullOrWhiteSpace(first.RootElement.GetProperty("errorMessage").GetString()));
         }
         using (var second = JsonDocument.Parse(lines[1]))
         {

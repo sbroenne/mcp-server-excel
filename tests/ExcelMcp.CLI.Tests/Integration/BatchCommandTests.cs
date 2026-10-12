@@ -206,7 +206,7 @@ public sealed class BatchCommandTests : IDisposable
     }
 
     [Fact]
-    public async Task Batch_SuccessResult_HasNoErrorField()
+    public async Task Batch_SuccessResult_HasNoErrorMessageField()
     {
         var inputFile = WriteBatchFile("""
             [
@@ -218,13 +218,13 @@ public sealed class BatchCommandTests : IDisposable
 
         Assert.Single(results);
         Assert.True(results[0].GetProperty("success").GetBoolean());
-        // error field should be absent (JsonIgnoreCondition.WhenWritingNull)
-        Assert.False(results[0].TryGetProperty("error", out _),
-            "Success result should not contain 'error' field");
+        // Error message should be absent (JsonIgnoreCondition.WhenWritingNull).
+        Assert.False(results[0].TryGetProperty("errorMessage", out _),
+            "Success result should not contain 'errorMessage' field");
     }
 
     [Fact]
-    public async Task Batch_ErrorResult_HasErrorField()
+    public async Task Batch_ErrorResult_HasOnlyErrorMessageField()
     {
         var inputFile = WriteBatchFile("""
             [
@@ -236,8 +236,9 @@ public sealed class BatchCommandTests : IDisposable
 
         Assert.Single(results);
         Assert.False(results[0].GetProperty("success").GetBoolean());
-        Assert.True(results[0].TryGetProperty("error", out var error));
-        Assert.False(string.IsNullOrWhiteSpace(error.GetString()));
+        Assert.True(results[0].TryGetProperty("errorMessage", out var errorMessage));
+        Assert.False(string.IsNullOrWhiteSpace(errorMessage.GetString()));
+        Assert.False(results[0].TryGetProperty("error", out _));
     }
 
     // ============================================

@@ -253,11 +253,9 @@ public abstract class McpIntegrationTestBase : IAsyncLifetime
         Assert.True(root.GetProperty("isError").GetBoolean(), $"{operationName} should return isError=true.");
         Assert.Equal(expectedExceptionType, root.GetProperty("exceptionType").GetString());
 
-        var error = root.GetProperty("error").GetString();
         var errorMessage = root.GetProperty("errorMessage").GetString();
-
         Assert.False(string.IsNullOrWhiteSpace(errorMessage), $"{operationName} should return errorMessage.");
-        Assert.Equal(errorMessage, error);
+        Assert.False(root.TryGetProperty("error", out _), $"{operationName} should not duplicate errorMessage as 'error'.");
 
         AssertOptionalStringProperty(root, "errorCategory", expectedErrorCategory, operationName);
         AssertOptionalStringProperty(root, "hresult", expectedHResult, operationName);

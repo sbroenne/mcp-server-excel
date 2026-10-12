@@ -99,7 +99,7 @@ public sealed class SessionVisibilityRegressionTests : IDisposable
             }
             else
             {
-                var error = openJson.RootElement.GetProperty("error").GetString();
+                var error = openJson.RootElement.GetProperty("errorMessage").GetString();
                 Assert.False(string.IsNullOrWhiteSpace(error));
             }
 
