@@ -313,7 +313,7 @@ public partial class ConnectionCommands
     }
 
     // ADO schema rowsets have no referenced PIA; late binding works with installed OLAP providers.
-    private static List<IReadOnlyDictionary<string, object?>> OpenSchemaRowset(
+    internal static List<IReadOnlyDictionary<string, object?>> OpenSchemaRowset(
         dynamic adoConnection,
         OlapSchemaRequest request,
         string connectionName,
