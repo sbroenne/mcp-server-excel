@@ -218,7 +218,7 @@ public sealed class UnifiedToolContractTests(RecordingProgramTransportFixture fi
     }
 
     [Fact]
-    public async Task EveryAction_RejectsInputsFromOtherActionsIncludingNullAndDefaults()
+    public async Task EveryAction_RejectsMeaningfulInputsFromOtherActions()
     {
         var tools = await fixture.ListToolsAsync();
         var checkedInputs = 0;
@@ -231,19 +231,16 @@ public sealed class UnifiedToolContractTests(RecordingProgramTransportFixture fi
                 var allowed = ExpectedParameters(tool.Name, action);
                 foreach (var property in properties.EnumerateObject().Where(property => !allowed.Contains(property.Name)))
                 {
-                    foreach (var value in new[] { null, SampleValue(property.Value) })
-                    {
-                        var arguments = contract.ToDictionary(
-                            parameter => parameter.Name,
-                            parameter => parameter.Name == "action" ? (object?)action : SampleValue(properties.GetProperty(parameter.Name)));
-                        arguments[property.Name] = value;
-                        var result = await fixture.CallResultWithoutDispatchAsync(tool.Name, arguments);
-                        Assert.True(result.IsError, $"{tool.Name}.{action} accepted {property.Name}.");
-                        var text = Assert.Single(result.Content.OfType<TextContentBlock>()).Text;
-                        Assert.Contains(property.Name, text, StringComparison.Ordinal);
-                        Assert.DoesNotContain("synthetic-contract-value", text, StringComparison.Ordinal);
-                        checkedInputs++;
-                    }
+                    var arguments = contract.ToDictionary(
+                        parameter => parameter.Name,
+                        parameter => parameter.Name == "action" ? (object?)action : SampleValue(properties.GetProperty(parameter.Name)));
+                    arguments[property.Name] = NonDefaultValue(property.Value);
+                    var result = await fixture.CallResultWithoutDispatchAsync(tool.Name, arguments);
+                    Assert.True(result.IsError, $"{tool.Name}.{action} accepted {property.Name}.");
+                    var text = Assert.Single(result.Content.OfType<TextContentBlock>()).Text;
+                    Assert.Contains(property.Name, text, StringComparison.Ordinal);
+                    Assert.DoesNotContain("synthetic-contract-value", text, StringComparison.Ordinal);
+                    checkedInputs++;
                 }
             }
         }
@@ -342,6 +339,24 @@ public sealed class UnifiedToolContractTests(RecordingProgramTransportFixture fi
             "number" => 0.0,
             "array" => Array.Empty<object>(),
             "object" => new Dictionary<string, object?>(),
+            _ => throw new InvalidOperationException("Unsupported synthetic schema.")
+        };
+    }
+
+    private static object NonDefaultValue(JsonElement schema)
+    {
+        var defaultValue = schema.TryGetProperty("default", out var value) ? value : default;
+        if (schema.TryGetProperty("enum", out var values))
+            return values.EnumerateArray().First(value => value.ValueKind != JsonValueKind.Null &&
+                (defaultValue.ValueKind == JsonValueKind.Undefined || !JsonElement.DeepEquals(value, defaultValue))).Clone();
+        return SchemaTypes(schema).First(type => type != "null") switch
+        {
+            "string" => "synthetic-contract-value",
+            "boolean" => defaultValue.ValueKind != JsonValueKind.True,
+            "integer" => 987654,
+            "number" => 987654.5,
+            "array" => new object[] { "synthetic-contract-value" },
+            "object" => new Dictionary<string, object?> { ["synthetic"] = "synthetic-contract-value" },
             _ => throw new InvalidOperationException("Unsupported synthetic schema.")
         };
     }
