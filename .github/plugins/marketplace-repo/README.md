@@ -13,7 +13,7 @@ This repository is the publish target for plugin artifacts from [`sbroenne/mcp-s
 ## Plugins
 
 - **excel-mcp** — MCP server plugin for conversational Excel automation
-- **excel-cli** — CLI plugin for scripting and coding-agent workflows
+- **excel-cli** — CLI plugin primarily for coding agents using terminal commands; also usable from scripts
 
 ## Repository Layout
 

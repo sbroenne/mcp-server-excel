@@ -1,95 +1,45 @@
 # Installation Guide - ExcelMcp
 
-Install ExcelMcp to automate installed Microsoft Excel on Windows from an AI
-assistant or the command line. It ships two **equal entry points** — the
-**MCP Server** for MCP clients and the **CLI** (`excelcli`) for coding agents
-and scripts. Choose the guide for your workflow; the entry points are
-independent:
+ExcelMcp lets an AI assistant or coding agent work with Microsoft Excel
+installed on Windows. There are two ways to use it, and you can install either
+or both:
 
-| Guide | Best For |
-|-------|----------|
-| 📖 **[Installing the MCP Server](INSTALLATION-MCP-SERVER.md)** | AI assistants — GitHub Copilot, Claude Desktop, Cursor, Windsurf, and any other MCP client |
-| 📖 **[Installing the CLI](INSTALLATION-CLI.md)** | Scripting, RPA, CI/CD pipelines, and coding agents that prefer a token-efficient single tool |
+- **MCP Server**: for AI assistants that support MCP, such as GitHub Copilot,
+  Claude Desktop, Cursor, and Windsurf.
+- **CLI** (`excelcli`): mainly for coding agents that run terminal commands. You
+  can also use it from your own scripts.
 
-Both require **Windows OS**, **Microsoft Excel 2016+**, and an **interactive
-desktop**. npm and standalone executables need no separate .NET runtime;
-NuGet tools require .NET 10. Manual npm use requires Node.js 18+.
+## What you need
 
-| Where you work | Recommended installation |
-|---|---|
-| VS Code with GitHub Copilot | VS Code extension; bundles the server and its skill |
-| Claude Desktop | [Claude Desktop setup guide](guides/CLAUDE-DESKTOP.md); MCPB configures direct npx with `@latest` (Node.js/npm required) |
-| Another MCP client | npm through `npx -y @sbroenne/mcp-server-excel@latest` |
-| Coding agents and scripts | `npx -y @sbroenne/excelcli@latest`, or global npm for a command on PATH |
-| No npm downloads desired | Standalone ZIP; replace the executable manually for updates |
+- Windows
+- Desktop Microsoft Excel 2016 or later
+- A signed-in Windows desktop session, because Excel runs as a desktop app
+- Node.js 18 or later, only if you install through npm
 
-`@latest` is resolved when launching, subject to normal npm caching. It does not
-upgrade a running server or CLI background service. The guides below explain
-safe restarts and updates for each method.
+## Pick your setup
 
-> **Tip:** The **VS Code Extension** bundles the MCP Server only (install the CLI separately if you need it for scripting). The **GitHub Copilot plugins** are separate — install `excel-mcp` and/or `excel-cli` depending on which entry point you need — see the MCP Server guide's Quick Start for the one-click paths.
+| Where you work | What to install | Guide |
+|---|---|---|
+| VS Code with GitHub Copilot | The Excel MCP Server VS Code extension | [VS Code extension](INSTALLATION-MCP-SERVER.md#vs-code-extension-easiest-one-click-setup) |
+| GitHub Copilot plugins | The `excel-mcp` plugin, the `excel-cli` plugin, or both; listed in [Awesome Copilot](https://github.com/github/awesome-copilot) | [MCP plugin](INSTALLATION-MCP-SERVER.md#github-copilot-plugin), [CLI plugin](INSTALLATION-CLI.md#github-copilot-plugin) |
+| Claude Desktop | The one-click Claude Desktop extension | [Claude Desktop setup](guides/CLAUDE-DESKTOP.md) |
+| Another MCP client | The MCP Server through npm | [Manual MCP setup](INSTALLATION-MCP-SERVER.md#manual-mcp-setup-all-mcp-clients) |
+| A coding agent that runs terminal commands | The CLI through npm | [CLI with npm](INSTALLATION-CLI.md#npm-primary) |
+| A computer without npm | The standalone MCP Server or CLI download | [MCP Server download](INSTALLATION-MCP-SERVER.md#option-b-standalone-executable), [CLI download](INSTALLATION-CLI.md#standalone-executable-also-primary) |
 
-The Copilot plugins are also listed in
-[Awesome Copilot](https://github.com/github/awesome-copilot), the default
-marketplace in current Copilot clients. Each installation guide includes that
-install route and our direct marketplace alternative.
+The VS Code extension sets up the MCP Server only. If your agent also runs
+terminal commands, install the CLI too.
 
----
+In GitHub Copilot, install the `excel-mcp` plugin, the `excel-cli` plugin, or
+both.
 
-## Agent Skills Installation (Cross-Platform)
+The plugins and the VS Code extension already include guidance for formatting
+Excel reports, so you do not need to install anything else.
 
-**Best for:** Optional presentation guidance for requested Excel reports.
-
-The VS Code extension registers `excel-mcp-report-formatting`. Plugins remain
-`excel-mcp` and `excel-cli`; their contained skills have narrower names and scope.
-After the release containing this change is published, install directly with:
-
-```powershell
-# CLI report-formatting skill
-npx skills add sbroenne/mcp-server-excel-plugins --skill excel-cli-report-formatting
-
-# MCP report-formatting skill
-npx skills add sbroenne/mcp-server-excel-plugins --skill excel-mcp-report-formatting
-
-# Interactive install - select one or both formatting skills
-npx skills add sbroenne/mcp-server-excel-plugins
-
-# Install for specific agents
-npx skills add sbroenne/mcp-server-excel-plugins --skill excel-cli-report-formatting -a cursor
-npx skills add sbroenne/mcp-server-excel-plugins --skill excel-mcp-report-formatting -a claude-code
-
-# Install both skills
-npx skills add sbroenne/mcp-server-excel-plugins --skill '*'
-
-# Install globally (user-wide)
-npx skills add sbroenne/mcp-server-excel-plugins --skill excel-cli-report-formatting --global
-```
-
-**Supports 43+ agents** including claude-code, github-copilot, cursor, windsurf, gemini-cli, codex, goose, cline, continue, replit, and more.
-
-**Manual Installation:**
-
-Existing broad `excel-cli` and `excel-mcp` standalone skills remain installed
-until removed with the client's skill manager. Keep plugin/server configuration.
-Use complete prepared packages, not source entries without their references.
-
-1. Download `excel-skills-v{version}.zip` from [GitHub Releases](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-2. The package contains both skills:
-   - `skills/excel-cli-report-formatting/` - presentation through `excelcli`
-   - `skills/excel-mcp-report-formatting/` - presentation through MCP tools
-3. Extract the skill(s) you need to your AI assistant's skills directory:
-   - Copilot: `~/.copilot/skills/<skill-name>/`
-   - Claude Code: `.claude/skills/<skill-name>/`
-   - Cursor: `.cursor/skills/<skill-name>/`
-
-**See:** [Agent Skills Documentation](../docs/AGENT-SKILLS.md)
-
----
+Each guide also covers updating, troubleshooting, and uninstalling.
 
 ## Getting Help
 
 - **Documentation:** [GitHub Repository](https://github.com/sbroenne/mcp-server-excel)
 - **Issues:** [GitHub Issues](https://github.com/sbroenne/mcp-server-excel/issues)
 - **Contributing:** [Contributing Guide](CONTRIBUTING.md)
-
-**Happy automating! 🚀**

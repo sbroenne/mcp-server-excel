@@ -78,7 +78,7 @@ operations through two equal entry points. MCP read-only actions are available
 through their own endpoints.
 
 - an **MCP server** for conversational AI clients (Claude, Copilot, Cursor)
-- a **CLI** (`excelcli`) for scripting and coding agents
+- a **CLI** (`excelcli`) primarily for coding agents using terminal commands; it can also be used from scripts
 
 The CLI additionally avoids loading MCP tool schemas into an agent's context. In a
 same-task, same-model benchmark the CLI workflow used about 59K tokens versus 163K

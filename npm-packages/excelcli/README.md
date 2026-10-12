@@ -1,5 +1,8 @@
 # ExcelMcp CLI
 
+Designed primarily for coding agents that use terminal commands and built-in
+CLI help. The CLI can also be used from scripts.
+
 Run the self-contained Excel automation CLI through npm:
 
 ```powershell

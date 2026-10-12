@@ -15,7 +15,8 @@ points backed by the same Core commands, parameters, defaults, and validation:
   which suits conversational and interactive AI clients.
 - **CLI** (`excelcli`) communicates with an `ExcelMcpService` background daemon
   over a user-isolated Windows named pipe. The daemon keeps workbook sessions
-  open across CLI invocations for scripting and coding-agent workflows.
+  open across CLI invocations, primarily for coding-agent workflows. It can
+  also be used from scripts.
 
 ```text
 MCP Server ──► In-process ExcelMcpService ──► Core Commands ──► Excel COM

@@ -10,15 +10,6 @@ hide:
   - toc
 ---
 
-## Get started with Excel MCP Server or CLI
-
-ExcelMcp requires Windows and installed desktop Microsoft Excel. Choose the
-setup instructions for your assistant or command-line workflow:
-
-- [Set up Excel in GitHub Copilot for VS Code](installation-mcp-server.md#vs-code-extension-easiest-one-click-setup)
-- [Connect Claude Desktop to Excel](guides/claude-desktop.md)
-- [Install excelcli for coding agents and scripts](installation-cli.md)
-
 !!! success "Powered by the real Excel engine"
     Excel MCP Server automates the **actual Excel application** through its
     official COM API — the same engine Excel itself uses. That unlocks what
@@ -253,10 +244,12 @@ workflow:
 
 | Interface | Best for | Why |
 |-----------|----------|-----|
-| **CLI** (`excelcli`) | Coding agents (Copilot, Cursor, Windsurf) | **64% fewer tokens** — single tool, no large schemas. Better for cost-sensitive, high-throughput automation. |
+| **CLI** (`excelcli`) | Coding agents using terminal commands | Built-in help without loading MCP tool definitions. |
 | **MCP Server** | Conversational AI (Claude Desktop, VS Code Chat) | Rich tool discovery and a persistent connection. Better for interactive, exploratory workflows. |
 
 [MCP Server docs](mcp-server.md){ .md-button } [CLI docs](cli.md){ .md-button }
+
+The CLI is designed primarily for coding agents. It can also be used from scripts.
 
 ## GitHub star history
 

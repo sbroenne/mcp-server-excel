@@ -38,7 +38,7 @@ Data Model, and workbook formatting.
 |---|---|
 | **VS Code** | [Install the extension](https://marketplace.visualstudio.com/items?itemName=sbroenne.excel-mcp) |
 | **Claude Desktop or another MCP client** | [Install the MCP Server](https://excelmcpserver.dev/installation-mcp-server/) |
-| **Coding agents and scripts** | [Install the CLI](https://excelmcpserver.dev/installation-cli/) |
+| **Coding agents using terminal commands** | [Install the CLI](https://excelmcpserver.dev/installation-cli/) |
 | **Not sure which to choose?** | [Read the installation overview](https://excelmcpserver.dev/installation/) |
 
 For **GitHub Copilot CLI**, install either plugin from the
@@ -90,7 +90,9 @@ Both entry points expose the same Core commands and behavior.
 | Interface | Best for | Why |
 |---|---|---|
 | **MCP Server** | Conversational assistants and exploratory work | Rich schemas, tool discovery, and persistent sessions |
-| **CLI (`excelcli`)** | Coding agents, automation, and scripts | One compact tool surface and substantially lower token usage |
+| **CLI (`excelcli`)** | Coding agents using terminal commands | Built-in help without loading MCP tool definitions |
+
+The CLI is designed primarily for coding agents. It can also be used from scripts.
 
 The MCP Server calls the ExcelMcp service in-process. The CLI uses a background
 daemon so workbook sessions persist across commands.

@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "excel-cli",
   "version": "0.0.0",
-  "description": "Run commands and scripts to work with Microsoft Excel workbooks, formulas, Power Query, PivotTables, charts, and VBA. Requires Windows, desktop Excel 2016 or later, and Node.js 18 or later. In one comparison using the same task and AI model, the command-line plugin used about 64% fewer AI tokens than the MCP plugin; results vary by task, model, and client.",
+  "description": "Excel automation designed primarily for coding agents using terminal commands and built-in CLI help. Work with formulas, Power Query, PivotTables, charts, and VBA. Also usable from scripts. Requires Windows, desktop Excel 2016 or later, and Node.js 18 or later.",
   "author": {
     "name": "Stefan Brönner",
     "email": "3026464+sbroenne@users.noreply.github.com",

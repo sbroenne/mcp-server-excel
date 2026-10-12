@@ -61,7 +61,8 @@ You do not need to add a separate MCP server entry to
 Use the MCP Server when you want your assistant to find and use Excel tools in a
 conversation. Use the
 [CLI plugin](https://github.com/sbroenne/mcp-server-excel/tree/main/.github/plugins/excel-cli)
-for scripts and coding-agent workflows.
+primarily for coding agents using terminal commands. The CLI can also be used
+from scripts.
 
 In one comparison using the same task and AI model, the CLI used about 59,000 AI
 tokens and MCP used 163,000 (about 64% fewer with CLI). This is one measured

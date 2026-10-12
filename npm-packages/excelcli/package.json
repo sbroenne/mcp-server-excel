@@ -1,7 +1,7 @@
 {
   "name": "@sbroenne/excelcli",
   "version": "0.0.0-development",
-  "description": "Automate Microsoft Excel from coding agents and scripts with a token-efficient CLI for workbooks, formulas, Power Query, PivotTables, and more. Requires Windows and desktop Excel.",
+  "description": "Excel automation designed primarily for coding agents using terminal commands and built-in CLI help. Also usable from scripts. Requires Windows and desktop Excel.",
   "license": "MIT",
   "type": "module",
   "bin": {

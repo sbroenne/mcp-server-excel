@@ -3,8 +3,11 @@
 [![npm version](https://img.shields.io/npm/v/%40sbroenne%2Fexcelcli)](https://www.npmjs.com/package/@sbroenne/excelcli)
 [![GitHub stars](https://img.shields.io/github/stars/sbroenne/mcp-server-excel?style=flat&label=GitHub%20stars)](https://github.com/sbroenne/mcp-server-excel)
 
-**Run commands and scripts to work with real Microsoft Excel workbooks, formulas,
-Power Query, PivotTables, charts, and VBA.**
+**Excel automation designed primarily for coding agents using terminal commands.**
+
+Agents use built-in CLI help to work with real Microsoft Excel workbooks,
+formulas, Power Query, PivotTables, charts, and VBA. The CLI can also be used
+from scripts.
 
 Use `excelcli` to enter data, write formulas, refresh Power Query, build PivotTables
 and charts, or automate repeatable workbook tasks. ExcelMcp operates the actual
@@ -106,7 +109,7 @@ Both interfaces automate the same Excel operations:
 
 | Interface | Good fit | Context |
 |---|---|---|
-| CLI (`excelcli`) | Scripts and coding-agent workflows | CLI help instead of MCP tool schemas |
+| CLI (`excelcli`) | Coding agents using terminal commands | CLI help instead of MCP tool schemas |
 | MCP Server | Conversational tool discovery | 60 tool schemas loaded into context |
 
 In one comparison using the same task and AI model, the CLI used about 59,000 AI

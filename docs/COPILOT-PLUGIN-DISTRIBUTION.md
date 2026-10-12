@@ -102,7 +102,8 @@ Provides the argument-safe npx wrapper plus skill guidance for coding agents:
 copilot plugin install excel-cli@awesome-copilot
 ```
 
-Best for: CI/CD, scripts, token-efficient coding agents.
+Best for: coding agents using terminal commands and built-in CLI help.
+The CLI can also be used from scripts.
 
 ## Release Cycle
 

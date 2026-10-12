@@ -50,7 +50,7 @@ Use this order to avoid setup confusion:
    - **npm package** (other MCP clients) — runs the self-contained server through `npx`
    - **Manual MCP setup** (other MCP clients like Cursor, Windsurf)
 2. **Validate MCP setup** (run the quick test prompt in Step 4 of manual setup, or test in your client after extension/MCPB/plugin install)
-3. **Optional:** also install the [CLI](INSTALLATION-CLI.md) (`excelcli`) for scripting/RPA
+3. **Optional:** also install the [CLI](INSTALLATION-CLI.md) (`excelcli`) for coding agents that use terminal commands; it can also be used from scripts
 
 ### VS Code Extension (Easiest - One-Click Setup)
 
@@ -584,7 +584,7 @@ After installation:
 1. **Learn the basics:** Try simple commands like creating worksheets, setting values
 2. **Explore features:** See the [feature overview](../FEATURES.md) for capabilities; the MCP tool descriptions provide current actions and inputs.
 3. **Read the guides:**
-   - [CLI Installation Guide](INSTALLATION-CLI.md) - for scripting, RPA, and CI/CD
+   - [CLI Installation Guide](INSTALLATION-CLI.md) - primarily for coding agents using terminal commands
    - [Agent Skills](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-mcp/skills/excel-mcp-report-formatting) - cross-platform AI guidance
 4. **Join the community:** Star the repo, report issues, contribute improvements
 
