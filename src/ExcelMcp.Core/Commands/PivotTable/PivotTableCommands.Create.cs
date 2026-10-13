@@ -2,6 +2,7 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
@@ -17,8 +18,12 @@ public partial class PivotTableCommands
     public PivotTableCreateResult CreateFromRange(IExcelBatch batch,
         string sourceSheet, string sourceRange,
         string destinationSheet, string destinationCell,
-        string pivotTableName)
+        string pivotTableName, string? shareCacheWith = null, string? shareCacheWithSheet = null)
     {
+        ValidateCacheSharingInputs(shareCacheWith, shareCacheWithSheet);
+        if (shareCacheWith is not null && !IsFixedA1SourceAddress(sourceRange))
+            throw new ArgumentException(
+                "Cache sharing from a range requires an explicit fixed sourceRange address. Named and structured source definitions cannot be substituted for fixed ranges; use create-from-table for an Excel Table.");
         using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
 
         return batch.Execute((ctx, ct) =>
@@ -28,7 +33,7 @@ public partial class PivotTableCommands
             dynamic? destWorksheet = null;
             dynamic? destRangeObj = null;
             dynamic? pivotCaches = null;
-            dynamic? pivotCache = null;
+            Excel.PivotCache? pivotCache = null;
             dynamic? pivotTable = null;
             dynamic? sourceRows = null;
 
@@ -86,14 +91,20 @@ public partial class PivotTableCommands
                 destWorksheet = ctx.Book.Worksheets[destinationSheet];
                 destRangeObj = destWorksheet.Range[destinationCell];
 
-                pivotCaches = ctx.Book.PivotCaches();
                 string sourceDataRef = $"'{sourceSheet.Replace("'", "''", StringComparison.Ordinal)}'!{sourceRange}";
 
-                pivotCache = pivotCaches.Create(
-                    SourceType: 1,
-                    SourceData: sourceDataRef,
-                    Version: 4
-                );
+                if (shareCacheWith is not null)
+                    pivotCache = ResolveSharedCreationCache(ctx.Book, ctx.App, shareCacheWithSheet!, shareCacheWith,
+                        (Excel.Worksheet)sourceWorksheet, (Excel.Range)sourceRangeObj, null);
+                else
+                {
+                    pivotCaches = ctx.Book.PivotCaches();
+                    pivotCache = (Excel.PivotCache)pivotCaches.Create(
+                        SourceType: 1,
+                        SourceData: sourceDataRef,
+                        Version: 4
+                    );
+                }
 
                 pivotTable = pivotCache.CreatePivotTable(
                     TableDestination: destRangeObj,
@@ -133,15 +144,16 @@ public partial class PivotTableCommands
     public PivotTableCreateResult CreateFromTable(IExcelBatch batch,
         string tableName,
         string destinationSheet, string destinationCell,
-        string pivotTableName)
+        string pivotTableName, string? shareCacheWith = null, string? shareCacheWithSheet = null)
     {
+        ValidateCacheSharingInputs(shareCacheWith, shareCacheWithSheet);
         return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
             dynamic? destWorksheet = null;
             dynamic? destRangeObj = null;
             dynamic? pivotCaches = null;
-            dynamic? pivotCache = null;
+            Excel.PivotCache? pivotCache = null;
             dynamic? pivotTable = null;
             dynamic? tableRange = null;
             dynamic? tableRows = null;
@@ -241,15 +253,20 @@ public partial class PivotTableCommands
                 destRangeObj = destWorksheet.Range[destinationCell];
 
                 // Create PivotCache from table
-                pivotCaches = ctx.Book.PivotCaches();
                 tableSheet = table.Parent;
                 string sourceDataRef = $"{tableSheet.Name}!{table.Name}";
 
-                // xlDatabase = 1
-                pivotCache = pivotCaches.Create(
-                    SourceType: 1,
-                    SourceData: sourceDataRef
-                );
+                if (shareCacheWith is not null)
+                    pivotCache = ResolveSharedCreationCache(ctx.Book, ctx.App, shareCacheWithSheet!, shareCacheWith,
+                        (Excel.Worksheet)tableSheet, (Excel.Range)tableRange, (Excel.ListObject)table);
+                else
+                {
+                    pivotCaches = ctx.Book.PivotCaches();
+                    pivotCache = (Excel.PivotCache)pivotCaches.Create(
+                        SourceType: 1,
+                        SourceData: sourceDataRef
+                    );
+                }
 
                 pivotTable = pivotCache.CreatePivotTable(
                     TableDestination: destRangeObj,

@@ -347,6 +347,11 @@ public class PivotTableCreateResult : ResultBase
 public class PivotTableInfo
 {
     /// <summary>
+    /// Native PivotCache index, local to this workbook; not a permanent identifier.
+    /// </summary>
+    public int CacheIndex { get; set; }
+
+    /// <summary>
     /// Name of the PivotTable
     /// </summary>
     public string Name { get; set; } = string.Empty;
