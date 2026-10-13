@@ -26,8 +26,23 @@ public sealed class PivotTableOlapAllMemberTests
             PivotTableHelpers.IsAllOlapReportFilterMember(cube, "[Region].[AllMember]", CancellationToken.None));
 
         Assert.False(result.Available);
+        Assert.Contains("connection 'TestConnection'", result.ErrorMessage, StringComparison.Ordinal);
+        Assert.DoesNotContain("TestPivot", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Contains($"HRESULT 0x{hresult:X8}", result.ErrorMessage, StringComparison.Ordinal);
         Assert.DoesNotContain("Private provider details", result.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void NullSchemaRowset_ReportsUnavailableSelection()
+    {
+        var cube = CreateCube(new FakeConnection(null));
+
+        var result = PivotTableSnapshotHelpers.TryReadSnapshotProperty(() =>
+            PivotTableHelpers.IsAllOlapReportFilterMember(cube, "[Region].[AllMember]", CancellationToken.None));
+
+        Assert.False(result.Available);
+        Assert.Contains("The OLAP provider returned no result for a schema rowset request.",
+            result.ErrorMessage, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -65,9 +80,15 @@ public sealed class PivotTableOlapAllMemberTests
 
     private static Excel.CubeField CreateCube(FakeConnection connection, Exception? adoFailure = null)
     {
+        var workbookConnection = FakeExcelObject.Create<Excel.WorkbookConnection>(name => name switch
+        {
+            "get_Name" => "TestConnection",
+            _ => throw new NotSupportedException(name)
+        });
         var cache = FakeExcelObject.Create<Excel.PivotCache>(name => name switch
         {
             "get_CommandText" => "TestCube",
+            "get_WorkbookConnection" => workbookConnection,
             "get_ADOConnection" => adoFailure is null ? connection : throw adoFailure,
             _ => throw new NotSupportedException(name)
         });
@@ -85,13 +106,15 @@ public sealed class PivotTableOlapAllMemberTests
         });
     }
 
-    public sealed class FakeConnection(Exception failure)
+    public sealed class FakeConnection(Exception? failure)
     {
-        public object OpenSchema(int schema, object?[] restrictions)
+        public object? OpenSchema(int schema, object?[] restrictions)
         {
             Assert.Equal(34, schema);
             Assert.Equal(new object?[] { null, null, "TestCube", null, null, "[Region]" }, restrictions);
-            throw failure;
+            if (failure is not null)
+                throw failure;
+            return null;
         }
     }
 

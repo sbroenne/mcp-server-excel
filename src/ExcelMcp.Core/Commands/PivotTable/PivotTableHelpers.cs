@@ -21,6 +21,7 @@ internal static class PivotTableHelpers
             "(CLI: excelcli pivottable refresh), then retry the read.";
         Excel.PivotTable? pivot = null;
         Excel.PivotCache? cache = null;
+        Excel.WorkbookConnection? workbookConnection = null;
         dynamic? adoConnection = null;
         try
         {
@@ -50,18 +51,21 @@ internal static class PivotTableHelpers
             if (adoConnection is null)
                 throw new NotSupportedException(adoUnavailableMessage);
 
+            workbookConnection = cache.WorkbookConnection;
+            if (workbookConnection is null)
+                throw new NotSupportedException("Excel did not expose the workbook connection for this OLAP PivotTable.");
+
             List<IReadOnlyDictionary<string, object?>> rows;
             try
             {
                 rows = ConnectionCommands.OpenSchemaRowset(
                     adoConnection,
                     ExternalOlapSchemaMapper.BuildHierarchyRequest(cubeName, cubeField.Name),
-                    pivot.Name,
+                    workbookConnection.Name,
                     cancellationToken,
                     maximumRows: 2);
             }
-            catch (InvalidOperationException ex) when (
-                ex.InnerException is System.Runtime.InteropServices.COMException && CreatedObjectFailure.CanReport(ex))
+            catch (InvalidOperationException ex) when (CreatedObjectFailure.CanReport(ex))
             {
                 throw new NotSupportedException(ex.Message, ex);
             }
@@ -74,6 +78,7 @@ internal static class PivotTableHelpers
         }
         finally
         {
+            ComUtilities.Release(ref workbookConnection);
             ComUtilities.Release(ref adoConnection);
             ComUtilities.Release(ref cache);
             ComUtilities.Release(ref pivot);
