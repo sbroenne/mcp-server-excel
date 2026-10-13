@@ -231,7 +231,7 @@ features like **Python in Excel** work too — your AI assistant can write
 !!! info "Local Excel and your data"
     Excel runs on your Windows desktop. Requested workbook results are returned
     to your AI assistant, whose privacy policy applies. Release builds can send
-    anonymous usage statistics, but those statistics exclude workbook contents,
+    pseudonymous usage statistics, but those statistics exclude workbook contents,
     file names, and paths. Optional remote M/DAX formatting and Python in Excel
     use external services only when you request those features.
     [Read the privacy policy](privacy.md).

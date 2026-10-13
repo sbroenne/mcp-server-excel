@@ -447,7 +447,7 @@ dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Releas
 
 ## 📊 **Application Insights / Telemetry Setup**
 
-ExcelMcp uses Azure Application Insights for anonymous usage telemetry. The MCP
+ExcelMcp uses Azure Application Insights for pseudonymous usage telemetry. The MCP
 Server uses WorkerService integration and also reports sanitized crashes; the CLI
 uses the base SDK for command telemetry. Telemetry is **opt-out** (enabled by
 default in release builds with an embedded connection string). Contributor builds
