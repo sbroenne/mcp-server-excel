@@ -257,6 +257,9 @@ public class Program
         };
 
         builder.Services.AddApplicationInsightsTelemetryWorkerService(aiOptions);
+        // Duration metrics read resource identity rather than per-record cloud context.
+        builder.Services.AddOpenTelemetry()
+            .ConfigureResource(ExcelMcpTelemetry.ConfigureResource);
 
         // NOTE: Microsoft.ApplicationInsights.WorkerService 3.x is a full OpenTelemetry-based rewrite
         // of the SDK - it no longer has a PerformanceCollectorModule type, an ITelemetryModule DI

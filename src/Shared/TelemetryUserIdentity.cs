@@ -6,7 +6,10 @@ using Microsoft.ApplicationInsights.DataContracts;
 
 namespace Sbroenne.ExcelMcp.Telemetry;
 
-internal sealed record TelemetryUserIdentity(string UserId, string? LegacyUserId);
+internal sealed record TelemetryUserIdentity(string UserId, string? LegacyUserId)
+{
+    internal string RoleInstance => $"instance-{UserId[..8]}";
+}
 
 internal static class TelemetryUserIdentityStore
 {

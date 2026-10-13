@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Globalization;
+using System.IO.Compression;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -14,10 +15,12 @@ internal sealed class LocalOtlpReceiver : IAsyncDisposable
     private readonly byte[] _response;
     private readonly ConcurrentQueue<(string Path, string Payload, IReadOnlyDictionary<string, string> Headers)> _requests = new();
 
-    internal LocalOtlpReceiver(string? redirect = null)
+    internal LocalOtlpReceiver(string? redirect = null, string? responseBody = null)
     {
-        _response = Encoding.ASCII.GetBytes(redirect == null
-            ? "HTTP/1.1 200 OK\r\nContent-Type: application/x-protobuf\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        var responsePayload = responseBody ?? string.Empty;
+        var contentType = responseBody is null ? "application/x-protobuf" : "application/json";
+        _response = Encoding.UTF8.GetBytes(redirect == null
+            ? $"HTTP/1.1 200 OK\r\nContent-Type: {contentType}\r\nContent-Length: {Encoding.UTF8.GetByteCount(responsePayload)}\r\nConnection: close\r\n\r\n{responsePayload}"
             : $"HTTP/1.1 302 Found\r\nLocation: {redirect}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
         _listener.Start();
         Endpoint = $"http://127.0.0.1:{((IPEndPoint)_listener.LocalEndpoint).Port}";
@@ -58,7 +61,18 @@ internal sealed class LocalOtlpReceiver : IAsyncDisposable
                     header => header[..header.IndexOf(':')],
                     header => header[(header.IndexOf(':') + 1)..].Trim(),
                     StringComparer.OrdinalIgnoreCase);
-                _requests.Enqueue((path, Encoding.UTF8.GetString(body), requestHeaders));
+                if (requestHeaders.TryGetValue("Content-Encoding", out var encoding) &&
+                    string.Equals(encoding, "gzip", StringComparison.OrdinalIgnoreCase))
+                {
+                    using var compressed = new MemoryStream(body);
+                    using var gzip = new GZipStream(compressed, CompressionMode.Decompress);
+                    using var reader = new StreamReader(gzip, Encoding.UTF8);
+                    _requests.Enqueue((path, await reader.ReadToEndAsync(_shutdown.Token), requestHeaders));
+                }
+                else
+                {
+                    _requests.Enqueue((path, Encoding.UTF8.GetString(body), requestHeaders));
+                }
                 await stream.WriteAsync(_response, _shutdown.Token);
             }
         }
