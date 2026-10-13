@@ -11,6 +11,20 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.4.0] - 2026-10-13
+
+### Minor Changes
+
+- [#1130](https://github.com/sbroenne/mcp-server-excel/pull/1130) [`9f1b2e2`](https://github.com/sbroenne/mcp-server-excel/commit/9f1b2e2e08eb76c98b3963e5a5d020c6b17a102f) Thanks [@sbroenne](https://github.com/sbroenne)! - `pivottable read` now includes a bounded snapshot of selected members, field filters, and value settings. OLAP hierarchies report their displayed caption and the selected members from every level. The result clearly marks unavailable or truncated details and can target a specific worksheet when PivotTable names repeat.
+
+- [#1143](https://github.com/sbroenne/mcp-server-excel/pull/1143) [`90db1a4`](https://github.com/sbroenne/mcp-server-excel/commit/90db1a48fa92d0496e9526841adeac77e1ec0ece) Thanks [@sbroenne](https://github.com/sbroenne)! - Power Query refresh-all now refreshes dependent PivotTables by default, with a query-only option. Added workbook-level refresh-all for all connections and PivotTables.
+
+- [#1145](https://github.com/sbroenne/mcp-server-excel/pull/1145) [`809a322`](https://github.com/sbroenne/mcp-server-excel/commit/809a32237409997f02ddb89b33086eb285749b20) Thanks [@sbroenne](https://github.com/sbroenne)! - Create new worksheet-source PivotTables using an existing report's cache with paired sharing options in the CLI and MCP. Reports with the same source can then connect to one slicer and share calculated fields; `read` and `list` expose their native workbook-local `cacheIndex`. The PivotTable walkthrough now includes a complete shared-slicer example and clarifies calculation and refresh limitations.
+
+### Patch Changes
+
+- [#1138](https://github.com/sbroenne/mcp-server-excel/pull/1138) [`d933345`](https://github.com/sbroenne/mcp-server-excel/commit/d9333453dac237125730b64c651f0764c6f60a46) Thanks [@sbroenne](https://github.com/sbroenne)! - Fix PivotTable reads and report-filter results incorrectly treating an OLAP All member named `[AllMember]` as a single selected member. Both MCP and CLI now identify single-selection All state from the hierarchy metadata exposed by Excel, regardless of the server's member naming.
+
 ## [2.3.12] - 2026-10-12
 
 ### Minor Changes
