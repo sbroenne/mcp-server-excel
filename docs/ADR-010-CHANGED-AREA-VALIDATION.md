@@ -32,11 +32,14 @@ source guards cannot establish Excel behavior. Shared inputs can legitimately
 select several owners, and source ownership needs focused regressions as the
 test structure evolves.
 
-Validation stages, including native CLI workflow checks, are ordinary xUnit
-cases or typed components rather than nested PowerShell runners. Retained
-PowerShell commands only translate arguments for existing callers; they do not
-hold a second selection or result-checking policy. Standard SDK, npm, and VSIX
-tools still produce the distributions.
+Changed-area selection, native CLI workflow checks, source guards, package
+preparation, and result verification are xUnit cases or typed components.
+Two PowerShell components are retained deliberately: `Test-E2E.ps1` stays the
+explicit complete acceptance command and cloud runner entry point, including
+its own stage filters and OLAP setup, and `check-doc-counts.ps1` stays the
+documentation count validator. Other retained PowerShell commands forward to
+the typed tool and only translate arguments or outputs for existing callers. Standard SDK, npm, and VSIX tools
+still produce the distributions.
 
 ## Implementation and guidance
 
