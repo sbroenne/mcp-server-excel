@@ -27,6 +27,71 @@ public class PersistentServicePivotTableDataModelTests(
     private readonly IPersistentPivotTableCommands _pivotCommands =
         fixture.CreateCommands<IPersistentPivotTableCommands>();
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SharedCache_DataModelTarget_IsRejectedBeforeCreatingReportOrCache(bool table)
+    {
+        var batch = _fixture.BatchToken;
+        var sheet = _fixture.CreateTestSheet(batch);
+        RequireSuccess(_commands.SetValues(batch, sheet, "A1:B3",
+            [["Region", "Sales"], ["North", 100], ["South", 200]]));
+        var tables = fixture.CreateCommands<IPersistentTableCommands>();
+        RequireSuccess(tables.Create(batch, sheet, "WorksheetSales", "A1:B3", true));
+        RequireSuccess(_pivotCommands.CreateFromDataModel(batch, "SalesTable", sheet, "H1", "ModelPivot"));
+        RequireSuccess(_pivotCommands.AddValueField(batch, "ModelPivot", "[Measures].[Total Sales]"));
+        RequireSuccess(_pivotCommands.Refresh(batch, "ModelPivot"));
+        AssertNativeData(sheet, "ModelPivot", 2455);
+        var before = ReadCacheState();
+        var reportsBefore = RequireSuccess(_pivotCommands.List(batch)).PivotTables
+            .Select(pivot => (pivot.SheetName, pivot.Name, pivot.CacheIndex)).ToArray();
+
+        var error = Assert.Throws<NotSupportedException>(() =>
+        {
+            if (table)
+                _pivotCommands.CreateFromTable(batch, "WorksheetSales", sheet, "P1", "Rejected", "ModelPivot", sheet);
+            else
+                _pivotCommands.CreateFromRange(batch, sheet, "A1:B3", sheet, "P1", "Rejected", "ModelPivot", sheet);
+        });
+
+        Assert.Contains("worksheet-backed", error.Message, StringComparison.Ordinal);
+        Assert.Contains("OLAP/Data Model", error.Message, StringComparison.Ordinal);
+        Assert.Equal(before, ReadCacheState());
+        var reportsAfter = RequireSuccess(_pivotCommands.List(batch)).PivotTables;
+        Assert.Equal(reportsBefore, reportsAfter.Select(pivot => (pivot.SheetName, pivot.Name, pivot.CacheIndex)).ToArray());
+        var listed = Assert.Single(reportsAfter, pivot => pivot.SheetName == sheet);
+        Assert.Equal("ModelPivot", listed.Name);
+        Assert.Equal(before.Index, listed.CacheIndex);
+        Assert.Equal(before.Index, RequireSuccess(_pivotCommands.Read(batch, "ModelPivot", sheet)).PivotTable.CacheIndex);
+        Assert.True(before.Index > 0);
+        AssertNativeData(sheet, "ModelPivot", 2455);
+        Assert.Equal(new object?[] { "Region", "Sales" },
+            RequireSuccess(_commands.GetValues(batch, sheet, "A1:B3")).Values[0]);
+
+        (int Count, int Index) ReadCacheState() => _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.PivotCaches? caches = null;
+            Excel.Worksheet? nativeSheet = null;
+            Excel.PivotTables? pivots = null;
+            Excel.PivotTable? pivot = null;
+            try
+            {
+                caches = context.Book.PivotCaches();
+                nativeSheet = ComUtilities.FindSheet(context.Book, sheet);
+                pivots = nativeSheet!.PivotTables();
+                pivot = pivots.Item("ModelPivot");
+                return (caches.Count, pivot.CacheIndex);
+            }
+            finally
+            {
+                ComUtilities.Release(ref pivot);
+                ComUtilities.Release(ref pivots);
+                ComUtilities.Release(ref nativeSheet);
+                ComUtilities.Release(ref caches);
+            }
+        });
+    }
+
     /// <summary>
     /// Tests creating PivotTable from Data Model table.
     /// </summary>

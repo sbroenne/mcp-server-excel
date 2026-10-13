@@ -9,8 +9,9 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// Use pivottable for lifecycle, pivottablefield for field placement.
 ///
 /// CALCULATED FIELDS (for regular PivotTables):
-/// - Create custom fields using formulas like '=Revenue-Cost' or '=Quantity*UnitPrice'
+/// - Calculate on aggregates with formulas like '=Revenue-Cost' or '=Sales*2', not row-wise Quantity*UnitPrice
 /// - Can reference existing fields by name
+/// - Definitions are shared by every regular PivotTable using the same PivotCache
 /// - After creating, use pivottablefield add-value-field to add to Values area
 /// - For complex multi-table calculations, prefer DAX measures with datamodel
 ///
@@ -25,7 +26,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// </summary>
 [ServiceCategory("PivotTableCalc")]
 [McpTool("pivottable_calc", Title = "PivotTable Calc Operations", Destructive = true, Category = "analysis",
-    Description = "Create/delete PivotTable calculated fields and members, and configure layout. CALCULATED FIELDS: Create formulas like =Revenue-Cost, then add to Values with pivottable_field. CALCULATED MEMBERS: MDX expressions (OLAP/Data Model only). LAYOUT: 0=Compact, 1=Tabular, 2=Outline. Use pivottable for lifecycle, pivottable_field for field management.")]
+    Description = "Create/delete PivotTable calculated fields and members, and configure layout. CALCULATED FIELDS: Formulas like =Revenue-Cost calculate on aggregates, not individual source rows. Definitions and deletion affect all regular PivotTables sharing the cache; add to Values separately with pivottable_field. CALCULATED MEMBERS: MDX expressions (OLAP/Data Model only). LAYOUT: 0=Compact, 1=Tabular, 2=Outline. Use pivottable for lifecycle, pivottable_field for field management.")]
 [McpReadOnlyActions("get-data", "list-calculated-fields", "list-calculated-members", "get-layout-options", "list-calculated-items")]
 public interface IPivotTableCalcCommands
 {
@@ -41,7 +42,8 @@ public interface IPivotTableCalcCommands
     PivotTableDataResult GetData(IExcelBatch batch, string pivotTableName);
 
     /// <summary>
-    /// Creates a calculated field with a custom formula.
+    /// Creates a calculated field on aggregates, shared by all regular PivotTables using this cache.
+    /// Place it in each report's Values separately; for row-wise multiplication use a source column or DAX.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>
@@ -101,7 +103,7 @@ public interface IPivotTableCalcCommands
         string fieldName, string itemName);
 
     /// <summary>
-    /// Deletes a calculated field from a regular PivotTable.
+    /// Deletes a calculated field from the cache shared by its regular PivotTables.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>

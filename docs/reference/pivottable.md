@@ -12,6 +12,63 @@ Current commands and inputs come from CLI help or MCP tool descriptions.
 | Data Model | DAX measures and model relationships |
 | External OLAP cube | Existing server measures and cube hierarchies; supported client calculated members use MDX |
 
+## Create another report sharing a worksheet cache
+
+`create-from-table` and `create-from-range` create independent caches by default,
+even when their source is identical. To create a **new** report using an existing
+report's native cache, supply both sharing inputs:
+
+| Entry point | Existing PivotTable | Its exact worksheet |
+|---|---|---|
+| CLI | `--share-cache-with` | `--share-cache-with-sheet` |
+| MCP | `share_cache_with` | `share_cache_with_sheet` |
+| Service / CLI batch JSON | `shareCacheWith` | `shareCacheWithSheet` |
+
+Both must be nonblank or both omitted. The existing report must be a regular
+worksheet-backed PivotTable with the exact same source identity. Another
+worksheet or Table, or a different fixed range, is not a match even if the
+headers and data are identical. A Table and a fixed range covering its cells
+are distinct sources: sharing must not discard the Table's expanding source
+definition. When sharing through `create-from-range`, supply an explicit A1
+range address, not a named or structured Table reference; use `create-from-table`
+for a Table source. Excel's equivalent A1/R1C1 addresses and quoted worksheet references
+are resolved without rewriting the existing source. External/OLAP/Data Model
+caches and unresolvable source definitions are rejected before a report or
+cache is created.
+
+For an existing `SalesTable` and `ByRegion` on `Summary`:
+
+```cli
+excelcli -q pivottable create-from-table --session $sessionId --table-name SalesTable --destination-sheet Summary --destination-cell H3 --pivot-table-name ByProduct --share-cache-with ByRegion --share-cache-with-sheet Summary
+```
+
+```mcp
+pivottable(action: 'create-from-table', workbook_session_id: sessionId, table_name: 'SalesTable', destination_sheet: 'Summary', destination_cell: 'H3', pivot_table_name: 'ByProduct', share_cache_with: 'ByRegion', share_cache_with_sheet: 'Summary')
+```
+
+For `ByRegion` created from the fixed range `Data!A1:C100` instead:
+
+```cli
+excelcli -q pivottable create-from-range --session $sessionId --source-sheet Data --source-range A1:C100 --destination-sheet Summary --destination-cell H3 --pivot-table-name ByProduct --share-cache-with ByRegion --share-cache-with-sheet Summary
+```
+
+```mcp
+pivottable(action: 'create-from-range', workbook_session_id: sessionId, source_sheet: 'Data', source_range: 'A1:C100', destination_sheet: 'Summary', destination_cell: 'H3', pivot_table_name: 'ByProduct', share_cache_with: 'ByRegion', share_cache_with_sheet: 'Summary')
+```
+
+Sharing does not copy field layout or automatically connect slicers. Configure
+the new report's fields separately. `slicer` action `connect-pivottable` can then
+connect it to an existing slicer using that cache; selection filters every
+connected report, not independently cached reports. See the
+[complete CLI walkthrough](../guides/AUTOMATE-PIVOTTABLES.md).
+
+`read` returns `pivotTable.cacheIndex`, and each `list` entry returns `cacheIndex`.
+These are actual native indexes, local to this workbook, and can change when
+Excel reorganizes caches; they are not permanent IDs. Sharing creates no
+additional cache and does not move existing reports or consolidate caches.
+Once report creation starts, a later Excel failure does not promise rollback;
+inspect the named partial report before deciding what to do.
+
 ## Read a bounded configuration snapshot
 
 `pivottable` action `read` returns the PivotTable layout together with exact
@@ -44,7 +101,7 @@ instead of assuming an empty list means no fields or selections.
 bound truncated the result.
 
 ```mcp
-pivottable(action: 'read', workbook_session_id: sessionId, pivot_table_name: 'SalesPivot', sheet_name: 'Summary', max_selected_members: 50)
+pivottable_read(action: 'read', workbook_session_id: sessionId, pivot_table_name: 'SalesPivot', sheet_name: 'Summary', max_selected_members: 50)
 ```
 
 ```cli
@@ -66,6 +123,11 @@ Use `datamodel update-measure` for an intentional compound DAX formula change.
 External measures must be changed on the cube server.
 
 ## Calculated fields are calculations on aggregates
+
+Regular calculated-field definitions belong to the PivotCache, not only the
+report used to create them. Creation, formula changes and deletion can affect
+other reports sharing that cache. Place a field in each report's Values area
+separately.
 
 For a regular PivotTable with a numeric `Sales` field, doubling Sales is safe.
 This example shows the distinction between defining a calculation, placing it
@@ -143,6 +205,10 @@ Nothing is rolled back; inspect the hierarchy before retrying.
 Refresh sources before their summaries. Worksheet-source edits may need a model
 refresh, followed by PivotTable refresh; Power Query refresh updates its model
 load but does not replace the dependent PivotTable refresh.
+Refreshing a shared cache updates its source records for all users; refresh
+dependent PivotTables explicitly and inspect their displayed results.
+Native grouping and ungrouping can also change fields available to reports
+sharing that cache. Choose independent caches when those effects are unwanted.
 
 - `sort-field` orders the selected field's labels in ascending or descending
   order, including Data Model fields identified by their exact CubeField name.

@@ -46,6 +46,7 @@ public partial class PivotTableCommands
 
                                 // Get basic info (should never fail)
                                 string pivotName = pivot.Name;
+                                int cacheIndex = Convert.ToInt32(pivot.CacheIndex);
 
                                 // Get properties with defensive error handling
                                 string? range = null;
@@ -132,6 +133,7 @@ public partial class PivotTableCommands
                                 var info = new PivotTableInfo
                                 {
                                     Name = pivotName,
+                                    CacheIndex = cacheIndex,
                                     SheetName = sheetName,
                                     Range = range ?? "(unavailable)",
                                     LayoutError = layoutError,
@@ -211,6 +213,7 @@ public partial class PivotTableCommands
                 var info = new PivotTableInfo
                 {
                     Name = pivot.Name,
+                    CacheIndex = Convert.ToInt32(pivot.CacheIndex),
                     SheetName = pivot.Parent.Name
                 };
 

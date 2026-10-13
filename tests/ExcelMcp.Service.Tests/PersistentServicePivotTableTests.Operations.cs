@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
@@ -117,7 +118,10 @@ public sealed partial class PersistentServicePivotTableTests
         RequireSuccess(createResult);
         RequireSuccess(_pivotCommands.CreateFromRange(
             batch, _salesSheetName, "A1:D6", _salesSheetName, "L1", "NeighborPivot"));
-        var neighborBefore = SnapshotPivot("NeighborPivot");
+        var neighborBefore = RequireSuccess(_pivotCommands.Read(batch, "NeighborPivot"));
+        var cacheIndexBefore = ReadNativePivot(_salesSheetName, "NeighborPivot", pivot => pivot.CacheIndex);
+        Assert.True(cacheIndexBefore > 0);
+        Assert.Equal(cacheIndexBefore, neighborBefore.PivotTable.CacheIndex);
         RequireSuccess(_commands.SetValues(batch, _salesSheetName, "K10", [["Unchanged"]]));
 
         // Act - Delete in same batch
@@ -131,8 +135,16 @@ public sealed partial class PersistentServicePivotTableTests
         RequireSuccess(listResult);
         RequireSuccess(deleteResult);
         RequireSuccess(listResult);
-        Assert.Equal("NeighborPivot", Assert.Single(listResult.PivotTables).Name);
-        Assert.Equal(neighborBefore, SnapshotPivot("NeighborPivot"));
+        var listedNeighbor = Assert.Single(listResult.PivotTables);
+        Assert.Equal("NeighborPivot", listedNeighbor.Name);
+        var neighborAfter = RequireSuccess(_pivotCommands.Read(batch, "NeighborPivot"));
+        var cacheIndexAfter = ReadNativePivot(_salesSheetName, "NeighborPivot", pivot => pivot.CacheIndex);
+        Assert.True(cacheIndexAfter > 0);
+        Assert.Equal(cacheIndexAfter, neighborAfter.PivotTable.CacheIndex);
+        Assert.Equal(cacheIndexAfter, listedNeighbor.CacheIndex);
+        // CacheIndex is the current native ordinal, which Excel may renumber after deletion.
+        neighborBefore.PivotTable.CacheIndex = cacheIndexAfter;
+        Assert.Equal(JsonSerializer.Serialize(neighborBefore), JsonSerializer.Serialize(neighborAfter));
         AssertOriginalSales();
         Assert.Equal("Unchanged", Assert.Single(Assert.Single(
             RequireSuccess(_commands.GetValues(batch, _salesSheetName, "K10")).Values)));

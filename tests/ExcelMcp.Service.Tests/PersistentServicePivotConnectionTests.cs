@@ -17,6 +17,67 @@ public sealed class PersistentServicePivotConnectionTests(PersistentServiceWorkb
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void SharedCache_ExternalTarget_IsRejectedWithoutCreatingReportOrCache(bool table)
+    {
+        var batch = _fixture.BatchToken;
+        var sheet = _fixture.CreateTestSheet(batch);
+        var file = _fixture.CreateInputFile(".csv", "Region,Sales\r\nNorth,10\r\nSouth,20\r\n");
+        var connectionName = $"ExternalSales_{Guid.NewGuid():N}";
+        CreateExternalConnection(connectionName, file);
+        _fixture.RegisterConnectionForCleanup(connectionName);
+        CreateExternalPivot(sheet, "H1", "ExternalPivot", connectionName);
+        var commands = _fixture.CreateCommands<IPersistentPivotTableCommands>();
+        RequireSuccess(commands.AddRowField(batch, "ExternalPivot", "Region"));
+        RequireSuccess(commands.AddValueField(batch, "ExternalPivot", "Sales"));
+        RequireSuccess(_commands.SetValues(batch, sheet, "A1:B3",
+            [["Region", "Sales"], ["North", 10], ["South", 20]]));
+        var tables = _fixture.CreateCommands<IPersistentTableCommands>();
+        RequireSuccess(tables.Create(batch, sheet, "WorksheetSales", "A1:B3", true));
+        var before = RequireSuccess(commands.GetConnection(batch, sheet, "ExternalPivot"));
+        var count = CountCaches();
+
+        var error = Assert.Throws<NotSupportedException>(() =>
+        {
+            if (table)
+                commands.CreateFromTable(batch, "WorksheetSales", sheet, "P1", "Rejected", "ExternalPivot", sheet);
+            else
+                commands.CreateFromRange(batch, sheet, "A1:B3", sheet, "P1", "Rejected", "ExternalPivot", sheet);
+        });
+
+        Assert.Contains("worksheet-backed", error.Message, StringComparison.Ordinal);
+        Assert.Equal(count, CountCaches());
+        Assert.Equal(JsonSerializer.Serialize(before), JsonSerializer.Serialize(
+            RequireSuccess(commands.GetConnection(batch, sheet, "ExternalPivot"))));
+        var listed = Assert.Single(RequireSuccess(commands.List(batch)).PivotTables);
+        Assert.Equal("ExternalPivot", listed.Name);
+        Assert.Equal(before.CacheIndex, listed.CacheIndex);
+        Assert.Equal(before.CacheIndex, RequireSuccess(commands.Read(batch, "ExternalPivot", sheet)).PivotTable.CacheIndex);
+        var data = RequireSuccess(commands.GetData(batch, "ExternalPivot")).Values;
+        Assert.Equal(4, data.Count);
+        Assert.Equal("North", data[1][0]);
+        Assert.Equal(10d, Convert.ToDouble(data[1][1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal("South", data[2][0]);
+        Assert.Equal(20d, Convert.ToDouble(data[2][1], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(30d, Convert.ToDouble(data[3][1], System.Globalization.CultureInfo.InvariantCulture));
+
+        int CountCaches() => _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.PivotCaches? caches = null;
+            try
+            {
+                caches = context.Book.PivotCaches();
+                return caches.Count;
+            }
+            finally
+            {
+                ComUtilities.Release(ref caches);
+            }
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task SetConnection_ExternalPivotUsesTargetAndPreservesLayoutAndOtherPivot(bool useOdbc)
     {
         var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);
