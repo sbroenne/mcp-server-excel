@@ -417,7 +417,7 @@ public partial class PivotTableCommands
             {
                 currentPage = (Excel.PivotItem)field.CurrentPage;
                 string currentPageName = currentPage.Name ?? string.Empty;
-                bool showAll = IsAllPivotMember(currentPageName);
+                bool showAll = IsAllRegularPivotMember(currentPageName);
                 var names = new BoundedMemberNames(maxMembers);
                 if (!showAll)
                     names.Add(currentPageName);
@@ -537,7 +537,8 @@ public partial class PivotTableCommands
             if (!multiple)
             {
                 string currentPage = levelFields[0].CurrentPageName ?? string.Empty;
-                bool showAll = IsAllPivotMember(currentPage);
+                bool showAll = PivotTableHelpers.IsAllOlapReportFilterMember(
+                    cubeField, currentPage, cancellationToken);
                 var names = new BoundedMemberNames(maxMembers);
                 if (!showAll)
                     names.Add(currentPage);
@@ -576,7 +577,7 @@ public partial class PivotTableCommands
             selectedNames.Names);
     }
 
-    private static bool IsAllPivotMember(string memberName) =>
+    private static bool IsAllRegularPivotMember(string memberName) =>
         string.IsNullOrWhiteSpace(memberName) ||
         string.Equals(memberName, "(All)", StringComparison.OrdinalIgnoreCase) ||
         memberName.EndsWith(".[All]", StringComparison.OrdinalIgnoreCase);
