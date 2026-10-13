@@ -11,6 +11,19 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.4.1] - 2026-10-13
+
+### Patch Changes
+
+- [#1149](https://github.com/sbroenne/mcp-server-excel/pull/1149) [`ff09f92`](https://github.com/sbroenne/mcp-server-excel/commit/ff09f92548da4fb3f62cb5b2c461d5384a1d449d) Thanks [@sbroenne](https://github.com/sbroenne)! - Prevent CLI and MCP duration telemetry from sending the computer name. Metrics now use the same pseudonymous instance label as other usage records.
+
+- [#1144](https://github.com/sbroenne/mcp-server-excel/pull/1144) [`1cab4b2`](https://github.com/sbroenne/mcp-server-excel/commit/1cab4b29c043ba9ae4c63790c26b527cfc5f35b0) Thanks [@sbroenne](https://github.com/sbroenne)! - ExcelMcp now stores a random telemetry ID shared by the CLI and MCP Server.
+  When Azure telemetry is active at first use, a one-time migration event helps
+  preserve weekly usage counts. Delete `%LOCALAPPDATA%\ExcelMcp\telemetry-user-id`
+  and restart the MCP Server to reset the ID.
+
+- [#1148](https://github.com/sbroenne/mcp-server-excel/pull/1148) [`e9f6919`](https://github.com/sbroenne/mcp-server-excel/commit/e9f69198e89abcb082668a6cb2be3e3716aad2c3) Thanks [@sbroenne](https://github.com/sbroenne)! - Power Query creation and updates now identify privacy-blocked failures correctly and explain which query changes remain in the workbook. MCP and CLI errors also include the inspected query and load state, so callers can recover without accidentally repeating creation or assuming failed updates were undone.
+
 ## [2.4.0] - 2026-10-13
 
 ### Minor Changes
