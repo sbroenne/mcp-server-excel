@@ -525,19 +525,38 @@ compatible wrapper for the CLI stage, including `-PipeName` and `-KeepFile`.
 ### OLAP server coverage and the Excel Runner
 
 The dedicated Excel Runner has SQL Server Analysis Services (SSAS) available.
+The installed default instance is SSAS 17.0.25.223 in multidimensional mode,
+with the `AdventureWorksDW` sample database and `Adventure Works` cube.
 This is test infrastructure, not evidence that a particular change has passed
 SSAS tests. With no `EXCELMCP_TEST_OLAP_*` configuration, the OLAP stage uses
 Atoti even on that runner; it does not discover or select the installed SSAS
 instance automatically.
 
 The All-member regression introduced for issue #1135 was verified against
-Atoti Community Edition 6.2.2 and Excel's built-in Data Model (Power Pivot).
-SSAS validation of that change is still outstanding. Atoti results do not
-establish SSAS, Azure Analysis Services, or Power BI XMLA compatibility.
+Atoti Community Edition 6.2.2, Excel's built-in Data Model (Power Pivot), and
+SSAS 17.0.25.223 in multidimensional mode using the AdventureWorks sample cube.
+The focused SSAS Service regression passed on the Excel Runner; this does not
+mean the complete external suite was run against SSAS. Azure Analysis Services,
+Power BI XMLA, and SSAS tabular mode have not been tested.
 
-Before testing against SSAS, identify a synthetic test database and cube and
-configure all four settings listed above in the test process. Keep credentials
-and connection strings out of committed files, public logs, and PR descriptions.
+The focused SSAS regression is separate from the Atoti fixture. Configure
+`EXCELMCP_TEST_SSAS_CONNECTION_STRING` in the test process for the sample database;
+the test uses `[Product].[Category]`, the Bikes member, and
+`[Measures].[Internet Sales Amount]`. Without this setting the test is skipped,
+which is not a successful SSAS validation. Keep credentials and connection
+strings out of committed files, public logs, and PR descriptions.
+
+```powershell
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Release --no-restore --disable-build-servers --filter 'FullyQualifiedName~SsasReportFilter_AdventureWorks_NonstandardAllRoundTripsThroughService' --logger 'trx;LogFileName=ssas.trx' --results-directory TestResults\ssas-report-filter --blame-hang-timeout 5m --verbosity quiet
+```
+
+It reads the actual All-member identity through Excel's ADO connection and
+requires a nonstandard name. It checks filter reads and semantic snapshots,
+explicit All assignment, a real selected member, clearing, unchanged
+single-selection mode, data totals, and save/reopen followed by explicit refresh.
+
+To use the general external suite against another SSAS fixture, configure all
+four `EXCELMCP_TEST_OLAP_*` settings listed above in the test process.
 The existing external suite assumes the fixture's Calendar/RelativePeriod
 hierarchies, Amount measure, member unique names, and monthly values. Pointing
 the settings at an arbitrary SSAS cube is not sufficient; use a compatible
