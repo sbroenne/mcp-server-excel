@@ -10,8 +10,13 @@ client through stdio and invokes its Service in-process.
 
 Requested workbook results go back to the caller. Telemetry is a separate
 path carrying restricted operation/outcome information rather than workbook
-contents or raw errors. Optional remote formatting and Python in Excel have
-separate data flows described in the privacy policy.
+contents or raw errors. MCP unhandled-exception reports keep exception type
+names and the owning failure site but redact messages and stacks. Both entry
+points correlate events with a pseudonymous ID: an unsalted hash of the
+machine name, user name, and platform, not the raw values. It is stable
+across runs and is not anonymous.
+Optional remote formatting and Python in Excel have separate data flows
+described in the privacy policy.
 
 ## Reasons and tradeoffs
 

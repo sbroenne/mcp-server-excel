@@ -121,9 +121,9 @@ referenced worksheet data in Microsoft's cloud.
 **Package downloads:** npx contacts the npm registry to resolve and download the
 server. This does not upload workbook contents to npm.
 
-**Anonymous telemetry:** The MCP Server collects tool usage, performance, and
-error-rate metrics. Telemetry excludes file contents, file names, paths, and
-personal data.
+**Pseudonymous telemetry:** The MCP Server collects tool usage, performance, and
+error-rate metrics. Telemetry excludes file contents, file names, paths, and raw
+personal data; it is tied to a hashed machine and user ID.
 
 See our complete [Privacy Policy](https://excelmcpserver.dev/privacy/).
 

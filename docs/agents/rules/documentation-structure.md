@@ -3,7 +3,9 @@
 - `FEATURES.md` is navigation; capability summaries live in `docs/features/`.
   Workflow guidance lives in `docs/reference/`; current command specifications
   come from CLI help and MCP tool descriptions.
-  Permanent guides belong in `docs/`, decisions in `docs/ADR-*.md`, and proposed
+  Permanent guides belong in `docs/`, decisions in `docs/ADR-*.md` (follow
+  [maintaining decisions](../../DECISIONS.md#maintaining-decisions) and keep the
+  index aligned), and proposed
   requirements in GitHub issues. Core contracts define operation behavior; do
   not maintain parallel specification copies. Agent guidance sources follow
   [product guidance](mcp-llm-guidance.md).

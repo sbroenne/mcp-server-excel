@@ -3,8 +3,8 @@
 [AGENTS.md](../../AGENTS.md) owns the common repository rules and links the
 task-specific guides. [CONTEXT.md](../../CONTEXT.md) provides the system map;
 the [decision index](../DECISIONS.md) links architectural reasons and tradeoffs.
-Read only the decisions relevant to the work. ADRs are ordinary documentation,
-not a special instruction format that agents are guaranteed to load.
+ADRs are ordinary documentation, not a special instruction format that agents
+are guaranteed to load.
 
 ## Instruction discovery
 
