@@ -8,7 +8,8 @@ This document tracks the status of `Microsoft.Office.Interop.Excel` type coverag
 
 | Area | Status |
 |------|--------|
-| Core Excel types (`Workbook`, `Worksheet`, `Range`, etc.) | ✅ Fully typed |
+| Core Excel types (`Workbook`, `Worksheet`, `Range`, etc.) | ✅ Typed in the PIA |
+| PivotTable, Table/slicer, Chart, Range, ConditionalFormat, Screenshot, and Sheet command code | ⚠️ Typed PIA surface exists, but many command paths still hold these objects as `dynamic` — [conversion debt](#unconverted-command-code) |
 | Drawing geometry/text and Forms controls | ✅ Typed |
 | Shape creation/type/fill/line members | ⚠️ Office.Core signatures; isolated late binding |
 | Sparklines (`SparklineGroups`, `SparklineGroup`, colors/points) | ✅ Typed |
@@ -39,6 +40,13 @@ This document tracks the status of `Microsoft.Office.Interop.Excel` type coverag
 ## Remaining Dynamic Debt
 
 ExcelMcp is PIA-first. Any `dynamic` usage is technical debt unless a compile probe proves the referenced Excel PIA lacks the API, or the API belongs to an external COM object model that is not currently referenced. Prefer adding typed interop coverage over spreading new `dynamic` calls.
+
+### Unconverted command code
+
+- **Status**: Not a PIA gap. Pivot tables, pivot fields, list objects, slicers, charts, shapes, worksheets, and ranges are typed in the Excel PIA, but many command paths still declare them as `dynamic` variables, parameters, or return types.
+- **Largest areas**: `PivotTable`, `Table` (including slicers), `Chart`, `Range`, and `ConditionalFormat` under `src/ExcelMcp.Core/Commands/`.
+- **Why it was missed**: the `dynamic-casts` source guard only checks `((dynamic))` casts, not `dynamic` declarations.
+- **Tracking**: [#1140](https://github.com/sbroenne/mcp-server-excel/issues/1140) converts one area at a time with real-Excel tests and extends the guard to converted areas.
 
 ### Power Query — `Workbook.Queries` / `WorkbookQuery`
 
