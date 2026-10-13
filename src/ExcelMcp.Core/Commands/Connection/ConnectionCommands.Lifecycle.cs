@@ -198,7 +198,7 @@ public partial class ConnectionCommands
         }, timeoutCts.Token);  // Extended timeout (default 5 minutes) for slow data sources
     }
 
-    private static void RefreshWorkbookConnection(Excel.WorkbookConnection connection, CancellationToken cancellationToken)
+    internal static void RefreshWorkbookConnection(Excel.WorkbookConnection connection, CancellationToken cancellationToken)
     {
         dynamic? subConnection = null;
         bool originalBackgroundQuery = false;
