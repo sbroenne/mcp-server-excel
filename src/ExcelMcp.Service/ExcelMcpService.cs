@@ -1010,6 +1010,7 @@ public sealed class ExcelMcpService : IDisposable
             ExceptionType = response.ExceptionType,
             HResult = response.HResult,
             InnerError = response.InnerError,
+            PartialState = response.PartialState,
             Result = response.Result
         };
     }
@@ -1041,7 +1042,10 @@ public sealed class ExcelMcpService : IDisposable
                 ErrorMessage = $"{pqEx.GetType().Name}: {pqEx.Message}",
                 ExceptionType = exceptionType,
                 HResult = hresult,
-                InnerError = innerError
+                InnerError = innerError,
+                PartialState = pqEx.PartialState is null
+                    ? null
+                    : JsonSerializer.Serialize(pqEx.PartialState, ServiceProtocol.JsonOptions)
             },
             _ => new ServiceResponse
             {

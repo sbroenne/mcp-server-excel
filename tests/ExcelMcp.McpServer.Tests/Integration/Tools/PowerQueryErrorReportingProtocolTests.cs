@@ -15,6 +15,53 @@ public sealed class PowerQueryErrorReportingProtocolTests(
 {
     private readonly RecordingProgramTransportFixture _fixture = fixture;
 
+    [Theory]
+    [InlineData("create")]
+    [InlineData("update")]
+    public async Task MutationFailure_PreservesPartialStateInTextAndStructuredContent(string action)
+    {
+        var partialState = JsonSerializer.SerializeToElement(new
+        {
+            queryName = "Query",
+            queryExists = true,
+            loadMode = "load-to-table",
+            targetSheet = "Actual",
+            isLoadedToDataModel = false
+        });
+        var call = await _fixture.CallToolAsync(
+            "powerquery",
+            new Dictionary<string, object?>
+            {
+                ["action"] = action,
+                ["workbook_session_id"] = "session",
+                ["query_name"] = "Query",
+                ["m_code"] = "error \"Formula.Firewall\""
+            },
+            new ServiceResponse
+            {
+                Success = false,
+                Command = $"powerquery.{action}",
+                SessionId = "session",
+                ErrorMessage = "Formula.Firewall: query remains",
+                ErrorCategory = "Privacy",
+                ExceptionType = "PowerQueryCommandException",
+                HResult = "0x800A03EC",
+                InnerError = "Formula.Firewall",
+                PartialState = partialState.GetRawText()
+            },
+            $"powerquery.{action}",
+            """{"queryName":"Query","mCode":"error \"Formula.Firewall\""}""");
+
+        using var document = JsonDocument.Parse(call.JsonResult);
+        var root = document.RootElement;
+        Assert.True(call.Result.IsError);
+        Assert.False(root.GetProperty("success").GetBoolean());
+        Assert.Equal("Privacy", root.GetProperty("errorCategory").GetString());
+        Assert.Equal("PowerQueryCommandException", root.GetProperty("exceptionType").GetString());
+        Assert.Equal(partialState.GetRawText(), root.GetProperty("partialState").GetRawText());
+        Assert.Equal(root.GetRawText(), call.Result.StructuredContent!.Value.GetRawText());
+    }
+
     [Fact]
     public async Task Refresh_SyntheticFirewallError_ReturnsStructuredDiagnosticsViaMcpProtocol()
     {
@@ -65,6 +112,7 @@ public sealed class PowerQueryErrorReportingProtocolTests(
             root.GetProperty("exceptionType").GetString());
         Assert.Equal("Privacy", root.GetProperty("errorCategory").GetString());
         Assert.Equal("0x800A03EC", root.GetProperty("hresult").GetString());
+        Assert.False(root.TryGetProperty("partialState", out _));
         if (root.TryGetProperty("innerError", out var innerError))
         {
             Assert.False(string.IsNullOrWhiteSpace(innerError.GetString()));

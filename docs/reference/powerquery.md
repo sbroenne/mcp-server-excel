@@ -39,6 +39,27 @@ See [Data Model](datamodel.md).
 
 Create adds the query before loading; a load failure can leave the query and
 load objects behind. Repeating create then fails with "already exists".
+Create and update report recognized privacy/firewall failures with
+`errorCategory: "Privacy"` and `exceptionType: "PowerQueryCommandException"`,
+like evaluate and refresh. The error message describes the retained changes.
+An update can save the replacement M code before its refresh fails: the
+stored definition then differs from the data still displayed.
+
+Both MCP and CLI errors include `partialState` after a confirmed definition
+change; CLI batch output carries it and the error diagnostics on the failed
+item. It contains `queryName`, `queryCreated` for create or `mCodeUpdated`
+for update, and the inspected `queryExists`, `loadMode`, `targetSheet` when
+present, and `isLoadedToDataModel`. These are the actual destination objects,
+not the requested configuration or proof of successful data loading. For
+example, a failed `both` create can report `loadMode: "load-to-table"` with
+`isLoadedToDataModel: false`.
+
+If inspection fails, `stateInspectionError` explains that separate failure;
+unknown state fields are omitted rather than reported as false or
+connection-only. Failures before storing a definition have no `partialState`.
+Timeout, cancellation, and lost-Excel errors retain their existing recovery
+behavior and do not attempt unsafe post-failure inspection.
+
 Inspect `list`, `view`, and `get-load-config`; update the surviving query.
 Create only if it is absent. Do not blindly delete/rebuild it.
 

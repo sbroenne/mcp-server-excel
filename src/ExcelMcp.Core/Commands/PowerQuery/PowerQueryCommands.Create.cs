@@ -60,6 +60,7 @@ public partial class PowerQueryCommands
         {
             Excel.Queries? queries = null;
             Excel.WorkbookQuery? query = null;
+            bool queryCreated = false;
 
             try
             {
@@ -75,6 +76,7 @@ public partial class PowerQueryCommands
 
                 // Step 1: Create the query (always creates in ConnectionOnly mode initially)
                 query = queries.Add(queryName, mCodeToSave);
+                queryCreated = true;
 
                 // Step 2: Apply load destination based on mode
                 var result = new PowerQueryCreateResult
@@ -115,6 +117,11 @@ public partial class PowerQueryCommands
                 }
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+            }
+            catch (Exception ex) when (queryCreated && !ct.IsCancellationRequested && CanReportMutationFailure(ex))
+            {
+                throw CreateMutationFailure(ex, queryName, queryCreated: true,
+                    state => InspectMutationState(ctx.Book, state, ct));
             }
             finally
             {

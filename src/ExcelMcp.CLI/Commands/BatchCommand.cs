@@ -178,7 +178,14 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
                 Success = itemSucceeded,
                 Result = response.Success ? TryParseJsonElement(response.Result) : null,
                 ErrorMessage = response.ErrorMessage ?? resultErrorMessage ??
-                    (negativeResult ? "Command reported success: false; see result for details." : null)
+                    (negativeResult ? "Command reported success: false; see result for details." : null),
+                ErrorCategory = response.ErrorCategory,
+                ExceptionType = response.ExceptionType,
+                HResult = response.HResult,
+                InnerError = response.InnerError,
+                PartialState = response.PartialState is null
+                    ? null
+                    : JsonSerializer.Deserialize<JsonElement>(response.PartialState)
             };
 
             CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(output, BatchJsonOptions));
@@ -346,5 +353,20 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
 
         [JsonPropertyName("errorMessage")]
         public string? ErrorMessage { get; init; }
+
+        [JsonPropertyName("errorCategory")]
+        public string? ErrorCategory { get; init; }
+
+        [JsonPropertyName("exceptionType")]
+        public string? ExceptionType { get; init; }
+
+        [JsonPropertyName("hresult")]
+        public string? HResult { get; init; }
+
+        [JsonPropertyName("innerError")]
+        public string? InnerError { get; init; }
+
+        [JsonPropertyName("partialState")]
+        public JsonElement? PartialState { get; init; }
     }
 }

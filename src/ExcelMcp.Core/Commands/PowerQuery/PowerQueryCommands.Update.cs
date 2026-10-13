@@ -44,6 +44,7 @@ public partial class PowerQueryCommands
         {
             Excel.Queries? queries = null;
             Excel.WorkbookQuery? query = null;
+            bool mCodeUpdated = false;
 
             try
             {
@@ -79,6 +80,7 @@ public partial class PowerQueryCommands
                 // Note: 0x800A03EC error can occur in certain workbook states (see Issue #323)
                 // Retry doesn't help - it's a workbook state issue, not transient
                 query.Formula = mCodeToSave;
+                mCodeUpdated = true;
 
                 // STEP 3: Refresh if requested using the same COM-safe helper as Refresh().
                 // This keeps Update aligned with the message-filter and cancellation behavior
@@ -89,6 +91,11 @@ public partial class PowerQueryCommands
                 }
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+            }
+            catch (Exception ex) when (mCodeUpdated && !ct.IsCancellationRequested && CanReportMutationFailure(ex))
+            {
+                throw CreateMutationFailure(ex, queryName, queryCreated: false,
+                    state => InspectMutationState(ctx.Book, state, ct));
             }
             finally
             {

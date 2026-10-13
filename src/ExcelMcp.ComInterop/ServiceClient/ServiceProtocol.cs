@@ -80,8 +80,9 @@ public sealed class ServiceResponse
     /// <summary>Inner exception details, when available.</summary>
     public string? InnerError { get; init; }
 
+    /// <summary>JSON-serialized workbook changes retained after an operation failed.</summary>
+    public string? PartialState { get; init; }
+
     /// <summary>JSON-serialized result data.</summary>
     public string? Result { get; init; }
 }
-
-

@@ -220,6 +220,12 @@ public sealed partial class ValidationPolicy(string root)
             plan.Mcp = plan.Extension = true;
             plan.Reasons.Add($"{path} -> CLI, MCP Server, and extension telemetry identity consumers");
         }
+        else if (path == "src/ExcelMcp.CLI/Commands/BatchCommand.cs")
+        {
+            AddFeature(plan, "CLI", ["Batch"], "Batch entry-point consumers");
+            plan.Cli = plan.SourceChecks = true;
+            plan.Reasons.Add($"{path} -> batch parsing, dispatch, and output cases");
+        }
         else if (Matches(path, @"^src/ExcelMcp\.(CLI|McpServer)/") && !path.EndsWith(".md", StringComparison.Ordinal))
         {
             var owner = path.StartsWith("src/ExcelMcp.CLI/", StringComparison.Ordinal) ? "CLI" : "McpServer";

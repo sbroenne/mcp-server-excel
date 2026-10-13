@@ -4,6 +4,7 @@ using System.Runtime.InteropServices;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
@@ -25,6 +26,49 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 [Trait("RequiresExcel", "false")]
 public sealed class ExcelMcpServiceErrorTests
 {
+    [Fact]
+    public void CreateErrorResponse_PartialState_SurvivesContextAndSharedProtocolRoundTrip()
+    {
+        var state = new PowerQueryPartialState
+        {
+            QueryName = "Query",
+            QueryCreated = true,
+            QueryExists = true,
+            LoadMode = PowerQueryLoadMode.LoadToTable,
+            TargetSheet = "Actual",
+            IsLoadedToDataModel = false
+        };
+        var error = new PowerQueryCommandException("Privacy failure with retained query", "Privacy",
+            new InvalidOperationException("Original error"), state);
+        var create = typeof(ExcelMcpService).GetMethod("CreateErrorResponse",
+            BindingFlags.Static | BindingFlags.NonPublic)!;
+        var response = Assert.IsType<ServiceResponse>(create.Invoke(null, [error, null, null]));
+        var attach = typeof(ExcelMcpService).GetMethod("AttachRequestContext",
+            BindingFlags.Static | BindingFlags.NonPublic)!;
+        response = Assert.IsType<ServiceResponse>(attach.Invoke(null,
+            [new ServiceRequest { Command = "powerquery.create", SessionId = "session" }, response]));
+        var shared = JsonSerializer.Deserialize<Sbroenne.ExcelMcp.ComInterop.ServiceClient.ServiceResponse>(
+            JsonSerializer.Serialize(response, ServiceProtocol.JsonOptions), ServiceProtocol.JsonOptions)!;
+        var roundTrip = ServiceResponse.FromShared(shared);
+
+        Assert.False(roundTrip.Success);
+        Assert.Equal("powerquery.create", roundTrip.Command);
+        Assert.Equal("session", roundTrip.SessionId);
+        Assert.Equal("Privacy", roundTrip.ErrorCategory);
+        Assert.Equal("PowerQueryCommandException", roundTrip.ExceptionType);
+        Assert.Equal(response.ErrorMessage, roundTrip.ErrorMessage);
+        Assert.Equal(response.InnerError, roundTrip.InnerError);
+        var json = JsonSerializer.Deserialize<JsonElement>(Assert.IsType<string>(roundTrip.PartialState));
+        Assert.Equal("Query", json.GetProperty("queryName").GetString());
+        Assert.True(json.GetProperty("queryCreated").GetBoolean());
+        Assert.True(json.GetProperty("queryExists").GetBoolean());
+        Assert.Equal("load-to-table", json.GetProperty("loadMode").GetString());
+        Assert.Equal("Actual", json.GetProperty("targetSheet").GetString());
+        Assert.False(json.GetProperty("isLoadedToDataModel").GetBoolean());
+        Assert.False(json.TryGetProperty("mCodeUpdated", out _));
+        Assert.False(json.TryGetProperty("stateInspectionError", out _));
+    }
+
     [Theory]
     [InlineData("wrapped-com", "ComInterop")]
     [InlineData("cancelled", "Cancelled")]
@@ -56,6 +100,7 @@ public sealed class ExcelMcpServiceErrorTests
         Assert.Equal(error.GetType().Name, response.ExceptionType);
         Assert.Equal("vba.run", response.Command);
         Assert.Equal("session", response.SessionId);
+        Assert.Null(response.PartialState);
         if (scenario == "wrapped-com")
         {
             Assert.Equal("0x800A03EC", response.HResult);
