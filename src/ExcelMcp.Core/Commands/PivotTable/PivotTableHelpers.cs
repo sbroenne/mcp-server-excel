@@ -12,6 +12,79 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// </summary>
 internal static class PivotTableHelpers
 {
+    internal static bool IsAllOlapReportFilterMember(
+        Excel.CubeField cubeField, string memberName, CancellationToken cancellationToken)
+    {
+        const string adoUnavailableMessage =
+            "Excel did not expose an active ADO session to identify the OLAP All member. " +
+            "If a refresh is authorized, use pivottable(refresh) for this PivotTable " +
+            "(CLI: excelcli pivottable refresh), then retry the read.";
+        Excel.PivotTable? pivot = null;
+        Excel.PivotCache? cache = null;
+        Excel.WorkbookConnection? workbookConnection = null;
+        dynamic? adoConnection = null;
+        try
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            pivot = (Excel.PivotTable)cubeField.Parent;
+            cache = pivot.PivotCache();
+            string? cubeName = cache.CommandText switch
+            {
+                string text => text,
+                string[] { Length: 1 } texts => texts[0],
+                object[] { Length: 1 } values => Convert.ToString(values[0], CultureInfo.InvariantCulture),
+                _ => null
+            };
+            if (string.IsNullOrWhiteSpace(cubeName))
+                throw new NotSupportedException("Excel did not expose the selected OLAP cube name.");
+
+            // ADO schema rowsets have no referenced PIA. AllItemsVisible does not
+            // distinguish All from a selected member in single-selection mode.
+            try
+            {
+                adoConnection = cache.ADOConnection;
+            }
+            catch (System.Runtime.InteropServices.COMException ex) when (CreatedObjectFailure.CanReport(ex))
+            {
+                throw new NotSupportedException(adoUnavailableMessage, ex);
+            }
+            if (adoConnection is null)
+                throw new NotSupportedException(adoUnavailableMessage);
+
+            workbookConnection = cache.WorkbookConnection;
+            if (workbookConnection is null)
+                throw new NotSupportedException("Excel did not expose the workbook connection for this OLAP PivotTable.");
+
+            List<IReadOnlyDictionary<string, object?>> rows;
+            try
+            {
+                rows = ConnectionCommands.OpenSchemaRowset(
+                    adoConnection,
+                    ExternalOlapSchemaMapper.BuildHierarchyRequest(cubeName, cubeField.Name),
+                    workbookConnection.Name,
+                    cancellationToken,
+                    maximumRows: 2);
+            }
+            catch (InvalidOperationException ex) when (CreatedObjectFailure.CanReport(ex))
+            {
+                throw new NotSupportedException(ex.Message, ex);
+            }
+            if (rows.Count != 1 || !rows[0].TryGetValue("ALL_MEMBER", out object? allMember))
+                throw new NotSupportedException("Excel did not expose the All-member metadata for this OLAP hierarchy.");
+
+            return allMember is not null
+                && string.Equals(memberName, Convert.ToString(allMember, CultureInfo.InvariantCulture),
+                    StringComparison.Ordinal);
+        }
+        finally
+        {
+            ComUtilities.Release(ref workbookConnection);
+            ComUtilities.Release(ref adoConnection);
+            ComUtilities.Release(ref cache);
+            ComUtilities.Release(ref pivot);
+        }
+    }
+
     /// <summary>
     /// Detects Excel's silent collapse of a blocked PivotTable to a single #SPILL! cell.
     /// Empty or otherwise small PivotTables are not layout failures.

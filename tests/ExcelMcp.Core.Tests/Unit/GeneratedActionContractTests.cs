@@ -187,6 +187,9 @@ public sealed class GeneratedActionContractTests
     [InlineData("worksheetstyle.get-tab-color", """{"sheetName":"Sheet1"}""")]
     [InlineData("powerquery.refresh", """{"queryName":"Probe","timeoutSeconds":60}""")]
     [InlineData("powerquery.refresh-all", """{"timeoutSeconds":60}""")]
+    [InlineData("powerquery.refresh-all", """{"refreshPivotTables":false,"timeoutSeconds":60}""")]
+    [InlineData("workbook.refresh-all", """{"timeoutSeconds":60}""")]
+    [InlineData("workbook.refresh-all", """{"timeoutSeconds":0}""")]
     [InlineData("vba.run", """{"procedureName":"Main","timeoutSeconds":60}""")]
     [InlineData("connection.refresh", """{"connectionName":"Probe","timeoutSeconds":60}""")]
     [InlineData("datamodel.refresh", """{"timeoutSeconds":60}""")]
@@ -802,6 +805,20 @@ public sealed class GeneratedActionContractTests
                 null!,
                 """{"timeoutSeconds":0}"""));
         Assert.Equal(0, dataModelProxy.CallCount);
+    }
+
+    [Fact]
+    public void RawDispatch_AllowsZeroForWorkbookRefreshAllTimeout()
+    {
+        var (commands, proxy) = CreateProxy<IWorkbookCommands>();
+
+        ServiceRegistry.Workbook.DispatchToCore(
+            commands,
+            WorkbookAction.RefreshAll,
+            null!,
+            """{"timeoutSeconds":0}""");
+
+        Assert.Equal(TimeSpan.Zero, Assert.IsType<TimeSpan>(proxy.LastArguments![1]));
     }
 
     [Fact]

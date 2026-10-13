@@ -95,7 +95,7 @@ open a modal preview.
 
 ---
 
-## Workbook (30 operations)
+## Workbook (31 operations)
 
 - **Inspect and describe:** Get a bounded worksheet/table/name overview with optional previews, read workbook state, and manage document properties, protection, and view settings.
 - **Inspect hidden information:** Run Excel's available Document Inspector modules and explicitly remove findings from one selected category.

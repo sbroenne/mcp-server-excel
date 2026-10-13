@@ -68,7 +68,10 @@ named connections as a shortcut.
 
 ### Staging queries and batch refresh
 
-`refresh-all` refreshes every loaded query in the workbook. Parameter queries
+`refresh-all` refreshes every loaded query in the workbook, then refreshes the
+PivotTables that depend on those query loads. Shared PivotTable caches are
+refreshed once. Set `refresh_pivot_tables=false` (CLI:
+`--refresh-pivot-tables false`) to refresh query loads only. Parameter queries
 and definition-only staging queries have no connection or table of their own,
 so they are skipped and listed in `skippedQueries`; Excel evaluates them when
 the loaded queries that use them refresh. Do not load a staging query onto a
@@ -83,9 +86,15 @@ queries listed in `refreshedQueries` keep their new data. Engine errors are
 reported, not hidden or converted into success. A timeout, cancellation (by the
 caller or by Excel), or lost Excel connection stops the whole run instead.
 
+The separate `workbook refresh-all` action matches Excel's workbook-wide
+refresh behavior: it refreshes Power Query loads, other workbook data
+connections, and all PivotTables. It reports outcomes for queries, connections,
+and PivotTables separately. Use it when other workbook connections should be
+included; `powerquery refresh-all` does not refresh unrelated connections.
+
 To refresh only selected queries, inspect `get-load-config` to identify loaded
 destinations and refresh each intended loaded query by name. Refresh dependent
-PivotTables separately afterward.
+PivotTables separately afterward when using single-query refresh.
 
 For a staging definition used by the already-loaded `Financials` query:
 

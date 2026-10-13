@@ -313,6 +313,11 @@ instance. It returns the exact selected member unique names, All state,
 selection mode, and field placement. `selectionStateAvailable: false` means
 Excel could not read the state; do not interpret empty `selectedItems` as All
 unless `showAll` is true and the state is available.
+Single-selection All state is identified using the hierarchy metadata exposed
+by Excel's OLAP connection, not a particular member name or caption. This also
+applies to `pivottable read`, including servers that name the All member
+`[AllMember]`. If Excel cannot expose the required metadata, the operation
+reports unavailable selection state rather than guessing.
 
 ```mcp
 pivottable_field(action: 'set-report-filter', workbook_session_id: sessionId, sheet_name: 'Summary', pivot_table_name: 'SalesPivot', field_name: '[RegionTable].[Region]', selected_items: '["[RegionTable].[Region].&[North]","[RegionTable].[Region].&[West]"]')

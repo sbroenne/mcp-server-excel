@@ -436,7 +436,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         string indent,
         string? argsPrefix = null)
     {
-        var minimumSeconds = info.Category == "powerquery" ? 0 : 1;
+        var minimumSeconds = info.Category is "powerquery" or "workbook" ? 0 : 1;
         foreach (var parameter in method.Parameters.Where(parameter => IsTimeSpanType(parameter.TypeName)))
         {
             var propertyName = parameter.ExposedName ?? parameter.Name;
@@ -873,7 +873,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 escapedDescription += " (JSON format)";
             if (isTimeoutSeconds && escapedDescription.IndexOf("seconds", StringComparison.OrdinalIgnoreCase) < 0)
             {
-                var minimumSeconds = info.Category == "powerquery" ? 0 : 1;
+                var minimumSeconds = info.Category is "powerquery" or "workbook" ? 0 : 1;
                 escapedDescription += $" Whole seconds only; range {minimumSeconds}-2147483.";
             }
 
@@ -1865,7 +1865,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         {
             var propName = p.ExposedName ?? p.Name;
             var pascalProp = StringHelper.ToPascalCase(propName);
-            var minimumSeconds = info.Category == "powerquery" ? 0 : 1;
+            var minimumSeconds = info.Category is "powerquery" or "workbook" ? 0 : 1;
             sb.AppendLine(
                 $"                    var {p.Name} = Sbroenne.ExcelMcp.Core.Utilities.ParameterTransforms.ParseTimeoutSeconds(args.{pascalProp}, \"{propName}\", minimumSeconds: {minimumSeconds});");
         }
