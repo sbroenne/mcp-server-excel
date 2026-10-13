@@ -48,7 +48,7 @@ public partial class PivotTableCommands
     {
         int separator = reference.LastIndexOf('!');
         string address = separator < 0 ? reference : reference[(separator + 1)..];
-        if (separator >= 0 && !MatchesSourceWorksheet(book, reference[..separator], sourceSheet.Name))
+        if (separator >= 0 && !MatchesSourceWorksheet(book.Name, book.FullName, reference[..separator], sourceSheet.Name))
             return false;
 
         // Excel normalizes sheet!table to the table name, retaining the table's expanding source semantics.
@@ -90,20 +90,21 @@ public partial class PivotTableCommands
             @"^(\$?[A-Z]+\$?[0-9]+(:\$?[A-Z]+\$?[0-9]+)?|\$?[A-Z]+:\$?[A-Z]+|\$?[0-9]+:\$?[0-9]+)$",
             RegexOptions.IgnoreCase | RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
 
-    private static bool MatchesSourceWorksheet(Excel.Workbook book, string qualifier, string sheetName)
+    internal static bool MatchesSourceWorksheet(string workbookName, string workbookFullName,
+        string qualifier, string sheetName)
     {
         if (qualifier.StartsWith('\'') && qualifier.EndsWith('\''))
             qualifier = qualifier[1..^1].Replace("''", "'", StringComparison.Ordinal);
 
         int workbookStart = qualifier.LastIndexOf('[');
-        int workbookEnd = qualifier.IndexOf(']');
+        int workbookEnd = qualifier.IndexOf(']', workbookStart + 1);
         if (workbookStart >= 0 || workbookEnd >= 0)
         {
             if (workbookStart < 0 || workbookEnd <= workbookStart ||
-                !string.Equals(qualifier[(workbookStart + 1)..workbookEnd], book.Name, StringComparison.OrdinalIgnoreCase))
+                !string.Equals(qualifier[(workbookStart + 1)..workbookEnd], workbookName, StringComparison.OrdinalIgnoreCase))
                 return false;
             if (workbookStart > 0 &&
-                !string.Equals(qualifier[..workbookStart] + book.Name, book.FullName, StringComparison.OrdinalIgnoreCase))
+                !string.Equals(qualifier[..workbookStart] + workbookName, workbookFullName, StringComparison.OrdinalIgnoreCase))
                 return false;
             qualifier = qualifier[(workbookEnd + 1)..];
         }

@@ -370,6 +370,69 @@ public sealed partial class PersistentServicePivotTableTests
         });
 
     [Theory]
+    [InlineData("Reports]", false)]
+    [InlineData("Reports]", true)]
+    [InlineData("Reports][", false)]
+    [InlineData("Reports][", true)]
+    public void SharedCache_SourceWorksheetMatching_BracketedDirectoryRequiresExactIdentity(
+        string directoryName, bool quotedSheet)
+    {
+        var sheetName = $"{(quotedSheet ? "O'Brien " : "Plain_")}{Guid.NewGuid():N}"[..31];
+        _fixture.CreateNamedTestSheet(_fixture.BatchToken, sheetName);
+
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Worksheet? sheet = null;
+            Excel.Range? sourceRange = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(sheet);
+                sourceRange = sheet.Range["A1:D6"];
+                Assert.Equal("$A$1:$D$6",
+                    sourceRange.Address[true, true, Excel.XlReferenceStyle.xlA1]);
+                var workbookName = context.Book.Name;
+                var workbookFullName = context.Book.FullName;
+                var directory = System.IO.Path.GetDirectoryName(workbookFullName)!;
+                var nativeQualifier = System.IO.Path.Combine(directory, $"[{workbookName}]{sheetName}");
+                Assert.True(PivotTableCommands.MatchesCreationSource(context.Book, context.App,
+                    $"'{nativeQualifier.Replace("'", "''", StringComparison.Ordinal)}'!R1C1:R6C4",
+                    sheet, sourceRange, null));
+
+                // Excel rejects bracketed save paths, so test the qualifier contract with a synthetic path
+                // while checking its native workbook/range caller against the actual saved identity.
+                var bracketedDirectory = System.IO.Path.Combine(directory, directoryName);
+                var bracketedFullName = System.IO.Path.Combine(bracketedDirectory, workbookName);
+                var qualifier = System.IO.Path.Combine(bracketedDirectory, $"[{workbookName}]{sheetName}");
+                Assert.False(PivotTableCommands.MatchesCreationSource(context.Book, context.App,
+                    $"'{qualifier.Replace("'", "''", StringComparison.Ordinal)}'!R1C1:R6C4",
+                    sheet, sourceRange, null));
+                foreach (var rejected in new[]
+                {
+                    System.IO.Path.Combine(bracketedDirectory, "foreign", $"[{workbookName}]{sheetName}"),
+                    System.IO.Path.Combine(bracketedDirectory, $"[Other.xlsx]{sheetName}"),
+                    System.IO.Path.Combine(bracketedDirectory, $"[{workbookName}{sheetName}"),
+                    $"{workbookName}]{sheetName}", $"[{workbookName}]OtherSheet"
+                })
+                {
+                    Assert.False(PivotTableCommands.MatchesSourceWorksheet(workbookName, bracketedFullName,
+                        $"'{rejected.Replace("'", "''", StringComparison.Ordinal)}'", sheetName));
+                }
+                Assert.True(PivotTableCommands.MatchesSourceWorksheet(workbookName, bracketedFullName,
+                    $"'{qualifier.Replace("'", "''", StringComparison.Ordinal)}'", sheetName));
+                if (!quotedSheet)
+                    Assert.True(PivotTableCommands.MatchesSourceWorksheet(workbookName, bracketedFullName,
+                        qualifier, sheetName));
+            }
+            finally
+            {
+                ComUtilities.Release(ref sourceRange);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+    }
+
+    [Theory]
     [InlineData("foreign-workbook-name")]
     [InlineData("foreign-workbook-path")]
     [InlineData("unresolvable-name")]
