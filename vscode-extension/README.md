@@ -54,7 +54,7 @@ exclusive access while automating it.
 
 ## Key Features
 
-Excel MCP Server (excel-mcp) provides **60 MCP tools across 31 feature areas, with 411 operations**:
+Excel MCP Server (excel-mcp) provides **60 MCP tools across 31 feature areas, with 412 operations**:
 
 - **Power Query & M code** - Import data, create and edit queries, refresh results, and choose load destinations.
 - **Power Pivot & DAX** - Build Data Models, create measures, and manage relationships.
@@ -64,7 +64,7 @@ Excel MCP Server (excel-mcp) provides **60 MCP tools across 31 feature areas, wi
 - **Python in Excel** - Write and run `=PY()` formulas using Excel's cloud Python engine.
 - **Watch Copilot work** - See Excel side by side with live status feedback.
 
-[See all 60 MCP tools and 411 operations](https://excelmcpserver.dev/features/).
+[See all 60 MCP tools and 412 operations](https://excelmcpserver.dev/features/).
 Tool workflows are tested with real AI assistants using
 [pytest-skill-engineering](https://github.com/sbroenne/pytest-skill-engineering).
 
@@ -110,8 +110,10 @@ workbook, or verify that every Excel feature is available.
 
 Excel runs on your Windows desktop. Requested workbook results are returned to
 your AI assistant, whose privacy policy applies. Release builds can send
-anonymous usage statistics, but those statistics exclude workbook contents,
-file names, and paths. Optional remote M/DAX formatting and Python in Excel
+pseudonymous usage statistics using a stored random ID shared by the CLI and
+MCP Server. A one-time migration event can link it to the previous name-derived
+hash. Those statistics exclude workbook contents, file names, and paths.
+Optional remote M/DAX formatting and Python in Excel
 use external services only when you request those features.
 [Read the privacy policy](https://excelmcpserver.dev/privacy/).
 

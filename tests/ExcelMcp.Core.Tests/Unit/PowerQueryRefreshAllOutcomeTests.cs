@@ -260,4 +260,19 @@ public sealed class PowerQueryRefreshAllOutcomeTests
 
         Assert.Same(inner, exception.InnerException);
     }
+
+    [Fact]
+    public void IsRecordableQueryFailure_AggregatedFatalExcelDisconnect_StopsOperation()
+    {
+        var fatalDisconnect = new COMException(
+            "Excel disconnected during cleanup",
+            ResiliencePipelines.RPC_E_DISCONNECTED);
+        var exception = new AggregateException(
+            new InvalidOperationException("Refresh failed."),
+            fatalDisconnect);
+
+        Assert.False(PowerQueryCommands.IsRecordableQueryFailure(
+            exception,
+            CancellationToken.None));
+    }
 }

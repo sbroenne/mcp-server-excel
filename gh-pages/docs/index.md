@@ -172,7 +172,7 @@ it and download the files the agent made.
 
 </div>
 
-[Explore capabilities across 60 MCP tools and 411 operations :material-arrow-right:](features.md){ .md-button .md-button--primary }
+[Explore capabilities across 60 MCP tools and 412 operations :material-arrow-right:](features.md){ .md-button .md-button--primary }
 
 ## Popular guides
 
@@ -231,8 +231,10 @@ features like **Python in Excel** work too — your AI assistant can write
 !!! info "Local Excel and your data"
     Excel runs on your Windows desktop. Requested workbook results are returned
     to your AI assistant, whose privacy policy applies. Release builds can send
-    anonymous usage statistics, but those statistics exclude workbook contents,
-    file names, and paths. Optional remote M/DAX formatting and Python in Excel
+    pseudonymous usage statistics using a stored random ID shared by the CLI and
+    MCP Server. A one-time migration event can link it to the previous name-derived
+    hash. Those statistics exclude workbook contents, file names, and paths.
+    Optional remote M/DAX formatting and Python in Excel
     use external services only when you request those features.
     [Read the privacy policy](privacy.md).
 

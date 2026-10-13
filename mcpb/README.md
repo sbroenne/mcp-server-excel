@@ -13,7 +13,7 @@ Excel MCP Server lets you automate Excel through conversation with Claude:
 - **Automate** - VBA macros, batch operations, data refresh
 - **Agent Mode** - Say "show me Excel" and watch AI work in real-time, side-by-side with Claude
 
-**60 MCP tools across 31 feature areas, with 411 operations** for comprehensive Excel automation.
+**60 MCP tools across 31 feature areas, with 412 operations** for comprehensive Excel automation.
 
 ## Requirements
 
@@ -126,10 +126,9 @@ and error-rate metrics using a random ID stored for the current Windows user.
 When telemetry is active as the ID is first created, one migration event also
 sends the previous name-derived hash so older usage can be counted under the
 new ID. Raw names, workbook contents, file names, and paths are not sent.
-See the complete [Privacy Policy](https://excelmcpserver.dev/privacy/) for
-details and the accepted telemetry-off limitation.
 
-See our complete [Privacy Policy](https://excelmcpserver.dev/privacy/).
+See our complete [Privacy Policy](https://excelmcpserver.dev/privacy/) for
+details and the accepted telemetry-off limitation.
 
 ## Troubleshooting
 

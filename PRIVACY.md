@@ -39,8 +39,8 @@ that a tool returns to your chosen AI assistant.
   included only to connect older usage events to the new ID; weekly reports do
   not publish it.
 - **Application version** - Which version of ExcelMcp is running
-- **Unhandled exceptions** - Error type, approved source, and project-owned failure site only
-  (never exception messages or stack traces)
+- **Unhandled exceptions (MCP Server)** - Error type names, approved source, and
+  project-owned failure site only (never exception messages or stack traces)
 
 ### What We DO NOT Collect
 
@@ -51,8 +51,9 @@ that a tool returns to your chosen AI assistant.
 - ❌ **Prompts or messages** - Requests and conversations are never transmitted
 - ❌ **Host or client details** - Working directories and MCP client names are not collected
 - ❌ **User accounts** - No registration or sign-in required
-- ❌ **Error details** - Error messages, response content, exception names, and
-  stack traces are not included in invocation outcome telemetry
+- ❌ **Error details** - Error messages, response content, and stack traces are
+  never included. Exception type names appear only in the unhandled-exception
+  reports listed above, not in invocation outcome telemetry
 - ❌ **Workbook session IDs or tool arguments** - Telemetry never includes the
   Excel workbook `workbook_session_id` (MCP) / `sessionId` (CLI) value, workbook path, request
   arguments, or user content. The random process telemetry session ID listed

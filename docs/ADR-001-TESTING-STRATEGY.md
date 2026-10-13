@@ -8,7 +8,8 @@ ExcelMcp contains both Excel-dependent behavior and ordinary .NET logic.
 Workbook operations are tested against desktop Excel, normally through the
 shared Service. Parsing, serialization, mapping, and generation have focused
 Excel-independent tests. Adapter tests cover what CLI and MCP add to that
-shared behavior.
+shared behavior: protocol, transport, and contract tests, plus real-Excel
+acceptance tests for paths the adapter owns end to end.
 
 ## Reasons and tradeoffs
 

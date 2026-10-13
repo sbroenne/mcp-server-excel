@@ -24,9 +24,11 @@ presence does not make them automatically loaded instructions.
 
 Create a record for a lasting architectural choice with meaningful alternatives,
 not each operation, implementation detail, or coding rule. Explain the current
-decision, reasons, tradeoffs, and consequences, then link its implementation
-and authoritative guidance. Do not copy mutable defaults, checklists, or
-procedures into the record.
+decision, then its reasons, tradeoffs, and consequences under "Reasons and
+tradeoffs", then link its implementation and authoritative guidance. Do not
+copy mutable defaults, counts, component inventories, checklists, or
+procedures into the record. When the code has not yet reached a decision,
+say so and link the tracking issue rather than describing the intent as done.
 
 Update a record when an approved decision changes. Keep this index aligned
 with current records; Git retains older versions, so there is no ADR archive

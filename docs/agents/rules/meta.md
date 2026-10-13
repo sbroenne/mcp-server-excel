@@ -19,6 +19,6 @@
   Correct or remove stale rules; code violating a rule is not by itself proof
   that the rule is obsolete. Preserve valid safeguards and update inbound links.
 - ADRs explain current choices and tradeoffs; instructions tell agents what
-  to do. Link between them rather than copying rules, checklists, or procedures.
-  Maintain current decisions only; Git retains earlier versions.
+  to do. Link between them rather than copying rules; ADR authoring rules live
+  in [maintaining decisions](../../DECISIONS.md#maintaining-decisions).
   Keep procedures in developer docs, not automatically loaded instructions.

@@ -32,7 +32,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 [ServiceCategory("PowerQuery")]
 [McpTool("powerquery", Title = "Power Query Operations", Destructive = true, Category = "query",
-    Description = "Create, change, evaluate, refresh, and remove Power Query M code and data loads. Prefer evaluate for new or changed M code before persisting; it reports engine errors and verifies temporary-object cleanup. Create loads its selected destination (worksheet by default); connection-only stores without loading. Update refreshes unless refresh=false. Use load-to to change destinations and refresh to update loaded data. refresh-all refreshes every loaded query, skips parameter and connection-only staging queries (listed in skippedQueries), and keeps going when one query fails; success is false when any query failed (listed in failedQueries) and already-refreshed loads are not rolled back. A timeout, cancellation, or lost Excel connection stops the whole run. Refresh dependent PivotTables separately; to refresh a single loaded query, use refresh with queryName. Load detection and cleanup use exact case-insensitive mashup Location. Set explicit column types for dates and Data Model relationships. Destinations: worksheet, data-model, both, connection-only; unknown values are rejected. M code is preserved; formatMCode=true sends it to powerqueryformatter.com and requires user consent. targetCellAddress places tables without clearing other content. Refresh accepts a caller timeout; load-to uses the fixed 30-minute data-operation timeout.")]
+    Description = "Create, change, evaluate, refresh, and remove Power Query M code and data loads. Prefer evaluate for new or changed M code before persisting; it reports engine errors and verifies temporary-object cleanup. Create loads its selected destination (worksheet by default); connection-only stores without loading. Update refreshes unless refresh=false. Use load-to to change destinations and refresh to update loaded data. refresh-all refreshes every loaded query, skips parameter and connection-only staging queries (listed in skippedQueries), then refreshes dependent PivotTables by default (listed in refreshedPivotTables); set refresh_pivot_tables=false (CLI: --refresh-pivot-tables false) for query-only behavior. It keeps going when a query or PivotTable refresh fails; success is false and failures are listed in failedQueries or failedPivotTables; already-refreshed data is not rolled back. A timeout, cancellation, or lost Excel connection stops the whole run. Use workbook refresh-all for Excel-style refresh of all workbook connections and PivotTables. To refresh a single loaded query, use refresh with queryName. Load detection and cleanup use exact case-insensitive mashup Location. Set explicit column types for dates and Data Model relationships. Destinations: worksheet, data-model, both, connection-only; unknown values are rejected. M code is preserved; formatMCode=true sends it to powerqueryformatter.com and requires user consent. targetCellAddress places tables without clearing other content. Refresh accepts a caller timeout; load-to uses the fixed 30-minute data-operation timeout.")]
 [McpReadOnlyActions("list", "view", "get-load-config")]
 public interface IPowerQueryCommands
 {
@@ -137,14 +137,20 @@ public interface IPowerQueryCommands
     /// connection load. Parameter and connection-only staging queries have nothing to
     /// refresh on their own and are listed in skippedQueries; the loaded queries that
     /// use them re-evaluate them. A failing query is listed in failedQueries and the
-    /// remaining queries are still refreshed; success is false when any query failed,
-    /// and queries already refreshed are not rolled back. Timeouts, cancellation, and
-    /// Excel disconnects stop the whole operation. Refresh dependent PivotTables separately.
+    /// remaining queries are still refreshed. PivotTables backed by successfully refreshed
+    /// query loads are then refreshed by default. Set refreshPivotTables=false to skip them.
+    /// success is false when any query or PivotTable failed; successful refreshes are not
+    /// rolled back. Timeouts, cancellation, and Excel disconnects stop the whole operation.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="timeout">Public input is whole seconds from 0 through 2147483. Omitted or 0 uses the 30-minute data-operation default.</param>
+    /// <param name="refreshPivotTables">Refresh PivotTables dependent on successfully refreshed queries (default true).</param>
     /// <param name="progress">Optional progress reporter</param>
-    PowerQueryRefreshAllResult RefreshAll(IExcelBatch batch, TimeSpan timeout = default, IProgress<ProgressInfo>? progress = null);
+    PowerQueryRefreshAllResult RefreshAll(
+        IExcelBatch batch,
+        TimeSpan timeout = default,
+        bool refreshPivotTables = true,
+        IProgress<ProgressInfo>? progress = null);
 
     /// <summary>
     /// Renames a Power Query using trim + case-insensitive uniqueness semantics.
