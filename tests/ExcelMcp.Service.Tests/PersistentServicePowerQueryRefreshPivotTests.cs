@@ -1,6 +1,9 @@
 using System.Globalization;
+using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -340,6 +343,68 @@ public sealed partial class PersistentServicePowerQueryRefreshTests
         Assert.Empty(result.FailedConnections);
         Assert.Empty(result.FailedPivotTables);
         AssertPivotContainsNumber(reportSheet, 300);
+    }
+
+    [Fact]
+    public void WorkbookRefreshAll_RefreshesOrdinaryTextConnection()
+    {
+        string sheetName = UniqueName("WorkbookRefreshText");
+        string queryTableName = UniqueName("WorkbookRefreshTextQuery");
+        string sourcePath = _fixture.CreateInputFile(
+            ".csv",
+            "Name,Value\r\nAlpha,10\r\n");
+        var queryTables = _fixture.CreateCommands<IQueryTableCommands>();
+
+        RequireSuccess(_sheets.Create(_fixture.BatchToken, sheetName));
+        _fixture.RegisterSheetForCleanup(sheetName);
+        RequireSuccess(queryTables.CreateText(
+            _fixture.BatchToken,
+            queryTableName,
+            sourcePath,
+            sheetName,
+            "A1"));
+
+        string connectionName = _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Worksheet? worksheet = null;
+            Excel.QueryTables? worksheetQueryTables = null;
+            Excel.QueryTable? queryTable = null;
+            Excel.WorkbookConnection? connection = null;
+            try
+            {
+                worksheet = ComUtilities.FindSheet(context.Book, sheetName);
+                worksheetQueryTables = worksheet.QueryTables;
+                queryTable = worksheetQueryTables.Item(queryTableName);
+                connection = queryTable.WorkbookConnection;
+                return connection.Name;
+            }
+            finally
+            {
+                ComUtilities.Release(ref connection);
+                ComUtilities.Release(ref queryTable);
+                ComUtilities.Release(ref worksheetQueryTables);
+                ComUtilities.Release(ref worksheet);
+            }
+        });
+        _fixture.RegisterConnectionForCleanup(connectionName);
+        File.WriteAllText(sourcePath, "Name,Value\r\nBeta,37\r\n");
+
+        var result = RequireSuccess(_workbooks.RefreshAll(
+            _fixture.BatchToken,
+            TimeSpan.FromMinutes(1)));
+
+        Assert.True(result.Success, $"Workbook refresh-all failed: {result.ErrorMessage}");
+        Assert.Contains(connectionName, result.RefreshedConnections);
+        Assert.Empty(result.FailedConnections);
+        Assert.Empty(result.FailedQueries);
+        Assert.Empty(result.FailedPivotTables);
+        var rows = RequireSuccess(_commands.GetValues(
+            _fixture.BatchToken,
+            sheetName,
+            "A1:B2")).Values;
+        Assert.Equal(["Name", "Value"], rows[0]);
+        Assert.Equal("Beta", rows[1][0]);
+        Assert.Equal(37, Convert.ToInt32(rows[1][1], CultureInfo.InvariantCulture));
     }
 
     [Fact]

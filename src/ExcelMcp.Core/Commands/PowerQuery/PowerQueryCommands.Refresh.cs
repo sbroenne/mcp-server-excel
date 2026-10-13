@@ -239,7 +239,9 @@ public partial class PowerQueryCommands
             return false;
         }
 
-        for (Exception? current = exception; current != null; current = current.InnerException)
+        var pending = new Stack<Exception>();
+        pending.Push(exception);
+        while (pending.TryPop(out var current))
         {
             if (current is COMException comException && IsFatalExcelDisconnect(comException))
             {
@@ -249,6 +251,18 @@ public partial class PowerQueryCommands
             if (current is OperationFailureException { ErrorCategory: OperationFailureCategory.Cancelled })
             {
                 return false;
+            }
+
+            if (current is AggregateException aggregate)
+            {
+                foreach (var innerException in aggregate.InnerExceptions)
+                {
+                    pending.Push(innerException);
+                }
+            }
+            else if (current.InnerException is { } innerException)
+            {
+                pending.Push(innerException);
             }
         }
 
@@ -545,22 +559,22 @@ public partial class PowerQueryCommands
         HashSet<string> queryNames,
         CancellationToken cancellationToken)
     {
-        dynamic? model = null;
-        dynamic? modelTables = null;
+        Excel.Model? model = null;
+        Excel.ModelTables? modelTables = null;
         try
         {
             model = workbook.Model;
             modelTables = model.ModelTables;
 
-            for (int i = 1; i <= (int)modelTables.Count; i++)
+            for (int i = 1; i <= modelTables.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                dynamic? modelTable = null;
+                Excel.ModelTable? modelTable = null;
                 Excel.WorkbookConnection? sourceConnection = null;
                 try
                 {
                     modelTable = modelTables.Item(i);
-                    string tableName = modelTable.Name?.ToString() ?? string.Empty;
+                    string tableName = modelTable.Name;
                     sourceConnection = modelTable.SourceWorkbookConnection;
                     if (queryNames.Contains(tableName) &&
                         sourceConnection != null &&
