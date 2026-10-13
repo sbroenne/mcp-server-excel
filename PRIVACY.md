@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last Updated:** October 11, 2026
+**Last Updated:** October 13, 2026
 
 ## Overview
 
@@ -26,11 +26,18 @@ that a tool returns to your chosen AI assistant.
   dependency, timeout or cancellation, Excel runtime, an internal product fault,
   or an unclassified failure
 - **Session information** - A random telemetry session ID generated each time the CLI or server starts
-- **Pseudonymous user ID** - A shortened, unsalted SHA-256 hash of the machine
-  name, Windows user name, and platform. The underlying values are not sent,
-  but the ID stays the same across runs, so events from the same machine and
-  user can be linked. Someone who already knows or guesses those names could
-  compute the same hash and compare it.
+- **Pseudonymous user ID** - A random ID stored at
+  `%LOCALAPPDATA%\ExcelMcp\telemetry-user-id`. The MCP Server and CLI share it
+  for the same Windows user profile, and it persists across restarts until the
+  file is deleted. The file is created on first use even if telemetry is off.
+  If the file cannot be read or written, that process uses a temporary random
+  ID instead.
+- **One-time migration link** - If telemetry is active when the ID file is
+  first created, one `UserIdMigration` event is sent to the active destination
+  with the new ID and the previous 16-character, unsalted hash of the machine
+  name, user name, and platform. The raw names are not sent. The hash is
+  included only to connect older usage events to the new ID; weekly reports do
+  not publish it.
 - **Application version** - Which version of ExcelMcp is running
 - **Unhandled exceptions (MCP Server)** - Error type names, approved source, and
   project-owned failure site only (never exception messages or stack traces)
@@ -39,7 +46,7 @@ that a tool returns to your chosen AI assistant.
 
 - ❌ **File contents** - Workbook content is never included in telemetry
 - ❌ **File names or paths** - File paths are not included in telemetry
-- ❌ **Personal information** - No names, emails, or account information
+- ❌ **Personal information** - No raw names, emails, or account information
 - ❌ **Spreadsheet data** - Cell values, formulas, and query results are never included in telemetry
 - ❌ **Prompts or messages** - Requests and conversations are never transmitted
 - ❌ **Host or client details** - Working directories and MCP client names are not collected
@@ -54,7 +61,7 @@ that a tool returns to your chosen AI assistant.
 
 ### Purpose of Telemetry
 
-We use this telemetry to:
+We use pseudonymous telemetry to:
 - Understand which features are most used
 - Identify and fix performance issues
 - Prioritize development of new features
@@ -85,6 +92,13 @@ overrides the embedded Azure destination and does not create an Azure telemetry
 client. It does not enable framework logs, raw exception details, or additional
 workbook data collection. Access to the local dashboard and any data it retains
 is your responsibility. See [local telemetry setup](docs/DEVELOPMENT.md#local-development-with-telemetry).
+
+If telemetry is off when the ID is created, no migration link is sent or
+deferred. If it is in local mode, the link goes only to the local receiver and
+is not deferred for Azure. In either case, older Azure events may remain under
+the previous ID in weekly reports. Delete
+`%LOCALAPPDATA%\ExcelMcp\telemetry-user-id` and restart the MCP Server to reset
+the stored ID; the next active telemetry use creates a new one.
 
 ## How It Works
 
@@ -170,6 +184,7 @@ For questions about this privacy policy or the ExcelMcp project:
 **Summary:** ExcelMcp drives local Excel and reads or writes workbook files on
 your machine. Requested tool results can be returned to your chosen AI
 assistant. Remote code formatting and Python in Excel use external services only
-when requested. The MCP Server and CLI can send pseudonymous usage telemetry, but
-that telemetry excludes workbook contents, file names, paths, arguments, and
-raw personal information such as names or emails.
+when requested. The MCP Server and CLI can send pseudonymous usage telemetry.
+It excludes workbook contents, file names, paths, arguments, and raw machine or
+user names. A one-time migration event may include the previous name-derived
+hash so older usage can be counted under the new random ID.

@@ -74,6 +74,8 @@ internal sealed class ApplicationInsightsTelemetrySink : ICliTelemetrySink
         _client.TrackRequest(requestTelemetry);
     }
 
+    public void Track(EventTelemetry eventTelemetry) => _client.TrackEvent(eventTelemetry);
+
     public Task FlushAsync() => _client.FlushAsync(CancellationToken.None);
 
     public void Dispose() => _configuration.Dispose();

@@ -12,6 +12,8 @@ internal sealed class LocalTelemetrySink(TelemetrySettings settings) : ICliTelem
         _telemetry.Track(requestTelemetry);
     }
 
+    public void Track(EventTelemetry eventTelemetry) => _telemetry.Track(eventTelemetry);
+
     public Task FlushAsync()
     {
         _telemetry.Flush();

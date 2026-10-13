@@ -481,13 +481,21 @@ destination selection does not replace that string or require Azure credentials.
   duration (ms), success/failure
 - **Unhandled exceptions (MCP Server only)**: Exception type, approved source, and project-owned
   failure site; messages and stack traces are not transmitted
-- **User ID**: First 16 characters of an unsalted SHA256 hash of machine name,
-  user name, and platform (pseudonymous, stable across runs)
+- **User ID**: Random ID stored at
+  `%LOCALAPPDATA%\ExcelMcp\telemetry-user-id`, shared between the CLI and MCP
+  Server. The file is created on first use even when telemetry is off; delete
+  it and restart the MCP Server to reset the ID. If storage is unavailable, the
+  current process uses a temporary random ID.
+- **Migration link**: If telemetry is active when a new ID is first stored,
+  one event sent to the active destination carries the prior name-derived hash
+  so existing usage can be mapped to the new ID. Raw machine and user names are
+  not sent. The event is not sent later if telemetry is off, or deferred from
+  local mode to Azure.
 - **Session ID**: Random GUID per process (8 chars)
 ### **What is NOT Tracked**
 
 - File paths, file names, or file contents
-- User identity, machine name, or IP address
+- Raw user identity, machine name, or IP address
 - Excel data, formulas, or cell values
 - Connection strings, credentials, or passwords
 - Excel workbook `workbook_session_id`/`sessionId` values or raw MCP arguments. The

@@ -203,6 +203,23 @@ public sealed partial class ValidationPolicy(string root)
             plan.BuildProjects.Add("src/ExcelMcp.Diagnostics/ExcelMcp.Diagnostics.csproj");
             plan.Reasons.Add($"{path} -> diagnostics consumers");
         }
+        else if (path == "src/Shared/TelemetryUserIdentity.cs")
+        {
+            var consumers = Catalog.ForFile("tests/Shared/TelemetryUserIdentityTests.cs")
+                .Concat(Catalog.ForOwner("CLI").Where(type => type.Name == "EntryPointTelemetryTests"))
+                .Concat(Catalog.ForOwner("McpServer").Where(type => type.Name == "TelemetryTests"))
+                .Distinct()
+                .ToArray();
+            if (consumers.Length < 3)
+            {
+                throw new InvalidOperationException($"No validation mapping for shared telemetry source {path}.");
+            }
+            AddClasses(plan, consumers, "Shared telemetry identity consumers");
+            plan.SourceChecks = true;
+            plan.Cli = true;
+            plan.Mcp = plan.Extension = true;
+            plan.Reasons.Add($"{path} -> CLI, MCP Server, and extension telemetry identity consumers");
+        }
         else if (path == "src/ExcelMcp.CLI/Commands/BatchCommand.cs")
         {
             AddFeature(plan, "CLI", ["Batch"], "Batch entry-point consumers");

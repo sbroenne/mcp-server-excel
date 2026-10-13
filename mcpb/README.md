@@ -121,11 +121,15 @@ referenced worksheet data in Microsoft's cloud.
 **Package downloads:** npx contacts the npm registry to resolve and download the
 server. This does not upload workbook contents to npm.
 
-**Pseudonymous telemetry:** The MCP Server collects tool usage, performance, and
-error-rate metrics. Telemetry excludes file contents, file names, paths, and raw
-personal data; it is tied to a hashed machine and user ID.
+**Pseudonymous telemetry:** The MCP Server collects tool usage, performance,
+and error-rate metrics using a random ID stored for the current Windows user.
+When Azure telemetry is active as the ID is first created, one migration event
+also sends the previous name-derived hash so older usage can be counted under
+the new ID. Local telemetry does not send this link to Azure. Raw names,
+workbook contents, file names, and paths are not sent.
 
-See our complete [Privacy Policy](https://excelmcpserver.dev/privacy/).
+See our complete [Privacy Policy](https://excelmcpserver.dev/privacy/) for
+details and the accepted telemetry-off limitation.
 
 ## Troubleshooting
 

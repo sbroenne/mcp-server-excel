@@ -2,7 +2,9 @@
 // Licensed under the MIT License.
 
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
+using Sbroenne.ExcelMcp.Telemetry;
 using Microsoft.ApplicationInsights.DataContracts;
+using System.Reflection;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
@@ -37,22 +39,52 @@ public class TelemetryTests
     [Fact]
     public void UserId_IsNotEmpty()
     {
-        // User ID should be generated from machine identity
         Assert.False(string.IsNullOrEmpty(ExcelMcpTelemetry.UserId));
     }
 
     [Fact]
-    public void UserId_IsSixteenCharacters()
+    public void UserId_Is32Characters()
     {
-        // User ID should be first 16 chars of SHA256 hash
-        Assert.Equal(16, ExcelMcpTelemetry.UserId.Length);
+        Assert.Equal(32, ExcelMcpTelemetry.UserId.Length);
     }
 
     [Fact]
     public void UserId_IsLowercaseHex()
     {
-        // User ID should be lowercase hex characters only
         Assert.True(ExcelMcpTelemetry.UserId.All(c => char.IsAsciiHexDigitLower(c)));
+    }
+
+    [Fact]
+    public void UserIdMigration_IsSentOnceWhenTheIdentityIsCreated()
+    {
+        var identity = new TelemetryUserIdentity(
+            "0123456789abcdef0123456789abcdef",
+            "abcdef0123456789");
+        var sent = new List<EventTelemetry>();
+
+        ExcelMcpTelemetry.TrackUserIdMigration(identity, sent.Add);
+        ExcelMcpTelemetry.TrackUserIdMigration(identity, sent.Add);
+
+        var migration = Assert.Single(sent);
+        Assert.Equal("UserIdMigration", migration.Name);
+        Assert.Equal("0123456789abcdef0123456789abcdef", migration.Context.User.Id);
+        Assert.Equal("abcdef0123456789", migration.Properties["LegacyUserId"]);
+    }
+
+    [Fact]
+    public void CliAndMcpAssemblies_ReadTheSamePersistedUserIdentity()
+    {
+        using var directory = new TemporaryDirectory();
+        var cliAssembly = Assembly.Load("excelcli");
+        var mcpAssembly = typeof(ExcelMcpTelemetry).Assembly;
+
+        var cliIdentity = ReadIdentityFromAssembly(cliAssembly, directory.Path);
+        var mcpIdentity = ReadIdentityFromAssembly(mcpAssembly, directory.Path);
+
+        Assert.True(Guid.TryParseExact(cliIdentity.UserId, "N", out _));
+        Assert.Equal(cliIdentity.UserId, mcpIdentity.UserId);
+        Assert.NotNull(cliIdentity.LegacyUserId);
+        Assert.Null(mcpIdentity.LegacyUserId);
     }
 
     [Fact]
@@ -134,6 +166,39 @@ public class TelemetryTests
     }
 
     #endregion
+
+    private static (string UserId, string? LegacyUserId) ReadIdentityFromAssembly(
+        Assembly assembly,
+        string localAppDataPath)
+    {
+        var store = assembly.GetType("Sbroenne.ExcelMcp.Telemetry.TelemetryUserIdentityStore", throwOnError: true)!;
+        var identity = store.GetMethod(
+                "GetOrCreate",
+                BindingFlags.Static | BindingFlags.NonPublic,
+                binder: null,
+                types: [typeof(string)],
+                modifiers: null)!
+            .Invoke(null, [localAppDataPath])!;
+        var type = identity.GetType();
+        return (
+            (string)type.GetProperty("UserId")!.GetValue(identity)!,
+            (string?)type.GetProperty("LegacyUserId")!.GetValue(identity));
+    }
+
+    private sealed class TemporaryDirectory : IDisposable
+    {
+        public string Path { get; } = System.IO.Path.Combine(
+            System.IO.Path.GetTempPath(),
+            $"excelmcp-telemetry-entrypoints-{Guid.NewGuid():N}");
+
+        public void Dispose()
+        {
+            if (Directory.Exists(Path))
+            {
+                Directory.Delete(Path, recursive: true);
+            }
+        }
+    }
 
     #region SensitiveDataRedactor Tests
 
