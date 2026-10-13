@@ -522,6 +522,37 @@ selections, skipped tests, failures, and assembly cleanup failures fail the run.
 Focused `-Stages` runs are not complete runtime acceptance. `Test-CliWorkflow.ps1` is a
 compatible wrapper for the CLI stage, including `-PipeName` and `-KeepFile`.
 
+### OLAP server coverage and the Excel Runner
+
+The dedicated Excel Runner has SQL Server Analysis Services (SSAS) available.
+This is test infrastructure, not evidence that a particular change has passed
+SSAS tests. With no `EXCELMCP_TEST_OLAP_*` configuration, the OLAP stage uses
+Atoti even on that runner; it does not discover or select the installed SSAS
+instance automatically.
+
+The All-member regression introduced for issue #1135 was verified against
+Atoti Community Edition 6.2.2 and Excel's built-in Data Model (Power Pivot).
+SSAS validation of that change is still outstanding. Atoti results do not
+establish SSAS, Azure Analysis Services, or Power BI XMLA compatibility.
+
+Before testing against SSAS, identify a synthetic test database and cube and
+configure all four settings listed above in the test process. Keep credentials
+and connection strings out of committed files, public logs, and PR descriptions.
+The existing external suite assumes the fixture's Calendar/RelativePeriod
+hierarchies, Amount measure, member unique names, and monthly values. Pointing
+the settings at an arbitrary SSAS cube is not sufficient; use a compatible
+fixture or add focused SSAS tests that assert its actual schema and results.
+To cover this regression, the test must establish the server's actual All-member
+identity and check both All and a genuine selected member through Excel.
+
+Run against the exact feature-branch commit being reviewed, not just `main`.
+The existing `[Excel Runner] Validation` workflow admits only the default
+branch, so dispatching it does not validate an unmerged PR. Use the approved
+runner access and job-control procedures; do not remove its admission guards
+or wake/restart the runner merely to inspect it. Record the SSAS version and
+cube mode, tested commit, exact commands, and TRX outcomes in the PR before
+claiming SSAS coverage. Run Excel-dependent commands sequentially.
+
 Development builds directly stop only CLI services from the current worktree
 without saving workbooks. They do not kill Excel or stop other worktrees' services.
 The old graceful-save rebuild gate is removed; normal CLI/MCP persistence and
