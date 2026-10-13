@@ -34,12 +34,13 @@ test structure evolves.
 
 Changed-area selection, native CLI workflow checks, source guards, package
 preparation, and result verification are xUnit cases or typed components.
-Two PowerShell components are retained deliberately: `Test-E2E.ps1` stays the
-explicit complete acceptance command and cloud runner entry point, including
-its own stage filters and OLAP setup, and `check-doc-counts.ps1` stays the
-documentation count validator. Other retained PowerShell commands forward to
-the typed tool and only translate arguments or outputs for existing callers. Standard SDK, npm, and VSIX tools
-still produce the distributions.
+Some PowerShell scripts still own work the typed tool calls, such as the
+explicit complete acceptance command and cloud runner entry point
+(`Test-E2E.ps1`, with its own stage filters and OLAP setup), the documentation
+count validator, and identity-checked CLI service cleanup. Compatibility
+commands kept for existing callers forward to the typed tool or to those
+scripts rather than holding their own selection policy. Standard SDK, npm, and
+VSIX tools still produce the distributions.
 
 ## Implementation and guidance
 
