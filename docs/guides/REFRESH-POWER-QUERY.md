@@ -66,12 +66,19 @@ Use the `refresh-all` action to refresh every query in the workbook:
 excelcli -q powerquery refresh-all --session $session
 ```
 
-The result lists `refreshedQueries`, `skippedQueries`, and `failedQueries`.
+By default, Power Query `refresh-all` also refreshes PivotTables that depend on
+successfully refreshed query loads; shared caches are refreshed once. The result
+lists refreshed and failed PivotTables alongside `refreshedQueries`,
+`skippedQueries`, and `failedQueries`. Set `refresh_pivot_tables=false` in MCP or
+`--refresh-pivot-tables false` in the CLI to refresh queries only.
+
 Parameter and connection-only queries are skipped because they have nothing of
 their own to refresh; Excel evaluates them when the loaded queries that use
-them refresh. If one query fails, the others still refresh, the result reports
-`success: false`, and `excelcli` exits with code 1. Queries that already
-refreshed keep their new data.
+them refresh. If a query or PivotTable refresh fails, the operation continues
+where possible, reports `success: false`, and the CLI exits with code 1.
+Successful refreshes keep their new data. For Excel-style workbook-wide refresh
+of Power Query and other data connections plus all PivotTables, use
+`workbook refresh-all`.
 
 ## Test M code before you save it
 

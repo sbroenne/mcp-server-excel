@@ -26,7 +26,7 @@ public partial class PowerQueryCommands
     /// </summary>
     /// <returns>True if refresh was executed, false if no connection or table found</returns>
     /// <exception cref="Exception">Thrown if Power Query has formula errors</exception>
-    private static bool RefreshConnectionByQueryName(dynamic workbook, string queryName, CancellationToken cancellationToken)
+    internal static bool RefreshConnectionByQueryName(dynamic workbook, string queryName, CancellationToken cancellationToken)
     {
         // A LoadToBoth query has independent worksheet and Data Model connections.
         // Refresh both before reporting success so neither destination remains stale.

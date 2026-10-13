@@ -1773,6 +1773,17 @@ public class PowerQueryRefreshAllResult : OperationResult
     public List<PowerQueryRefreshFailure> FailedQueries { get; set; } = [];
 
     /// <summary>
+    /// PivotTables whose caches were refreshed because they depend on refreshed query loads.
+    /// Names are qualified with the worksheet name.
+    /// </summary>
+    public List<string> RefreshedPivotTables { get; set; } = [];
+
+    /// <summary>
+    /// PivotTables whose refresh failed. The operation continued with other caches.
+    /// </summary>
+    public List<PowerQueryPivotRefreshFailure> FailedPivotTables { get; set; } = [];
+
+    /// <summary>
     /// Failure category shared by every failed query; omitted when no query failed or
     /// the failed queries have different (or unknown) categories.
     /// </summary>
@@ -1785,6 +1796,97 @@ public class PowerQueryRefreshAllResult : OperationResult
             return categories.Count == 1 ? categories[0] : null;
         }
     }
+}
+
+/// <summary>
+/// A PivotTable whose cache refresh failed during Power Query refresh-all.
+/// </summary>
+public class PowerQueryPivotRefreshFailure
+{
+    /// <summary>Worksheet-qualified PivotTable name.</summary>
+    public string PivotTableName { get; set; } = string.Empty;
+
+    /// <summary>Error message reported for this PivotTable.</summary>
+    public string ErrorMessage { get; set; } = string.Empty;
+
+    /// <summary>.NET exception type that reported the failure.</summary>
+    public string ExceptionType { get; set; } = string.Empty;
+
+    /// <summary>HRESULT from the underlying Excel/COM failure, when available.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyName("hresult")]
+    public string? HResult { get; set; }
+}
+
+/// <summary>
+/// Result for refreshing every workbook data connection and PivotTable.
+/// Successful items are not rolled back when another item fails.
+/// </summary>
+public class WorkbookRefreshAllResult : OperationResult
+{
+    /// <summary>Power Query loads refreshed.</summary>
+    public List<string> RefreshedQueries { get; set; } = [];
+
+    /// <summary>Power Query definitions with nothing to refresh on their own.</summary>
+    public List<PowerQueryRefreshSkip> SkippedQueries { get; set; } = [];
+
+    /// <summary>Power Queries that failed.</summary>
+    public List<PowerQueryRefreshFailure> FailedQueries { get; set; } = [];
+
+    /// <summary>Non-Power-Query workbook connections refreshed.</summary>
+    public List<string> RefreshedConnections { get; set; } = [];
+
+    /// <summary>Non-Power-Query workbook connections that failed to refresh.</summary>
+    public List<WorkbookRefreshFailure> FailedConnections { get; set; } = [];
+
+    /// <summary>PivotTables refreshed; each name is qualified with its worksheet.</summary>
+    public List<string> RefreshedPivotTables { get; set; } = [];
+
+    /// <summary>PivotTables whose shared cache failed to refresh.</summary>
+    public List<WorkbookPivotRefreshFailure> FailedPivotTables { get; set; } = [];
+}
+
+/// <summary>
+/// A workbook connection that failed during workbook refresh-all.
+/// </summary>
+public class WorkbookRefreshFailure
+{
+    /// <summary>Workbook connection name.</summary>
+    public string ConnectionName { get; set; } = string.Empty;
+
+    /// <summary>Error message reported for this connection.</summary>
+    public string ErrorMessage { get; set; } = string.Empty;
+
+    /// <summary>.NET exception type that reported the failure.</summary>
+    public string ExceptionType { get; set; } = string.Empty;
+
+    /// <summary>HRESULT from the underlying Excel/COM failure, when available.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyName("hresult")]
+    public string? HResult { get; set; }
+}
+
+/// <summary>
+/// A PivotTable that failed during workbook refresh-all.
+/// </summary>
+public class WorkbookPivotRefreshFailure
+{
+    /// <summary>Worksheet name containing the PivotTable.</summary>
+    public string SheetName { get; set; } = string.Empty;
+
+    /// <summary>PivotTable name.</summary>
+    public string PivotTableName { get; set; } = string.Empty;
+
+    /// <summary>Error message reported for this PivotTable.</summary>
+    public string ErrorMessage { get; set; } = string.Empty;
+
+    /// <summary>.NET exception type that reported the failure.</summary>
+    public string ExceptionType { get; set; } = string.Empty;
+
+    /// <summary>HRESULT from the underlying Excel/COM failure, when available.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    [JsonPropertyName("hresult")]
+    public string? HResult { get; set; }
 }
 
 /// <summary>

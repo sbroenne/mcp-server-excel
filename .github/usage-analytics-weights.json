@@ -594,6 +594,7 @@
         "list-document-properties": "light",
         "list-external-links": "light",
         "list-table-styles": "light",
+        "refresh-all": "heavy",
         "save-as": "medium",
         "save-copy-as": "medium",
         "set-document-property": "medium",
