@@ -6,8 +6,12 @@
 
 Annotated Core interfaces are the source for generated Service dispatch, CLI
 commands, MCP tools, and operation metadata. Shared extraction connects those
-outputs to the same definitions. Handwritten adapter code remains where a tool
-owns behavior such as no-session work, cancellation, or image output.
+outputs to the same definitions.
+
+The MCP Server also keeps a hand-written tool layer where the adapter owns
+behavior the generated tools do not express: file and session lifecycle,
+no-session operations, cancellation, worksheet read/write shaping, declared
+output schemas, and image output. Those tools still call the shared Service.
 
 ## Reasons and tradeoffs
 
@@ -27,5 +31,6 @@ responsibilities.
 - [Service generator](../src/ExcelMcp.Generators/ServiceRegistryGenerator.cs)
 - [CLI generator](../src/ExcelMcp.Generators.Cli/CliSettingsGenerator.cs)
 - [MCP generator](../src/ExcelMcp.Generators.Mcp/McpToolGenerator.cs)
+- [MCP tool surface](../src/ExcelMcp.McpServer/McpToolSurface.cs) and [hand-written tool actions](../src/ExcelMcp.McpServer/Tools/ManualToolActions.cs)
 - [Contract checks](agents/rules/coverage-prevention-strategy.md)
 - [Agent-facing metadata sources](agents/rules/mcp-llm-guidance.md)

@@ -32,13 +32,11 @@ source guards cannot establish Excel behavior. Shared inputs can legitimately
 select several owners, and source ownership needs focused regressions as the
 test structure evolves.
 
-Native CLI workflow checks are independently selectable xUnit cases rather than
-a nested PowerShell test runner. Package preparation, source checks, test stages,
-built test inventory, CI build inputs and completion checks use typed components.
-Retained PowerShell commands preserve existing callers and translate arguments;
-they do not maintain a second selection or result-checking policy. Standard
-SDK, npm and VSIX tools still produce the distributions. Cloud Excel runner
-operations and safety checks remain unchanged.
+Validation stages, including native CLI workflow checks, are ordinary xUnit
+cases or typed components rather than nested PowerShell runners. Retained
+PowerShell commands only translate arguments for existing callers; they do not
+hold a second selection or result-checking policy. Standard SDK, npm, and VSIX
+tools still produce the distributions.
 
 ## Implementation and guidance
 
