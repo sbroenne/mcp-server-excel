@@ -284,7 +284,9 @@ function Invoke-LogAnalyticsQuery {
         throw "Unable to acquire a Log Analytics access token."
     }
 
-    $body = @{ query = $Query; timespan = "P90D" } | ConvertTo-Json
+    # Report windows are defined by each KQL query. Omitting the API timespan
+    # lets the shared migration lookup see events across the workspace retention period.
+    $body = @{ query = $Query } | ConvertTo-Json
     $response = Invoke-RestMethod `
         -Method Post `
         -Uri "https://api.loganalytics.azure.com/v1/workspaces/$WorkspaceId/query" `

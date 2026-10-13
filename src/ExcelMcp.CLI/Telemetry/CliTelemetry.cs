@@ -1,8 +1,6 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using Microsoft.ApplicationInsights.Channel;
 using Microsoft.ApplicationInsights.DataContracts;
@@ -11,6 +9,7 @@ using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Generated;
 using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.Telemetry;
 
 namespace Sbroenne.ExcelMcp.CLI.Telemetry;
 
@@ -31,7 +30,12 @@ internal static class CliTelemetry
     private static readonly string[] HelpFlags = ["--help", "-h"];
     private static readonly AsyncLocal<InvocationTelemetryState?> CurrentInvocationTelemetry = new();
     private static readonly string SessionId = Guid.NewGuid().ToString("N")[..8];
-    private static readonly string UserId = GenerateAnonymousUserId();
+    private static readonly object UserIdentityLock = new();
+    private static readonly TelemetryUserIdentity ProcessUserIdentity =
+        TelemetryUserIdentityStore.CreateProcessOnly();
+    private static TelemetryUserIdentity? _telemetryUserIdentity;
+    private static Func<TelemetryUserIdentity> _userIdentityFactory = TelemetryUserIdentityStore.GetOrCreate;
+    private static int _migrationEventTracked;
     private static DeferredTelemetrySink TelemetrySink = CreateDeferredSink(CreateTelemetrySink);
     private static bool _enabled;
     private static TelemetrySettings? _settings;
@@ -43,6 +47,10 @@ internal static class CliTelemetry
     internal static void Enable()
     {
         _settings = TelemetrySettings.Read(TelemetryConfig.ConnectionString);
+        if (_settings.Mode == TelemetryMode.Off)
+        {
+            InitializeUserIdentity();
+        }
         Volatile.Write(ref _enabled, true);
     }
 
@@ -58,8 +66,58 @@ internal static class CliTelemetry
         var previousSink = TelemetrySink;
         var previousEnabled = Volatile.Read(ref _enabled);
         var previousSettings = _settings;
+        Func<TelemetryUserIdentity> previousFactory;
+        TelemetryUserIdentity? previousIdentity;
+        int previousMigrationEventTracked;
+        lock (UserIdentityLock)
+        {
+            previousFactory = _userIdentityFactory;
+            previousIdentity = _telemetryUserIdentity;
+            previousMigrationEventTracked = Volatile.Read(ref _migrationEventTracked);
+            _userIdentityFactory = TelemetryUserIdentityStore.CreateProcessOnly;
+            _telemetryUserIdentity = ProcessUserIdentity;
+            Volatile.Write(ref _migrationEventTracked, 0);
+        }
         TelemetrySink = CreateDeferredSink(factory);
-        return new TestSinkScope(previousSink, previousEnabled, previousSettings);
+        return new TestSinkScope(
+            previousSink,
+            previousEnabled,
+            previousSettings,
+            previousFactory,
+            previousIdentity,
+            previousMigrationEventTracked);
+    }
+
+    internal static IDisposable UseUserIdentityFactoryForTesting(
+        Func<TelemetryUserIdentity> factory,
+        bool telemetryEnabled = true)
+    {
+        ArgumentNullException.ThrowIfNull(factory);
+        lock (UserIdentityLock)
+        {
+            var previousFactory = _userIdentityFactory;
+            var previousIdentity = _telemetryUserIdentity;
+            var previousMigrationEventTracked = Volatile.Read(ref _migrationEventTracked);
+            var previousEnabled = Volatile.Read(ref _enabled);
+            var previousSettings = _settings;
+
+            _userIdentityFactory = factory;
+            _telemetryUserIdentity = telemetryEnabled ? null : factory();
+            Volatile.Write(ref _migrationEventTracked, 0);
+            _settings = new TelemetrySettings(
+                telemetryEnabled ? TelemetryMode.Local : TelemetryMode.Off,
+                null,
+                new Uri("http://localhost:4317"),
+                "grpc");
+            Volatile.Write(ref _enabled, true);
+
+            return new UserIdentityFactoryScope(
+                previousFactory,
+                previousIdentity,
+                previousMigrationEventTracked,
+                previousEnabled,
+                previousSettings);
+        }
     }
 
     private static DeferredTelemetrySink CreateDeferredSink(Func<ICliTelemetrySink?> factory)
@@ -69,6 +127,14 @@ internal static class CliTelemetry
         // The budget the flush always had; it now also covers disposing the SDK.
         var shutdownTimeout = TimeSpan.FromSeconds(2);
         return new DeferredTelemetrySink(factory, initializationTimeout, shutdownTimeout);
+    }
+
+    private static void InitializeUserIdentity()
+    {
+        lock (UserIdentityLock)
+        {
+            _telemetryUserIdentity ??= _userIdentityFactory();
+        }
     }
 
     internal static async Task<ServiceResponse> TrackCommandAsync(
@@ -322,7 +388,7 @@ internal static class CliTelemetry
         };
     }
 
-    private static void TrackCommandInvocation(
+    internal static void TrackCommandInvocation(
         string command,
         long durationMs,
         bool succeeded,
@@ -338,6 +404,7 @@ internal static class CliTelemetry
                     succeeded,
                     errorCategory,
                     expectedNegative);
+            TrackUserIdMigration(GetTelemetryUserIdentity());
             TelemetrySink.Track(eventTelemetry, requestTelemetry);
         }
         catch (Exception)
@@ -456,10 +523,11 @@ internal static class CliTelemetry
 
     private static void ApplyContext(ITelemetry telemetry)
     {
-        telemetry.Context.User.Id ??= UserId;
+        var identity = GetTelemetryUserIdentity();
+        telemetry.Context.User.Id ??= identity.UserId;
         telemetry.Context.Session.Id ??= SessionId;
         telemetry.Context.Cloud.RoleName ??= "ExcelMcp.CLI";
-        telemetry.Context.Cloud.RoleInstance = $"instance-{UserId[..8]}";
+        telemetry.Context.Cloud.RoleInstance = $"instance-{identity.UserId[..8]}";
         telemetry.Context.Component.Version = GetVersion();
     }
 
@@ -469,24 +537,44 @@ internal static class CliTelemetry
         ?? typeof(CliTelemetry).Assembly.GetName().Version?.ToString()
         ?? "1.0.0";
 
-    private static string GenerateAnonymousUserId()
+    private static TelemetryUserIdentity GetTelemetryUserIdentity()
     {
-        try
+        if (!Volatile.Read(ref _enabled))
         {
-            var machineIdentity =
-                $"{Environment.MachineName}|{Environment.UserName}|{Environment.OSVersion.Platform}";
-            return Convert.ToHexString(
-                SHA256.HashData(Encoding.UTF8.GetBytes(machineIdentity)))[..16]
-                .ToLowerInvariant();
+            return ProcessUserIdentity;
         }
-        catch (Exception)
+
+        lock (UserIdentityLock)
         {
-            return Guid.NewGuid().ToString("N")[..16];
+            if (_settings?.Mode == TelemetryMode.Off)
+            {
+                return _telemetryUserIdentity ?? ProcessUserIdentity;
+            }
+
+            return _telemetryUserIdentity ??= _userIdentityFactory();
         }
     }
 
+    private static void TrackUserIdMigration(TelemetryUserIdentity identity)
+    {
+        if (_settings?.Mode == TelemetryMode.Off
+            || TelemetryUserIdentityStore.CreateMigrationEvent(identity) is not { } telemetry
+            || Interlocked.Exchange(ref _migrationEventTracked, 1) != 0)
+        {
+            return;
+        }
+
+        ApplyContext(telemetry);
+        TelemetrySink.Track(telemetry);
+    }
+
     private sealed class TestSinkScope(
-        DeferredTelemetrySink previousSink, bool previousEnabled, TelemetrySettings? previousSettings)
+        DeferredTelemetrySink previousSink,
+        bool previousEnabled,
+        TelemetrySettings? previousSettings,
+        Func<TelemetryUserIdentity> previousFactory,
+        TelemetryUserIdentity? previousIdentity,
+        int previousMigrationEventTracked)
         : IDisposable
     {
         public void Dispose()
@@ -494,6 +582,32 @@ internal static class CliTelemetry
             TelemetrySink = previousSink;
             _settings = previousSettings;
             Volatile.Write(ref _enabled, previousEnabled);
+            lock (UserIdentityLock)
+            {
+                _userIdentityFactory = previousFactory;
+                _telemetryUserIdentity = previousIdentity;
+                Volatile.Write(ref _migrationEventTracked, previousMigrationEventTracked);
+            }
+        }
+    }
+
+    private sealed class UserIdentityFactoryScope(
+        Func<TelemetryUserIdentity> previousFactory,
+        TelemetryUserIdentity? previousIdentity,
+        int previousMigrationEventTracked,
+        bool previousEnabled,
+        TelemetrySettings? previousSettings) : IDisposable
+    {
+        public void Dispose()
+        {
+            lock (UserIdentityLock)
+            {
+                _userIdentityFactory = previousFactory;
+                _telemetryUserIdentity = previousIdentity;
+                Volatile.Write(ref _migrationEventTracked, previousMigrationEventTracked);
+                _settings = previousSettings;
+                Volatile.Write(ref _enabled, previousEnabled);
+            }
         }
     }
 

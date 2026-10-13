@@ -221,10 +221,22 @@ $splitRows
 ];
 let excludedNames = dynamic([$excluded]);
 let heavyNames = dynamic([$heavy]);
+let userIdMigrations = AppEvents
+| where Name == 'UserIdMigration'
+| extend LegacyUserId=tostring(Properties['LegacyUserId'])
+| where isnotempty(UserId) and isnotempty(LegacyUserId)
+| summarize arg_max(TimeGenerated, LegacyUserId) by UserId
+| project UserId, LegacyUserId;
 let normalizedRequests = AppRequests
+| lookup kind=leftouter userIdMigrations on UserId
+| extend UserId=coalesce(LegacyUserId, UserId)
+| project-away LegacyUserId
 $normalize;
 let normalizedEvents = AppEvents
-| where Name != 'SessionStart'
+| where Name !in ('SessionStart', 'UserIdMigration')
+| lookup kind=leftouter userIdMigrations on UserId
+| extend UserId=coalesce(LegacyUserId, UserId)
+| project-away LegacyUserId
 $normalize;
 
 "@

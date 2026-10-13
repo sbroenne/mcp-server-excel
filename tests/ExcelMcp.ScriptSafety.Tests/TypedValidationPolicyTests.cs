@@ -108,6 +108,21 @@ public sealed class TypedValidationPolicyTests
         Assert.Contains("No validation mapping", exception.Message, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void SharedTelemetrySource_SelectsBothEntryPointIdentityTests()
+    {
+        var plan = Policy.Select(["src/Shared/TelemetryUserIdentity.cs"]);
+
+        Assert.Equal(["CLI", "McpServer"], plan.FastProjects);
+        Assert.Contains("TelemetryUserIdentityTests.", plan.FastFilters["CLI"], StringComparison.Ordinal);
+        Assert.Contains("EntryPointTelemetryTests.", plan.FastFilters["CLI"], StringComparison.Ordinal);
+        Assert.Contains("TelemetryUserIdentityTests.", plan.FastFilters["McpServer"], StringComparison.Ordinal);
+        Assert.Contains("TelemetryTests.", plan.FastFilters["McpServer"], StringComparison.Ordinal);
+        Assert.True(plan.Cli && plan.Mcp && plan.Extension && plan.SourceChecks);
+        Assert.False(plan.Excel);
+        Assert.False(plan.FullE2E);
+    }
+
     [Theory]
     [InlineData("scripts/check-com-leaks.ps1")]
     [InlineData("scripts/check-success-flag.ps1")]

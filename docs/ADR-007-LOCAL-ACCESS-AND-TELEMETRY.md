@@ -12,11 +12,20 @@ Requested workbook results go back to the caller. Telemetry is a separate
 path carrying restricted operation/outcome information rather than workbook
 contents or raw errors. MCP unhandled-exception reports keep exception type
 names and the owning failure site but redact messages and stacks. Both entry
-points correlate events with a pseudonymous ID: an unsalted hash of the
-machine name, user name, and platform, not the raw values. It is stable
-across runs and is not anonymous.
+points correlate events with a stored random ID. It is stable across runs
+and remains pseudonymous, not anonymous.
 Optional remote formatting and Python in Excel have separate data flows
 described in the privacy policy.
+
+The CLI and MCP Server share a random telemetry user ID stored in the current
+Windows user's `%LOCALAPPDATA%\ExcelMcp\telemetry-user-id` file. The file is
+created on first use even if telemetry is off. Storage failures use a
+process-only random ID without interrupting workbook operations. When the file
+is first created with telemetry active, a one-time migration event links the
+new ID to the previous name-derived ID so existing usage remains countable.
+The weekly analytics queries use that link across retained events but never
+publish the legacy ID. Deleting the file and restarting the MCP Server resets
+the stored ID.
 
 ## Reasons and tradeoffs
 
@@ -28,6 +37,10 @@ Raw request and exception logging would make diagnosis easier but could
 expose workbook contents, paths, credentials, or queries. Restricted telemetry
 provides usage and failure trends at the cost of less remote diagnostic detail.
 Local execution does not imply that all features or telemetry are offline.
+The random ID remains pseudonymous because it is stable across runs. The
+migration hash is sent only once, to the active telemetry destination; if
+telemetry is off during first use it is not sent later, and local mode does not
+defer it to Azure.
 
 ## Implementation and guidance
 
