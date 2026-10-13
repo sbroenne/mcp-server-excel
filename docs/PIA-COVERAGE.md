@@ -8,8 +8,8 @@ This document tracks the status of `Microsoft.Office.Interop.Excel` type coverag
 
 | Area | Status |
 |------|--------|
-| Core Excel types (`Workbook`, `Worksheet`, `Range`, etc.) | ✅ Available in the PIA; some command code is not yet converted (see [unconverted command code](#unconverted-command-code)) |
-| PivotTable, Table/slicer, Chart, Range, ConditionalFormat, Screenshot, and Sheet command code | ⚠️ Typed PIA surface exists, but many command paths still hold these objects as `dynamic` — conversion debt |
+| Core Excel types (`Workbook`, `Worksheet`, `Range`, etc.) | ✅ Typed in the PIA |
+| PivotTable, Table/slicer, Chart, Range, ConditionalFormat, Screenshot, and Sheet command code | ⚠️ Typed PIA surface exists, but many command paths still hold these objects as `dynamic` — [conversion debt](#unconverted-command-code) |
 | Drawing geometry/text and Forms controls | ✅ Typed |
 | Shape creation/type/fill/line members | ⚠️ Office.Core signatures; isolated late binding |
 | Sparklines (`SparklineGroups`, `SparklineGroup`, colors/points) | ✅ Typed |
