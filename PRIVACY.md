@@ -39,6 +39,9 @@ that a tool returns to your chosen AI assistant.
   included only to connect older usage events to the new ID; weekly reports do
   not publish it.
 - **Application version** - Which version of ExcelMcp is running
+- **Pseudonymous instance label** - `instance-` followed by the first eight
+  characters of the random user ID. CLI and MCP events, requests, and duration
+  metrics use this label instead of the computer name.
 - **Unhandled exceptions (MCP Server)** - Error type names, approved source, and
   project-owned failure site only (never exception messages or stack traces)
 
@@ -49,7 +52,7 @@ that a tool returns to your chosen AI assistant.
 - ❌ **Personal information** - No raw names, emails, or account information
 - ❌ **Spreadsheet data** - Cell values, formulas, and query results are never included in telemetry
 - ❌ **Prompts or messages** - Requests and conversations are never transmitted
-- ❌ **Host or client details** - Working directories and MCP client names are not collected
+- ❌ **Host or client details** - Computer names, working directories, and MCP client names are not collected
 - ❌ **User accounts** - No registration or sign-in required
 - ❌ **Error details** - Error messages, response content, and stack traces are
   never included. Exception type names appear only in the unhandled-exception

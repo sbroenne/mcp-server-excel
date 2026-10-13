@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Text.Json;
 using Microsoft.ApplicationInsights.Channel;
 using Microsoft.ApplicationInsights.DataContracts;
+using OpenTelemetry.Resources;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
@@ -527,9 +528,14 @@ internal static class CliTelemetry
         telemetry.Context.User.Id ??= identity.UserId;
         telemetry.Context.Session.Id ??= SessionId;
         telemetry.Context.Cloud.RoleName ??= "ExcelMcp.CLI";
-        telemetry.Context.Cloud.RoleInstance = $"instance-{identity.UserId[..8]}";
+        telemetry.Context.Cloud.RoleInstance = identity.RoleInstance;
         telemetry.Context.Component.Version = GetVersion();
     }
+
+    internal static void ConfigureResource(ResourceBuilder resource) =>
+        resource.AddService("ExcelMcp.CLI",
+            serviceVersion: GetVersion(),
+            serviceInstanceId: GetTelemetryUserIdentity().RoleInstance);
 
     private static string GetVersion() =>
         typeof(CliTelemetry).Assembly

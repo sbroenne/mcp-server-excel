@@ -1,6 +1,7 @@
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.DataContracts;
 using Microsoft.ApplicationInsights.Extensibility;
+using OpenTelemetry;
 
 namespace Sbroenne.ExcelMcp.CLI.Telemetry;
 
@@ -47,8 +48,18 @@ internal sealed class ApplicationInsightsTelemetrySink : ICliTelemetrySink
 
     // Live Metrics is never used for a CLI, and it kept a connection to the
     // Live Metrics service open for the life of the process.
-    internal static TelemetryConfiguration CreateConfiguration(string connectionString) =>
-        new() { ConnectionString = connectionString, EnableLiveMetrics = false };
+    internal static TelemetryConfiguration CreateConfiguration(string connectionString)
+    {
+        var configuration = new TelemetryConfiguration
+        {
+            ConnectionString = connectionString,
+            EnableLiveMetrics = false
+        };
+        // Duration metrics read resource identity rather than per-record cloud context.
+        configuration.ConfigureOpenTelemetryBuilder(builder =>
+            builder.ConfigureResource(CliTelemetry.ConfigureResource));
+        return configuration;
+    }
 
     /// <summary>
     /// Turns off the SDK's statsbeat and SDK stats features. The SDK reads these

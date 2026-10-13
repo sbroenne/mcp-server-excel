@@ -11,6 +11,14 @@ namespace Sbroenne.ExcelMcp.Tests.Telemetry;
 public sealed class TelemetryUserIdentityTests
 {
     [Fact]
+    public void RoleInstance_UsesOnlyTheRandomUserIdPrefix()
+    {
+        var identity = new TelemetryUserIdentity("0123456789abcdef0123456789abcdef", null);
+
+        Assert.Equal("instance-01234567", identity.RoleInstance);
+    }
+
+    [Fact]
     public void GetOrCreate_CreatesAndReusesOneRandomIdentity()
     {
         using var directory = new TemporaryDirectory();

@@ -7,6 +7,7 @@ using System.Diagnostics;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Channel;
 using Microsoft.ApplicationInsights.DataContracts;
+using OpenTelemetry.Resources;
 using Sbroenne.ExcelMcp.Telemetry;
 
 namespace Sbroenne.ExcelMcp.McpServer.Telemetry;
@@ -56,11 +57,13 @@ public static class ExcelMcpTelemetry
         TrackSessionStart();
     }
 
-    internal static void InitializeUserIdentity()
+    internal static void InitializeUserIdentity() => _ = GetInitializedUserIdentity();
+
+    private static TelemetryUserIdentity GetInitializedUserIdentity()
     {
         lock (UserIdentityLock)
         {
-            _telemetryUserIdentity ??= TelemetryUserIdentityStore.GetOrCreate();
+            return _telemetryUserIdentity ??= TelemetryUserIdentityStore.GetOrCreate();
         }
     }
 
@@ -430,9 +433,14 @@ public static class ExcelMcpTelemetry
         telemetry.Context.User.Id ??= identity.UserId;
         telemetry.Context.Session.Id ??= SessionId;
         telemetry.Context.Cloud.RoleName ??= "ExcelMcp.McpServer";
-        telemetry.Context.Cloud.RoleInstance = $"instance-{identity.UserId[..8]}";
+        telemetry.Context.Cloud.RoleInstance = identity.RoleInstance;
         telemetry.Context.Component.Version = GetVersion();
     }
+
+    internal static void ConfigureResource(ResourceBuilder resource) =>
+        resource.AddService("ExcelMcp.McpServer",
+            serviceVersion: GetVersion(),
+            serviceInstanceId: GetInitializedUserIdentity().RoleInstance);
 
     private static TelemetryUserIdentity GetUserIdentity()
     {
@@ -441,9 +449,6 @@ public static class ExcelMcpTelemetry
             return ProcessUserIdentity;
         }
 
-        lock (UserIdentityLock)
-        {
-            return _telemetryUserIdentity ??= TelemetryUserIdentityStore.GetOrCreate();
-        }
+        return GetInitializedUserIdentity();
     }
 }
