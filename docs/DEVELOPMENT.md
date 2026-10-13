@@ -481,7 +481,8 @@ destination selection does not replace that string or require Azure credentials.
   duration (ms), success/failure
 - **Unhandled exceptions (MCP Server only)**: Exception type, approved source, and project-owned
   failure site; messages and stack traces are not transmitted
-- **User ID**: SHA256 hash of machine identity (anonymous, 16 chars)
+- **User ID**: First 16 characters of an unsalted SHA256 hash of machine name,
+  user name, and platform (pseudonymous, stable across runs)
 - **Session ID**: Random GUID per process (8 chars)
 ### **What is NOT Tracked**
 
