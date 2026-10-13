@@ -114,9 +114,11 @@ public sealed class TypedValidationPolicyTests
         var plan = Policy.Select(["src/Shared/TelemetryUserIdentity.cs"]);
 
         Assert.Equal(["CLI", "McpServer"], plan.FastProjects);
-        Assert.All(plan.FastFilters.Values, filter =>
-            Assert.Contains("TelemetryUserIdentityTests.", filter, StringComparison.Ordinal));
-        Assert.True(plan.Cli && plan.Mcp && plan.SourceChecks);
+        Assert.Contains("TelemetryUserIdentityTests.", plan.FastFilters["CLI"], StringComparison.Ordinal);
+        Assert.Contains("EntryPointTelemetryTests.", plan.FastFilters["CLI"], StringComparison.Ordinal);
+        Assert.Contains("TelemetryUserIdentityTests.", plan.FastFilters["McpServer"], StringComparison.Ordinal);
+        Assert.Contains("TelemetryTests.", plan.FastFilters["McpServer"], StringComparison.Ordinal);
+        Assert.True(plan.Cli && plan.Mcp && plan.Extension && plan.SourceChecks);
         Assert.False(plan.Excel);
         Assert.False(plan.FullE2E);
     }

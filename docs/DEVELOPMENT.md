@@ -484,8 +484,8 @@ destination selection does not replace that string or require Azure credentials.
 - **User ID**: Random ID stored at
   `%LOCALAPPDATA%\ExcelMcp\telemetry-user-id`, shared between the CLI and MCP
   Server. The file is created on first use even when telemetry is off; delete
-  it to reset the ID. If storage is unavailable, the current process uses a
-  temporary random ID.
+  it and restart the MCP Server to reset the ID. If storage is unavailable, the
+  current process uses a temporary random ID.
 - **Migration link**: If telemetry is active when a new ID is first stored,
   one event sent to the active destination carries the prior name-derived hash
   so existing usage can be mapped to the new ID. Raw machine and user names are

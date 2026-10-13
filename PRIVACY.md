@@ -97,8 +97,8 @@ If telemetry is off when the ID is created, no migration link is sent or
 deferred. If it is in local mode, the link goes only to the local receiver and
 is not deferred for Azure. In either case, older Azure events may remain under
 the previous ID in weekly reports. Delete
-`%LOCALAPPDATA%\ExcelMcp\telemetry-user-id` to reset the stored ID; the next
-active telemetry use creates a new one.
+`%LOCALAPPDATA%\ExcelMcp\telemetry-user-id` and restart the MCP Server to reset
+the stored ID; the next active telemetry use creates a new one.
 
 ## How It Works
 

@@ -123,9 +123,10 @@ server. This does not upload workbook contents to npm.
 
 **Pseudonymous telemetry:** The MCP Server collects tool usage, performance,
 and error-rate metrics using a random ID stored for the current Windows user.
-When telemetry is active as the ID is first created, one migration event also
-sends the previous name-derived hash so older usage can be counted under the
-new ID. Raw names, workbook contents, file names, and paths are not sent.
+When Azure telemetry is active as the ID is first created, one migration event
+also sends the previous name-derived hash so older usage can be counted under
+the new ID. Local telemetry does not send this link to Azure. Raw names,
+workbook contents, file names, and paths are not sent.
 
 See our complete [Privacy Policy](https://excelmcpserver.dev/privacy/) for
 details and the accepted telemetry-off limitation.

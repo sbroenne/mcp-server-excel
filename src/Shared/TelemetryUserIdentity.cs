@@ -135,13 +135,13 @@ internal static class TelemetryUserIdentityStore
             "Telemetry user ID storage is unavailable; using a process-only ID ({0}).",
             exception.GetType().Name);
 
-    private static void TryDeleteTemporaryFile(string path)
+    internal static void TryDeleteTemporaryFile(string path, Action<string>? delete = null)
     {
         try
         {
-            File.Delete(path);
+            (delete ?? File.Delete)(path);
         }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        catch (Exception exception) when (IsStorageFailure(exception))
         {
             Trace.TraceWarning("A temporary telemetry file could not be removed ({0}).", exception.GetType().Name);
         }

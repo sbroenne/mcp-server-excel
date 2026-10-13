@@ -39,6 +39,33 @@ function Write-TestFile {
     return $path
 }
 
+function Normalize-SyntheticUsageRows {
+    param(
+        [object[]]$Rows,
+        [object[]]$MigrationEvents,
+        [switch]$ExcludeMigrationEvents
+    )
+
+    $legacyByNewId = @{}
+    foreach ($migration in $MigrationEvents) {
+        $legacyUserId = $migration.Properties.LegacyUserId
+        if ($migration.UserId -and $legacyUserId) {
+            $legacyByNewId[$migration.UserId] = $legacyUserId
+        }
+    }
+
+    foreach ($row in $Rows) {
+        if ($ExcludeMigrationEvents -and $row.Name -eq "UserIdMigration") {
+            continue
+        }
+        $copy = $row.Clone()
+        if ($legacyByNewId.ContainsKey($row.UserId)) {
+            $copy.UserId = $legacyByNewId[$row.UserId]
+        }
+        [pscustomobject]$copy
+    }
+}
+
 New-Item -ItemType Directory -Path $testRoot | Out-Null
 try {
     $fixture = @{
@@ -439,6 +466,76 @@ try {
         "User ID migration mappings must use the full retention period."
     Assert-True ($prelude -match "let excludedNames = dynamic\(\['file/open', 'file/close'\]\)") `
         "Excluded actions are not removed after names are combined."
+
+    $legacyId = "legacy-user"
+    $randomId = "random-user"
+    $now = [DateTime]::UtcNow
+    $currentWeekStart = $now.Date.AddDays(-[int]$now.DayOfWeek)
+    $legacyTime = $currentWeekStart.AddDays(-6).AddHours(12)
+    $randomTime = $currentWeekStart.AddDays(-1).AddHours(12)
+    $migrationRows = @(@{
+        Name = "UserIdMigration"; UserId = $randomId
+        Properties = @{ LegacyUserId = $legacyId }
+        TimeGenerated = $now
+    })
+    $syntheticRequests = @(
+        @{
+            UserId = $legacyId; TimeGenerated = $legacyTime
+            AppVersion = "2.0.0"; EntryPoint = "mcp-server"; Feature = "tables-ranges"
+            SessionId = "session-one"; Name = "range/get-values"
+        },
+        @{
+            UserId = $randomId; TimeGenerated = $randomTime
+            AppVersion = "2.0.1"; EntryPoint = "cli"; Feature = "power-query"
+            SessionId = "session-two"; Name = "powerquery/refresh"
+        }
+    )
+    $syntheticEvents = @(
+        @{ UserId = $legacyId; TimeGenerated = $legacyTime; Name = "range/get-values" },
+        @{ UserId = $randomId; TimeGenerated = $randomTime; Name = "powerquery/refresh" }
+    ) + $migrationRows
+    $normalizedSyntheticRequests = @(
+        Normalize-SyntheticUsageRows $syntheticRequests $migrationRows
+    )
+    $normalizedSyntheticEvents = @(
+        Normalize-SyntheticUsageRows $syntheticEvents $migrationRows -ExcludeMigrationEvents
+    )
+    $syntheticTrendUsers = @($normalizedSyntheticEvents |
+        Where-Object { $_.TimeGenerated -gt [DateTime]::UtcNow.AddDays(-14) } |
+        ForEach-Object UserId | Sort-Object -Unique).Count
+    $syntheticWeekly = @($normalizedSyntheticEvents |
+        Group-Object { $_.TimeGenerated.Date.AddDays(-[int]$_.TimeGenerated.DayOfWeek).ToString("yyyy-MM-dd") })
+    $latestWeeklyRequests = @($normalizedSyntheticRequests |
+        Group-Object {
+            "$($_.TimeGenerated.Date.AddDays(-[int]$_.TimeGenerated.DayOfWeek).ToString('yyyy-MM-dd'))|$($_.UserId)"
+        } |
+        ForEach-Object { $_.Group | Sort-Object TimeGenerated -Descending | Select-Object -First 1 })
+    $syntheticVersions = @($latestWeeklyRequests | Group-Object AppVersion)
+    $syntheticEntrypoints = @($normalizedSyntheticRequests |
+        Group-Object EntryPoint |
+        ForEach-Object { [pscustomobject]@{ EntryPoint = $_.Name; Users = @($_.Group.UserId | Sort-Object -Unique).Count } })
+    $syntheticFirstUse = @($normalizedSyntheticRequests |
+        Group-Object UserId |
+        ForEach-Object { [pscustomobject]@{ UserId = $_.Name; FirstSeen = ($_.Group.TimeGenerated | Measure-Object -Minimum).Minimum } })
+    $syntheticReturningUsers = @($normalizedSyntheticEvents |
+        Group-Object UserId |
+        Where-Object { $_.Group.Count -gt 1 })
+    Assert-True (
+        @($normalizedSyntheticRequests.UserId | Sort-Object -Unique).Count -eq 1 -and
+        $syntheticTrendUsers -eq 1 -and
+        $syntheticWeekly.Count -eq 1 -and
+        @($syntheticWeekly[0].Group.UserId | Sort-Object -Unique).Count -eq 1 -and
+        $syntheticWeekly[0].Group.Count -eq 2 -and
+        $syntheticVersions.Count -eq 1 -and
+        $syntheticVersions[0].Name -eq "2.0.1" -and
+        $syntheticVersions[0].Count -eq 1 -and
+        @($syntheticEntrypoints.Users) -join "," -eq "1,1" -and
+        @($syntheticEntrypoints | ForEach-Object EntryPoint | Sort-Object) -join "," -eq "cli,mcp-server" -and
+        $syntheticFirstUse.Count -eq 1 -and
+        $syntheticFirstUse[0].FirstSeen -eq $legacyTime -and
+        $syntheticReturningUsers.Count -eq 1 -and
+        $normalizedSyntheticEvents.Count -eq 2
+    ) "Synthetic legacy/new IDs did not normalize to one user across user, trend, weekly, version, entry-point, returning-user, and first-use aggregates, or the link counted as an action."
     $testsRun++
 
     $validWeights = Get-Content -LiteralPath (Join-Path $PSScriptRoot "../.github/usage-analytics-weights.json") -Raw

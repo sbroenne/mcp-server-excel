@@ -205,15 +205,20 @@ public sealed partial class ValidationPolicy(string root)
         }
         else if (path == "src/Shared/TelemetryUserIdentity.cs")
         {
-            var consumers = Catalog.ForFile("tests/Shared/TelemetryUserIdentityTests.cs").ToArray();
-            if (consumers.Length == 0)
+            var consumers = Catalog.ForFile("tests/Shared/TelemetryUserIdentityTests.cs")
+                .Concat(Catalog.ForOwner("CLI").Where(type => type.Name == "EntryPointTelemetryTests"))
+                .Concat(Catalog.ForOwner("McpServer").Where(type => type.Name == "TelemetryTests"))
+                .Distinct()
+                .ToArray();
+            if (consumers.Length < 3)
             {
                 throw new InvalidOperationException($"No validation mapping for shared telemetry source {path}.");
             }
             AddClasses(plan, consumers, "Shared telemetry identity consumers");
             plan.SourceChecks = true;
-            plan.Cli = plan.Mcp = true;
-            plan.Reasons.Add($"{path} -> CLI and MCP Server telemetry identity consumers");
+            plan.Cli = true;
+            plan.Mcp = plan.Extension = true;
+            plan.Reasons.Add($"{path} -> CLI, MCP Server, and extension telemetry identity consumers");
         }
         else if (Matches(path, @"^src/ExcelMcp\.(CLI|McpServer)/") && !path.EndsWith(".md", StringComparison.Ordinal))
         {

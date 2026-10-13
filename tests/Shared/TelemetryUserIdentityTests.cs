@@ -56,6 +56,17 @@ public sealed class TelemetryUserIdentityTests
     }
 
     [Fact]
+    public void TryDeleteTemporaryFile_StorageFailureDoesNotEscape()
+    {
+        var exception = Record.Exception(() =>
+            TelemetryUserIdentityStore.TryDeleteTemporaryFile(
+                "unused",
+                _ => throw new NotSupportedException("Storage cleanup is unavailable.")));
+
+        Assert.Null(exception);
+    }
+
+    [Fact]
     public async Task GetOrCreate_ConcurrentFirstUseSharesTheCreatedIdentity()
     {
         using var directory = new TemporaryDirectory();

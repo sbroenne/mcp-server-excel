@@ -24,7 +24,8 @@ process-only random ID without interrupting workbook operations. When the file
 is first created with telemetry active, a one-time migration event links the
 new ID to the previous name-derived ID so existing usage remains countable.
 The weekly analytics queries use that link across retained events but never
-publish the legacy ID. Deleting the file resets the stored ID.
+publish the legacy ID. Deleting the file and restarting the MCP Server resets
+the stored ID.
 
 ## Reasons and tradeoffs
 
