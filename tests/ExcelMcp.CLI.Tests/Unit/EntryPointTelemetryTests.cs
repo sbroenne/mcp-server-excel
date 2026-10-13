@@ -1,6 +1,7 @@
 using Microsoft.ApplicationInsights.DataContracts;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Telemetry;
+using Sbroenne.ExcelMcp.Telemetry;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
@@ -92,6 +93,39 @@ public sealed class EntryPointTelemetryTests
         Assert.Equal(["flush", "dispose"], fake.Lifecycle);
     }
 
+    [Fact]
+    public void TrackCommandInvocation_SendsTheMigrationEventOnlyOnce()
+    {
+        var fake = new RecordingSink();
+        using var sinkScope = CliTelemetry.UseSinkFactoryForTesting(() => fake);
+        using var identityScope = CliTelemetry.UseUserIdentityFactoryForTesting(
+            () => new TelemetryUserIdentity("0123456789abcdef0123456789abcdef", "abcdef0123456789"));
+
+        CliTelemetry.TrackCommandInvocation("sheet.list", 15, succeeded: true, null, expectedNegative: false);
+        CliTelemetry.TrackCommandInvocation("sheet.list", 12, succeeded: true, null, expectedNegative: false);
+        CliTelemetry.Flush();
+
+        var migration = Assert.Single(fake.Events, item => item.Name == "UserIdMigration");
+        Assert.Equal("0123456789abcdef0123456789abcdef", migration.Context.User.Id);
+        Assert.Equal("abcdef0123456789", migration.Properties["LegacyUserId"]);
+        Assert.Equal(2, fake.Tracked.Count);
+    }
+
+    [Fact]
+    public void TrackCommandInvocation_DoesNotSendMigrationEventWhenTelemetryIsOff()
+    {
+        var fake = new RecordingSink();
+        using var sinkScope = CliTelemetry.UseSinkFactoryForTesting(() => fake);
+        using var identityScope = CliTelemetry.UseUserIdentityFactoryForTesting(
+            () => new TelemetryUserIdentity("0123456789abcdef0123456789abcdef", "abcdef0123456789"),
+            telemetryEnabled: false);
+
+        CliTelemetry.TrackCommandInvocation("sheet.list", 15, succeeded: true, null, expectedNegative: false);
+        CliTelemetry.Flush();
+
+        Assert.DoesNotContain(fake.Events, item => item.Name == "UserIdMigration");
+    }
+
     private static CliCommandRuntime CreateRuntime(Func<string?, int> serviceDaemonRunner) =>
         new(
             new FailingClientFactory(),
@@ -112,6 +146,7 @@ public sealed class EntryPointTelemetryTests
     {
         private readonly object _gate = new();
         private readonly List<(EventTelemetry Event, RequestTelemetry Request)> _tracked = [];
+        private readonly List<EventTelemetry> _events = [];
         private readonly List<string> _lifecycle = [];
 
         public IReadOnlyList<(EventTelemetry Event, RequestTelemetry Request)> Tracked
@@ -136,11 +171,31 @@ public sealed class EntryPointTelemetryTests
             }
         }
 
+        public IReadOnlyList<EventTelemetry> Events
+        {
+            get
+            {
+                lock (_gate)
+                {
+                    return [.. _events];
+                }
+            }
+        }
+
         public void Track(EventTelemetry eventTelemetry, RequestTelemetry requestTelemetry)
         {
             lock (_gate)
             {
                 _tracked.Add((eventTelemetry, requestTelemetry));
+                _events.Add(eventTelemetry);
+            }
+        }
+
+        public void Track(EventTelemetry eventTelemetry)
+        {
+            lock (_gate)
+            {
+                _events.Add(eventTelemetry);
             }
         }
 

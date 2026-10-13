@@ -34,6 +34,7 @@
     <Compile Include="..\Shared\SavedWorkbookTemplate.cs" Link="Helpers\SavedWorkbookTemplate.cs" />
     <Compile Include="..\Shared\TestClassificationArchitectureTests.cs" Link="Helpers\TestClassificationArchitectureTests.cs" />
     <Compile Include="..\Shared\LocalTelemetryTests.cs" Link="Unit\LocalTelemetryTests.cs" />
+    <Compile Include="..\Shared\TelemetryUserIdentityTests.cs" Link="Unit\TelemetryUserIdentityTests.cs" />
     <Compile Include="..\Shared\LocalOtlpReceiver.cs" Link="Helpers\LocalOtlpReceiver.cs" />
     <Compile Include="..\Shared\LocalGrpcOtlpReceiver.cs" Link="Helpers\LocalGrpcOtlpReceiver.cs" />
   </ItemGroup>

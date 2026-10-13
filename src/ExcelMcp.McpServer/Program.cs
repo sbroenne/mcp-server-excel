@@ -207,6 +207,7 @@ public class Program
     /// </summary>
     private static void InitializeTelemetryClient(IServiceProvider services)
     {
+        ExcelMcpTelemetry.InitializeUserIdentity();
         ExcelMcpTelemetry.SetLocalTelemetry(services.GetService<LocalTelemetry>());
         // Resolve TelemetryClient from DI and store for static access
         // Worker Service SDK manages the TelemetryClient lifecycle including flush on shutdown

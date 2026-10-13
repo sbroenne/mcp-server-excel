@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last Updated:** October 11, 2026
+**Last Updated:** October 13, 2026
 
 ## Overview
 
@@ -8,13 +8,13 @@ MCP Server for Excel ("ExcelMcp") is an open-source tool that enables AI assista
 
 ## Data Collection Summary
 
-ExcelMcp's MCP Server and CLI collect **limited, anonymous telemetry** to improve
+ExcelMcp's MCP Server and CLI collect **limited, pseudonymous telemetry** to improve
 the software. The CLI background daemon does not send telemetry independently;
 the short-lived `excelcli` command process records operations requested through
 it. The statements below describe telemetry collection, not the workbook data
 that a tool returns to your chosen AI assistant.
 
-### What We DO Collect (Anonymous Telemetry)
+### What We DO Collect (Pseudonymous Telemetry)
 
 - **Tool usage statistics** - Which tools and actions are used (e.g., "range/get-values").
   Only known ExcelMcp commands are reported; anything else is reported as "other/other"
@@ -26,7 +26,18 @@ that a tool returns to your chosen AI assistant.
   dependency, timeout or cancellation, Excel runtime, an internal product fault,
   or an unclassified failure
 - **Session information** - A random telemetry session ID generated each time the CLI or server starts
-- **Anonymous user ID** - A hashed identifier based on machine identity (not personally identifiable)
+- **Pseudonymous user ID** - A random ID stored at
+  `%LOCALAPPDATA%\ExcelMcp\telemetry-user-id`. The MCP Server and CLI share it
+  for the same Windows user profile, and it persists across restarts until the
+  file is deleted. The file is created on first use even if telemetry is off.
+  If the file cannot be read or written, that process uses a temporary random
+  ID instead.
+- **One-time migration link** - If telemetry is active when the ID file is
+  first created, one `UserIdMigration` event is sent to the active destination
+  with the new ID and the previous 16-character, unsalted hash of the machine
+  name, user name, and platform. The raw names are not sent. The hash is
+  included only to connect older usage events to the new ID; weekly reports do
+  not publish it.
 - **Application version** - Which version of ExcelMcp is running
 - **Unhandled exceptions** - Error type, approved source, and project-owned failure site only
   (never exception messages or stack traces)
@@ -35,7 +46,7 @@ that a tool returns to your chosen AI assistant.
 
 - ❌ **File contents** - Workbook content is never included in telemetry
 - ❌ **File names or paths** - File paths are not included in telemetry
-- ❌ **Personal information** - No names, emails, or account information
+- ❌ **Personal information** - No raw names, emails, or account information
 - ❌ **Spreadsheet data** - Cell values, formulas, and query results are never included in telemetry
 - ❌ **Prompts or messages** - Requests and conversations are never transmitted
 - ❌ **Host or client details** - Working directories and MCP client names are not collected
@@ -49,7 +60,7 @@ that a tool returns to your chosen AI assistant.
 
 ### Purpose of Telemetry
 
-We use anonymous telemetry to:
+We use pseudonymous telemetry to:
 - Understand which features are most used
 - Identify and fix performance issues
 - Prioritize development of new features
@@ -81,6 +92,13 @@ client. It does not enable framework logs, raw exception details, or additional
 workbook data collection. Access to the local dashboard and any data it retains
 is your responsibility. See [local telemetry setup](docs/DEVELOPMENT.md#local-development-with-telemetry).
 
+If telemetry is off when the ID is created, no migration link is sent or
+deferred. If it is in local mode, the link goes only to the local receiver and
+is not deferred for Azure. In either case, older Azure events may remain under
+the previous ID in weekly reports. Delete
+`%LOCALAPPDATA%\ExcelMcp\telemetry-user-id` to reset the stored ID; the next
+active telemetry use creates a new one.
+
 ## How It Works
 
 ExcelMcp drives the Excel application on your local machine:
@@ -93,7 +111,7 @@ ExcelMcp drives the Excel application on your local machine:
 4. **Optional Network Features** - Remote M/DAX formatting and Python in Excel
    use external services only when you request those features
 5. **Telemetry** - Release builds of the MCP Server and CLI can send the
-   anonymous usage metrics listed above to Azure Application Insights
+   pseudonymous usage metrics listed above to Azure Application Insights
 
 ## Data Flow
 
@@ -103,7 +121,7 @@ When you use ExcelMcp with an AI assistant (like Claude):
 2. The AI assistant calls ExcelMcp tools on your local machine
 3. ExcelMcp performs the requested Excel operations locally
 4. Requested results are returned to the AI assistant through your MCP client
-5. The MCP Server or CLI can send anonymous usage telemetry to Azure Application Insights
+5. The MCP Server or CLI can send pseudonymous usage telemetry to Azure Application Insights
 
 Some operations have additional data flows:
 
@@ -124,7 +142,7 @@ workbook data.
 
 ## Third-Party Services
 
-- **Azure Application Insights** - Anonymous telemetry is sent to this Microsoft service. See [Microsoft's Privacy Statement](https://privacy.microsoft.com/privacystatement).
+- **Azure Application Insights** - Pseudonymous telemetry is sent to this Microsoft service. See [Microsoft's Privacy Statement](https://privacy.microsoft.com/privacystatement).
 - **Microsoft Excel** - ExcelMcp requires Microsoft Excel installed on your machine. Excel is subject to Microsoft's privacy policy.
 - **Microsoft Python in Excel** - Python code and referenced worksheet data run
   in Microsoft's cloud when you use the Python in Excel operations.
@@ -165,6 +183,7 @@ For questions about this privacy policy or the ExcelMcp project:
 **Summary:** ExcelMcp drives local Excel and reads or writes workbook files on
 your machine. Requested tool results can be returned to your chosen AI
 assistant. Remote code formatting and Python in Excel use external services only
-when requested. The MCP Server and CLI can send anonymous usage telemetry, but
-that telemetry excludes workbook contents, file names, paths, arguments, and
-personal information.
+when requested. The MCP Server and CLI can send pseudonymous usage telemetry.
+It excludes workbook contents, file names, paths, arguments, and raw machine or
+user names. A one-time migration event may include the previous name-derived
+hash so older usage can be counted under the new random ID.

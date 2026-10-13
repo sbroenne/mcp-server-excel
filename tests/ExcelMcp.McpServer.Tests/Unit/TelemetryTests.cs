@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
+using Sbroenne.ExcelMcp.Telemetry;
 using Microsoft.ApplicationInsights.DataContracts;
 using Xunit;
 
@@ -37,22 +38,36 @@ public class TelemetryTests
     [Fact]
     public void UserId_IsNotEmpty()
     {
-        // User ID should be generated from machine identity
         Assert.False(string.IsNullOrEmpty(ExcelMcpTelemetry.UserId));
     }
 
     [Fact]
-    public void UserId_IsSixteenCharacters()
+    public void UserId_Is32Characters()
     {
-        // User ID should be first 16 chars of SHA256 hash
-        Assert.Equal(16, ExcelMcpTelemetry.UserId.Length);
+        Assert.Equal(32, ExcelMcpTelemetry.UserId.Length);
     }
 
     [Fact]
     public void UserId_IsLowercaseHex()
     {
-        // User ID should be lowercase hex characters only
         Assert.True(ExcelMcpTelemetry.UserId.All(c => char.IsAsciiHexDigitLower(c)));
+    }
+
+    [Fact]
+    public void UserIdMigration_IsSentOnceWhenTheIdentityIsCreated()
+    {
+        var identity = new TelemetryUserIdentity(
+            "0123456789abcdef0123456789abcdef",
+            "abcdef0123456789");
+        var sent = new List<EventTelemetry>();
+
+        ExcelMcpTelemetry.TrackUserIdMigration(identity, sent.Add);
+        ExcelMcpTelemetry.TrackUserIdMigration(identity, sent.Add);
+
+        var migration = Assert.Single(sent);
+        Assert.Equal("UserIdMigration", migration.Name);
+        Assert.Equal("0123456789abcdef0123456789abcdef", migration.Context.User.Id);
+        Assert.Equal("abcdef0123456789", migration.Properties["LegacyUserId"]);
     }
 
     [Fact]

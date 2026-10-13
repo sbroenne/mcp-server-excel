@@ -184,6 +184,9 @@ try {
     Assert-True ($null -eq $analytics.PSObject.Properties["reliability"] -and
         $null -eq $analytics.PSObject.Properties["exceptions"]) `
         "Reliability data entered the usage report; it has its own report."
+    $reportJson = $analytics | ConvertTo-Json -Depth 30 -Compress
+    Assert-True ($reportJson -notmatch '"UserId|LegacyUserId"') `
+        "User IDs or legacy migration IDs entered the published report."
     $downloads = $analytics.downloads
     Assert-True (($downloads.channels.key -join ",") -eq
         "npm-mcp-server,npm-cli,github-releases,vscode") `
@@ -424,6 +427,16 @@ try {
         "The query lookup does not split CLI sheet actions."
     Assert-True ($prelude.Contains("coalesce(tostring(Properties['EntryPoint']), 'mcp-server')")) `
         "Rows recorded before the entry point label are not counted as MCP Server."
+    Assert-True ($prelude -match "let userIdMigrations = AppEvents\s*\r?\n\| where Name == 'UserIdMigration'") `
+        "User ID migration mappings are not read from all retained events."
+    Assert-True (($prelude -split "UserId=coalesce\(LegacyUserId, UserId\)").Count -eq 3) `
+        "New IDs are not normalized to their legacy ID."
+    Assert-True ($prelude -match "summarize arg_max\(TimeGenerated, LegacyUserId\) by UserId") `
+        "The latest migration mapping is not selected for each new ID."
+    Assert-True ($prelude.Contains("where Name !in ('SessionStart', 'UserIdMigration')")) `
+        "Migration link events are not excluded from action metrics."
+    Assert-True ($prelude -notmatch "let userIdMigrations = AppEvents[\s\S]*?ago\(") `
+        "User ID migration mappings must use the full retention period."
     Assert-True ($prelude -match "let excludedNames = dynamic\(\['file/open', 'file/close'\]\)") `
         "Excluded actions are not removed after names are combined."
     $testsRun++
@@ -451,6 +464,8 @@ try {
     $testsRun++
 
     $querySource = [IO.File]::ReadAllText($updateScript)
+    Assert-True ($querySource -match '\$body = @\{ query = \$Query \} \| ConvertTo-Json') `
+        "The Log Analytics API timespan can truncate migration mappings before retention."
     Assert-True ($querySource -match 'iif\(\s*count\(\) == 0,\s*0\.0,') `
         "The repeat-use query does not guard an empty reporting window."
     Assert-True ($querySource -match 'iif\(\s*PreviousUsers == 0,\s*0\.0,') `

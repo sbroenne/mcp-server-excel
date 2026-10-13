@@ -52,6 +52,30 @@ internal sealed class DeferredTelemetrySink(
         }
     }
 
+    internal void Track(EventTelemetry eventTelemetry)
+    {
+        try
+        {
+            var (initialization, deadline) = EnsureStarted();
+            if (!initialization.Wait(deadline.Remaining))
+            {
+                Console.Error.WriteLine("Telemetry initialization timed out; operation telemetry was not recorded.");
+                return;
+            }
+            if (initialization.Result is not { } sink)
+            {
+                return;
+            }
+
+            Volatile.Write(ref _tracked, 1);
+            sink.Track(eventTelemetry);
+        }
+        catch (Exception)
+        {
+            Console.Error.WriteLine("Telemetry recording failed; the command result is unchanged.");
+        }
+    }
+
     /// <summary>
     /// Flushes and disposes the sink, waiting at most the shutdown timeout. Returns at
     /// once when nothing was tracked, even if creation is still running.

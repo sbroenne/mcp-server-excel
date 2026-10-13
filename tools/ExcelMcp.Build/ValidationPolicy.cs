@@ -203,6 +203,18 @@ public sealed partial class ValidationPolicy(string root)
             plan.BuildProjects.Add("src/ExcelMcp.Diagnostics/ExcelMcp.Diagnostics.csproj");
             plan.Reasons.Add($"{path} -> diagnostics consumers");
         }
+        else if (path == "src/Shared/TelemetryUserIdentity.cs")
+        {
+            var consumers = Catalog.ForFile("tests/Shared/TelemetryUserIdentityTests.cs").ToArray();
+            if (consumers.Length == 0)
+            {
+                throw new InvalidOperationException($"No validation mapping for shared telemetry source {path}.");
+            }
+            AddClasses(plan, consumers, "Shared telemetry identity consumers");
+            plan.SourceChecks = true;
+            plan.Cli = plan.Mcp = true;
+            plan.Reasons.Add($"{path} -> CLI and MCP Server telemetry identity consumers");
+        }
         else if (Matches(path, @"^src/ExcelMcp\.(CLI|McpServer)/") && !path.EndsWith(".md", StringComparison.Ordinal))
         {
             var owner = path.StartsWith("src/ExcelMcp.CLI/", StringComparison.Ordinal) ? "CLI" : "McpServer";

@@ -2,13 +2,12 @@
 // Licensed under the MIT License.
 
 using System.Reflection;
-using System.Security.Cryptography;
-using System.Text;
 using System.Globalization;
 using System.Diagnostics;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Channel;
 using Microsoft.ApplicationInsights.DataContracts;
+using Sbroenne.ExcelMcp.Telemetry;
 
 namespace Sbroenne.ExcelMcp.McpServer.Telemetry;
 
@@ -28,6 +27,11 @@ public static class ExcelMcpTelemetry
 {
     private const string RedactedExceptionMessage = "[REDACTED]";
     private const int MaxExceptionDepth = 16;
+    private static readonly object UserIdentityLock = new();
+    private static readonly TelemetryUserIdentity ProcessUserIdentity =
+        TelemetryUserIdentityStore.CreateProcessOnly();
+    private static TelemetryUserIdentity? _telemetryUserIdentity;
+    private static int _migrationEventTracked;
 
     /// <summary>
     /// Unique session ID for correlating telemetry within a single MCP server process.
@@ -35,12 +39,8 @@ public static class ExcelMcpTelemetry
     /// </summary>
     public static readonly string SessionId = Guid.NewGuid().ToString("N")[..8];
 
-    /// <summary>
-    /// Stable anonymous user ID based on machine identity.
-    /// Persists across sessions for the same machine, enabling user-level analytics
-    /// without collecting personally identifiable information.
-    /// </summary>
-    public static readonly string UserId = GenerateAnonymousUserId();
+    /// <summary>Random user ID shared by telemetry-enabled ExcelMcp entry points.</summary>
+    public static string UserId => GetUserIdentity().UserId;
 
     /// <summary>
     /// Application Insights TelemetryClient for sending Custom Events.
@@ -54,6 +54,14 @@ public static class ExcelMcpTelemetry
         _telemetryClient = null;
         _localTelemetry = telemetry;
         TrackSessionStart();
+    }
+
+    internal static void InitializeUserIdentity()
+    {
+        lock (UserIdentityLock)
+        {
+            _telemetryUserIdentity ??= TelemetryUserIdentityStore.GetOrCreate();
+        }
     }
 
     /// <summary>
@@ -79,12 +87,40 @@ public static class ExcelMcpTelemetry
     {
         if (_telemetryClient == null && _localTelemetry == null) return;
 
+        var identity = GetUserIdentity();
+        TrackUserIdMigration(identity);
         var telemetry = new EventTelemetry("SessionStart");
         telemetry.Properties["SessionId"] = SessionId;
         telemetry.Properties["AppVersion"] = GetVersion();
-        ApplyContext(telemetry);
+        ApplyContext(telemetry, identity);
         _telemetryClient?.TrackEvent(telemetry);
         _localTelemetry?.Track(telemetry);
+    }
+
+    private static void TrackUserIdMigration(TelemetryUserIdentity identity)
+    {
+        TrackUserIdMigration(identity, telemetry =>
+        {
+            _telemetryClient?.TrackEvent(telemetry);
+            _localTelemetry?.Track(telemetry);
+        });
+    }
+
+    internal static void TrackUserIdMigration(
+        TelemetryUserIdentity identity,
+        Action<EventTelemetry> trackEvent)
+    {
+        ArgumentNullException.ThrowIfNull(trackEvent);
+        if (TelemetryUserIdentityStore.CreateMigrationEvent(identity) is not { } telemetry
+            || Interlocked.Exchange(ref _migrationEventTracked, 1) != 0)
+        {
+            return;
+        }
+
+        telemetry.Properties["SessionId"] = SessionId;
+        telemetry.Properties["AppVersion"] = GetVersion();
+        ApplyContext(telemetry, identity);
+        trackEvent(telemetry);
     }
 
     /// <summary>
@@ -386,36 +422,28 @@ public static class ExcelMcpTelemetry
             ?? "1.0.0";
     }
 
-    /// <summary>
-    /// Generates a stable anonymous user ID based on machine identity.
-    /// Uses a hash of machine name and user profile path to create a consistent
-    /// identifier that persists across sessions without collecting PII.
-    /// </summary>
-    private static string GenerateAnonymousUserId()
-    {
-        try
-        {
-            // Combine machine-specific values that are stable but not personally identifiable
-            var machineIdentity = $"{Environment.MachineName}|{Environment.UserName}|{Environment.OSVersion.Platform}";
+    private static void ApplyContext(ITelemetry telemetry) =>
+        ApplyContext(telemetry, GetUserIdentity());
 
-            // Create a SHA256 hash and take the first 16 characters
-            var bytes = Encoding.UTF8.GetBytes(machineIdentity);
-            var hash = SHA256.HashData(bytes);
-            return Convert.ToHexString(hash)[..16].ToLowerInvariant();
-        }
-        catch (Exception)
-        {
-            // Fallback to a random ID if machine identity cannot be determined
-            return Guid.NewGuid().ToString("N")[..16];
-        }
-    }
-
-    private static void ApplyContext(ITelemetry telemetry)
+    private static void ApplyContext(ITelemetry telemetry, TelemetryUserIdentity identity)
     {
-        telemetry.Context.User.Id ??= UserId;
+        telemetry.Context.User.Id ??= identity.UserId;
         telemetry.Context.Session.Id ??= SessionId;
         telemetry.Context.Cloud.RoleName ??= "ExcelMcp.McpServer";
-        telemetry.Context.Cloud.RoleInstance = $"instance-{UserId[..8]}";
+        telemetry.Context.Cloud.RoleInstance = $"instance-{identity.UserId[..8]}";
         telemetry.Context.Component.Version = GetVersion();
+    }
+
+    private static TelemetryUserIdentity GetUserIdentity()
+    {
+        if (_telemetryClient == null && _localTelemetry == null)
+        {
+            return ProcessUserIdentity;
+        }
+
+        lock (UserIdentityLock)
+        {
+            return _telemetryUserIdentity ??= TelemetryUserIdentityStore.GetOrCreate();
+        }
     }
 }

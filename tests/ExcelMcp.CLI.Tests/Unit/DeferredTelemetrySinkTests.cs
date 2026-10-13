@@ -453,8 +453,15 @@ public sealed class DeferredTelemetrySinkTests
                 _calls.Add("track");
                 _tracked.Add((eventTelemetry, requestTelemetry));
             }
-
             OnTrack?.Invoke(eventTelemetry, requestTelemetry);
+        }
+
+        public void Track(EventTelemetry eventTelemetry)
+        {
+            lock (_gate)
+            {
+                _calls.Add("track-event");
+            }
         }
 
         public Task FlushAsync()

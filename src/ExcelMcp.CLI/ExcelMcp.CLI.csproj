@@ -128,6 +128,7 @@ internal static class TelemetryConfig
   <ItemGroup>
     <Compile Include="..\Shared\TelemetrySettings.cs" Link="Telemetry\TelemetrySettings.cs" />
     <Compile Include="..\Shared\LocalTelemetry.cs" Link="Telemetry\LocalTelemetry.cs" />
+    <Compile Include="..\Shared\TelemetryUserIdentity.cs" Link="Telemetry\TelemetryUserIdentity.cs" />
     <ProjectReference Include="..\ExcelMcp.Core\ExcelMcp.Core.csproj" />
     <ProjectReference Include="..\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />
     <ProjectReference Include="..\ExcelMcp.Service\ExcelMcp.Service.csproj" />
