@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Sbroenne.ExcelMcp.Service.Rpc;
 using StreamJsonRpc;
 using Xunit;
@@ -11,6 +12,48 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 [Trait("RequiresExcel", "false")]
 public sealed class DaemonHostTests
 {
+    [Fact(Timeout = 15000)]
+    public async Task MutationFailure_PartialStateSurvivesDaemonTransport()
+    {
+        var pipeName = $"excelmcp-daemon-state-{Guid.NewGuid():N}";
+        using var state = JsonDocument.Parse(
+            """{"queryName":"Query","queryCreated":true,"queryExists":true,"loadMode":"load-to-table","targetSheet":"Actual","isLoadedToDataModel":false}""");
+        using var host = new DaemonHost(
+            static _ => Task.FromResult(new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "Privacy",
+                ErrorMessage = "Privacy failure with retained query",
+                PartialState = JsonSerializer.Serialize(new
+                {
+                    queryName = "Query",
+                    queryCreated = true,
+                    queryExists = true,
+                    loadMode = "load-to-table",
+                    targetSheet = "Actual",
+                    isLoadedToDataModel = false
+                })
+            }),
+            static () => 0);
+        var runTask = host.RunAsync(pipeName);
+        try
+        {
+            using var client = new ServiceClient(pipeName);
+            var response = await client.SendAsync(new ServiceRequest { Command = "powerquery.create" });
+
+            Assert.False(response.Success);
+            Assert.Equal("Privacy", response.ErrorCategory);
+            Assert.Equal("Privacy failure with retained query", response.ErrorMessage);
+            Assert.Equal(state.RootElement.GetRawText(),
+                JsonSerializer.Deserialize<JsonElement>(Assert.IsType<string>(response.PartialState)).GetRawText());
+        }
+        finally
+        {
+            host.RequestShutdown();
+            await runTask.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+    }
+
     [Fact(Timeout = 15000)]
     public async Task Shutdown_ResponseArrivesBeforeHostDrainsOpenConnection()
     {

@@ -33,6 +33,19 @@ public sealed class TypedValidationPolicyTests
     }
 
     [Fact]
+    public void BatchAdapterEdit_SelectsBatchEntryPointConsumers()
+    {
+        var plan = Policy.Select(["src/ExcelMcp.CLI/Commands/BatchCommand.cs"]);
+
+        Assert.Contains(plan.FastFilters.Values.Concat(plan.ProcessFilters.Values),
+            filter => filter.Contains("BatchCommandTests.", StringComparison.Ordinal));
+        Assert.True(plan.Cli);
+        Assert.False(plan.Excel);
+        Assert.False(plan.FullE2E);
+        Assert.False(plan.FullSolutionBuild);
+    }
+
+    [Fact]
     public void TestEdit_SelectsOwningClassAndNotWholeProject()
     {
         var plan = Policy.Select(["tests/ExcelMcp.Core.Tests/Unit/GeneratedActionContractTests.cs"]);

@@ -33,7 +33,8 @@ internal static class CliErrorOutput
             response.HResult,
             response.InnerError,
             null,
-            null));
+            null,
+            response.PartialState));
         return 1;
     }
 
@@ -71,7 +72,8 @@ internal static class CliErrorOutput
         string? hresult,
         string? innerError,
         string? daemonState,
-        bool? running)
+        bool? running,
+        string? partialState = null)
     {
         return JsonSerializer.Serialize(new ErrorEnvelope
         {
@@ -84,6 +86,7 @@ internal static class CliErrorOutput
             ExceptionType = exceptionType,
             HResult = hresult,
             InnerError = innerError,
+            PartialState = partialState is null ? null : JsonSerializer.Deserialize<JsonElement>(partialState),
             DaemonState = daemonState,
             Running = running
         }, ServiceProtocol.JsonOptions);
@@ -115,6 +118,9 @@ internal static class CliErrorOutput
 
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? InnerError { get; init; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public JsonElement? PartialState { get; init; }
 
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public string? DaemonState { get; init; }

@@ -45,6 +45,9 @@ public static class ExcelToolsBase
             exceptionType = response.ExceptionType,
             hresult = response.HResult,
             innerError = response.InnerError,
+            partialState = response.PartialState is null
+                ? (JsonElement?)null
+                : JsonSerializer.Deserialize<JsonElement>(response.PartialState),
             filePath,
             isError = true
         }, JsonOptions);

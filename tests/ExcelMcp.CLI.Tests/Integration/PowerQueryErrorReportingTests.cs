@@ -16,6 +16,81 @@ public sealed class PowerQueryErrorReportingTests : IAsyncLifetime
     public Task InitializeAsync() => _workbook.InitializeAsync();
     public Task DisposeAsync() => _workbook.DisposeAsync();
 
+    [Theory]
+    [InlineData("create")]
+    [InlineData("update")]
+    public async Task Mutation_PrivacyFailure_ReportsRetainedQueryAndActualLoad(string action)
+    {
+        const string queryName = "CliMutationFailure";
+        const string mCode = """
+            error Error.Record("Formula.Firewall",
+                "Information is needed in order to combine data. Please specify a privacy level for each data source.",
+                null)
+            """;
+        if (action == "update")
+        {
+            var (seedResult, seedJson) = await CliProcessHelper.RunJsonAsync(
+                ["powerquery", "create", "--session", _workbook.SessionId, "--query-name", queryName,
+                    "--m-code", "#table({\"X\"}, {{1}})"], timeoutMs: 120000);
+            using (seedJson)
+            {
+                Assert.Equal(0, seedResult.ExitCode);
+                Assert.True(seedJson.RootElement.GetProperty("success").GetBoolean());
+            }
+            await AssertLoadedValueAsync(queryName, 1);
+        }
+
+        var arguments = new List<string>
+        {
+            "powerquery", action, "--session", _workbook.SessionId, "--query-name", queryName,
+            "--m-code", mCode
+        };
+        if (action == "create")
+            arguments.AddRange(["--load-destination", "both"]);
+        var (failureResult, failureJson) = await CliProcessHelper.RunJsonAsync(
+            arguments.ToArray(), timeoutMs: 120000, diagnosticLabel: $"pq-{action}-privacy");
+        using (failureJson)
+        {
+            var root = failureJson.RootElement;
+            Assert.NotEqual(0, failureResult.ExitCode);
+            Assert.False(root.GetProperty("success").GetBoolean());
+            Assert.True(root.GetProperty("isError").GetBoolean());
+            Assert.True(root.TryGetProperty("errorCategory", out var category), failureResult.Stdout);
+            Assert.Equal("Privacy", category.GetString());
+            Assert.Equal("PowerQueryCommandException", root.GetProperty("exceptionType").GetString());
+            Assert.Equal("0x800A03EC", root.GetProperty("hresult").GetString());
+            Assert.Contains("privacy level", root.GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
+            var state = root.GetProperty("partialState");
+            Assert.Equal(queryName, state.GetProperty("queryName").GetString());
+            Assert.True(state.GetProperty("queryExists").GetBoolean());
+            Assert.True(state.GetProperty(action == "create" ? "queryCreated" : "mCodeUpdated").GetBoolean());
+            Assert.Equal("load-to-table", state.GetProperty("loadMode").GetString());
+            Assert.Equal(queryName, state.GetProperty("targetSheet").GetString());
+            Assert.False(state.GetProperty("isLoadedToDataModel").GetBoolean());
+        }
+        var (viewResult, viewJson) = await CliProcessHelper.RunJsonAsync(
+            ["powerquery", "view", "--session", _workbook.SessionId, "--query-name", queryName]);
+        using (viewJson)
+        {
+            Assert.Equal(0, viewResult.ExitCode);
+            Assert.True(viewJson.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal(mCode, viewJson.RootElement.GetProperty("mCode").GetString());
+            Assert.Equal("load-to-table", viewJson.RootElement.GetProperty("loadMode").GetString());
+        }
+        if (action == "update")
+            await AssertLoadedValueAsync(queryName, 1);
+
+        var (recoveryResult, recoveryJson) = await CliProcessHelper.RunJsonAsync(
+            ["powerquery", "update", "--session", _workbook.SessionId, "--query-name", queryName,
+                "--m-code", "#table({\"X\"}, {{2}})"], timeoutMs: 120000);
+        using (recoveryJson)
+        {
+            Assert.Equal(0, recoveryResult.ExitCode);
+            Assert.True(recoveryJson.RootElement.GetProperty("success").GetBoolean());
+        }
+        await AssertLoadedValueAsync(queryName, 2);
+    }
+
     [Fact]
     public async Task Refresh_SyntheticFirewallError_ReturnsStructuredPrivacyCategory()
     {
