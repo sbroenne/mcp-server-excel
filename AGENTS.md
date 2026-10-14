@@ -144,6 +144,11 @@ behavior are not unnecessary complexity.
 - Core contracts must agree across generated Service, CLI options/batch JSON,
   MCP schemas, and manual tool exceptions, including defaults and timeouts.
 - MCP stdout, including bootstrap output, is JSON-RPC only.
+- Telemetry must never delay CLI/MCP startup, command/tool or incremental batch
+  results, cancellation, or exit/shutdown. Reject waits for telemetry setup,
+  export, flush, or disposal on product paths. Bound queued work; prefer lost
+  records over changed results, errors, exit codes, or cancellation. Preserve
+  privacy protections and verify local delivery separately from responsiveness.
 - Agent-facing descriptions, server instructions, skills, and recovery messages
   must agree with actual defaults and advertised capabilities. Flag stale input
   names, nonexistent actions, missing parameter documentation, emojis, forced
