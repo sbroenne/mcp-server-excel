@@ -92,6 +92,23 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         }
     }
 
+    [Fact]
+    public async Task Discovery_PowerQueryPrivacyDescriptionDistinguishesConfiguredAndEffectiveSettings()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var powerQuery = tools.Single(tool => tool.Name == "powerquery");
+        var powerQueryRead = tools.Single(tool => tool.Name == "powerquery_read");
+
+        Assert.Contains("configured FastCombine setting", powerQueryRead.Description, StringComparison.Ordinal);
+        Assert.Contains("global privacy option may override", powerQueryRead.Description, StringComparison.Ordinal);
+        Assert.DoesNotContain("get-privacy-settings", powerQuery.Description, StringComparison.Ordinal);
+        Assert.Contains(
+            "global privacy option may override",
+            powerQuery.JsonSchema.GetProperty("properties")
+                .GetProperty("ignore_privacy_levels").GetProperty("description").GetString(),
+            StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("range_format", "validate-range", false)]
     [InlineData("connection", "test", true)]

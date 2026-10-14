@@ -568,17 +568,20 @@ public class PowerQueryLoadConfigResult : ResultBase
 }
 
 /// <summary>
-/// Current workbook-level Power Query privacy behavior.
+/// Configured workbook-level Power Query FastCombine setting.
+/// Excel's global privacy option may override whether the setting is applied.
 /// </summary>
 public class PowerQueryPrivacySettingsResult : ResultBase
 {
     /// <summary>
-    /// Whether the workbook ignores privacy levels when combining data sources.
+    /// Configured workbook FastCombine value; this may not match effective behavior
+    /// when Excel's global privacy option overrides whether the setting is applied.
     /// </summary>
     public bool IgnorePrivacyLevels { get; set; }
 
     /// <summary>
-    /// Description of the current privacy behavior, including its data-sharing effect when enabled.
+    /// Description of the configured setting and its possible data-sharing effect.
+    /// Effective behavior may differ when Excel's global privacy option overrides it.
     /// </summary>
     public string Message { get; set; } = string.Empty;
 }
