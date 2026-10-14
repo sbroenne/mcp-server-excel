@@ -31,6 +31,17 @@ internal static class CliTelemetry
 
     internal static void Enable() => _settings = TelemetrySettings.Read(TelemetryConfig.ConnectionString);
 
+    internal static void StartDaemonReporting()
+    {
+        if (_settings != null) _reporter.Start(_settings);
+    }
+
+    internal static Task<ServiceResponse> TrackDaemonRequestAsync(
+        ServiceRequest request, Func<Task<ServiceResponse>> operation) =>
+        string.Equals(request.Command, "service.ping", StringComparison.OrdinalIgnoreCase)
+            ? operation()
+            : TrackCommandAsync(request, operation);
+
     internal static IDisposable UseReporterForTesting(UsageTelemetry reporter)
     {
         var previous = _reporter;
@@ -176,7 +187,6 @@ internal static class CliTelemetry
     /// </summary>
     internal static int TrackCliInvocation(string[] args, Func<int> operation)
     {
-        StartTelemetryUnlessHelp(args);
         return TrackCliInvocation(args, operation, TrackCommandInvocation);
     }
 
@@ -188,7 +198,6 @@ internal static class CliTelemetry
 
     internal static Task<int> TrackCliInvocationAsync(string[] args, Func<Task<int>> operation)
     {
-        StartTelemetryUnlessHelp(args);
         return TrackCliInvocationAsync(args, operation, TrackCommandInvocation);
     }
 
@@ -243,17 +252,6 @@ internal static class CliTelemetry
 
     internal static bool IsHelpRequest(string[] args) =>
         args.Any(arg => HelpFlags.Contains(arg, StringComparer.OrdinalIgnoreCase));
-
-    /// <summary>
-    /// Starts background reporting setup for tracked commands, without awaiting readiness.
-    /// </summary>
-    private static void StartTelemetryUnlessHelp(string[] args)
-    {
-        if (!IsHelpRequest(args) && _settings != null)
-        {
-            _reporter.Start(_settings);
-        }
-    }
 
     private static bool IsBatchCommand(string[] args) =>
         args.Length > 0 && string.Equals(args[0], "batch", StringComparison.OrdinalIgnoreCase);

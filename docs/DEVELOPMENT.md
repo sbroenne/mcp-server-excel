@@ -477,8 +477,10 @@ destination selection does not replace that string or require Azure credentials.
 
 ### **What is Tracked**
 
-- **Tool invocations**: Tool name, action, CLI or MCP Server entry point,
-  duration (ms), success/failure
+- **Tool operations**: Tool name, action, CLI or MCP Server entry point,
+  duration (ms), success/failure. CLI records describe daemon execution, not
+  client-side parsing, connection, or output handling. The daemon records each
+  received operation once; internal readiness pings are excluded.
 - **Unhandled exceptions (MCP Server only)**: Exception type, approved source, and project-owned
   failure site; messages and stack traces are not transmitted
 - **User ID**: Random ID stored at
@@ -517,10 +519,24 @@ local diagnostic text and recognizes:
 
 ### **Local Development with Telemetry**
 
-No Azure resource or subscription access is needed. Build Release and start an
-OTLP receiver bound to loopback in another terminal. Use gRPC on port 4317 or
-HTTP/protobuf on port 4318. Any receiver dashboard and its storage are your
-responsibility; application integration or a hosting orchestrator is not needed.
+Use the standalone Aspire dashboard as the first receiver for local telemetry
+development, following the [telemetry validation rules](../AGENTS.md#build-and-validation).
+No Azure resource, subscription access, or Aspire AppHost integration is needed.
+Start the dashboard with its UI and OTLP listener bound to loopback, and build
+Release without a production connection string. Configure the application with
+the dashboard's actual OTLP port and protocol; the example below assumes gRPC
+on port 4317. This pipeline does not send OTLP authentication headers, so use a
+loopback-only listener configured to accept local development traffic.
+
+The [standalone Aspire dashboard](https://aspire.dev/dashboard/standalone/)
+can run without Docker or an AppHost:
+
+```powershell
+npx -y @microsoft/aspire-cli dashboard run --frontend-url http://127.0.0.1:18888 --otlp-grpc-url http://127.0.0.1:4317 --otlp-http-url http://127.0.0.1:4318
+```
+
+Open the login URL printed by Aspire to inspect telemetry. Keep that terminal
+running for the local check and stop it when finished.
 
 In the terminal that launches ExcelMcp:
 
@@ -530,6 +546,13 @@ $env:OTEL_EXPORTER_OTLP_PROTOCOL = 'grpc'
 $env:OTEL_EXPORTER_OTLP_ENDPOINT = 'http://localhost:4317'
 .\src\ExcelMcp.CLI\bin\Release\net10.0-windows\excelcli.exe session list --quiet
 ```
+
+CLI telemetry is owned by its existing background service. Use a private pipe
+via `EXCELMCP_CLI_PIPE`, and start that service with `excelcli service start` from
+the same local-mode environment before running `session list`. An already-running
+service retains the environment it inherited at startup; a stopped-service check
+does not start reporting. Stop only the private test service with
+`excelcli service stop` when finished.
 
 For MCP, set these same variables on the process launched by your MCP client,
 using `src\ExcelMcp.McpServer\bin\Release\net10.0-windows\Sbroenne.ExcelMcp.McpServer.exe`
@@ -549,11 +572,24 @@ Events appear as structured logs and requests as traces. Only the already
 approved event properties and sanitized exception classifications are recorded;
 framework logs and automatic HTTP/runtime metrics are not enabled. This is not a
 replica of Azure's custom-event tables, Users/Sessions views, or ingestion rules.
+
+Exercise both entry points using synthetic inputs and inspect the received logs
+and traces in Aspire. Check a normal short-lived CLI invocation without adding
+an artificial delay, and check an MCP tool call during a running server session.
+Confirm operation names, timings, outcomes, and approved properties; report any
+missing records rather than treating a successful command as successful telemetry
+delivery. Separately test with the receiver stopped or stalled to establish that
+startup, commands, and shutdown do not wait for network traffic. Automated tests
+below supplement this local check, not replace it. Aspire cannot validate Azure's
+ingestion rules or analytics queries; record those as separate validation.
+
 Reporting setup (including saved-ID storage) runs in one background task. Calls
 skip reporting until it is ready. Only standard SDK batch processors are used;
 full buffers drop records. Exit signals stop acceptance without flushing,
-disposing providers, or waiting for setup/network. Short-lived CLI commands may
-exit before sending any reports. Delivery failure never changes command results
+disposing providers, or waiting for setup/network. CLI records are queued in the
+existing daemon and can be sent after the short-lived client exits. Records
+pending when the daemon or MCP Server itself exits can still be lost. CLI
+commands that never reach the daemon do not produce telemetry. Delivery failure never changes command results
 or emits raw SDK diagnostics. Providers are separate from the MCP host lifetime.
 Sampling (including rate-limited sampling), offline disk storage, live metrics,
 SDK self-statistics, and automatic standard/performance metrics are disabled.
@@ -721,7 +757,7 @@ Build Time:
   MSBuild → reads AppInsightsConnectionString → generates TelemetryConfig.g.cs
 
 Runtime:
-  CLI or MCP Tool Invocation
+  CLI daemon request or MCP Tool Invocation
       │
       ▼
   CliTelemetry / ExcelMcpTelemetry
@@ -741,7 +777,7 @@ Runtime:
 | File | Purpose |
 |------|---------|
 | `Telemetry/ExcelMcpTelemetry.cs` | Static helper for tracking events |
-| `ExcelMcp.CLI/Telemetry/CliTelemetry.cs` | CLI command telemetry and lifecycle |
+| `ExcelMcp.CLI/Telemetry/CliTelemetry.cs` | CLI daemon operation telemetry and lifecycle |
 | `Shared/UsageTelemetry.cs` | Background setup, no-wait recording/exit, native Azure or local OTLP batch export |
 | `Shared/UsageRecord.cs` | Safe event and operation fields shared by both adapters |
 | `Shared/TelemetrySettings.cs` | Destination selection and loopback validation |

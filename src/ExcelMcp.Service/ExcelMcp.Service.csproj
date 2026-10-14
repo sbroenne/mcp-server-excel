@@ -36,7 +36,7 @@
 
   <!-- Allow CLI and MCP Server tests to access internals -->
   <ItemGroup>
-    <InternalsVisibleTo Include="Sbroenne.ExcelMcp.CLI" />
+    <InternalsVisibleTo Include="excelcli" />
     <InternalsVisibleTo Include="Sbroenne.ExcelMcp.McpServer" />
     <InternalsVisibleTo Include="Sbroenne.ExcelMcp.CLI.Tests" />
     <InternalsVisibleTo Include="Sbroenne.ExcelMcp.McpServer.Tests" />

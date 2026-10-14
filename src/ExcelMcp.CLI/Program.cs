@@ -97,6 +97,7 @@ internal sealed class Program
                     break;
                 }
             }
+            CliTelemetry.StartDaemonReporting();
             var daemonRunner = CliCommandRuntime.Current.ServiceDaemonRunner ?? RunServiceDaemon;
             return daemonRunner(pipeNameOverride);
         }
@@ -399,7 +400,7 @@ internal sealed class Program
         Service.ExcelMcpService? service = null;
         try
         {
-            service = new Service.ExcelMcpService();
+            service = new Service.ExcelMcpService(CliTelemetry.TrackDaemonRequestAsync);
 
             // Capture the UI synchronization context after Application starts
             SynchronizationContext? uiContext = null;

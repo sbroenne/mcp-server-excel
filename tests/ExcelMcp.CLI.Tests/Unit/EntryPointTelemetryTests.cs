@@ -3,6 +3,7 @@ using OpenTelemetry.Logs;
 using OpenTelemetry.Trace;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Telemetry;
+using Sbroenne.ExcelMcp.Service;
 using Sbroenne.ExcelMcp.Telemetry;
 using Xunit;
 
@@ -10,7 +11,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 
 /// <summary>
 /// Runs the same path as <c>Program.Main</c> so a regression that starts telemetry
-/// for untracked routes (help, version, no command, the background service) fails here.
+/// for untracked routes (help, version, no command) fails here.
 /// </summary>
 // Replaces the process-wide telemetry sink, so it must not overlap other collections.
 [Collection("Sequential")]
@@ -33,8 +34,7 @@ public sealed class EntryPointTelemetryTests : IDisposable
     [InlineData("-v")]
     [InlineData("")]
     [InlineData("--quiet")]
-    [InlineData("service run")]
-    [InlineData("service run --pipe-name entry-point-test")]
+    [InlineData("sheet list --session entry-point-test")]
     public async Task RunEntryPointAsync_UntrackedRoute_NeverStartsReporting(string commandLine)
     {
         var identityReads = 0;
@@ -48,10 +48,57 @@ public sealed class EntryPointTelemetryTests : IDisposable
         var args = commandLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var exitCode = await Program.RunEntryPointAsync(args, CreateRuntime(_ => { daemonRuns++; return 0; }));
         await reporter.Initialization;
-        Assert.Equal(0, exitCode);
+        if (commandLine.StartsWith("sheet", StringComparison.Ordinal) &&
+            !commandLine.Contains("--help", StringComparison.Ordinal))
+            Assert.NotEqual(0, exitCode);
+        else
+            Assert.Equal(0, exitCode);
         Assert.Equal(0, identityReads);
         Assert.False(reporter.IsReady);
-        Assert.Equal(commandLine.StartsWith("service run", StringComparison.Ordinal) ? 1 : 0, daemonRuns);
+        Assert.Equal(0, daemonRuns);
+    }
+
+    [Fact]
+    public async Task DaemonPipe_RecordsEachOperationOnce_WithoutReportingInProcessCallsOrReadinessPings()
+    {
+        var logs = new List<LogRecord>();
+        var activities = new List<Activity>();
+        var identity = TelemetryUserIdentityStore.CreateProcessOnly();
+        var settings = new TelemetrySettings(TelemetryMode.Local, null, new Uri("http://localhost:4317"), "grpc");
+        using var pipeline = new UsagePipeline(settings, "ExcelMcp.Test", identity, "daemon-test",
+            t => t.AddInMemoryExporter(activities), l => l.AddInMemoryExporter(logs));
+        var reporter = new UsageTelemetry("ExcelMcp.Test", () => identity, (_, _) => pipeline);
+        using var scope = CliTelemetry.UseReporterForTesting(reporter);
+        reporter.Start(settings);
+        await reporter.Initialization;
+        using var service = new ExcelMcpService(CliTelemetry.TrackDaemonRequestAsync);
+        Assert.True((await service.ProcessAsync(new ServiceRequest { Command = "session.list" })).Success);
+        Assert.Empty(activities);
+
+        var pipe = $"daemon-observer-test-{Guid.NewGuid():N}";
+        var running = service.RunAsync(pipe);
+        using var client = new ServiceClient(pipe);
+        try
+        {
+            Assert.True((await client.SendAsync(new ServiceRequest { Command = "service.ping" })).Success);
+            Assert.True((await client.SendAsync(new ServiceRequest { Command = "session.list" })).Success);
+            var failed = await client.SendAsync(
+                new ServiceRequest { Command = "sheet.list", SessionId = "missing-session" });
+            Assert.False(failed.Success);
+            Assert.Equal("SessionNotFound", failed.ErrorCategory);
+            Assert.True(pipeline.ForceFlush(1000));
+            Assert.Equal(2, activities.Count);
+            Assert.Equal(ActivityStatusCode.Ok, Assert.Single(activities, a => a.DisplayName == "session/list").Status);
+            Assert.Equal(ActivityStatusCode.Error, Assert.Single(activities, a => a.DisplayName == "sheet/list").Status);
+            Assert.Single(logs, l => l.Body == "session/list");
+            Assert.Single(logs, l => l.Body == "sheet/list");
+            Assert.DoesNotContain(logs, l => l.Body == "service/ping");
+        }
+        finally
+        {
+            service.RequestShutdown();
+            await running.WaitAsync(TimeSpan.FromSeconds(10));
+        }
     }
 
     [Fact]
@@ -79,7 +126,7 @@ public sealed class EntryPointTelemetryTests : IDisposable
     }
 
     [Fact]
-    public async Task RunEntryPointAsync_BlockedReportingSetup_DoesNotWaitForReporting()
+    public async Task RunEntryPointAsync_BlockedReportingSetup_DoesNotWaitForDaemonStartup()
     {
         using var entered = new ManualResetEventSlim();
         using var release = new ManualResetEventSlim();
@@ -91,12 +138,12 @@ public sealed class EntryPointTelemetryTests : IDisposable
         });
         using var scope = CliTelemetry.UseReporterForTesting(reporter);
         var command = Task.Run(() => Program.RunEntryPointAsync(
-            ["--quiet", "sheet", "list", "--session", "entry-point-test"], CreateRuntime(_ => 0)));
+            ["service", "run", "--pipe-name", "entry-point-test"], CreateRuntime(_ => 0)));
         try
         {
             Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
             Assert.Same(command, await Task.WhenAny(command, Task.Delay(500)));
-            Assert.NotEqual(0, await command);
+            Assert.Equal(0, await command);
         }
         finally { release.Set(); await command; await reporter.Initialization; }
         Assert.False(reporter.IsReady);

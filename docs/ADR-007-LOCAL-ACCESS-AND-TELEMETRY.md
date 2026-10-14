@@ -49,6 +49,15 @@ Exit only stops acceptance: it never flushes or disposes reporting providers,
 which are not owned by the MCP host. Loss of unsent usage reports is accepted
 to keep telemetry off the command, request, startup, and exit critical paths.
 
+CLI reporting belongs to the existing long-lived daemon that performs the
+operations, not the short-lived command process. It records each received
+operation once and sends queued records while it remains running, without a
+new process, extra telemetry request, or client-side flush. Its telemetry
+session ID spans multiple CLI invocations, and timings describe service
+execution rather than the whole client invocation. Readiness pings and commands
+that never reach the daemon are not reported. MCP continues to report in its
+own server process; its in-process Service calls do not collect CLI telemetry.
+
 ## Implementation and guidance
 
 - [Pipe access checks](../src/ExcelMcp.Service/ServiceSecurity.cs)

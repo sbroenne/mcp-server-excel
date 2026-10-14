@@ -9,9 +9,9 @@ MCP Server for Excel ("ExcelMcp") is an open-source tool that enables AI assista
 ## Data Collection Summary
 
 ExcelMcp's MCP Server and CLI collect **limited, pseudonymous telemetry** to improve
-the software. The CLI background daemon does not send telemetry independently;
-the short-lived `excelcli` command process records operations requested through
-it. The statements below describe telemetry collection, not the workbook data
+the software. The existing CLI background daemon records and sends operations
+that it handles; short-lived `excelcli` command processes do not send telemetry.
+The statements below describe telemetry collection, not the workbook data
 that a tool returns to your chosen AI assistant.
 
 ### What We DO Collect (Pseudonymous Telemetry)
@@ -25,7 +25,7 @@ that a tool returns to your chosen AI assistant.
 - **Failure class** - A fixed privacy-safe label for input or state, an external
   dependency, timeout or cancellation, Excel runtime, an internal product fault,
   or an unclassified failure
-- **Session information** - A random telemetry session ID generated each time the CLI or server starts
+- **Session information** - A random telemetry session ID generated each time the CLI daemon or MCP Server starts
 - **Pseudonymous user ID** - A random ID stored at
   `%LOCALAPPDATA%\ExcelMcp\telemetry-user-id`. The MCP Server and CLI share it
   for the same Windows user profile, and it persists across restarts until the
@@ -109,7 +109,11 @@ Reporting never waits for setup, saved-ID storage, export, or shutdown. Records
 before setup is ready, overflowed batches, and unsent reports at process exit
 are dropped. No shutdown flush or offline telemetry storage is used. Sampling,
 live metrics, SDK self-statistics, performance counters, and automatic standard
-metrics are disabled. Help/version and CLI daemon routes do not start reporting.
+metrics are disabled. CLI reporting starts in the existing daemon, not in each
+command process. Help/version, failures before a request reaches the daemon,
+and checks that find the daemon stopped are not reported. Internal readiness
+pings are excluded. CLI timing and outcomes describe service execution, not
+client-side connection, output-file writing, or argument parsing.
 
 ## How It Works
 

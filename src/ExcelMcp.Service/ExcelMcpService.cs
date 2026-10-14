@@ -63,11 +63,18 @@ public sealed class ExcelMcpService : IDisposable
     private readonly XmlMapCommands _xmlMapCommands = new();
     private readonly FileCommands _fileCommands = new();
 
-    public ExcelMcpService()
+    public ExcelMcpService() : this(null)
+    {
+    }
+
+    internal ExcelMcpService(
+        Func<ServiceRequest, Func<Task<ServiceResponse>>, Task<ServiceResponse>>? trackDaemonRequest)
     {
         _powerQueryCommands = new PowerQueryCommands(_dataModelCommands);
         _daemonHost = new DaemonHost(
-            ProcessAsync,
+            request => trackDaemonRequest == null
+                ? ProcessAsync(request)
+                : trackDaemonRequest(request, () => ProcessAsync(request)),
             () => _sessionManager.ActiveSessionIds.Count(_sessionManager.IsSessionAlive));
     }
 

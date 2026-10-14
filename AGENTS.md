@@ -74,6 +74,16 @@ Paths are relative to the repository root.
 
 ## Build and validation
 
+For telemetry development, use the local Aspire dashboard first; see
+[local telemetry development](docs/DEVELOPMENT.md#local-development-with-telemetry).
+Verify actual logs/traces from both `excelcli` and MCP, including short-lived CLI
+commands, as well as non-blocking behavior when the receiver is unavailable or
+stalled. Passing in-memory tests or fast shutdown alone does not prove delivery.
+If Aspire is unavailable, report the blocker; do not fall back to production.
+Sending test telemetry to production Azure or changing its ingestion rules
+requires explicit user approval for that specific test or deployment; available
+credentials are not approval.
+
 ```powershell
 dotnet restore Sbroenne.ExcelMcp.sln
 dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore
