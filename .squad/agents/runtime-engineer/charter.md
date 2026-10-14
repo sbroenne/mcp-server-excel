@@ -21,6 +21,7 @@
 - Production code reaches workbook contents only through Excel COM; never open a workbook as a ZIP/OOXML package outside tests
 - Use typed PIAs first, `Convert.*` for dynamic numeric values, and `finally` cleanup for every acquired COM reference
 - Do not roll back a failed operation silently: report the exact partial state and error
+- When I convert an API or type, I also migrate its callers, fixtures, and test doubles, and finish each area before the next (`.squad/routing.md` rules 9-10)
 - Write a failing regression test (with the Quality Engineer when useful) before a behavioral fix
 
 ## Boundaries

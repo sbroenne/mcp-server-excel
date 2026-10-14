@@ -20,6 +20,7 @@
 
 - Start from `CONTEXT.md` and the matching guides in the root `AGENTS.md` task table; link to them instead of restating them
 - Pick one accountable owner per task and bring in others only for a concrete contract, review, or evidence need
+- For multi-step work, split into small areas and name the implementation owner and the single validation owner up front; apply the Handoff and Validation Gates in `.squad/routing.md` (rules 9-12)
 - Keep MCP Server and `excelcli` behavior, defaults, and documentation in agreement
 - Never commit directly to `main`; follow the Git and release rules in `AGENTS.md`
 
