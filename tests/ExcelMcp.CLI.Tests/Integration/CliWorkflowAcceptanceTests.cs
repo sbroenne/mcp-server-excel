@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
 using Xunit;
@@ -69,6 +70,100 @@ public sealed class CliWorkflowAcceptanceTests(ITestOutputHelper output) : IAsyn
         var sheets = await SendAsync("sheet", "list", "--session", Session);
         Assert.Contains("Data", sheets.GetProperty("worksheets").GetRawText(), StringComparison.Ordinal);
         Assert.True(new FileInfo(_workbook).Length > 0);
+    }
+
+    [Fact]
+    public async Task BatchStream_DependsOnPreviousResult_LeavesSessionOpenAndPreservesSavedValues()
+    {
+        await SendAsync("sheet", "create", "--session", Session, "--sheet-name", "Data");
+        await SendAsync("range", "set-values", "--session", Session, "--sheet-name", "Data",
+            "--range-address", "A1:B1", "--values", "[[10,777]]");
+
+        var start = new ProcessStartInfo(CliProcessHelper.GetExePath())
+        {
+            UseShellExecute = false,
+            RedirectStandardInput = true,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true
+        };
+        foreach (var argument in new[] { "-q", "batch", "--stream", "--session", Session })
+        {
+            start.ArgumentList.Add(argument);
+        }
+        foreach (var (key, value) in _environment)
+        {
+            start.Environment[key] = value;
+        }
+        using var process = Process.Start(start);
+        Assert.NotNull(process);
+        var error = process.StandardError.ReadToEndAsync();
+        try
+        {
+            var read = await SendEntryAsync(new
+            {
+                command = "range.get-values",
+                args = new { sheetName = "Data", rangeAddress = "A1" }
+            }, 0);
+            var nextValue = read.GetProperty("values")[0][0].GetInt32() + 7;
+            await SendEntryAsync(new
+            {
+                command = "range.set-values",
+                args = new
+                {
+                    sheetName = "Data",
+                    rangeAddress = "A1",
+                    values = new[] { new[] { nextValue } },
+                    overwritePolicy = "allow"
+                }
+            }, 1);
+            Assert.False(process.HasExited);
+            process.StandardInput.Close();
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
+            Assert.Equal(0, process.ExitCode);
+            Assert.Equal(string.Empty, await error);
+        }
+        finally
+        {
+            if (!process.HasExited)
+            {
+                process.StandardInput.Close();
+                try { await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15)); }
+                finally
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(entireProcessTree: true);
+                        await process.WaitForExitAsync();
+                    }
+                }
+            }
+        }
+
+        var listed = await SendAsync("session", "list");
+        Assert.Contains(listed.GetProperty("sessions").EnumerateArray(),
+            session => session.GetProperty("sessionId").GetString() == Session);
+        await SendAsync("session", "close", "--session", Session, "--save");
+        _session = null;
+        var reopened = await SendAsync("session", "open", _workbook);
+        _session = reopened.GetProperty("sessionId").GetString();
+        Assert.False(string.IsNullOrWhiteSpace(_session));
+        var values = await SendAsync("range", "get-values", "--session", Session,
+            "--sheet-name", "Data", "--range-address", "A1:B1");
+        Assert.Equal(17, values.GetProperty("values")[0][0].GetInt32());
+        Assert.Equal(777, values.GetProperty("values")[0][1].GetInt32());
+
+        async Task<JsonElement> SendEntryAsync(object command, int index)
+        {
+            await process.StandardInput.WriteLineAsync(JsonSerializer.Serialize(command));
+            await process.StandardInput.FlushAsync();
+            var line = await process.StandardOutput.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(60));
+            Assert.False(string.IsNullOrWhiteSpace(line));
+            using var result = JsonDocument.Parse(line);
+            Assert.Equal(index, result.RootElement.GetProperty("index").GetInt32());
+            Assert.True(result.RootElement.GetProperty("success").GetBoolean(), line);
+            Assert.False(process.HasExited);
+            return result.RootElement.GetProperty("result").Clone();
+        }
     }
 
     [Fact]
