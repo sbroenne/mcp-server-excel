@@ -171,6 +171,13 @@ public sealed class PowerQueryRefreshAllOutcomeTests
     }
 
     [Fact]
+    public void IsLikelyPrivacyFirewallRisk_AnalysisServicesSource_IsRecognized()
+    {
+        Assert.True(PowerQueryCommands.IsLikelyPrivacyFirewallRisk(
+            "let source = Excel.CurrentWorkbook(), model = AnalysisServices.Database(\"server\", \"model\") in model"));
+    }
+
+    [Fact]
     public void RefreshQueries_ExcelCancelledRefresh_PropagatesWithoutAttemptingLaterQueries()
     {
         var attempted = new List<string>();

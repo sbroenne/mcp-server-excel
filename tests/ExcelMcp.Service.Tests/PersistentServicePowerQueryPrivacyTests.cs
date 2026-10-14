@@ -43,5 +43,10 @@ public sealed class PersistentServicePowerQueryPrivacyTests(
 
         var disabledRead = RequireSuccess(_queries.GetPrivacySettings(_fixture.BatchToken));
         Assert.False(disabledRead.IgnorePrivacyLevels);
+
+        await _fixture.SaveAndReopenAsync();
+
+        var reopenedDisabled = RequireSuccess(_queries.GetPrivacySettings(_fixture.BatchToken));
+        Assert.False(reopenedDisabled.IgnorePrivacyLevels);
     }
 }

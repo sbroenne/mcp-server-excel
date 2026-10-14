@@ -113,7 +113,7 @@ public partial class PowerQueryCommands : IPowerQueryCommands
         return false;
     }
 
-    private static bool IsLikelyPrivacyFirewallRisk(string? mCode)
+    internal static bool IsLikelyPrivacyFirewallRisk(string? mCode)
     {
         if (string.IsNullOrWhiteSpace(mCode))
         {
@@ -126,7 +126,8 @@ public partial class PowerQueryCommands : IPowerQueryCommands
             mCode.Contains("Web.Contents", StringComparison.OrdinalIgnoreCase) ||
             mCode.Contains("SharePoint.Contents", StringComparison.OrdinalIgnoreCase) ||
             mCode.Contains("Sql.Database", StringComparison.OrdinalIgnoreCase) ||
-            mCode.Contains("OData.Feed", StringComparison.OrdinalIgnoreCase);
+            mCode.Contains("OData.Feed", StringComparison.OrdinalIgnoreCase) ||
+            mCode.Contains("AnalysisServices.Database", StringComparison.OrdinalIgnoreCase);
 
         return usesWorkbookParameter && usesExternalSource;
     }
