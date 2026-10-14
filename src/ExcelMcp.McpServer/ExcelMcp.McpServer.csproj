@@ -161,8 +161,6 @@ internal static class TelemetryConfig
     <PackageReference Include="ModelContextProtocol" />
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
-    <!-- Application Insights Worker Service SDK for telemetry (Users, Sessions, Funnels, User Flows) -->
-    <!-- Worker Service SDK provides proper DI integration, auto-collection modules, and host lifetime awareness -->
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
     <PackageReference Include="Azure.Monitor.OpenTelemetry.Exporter" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
