@@ -56,10 +56,11 @@ public sealed class PowerQueryErrorReportingTests : IAsyncLifetime
             Assert.False(root.GetProperty("success").GetBoolean());
             Assert.True(root.GetProperty("isError").GetBoolean());
             Assert.True(root.TryGetProperty("errorCategory", out var category), failureResult.Stdout);
-            Assert.Equal("Privacy", category.GetString());
+            Assert.Equal("PrivacyFirewall", category.GetString());
             Assert.Equal("PowerQueryCommandException", root.GetProperty("exceptionType").GetString());
             Assert.Equal("0x800A03EC", root.GetProperty("hresult").GetString());
             Assert.Contains("privacy level", root.GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
+            Assert.Contains("powerquery set-privacy-settings", root.GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
             var state = root.GetProperty("partialState");
             Assert.Equal(queryName, state.GetProperty("queryName").GetString());
             Assert.True(state.GetProperty("queryExists").GetBoolean());
@@ -137,12 +138,13 @@ public sealed class PowerQueryErrorReportingTests : IAsyncLifetime
         Assert.NotEqual(0, refreshResult.ExitCode);
         Assert.False(refreshJson.RootElement.GetProperty("success").GetBoolean());
         Assert.True(refreshJson.RootElement.GetProperty("isError").GetBoolean());
-        Assert.Equal("Privacy", refreshJson.RootElement.GetProperty("errorCategory").GetString());
+        Assert.Equal("PrivacyFirewall", refreshJson.RootElement.GetProperty("errorCategory").GetString());
         Assert.Equal("PowerQueryCommandException", refreshJson.RootElement.GetProperty("exceptionType").GetString());
         Assert.False(refreshJson.RootElement.TryGetProperty("error", out _));
         Assert.Equal("0x800A03EC", refreshJson.RootElement.GetProperty("hresult").GetString());
         AssertOptionalNonEmptyStringProperty(refreshJson.RootElement, "innerError");
         Assert.Contains("Formula.Firewall", refreshJson.RootElement.GetProperty("errorMessage").GetString(), StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("powerquery set-privacy-settings", refreshJson.RootElement.GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
         await AssertLoadedValueAsync(queryName, 1);
         var (viewResult, viewJson) = await CliProcessHelper.RunJsonAsync(
             ["powerquery", "view", "--session", _workbook.SessionId, "--query-name", queryName]);

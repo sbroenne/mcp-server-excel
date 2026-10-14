@@ -21,7 +21,7 @@ public sealed class PowerQueryMutationFailureTests
     };
 
     [Theory]
-    [InlineData("Formula.Firewall", "Privacy")]
+    [InlineData("Formula.Firewall", "PrivacyFirewall")]
     [InlineData("Please specify a privacy level for each data source.", "Privacy")]
     [InlineData("DataSource.Error: unable to connect", "Connectivity")]
     [InlineData("Unclassified Excel failure", "ComInterop")]
@@ -45,6 +45,10 @@ public sealed class PowerQueryMutationFailureTests
         Assert.Contains(message, error.Message, StringComparison.Ordinal);
         Assert.Contains("Query 'Query' was created", error.Message, StringComparison.Ordinal);
         Assert.Contains("ActualSheet", error.Message, StringComparison.Ordinal);
+        if (category == "PrivacyFirewall")
+        {
+            Assert.Contains("powerquery set-privacy-settings", error.Message, StringComparison.Ordinal);
+        }
         var state = Assert.IsType<PowerQueryPartialState>(error.PartialState);
         Assert.Equal("Query", state.QueryName);
         Assert.True(state.QueryCreated);

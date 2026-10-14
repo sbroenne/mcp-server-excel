@@ -88,9 +88,12 @@ public partial class PowerQueryCommands
         }
         catch (TimeoutException ex) when (IsLikelyPrivacyFirewallRisk(queryFormula))
         {
+            const string category = "PrivacyFirewall";
             throw new PowerQueryCommandException(
-                $"Likely Formula.Firewall/privacy-blocked refresh for query '{queryName}'. The query combines Excel.CurrentWorkbook with an external data source and Excel may have shown a privacy/modal prompt instead of returning a normal refresh error.",
-                "Privacy",
+                AddPrivacyFirewallRemediation(
+                    $"Likely Formula.Firewall/privacy-blocked refresh for query '{queryName}'. The query combines Excel.CurrentWorkbook with an external data source and Excel may have shown a privacy/modal prompt instead of returning a normal refresh error.",
+                    category),
+                category,
                 ex);
         }
     }
@@ -292,7 +295,7 @@ public partial class PowerQueryCommands
         {
             QueryName = queryName,
             ErrorCategory = category,
-            ErrorMessage = exception.Message,
+            ErrorMessage = AddPrivacyFirewallRemediation(exception.Message, category),
             ExceptionType = exception.GetType().Name,
             HResult = origin != null ? $"0x{origin.HResult:X8}" : null
         };
