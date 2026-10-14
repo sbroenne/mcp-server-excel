@@ -52,6 +52,10 @@ public sealed class McpServerPowerQueryRegressionTests(
                             setJson.RootElement.GetProperty("message").GetString(),
                             StringComparison.Ordinal);
                     }
+                    Assert.Contains(
+                        "global privacy option may override",
+                        setJson.RootElement.GetProperty("message").GetString(),
+                        StringComparison.Ordinal);
                 }
 
                 var getResult = await _fixture.CallToolAsync(

@@ -69,7 +69,7 @@ public partial class PowerQueryCommands
             Success = true,
             IgnorePrivacyLevels = ignorePrivacyLevels,
             Message = ignorePrivacyLevels
-                ? "Privacy levels are now ignored for this workbook. Data from different sources may be combined and sent between them."
-                : "Privacy levels are not ignored for this workbook; Power Query applies configured privacy levels when combining sources."
+                ? "This workbook is configured to ignore privacy levels when combining sources. Data from different sources may be combined and sent between them. Excel's global privacy option may override this setting."
+                : "This workbook is configured not to ignore privacy levels when combining sources. Excel's global privacy option may override this setting."
         };
 }

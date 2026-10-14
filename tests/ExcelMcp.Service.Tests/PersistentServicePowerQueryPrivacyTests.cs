@@ -29,7 +29,8 @@ public sealed class PersistentServicePowerQueryPrivacyTests(
 
         var enabledRead = RequireSuccess(_queries.GetPrivacySettings(_fixture.BatchToken));
         Assert.True(enabledRead.IgnorePrivacyLevels);
-        Assert.Contains("ignored", enabledRead.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("configured to ignore", enabledRead.Message, StringComparison.Ordinal);
+        Assert.Contains("global privacy option may override", enabledRead.Message, StringComparison.Ordinal);
 
         await _fixture.SaveAndReopenAsync();
 
@@ -39,7 +40,8 @@ public sealed class PersistentServicePowerQueryPrivacyTests(
         var disabled = RequireSuccess(
             _queries.SetPrivacySettings(_fixture.BatchToken, ignorePrivacyLevels: false));
         Assert.False(disabled.IgnorePrivacyLevels);
-        Assert.Contains("not ignored", disabled.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("configured not to ignore", disabled.Message, StringComparison.Ordinal);
+        Assert.Contains("global privacy option may override", disabled.Message, StringComparison.Ordinal);
 
         var disabledRead = RequireSuccess(_queries.GetPrivacySettings(_fixture.BatchToken));
         Assert.False(disabledRead.IgnorePrivacyLevels);
