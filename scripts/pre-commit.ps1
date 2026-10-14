@@ -30,7 +30,7 @@ try {
     $mergeHead = & git rev-parse --verify --quiet MERGE_HEAD 2>$null
     $base = if ($LASTEXITCODE -eq 0 -and $mergeHead) { $mergeHead } else { 'HEAD' }
     $paths = @(Read-Git @('-c', 'core.quotepath=false', 'diff', '--cached', '--name-only', '--no-renames', $base))
-    $plan = Get-ValidationPlan -Paths $paths
+    $plan = Get-ValidationPlan -Paths $paths -Staged
     $plan.Reasons | ForEach-Object { Write-Host "  $_" }
 
     if ($plan.Build -or $plan.SourceChecks) {
@@ -60,10 +60,10 @@ try {
             Invoke-Check 'Building selected Release inputs' {
                 Invoke-ExcelMcpBuild -Arguments @('build', '--plan', $buildPlan)
             }
+            Invoke-Check 'Running focused Excel-free tests' {
+                & (Join-Path $PSScriptRoot 'Invoke-ExcelFreeTests.ps1') -Local -ChangedPaths $paths -PlanFile $buildPlan
+            }
         } finally { Remove-Item -LiteralPath $buildPlan -ErrorAction Stop }
-        Invoke-Check 'Running focused Excel-free tests' {
-            & (Join-Path $PSScriptRoot 'Invoke-ExcelFreeTests.ps1') -Local -ChangedPaths $paths
-        }
     }
     if ($plan.Excel) {
         $planFile = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.CommitPlan.$([Guid]::NewGuid().ToString('N')).json"

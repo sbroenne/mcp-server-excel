@@ -142,7 +142,7 @@ public sealed class TypedOrchestrationMigrationTests
             Detection = "success",
             Checks = [
                 new("tests", "true", "skipped"), new("packages", "false", "skipped"),
-                new("npm", "false", "skipped")
+                new("npm", "false", "skipped"), new("build-only", "false", "skipped")
             ]
         }));
     }

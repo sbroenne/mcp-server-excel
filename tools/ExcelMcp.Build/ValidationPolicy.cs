@@ -9,7 +9,7 @@ public sealed partial class ValidationPolicy(string root)
     private static readonly string[] RuntimeOwners = ["CLI", "ComInterop", "Core", "McpServer", "Service"];
     private static readonly string[] ToolingOwners = ["Packaging", "ScriptSafety", "SkillGeneration"];
 
-    public ValidationPlan Select(IEnumerable<string> paths, bool full = false)
+    public ValidationPlan Select(IEnumerable<string> paths, bool full = false, PackageChanges? packageChanges = null)
     {
         ArgumentNullException.ThrowIfNull(paths);
         var plan = new ValidationPlan { SchemaVersion = 1 };
@@ -44,13 +44,13 @@ public sealed partial class ValidationPolicy(string root)
             }
             AddLanguage(plan, path);
             plan.ChangedPaths.Add(path);
-            SelectPath(plan, path);
+            SelectPath(plan, path, packageChanges);
         }
         FinalizePlan(plan);
         return plan;
     }
 
-    private void SelectPath(ValidationPlan plan, string path)
+    private void SelectPath(ValidationPlan plan, string path, PackageChanges? packageChanges = null)
     {
         var reasonCount = plan.Reasons.Count;
         var feature = CommandPath().Match(path);
@@ -174,18 +174,25 @@ public sealed partial class ValidationPolicy(string root)
             plan.BuildProjects.Add("src/ExcelMcp.Core/ExcelMcp.Core.csproj");
             plan.Reasons.Add($"{path} -> dependent command areas: {string.Join(", ", consumers.Areas)}");
         }
+        else if (path == "Directory.Packages.props")
+        {
+            var packages = packageChanges ?? Task.Run(() => PackageChanges.ReadAsync(root, new ProcessRunner(root))).GetAwaiter().GetResult();
+            if (!packages.VersionOnly) { SelectSharedBuild(plan, path); }
+            else
+            {
+                plan.FullSolutionBuild = true;
+                foreach (var project in packages.Projects)
+                {
+                    SelectPath(plan, project);
+                    if (!File.Exists(Path.Combine(root, project.Replace('/', Path.DirectorySeparatorChar)))) { plan.BuildProjects.Remove(project); }
+                }
+                plan.Reasons.Add($"{path} -> changed packages: {string.Join(", ", packages.PackageIds)}; " +
+                    (packages.Projects.Length == 0 ? "no project consumers; solution build only" : $"affected projects: {string.Join(", ", packages.Projects)}"));
+            }
+        }
         else if (Matches(path, @"^(Directory\.|global\.json$|NuGet\.Config$|Sbroenne\.ExcelMcp\.sln$|tests/Directory\.|src/ExcelMcp\.(Core|ComInterop|Service|Cleanup)/)"))
         {
-            var owners = path.StartsWith("src/", StringComparison.Ordinal)
-                ? RuntimeOwners
-                : RuntimeOwners.Concat(ToolingOwners).Append("Diagnostics");
-            plan.FullE2E = true;
-            foreach (var owner in owners) { AddClasses(plan, Catalog.ForOwner(owner), "Shared runtime/build"); }
-            plan.SourceChecks = true;
-            plan.InfrastructureDiagnostics = true;
-            plan.FullSolutionBuild = true;
-            plan.Cli = plan.Mcp = plan.Extension = true;
-            plan.Reasons.Add($"{path} -> shared runtime/build consumers");
+            SelectSharedBuild(plan, path);
         }
         else if (path.StartsWith("src/ExcelMcp.Generators", StringComparison.Ordinal))
         {
@@ -343,6 +350,20 @@ public sealed partial class ValidationPolicy(string root)
         {
             plan.Docs = true;
         }
+    }
+
+    private void SelectSharedBuild(ValidationPlan plan, string path)
+    {
+        var owners = path.StartsWith("src/", StringComparison.Ordinal)
+            ? RuntimeOwners
+            : RuntimeOwners.Concat(ToolingOwners).Append("Diagnostics");
+        plan.FullE2E = true;
+        foreach (var owner in owners) { AddClasses(plan, Catalog.ForOwner(owner), "Shared runtime/build"); }
+        plan.SourceChecks = true;
+        plan.InfrastructureDiagnostics = true;
+        plan.FullSolutionBuild = true;
+        plan.Cli = plan.Mcp = plan.Extension = true;
+        plan.Reasons.Add($"{path} -> shared runtime/build consumers");
     }
 
     private void AddFeature(ValidationPlan plan, string owner, string[] features, string area)

@@ -84,10 +84,7 @@ internal static class Program
                     }
                 case "plan":
                     {
-                        var paths = options.Get("--paths-json") is { } json
-                            ? JsonSerializer.Deserialize<string[]>(json) ?? throw new ArgumentException("Paths must be a JSON array.")
-                            : options.Has("--full") ? [] : await ReadChangedPathsAsync(runner, options);
-                        var plan = new ValidationPolicy(root).Select(paths, options.Has("--full"));
+                        var plan = await SelectPlanAsync(root, runner, options);
                         var content = JsonSerializer.Serialize(plan, JsonOptions);
                         if (options.Get("--output") is { } destination)
                         {
@@ -141,7 +138,7 @@ internal static class Program
         JsonSerializer.Deserialize<T>(await File.ReadAllTextAsync(options.Get(name) ?? throw new ArgumentException($"Select {name}.")), JsonOptions)
         ?? throw new ArgumentException($"Empty command options: {name}");
 
-    private static async Task<ValidationPlan> ReadPlanAsync(string root, CommandOptions options)
+    internal static async Task<ValidationPlan> ReadPlanAsync(string root, CommandOptions options)
     {
         if (options.Get("--plan") is { } file)
         {
@@ -165,12 +162,23 @@ internal static class Program
         if (options.Has("--full")) { return new ValidationPolicy(root).Select([], full: true); }
         if (options.Has("--staged") || options.Get("--base-ref") is not null)
         {
-            return new ValidationPolicy(root).Select(await ReadChangedPathsAsync(new ProcessRunner(root), options));
+            return await SelectPlanAsync(root, new ProcessRunner(root), options);
         }
         throw new ArgumentException("Select --plan, --area, --staged, --base-ref, or --full.");
     }
 
-    private static async Task<string[]> ReadChangedPathsAsync(ProcessRunner runner, CommandOptions options)
+    private static async Task<ValidationPlan> SelectPlanAsync(string root, IProcessRunner runner, CommandOptions options)
+    {
+        var paths = options.Get("--paths-json") is { } json
+            ? JsonSerializer.Deserialize<string[]>(json) ?? throw new ArgumentException("Paths must be a JSON array.")
+            : options.Has("--full") ? [] : await ReadChangedPathsAsync(runner, options);
+        var packages = !options.Has("--full") && paths.Any(path => path?.Replace('\\', '/') == "Directory.Packages.props")
+            ? await PackageChanges.ReadAsync(root, runner, options.Get("--base-ref"), options.Get("--head-ref"), options.Has("--staged"), options.DirectComparison())
+            : null;
+        return new ValidationPolicy(root).Select(paths, options.Has("--full"), packages);
+    }
+
+    private static async Task<string[]> ReadChangedPathsAsync(IProcessRunner runner, CommandOptions options)
     {
         var arguments = new List<string> { "-c", "core.quotepath=false", "diff", "--name-only", "--no-renames" };
         if (options.Has("--staged"))
@@ -183,7 +191,7 @@ internal static class Program
         {
             var baseRef = options.Get("--base-ref") ?? throw new ArgumentException("Select --base-ref, --staged, --paths-json, or --full.");
             var head = options.Get("--head-ref") ?? "HEAD";
-            arguments.Add($"{baseRef}...{head}");
+            arguments.Add($"{baseRef}{(options.DirectComparison() ? ".." : "...")}{head}");
         }
         var result = await runner.CheckedAsync("git", arguments, TimeSpan.FromSeconds(30), preserveGitContext: options.Has("--staged"));
         return result.Output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
@@ -207,7 +215,7 @@ internal sealed class CommandOptions
         "--root", "--paths-json", "--base-ref", "--head-ref", "--output", "--plan", "--group", "--area",
         "--results-directory", "--deadline-seconds", "--rule", "--scan-root", "--inputs-json", "--package-options", "--source-root",
         "--components", "--version", "--skills-directory", "--mcp-runtime", "--cli-runtime",
-        "--test-options", "--stage-options", "--completion-options", "--report"
+        "--test-options", "--stage-options", "--completion-options", "--report", "--comparison"
     };
 
     public CommandOptions(string[] arguments)
@@ -223,10 +231,18 @@ internal sealed class CommandOptions
             }
             _values[name] = arguments[++index];
         }
+        _ = DirectComparison();
     }
 
     public bool Has(string name) => _values.ContainsKey(name);
     public string? Get(string name) => _values.GetValueOrDefault(name);
+
+    public bool DirectComparison() => (Get("--comparison") ?? "MergeBase") switch
+    {
+        "MergeBase" => false,
+        "Direct" => true,
+        _ => throw new ArgumentException("Comparison must be MergeBase or Direct.")
+    };
 
     public int? DeadlineSeconds()
     {

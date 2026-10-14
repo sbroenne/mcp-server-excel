@@ -306,6 +306,30 @@ xUnit; it is not another supported product entry point. Pull requests compare
 their head with the base branch's merge base. The hook uses staged inputs and
 retains merge-parent and unstaged-input safeguards.
 
+Changes limited to literal `PackageVersion` additions, removals, or version
+updates in root `Directory.Packages.props` select package consumers from both
+comparison snapshots and their project dependants. Project files, ancestor
+`Directory.Build.props`/`Directory.Build.targets`, and literal imports supply
+references. CLI/MCP-only packages select those owners' existing checks and
+dependent packages, not complete Excel acceptance. Core/ComInterop/shared-runtime
+consumers retain full Excel coverage. Unreferenced packages need only a complete
+Release solution build. Property, import, conditional, or other non-version-only
+central-package changes retain the existing full shared-build selection.
+Other root `Directory.*`, SDK, NuGet, and solution inputs are unchanged.
+Unreadable snapshots, malformed XML, unresolved reference expressions, and
+unmapped consumers fail explicitly rather than silently selecting everything.
+Path-only local selection compares `HEAD` with the working tree; `--staged`
+uses the index and merge parent when present. The hook reuses that saved plan
+for its Excel-free checks, avoiding a second comparison against different inputs.
+CI forwards its selected base, head, and `MergeBase`/`Direct` comparison mode
+to the same package reader; `--comparison Direct` retains direct-range semantics.
+Consumer selection follows explicit `PackageReference` items, including shared
+project inputs, not restored transitive-package assets. A central pin with no
+such reference still requires the complete solution build.
+When no test group owns that build, CI runs a separate build-only job.
+The required CI gate checks its exact result, without presenting an empty
+test selection as passed tests.
+
 ```powershell
 .\build.ps1 plan --base-ref origin/main --head-ref HEAD --output artifacts\validation-plan.json
 .\build.ps1 validate --plan artifacts\validation-plan.json

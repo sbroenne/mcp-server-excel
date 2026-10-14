@@ -85,6 +85,7 @@ jobs:
     outputs:
       matrix: ${{ steps.select.outputs.matrix }}
       tests: ${{ steps.select.outputs.tests }}
+      build_only: ${{ steps.select.outputs.build_only }}
       packages: ${{ steps.select.outputs.packages }}
       package_build: ${{ steps.select.outputs.package_build }}
       npm: ${{ steps.select.outputs.npm }}
@@ -196,6 +197,28 @@ jobs:
           path: TestResults/${{ matrix.group }}/**/*.trx
           if-no-files-found: error
 
+  build-only:
+    name: Build-only changed inputs
+    needs: changes
+    if: needs.changes.outputs.build_only == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Read selection
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: ci-validation-plan
+          path: artifacts
+      - name: Setup .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Restore and build selected inputs
+        shell: pwsh
+        run: ./build.ps1 build --plan artifacts/ci-plan.json
+
   packages:
     name: Affected packages
     needs: changes
@@ -271,7 +294,7 @@ jobs:
   ci-gate:
     name: CI Gate
     if: always()
-    needs: [changes, tests, packages, npm]
+    needs: [changes, tests, build-only, packages, npm]
     runs-on: ubuntu-26.04
     steps:
       - name: Checkout
@@ -285,13 +308,15 @@ jobs:
         env:
           DETECTION: ${{ needs.changes.result }}
           TESTS: ${{ needs.tests.result }}
+          BUILD_ONLY: ${{ needs.build-only.result }}
           PACKAGES: ${{ needs.packages.result }}
           NPM: ${{ needs.npm.result }}
           SELECTED_TESTS: ${{ needs.changes.outputs.tests }}
+          SELECTED_BUILD_ONLY: ${{ needs.changes.outputs.build_only }}
           SELECTED_PACKAGES: ${{ needs.changes.outputs.packages }}
           SELECTED_NPM: ${{ needs.changes.outputs.npm }}
         run: |
           ./scripts/Test-CiCompletion.ps1 -Detection $env:DETECTION -Tests $env:TESTS `
-            -Packages $env:PACKAGES -Npm $env:NPM `
+            -Packages $env:PACKAGES -Npm $env:NPM -BuildOnly $env:BUILD_ONLY `
             -SelectedTests $env:SELECTED_TESTS -SelectedPackages $env:SELECTED_PACKAGES `
-            -SelectedNpm $env:SELECTED_NPM
+            -SelectedNpm $env:SELECTED_NPM -SelectedBuildOnly $env:SELECTED_BUILD_ONLY

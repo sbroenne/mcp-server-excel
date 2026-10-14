@@ -43,10 +43,10 @@ public static class FreeTestSelection
                 }
             }
         }
-        else if (options.PlanFile is not null) { throw new ArgumentException("PlanFile requires an explicit Group."); }
+        else if (options.PlanFile is not null && !options.Local) { throw new ArgumentException("PlanFile requires an explicit Group or Local."); }
         else if (options.Local)
         {
-            var plan = new ValidationPolicy(root).Select(options.ChangedPaths);
+            var plan = savedPlan ?? new ValidationPolicy(root).Select(options.ChangedPaths);
             foreach (var (owner, filter) in plan.FastFilters.Concat(plan.ProcessFilters)) { Add(owner, filter); }
             if (options.HookTests || plan.HookTests) { Add("ScriptSafety", plan.ToolingFilters.GetValueOrDefault("ScriptSafety") ?? "RequiresExcel=false"); }
             if (options.SkillTests || plan.SkillTests) { Add("SkillGeneration", plan.ToolingFilters.GetValueOrDefault("SkillGeneration") ?? "Feature=SkillGeneration"); }

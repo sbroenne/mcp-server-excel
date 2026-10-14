@@ -15,7 +15,7 @@ if ($Full) {
     $range = if ($Comparison -eq 'MergeBase') { "$BaseRef...$HeadRef" } else { "$BaseRef..$HeadRef" }
     $paths = @(git -c core.quotepath=false diff --name-only --no-renames $range)
     if ($LASTEXITCODE -ne 0) { throw 'Cannot determine changed validation inputs.' }
-    $plan = Get-ValidationPlan -Paths $paths
+    $plan = Get-ValidationPlan -Paths $paths -BaseRef $BaseRef -HeadRef $HeadRef -Comparison $Comparison
 }
 $plan.Reasons | ForEach-Object { Write-Host $_ }
 $directory = Split-Path -Parent $OutputPath
@@ -39,6 +39,7 @@ if ($env:GITHUB_OUTPUT) {
         "full_solution_build=$($plan.FullSolutionBuild)".ToLowerInvariant()
         "full_solution_build_group=$($plan.FullSolutionBuildGroup)"
         "tests=$($plan.CiTestGroups.Count -gt 0)".ToLowerInvariant()
+        "build_only=$($plan.BuildOnly)".ToLowerInvariant()
         "packages=$($plan.Packages)".ToLowerInvariant()
         "package_build=$($plan.PackageBuild)".ToLowerInvariant()
         "codeql_matrix=$codeQlMatrix"

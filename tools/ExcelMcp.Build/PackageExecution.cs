@@ -73,7 +73,11 @@ public sealed partial class PackageExecution(string root, PackageCommands? nativ
         if (options.BaseRef is not null)
         {
             var result = await _commands.RunAsync(root, "git", ["-c", "core.quotepath=false", "diff", "--name-only", "--no-renames", $"{options.BaseRef}...{options.HeadRef}"]);
-            var plan = new ValidationPolicy(root).Select(result.Output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries));
+            var paths = result.Output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+            var packages = paths.Contains("Directory.Packages.props", StringComparer.Ordinal)
+                ? await PackageChanges.ReadAsync(root, new ProcessRunner(root), options.BaseRef, options.HeadRef)
+                : null;
+            var plan = new ValidationPolicy(root).Select(paths, packageChanges: packages);
             selected = selected.Where(component => component switch
             {
                 "Cli" => plan.Cli,
