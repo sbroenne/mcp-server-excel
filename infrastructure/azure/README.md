@@ -27,10 +27,14 @@ telemetry testing uses in-memory tests and an optional local dashboard; see
 | `configure-excel-control-oidc.ps1` | Password-free GitHub control identity and default-branch environment restrictions |
 | `excel-runner-control.bicep`, `excel-runner-control-assignment.bicep` | Dedicated-group VM control permissions and read-only identity-role auditing |
 
-The workspace transform drops noisy runtime metrics and rejects every
-`AppExceptions` row that was not explicitly sanitized by ExcelMcp. Exception
-messages and stack traces are never retained; only approved type, source, and
-project-owned failure-site classifications are ingested.
+The workspace transform drops metrics, performance counters, framework traces,
+and raw `AppExceptions` rows. Sanitized failures use `UnhandledException` custom
+events in `AppEvents`; the transform requires their explicit `Sanitized=true`
+marker. Only approved type, source, and project-owned failure-site classifications
+are recorded, never exception messages or stacks. Native OpenTelemetry operation
+traces map to `AppRequests`, and safe identity fields are in `Properties`.
+Redeploy the template when updating the reporting contract; existing clients
+remain subject to these fail-closed ingestion rules.
 
 ## Public usage analytics
 

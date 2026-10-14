@@ -6,9 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Note: Microsoft.ApplicationInsights comes transitively from McpServer's WorkerService SDK -->
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
-    <!-- Test-only: verifies OpenTelemetry metric View drop configuration for noisy HttpClient meters -->
     <PackageReference Include="OpenTelemetry" />
     <PackageReference Include="OpenTelemetry.Exporter.InMemory" />
   </ItemGroup>

@@ -1,4 +1,3 @@
-using Microsoft.ApplicationInsights.DataContracts;
 using Sbroenne.ExcelMcp.Telemetry;
 using Xunit;
 
@@ -93,11 +92,10 @@ public sealed class TelemetryUserIdentityTests
         using var directory = new TemporaryDirectory();
         var identity = TelemetryUserIdentityStore.GetOrCreate(directory.Path);
 
-        EventTelemetry migration = Assert.IsType<EventTelemetry>(
+        UsageEvent migration = Assert.IsType<UsageEvent>(
             TelemetryUserIdentityStore.CreateMigrationEvent(identity));
 
         Assert.Equal("UserIdMigration", migration.Name);
-        Assert.Equal(identity.UserId, migration.Context.User.Id);
         Assert.Equal(identity.LegacyUserId, migration.Properties["LegacyUserId"]);
         Assert.Null(TelemetryUserIdentityStore.CreateMigrationEvent(
             TelemetryUserIdentityStore.GetOrCreate(directory.Path)));

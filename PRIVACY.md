@@ -1,6 +1,6 @@
 # Privacy Policy
 
-**Last Updated:** October 13, 2026
+**Last Updated:** October 14, 2026
 
 ## Overview
 
@@ -9,9 +9,9 @@ MCP Server for Excel ("ExcelMcp") is an open-source tool that enables AI assista
 ## Data Collection Summary
 
 ExcelMcp's MCP Server and CLI collect **limited, pseudonymous telemetry** to improve
-the software. The CLI background daemon does not send telemetry independently;
-the short-lived `excelcli` command process records operations requested through
-it. The statements below describe telemetry collection, not the workbook data
+the software. The existing CLI background daemon records and sends operations
+that it handles; short-lived `excelcli` command processes do not send telemetry.
+The statements below describe telemetry collection, not the workbook data
 that a tool returns to your chosen AI assistant.
 
 ### What We DO Collect (Pseudonymous Telemetry)
@@ -25,11 +25,12 @@ that a tool returns to your chosen AI assistant.
 - **Failure class** - A fixed privacy-safe label for input or state, an external
   dependency, timeout or cancellation, Excel runtime, an internal product fault,
   or an unclassified failure
-- **Session information** - A random telemetry session ID generated each time the CLI or server starts
+- **Session information** - A random telemetry session ID generated each time the CLI daemon or MCP Server starts
 - **Pseudonymous user ID** - A random ID stored at
   `%LOCALAPPDATA%\ExcelMcp\telemetry-user-id`. The MCP Server and CLI share it
   for the same Windows user profile, and it persists across restarts until the
-  file is deleted. The file is created on first use even if telemetry is off.
+  file is deleted. Background reporting setup creates or reads it only when
+  telemetry is enabled; disabled reporting never accesses the file.
   If the file cannot be read or written, that process uses a temporary random
   ID instead.
 - **One-time migration link** - If telemetry is active when the ID file is
@@ -40,8 +41,8 @@ that a tool returns to your chosen AI assistant.
   not publish it.
 - **Application version** - Which version of ExcelMcp is running
 - **Pseudonymous instance label** - `instance-` followed by the first eight
-  characters of the random user ID. CLI and MCP events, requests, and duration
-  metrics use this label instead of the computer name.
+  characters of the random user ID. CLI and MCP events and requests
+  use this label instead of the computer name.
 - **Unhandled exceptions (MCP Server)** - Error type names, approved source, and
   project-owned failure site only (never exception messages or stack traces)
 
@@ -82,7 +83,8 @@ to **Azure Application Insights**, a Microsoft service. Data is:
 - Stored in accordance with Microsoft's data handling policies
 - Retained for analytics purposes only
 - Filtered at ingestion so exception records without ExcelMcp's explicit
-  sanitization marker are discarded
+  sanitization marker are discarded (sanitized failures are custom events; raw
+  exception records are rejected in full)
 - Filtered at ingestion so framework trace logs are discarded in full
 
 Set `EXCELMCP_TELEMETRY_MODE=off` to disable telemetry collection and delivery in
@@ -96,12 +98,22 @@ client. It does not enable framework logs, raw exception details, or additional
 workbook data collection. Access to the local dashboard and any data it retains
 is your responsibility. See [local telemetry setup](docs/DEVELOPMENT.md#local-development-with-telemetry).
 
-If telemetry is off when the ID is created, no migration link is sent or
-deferred. If it is in local mode, the link goes only to the local receiver and
+Disabled reporting does not create the ID or a migration link. In local mode,
+the link goes only to the local receiver and
 is not deferred for Azure. In either case, older Azure events may remain under
 the previous ID in weekly reports. Delete
 `%LOCALAPPDATA%\ExcelMcp\telemetry-user-id` and restart the MCP Server to reset
 the stored ID; the next active telemetry use creates a new one.
+
+Reporting never waits for setup, saved-ID storage, export, or shutdown. Records
+before setup is ready, overflowed batches, and unsent reports at process exit
+are dropped. No shutdown flush or offline telemetry storage is used. Sampling,
+live metrics, SDK self-statistics, performance counters, and automatic standard
+metrics are disabled. CLI reporting starts in the existing daemon, not in each
+command process. Help/version, failures before a request reaches the daemon,
+and checks that find the daemon stopped are not reported. Internal readiness
+pings are excluded. CLI timing and outcomes describe service execution, not
+client-side connection, output-file writing, or argument parsing.
 
 ## How It Works
 

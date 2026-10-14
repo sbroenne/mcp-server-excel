@@ -18,18 +18,35 @@ points backed by the same Core commands, parameters, defaults, and validation:
   open across CLI invocations.
 
 ```text
-MCP Server ──► In-process ExcelMcpService ──► Core Commands ──► Excel COM
-CLI ─────────► CLI daemon (named pipe) ─────► Core Commands ──► Excel COM
+CLI client process
+  -> named pipe -> CLI daemon process [ExcelMcpService -> Core Commands] -> Excel COM
+
+MCP Server process [Service bridge -> ExcelMcpService -> Core Commands] -> Excel COM
 ```
 
-The entry points run as separate processes, each managing its own Excel
-instance. They do not share live sessions.
+### Process lifetimes
+
+| Process | Lifetime | Responsibilities |
+| --- | --- | --- |
+| CLI client (`excelcli`) | One command invocation, including a batch | Parses arguments, sends requests, prints results, then exits. It does not own workbook sessions or send operation telemetry. |
+| CLI daemon (`excelcli service run`) | Persists across client invocations | Hosts the Service, keeps workbook sessions open, and sends telemetry for operations it handles after clients exit. |
+| MCP Server | Persists across requests until server shutdown | Hosts its own Service through the bridge, owns its workbook sessions, and sends its own telemetry. |
+
+The CLI client and daemon are separate processes running the same executable.
+`ExcelMcpService` is a library hosted inside the daemon or MCP Server, not a
+fourth product process. The CLI daemon and MCP Server own separate workbook
+sessions and their Excel processes; they do not share live sessions.
 
 The Service owns command routing and workbook sessions. A separate Service
 daemon host owns named-pipe acceptance, connection limits, idle shutdown, and
-connection draining for the CLI process. The MCP Server does not use this pipe:
+connection draining inside the CLI daemon process. The MCP Server does not use this pipe:
 its bridge owns an in-process Service generation and prevents cancellation from
 an older generation from resetting a newer one.
+
+Telemetry ownership and delivery tradeoffs are described in
+[ADR-007](ADR-007-LOCAL-ACCESS-AND-TELEMETRY.md). A short-lived client's background
+task cannot continue sending after that client process exits; the existing
+daemon provides the lifetime needed for CLI operation reporting.
 
 The CLI also avoids loading the MCP tool schemas into a coding agent's context.
 In a same-task, same-model benchmark, the CLI workflow used about 59K tokens

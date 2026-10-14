@@ -16,19 +16,12 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
-    <!-- Application Insights Worker Service SDK for telemetry (Users, Sessions, Funnels, User Flows) -->
-    <!-- Worker Service SDK provides proper DI integration, auto-collection modules, and host lifetime awareness -->
-    <PackageVersion Include="Microsoft.ApplicationInsights.WorkerService" Version="3.2.0" />
-    <!-- Base SDK needed for tests that directly use TelemetryClient -->
-    <PackageVersion Include="Microsoft.ApplicationInsights" Version="3.2.0" />
+    <!-- Native usage reporting: explicit traces and logs, no automatic instrumentation -->
     <PackageVersion Include="OpenTelemetry.Api" Version="1.19.1" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.19.1" />
-    <!-- Test-only: verifies dropped-metric View configuration in ExcelMcp.McpServer.Tests -->
     <PackageVersion Include="OpenTelemetry" Version="1.19.1" />
     <PackageVersion Include="OpenTelemetry.Exporter.InMemory" Version="1.19.1" />
     <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.19.1" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.Http" Version="1.19.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.SqlClient" Version="1.19.0" />
     <PackageVersion Include="Azure.Monitor.OpenTelemetry.Exporter" Version="1.10.0" />
     <PackageVersion Include="Azure.Core" Version="1.63.0" />
     <PackageVersion Include="Microsoft.Extensions.Resilience" Version="10.10.0" />
@@ -48,8 +41,6 @@
     <PackageVersion Include="Microsoft.Identity.Client.Extensions.Msal" Version="4.90.1" />
     <PackageVersion Include="Microsoft.IdentityModel.Abstractions" Version="8.23.0" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.4" />
-    <PackageVersion Include="OpenTelemetry.PersistentStorage.Abstractions" Version="1.1.1" />
-    <PackageVersion Include="OpenTelemetry.PersistentStorage.FileSystem" Version="1.1.1" />
     <PackageVersion Include="Polly.Core" Version="8.8.0" />
     <PackageVersion Include="Polly.Extensions" Version="8.8.0" />
     <PackageVersion Include="Polly.RateLimiting" Version="8.8.0" />

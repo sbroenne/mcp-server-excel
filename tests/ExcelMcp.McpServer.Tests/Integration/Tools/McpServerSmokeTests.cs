@@ -5,7 +5,6 @@ using System.IO.Pipelines;
 using System.Text.Json;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
-using Sbroenne.ExcelMcp.McpServer.Telemetry;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -270,8 +269,6 @@ public class McpServerSmokeTests : IAsyncLifetime, IAsyncDisposable
             return;
         _disposed = true;
 
-        // Flush telemetry before shutdown to ensure test telemetry is sent
-        ExcelMcpTelemetry.Flush();
         var failures = new List<Exception>();
         try
         {

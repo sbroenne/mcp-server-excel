@@ -203,22 +203,35 @@ public sealed partial class ValidationPolicy(string root)
             plan.BuildProjects.Add("src/ExcelMcp.Diagnostics/ExcelMcp.Diagnostics.csproj");
             plan.Reasons.Add($"{path} -> diagnostics consumers");
         }
-        else if (path == "src/Shared/TelemetryUserIdentity.cs")
+        else if (path is "src/Shared/TelemetryUserIdentity.cs" or "src/Shared/TelemetrySettings.cs"
+            or "src/Shared/UsageTelemetry.cs" or "src/Shared/UsageRecord.cs"
+            or "src/Shared/LocalTelemetry.cs")
         {
             var consumers = Catalog.ForFile("tests/Shared/TelemetryUserIdentityTests.cs")
                 .Concat(Catalog.ForOwner("CLI").Where(type => type.Name == "EntryPointTelemetryTests"))
-                .Concat(Catalog.ForOwner("McpServer").Where(type => type.Name == "TelemetryTests"))
+                .Concat(Catalog.ForFeatures("CLI", ["Telemetry"]))
+                .Concat(Catalog.ForFeatures("McpServer", ["Telemetry"]))
                 .Distinct()
                 .ToArray();
             if (consumers.Length < 3)
             {
                 throw new InvalidOperationException($"No validation mapping for shared telemetry source {path}.");
             }
-            AddClasses(plan, consumers, "Shared telemetry identity consumers");
+            AddClasses(plan, consumers, "Shared telemetry consumers");
             plan.SourceChecks = true;
             plan.Cli = true;
             plan.Mcp = plan.Extension = true;
-            plan.Reasons.Add($"{path} -> CLI, MCP Server, and extension telemetry identity consumers");
+            plan.Reasons.Add($"{path} -> CLI, MCP Server, and extension telemetry consumers");
+        }
+        else if (Matches(path, @"^src/ExcelMcp\.(CLI|McpServer)/Telemetry/"))
+        {
+            // Telemetry migrations also remove sinks whose old symbols no longer have consumers.
+            var owner = path.StartsWith("src/ExcelMcp.CLI/", StringComparison.Ordinal) ? "CLI" : "McpServer";
+            AddFeature(plan, owner, ["Telemetry"], "Telemetry adapter consumers");
+            plan.SourceChecks = true;
+            if (owner == "CLI") { plan.Cli = true; }
+            else { plan.Mcp = plan.Extension = true; }
+            plan.Reasons.Add($"{path} -> {owner} telemetry consumers");
         }
         else if (path == "src/ExcelMcp.CLI/Commands/BatchCommand.cs")
         {

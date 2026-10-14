@@ -447,9 +447,9 @@ dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Releas
 
 ## 📊 **Application Insights / Telemetry Setup**
 
-ExcelMcp uses Azure Application Insights for pseudonymous usage telemetry. The MCP
-Server uses WorkerService integration and also reports sanitized crashes; the CLI
-uses the base SDK for command telemetry. Telemetry is **opt-out** (enabled by
+ExcelMcp uses Azure Application Insights for pseudonymous usage telemetry. Both entry
+points use OpenTelemetry trace and log providers with Microsoft's direct Azure
+Monitor exporter. The MCP Server also reports sanitized failure classifications. Telemetry is **opt-out** (enabled by
 default in release builds with an embedded connection string). Contributor builds
 default to off. Both entry points support the same `EXCELMCP_TELEMETRY_MODE`
 environment variable:
@@ -463,7 +463,7 @@ environment variable:
 
 An explicit `off` or `local` overrides even a release package's embedded Azure
 configuration. Invalid settings are reported on stderr and return a nonzero exit
-code. `local` constructs no Application Insights client or automatic collectors.
+code. `local` constructs only OTLP exporters, with no Azure exporter or automatic collectors.
 
 ### **How It Works**
 
@@ -477,20 +477,22 @@ destination selection does not replace that string or require Azure credentials.
 
 ### **What is Tracked**
 
-- **Tool invocations**: Tool name, action, CLI or MCP Server entry point,
-  duration (ms), success/failure
+- **Tool operations**: Tool name, action, CLI or MCP Server entry point,
+  duration (ms), success/failure. CLI records describe daemon execution, not
+  client-side parsing, connection, or output handling. The daemon records each
+  received operation once; internal readiness pings are excluded.
 - **Unhandled exceptions (MCP Server only)**: Exception type, approved source, and project-owned
   failure site; messages and stack traces are not transmitted
 - **User ID**: Random ID stored at
   `%LOCALAPPDATA%\ExcelMcp\telemetry-user-id`, shared between the CLI and MCP
-  Server. The file is created on first use even when telemetry is off; delete
-  it and restart the MCP Server to reset the ID. If storage is unavailable, the
+  Server. Background setup reads/creates the file only when telemetry is enabled;
+  disabled reporting never accesses it. Delete it and restart to reset the ID. If storage is unavailable, the
   current process uses a temporary random ID.
 - **Migration link**: If telemetry is active when a new ID is first stored,
   one event sent to the active destination carries the prior name-derived hash
   so existing usage can be mapped to the new ID. Raw machine and user names are
-  not sent. The event is not sent later if telemetry is off, or deferred from
-  local mode to Azure.
+  not sent. Disabled reporting does not create an ID; local migration links are
+  never deferred to Azure. Like all reports, the link can be lost at exit.
 - **Session ID**: Random GUID per process (8 chars)
 ### **What is NOT Tracked**
 
@@ -506,8 +508,9 @@ destination selection does not replace that string or require Azure credentials.
 
 Tool telemetry contains only allowlisted operation metadata. Explicit exception
 telemetry is rebuilt from safe classifications and never contains the original
-message or stack. An ingestion-time workspace transform rejects exception rows
-without ExcelMcp's sanitization marker. `SensitiveDataRedactor` is retained for
+message or stack. Sanitized failures are `UnhandledException` custom events.
+An ingestion-time workspace transform rejects raw exception rows, framework
+traces, metrics/counters, and unmarked `UnhandledException` events. `SensitiveDataRedactor` is retained for
 local diagnostic text and recognizes:
 - Windows file paths (`C:\Users\...` → `[REDACTED_PATH]`)
 - UNC paths (`\\server\share\...` → `[REDACTED_PATH]`)
@@ -516,21 +519,24 @@ local diagnostic text and recognizes:
 
 ### **Local Development with Telemetry**
 
-No Azure resource or subscription access is needed. First build Release, then
-run the standalone Aspire dashboard in another terminal. You do not need an
-Aspire AppHost or containers for the application or ordinary tests.
+Use the standalone Aspire dashboard as the first receiver for local telemetry
+development, following the [telemetry validation rules](../AGENTS.md#build-and-validation).
+No Azure resource, subscription access, or Aspire AppHost integration is needed.
+Start the dashboard with its UI and OTLP listener bound to loopback, and build
+Release without a production connection string. Configure the application with
+the dashboard's actual OTLP port and protocol; the example below assumes gRPC
+on port 4317. This pipeline does not send OTLP authentication headers, so use a
+loopback-only listener configured to accept local development traffic.
+
+The [standalone Aspire dashboard](https://aspire.dev/dashboard/standalone/)
+can run without Docker or an AppHost:
 
 ```powershell
-dotnet build Sbroenne.ExcelMcp.sln -c Release
-
-# If the Aspire CLI is installed, start its standalone dashboard.
-aspire dashboard run
+npx -y @microsoft/aspire-cli dashboard run --frontend-url http://127.0.0.1:18888 --otlp-grpc-url http://127.0.0.1:4317 --otlp-http-url http://127.0.0.1:4318
 ```
 
-Follow the [official standalone dashboard setup](https://aspire.dev/dashboard/standalone/)
-to install the CLI or use the container alternative. Keep browser authentication
-enabled and bind the dashboard to loopback. Open the login URL printed by the
-dashboard; do not commit or share its token.
+Open the login URL printed by Aspire to inspect telemetry. Keep that terminal
+running for the local check and stop it when finished.
 
 In the terminal that launches ExcelMcp:
 
@@ -540,6 +546,13 @@ $env:OTEL_EXPORTER_OTLP_PROTOCOL = 'grpc'
 $env:OTEL_EXPORTER_OTLP_ENDPOINT = 'http://localhost:4317'
 .\src\ExcelMcp.CLI\bin\Release\net10.0-windows\excelcli.exe session list --quiet
 ```
+
+CLI telemetry is owned by its existing background service. Use a private pipe
+via `EXCELMCP_CLI_PIPE`, and start that service with `excelcli service start` from
+the same local-mode environment before running `session list`. An already-running
+service retains the environment it inherited at startup; a stopped-service check
+does not start reporting. Stop only the private test service with
+`excelcli service stop` when finished.
 
 For MCP, set these same variables on the process launched by your MCP client,
 using `src\ExcelMcp.McpServer\bin\Release\net10.0-windows\Sbroenne.ExcelMcp.McpServer.exe`
@@ -559,19 +572,40 @@ Events appear as structured logs and requests as traces. Only the already
 approved event properties and sanitized exception classifications are recorded;
 framework logs and automatic HTTP/runtime metrics are not enabled. This is not a
 replica of Azure's custom-event tables, Users/Sessions views, or ingestion rules.
-If the receiver is unavailable, delivery diagnostics go to stderr without
-changing the command result. Short-lived commands attempt a bounded flush.
+
+Exercise both entry points using synthetic inputs and inspect the received logs
+and traces in Aspire. Check a normal short-lived CLI invocation without adding
+an artificial delay, and check an MCP tool call during a running server session.
+Confirm operation names, timings, outcomes, and approved properties; report any
+missing records rather than treating a successful command as successful telemetry
+delivery. Separately test with the receiver stopped or stalled to establish that
+startup, commands, and shutdown do not wait for network traffic. Automated tests
+below supplement this local check, not replace it. Aspire cannot validate Azure's
+ingestion rules or analytics queries; record those as separate validation.
+
+Reporting setup (including saved-ID storage) runs in one background task. Calls
+skip reporting until it is ready. Only standard SDK batch processors are used;
+full buffers drop records. Exit signals stop acceptance without flushing,
+disposing providers, or waiting for setup/network. CLI records are queued in the
+existing daemon and can be sent after the short-lived client exits. Records
+pending when the daemon or MCP Server itself exits can still be lost. CLI
+commands that never reach the daemon do not produce telemetry. Delivery failure never changes command results
+or emits raw SDK diagnostics. Providers are separate from the MCP host lifetime.
+Sampling (including rate-limited sampling), offline disk storage, live metrics,
+SDK self-statistics, and automatic standard/performance metrics are disabled.
 
 Automated tests capture telemetry in memory and test HTTP/protobuf delivery
-against an isolated loopback receiver. They require neither Aspire nor Azure:
+and gRPC against isolated loopback receivers, including blocked setup/export and
+full buffers. They require no cloud access:
 
 ```powershell
 dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj -c Release --filter 'Feature=Telemetry'
 dotnet test tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj -c Release --filter 'Feature=Telemetry'
 ```
 
-These tests do not validate Azure table mapping, workspace transformations,
-cloud queries, or portal reports. No separate Azure test resource is required.
+Native Azure envelope mapping is tested with the real exporter against loopback.
+Workspace transformations, cloud queries, and portal reports still require
+maintainer deployment verification; local tests do not contact Azure.
 
 ### **Local Development without Telemetry**
 
@@ -708,6 +742,14 @@ Test the scripts locally without Azure access:
 .\scripts\Test-UsageAnalytics.ps1
 ```
 
+Azure custom events remain in `AppEvents` and operation traces in `AppRequests`.
+Safe identity fields (`UserId`, `SessionId`, `AppVersion`) are explicit
+`Properties` attributes; analytics queries normalize `Properties.UserId` with a
+fallback to the historical `UserId` column before applying `UserIdMigration`.
+Native non-HTTP operation traces have response code `0`; use `Success` and
+`Properties.Outcome` for outcome analytics rather than HTTP response codes.
+Reports count received operations, not a guaranteed complete or sampled population.
+
 ### **Telemetry Architecture**
 
 ```text
@@ -715,7 +757,7 @@ Build Time:
   MSBuild → reads AppInsightsConnectionString → generates TelemetryConfig.g.cs
 
 Runtime:
-  CLI or MCP Tool Invocation
+  CLI daemon request or MCP Tool Invocation
       │
       ▼
   CliTelemetry / ExcelMcpTelemetry
@@ -724,7 +766,8 @@ Runtime:
   Allowlisted telemetry construction
       │ (exception messages and stacks are omitted)
       ▼
-  TelemetryClient → ingestion privacy transform → Application Insights
+  UsageTelemetry → SDK batch processors → direct Azure Monitor exporter
+      → ingestion privacy transform → Application Insights
   Or: explicit local mode → OTLP logs/traces → local dashboard
   Or: off → no collection or delivery
 ```
@@ -734,13 +777,11 @@ Runtime:
 | File | Purpose |
 |------|---------|
 | `Telemetry/ExcelMcpTelemetry.cs` | Static helper for tracking events |
-| `ExcelMcp.CLI/Telemetry/CliTelemetry.cs` | CLI command telemetry and lifecycle |
-| `ExcelMcp.CLI/Telemetry/DeferredTelemetrySink.cs` | Creates the CLI telemetry sink in the background and bounds its shutdown |
-| `ExcelMcp.CLI/Telemetry/ApplicationInsightsTelemetrySink.cs` | CLI sink that owns the Application Insights client |
-| `ExcelMcp.CLI/Telemetry/ICliTelemetrySink.cs` | Destination contract for CLI command telemetry |
-| `Shared/TelemetrySettings.cs` | Matching destination selection and local endpoint validation, compiled into both entry points |
-| `Shared/LocalTelemetry.cs` | Local-only export of approved events and request traces |
-| `ExcelMcp.CLI/Telemetry/LocalTelemetrySink.cs` | CLI adapter for local delivery |
+| `ExcelMcp.CLI/Telemetry/CliTelemetry.cs` | CLI daemon operation telemetry and lifecycle |
+| `Shared/UsageTelemetry.cs` | Background setup, no-wait recording/exit, native Azure or local OTLP batch export |
+| `Shared/UsageRecord.cs` | Safe event and operation fields shared by both adapters |
+| `Shared/TelemetrySettings.cs` | Destination selection and loopback validation |
+| `Shared/TelemetryUserIdentity.cs` | Shared persisted random identity and one-time migration |
 | `Telemetry/SensitiveDataRedactor.cs` | Redacts sensitive local diagnostic text |
 | Entry-point `Program.cs` files | Telemetry destination and lifecycle configuration |
 | CLI and MCP Server project files | MSBuild targets that generate `TelemetryConfig.g.cs` |

@@ -49,18 +49,24 @@ function Normalize-SyntheticUsageRows {
     $legacyByNewId = @{}
     foreach ($migration in $MigrationEvents) {
         $legacyUserId = $migration.Properties.LegacyUserId
-        if ($migration.UserId -and $legacyUserId) {
-            $legacyByNewId[$migration.UserId] = $legacyUserId
+        $userId = if ($migration.Properties.UserId) { $migration.Properties.UserId } else { $migration.UserId }
+        if ($userId -and $legacyUserId) {
+            $legacyByNewId[$userId] = $legacyUserId
         }
     }
 
     foreach ($row in $Rows) {
-        if ($ExcludeMigrationEvents -and $row.Name -eq "UserIdMigration") {
+        if ($ExcludeMigrationEvents -and $row.Name -in @("UserIdMigration", "SessionStart", "UnhandledException")) {
             continue
         }
         $copy = $row.Clone()
-        if ($legacyByNewId.ContainsKey($row.UserId)) {
-            $copy.UserId = $legacyByNewId[$row.UserId]
+        foreach ($field in @("UserId", "SessionId", "AppVersion")) {
+            if ($row.Properties -and $row.Properties[$field]) {
+                $copy[$field] = $row.Properties[$field]
+            }
+        }
+        if ($legacyByNewId.ContainsKey($copy.UserId)) {
+            $copy.UserId = $legacyByNewId[$copy.UserId]
         }
         [pscustomobject]$copy
     }
@@ -454,18 +460,25 @@ try {
         "The query lookup does not split CLI sheet actions."
     Assert-True ($prelude.Contains("coalesce(tostring(Properties['EntryPoint']), 'mcp-server')")) `
         "Rows recorded before the entry point label are not counted as MCP Server."
-    Assert-True ($prelude -match "let userIdMigrations = AppEvents\s*\r?\n\| where Name == 'UserIdMigration'") `
+    Assert-True ($prelude -match "let userIdMigrations = AppEvents\s*\r?\n\| extend UserId=coalesce\(tostring\(Properties\['UserId'\]\), UserId\)\s*\r?\n\| where Name == 'UserIdMigration'") `
         "User ID migration mappings are not read from all retained events."
     Assert-True (($prelude -split "UserId=coalesce\(LegacyUserId, UserId\)").Count -eq 3) `
         "New IDs are not normalized to their legacy ID."
     Assert-True ($prelude -match "summarize arg_max\(TimeGenerated, LegacyUserId\) by UserId") `
         "The latest migration mapping is not selected for each new ID."
-    Assert-True ($prelude.Contains("where Name !in ('SessionStart', 'UserIdMigration')")) `
+    Assert-True ($prelude.Contains("where Name !in ('SessionStart', 'UserIdMigration', 'UnhandledException')")) `
         "Migration link events are not excluded from action metrics."
     Assert-True ($prelude -notmatch "let userIdMigrations = AppEvents[\s\S]*?ago\(") `
         "User ID migration mappings must use the full retention period."
     Assert-True ($prelude -match "let excludedNames = dynamic\(\['file/open', 'file/close'\]\)") `
         "Excluded actions are not removed after names are combined."
+
+    Assert-True (($prelude -split "UserId=coalesce\(tostring\(Properties\['UserId'\]\), UserId\)").Count -eq 4) `
+        "Native OpenTelemetry identity attributes are not normalized alongside historical columns."
+    Assert-True (($prelude -split "SessionId=coalesce\(tostring\(Properties\['SessionId'\]\), SessionId\)").Count -eq 3) `
+        "Native process sessions are not available to session analytics."
+    Assert-True (($prelude -split "AppVersion=coalesce\(tostring\(Properties\['AppVersion'\]\), AppVersion\)").Count -eq 3) `
+        "Native versions are not available to adoption analytics."
 
     $legacyId = "legacy-user"
     $randomId = "random-user"
@@ -474,8 +487,8 @@ try {
     $legacyTime = $currentWeekStart.AddDays(-6).AddHours(12)
     $randomTime = $currentWeekStart.AddDays(-1).AddHours(12)
     $migrationRows = @(@{
-        Name = "UserIdMigration"; UserId = $randomId
-        Properties = @{ LegacyUserId = $legacyId }
+        Name = "UserIdMigration"; UserId = ""
+        Properties = @{ UserId = $randomId; LegacyUserId = $legacyId }
         TimeGenerated = $now
     })
     $syntheticRequests = @(
@@ -485,14 +498,16 @@ try {
             SessionId = "session-one"; Name = "range/get-values"
         },
         @{
-            UserId = $randomId; TimeGenerated = $randomTime
-            AppVersion = "2.0.1"; EntryPoint = "cli"; Feature = "power-query"
-            SessionId = "session-two"; Name = "powerquery/refresh"
+            UserId = ""; TimeGenerated = $randomTime
+            AppVersion = ""; EntryPoint = "cli"; Feature = "power-query"
+            SessionId = ""; Name = "powerquery/refresh"
+            Properties = @{ UserId = $randomId; SessionId = "session-two"; AppVersion = "2.0.1" }
         }
     )
     $syntheticEvents = @(
         @{ UserId = $legacyId; TimeGenerated = $legacyTime; Name = "range/get-values" },
-        @{ UserId = $randomId; TimeGenerated = $randomTime; Name = "powerquery/refresh" }
+        @{ UserId = ""; Properties = @{ UserId = $randomId }; TimeGenerated = $randomTime; Name = "powerquery/refresh" },
+        @{ UserId = ""; Properties = @{ UserId = $randomId }; TimeGenerated = $randomTime; Name = "UnhandledException" }
     ) + $migrationRows
     $normalizedSyntheticRequests = @(
         Normalize-SyntheticUsageRows $syntheticRequests $migrationRows

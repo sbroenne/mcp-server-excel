@@ -2,7 +2,6 @@ using System.Diagnostics;
 using System.Security;
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.ApplicationInsights.DataContracts;
 
 namespace Sbroenne.ExcelMcp.Telemetry;
 
@@ -87,15 +86,14 @@ internal static class TelemetryUserIdentityStore
     internal static TelemetryUserIdentity CreateProcessOnly() =>
         new(Guid.NewGuid().ToString("N"), null);
 
-    internal static EventTelemetry? CreateMigrationEvent(TelemetryUserIdentity identity)
+    internal static UsageEvent? CreateMigrationEvent(TelemetryUserIdentity identity)
     {
         if (identity.LegacyUserId is null)
         {
             return null;
         }
 
-        var telemetry = new EventTelemetry("UserIdMigration");
-        telemetry.Context.User.Id = identity.UserId;
+        var telemetry = new UsageEvent("UserIdMigration");
         telemetry.Properties["LegacyUserId"] = identity.LegacyUserId;
         return telemetry;
     }

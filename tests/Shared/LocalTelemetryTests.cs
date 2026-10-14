@@ -1,5 +1,7 @@
 using System.Diagnostics;
-using Microsoft.ApplicationInsights.DataContracts;
+using Sbroenne.ExcelMcp.Telemetry;
+using Azure.Monitor.OpenTelemetry.Exporter;
+using System.Text.Json;
 using OpenTelemetry;
 using OpenTelemetry.Logs;
 using OpenTelemetry.Trace;
@@ -67,235 +69,288 @@ public sealed class LocalTelemetryTests
         Assert.NotEmpty(error.Message);
     }
 
+
+    private static readonly TelemetryUserIdentity Identity = new("0123456789abcdef0123456789abcdef", "abcdef0123456789");
+    private static TelemetrySettings Local => new(TelemetryMode.Local, null, new Uri("http://localhost:4317"), "grpc");
+
     [Fact]
-    public void LocalPipeline_RecordsEventAndRequestOnce_WithExactFieldsAndDuration()
+    public async Task Start_BlockedIdentity_DoesNotBlockRecordsOrExit_AndCannotBecomeReadyAfterExit()
+    {
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        var builds = 0;
+        var reporter = new UsageTelemetry("ExcelMcp.Test", () =>
+        {
+            entered.Set();
+            release.Wait();
+            return Identity;
+        }, (_, _) => { Interlocked.Increment(ref builds); throw new InvalidOperationException(); });
+        var call = Task.Run(() => reporter.Start(Local));
+        try
+        {
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
+            await call.WaitAsync(TimeSpan.FromMilliseconds(500));
+            var recordAndExit = Task.Run(() =>
+            {
+                reporter.RecordEvent(new UsageEvent("before-ready"));
+                reporter.RecordOperation(new UsageOperation { Name = "before-ready" });
+                reporter.SignalExit();
+            });
+            await recordAndExit.WaitAsync(TimeSpan.FromMilliseconds(500));
+            Assert.False(reporter.IsReady);
+        }
+        finally { release.Set(); await call; await reporter.Initialization; }
+        Assert.Equal(0, builds);
+        Assert.False(reporter.IsReady);
+    }
+
+    [Fact]
+    public async Task Start_Disabled_NeverAccessesIdentityOrBuildsProvider()
+    {
+        var identityCalls = 0;
+        var providerCalls = 0;
+        var reporter = new UsageTelemetry("ExcelMcp.Test", () =>
+        {
+            Interlocked.Increment(ref identityCalls);
+            return Identity;
+        }, (_, _) =>
+        {
+            Interlocked.Increment(ref providerCalls);
+            throw new InvalidOperationException("Provider was built");
+        });
+        reporter.Start(new(TelemetryMode.Off, null, null, null));
+        await reporter.Initialization;
+        reporter.RecordEvent(new UsageEvent("disabled"));
+        Assert.False(reporter.IsReady);
+        Assert.Same(Task.CompletedTask, reporter.Initialization);
+        Assert.Equal(0, identityCalls);
+        Assert.Equal(0, providerCalls);
+    }
+
+    [Fact]
+    public async Task Ready_RecordsIdentityMigrationExactlyOnce_AndDropsBeforeReadyAndAfterExit()
     {
         var activities = new List<Activity>();
         var logs = new List<LogRecord>();
-        var settings = TelemetrySettings.Resolve(EmbeddedAzure, key => key == TelemetrySettings.ModeVariable ? "local" : null);
-        using var telemetry = new LocalTelemetry(settings, "ExcelMcp.Test",
-            tracing => tracing.AddInMemoryExporter(activities),
-            logging => logging.AddInMemoryExporter(logs));
-        var eventTelemetry = new EventTelemetry("sheet/list");
-        eventTelemetry.Properties["Outcome"] = "expected-negative";
-        eventTelemetry.Properties["EntryPoint"] = "test";
-        eventTelemetry.Context.User.Id = "anonymous-test-user";
-        eventTelemetry.Context.Session.Id = "test-session";
-        var request = new RequestTelemetry
+        using var pipeline = new UsagePipeline(Local, "ExcelMcp.Test", Identity, "test-session",
+            t => t.AddInMemoryExporter(activities), l => l.AddInMemoryExporter(logs));
+        var reporter = new UsageTelemetry("ExcelMcp.Test", () => Identity, (_, _) => pipeline);
+        reporter.RecordEvent(new UsageEvent("before-ready"));
+        reporter.Start(Local);
+        reporter.Start(Local);
+        await reporter.Initialization;
+        Assert.True(reporter.IsReady);
+        var operation = new UsageOperation
         {
             Name = "sheet/list",
             Success = true,
-            ResponseCode = "200",
             Timestamp = DateTimeOffset.UtcNow.AddMilliseconds(-123),
             Duration = TimeSpan.FromMilliseconds(123)
         };
-        request.Properties["Outcome"] = "expected-negative";
-        telemetry.Track(eventTelemetry);
-        telemetry.Track(request);
-        Assert.True(telemetry.Flush());
-
+        operation.Properties["Outcome"] = "expected-negative";
+        reporter.RecordOperation(operation);
+        reporter.SignalExit();
+        reporter.RecordEvent(new UsageEvent("after-exit"));
+        reporter.RecordOperation(new UsageOperation { Name = "after-exit" });
+        Assert.True(pipeline.ForceFlush(1000));
         var activity = Assert.Single(activities);
-        Assert.Equal("sheet/list", activity.DisplayName);
+        Assert.Equal(operation.Timestamp.UtcDateTime, activity.StartTimeUtc);
+        Assert.Equal(operation.Duration, activity.Duration);
         Assert.Equal(ActivityStatusCode.Ok, activity.Status);
-        Assert.Equal(request.Timestamp.UtcDateTime, activity.StartTimeUtc);
-        Assert.Equal(request.Duration, activity.Duration);
+        Assert.Equal(Identity.UserId, activity.GetTagItem("UserId"));
+        Assert.Equal("test-session", activity.GetTagItem("SessionId"));
         Assert.Equal("expected-negative", activity.GetTagItem("Outcome"));
-        Assert.Equal("200", activity.GetTagItem("ResponseCode"));
-        var log = Assert.Single(logs);
-        Assert.Equal("sheet/list", log.Body);
-        Assert.Contains(log.Attributes!, attribute => attribute.Key == "UserId" && Equals(attribute.Value, "anonymous-test-user"));
-        Assert.Contains(log.Attributes!, attribute => attribute.Key == "Outcome" && Equals(attribute.Value, "expected-negative"));
+        Assert.Equal(2, logs.Count);
+        var migration = Assert.Single(logs, l => l.Body == "UserIdMigration");
+        Assert.Contains(migration.Attributes!, a => a.Key == "LegacyUserId" && Equals(a.Value, Identity.LegacyUserId));
+        Assert.Contains(logs, l => l.Body == "SessionStart");
     }
 
     [Fact]
-    public void LocalPipeline_RejectsUnsanitizedException()
+    public async Task BatchProcessors_BlockedExportAndFullBuffers_NeverBlockRecordingOrSignalExit()
     {
-        using var telemetry = new LocalTelemetry(
-            TelemetrySettings.Resolve(null, key => key == TelemetrySettings.ModeVariable ? "local" : null), "ExcelMcp.Test",
-            tracing => tracing.AddInMemoryExporter(new List<Activity>()),
-            logging => logging.AddInMemoryExporter(new List<LogRecord>()));
-        Assert.Throws<InvalidOperationException>(() =>
-            telemetry.Track(new ExceptionTelemetry(new InvalidOperationException("private workbook contents"))));
-    }
-
-    [Fact]
-    public async Task LocalPipeline_HttpProtobuf_DeliversEventsAndRequestsToLoopback()
-    {
-        await using var receiver = new LocalOtlpReceiver();
-        var variables = new Dictionary<string, string>
+        using var release = new ManualResetEventSlim();
+        using var traceExporter = new BlockingExporter<Activity>(release);
+        using var logExporter = new BlockingExporter<LogRecord>(release);
+        using var pipeline = new UsagePipeline(Local, "ExcelMcp.Test", Identity, "test-session",
+            t => t.AddProcessor(new BatchActivityExportProcessor(traceExporter, maxQueueSize: 16,
+                scheduledDelayMilliseconds: 1, maxExportBatchSize: 1)),
+            l => l.AddProcessor(new BatchLogRecordExportProcessor(logExporter, maxQueueSize: 16,
+                scheduledDelayMilliseconds: 1, maxExportBatchSize: 1)));
+        var reporter = new UsageTelemetry("ExcelMcp.Test", () => Identity, (_, _) => pipeline);
+        reporter.Start(Local);
+        await reporter.Initialization;
+        reporter.RecordOperation(new UsageOperation { Name = "sheet/list", Success = true });
+        try
         {
-            [TelemetrySettings.ModeVariable] = "local",
-            ["OTEL_EXPORTER_OTLP_ENDPOINT"] = receiver.Endpoint,
-            ["OTEL_EXPORTER_OTLP_PROTOCOL"] = "http/protobuf"
-        };
-        using var telemetry = new LocalTelemetry(
-            TelemetrySettings.Resolve(EmbeddedAzure, key => variables.GetValueOrDefault(key)), "ExcelMcp.Test");
-        var eventTelemetry = new EventTelemetry("worksheet_read/list");
-        eventTelemetry.Properties["Outcome"] = "succeeded";
-        telemetry.Track(eventTelemetry);
-        telemetry.Track(new RequestTelemetry
-        {
-            Name = "worksheet_read/list",
-            Timestamp = DateTimeOffset.UtcNow.AddMilliseconds(-10),
-            Duration = TimeSpan.FromMilliseconds(10),
-            Success = true,
-            ResponseCode = "200"
-        });
-        Assert.True(telemetry.Flush());
-        var requests = receiver.Requests;
-        Assert.Equal(2, requests.Count);
-        Assert.Contains(requests, request => request.Path == "/v1/traces" && request.Payload.Contains("worksheet_read/list", StringComparison.Ordinal));
-        Assert.Contains(requests, request => request.Path == "/v1/logs" && request.Payload.Contains("Outcome", StringComparison.Ordinal));
-        Assert.All(requests, request => Assert.Contains("ExcelMcp.Test", request.Payload));
-        Assert.All(requests, request => Assert.DoesNotContain("localhost.invalid", request.Payload));
-    }
-
-    [Fact]
-    public async Task LocalPipeline_DefaultGrpc_DeliversEventsAndRequestsToLoopback()
-    {
-        await using var receiver = await LocalGrpcOtlpReceiver.StartAsync();
-        var variables = new Dictionary<string, string>
-        {
-            [TelemetrySettings.ModeVariable] = "local",
-            ["OTEL_EXPORTER_OTLP_ENDPOINT"] = receiver.Endpoint
-        };
-        var settings = TelemetrySettings.Resolve(EmbeddedAzure, key => variables.GetValueOrDefault(key));
-        Assert.Equal("grpc", settings.Protocol);
-        using var telemetry = new LocalTelemetry(settings, "ExcelMcp.Test");
-        var eventTelemetry = new EventTelemetry("worksheet_read/list");
-        eventTelemetry.Properties["Outcome"] = "succeeded";
-        telemetry.Track(eventTelemetry);
-        telemetry.Track(new RequestTelemetry
-        {
-            Name = "worksheet_read/list",
-            Timestamp = DateTimeOffset.UtcNow.AddMilliseconds(-10),
-            Duration = TimeSpan.FromMilliseconds(10),
-            Success = true,
-            ResponseCode = "200"
-        });
-        Assert.True(telemetry.Flush());
-        var requests = receiver.Requests;
-        Assert.Equal(2, requests.Count);
-        Assert.Contains(requests, request => request.Path == "/opentelemetry.proto.collector.trace.v1.TraceService/Export"
-            && request.Payload.Contains("worksheet_read/list", StringComparison.Ordinal));
-        Assert.Contains(requests, request => request.Path == "/opentelemetry.proto.collector.logs.v1.LogsService/Export"
-            && request.Payload.Contains("worksheet_read/list", StringComparison.Ordinal)
-            && request.Payload.Contains("Outcome", StringComparison.Ordinal));
-        Assert.All(requests, request => Assert.Contains("ExcelMcp.Test", request.Payload));
-        Assert.All(requests, request => Assert.DoesNotContain("localhost.invalid", request.Payload));
-    }
-
-    [Fact]
-    public void LocalPipeline_Dispose_DoesNotAddDefaultSdkShutdownWaits()
-    {
-        var traces = new ShutdownProbe<Activity>();
-        var logs = new ShutdownProbe<LogRecord>();
-        var telemetry = new LocalTelemetry(
-            TelemetrySettings.Resolve(null, key => key == TelemetrySettings.ModeVariable ? "local" : null),
-            "ExcelMcp.Test",
-            builder => builder.AddProcessor(traces),
-            builder => builder.AddProcessor(logs));
-        telemetry.Dispose();
-        Assert.Equal(0, traces.Timeout);
-        Assert.Equal(0, logs.Timeout);
-        Assert.True(traces.Disposed);
-        Assert.True(logs.Disposed);
+            Assert.True(traceExporter.Entered.Wait(TimeSpan.FromSeconds(10)));
+            Assert.True(logExporter.Entered.Wait(TimeSpan.FromSeconds(10)));
+            var calls = Task.Run(() =>
+            {
+                for (var i = 0; i < 4096; i++)
+                {
+                    reporter.RecordEvent(new UsageEvent("sheet/list"));
+                    reporter.RecordOperation(new UsageOperation { Name = "sheet/list", Success = true });
+                }
+                reporter.SignalExit();
+            });
+            await calls.WaitAsync(TimeSpan.FromSeconds(1));
+            Assert.False(reporter.IsReady);
+        }
+        finally { release.Set(); }
+        Assert.True(pipeline.ForceFlush(10000));
+        Assert.InRange(traceExporter.Count, 1L, 17L);
+        Assert.InRange(logExporter.Count, 1L, 17L);
     }
 
     [Theory]
-    [InlineData("grpc")]
-    [InlineData("http/protobuf")]
-    public async Task LocalPipeline_AmbientCredentialHeaders_AreNotSent(string protocol)
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LocalExport_DeliversExplicitSafeFields_WithoutAmbientResourceOrHeaders(bool grpc)
     {
-        var variables = new Dictionary<string, string>
-        {
-            ["OTEL_EXPORTER_OTLP_HEADERS"] = "x-test-general=synthetic-general-credential",
-            ["OTEL_EXPORTER_OTLP_TRACES_HEADERS"] = "x-test-traces=synthetic-traces-credential",
-            ["OTEL_EXPORTER_OTLP_LOGS_HEADERS"] = "x-test-logs=synthetic-logs-credential"
-        };
-        var previous = variables.Keys.ToDictionary(key => key, Environment.GetEnvironmentVariable);
+        await using var http = new LocalOtlpReceiver();
+        await using var grpcReceiver = await LocalGrpcOtlpReceiver.StartAsync();
+        var previous = Environment.GetEnvironmentVariable("OTEL_RESOURCE_ATTRIBUTES");
+        var headerVariables = new[] { "OTEL_EXPORTER_OTLP_HEADERS", "OTEL_EXPORTER_OTLP_LOGS_HEADERS", "OTEL_EXPORTER_OTLP_TRACES_HEADERS" };
+        var previousHeaders = headerVariables.ToDictionary(name => name, Environment.GetEnvironmentVariable);
         try
         {
-            foreach (var pair in variables)
-                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
-            await using var httpReceiver = new LocalOtlpReceiver();
-            await using var grpcReceiver = await LocalGrpcOtlpReceiver.StartAsync();
-            var settings = TelemetrySettings.Resolve(null, key => key switch
-            {
-                TelemetrySettings.ModeVariable => "local",
-                "OTEL_EXPORTER_OTLP_PROTOCOL" => protocol,
-                "OTEL_EXPORTER_OTLP_ENDPOINT" => protocol == "grpc" ? grpcReceiver.Endpoint : httpReceiver.Endpoint,
-                _ => Environment.GetEnvironmentVariable(key)
-            });
-            using var telemetry = new LocalTelemetry(settings, "ExcelMcp.Test");
-            telemetry.Track(new EventTelemetry("sheet/list"));
-            telemetry.Track(new RequestTelemetry
+            Environment.SetEnvironmentVariable("OTEL_RESOURCE_ATTRIBUTES", "private_path=confidential-workbook.xlsx");
+            foreach (var variable in headerVariables) Environment.SetEnvironmentVariable(variable, "x-private=secret");
+            using var pipeline = new UsagePipeline(new(TelemetryMode.Local, null,
+                new Uri(grpc ? grpcReceiver.Endpoint : http.Endpoint), grpc ? "grpc" : "http/protobuf"),
+                "ExcelMcp.Test", Identity, "test-session");
+            pipeline.RecordEvent(new UsageEvent("sheet/list"));
+            pipeline.RecordOperation(new UsageOperation
             {
                 Name = "sheet/list",
-                Timestamp = DateTimeOffset.UtcNow.AddMilliseconds(-10),
-                Duration = TimeSpan.FromMilliseconds(10),
-                Success = true,
-                ResponseCode = "200"
+                Success = false,
+                Timestamp = DateTimeOffset.UtcNow.AddMilliseconds(-15),
+                Duration = TimeSpan.FromMilliseconds(15)
             });
-            Assert.True(telemetry.Flush());
-            var requests = protocol == "grpc" ? grpcReceiver.Requests : httpReceiver.Requests;
+            Assert.True(pipeline.ForceFlush(10000));
+            var requests = grpc ? grpcReceiver.Requests : http.Requests;
             Assert.Equal(2, requests.Count);
-            Assert.Contains(requests, request => request.Path.Contains(
-                protocol == "grpc" ? "TraceService/Export" : "/v1/traces", StringComparison.Ordinal));
-            Assert.Contains(requests, request => request.Path.Contains(
-                protocol == "grpc" ? "LogsService/Export" : "/v1/logs", StringComparison.Ordinal));
             Assert.All(requests, request =>
             {
                 Assert.Contains("sheet/list", request.Payload);
-                foreach (var pair in variables)
-                {
-                    var sentinel = pair.Value.Split('=');
-                    Assert.False(request.Headers.ContainsKey(sentinel[0]));
-                    Assert.DoesNotContain(request.Headers.Values, value => value.Contains(sentinel[1], StringComparison.Ordinal));
-                }
+                Assert.Contains(Identity.UserId, request.Payload);
+                Assert.DoesNotContain("confidential-workbook.xlsx", request.Payload);
+                Assert.DoesNotContain("x-private", request.Headers.Keys, StringComparer.OrdinalIgnoreCase);
             });
         }
         finally
         {
-            foreach (var pair in previous)
-                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
+            Environment.SetEnvironmentVariable("OTEL_RESOURCE_ATTRIBUTES", previous);
+            foreach (var variable in previousHeaders) Environment.SetEnvironmentVariable(variable.Key, variable.Value);
         }
     }
 
     [Fact]
-    public async Task LocalPipeline_Redirect_DoesNotForwardTelemetryToAnotherEndpoint()
+    public async Task LocalExport_Redirect_DoesNotForwardTelemetry()
     {
         await using var destination = new LocalOtlpReceiver();
-        await using var receiver = new LocalOtlpReceiver($"{destination.Endpoint}/v1/logs");
-        var variables = new Dictionary<string, string>
-        {
-            [TelemetrySettings.ModeVariable] = "local",
-            ["OTEL_EXPORTER_OTLP_ENDPOINT"] = receiver.Endpoint,
-            ["OTEL_EXPORTER_OTLP_PROTOCOL"] = "http/protobuf"
-        };
-        using var telemetry = new LocalTelemetry(
-            TelemetrySettings.Resolve(EmbeddedAzure, key => variables.GetValueOrDefault(key)), "ExcelMcp.Test");
-        telemetry.Track(new EventTelemetry("sheet/list"));
-        Assert.False(telemetry.Flush());
-        Assert.Single(receiver.Requests);
+        await using var redirect = new LocalOtlpReceiver(redirect: destination.Endpoint);
+        using var pipeline = new UsagePipeline(new(TelemetryMode.Local, null,
+            new Uri(redirect.Endpoint), "http/protobuf"), "ExcelMcp.Test", Identity, "test-session");
+        pipeline.RecordEvent(new UsageEvent("sheet/list"));
+        Assert.True(pipeline.ForceFlush(10000));
+        Assert.Single(redirect.Requests);
         Assert.Empty(destination.Requests);
     }
 
-    private sealed class ShutdownProbe<T> : BaseProcessor<T> where T : class
+    [Fact]
+    public async Task AzureExporter_BurstIsNotRateLimitedOrSampled()
     {
-        internal int? Timeout { get; private set; }
-        internal bool Disposed { get; private set; }
-
-        protected override bool OnShutdown(int timeoutMilliseconds)
+        await using var receiver = new LocalOtlpReceiver(responseBody:
+            """{"itemsReceived":100,"itemsAccepted":100,"errors":[]}""");
+        using var pipeline = new UsagePipeline(new(TelemetryMode.Azure,
+            $"InstrumentationKey=00000000-0000-0000-0000-000000000000;IngestionEndpoint={receiver.Endpoint}/", null, null),
+            "ExcelMcp.Test", Identity, "test-session");
+        for (var i = 0; i < 100; i++)
         {
-            Timeout = timeoutMilliseconds;
-            return true;
+            pipeline.RecordEvent(new UsageEvent("sheet/list"));
+            pipeline.RecordOperation(new UsageOperation
+            {
+                Name = "sheet/list",
+                Success = true,
+                Timestamp = DateTimeOffset.UtcNow.AddMilliseconds(-1),
+                Duration = TimeSpan.FromMilliseconds(1)
+            });
         }
+        Assert.True(pipeline.ForceFlush(10000));
+        var items = receiver.Requests.SelectMany(r => r.Payload.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            .Select(s => JsonSerializer.Deserialize<JsonElement>(s)).ToArray();
+        Assert.Equal(100, items.Count(i => i.GetProperty("data").GetProperty("baseType").GetString() == "RequestData"));
+        Assert.Equal(100, items.Count(i => i.GetProperty("data").GetProperty("baseType").GetString() == "EventData"));
+    }
 
-        protected override void Dispose(bool disposing)
+    [Fact]
+    public void AzureOptions_DisableSamplingDiskMetricsAndSelfStatistics()
+    {
+        var options = new AzureMonitorExporterOptions();
+        UsagePipeline.ConfigureAzure(options, new(TelemetryMode.Azure, EmbeddedAzure, null, null));
+        Assert.Equal(1f, options.SamplingRatio);
+        Assert.Null(options.TracesPerSecond);
+        Assert.True(options.DisableOfflineStorage);
+        Assert.False(options.EnableLiveMetrics);
+        Assert.False(options.EnableStandardMetrics);
+        Assert.False(options.EnablePerformanceCounters);
+        Assert.Equal("true", Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_SDKSTATS_DISABLED"));
+        Assert.Equal("true", Environment.GetEnvironmentVariable("APPLICATIONINSIGHTS_STATSBEAT_DISABLED"));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task AzureExporter_UsesNativeEventsRequestsAndAnonymousResource_WithoutAutomaticMetrics(bool succeeded)
+    {
+        await using var receiver = new LocalOtlpReceiver(responseBody:
+            """{"itemsReceived":2,"itemsAccepted":2,"errors":[]}""");
+        using var pipeline = new UsagePipeline(new(TelemetryMode.Azure,
+            $"InstrumentationKey=00000000-0000-0000-0000-000000000000;IngestionEndpoint={receiver.Endpoint}/", null, null),
+            "ExcelMcp.Test", Identity, "test-session");
+        pipeline.RecordEvent(new UsageEvent("sheet/list"));
+        pipeline.RecordOperation(new UsageOperation
         {
-            Disposed = true;
-            base.Dispose(disposing);
+            Name = "sheet/list",
+            Success = succeeded,
+            Timestamp = DateTimeOffset.UtcNow.AddMilliseconds(-123),
+            Duration = TimeSpan.FromMilliseconds(123)
+        });
+        Assert.True(pipeline.ForceFlush(10000));
+        var items = receiver.Requests.SelectMany(r => r.Payload.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            .Select(s => JsonSerializer.Deserialize<JsonElement>(s)).ToArray();
+        // Azure includes its resource envelope, not standard metrics or counters.
+        Assert.Equal(3, items.Length);
+        var resource = Assert.Single(items, i => i.GetProperty("data").GetProperty("baseType").GetString() == "MetricData");
+        Assert.Equal("_OTELRESOURCE_", Assert.Single(resource.GetProperty("data").GetProperty("baseData")
+            .GetProperty("metrics").EnumerateArray()).GetProperty("name").GetString());
+        var eventItem = Assert.Single(items, i => i.GetProperty("data").GetProperty("baseType").GetString() == "EventData");
+        var eventData = eventItem.GetProperty("data").GetProperty("baseData");
+        Assert.Equal("sheet/list", eventData.GetProperty("name").GetString());
+        Assert.Equal(Identity.UserId, eventData.GetProperty("properties").GetProperty("UserId").GetString());
+        Assert.Equal("test-session", eventData.GetProperty("properties").GetProperty("SessionId").GetString());
+        var request = Assert.Single(items, i => i.GetProperty("data").GetProperty("baseType").GetString() == "RequestData");
+        var data = request.GetProperty("data").GetProperty("baseData");
+        Assert.Equal("sheet/list", data.GetProperty("name").GetString());
+        Assert.Equal("0", data.GetProperty("responseCode").GetString());
+        Assert.Equal(succeeded, data.GetProperty("success").GetBoolean());
+        Assert.Equal(Identity.UserId, data.GetProperty("properties").GetProperty("UserId").GetString());
+        Assert.Equal("instance-01234567", request.GetProperty("tags").GetProperty("ai.cloud.roleInstance").GetString());
+        Assert.All(receiver.Requests, r => Assert.DoesNotContain(Environment.MachineName, r.Payload, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private sealed class BlockingExporter<T>(ManualResetEventSlim release) : BaseExporter<T> where T : class
+    {
+        internal ManualResetEventSlim Entered { get; } = new();
+        internal long Count { get; private set; }
+        public override ExportResult Export(in Batch<T> batch)
+        {
+            Entered.Set();
+            release.Wait();
+            Count += batch.Count;
+            return ExportResult.Success;
         }
     }
 }

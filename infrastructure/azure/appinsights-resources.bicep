@@ -31,21 +31,9 @@ resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   }
 }
 
-// Workspace-transform DCR: drops noisy metrics and rejects exception rows unless the
-// application explicitly marked them as sanitized.
-// These were driving the vast majority of billed ingestion for this short-lived CLI/MCP server:
-// - http.client.* gauges/histograms come from the SDK's own outbound HTTP calls (AI ingestion
-//   endpoint) - not useful telemetry (see PR #661, PR #725). The http.client.* portion of this
-//   drop-list must stay in sync with the identical list in
-//   src/ExcelMcp.McpServer/Program.cs (DroppedHttpClientMetricNames) - update both when changed.
-// - HeartbeatState and AppPerformanceCounters (Requests/Sec, Private Bytes, % Processor Time, ...)
-//   are emitted by Microsoft.ApplicationInsights.WorkerService 3.1.2 with no corresponding
-//   ApplicationInsightsServiceOptions flag or ITelemetryModule to disable them in-process, so the
-//   ingestion-time transform is the enforcement boundary.
-// - AppExceptions can otherwise include exception messages and stack traces auto-collected
-//   by the Worker Service SDK. Only ExcelMcp's explicitly sanitized exception records survive.
-// - AppTraces can contain framework-generated host paths and client names. ExcelMcp uses
-//   explicit structured events instead, so trace logs are rejected in full.
+// Usage is exported explicitly as native OpenTelemetry requests and custom events.
+// No metrics, counters, framework logs, or raw exceptions are part of the contract.
+// Reject them at ingestion as defense in depth, including from older clients.
 resource telemetrySanitizationDcr 'Microsoft.Insights/dataCollectionRules@2023-03-11' = {
   name: telemetrySanitizationDcrName
   location: location
@@ -60,7 +48,7 @@ resource telemetrySanitizationDcr 'Microsoft.Insights/dataCollectionRules@2023-0
         destinations: [
           'excelmcpLogs'
         ]
-        transformKql: 'source | where Name !in (\'http.client.open_connections\',\'http.client.active_requests\',\'http.client.connection.duration\',\'http.client.request.time_in_queue\',\'http.client.request.duration\',\'HeartbeatState\')'
+        transformKql: 'source | where false'
       }
       {
         streams: [
@@ -79,8 +67,17 @@ resource telemetrySanitizationDcr 'Microsoft.Insights/dataCollectionRules@2023-0
         destinations: [
           'excelmcpLogs'
         ]
-        // Fail closed: old clients and SDK auto-collection do not carry this marker.
-        transformKql: 'source | where tostring(Properties["Sanitized"]) == "true"'
+        // Unhandled failures are now sanitized custom events, never raw exceptions.
+        transformKql: 'source | where false'
+      }
+      {
+        streams: [
+          'Microsoft-Table-AppEvents'
+        ]
+        destinations: [
+          'excelmcpLogs'
+        ]
+        transformKql: 'source | where Name != "UnhandledException" or tostring(Properties["Sanitized"]) == "true"'
       }
       {
         streams: [

@@ -75,8 +75,8 @@
   <ItemGroup>
     <PackageReference Include="Spectre.Console" />
     <PackageReference Include="Spectre.Console.Cli" />
-    <PackageReference Include="Microsoft.ApplicationInsights" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="Azure.Monitor.OpenTelemetry.Exporter" />
     <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">
@@ -127,7 +127,8 @@ internal static class TelemetryConfig
 
   <ItemGroup>
     <Compile Include="..\Shared\TelemetrySettings.cs" Link="Telemetry\TelemetrySettings.cs" />
-    <Compile Include="..\Shared\LocalTelemetry.cs" Link="Telemetry\LocalTelemetry.cs" />
+    <Compile Include="..\Shared\UsageTelemetry.cs" Link="Telemetry\UsageTelemetry.cs" />
+    <Compile Include="..\Shared\UsageRecord.cs" Link="Telemetry\UsageRecord.cs" />
     <Compile Include="..\Shared\TelemetryUserIdentity.cs" Link="Telemetry\TelemetryUserIdentity.cs" />
     <ProjectReference Include="..\ExcelMcp.Core\ExcelMcp.Core.csproj" />
     <ProjectReference Include="..\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />
