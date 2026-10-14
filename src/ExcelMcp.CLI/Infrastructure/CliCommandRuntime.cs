@@ -119,7 +119,7 @@ internal sealed class DaemonConnectionAdapter : ICliDaemonConnection
         ServiceRequest request,
         CancellationToken cancellationToken,
         TimeSpan timeout) =>
-        DaemonConnectionPolicy.SendControlRequestAsync(
+        DaemonConnectionPolicy.SendObservedControlRequestAsync(
             pipeName,
             request,
             cancellationToken,

@@ -4,6 +4,7 @@ using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
 using Sbroenne.ExcelMcp.Service;
+using StreamJsonRpc;
 using Xunit;
 using Xunit.Abstractions;
 
@@ -255,10 +256,142 @@ public sealed class CliDaemonStartTests(ITestOutputHelper output) : CliDaemonTes
 [Trait("Speed", "Medium")]
 public sealed class CliDaemonObservationTests(ITestOutputHelper output) : CliDaemonTestBase(output)
 {
+    [Theory]
+    [InlineData("service status")]
+    [InlineData("session list")]
+    public async Task Observation_ResponsiveServiceWithoutMutex_RetainsResponseDeadline(string command)
+    {
+        using var server = ServiceSecurity.CreateSecureServer(_testPipeName);
+        Assert.True(DaemonConnectionPolicy.Observe(_testPipeName).IsStopped);
+        var commandTask = CliProcessHelper.RunAsync(
+            command,
+            timeoutMs: 15000,
+            environmentVariables: TestEnv);
+        using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        await server.WaitForConnectionAsync(cancellation.Token);
+        var target = new DelayedObservationRpcTarget();
+        using var rpc = JsonRpc.Attach(server, target);
+        var result = await commandTask;
+
+        using var json = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(0, result.ExitCode);
+        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("running", json.RootElement.GetProperty("daemonState").GetString());
+        Assert.Equal(command.Replace(' ', '.'), target.Command);
+        if (command == "service status")
+        {
+            Assert.True(json.RootElement.GetProperty("running").GetBoolean());
+            Assert.Equal(42, json.RootElement.GetProperty("processId").GetInt32());
+            Assert.Equal(1, json.RootElement.GetProperty("sessionCount").GetInt32());
+        }
+        else
+        {
+            Assert.Equal(1, json.RootElement.GetProperty("count").GetInt32());
+            var session = Assert.Single(json.RootElement.GetProperty("sessions").EnumerateArray());
+            Assert.Equal("test-session", session.GetProperty("sessionId").GetString());
+        }
+    }
+
+    [Theory]
+    [InlineData("service.status")]
+    [InlineData("session.list")]
+    public async Task Observation_StartupMarkerAppearsDuringStoppedProbe_WaitsForService(string command)
+    {
+        Assert.True(DaemonConnectionPolicy.Observe(_testPipeName).IsStopped);
+        var requestTask = DaemonConnectionPolicy.SendObservedControlRequestAsync(
+            _testPipeName,
+            new ServiceRequest { Command = command },
+            CancellationToken.None);
+        await using var marker = await HeldMutex.AcquireAsync(
+            GetDaemonStartingMarkerName(_testPipeName));
+        using var service = new ExcelMcpService();
+        Task? serviceTask = null;
+        try
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(300));
+            Assert.False(requestTask.IsCompleted, "Newly observed startup must retain the control deadline.");
+            serviceTask = Task.Run(() => service.RunAsync(_testPipeName));
+            var response = await requestTask.WaitAsync(TimeSpan.FromSeconds(5));
+
+            Assert.True(response.Success, response.ErrorMessage);
+            Assert.Null(response.ErrorMessage);
+            Assert.NotNull(response.Result);
+            using var json = JsonDocument.Parse(response.Result);
+            if (command == "service.status")
+            {
+                Assert.True(json.RootElement.GetProperty("running").GetBoolean());
+                Assert.Equal(Environment.ProcessId, json.RootElement.GetProperty("processId").GetInt32());
+            }
+            else
+            {
+                Assert.Equal(0, json.RootElement.GetProperty("count").GetInt32());
+                Assert.Empty(json.RootElement.GetProperty("sessions").EnumerateArray());
+            }
+        }
+        finally
+        {
+            service.RequestShutdown();
+            if (serviceTask != null)
+            {
+                await serviceTask.WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            await requestTask.WaitAsync(TimeSpan.FromSeconds(12));
+        }
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Observation_StoppedProbe_PreservesCallerCancellation(bool alreadyCancelled)
+    {
+        using var cancellation = new CancellationTokenSource();
+        if (alreadyCancelled)
+        {
+            cancellation.Cancel();
+        }
+
+        var requestTask = DaemonConnectionPolicy.SendObservedControlRequestAsync(
+            _testPipeName,
+            new ServiceRequest { Command = "service.status" },
+            cancellation.Token);
+        cancellation.Cancel();
+
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => requestTask);
+    }
+
+    private sealed class DelayedObservationRpcTarget
+    {
+        internal string? Command { get; private set; }
+
+        public async Task<ServiceResponse> ProcessCommandAsync(ServiceRequest request)
+        {
+            Command = request.Command;
+            await Task.Delay(TimeSpan.FromMilliseconds(300));
+            return new ServiceResponse
+            {
+                Success = true,
+                Command = request.Command,
+                Result = request.Command == "service.status"
+                    ? ServiceProtocol.Serialize(new ServiceStatus
+                    {
+                        Running = true,
+                        ProcessId = 42,
+                        SessionCount = 1,
+                        StartTime = DateTime.UtcNow - TimeSpan.FromSeconds(5)
+                    })
+                    : """{"success":true,"sessions":[{"sessionId":"test-session"}],"count":1}"""
+            };
+        }
+    }
+
     [Fact]
     public async Task ServiceStatus_WhenDaemonIsNotRunning_ReportsStoppedState()
     {
-        var result = await CliProcessHelper.RunAsync("service status", timeoutMs: 10000, environmentVariables: TestEnv);
+        var environment = TestEnv;
+        environment["EXCELMCP_TELEMETRY_MODE"] = "off";
+        var stopwatch = Stopwatch.StartNew();
+        var result = await CliProcessHelper.RunAsync("service status", timeoutMs: 10000, environmentVariables: environment);
+        stopwatch.Stop();
         _output.WriteLine($"Status response: {result.Stdout}");
         _output.WriteLine($"Status stderr: {result.Stderr}");
 
@@ -267,13 +400,22 @@ public sealed class CliDaemonObservationTests(ITestOutputHelper output) : CliDae
         Assert.True(json.RootElement.GetProperty("success").GetBoolean());
         Assert.Equal("stopped", json.RootElement.GetProperty("daemonState").GetString());
         Assert.False(json.RootElement.GetProperty("running").GetBoolean());
+        Assert.Equal(0, json.RootElement.GetProperty("processId").GetInt32());
+        Assert.Equal(0, json.RootElement.GetProperty("sessionCount").GetInt32());
+        Assert.False(json.RootElement.TryGetProperty("startTime", out _));
+        Assert.Equal("0.00:00:00", json.RootElement.GetProperty("uptime").GetString());
         Assert.False(json.RootElement.TryGetProperty("errorMessage", out _));
+        Assert.InRange(stopwatch.Elapsed, TimeSpan.Zero, TimeSpan.FromSeconds(1.5));
     }
 
     [Fact]
     public async Task SessionList_WhenDaemonIsNotRunning_ReturnsConfirmedEmptyList()
     {
-        var result = await CliProcessHelper.RunAsync("session list", timeoutMs: 10000, environmentVariables: TestEnv);
+        var environment = TestEnv;
+        environment["EXCELMCP_TELEMETRY_MODE"] = "off";
+        var stopwatch = Stopwatch.StartNew();
+        var result = await CliProcessHelper.RunAsync("session list", timeoutMs: 10000, environmentVariables: environment);
+        stopwatch.Stop();
         _output.WriteLine($"Session list response: {result.Stdout}");
         _output.WriteLine($"Session list stderr: {result.Stderr}");
 
@@ -284,6 +426,7 @@ public sealed class CliDaemonObservationTests(ITestOutputHelper output) : CliDae
         Assert.Equal(0, json.RootElement.GetProperty("count").GetInt32());
         Assert.Empty(json.RootElement.GetProperty("sessions").EnumerateArray());
         Assert.False(json.RootElement.TryGetProperty("errorMessage", out _));
+        Assert.InRange(stopwatch.Elapsed, TimeSpan.Zero, TimeSpan.FromSeconds(1.5));
     }
 
     [Fact]

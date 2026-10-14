@@ -224,17 +224,13 @@ internal sealed class ServiceStatusCommand : AsyncCommand
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         var pipeName = DaemonAutoStart.GetPipeName();
-        var observation = DaemonConnectionPolicy.Observe(pipeName);
         var request = new ServiceRequest { Command = "service.status" };
         var response = await CliTelemetry.TrackCommandAsync(
             request,
-            () => DaemonConnectionPolicy.SendControlRequestAsync(
+            () => DaemonConnectionPolicy.SendObservedControlRequestAsync(
                 pipeName,
                 request,
-                cancellationToken,
-                observation.IsStopped
-                    ? DaemonConnectionPolicy.InitialProbeTimeout
-                    : DaemonConnectionPolicy.ControlTimeout));
+                cancellationToken));
         if (response.Success && response.Result != null)
         {
             ServiceStatus? status;
