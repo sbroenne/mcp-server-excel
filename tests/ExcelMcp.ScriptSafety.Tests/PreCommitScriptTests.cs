@@ -76,9 +76,10 @@ public sealed class PreCommitScriptTests
             ("skills/excel-cli-report-formatting/SKILL.md", true, false, true)
         ];
         var policy = new ValidationPolicy(RepoRoot);
+        var packageChanges = new PackageChanges(true, [], []);
         foreach (var (path, build, excel, skills) in cases)
         {
-            var plan = policy.Select(path.Split('\n'));
+            var plan = policy.Select(path.Split('\n'), packageChanges: packageChanges);
             Assert.True(build == plan.Build, $"{path}: incorrect Build selection.");
             Assert.True(excel == plan.Excel, $"{path}: incorrect Excel selection.");
             Assert.True(skills == plan.SkillTests, $"{path}: incorrect SkillTests selection.");
