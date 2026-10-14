@@ -66,6 +66,45 @@ public sealed class PowerQueryReadContractTests : IAsyncLifetime
         Assert.Equal("connection-only", viewJson.RootElement.GetProperty("loadMode").GetString());
     }
 
+    [Fact]
+    public async Task PrivacySettings_CanBeReadAndSetThroughCli()
+    {
+        foreach (bool ignorePrivacyLevels in new[] { true, false })
+        {
+            var (setResult, setJson) = await CliProcessHelper.RunJsonAsync(
+                [
+                    "powerquery", "set-privacy-settings",
+                    "--session", _workbook.SessionId,
+                    "--ignore-privacy-levels", ignorePrivacyLevels.ToString().ToLowerInvariant()
+                ],
+                timeoutMs: 60_000,
+                diagnosticLabel: $"pq-privacy-set-{ignorePrivacyLevels}");
+
+            Assert.Equal(0, setResult.ExitCode);
+            Assert.True(setJson.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal(
+                ignorePrivacyLevels,
+                setJson.RootElement.GetProperty("ignorePrivacyLevels").GetBoolean());
+            if (ignorePrivacyLevels)
+            {
+                Assert.Contains(
+                    "Data from different sources may be combined and sent between them.",
+                    setJson.RootElement.GetProperty("message").GetString(),
+                    StringComparison.Ordinal);
+            }
+
+            var (getResult, getJson) = await CliProcessHelper.RunJsonAsync(
+                ["powerquery", "get-privacy-settings", "--session", _workbook.SessionId],
+                timeoutMs: 60_000,
+                diagnosticLabel: $"pq-privacy-get-{ignorePrivacyLevels}");
+            Assert.Equal(0, getResult.ExitCode);
+            Assert.True(getJson.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal(
+                ignorePrivacyLevels,
+                getJson.RootElement.GetProperty("ignorePrivacyLevels").GetBoolean());
+        }
+    }
+
     private static string BuildLongMCode()
     {
         var padding = string.Join(

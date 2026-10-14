@@ -22,6 +22,60 @@ public sealed class McpServerPowerQueryRegressionTests(
     private readonly McpProgramTransportFixture _fixture = fixture;
 
     [Fact]
+    public async Task PowerQueryPrivacySettings_CanBeReadAndSetThroughMcp()
+    {
+        var workbookPath = _fixture.CreateTempPath("PowerQueryPrivacySettings", ".xlsx");
+        var sessionId = await _fixture.CreateWorkbookSessionAsync(workbookPath);
+        try
+        {
+            foreach (bool ignorePrivacyLevels in new[] { true, false })
+            {
+                var setResult = await _fixture.CallToolAsync(
+                    "powerquery",
+                    new Dictionary<string, object?>
+                    {
+                        ["action"] = "set-privacy-settings",
+                        ["workbook_session_id"] = sessionId,
+                        ["ignore_privacy_levels"] = ignorePrivacyLevels
+                    },
+                    ToolTimeout);
+                McpResponseAssertions.AssertSuccess(setResult, "powerquery.set-privacy-settings");
+                using (var setJson = JsonDocument.Parse(setResult))
+                {
+                    Assert.Equal(
+                        ignorePrivacyLevels,
+                        setJson.RootElement.GetProperty("ignorePrivacyLevels").GetBoolean());
+                    if (ignorePrivacyLevels)
+                    {
+                        Assert.Contains(
+                            "Data from different sources may be combined and sent between them.",
+                            setJson.RootElement.GetProperty("message").GetString(),
+                            StringComparison.Ordinal);
+                    }
+                }
+
+                var getResult = await _fixture.CallToolAsync(
+                    "powerquery_read",
+                    new Dictionary<string, object?>
+                    {
+                        ["action"] = "get-privacy-settings",
+                        ["workbook_session_id"] = sessionId
+                    },
+                    ToolTimeout);
+                McpResponseAssertions.AssertSuccess(getResult, "powerquery_read.get-privacy-settings");
+                using var getJson = JsonDocument.Parse(getResult);
+                Assert.Equal(
+                    ignorePrivacyLevels,
+                    getJson.RootElement.GetProperty("ignorePrivacyLevels").GetBoolean());
+            }
+        }
+        finally
+        {
+            await _fixture.CloseSessionAsync(sessionId);
+        }
+    }
+
+    [Fact]
     public async Task PowerQuery_LoadToDataModel_CompletesViaMcpProtocol()
     {
         var workbookPath = _fixture.CreateTempPath(

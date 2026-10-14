@@ -160,7 +160,7 @@ public static class ExcelToolsBase
     {
         "InvalidInput" or "SessionNotFound" or "SessionUnavailable" or "NotFound" or "Conflict"
             or "Syntax" or "Expression" or "Prerequisite" => ToolFailureClass.InputState,
-        "Privacy" or "Authentication" or "Connectivity" or "Permissions" or "DependencyUnavailable"
+        "Privacy" or "PrivacyFirewall" or "Authentication" or "Connectivity" or "Permissions" or "DependencyUnavailable"
             => ToolFailureClass.ExternalDependency,
         "Timeout" or "Cancelled" or "SessionInvalidated" => ToolFailureClass.TimeoutCancellation,
         "ComInterop" or "ExcelProcessDied" or "Cleanup" => ToolFailureClass.ExcelRuntime,

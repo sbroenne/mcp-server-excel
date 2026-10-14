@@ -35,13 +35,50 @@ Set explicit M column types for dates and relationship keys. Query refresh
 synchronizes its model load; refresh dependent PivotTables afterward.
 See [Data Model](datamodel.md).
 
+## Workbook privacy setting
+
+Use `get-privacy-settings` to read this workbook's Power Query privacy behavior
+and `set-privacy-settings` to change it. Set `ignorePrivacyLevels` (CLI flag:
+`--ignore-privacy-levels`; MCP input: `ignore_privacy_levels`; batch JSON key:
+`ignorePrivacyLevels`) to `true` only when authorized. Ignoring privacy levels
+can let data from different sources be combined and sent between them. The
+response reports the actual setting and warns when that behavior is enabled.
+
+```mcp
+powerquery_read(action: 'get-privacy-settings', workbook_session_id: sessionId)
+```
+
+```mcp
+powerquery(action: 'set-privacy-settings', workbook_session_id: sessionId, ignore_privacy_levels: true)
+```
+
+```cli
+excelcli powerquery set-privacy-settings --session $sessionId --ignore-privacy-levels true
+```
+
+```json
+{"command":"powerquery.set-privacy-settings","args":{"ignorePrivacyLevels":true}}
+```
+
+This is a workbook-level setting. It is stored when the workbook is saved, and
+Excel honors it for users whose global privacy choice is the default
+“Combine data according to each file's Privacy Level settings.”
+
+Formula.Firewall failures are reported with
+`errorCategory: "PrivacyFirewall"` and point to
+`powerquery set-privacy-settings --ignore-privacy-levels true` (MCP action
+`set-privacy-settings` with `ignore_privacy_levels: true`). Other privacy
+failures keep the `Privacy` category.
+
 ## Recovering a failed create
 
 Create adds the query before loading; a load failure can leave the query and
 load objects behind. Repeating create then fails with "already exists".
-Create and update report recognized privacy/firewall failures with
-`errorCategory: "Privacy"` and `exceptionType: "PowerQueryCommandException"`,
-like evaluate and refresh. The error message describes the retained changes.
+Create and update report recognized Formula.Firewall failures with
+`errorCategory: "PrivacyFirewall"` and
+`exceptionType: "PowerQueryCommandException"`, like evaluate and refresh.
+Other privacy-related errors use `errorCategory: "Privacy"`. The error message
+describes the retained changes.
 An update can save the replacement M code before its refresh fails: the
 stored definition then differs from the data still displayed.
 

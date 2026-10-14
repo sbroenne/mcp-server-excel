@@ -342,11 +342,13 @@
         "delete": "medium",
         "evaluate": "heavy",
         "get-load-config": "light",
+        "get-privacy-settings": "light",
         "list": "light",
         "load-to": "heavy",
         "refresh": "heavy",
         "refresh-all": "heavy",
         "rename": "medium",
+        "set-privacy-settings": "medium",
         "unload": "medium",
         "update": "heavy",
         "view": "light"
