@@ -7,11 +7,18 @@ ExcelMcp is a Windows-only automation system that controls the installed Microso
 ## System map
 
 ```text
-MCP Server -> owned Service bridge -> in-process ExcelMcpService -> Core -> Excel COM
-CLI parser -> named-pipe daemon host -> ExcelMcpService -> Core -> Excel COM
+CLI client process (one invocation)
+  -> named pipe -> CLI daemon process [daemon host -> ExcelMcpService -> Core] -> Excel COM
+
+MCP Server process [owned Service bridge -> in-process ExcelMcpService -> Core] -> Excel COM
 ```
 
-The MCP Server and `excelcli` are equal user entry points. They expose the same operations and behavior, but they run in separate processes and do not share open sessions.
+The MCP Server and `excelcli` are equal user entry points. They expose the same
+operations and behavior, but the CLI client exits after its invocation while
+the daemon persists across invocations. The daemon and MCP Server each host the
+Service in their own process and own separate workbook sessions and operation
+telemetry. `ExcelMcpService` is not a standalone process. See
+[process lifetimes](docs/ARCHITECTURE.md#process-lifetimes).
 
 ## Glossary
 
@@ -21,7 +28,7 @@ The MCP Server and `excelcli` are equal user entry points. They expose the same 
 - **Batch (`IExcelBatch`):** The internal object that keeps Excel and its workbook open and runs COM work on Excel's required thread.
 - **Core command:** Transport-independent Excel behavior implemented under `src/ExcelMcp.Core`.
 - **Service:** The shared command router and session owner used by both entry points.
-- **Daemon host:** The CLI process component that owns named-pipe acceptance,
+- **Daemon host:** The CLI daemon component that owns named-pipe acceptance,
   connection limits, idle shutdown, and connection draining around the Service.
 - **Service bridge:** The MCP host component that owns one in-process Service
   generation and prevents stale requests from disposing a newer generation.
