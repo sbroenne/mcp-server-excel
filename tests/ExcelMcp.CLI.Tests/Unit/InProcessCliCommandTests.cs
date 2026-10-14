@@ -683,6 +683,36 @@ public sealed class InProcessCliCommandTests
     }
 
     [Fact]
+    public async Task SessionListCommand_StoppedService_ReturnsConfirmedEmptyList()
+    {
+        var output = new StringWriter();
+        var daemonConnection = new RecordingDaemonConnection(
+            new ServiceResponse
+            {
+                Success = false,
+                ErrorCategory = "ServiceUnavailable",
+                ErrorMessage = "controlled transport failure"
+            },
+            new DaemonConnectionPolicy.DaemonFailureState("stopped", false));
+        using var scope = CliCommandRuntime.Push(CreateRuntime(
+            new RecordingClientFactory(),
+            output,
+            new StringWriter(),
+            daemonConnection: daemonConnection));
+
+        var exitCode = await new SessionListCommand().ExecuteAsync(null!, CancellationToken.None);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal("session.list", Assert.Single(daemonConnection.Requests).Command);
+        using var json = JsonDocument.Parse(output.ToString());
+        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("stopped", json.RootElement.GetProperty("daemonState").GetString());
+        Assert.Equal(0, json.RootElement.GetProperty("count").GetInt32());
+        Assert.Empty(json.RootElement.GetProperty("sessions").EnumerateArray());
+        Assert.False(json.RootElement.TryGetProperty("errorMessage", out _));
+    }
+
+    [Fact]
     public async Task ServiceCommand_ResultReportsSuccessFalse_PrintsResultAndExitsNonzero()
     {
         const string result = """{"success":false,"errorMessage":"1 of 2 queries failed to refresh: 'Broken'.","refreshedQueries":["Good"],"skippedQueries":[],"failedQueries":[{"queryName":"Broken","errorCategory":"Expression","errorMessage":"[Expression.Error] bad","exceptionType":"COMException","hresult":"0x800A03EC"}]}""";

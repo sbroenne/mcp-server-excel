@@ -193,7 +193,6 @@ internal sealed class SessionListCommand : AsyncCommand
     {
         var pipeName = DaemonAutoStart.GetPipeName();
         var daemonConnection = CliCommandRuntime.Current.DaemonConnection;
-        var observation = daemonConnection.Observe(pipeName);
         var request = new ServiceRequest { Command = "session.list" };
         var response = await CliTelemetry.TrackCommandAsync(
             request,
@@ -201,9 +200,7 @@ internal sealed class SessionListCommand : AsyncCommand
                 pipeName,
                 request,
                 cancellationToken,
-                observation.IsStopped
-                    ? DaemonConnectionPolicy.InitialProbeTimeout
-                    : DaemonConnectionPolicy.ControlTimeout));
+                DaemonConnectionPolicy.ControlTimeout));
         if (response.Success && response.Result != null)
         {
             JsonObject result;

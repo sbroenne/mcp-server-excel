@@ -172,6 +172,11 @@ Transport failures exit nonzero without a `sessions` property. Status and list
 allow up to 10 seconds for daemon transport readiness, while daemon startup
 allows up to 30 seconds.
 
+When neither a running daemon nor startup is observed, status and list use a
+brief connection check instead of waiting two seconds. They still discover a
+responsive service without a daemon mutex and recheck startup after a failed
+connection. A service that connects retains the normal response deadline.
+
 ---
 
 ## 🛠️ Advanced Usage

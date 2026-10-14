@@ -10,6 +10,7 @@ internal static class DaemonConnectionPolicy
     internal const string UnresponsiveState = "unresponsive";
 
     internal static readonly TimeSpan InitialProbeTimeout = TimeSpan.FromSeconds(2);
+    internal static readonly TimeSpan StoppedConnectTimeout = TimeSpan.FromMilliseconds(100);
     internal static readonly TimeSpan ControlTimeout = TimeSpan.FromSeconds(10);
     internal static readonly TimeSpan StartupReadyTimeout = TimeSpan.FromSeconds(30);
 
@@ -17,17 +18,52 @@ internal static class DaemonConnectionPolicy
         string pipeName,
         ServiceRequest request,
         CancellationToken cancellationToken,
-        TimeSpan? timeout = null)
+        TimeSpan? timeout = null,
+        TimeSpan? connectTimeout = null)
     {
         var effectiveTimeout = timeout ?? ControlTimeout;
         using var client = new ServiceClient(
             pipeName,
-            connectTimeout: effectiveTimeout,
+            connectTimeout: connectTimeout ?? effectiveTimeout,
             requestTimeout: effectiveTimeout);
         return await client.SendAsync(
             request,
             effectiveTimeout,
             cancellationToken);
+    }
+
+    internal static async Task<ServiceResponse> SendObservedControlRequestAsync(
+        string pipeName,
+        ServiceRequest request,
+        CancellationToken cancellationToken,
+        TimeSpan? timeout = null)
+    {
+        var deadline = OperationDeadline.Start(timeout ?? ControlTimeout);
+        var observation = Observe(pipeName);
+        var response = await SendControlRequestAsync(
+            pipeName,
+            request,
+            cancellationToken,
+            deadline.Remaining,
+            observation.IsStopped ? StoppedConnectTimeout : null);
+
+        // A startup marker can appear during the short connection probe.
+        if (observation.IsStopped
+            && IsTransportFailure(response)
+            && !Observe(pipeName).IsStopped)
+        {
+            var remaining = deadline.Remaining;
+            if (remaining > TimeSpan.Zero)
+            {
+                return await SendControlRequestAsync(
+                    pipeName,
+                    request,
+                    cancellationToken,
+                    remaining);
+            }
+        }
+
+        return response;
     }
 
     internal static bool IsTransportFailure(ServiceResponse response) =>
