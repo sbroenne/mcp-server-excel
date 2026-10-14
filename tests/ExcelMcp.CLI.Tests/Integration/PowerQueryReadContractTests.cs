@@ -92,6 +92,10 @@ public sealed class PowerQueryReadContractTests : IAsyncLifetime
                     setJson.RootElement.GetProperty("message").GetString(),
                     StringComparison.Ordinal);
             }
+            Assert.Contains(
+                "global privacy option may override",
+                setJson.RootElement.GetProperty("message").GetString(),
+                StringComparison.Ordinal);
 
             var (getResult, getJson) = await CliProcessHelper.RunJsonAsync(
                 ["powerquery", "get-privacy-settings", "--session", _workbook.SessionId],
