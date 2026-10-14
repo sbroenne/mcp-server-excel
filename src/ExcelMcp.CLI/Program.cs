@@ -20,7 +20,7 @@ internal sealed class Program
     private static Task<int> Main(string[] args) => RunEntryPointAsync(args);
 
     /// <summary>
-    /// The process entry path: enables telemetry, runs the command, then flushes.
+    /// The process entry path: enables telemetry, runs the command, then signals reporting exit.
     /// Tests call it directly so they cover the same routes as <c>Main</c>.
     /// </summary>
     internal static async Task<int> RunEntryPointAsync(
@@ -43,7 +43,7 @@ internal sealed class Program
         }
         finally
         {
-            CliTelemetry.Flush();
+            CliTelemetry.SignalExit();
         }
     }
 

@@ -19,7 +19,7 @@ described in the privacy policy.
 
 The CLI and MCP Server share a random telemetry user ID stored in the current
 Windows user's `%LOCALAPPDATA%\ExcelMcp\telemetry-user-id` file. The file is
-created on first use even if telemetry is off. Storage failures use a
+created/read only by background reporting setup when telemetry is enabled. Storage failures use a
 process-only random ID without interrupting workbook operations. When the file
 is first created with telemetry active, a one-time migration event links the
 new ID to the previous name-derived ID so existing usage remains countable.
@@ -39,8 +39,15 @@ provides usage and failure trends at the cost of less remote diagnostic detail.
 Local execution does not imply that all features or telemetry are offline.
 The random ID remains pseudonymous because it is stable across runs. The
 migration hash is sent only once, to the active telemetry destination; if
-telemetry is off during first use it is not sent later, and local mode does not
+telemetry is off no identity storage is accessed, and local mode does not
 defer it to Azure.
+
+Both entry points use the same native OpenTelemetry batch pipeline, exporting
+only explicit usage traces and custom-event logs. Setup and ID storage run in
+the background. Product calls skip records before readiness; full buffers drop.
+Exit only stops acceptance: it never flushes or disposes reporting providers,
+which are not owned by the MCP host. Loss of unsent usage reports is accepted
+to keep telemetry off the command, request, startup, and exit critical paths.
 
 ## Implementation and guidance
 

@@ -1,156 +1,31 @@
 // Copyright (c) Sbroenne. All rights reserved.
 // Licensed under the MIT License.
 
-using System.Reflection;
 using System.Globalization;
 using System.Diagnostics;
-using Microsoft.ApplicationInsights;
-using Microsoft.ApplicationInsights.Channel;
-using Microsoft.ApplicationInsights.DataContracts;
-using OpenTelemetry.Resources;
 using Sbroenne.ExcelMcp.Telemetry;
 
 namespace Sbroenne.ExcelMcp.McpServer.Telemetry;
 
-/// <summary>
-/// Centralized telemetry helper for ExcelMcp MCP Server.
-/// Provides usage tracking and performance metrics via Application Insights SDK.
-///
-/// Telemetry types:
-/// - TrackEvent: Tool usage analytics (which tools, actions, success/failure rates)
-/// - TrackRequest: Performance metrics (duration, response codes for Performance blade)
-/// - TrackException: Unhandled exceptions (for Failures blade)
-///
-/// User/Session context is applied directly to each telemetry item before sending.
-/// View data in Azure Portal: Logs blade with Kusto queries on customEvents/requests tables.
-/// </summary>
+/// <summary>Privacy-safe MCP usage reporting through the shared batch pipeline.</summary>
 public static class ExcelMcpTelemetry
 {
-    private const string RedactedExceptionMessage = "[REDACTED]";
     private const int MaxExceptionDepth = 16;
-    private static readonly object UserIdentityLock = new();
-    private static readonly TelemetryUserIdentity ProcessUserIdentity =
-        TelemetryUserIdentityStore.CreateProcessOnly();
-    private static TelemetryUserIdentity? _telemetryUserIdentity;
-    private static int _migrationEventTracked;
+    private static UsageTelemetry _reporter = new("ExcelMcp.McpServer");
 
-    /// <summary>
-    /// Unique session ID for correlating telemetry within a single MCP server process.
-    /// Changes each time the MCP server starts.
-    /// </summary>
-    public static readonly string SessionId = Guid.NewGuid().ToString("N")[..8];
+    internal static void Start(TelemetrySettings settings) => _reporter.Start(settings);
+    internal static void SignalExit() => _reporter.SignalExit();
 
-    /// <summary>Random user ID shared by telemetry-enabled ExcelMcp entry points.</summary>
-    public static string UserId => GetUserIdentity().UserId;
-
-    /// <summary>
-    /// Application Insights TelemetryClient for sending Custom Events.
-    /// Enables Users/Sessions analytics in Azure Portal.
-    /// </summary>
-    private static TelemetryClient? _telemetryClient;
-    private static LocalTelemetry? _localTelemetry;
-
-    internal static void SetLocalTelemetry(LocalTelemetry? telemetry)
+    internal static IDisposable UseReporterForTesting(UsageTelemetry reporter)
     {
-        _telemetryClient = null;
-        _localTelemetry = telemetry;
-        TrackSessionStart();
+        var previous = _reporter;
+        _reporter = reporter;
+        return new ReporterScope(() => _reporter = previous);
     }
 
-    internal static void InitializeUserIdentity() => _ = GetInitializedUserIdentity();
-
-    private static TelemetryUserIdentity GetInitializedUserIdentity()
+    private sealed class ReporterScope(Action restore) : IDisposable
     {
-        lock (UserIdentityLock)
-        {
-            return _telemetryUserIdentity ??= TelemetryUserIdentityStore.GetOrCreate();
-        }
-    }
-
-    /// <summary>
-    /// Sets the TelemetryClient instance for sending Custom Events.
-    /// Called by Program.cs during startup. Also tracks a session start event.
-    /// </summary>
-    internal static void SetTelemetryClient(TelemetryClient client)
-    {
-        _telemetryClient = client;
-        _localTelemetry = null;
-
-        // Track session start to ensure Users/Sessions blades have data
-        // This event fires once per MCP server process startup
-        TrackSessionStart();
-    }
-
-    /// <summary>
-    /// Tracks the start of an MCP server session.
-    /// Uses an EventTelemetry instance so user/session/version context can be applied explicitly.
-    /// This ensures Users/Sessions blades have data even if no tools are invoked.
-    /// </summary>
-    private static void TrackSessionStart()
-    {
-        if (_telemetryClient == null && _localTelemetry == null) return;
-
-        var identity = GetUserIdentity();
-        TrackUserIdMigration(identity);
-        var telemetry = new EventTelemetry("SessionStart");
-        telemetry.Properties["SessionId"] = SessionId;
-        telemetry.Properties["AppVersion"] = GetVersion();
-        ApplyContext(telemetry, identity);
-        _telemetryClient?.TrackEvent(telemetry);
-        _localTelemetry?.Track(telemetry);
-    }
-
-    private static void TrackUserIdMigration(TelemetryUserIdentity identity)
-    {
-        TrackUserIdMigration(identity, telemetry =>
-        {
-            _telemetryClient?.TrackEvent(telemetry);
-            _localTelemetry?.Track(telemetry);
-        });
-    }
-
-    internal static void TrackUserIdMigration(
-        TelemetryUserIdentity identity,
-        Action<EventTelemetry> trackEvent)
-    {
-        ArgumentNullException.ThrowIfNull(trackEvent);
-        if (TelemetryUserIdentityStore.CreateMigrationEvent(identity) is not { } telemetry
-            || Interlocked.Exchange(ref _migrationEventTracked, 1) != 0)
-        {
-            return;
-        }
-
-        telemetry.Properties["SessionId"] = SessionId;
-        telemetry.Properties["AppVersion"] = GetVersion();
-        ApplyContext(telemetry, identity);
-        trackEvent(telemetry);
-    }
-
-    /// <summary>
-    /// Flushes any buffered telemetry to Application Insights.
-    /// CRITICAL: Must be called before application exits to ensure telemetry is not lost.
-    /// Application Insights SDK buffers telemetry and sends in batches - without explicit flush,
-    /// short-lived processes like MCP servers may terminate before telemetry is transmitted.
-    /// </summary>
-    public static void Flush()
-    {
-        if (_localTelemetry != null)
-        {
-            _localTelemetry.Flush();
-            return;
-        }
-        if (_telemetryClient == null) return;
-
-        try
-        {
-            // Flush with timeout to avoid hanging on shutdown
-            // 2 seconds is sufficient; longer waits risk stalling on DNS/network failures
-            _telemetryClient.FlushAsync(CancellationToken.None).Wait(TimeSpan.FromSeconds(2));
-        }
-        catch (Exception)
-        {
-            // Don't let telemetry flush failure crash the application
-        }
+        public void Dispose() => restore();
     }
 
     /// <summary>
@@ -170,8 +45,7 @@ public static class ExcelMcpTelemetry
 
     /// <summary>
     /// Tracks a tool invocation with usage and performance metrics.
-    /// - TrackEvent: For tool usage analytics (customEvents table)
-    /// - TrackRequest: For performance metrics (requests table, Performance blade)
+    /// Uses a custom event and operation trace containing only approved metadata.
     /// </summary>
     /// <param name="toolName">The MCP tool name (e.g., "range")</param>
     /// <param name="action">The action performed (e.g., "get-values")</param>
@@ -183,17 +57,15 @@ public static class ExcelMcpTelemetry
         long durationMs,
         ToolInvocationResult result)
     {
-        if (_telemetryClient == null && _localTelemetry == null) return;
+        if (!_reporter.IsReady) return;
 
         var (eventTelemetry, requestTelemetry) =
             CreateToolInvocationTelemetry(toolName, action, durationMs, result);
-        _telemetryClient?.TrackEvent(eventTelemetry);
-        _telemetryClient?.TrackRequest(requestTelemetry);
-        _localTelemetry?.Track(eventTelemetry);
-        _localTelemetry?.Track(requestTelemetry);
+        _reporter.RecordEvent(eventTelemetry);
+        _reporter.RecordOperation(requestTelemetry);
     }
 
-    internal static (EventTelemetry Event, RequestTelemetry Request)
+    internal static (UsageEvent Event, UsageOperation Request)
         CreateToolInvocationTelemetry(
             string toolName,
             string action,
@@ -223,32 +95,26 @@ public static class ExcelMcpTelemetry
             properties["FailureCause"] = GetFailureCauseValue(result.FailureCause.Value);
         }
 
-        // Track as customEvent for analytics (tool usage, parameters, success/failure)
-        var eventTelemetry = new EventTelemetry(operationName);
+        var eventTelemetry = new UsageEvent(operationName);
         foreach (var property in properties)
         {
             eventTelemetry.Properties[property.Key] = property.Value;
         }
         eventTelemetry.Properties["DurationMs"] = durationMs.ToString(CultureInfo.InvariantCulture);
-        ApplyContext(eventTelemetry);
 
-        // Track as request for Performance blade, Failures blade, Smart Detection
-        var request = new RequestTelemetry
+        var request = new UsageOperation
         {
             Name = operationName,
             Timestamp = startTime,
             Duration = duration,
-            ResponseCode = requestSucceeded ? "200" : "500",
             Success = requestSucceeded
         };
 
-        // Copy properties to request for consistent filtering
         foreach (var prop in properties)
         {
             request.Properties[prop.Key] = prop.Value;
         }
 
-        ApplyContext(request);
         return (eventTelemetry, request);
     }
 
@@ -295,14 +161,13 @@ public static class ExcelMcpTelemetry
     /// <param name="source">Source of the exception (e.g., "AppDomain.UnhandledException")</param>
     public static void TrackUnhandledException(Exception exception, string source)
     {
-        if ((_telemetryClient == null && _localTelemetry == null) || exception == null) return;
+        if (!_reporter.IsReady || exception == null) return;
 
         var telemetry = CreateSanitizedExceptionTelemetry(exception, source);
-        _telemetryClient?.TrackException(telemetry);
-        _localTelemetry?.Track(telemetry);
+        _reporter.RecordEvent(telemetry);
     }
 
-    internal static ExceptionTelemetry CreateSanitizedExceptionTelemetry(
+    internal static UsageEvent CreateSanitizedExceptionTelemetry(
         Exception exception,
         string source)
     {
@@ -325,8 +190,7 @@ public static class ExcelMcpTelemetry
                     .Skip(1)
                     .Select(item => item.GetType().Name)
                     .Distinct(StringComparer.Ordinal)
-                    .Order(StringComparer.Ordinal)),
-            ["AppVersion"] = GetVersion()
+                    .Order(StringComparer.Ordinal))
         };
 
         if (failureSite != null)
@@ -334,24 +198,8 @@ public static class ExcelMcpTelemetry
             properties["FailureSite"] = failureSite;
         }
 
-        var details = exceptions.Select((item, index) =>
-            new ExceptionDetailsInfo(
-                id: index + 1,
-                outerId: index == 0 ? 0 : 1,
-                typeName: item.GetType().FullName ?? item.GetType().Name,
-                message: RedactedExceptionMessage,
-                hasFullStack: false,
-                stack: string.Empty,
-                parsedStack: Array.Empty<Microsoft.ApplicationInsights.DataContracts.StackFrame>()));
-        var problemId = failureSite == null
-            ? $"{exceptionType} at {safeSource}"
-            : $"{exceptionType} at {failureSite}";
-        var telemetry = new ExceptionTelemetry(
-            details,
-            SeverityLevel.Critical,
-            problemId,
-            properties);
-        ApplyContext(telemetry);
+        var telemetry = new UsageEvent("UnhandledException");
+        foreach (var property in properties) telemetry.Properties[property.Key] = property.Value;
         return telemetry;
     }
 
@@ -414,41 +262,4 @@ public static class ExcelMcpTelemetry
         return null;
     }
 
-    /// <summary>
-    /// Gets the application version from assembly metadata.
-    /// </summary>
-    private static string GetVersion()
-    {
-        return Assembly.GetExecutingAssembly()
-            .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
-            ?? Assembly.GetExecutingAssembly().GetName().Version?.ToString()
-            ?? "1.0.0";
-    }
-
-    private static void ApplyContext(ITelemetry telemetry) =>
-        ApplyContext(telemetry, GetUserIdentity());
-
-    private static void ApplyContext(ITelemetry telemetry, TelemetryUserIdentity identity)
-    {
-        telemetry.Context.User.Id ??= identity.UserId;
-        telemetry.Context.Session.Id ??= SessionId;
-        telemetry.Context.Cloud.RoleName ??= "ExcelMcp.McpServer";
-        telemetry.Context.Cloud.RoleInstance = identity.RoleInstance;
-        telemetry.Context.Component.Version = GetVersion();
-    }
-
-    internal static void ConfigureResource(ResourceBuilder resource) =>
-        resource.AddService("ExcelMcp.McpServer",
-            serviceVersion: GetVersion(),
-            serviceInstanceId: GetInitializedUserIdentity().RoleInstance);
-
-    private static TelemetryUserIdentity GetUserIdentity()
-    {
-        if (_telemetryClient == null && _localTelemetry == null)
-        {
-            return ProcessUserIdentity;
-        }
-
-        return GetInitializedUserIdentity();
-    }
 }

@@ -1,13 +1,10 @@
 using System.IO.Pipelines;
 using System.Runtime.InteropServices;
-using Microsoft.ApplicationInsights;
-using Microsoft.ApplicationInsights.WorkerService;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
-using OpenTelemetry.Metrics;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
 
 namespace Sbroenne.ExcelMcp.McpServer;
@@ -63,10 +60,10 @@ public class Program
             .AddEnvironmentVariables()
             .AddCommandLine(args);
 
-        // Configure Application Insights
+        // Reporting setup runs independently of host startup.
         try
         {
-            ConfigureTelemetry(builder);
+            ExcelMcpTelemetry.Start(TelemetrySettings.Read(ExcelMcpTelemetry.GetConnectionString()));
         }
         catch (InvalidOperationException ex)
         {
@@ -74,9 +71,6 @@ public class Program
             return 1;
         }
 
-        // Application Insights registers an ILogger provider that can forward framework
-        // messages containing host paths or client names. Configure console logging last
-        // so ClearProviders removes it while leaving explicit usage telemetry enabled.
         ConfigureStdioLogging(builder.Logging);
 
         builder.Services.AddSingleton(services => new ServiceBridge.ServiceBridge(
@@ -144,10 +138,6 @@ public class Program
 
         using var host = builder.Build();
 
-        // Initialize telemetry client for static access
-        InitializeTelemetryClient(host.Services);
-        var localTelemetry = host.Services.GetService<LocalTelemetry>();
-
         // Note: Update checks are handled by ExcelMCP Service (shown via Windows notification)
         // to avoid duplicate notifications when running in unified package mode
 
@@ -172,7 +162,6 @@ public class Program
         {
             // Track MCP SDK/transport errors (protocol errors, serialization errors, etc.)
             ExcelMcpTelemetry.TrackUnhandledException(ex, "McpServer.RunAsync");
-            ExcelMcpTelemetry.Flush(); // Ensure telemetry is sent before exit
 
             // Return exit code 1 for fatal errors (FR-024, SC-015a)
             // Do NOT re-throw - deterministic exit code is more important for callers
@@ -182,8 +171,7 @@ public class Program
         finally
         {
             stdinMonitor?.Dispose();
-            localTelemetry?.Flush();
-            ExcelMcpTelemetry.SetLocalTelemetry(null);
+            ExcelMcpTelemetry.SignalExit();
         }
     }
 
@@ -199,122 +187,8 @@ public class Program
         });
         logging.AddConsoleFormatter<StdioConsoleFormatter, ConsoleFormatterOptions>();
         logging.SetMinimumLevel(LogLevel.Warning);
-        logging.AddFilter<ConsoleLoggerProvider>("Microsoft.ApplicationInsights", LogLevel.Warning);
     }
 
-    /// <summary>
-    /// Initializes the static TelemetryClient from DI container.
-    /// </summary>
-    private static void InitializeTelemetryClient(IServiceProvider services)
-    {
-        ExcelMcpTelemetry.InitializeUserIdentity();
-        ExcelMcpTelemetry.SetLocalTelemetry(services.GetService<LocalTelemetry>());
-        // Resolve TelemetryClient from DI and store for static access
-        // Worker Service SDK manages the TelemetryClient lifecycle including flush on shutdown
-        var telemetryClient = services.GetService<TelemetryClient>();
-        if (telemetryClient != null)
-        {
-            ExcelMcpTelemetry.SetTelemetryClient(telemetryClient);
-        }
-    }
-
-    /// <summary>
-    /// Configures Application Insights Worker Service SDK for telemetry.
-    /// Uses AddApplicationInsightsTelemetryWorkerService() for proper host integration.
-    /// Enables Users/Sessions/Funnels/User Flows analytics in Azure Portal.
-    /// </summary>
-    internal static void ConfigureTelemetry(HostApplicationBuilder builder, TelemetrySettings? settings = null)
-    {
-        settings ??= TelemetrySettings.Read(ExcelMcpTelemetry.GetConnectionString());
-        if (settings.Mode == TelemetryMode.Off)
-        {
-            return; // No connection string available (local dev build)
-        }
-        if (settings.Mode == TelemetryMode.Local)
-        {
-            builder.Services.AddSingleton(_ => new LocalTelemetry(settings, "ExcelMcp.McpServer"));
-            return;
-        }
-
-        // Configure Application Insights Worker Service SDK
-        // This provides:
-        // - Proper DI integration with IHostApplicationLifetime
-        // - Automatic dependency tracking
-        // - Automatic performance counter collection (where available)
-        // - Proper telemetry channel with ServerTelemetryChannel (retries, local storage)
-        // - Automatic flush on host shutdown
-        var aiOptions = new ApplicationInsightsServiceOptions
-        {
-            // Set connection string if available
-            ConnectionString = settings.ConnectionString,
-
-            // Disable features not needed for MCP server (reduces overhead and AppMetrics ingestion)
-            EnableQuickPulseMetricStream = false,  // Live Metrics not needed for CLI tool
-            EnablePerformanceCounterCollectionModule = false,  // Perf counters not useful for short-lived CLI
-
-            // Disable dependency tracking for HTTP calls
-            EnableDependencyTrackingTelemetryModule = false,
-        };
-
-        builder.Services.AddApplicationInsightsTelemetryWorkerService(aiOptions);
-        // Duration metrics read resource identity rather than per-record cloud context.
-        builder.Services.AddOpenTelemetry()
-            .ConfigureResource(ExcelMcpTelemetry.ConfigureResource);
-
-        // NOTE: Microsoft.ApplicationInsights.WorkerService 3.x is a full OpenTelemetry-based rewrite
-        // of the SDK - it no longer has a PerformanceCollectorModule type, an ITelemetryModule DI
-        // registration to remove, or a heartbeat feature (EnableHeartbeat/EnableHeartbeatTelemetryModule
-        // do not exist on ApplicationInsightsServiceOptions in this version, confirmed by inspecting the
-        // 3.1.2 package - no such members or types are present). Despite that, HeartbeatState rows and
-        // AppPerformanceCounters ("Requests/Sec", "Private Bytes", "% Processor Time", etc.) are still
-        // observed in AppMetrics/AppPerformanceCounters (likely from an internal OTel-to-classic-schema
-        // metric mapping with no public opt-out). There is currently no known in-process way to disable
-        // this in 3.1.2, so the dropNoisyMetricsDcr workspace transform in
-        // infrastructure/azure/appinsights-resources.bicep is the sole, reliable mechanism suppressing
-        // these two sources server-side before ingestion is billed.
-
-        // AddApplicationInsightsTelemetryWorkerService() unconditionally subscribes to the .NET 8+
-        // built-in "System.Net.Http" meter (via UseApplicationInsightsTelemetry -> AddHttpClientMetrics),
-        // with no opt-out exposed on ApplicationInsightsServiceOptions. ExcelMcp.McpServer makes at most
-        // one lightweight HttpClient call per process (NuGetVersionChecker), so these connection-pool
-        // gauges/histograms are pure noise - they were driving ~96% of billed AppMetrics ingestion.
-        // ConfigureOpenTelemetryMeterProvider appends to the same MeterProviderBuilder already
-        // registered above, so this reliably drops the instruments regardless of registration order.
-        builder.Services.ConfigureOpenTelemetryMeterProvider(ConfigureDroppedHttpClientMetrics);
-
-        // Application Insights 3.x no longer exposes the classic telemetry initializer abstraction.
-        // ExcelMcpTelemetry enriches each telemetry item with user/session/version context before sending.
-    }
-
-    /// <summary>
-    /// Names of the noisy .NET built-in HttpClient meter instruments that ExcelMcp.McpServer never
-    /// consumes. See <see cref="ConfigureTelemetry"/> for why these must be dropped explicitly.
-    /// </summary>
-    private static readonly string[] DroppedHttpClientMetricNames =
-    [
-        "http.client.open_connections",
-        "http.client.active_requests",
-        "http.client.connection.duration",
-        "http.client.request.time_in_queue",
-        "http.client.request.duration",
-    ];
-
-    /// <summary>
-    /// Adds metric Views that drop the noisy HttpClient instruments before export/aggregation.
-    /// Exposed internally (rather than inlined) so it can be exercised directly in unit tests
-    /// without needing a full Application Insights host pipeline.
-    /// </summary>
-    internal static void ConfigureDroppedHttpClientMetrics(MeterProviderBuilder metrics)
-    {
-        foreach (var name in DroppedHttpClientMetricNames)
-        {
-            metrics.AddView(name, MetricStreamConfiguration.Drop);
-        }
-    }
-
-    /// <summary>
-    /// Registers global exception handlers to capture unhandled exceptions.
-    /// </summary>
     private static void RegisterGlobalExceptionHandlers()
     {
         if (Interlocked.Exchange(ref _globalExceptionHandlersRegistered, 1) != 0)

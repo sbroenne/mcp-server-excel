@@ -3,7 +3,6 @@
 
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
 using Sbroenne.ExcelMcp.Telemetry;
-using Microsoft.ApplicationInsights.DataContracts;
 using System.Reflection;
 using Xunit;
 
@@ -23,55 +22,6 @@ public class TelemetryTests
     #region ExcelMcpTelemetry Tests
 
     [Fact]
-    public void SessionId_IsNotEmpty()
-    {
-        // Session ID should be generated on startup
-        Assert.False(string.IsNullOrEmpty(ExcelMcpTelemetry.SessionId));
-    }
-
-    [Fact]
-    public void SessionId_IsEightCharacters()
-    {
-        // Session ID should be first 8 chars of GUID
-        Assert.Equal(8, ExcelMcpTelemetry.SessionId.Length);
-    }
-
-    [Fact]
-    public void UserId_IsNotEmpty()
-    {
-        Assert.False(string.IsNullOrEmpty(ExcelMcpTelemetry.UserId));
-    }
-
-    [Fact]
-    public void UserId_Is32Characters()
-    {
-        Assert.Equal(32, ExcelMcpTelemetry.UserId.Length);
-    }
-
-    [Fact]
-    public void UserId_IsLowercaseHex()
-    {
-        Assert.True(ExcelMcpTelemetry.UserId.All(c => char.IsAsciiHexDigitLower(c)));
-    }
-
-    [Fact]
-    public void UserIdMigration_IsSentOnceWhenTheIdentityIsCreated()
-    {
-        var identity = new TelemetryUserIdentity(
-            "0123456789abcdef0123456789abcdef",
-            "abcdef0123456789");
-        var sent = new List<EventTelemetry>();
-
-        ExcelMcpTelemetry.TrackUserIdMigration(identity, sent.Add);
-        ExcelMcpTelemetry.TrackUserIdMigration(identity, sent.Add);
-
-        var migration = Assert.Single(sent);
-        Assert.Equal("UserIdMigration", migration.Name);
-        Assert.Equal("0123456789abcdef0123456789abcdef", migration.Context.User.Id);
-        Assert.Equal("abcdef0123456789", migration.Properties["LegacyUserId"]);
-    }
-
-    [Fact]
     public void CliAndMcpAssemblies_ReadTheSamePersistedUserIdentity()
     {
         using var directory = new TemporaryDirectory();
@@ -85,16 +35,6 @@ public class TelemetryTests
         Assert.Equal(cliIdentity.UserId, mcpIdentity.UserId);
         Assert.NotNull(cliIdentity.LegacyUserId);
         Assert.Null(mcpIdentity.LegacyUserId);
-    }
-
-    [Fact]
-    public void Identity_IsStableWithinTheProcessAndSessionIdIsHex()
-    {
-        var user = ExcelMcpTelemetry.UserId;
-        var session = ExcelMcpTelemetry.SessionId;
-        Assert.True(session.All(char.IsAsciiHexDigit));
-        Assert.Equal(user, ExcelMcpTelemetry.UserId);
-        Assert.Equal(session, ExcelMcpTelemetry.SessionId);
     }
 
     [Fact]
@@ -135,16 +75,7 @@ public class TelemetryTests
         Assert.Equal("AggregateException", telemetry.Properties["ExceptionType"]);
         Assert.Equal("InvalidOperationException", telemetry.Properties["InnerExceptionTypes"]);
         Assert.Equal("TaskScheduler.UnobservedTaskException", telemetry.Properties["Source"]);
-        Assert.All(telemetry.ExceptionDetailsInfoList, detail =>
-        {
-            Assert.Equal("[REDACTED]", detail.Message);
-        });
-        Assert.True(string.IsNullOrEmpty(telemetry.Exception?.StackTrace));
-
-        var serialized = string.Join(
-            "\n",
-            telemetry.ExceptionDetailsInfoList.Select(
-                detail => $"{detail.TypeName}|{detail.Message}"));
+        var serialized = string.Join("\n", telemetry.Properties.Values);
         Assert.DoesNotContain(@"C:\Users", serialized, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("customer@example.com", serialized, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("secret.xlsx", serialized, StringComparison.OrdinalIgnoreCase);
@@ -154,7 +85,7 @@ public class TelemetryTests
     [Fact]
     public void TrackUnhandledException_RejectsUnapprovedSourceText()
     {
-        ExceptionTelemetry telemetry = ExcelMcpTelemetry.CreateSanitizedExceptionTelemetry(
+        UsageEvent telemetry = ExcelMcpTelemetry.CreateSanitizedExceptionTelemetry(
             new InvalidOperationException("sensitive"),
             @"C:\Users\customer\source");
 

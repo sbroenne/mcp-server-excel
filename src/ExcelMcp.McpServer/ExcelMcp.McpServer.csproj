@@ -163,8 +163,9 @@ internal static class TelemetryConfig
     <PackageReference Include="Microsoft.Extensions.Logging" />
     <!-- Application Insights Worker Service SDK for telemetry (Users, Sessions, Funnels, User Flows) -->
     <!-- Worker Service SDK provides proper DI integration, auto-collection modules, and host lifetime awareness -->
-    <PackageReference Include="Microsoft.ApplicationInsights.WorkerService" />
     <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="Azure.Monitor.OpenTelemetry.Exporter" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
     <PackageReference Include="Microsoft.CodeAnalysis.NetAnalyzers">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
@@ -173,7 +174,8 @@ internal static class TelemetryConfig
 
   <ItemGroup>
     <Compile Include="..\Shared\TelemetrySettings.cs" Link="Telemetry\TelemetrySettings.cs" />
-    <Compile Include="..\Shared\LocalTelemetry.cs" Link="Telemetry\LocalTelemetry.cs" />
+    <Compile Include="..\Shared\UsageTelemetry.cs" Link="Telemetry\UsageTelemetry.cs" />
+    <Compile Include="..\Shared\UsageRecord.cs" Link="Telemetry\UsageRecord.cs" />
     <Compile Include="..\Shared\TelemetryUserIdentity.cs" Link="Telemetry\TelemetryUserIdentity.cs" />
     <!-- Include MCP Server Configuration -->
     <Content Include=".mcp/server.json">

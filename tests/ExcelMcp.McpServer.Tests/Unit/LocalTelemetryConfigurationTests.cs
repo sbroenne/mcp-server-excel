@@ -1,8 +1,10 @@
-using Microsoft.Extensions.Hosting;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Trace;
+using System.Diagnostics;
 using Sbroenne.ExcelMcp.McpServer.Telemetry;
 using Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 using Sbroenne.ExcelMcp.Service;
-using Sbroenne.ExcelMcp.Tests.Telemetry;
+using Sbroenne.ExcelMcp.Telemetry;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
@@ -16,97 +18,67 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 public sealed class LocalTelemetryConfigurationTests
 {
     [Fact]
-    public void ConfigureTelemetry_LocalMode_RegistersLocalDeliveryWithoutAzure()
+    public async Task RunAsync_BlockedIdentity_DoesNotDelayStartupRequestsOrShutdown()
     {
-        var variables = new Dictionary<string, string?>
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        var reporter = new UsageTelemetry("ExcelMcp.Test", () =>
         {
-            [TelemetrySettings.ModeVariable] = "local",
-            ["OTEL_EXPORTER_OTLP_ENDPOINT"] = null,
-            ["OTEL_EXPORTER_OTLP_PROTOCOL"] = null
-        };
-        var previous = variables.Keys.ToDictionary(key => key, Environment.GetEnvironmentVariable);
-        try
-        {
-            foreach (var pair in variables)
-                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
-            var builder = Host.CreateApplicationBuilder();
-            Program.ConfigureTelemetry(builder);
-
-            Assert.Contains(builder.Services, service => service.ServiceType.Name == "LocalTelemetry");
-            Assert.DoesNotContain(builder.Services, service =>
-                service.ServiceType.FullName == "Microsoft.ApplicationInsights.TelemetryClient");
-        }
-        finally
-        {
-            foreach (var pair in previous)
-                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
-        }
-    }
-
-    [Theory]
-    [InlineData("local")]
-    [InlineData("off")]
-    public void ConfigureTelemetry_OverrideEmbeddedAzure_DoesNotRegisterAzure(string mode)
-    {
-        var settings = TelemetrySettings.Resolve(
-            "InstrumentationKey=00000000-0000-0000-0000-000000000000;IngestionEndpoint=https://localhost.invalid/",
-            key => key == TelemetrySettings.ModeVariable ? mode : null);
-        var builder = Host.CreateApplicationBuilder();
-        Program.ConfigureTelemetry(builder, settings);
-        Assert.DoesNotContain(builder.Services, service =>
-            service.ServiceType.FullName?.StartsWith("Microsoft.ApplicationInsights.", StringComparison.Ordinal) == true);
-        Assert.Equal(mode == "local", builder.Services.Any(service => service.ServiceType == typeof(LocalTelemetry)));
-    }
-
-    [Fact]
-    public async Task RunAsync_LocalMode_DeliversProtocolInvocationAndSanitizedExceptionOnShutdown()
-    {
-        await using var receiver = new LocalOtlpReceiver();
-        var variables = new Dictionary<string, string>
-        {
-            [TelemetrySettings.ModeVariable] = "local",
-            ["OTEL_EXPORTER_OTLP_ENDPOINT"] = receiver.Endpoint,
-            ["OTEL_EXPORTER_OTLP_PROTOCOL"] = "http/protobuf",
-            ["OTEL_RESOURCE_ATTRIBUTES"] = "private_path=confidential-workbook.xlsx"
-        };
-        var previous = variables.Keys.ToDictionary(key => key, Environment.GetEnvironmentVariable);
+            entered.Set();
+            release.Wait();
+            return TelemetryUserIdentityStore.CreateProcessOnly();
+        });
+        using var scope = ExcelMcpTelemetry.UseReporterForTesting(reporter);
+        var previous = Environment.GetEnvironmentVariable("EXCELMCP_TELEMETRY_MODE");
         var fixture = new RecordingProgramTransportFixture();
         try
         {
-            foreach (var pair in variables)
-                Environment.SetEnvironmentVariable(pair.Key, pair.Value);
-            await fixture.InitializeAsync();
-            await fixture.CallToolAsync(
-                "file_read", new Dictionary<string, object?> { ["action"] = "list" },
+            Environment.SetEnvironmentVariable("EXCELMCP_TELEMETRY_MODE", "local");
+            await fixture.InitializeAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
+            await fixture.CallToolAsync("file_read", new Dictionary<string, object?> { ["action"] = "list" },
                 new ServiceResponse { Success = true, Result = """{"success":true,"sessions":[]}""" },
-                "session.list", expectedSessionId: null, expectedArgsJson: null);
-            ExcelMcpTelemetry.TrackUnhandledException(
-                new InvalidOperationException("confidential-workbook.xlsx customer@example.com"),
-                "McpServer.RunAsync");
+                "session.list", expectedSessionId: null, expectedArgsJson: null).WaitAsync(TimeSpan.FromSeconds(2));
+            await fixture.DisposeAsync().WaitAsync(TimeSpan.FromSeconds(2));
+            Assert.False(reporter.IsReady);
         }
         finally
         {
-            try
-            {
-                await fixture.DisposeAsync();
-            }
-            finally
-            {
-                foreach (var pair in previous)
-                    Environment.SetEnvironmentVariable(pair.Key, pair.Value);
-            }
+            release.Set();
+            await reporter.Initialization;
+            await fixture.DisposeAsync();
+            Environment.SetEnvironmentVariable("EXCELMCP_TELEMETRY_MODE", previous);
         }
+    }
 
-        var requests = receiver.Requests;
-        Assert.Contains(requests, request => request.Path == "/v1/traces" && request.Payload.Contains("file_read/list", StringComparison.Ordinal));
-        Assert.Contains(requests, request => request.Path == "/v1/logs" && request.Payload.Contains("SessionStart", StringComparison.Ordinal));
-        Assert.Contains(requests, request => request.Path == "/v1/logs" && request.Payload.Contains("UnhandledException", StringComparison.Ordinal)
-            && request.Payload.Contains("Sanitized", StringComparison.Ordinal));
-        Assert.All(requests, request =>
+    [Fact]
+    public async Task RunAsync_ReadyReporter_RecordsSafeUsageAndException_WithoutHostDisposal()
+    {
+        var activities = new List<Activity>();
+        var logs = new List<LogRecord>();
+        var identity = TelemetryUserIdentityStore.CreateProcessOnly();
+        var settings = new TelemetrySettings(TelemetryMode.Local, null, new Uri("http://localhost:4317"), "grpc");
+        using var pipeline = new UsagePipeline(settings, "ExcelMcp.Test", identity, "test-session",
+            t => t.AddInMemoryExporter(activities), l => l.AddInMemoryExporter(logs));
+        var reporter = new UsageTelemetry("ExcelMcp.Test", () => identity, (_, _) => pipeline);
+        using var scope = ExcelMcpTelemetry.UseReporterForTesting(reporter);
+        reporter.Start(settings);
+        await reporter.Initialization;
+        await using (var fixture = new RecordingProgramTransportFixture())
         {
-            Assert.DoesNotContain("confidential-workbook.xlsx", request.Payload);
-            Assert.DoesNotContain("customer@example.com", request.Payload);
-            Assert.DoesNotContain("RecordingProgramTransportClient", request.Payload);
-        });
+            await fixture.InitializeAsync();
+            await fixture.CallToolAsync("file_read", new Dictionary<string, object?> { ["action"] = "list" },
+                new ServiceResponse { Success = true, Result = """{"success":true,"sessions":[]}""" },
+                "session.list", expectedSessionId: null, expectedArgsJson: null);
+            ExcelMcpTelemetry.TrackUnhandledException(new InvalidOperationException("confidential-workbook.xlsx customer@example.com"), "McpServer.RunAsync");
+        }
+        Assert.False(reporter.IsReady);
+        Assert.True(pipeline.ForceFlush(1000));
+        Assert.Equal("file_read/list", Assert.Single(activities).DisplayName);
+        var error = Assert.Single(logs, l => l.Body == "UnhandledException");
+        Assert.Contains(error.Attributes!, a => a.Key == "Sanitized" && Equals(a.Value, "true"));
+        Assert.Single(error.Attributes!, a => a.Key == "AppVersion");
+        Assert.DoesNotContain("confidential-workbook.xlsx", string.Join("\n", error.Attributes!));
+        Assert.DoesNotContain("customer@example.com", string.Join("\n", error.Attributes!));
     }
 }

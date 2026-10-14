@@ -1,4 +1,6 @@
-using Microsoft.ApplicationInsights.DataContracts;
+using System.Diagnostics;
+using OpenTelemetry.Logs;
+using OpenTelemetry.Trace;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Telemetry;
 using Sbroenne.ExcelMcp.Telemetry;
@@ -17,8 +19,12 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Trait("Feature", "Telemetry")]
 [Trait("Speed", "Fast")]
 [Trait("RequiresExcel", "false")]
-public sealed class EntryPointTelemetryTests
+public sealed class EntryPointTelemetryTests : IDisposable
 {
+    private readonly string? _previousMode = Environment.GetEnvironmentVariable("EXCELMCP_TELEMETRY_MODE");
+    public EntryPointTelemetryTests() => Environment.SetEnvironmentVariable("EXCELMCP_TELEMETRY_MODE", "local");
+    public void Dispose() => Environment.SetEnvironmentVariable("EXCELMCP_TELEMETRY_MODE", _previousMode);
+
     [Theory]
     [InlineData("--help")]
     [InlineData("-h")]
@@ -29,101 +35,71 @@ public sealed class EntryPointTelemetryTests
     [InlineData("--quiet")]
     [InlineData("service run")]
     [InlineData("service run --pipe-name entry-point-test")]
-    public async Task RunEntryPointAsync_UntrackedRoute_NeverCreatesTelemetrySink(string commandLine)
+    public async Task RunEntryPointAsync_UntrackedRoute_NeverStartsReporting(string commandLine)
     {
-        var args = commandLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var factoryCalls = 0;
-        var fake = new RecordingSink();
-        string? daemonPipeName = "not-run";
+        var identityReads = 0;
+        var reporter = new UsageTelemetry("ExcelMcp.Test", () =>
+        {
+            Interlocked.Increment(ref identityReads);
+            return TelemetryUserIdentityStore.CreateProcessOnly();
+        });
+        using var scope = CliTelemetry.UseReporterForTesting(reporter);
         var daemonRuns = 0;
-        using var telemetryScope = CliTelemetry.UseSinkFactoryForTesting(() =>
-        {
-            Interlocked.Increment(ref factoryCalls);
-            return fake;
-        });
-
-        var exitCode = await Program.RunEntryPointAsync(
-            args,
-            CreateRuntime(pipeName =>
-            {
-                daemonRuns++;
-                daemonPipeName = pipeName;
-                return 0;
-            }));
-
+        var args = commandLine.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var exitCode = await Program.RunEntryPointAsync(args, CreateRuntime(_ => { daemonRuns++; return 0; }));
+        await reporter.Initialization;
         Assert.Equal(0, exitCode);
-        Assert.Equal(0, factoryCalls);
-        Assert.Empty(fake.Tracked);
-        if (args.Length >= 2 && args[0] == "service" && args[1] == "run")
-        {
-            // Proves the service route was actually taken, not short-circuited elsewhere.
-            Assert.Equal(1, daemonRuns);
-            Assert.Equal(args.Length == 4 ? args[3] : null, daemonPipeName);
-        }
-        else
-        {
-            Assert.Equal(0, daemonRuns);
-        }
+        Assert.Equal(0, identityReads);
+        Assert.False(reporter.IsReady);
+        Assert.Equal(commandLine.StartsWith("service run", StringComparison.Ordinal) ? 1 : 0, daemonRuns);
     }
 
     [Fact]
-    public async Task RunEntryPointAsync_TrackedCommand_CreatesSinkOnceAndSendsInvocation()
+    public async Task RunEntryPointAsync_ReadyReporter_RecordsFailureAndSignalsExitWithoutDisposingProviders()
     {
-        var factoryCalls = 0;
-        var fake = new RecordingSink();
-        using var telemetryScope = CliTelemetry.UseSinkFactoryForTesting(() =>
-        {
-            Interlocked.Increment(ref factoryCalls);
-            return fake;
-        });
-
-        // The stub service connection fails, so the command is tracked as a failure
-        // without needing a running daemon.
+        var logs = new List<LogRecord>();
+        var activities = new List<Activity>();
+        var identity = TelemetryUserIdentityStore.CreateProcessOnly();
+        var settings = new TelemetrySettings(TelemetryMode.Local, null, new Uri("http://localhost:4317"), "grpc");
+        using var pipeline = new UsagePipeline(settings, "ExcelMcp.Test", identity, "test",
+            t => t.AddInMemoryExporter(activities), l => l.AddInMemoryExporter(logs));
+        var reporter = new UsageTelemetry("ExcelMcp.Test", () => identity, (_, _) => pipeline);
+        using var scope = CliTelemetry.UseReporterForTesting(reporter);
+        reporter.Start(settings);
+        await reporter.Initialization;
         var exitCode = await Program.RunEntryPointAsync(
-            ["--quiet", "sheet", "list", "--session", "entry-point-test"],
-            CreateRuntime(_ => throw new InvalidOperationException("Daemon must not run.")));
-
+            ["--quiet", "sheet", "list", "--session", "entry-point-test"], CreateRuntime(_ => 0));
         Assert.NotEqual(0, exitCode);
-        Assert.Equal(1, factoryCalls);
-        var tracked = Assert.Single(fake.Tracked);
-        Assert.Equal("sheet/list", tracked.Event.Name);
-        Assert.Equal("sheet/list", tracked.Request.Name);
-        Assert.False(tracked.Request.Success);
-        // RunEntryPointAsync flushes on exit, as Main does.
-        Assert.Equal(["flush", "dispose"], fake.Lifecycle);
+        Assert.False(reporter.IsReady);
+        Assert.True(pipeline.ForceFlush(1000));
+        var request = Assert.Single(activities);
+        Assert.Equal("sheet/list", request.DisplayName);
+        Assert.Equal(ActivityStatusCode.Error, request.Status);
+        Assert.Contains(logs, l => l.Body == "sheet/list");
     }
 
     [Fact]
-    public void TrackCommandInvocation_SendsTheMigrationEventOnlyOnce()
+    public async Task RunEntryPointAsync_BlockedReportingSetup_DoesNotWaitForReporting()
     {
-        var fake = new RecordingSink();
-        using var sinkScope = CliTelemetry.UseSinkFactoryForTesting(() => fake);
-        using var identityScope = CliTelemetry.UseUserIdentityFactoryForTesting(
-            () => new TelemetryUserIdentity("0123456789abcdef0123456789abcdef", "abcdef0123456789"));
-
-        CliTelemetry.TrackCommandInvocation("sheet.list", 15, succeeded: true, null, expectedNegative: false);
-        CliTelemetry.TrackCommandInvocation("sheet.list", 12, succeeded: true, null, expectedNegative: false);
-        CliTelemetry.Flush();
-
-        var migration = Assert.Single(fake.Events, item => item.Name == "UserIdMigration");
-        Assert.Equal("0123456789abcdef0123456789abcdef", migration.Context.User.Id);
-        Assert.Equal("abcdef0123456789", migration.Properties["LegacyUserId"]);
-        Assert.Equal(2, fake.Tracked.Count);
-    }
-
-    [Fact]
-    public void TrackCommandInvocation_DoesNotSendMigrationEventWhenTelemetryIsOff()
-    {
-        var fake = new RecordingSink();
-        using var sinkScope = CliTelemetry.UseSinkFactoryForTesting(() => fake);
-        using var identityScope = CliTelemetry.UseUserIdentityFactoryForTesting(
-            () => new TelemetryUserIdentity("0123456789abcdef0123456789abcdef", "abcdef0123456789"),
-            telemetryEnabled: false);
-
-        CliTelemetry.TrackCommandInvocation("sheet.list", 15, succeeded: true, null, expectedNegative: false);
-        CliTelemetry.Flush();
-
-        Assert.DoesNotContain(fake.Events, item => item.Name == "UserIdMigration");
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        var reporter = new UsageTelemetry("ExcelMcp.Test", () =>
+        {
+            entered.Set();
+            release.Wait();
+            return TelemetryUserIdentityStore.CreateProcessOnly();
+        });
+        using var scope = CliTelemetry.UseReporterForTesting(reporter);
+        var command = Task.Run(() => Program.RunEntryPointAsync(
+            ["--quiet", "sheet", "list", "--session", "entry-point-test"], CreateRuntime(_ => 0)));
+        try
+        {
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
+            Assert.Same(command, await Task.WhenAny(command, Task.Delay(500)));
+            Assert.NotEqual(0, await command);
+        }
+        finally { release.Set(); await command; await reporter.Initialization; }
+        Assert.False(reporter.IsReady);
     }
 
     private static CliCommandRuntime CreateRuntime(Func<string?, int> serviceDaemonRunner) =>
@@ -142,77 +118,4 @@ public sealed class EntryPointTelemetryTests
             throw new InvalidOperationException("No service is available in this test.");
     }
 
-    private sealed class RecordingSink : ICliTelemetrySink
-    {
-        private readonly object _gate = new();
-        private readonly List<(EventTelemetry Event, RequestTelemetry Request)> _tracked = [];
-        private readonly List<EventTelemetry> _events = [];
-        private readonly List<string> _lifecycle = [];
-
-        public IReadOnlyList<(EventTelemetry Event, RequestTelemetry Request)> Tracked
-        {
-            get
-            {
-                lock (_gate)
-                {
-                    return [.. _tracked];
-                }
-            }
-        }
-
-        public IReadOnlyList<string> Lifecycle
-        {
-            get
-            {
-                lock (_gate)
-                {
-                    return [.. _lifecycle];
-                }
-            }
-        }
-
-        public IReadOnlyList<EventTelemetry> Events
-        {
-            get
-            {
-                lock (_gate)
-                {
-                    return [.. _events];
-                }
-            }
-        }
-
-        public void Track(EventTelemetry eventTelemetry, RequestTelemetry requestTelemetry)
-        {
-            lock (_gate)
-            {
-                _tracked.Add((eventTelemetry, requestTelemetry));
-                _events.Add(eventTelemetry);
-            }
-        }
-
-        public void Track(EventTelemetry eventTelemetry)
-        {
-            lock (_gate)
-            {
-                _events.Add(eventTelemetry);
-            }
-        }
-
-        public Task FlushAsync()
-        {
-            Record("flush");
-            return Task.CompletedTask;
-        }
-
-        public void Dispose() => Record("dispose");
-
-        private void Record(string call)
-        {
-            lock (_gate)
-            {
-                _lifecycle.Add(call);
-            }
-        }
-    }
 }
