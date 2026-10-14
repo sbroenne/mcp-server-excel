@@ -41,6 +41,7 @@ public sealed class ValidationPlan
     ];
     public string FullSolutionBuildGroup => !FullSolutionBuild ? "" :
         CiTestGroups.Contains(SourceChecksGroup, StringComparer.Ordinal) ? SourceChecksGroup : CiTestGroups.FirstOrDefault() ?? "";
+    public bool BuildOnly => FullSolutionBuild && CiTestGroups.Length == 0;
     public bool PackageBuild => Cli || Mcp || Extension;
     public bool Packages => PackageBuild || Mcpb || Plugins;
     public string SourceChecksGroup => SourceChecks && FastFilters.Count > 0 ? "Fast" : DocumentationCounts || SourceChecks ? "Tooling" : "";

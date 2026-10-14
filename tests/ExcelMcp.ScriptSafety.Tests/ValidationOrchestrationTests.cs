@@ -230,7 +230,7 @@ public sealed class ValidationOrchestrationTests
         var run = await ValidationSelectionTests.RunAsync($$"""
             & .\scripts\Test-CiCompletion.ps1 -Detection '{{detection}}' -Tests '{{result}}' `
                 -Packages skipped -Npm skipped -SelectedTests '{{selected}}' `
-                -SelectedPackages false -SelectedNpm false
+                -SelectedPackages false -SelectedNpm false -BuildOnly skipped -SelectedBuildOnly false
             """);
         Assert.Equal(succeeds, run.ExitCode == 0);
         if (succeeds) { Assert.Contains("All selected CI checks succeeded.", run.Output, StringComparison.Ordinal); }

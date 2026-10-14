@@ -11,10 +11,10 @@ public static class CiCompletion
     public static void Verify(CiCompletionOptions options)
     {
         if (options.Detection != "success") { throw new InvalidOperationException($"Change detection did not succeed: {options.Detection}."); }
-        if (options.Checks.Length != 3 || options.Checks.Select(check => check.Name).Distinct(StringComparer.Ordinal).Count() != 3 ||
-            options.Checks.Any(check => check.Name is not ("tests" or "packages" or "npm")))
+        if (options.Checks.Length != 4 || options.Checks.Select(check => check.Name).Distinct(StringComparer.Ordinal).Count() != 4 ||
+            options.Checks.Any(check => check.Name is not ("tests" or "build-only" or "packages" or "npm")))
         {
-            throw new ArgumentException("Completion requires each tests, packages and npm result exactly once.");
+            throw new ArgumentException("Completion requires each tests, build-only, packages and npm result exactly once.");
         }
         foreach (var check in options.Checks)
         {

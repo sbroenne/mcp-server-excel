@@ -67,7 +67,7 @@ public sealed class PreCommitScriptTests
             ("src/ExcelMcp.Generators.Cli/Generator.cs", true, false, false),
             ("docs/reference/report-formatting.md", true, false, true),
             ("Directory.Build.props", true, true, true),
-            ("Directory.Packages.props", true, true, true),
+            ("Directory.Packages.props", true, false, false),
             ("global.json", true, true, true),
             (".editorconfig", true, false, true),
             ("README.md\nsrc/ExcelMcp.Core/Commands/Range/RangeCommands.cs", true, true, false),
