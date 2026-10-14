@@ -42,7 +42,8 @@ and `set-privacy-settings` to change it. Set `ignorePrivacyLevels` (CLI flag:
 `--ignore-privacy-levels`; MCP input: `ignore_privacy_levels`; batch JSON key:
 `ignorePrivacyLevels`) to `true` only when authorized. Ignoring privacy levels
 can let data from different sources be combined and sent between them. The
-response reports the actual setting and warns when that behavior is enabled.
+response reports the configured workbook setting, not a guarantee of effective
+behavior; Excel's global privacy option may override it.
 
 ```mcp
 powerquery_read(action: 'get-privacy-settings', workbook_session_id: sessionId)
