@@ -10,10 +10,11 @@ MCP tool descriptions; the linked guides explain practical decisions and workflo
 
 ---
 
-## Power Query & M Code (12 operations)
+## Power Query & M Code (14 operations)
 
 - **Import and transform:** Create or update reusable M queries and load their results to worksheets, the Data Model, or both.
 - **Manage queries:** Inspect definitions and load destinations, rename queries, or remove their loads while retaining the query.
+- **Privacy behavior:** Read or change the workbook setting for combining data sources, with a warning when privacy levels are ignored.
 - **Refresh data:** Refresh selected queries or attempt a workbook-wide query refresh, with errors reported rather than hidden.
 - **Try M code:** Evaluate code without retaining a permanent query.
 

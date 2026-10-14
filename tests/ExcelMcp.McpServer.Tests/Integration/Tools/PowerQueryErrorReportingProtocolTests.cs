@@ -42,8 +42,8 @@ public sealed class PowerQueryErrorReportingProtocolTests(
                 Success = false,
                 Command = $"powerquery.{action}",
                 SessionId = "session",
-                ErrorMessage = "Formula.Firewall: query remains",
-                ErrorCategory = "Privacy",
+                ErrorMessage = "Formula.Firewall: query remains. To allow this combination, use powerquery set-privacy-settings --ignore-privacy-levels true.",
+                ErrorCategory = "PrivacyFirewall",
                 ExceptionType = "PowerQueryCommandException",
                 HResult = "0x800A03EC",
                 InnerError = "Formula.Firewall",
@@ -56,8 +56,9 @@ public sealed class PowerQueryErrorReportingProtocolTests(
         var root = document.RootElement;
         Assert.True(call.Result.IsError);
         Assert.False(root.GetProperty("success").GetBoolean());
-        Assert.Equal("Privacy", root.GetProperty("errorCategory").GetString());
+        Assert.Equal("PrivacyFirewall", root.GetProperty("errorCategory").GetString());
         Assert.Equal("PowerQueryCommandException", root.GetProperty("exceptionType").GetString());
+        Assert.Contains("powerquery set-privacy-settings", root.GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
         Assert.Equal(partialState.GetRawText(), root.GetProperty("partialState").GetRawText());
         Assert.Equal(root.GetRawText(), call.Result.StructuredContent!.Value.GetRawText());
     }
@@ -82,9 +83,9 @@ public sealed class PowerQueryErrorReportingProtocolTests(
                 Command = "powerquery.refresh",
                 SessionId = sessionId,
                 ErrorMessage =
-                    "Formula.Firewall: Query 'ConfigData' references other queries.",
+                    "Formula.Firewall: Query 'ConfigData' references other queries. To allow this combination, use powerquery set-privacy-settings --ignore-privacy-levels true.",
                 ExceptionType = "PowerQueryCommandException",
-                ErrorCategory = "Privacy",
+                ErrorCategory = "PrivacyFirewall",
                 HResult = "0x800A03EC",
                 InnerError = "Formula.Firewall"
             },
@@ -110,7 +111,7 @@ public sealed class PowerQueryErrorReportingProtocolTests(
         Assert.Equal(
             "PowerQueryCommandException",
             root.GetProperty("exceptionType").GetString());
-        Assert.Equal("Privacy", root.GetProperty("errorCategory").GetString());
+        Assert.Equal("PrivacyFirewall", root.GetProperty("errorCategory").GetString());
         Assert.Equal("0x800A03EC", root.GetProperty("hresult").GetString());
         Assert.False(root.TryGetProperty("partialState", out _));
         if (root.TryGetProperty("innerError", out var innerError))
@@ -121,5 +122,9 @@ public sealed class PowerQueryErrorReportingProtocolTests(
             "Formula.Firewall",
             root.GetProperty("errorMessage").GetString(),
             StringComparison.OrdinalIgnoreCase);
+        Assert.Contains(
+            "powerquery set-privacy-settings",
+            root.GetProperty("errorMessage").GetString(),
+            StringComparison.Ordinal);
     }
 }

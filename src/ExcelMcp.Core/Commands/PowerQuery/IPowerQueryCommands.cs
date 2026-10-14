@@ -13,7 +13,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// Update refreshes by default unless refresh=false. Load-to changes destinations; refresh updates loaded data.
 /// Trivial literal tables or already-validated code with unchanged dependencies need no redundant evaluation.
 ///
-/// IF CREATE/UPDATE FAILS: Changes are not rolled back. Privacy errors use category Privacy.
+/// IF CREATE/UPDATE FAILS: Changes are not rolled back. Formula.Firewall failures use category PrivacyFirewall and point to set-privacy-settings.
 /// Errors after storing the definition include partialState with the surviving query/load configuration.
 /// Inspect list/view/get-load-config; correct an existing query with update rather than repeating create.
 ///
@@ -34,8 +34,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 [ServiceCategory("PowerQuery")]
 [McpTool("powerquery", Title = "Power Query Operations", Destructive = true, Category = "query",
-    Description = "Create, change, evaluate, refresh, and remove Power Query M code and data loads. Prefer evaluate for new or changed M code before persisting; it reports engine errors and verifies temporary-object cleanup. Create loads its selected destination (worksheet by default); connection-only stores without loading. Update refreshes unless refresh=false. Use load-to to change destinations and refresh to update loaded data. refresh-all refreshes every loaded query, skips parameter and connection-only staging queries (listed in skippedQueries), then refreshes dependent PivotTables by default (listed in refreshedPivotTables); set refresh_pivot_tables=false (CLI: --refresh-pivot-tables false) for query-only behavior. It keeps going when a query or PivotTable refresh fails; success is false and failures are listed in failedQueries or failedPivotTables; already-refreshed data is not rolled back. A timeout, cancellation, or lost Excel connection stops the whole run. Use workbook refresh-all for Excel-style refresh of all workbook connections and PivotTables. To refresh a single loaded query, use refresh with queryName. Load detection and cleanup use exact case-insensitive mashup Location. Set explicit column types for dates and Data Model relationships. Destinations: worksheet, data-model, both, connection-only; unknown values are rejected. M code is preserved; formatMCode=true sends it to powerqueryformatter.com and requires user consent. targetCellAddress places tables without clearing other content. Refresh accepts a caller timeout; load-to uses the fixed 30-minute data-operation timeout.")]
-[McpReadOnlyActions("list", "view", "get-load-config")]
+    Description = "Create, change, evaluate, refresh, and remove Power Query M code and data loads. Prefer evaluate for new or changed M code before persisting; it reports engine errors and verifies temporary-object cleanup. Create loads its selected destination (worksheet by default); connection-only stores without loading. Update refreshes unless refresh=false. Use load-to to change destinations and refresh to update loaded data. refresh-all refreshes every loaded query, skips parameter and connection-only staging queries (listed in skippedQueries), then refreshes dependent PivotTables by default (listed in refreshedPivotTables); set refresh_pivot_tables=false (CLI: --refresh-pivot-tables false) for query-only behavior. It keeps going when a query or PivotTable refresh fails; success is false and failures are listed in failedQueries or failedPivotTables; already-refreshed data is not rolled back. A timeout, cancellation, or lost Excel connection stops the whole run. Use workbook refresh-all for Excel-style refresh of all workbook connections and PivotTables. To refresh a single loaded query, use refresh with queryName. Use set-privacy-settings to change this workbook's Power Query privacy behavior. CLI: powerquery set-privacy-settings --ignore-privacy-levels true; MCP: powerquery action set-privacy-settings with ignore_privacy_levels=true. Enabling this lets data from different sources be combined and sent between them; it is saved with the workbook when the workbook is saved. Formula.Firewall errors include this recovery action. Load detection and cleanup use exact case-insensitive mashup Location. Set explicit column types for dates and Data Model relationships. Destinations: worksheet, data-model, both, connection-only; unknown values are rejected. M code is preserved; formatMCode=true sends it to powerqueryformatter.com and requires user consent. targetCellAddress places tables without clearing other content. Refresh accepts a caller timeout; load-to uses the fixed 30-minute data-operation timeout.")]
+[McpReadOnlyActions("list", "view", "get-load-config", "get-privacy-settings")]
 public interface IPowerQueryCommands
 {
     /// <summary>
@@ -72,6 +72,25 @@ public interface IPowerQueryCommands
     /// <param name="queryName">Name of the query</param>
     [ServiceAction("get-load-config")]
     PowerQueryLoadConfigResult GetLoadConfig(IExcelBatch batch, [RequiredParameter] string queryName);
+
+    /// <summary>
+    /// Reads whether this workbook ignores Power Query privacy levels when combining data sources.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    [ServiceAction("get-privacy-settings")]
+    PowerQueryPrivacySettingsResult GetPrivacySettings(IExcelBatch batch);
+
+    /// <summary>
+    /// Sets whether this workbook ignores Power Query privacy levels when combining data sources.
+    /// Enabling this may allow data from different sources to be combined and sent between them.
+    /// The change is stored in the workbook when it is saved.
+    /// </summary>
+    /// <param name="batch">Excel batch session</param>
+    /// <param name="ignorePrivacyLevels">Explicitly set true to ignore privacy levels; false to honor configured privacy levels</param>
+    [ServiceAction("set-privacy-settings")]
+    PowerQueryPrivacySettingsResult SetPrivacySettings(
+        IExcelBatch batch,
+        [RequiredParameter] bool ignorePrivacyLevels);
 
     /// <summary>
     /// Deletes a Power Query and only the destinations with the exact mashup Location identity.

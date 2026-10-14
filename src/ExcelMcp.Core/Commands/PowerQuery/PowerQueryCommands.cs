@@ -10,6 +10,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 public partial class PowerQueryCommands : IPowerQueryCommands
 {
+    private const string PrivacyFirewallRemediation =
+        "To allow this combination, use powerquery set-privacy-settings --ignore-privacy-levels true " +
+        "(MCP action set-privacy-settings with ignore_privacy_levels=true). This can allow data to be shared between sources.";
+
     private readonly IDataModelCommands _dataModelCommands;
 
     /// <summary>
@@ -48,8 +52,10 @@ public partial class PowerQueryCommands : IPowerQueryCommands
 
     private static string? ClassifyPowerQueryError(string message)
     {
-        if (message.Contains("Formula.Firewall", StringComparison.OrdinalIgnoreCase) ||
-            message.Contains("privacy level", StringComparison.OrdinalIgnoreCase) ||
+        if (message.Contains("Formula.Firewall", StringComparison.OrdinalIgnoreCase))
+            return "PrivacyFirewall";
+
+        if (message.Contains("privacy level", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("combine data", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("may not directly access a data source", StringComparison.OrdinalIgnoreCase))
             return "Privacy";
@@ -80,12 +86,26 @@ public partial class PowerQueryCommands : IPowerQueryCommands
         return null;
     }
 
+    private static string AddPrivacyFirewallRemediation(string message, string? category)
+    {
+        if (category != "PrivacyFirewall" ||
+            message.Contains("powerquery set-privacy-settings", StringComparison.OrdinalIgnoreCase))
+        {
+            return message;
+        }
+
+        return $"{message} {PrivacyFirewallRemediation}";
+    }
+
     private static bool TryWrapPowerQueryException(Exception exception, out PowerQueryCommandException? powerQueryException)
     {
         var category = ClassifyPowerQueryError(exception.Message);
         if (category != null)
         {
-            powerQueryException = new PowerQueryCommandException(exception.Message, category, exception);
+            powerQueryException = new PowerQueryCommandException(
+                AddPrivacyFirewallRemediation(exception.Message, category),
+                category,
+                exception);
             return true;
         }
 
@@ -93,7 +113,7 @@ public partial class PowerQueryCommands : IPowerQueryCommands
         return false;
     }
 
-    private static bool IsLikelyPrivacyFirewallRisk(string? mCode)
+    internal static bool IsLikelyPrivacyFirewallRisk(string? mCode)
     {
         if (string.IsNullOrWhiteSpace(mCode))
         {
@@ -106,7 +126,8 @@ public partial class PowerQueryCommands : IPowerQueryCommands
             mCode.Contains("Web.Contents", StringComparison.OrdinalIgnoreCase) ||
             mCode.Contains("SharePoint.Contents", StringComparison.OrdinalIgnoreCase) ||
             mCode.Contains("Sql.Database", StringComparison.OrdinalIgnoreCase) ||
-            mCode.Contains("OData.Feed", StringComparison.OrdinalIgnoreCase);
+            mCode.Contains("OData.Feed", StringComparison.OrdinalIgnoreCase) ||
+            mCode.Contains("AnalysisServices.Database", StringComparison.OrdinalIgnoreCase);
 
         return usesWorkbookParameter && usesExternalSource;
     }

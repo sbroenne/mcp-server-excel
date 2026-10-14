@@ -69,6 +69,7 @@ public partial class PowerQueryCommands
         {
             category = classified!.ErrorCategory;
         }
+        message = AddPrivacyFirewallRemediation(message, category);
         return new PowerQueryCommandException(message, category, cause, state);
     }
 

@@ -513,7 +513,7 @@ internal static class CliTelemetry
             "InvalidInput" or "SessionNotFound" or "SessionUnavailable"
                 or "NotFound" or "Conflict" or "Syntax" or "Expression" or "Prerequisite"
                 => "input-state",
-            "Privacy" or "Authentication" or "Connectivity" or "Permissions"
+            "Privacy" or "PrivacyFirewall" or "Authentication" or "Connectivity" or "Permissions"
                 or "DependencyUnavailable" => "external-dependency",
             "Timeout" or "Cancelled" or "SessionInvalidated" => "timeout-cancellation",
             "ComInterop" or "ExcelProcessDied" or "Cleanup" => "excel-runtime",

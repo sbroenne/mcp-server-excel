@@ -144,6 +144,40 @@ public sealed class PowerQueryRefreshAllOutcomeTests
     }
 
     [Fact]
+    public void CreateRefreshFailure_FormulaFirewall_ReportsSpecificCategoryAndRemediation()
+    {
+        var failure = PowerQueryCommands.CreateRefreshFailure(
+            "FirewallQuery",
+            new COMException(
+                "Formula.Firewall: Query references another query and a data source.",
+                unchecked((int)0x800A03EC)));
+
+        Assert.Equal("PrivacyFirewall", failure.ErrorCategory);
+        Assert.Contains("Formula.Firewall", failure.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("powerquery set-privacy-settings", failure.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CreateRefreshFailure_OtherPrivacyError_RetainsPrivacyCategory()
+    {
+        var failure = PowerQueryCommands.CreateRefreshFailure(
+            "PrivacyQuery",
+            new COMException(
+                "Please specify a privacy level for each data source.",
+                unchecked((int)0x800A03EC)));
+
+        Assert.Equal("Privacy", failure.ErrorCategory);
+        Assert.DoesNotContain("powerquery set-privacy-settings", failure.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void IsLikelyPrivacyFirewallRisk_AnalysisServicesSource_IsRecognized()
+    {
+        Assert.True(PowerQueryCommands.IsLikelyPrivacyFirewallRisk(
+            "let source = Excel.CurrentWorkbook(), model = AnalysisServices.Database(\"server\", \"model\") in model"));
+    }
+
+    [Fact]
     public void RefreshQueries_ExcelCancelledRefresh_PropagatesWithoutAttemptingLaterQueries()
     {
         var attempted = new List<string>();

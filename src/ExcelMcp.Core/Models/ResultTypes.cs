@@ -568,6 +568,22 @@ public class PowerQueryLoadConfigResult : ResultBase
 }
 
 /// <summary>
+/// Current workbook-level Power Query privacy behavior.
+/// </summary>
+public class PowerQueryPrivacySettingsResult : ResultBase
+{
+    /// <summary>
+    /// Whether the workbook ignores privacy levels when combining data sources.
+    /// </summary>
+    public bool IgnorePrivacyLevels { get; set; }
+
+    /// <summary>
+    /// Description of the current privacy behavior, including its data-sharing effect when enabled.
+    /// </summary>
+    public string Message { get; set; } = string.Empty;
+}
+
+/// <summary>
 /// Result for Power Query load-to-data-model operations with verification
 /// Extends OperationResult to provide detailed verification of atomic operation
 /// </summary>
@@ -1684,11 +1700,11 @@ public class VbaTrustResult : ResultBase
 }
 
 /// <summary>
-/// Power Query privacy level options for data combining
-/// OBSOLETE: Privacy levels cannot be set programmatically.
-/// Configure manually in Excel: File → Options → Privacy
+/// Per-source Power Query privacy levels for data combining.
+/// Individual source privacy levels cannot be set programmatically; the workbook-level
+/// FastCombine setting controls whether Excel applies those levels when combining sources.
 /// </summary>
-[Obsolete("Privacy levels not supported. Configure manually in Excel UI: File → Options → Privacy")]
+[Obsolete("Individual source privacy levels cannot be set programmatically.")]
 public enum PowerQueryPrivacyLevel
 {
     /// <summary>
@@ -1916,7 +1932,7 @@ public class PowerQueryRefreshFailure
     public string QueryName { get; set; } = string.Empty;
 
     /// <summary>
-    /// Classified failure category (for example Expression, Privacy, Connectivity), when known
+    /// Classified failure category (for example Expression, Privacy, PrivacyFirewall, Connectivity), when known
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ErrorCategory { get; set; }
@@ -1960,7 +1976,7 @@ public class PowerQueryErrorCheckResult : ResultBase
     public List<string> ErrorMessages { get; set; } = [];
 
     /// <summary>
-    /// Category of error (Authentication, Connectivity, Privacy, Syntax, Permissions, Unknown)
+    /// Category of error (Authentication, Connectivity, Privacy, PrivacyFirewall, Syntax, Permissions, Unknown)
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ErrorCategory { get; set; }
