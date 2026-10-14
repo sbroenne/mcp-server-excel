@@ -49,3 +49,12 @@ Opt-in only: `copilot-auto-assign` is `false` in `.squad/team.md`. Route to @cop
 6. **Quick facts → coordinator answers directly.** Don't spawn an agent for a simple lookup.
 7. **Issue-labeled work** — a `squad:{member}` label routes to that member; the Lead handles the base `squad` label.
 8. `llm-tests/` evaluations run only when the user explicitly asks.
+
+## Handoff and Validation Gates
+
+These rules apply to multi-step work such as typed-interop or compiler migrations. The Lead names the owners in the first spawn or handoff.
+
+9. **Finish one area before the next.** Split large changes into small areas. An area is complete only when its existing tests and the real callers of any changed helper pass, including fault, cancellation, and state cases, not just new probes or a build. Shared prerequisites may be prepared early, but are not "done" until an area uses them successfully.
+10. **Test doubles travel with the conversion.** The one implementation owner of a typed/API conversion also migrates callers, fixtures, and test doubles, and keeps the original fault, cancellation, and state assertions. The Quality Engineer may take a bounded piece by explicit handoff; ownership stays with the implementation owner and is not deferred to a later cleanup task.
+11. **One validation traffic owner.** The Lead names one member who starts and sequences builds and tests. Excel test hosts stay strictly sequential (rule 4). During a timed validation run, do not start other output-writing builds or heavy compilation in the same worktree. Read-only review and editing of unrelated files may overlap. This does not ban other harmless parallel work or set new deadlines.
+12. **Say exactly what was reviewed.** A review or handoff records the commit, the identity of any uncommitted diff (for example `git diff HEAD` hash or file list), the exact commands and results, unfinished items, and the owner. Keep it in the session, review, or PR record, not in new committed files. Any later change to relevant code makes earlier test or review evidence stale and it must be rerun or re-reviewed. Focused interim reviews are welcome, but never replace the complete final branch review and the Ponytail pass required by `AGENTS.md` before a PR or push.

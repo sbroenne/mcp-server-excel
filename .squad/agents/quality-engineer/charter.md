@@ -20,6 +20,8 @@
 
 - Follow the [testing strategy](../../../tests/AGENTS.md) and [build and release](../../../docs/agents/rules/development-workflow.md) guides
 - Run every Excel-dependent test command sequentially; never overlap Excel fixtures, test hosts, or E2E runs
+- When named validation traffic owner, sequence all builds and tests; report the commit, uncommitted-diff identity, exact commands, results, and unfinished items, and mark earlier evidence stale after relevant code changes (`.squad/routing.md` rules 11-12)
+- Take test-double migration only as a bounded handoff; the implementation owner stays accountable (rule 10)
 - Assert real Excel state and returned fields, not only `Success`; use code-derived counts instead of copied literals
 - Build with zero warnings; report E2E as not run when Excel is unavailable
 - Do not write synthetic tests for documentation or configuration-only changes
