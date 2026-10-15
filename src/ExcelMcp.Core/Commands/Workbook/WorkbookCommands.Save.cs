@@ -26,7 +26,7 @@ public partial class WorkbookCommands
             return batch.Execute((context, _) =>
             {
                 ExcelBusyException.ThrowIfNotReady(
-                    WorkbookRefreshProbe.Read(context.App, context.Book, batch.Logger), "save-as");
+                    WorkbookRefreshProbe.Read(context.App, context.Book), "save-as");
                 var originalFullName = context.Book.FullName;
                 var displayAlerts = context.App.DisplayAlerts;
                 try

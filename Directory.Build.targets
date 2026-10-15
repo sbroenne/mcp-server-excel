@@ -1,5 +1,42 @@
 <Project>
 
+  <ItemGroup Condition="$([System.String]::Copy('$(MSBuildProjectDirectory)').StartsWith('$(MSBuildThisFileDirectory)src')) AND '$(MSBuildProjectName)' != 'ExcelMcp.Analyzers'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)src\ExcelMcp.Analyzers\ExcelMcp.Analyzers.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.txt" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)BannedSymbols.Mcp.txt"
+                     Condition="'$(MSBuildProjectName)' == 'ExcelMcp.McpServer'" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$([System.String]::Copy('$(MSBuildProjectDirectory)').StartsWith('$(MSBuildThisFileDirectory)tests')) AND '$(MSBuildProjectName)' != 'ExcelMcp.ScriptSafety.Tests'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)src\ExcelMcp.Analyzers\ExcelMcp.Analyzers.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'ExcelMcp.McpServer'">
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)doc-counts.json;
+                              $(MSBuildThisFileDirectory)README.md;
+                              $(MSBuildThisFileDirectory)FEATURES.md;
+                              $(MSBuildThisFileDirectory)src\ExcelMcp.McpServer\README.md;
+                              $(MSBuildThisFileDirectory)src\ExcelMcp.CLI\README.md;
+                              $(MSBuildThisFileDirectory)src\ExcelMcp.CLI\ExcelMcp.CLI.csproj;
+                              $(MSBuildThisFileDirectory)vscode-extension\README.md;
+                              $(MSBuildThisFileDirectory)mcpb\README.md;
+                              $(MSBuildThisFileDirectory)mcpb\manifest.json;
+                              $(MSBuildThisFileDirectory)mcpb\BUILD.md;
+                              $(MSBuildThisFileDirectory)gh-pages\docs\index.md;
+                              $(MSBuildThisFileDirectory)gh-pages\docs\faq.md;
+                              $(MSBuildThisFileDirectory).github\plugins\excel-mcp\README.md;
+                              $(MSBuildThisFileDirectory).github\plugins\excel-cli\README.md;
+                              $(MSBuildThisFileDirectory)docs\INSTALLATION-CLI.md;
+                              $(MSBuildThisFileDirectory)docs\COPILOT-PLUGIN-DISTRIBUTION.md;
+                              $(MSBuildThisFileDirectory)Directory.Build.props;
+                              $(MSBuildThisFileDirectory)src\ExcelMcp.McpServer\.mcp\server.json;
+                              $(MSBuildThisFileDirectory)vscode-extension\package.json;
+                              $(MSBuildThisFileDirectory)docs\features\*.md" />
+  </ItemGroup>
+
   <!--
     Force genuine embedding of the Excel Primary Interop Assembly (PIA).
 

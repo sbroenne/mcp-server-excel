@@ -19,9 +19,9 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 /// via the COM API - not through direct property assignment, Model.Refresh(), or even save/reopen.
 ///
 /// These tests verify:
-/// 1. The implementation correctly attempts the rename via COM
+/// 1. The implementation rejects unsupported renames before mutation
 /// 2. The implementation returns a clear failure when the rename cannot be performed
-/// 3. Rollback preserves the original state (PQ + connection names are restored)
+/// 3. Original query, connection, model and dependent state remains unchanged
 /// 4. Validation rules (empty names, conflicts, non-existent tables) work correctly
 /// </summary>
 [Trait("Layer", "Service")]
@@ -147,11 +147,12 @@ in
         // Assert - Rename fails due to Excel limitation
         Assert.False(result.Success);
         Assert.Contains("immutable", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("No workbook changes were made", result.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal("data-model-table", result.ObjectType);
         Assert.Equal("OriginalTable", result.OldName);
         Assert.Equal("RenamedTable", result.NewName);
 
-        // Verify original table is preserved (rollback worked)
+        // Verify the rejected request never mutated the workbook.
         var listAfter = RequireSuccess(_dataModelCommands.ListTables(batch));
         Assert.True(listAfter.Success);
         Assert.Contains(listAfter.Tables, t => t.Name == "OriginalTable");
@@ -379,7 +380,7 @@ in
 
     /// <summary>
     /// Tests that when rename fails, the original table name is preserved across save/reopen.
-    /// This verifies the rollback mechanism works correctly.
+    /// This verifies rejection leaves the original persisted state unchanged.
     /// </summary>
     [Fact]
     public async Task RenameTable_FailureThenSaveAndReopen_PreservesOriginalTable()

@@ -99,6 +99,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
         public bool IsExecuting => Volatile.Read(ref _state) == Executing;
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+            Justification = "STA work-item boundary transfers the exact operation exception to the waiting caller through TaskCompletionSource.TrySetException; throwing on this thread would break failure transport.")]
         public bool TryExecute()
         {
             if (Interlocked.CompareExchange(ref _state, Executing, Queued) != Queued)
@@ -230,7 +232,9 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         // Start STA thread with message pump
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        _staThread = new Thread(() =>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+            Justification = "The startup STA reports the original failure through started.TrySetException to the constructor caller. Its final cleanup logs OLE-filter revocation failure without replacing the startup exception.")]
+        void RunStaThread()
         {
             Excel.Application? startupExcel = null;
             Excel.Workbook? startupPrimaryWorkbook = null;
@@ -319,7 +323,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to capture Excel process identity during startup.");
+                    throw new InvalidOperationException("Failed to capture Excel process identity during startup.", ex);
                 }
                 if (!_excelProcessIdentity.HasValue)
                 {
@@ -425,6 +429,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                             // locale-specific table column format definitions during a later save.
                             // IDispatch preserves the workbook's native definitions.
                             workbooks = tempExcel.Workbooks;
+                            // PIA gap: Workbooks.Open adds an LCID that can rewrite locale-specific table formats.
                             dynamic workbooksDispatch = (dynamic)(object)workbooks;
                             // Protection does not imply read-only rights. Excel enforces the
                             // signed-in user's permissions; only validation forces read-only.
@@ -643,7 +648,9 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
                 _logger.LogDebug("STA thread cleanup completed for {FileName}", Path.GetFileName(_workbookPath));
             }
-        })
+        }
+
+        _staThread = new Thread(RunStaThread)
         {
             IsBackground = true,
             Name = $"ExcelBatch-{Path.GetFileName(_workbookPath)}"
@@ -994,7 +1001,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         {
             _isExcelVisible = _excel != null && (bool)_excel.Visible;
         }
-        catch (COMException)
+        catch (COMException ex) when (ex.HResult == ResiliencePipelines.RPC_E_DISCONNECTED)
         {
             _isExcelVisible = false;
         }
@@ -1080,7 +1087,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         if (dialogState != WorkbookRefreshState.Ready) return dialogState;
         foreach (var workbook in _workbooks!.Values)
         {
-            var state = WorkbookRefreshProbe.Read(_excel!, workbook, _logger);
+            var state = WorkbookRefreshProbe.Read(_excel!, workbook);
             if (state != WorkbookRefreshState.Ready) return state;
         }
         return WorkbookRefreshState.Ready;

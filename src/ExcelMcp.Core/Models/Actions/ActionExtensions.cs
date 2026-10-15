@@ -1,4 +1,4 @@
-#pragma warning disable CS1591
+#pragma warning disable CS1591 // Action conversion members mirror the enums; operation descriptions live on the Core command contracts.
 namespace Sbroenne.ExcelMcp.Core.Models.Actions;
 
 /// <summary>
@@ -54,4 +54,3 @@ public static class ActionExtensions
     // CalculationModeAction.ToActionString() is now generated in ServiceRegistry.CalculationMode.ToActionString()
 }
 #pragma warning restore CS1591
-

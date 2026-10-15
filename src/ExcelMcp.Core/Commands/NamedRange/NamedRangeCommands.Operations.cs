@@ -1,9 +1,9 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
-using Microsoft.CSharp.RuntimeBinder;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -23,7 +23,11 @@ public partial class NamedRangeCommands
             FilePath = batch.WorkbookPath
         };
 
-        return batch.Execute((ctx, ct) =>
+        return batch.Execute(ListNames);
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+            Justification = "RefersToRange can reject formula/external names; reports that specific getter failure per-name as Unavailable with native HRESULT. Other metadata and preview failures propagate.")]
+        NamedRangeListResult ListNames(ExcelContext ctx, CancellationToken ct)
         {
             dynamic? namesCollection = null;
             try
@@ -59,22 +63,18 @@ public partial class NamedRangeCommands
                         try
                         {
                             refersToRange = nameObj.RefersToRange;
-                            PopulateListValuePreview(refersToRange, info);
                         }
-                        catch (Exception ex) when (IsRecoverableNamedRangeException(ex))
+                        catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC) || ComErrors.IsMemberUnavailable(ex))
                         {
                             // Named range may not have a valid RefersToRange (e.g., formula-based or external reference)
                             // Continue with metadata only - this is expected for some named ranges.
                             info.ValueType = "Unavailable";
-                            info.ValueOmittedReason = ex.Message;
+                            info.ValueOmittedReason = $"{ex.Message} (HRESULT 0x{ex.HResult:X8}).";
                         }
+                        if (refersToRange is not null)
+                            PopulateListValuePreview(refersToRange, info);
 
                         result.NamedRanges.Add(info);
-                    }
-                    catch (Exception ex) when (IsRecoverableNamedRangeException(ex))
-                    {
-                        // Skip corrupted or inaccessible named ranges - continue listing remaining
-                        continue;
                     }
                     finally
                     {
@@ -90,7 +90,7 @@ public partial class NamedRangeCommands
             {
                 ComUtilities.Release(ref namesCollection);
             }
-        });
+        }
     }
 
     private static bool ShouldSkipNameFromList(dynamic nameObj, string name)
@@ -103,17 +103,7 @@ public partial class NamedRangeCommands
         return IsBuiltInName(name);
     }
 
-    private static bool IsHiddenName(dynamic nameObj)
-    {
-        try
-        {
-            return !Convert.ToBoolean(nameObj.Visible);
-        }
-        catch (Exception ex) when (IsRecoverableNamedRangeException(ex))
-        {
-            return true;
-        }
-    }
+    private static bool IsHiddenName(dynamic nameObj) => !Convert.ToBoolean(nameObj.Visible);
 
     private static bool IsBuiltInName(string name)
     {
@@ -135,13 +125,18 @@ public partial class NamedRangeCommands
         try
         {
             names = workbook.Names;
-            nameObj = (Excel.Name)names.Item(name);
-            var result = nameObj;
-            nameObj = null;
-            return result;
-        }
-        catch (Exception ex) when (IsRecoverableNamedRangeException(ex))
-        {
+            int count = names.Count;
+            for (int index = 1; index <= count; index++)
+            {
+                nameObj = (Excel.Name)names.Item(index);
+                if (string.Equals(nameObj.Name, name, StringComparison.OrdinalIgnoreCase))
+                {
+                    var result = nameObj;
+                    nameObj = null;
+                    return result;
+                }
+                ComUtilities.Release(ref nameObj);
+            }
             return null;
         }
         finally
@@ -205,13 +200,6 @@ public partial class NamedRangeCommands
         return Convert.ToInt64(range.CountLarge);
     }
 
-    private static bool IsRecoverableNamedRangeException(Exception ex) =>
-        ex is COMException
-            or InvalidCastException
-            or RuntimeBinderException
-            or SafeArrayRankMismatchException
-            or SafeArrayTypeMismatchException;
-
     internal static object ParseWriteValue(string value)
     {
         if (double.TryParse(
@@ -237,6 +225,7 @@ public partial class NamedRangeCommands
             dynamic? refersToRange = null;
             int originalCalculation = -1;
             bool calculationChanged = false;
+            Exception? operationFailure = null;
 
             try
             {
@@ -260,21 +249,26 @@ public partial class NamedRangeCommands
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Dummy return for batch.Execute
             }
+            catch (Exception ex)
+            {
+                operationFailure = ex;
+                throw;
+            }
             finally
             {
-                if (calculationChanged && originalCalculation != -1)
+                try
                 {
-                    try
+                    if (calculationChanged && originalCalculation != -1)
                     {
-                        ctx.App.Calculation = (Excel.XlCalculation)originalCalculation;
-                    }
-                    catch (System.Runtime.InteropServices.COMException)
-                    {
-                        // Ignore errors restoring calculation mode
+                        OperationCleanup.Run(() => ctx.App.Calculation = (Excel.XlCalculation)originalCalculation,
+                            operationFailure);
                     }
                 }
-                ComUtilities.Release(ref refersToRange);
-                ComUtilities.Release(ref nameObj);
+                finally
+                {
+                    ComUtilities.Release(ref refersToRange);
+                    ComUtilities.Release(ref nameObj);
+                }
             }
         });
     }

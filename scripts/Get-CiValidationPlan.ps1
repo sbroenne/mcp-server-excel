@@ -34,7 +34,7 @@ if ($env:GITHUB_OUTPUT) {
     $codeQlMatrix = @{ include = $languages } | ConvertTo-Json -Compress -Depth 5
     @(
         "matrix=$matrix"
-        "source_checks_group=$($plan.SourceChecksGroup)"
+        "documentation_checks_group=$($plan.DocumentationChecksGroup)"
         "documentation_counts=$($plan.DocumentationCounts)".ToLowerInvariant()
         "full_solution_build=$($plan.FullSolutionBuild)".ToLowerInvariant()
         "full_solution_build_group=$($plan.FullSolutionBuildGroup)"

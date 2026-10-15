@@ -13,8 +13,7 @@
     <IncludeBuildOutput>false</IncludeBuildOutput>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 
-    <!-- Generators are special - disable some strict rules from Directory.Build.props -->
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <!-- Source generators omit generated API XML docs and selected style rules. -->
     <NoWarn>$(NoWarn);IDE0055;CA1310;CS1591;IDE0005;IDE0059;IDE0060;CS8604;CS8601</NoWarn>
   </PropertyGroup>
 

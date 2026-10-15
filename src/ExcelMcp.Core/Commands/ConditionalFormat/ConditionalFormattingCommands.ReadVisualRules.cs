@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
 
@@ -7,7 +8,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// <summary>
 /// Read-side helpers that extract type-specific configuration from visual conditional
 /// formatting rules (colorScale, dataBar, iconSet, top10, aboveAverage, timePeriod).
-/// Every COM read is guarded so unreadable properties degrade to null rather than throwing.
+/// Known unavailable members degrade to null; unexpected native failures propagate.
 /// </summary>
 public partial class ConditionalFormattingCommands
 {
@@ -40,7 +41,7 @@ public partial class ConditionalFormattingCommands
                         formatColor = criterion.FormatColor;
                         info.Color = FormattingHelpers.ColorToHex(Convert.ToInt32(formatColor.Color, CultureInfo.InvariantCulture));
                     }
-                    catch (Exception ex) when (IsComOrBinderException(ex)) { }
+                    catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
 
                     list.Add(info);
                 }
@@ -53,7 +54,7 @@ public partial class ConditionalFormattingCommands
 
             return list.Count > 0 ? list : null;
         }
-        catch (Exception ex) when (IsComOrBinderException(ex)) { return null; }
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { return null; }
         finally
         {
             ComUtilities.Release(ref criteria!);
@@ -72,7 +73,7 @@ public partial class ConditionalFormattingCommands
                 barColor = fc.BarColor;
                 info.FillColor = FormattingHelpers.ColorToHex(Convert.ToInt32(barColor.Color, CultureInfo.InvariantCulture));
             }
-            catch (Exception ex) when (IsComOrBinderException(ex)) { }
+            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
             finally { ComUtilities.Release(ref barColor!); }
 
             // Negative bar color only meaningful when a custom color type is used.
@@ -88,7 +89,7 @@ public partial class ConditionalFormattingCommands
                     info.BarColorNegative = FormattingHelpers.ColorToHex(Convert.ToInt32(negColor.Color, CultureInfo.InvariantCulture));
                 }
             }
-            catch (Exception ex) when (IsComOrBinderException(ex)) { }
+            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
             finally
             {
                 ComUtilities.Release(ref negColor!);
@@ -96,17 +97,17 @@ public partial class ConditionalFormattingCommands
             }
 
             try { info.Direction = DataBarDirectionToString(Convert.ToInt32(fc.Direction, CultureInfo.InvariantCulture)); }
-            catch (Exception ex) when (IsComOrBinderException(ex)) { }
+            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
 
             try { info.ShowValue = Convert.ToBoolean(fc.ShowValue, CultureInfo.InvariantCulture); }
-            catch (Exception ex) when (IsComOrBinderException(ex)) { }
+            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
 
             ReadDataBarPoint(fc, info, isMin: true);
             ReadDataBarPoint(fc, info, isMin: false);
 
             return info;
         }
-        catch (Exception ex) when (IsComOrBinderException(ex)) { return null; }
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { return null; }
     }
 
     private static void ReadDataBarPoint(dynamic fc, DataBarInfo info, bool isMin)
@@ -122,7 +123,7 @@ public partial class ConditionalFormattingCommands
             if (isMin) { info.MinType = typeStr; info.MinValue = valueStr; }
             else { info.MaxType = typeStr; info.MaxValue = valueStr; }
         }
-        catch (Exception ex) when (IsComOrBinderException(ex)) { }
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
         finally
         {
             ComUtilities.Release(ref point!);
@@ -141,14 +142,14 @@ public partial class ConditionalFormattingCommands
                 iconSet = fc.IconSet;
                 info.Id = IconSetIdToString(Convert.ToInt32(iconSet.ID, CultureInfo.InvariantCulture));
             }
-            catch (Exception ex) when (IsComOrBinderException(ex)) { }
+            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
             finally { ComUtilities.Release(ref iconSet!); }
 
             try { info.Reverse = Convert.ToBoolean(fc.ReverseOrder, CultureInfo.InvariantCulture); }
-            catch (Exception ex) when (IsComOrBinderException(ex)) { }
+            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
 
             try { info.ShowIconOnly = Convert.ToBoolean(fc.ShowIconOnly, CultureInfo.InvariantCulture); }
-            catch (Exception ex) when (IsComOrBinderException(ex)) { }
+            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
 
             dynamic? iconCriteria = null;
             try
@@ -165,20 +166,18 @@ public partial class ConditionalFormattingCommands
                         criterion = iconCriteria.Item(i);
                         var c = new IconCriterionInfo();
 
-                        try { c.Operator = ConditionalFormattingOperatorToString(Convert.ToInt32(criterion.Operator, CultureInfo.InvariantCulture)); }
-                        catch (Exception ex) when (IsComOrBinderException(ex)) { }
-
-                        try
+                        // The first icon has no threshold; Excel rejects its threshold properties.
+                        if (i > 1)
                         {
+                            c.Operator = ConditionalFormattingOperatorToString(Convert.ToInt32(criterion.Operator, CultureInfo.InvariantCulture));
                             int t = Convert.ToInt32(criterion.Type, CultureInfo.InvariantCulture);
                             c.Type = ConditionValueTypeToString(t);
+                            if (ConditionValueTypeUsesValue(t))
+                                c.Value = ReadConditionValue(criterion);
                         }
-                        catch (Exception ex) when (IsComOrBinderException(ex)) { }
-
-                        c.Value = ReadConditionValue(criterion);
 
                         try { c.Icon = IconToString(Convert.ToInt32(criterion.Icon, CultureInfo.InvariantCulture)); }
-                        catch (Exception ex) when (IsComOrBinderException(ex)) { }
+                        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
 
                         criteria.Add(c);
                     }
@@ -191,12 +190,12 @@ public partial class ConditionalFormattingCommands
                 if (criteria.Count > 0)
                     info.Criteria = criteria;
             }
-            catch (Exception ex) when (IsComOrBinderException(ex)) { }
+            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
             finally { ComUtilities.Release(ref iconCriteria!); }
 
             return info;
         }
-        catch (Exception ex) when (IsComOrBinderException(ex)) { return null; }
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { return null; }
     }
 
     private static Top10Info? ReadTop10(dynamic fc)
@@ -206,29 +205,29 @@ public partial class ConditionalFormattingCommands
             var info = new Top10Info();
 
             try { info.Rank = Convert.ToInt32(fc.Rank, CultureInfo.InvariantCulture); }
-            catch (Exception ex) when (IsComOrBinderException(ex)) { }
+            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
 
             try { info.Percent = Convert.ToBoolean(fc.Percent, CultureInfo.InvariantCulture); }
-            catch (Exception ex) when (IsComOrBinderException(ex)) { }
+            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
 
             try { info.TopBottom = TopBottomToString(Convert.ToInt32(fc.TopBottom, CultureInfo.InvariantCulture)); }
-            catch (Exception ex) when (IsComOrBinderException(ex)) { }
+            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
 
             return info;
         }
-        catch (Exception ex) when (IsComOrBinderException(ex)) { return null; }
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { return null; }
     }
 
     private static string? ReadAboveBelow(dynamic fc)
     {
         try { return AboveBelowToString(Convert.ToInt32(fc.AboveBelow, CultureInfo.InvariantCulture)); }
-        catch (Exception ex) when (IsComOrBinderException(ex)) { return null; }
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { return null; }
     }
 
     private static string? ReadTimePeriod(dynamic fc)
     {
         try { return TimePeriodToString(Convert.ToInt32(fc.DateOperator, CultureInfo.InvariantCulture)); }
-        catch (Exception ex) when (IsComOrBinderException(ex)) { return null; }
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { return null; }
     }
 
     /// <summary>
@@ -252,7 +251,7 @@ public partial class ConditionalFormattingCommands
 
             return Convert.ToString(value, CultureInfo.InvariantCulture);
         }
-        catch (Exception ex) when (IsComOrBinderException(ex)) { return null; }
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { return null; }
     }
 
     // === reverse mappings (int -> string) ===

@@ -4,6 +4,7 @@ using System.Text.RegularExpressions;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Excel = Microsoft.Office.Interop.Excel;
 
 
@@ -14,6 +15,23 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 /// </summary>
 public static class RangeHelpers
 {
+    internal static (int Rows, int Columns) GetDimensions(Excel.Range range)
+    {
+        Excel.Range? rows = null;
+        Excel.Range? columns = null;
+        try
+        {
+            rows = range.Rows;
+            columns = range.Columns;
+            return (rows.Count, columns.Count);
+        }
+        finally
+        {
+            ComUtilities.Release(ref columns);
+            ComUtilities.Release(ref rows);
+        }
+    }
+
     /// <summary>
     /// Visits every unique cell in an already-resolved native range.
     /// The callback borrows the cell; this method owns and releases its reference.
@@ -671,6 +689,7 @@ public partial class RangeCommands
             catch (Exception ex)
             {
                 primaryFailure = ex;
+                throw;
             }
             finally
             {
@@ -678,17 +697,7 @@ public partial class RangeCommands
                 {
                     if (copyStarted)
                     {
-                        try
-                        {
-                            ctx.App.CutCopyMode = (Excel.XlCutCopyMode)0;
-                        }
-                        catch (Exception cleanupFailure)
-                        {
-                            primaryFailure = primaryFailure is null
-                                ? cleanupFailure
-                                : new AggregateException("Copy failed and Excel's copy mode could not be cleared.",
-                                    primaryFailure, cleanupFailure);
-                        }
+                        OperationCleanup.Run(() => ctx.App.CutCopyMode = (Excel.XlCutCopyMode)0, primaryFailure);
                     }
                 }
                 finally
@@ -698,10 +707,6 @@ public partial class RangeCommands
                     ComUtilities.Release(ref tgtRange);
                     ComUtilities.Release(ref srcRange);
                 }
-            }
-            if (primaryFailure is not null)
-            {
-                ExceptionDispatchInfo.Capture(primaryFailure).Throw();
             }
             result.Success = true;
             return result;

@@ -152,12 +152,6 @@ public partial class TableCommands
                     intersection = null;
                     return result;
                 }
-                catch (System.Runtime.InteropServices.COMException)
-                {
-                    dynamic result = columnRange;
-                    columnRange = null;
-                    return result;
-                }
                 finally
                 {
                     ComUtilities.Release(ref app);

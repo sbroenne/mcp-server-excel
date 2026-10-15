@@ -63,7 +63,7 @@ public sealed class ValidationOrchestrationTests
     }
 
     [Fact]
-    public async Task CiSelection_ExportsAndUsesTheSourceCheckGroup()
+    public async Task CiSelection_ExportsAndUsesTheDocumentationCheckGroup()
     {
         var run = await ValidationSelectionTests.RunAsync("""
             $sandbox = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.CiOutputs.$([Guid]::NewGuid().ToString('N'))"
@@ -74,27 +74,25 @@ public sealed class ValidationOrchestrationTests
                 & .\scripts\Get-CiValidationPlan.ps1 -Full -OutputPath (Join-Path $sandbox plan.json)
                 $outputs = Get-Content -LiteralPath $env:GITHUB_OUTPUT
                 foreach ($required in @(
-                    'source_checks_group=Fast',
+                    'documentation_checks_group=Fast',
                     'documentation_counts=true',
                     'full_solution_build=true',
                     'full_solution_build_group=Fast')) {
                     if ($required -cnotin $outputs) { throw "Missing CI selection output: $required" }
                 }
                 $workflow = Get-Content .\.github\workflows\ci.yml -Raw
-                if (-not $workflow.Contains('source_checks_group: ${{ steps.select.outputs.source_checks_group }}') -or
+                if (-not $workflow.Contains('documentation_checks_group: ${{ steps.select.outputs.documentation_checks_group }}') -or
                     -not $workflow.Contains('documentation_counts: ${{ steps.select.outputs.documentation_counts }}') -or
                     -not $workflow.Contains('full_solution_build: ${{ steps.select.outputs.full_solution_build }}') -or
                     -not $workflow.Contains('full_solution_build_group: ${{ steps.select.outputs.full_solution_build_group }}') -or
-                    -not $workflow.Contains("if: matrix.group == needs.changes.outputs.source_checks_group && needs.changes.outputs.documentation_counts == 'true'") -or
+                    -not $workflow.Contains("if: matrix.group == needs.changes.outputs.documentation_checks_group && needs.changes.outputs.documentation_counts == 'true'") -or
                     -not $workflow.Contains("if: needs.changes.outputs.full_solution_build == 'true' && matrix.group == needs.changes.outputs.full_solution_build_group")) {
-                    throw 'Workflow does not route the selected source checks.'
+                    throw 'Workflow does not route the selected documentation checks.'
                 }
-                $sourceChecks = [regex]::Match($workflow, '(?s)- name: Source correctness checks\r?\n(?<step>.*?)(?=\r?\n      - name:|\z)').Groups['step'].Value
-                $documentation = [regex]::Match($workflow, '(?s)- name: Documentation count checks\r?\n(?<step>.*?)(?=\r?\n      - name:|\z)').Groups['step'].Value
                 $generateInputs = [regex]::Match($workflow, '(?s)- name: Generate complete skill inputs\r?\n(?<step>.*?)(?=\r?\n      - name:|\z)').Groups['step'].Value
-                if ($sourceChecks.Contains('Build-AgentSkills') -or $sourceChecks.Contains('check-doc-counts') -or
-                    -not $documentation.Contains('check-doc-counts.ps1') -or -not $generateInputs.Contains('Build-AgentSkills.ps1')) {
-                    throw 'Documentation generation/count validation is not isolated to its selected requirement.'
+                if ($workflow.Contains('Source correctness checks') -or
+                    $workflow.Contains('check-doc-counts.ps1') -or -not $generateInputs.Contains('Build-AgentSkills.ps1')) {
+                    throw 'Compiler checks must not be repeated as scripts; skill preparation must retain its selected requirement.'
                 }
             } finally {
                 $env:GITHUB_OUTPUT = $previousOutput

@@ -18,7 +18,7 @@ internal static class Program
         {
             if (args.Length == 0 || args[0] is "help" or "--help")
             {
-                Console.WriteLine("ExcelMcp development tooling: plan, build, test, validate, check-source, package, test-free, test-excel, inventory, stage, verify-report, complete.");
+                Console.WriteLine("ExcelMcp development tooling: plan, build, test, validate, package, test-free, test-excel, inventory, stage, verify-report, complete.");
                 Console.WriteLine("Use plan --base-ref <ref> or --staged; --full explicitly selects complete validation.");
                 return 0;
             }
@@ -73,15 +73,6 @@ internal static class Program
                         await new PackageExecution(Path.GetFullPath(options.Get("--source-root") ?? root)).ExecuteAsync(package);
                         return 0;
                     }
-                case "check-source":
-                    {
-                        var inputs = options.Get("--inputs-json") is { } inputJson
-                            ? JsonSerializer.Deserialize<string[]>(inputJson) ?? throw new ArgumentException("Inputs must be a JSON array.")
-                            : null;
-                        new SourceGuards(Path.GetFullPath(options.Get("--scan-root") ?? root))
-                            .Check(options.Get("--rule") ?? throw new ArgumentException("Select --rule."), inputs);
-                        return 0;
-                    }
                 case "plan":
                     {
                         var plan = await SelectPlanAsync(root, runner, options);
@@ -113,7 +104,7 @@ internal static class Program
 
                         if (args[0] == "validate")
                         {
-                            await execution.CheckSourcesAsync(plan);
+                            await execution.CheckDocumentationAsync(plan);
                         }
                         if (args[0] != "build")
                         {

@@ -83,7 +83,7 @@ public partial class SheetCommands
                 }
 
                 // Also check if color value itself indicates no custom color
-                if (colorValue is null or (dynamic?)0)
+                if (colorValue is null || Convert.ToInt32((object)colorValue, System.Globalization.CultureInfo.InvariantCulture) == 0)
                 {
                     result.Success = true;
                     result.HasColor = false;
@@ -141,6 +141,5 @@ public partial class SheetCommands
         });
     }
 }
-
 
 

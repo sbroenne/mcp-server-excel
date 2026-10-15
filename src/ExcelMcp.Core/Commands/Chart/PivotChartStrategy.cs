@@ -19,7 +19,7 @@ public class PivotChartStrategy : IChartStrategy
             pivotLayout = chart.PivotLayout;
             return pivotLayout != null;
         }
-        catch (COMException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             return false;
         }
@@ -36,7 +36,7 @@ public class PivotChartStrategy : IChartStrategy
         {
             Name = chartName,
             SheetName = sheetName,
-            ChartType = (ChartType)Convert.ToInt32(chart.ChartType),
+            ChartType = (ChartType)Convert.ToInt32((object)chart.ChartType, System.Globalization.CultureInfo.InvariantCulture),
             IsPivotChart = true,
             Left = Convert.ToDouble(shape.Left),
             Top = Convert.ToDouble(shape.Top),
@@ -52,7 +52,7 @@ public class PivotChartStrategy : IChartStrategy
             topLeftCell = shape.TopLeftCell;
             info.TopLeftCell = topLeftCell.Address?.ToString();
         }
-        catch (COMException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             // TopLeftCell not available - optional COM property
         }
@@ -66,7 +66,7 @@ public class PivotChartStrategy : IChartStrategy
             bottomRightCell = shape.BottomRightCell;
             info.BottomRightCell = bottomRightCell.Address?.ToString();
         }
-        catch (COMException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             // BottomRightCell not available - optional COM property
         }
@@ -79,7 +79,7 @@ public class PivotChartStrategy : IChartStrategy
         {
             info.Placement = Convert.ToInt32(shape.Placement);
         }
-        catch (COMException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             // Placement not available - optional COM property
         }
@@ -112,7 +112,7 @@ public class PivotChartStrategy : IChartStrategy
             Success = true,
             Name = chartName,
             SheetName = sheetName,
-            ChartType = (ChartType)Convert.ToInt32(chart.ChartType),
+            ChartType = (ChartType)Convert.ToInt32((object)chart.ChartType, System.Globalization.CultureInfo.InvariantCulture),
             IsPivotChart = true,
             Left = Convert.ToDouble(shape.Left),
             Top = Convert.ToDouble(shape.Top),
@@ -128,7 +128,7 @@ public class PivotChartStrategy : IChartStrategy
             topLeftCell = shape.TopLeftCell;
             info.TopLeftCell = topLeftCell.Address?.ToString();
         }
-        catch (COMException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             // TopLeftCell not available - optional COM property
         }
@@ -142,7 +142,7 @@ public class PivotChartStrategy : IChartStrategy
             bottomRightCell = shape.BottomRightCell;
             info.BottomRightCell = bottomRightCell.Address?.ToString();
         }
-        catch (COMException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             // BottomRightCell not available - optional COM property
         }
@@ -155,7 +155,7 @@ public class PivotChartStrategy : IChartStrategy
         {
             info.Placement = Convert.ToInt32(shape.Placement);
         }
-        catch (COMException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             // Placement not available - optional COM property
         }
@@ -191,14 +191,7 @@ public class PivotChartStrategy : IChartStrategy
         }
 
         // Get legend
-        try
-        {
-            info.HasLegend = chart.HasLegend;
-        }
-        catch (COMException)
-        {
-            info.HasLegend = false;
-        }
+        info.HasLegend = chart.HasLegend;
 
         info.Series = ChartSeriesReader.Read(chart);
 

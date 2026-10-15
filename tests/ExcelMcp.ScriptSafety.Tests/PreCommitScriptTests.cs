@@ -29,6 +29,7 @@ public sealed class PreCommitScriptTests
         Assert.DoesNotContain("npm run", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("git add", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("cleanup-ran", result.Output, StringComparison.Ordinal);
+        Assert.Contains("Elapsed:", result.Output, StringComparison.Ordinal);
         if (path == "docs/reference/report-formatting.md")
         {
             Assert.Contains("-ChangedPaths", result.Output, StringComparison.Ordinal);
@@ -83,7 +84,7 @@ public sealed class PreCommitScriptTests
             Assert.True(build == plan.Build, $"{path}: incorrect Build selection.");
             Assert.True(excel == plan.Excel, $"{path}: incorrect Excel selection.");
             Assert.True(skills == plan.SkillTests, $"{path}: incorrect SkillTests selection.");
-            Assert.True(!excel || plan.SourceChecks, $"{path}: source guards missing.");
+            Assert.True(!excel || plan.Build, $"{path}: compiler checks missing.");
         }
     }
 
@@ -119,10 +120,6 @@ public sealed class PreCommitScriptTests
     }
 
     [Theory]
-    [InlineData("check-com-leaks")]
-    [InlineData("check-success-flag")]
-    [InlineData("check-dynamic-casts")]
-    [InlineData("check-workbook-package-access")]
     [InlineData("Invoke-ExcelFreeTests")]
     [InlineData("Invoke-ExcelTests")]
     [InlineData("Test-E2E")]
@@ -189,10 +186,6 @@ public sealed class PreCommitScriptTests
                 """);
             foreach (var (name, message) in new[]
             {
-                ("check-com-leaks", "com-check-ran"),
-                ("check-success-flag", "success-check-ran"),
-                ("check-dynamic-casts", "casts-check-ran"),
-                ("check-workbook-package-access", "package-access-check-ran"),
                 ("Stop-ExcelCliService", "cleanup-ran"),
                 ("Invoke-ExcelFreeTests", "excel-free-tests-ran"),
                 ("Invoke-ExcelTests", "excel-feature-tests-ran"),
@@ -200,7 +193,7 @@ public sealed class PreCommitScriptTests
             })
             {
                 await File.WriteAllTextAsync(Path.Combine(scripts, $"{name}.ps1"),
-                    failure == "throw" && name == "check-com-leaks"
+                    failure == "throw" && name == "Invoke-ExcelFreeTests"
                         ? "throw 'check-root-cause'"
                         : name == failure
                         ? "Write-Host 'check-root-cause'; exit 19"

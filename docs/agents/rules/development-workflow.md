@@ -11,9 +11,9 @@
 - `tools\ExcelMcp.Build\ValidationPolicy.cs` is the shared CI, CodeQL, and local
   selection source; `Get-ValidationPlan.ps1` only forwards to it. `build.ps1`
   bootstraps the internal .NET tool in isolated outputs, not a product entry point.
-  `SourceGuards.cs` owns the four C# source safeguards; their PowerShell commands
-  are forwarding adapters. Run them directly with `build.ps1 check-source --rule`
-  or through selected validation, without maintaining a second scanner policy.
+  Compiler analyzers replace the retired C# source-pattern scanners; diagnostics
+  and banned APIs are build inputs, not a second script policy. Fix diagnostics
+  at their source; review a local suppression's actual failure semantics.
   Package preparation, built test inventories, stage execution, selected CI
   builds and completion checks also live in typed components. Retained script
   signatures translate arguments; do not add a second execution or result policy.
@@ -27,11 +27,13 @@
   cancellation, and unexpected skips must fail them. Main/manual CI and
   main/merge-group/scheduled/manual CodeQL retain complete coverage.
   C# CodeQL keeps traced compilation for generated code.
-  `Build-CiInputs.ps1` builds selected test projects. Documentation-count and
-  shared build inputs require a complete Release solution build; ordinary source
-  guards do not. Exactly one selected CI group owns that complete build: the
-  source-check group when selected, otherwise the first selected group in
-  Fast, Process, Tooling order. Other groups build only their test projects.
+  `Build-CiInputs.ps1` builds selected test projects. EXL030 checks documentation
+  counts during MCP compilation against the compiled Core manifest, not through
+  a separate scanner or updater. Preserve those compiler inputs in selected builds.
+  Shared inputs requiring a complete Release solution build follow the saved plan.
+  The first selected CI group in Fast, Process, Tooling order owns that complete
+  build. Compiler safeguards run in builds, not a source-scan group.
+  Other groups build only their selected test projects and dependencies.
   Ungrouped local builds retain the complete solution build when required.
   Local hooks run the selected real-Excel cases, with full
   acceptance reserved for affected shared boundaries or explicit requests.

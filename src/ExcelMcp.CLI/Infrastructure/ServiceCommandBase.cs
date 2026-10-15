@@ -131,6 +131,8 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
     /// Writes the result to a file. For image results containing base64 data,
     /// decodes and writes the binary image. Otherwise writes the JSON text.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "CLI output-file boundary reports the original write/encoding failure as success=false JSON and returns exit code 1.")]
     private static int WriteOutputToFile(string result, string outputPath)
     {
         try
@@ -191,7 +193,7 @@ internal abstract class ServiceCommandBase<TSettings> : AsyncCommand<TSettings>
         }
         catch (JsonException)
         {
-            // Not valid JSON, can't extract image
+            return null;
         }
         return null;
     }

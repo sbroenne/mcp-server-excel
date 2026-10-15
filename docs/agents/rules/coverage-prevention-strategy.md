@@ -5,9 +5,10 @@ CLI options, batch JSON dispatch, Service routing, and MCP schemas. Names,
 aliases, defaults, validation, results, and timeouts must agree. Hand-written MCP
 tools may still own atomic no-session behavior, cancellation, or extra metadata.
 
-Run `Invoke-ExcelFreeTests.ps1 -Local -Contracts` and
-`check-doc-counts.ps1 -SkipBuild` under
-`scripts` after that build. Compilation alone does not detect missing routes.
+Run `scripts\Invoke-ExcelFreeTests.ps1 -Local -Contracts` after that build.
+Resolve EXL030 count diagnostics using its exact expected values and rebuild.
+Retain compiled MCP surface/help-banner and prepared-skill identity tests;
+count diagnostics do not prove registration, routing, defaults, or skill preparation.
 
 Adding, renaming, or removing an MCP tool action, CLI command, or CLI category
 also requires updating `.github/usage-analytics-weights.json`: give every action

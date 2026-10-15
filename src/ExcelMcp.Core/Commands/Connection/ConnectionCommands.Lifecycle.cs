@@ -198,6 +198,8 @@ public partial class ConnectionCommands
         }, timeoutCts.Token);  // Extended timeout (default 5 minutes) for slow data sources
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Retains refresh and BackgroundQuery restoration errors through COM cleanup, then rethrows the original error or both failures; cancellation is preserved.")]
     internal static void RefreshWorkbookConnection(Excel.WorkbookConnection connection, CancellationToken cancellationToken)
     {
         dynamic? subConnection = null;
@@ -211,10 +213,10 @@ public partial class ConnectionCommands
             try
             {
                 subConnection = GetTypedSubConnection(connection);
-                if (subConnection != null
+                if (subConnection is not null
                     && (connection.Type != Excel.XlConnectionType.xlConnectionTypeOLEDB || !subConnection.OLAP))
                 {
-                    originalBackgroundQuery = subConnection.BackgroundQuery;
+                    originalBackgroundQuery = subConnection!.BackgroundQuery;
                     canRestoreBackgroundQuery = true;
 
                     // CRITICAL: Force BackgroundQuery = false to ensure synchronous refresh.
@@ -232,13 +234,9 @@ public partial class ConnectionCommands
                     subConnection.BackgroundQuery = false;
                 }
             }
-            catch (COMException ex) when (ex.HResult is unchecked((int)0x80020003) or unchecked((int)0x80004001))
+            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
             {
                 // Provider doesn't support BackgroundQuery — proceed with default behavior.
-            }
-            catch (RuntimeBinderException)
-            {
-                // Sub-connection doesn't expose BackgroundQuery — proceed with default behavior.
             }
 
             // Do NOT use EnterLongOperation here. Like Power Query refresh, synchronous
@@ -247,7 +245,10 @@ public partial class ConnectionCommands
             OleMessageFilter.SetPendingCancellationToken(cancellationToken);
             try
             {
-                connection.Refresh();
+                if (connection.Type is Excel.XlConnectionType.xlConnectionTypeTEXT or Excel.XlConnectionType.xlConnectionTypeWEB)
+                    RefreshLegacyQueryTables(connection, cancellationToken);
+                else
+                    connection.Refresh();
             }
             finally
             {
@@ -270,7 +271,7 @@ public partial class ConnectionCommands
         {
             try
             {
-                if (canRestoreBackgroundQuery && subConnection != null)
+                if (canRestoreBackgroundQuery && subConnection is not null)
                 {
                     subConnection.BackgroundQuery = originalBackgroundQuery;
                 }
@@ -286,14 +287,54 @@ public partial class ConnectionCommands
         }
         if (restoreFailure != null)
         {
-            throw new InvalidOperationException(
+            var failure = new InvalidOperationException(
                 "Could not restore the connection's original BackgroundQuery setting after the refresh attempt. " +
                 "Inspect the connection before retrying.",
                 refreshFailure == null ? restoreFailure : new AggregateException(refreshFailure, restoreFailure));
+            if (refreshFailure is OperationCanceledException canceled)
+                throw new OperationCanceledException(failure.Message, failure, canceled.CancellationToken);
+            throw failure;
         }
         if (refreshFailure != null)
         {
             System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(refreshFailure).Throw();
+        }
+    }
+
+    private static void RefreshLegacyQueryTables(Excel.WorkbookConnection connection, CancellationToken cancellationToken)
+    {
+        Excel.Ranges? ranges = null;
+        try
+        {
+            ranges = connection.Ranges;
+            for (int index = 1; index <= ranges.Count; index++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Excel.Range? range = null;
+                Excel.QueryTable? query = null;
+                try
+                {
+                    range = ranges.Item[index];
+                    query = range.QueryTable;
+                    if (!query.Refresh(false))
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        throw new InvalidOperationException($"Excel did not complete refresh of legacy connection '{connection.Name}'.");
+                    }
+                    cancellationToken.ThrowIfCancellationRequested();
+                }
+                finally
+                {
+                    ComUtilities.Release(ref query);
+                    ComUtilities.Release(ref range);
+                }
+            }
+            if (ranges.Count == 0)
+                connection.Refresh();
+        }
+        finally
+        {
+            ComUtilities.Release(ref ranges);
         }
     }
 

@@ -104,6 +104,8 @@ public sealed class ExcelMcpService : IDisposable
     /// Processes a service request directly (in-process, no pipe).
     /// Used by the MCP Server for direct in-process communication.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Service request failure-transport boundary returns CreateErrorResponse with Success=false, original exception category/message/HResult, and request/session context.")]
     public async Task<ServiceResponse> ProcessAsync(ServiceRequest request)
     {
         try
@@ -301,6 +303,8 @@ public sealed class ExcelMcpService : IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Session creation transports failures through CreateErrorResponse, never a successful session response.")]
     private ServiceResponse HandleSessionCreate(ServiceRequest request)
     {
         var args = ServiceRegistry.DeserializeArgs<SessionOpenArgs>(request.Args);
@@ -361,6 +365,8 @@ public sealed class ExcelMcpService : IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Session open transports the original failure through CreateErrorResponse with Success=false.")]
     private ServiceResponse HandleSessionOpen(ServiceRequest request)
     {
         var args = ServiceRegistry.DeserializeArgs<SessionOpenArgs>(request.Args);
@@ -396,6 +402,8 @@ public sealed class ExcelMcpService : IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Only confirmed fatal Excel disconnections reach this handler; CreateExcelDisconnectedResponse reports failure and the original COM error after dead-session cleanup.")]
     private ServiceResponse HandleSessionClose(ServiceRequest request)
     {
         var args = ServiceRegistry.DeserializeArgs<SessionCloseArgs>(request.Args);
@@ -448,6 +456,8 @@ public sealed class ExcelMcpService : IDisposable
         };
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "This diagnostic action reports open failures in the validation result Message with IsValid/CanOpen false; other failures use CreateErrorResponse, and cancellation/timeouts propagate to it.")]
     private ServiceResponse HandleSessionTest(ServiceRequest request)
     {
         var args = ServiceRegistry.DeserializeArgs<SessionTestArgs>(request.Args);
@@ -599,6 +609,8 @@ public sealed class ExcelMcpService : IDisposable
         return WrapResult(ServiceRegistry.Diag.DispatchToCore(_diagCommands, action, request.Args));
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Atomic sessionless sheet operations transport their exact failure through CreateErrorResponse with Success=false.")]
     private async Task<ServiceResponse> DispatchSheetAsync(string actionString, ServiceRequest request)
 
     {
@@ -813,6 +825,8 @@ public sealed class ExcelMcpService : IDisposable
     }
 
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Session operation failure-transport boundary returns explicit failed responses with the original exception and session context; confirmed fatal disconnects additionally remove dead-session tracking.")]
     private Task<ServiceResponse> WithSessionAsync(ServiceRequest request, Func<IExcelBatch, ServiceResponse> action)
     {
         var sessionId = request.SessionId;
@@ -938,6 +952,8 @@ public sealed class ExcelMcpService : IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Cleanup follows an already-confirmed dead Excel session; secondary cleanup failure is diagnosed without replacing the original operation/disconnection error returned to the caller.")]
     private void CleanupDeadSession(string sessionId)
     {
         try

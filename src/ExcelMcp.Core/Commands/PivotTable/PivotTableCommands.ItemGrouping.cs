@@ -94,6 +94,8 @@ public partial class PivotTableCommands
                     }
                 }
 
+                if (groupRange is null)
+                    throw new InvalidOperationException("No PivotTable item ranges were available for grouping.");
                 groupOperationResult = groupRange.Group();
                 var fieldsAfter = GetPivotFieldItemSnapshot(pivot);
                 var groupedFieldName = fieldsAfter

@@ -21,7 +21,11 @@ public partial class RangeCommands
         IExcelBatch batch, string sheetName, string rangeAddress, bool precedents)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rangeAddress);
-        return batch.Execute((context, ct) =>
+        return batch.Execute(ReadTrace);
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+            Justification = "Native relationship lookup errors are reported as unresolved with their exact diagnostic and HRESULT, never classified as an empty graph; traversal completeness is false.")]
+        RangeFormulaTraceResult ReadTrace(ExcelContext context, CancellationToken ct)
         {
             Excel.Range? roots = null;
             Excel.Worksheet? sheet = null;
@@ -120,7 +124,7 @@ public partial class RangeCommands
                 ComUtilities.Release(ref sheet);
                 ComUtilities.Release(ref roots);
             }
-        });
+        }
     }
 
     private static List<List<string>> FindTraceCycles(IEnumerable<string> addresses,

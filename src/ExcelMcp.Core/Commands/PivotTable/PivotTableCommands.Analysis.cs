@@ -72,7 +72,11 @@ public partial class PivotTableCommands
             return result;
         }
 
-        return batch.Execute((ctx, ct) =>
+        return batch.Execute(ReadReportFilter);
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+            Justification = "Reports the original report-filter error and failure phase in a failed result; cancellation and disconnected sessions propagate.")]
+        PivotReportFilterResult ReadReportFilter(ExcelContext ctx, CancellationToken ct)
         {
             Excel.Sheets? sheets = null;
             Excel.Worksheet? sheet = null;
@@ -139,7 +143,7 @@ public partial class PivotTableCommands
             }
 
             return result;
-        });
+        }
     }
 
     /// <summary>
@@ -156,7 +160,11 @@ public partial class PivotTableCommands
             return invalidRequest;
         }
 
-        return batch.Execute((ctx, ct) =>
+        return batch.Execute(WriteReportFilter);
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+            Justification = "Preserves mutation and update-restoration errors, reports the failed phase and possible partial state, and appends readback failures; cancellation and disconnection propagate.")]
+        PivotReportFilterResult WriteReportFilter(ExcelContext ctx, CancellationToken ct)
         {
             Excel.Sheets? sheets = null;
             Excel.Worksheet? sheet = null;
@@ -254,20 +262,7 @@ public partial class PivotTableCommands
                 if (manualUpdateChanged)
                 {
                     failurePhase = "restore-update";
-                    try
-                    {
-                        pivot.ManualUpdate = previousManualUpdate;
-                    }
-                    catch (Exception restoreException) when (
-                        mutationFailure is not null && CreatedObjectFailure.CanReport(restoreException))
-                    {
-                        if (CreatedObjectFailure.CanReport(mutationFailure))
-                        {
-                            mutationFailure = new AggregateException(
-                                "Filter mutation and update restoration both failed.",
-                                mutationFailure, restoreException);
-                        }
-                    }
+                    OperationCleanup.Run(() => pivot.ManualUpdate = previousManualUpdate, mutationFailure);
                 }
                 if (mutationFailure is not null)
                 {
@@ -314,7 +309,7 @@ public partial class PivotTableCommands
             }
 
             return result;
-        });
+        }
     }
 
     private static PivotReportFilterResult? ValidateReportFilterRequest(

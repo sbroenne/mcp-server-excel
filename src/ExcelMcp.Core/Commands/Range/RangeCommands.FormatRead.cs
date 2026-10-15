@@ -115,8 +115,7 @@ public partial class RangeCommands
         {
             if (!styleDefinition && !tableStyleDefinition) return getter();
             try { return getter(); }
-            catch (Exception ex) when (ex is COMException or ArgumentException &&
-                ex.HResult is unchecked((int)0x800A03EC) or unchecked((int)0x80070057))
+            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
             {
                 mixed.Add($"{field}.unavailable");
                 return null;
@@ -307,9 +306,9 @@ public partial class RangeCommands
         {
             return ReadFormatValue<int>(theme(), field, mixed);
         }
-        catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
-            // Excel's ThemeColor getter rejects valid colors that are not theme-based.
+            // An older Excel implementation may not expose theme metadata.
             return null;
         }
         catch (ArgumentException ex) when (ex.HResult == unchecked((int)0x80070057))

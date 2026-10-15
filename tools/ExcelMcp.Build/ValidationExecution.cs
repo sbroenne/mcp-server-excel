@@ -1,3 +1,5 @@
+using System.Text.Json;
+
 namespace Sbroenne.ExcelMcp.Build;
 
 public sealed class ValidationExecution(string root, IProcessRunner runner)
@@ -7,6 +9,7 @@ public sealed class ValidationExecution(string root, IProcessRunner runner)
     public async Task BuildAsync(ValidationPlan plan, string? group = null)
     {
         var projects = BuildProjects(plan, group);
+        var paths = new List<string>();
         foreach (var project in projects)
         {
             var path = Path.GetFullPath(project, root);
@@ -16,16 +19,52 @@ public sealed class ValidationExecution(string root, IProcessRunner runner)
                 throw new ArgumentException($"Build input must be a repository project: {project}.");
             }
             if (!File.Exists(path)) { throw new InvalidOperationException($"Build input does not exist: {project}."); }
-            Console.Error.WriteLine($"Building {project}.");
-            var restore = await runner.CheckedAsync("dotnet", ["restore", path], TimeSpan.FromMinutes(20));
+            paths.Add(path);
+        }
+        if (paths.Count == 0) { return; }
+        if (paths.Count > 1 && paths.Any(path => Path.GetExtension(path) != ".csproj"))
+        {
+            throw new ArgumentException("Select either the complete solution or a set of projects, not both.");
+        }
+        string? filter = null;
+        try
+        {
+            var target = paths[0];
+            if (paths.Count > 1)
+            {
+                filter = Path.Combine(Path.GetTempPath(), $"ExcelMcp.SelectedBuild.{Guid.NewGuid():N}.slnf");
+                await File.WriteAllTextAsync(filter, JsonSerializer.Serialize(new
+                {
+                    solution = new
+                    {
+                        path = Path.Combine(Path.GetFullPath(root), "Sbroenne.ExcelMcp.sln"),
+                        projects = paths.Select(path => Path.GetRelativePath(root, path)).ToArray()
+                    }
+                }));
+                target = filter;
+            }
+            Console.Error.WriteLine($"Building selected inputs: {string.Join(", ", projects)}.");
+            var restore = await runner.CheckedAsync("dotnet", ["restore", target], TimeSpan.FromMinutes(20));
             Console.Error.WriteLine(restore.Output);
             if (!string.IsNullOrWhiteSpace(restore.Error)) { Console.Error.WriteLine(restore.Error); }
             var result = await runner.CheckedAsync("dotnet",
-                ["build", path, "-c", "Release", "--no-restore", "--disable-build-servers", "-p:NuGetAudit=false", "--verbosity", "minimal"],
+                ["build", target, "-c", "Release", "--no-restore", "--disable-build-servers", "-p:NuGetAudit=false", "--verbosity", "minimal"],
                 TimeSpan.FromMinutes(20));
             Console.Error.WriteLine(result.Output);
             if (!string.IsNullOrWhiteSpace(result.Error)) { Console.Error.WriteLine(result.Error); }
         }
+        catch (Exception primary)
+        {
+            try { Cleanup(); }
+            catch (Exception cleanup)
+            {
+                throw new AggregateException("Selected build and temporary-input cleanup failed.", primary, cleanup);
+            }
+            throw;
+        }
+        Cleanup();
+
+        void Cleanup() { if (filter != null) { File.Delete(filter); } }
     }
 
     public string[] BuildProjects(ValidationPlan plan, string? group = null)
@@ -40,24 +79,15 @@ public sealed class ValidationExecution(string root, IProcessRunner runner)
         return projects;
     }
 
-    public async Task CheckSourcesAsync(ValidationPlan plan)
+    public async Task CheckDocumentationAsync(ValidationPlan plan)
     {
-        if (plan.SourceChecks)
-        {
-            foreach (var script in new[] { "check-com-leaks", "check-success-flag", "check-dynamic-casts", "check-workbook-package-access" })
-            {
-                new SourceGuards(root).Check(script["check-".Length..]);
-            }
-        }
         if (plan.DocumentationCounts)
         {
             if (!plan.FullSolutionBuild) { throw new InvalidOperationException("Documentation counts require a complete Release build."); }
-            foreach (var (script, option) in new[] { ("Build-AgentSkills", "-GenerateOnly"), ("check-doc-counts", "-SkipBuild") })
-            {
-                var result = await runner.CheckedAsync("pwsh", ["-NoProfile", "-File", Path.Combine(root, "scripts", $"{script}.ps1"), option],
-                    TimeSpan.FromMinutes(10));
-                Console.Error.WriteLine(result.Output);
-            }
+            var result = await runner.CheckedAsync("pwsh",
+                ["-NoProfile", "-File", Path.Combine(root, "scripts", "Build-AgentSkills.ps1"), "-GenerateOnly"],
+                TimeSpan.FromMinutes(10));
+            Console.Error.WriteLine(result.Output);
         }
     }
 

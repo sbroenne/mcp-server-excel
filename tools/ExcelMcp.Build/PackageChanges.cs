@@ -5,6 +5,7 @@ namespace Sbroenne.ExcelMcp.Build;
 public sealed record PackageChanges(bool VersionOnly, string[] PackageIds, string[] Projects)
 {
     private const string PackagesPath = "Directory.Packages.props";
+    private const string ThisFileDirectory = "$(MSBuildThisFileDirectory)";
 
     public static async Task<PackageChanges> ReadAsync(string root, IProcessRunner runner,
         string? baseRef = null, string? headRef = null, bool staged = false, bool directComparison = false)
@@ -70,7 +71,9 @@ public sealed record PackageChanges(bool VersionOnly, string[] PackageIds, strin
                     {
                         foreach (var include in ReferenceIds(reference, path))
                         {
-                            references.Add(ResolvePath(project, include));
+                            var declaringDirectory = include.StartsWith(ThisFileDirectory, StringComparison.OrdinalIgnoreCase);
+                            references.Add(ResolvePath(declaringDirectory ? path : project,
+                                declaringDirectory ? include[ThisFileDirectory.Length..].TrimStart('\\', '/') : include));
                         }
                     }
                 }
@@ -178,7 +181,11 @@ public sealed record PackageChanges(bool VersionOnly, string[] PackageIds, strin
         var value = reference.Attribute("Include")?.Value ?? reference.Attribute("Update")?.Value;
         if (string.IsNullOrWhiteSpace(value)) { throw new InvalidOperationException($"Cannot resolve {reference.Name} in {path}."); }
         var ids = value.Split(';', StringSplitOptions.TrimEntries);
-        if (ids.Any(id => !IsLiteral(id))) { throw new InvalidOperationException($"Cannot resolve {reference.Name} '{value}' in {path}."); }
+        if (ids.Any(id => !IsLiteral(reference.Name.LocalName == "ProjectReference" &&
+            id.StartsWith(ThisFileDirectory, StringComparison.OrdinalIgnoreCase) ? id[ThisFileDirectory.Length..] : id)))
+        {
+            throw new InvalidOperationException($"Cannot resolve {reference.Name} '{value}' in {path}.");
+        }
         return ids;
     }
 

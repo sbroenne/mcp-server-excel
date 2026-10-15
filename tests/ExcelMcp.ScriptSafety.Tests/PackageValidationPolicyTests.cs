@@ -25,7 +25,7 @@ public sealed class PackageValidationPolicyTests
 
         Assert.Equal(["CLI", "McpServer"], plan.FastProjects);
         Assert.Equal(["CLI", "McpServer"], plan.ExcelSelections.Select(selection => selection.Project).Distinct().Order());
-        Assert.True(plan.Cli && plan.Mcp && plan.Extension && plan.SourceChecks);
+        Assert.True(plan.Cli && plan.Mcp && plan.Extension && plan.Build);
         Assert.True(plan.FullSolutionBuild && plan.Build);
         Assert.False(plan.FullE2E);
         Assert.False(plan.InfrastructureDiagnostics);
@@ -77,7 +77,7 @@ public sealed class PackageValidationPolicyTests
         var plan = repo.Select();
 
         Assert.True(plan.FullSolutionBuild && plan.Build);
-        Assert.False(plan.Excel || plan.FullE2E || plan.SourceChecks || plan.Packages);
+        Assert.False(plan.Excel || plan.FullE2E || plan.Packages);
         Assert.Empty(plan.CiTestGroups);
         Assert.Empty(plan.BuildProjects);
         Assert.Equal(["csharp"], plan.CodeQlLanguages);
@@ -98,7 +98,7 @@ public sealed class PackageValidationPolicyTests
         var plan = repo.Select();
 
         Assert.True(plan.FullE2E && plan.Excel && plan.InfrastructureDiagnostics);
-        Assert.True(plan.FullSolutionBuild && plan.SourceChecks);
+        Assert.True(plan.FullSolutionBuild && plan.Build);
         Assert.Equal(["CLI", "ComInterop", "Core", "McpServer", "Service"], plan.FastProjects);
     }
 
@@ -191,6 +191,28 @@ public sealed class PackageValidationPolicyTests
         repo.Project("CLI", packages: ["Adapter"]);
         repo.Write("src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj", "<Project><Import Project=\"..\\..\\build\\References.props\" /></Project>");
         repo.Write("build/References.props", "<Project><ItemGroup><ProjectReference Include=\"..\\ExcelMcp.CLI\\ExcelMcp.CLI.csproj\" /></ItemGroup></Project>");
+        await repo.CommitAsync();
+        repo.Packages(Package("Adapter", "2.0"));
+
+        var plan = repo.Select();
+
+        Assert.Equal(["CLI", "McpServer"], plan.FastProjects);
+        Assert.True(plan.Cli && plan.Mcp && plan.Extension);
+        Assert.False(plan.FullE2E);
+    }
+
+    [Theory]
+    [InlineData("$(MSBuildThisFileDirectory)..\\..\\src\\ExcelMcp.CLI\\ExcelMcp.CLI.csproj")]
+    [InlineData("$(msbuildthisfiledirectory)..\\..\\src\\ExcelMcp.CLI\\ExcelMcp.CLI.csproj")]
+    public async Task ImportedProjectReferences_ResolveTheDeclaringFileDirectory(string include)
+    {
+        using var repo = new Repository();
+        repo.Packages(Package("Adapter", "1.0"));
+        repo.Project("CLI", packages: ["Adapter"]);
+        repo.Write("src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj",
+            "<Project><Import Project=\"..\\..\\build\\shared\\References.props\" /></Project>");
+        repo.Write("build/shared/References.props",
+            $"<Project><ItemGroup><ProjectReference Include=\"{include}\" /></ItemGroup></Project>");
         await repo.CommitAsync();
         repo.Packages(Package("Adapter", "2.0"));
 

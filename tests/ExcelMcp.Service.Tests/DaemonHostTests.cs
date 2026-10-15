@@ -64,7 +64,7 @@ public sealed class DaemonHostTests
             request =>
             {
                 Assert.Equal("service.shutdown", request.Command);
-                host.RequestShutdownAfterResponse();
+                Assert.IsType<DaemonHost>(host).RequestShutdownAfterResponse();
                 return Task.FromResult(new ServiceResponse { Success = true });
             },
             static () => 0,

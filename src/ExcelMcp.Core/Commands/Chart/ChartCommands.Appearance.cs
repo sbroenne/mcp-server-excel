@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -664,27 +663,19 @@ public partial class ChartCommands
                 };
 
                 // Get value axis (type 2) gridlines
-                try
+                if (Convert.ToBoolean(findResult.Chart.HasAxis[2, 1]))
                 {
                     valueAxis = axes.Item(2); // xlValue
                     result.Gridlines.HasValueMajorGridlines = valueAxis.HasMajorGridlines;
                     result.Gridlines.HasValueMinorGridlines = valueAxis.HasMinorGridlines;
                 }
-                catch (System.Runtime.InteropServices.COMException)
-                {
-                    // Value axis may not exist for some chart types
-                }
 
                 // Get category axis (type 1) gridlines
-                try
+                if (Convert.ToBoolean(findResult.Chart.HasAxis[1, 1]))
                 {
                     categoryAxis = axes.Item(1); // xlCategory
                     result.Gridlines.HasCategoryMajorGridlines = categoryAxis.HasMajorGridlines;
                     result.Gridlines.HasCategoryMinorGridlines = categoryAxis.HasMinorGridlines;
-                }
-                catch (System.Runtime.InteropServices.COMException)
-                {
-                    // Category axis may not exist for some chart types
                 }
 
                 return result;
@@ -933,27 +924,31 @@ public partial class ChartCommands
                         var info = new TrendlineInfo
                         {
                             Index = i,
-                            Type = (TrendlineType)Convert.ToInt32(trendline.Type),
+                            Type = (TrendlineType)Convert.ToInt32((object)trendline.Type, System.Globalization.CultureInfo.InvariantCulture),
                             Name = trendline.Name?.ToString(),
                             DisplayEquation = trendline.DisplayEquation,
                             DisplayRSquared = trendline.DisplayRSquared
                         };
 
                         // Get forward/backward forecast periods
-                        try { info.Forward = trendline.Forward; } catch (COMException) { /* Optional COM property */ }
-                        try { info.Backward = trendline.Backward; } catch (COMException) { /* Optional COM property */ }
-                        try { info.Intercept = trendline.Intercept; } catch (COMException) { /* Optional COM property */ }
+                        if (info.Type != TrendlineType.MovingAverage)
+                        {
+                            info.Forward = trendline.Forward;
+                            info.Backward = trendline.Backward;
+                        }
+                        if (info.Type is TrendlineType.Linear or TrendlineType.Exponential or TrendlineType.Polynomial)
+                            info.Intercept = trendline.Intercept;
 
                         // Get order for polynomial trendlines
                         if (info.Type == TrendlineType.Polynomial)
                         {
-                            try { info.Order = Convert.ToInt32(trendline.Order); } catch (COMException) { /* Optional COM property */ }
+                            info.Order = Convert.ToInt32(trendline.Order);
                         }
 
                         // Get period for moving average
                         if (info.Type == TrendlineType.MovingAverage)
                         {
-                            try { info.Period = Convert.ToInt32(trendline.Period); } catch (COMException) { /* Optional COM property */ }
+                            info.Period = Convert.ToInt32(trendline.Period);
                         }
 
                         result.Trendlines.Add(info);
@@ -1242,7 +1237,7 @@ public partial class ChartCommands
         {
             // Find chart by name
             var findResult = FindChart(ctx.Book, chartName);
-            if (findResult.Chart == null)
+            if (findResult.Chart is null || findResult.Shape is null)
             {
                 throw new InvalidOperationException($"Chart '{chartName}' not found in workbook.");
             }
@@ -1253,7 +1248,7 @@ public partial class ChartCommands
             try
             {
                 // Get the target range
-                worksheet = ctx.Book.Worksheets[sheetName];
+                worksheet = Utilities.WorksheetLookup.Get(ctx.Book, sheetName);
                 range = worksheet.Range[rangeAddress];
 
                 // Get range geometry

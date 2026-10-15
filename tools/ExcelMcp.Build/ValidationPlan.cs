@@ -7,7 +7,6 @@ public sealed class ValidationPlan
     public bool Build { get; set; }
     public bool Excel { get; set; }
     public bool FullE2E { get; set; }
-    public bool SourceChecks { get; set; }
     public bool DocumentationCounts { get; set; }
     public bool FullSolutionBuild { get; set; }
     public bool HookTests { get; set; }
@@ -39,12 +38,11 @@ public sealed class ValidationPlan
         .. ProcessFilters.Count > 0 ? new[] { "Process" } : [],
         .. ToolingFilters.Count > 0 ? new[] { "Tooling" } : []
     ];
-    public string FullSolutionBuildGroup => !FullSolutionBuild ? "" :
-        CiTestGroups.Contains(SourceChecksGroup, StringComparer.Ordinal) ? SourceChecksGroup : CiTestGroups.FirstOrDefault() ?? "";
+    public string FullSolutionBuildGroup => FullSolutionBuild ? CiTestGroups.FirstOrDefault() ?? "" : "";
     public bool BuildOnly => FullSolutionBuild && CiTestGroups.Length == 0;
     public bool PackageBuild => Cli || Mcp || Extension;
     public bool Packages => PackageBuild || Mcpb || Plugins;
-    public string SourceChecksGroup => SourceChecks && FastFilters.Count > 0 ? "Fast" : DocumentationCounts || SourceChecks ? "Tooling" : "";
+    public string DocumentationChecksGroup => DocumentationCounts ? FullSolutionBuildGroup : "";
 }
 
 public sealed record ExcelSelection(string Project, string Filter, string Area);

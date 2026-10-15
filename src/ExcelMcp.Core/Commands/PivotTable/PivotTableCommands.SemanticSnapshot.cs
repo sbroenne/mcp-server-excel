@@ -142,7 +142,7 @@ public partial class PivotTableCommands
     {
         // PIA gap: typed SourceName is a string, but Excel's multi-value "Values" placeholder returns an error value (#N/A).
         var rawSourceName = PivotTableSnapshotHelpers.TryReadSnapshotProperty(() => (object?)((dynamic)field).SourceName);
-        if (rawSourceName.Value is int)
+        if (PivotTableHelpers.IsValuesPlaceholderSourceName(rawSourceName.Value))
             return null;
 
         var sourceName = new PivotSnapshotProperty<string>(
@@ -536,7 +536,8 @@ public partial class PivotTableCommands
             bool multiple = cubeField.EnableMultiplePageItems;
             if (!multiple)
             {
-                string currentPage = levelFields[0].CurrentPageName ?? string.Empty;
+                Excel.PivotField levelField = levelFields[0];
+                string currentPage = levelField.CurrentPageName ?? string.Empty;
                 bool showAll = PivotTableHelpers.IsAllOlapReportFilterMember(
                     cubeField, currentPage, cancellationToken);
                 var names = new BoundedMemberNames(maxMembers);

@@ -10,10 +10,16 @@ namespace Sbroenne.ExcelMcp.Core.Models;
 /// </summary>
 public abstract class ResultBase
 {
+    private bool _success;
+
     /// <summary>
     /// Indicates whether the operation was successful
     /// </summary>
-    public bool Success { get; set; }
+    public bool Success
+    {
+        get => _success && string.IsNullOrEmpty(ErrorMessage);
+        set => _success = value;
+    }
 
     /// <summary>
     /// Error message if operation failed

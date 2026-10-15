@@ -314,6 +314,7 @@ public sealed partial class PersistentServiceRangeSpecializedTests
             try
             {
                 sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(sheet);
                 range = sheet.Range[cellAddress];
                 font = range.Font;
                 interior = range.Interior;
@@ -339,6 +340,7 @@ public sealed partial class PersistentServiceRangeSpecializedTests
             try
             {
                 sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(sheet);
                 range = sheet.Range[cellAddress];
                 return (string)(((Microsoft.Office.Interop.Excel.Range)range).NumberFormat ?? "General");
             }
@@ -357,6 +359,7 @@ public sealed partial class PersistentServiceRangeSpecializedTests
             try
             {
                 sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(sheet);
                 range = sheet.Range[cellAddress];
                 return Convert.ToString(range.Text, System.Globalization.CultureInfo.InvariantCulture)
                     ?? string.Empty;
@@ -384,6 +387,7 @@ public sealed partial class PersistentServiceRangeSpecializedTests
             try
             {
                 sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(sheet);
                 range = sheet.Range[cellAddress];
                 font = range.Font;
                 interior = range.Interior;

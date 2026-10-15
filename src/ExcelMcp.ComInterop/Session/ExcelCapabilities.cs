@@ -24,7 +24,7 @@ public sealed class ExcelCapabilities
         {
             return read();
         }
-        catch (COMException ex) when (IsAutoSaveUnavailable(ex))
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             return false;
         }
@@ -36,17 +36,14 @@ public sealed class ExcelCapabilities
         {
             disable();
         }
-        catch (COMException ex) when (IsAutoSaveUnavailable(ex))
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             // Older Excel has no AutoSave to disable.
         }
     }
 
-    private static bool IsAutoSaveUnavailable(COMException exception) => exception.HResult is
-        unchecked((int)0x80020003) or // DISP_E_MEMBERNOTFOUND
-        unchecked((int)0x80020006) or // DISP_E_UNKNOWNNAME
-        unchecked((int)0x80004001);   // E_NOTIMPL
-
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "The Formula2 getter alone may return Excel's generic error on older Excel, but only after the same cell's legacy Formula getter succeeds. Writes and other probe failures propagate.")]
     internal static bool ProbeFormula2(Func<object?> readFormula, Func<object?> readFormula2)
     {
         // Confirm the probe cell is readable before interpreting Excel's generic error

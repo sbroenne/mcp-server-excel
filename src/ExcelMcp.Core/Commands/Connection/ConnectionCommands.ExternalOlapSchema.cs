@@ -6,6 +6,7 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.PowerQuery;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -323,8 +324,7 @@ public partial class ConnectionCommands
     {
         dynamic? recordset = null;
         dynamic? fields = null;
-        bool readCompleted = false;
-        Exception? cleanupFailure = null;
+        Exception? operationFailure = null;
         var rows = new List<IReadOnlyDictionary<string, object?>>();
         try
         {
@@ -387,7 +387,6 @@ public partial class ConnectionCommands
                     recordset.MoveNext();
                 }
 
-                readCompleted = true;
             }
             catch (COMException ex)
             {
@@ -399,43 +398,16 @@ public partial class ConnectionCommands
                     $"The OLAP provider for connection '{connectionName}' does not expose the required schema rowset.");
             }
         }
+        catch (Exception ex)
+        {
+            operationFailure = ex;
+            throw;
+        }
         finally
         {
             try
             {
-                if (recordset is not null)
-                {
-                    try
-                    {
-                        if ((Convert.ToInt32(recordset.State, CultureInfo.InvariantCulture) & 1) != 0)
-                        {
-                            recordset.Close();
-                        }
-                    }
-                    catch (COMException ex)
-                    {
-                        if (readCompleted)
-                        {
-                            cleanupFailure = CreateOlapQueryError(connectionName, ex.HResult, ex.Message);
-                        }
-                        else
-                        {
-                            logger?.LogWarning("OLAP schema rowset cleanup failed (HRESULT 0x{HResult:X8}); preserving the query failure.",
-                                ex.HResult);
-                        }
-                    }
-                    catch (RuntimeBinderException)
-                    {
-                        if (readCompleted)
-                        {
-                            cleanupFailure = new NotSupportedException("The OLAP provider could not close its schema rowset.");
-                        }
-                        else
-                        {
-                            logger?.LogWarning("The OLAP provider could not close its schema rowset; preserving the query failure.");
-                        }
-                    }
-                }
+                OperationCleanup.Run(CloseRecordset, operationFailure);
             }
             finally
             {
@@ -444,12 +416,27 @@ public partial class ConnectionCommands
             }
         }
 
-        if (cleanupFailure is not null)
-        {
-            throw cleanupFailure;
-        }
-
         return rows;
+
+        void CloseRecordset()
+        {
+            if (recordset is null)
+                return;
+            try
+            {
+                if ((Convert.ToInt32(recordset.State, CultureInfo.InvariantCulture) & 1) != 0)
+                    recordset.Close();
+            }
+            catch (COMException ex)
+            {
+                logger?.LogWarning("OLAP schema rowset cleanup failed (HRESULT 0x{HResult:X8}).", ex.HResult);
+                throw CreateOlapQueryError(connectionName, ex.HResult, ex.Message);
+            }
+            catch (RuntimeBinderException ex)
+            {
+                throw new NotSupportedException("The OLAP provider could not close its schema rowset.", ex);
+            }
+        }
     }
 
     private static InvalidOperationException CreateOlapQueryError(

@@ -35,7 +35,7 @@ public sealed class PersistentServicePowerQueryMutationFailureTests : IAsyncLife
             new { queryName, mCode, loadDestination = "both" });
 
         AssertStoredDefinition(queryName, mCode, PowerQueryLoadMode.LoadToTable, queryName);
-        Assert.Equal("Privacy", response.ErrorCategory);
+        Assert.Equal(reason == "Formula.Firewall" ? "PrivacyFirewall" : "Privacy", response.ErrorCategory);
         Assert.Equal("PowerQueryCommandException", response.ExceptionType);
         Assert.Equal("powerquery.create", response.Command);
         Assert.Equal("0x800A03EC", response.HResult);
@@ -66,7 +66,7 @@ public sealed class PersistentServicePowerQueryMutationFailureTests : IAsyncLife
 
         AssertStoredDefinition(queryName, mCode, PowerQueryLoadMode.LoadToTable, queryName);
         AssertWorksheetValue(queryName, 1);
-        Assert.Equal("Privacy", response.ErrorCategory);
+        Assert.Equal(reason == "Formula.Firewall" ? "PrivacyFirewall" : "Privacy", response.ErrorCategory);
         Assert.Equal("PowerQueryCommandException", response.ExceptionType);
         Assert.Equal("powerquery.update", response.Command);
         Assert.Equal("0x800A03EC", response.HResult);
@@ -141,7 +141,7 @@ public sealed class PersistentServicePowerQueryMutationFailureTests : IAsyncLife
         var response = await _fixture.SendForFailureAsync("powerquery.update", new { queryName, mCode });
 
         PowerQueryStateAssertions.AssertStored(scope, queryName, mCode, mode, sheet, ["X"], [[1]]);
-        Assert.Equal("Privacy", response.ErrorCategory);
+        Assert.Equal("PrivacyFirewall", response.ErrorCategory);
         Assert.Equal("PowerQueryCommandException", response.ExceptionType);
         var state = ReadPartialState(response);
         Assert.Equal(queryName, state.GetProperty("queryName").GetString());

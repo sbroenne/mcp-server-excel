@@ -9,10 +9,10 @@ namespace Sbroenne.ExcelMcp.ComInterop.Formatting;
 /// <remarks>
 /// <para><b>Design Principles:</b></para>
 /// <list type="bullet">
-/// <item>Never throws exceptions - returns original DAX on any failure</item>
+/// <item>Returns original DAX for expected network, timeout, or response parsing failures</item>
 /// <item>Uses official Dax.Formatter NuGet package (by SQLBI), which invokes a remote service</item>
 /// <item>Gracefully handles network failures, API errors, and rate limiting</item>
-/// <item>Formatting is best-effort - original DAX is always preserved if formatting fails</item>
+/// <item>Expected service failures preserve the original DAX; cancellation and unexpected failures propagate</item>
 /// </list>
 /// <para><b>Usage:</b></para>
 /// <code>
@@ -24,7 +24,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Formatting;
 /// <item>Network latency: Typically 100-500ms per API call</item>
 /// <item>Singleton client instance shared across all calls for efficiency</item>
 /// <item>10-second timeout prevents indefinite blocking</item>
-/// <item>Graceful fallback ensures operations never fail due to formatting</item>
+/// <item>Expected service unavailability does not prevent workbook operations</item>
 /// </list>
 /// </remarks>
 public static class DaxFormatter
@@ -37,14 +37,14 @@ public static class DaxFormatter
     /// </summary>
     /// <param name="daxCode">The DAX code to format</param>
     /// <param name="cancellationToken">Cancellation token for the HTTP request</param>
-    /// <returns>Formatted DAX code, or original code if formatting fails</returns>
+    /// <returns>Formatted DAX code, or original code on an expected service failure</returns>
     /// <remarks>
-    /// This method NEVER throws exceptions. If formatting fails for any reason
-    /// (network error, API error, timeout, invalid DAX), it returns the original code unchanged.
-    /// This ensures that DAX operations never break due to formatting issues.
+    /// Expected network, response parsing, and internal timeout failures return the original
+    /// code unchanged. Caller cancellation and unexpected programming failures propagate.
     /// </remarks>
     public static async Task<string> FormatAsync(string daxCode, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(daxCode))
             return daxCode;
 
@@ -63,22 +63,17 @@ public static class DaxFormatter
                 ? response.Formatted
                 : daxCode;
         }
-        catch (Exception) when (IsExpectedFormattingException())
+        catch (HttpRequestException)
         {
-            // Expected failures (network, timeout, parsing, etc.) - return original DAX
-            // This handles: HttpRequestException, TaskCanceledException, OperationCanceledException,
-            // JsonException, and any other API-related errors gracefully
+            return daxCode;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return daxCode;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
             return daxCode;
         }
     }
-
-    /// <summary>
-    /// Filter for expected formatting exceptions. Always returns true because
-    /// ALL exceptions during formatting should result in graceful fallback.
-    /// This pattern satisfies CodeQL's generic catch clause warning while
-    /// maintaining the intentional catch-all behavior for formatting operations.
-    /// </summary>
-    private static bool IsExpectedFormattingException() => true;
 }
-
-

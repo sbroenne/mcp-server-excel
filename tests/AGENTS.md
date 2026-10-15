@@ -28,16 +28,16 @@ Commands and prerequisites: [tests/README.md](README.md#quick-start).
   Direct Core needs a named internal contract Service cannot expose. Pure
   parsing, mapping, serialization, and generator tests need no Excel.
 - Independent Facts/Theories must isolate their state, even with a reviewed
-  class fixture. Do not combine class and collection fixtures on one class.
+  class fixture.
   Lifecycle, transport, global-state, and raw-COM capability tests retain the
   actual boundary and isolation their subject requires.
 - Cleanup always runs, preserves primary and cleanup failures, and never
   silently recreates a failed shared session.
 - Follow nearby trait conventions: `Category`, `Feature`, `Layer`,
-  `RequiresExcel`, `Speed`, and `RunType` where applicable. Every discovered
-  test must resolve to exactly one `RequiresExcel=true` or `false` value.
-- Excel and other global-state tests belong to an explicitly non-parallel
-  collection; separate Excel testhosts must not overlap. `RequiresExcel=false`
+  `Speed`, and `RunType` where applicable. Compiler diagnostics own supported
+  test classification and fixture-ownership checks; fix their source.
+- Other global-state tests also need explicitly non-parallel collections;
+  separate Excel testhosts must not overlap. `RequiresExcel=false`
   alone does not establish parallel safety or low cost.
 - Positive tests assert successful prerequisites and verification responses,
   then exact values for every result field or workbook state the change adds
@@ -59,7 +59,7 @@ Commands and prerequisites: [tests/README.md](README.md#quick-start).
   to the caller unless rollback is an explicit operation contract.
 - Cleanup may terminate only exact owned identities using PID plus start time
   and retained handles. Never kill unrelated Excel processes. Fixture COM
-  access follows [COM safety](../docs/agents/rules/excel-com-interop.md).
+  access follows [COM safety](../src/ExcelMcp.ComInterop/AGENTS.md).
 
 Fixture, template, raw-COM/OOXML, and parallel-safety procedures:
 [tests/README.md](README.md#saved-workbook-templates).

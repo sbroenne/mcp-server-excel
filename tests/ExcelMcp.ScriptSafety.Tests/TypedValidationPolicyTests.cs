@@ -17,6 +17,21 @@ public sealed class TypedValidationPolicyTests
     };
 
     [Theory]
+    [InlineData("src/ExcelMcp.Analyzers/SafetyAnalyzer.cs")]
+    [InlineData("src/ExcelMcp.Analyzers/ComAccessAnalyzer.cs")]
+    [InlineData("BannedSymbols.txt")]
+    [InlineData("BannedSymbols.Mcp.txt")]
+    public void CompilerRuleChanges_BuildAllConsumersAndSelectRuleRegressions(string path)
+    {
+        var plan = Policy.Select([path]);
+        Assert.True(plan.FullSolutionBuild);
+        Assert.Contains("SafetyAnalyzerTests.", plan.ToolingFilters["ScriptSafety"], StringComparison.Ordinal);
+        Assert.False(plan.Excel);
+        Assert.False(plan.FullE2E);
+        Assert.False(plan.DocumentationCounts);
+    }
+
+    [Theory]
     [InlineData("Range", "RangeCommands.Values.cs")]
     [InlineData("PowerQuery", "PowerQueryCommands.Read.cs")]
     public void FeatureEdits_SelectBehaviorWithoutUnchangedAdapters(string area, string file)
@@ -30,6 +45,30 @@ public sealed class TypedValidationPolicyTests
         Assert.False(plan.FullE2E);
         Assert.False(plan.NpmTests);
         Assert.True(plan.Cli && plan.Mcp && plan.Extension);
+    }
+
+    [Fact]
+    public void SharedCliCommandBase_SelectsGeneratedCommandConsumers()
+    {
+        var plan = Policy.Select(["src/ExcelMcp.CLI/Infrastructure/ServiceCommandBase.cs"]);
+        Assert.Equal(["CLI"], plan.FastProjects);
+        Assert.Equal(["CLI"], plan.ProcessProjects);
+        Assert.Contains(plan.ExcelSelections, selection => selection.Project == "CLI");
+        Assert.All(plan.ExcelSelections, selection => Assert.Equal("CLI", selection.Project));
+        Assert.True(plan.Cli);
+        Assert.False(plan.FullE2E);
+    }
+
+    [Fact]
+    public void TrayHostEdits_SelectActualDaemonProcessConsumers()
+    {
+        var plan = Policy.Select(["src/ExcelMcp.CLI/Infrastructure/CliServiceTray.cs"]);
+        Assert.Equal(["CLI"], plan.ProcessProjects);
+        Assert.Contains("CliDaemonLifecycleTests.", plan.ProcessFilters["CLI"], StringComparison.Ordinal);
+        Assert.Contains("CliDaemonTests.", plan.ProcessFilters["CLI"], StringComparison.Ordinal);
+        Assert.DoesNotContain("CliDaemonObservationTests.", plan.ProcessFilters["CLI"], StringComparison.Ordinal);
+        Assert.Empty(plan.FastProjects);
+        Assert.False(plan.Excel || plan.FullE2E);
     }
 
     [Fact]
@@ -134,7 +173,7 @@ public sealed class TypedValidationPolicyTests
         Assert.Contains("EntryPointTelemetryTests.", plan.FastFilters["CLI"], StringComparison.Ordinal);
         Assert.Contains("TelemetryUserIdentityTests.", plan.FastFilters["McpServer"], StringComparison.Ordinal);
         Assert.Contains("TelemetryTests.", plan.FastFilters["McpServer"], StringComparison.Ordinal);
-        Assert.True(plan.Cli && plan.Mcp && plan.Extension && plan.SourceChecks);
+        Assert.True(plan.Cli && plan.Mcp && plan.Extension && plan.Build);
         Assert.False(plan.Excel);
         Assert.False(plan.FullE2E);
     }
@@ -147,21 +186,19 @@ public sealed class TypedValidationPolicyTests
         var plan = Policy.Select([path]);
         Assert.Equal([owner], plan.FastProjects);
         Assert.Contains("TelemetryTests.", plan.FastFilters[owner], StringComparison.Ordinal);
-        Assert.True(plan.SourceChecks);
+        Assert.True(plan.Build);
         Assert.False(plan.Excel);
         Assert.False(plan.FullE2E);
     }
 
     [Theory]
-    [InlineData("scripts/check-com-leaks.ps1")]
-    [InlineData("scripts/check-success-flag.ps1")]
-    [InlineData("scripts/check-dynamic-casts.ps1")]
-    [InlineData("scripts/check-workbook-package-access.ps1")]
-    public void SourceGuardChanges_SelectTypedRuleRegressions(string path)
+    [InlineData("src/ExcelMcp.Analyzers/SafetyAnalyzer.cs")]
+    [InlineData("src/ExcelMcp.Analyzers/ComAccessAnalyzer.cs")]
+    public void CompilerChanges_SelectTypedRuleRegressions(string path)
     {
         var plan = Policy.Select([path]);
-        Assert.Contains("TypedSourceGuardTests.", plan.ToolingFilters["ScriptSafety"], StringComparison.Ordinal);
-        Assert.True(plan.SourceChecks);
+        Assert.Contains("SafetyAnalyzerTests.", plan.ToolingFilters["ScriptSafety"], StringComparison.Ordinal);
+        Assert.True(plan.FullSolutionBuild);
         Assert.False(plan.Excel);
     }
 
@@ -194,17 +231,17 @@ public sealed class TypedValidationPolicyTests
     public void ScopedRuntimeAndSourceGuardChanges_DoNotRequireFullBuildOrDocumentationCounts()
     {
         var range = Policy.Select(["src/ExcelMcp.Core/Commands/Range/RangeCommands.Values.cs"]);
-        Assert.True(range.SourceChecks);
+        Assert.True(range.Build);
         Assert.False(range.FullSolutionBuild);
         Assert.False(range.DocumentationCounts);
         Assert.Equal("", range.FullSolutionBuildGroup);
 
-        var guard = Policy.Select(["scripts/check-com-leaks.ps1"]);
-        Assert.True(guard.SourceChecks);
-        Assert.False(guard.FullSolutionBuild);
+        var guard = Policy.Select(["src/ExcelMcp.Analyzers/ComAccessAnalyzer.cs"]);
+        Assert.True(guard.Build);
+        Assert.True(guard.FullSolutionBuild);
         Assert.False(guard.DocumentationCounts);
-        Assert.Equal("Tooling", guard.SourceChecksGroup);
-        Assert.Equal("", guard.FullSolutionBuildGroup);
+        Assert.Equal("", guard.DocumentationChecksGroup);
+        Assert.Equal("Tooling", guard.FullSolutionBuildGroup);
     }
 
     [Theory]
@@ -271,6 +308,28 @@ public sealed class TypedValidationPolicyTests
             var catalogue = new TestCatalog(directory);
             Assert.Equal("Cases", Assert.Single(catalogue.ForFile("tests/ExcelMcp.Core.Tests/Fixture.cs")).Name);
             Assert.Equal("Cases", Assert.Single(catalogue.ForFile("tests/ExcelMcp.Core.Tests/Cases.More.cs")).Name);
+        }
+        finally { Directory.Delete(directory, recursive: true); }
+    }
+
+    [Theory]
+    [InlineData("bin")]
+    [InlineData("obj")]
+    public void Catalogue_DoesNotTraverseBuildOutputs(string output)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"ExcelMcp.Catalogue.{Guid.NewGuid():N}");
+        var project = Path.Combine(directory, "tests", "ExcelMcp.Core.Tests");
+        var artifact = Path.Combine(project, output, "fixture");
+        Directory.CreateDirectory(artifact);
+        try
+        {
+            File.WriteAllText(Path.Combine(project, "ExcelMcp.Core.Tests.csproj"), "<Project/>");
+            File.WriteAllText(Path.Combine(project, "Cases.cs"),
+                """[Trait("RequiresExcel", "false")] public class Cases { [Fact] public void M() {} }""");
+            File.WriteAllText(Path.Combine(artifact, "ExcelMcp.Artifact.Tests.csproj"), "Not a source project.");
+            var catalogue = new TestCatalog(directory);
+            Assert.Equal("Cases", Assert.Single(catalogue.ForOwner("Core")).Name);
+            Assert.Empty(catalogue.ForOwner("Artifact"));
         }
         finally { Directory.Delete(directory, recursive: true); }
     }

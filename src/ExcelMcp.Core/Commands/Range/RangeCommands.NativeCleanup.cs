@@ -128,6 +128,8 @@ public partial class RangeCommands
         });
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Collects the operation and native cleanup errors, then rethrows the primary or their aggregate after all COM references are released.")]
     private static T WithNativeCleanupWorksheet<T>(ExcelContext context, CancellationToken token,
         Func<Excel.Worksheet, CancellationToken, T> operation)
     {

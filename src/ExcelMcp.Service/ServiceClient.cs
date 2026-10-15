@@ -223,7 +223,7 @@ public sealed class ServiceClient : IDisposable
         }
         catch (OperationCanceledException)
         {
-            // Caller completed or request timed out; this is not a disconnect signal.
+            return false; // Caller completion or timeout is not a disconnect signal.
         }
         catch (ObjectDisposedException)
         {

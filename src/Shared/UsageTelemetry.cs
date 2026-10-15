@@ -38,7 +38,11 @@ internal sealed class UsageTelemetry(
             return;
         }
 
-        Initialization = Task.Run(() =>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL001",
+            Justification = "Optional telemetry setup cleanup must not fail startup or report recursively through telemetry; a failed pipeline is abandoned, with no workbook operation result changed.")]
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+            Justification = "Background telemetry setup is deliberately best-effort: failures abandon reporting and never alter product startup, cancellation, exit, or command results.")]
+        void Initialize()
         {
             UsagePipeline? pipeline = null;
             try
@@ -66,9 +70,13 @@ internal sealed class UsageTelemetry(
                 try { pipeline?.Dispose(); }
                 catch (Exception) { }
             }
-        });
+        }
+
+        Initialization = Task.Run(Initialize);
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL001",
+        Justification = "Telemetry is an optional side channel; dropping records must not change command results, cancellation, or shutdown and must not recursively log into the failing pipeline.")]
     internal void RecordEvent(UsageEvent telemetry)
     {
         if (!IsReady) return;
@@ -76,6 +84,8 @@ internal sealed class UsageTelemetry(
         catch (Exception) { }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL001",
+        Justification = "Telemetry is an optional side channel; dropping records must not change operation results, cancellation, or shutdown and must not recursively log into the failing pipeline.")]
     internal void RecordOperation(UsageOperation telemetry)
     {
         if (!IsReady) return;

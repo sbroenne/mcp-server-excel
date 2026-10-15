@@ -11,9 +11,16 @@ $rootDir = Split-Path -Parent $PSScriptRoot
 function Invoke-Check {
     param([string]$Name, [scriptblock]$Action)
     Write-Host $Name -ForegroundColor Cyan
-    $global:LASTEXITCODE = 0
-    & $Action
-    if ($LASTEXITCODE -ne 0) { throw "$Name failed with exit code $LASTEXITCODE." }
+    $timer = [Diagnostics.Stopwatch]::StartNew()
+    try {
+        $global:LASTEXITCODE = 0
+        & $Action
+        if ($LASTEXITCODE -ne 0) { throw "$Name failed with exit code $LASTEXITCODE." }
+    }
+    finally {
+        $timer.Stop()
+        Write-Host ("  Elapsed: {0:g}" -f $timer.Elapsed) -ForegroundColor DarkGray
+    }
 }
 
 function Read-Git {
@@ -30,16 +37,18 @@ try {
     $mergeHead = & git rev-parse --verify --quiet MERGE_HEAD 2>$null
     $base = if ($LASTEXITCODE -eq 0 -and $mergeHead) { $mergeHead } else { 'HEAD' }
     $paths = @(Read-Git @('-c', 'core.quotepath=false', 'diff', '--cached', '--name-only', '--no-renames', $base))
-    $plan = Get-ValidationPlan -Paths $paths -Staged
+    $plan = Invoke-Check 'Selecting checks for staged changes' {
+        Get-ValidationPlan -Paths $paths -Staged
+    }
     $plan.Reasons | ForEach-Object { Write-Host "  $_" }
 
-    if ($plan.Build -or $plan.SourceChecks) {
+    if ($plan.Build) {
         $workingPaths = @(
             Read-Git @('-c', 'core.quotepath=false', 'diff', '--name-only', '--no-renames')
             Read-Git @('-c', 'core.quotepath=false', 'ls-files', '--others', '--exclude-standard')
         )
         $inputs = @($workingPaths | Where-Object {
-            $_ -match '^(src[\\/]|tests[\\/]|skills[\\/]|scripts[\\/]|tools[\\/]ExcelMcp\.Build[\\/]|build\.ps1$|docs[\\/]reference[\\/]report-formatting\.md$|Directory\.|\.editorconfig$|global\.json$|NuGet\.Config$|Sbroenne\.ExcelMcp\.sln$)'
+            $_ -match '^(src[\\/]|tests[\\/]|skills[\\/]|scripts[\\/]|tools[\\/]ExcelMcp\.Build[\\/]|build\.ps1$|docs[\\/]reference[\\/]report-formatting\.md$|Directory\.|BannedSymbols[^\\/]*\.txt$|\.editorconfig$|global\.json$|NuGet\.Config$|Sbroenne\.ExcelMcp\.sln$)'
         })
         if ($inputs.Count -gt 0) {
             throw "Validation inputs differ from the index. Stage or set aside these changes explicitly: $($inputs -join ', '). No files were staged or stashed."
@@ -47,11 +56,6 @@ try {
     }
     if ($plan.Excel -and -not [OperatingSystem]::IsWindows()) {
         throw 'Required Excel validation needs Windows with desktop Excel; it cannot be reported as passed on this host.'
-    }
-    if ($plan.SourceChecks) {
-        foreach ($script in @('check-com-leaks', 'check-success-flag', 'check-dynamic-casts', 'check-workbook-package-access')) {
-            Invoke-Check $script { & (Join-Path $PSScriptRoot "$script.ps1") }
-        }
     }
     if ($plan.Build) {
         $buildPlan = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.CommitBuild.$([Guid]::NewGuid().ToString('N')).json"

@@ -12,6 +12,9 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 /// </summary>
 internal static class PivotTableHelpers
 {
+    internal static bool IsValuesPlaceholderSourceName(object? sourceName) =>
+        sourceName is int && ExcelErrorMapper.TryGet(sourceName, out _, out var error) && error.Name == "#N/A";
+
     internal static bool IsAllOlapReportFilterMember(
         Excel.CubeField cubeField, string memberName, CancellationToken cancellationToken)
     {
@@ -92,8 +95,17 @@ internal static class PivotTableHelpers
     internal static string? GetLayoutError(Excel.PivotTable pivot)
     {
         Excel.Range? range = null;
+        Excel.PivotFields? rowFields = null;
+        Excel.PivotFields? columnFields = null;
+        Excel.PivotFields? dataFields = null;
         try
         {
+            rowFields = (Excel.PivotFields)pivot.RowFields;
+            columnFields = (Excel.PivotFields)pivot.ColumnFields;
+            dataFields = (Excel.PivotFields)pivot.DataFields;
+            // An OLAP report-filter-only layout has no body and therefore no TableRange1.
+            if (rowFields.Count == 0 && columnFields.Count == 0 && dataFields.Count == 0)
+                return null;
             range = pivot.TableRange1;
             if (range is not null && Convert.ToDouble((object)range.CountLarge, CultureInfo.InvariantCulture) == 1
                 && ExcelErrorMapper.TryGet((object?)range.Value2, out _, out var error)
@@ -107,6 +119,9 @@ internal static class PivotTableHelpers
         finally
         {
             ComUtilities.Release(ref range);
+            ComUtilities.Release(ref dataFields);
+            ComUtilities.Release(ref columnFields);
+            ComUtilities.Release(ref rowFields);
         }
     }
 
@@ -144,19 +159,14 @@ internal static class PivotTableHelpers
     /// </remarks>
     public static bool IsOlapPivotTable(dynamic pivot)
     {
+        if (!HasOlapCache(pivot))
+            return false;
         dynamic? cubeFields = null;
         try
         {
             cubeFields = pivot.CubeFields;
-            return cubeFields != null && cubeFields.Count > 0;
+            return cubeFields is not null && cubeFields.Count > 0;
         }
-#pragma warning disable CA1031 // COM interop: CubeFields property doesn't exist on non-OLAP PivotTables
-        catch (System.Runtime.InteropServices.COMException ex) when (CreatedObjectFailure.CanReport(ex))
-        {
-            // CubeFields property not available or failed - not an OLAP PivotTable
-            return false;
-        }
-#pragma warning restore CA1031
         finally
         {
             ComUtilities.Release(ref cubeFields);
@@ -177,19 +187,32 @@ internal static class PivotTableHelpers
     public static bool TryGetCubeFields(dynamic pivot, out dynamic? cubeFields)
     {
         cubeFields = null;
+        if (!HasOlapCache(pivot))
+            return false;
         try
         {
             cubeFields = pivot.CubeFields;
-            return cubeFields != null && cubeFields.Count > 0;
+            return cubeFields is not null && cubeFields.Count > 0;
         }
-#pragma warning disable CA1031 // COM interop: CubeFields property doesn't exist on non-OLAP PivotTables
-        catch (System.Runtime.InteropServices.COMException)
+        catch (Exception)
         {
-            // CubeFields property not available - not an OLAP PivotTable
-            // cubeFields already null from initialization
-            return false;
+            ComUtilities.Release(ref cubeFields);
+            throw;
         }
-#pragma warning restore CA1031
+    }
+
+    private static bool HasOlapCache(dynamic pivot)
+    {
+        dynamic? cache = null;
+        try
+        {
+            cache = pivot.PivotCache();
+            return Convert.ToBoolean(cache.OLAP);
+        }
+        finally
+        {
+            ComUtilities.Release(ref cache);
+        }
     }
 
     /// <summary>
@@ -264,7 +287,7 @@ internal static class PivotTableHelpers
             return "Text";
         }
 #pragma warning disable CA1031 // COM interop: PivotItems may not be accessible on all field types
-        catch (System.Runtime.InteropServices.COMException)
+        catch (System.Runtime.InteropServices.COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             // PivotItems access failed - cannot determine data type
             return "Unknown";
@@ -293,7 +316,7 @@ internal static class PivotTableHelpers
                 _ => null
             };
         }
-        catch (System.Runtime.InteropServices.COMException)
+        catch (System.Runtime.InteropServices.COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             return null;
         }
@@ -328,12 +351,6 @@ internal static class PivotTableHelpers
                 }
             }
         }
-#pragma warning disable CA1031 // COM interop: PivotItems may not be accessible on all field types
-        catch (System.Runtime.InteropServices.COMException)
-        {
-            // PivotItems access failed - return partial list
-        }
-#pragma warning restore CA1031
         finally
         {
             ComUtilities.Release(ref pivotItems);

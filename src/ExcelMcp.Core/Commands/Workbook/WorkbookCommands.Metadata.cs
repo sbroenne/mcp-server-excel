@@ -244,7 +244,7 @@ public partial class WorkbookCommands
         {
             value = property.Value;
         }
-        catch (COMException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             value = null;
         }

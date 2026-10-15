@@ -269,6 +269,7 @@ public sealed partial class PersistentServiceRangeValidationTests
             try
             {
                 sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(sheet);
                 range = sheet.Range[address];
                 validation = range.Validation;
                 return Convert.ToBoolean(validation.InCellDropdown, CultureInfo.InvariantCulture);

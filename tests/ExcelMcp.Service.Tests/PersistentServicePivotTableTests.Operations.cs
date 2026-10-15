@@ -1,7 +1,9 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -11,6 +13,49 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 /// </summary>
 public sealed partial class PersistentServicePivotTableTests
 {
+    [Fact]
+    [Trait("Speed", "Medium")]
+    public void CacheLifecycle_ListReadAndRefresh_UseNativeCacheAndRefreshData()
+    {
+        var batch = _fixture.BatchToken;
+        RequireSuccess(_pivotCommands.CreateFromRange(
+            batch, _salesSheetName, "A1:D6", _salesSheetName, "F1", "TestPivot"));
+        var native = ReadNativePivot(_salesSheetName, "TestPivot", pivot =>
+        {
+            Excel.PivotCache? cache = null;
+            try
+            {
+                cache = pivot.PivotCache();
+                Assert.False(cache.OLAP);
+                Assert.Equal(5, cache.RecordCount);
+                return (pivot.CacheIndex, SourceData: cache.SourceData.ToString());
+            }
+            finally
+            {
+                ComUtilities.Release(ref cache);
+            }
+        });
+        Assert.False(string.IsNullOrEmpty(native.SourceData));
+        var listed = Assert.Single(RequireSuccess(_pivotCommands.List(batch)).PivotTables);
+        var read = RequireSuccess(_pivotCommands.Read(batch, "TestPivot"));
+        Assert.Equal(native.CacheIndex, listed.CacheIndex);
+        Assert.Equal(native.CacheIndex, read.PivotTable.CacheIndex);
+        Assert.Equal(native.SourceData, listed.SourceData);
+        Assert.Equal(native.SourceData, read.PivotTable.SourceData);
+
+        RequireSuccess(_pivotCommands.AddRowField(batch, "TestPivot", "Region"));
+        RequireSuccess(_pivotCommands.AddValueField(batch, "TestPivot", "Sales", AggregationFunction.Sum, "Total Sales"));
+        RequireSuccess(_pivotCommands.Refresh(batch, "TestPivot"));
+        AssertPivotSales(325, 325);
+        RequireSuccess(_commands.SetValues(batch, _salesSheetName, "C2", [[400]], overwritePolicy: OverwritePolicy.Allow));
+        AssertPivotSales(325, 325);
+
+        var refreshed = RequireSuccess(_pivotCommands.Refresh(batch, "TestPivot"));
+        Assert.Equal("TestPivot", refreshed.PivotTableName);
+        Assert.Equal(5, refreshed.SourceRecordCount);
+        AssertPivotSales(625, 325);
+    }
+
     /// <inheritdoc/>
     [Fact]
     [Trait("Speed", "Medium")]

@@ -79,6 +79,7 @@ public sealed partial class PersistentServiceRangeSpecializedTests
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
+                Assert.NotNull(sheet);
                 cell = sheet.Range["A1"];
                 cell.NumberFormatLocal =
                     $"$#{ctx.FormatTranslator.ThousandsSeparator}##0{ctx.FormatTranslator.DecimalSeparator}00";
@@ -168,6 +169,7 @@ public sealed partial class PersistentServiceRangeSpecializedTests
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
+                Assert.NotNull(sheet);
                 cell = sheet.Range["A1"];
                 string text = Convert.ToString(cell.Text, CultureInfo.InvariantCulture) ?? string.Empty;
                 string format = Convert.ToString(cell.NumberFormat, CultureInfo.InvariantCulture) ?? string.Empty;

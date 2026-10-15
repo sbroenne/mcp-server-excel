@@ -23,6 +23,8 @@ public partial class PowerQueryCommands
         return true;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Failure reporting boundary: the returned exception retains the mutation error and records any secondary state-inspection error verbatim.")]
     internal static PowerQueryCommandException CreateMutationFailure(
         Exception cause,
         string queryName,

@@ -153,6 +153,7 @@ public sealed class TestExecution(string root, IProcessRunner runner)
         var results = Path.GetFullPath(options.ResultsDirectory, root);
         Directory.CreateDirectory(results);
         var report = Path.Combine(results, $"{name}.trx");
+        var diagnostics = Path.Combine(results, $"{name}.vstest.log");
         if (File.Exists(report)) { throw new InvalidOperationException($"Use a new report path: {report}."); }
         var arguments = new List<string>
         {
@@ -161,7 +162,9 @@ public sealed class TestExecution(string root, IProcessRunner runner)
             "--results-directory", results, "--logger", $"trx;LogFileName={name}.trx"
         };
         if (options.ListTests) { arguments.Add("--list-tests"); }
+        else { arguments.AddRange(["--diag", diagnostics]); }
         Console.Error.WriteLine($"{name} : {options.Filter}");
+        if (!options.ListTests) { Console.Error.WriteLine($"Live test diagnostics: {diagnostics}"); }
         var environment = new Dictionary<string, string>
         {
             ["EXCELMCP_TEST_OWNERSHIP_DIRECTORY"] = Path.Combine(results, $"{name}-ownership"),

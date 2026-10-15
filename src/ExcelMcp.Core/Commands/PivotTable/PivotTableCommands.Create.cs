@@ -39,7 +39,7 @@ public partial class PivotTableCommands
 
             try
             {
-                sourceWorksheet = ctx.Book.Worksheets[sourceSheet];
+                sourceWorksheet = Utilities.WorksheetLookup.Get(ctx.Book, sourceSheet);
                 sourceRangeObj = sourceWorksheet.Range[sourceRange];
                 sourceRows = sourceRangeObj.Rows;
                 int sourceRowCount = sourceRows.Count;
@@ -88,7 +88,7 @@ public partial class PivotTableCommands
                     ComUtilities.Release(ref headerRow);
                 }
 
-                destWorksheet = ctx.Book.Worksheets[destinationSheet];
+                destWorksheet = Utilities.WorksheetLookup.Get(ctx.Book, destinationSheet);
                 destRangeObj = destWorksheet.Range[destinationCell];
 
                 string sourceDataRef = $"'{sourceSheet.Replace("'", "''", StringComparison.Ordinal)}'!{sourceRange}";
@@ -212,7 +212,7 @@ public partial class PivotTableCommands
                     ComUtilities.Release(ref sheets);
                 }
 
-                if (!tableFound || table == null)
+                if (!tableFound || table is null)
                 {
                     throw new InvalidOperationException($"Table '{tableName}' not found in workbook");
                 }
@@ -249,7 +249,7 @@ public partial class PivotTableCommands
                 }
 
                 // Resolve the destination before Excel creates anything.
-                destWorksheet = ctx.Book.Worksheets[destinationSheet];
+                destWorksheet = Utilities.WorksheetLookup.Get(ctx.Book, destinationSheet);
                 destRangeObj = destWorksheet.Range[destinationCell];
 
                 // Create PivotCache from table
@@ -334,12 +334,12 @@ public partial class PivotTableCommands
                     modelTables = model.ModelTables;
 
                     // Check if Data Model has any tables
-                    if (modelTables == null || modelTables.Count == 0)
+                    if (modelTables is null || modelTables.Count == 0)
                     {
                         throw new InvalidOperationException("Data Model does not contain any tables");
                     }
 
-                    for (int i = 1; i <= modelTables.Count; i++)
+                    for (int i = 1; i <= modelTables!.Count; i++)
                     {
                         dynamic? tbl = null;
                         try
@@ -366,7 +366,7 @@ public partial class PivotTableCommands
                     ComUtilities.Release(ref modelTables);
                 }
 
-                if (!tableFound || modelTable == null)
+                if (!tableFound || modelTable is null)
                 {
                     throw new InvalidOperationException($"Table '{tableName}' not found in Data Model");
                 }
@@ -418,7 +418,7 @@ public partial class PivotTableCommands
                 }
 
                 // STEP 2: Resolve the destination before Excel creates anything.
-                destWorksheet = ctx.Book.Worksheets[destinationSheet];
+                destWorksheet = Utilities.WorksheetLookup.Get(ctx.Book, destinationSheet);
                 destRangeObj = destWorksheet.Range[destinationCell];
 
                 // STEP 3: Create PivotCache from Data Model

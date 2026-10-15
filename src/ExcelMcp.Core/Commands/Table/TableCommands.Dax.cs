@@ -27,9 +27,11 @@ public partial class TableCommands
         out dynamic? queryTable)
     {
         queryTable = null;
+        tableObject = null;
+        int sourceType = Convert.ToInt32(table.SourceType);
 
         // Try the TableObject path first (for xlSrcModel tables created with ListObjects.Add)
-        try
+        if (sourceType == xlSrcModel)
         {
             tableObject = table.TableObject;
             if (tableObject != null)
@@ -38,13 +40,9 @@ public partial class TableCommands
                 if (conn != null) return conn;
             }
         }
-        catch (COMException)
-        {
-            tableObject = null;
-        }
 
         // Fall back to QueryTable path (for QueryTables.Add based tables)
-        try
+        if (sourceType is 0 or 3)
         {
             queryTable = table.QueryTable;
             if (queryTable != null)
@@ -52,10 +50,6 @@ public partial class TableCommands
                 dynamic? conn = queryTable.WorkbookConnection;
                 if (conn != null) return conn;
             }
-        }
-        catch (COMException)
-        {
-            queryTable = null;
         }
 
         return null;
@@ -115,13 +109,13 @@ public partial class TableCommands
                 try
                 {
                     modelTables = model.ModelTables;
-                    if (modelTables == null || modelTables.Count == 0)
+                    if (modelTables is null || modelTables.Count == 0)
                     {
                         throw new InvalidOperationException("Workbook has no Data Model tables. Add data to the Data Model first using powerquery or table add-to-datamodel.");
                     }
 
                     // Get the first ModelTable name to use as base for connection
-                    dynamic? firstTable = modelTables.Item(1);
+                    dynamic? firstTable = modelTables!.Item(1);
                     try
                     {
                         baseModelTableName = firstTable.Name?.ToString();
@@ -332,17 +326,14 @@ public partial class TableCommands
                     return result;
                 }
 
-                // Try to get the model connection
-                try
-                {
-                    modelConnection = workbookConnection.ModelConnection;
-                }
-                catch (COMException)
+                // ModelConnection is only defined for the Data Model connection type.
+                if (Convert.ToInt32(workbookConnection.Type) != 7)
                 {
                     result.HasDaxConnection = false;
                     result.Success = true;
                     return result;
                 }
+                modelConnection = workbookConnection.ModelConnection;
 
                 if (modelConnection == null)
                 {

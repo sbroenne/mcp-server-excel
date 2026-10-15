@@ -1004,166 +1004,22 @@ public sealed class ReleaseMetadataScriptTests
 
         Assert.False(File.Exists(Path.Combine(RepoRoot, ".github", "workflows", "doc-counts.yml")));
         var ci = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "ci.yml"));
-        Assert.Contains("check-doc-counts.ps1 -SkipBuild", ci, StringComparison.Ordinal);
+        Assert.DoesNotContain("check-doc-counts.ps1", ci, StringComparison.Ordinal);
+        var targets = File.ReadAllText(Path.Combine(RepoRoot, "Directory.Build.targets"));
+        Assert.Contains("doc-counts.json", targets, StringComparison.Ordinal);
         Assert.DoesNotContain("-AllowStaleAdvertisedCounts", ci, StringComparison.Ordinal);
     }
 
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "ReleaseMetadata")]
-    public void DocumentationCounts_DefaultRefreshBuildsProjectDependencies()
+    public void DocumentationCounts_WebsiteUsesReviewedMetadataAndCanonicalFeatureSections()
     {
-        // A fresh checkout has no built Service/ComInterop outputs, so the MCP Server
-        // build must include its project dependencies.
-        var script = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "check-doc-counts.ps1"));
-
-        Assert.DoesNotContain("--no-dependencies", script, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    [Trait("Category", "Integration")]
-    [Trait("Feature", "ReleaseMetadata")]
-    public async Task DocumentationCounts_UpdatePersistValidateAndRejectIncompatibleModes()
-    {
-        var sandbox = CreateSandbox();
-        try
-        {
-            var sourceReadme = await File.ReadAllTextAsync(Path.Combine(RepoRoot, "README.md"));
-            var headline = System.Text.RegularExpressions.Regex.Match(
-                sourceReadme,
-                @"(?<mcpTools>\d+) MCP tools across (?<tools>\d+) feature areas, with (?<operations>\d+) operations");
-            Assert.True(headline.Success);
-            var canonicalTools = int.Parse(headline.Groups["tools"].Value, System.Globalization.CultureInfo.InvariantCulture);
-            var canonicalMcpTools = int.Parse(headline.Groups["mcpTools"].Value, System.Globalization.CultureInfo.InvariantCulture);
-            var canonicalOperations = int.Parse(
-                headline.Groups["operations"].Value,
-                System.Globalization.CultureInfo.InvariantCulture);
-            var canonicalHeadline = $"{canonicalMcpTools} MCP tools across {canonicalTools} feature areas, with {canonicalOperations} operations";
-
-            CopyDocumentationCountFiles(sandbox, canonicalTools, canonicalMcpTools, canonicalOperations);
-            var readmePath = Path.Combine(sandbox, "README.md");
-            var llmOutputsPath = Path.Combine(sandbox, "gh-pages", "sitegen", "llm.py");
-            await File.WriteAllTextAsync(
-                readmePath,
-                (await File.ReadAllTextAsync(readmePath))
-                    .Replace(
-                        canonicalHeadline,
-                        "1 MCP tools across 1 feature areas, with 2 operations",
-                        StringComparison.Ordinal)
-                    .Replace($"all {canonicalOperations} operations", "all 2 operations", StringComparison.Ordinal));
-
-            var update = await RunPowerShellScriptAsync(
-                Path.Combine(sandbox, "scripts", "check-doc-counts.ps1"),
-                ["-Update", "-SkipBuild"],
-                sandbox);
-
-            Assert.True(update.ExitCode == 0, update.CombinedOutput);
-            Assert.Contains(
-                canonicalHeadline,
-                await File.ReadAllTextAsync(readmePath),
-                StringComparison.Ordinal);
-            Assert.Contains(
-                $"all {canonicalOperations} operations",
-                await File.ReadAllTextAsync(readmePath),
-                StringComparison.Ordinal);
-            var llmOutputsContent = await File.ReadAllTextAsync(llmOutputsPath);
-            Assert.Contains("json.loads(read(DOC_COUNTS))", llmOutputsContent, StringComparison.Ordinal);
-            Assert.Contains("headline_tools, headline_operations = headline_counts()", llmOutputsContent, StringComparison.Ordinal);
-            Assert.Contains("for line in read(page.source).splitlines():", llmOutputsContent, StringComparison.Ordinal);
-            Assert.DoesNotMatch(
-                @"exposing \d+ tools and \d+ operations",
-                llmOutputsContent);
-
-            var docCountsPath = Path.Combine(sandbox, "doc-counts.json");
-            Assert.True(File.Exists(docCountsPath), "-Update must generate the single doc-counts.json include file.");
-            Assert.Equal(canonicalTools, ReadJsonInt(docCountsPath, "tools"));
-            Assert.Equal(canonicalOperations, ReadJsonInt(docCountsPath, "operations"));
-
-            var validation = await RunPowerShellScriptAsync(
-                Path.Combine(sandbox, "scripts", "check-doc-counts.ps1"),
-                ["-SkipBuild"],
-                sandbox);
-            Assert.True(validation.ExitCode == 0, validation.CombinedOutput);
-
-            var generatedToolsPath = Path.Combine(sandbox, "src", "ExcelMcp.McpServer",
-                "obj", "GeneratedFiles", "Tools.g.cs");
-            var generatedTools = await File.ReadAllTextAsync(generatedToolsPath);
-            await File.WriteAllTextAsync(generatedToolsPath,
-                generatedTools.Replace("[McpServerTool(Name = \"tool-1_read\")]", "", StringComparison.Ordinal));
-            var missingReadEndpoint = await RunPowerShellScriptAsync(
-                Path.Combine(sandbox, "scripts", "check-doc-counts.ps1"),
-                ["-SkipBuild", "-AllowStaleAdvertisedCounts"],
-                sandbox);
-            Assert.NotEqual(0, missingReadEndpoint.ExitCode);
-            Assert.Contains("Missing: [tool-1_read]", missingReadEndpoint.CombinedOutput, StringComparison.Ordinal);
-            await File.WriteAllTextAsync(generatedToolsPath, generatedTools);
-
-            await File.WriteAllTextAsync(
-                readmePath,
-                (await File.ReadAllTextAsync(readmePath))
-                    .Replace(
-                        canonicalHeadline,
-                        $"{canonicalMcpTools} MCP tools across 1 feature areas, with {canonicalOperations} operations",
-                        StringComparison.Ordinal));
-            var staleValidation = await RunPowerShellScriptAsync(
-                Path.Combine(sandbox, "scripts", "check-doc-counts.ps1"),
-                ["-SkipBuild"],
-                sandbox);
-            Assert.NotEqual(0, staleValidation.ExitCode);
-            Assert.Contains(
-                $"README.md: tool count is 1 but should be {canonicalTools}",
-                staleValidation.CombinedOutput,
-                StringComparison.Ordinal);
-
-            var allowStale = await RunPowerShellScriptAsync(
-                Path.Combine(sandbox, "scripts", "check-doc-counts.ps1"),
-                ["-SkipBuild", "-AllowStaleAdvertisedCounts"],
-                sandbox);
-            Assert.True(allowStale.ExitCode == 0, allowStale.CombinedOutput);
-
-            // Restore the README headline, then make doc-counts.json itself stale to
-            // prove it is validated (and regenerated) independently of the headline text.
-            await File.WriteAllTextAsync(
-                readmePath,
-                (await File.ReadAllTextAsync(readmePath))
-                    .Replace(
-                        $"{canonicalMcpTools} MCP tools across 1 feature areas, with {canonicalOperations} operations",
-                        canonicalHeadline,
-                        StringComparison.Ordinal));
-            await File.WriteAllTextAsync(docCountsPath, "{\n  \"tools\": 1,\n  \"operations\": 2\n}\n");
-
-            var staleDocCounts = await RunPowerShellScriptAsync(
-                Path.Combine(sandbox, "scripts", "check-doc-counts.ps1"),
-                ["-SkipBuild"],
-                sandbox);
-            Assert.NotEqual(0, staleDocCounts.ExitCode);
-            Assert.Contains("doc-counts.json", staleDocCounts.CombinedOutput, StringComparison.Ordinal);
-
-            var allowStaleDocCounts = await RunPowerShellScriptAsync(
-                Path.Combine(sandbox, "scripts", "check-doc-counts.ps1"),
-                ["-SkipBuild", "-AllowStaleAdvertisedCounts"],
-                sandbox);
-            Assert.True(allowStaleDocCounts.ExitCode == 0, allowStaleDocCounts.CombinedOutput);
-
-            var regenerate = await RunPowerShellScriptAsync(
-                Path.Combine(sandbox, "scripts", "check-doc-counts.ps1"),
-                ["-Update", "-SkipBuild"],
-                sandbox);
-            Assert.True(regenerate.ExitCode == 0, regenerate.CombinedOutput);
-            Assert.Equal(canonicalTools, ReadJsonInt(docCountsPath, "tools"));
-            Assert.Equal(canonicalOperations, ReadJsonInt(docCountsPath, "operations"));
-
-            var incompatible = await RunPowerShellScriptAsync(
-                Path.Combine(sandbox, "scripts", "check-doc-counts.ps1"),
-                ["-SkipBuild", "-Update", "-AllowStaleAdvertisedCounts"],
-                sandbox);
-            Assert.NotEqual(0, incompatible.ExitCode);
-            Assert.Contains("cannot be used together", incompatible.CombinedOutput, StringComparison.Ordinal);
-        }
-        finally
-        {
-            Directory.Delete(sandbox, recursive: true);
-        }
+        var content = File.ReadAllText(Path.Combine(RepoRoot, "gh-pages", "sitegen", "llm.py"));
+        Assert.Contains("json.loads(read(DOC_COUNTS))", content, StringComparison.Ordinal);
+        Assert.Contains("headline_tools, headline_operations = headline_counts()", content, StringComparison.Ordinal);
+        Assert.Contains("for line in read(page.source).splitlines():", content, StringComparison.Ordinal);
+        Assert.DoesNotMatch(@"exposing \d+ tools and \d+ operations", content);
     }
 
     [Fact]
@@ -1405,99 +1261,6 @@ public sealed class ReleaseMetadataScriptTests
         }
     }
 
-    private static void CopyDocumentationCountFiles(
-        string sandbox,
-        int canonicalTools,
-        int canonicalMcpTools,
-        int canonicalOperations)
-    {
-        var relativePaths = new[]
-        {
-            "README.md",
-            "FEATURES.md",
-            "Directory.Build.props",
-            Path.Combine("scripts", "check-doc-counts.ps1"),
-            Path.Combine("src", "ExcelMcp.McpServer", "README.md"),
-            Path.Combine("src", "ExcelMcp.CLI", "README.md"),
-            Path.Combine("vscode-extension", "README.md"),
-            Path.Combine("vscode-extension", "package.json"),
-            Path.Combine("mcpb", "README.md"),
-            Path.Combine("mcpb", "manifest.json"),
-            Path.Combine("mcpb", "BUILD.md"),
-            Path.Combine("gh-pages", "docs", "index.md"),
-            Path.Combine("gh-pages", "docs", "faq.md"),
-            Path.Combine("gh-pages", "sitegen", "llm.py"),
-            Path.Combine(".github", "plugins", "excel-mcp", "README.md"),
-            Path.Combine(".github", "plugins", "excel-cli", "README.md"),
-            Path.Combine("docs", "INSTALLATION-CLI.md"),
-            Path.Combine("docs", "guides", "EXCEL-COM-VS-FILE-PARSERS.md"),
-            Path.Combine("docs", "COPILOT-PLUGIN-DISTRIBUTION.md"),
-            Path.Combine("src", "ExcelMcp.McpServer", ".mcp", "server.json")
-        };
-
-        foreach (var relativePath in relativePaths)
-        {
-            CopyFile(RepoRoot, sandbox, relativePath);
-        }
-
-        WriteFile(
-            sandbox,
-            Path.Combine("artifacts", "generated-skills", "excel-mcp-report-formatting", "SKILL.md"),
-            File.ReadAllText(Path.Combine(RepoRoot, "skills", "excel-mcp-report-formatting", "SKILL.md")));
-
-        var featureRoot = Path.Combine(RepoRoot, "docs", "features");
-        foreach (var sourcePath in Directory.GetFiles(featureRoot, "*.md"))
-        {
-            CopyFile(RepoRoot, sandbox, Path.GetRelativePath(RepoRoot, sourcePath));
-        }
-
-        WriteFile(
-            sandbox,
-            Path.Combine("src", "ExcelMcp.Core", "Models", "Actions", "ToolActions.cs"),
-            """
-            enum FileAction {
-                [JsonStringEnumMemberName("open")] Open,
-                [JsonStringEnumMemberName("close")] Close
-            }
-            """);
-        WriteFile(
-            sandbox,
-            Path.Combine("src", "ExcelMcp.Core", "obj", "GeneratedFiles", "ExcelMcp.Generators",
-                "Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator", "_SkillManifest.g.cs"),
-            $$"""
-            public static class SkillManifest {
-                public const string Json = @"{""TotalCommands"":{{canonicalTools}},""TotalOperations"":{{canonicalOperations - 1}},""Commands"":[{""Name"":""diag"",""Actions"":[""self-test""]}]}";
-            }
-            """);
-        var toolNames = Enumerable.Range(1, canonicalTools - 1)
-            .Select(index => $"[McpServerTool(Name = \"tool-{index}\")]")
-            .Concat(Enumerable.Range(1, canonicalMcpTools - canonicalTools)
-                .Select(index => $"[McpServerTool(Name = \"tool-{index}_read\")]"))
-            .Append("[McpServerTool(Name = \"file\")]");
-        WriteFile(
-            sandbox,
-            Path.Combine("src", "ExcelMcp.McpServer", "obj", "GeneratedFiles", "Tools.g.cs"),
-            string.Join(Environment.NewLine, toolNames));
-        WriteFile(
-            sandbox,
-            Path.Combine("src", "ExcelMcp.Core", "obj", "GeneratedFiles", "ExcelMcp.Generators",
-                "Sbroenne.ExcelMcp.Generators.ServiceRegistryGenerator", "ServiceRegistry.Contracts.g.cs"),
-            string.Join(Environment.NewLine, Enumerable.Range(1, canonicalMcpTools - canonicalTools)
-                .Select(index => $"(\"tool-{index}_read\", \"list\") => new (string, bool, bool)[] {{ (\"action\", true, false) }},")));
-        WriteFile(
-            sandbox,
-            Path.Combine("src", "ExcelMcp.McpServer", "Program.cs"),
-            """$"Provides {McpToolSurface.ToolCount} tools with {McpToolSurface.OperationCount} operations";""");
-        WriteFile(
-            sandbox,
-            Path.Combine("src", "ExcelMcp.McpServer", "ExcelMcp.McpServer.csproj"),
-            """<GenerateSkillFile ExtraOperationCount="2" />""");
-        WriteFile(
-            sandbox,
-            Path.Combine("src", "ExcelMcp.CLI", "ExcelMcp.CLI.csproj"),
-            $"""<GenerateSkillFile ExtraOperationCount="2" Description="{canonicalOperations} operations across Excel automation" />""");
-    }
-
     private static void CopyFile(string sourceRoot, string destinationRoot, string relativePath)
     {
         var destinationPath = Path.Combine(destinationRoot, relativePath);
@@ -1592,12 +1355,6 @@ public sealed class ReleaseMetadataScriptTests
         }
 
         return element.GetString()!;
-    }
-
-    private static int ReadJsonInt(string path, string propertyName)
-    {
-        using var document = JsonDocument.Parse(File.ReadAllText(path));
-        return document.RootElement.GetProperty(propertyName).GetInt32();
     }
 
     private static Dictionary<string, string>? ExtractWorkflowPermissions(string body, int indentation)

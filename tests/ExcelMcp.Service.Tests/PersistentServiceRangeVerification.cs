@@ -1,5 +1,6 @@
 using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
+using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -18,6 +19,7 @@ internal static class PersistentServiceRangeVerification
             try
             {
                 sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(sheet);
                 range = sheet.Range[address];
                 return new Geometry(
                     Convert.ToDouble(range.Left, CultureInfo.InvariantCulture),

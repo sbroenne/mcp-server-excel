@@ -108,7 +108,7 @@ public partial class PowerQueryCommands
                 model = workbook.Model;
                 modelTables = model.ModelTables;
             }
-            catch (COMException)
+            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
             {
                 return false;
             }
@@ -180,16 +180,10 @@ public partial class PowerQueryCommands
                         {
                             listObject = listObjects.Item(lo);
 
-                            // Try to get QueryTable - not all ListObjects have one
-                            try
-                            {
-                                queryTable = listObject.QueryTable;
-                            }
-                            catch (System.Runtime.InteropServices.COMException)
-                            {
-                                // ListObject doesn't have a QueryTable - expected for user-created tables
+                            var sourceType = ((Excel.ListObject)listObject).SourceType;
+                            if (sourceType is not (Excel.XlListObjectSourceType.xlSrcExternal or Excel.XlListObjectSourceType.xlSrcQuery))
                                 continue;
-                            }
+                            queryTable = listObject.QueryTable;
 
                             if (queryTable == null)
                             {
@@ -257,12 +251,16 @@ public partial class PowerQueryCommands
         return false;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Collects refresh and BackgroundQuery restoration failures, releases COM references, then rethrows the primary error or both failures together.")]
     private static void RefreshWorkbookConnection(dynamic connection, CancellationToken cancellationToken)
     {
         dynamic? oleDbConnection = null;
         bool originalBackgroundQuery = false;
         bool canRestoreBackgroundQuery = false;
         bool supportsRefreshing = false;
+        Exception? refreshFailure = null;
+        COMException? restoreFailure = null;
 
         try
         {
@@ -290,13 +288,9 @@ public partial class PowerQueryCommands
                     oleDbConnection.BackgroundQuery = false;
                 }
             }
-            catch (COMException)
+            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
             {
                 // Not an OLEDB connection or provider doesn't support BackgroundQuery.
-            }
-            catch (RuntimeBinderException)
-            {
-                // Sub-connection doesn't expose BackgroundQuery via dynamic binding.
             }
 
             // IMPORTANT: Do NOT use EnterLongOperation() here.
@@ -318,8 +312,7 @@ public partial class PowerQueryCommands
             // This is preferable to a permanent hang.
 
             // INSTRUMENTATION: Trace Connection refresh entry and exit
-            string connName = "";
-            try { connName = connection.Name?.ToString() ?? "(unknown)"; } catch { }
+            string connName = connection.Name?.ToString() ?? "(unknown)";
             SessionDiagnostics.WriteStdErr($"[DIAG-PQ-CONN-REFRESH-ENTER] Connection='{connName}'");
             OleMessageFilter.SetPendingCancellationToken(cancellationToken);
             try
@@ -339,8 +332,8 @@ public partial class PowerQueryCommands
 
             try
             {
-                supportsRefreshing = oleDbConnection != null;
-                if (supportsRefreshing)
+                supportsRefreshing = oleDbConnection is not null;
+                if (supportsRefreshing && oleDbConnection is not null)
                 {
                     _ = oleDbConnection.Refreshing;
                 }
@@ -349,7 +342,7 @@ public partial class PowerQueryCommands
             {
                 supportsRefreshing = false;
             }
-            catch (COMException)
+            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
             {
                 supportsRefreshing = false;
             }
@@ -361,13 +354,13 @@ public partial class PowerQueryCommands
                     {
                         try
                         {
-                            return oleDbConnection.Refreshing;
+                            return oleDbConnection!.Refreshing;
                         }
                         catch (RuntimeBinderException)
                         {
                             return false;
                         }
-                        catch (COMException)
+                        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                         {
                             return false;
                         }
@@ -376,13 +369,9 @@ public partial class PowerQueryCommands
                     {
                         try
                         {
-                            oleDbConnection.CancelRefresh();
+                            oleDbConnection!.CancelRefresh();
                         }
-                        catch (RuntimeBinderException)
-                        {
-                            // Ignore inability to cancel for unsupported providers.
-                        }
-                        catch (COMException)
+                        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                         {
                             // Ignore inability to cancel for unsupported providers.
                         }
@@ -390,22 +379,36 @@ public partial class PowerQueryCommands
                     cancellationToken);
             }
         }
+        catch (Exception exception)
+        {
+            refreshFailure = exception;
+        }
         finally
         {
-            if (canRestoreBackgroundQuery && oleDbConnection != null)
+            try
             {
-                try
-                {
+                if (canRestoreBackgroundQuery && oleDbConnection is not null)
                     oleDbConnection.BackgroundQuery = originalBackgroundQuery;
-                }
-                catch (COMException)
-                {
-                    // Ignore inability to restore provider-specific setting.
-                }
             }
-
-            ComUtilities.Release(ref oleDbConnection);
+            catch (COMException restorationError)
+            {
+                restoreFailure = restorationError;
+            }
+            finally
+            {
+                ComUtilities.Release(ref oleDbConnection);
+            }
         }
+        if (restoreFailure is not null)
+        {
+            var failure = new AggregateException("Power Query refresh could not restore BackgroundQuery.",
+                refreshFailure is null ? [restoreFailure] : [refreshFailure, restoreFailure]);
+            if (refreshFailure is OperationCanceledException canceled)
+                throw new OperationCanceledException(failure.Message, failure, canceled.CancellationToken);
+            throw failure;
+        }
+        if (refreshFailure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(refreshFailure).Throw();
     }
 
     private static void WaitForRefreshCompletion(

@@ -538,14 +538,18 @@ unless marked otherwise; none of the supporting checks sent model messages.
 | `uv run pytest --collect-only -q` | 144 cases collected; no executions |
 | Root: `dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore --verbosity quiet` | Passed, zero warnings/errors |
 | Root: `& .\scripts\Invoke-ExcelFreeTests.ps1 -Local -Contracts` | 147 passed across Core, CLI, and MCP |
-| Root: `& .\scripts\check-doc-counts.ps1 -SkipBuild` | Passed after the Release build |
+| Root: then-current standalone documentation-count check (since retired) | Passed after the Release build |
 | Website: `.\.venv\Scripts\python.exe -m mkdocs build --strict --clean` | Passed |
 | Website: `.\.venv\Scripts\python.exe audit_site.py` | 53 pages passed |
 | Website: `.\.venv\Scripts\python.exe check_deploy_paths.py` | Passed |
 
-Existing root checks `check-com-leaks.ps1`, `check-success-flag.ps1`,
-`check-dynamic-casts.ps1`, and `check-workbook-package-access.ps1` all passed,
-as did `git diff --check`. Product `scripts\Test-E2E.ps1` was **not run**:
+The then-current four source-pattern checks all passed, as did `git diff --check`.
+Those scanner commands have since been replaced by compiler safety checks; this
+is historical migration evidence, not a claim about a current validation run.
+Documentation counts now use EXL030 during MCP compilation: update reviewed
+source counts with its exact expected values and rebuild. This does not require
+running evaluations or replace contract tests and explicit skill preparation.
+Product `scripts\Test-E2E.ps1` was **not run**:
 this migration changes evaluations/docs, not product runtime code.
 
 ## Which previous tests were worth keeping?

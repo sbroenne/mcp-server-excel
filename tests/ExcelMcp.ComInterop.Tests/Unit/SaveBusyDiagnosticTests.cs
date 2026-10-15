@@ -19,7 +19,7 @@ public sealed class SaveBusyDiagnosticTests
 
         var busy = Assert.IsType<ExcelBusyException>(failure);
         Assert.Same(comFailure, busy.InnerException);
-        Assert.Equal(unchecked((int)0x800AC472), busy.InnerException.HResult);
+        Assert.Equal(unchecked((int)0x800AC472), Assert.IsType<COMException>(busy.InnerException).HResult);
         Assert.Contains("not been saved", busy.Message, StringComparison.Ordinal);
     }
 

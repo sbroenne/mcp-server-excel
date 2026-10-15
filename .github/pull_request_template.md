@@ -27,15 +27,16 @@ Follow [AGENTS.md](https://github.com/sbroenne/mcp-server-excel/blob/main/AGENTS
 Check only completed, applicable items; explain anything not run below.
 
 - [ ] Behavioral fix has a focused regression that failed before the fix
-- [ ] Required Release build completed with zero warnings
+- [ ] Required Release build and compiler safety checks completed with zero warnings
 - [ ] Affected tests and dependencies selected by the changed-area plan passed
 - [ ] Selected Excel cases, including acceptance and infrastructure diagnostics when selected, passed locally with desktop Excel
-- [ ] Applicable Excel-free, contract, and source checks passed
+- [ ] Applicable Excel-free and contract checks passed
 - [ ] Assertions verify returned fields and actual Excel state, including partial state or recovery after failure
 - [ ] Excel-dependent commands ran sequentially; cleanup affected only owned sessions/process identities
 
-Briefly state what passed, failed, or was not run, with a reason for anything
-not run. Do not duplicate GitHub's check results or include a command transcript.
+List each exact validation command and its result (passed/failed/not run).
+Explain unavailable validation; do not paste a command transcript or treat a
+compiler check as proof of COM ownership or real Excel behavior.
 
 Desktop Excel is required for COM/E2E checks; ordinary GitHub-hosted runners do
 not have it. Report unavailable Excel checks as not run. Documentation/configuration-only
@@ -57,15 +58,14 @@ If yes, follow [generated contract guidance](https://github.com/sbroenne/mcp-ser
 - [ ] Ran `scripts\Invoke-ExcelFreeTests.ps1 -Local -Contracts`
 - [ ] Verified matching names, parameters, defaults, validation, results, and timeouts across both entry points
 - [ ] Updated focused tests and applicable source guidance
-- [ ] Ran `scripts\check-doc-counts.ps1` (or `-SkipBuild` after a successful Release build) if advertised counts changed
+- [ ] Updated affected advertised counts using EXL030's exact expected values, reviewed the changes, and rebuilt successfully
 
 ## Checklist
 - [ ] Self-review of code completed
 - [ ] Independent pre-PR review of the complete branch diff completed; confirmed findings addressed; followed by `ponytail-review` when available
 - [ ] Followed AGENTS.md and matching task guides
 - [ ] Updated directly affected documentation and agent-facing metadata
-- [ ] Preserved errors, cancellation, and documented session recovery; no success-shaped fallback
-- [ ] `Success == true` has no error message
+- [ ] Changed failure paths preserve cause, cancellation, session recovery, and exact partial state; optional COM reads tolerate only known unavailable-member codes
 - [ ] Applicable COM safety rules followed, including `finally` cleanup and PID/start-time process ownership
 - [ ] No sensitive data in public artifacts
 - [ ] No Git hooks skipped or bypassed

@@ -54,15 +54,7 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
 
                 range.Formula2 = formula;
 
-                try
-                {
-                    range.Calculate();
-                }
-                catch (System.Runtime.InteropServices.COMException)
-                {
-                    // Excel may already be calculating asynchronously; the read below still reports
-                    // #BUSY! for an enabled backend or #NAME? when PY() is unavailable.
-                }
+                range.Calculate();
 
                 cells = range.Cells;
                 firstCell = cells.Item[1, 1];
@@ -172,14 +164,7 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                 // a reliable discriminator on its own) - see the returnType-based classification below.
                 // Nudge calculation once so a manual-calc workbook actually dispatches the async PY call.
                 // Harmless if calculation is automatic or already running.
-                try
-                {
-                    ctx.App.Calculate();
-                }
-                catch (System.Runtime.InteropServices.COMException)
-                {
-                    // Application is busy calculating - the nudge is best-effort, so ignore and poll.
-                }
+                ctx.App.Calculate();
 
                 object? value = null;
                 string text = string.Empty;

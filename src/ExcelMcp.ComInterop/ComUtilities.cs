@@ -33,44 +33,28 @@ public static class ComUtilities
     /// }
     /// </code>
     /// </example>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0030",
+        Justification = "The central COM release helper owns exactly one acquired RCW reference, checks non-COM values, and clears the caller's reference in finally. Callers must use this helper.")]
     public static void Release<T>(ref T? comObject) where T : class
     {
         if (comObject != null)
         {
             try
             {
-                Marshal.ReleaseComObject(comObject);
+                if (Marshal.IsComObject(comObject))
+                {
+                    Marshal.ReleaseComObject(comObject);
+                }
             }
-            catch (Exception)
+            catch (InvalidComObjectException)
             {
-                // Ignore errors during release — COM object may already be released or RPC disconnected
+                // An already released RCW has no remaining reference to release.
+                return;
             }
-            comObject = null;
-        }
-    }
-
-    /// <summary>
-    /// Safely attempts to quit an Excel application COM object.
-    /// This is a fire-and-forget cleanup helper - errors are swallowed.
-    /// </summary>
-    /// <param name="excel">The Excel.Application COM object (dynamic)</param>
-    /// <remarks>
-    /// Use this for cleanup scenarios where you want to quit Excel but don't
-    /// need to handle or report errors. For production shutdown with retry
-    /// logic, use ExcelShutdownService.CloseAndQuit instead.
-    /// </remarks>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("CodeQuality", "CS8602", Justification = "Dynamic COM interop - Quit exists on Excel.Application")]
-    public static void TryQuitExcel(Excel.Application? excel)
-    {
-        if (excel == null) return;
-
-        try
-        {
-            excel.Quit();
-        }
-        catch (Exception)
-        {
-            // Swallow errors during cleanup — Excel may already be gone
+            finally
+            {
+                comObject = null;
+            }
         }
     }
 

@@ -67,17 +67,11 @@ public sealed class ExcelWriteGuard : IDisposable
                 _app.ScreenUpdating = false;
             }
         }
-        catch (COMException ex)
+        catch
         {
-            // Excel COM proxy may be disconnected (process died). Log and continue —
-            // the operation will fail with its own exception; we just can't guard it.
-            _logger.LogWarning(ex,
-                "ExcelWriteGuard: Failed to capture/suppress Excel state (HResult: 0x{HResult:X8}). " +
-                "Excel may have crashed.", ex.HResult);
-        }
-        catch (InvalidComObjectException ex)
-        {
-            _logger.LogWarning(ex, "ExcelWriteGuard: COM object already released");
+            // Construction failed, so Dispose cannot balance the nesting count.
+            _nestingDepth--;
+            throw;
         }
     }
 
@@ -85,6 +79,8 @@ public sealed class ExcelWriteGuard : IDisposable
     /// Restores the original screen-updating state.
     /// Only the outermost guard restores — inner guards are no-ops.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "ScreenUpdating restoration is cleanup after the operation; log its exact COM failure without replacing the primary operation exception. This does not suppress operation reads or writes.")]
     public void Dispose()
     {
         if (_disposed)
@@ -113,9 +109,9 @@ public sealed class ExcelWriteGuard : IDisposable
                 "ExcelWriteGuard: Failed to restore ScreenUpdating (HResult: 0x{HResult:X8})",
                 ex.HResult);
         }
-        catch (InvalidComObjectException)
+        catch (InvalidComObjectException ex)
         {
-            // COM proxy dead — nothing more to do
+            _logger.LogWarning(ex, "ExcelWriteGuard: COM object already released during ScreenUpdating restoration");
         }
     }
 }

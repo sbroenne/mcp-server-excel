@@ -141,7 +141,7 @@ public partial class TableCommands
                         {
                             isTableSlicer = cache.List == true;
                         }
-                        catch (COMException)
+                        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                         {
                             // List property not available - not a Table slicer
                             isTableSlicer = false;
@@ -162,6 +162,8 @@ public partial class TableCommands
                         string connectedTableName = GetSlicerCacheTableName(cache);
 
                         slicers = cache.Slicers;
+                        if (slicers is null)
+                            throw new InvalidOperationException("Excel returned no slicers collection for the table slicer cache.");
                         for (int slicerIndex = 1; slicerIndex <= slicers.Count; slicerIndex++)
                         {
                             dynamic? slicer = null;
@@ -357,7 +359,7 @@ public partial class TableCommands
                 {
                     isTableSlicer = cache.List == true;
                 }
-                catch (COMException)
+                catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                 {
                     // List property doesn't exist on PivotTable slicer caches
                     isTableSlicer = false;
@@ -385,7 +387,7 @@ public partial class TableCommands
 
                 ComUtilities.Release(ref cache);
             }
-            catch (COMException)
+            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
             {
                 // COM access may fail for certain cache types - continue searching
                 ComUtilities.Release(ref cache);
@@ -481,7 +483,7 @@ public partial class TableCommands
                 {
                     isTableSlicer = cache.List == true;
                 }
-                catch (COMException)
+                catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                 {
                     // List property doesn't exist on PivotTable slicer caches
                     isTableSlicer = false;
@@ -494,7 +496,7 @@ public partial class TableCommands
                 }
 
                 slicers = cache.Slicers;
-                for (int slicerIndex = 1; slicerIndex <= slicers.Count; slicerIndex++)
+                for (int slicerIndex = 1; slicerIndex <= slicers!.Count; slicerIndex++)
                 {
                     dynamic? slicer = null;
                     try
@@ -511,7 +513,7 @@ public partial class TableCommands
 
                         ComUtilities.Release(ref slicer);
                     }
-                    catch (COMException)
+                    catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                     {
                         // COM access failed for this slicer, continue searching
                         ComUtilities.Release(ref slicer);
@@ -521,7 +523,7 @@ public partial class TableCommands
                 ComUtilities.Release(ref slicers);
                 ComUtilities.Release(ref cache);
             }
-            catch (COMException)
+            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
             {
                 // COM access failed for this cache, continue searching
                 ComUtilities.Release(ref slicers);

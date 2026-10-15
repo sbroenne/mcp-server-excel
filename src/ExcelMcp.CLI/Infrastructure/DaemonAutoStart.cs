@@ -273,7 +273,11 @@ internal static class DaemonAutoStart
         }
         catch (AbandonedMutexException)
         {
-            try { mutex?.ReleaseMutex(); } catch (ApplicationException) { }
+            try { mutex?.ReleaseMutex(); }
+            catch (ApplicationException ex)
+            {
+                System.Diagnostics.Trace.TraceWarning("Abandoned startup mutex release failed: {0}", ex.Message);
+            }
             return false;
         }
         catch (WaitHandleCannotBeOpenedException)

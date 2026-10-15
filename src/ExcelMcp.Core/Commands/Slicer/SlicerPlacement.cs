@@ -148,6 +148,8 @@ internal static class SlicerPlacement
     /// <summary>
     /// Builds the error for a slicer that Excel failed to add after it created a new slicer cache.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Retains a cache-name read failure alongside the original slicer creation failure in the returned failure's AggregateException.")]
     internal static InvalidOperationException LeftoverCache(Excel.SlicerCache cache, string fieldName, Exception cause)
     {
         string? cacheName = null;
@@ -155,9 +157,9 @@ internal static class SlicerPlacement
         {
             cacheName = cache.Name;
         }
-        catch (COMException)
+        catch (COMException nameFailure)
         {
-            // The name is only used in the message; the original failure matters more.
+            cause = new AggregateException(cause, nameFailure);
         }
 
         var created = cacheName is null ? $"a slicer cache for field '{fieldName}'" : $"slicer cache '{cacheName}'";

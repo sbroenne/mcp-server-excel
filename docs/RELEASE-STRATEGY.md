@@ -287,15 +287,15 @@ The release workflow injects the correct version from the tag.
 4. **Artifact builds** consume that prepared changelog, so packaged VS Code and MCPB changelog files include the version being released.
 5. **After all builds pass**, the `create-tag` job regenerates the metadata using the same release date and verifies it byte-for-byte against the prepared artifact. It commits `CHANGELOG.md`, synchronized version metadata, and consumed `.changeset/*.md` deletions to `main` through the Git Data API, then points the release tag at that exact commit.
 
-Advertised tool and operation totals are generated from code by running
-`scripts/check-doc-counts.ps1 -Update` and reviewed in the same PR as the code.
-Strict CI rejects stale counts before merge. The command writes the canonical include file
-`doc-counts.json` (repo root) plus every managed headline claim across the
-repository. Release automation and the website never derive or restate these
-numbers themselves — they read `doc-counts.json` or the headlines it already
-wrote, both of which are always current on `main` by the time a release or a
-site build runs. Feature PRs update operation tables and per-category counts,
-but do not manually update repeated headline totals.
+Advertised tool and operation totals are validated by EXL030 during MCP
+compilation against the compiled Core manifest and documentation inputs.
+Authors update the canonical include `doc-counts.json` (repo root), affected
+headline claims, and canonical feature headings using the diagnostic's exact
+expected values, review them in the same PR as the code, then rebuild.
+There is no separate count updater. Release automation and the website consume
+those reviewed totals rather than independently deriving headline values.
+Compiler count validation does not replace compiled tool-surface behavior,
+prepared-skill identity tests, or release package validation.
 
 Root `package.json` and `.changeset/config.json` (using `@changesets/changelog-github` for PR-linked entries) exist solely to drive this tooling — they have no bearing on the actual MCP Server / CLI / VS Code Extension / MCPB version, which remains fully controlled by the `version_bump` / `custom_version` workflow inputs as described above.
 

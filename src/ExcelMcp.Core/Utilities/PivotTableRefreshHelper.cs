@@ -7,6 +7,8 @@ namespace Sbroenne.ExcelMcp.Core.Utilities;
 
 internal static class PivotTableRefreshHelper
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Retains refresh and BackgroundQuery restoration failures, then throws the original failure or their aggregate after restoration.")]
     internal static void RefreshSynchronously(
         Excel.PivotTable pivotTable,
         Excel.PivotCache pivotCache,

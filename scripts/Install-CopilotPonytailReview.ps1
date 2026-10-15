@@ -4,6 +4,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repository = 'DietrichGebert/ponytail'
+$releaseTag = 'v5.2.0'
+$releaseCommit = '2961b52fc1fe6a5a87c7a959a79512e5c2f3ffe5'
 $skillDirectory = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath(
     (Join-Path $SkillsDirectory 'ponytail-review'))
 if (Test-Path -LiteralPath $skillDirectory) {
@@ -11,7 +13,7 @@ if (Test-Path -LiteralPath $skillDirectory) {
 }
 
 $installed = $false
-$temporaryDirectory = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.Ponytail.$([guid]::NewGuid().ToString('N'))"
+$temporaryDirectory = Join-Path (Split-Path -Parent $skillDirectory) ".ponytail-review-install-$([guid]::NewGuid().ToString('N'))"
 try {
     $headers = @{
         Accept = 'application/vnd.github+json'
@@ -19,16 +21,16 @@ try {
         'X-GitHub-Api-Version' = '2022-11-28'
     }
     if ($env:GH_TOKEN) { $headers.Authorization = "Bearer $env:GH_TOKEN" }
-    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repository/releases/latest" `
+    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$repository/releases/tags/$releaseTag" `
         -Headers $headers -TimeoutSec 60
     $tag = $release.tag_name
-    if ([string]::IsNullOrWhiteSpace($tag) -or $tag -eq 'null') {
-        throw 'The latest Ponytail release has no tag.'
+    if ($tag -cne $releaseTag) {
+        throw 'The Ponytail release does not match the pinned tag.'
     }
     $commit = Invoke-RestMethod -Uri "https://api.github.com/repos/$repository/commits/$([uri]::EscapeDataString($tag))" `
         -Headers $headers -TimeoutSec 60
-    if ($commit.sha -notmatch '^[a-f0-9]{40}$') {
-        throw 'The latest Ponytail release has no valid commit SHA.'
+    if ($commit.sha -cne $releaseCommit) {
+        throw 'The Ponytail release does not match the pinned commit SHA.'
     }
 
     New-Item -ItemType Directory -Path $temporaryDirectory | Out-Null

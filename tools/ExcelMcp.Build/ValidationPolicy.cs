@@ -22,7 +22,6 @@ public sealed partial class ValidationPolicy(string root)
                 AddClasses(plan, Catalog.ForOwner(owner), "All");
             }
             plan.FullSolutionBuild = true;
-            plan.SourceChecks = true;
             plan.DocumentationCounts = true;
             plan.Docs = true;
             plan.ExtensionTests = true;
@@ -88,7 +87,6 @@ public sealed partial class ValidationPolicy(string root)
             {
                 AddFeature(plan, "Service", ["PowerQuery"], "PowerQuery refresh dependency");
             }
-            plan.SourceChecks = true;
             plan.Cli = plan.Mcp = plan.Extension = true;
             plan.BuildProjects.Add("src/ExcelMcp.Core/ExcelMcp.Core.csproj");
             plan.Reasons.Add($"{path} -> {area}{(contract ? " and generated consumers" : " implementation")}");
@@ -152,7 +150,7 @@ public sealed partial class ValidationPolicy(string root)
             {
                 AddClasses(plan, Catalog.ForOwner(owner).Where(type => type.Name == "TestClassificationArchitectureTests"), "Build analysis");
             }
-            plan.FullSolutionBuild = plan.SourceChecks = true;
+            plan.FullSolutionBuild = true;
             plan.Reasons.Add($"{path} -> build analysis and test classification");
         }
         else if (path.StartsWith("src/ExcelMcp.Core/", StringComparison.Ordinal) && path.EndsWith(".cs", StringComparison.Ordinal) &&
@@ -169,7 +167,6 @@ public sealed partial class ValidationPolicy(string root)
             {
                 throw new InvalidOperationException($"No validation mapping for shared Core source {path}; add its actual consumers.");
             }
-            plan.SourceChecks = true;
             plan.Cli = plan.Mcp = plan.Extension = true;
             plan.BuildProjects.Add("src/ExcelMcp.Core/ExcelMcp.Core.csproj");
             plan.Reasons.Add($"{path} -> dependent command areas: {string.Join(", ", consumers.Areas)}");
@@ -194,13 +191,22 @@ public sealed partial class ValidationPolicy(string root)
         {
             SelectSharedBuild(plan, path);
         }
+        else if (path.StartsWith("src/ExcelMcp.Analyzers/", StringComparison.Ordinal) ||
+            Matches(path, @"^BannedSymbols[^/]*\.txt$"))
+        {
+            AddClasses(plan, Catalog.ForOwner("ScriptSafety").Where(type =>
+                type.Name.EndsWith("AnalyzerTests", StringComparison.Ordinal) ||
+                type.Name == "TypedValidationPolicyTests"), "Compiler safety rules");
+            plan.FullSolutionBuild = true;
+            plan.Reasons.Add($"{path} -> compiler-rule regressions and a build of every consumer");
+        }
         else if (path.StartsWith("src/ExcelMcp.Generators", StringComparison.Ordinal))
         {
             foreach (var owner in new[] { "Core", "CLI", "McpServer" })
             {
                 AddFeature(plan, owner, ["GeneratedContracts"], "GeneratedContracts");
             }
-            plan.SourceChecks = plan.DocumentationCounts = plan.FullSolutionBuild = true;
+            plan.DocumentationCounts = plan.FullSolutionBuild = true;
             plan.Cli = plan.Mcp = plan.Extension = true;
             plan.Reasons.Add($"{path} -> generated contract consumers");
         }
@@ -225,7 +231,6 @@ public sealed partial class ValidationPolicy(string root)
                 throw new InvalidOperationException($"No validation mapping for shared telemetry source {path}.");
             }
             AddClasses(plan, consumers, "Shared telemetry consumers");
-            plan.SourceChecks = true;
             plan.Cli = true;
             plan.Mcp = plan.Extension = true;
             plan.Reasons.Add($"{path} -> CLI, MCP Server, and extension telemetry consumers");
@@ -235,7 +240,6 @@ public sealed partial class ValidationPolicy(string root)
             // Telemetry migrations also remove sinks whose old symbols no longer have consumers.
             var owner = path.StartsWith("src/ExcelMcp.CLI/", StringComparison.Ordinal) ? "CLI" : "McpServer";
             AddFeature(plan, owner, ["Telemetry"], "Telemetry adapter consumers");
-            plan.SourceChecks = true;
             if (owner == "CLI") { plan.Cli = true; }
             else { plan.Mcp = plan.Extension = true; }
             plan.Reasons.Add($"{path} -> {owner} telemetry consumers");
@@ -243,8 +247,15 @@ public sealed partial class ValidationPolicy(string root)
         else if (path == "src/ExcelMcp.CLI/Commands/BatchCommand.cs")
         {
             AddFeature(plan, "CLI", ["Batch"], "Batch entry-point consumers");
-            plan.Cli = plan.SourceChecks = true;
+            plan.Cli = true;
             plan.Reasons.Add($"{path} -> batch parsing, dispatch, and output cases");
+        }
+        else if (path == "src/ExcelMcp.CLI/Infrastructure/CliServiceTray.cs")
+        {
+            AddClasses(plan, Catalog.ForOwner("CLI").Where(type => type.Name is "CliDaemonLifecycleTests" or "CliDaemonTests"),
+                "Daemon tray host startup and shutdown");
+            plan.Cli = true;
+            plan.Reasons.Add($"{path} -> actual tray-hosting daemon process cases");
         }
         else if (Matches(path, @"^src/ExcelMcp\.(CLI|McpServer)/") && !path.EndsWith(".md", StringComparison.Ordinal))
         {
@@ -252,7 +263,6 @@ public sealed partial class ValidationPolicy(string root)
             AddClasses(plan, new SourceDependencies(root, Catalog).AdapterConsumers(owner, path), $"{owner} adapter consumers");
             if (owner == "CLI") { plan.Cli = true; }
             else { plan.Mcp = plan.Extension = true; }
-            plan.SourceChecks = true;
             plan.Reasons.Add($"{path} -> dependent {owner} adapter cases, not the entire adapter project");
         }
         else if (Matches(path, @"^(skills/|docs/reference/report-formatting\.md$|scripts/Build-AgentSkills\.ps1$|docs/AGENT-SKILLS\.md$)"))
@@ -291,11 +301,13 @@ public sealed partial class ValidationPolicy(string root)
             AddFeature(plan, "ScriptSafety", ["AutomationSafety"], "Issue triage automation");
             plan.Reasons.Add($"{path} -> issue triage automation checks, not runtime or package consumers");
         }
-        else if (Matches(path, @"^scripts/check-(com-leaks|success-flag|dynamic-casts|workbook-package-access)\.ps1$"))
+        else if (Matches(path, @"^scripts/check-(com-leaks|success-flag|dynamic-casts|workbook-package-access)\.ps1$") ||
+            path == "tools/ExcelMcp.Build/SourceGuards.cs")
         {
-            AddClasses(plan, Catalog.ForOwner("ScriptSafety").Where(type => type.Name is "AutomationSafetyTests" or "WorkbookPackageAccessGuardTests" or "TypedSourceGuardTests"), "Source safeguards");
-            plan.SourceChecks = true;
-            plan.Reasons.Add($"{path} -> owning source safeguards");
+            AddClasses(plan, Catalog.ForOwner("ScriptSafety").Where(type =>
+                type.Name.EndsWith("AnalyzerTests", StringComparison.Ordinal)), "Compiler rule migration");
+            plan.FullSolutionBuild = true;
+            plan.Reasons.Add($"{path} -> retired source guard; compile every consumer with its replacement");
         }
         else if (Matches(path, @"^scripts/(Invoke-CopilotSetupNpm|Install-CopilotPonytailReview)\.ps1$|^\.github/workflows/copilot-setup-steps\.yml$|^scripts/(AzureRunnerHost|ExcelRunner(Host|Policy)|Invoke-ExcelRunner(Control|Maintenance))\.ps1$|^scripts/(Deploy|Initialize|Install|Open|Register)-ExcelAgent(Runner|Desktop|Office|Toolchain|Activation)\.ps1$|^infrastructure/azure/[^/]*excel[^/]*\.(ps1|bicep)$|^\.github/workflows/excel-runner[^/]*\.yml$"))
         {
@@ -359,7 +371,6 @@ public sealed partial class ValidationPolicy(string root)
             : RuntimeOwners.Concat(ToolingOwners).Append("Diagnostics");
         plan.FullE2E = true;
         foreach (var owner in owners) { AddClasses(plan, Catalog.ForOwner(owner), "Shared runtime/build"); }
-        plan.SourceChecks = true;
         plan.InfrastructureDiagnostics = true;
         plan.FullSolutionBuild = true;
         plan.Cli = plan.Mcp = plan.Extension = true;
@@ -420,12 +431,8 @@ public sealed partial class ValidationPolicy(string root)
     private static string Union(string first, string second) =>
         string.Join('|', first.Split('|').Concat(second.Split('|')).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal));
 
-    private void FinalizePlan(ValidationPlan plan)
+    private static void FinalizePlan(ValidationPlan plan)
     {
-        if (plan.SourceChecks && plan.FastFilters.Count == 0 && plan.ToolingFilters.Count == 0)
-        {
-            AddClasses(plan, Catalog.ForOwner("ScriptSafety").Where(type => type.Name == "WorkbookPackageAccessGuardTests"), "Source safeguards");
-        }
         plan.Excel = plan.ExcelSelections.Count > 0 || plan.FullE2E;
         plan.HookTests = plan.ToolingFilters.ContainsKey("ScriptSafety");
         plan.SkillTests = plan.ToolingFilters.ContainsKey("SkillGeneration");

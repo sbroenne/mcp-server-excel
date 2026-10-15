@@ -281,6 +281,7 @@ public sealed partial class PersistentServicePivotTableTests
             try
             {
                 sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(sheet);
                 tables = sheet.PivotTables();
                 pivot = tables.Item(name);
                 range = pivot.DataBodyRange;

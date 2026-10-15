@@ -10,8 +10,7 @@ scripts:
       npm ci;
       npm --prefix vscode-extension ci;
       npm --prefix npm-packages/shared ci;
-      python -m pip install -r gh-pages/requirements.txt;
-      uv sync --project llm-tests --locked'
+      python -m pip install -r gh-pages/requirements.txt'
   - name: Release build
     command: dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore
   - name: Excel-free checks

@@ -1,5 +1,8 @@
 # MCP boundaries
 
+Follow [repository review checks](../../AGENTS.md#code-review-rules) and
+[runtime boundaries](../AGENTS.md). Owning MCP generators share these rules.
+
 - Register with the SDK's `WithToolsFromAssembly`; it owns schemas, dependency
   injection, binding, transport, cancellation, and unexpected protocol errors.
   Do not introduce replacement registration or client-specific schema rewriting.
@@ -20,6 +23,6 @@
 
 Descriptions, input naming, server instructions, supported MCP capabilities,
 and guidance validation follow
-[Agent guidance sources](mcp-llm-guidance.md).
+[Agent guidance sources](../../docs/agents/rules/mcp-llm-guidance.md).
 
-Manual routing example and explanation: [DEVELOPMENT](../../DEVELOPMENT.md).
+Manual routing example and explanation: [DEVELOPMENT](../../docs/DEVELOPMENT.md).

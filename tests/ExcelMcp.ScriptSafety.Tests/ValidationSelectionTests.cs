@@ -25,7 +25,7 @@ public sealed class ValidationSelectionTests
     [InlineData("infrastructure/azure/configure-analytics-oidc.ps1", "Tooling", "", false)]
     [InlineData("infrastructure/azure/deploy-appinsights.ps1", "Tooling", "", false)]
     [InlineData("scripts/tests/excel-runner-build-cleanup.tests.ps1", "Tooling", "", false)]
-    [InlineData("scripts/check-com-leaks.ps1", "Tooling", "", false)]
+    [InlineData("src/ExcelMcp.Analyzers/SafetyAnalyzer.cs", "Tooling", "", false)]
     [InlineData("doc-counts.json", "Tooling", "", false)]
     [InlineData("scripts/check-doc-counts.ps1", "Tooling", "", false)]
     [InlineData("mcpb/README.md", "Tooling", "", true)]
@@ -52,16 +52,16 @@ public sealed class ValidationSelectionTests
     [Theory]
     [InlineData("doc-counts.json", "Tooling")]
     [InlineData("scripts/check-doc-counts.ps1", "Tooling")]
-    [InlineData("src/ExcelMcp.Core/Commands/Range/RangeCommands.Values.cs", "Fast")]
-    [InlineData("src/ExcelMcp.CLI/Program.cs", "Fast")]
+    [InlineData("src/ExcelMcp.Core/Commands/Range/RangeCommands.Values.cs", "")]
+    [InlineData("src/ExcelMcp.CLI/Program.cs", "")]
     [InlineData("tests/ExcelMcp.CLI.Tests/Unit/ActionValidatorTests.cs", "")]
     [InlineData("README.md", "")]
-    public async Task SourceChecks_RunInExactlyOneSelectedGroup(string path, string group)
+    public async Task DocumentationChecks_RunInExactlyOneSelectedGroup(string path, string group)
     {
         var result = await RunAsync($$"""
             $plan = Get-ValidationPlan -Paths '{{path}}'
-            if ($plan.SourceChecksGroup -cne '{{group}}') { throw "Wrong source-check group: $($plan.SourceChecksGroup)" }
-            if ($plan.SourceChecksGroup -and $plan.SourceChecksGroup -notin $plan.CiTestGroups) { throw 'Source checks have no selected job.' }
+            if ($plan.DocumentationChecksGroup -cne '{{group}}') { throw "Wrong documentation-check group: $($plan.DocumentationChecksGroup)" }
+            if ($plan.DocumentationChecksGroup -and $plan.DocumentationChecksGroup -notin $plan.CiTestGroups) { throw 'Documentation checks have no selected job.' }
             if ('{{group}}' -eq 'Tooling' -and $plan.ToolingFilters.Packaging -cne 'FullyQualifiedName~DocumentationCounts') {
                 throw 'Documentation-count regressions were not selected.'
             }

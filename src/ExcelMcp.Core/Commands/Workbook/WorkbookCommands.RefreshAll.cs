@@ -45,6 +45,8 @@ public partial class WorkbookCommands
         }, timeoutCts.Token);
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Reports each refresh failure with its connection name, original message, exception type and HRESULT; cancellation and disconnection are not recordable.")]
     private static void RefreshNonPowerQueryConnections(
         Excel.Workbook workbook,
         WorkbookRefreshAllResult result,
@@ -106,6 +108,8 @@ public partial class WorkbookCommands
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Reports each cache refresh failure on its affected pivots with the original message, exception type and HRESULT; cancellation and disconnection propagate.")]
     private static void RefreshAllPivotTables(
         Excel.Workbook workbook,
         WorkbookRefreshAllResult result,

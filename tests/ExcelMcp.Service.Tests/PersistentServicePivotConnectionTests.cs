@@ -205,6 +205,7 @@ public sealed class PersistentServicePivotConnectionTests(PersistentServiceWorkb
                 if (kind == "text")
                 {
                     sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                    Assert.NotNull(sheet);
                     destination = sheet.Range["M1"];
                     queries = sheet.QueryTables;
                     query = queries.Add($"TEXT;{file}", destination);
@@ -273,6 +274,7 @@ public sealed class PersistentServicePivotConnectionTests(PersistentServiceWorkb
                 try
                 {
                     worksheet = ComUtilities.FindSheet(context.Book, sheet);
+                    Assert.NotNull(worksheet);
                     worksheet.Protect();
                 }
                 finally
@@ -417,6 +419,7 @@ public sealed class PersistentServicePivotConnectionTests(PersistentServiceWorkb
                 connections = context.Book.Connections;
                 connection = connections.Item(connectionName);
                 sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(sheet);
                 if (sharedPivotName is null)
                 {
                     caches = context.Book.PivotCaches();

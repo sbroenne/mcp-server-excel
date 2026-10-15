@@ -1,4 +1,4 @@
-#pragma warning disable CS1591
+#pragma warning disable CS1591 // Enum members are serialized action identifiers; operation descriptions live on the Core command contracts.
 namespace Sbroenne.ExcelMcp.Core.Models.Actions;
 
 /// <summary>
@@ -78,4 +78,3 @@ public enum FileAction
 // CalculationModeAction is now generated from ICalculationModeCommands interface
 // See Sbroenne.ExcelMcp.Generated.CalculationModeAction in ServiceRegistry.CalculationMode.g.cs
 #pragma warning restore CS1591
-

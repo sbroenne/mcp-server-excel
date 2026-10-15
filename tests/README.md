@@ -334,10 +334,9 @@ test selection as passed tests.
 .\build.ps1 plan --base-ref origin/main --head-ref HEAD --output artifacts\validation-plan.json
 .\build.ps1 validate --plan artifacts\validation-plan.json
 .\build.ps1 test --area PowerQuery
-.\build.ps1 check-source --rule com-leaks
 ```
 
-`validate` builds selected .NET inputs, runs applicable source/count checks,
+`validate` builds selected .NET inputs with compiler safety checks
 and runs selected .NET tests. Package preparation and website/npm checks remain
 separate CI jobs; `validate` does not publish or prepare release artifacts.
 Test-only edits select their classes and actual shared-helper consumers.
@@ -346,11 +345,10 @@ unchanged CLI/MCP matrix or npm source suite. Contract edits also select generat
 consumers. Unknown inputs fail instead of selecting everything. Every selected
 test report must contain executed passing cases; unexpected skips, cleanup
 failures, and hard-deadline expiry fail the command.
-The four source guards are implemented in `tools\ExcelMcp.Build\SourceGuards.cs`
-and tested with xUnit. `check-source --rule` accepts `com-leaks`, `success-flag`,
-`dynamic-casts`, or `workbook-package-access`; the existing `scripts\check-*.ps1`
-commands forward to those rules. Their scan boundaries and exceptions are
-preserved. These checks identify risky patterns, not complete COM lifetime or
+Compiler safety rules live in `src\ExcelMcp.Analyzers` and banned-API build inputs,
+with focused compiler regressions in `SafetyAnalyzerTests`. The old standalone
+source-pattern scanner commands have been retired. These checks identify
+supported risky patterns, not complete COM lifetime or
 success/error control-flow correctness.
 Ordinary documentation and developer instructions, including nested `AGENTS.md`
 and `CLAUDE.md`, avoid unrelated .NET tests and package jobs. Shipped documentation
@@ -384,14 +382,15 @@ subscription-restoration checks in `ToolingOnDemandFilters`. Both local and
 saved-plan Tooling runs include these selected `RunType=OnDemand` cases alongside
 the normal safety checks; unrelated OnDemand diagnostics remain excluded.
 Package and npm launcher checks have their own selections.
-Changes to `doc-counts.json` or `scripts\check-doc-counts.ps1` select the
-`Tooling` documentation-count regressions and source correctness checks,
-without unrelated runtime tests or packages. Source checks run once in `Fast`
-when selected, otherwise in `Tooling` for these count inputs. Preparatory CI
-builds restore and build only selected test projects and their dependencies.
-Only shared build inputs and selected count derivation require the full Release
-solution, as required by `check-doc-counts.ps1 -SkipBuild`. Ordinary source guards
-do not force a full build. All preparatory builds disable
+EXL030 validates count inputs during MCP compilation using the compiled Core
+manifest; there is no standalone count scanner or updater. Use the diagnostic's
+exact expected values to update affected source counts, review the changes,
+then rebuild. Retain `McpToolSurfaceTests` for compiled read-tool identities and
+help-banner behavior, and `SkillPreparationTests` for exact prepared-skill
+identities; these are stronger runtime contracts, not source regex checks.
+Preparatory CI builds follow the saved plan for selected projects and dependencies.
+When a full Release solution build is required, the first selected group owns it.
+All preparatory builds disable
 build servers so rebuild regressions do not inherit assembly locks. Package
 commands build their own required binaries without a preceding solution build;
 metadata-only packages avoid product runtime builds, but still require the
@@ -517,9 +516,10 @@ still require review. Collection settings serialize only one testhost;
 orchestration must keep separate Excel testhosts from overlapping.
 Keep pure logic tests fast while preserving separate real lifecycle checks.
 
-The classification architecture test reflects over the built test assembly. It
-fails when a discovered test is missing `RequiresExcel=true/false`, has both
-values, or an Excel test is outside an exclusive collection.
+The [compiler classification analyzer](../src/ExcelMcp.Analyzers/TestClassificationAnalyzer.cs)
+owns the supported trait, collection, fixture, and system-test ownership checks.
+The remaining built-assembly inventory and feature-group tests validate runtime
+selection semantics; compilation does not replace those checks or execute tests.
 
 ### Fair speed comparisons
 
@@ -1014,9 +1014,8 @@ Assert resulting workbook state and relevant returned fields rather than only
 and that new content is exact. Error assertions should distinguish the intended
 failure from other exceptions instead of accepting incompatible outcomes.
 
-Use a unique workbook with the established feature fixture. Combining
-`IClassFixture<T>` and a collection fixture on the same class can create competing
-Excel sessions. Follow neighboring trait conventions and the COM cleanup rules
+Use a unique workbook with the established feature fixture.
+Follow neighboring trait conventions and the COM cleanup rules
 for any references acquired by the test itself.
 
 Reviewed ordinary workbook behavior uses a class-scoped Service fixture: one

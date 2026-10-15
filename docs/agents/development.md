@@ -17,6 +17,7 @@ older-version compatibility wrappers or a VS Code built-in review configuration.
 | --- | --- |
 | Copilot CLI (`copilot`) | Discovers root and applicable nested AGENTS.md files. Use `/instructions` to inspect discovered/enabled files; restart or start a new session after instruction changes. |
 | Copilot cloud agent | Supports root/nested AGENTS.md. Check its session evidence rather than assuming every linked guide was read. |
+| GitHub Copilot code review | Supports root/nested AGENTS.md and uses instructions and skills from the PR head branch. Enable repository custom instructions in repository settings; inspect review/session evidence when verifying adoption. |
 | Copilot app | Uses its selected agent's discovery; accepted `.github/github-app.yml` adds pointers and manual commands. |
 | VS Code Local agent | Root AGENTS.md support is controlled by `chat.useAgentsMdFile`. Nested discovery has a separate `chat.useNestedAgentsMdFiles` setting, disabled by default. Check the Agent Customizations editor and response References for the files used. |
 | VS Code Agent Host | Follows the selected agent harness's working-directory and nested-file discovery rules, not the Local agent's settings. Select the intended harness before inspecting its customizations. |
@@ -47,8 +48,15 @@ precedence rules to it. A Markdown link is not an automatic file import.
 
 Instructions guide behavior; they do not enforce permissions or prove adherence.
 The checks above inspect loading, not task quality. Shared
-[review checks](../../AGENTS.md#code-review-rules) are included directly in
-AGENTS.md so reviews do not depend on opening another document.
+[review checks](../../AGENTS.md#code-review-rules) appear near the beginning of
+AGENTS.md. Runtime, COM, and MCP instructions live in the owning `src` directories;
+the root task map includes generators and cross-directory consumers explicitly.
+GitHub documents context limits and currently recommends concise files of about
+1,000 lines or fewer; the cited current documentation does not specify a fixed
+4,000-character truncation rule. Keeping critical checks early is still prudent.
+GitHub's warning about following **external** standards links does not establish
+that reviewers can never read linked repository files. Do not rely on a Markdown
+link as automatic discovery or import.
 
 ## Windows setup
 
@@ -98,11 +106,11 @@ unless it provides a demonstrated benefit.
 
 Both workflows run `scripts\Install-CopilotPonytailReview.ps1` before the agent
 starts. It uses PowerShell's built-in HTTP and archive commands to install only
-`ponytail-review` from the latest published release of
+`ponytail-review` from a pinned published release of
 [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail), not its
-development branch. Each setup resolves the release again, downloads its source
-archive at the resolved commit SHA, and records both the release tag and source
-revision in the log. Only the review skill directory, including its resources,
+development branch. The script pins both the release tag and full commit SHA,
+checks that the published tag still resolves to that SHA, downloads that exact
+archive, and records both values in the log. Only the review skill directory, including its resources,
 and the upstream license are copied, without modifying the released skill.
 GitHub CLI and runner updates are not required, including on the self-hosted
 Excel desktop. The workflows supply `GH_TOKEN` for authenticated GitHub API
@@ -110,15 +118,41 @@ requests; local invocation can also download this public repository without a
 token. The output is ignored at `.github/skills/ponytail-review/` and must not be
 committed or edited. The full Ponytail plugin and coding mode are not installed.
 
-This deliberately trusts upstream release changes without a repository review.
+The approved review-setup change replaces the previous deliberate latest-release
+policy with a reviewed, repeatable version. To update it, inspect the upstream
+release, skill/resources, and license, update both constants in the installer and
+its fixture expectations, and run the focused installer tests. No automatic
+upstream update is applied. Pinning provenance is not proof of skill correctness
+or protection from every supply-chain risk.
 A running session keeps its installed version until setup runs again. Download
 or installation failures fail the setup step. Setup removes the previous
 `ponytail-review` directory before release lookup and deletes incomplete output
 on failure, without changing other skills, so a failed setup does not leave a
 stale or partial review skill available. GitHub may still start the agent after
 a failed setup, so inspect the setup log before claiming Ponytail was available.
+Archive staging stays beside the installed skills and is removed on every exit.
 Its simplification review supplements the root review rules, including
 correctness and Excel safety; it does not replace them.
+
+### Local review and GitHub gates
+
+Install the normal [pre-commit hook](../PRE-COMMIT-SETUP.md); it uses changed-area
+validation, not a substitute AI review. Before creating a PR or pushing further
+changes, the root rules require an independent review of the complete branch
+diff, followed by `ponytail-review` when available. Local sessions may run the
+same installer explicitly; ordinary app setup does not silently execute it.
+Record concrete failure paths and tests, not just checklist completion.
+
+The October 2026 inspection of the active `main` ruleset found Copilot review on
+push enabled, draft review disabled, zero required approvals, and required
+conversation resolution. Required status checks were `CI Gate`, `Docs Site`,
+`dependency-review`, `CodeQL Completion`, and `Verify changeset present`;
+CODEOWNERS names one owner. These are observed settings, not settings applied
+by this repository change. Copilot review is advisory, not a required approval
+or status check; its unresolved threads can still block merging. Conversation
+resolution does not establish that a defect was fixed.
+Recheck live rules before relying on them; changing approval policy requires
+separate authorization. Setup workflows prepare tools, not code-review results.
 
 GitHub's integrated agent firewall does not protect Windows runners;
 this configuration does not change firewall settings or provision runners.
@@ -159,15 +193,17 @@ available through the inspected session API; this file does not establish
 that the app's trust flow has been exercised or that earlier UI instruction
 text has been preserved. Automation/browser fields are deliberately omitted.
 
-The app's existing **Setup** command includes website and evaluation dependency
-installation. It is broader than the ordinary setup above; use the narrower
-commands for non-evaluation work. This documentation change does not alter the
-app's executable commands or its acceptance state.
+The app's **Setup** command includes website dependencies but does not install uv
+or evaluation dependencies. Cloud setup follows the same on-demand evaluation
+policy. Accept the changed app configuration before expecting its narrower
+command to take effect; the repository edit does not change acceptance state.
 
 ## Sources
 
 - [GitHub instruction support](https://docs.github.com/en/copilot/reference/custom-instructions-support)
 - [GitHub instruction writing guidance](https://docs.github.com/en/copilot/concepts/prompting/response-customization)
+- [GitHub review instruction scope and limits](https://docs.github.com/en/copilot/tutorials/customize-code-review)
+- [GitHub repository instructions and head-branch discovery](https://docs.github.com/en/copilot/how-tos/copilot-on-github/customize-copilot/add-custom-instructions/add-repository-instructions)
 - [Copilot CLI discovery](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-custom-instructions)
 - [VS Code Local and Agent Host discovery](https://code.visualstudio.com/docs/agent-customization/custom-instructions)
 - [Claude Code instructions](https://code.claude.com/docs/en/memory)

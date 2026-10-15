@@ -143,6 +143,8 @@ internal static class NativeFilterHelpers
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Criterion inspection reports unavailable state, original HResult and ReadError explicitly instead of inventing an empty criterion.")]
     private static FilterCriterion ReadCriterion(Func<object> getter)
     {
         object? native = null;

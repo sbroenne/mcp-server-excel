@@ -24,7 +24,7 @@ public sealed class TestSelectionTests
     [InlineData("scripts/Resolve-McpRegistryRelease.ps1", "Packaging")]
     [InlineData("scripts/Test-McpRegistryPublication.ps1", "Packaging")]
     [InlineData("mcpb/README.md", "Packaging")]
-    [InlineData("scripts/check-workbook-package-access.ps1", "ScriptSafety")]
+    [InlineData("src/ExcelMcp.Analyzers/ComAccessAnalyzer.cs", "ScriptSafety")]
     [InlineData("tests/Shared/GeneratedAssetsFixture.cs", "SkillGeneration,Packaging")]
     [InlineData("tests/Shared/PackagingScriptTestHelper.cs", "SkillGeneration,Packaging")]
     [InlineData("infrastructure/azure/deploy-appinsights.ps1", "ScriptSafety")]
@@ -86,7 +86,7 @@ public sealed class TestSelectionTests
     [Theory]
     [InlineData("'scripts/Build-AgentSkills.ps1'", "SkillGeneration", "SkillSourceSafetyTests")]
     [InlineData("'scripts/Build-Plugins.ps1'", "Packaging", "PluginBootstrap")]
-    [InlineData("'scripts/check-workbook-package-access.ps1'", "ScriptSafety", "WorkbookPackageAccessGuardTests")]
+    [InlineData("'src/ExcelMcp.Analyzers/ComAccessAnalyzer.cs'", "ScriptSafety", "SafetyAnalyzerTests")]
     [InlineData("'doc-counts.json'", "Packaging", "FullyQualifiedName~DocumentationCounts")]
     [InlineData("'mcpb/manifest.json'", "Packaging", "McpbPackagingScriptTests")]
     [InlineData("'mcpb/README.md'", "Packaging", "McpbPackagingScriptTests")]
@@ -94,7 +94,7 @@ public sealed class TestSelectionTests
     [InlineData("'tests/ExcelMcp.ScriptSafety.Tests/ChangedAreaRegressionTests.cs'", "ScriptSafety", "ChangedAreaRegressionTests")]
     [InlineData("'tests/Shared/GeneratedAssetsFixture.cs'", "Packaging,SkillGeneration", "RequiresExcel=false")]
     [InlineData("'tests/Shared/PackagingScriptTestHelper.cs'", "Packaging,SkillGeneration", "RequiresExcel=false")]
-    [InlineData("'scripts/Build-AgentSkills.ps1','scripts/check-workbook-package-access.ps1'", "ScriptSafety,SkillGeneration", "SkillSourceSafetyTests")]
+    [InlineData("'scripts/Build-AgentSkills.ps1','src/ExcelMcp.Analyzers/ComAccessAnalyzer.cs'", "ScriptSafety,SkillGeneration", "SkillSourceSafetyTests")]
     [InlineData("'doc-counts.json','tests/ExcelMcp.ScriptSafety.Tests/ChangedAreaRegressionTests.cs'", "Packaging,ScriptSafety", "FullyQualifiedName~DocumentationCounts")]
     public async Task Runner_HostedToolingSelectsOwningProjectsAndFilters(string paths, string expected, string filter)
     {

@@ -15,6 +15,8 @@ internal static class TelemetryUserIdentityStore
     internal const string IdentityFileName = "telemetry-user-id";
     private const string ApplicationDirectoryName = "ExcelMcp";
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Optional telemetry storage failures are traced without private path details and fall back to a process-only random identity; product work must not depend on telemetry identity persistence.")]
     internal static TelemetryUserIdentity GetOrCreate()
     {
         try
@@ -31,6 +33,8 @@ internal static class TelemetryUserIdentityStore
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Optional telemetry storage failures are traced without private path details and fall back to a process-only random identity; product work must not depend on telemetry identity persistence.")]
     internal static TelemetryUserIdentity GetOrCreate(string localAppDataPath)
     {
         string? temporaryPath = null;
@@ -110,6 +114,8 @@ internal static class TelemetryUserIdentityStore
         return null;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Only expected platform/security failures while constructing an optional migration identifier are handled; the failure type is traced and no migration event is emitted.")]
     private static string? GenerateLegacyUserId()
     {
         try
@@ -136,6 +142,8 @@ internal static class TelemetryUserIdentityStore
             "Telemetry user ID storage is unavailable; using a process-only ID ({0}).",
             exception.GetType().Name);
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Telemetry identity scratch-file cleanup handles only expected storage failures and traces the exception type without exposing private paths; it must not fail product work.")]
     internal static void TryDeleteTemporaryFile(string path, Action<string>? delete = null)
     {
         try

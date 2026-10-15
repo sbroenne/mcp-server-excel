@@ -200,16 +200,12 @@ Reflection works but may miss embedded types or forwarded types. Compile test is
 
 ---
 
-## Pre-Commit Enforcement
+## Compiler enforcement
 
-The `scripts/check-dynamic-casts.ps1` script enforces that every `((dynamic))` cast has a justification comment on the preceding line.
-
-Valid comment prefixes:
-- `// PIA gap: ...` — Type is a true gap (not in the referenced Excel PIA)
-- `// TODO: ...` — Type IS in PIA but migration is pending
-- `// Reason: ...` — Other documented reason
-
-The check is run automatically by `scripts/pre-commit.ps1`.
+The [compiler analyzer](../src/ExcelMcp.Analyzers/Rules.cs) diagnoses unjustified
+casts to dynamic and direct numeric/enum casts of dynamic values during builds,
+including pre-commit builds. Follow the diagnostic's correction guidance;
+a justification comment does not prove that a PIA gap exists.
 
 ---
 
@@ -219,4 +215,5 @@ During the original PIA migration, coverage was checked using binary string sear
 
 This caused 8 DataModel and 3 Connection sub-type APIs to be incorrectly classified as "PIA gaps" when they are in fact available in the referenced Excel PIA.
 
-**Prevention**: Always use a compile test (see above). This file and the `check-dynamic-casts.ps1` pre-commit check prevent silent regression.
+**Prevention**: Use a compile probe (see above) to establish actual PIA coverage;
+compiler safety diagnostics catch the supported regression patterns.
