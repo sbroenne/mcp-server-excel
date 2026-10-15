@@ -49,24 +49,22 @@ public partial class DataModelCommands
             Name = typedColumn.Name ?? string.Empty,
             DataType = dataTypeValue.ToString(CultureInfo.InvariantCulture),
             DataTypeValue = dataTypeValue,
-            DataTypeName = GetParameterDataTypeName(dataTypeValue),
+            DataTypeName = GetModelColumnDataTypeName(dataTypeValue),
             IsCalculated = isCalculated
         };
     }
 
-    private static string GetParameterDataTypeName(int dataTypeValue)
-    {
-        if (dataTypeValue == 20)
+    internal static string GetModelColumnDataTypeName(int dataTypeValue)
+        // ModelTableColumn returns OLE DB type codes at runtime, not XlParameterDataType values.
+        => dataTypeValue switch
         {
-            return "BIGINT";
-        }
-
-        const string prefix = "xlParamType";
-        string enumName = ((Excel.XlParameterDataType)dataTypeValue).ToString();
-        return enumName.StartsWith(prefix, StringComparison.Ordinal)
-            ? enumName[prefix.Length..].ToUpperInvariant()
-            : $"Unknown ({dataTypeValue.ToString(CultureInfo.InvariantCulture)})";
-    }
+            5 => "DOUBLE",
+            7 => "DATE",
+            11 => "BOOLEAN",
+            20 => "BIGINT",
+            130 => "WCHAR",
+            _ => $"Unknown ({dataTypeValue.ToString(CultureInfo.InvariantCulture)})"
+        };
 
     private static DataModelAdoDiagnostics CollectAdoDiagnostics(dynamic? adoConnection)
     {

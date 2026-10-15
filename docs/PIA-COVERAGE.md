@@ -21,7 +21,7 @@ This document tracks the status of `Microsoft.Office.Interop.Excel` type coverag
 | Collections (`Sheets`, `Names`, `ListObjects`, etc.) | ✅ Fully typed |
 | Power Query (`Workbook.Queries`, `WorkbookQuery`) | ✅ Typed via the 16.x Excel PIA |
 | DataModel (`ModelTables`, `ModelRelationships`, etc.) | ✅ Typed |
-| `ModelTableColumn.DataType` / `XlParameterDataType` | ✅ Typed; list/read responses expose raw and named values |
+| `ModelTableColumn.DataType` | ✅ Typed; list/read responses expose raw OLE DB type codes and observed names |
 | DataModel measures/formats (`ModelMeasures`, `ModelMeasure`, `ModelFormat*`) | ✅ Typed via the 16.x Excel PIA |
 | Connection sub-types (`OLEDBConnection`, `ODBCConnection`, `TextConnection`) | ✅ Migrated — callers use typed WorkbookConnection |
 | `ModelTableColumn.IsCalculatedColumn` / formula / expression | ❌ Not exposed by the 16.x Excel PIA; runtime COM also has no reliable calculated-column metadata API |
@@ -68,8 +68,8 @@ ExcelMcp is PIA-first. Any `dynamic` usage is technical debt unless a compile pr
 
 - **Compile probe result**: `ModelTableColumn.IsCalculatedColumn`, `Formula`, and `Expression` all fail with CS1061 against `Microsoft.Office.Interop.Excel` 16.0.18925.20022.
 - **Runtime result**: Excel reliably exposes only column name, data type, and parent through `ModelTableColumn`; calculated-column formulas and mutation are not practical automation surfaces.
-- **Current behavior**: `list-columns` returns reliable names plus the raw and named `XlParameterDataType` values. Use Power Query for computed columns or a DAX measure for query-time calculations.
-- **Runtime quirk**: Excel returns value `20` (`BIGINT`) for worksheet integer columns loaded into the model even though `20` is outside the documented `XlParameterDataType` values. ExcelMcp preserves the raw value and supplies the observed readable name.
+- **Current behavior**: `list-columns` and `read-table` preserve the raw `ModelTableColumn.DataType` code and report its observed OLE DB name: `5` = `DOUBLE`, `7` = `DATE`, `11` = `BOOLEAN`, `20` = `BIGINT`, and `130` = `WCHAR` (Unicode text). Other codes are reported as `Unknown (code)`. Use Power Query for computed columns or a DAX measure for query-time calculations.
+- **Runtime quirk**: Although the Excel documentation describes `XlParameterDataType`, the model column property returns OLE DB type codes at runtime. Interpreting `5` through `XlParameterDataType` incorrectly labels doubles as `SMALLINT`. These labels describe the loaded model column, not the source Power Query type or a DAX expression's result type; a `Currency.Type` Power Query column can load as `DOUBLE`. Labeling does not convert or round values.
 
 ### ModelTable refresh metadata and status
 
