@@ -17,12 +17,12 @@ public class DataModelColumnInfo
     public string DataType { get; init; } = "";
 
     /// <summary>
-    /// Excel XlParameterDataType numeric value.
+    /// Raw OLE DB type code returned by Excel's ModelTableColumn.DataType.
     /// </summary>
     public int DataTypeValue { get; init; }
 
     /// <summary>
-    /// Human-readable XlParameterDataType name.
+    /// Human-readable name for an observed model column OLE DB type, or Unknown with its raw code.
     /// </summary>
     public string DataTypeName { get; init; } = "";
 
@@ -31,4 +31,3 @@ public class DataModelColumnInfo
     /// </summary>
     public bool IsCalculated { get; init; }
 }
-
