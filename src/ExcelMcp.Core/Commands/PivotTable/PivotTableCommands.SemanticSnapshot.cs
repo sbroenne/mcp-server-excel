@@ -385,7 +385,15 @@ public partial class PivotTableCommands
                 continue;
 
             string levelName = levelField.Name;
-            var levelFilters = ReadPivotFilters(levelField, pivotTableName, workbookPath, cancellationToken);
+            var levelFilters = ReadPivotFilters(levelField, pivotTableName, workbookPath, cancellationToken, isOlap: true);
+            var unidentifiableValueFilter = levelFilters.Filters.FirstOrDefault(filter =>
+                (filter.Type.StartsWith("Value", StringComparison.Ordinal) ||
+                    filter.Type.StartsWith("Top", StringComparison.Ordinal) ||
+                    filter.Type.StartsWith("Bottom", StringComparison.Ordinal)) &&
+                filter.DataFieldName is null);
+            if (unidentifiableValueFilter is not null)
+                throw new NotSupportedException(
+                    $"Excel did not expose the value field for OLAP filter '{unidentifiableValueFilter.Type}' on level '{levelName}'; the semantic snapshot cannot be complete.");
             filters.AddRange(levelFilters.Filters.Select(filter => new PivotSnapshotFilter
             {
                 LevelUniqueName = levelName,

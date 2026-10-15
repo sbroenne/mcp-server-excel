@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
-/// <summary>Native PivotFilters calculation and comparison types.</summary>
+/// <summary>Native PivotFilters label, value, top/bottom, and date filter types.</summary>
 public enum PivotFilterType
 {
     /// <summary>Highest item counts.</summary>
@@ -80,26 +80,26 @@ public enum PivotFilterType
     DateNotBetween
 }
 
-/// <summary>Typed filter criteria; supply only the criteria required by type.</summary>
+/// <summary>Typed native filter criteria. Supply only fields required by type: Caption uses text, Value/Top/Bottom uses a value field and numbers, and Date filters use dates. OLAP date support depends on the source date level and provider.</summary>
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed class PivotFilterOptions
 {
-    /// <summary>Native label, value, date, or top/bottom filter.</summary>
+    /// <summary>Filter type: Caption*, Value*, Top*/Bottom*, or date comparison.</summary>
     [JsonRequired]
     public PivotFilterType Type { get; set; }
-    /// <summary>Exact value-field caption for value and top/bottom filters.</summary>
+    /// <summary>Required for Value* and Top*/Bottom*. Exact displayed value caption; OLAP also accepts the [Measures] unique name.</summary>
     public string? DataFieldName { get; set; }
-    /// <summary>First label criterion.</summary>
+    /// <summary>First caption criterion; required for Caption*.</summary>
     public string? Text1 { get; set; }
-    /// <summary>Second label criterion for interval filters.</summary>
+    /// <summary>Second caption criterion for Caption* interval filters.</summary>
     public string? Text2 { get; set; }
-    /// <summary>First numeric criterion or top/bottom amount.</summary>
+    /// <summary>First numeric criterion or Top*/Bottom* amount; required for Value*, Top*, and Bottom*.</summary>
     public double? Number1 { get; set; }
-    /// <summary>Second numeric criterion for interval filters.</summary>
+    /// <summary>Second numeric criterion for Value* interval filters.</summary>
     public double? Number2 { get; set; }
-    /// <summary>First date criterion, ISO date/time in JSON.</summary>
+    /// <summary>First date criterion in ISO date/time format; required for date comparisons.</summary>
     public DateTime? Date1 { get; set; }
-    /// <summary>Second date criterion for interval filters.</summary>
+    /// <summary>Second ISO date/time criterion for DateBetween and DateNotBetween.</summary>
     public DateTime? Date2 { get; set; }
 }
 
@@ -114,7 +114,7 @@ public sealed class PivotFilterInfo
     public object? Value1 { get; set; }
     /// <summary>Native second criterion for interval types.</summary>
     public object? Value2 { get; set; }
-    /// <summary>Native value-field caption for value/top filters.</summary>
+    /// <summary>Native value-field caption for value/top filters; Excel may omit it when reading filters from OLAP PivotTables.</summary>
     public string? DataFieldName { get; set; }
 }
 

@@ -27,6 +27,10 @@ Commands and prerequisites: [tests/README.md](README.md#quick-start).
   `ExcelMcpService.ProcessAsync`, not mocked `IExcelBatch` or direct Core.
   Direct Core needs a named internal contract Service cannot expose. Pure
   parsing, mapping, serialization, and generator tests need no Excel.
+- Data Model/OLAP PivotTable behavior tests should reuse
+  `PersistentServiceDataModelFixture` and create a test-owned PivotTable from
+  its model. Verify the resulting Excel state through Service before cleanup;
+  do not rely only on command success.
 - Independent Facts/Theories must isolate their state, even with a reviewed
   class fixture. Do not combine class and collection fixtures on one class.
   Lifecycle, transport, global-state, and raw-COM capability tests retain the
