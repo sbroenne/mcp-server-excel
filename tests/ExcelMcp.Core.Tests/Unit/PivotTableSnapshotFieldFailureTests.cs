@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
@@ -48,34 +49,7 @@ public sealed class PivotTableSnapshotFieldFailureTests
             "get_Value1" => "Red",
             _ => throw new NotSupportedException(name)
         });
-        var filters = FakeField.Create<Excel.PivotFilters>(name => name switch
-        {
-            "get_Count" => 1,
-            "get__Default" => filter,
-            _ => throw new NotSupportedException(name)
-        });
-        var field = FakeField.Create<Excel.PivotField>(name => name switch
-        {
-            "get_Name" => "[Product].[Product].[Product]",
-            "get_Orientation" => Excel.XlPivotFieldOrientation.xlRowField,
-            "get_PivotFilters" => filters,
-            _ => throw new NotSupportedException(name)
-        });
-        var levels = FakeField.Create<Excel.PivotFields>(name => name switch
-        {
-            "get_Count" => 1,
-            "Item" => field,
-            _ => throw new NotSupportedException(name)
-        });
-        var cube = FakeField.Create<Excel.CubeField>(name => name switch
-        {
-            "get_Name" or "get_Caption" => "[Product].[Product]",
-            "get_Orientation" => Excel.XlPivotFieldOrientation.xlRowField,
-            "get_Position" => 1,
-            "get_AllItemsVisible" => true,
-            "get_PivotFields" => levels,
-            _ => throw new NotSupportedException(name)
-        });
+        var cube = CreateOlapHierarchy(filter);
 
         var result = PivotTableCommands.ReadOlapFieldSelection(
             cube, "Pivot1", "book.xlsx", CancellationToken.None, 10);
@@ -96,6 +70,92 @@ public sealed class PivotTableSnapshotFieldFailureTests
             Assert.Empty(result.Filters);
             Assert.Contains("member-property", result.FiltersError, StringComparison.OrdinalIgnoreCase);
         }
+    }
+
+    public static TheoryData<string, int> FilterGetterFailures
+    {
+        get
+        {
+            var cases = new TheoryData<string, int>();
+            foreach (var getter in new[] { "get_FilterType", "get_IsMemberPropertyFilter", "get_Value1", "get_Value2" })
+            {
+                foreach (int hresult in new[]
+                {
+                    ResiliencePipelines.RPC_E_CALL_FAILED,
+                    ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE,
+                    ResiliencePipelines.RPC_E_DISCONNECTED,
+                    unchecked((int)0x800A03EC)
+                })
+                    cases.Add(getter, hresult);
+            }
+            return cases;
+        }
+    }
+
+    [Theory]
+    [MemberData(nameof(FilterGetterFailures))]
+    public void OlapFilter_GetterFailure_PreservesFatalErrorsAndReportsUnavailableMetadata(string getter, int hresult)
+    {
+#pragma warning disable CA2201 // Inject native getter failures without disconnecting a real Excel session.
+        var failure = new COMException("Filter getter failed.", hresult);
+#pragma warning restore CA2201
+        var filter = FakeField.Create<Excel.PivotFilter>(name => name == getter ? throw failure : name switch
+        {
+            "get_FilterType" => Excel.XlPivotFilterType.xlDateBetween,
+            "get_IsMemberPropertyFilter" => false,
+            "get_Value1" => new DateTime(2024, 2, 10).ToOADate(),
+            "get_Value2" => new DateTime(2024, 3, 5).ToOADate(),
+            _ => throw new NotSupportedException(name)
+        });
+        var cube = CreateOlapHierarchy(filter);
+
+        if (hresult != unchecked((int)0x800A03EC))
+        {
+            var thrown = Assert.Throws<COMException>(() => PivotTableCommands.ReadOlapFieldSelection(
+                cube, "Pivot1", "book.xlsx", CancellationToken.None, 10));
+            Assert.Same(failure, thrown);
+        }
+        else
+        {
+            var result = PivotTableCommands.ReadOlapFieldSelection(
+                cube, "Pivot1", "book.xlsx", CancellationToken.None, 10);
+            Assert.True(result.SelectionStateAvailable);
+            Assert.False(result.FiltersAvailable);
+            Assert.Empty(result.Filters);
+            Assert.False(string.IsNullOrWhiteSpace(result.FiltersError));
+        }
+    }
+
+    private static Excel.CubeField CreateOlapHierarchy(Excel.PivotFilter filter)
+    {
+        var filters = FakeField.Create<Excel.PivotFilters>(name => name switch
+        {
+            "get_Count" => 1,
+            "get__Default" => filter,
+            _ => throw new NotSupportedException(name)
+        });
+        var field = FakeField.Create<Excel.PivotField>(name => name switch
+        {
+            "get_Name" => "[Product].[Product].[Product]",
+            "get_Orientation" => Excel.XlPivotFieldOrientation.xlRowField,
+            "get_PivotFilters" => filters,
+            _ => throw new NotSupportedException(name)
+        });
+        var levels = FakeField.Create<Excel.PivotFields>(name => name switch
+        {
+            "get_Count" => 1,
+            "Item" => field,
+            _ => throw new NotSupportedException(name)
+        });
+        return FakeField.Create<Excel.CubeField>(name => name switch
+        {
+            "get_Name" or "get_Caption" => "[Product].[Product]",
+            "get_Orientation" => Excel.XlPivotFieldOrientation.xlRowField,
+            "get_Position" => 1,
+            "get_AllItemsVisible" => true,
+            "get_PivotFields" => levels,
+            _ => throw new NotSupportedException(name)
+        });
     }
 
     [Fact]

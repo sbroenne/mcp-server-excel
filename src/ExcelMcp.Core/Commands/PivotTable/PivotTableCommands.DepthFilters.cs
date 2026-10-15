@@ -353,7 +353,7 @@ public partial class PivotTableCommands
                     {
                         type = filter.FilterType.ToString();
                     }
-                    catch (System.Runtime.InteropServices.COMException ex) when (isOlap)
+                    catch (System.Runtime.InteropServices.COMException ex) when (isOlap && CreatedObjectFailure.CanReport(ex))
                     {
                         throw new NotSupportedException(
                             $"Excel could not read the filter type on OLAP field '{field.Name}'.", ex);
@@ -368,7 +368,7 @@ public partial class PivotTableCommands
                     {
                         memberPropertyFilter = filter.IsMemberPropertyFilter;
                     }
-                    catch (System.Runtime.InteropServices.COMException ex) when (isOlap)
+                    catch (System.Runtime.InteropServices.COMException ex) when (isOlap && CreatedObjectFailure.CanReport(ex))
                     {
                         throw new NotSupportedException(
                             $"Excel could not verify the member-property identity of filter '{type}' on OLAP field '{field.Name}'.", ex);
@@ -388,7 +388,7 @@ public partial class PivotTableCommands
                         if (type.Contains("Between", StringComparison.Ordinal))
                             value2 = NormalizePivotCriterion(filter.Value2);
                     }
-                    catch (System.Runtime.InteropServices.COMException ex) when (isOlap)
+                    catch (System.Runtime.InteropServices.COMException ex) when (isOlap && CreatedObjectFailure.CanReport(ex))
                     {
                         throw new NotSupportedException(
                             $"Excel could not read the criteria for filter '{type}' on OLAP field '{field.Name}'.", ex);
