@@ -684,68 +684,93 @@ public partial class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// <inheritdoc/>
     public PivotFieldResult SetFieldFormat(dynamic pivot, string fieldName, string numberFormat, string workbookPath)
     {
-        dynamic? cubeField = null;
-        dynamic? pivotFields = null;
-        dynamic? pivotField = null;
+        Excel.CubeField? cubeField = null;
+        Excel.PivotFields? dataFields = null;
+        Excel.PivotField? dataField = null;
+        Excel.Range? dataRange = null;
+        Excel.Range? cells = null;
+        Excel.Range? firstDataCell = null;
         try
         {
-            // For OLAP PivotTables, find the CubeField and set NumberFormat on its PivotField
-            // This works for measures in the Values area (including [Measures].[Name] format)
-            cubeField = GetFieldForManipulation(pivot, fieldName);
-
-            // Verify the field is in the Values area (only data fields can have number formats)
-            int orientation = Convert.ToInt32(cubeField.Orientation);
-            if (orientation != XlPivotFieldOrientation.xlDataField)
+            cubeField = FindMeasureCubeField(pivot, fieldName);
+            if (cubeField is not null && cubeField.Orientation != Excel.XlPivotFieldOrientation.xlDataField)
             {
                 throw new InvalidOperationException(
-                    $"Field '{fieldName}' is not in the Values area (Orientation={orientation}). " +
+                    $"Field '{fieldName}' is not in the Values area (Orientation={cubeField.Orientation}). " +
                     "Only value fields can have number formats.");
             }
 
-            // Access the PivotFields collection to set the NumberFormat
-            // OLAP CubeFields expose their formatting through PivotFields
-            pivotFields = cubeField.PivotFields;
-            if (pivotFields == null || pivotFields.Count == 0)
+            // CubeField.PivotFields exposes cube metadata, not the displayed data field.
+            dataFields = (Excel.PivotFields)((Excel.PivotTable)pivot).DataFields;
+            string? cubeFieldName = cubeField?.Name;
+            for (int index = 1; index <= dataFields.Count; index++)
+            {
+                Excel.PivotField? candidate = null;
+                Excel.CubeField? candidateCubeField = null;
+                try
+                {
+                    candidate = dataFields.Item(index);
+                    candidateCubeField = candidate.CubeField;
+                    bool matches = cubeFieldName is not null
+                        ? string.Equals(candidateCubeField.Name, cubeFieldName, StringComparison.OrdinalIgnoreCase)
+                        : string.Equals(candidate.Caption, fieldName, StringComparison.OrdinalIgnoreCase) ||
+                          string.Equals(candidateCubeField.Caption, fieldName, StringComparison.OrdinalIgnoreCase);
+                    if (matches)
+                    {
+                        if (dataField is not null)
+                        {
+                            throw new InvalidOperationException(
+                                $"Measure caption '{fieldName}' is ambiguous in the OLAP PivotTable. Use its exact CubeField name.");
+                        }
+
+                        dataField = candidate;
+                        candidate = null;
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref candidateCubeField);
+                    ComUtilities.Release(ref candidate);
+                }
+            }
+
+            if (dataField is null)
             {
                 throw new InvalidOperationException(
-                    $"Cannot format OLAP field '{fieldName}' - PivotFields not available. " +
-                    "Ensure the field has been added to the Values area.");
+                    $"Cannot format OLAP measure '{fieldName}' because its data field was not found. " +
+                    "Use its exact CubeField name or displayed caption and ensure it is in the Values area.");
             }
 
-            // Get the first (and typically only) PivotField and set its NumberFormat
-            pivotField = pivotFields.Item(1);
-            ((Excel.PivotField)pivotField).NumberFormat = numberFormat;
-
-            // NOTE: No RefreshTable() needed - NumberFormat is a visual-only property
-            // RefreshTable() would re-query the Data Model which is very slow for OLAP PivotTables
-
-            // Read back the format to verify it was set
-            string? appliedFormat = null;
-            try
+            dataField.NumberFormat = numberFormat;
+            string? appliedFormat = dataField.NumberFormat;
+            string? renderedText = null;
+            dataRange = dataField.DataRange;
+            if (dataRange is not null)
             {
-                appliedFormat = ((Excel.PivotField)pivotField).NumberFormat;
-            }
-            catch (System.Runtime.InteropServices.COMException)
-            {
-                // If we can't read it back, use what we set
-                appliedFormat = numberFormat;
+                cells = dataRange.Cells;
+                firstDataCell = (Excel.Range)cells[1, 1];
+                renderedText = firstDataCell.Text?.ToString();
             }
 
             return new PivotFieldResult
             {
                 Success = true,
                 FieldName = fieldName,
-                CustomName = cubeField.Caption?.ToString() ?? fieldName,
+                CustomName = dataField.Caption,
                 Area = PivotFieldArea.Value,
                 NumberFormat = appliedFormat,
+                RenderedText = renderedText,
                 DataType = "Cube",
                 FilePath = workbookPath
             };
         }
         finally
         {
-            ComUtilities.Release(ref pivotField);
-            ComUtilities.Release(ref pivotFields);
+            ComUtilities.Release(ref firstDataCell);
+            ComUtilities.Release(ref cells);
+            ComUtilities.Release(ref dataRange);
+            ComUtilities.Release(ref dataField);
+            ComUtilities.Release(ref dataFields);
             ComUtilities.Release(ref cubeField);
         }
     }

@@ -655,6 +655,12 @@ public class PivotFieldResult : ResultBase
     public string? NumberFormat { get; set; }
 
     /// <summary>
+    /// Displayed text of the selected value field's first data cell, when available.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? RenderedText { get; set; }
+
+    /// <summary>
     /// Available values for filtering
     /// </summary>
     public List<string> AvailableValues { get; set; } = [];
