@@ -43,6 +43,8 @@ public partial class PivotTableCommands
                 filters = field.PivotFilters;
                 if (filters.Count > 0 && !pivot.AllowMultipleFilters)
                     throw new InvalidOperationException("This field already has a calculated filter. Clear it explicitly or set layoutOptions.allowMultipleFilters=true before adding another.");
+                if (cache.OLAP && filters.Count > 0)
+                    _ = ReadPivotFilters(field, pivotTableName, batch.WorkbookPath, ct, isOlap: true);
                 ct.ThrowIfCancellationRequested();
                 added = filters.Add2(type, dataField ?? (object)Type.Missing, value1, value2,
                     WholeDayFilter: filterOptions.Date1.HasValue ? true : Type.Missing);
@@ -218,77 +220,49 @@ public partial class PivotTableCommands
         try
         {
             cubeFields = pivot.CubeFields;
-            try
-            {
-                cubeField = cubeFields[fieldName];
-            }
-            catch (System.Runtime.InteropServices.COMException)
-            {
-                for (int index = 1; index <= cubeFields.Count; index++)
-                {
-                    ct.ThrowIfCancellationRequested();
-                    Excel.CubeField? candidate = null;
-                    try
-                    {
-                        candidate = cubeFields[index];
-                        if (string.Equals(candidate.Name, fieldName, StringComparison.Ordinal) ||
-                            string.Equals(candidate.Caption, fieldName, StringComparison.Ordinal))
-                        {
-                            cubeField = candidate;
-                            candidate = null;
-                            break;
-                        }
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref candidate);
-                    }
-                }
-            }
-
-            if (cubeField is null)
-                throw new ArgumentException($"OLAP field '{fieldName}' was not found. Use its exact hierarchy name or caption.");
-            if (cubeField.Orientation is not
-                (Excel.XlPivotFieldOrientation.xlRowField or Excel.XlPivotFieldOrientation.xlColumnField))
-                throw new ArgumentException("OLAP field filters require a placed row or column field.");
-
-            levels = cubeField.PivotFields;
-            if (levels is null || levels.Count == 0)
-                throw new ArgumentException($"OLAP field '{fieldName}' has no placed PivotField level.");
-
-            bool hierarchyMatch = string.Equals(cubeField.Name, fieldName, StringComparison.Ordinal) ||
-                string.Equals(cubeField.Caption, fieldName, StringComparison.Ordinal);
-            for (int index = 1; index <= levels.Count; index++)
+            for (int cubeIndex = 1; cubeIndex <= cubeFields.Count; cubeIndex++)
             {
                 ct.ThrowIfCancellationRequested();
-                field = levels.Item(index);
-                if (field.Orientation is Excel.XlPivotFieldOrientation.xlRowField or Excel.XlPivotFieldOrientation.xlColumnField)
+                cubeField = cubeFields[cubeIndex];
+                if (cubeField.Orientation is
+                    (Excel.XlPivotFieldOrientation.xlRowField or Excel.XlPivotFieldOrientation.xlColumnField))
                 {
-                    if (string.Equals(field.Name, fieldName, StringComparison.Ordinal) ||
-                        string.Equals(field.SourceName, fieldName, StringComparison.Ordinal) ||
-                        string.Equals(field.Caption, fieldName, StringComparison.Ordinal))
+                    levels = cubeField.PivotFields;
+                    bool hierarchyMatch = string.Equals(cubeField.Name, fieldName, StringComparison.Ordinal) ||
+                        string.Equals(cubeField.Caption, fieldName, StringComparison.Ordinal);
+                    for (int index = 1; index <= levels.Count; index++)
                     {
-                        var found = field;
-                        field = null;
+                        ct.ThrowIfCancellationRequested();
+                        field = levels.Item(index);
+                        if (field.Orientation is Excel.XlPivotFieldOrientation.xlRowField or Excel.XlPivotFieldOrientation.xlColumnField)
+                        {
+                            if (string.Equals(field.Name, fieldName, StringComparison.Ordinal) ||
+                                string.Equals(field.SourceName, fieldName, StringComparison.Ordinal) ||
+                                string.Equals(field.Caption, fieldName, StringComparison.Ordinal))
+                            {
+                                var found = field;
+                                field = null;
+                                return found;
+                            }
+                            if (hierarchyMatch && hierarchyField is null)
+                            {
+                                hierarchyField = field;
+                                field = null;
+                            }
+                        }
+                        ComUtilities.Release(ref field);
+                    }
+                    if (hierarchyField is not null)
+                    {
+                        var found = hierarchyField;
+                        hierarchyField = null;
                         return found;
                     }
-
-                    if (hierarchyMatch && hierarchyField is null)
-                    {
-                        hierarchyField = field;
-                        field = null;
-                    }
+                    ComUtilities.Release(ref levels);
                 }
-                ComUtilities.Release(ref field);
+                ComUtilities.Release(ref cubeField);
             }
-
-            if (hierarchyField is not null)
-            {
-                var found = hierarchyField;
-                hierarchyField = null;
-                return found;
-            }
-            throw new ArgumentException($"OLAP field '{fieldName}' is not a placed row or column field.");
+            throw new ArgumentException($"OLAP field '{fieldName}' was not found. Use the exact name or caption of a placed row or column hierarchy or level.");
         }
         finally
         {
@@ -391,7 +365,17 @@ public partial class PivotTableCommands
                         type.StartsWith("Value", StringComparison.Ordinal) ||
                         IsDateComparison(type) ||
                         type.StartsWith("Top", StringComparison.Ordinal) || type.StartsWith("Bottom", StringComparison.Ordinal);
-                    if (!isOlap && filter.IsMemberPropertyFilter)
+                    bool memberPropertyFilter;
+                    try
+                    {
+                        memberPropertyFilter = filter.IsMemberPropertyFilter;
+                    }
+                    catch (System.Runtime.InteropServices.COMException ex) when (isOlap)
+                    {
+                        throw new NotSupportedException(
+                            $"Excel could not verify the member-property identity of filter '{type}' on OLAP field '{field.Name}'.", ex);
+                    }
+                    if (memberPropertyFilter)
                         throw new NotSupportedException("Member-property filters cannot be read as regular caption/value criteria.");
                     if (!isOlap && (type.StartsWith("Value", StringComparison.Ordinal) ||
                         type.StartsWith("Top", StringComparison.Ordinal) || type.StartsWith("Bottom", StringComparison.Ordinal)))

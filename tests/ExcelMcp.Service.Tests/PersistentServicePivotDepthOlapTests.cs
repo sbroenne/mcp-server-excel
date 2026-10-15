@@ -165,6 +165,86 @@ public sealed class PersistentServicePivotDepthOlapTests(PersistentServiceDataMo
     }
 
     [Fact]
+    public void OlapFieldFilters_AcceptReturnedLevelName()
+    {
+        var pivot = _fixture.CreateCommands<IPersistentPivotTableCommands>();
+        var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);
+        var name = $"LevelFilter_{Guid.NewGuid():N}";
+        RequireSuccess(pivot.CreateFromDataModel(_fixture.BatchToken, "RegionalSalesTable", sheet, "A1", name));
+        RequireSuccess(pivot.AddRowField(_fixture.BatchToken, name, "[RegionalSalesTable].[Region]", null));
+        RequireSuccess(pivot.AddValueField(_fixture.BatchToken, name, "[Measures].[TotalRevenue]",
+            Sbroenne.ExcelMcp.Core.Models.AggregationFunction.Sum, "Revenue"));
+
+        var hierarchyFilters = _fixture.Send("pivottablefield.get-field-filters", new
+        {
+            pivotTableName = name,
+            fieldName = "[RegionalSalesTable].[Region]"
+        });
+        AssertSuccessful(hierarchyFilters);
+        using var hierarchyResult = JsonDocument.Parse(hierarchyFilters.Result!);
+        string levelName = hierarchyResult.RootElement.GetProperty("fieldName").GetString()!;
+        Assert.Equal("[RegionalSalesTable].[Region].[Region]", levelName);
+
+        var added = _fixture.Send("pivottablefield.add-field-filter", new
+        {
+            pivotTableName = name,
+            fieldName = levelName,
+            filterOptions = new { type = "CaptionEquals", text1 = "North" }
+        });
+        AssertSuccessful(added);
+        var filtered = _fixture.Send("pivottablecalc.get-data", new { pivotTableName = name });
+        AssertSuccessful(filtered);
+        AssertRegionalData(filtered.Result!, ("North", 10500d));
+        var read = _fixture.Send("pivottablefield.get-field-filters", new
+        {
+            pivotTableName = name,
+            fieldName = levelName
+        });
+        AssertSuccessful(read);
+        using (var result = JsonDocument.Parse(read.Result!))
+        {
+            Assert.Equal(levelName, result.RootElement.GetProperty("fieldName").GetString());
+            var filter = Assert.Single(result.RootElement.GetProperty("filters").EnumerateArray());
+            Assert.Equal("CaptionEquals", filter.GetProperty("type").GetString());
+            Assert.Equal("North", filter.GetProperty("value1").GetString());
+        }
+        var layout = _fixture.Send("pivottablecalc.set-layout-options", new
+        {
+            pivotTableName = name,
+            layoutOptions = new { allowMultipleFilters = true }
+        });
+        AssertSuccessful(layout);
+        var combined = _fixture.Send("pivottablefield.add-field-filter", new
+        {
+            pivotTableName = name,
+            fieldName = levelName,
+            filterOptions = new { type = "ValueIsGreaterThan", dataFieldName = "Revenue", number1 = 10000 }
+        });
+        AssertSuccessful(combined);
+        using (var result = JsonDocument.Parse(combined.Result!))
+        {
+            var filters = result.RootElement.GetProperty("filters").EnumerateArray().ToArray();
+            Assert.Equal(2, filters.Length);
+            Assert.Contains(filters, filter => filter.GetProperty("type").GetString() == "CaptionEquals");
+            Assert.Contains(filters, filter => filter.GetProperty("type").GetString() == "ValueIsGreaterThan");
+        }
+        var combinedData = _fixture.Send("pivottablecalc.get-data", new { pivotTableName = name });
+        AssertSuccessful(combinedData);
+        AssertRegionalData(combinedData.Result!, ("North", 10500d));
+        var cleared = _fixture.Send("pivottablefield.clear-field-filters", new
+        {
+            pivotTableName = name,
+            fieldName = levelName
+        });
+        AssertSuccessful(cleared);
+        using (var result = JsonDocument.Parse(cleared.Result!))
+            Assert.Empty(result.RootElement.GetProperty("filters").EnumerateArray());
+        var restored = _fixture.Send("pivottablecalc.get-data", new { pivotTableName = name });
+        AssertSuccessful(restored);
+        AssertRegionalData(restored.Result!);
+    }
+
+    [Fact]
     public async Task OlapCaptionFiltersWorkAndDateFiltersFailWithoutChangingData()
     {
         var pivot = _fixture.CreateCommands<IPersistentPivotTableCommands>();
@@ -185,6 +265,13 @@ public sealed class PersistentServicePivotDepthOlapTests(PersistentServiceDataMo
         var captionRows = _fixture.Send("pivottablecalc.get-data", new { pivotTableName = regionalName });
         AssertSuccessful(captionRows);
         AssertRegionalData(captionRows.Result!, ("North", 10500d));
+        var snapshot = RequireSuccess(pivot.Read(_fixture.BatchToken, regionalName, sheet));
+        Assert.True(snapshot.SnapshotComplete);
+        var selection = Assert.Single(snapshot.FieldSelections);
+        Assert.True(selection.FiltersAvailable);
+        var snapshotFilter = Assert.Single(selection.Filters);
+        Assert.Equal("CaptionEquals", snapshotFilter.Type);
+        Assert.Equal("North", snapshotFilter.Value1);
 
         var dateName = $"DateFilter_{Guid.NewGuid():N}";
         RequireSuccess(pivot.CreateFromDataModel(_fixture.BatchToken, "SalesTable", sheet, "J1", dateName));
