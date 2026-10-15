@@ -221,25 +221,25 @@ public interface IPivotTableFieldCommands
     PivotReportFilterResult GetReportFilter(
         IExcelBatch batch, string sheetName, string pivotTableName, string fieldName);
 
-    /// <summary>Reads every native calculated filter on a placed regular PivotTable field. Manual item visibility is separate.</summary>
+    /// <summary>Reads every native calculated filter on a placed regular field or OLAP row/column field. Excel may omit the value-field name when reading OLAP filters. Manual item visibility is separate.</summary>
     /// <param name="batch">Excel batch session.</param>
     /// <param name="pivotTableName">Selected PivotTable.</param>
-    /// <param name="fieldName">Exact placed field caption.</param>
+    /// <param name="fieldName">Exact placed field caption; for OLAP, the exact hierarchy name or placed row/column level name.</param>
     [ServiceAction("get-field-filters")]
     PivotFiltersResult GetFieldFilters(IExcelBatch batch, string pivotTableName, string fieldName);
 
-    /// <summary>Adds a native label, value, date, or top/bottom filter without clearing existing filters. Regular PivotTables only.</summary>
+    /// <summary>Adds a native label, value, or top/bottom filter without clearing existing filters. Regular PivotTables also support date filters; Excel does not support native OLAP date filters.</summary>
     /// <param name="batch">Excel batch session.</param>
     /// <param name="pivotTableName">Selected PivotTable.</param>
-    /// <param name="fieldName">Exact placed row/column/filter field caption.</param>
-    /// <param name="filterOptions">Typed filter type and matching text, number, or date criteria. Value/top filters require an exact dataFieldName caption.</param>
+    /// <param name="fieldName">Exact placed field caption; for OLAP, the exact hierarchy name or placed row/column level name.</param>
+    /// <param name="filterOptions">Filter criteria: type selects a Caption, Value, Top/Bottom, or Date filter; Caption uses text1 and optional text2, Value/Top/Bottom uses dataFieldName and number1 plus number2 for intervals, and regular PivotTable Date filters use ISO date1 plus date2 for intervals. OLAP does not support native Date filters. OLAP dataFieldName accepts the displayed value caption or its [Measures] unique name.</param>
     [ServiceAction("add-field-filter")]
     PivotFiltersResult AddFieldFilter(IExcelBatch batch, string pivotTableName, string fieldName, PivotFilterOptions filterOptions);
 
-    /// <summary>Deletes only native calculated filters from the selected field. Does not clear manual item visibility or filters on other fields.</summary>
+    /// <summary>Deletes only native calculated filters from the selected regular field or OLAP row/column field. Does not clear manual item visibility or filters on other fields.</summary>
     /// <param name="batch">Excel batch session.</param>
-    /// <param name="pivotTableName">Selected regular PivotTable.</param>
-    /// <param name="fieldName">Exact placed field caption.</param>
+    /// <param name="pivotTableName">Selected PivotTable.</param>
+    /// <param name="fieldName">Exact placed field caption; for OLAP, the exact hierarchy name or placed row/column level name.</param>
     [ServiceAction("clear-field-filters")]
     PivotFiltersResult ClearFieldFilters(IExcelBatch batch, string pivotTableName, string fieldName);
 
@@ -261,14 +261,14 @@ public interface IPivotTableFieldCommands
     PivotItemExpansionResult SetItemExpansion(IExcelBatch batch, string pivotTableName, string fieldName, string itemName, bool expanded);
 
     /// <summary>
-    /// Sorts field with immediate layout update
+    /// Sorts a field by its labels or, when dataFieldName is supplied, by a displayed value or measure.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>
     /// <param name="fieldName">Name of the field to sort</param>
     /// <param name="direction">Sort direction</param>
     /// <returns>Applied sort configuration and preview of changes</returns>
-    /// <param name="dataFieldName">Optional exact displayed Values caption to sort by its values instead of labels.</param>
+    /// <param name="dataFieldName">Optional exact displayed Values caption; OLAP also accepts the [Measures] unique name.</param>
     [ServiceAction("sort-field")]
     PivotFieldResult SortField(IExcelBatch batch, string pivotTableName,
         string fieldName, [FromString] SortDirection direction = SortDirection.Ascending, string? dataFieldName = null);
