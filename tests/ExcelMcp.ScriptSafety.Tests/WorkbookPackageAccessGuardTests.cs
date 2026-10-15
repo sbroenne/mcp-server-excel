@@ -15,12 +15,14 @@ public sealed class WorkbookPackageAccessGuardTests
     public async Task OrdinaryDirectAndIncrementalBuilds_EnforceAllFourPolicies(string configuration)
     {
         using var fixture = new CompilerBuildFixture();
+        Assert.False(File.Exists(fixture.AnalyzerAssembly(configuration)));
         await fixture.WriteSourceAsync("namespace Fixture; public sealed class Legal { public static int Read(int value) => value; }");
         var baseline = await fixture.BuildAsync(configuration);
         Assert.True(baseline.ExitCode == 0, baseline.Output + baseline.Error);
         Assert.DoesNotContain("CS8032", baseline.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("CS9057", baseline.Output, StringComparison.Ordinal);
-        Assert.False(File.Exists(Path.Combine(fixture.Root, "bin", configuration, "net10.0", "ExcelMcp.Analyzers.dll")));
+        Assert.True(File.Exists(fixture.AnalyzerAssembly(configuration)));
+        Assert.False(File.Exists(Path.Combine(fixture.BuildArtifacts, "bin", "Fixture", configuration.ToLowerInvariant(), "ExcelMcp.Analyzers.dll")));
 
         var mutations = new (string Source, string Id)[]
         {
@@ -236,11 +238,15 @@ internal sealed class CompilerBuildFixture : IDisposable
 {
     public string Root { get; }
     public string Project { get; }
+    public string BuildArtifacts => Path.Combine(Root, "out");
+
+    public string AnalyzerAssembly(string configuration) =>
+        Path.Combine(BuildArtifacts, "bin", "ExcelMcp.Analyzers", configuration.ToLowerInvariant(), "ExcelMcp.Analyzers.dll");
 
     public CompilerBuildFixture(bool production = true)
     {
         var repo = TypedSourceGuardTests.FindRoot();
-        Root = Path.Combine(repo, "artifacts", "source-build-fixtures", Guid.NewGuid().ToString("N"));
+        Root = Path.Combine(repo, "artifacts", "guard-builds", Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(Root);
         Project = Path.Combine(Root, "Fixture.csproj");
         File.WriteAllText(Project, $$"""
@@ -267,7 +273,8 @@ internal sealed class CompilerBuildFixture : IDisposable
     public Task<ProcessResult> BuildAsync(string configuration, bool noRestore = false)
     {
         var arguments = new List<string> { "build", Project, "-c", configuration, "--disable-build-servers", "--verbosity", "minimal" };
-        arguments.Add("-p:BuildProjectReferences=false");
+        arguments.Add("-p:UseArtifactsOutput=true");
+        arguments.Add("-p:ArtifactsPath=" + BuildArtifacts);
         if (noRestore) { arguments.Add("--no-restore"); }
         return RunAsync(arguments.ToArray());
     }

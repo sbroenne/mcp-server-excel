@@ -12,7 +12,7 @@
     <!-- Analyzer-testing's NuGet.Packaging dependency needs a patched Pkcs version only in this test harness. -->
     <PackageReference Include="System.Security.Cryptography.Pkcs" VersionOverride="9.0.21" PrivateAssets="all" />
     <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" />
-    <PackageReference Include="Microsoft.Office.Interop.Excel" />
+    <ProjectReference Include="..\..\src\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />
     <ProjectReference Include="..\..\tools\ExcelMcp.Build\ExcelMcp.Build.csproj" />
     <Compile Include="..\Shared\TestClassificationArchitectureTests.cs" Link="Helpers\TestClassificationArchitectureTests.cs" />
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
