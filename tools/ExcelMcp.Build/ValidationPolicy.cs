@@ -338,7 +338,7 @@ public sealed partial class ValidationPolicy(string root)
         {
             plan.Reasons.Add($"{path} -> published sample and documentation checks");
         }
-        else if (path.EndsWith(".md", StringComparison.Ordinal) || Matches(path, @"^(docs/|gh-pages/|\.github/|\.changeset/|infrastructure/|videos/|llm-tests/|scripts/.*(UsageAnalytics|StarHistory)|\.(gitignore|gitattributes)$|LICENSE$)"))
+        else if (path.EndsWith(".md", StringComparison.Ordinal) || Matches(path, @"^(docs/|gh-pages/|\.github/|\.changeset/|\.squad/|\.vscode/|infrastructure/|videos/|llm-tests/|scripts/.*(UsageAnalytics|StarHistory)|\.(gitignore|gitattributes|mcp\.json)$|LICENSE$)"))
         {
             plan.Reasons.Add($"{path} -> non-runtime input");
         }
