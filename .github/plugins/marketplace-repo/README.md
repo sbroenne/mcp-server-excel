@@ -1,38 +1,56 @@
-# ExcelMcp Copilot CLI Plugins
+# ExcelMcp Plugins
 
-Windows-only GitHub Copilot CLI plugins for ExcelMcp.
+**Let your AI agent create and update real Microsoft Excel workbooks: formulas,
+Power Query, PivotTables, charts, and VBA in the desktop app.**
 
-This repository is the publish target for plugin artifacts from [`sbroenne/mcp-server-excel`](https://github.com/sbroenne/mcp-server-excel).
+These plugins connect GitHub Copilot CLI or Claude Code to ExcelMcp. ExcelMcp
+operates the actual Excel application, so Excel handles calculations and
+workbook features.
 
-> [!WARNING]
-> This repository is generated publication output. Do not edit it directly:
-> publication overwrites unsynchronized changes. Update the canonical files in
-> the [source repository](https://github.com/sbroenne/mcp-server-excel) and
-> follow its [plugin publication guide](https://github.com/sbroenne/mcp-server-excel/blob/main/.github/workflows/docs/publish-plugins-setup.md#maintenance-and-updates).
+**Requires Windows, desktop Excel 2016 or later, and Node.js 18 or later with
+`npx`. ExcelMcp runs in an interactive desktop session.**
 
-## Plugins
+## What you can ask your agent to do
 
-- **excel-mcp** — Excel automation for any MCP-compatible AI assistant
-- **excel-cli** — the same Excel automation as terminal commands for coding agents, usually with fewer AI tokens
+| Request | Result |
+| --- | --- |
+| "Create a sales tracker with Date, Product, Quantity, Unit Price, and Total columns." | A workbook with a table and formulas. |
+| "Create a PivotTable showing revenue by region, then add a chart." | A summary and chart built in Excel. |
+| "Refresh the Power Query queries in this workbook and save it." | Updated query results saved in the workbook. |
+| "Put this data into a worksheet and format the totals." | Formatted data ready to read. |
 
-Both plugins offer the same features; you can install either or both.
+You can also work with DAX and the Data Model, connections, slicers, conditional
+formatting, and VBA. See the
+[complete feature reference](https://excelmcpserver.dev/features/).
 
-## Repository Layout
+## Choose a plugin
 
-```text
-.github/plugin/marketplace.json
-.claude-plugin/marketplace.json
-plugins/
-├── excel-mcp/
-│   ├── plugin.json
-│   ├── mcp.json
-│   └── skills/excel-mcp-report-formatting/SKILL.md
-└── excel-cli/
-    ├── plugin.json
-    └── skills/excel-cli-report-formatting/SKILL.md
-```
+| Plugin | How your agent works with Excel | Best fit |
+| --- | --- | --- |
+| [excel-cli](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-cli) | Runs terminal commands and reads built-in help when needed. | Coding agents that can run commands; usually uses fewer AI tokens. |
+| [excel-mcp](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-mcp) | Uses Excel tools provided by the MCP Server. | Assistants using MCP tools. |
 
-The canonical marketplace manifest lives at `.github/plugin/marketplace.json`; `.claude-plugin/marketplace.json` is the same catalog in Claude Code's format, with the excel-mcp server declared inline. The `plugins/` directory contains Agent Plugins 1.0 packages generated from source-owned templates by the source repo's `publish-plugins.yml` workflow.
+Both plugins offer the same Excel features; you can install either or both.
+The underlying CLI and MCP Server also work outside these plugins; see the
+[CLI installation guide](https://excelmcpserver.dev/installation-cli/) or
+[MCP Server installation guide](https://excelmcpserver.dev/installation-mcp-server/).
+
+M and DAX code stays on your computer by default. Optional formatting sends the
+corresponding code to powerqueryformatter.com or daxformatter.com. Only enable
+it when you want to send code to those services; the individual plugin READMEs
+describe the options.
+
+## Source and support
+
+- [Documentation](https://excelmcpserver.dev/)
+- [Source repository](https://github.com/sbroenne/mcp-server-excel)
+- [Issues](https://github.com/sbroenne/mcp-server-excel/issues)
+- MIT License
+
+For contributors: this repository is generated publication output. Make changes
+in the source repository, not here; publication overwrites unsynchronized edits.
+Follow the
+[plugin maintenance guide](https://github.com/sbroenne/mcp-server-excel/blob/main/.github/workflows/docs/publish-plugins-setup.md#maintenance-and-updates).
 
 ## Install
 
@@ -78,20 +96,3 @@ and `/plugin install excel-mcp@mcp-server-excel-plugins`.
 
 For Claude Desktop, use the one-click `.mcpb` bundle from the
 [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest) instead.
-
-## Notes
-
-- **Windows only** — ExcelMcp depends on Microsoft Excel COM automation.
-- **excel-mcp** includes portable root `mcp.json` configuration that launches `@sbroenne/mcp-server-excel`.
-- **excel-cli** includes an argument-safe npx wrapper for `@sbroenne/excelcli`; separate PATH installation is optional.
-- Both root `plugin.json` manifests target `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`; skills are discovered from the fixed `skills/` directory.
-
-## Source and Support
-
-- Source repo: [sbroenne/mcp-server-excel](https://github.com/sbroenne/mcp-server-excel)
-- Issues: [sbroenne/mcp-server-excel/issues](https://github.com/sbroenne/mcp-server-excel/issues)
-- Plugin docs: [excel-mcp](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-mcp), [excel-cli](https://github.com/sbroenne/mcp-server-excel-plugins/tree/main/plugins/excel-cli)
-
-## License
-
-MIT

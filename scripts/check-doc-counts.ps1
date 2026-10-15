@@ -226,7 +226,6 @@ $checks = @(
     @{ File = "gh-pages\docs\index.md";                 Pattern = '(?<m>\d+) MCP tools and (?<o>\d+) operations' }
     @{ File = ".github\plugins\excel-mcp\README.md";    Pattern = '(?<m>\d+) MCP tools across (?<t>\d+) feature areas, with (?<o>\d+) operations' }
     @{ File = ".github\plugins\excel-cli\README.md";    Pattern = 'command categories with (?<o>\d+) operations' }
-    @{ File = ".github\plugins\excel-cli\README.md";    Pattern = '\| (?<m>\d+) tool schemas loaded into context \|' }
     @{ File = "gh-pages\docs\faq.md";                   Pattern = 'same (?<o>\d+) operations' }
     @{ File = "docs\INSTALLATION-CLI.md";               Pattern = 'all (?<t>\d+) feature command categories' }
     @{ File = "docs\COPILOT-PLUGIN-DISTRIBUTION.md";    Pattern = 'with (?<m>\d+) tools across (?<t>\d+) feature areas \((?<o>\d+) operations\)' }
