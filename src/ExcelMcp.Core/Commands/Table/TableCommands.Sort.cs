@@ -54,7 +54,8 @@ public partial class TableCommands
                 sortRange.Sort(
                     Key1: columnRange,
                     Order1: (Excel.XlSortOrder)(ascending ? xlAscending : xlDescending),
-                    Header: Excel.XlYesNoGuess.xlYes
+                    Header: Excel.XlYesNoGuess.xlYes,
+                    Orientation: Excel.XlSortOrientation.xlSortColumns
                 );
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
@@ -137,7 +138,8 @@ public partial class TableCommands
                     sortRange.Sort(
                         Key1: key1,
                         Order1: (Excel.XlSortOrder)(sortColumns[0].Ascending ? xlAscending : xlDescending),
-                        Header: Excel.XlYesNoGuess.xlYes
+                        Header: Excel.XlYesNoGuess.xlYes,
+                        Orientation: Excel.XlSortOrientation.xlSortColumns
                     );
                 }
                 else if (sortColumns.Count == 2)
@@ -147,7 +149,8 @@ public partial class TableCommands
                         Order1: (Excel.XlSortOrder)(sortColumns[0].Ascending ? xlAscending : xlDescending),
                         Key2: key2,
                         Order2: (Excel.XlSortOrder)(sortColumns[1].Ascending ? xlAscending : xlDescending),
-                        Header: Excel.XlYesNoGuess.xlYes
+                        Header: Excel.XlYesNoGuess.xlYes,
+                        Orientation: Excel.XlSortOrientation.xlSortColumns
                     );
                 }
                 else if (sortColumns.Count == 3)
@@ -159,7 +162,8 @@ public partial class TableCommands
                         Order2: (Excel.XlSortOrder)(sortColumns[1].Ascending ? xlAscending : xlDescending),
                         Key3: key3,
                         Order3: (Excel.XlSortOrder)(sortColumns[2].Ascending ? xlAscending : xlDescending),
-                        Header: Excel.XlYesNoGuess.xlYes
+                        Header: Excel.XlYesNoGuess.xlYes,
+                        Orientation: Excel.XlSortOrientation.xlSortColumns
                     );
                 }
 
