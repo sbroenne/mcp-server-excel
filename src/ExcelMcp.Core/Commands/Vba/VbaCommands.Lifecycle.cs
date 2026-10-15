@@ -25,7 +25,9 @@ public partial class VbaCommands
 
         return batch.Execute((ctx, ct) =>
         {
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? vbaProject = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? vbComponents = null;
             try
             {
@@ -37,7 +39,9 @@ public partial class VbaCommands
 
                 for (int i = 1; i <= vbComponents.Count; i++)
                 {
+                    // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
                     dynamic? component = null;
+                    // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
                     dynamic? codeModule = null;
                     try
                     {
@@ -109,9 +113,13 @@ public partial class VbaCommands
 
         return batch.Execute((ctx, ct) =>
         {
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? vbaProject = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? vbComponents = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? component = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? codeModule = null;
             try
             {
@@ -195,9 +203,13 @@ public partial class VbaCommands
 
         return batch.Execute((ctx, ct) =>
         {
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? vbaProject = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? vbComponents = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? newModule = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? codeModule = null;
             try
             {
@@ -210,6 +222,7 @@ public partial class VbaCommands
                 // Check if module already exists
                 for (int i = 1; i <= vbComponents.Count; i++)
                 {
+                    // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
                     dynamic? component = null;
                     try
                     {
@@ -267,9 +280,13 @@ public partial class VbaCommands
 
         return batch.Execute((ctx, ct) =>
         {
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? vbaProject = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? vbComponents = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? targetComponent = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? codeModule = null;
             try
             {
@@ -281,6 +298,7 @@ public partial class VbaCommands
 
                 for (int i = 1; i <= vbComponents.Count; i++)
                 {
+                    // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
                     dynamic? component = null;
                     try
                     {

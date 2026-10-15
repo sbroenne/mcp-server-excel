@@ -17,7 +17,7 @@ public partial class SheetCommands
         {
             Excel.Worksheet? sheet = null;
             Excel.Range? cell = null;
-            dynamic? comment = null;
+            Excel.Comment? comment = null;
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
@@ -59,7 +59,7 @@ public partial class SheetCommands
         {
             Excel.Worksheet? sheet = null;
             Excel.Range? cell = null;
-            dynamic? comment = null;
+            Excel.Comment? comment = null;
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
@@ -99,7 +99,7 @@ public partial class SheetCommands
         {
             Excel.Worksheet? sheet = null;
             Excel.Range? cell = null;
-            dynamic? comment = null;
+            Excel.Comment? comment = null;
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);

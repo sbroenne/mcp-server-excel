@@ -1,5 +1,3 @@
-using System.Runtime.InteropServices;
-using Microsoft.CSharp.RuntimeBinder;
 using Sbroenne.ExcelMcp.ComInterop;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -34,9 +32,10 @@ public sealed class PersistentServiceRequiredMetadataTests(
                 sheet = (Excel.Worksheet)sheets[sheetName];
                 Assert.Equal(sheetName, ComUtilities.SafeGetString(sheet, "Name"));
                 var failure = numeric
-                    ? Assert.ThrowsAny<Exception>(() => ComUtilities.SafeGetInt(sheet, "RecordCount"))
-                    : Assert.ThrowsAny<Exception>(() => ComUtilities.SafeGetString(sheet, "SourceName"));
-                Assert.True(failure is COMException or RuntimeBinderException, failure.ToString());
+                    ? Assert.Throws<ArgumentOutOfRangeException>(() => ComUtilities.SafeGetInt(sheet, "RecordCount"))
+                    : Assert.Throws<ArgumentOutOfRangeException>(() => ComUtilities.SafeGetString(sheet, "SourceName"));
+                Assert.Equal("propertyName", failure.ParamName);
+                Assert.Equal(numeric ? "RecordCount" : "SourceName", failure.ActualValue);
             }
             finally
             {

@@ -3,6 +3,7 @@ using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PythonInExcel;
 
@@ -35,9 +36,9 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? range = null;
-            dynamic? cells = null;
-            dynamic? firstCell = null;
+            Excel.Range? range = null;
+            Excel.Range? cells = null;
+            Excel.Range? firstCell = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -65,7 +66,7 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
                 }
 
                 cells = range.Cells;
-                firstCell = cells.Item[1, 1];
+                firstCell = (Excel.Range)cells.Item[1, 1];
                 object? value = firstCell.Value2;
                 string displayedText = firstCell.Text?.ToString() ?? string.Empty;
                 string storedFormula = firstCell.Formula2?.ToString() ?? formula;
@@ -117,7 +118,7 @@ public sealed class PythonInExcelCommands : IPythonInExcelCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? range = null;
+            Excel.Range? range = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);

@@ -28,69 +28,30 @@ public sealed partial class AutomationSafetyTests
     [InlineData("check-com-leaks.ps1")]
     [InlineData("check-success-flag.ps1")]
     [InlineData("check-dynamic-casts.ps1")]
-    public async Task SourceGuards_RejectEmptyDiscoveryAndIgnoreGeneratedFiles(string script)
+    [InlineData("check-workbook-package-access.ps1")]
+    public async Task SourceGuardAdapters_ForwardCompilerValidationAndPreserveFailures(string script)
     {
-        string[] suspiciousCases = script switch
-        {
-            "check-com-leaks.ps1" =>
-            [
-                "var count = worksheet.Rows.Count;",
-                "int row = table.Range.Row;",
-                "int column = table.Range.Column;",
-                "namesCollection.Add(\"Example\", \"=Sheet1!A1\");"
-            ],
-            "check-success-flag.ps1" => ["result.Success = true;\nresult.ErrorMessage = \"failure\";"],
-            "check-dynamic-casts.ps1" => ["var item = ((dynamic)source).Item;"],
-            _ => throw new ArgumentOutOfRangeException(nameof(script))
-        };
-        var suspicious = string.Join(Environment.NewLine, suspiciousCases);
         var root = NewSandbox();
         try
         {
             var scripts = Directory.CreateDirectory(Path.Combine(root, "scripts")).FullName;
             File.Copy(Path.Combine(RepoRoot, "scripts", script), Path.Combine(scripts, script));
-            Directory.CreateDirectory(Path.Combine(root, "src", "ExcelMcp.Core", "Commands"));
-            Directory.CreateDirectory(Path.Combine(root, "src", "ExcelMcp.ComInterop"));
-            var commands = Path.Combine(root, "src", "ExcelMcp.Core", "Commands");
-            var arguments = script == "check-com-leaks.ps1" ? $" -InputPath '{Quote(commands)}'" : "";
-            var command = $"& '{Quote(Path.Combine(scripts, script))}'{arguments}";
-            var empty = await RunAsync(root, command);
-            Assert.NotEqual(0, empty.ExitCode);
-
-            var source = Path.Combine(commands, "Example.cs");
-            File.WriteAllText(source, suspicious);
-            File.WriteAllText(Path.Combine(root, "src", "ExcelMcp.ComInterop", "Example.cs"), "class Example {}");
-            var invalid = await RunAsync(root, command);
-            Assert.NotEqual(0, invalid.ExitCode);
-            if (script == "check-com-leaks.ps1")
-            {
-                Assert.Contains("4 com-leaks violation(s).", invalid.Output, StringComparison.Ordinal);
-                for (var index = 0; index < suspiciousCases.Length; index++)
-                {
-                    Assert.Contains($"Example.cs:{index + 1} - ", invalid.Output, StringComparison.Ordinal);
-                    Assert.Contains(suspiciousCases[index], invalid.Output, StringComparison.Ordinal);
-                }
-            }
-
-            File.WriteAllText(source, script == "check-com-leaks.ps1" ? """
-                dynamic? rows = null;
-                dynamic? name = null;
-                try
-                {
-                    rows = range.Rows;
-                    int count = rows.Count;
-                    name = namesCollection.Add("Example", "=Sheet1!A1");
-                }
-                finally
-                {
-                    ComUtilities.Release(ref name);
-                    ComUtilities.Release(ref rows);
-                }
-                """ : "class Example {}");
-            var generated = Directory.CreateDirectory(Path.Combine(commands, "obj")).FullName;
-            File.WriteAllText(Path.Combine(generated, "Generated.cs"), suspicious);
+            File.WriteAllText(Path.Combine(root, "build.ps1"), """
+                Write-Output "compiler-validation $args"
+                if ($env:SOURCE_GUARD_FAILURE -eq 'true') {
+                    Write-Error 'compiler-root-cause EXCEL003' -ErrorAction Continue
+                    $global:LASTEXITCODE = 23
+                } else { $global:LASTEXITCODE = 0 }
+                """);
+            var command = $"$env:EXCELMCP_BUILD_ROOT='{Quote(root)}'; & '{Quote(Path.Combine(scripts, script))}'";
             var valid = await RunAsync(root, command);
             Assert.True(valid.ExitCode == 0, valid.Output);
+            Assert.Contains("check-source", valid.Output, StringComparison.Ordinal);
+            Assert.Contains(script.Replace("check-", "", StringComparison.Ordinal).Replace(".ps1", "", StringComparison.Ordinal),
+                valid.Output, StringComparison.Ordinal);
+            var failed = await RunAsync(root, "$env:SOURCE_GUARD_FAILURE='true'; " + command);
+            Assert.NotEqual(0, failed.ExitCode);
+            Assert.Contains("compiler-root-cause EXCEL003", failed.Output, StringComparison.Ordinal);
         }
         finally { Directory.Delete(root, true); }
     }
@@ -525,7 +486,7 @@ public sealed partial class AutomationSafetyTests
     }
 
     private static string NewSandbox()
-        => Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"ExcelMcp.Automation.{Guid.NewGuid():N}")).FullName;
+        => Directory.CreateDirectory(Path.Combine(RepoRoot, "artifacts", "script-safety-fixtures", $"ExcelMcp.Automation.{Guid.NewGuid():N}")).FullName;
 
     private static string Quote(string value) => value.Replace("'", "''", StringComparison.Ordinal);
 

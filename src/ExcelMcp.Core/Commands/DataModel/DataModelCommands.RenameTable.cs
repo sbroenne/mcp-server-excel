@@ -125,8 +125,8 @@ public partial class DataModelCommands
                 }
 
                 // Find and rename the underlying Power Query
-                dynamic? targetQuery = null;
-                dynamic? oleDbConnection = null;
+                Excel.WorkbookQuery? targetQuery = null;
+                Excel.OLEDBConnection? oleDbConnection = null;
                 try
                 {
                     targetQuery = PowerQuery.PowerQueryHelpers.FindQueryByExactName(ctx.Book, pqName);

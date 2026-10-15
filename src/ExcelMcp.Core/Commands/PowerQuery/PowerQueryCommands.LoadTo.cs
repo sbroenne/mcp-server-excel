@@ -105,19 +105,25 @@ public partial class PowerQueryCommands
                 switch (loadMode)
                 {
                     case PowerQueryLoadMode.LoadToTable:
-                        LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, result, ct);
+                        (result.RowsLoaded, result.TargetCellAddress) =
+                            LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, ct);
+                        result.Success = true;
                         break;
 
                     case PowerQueryLoadMode.LoadToDataModel:
-                        LoadQueryToDataModel(ctx.Book, queryName, result, cancellationToken: ct);
+                        (result.RowsLoaded, result.TargetCellAddress) =
+                            LoadQueryToDataModel(ctx.Book, queryName, cancellationToken: ct);
+                        result.Success = true;
                         break;
 
                     case PowerQueryLoadMode.LoadToBoth:
                         // For LoadToBoth, create TWO separate properly-named connections:
                         // 1. Worksheet connection: "Query - {name}" (created by LoadQueryToWorksheet)
                         // 2. Data Model connection: "Query - {name} (Data Model)" (with suffix to avoid conflict)
-                        LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, result, ct);
-                        LoadQueryToDataModel(ctx.Book, queryName, result, " (Data Model)", ct);
+                        LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress, ct);
+                        (result.RowsLoaded, result.TargetCellAddress) =
+                            LoadQueryToDataModel(ctx.Book, queryName, " (Data Model)", ct);
+                        result.Success = true;
                         break;
 
                     case PowerQueryLoadMode.ConnectionOnly:
@@ -155,22 +161,21 @@ public partial class PowerQueryCommands
     /// the same ListObjects.Add() pattern for consistency.
     /// Matches Excel UI behavior: Creates worksheet if it doesn't exist, or loads to existing worksheet.
     /// </remarks>
-    private static bool LoadQueryToWorksheet(
-        dynamic workbook,
+    private static (int RowsLoaded, string? TargetCellAddress) LoadQueryToWorksheet(
+        Excel.Workbook workbook,
         string queryName,
         string sheetName,
         string targetCellAddress,
-        dynamic result,
         CancellationToken cancellationToken)
     {
-        dynamic? worksheets = null;
-        dynamic? sheet = null;
-        dynamic? destination = null;
-        dynamic? connections = null;
-        dynamic? connection = null;
-        dynamic? listObjects = null;
-        dynamic? listObject = null;
-        dynamic? queryTable = null;
+        Excel.Sheets? worksheets = null;
+        Excel.Worksheet? sheet = null;
+        Excel.Range? destination = null;
+        Excel.Connections? connections = null;
+        Excel.WorkbookConnection? connection = null;
+        Excel.ListObjects? listObjects = null;
+        Excel.ListObject? listObject = null;
+        Excel.QueryTable? queryTable = null;
 
         try
         {
@@ -180,10 +185,10 @@ public partial class PowerQueryCommands
             bool worksheetExists = false;
             for (int i = 1; i <= worksheets.Count; i++)
             {
-                dynamic? ws = null;
+                Excel.Worksheet? ws = null;
                 try
                 {
-                    ws = worksheets.Item(i);
+                    ws = (Excel.Worksheet)worksheets.Item[i];
                     string wsName = ws.Name?.ToString() ?? "";
                     if (wsName.Equals(sheetName, StringComparison.OrdinalIgnoreCase))
                     {
@@ -202,7 +207,7 @@ public partial class PowerQueryCommands
             // Create new worksheet if doesn't exist
             if (!worksheetExists)
             {
-                sheet = worksheets.Add();
+                sheet = (Excel.Worksheet)worksheets.Add();
                 sheet.Name = sheetName;
             }
 
@@ -220,7 +225,7 @@ public partial class PowerQueryCommands
             {
                 // Check if any ListObjects (tables) would overlap with this location
                 // Excel error: "A table cannot overlap a range that contains a pivot table report, query results, protected cells or another table."
-                dynamic? existingTables = null;
+                Excel.ListObjects? existingTables = null;
                 try
                 {
                     existingTables = sheet.ListObjects;
@@ -234,17 +239,21 @@ public partial class PowerQueryCommands
 
                         for (int i = 1; i <= tableCount; i++)
                         {
-                            dynamic? table = null;
-                            dynamic? tableRange = null;
+                            Excel.ListObject? table = null;
+                            Excel.Range? tableRange = null;
+                            Excel.Range? tableRows = null;
+                            Excel.Range? tableColumns = null;
                             try
                             {
-                                table = existingTables.Item(i);
+                                table = existingTables.Item[i];
                                 tableRange = table.Range;
+                                tableRows = tableRange.Rows;
+                                tableColumns = tableRange.Columns;
 
                                 int tableStartRow = Convert.ToInt32(tableRange.Row);
                                 int tableStartCol = Convert.ToInt32(tableRange.Column);
-                                int tableEndRow = tableStartRow + Convert.ToInt32(tableRange.Rows.Count) - 1;
-                                int tableEndCol = tableStartCol + Convert.ToInt32(tableRange.Columns.Count) - 1;
+                                int tableEndRow = tableStartRow + tableRows.Count - 1;
+                                int tableEndCol = tableStartCol + tableColumns.Count - 1;
 
                                 // Check if destination cell would overlap with existing table
                                 if (destRow >= tableStartRow && destRow <= tableEndRow &&
@@ -255,6 +264,8 @@ public partial class PowerQueryCommands
                             }
                             finally
                             {
+                                ComUtilities.Release(ref tableColumns);
+                                ComUtilities.Release(ref tableRows);
                                 ComUtilities.Release(ref tableRange);
                                 ComUtilities.Release(ref table);
                             }
@@ -267,9 +278,8 @@ public partial class PowerQueryCommands
                 }
 
                 // Also check if target cell contains data (Excel UI validation)
-                dynamic? cellValue = destination.Value2;
+                object? cellValue = destination.Value2;
                 bool cellHasData = cellValue != null && !string.IsNullOrWhiteSpace(cellValue.ToString());
-                ComUtilities.Release(ref cellValue!);
 
                 if (cellHasData)
                 {
@@ -299,21 +309,21 @@ public partial class PowerQueryCommands
             // This reuses the properly-named connection instead of creating a new generic one
             listObjects = sheet.ListObjects;
             listObject = listObjects.Add(
-                0,                  // SourceType: 0 = xlSrcExternal
+                Excel.XlListObjectSourceType.xlSrcExternal,
                 connection,         // Source: connection object (reuses existing named connection)
                 Type.Missing,       // LinkSource
-                1,                  // XlListObjectHasHeaders: xlYes
+                Excel.XlYesNoGuess.xlYes,
                 destination         // Destination: starting cell
             );
 
             // Configure the QueryTable behind the ListObject
             queryTable = listObject.QueryTable;
-            queryTable.CommandType = 2; // xlCmdSql
+            queryTable.CommandType = Excel.XlCmdType.xlCmdSql; // xlCmdSql
             queryTable.CommandText = $"SELECT * FROM [{queryName}]";
             queryTable.AdjustColumnWidth = true;
             queryTable.PreserveFormatting = true;
             queryTable.BackgroundQuery = false; // Synchronous
-            queryTable.RefreshStyle = 1; // xlInsertDeleteCells
+            queryTable.RefreshStyle = Excel.XlCellInsertionMode.xlInsertDeleteCells; // xlInsertDeleteCells
             // Excel needs column bindings to remove fields when the source schema shrinks.
             ((Excel.QueryTable)queryTable).PreserveColumnInfo = true;
 
@@ -332,14 +342,20 @@ public partial class PowerQueryCommands
             catch { /* Non-critical — if rename fails (e.g. name conflict), load still succeeded. */ }
 
             // Capture results - use ListObject Range for total rows, subtract header
-            dynamic? listObjectRange = listObject.Range;
-            int totalRows = listObjectRange != null ? Convert.ToInt32(listObjectRange.Rows.Count) : 0;
-            result.TargetCellAddress = targetCellAddress;
-            result.RowsLoaded = totalRows > 0 ? totalRows - 1 : 0; // Subtract header row
-            result.Success = true;
-
-            ComUtilities.Release(ref listObjectRange!);
-            return true;
+            Excel.Range? listObjectRange = null;
+            Excel.Range? listObjectRows = null;
+            try
+            {
+                listObjectRange = listObject.Range;
+                listObjectRows = listObjectRange?.Rows;
+                int totalRows = listObjectRows?.Count ?? 0;
+                return (totalRows > 0 ? totalRows - 1 : 0, targetCellAddress);
+            }
+            finally
+            {
+                ComUtilities.Release(ref listObjectRows);
+                ComUtilities.Release(ref listObjectRange);
+            }
         }
         finally
         {
@@ -360,17 +376,16 @@ public partial class PowerQueryCommands
     /// </summary>
     /// <param name="workbook">The workbook to load into.</param>
     /// <param name="queryName">The Power Query name.</param>
-    /// <param name="result">Result object to populate.</param>
     /// <param name="connectionNameSuffix">Optional suffix for connection name to avoid conflicts (e.g., " (Data Model)").</param>
-    private static bool LoadQueryToDataModel(
-        dynamic workbook,
+    /// <returns>The Data Model row-count sentinel and no worksheet address.</returns>
+    private static (int RowsLoaded, string? TargetCellAddress) LoadQueryToDataModel(
+        Excel.Workbook workbook,
         string queryName,
-        dynamic result,
         string? connectionNameSuffix = null,
         CancellationToken cancellationToken = default)
     {
-        dynamic? connections = null;
-        dynamic? connection = null;
+        Excel.Connections? connections = null;
+        Excel.WorkbookConnection? connection = null;
 
         try
         {
@@ -409,10 +424,7 @@ public partial class PowerQueryCommands
                 OleMessageFilter.ClearPendingCancellationToken();
             }
 
-            result.RowsLoaded = -1; // Data Model doesn't expose row count
-            result.TargetCellAddress = null;
-            result.Success = true;
-            return true;
+            return (-1, null); // Data Model doesn't expose row count
         }
         finally
         {
@@ -425,23 +437,22 @@ public partial class PowerQueryCommands
     /// Gets an existing worksheet or creates a new one.
     /// SHARED HELPER - Used by Create and LoadTo.
     /// </summary>
-    private static dynamic? GetOrCreateWorksheet(dynamic worksheets, string sheetName)
+    private static Excel.Worksheet? GetOrCreateWorksheet(Excel.Sheets worksheets, string sheetName)
     {
 
         // Try to find existing worksheet
         int count = worksheets.Count;
-        dynamic? sheet;
         for (int i = 1; i <= count; i++)
         {
-            dynamic? candidate = null;
+            Excel.Worksheet? candidate = null;
             try
             {
-                candidate = worksheets.Item(i);
+                candidate = (Excel.Worksheet)worksheets.Item[i];
                 string name = candidate.Name ?? "";
 
                 if (name.Equals(sheetName, StringComparison.OrdinalIgnoreCase))
                 {
-                    sheet = candidate;
+                    var sheet = candidate;
                     candidate = null; // Prevent release in finally
                     return sheet;
                 }
@@ -456,8 +467,18 @@ public partial class PowerQueryCommands
         }
 
         // Sheet not found, create new one
-        sheet = worksheets.Add();
-        sheet.Name = sheetName;
-        return sheet;
+        Excel.Worksheet? createdSheet = null;
+        try
+        {
+            createdSheet = (Excel.Worksheet)worksheets.Add();
+            createdSheet.Name = sheetName;
+            var sheet = createdSheet;
+            createdSheet = null;
+            return sheet;
+        }
+        finally
+        {
+            ComUtilities.Release(ref createdSheet);
+        }
     }
 }

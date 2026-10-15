@@ -42,13 +42,7 @@ public sealed class ValidationExecution(string root, IProcessRunner runner)
 
     public async Task CheckSourcesAsync(ValidationPlan plan)
     {
-        if (plan.SourceChecks)
-        {
-            foreach (var script in new[] { "check-com-leaks", "check-success-flag", "check-dynamic-casts", "check-workbook-package-access" })
-            {
-                new SourceGuards(root).Check(script["check-".Length..]);
-            }
-        }
+        if (plan.SourceChecks && !plan.Build) { throw new InvalidOperationException("Compiler source checks require selected build inputs."); }
         if (plan.DocumentationCounts)
         {
             if (!plan.FullSolutionBuild) { throw new InvalidOperationException("Documentation counts require a complete Release build."); }

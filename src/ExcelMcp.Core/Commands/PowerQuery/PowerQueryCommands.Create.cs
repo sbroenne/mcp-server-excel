@@ -100,19 +100,25 @@ public partial class PowerQueryCommands
                         break;
 
                     case PowerQueryLoadMode.LoadToTable:
-                        LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress!, result, ct);
+                        (result.RowsLoaded, result.TargetCellAddress) =
+                            LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress!, ct);
+                        result.Success = true;
                         break;
 
                     case PowerQueryLoadMode.LoadToDataModel:
-                        LoadQueryToDataModel(ctx.Book, queryName, result, cancellationToken: ct);
+                        (result.RowsLoaded, result.TargetCellAddress) =
+                            LoadQueryToDataModel(ctx.Book, queryName, cancellationToken: ct);
+                        result.Success = true;
                         break;
 
                     case PowerQueryLoadMode.LoadToBoth:
                         // For LoadToBoth, create TWO separate properly-named connections:
                         // 1. Worksheet connection: "Query - {name}" (created by LoadQueryToWorksheet)
                         // 2. Data Model connection: "Query - {name} (Data Model)" (with suffix to avoid conflict)
-                        LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress!, result, ct);
-                        LoadQueryToDataModel(ctx.Book, queryName, result, " (Data Model)", ct);
+                        LoadQueryToWorksheet(ctx.Book, queryName, targetSheet!, targetCellAddress!, ct);
+                        (result.RowsLoaded, result.TargetCellAddress) =
+                            LoadQueryToDataModel(ctx.Book, queryName, " (Data Model)", ct);
+                        result.Success = true;
                         break;
                 }
 

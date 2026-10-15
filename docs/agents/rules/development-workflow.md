@@ -11,9 +11,12 @@
 - `tools\ExcelMcp.Build\ValidationPolicy.cs` is the shared CI, CodeQL, and local
   selection source; `Get-ValidationPlan.ps1` only forwards to it. `build.ps1`
   bootstraps the internal .NET tool in isolated outputs, not a product entry point.
-  `SourceGuards.cs` owns the four C# source safeguards; their PowerShell commands
-  are forwarding adapters. Run them directly with `build.ps1 check-source --rule`
-  or through selected validation, without maintaining a second scanner policy.
+  Ordinary production builds own source safeguards through the internal
+  `ExcelMcp.Analyzers` compiler analyzer, Microsoft's BannedApiAnalyzers, and
+  evaluated dependency targets in `Directory.Build.targets`. `SourceGuards.cs`
+  and `scripts\check-*.ps1` are compatibility build adapters, not scanners.
+  Do not run four redundant guard builds after selected validation. Policy
+  scope, completed-area gating and regression commands: [source safety](../../SOURCE-SAFETY.md).
   Package preparation, built test inventories, stage execution, selected CI
   builds and completion checks also live in typed components. Retained script
   signatures translate arguments; do not add a second execution or result policy.

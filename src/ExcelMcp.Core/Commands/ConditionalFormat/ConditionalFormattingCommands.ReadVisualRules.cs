@@ -1,6 +1,7 @@
 using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -11,9 +12,9 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// </summary>
 public partial class ConditionalFormattingCommands
 {
-    private static List<ColorScaleCriterionInfo>? ReadColorScale(dynamic fc)
+    private static List<ColorScaleCriterionInfo>? ReadColorScale(Excel.ColorScale fc)
     {
-        dynamic? criteria = null;
+        Excel.ColorScaleCriteria? criteria = null;
         try
         {
             criteria = fc.ColorScaleCriteria;
@@ -22,11 +23,11 @@ public partial class ConditionalFormattingCommands
 
             for (int i = 1; i <= count; i++)
             {
-                dynamic? criterion = null;
-                dynamic? formatColor = null;
+                Excel.ColorScaleCriterion? criterion = null;
+                Excel.FormatColor? formatColor = null;
                 try
                 {
-                    criterion = criteria.Item(i);
+                    criterion = criteria[i];
                     var info = new ColorScaleCriterionInfo();
 
                     int t = Convert.ToInt32(criterion.Type, CultureInfo.InvariantCulture);
@@ -60,13 +61,13 @@ public partial class ConditionalFormattingCommands
         }
     }
 
-    private static DataBarInfo? ReadDataBar(dynamic fc)
+    private static DataBarInfo? ReadDataBar(Excel.Databar fc)
     {
         try
         {
             var info = new DataBarInfo();
 
-            dynamic? barColor = null;
+            Excel.FormatColor? barColor = null;
             try
             {
                 barColor = fc.BarColor;
@@ -76,8 +77,8 @@ public partial class ConditionalFormattingCommands
             finally { ComUtilities.Release(ref barColor!); }
 
             // Negative bar color only meaningful when a custom color type is used.
-            dynamic? negativeFormat = null;
-            dynamic? negColor = null;
+            Excel.NegativeBarFormat? negativeFormat = null;
+            Excel.FormatColor? negColor = null;
             try
             {
                 negativeFormat = fc.NegativeBarFormat;
@@ -109,9 +110,9 @@ public partial class ConditionalFormattingCommands
         catch (Exception ex) when (IsComOrBinderException(ex)) { return null; }
     }
 
-    private static void ReadDataBarPoint(dynamic fc, DataBarInfo info, bool isMin)
+    private static void ReadDataBarPoint(Excel.Databar fc, DataBarInfo info, bool isMin)
     {
-        dynamic? point = null;
+        Excel.ConditionValue? point = null;
         try
         {
             point = isMin ? fc.MinPoint : fc.MaxPoint;
@@ -129,16 +130,16 @@ public partial class ConditionalFormattingCommands
         }
     }
 
-    private static IconSetInfo? ReadIconSet(dynamic fc)
+    private static IconSetInfo? ReadIconSet(Excel.IconSetCondition fc)
     {
         try
         {
             var info = new IconSetInfo();
 
-            dynamic? iconSet = null;
+            Excel.IconSet? iconSet = null;
             try
             {
-                iconSet = fc.IconSet;
+                iconSet = (Excel.IconSet)fc.IconSet;
                 info.Id = IconSetIdToString(Convert.ToInt32(iconSet.ID, CultureInfo.InvariantCulture));
             }
             catch (Exception ex) when (IsComOrBinderException(ex)) { }
@@ -150,7 +151,7 @@ public partial class ConditionalFormattingCommands
             try { info.ShowIconOnly = Convert.ToBoolean(fc.ShowIconOnly, CultureInfo.InvariantCulture); }
             catch (Exception ex) when (IsComOrBinderException(ex)) { }
 
-            dynamic? iconCriteria = null;
+            Excel.IconCriteria? iconCriteria = null;
             try
             {
                 iconCriteria = fc.IconCriteria;
@@ -159,10 +160,10 @@ public partial class ConditionalFormattingCommands
 
                 for (int i = 1; i <= count; i++)
                 {
-                    dynamic? criterion = null;
+                    Excel.IconCriterion? criterion = null;
                     try
                     {
-                        criterion = iconCriteria.Item(i);
+                        criterion = iconCriteria[i];
                         var c = new IconCriterionInfo();
 
                         try { c.Operator = ConditionalFormattingOperatorToString(Convert.ToInt32(criterion.Operator, CultureInfo.InvariantCulture)); }
@@ -199,7 +200,7 @@ public partial class ConditionalFormattingCommands
         catch (Exception ex) when (IsComOrBinderException(ex)) { return null; }
     }
 
-    private static Top10Info? ReadTop10(dynamic fc)
+    private static Top10Info? ReadTop10(Excel.Top10 fc)
     {
         try
         {
@@ -219,13 +220,13 @@ public partial class ConditionalFormattingCommands
         catch (Exception ex) when (IsComOrBinderException(ex)) { return null; }
     }
 
-    private static string? ReadAboveBelow(dynamic fc)
+    private static string? ReadAboveBelow(Excel.AboveAverage fc)
     {
         try { return AboveBelowToString(Convert.ToInt32(fc.AboveBelow, CultureInfo.InvariantCulture)); }
         catch (Exception ex) when (IsComOrBinderException(ex)) { return null; }
     }
 
-    private static string? ReadTimePeriod(dynamic fc)
+    private static string? ReadTimePeriod(Excel.FormatCondition fc)
     {
         try { return TimePeriodToString(Convert.ToInt32(fc.DateOperator, CultureInfo.InvariantCulture)); }
         catch (Exception ex) when (IsComOrBinderException(ex)) { return null; }
@@ -235,11 +236,17 @@ public partial class ConditionalFormattingCommands
     /// Reads a ConditionValue/criterion <c>Value</c> and formats it as an invariant string.
     /// Integral doubles are rendered without a trailing ".0". Returns null when unreadable.
     /// </summary>
-    private static string? ReadConditionValue(dynamic owner)
+    private static string? ReadConditionValue(object owner)
     {
         try
         {
-            object? value = owner.Value;
+            object? value = owner switch
+            {
+                Excel.ConditionValue point => point.Value,
+                Excel.ColorScaleCriterion criterion => criterion.Value,
+                Excel.IconCriterion criterion => criterion.Value,
+                _ => null
+            };
             if (value == null)
                 return null;
 

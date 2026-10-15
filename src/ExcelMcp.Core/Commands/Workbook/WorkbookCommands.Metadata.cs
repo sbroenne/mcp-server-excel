@@ -67,6 +67,7 @@ public partial class WorkbookCommands
         ValidatePropertyName(propertyName);
         return batch.Execute((context, _) =>
         {
+            // PIA gap: Office.DocumentProperties and DocumentProperty require the unreferenced Office.Core library.
             dynamic? property = null;
             try
             {
@@ -94,7 +95,9 @@ public partial class WorkbookCommands
         ValidatePropertyName(propertyName);
         return batch.Execute((context, _) =>
         {
+            // PIA gap: Office.DocumentProperties and DocumentProperty require the unreferenced Office.Core library.
             dynamic? properties = null;
+            // PIA gap: Office.DocumentProperties and DocumentProperty require the unreferenced Office.Core library.
             dynamic? property = null;
             try
             {
@@ -135,6 +138,7 @@ public partial class WorkbookCommands
         ValidatePropertyName(propertyName);
         return batch.Execute((context, _) =>
         {
+            // PIA gap: Office.DocumentProperties and DocumentProperty require the unreferenced Office.Core library.
             dynamic? property = null;
             try
             {
@@ -159,6 +163,7 @@ public partial class WorkbookCommands
         DocumentPropertyScope scope,
         List<DocumentPropertyInfo> target)
     {
+        // PIA gap: Office.DocumentProperties and DocumentProperty require the unreferenced Office.Core library.
         dynamic? properties = null;
         try
         {
@@ -166,6 +171,7 @@ public partial class WorkbookCommands
             var count = Convert.ToInt32(properties.Count, CultureInfo.InvariantCulture);
             for (var index = 1; index <= count; index++)
             {
+                // PIA gap: Office.DocumentProperties and DocumentProperty require the unreferenced Office.Core library.
                 dynamic? property = null;
                 try
                 {
@@ -184,6 +190,7 @@ public partial class WorkbookCommands
         }
     }
 
+    // PIA gap: Office.DocumentProperties and DocumentProperty require the unreferenced Office.Core library.
     private static dynamic GetPropertyCollection(Excel.Workbook workbook, DocumentPropertyScope scope)
     {
         // PIA gap: Built-in and custom document properties are Office.DocumentProperties from office.dll.
@@ -192,11 +199,13 @@ public partial class WorkbookCommands
             : workbook.CustomDocumentProperties;
     }
 
+    // PIA gap: Office.DocumentProperties and DocumentProperty require the unreferenced Office.Core library.
     private static dynamic GetRequiredProperty(
         Excel.Workbook workbook,
         string propertyName,
         DocumentPropertyScope scope)
     {
+        // PIA gap: Office.DocumentProperties and DocumentProperty require the unreferenced Office.Core library.
         dynamic? properties = null;
         try
         {
@@ -211,11 +220,13 @@ public partial class WorkbookCommands
         }
     }
 
+    // PIA gap: Office.DocumentProperties and DocumentProperty require the unreferenced Office.Core library.
     private static dynamic? TryGetProperty(dynamic properties, string propertyName)
     {
         var count = Convert.ToInt32(properties.Count, CultureInfo.InvariantCulture);
         for (var index = 1; index <= count; index++)
         {
+            // PIA gap: Office.DocumentProperties and DocumentProperty require the unreferenced Office.Core library.
             dynamic? property = null;
             try
             {
@@ -237,6 +248,7 @@ public partial class WorkbookCommands
         return null;
     }
 
+    // PIA gap: Office.DocumentProperties and DocumentProperty require the unreferenced Office.Core library.
     private static DocumentPropertyInfo ReadProperty(dynamic property, DocumentPropertyScope scope)
     {
         object? value;

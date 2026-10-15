@@ -15,16 +15,18 @@ public partial class PivotTableCommands
     /// <summary>
     /// Creates a slicer for a PivotTable field
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static",
+        Justification = "Keep the instance command facade used by SlicerCommands and its existing callers.")]
     public SlicerResult CreateSlicer(IExcelBatch batch, string pivotTableName,
         string fieldName, string slicerName, string destinationSheet, string position)
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? pivot = null;
-            dynamic? slicerCaches = null;
-            dynamic? slicerCache = null;
-            dynamic? slicers = null;
-            dynamic? slicer = null;
+            Excel.PivotTable? pivot = null;
+            Excel.SlicerCaches? slicerCaches = null;
+            Excel.SlicerCache? slicerCache = null;
+            Excel.Slicers? slicers = null;
+            Excel.Slicer? slicer = null;
             Excel.Worksheet? destSheet = null;
             Excel.Range? destRange = null;
 
@@ -99,13 +101,15 @@ public partial class PivotTableCommands
     /// <summary>
     /// Lists all slicers in the workbook, optionally filtered by PivotTable
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static",
+        Justification = "Keep the instance command facade used by SlicerCommands and its existing callers.")]
     public SlicerListResult ListSlicers(IExcelBatch batch, string? pivotTableName = null)
     {
         return batch.Execute((ctx, ct) =>
         {
             var result = new SlicerListResult { Success = true };
-            dynamic? slicerCaches = null;
-            dynamic? targetPivot = null;
+            Excel.SlicerCaches? slicerCaches = null;
+            Excel.PivotTable? targetPivot = null;
 
             try
             {
@@ -120,12 +124,12 @@ public partial class PivotTableCommands
                 for (int cacheIndex = 1; cacheIndex <= slicerCaches.Count; cacheIndex++)
                 {
                     ct.ThrowIfCancellationRequested();
-                    dynamic? cache = null;
-                    dynamic? slicers = null;
+                    Excel.SlicerCache? cache = null;
+                    Excel.Slicers? slicers = null;
 
                     try
                     {
-                        cache = slicerCaches.Item(cacheIndex);
+                        cache = slicerCaches.Item[cacheIndex];
 
                         // If filtering by PivotTable, check if this cache is connected
                         if (targetPivot != null && !IsSlicerCacheConnectedToPivot(cache, targetPivot, ct))
@@ -137,10 +141,10 @@ public partial class PivotTableCommands
                         for (int slicerIndex = 1; slicerIndex <= slicers.Count; slicerIndex++)
                         {
                             ct.ThrowIfCancellationRequested();
-                            dynamic? slicer = null;
+                            Excel.Slicer? slicer = null;
                             try
                             {
-                                slicer = slicers.Item(slicerIndex);
+                                slicer = slicers.Item[slicerIndex];
                                 var slicerInfo = BuildSlicerInfo(slicer, cache, ct);
                                 result.Slicers.Add(slicerInfo);
                             }
@@ -170,6 +174,8 @@ public partial class PivotTableCommands
     /// <summary>
     /// Sets the selection for a slicer
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static",
+        Justification = "Keep the instance command facade used by SlicerCommands and its existing callers.")]
     public SlicerResult SetSlicerSelection(IExcelBatch batch, string slicerName,
         List<string> selectedItems, bool clearFirst = true)
     {
@@ -177,7 +183,7 @@ public partial class PivotTableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? slicerCaches = null;
+            Excel.SlicerCaches? slicerCaches = null;
             Excel.SlicerCache? targetCache = null;
             Excel.Slicer? targetSlicer = null;
 
@@ -236,13 +242,15 @@ public partial class PivotTableCommands
     /// <summary>
     /// Deletes a slicer from the workbook
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static",
+        Justification = "Keep the instance command facade used by SlicerCommands and its existing callers.")]
     public OperationResult DeleteSlicer(IExcelBatch batch, string slicerName)
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? slicerCaches = null;
-            dynamic? targetCache = null;
-            dynamic? targetSlicer = null;
+            Excel.SlicerCaches? slicerCaches = null;
+            Excel.SlicerCache? targetCache = null;
+            Excel.Slicer? targetSlicer = null;
 
             try
             {
@@ -286,23 +294,23 @@ public partial class PivotTableCommands
     /// </summary>
     private readonly struct SlicerSearchResult
     {
-        public dynamic? Cache { get; init; }
-        public dynamic? Slicer { get; init; }
+        public Excel.SlicerCache? Cache { get; init; }
+        public Excel.Slicer? Slicer { get; init; }
     }
 
     /// <summary>
     /// Finds an existing SlicerCache for a field on a specific PivotTable
     /// </summary>
-    private static dynamic? FindExistingSlicerCache(dynamic slicerCaches, dynamic pivot, string fieldName, CancellationToken ct)
+    private static Excel.SlicerCache? FindExistingSlicerCache(Excel.SlicerCaches slicerCaches, Excel.PivotTable pivot, string fieldName, CancellationToken ct)
     {
         for (int i = 1; i <= slicerCaches.Count; i++)
         {
             ct.ThrowIfCancellationRequested();
-            dynamic? cache = null;
+            Excel.SlicerCache? cache = null;
             bool found = false;
             try
             {
-                cache = slicerCaches.Item(i);
+                cache = slicerCaches.Item[i];
                 Excel.SlicerCache nativeCache = cache;
                 if (nativeCache.SlicerCacheType != Excel.XlSlicerCacheType.xlSlicer)
                 {
@@ -337,27 +345,27 @@ public partial class PivotTableCommands
     /// <summary>
     /// Gets the source field name from a SlicerCache
     /// </summary>
-    private static string GetSlicerCacheFieldName(dynamic cache)
+    private static string GetSlicerCacheFieldName(Excel.SlicerCache cache)
     {
         return cache.SourceName;
     }
 
     /// <summary>
     /// Checks if a SlicerCache is connected to a specific PivotTable.
-    /// Returns false for Table slicers (cache.List == true) since they don't connect to PivotTables.
+    /// Returns false for Table slicers (cache.List) since they don't connect to PivotTables.
     /// </summary>
-    private static bool IsSlicerCacheConnectedToPivot(dynamic cache, dynamic targetPivot, CancellationToken ct)
+    private static bool IsSlicerCacheConnectedToPivot(Excel.SlicerCache cache, Excel.PivotTable targetPivot, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         // Per MS docs: List property is true for Table slicers, false for PivotTable slicers
         // https://learn.microsoft.com/en-us/office/vba/api/excel.slicercache.list
         // Table slicers don't connect to PivotTables
-        if (cache.List == true)
+        if (cache.List)
         {
             return false;
         }
 
-        dynamic? pivotTables = null;
+        Excel.SlicerPivotTables? pivotTables = null;
         try
         {
             pivotTables = cache.PivotTables;
@@ -366,10 +374,10 @@ public partial class PivotTableCommands
             for (int i = 1; i <= pivotTables.Count; i++)
             {
                 ct.ThrowIfCancellationRequested();
-                dynamic? pt = null;
+                Excel.PivotTable? pt = null;
                 try
                 {
-                    pt = pivotTables.Item(i);
+                    pt = pivotTables.Item[i];
                     string ptName = pt.Name?.ToString() ?? string.Empty;
                     ct.ThrowIfCancellationRequested();
                     if (string.Equals(ptName, targetName, StringComparison.OrdinalIgnoreCase))
@@ -393,27 +401,27 @@ public partial class PivotTableCommands
     /// <summary>
     /// Finds a slicer by name across all SlicerCaches
     /// </summary>
-    private static SlicerSearchResult FindSlicerByName(dynamic slicerCaches, string slicerName, CancellationToken ct)
+    private static SlicerSearchResult FindSlicerByName(Excel.SlicerCaches slicerCaches, string slicerName, CancellationToken ct)
     {
         for (int cacheIndex = 1; cacheIndex <= slicerCaches.Count; cacheIndex++)
         {
             ct.ThrowIfCancellationRequested();
-            dynamic? cache = null;
-            dynamic? slicers = null;
+            Excel.SlicerCache? cache = null;
+            Excel.Slicers? slicers = null;
             bool found = false;
 
             try
             {
-                cache = slicerCaches.Item(cacheIndex);
+                cache = slicerCaches.Item[cacheIndex];
                 slicers = cache.Slicers;
 
                 for (int slicerIndex = 1; slicerIndex <= slicers.Count; slicerIndex++)
                 {
                     ct.ThrowIfCancellationRequested();
-                    dynamic? slicer = null;
+                    Excel.Slicer? slicer = null;
                     try
                     {
-                        slicer = slicers.Item(slicerIndex);
+                        slicer = slicers.Item[slicerIndex];
                         string name = slicer.Name?.ToString() ?? string.Empty;
 
                         if (string.Equals(name, slicerName, StringComparison.OrdinalIgnoreCase))
@@ -444,7 +452,7 @@ public partial class PivotTableCommands
     /// <summary>
     /// Builds a SlicerInfo from COM objects
     /// </summary>
-    private static SlicerInfo BuildSlicerInfo(dynamic slicer, dynamic cache, CancellationToken ct)
+    private static SlicerInfo BuildSlicerInfo(Excel.Slicer slicer, Excel.SlicerCache cache, CancellationToken ct)
     {
         Excel.SlicerCache nativeCache = cache;
         bool isTimeline = nativeCache.SlicerCacheType == Excel.XlSlicerCacheType.xlTimeline;
@@ -459,10 +467,10 @@ public partial class PivotTableCommands
         };
 
         // Get sheet name and position
-        dynamic? parent = null;
+        Excel.Worksheet? parent = null;
         try
         {
-            parent = slicer.Parent;
+            parent = (Excel.Worksheet)slicer.Parent;
             info.SheetName = parent.Name?.ToString() ?? string.Empty;
         }
         finally
@@ -472,8 +480,8 @@ public partial class PivotTableCommands
 
         // Get position (top-left cell) - per Microsoft docs, TopLeftCell is on Shape object
         // https://learn.microsoft.com/en-us/office/vba/api/excel.shape.topleftcell
-        dynamic? shape = null;
-        dynamic? topLeftCell = null;
+        Excel.Shape? shape = null;
+        Excel.Range? topLeftCell = null;
         try
         {
             shape = slicer.Shape;
@@ -505,7 +513,7 @@ public partial class PivotTableCommands
     /// <summary>
     /// Builds a SlicerResult from COM objects
     /// </summary>
-    private static SlicerResult BuildSlicerResult(dynamic slicer, dynamic cache, string fieldName, CancellationToken ct)
+    private static SlicerResult BuildSlicerResult(Excel.Slicer slicer, Excel.SlicerCache cache, string fieldName, CancellationToken ct)
     {
         var result = new SlicerResult
         {
@@ -516,10 +524,10 @@ public partial class PivotTableCommands
         };
 
         // Get sheet name and position
-        dynamic? parent = null;
+        Excel.Worksheet? parent = null;
         try
         {
-            parent = slicer.Parent;
+            parent = (Excel.Worksheet)slicer.Parent;
             result.SheetName = parent.Name?.ToString() ?? string.Empty;
         }
         finally
@@ -529,8 +537,8 @@ public partial class PivotTableCommands
 
         // Get position - per Microsoft docs, TopLeftCell is on Shape object
         // https://learn.microsoft.com/en-us/office/vba/api/excel.shape.topleftcell
-        dynamic? shape = null;
-        dynamic? topLeftCell = null;
+        Excel.Shape? shape = null;
+        Excel.Range? topLeftCell = null;
         try
         {
             shape = slicer.Shape;
@@ -674,21 +682,21 @@ public partial class PivotTableCommands
 
     /// <summary>
     /// Gets names of PivotTables connected to a SlicerCache.
-    /// Returns empty list for Table slicers (cache.List == true).
+    /// Returns empty list for Table slicers (cache.List).
     /// </summary>
-    private static List<string> GetConnectedPivotTableNames(dynamic cache, CancellationToken ct)
+    private static List<string> GetConnectedPivotTableNames(Excel.SlicerCache cache, CancellationToken ct)
     {
         ct.ThrowIfCancellationRequested();
         var names = new List<string>();
 
         // Per MS docs: List property is true for Table slicers
         // Table slicers don't have PivotTables collection
-        if (cache.List == true)
+        if (cache.List)
         {
             return names;
         }
 
-        dynamic? pivotTables = null;
+        Excel.SlicerPivotTables? pivotTables = null;
         try
         {
             pivotTables = cache.PivotTables;
@@ -696,10 +704,10 @@ public partial class PivotTableCommands
             for (int i = 1; i <= pivotTables.Count; i++)
             {
                 ct.ThrowIfCancellationRequested();
-                dynamic? pt = null;
+                Excel.PivotTable? pt = null;
                 try
                 {
-                    pt = pivotTables.Item(i);
+                    pt = pivotTables.Item[i];
                     string name = pt.Name?.ToString() ?? string.Empty;
                     ct.ThrowIfCancellationRequested();
                     if (!string.IsNullOrEmpty(name))

@@ -425,6 +425,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                             // locale-specific table column format definitions during a later save.
                             // IDispatch preserves the workbook's native definitions.
                             workbooks = tempExcel.Workbooks;
+                            // PIA gap: the typed Open signature injects an LCID; native dispatch preserves locale-specific table formats.
                             dynamic workbooksDispatch = (dynamic)(object)workbooks;
                             // Protection does not imply read-only rights. Excel enforces the
                             // signed-in user's permissions; only validation forces read-only.

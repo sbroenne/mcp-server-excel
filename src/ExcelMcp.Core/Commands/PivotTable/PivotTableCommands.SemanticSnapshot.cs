@@ -6,7 +6,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
 public partial class PivotTableCommands
 {
-    private static Excel.PivotTable FindPivotTable(dynamic workbook, string sheetName, string pivotTableName)
+    private static Excel.PivotTable FindPivotTable(Excel.Workbook workbook, string sheetName, string pivotTableName)
     {
         Excel.Sheets? sheets = null;
         Excel.Worksheet? sheet = null;
@@ -86,7 +86,7 @@ public partial class PivotTableCommands
                 Excel.PivotField? field = null;
                 try
                 {
-                    field = pivotFields.Item(index);
+                    field = (Excel.PivotField)pivotFields.Item(index);
                     var selection = ReadRegularFieldSelection(
                         field, pivotTableName, workbookPath, cancellationToken, maxSelectedMembers);
                     if (selection is null)
@@ -441,14 +441,11 @@ public partial class PivotTableCommands
         int maxMembers,
         CancellationToken cancellationToken)
     {
-        object? visibleItems = null;
+        Excel.PivotItems? visibleItems = null;
         try
         {
-            // PIA gap: typed PivotField.VisibleItems() fails without an index; late binding returns
-            // the visible-item collection so only visible members are read.
-            visibleItems = ((dynamic)field).VisibleItems;
-            // PIA gap: the late-bound visible-item collection exposes Count only through IDispatch.
-            int visibleCount = Convert.ToInt32(((dynamic)visibleItems!).Count, System.Globalization.CultureInfo.InvariantCulture);
+            visibleItems = (Excel.PivotItems)field.VisibleItems[Type.Missing];
+            int visibleCount = visibleItems.Count;
             if (visibleCount == 0)
                 throw new NotSupportedException("Excel returned no visible items, so the field's selection state is unknown.");
 
@@ -536,7 +533,8 @@ public partial class PivotTableCommands
             bool multiple = cubeField.EnableMultiplePageItems;
             if (!multiple)
             {
-                string currentPage = levelFields[0].CurrentPageName ?? string.Empty;
+                Excel.PivotField levelField = levelFields[0];
+                string currentPage = levelField.CurrentPageName ?? string.Empty;
                 bool showAll = PivotTableHelpers.IsAllOlapReportFilterMember(
                     cubeField, currentPage, cancellationToken);
                 var names = new BoundedMemberNames(maxMembers);

@@ -1,4 +1,3 @@
-using System.Dynamic;
 using System.Reflection;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -6,6 +5,7 @@ using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
+using ExcelProxy = Sbroenne.ExcelMcp.Core.Tests.Unit.RangeHelpersExceptionTests.ExcelProxy;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Integration.Commands.PivotTable;
 
@@ -108,9 +108,10 @@ public sealed class SlicerCancellationTests(TempDirectoryFixture fixture) :
                 Assert.Equal(1, pivots.Count);
                 pivot = pivots.Item[1];
                 var probe = new CancelOnConnectedCollectionRead(cache, cancellation);
+                var typedCache = probe.CreateProxy();
                 object?[] arguments = helperName == "IsSlicerCacheConnectedToPivot"
-                    ? [probe, pivot, cancellation.Token]
-                    : [probe, cancellation.Token];
+                    ? [typedCache, pivot, cancellation.Token]
+                    : [typedCache, cancellation.Token];
                 var error = Assert.Throws<TargetInvocationException>(() => helper.Invoke(null, arguments));
                 var cancelled = Assert.IsType<OperationCanceledException>(error.InnerException);
                 Assert.Equal(cancellation.Token, cancelled.CancellationToken);
@@ -145,27 +146,26 @@ public sealed class SlicerCancellationTests(TempDirectoryFixture fixture) :
     // Forward real COM reads and inject cancellation only after the helper has started.
     private sealed class CancelOnConnectedCollectionRead(
         Excel.SlicerCache cache,
-        CancellationTokenSource cancellation) : DynamicObject
+        CancellationTokenSource cancellation)
     {
         public bool ConnectedCollectionRead { get; private set; }
 
-        public override bool TryGetMember(GetMemberBinder binder, out object? result)
+        public Excel.SlicerCache CreateProxy() => ExcelProxy.Create<Excel.SlicerCache>((member, _) =>
         {
-            switch (binder.Name)
+            Assert.False(cancellation.IsCancellationRequested);
+            switch (member)
             {
-                case "List":
-                    result = cache.List;
-                    return true;
-                case "PivotTables":
-                    result = cache.PivotTables;
+                case "get_List":
+                    return cache.List;
+                case "get_PivotTables":
+                    var result = cache.PivotTables;
                     ConnectedCollectionRead = true;
                     cancellation.Cancel();
-                    return true;
+                    return result;
                 default:
-                    result = null;
-                    return false;
+                    throw new NotSupportedException(member);
             }
-        }
+        });
     }
 
     private static void PreparePivot(IExcelBatch batch, PivotTableCommands commands)

@@ -29,7 +29,7 @@ public partial class RangeCommands
         return batch.Execute((ctx, ct) =>
         {
             Excel.Worksheet? sheet = null;
-            dynamic? range = null;
+            Excel.Range? range = null;
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
@@ -71,8 +71,8 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? cell = null;
-            dynamic? region = null;
+            Excel.Range? cell = null;
+            Excel.Range? region = null;
             try
             {
                 cell = RangeHelpers.ResolveRange(ctx.Book, sheetName, cellAddress, out string? specificError);
@@ -111,7 +111,7 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? range = null;
+            Excel.Range? range = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -121,8 +121,7 @@ public partial class RangeCommands
                 }
 
                 result.Address = range.Address;
-                result.RowCount = range.Rows.Count;
-                result.ColumnCount = range.Columns.Count;
+                (result.RowCount, result.ColumnCount) = RangeHelpers.GetDimensions(range);
                 result.NumberFormat = ((Excel.Range)range).NumberFormat?.ToString();
 
                 // Cell geometry properties (position and dimensions in points)
@@ -141,4 +140,3 @@ public partial class RangeCommands
         });
     }
 }
-

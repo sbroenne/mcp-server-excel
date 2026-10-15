@@ -228,16 +228,7 @@ public partial class DataModelCommands
 
                 ForEachRelationship(model!, (relationship, index) =>
                 {
-                    var relInfo = new DataModelRelationshipInfo
-                    {
-                        FromTable = ComUtilities.SafeGetString(relationship.ForeignKeyColumn.Parent, "Name"),
-                        FromColumn = ComUtilities.SafeGetString(relationship.ForeignKeyColumn, "Name"),
-                        ToTable = ComUtilities.SafeGetString(relationship.PrimaryKeyColumn.Parent, "Name"),
-                        ToColumn = ComUtilities.SafeGetString(relationship.PrimaryKeyColumn, "Name"),
-                        IsActive = relationship.Active
-                    };
-
-                    result.Relationships.Add(relInfo);
+                    result.Relationships.Add(ReadRelationshipInfo(relationship));
                 });
 
                 result.Success = true;
@@ -273,24 +264,13 @@ public partial class DataModelCommands
                 DataModelRelationshipInfo? foundRelationship = null;
                 ForEachRelationship(model!, (relationship, index) =>
                 {
-                    var relFromTable = ComUtilities.SafeGetString(relationship.ForeignKeyColumn.Parent, "Name");
-                    var relFromColumn = ComUtilities.SafeGetString(relationship.ForeignKeyColumn, "Name");
-                    var relToTable = ComUtilities.SafeGetString(relationship.PrimaryKeyColumn.Parent, "Name");
-                    var relToColumn = ComUtilities.SafeGetString(relationship.PrimaryKeyColumn, "Name");
-
-                    if (string.Equals(relFromTable, fromTable, StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(relFromColumn, fromColumn, StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(relToTable, toTable, StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(relToColumn, toColumn, StringComparison.OrdinalIgnoreCase))
+                    var info = ReadRelationshipInfo(relationship);
+                    if (string.Equals(info.FromTable, fromTable, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(info.FromColumn, fromColumn, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(info.ToTable, toTable, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(info.ToColumn, toColumn, StringComparison.OrdinalIgnoreCase))
                     {
-                        foundRelationship = new DataModelRelationshipInfo
-                        {
-                            FromTable = relFromTable,
-                            FromColumn = relFromColumn,
-                            ToTable = relToTable,
-                            ToColumn = relToColumn,
-                            IsActive = relationship.Active
-                        };
+                        foundRelationship = info;
                     }
                 });
 
@@ -310,6 +290,36 @@ public partial class DataModelCommands
 
             return result;
         });
+    }
+
+    private static DataModelRelationshipInfo ReadRelationshipInfo(Excel.ModelRelationship relationship)
+    {
+        Excel.ModelTableColumn? foreignColumn = null;
+        Excel.ModelTableColumn? primaryColumn = null;
+        object? foreignTable = null;
+        object? primaryTable = null;
+        try
+        {
+            foreignColumn = relationship.ForeignKeyColumn;
+            primaryColumn = relationship.PrimaryKeyColumn;
+            foreignTable = foreignColumn.Parent;
+            primaryTable = primaryColumn.Parent;
+            return new DataModelRelationshipInfo
+            {
+                FromTable = ComUtilities.SafeGetString(foreignTable, "Name"),
+                FromColumn = foreignColumn.Name ?? string.Empty,
+                ToTable = ComUtilities.SafeGetString(primaryTable, "Name"),
+                ToColumn = primaryColumn.Name ?? string.Empty,
+                IsActive = relationship.Active
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref primaryTable);
+            ComUtilities.Release(ref foreignTable);
+            ComUtilities.Release(ref primaryColumn);
+            ComUtilities.Release(ref foreignColumn);
+        }
     }
 
     /// <inheritdoc />
@@ -419,10 +429,19 @@ public partial class DataModelCommands
                 result.MeasureCount = 0;
                 ForEachMeasure(model!, (measure, index) =>
                 {
-                    string measureTableName = ComUtilities.SafeGetString(measure.AssociatedTable, "Name");
-                    if (string.Equals(measureTableName, tableName, StringComparison.OrdinalIgnoreCase))
+                    Excel.ModelTable? associatedTable = null;
+                    try
                     {
-                        result.MeasureCount++;
+                        associatedTable = measure.AssociatedTable;
+                        string measureTableName = ComUtilities.SafeGetString(associatedTable, "Name");
+                        if (string.Equals(measureTableName, tableName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            result.MeasureCount++;
+                        }
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref associatedTable);
                     }
                 });
 

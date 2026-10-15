@@ -9,7 +9,7 @@ This document tracks the status of `Microsoft.Office.Interop.Excel` type coverag
 | Area | Status |
 |------|--------|
 | Core Excel types (`Workbook`, `Worksheet`, `Range`, etc.) | ✅ Typed in the PIA |
-| PivotTable, Table/slicer, Chart, Range, ConditionalFormat, Screenshot, and Sheet command code | ⚠️ Typed PIA surface exists, but many command paths still hold these objects as `dynamic` — [conversion debt](#unconverted-command-code) |
+| PivotTable, Table/slicer, Chart, Range, NamedRange, ConditionalFormat, Screenshot, and Sheet command code | ✅ Supported Excel objects use typed PIA access; narrow external-model and verified runtime exceptions remain |
 | Drawing geometry/text and Forms controls | ✅ Typed |
 | Shape creation/type/fill/line members | ⚠️ Office.Core signatures; isolated late binding |
 | Sparklines (`SparklineGroups`, `SparklineGroup`, colors/points) | ✅ Typed |
@@ -28,12 +28,13 @@ This document tracks the status of `Microsoft.Office.Interop.Excel` type coverag
 | `ModelTable.LastRefresh` | ❌ Missing from the 16.x Excel PIA and unavailable at runtime; no reliable table refresh timestamp |
 | Data Model source/model connection metadata | ✅ Typed (`SourceWorkbookConnection`, `DataModelConnection`, `ModelConnection`, `ModelTables`, command metadata) |
 | Data Model live refresh status | ❌ No `Model.Refreshing` or `ModelTable.Refreshing` PIA/COM surface; refresh calls are synchronous |
-| `ModelMeasure.FormatInformation` | ⚠️ Typed as `object`; dynamic property probing remains for polymorphic `ModelFormat*` objects |
-| `WorkbookConnection.Refreshing` / `CancelRefresh` | ⚠️ Still missing from the 16.x Excel PIA — dynamic debt |
-| VBA (`VBProject`, `VBComponents`) | ⚠️ External VBE object model, not Excel PIA — dynamic debt until typed interop is added |
+| `ModelMeasure.FormatInformation` | ✅ Typed as `object`; dispatch uses typed `ModelFormat*` patterns |
+| Connection refresh status / cancellation | ✅ Typed `OLEDBConnection` and `ODBCConnection`; unsupported types are reported explicitly |
+| VBA (`VBProject`, `VBComponents`) | ⚠️ External VBE object model; narrowly documented late binding |
 | `AutomationSecurity` | ⚠️ Office.Core enum (office.dll); accessed late-bound via `((dynamic)(object))` because Office.Core is not referenced. The embedded Excel PIA carries no office.dll dependency, so no resolver is needed |
-| WebConnection | ⚠️ Still missing from the 16.x Excel PIA — dynamic debt |
-| ADO types (ADODB.Connection, Recordset, Fields) | ⚠️ External ADODB object model, not Excel PIA — dynamic debt until typed interop is added |
+| WebConnection and selected TextConnection properties | ⚠️ Missing from the 16.x Excel PIA; isolated late binding |
+| ADO types (ADODB.Connection, Recordset, Fields) | ⚠️ External ADODB object model; narrowly documented late binding |
+| Native `Workbooks.Open` / `Workbook.Save` dispatch | ⚠️ Intentional runtime workaround: typed calls inject a locale argument that can rewrite localized table formats |
 
 ---
 
@@ -41,12 +42,12 @@ This document tracks the status of `Microsoft.Office.Interop.Excel` type coverag
 
 ExcelMcp is PIA-first. Any `dynamic` usage is technical debt unless a compile probe proves the referenced Excel PIA lacks the API, or the API belongs to an external COM object model that is not currently referenced. Prefer adding typed interop coverage over spreading new `dynamic` calls.
 
-### Unconverted command code
+### Converted command code
 
-- **Status**: Not a PIA gap. Pivot tables, pivot fields, list objects, slicers, charts, shapes, worksheets, and ranges are typed in the Excel PIA, but many command paths still declare them as `dynamic` variables, parameters, or return types.
-- **Largest areas**: `PivotTable`, `Table` (including slicers), `Chart`, `Range`, and `ConditionalFormat` under `src/ExcelMcp.Core/Commands/`.
-- **Why it was missed**: the `dynamic-casts` source guard only checks `((dynamic))` casts, not `dynamic` declarations.
-- **Tracking**: [#1140](https://github.com/sbroenne/mcp-server-excel/issues/1140) converts one area at a time with real-Excel tests and extends the guard to converted areas.
+- **Supported surfaces**: Pivot tables/fields, list objects, slicers, charts, worksheets, ranges, named ranges, and conditional-format rule interfaces now use typed PIA variables and helpers.
+- **Heterogeneous objects**: Conditional-format rules and connection subtypes use concrete typed dispatch instead of a general dynamic proxy. Shared lookup/range helpers accept typed workbooks and return typed Excel objects.
+- **Original enforcement gap**: The retired regex recognized only `((dynamic)` casts and missed declarations, parameters, return types, nullable spellings, and alternative casts.
+- **Tracking**: [#1140](https://github.com/sbroenne/mcp-server-excel/issues/1140) combines the staged conversions with compiler-loaded source rules and real-Excel regression coverage. Compilation alone does not establish Excel behavior.
 
 ### Power Query — `Workbook.Queries` / `WorkbookQuery`
 
@@ -58,11 +59,12 @@ ExcelMcp is PIA-first. Any `dynamic` usage is technical debt unless a compile pr
 - **Status**: Typed via `Microsoft.Office.Interop.Excel` 16.x.
 - **Affected files**: Data Model measure commands now use `Excel.ModelMeasures`, `Excel.ModelMeasure`, and typed `ModelFormat*` properties.
 
-### WorkbookConnection refresh status/cancel
+### Connection refresh status/cancel
 
-- **Why not typed yet**: `WorkbookConnection.Refreshing` and `WorkbookConnection.CancelRefresh` do not compile against `Microsoft.Office.Interop.Excel` 16.0.18925.20022.
-- **Current workaround**: Dynamic calls are isolated to connection refresh waiting/cancellation.
-- **Preferred future fix**: Add a typed interop surface or replace the behavior with a typed Excel API path.
+- **Root API gap**: `WorkbookConnection.Refreshing` and `WorkbookConnection.CancelRefresh` do not compile against `Microsoft.Office.Interop.Excel` 16.0.18925.20022.
+- **Typed alternative**: `ConnectionCommands.RefreshControl.cs` uses `OLEDBConnection.Refreshing` / `CancelRefresh` and their ODBC counterparts.
+- **Other connection types**: Returned support fields distinguish unsupported inspection/cancellation from an idle supported connection.
+- **Refresh-date runtime gap**: An OLAP `OLEDBConnection.RefreshDate` can be an empty native VARIANT, although the PIA declares a non-nullable `DateTime`. The existing late-bound read preserves this distinction.
 
 ### Data Model calculated columns
 
@@ -113,14 +115,45 @@ ExcelMcp is PIA-first. Any `dynamic` usage is technical debt unless a compile pr
 
 ### WebConnection
 
-- **Simply not in the Excel PIA**: `WorkbookConnection.WebConnection` is not exposed in `Microsoft.Office.Interop.Excel`. Only `OLEDBConnection`, `ODBCConnection`, and `TextConnection` have typed sub-connection properties.
+- **Compile probe result**: `WorkbookConnection.WebConnection` and root `ConnectionString` fail with CS1061 against `Microsoft.Office.Interop.Excel` 16.0.18925.20022. `OLEDBConnection`, `ODBCConnection`, and `TextConnection` have typed sub-connection properties.
 - **Affected files**: `ConnectionCommands.cs` (`GetTypedSubConnection` method)
+
+### TextConnection property gaps
+
+- **Typed surface**: `Excel.TextConnection` and its `Connection` and text-parsing properties exist in the PIA.
+- **Compile probe result**: `BackgroundQuery`, `RefreshOnFileOpen`, `SavePassword`, `RefreshPeriod`, and `CommandText` fail with CS1061 against `Microsoft.Office.Interop.Excel` 16.0.18925.20022.
+- **Current behavior**: Only those unsupported property reads/writes remain late-bound. A missing typed declaration does not establish that Excel supports the property at runtime; existing error handling still applies.
+- **Affected files**: `ConnectionCommands.cs` and `ConnectionCommands.Lifecycle.cs`.
+
+### Native Open/Save locale handling
+
+- **Typed surface**: `Workbooks.Open` and `Workbook.Save` exist in the PIA.
+- **Runtime mismatch**: The typed interop signatures inject an LCID. That can rewrite locale-specific structured-reference formats during open/save.
+- **Current behavior**: The session preserves native dispatch for these calls in `ExcelBatch.cs` and `ExcelShutdownService.cs`. This is a documented runtime-signature exception, not a missing Excel API.
+
+### PivotField source-name error values
+
+- **Typed signature**: `PivotField.SourceName` is declared as `string`.
+- **Verified native behavior**: The regular pivot's Values placeholder exposes an integer Excel `#N/A` error instead. `PersistentServicePivotTableTests.Snapshot.cs` verifies the native value and its error mapping while checking the complete multi-value-field Service snapshot.
+- **Current behavior**: Only this source-name read stays late-bound so the error sentinel is not mistaken for a valid source field.
+- **No VisibleItems gap**: The typed `VisibleItems[Type.Missing]` getter returns the collection; the bounded-selection regression verifies its exact counts and member names.
+
+### Style and Font value-type getters
+
+- **Verified member-specific gap — `Style.IndentLevel`**: The 16.0.18925.20022 PIA declares this getter as non-nullable `int` (DISPID 201). Built-in `Normal` and a registered custom style captured from a cleared single cell return native `VT_NULL`, exposed as `System.DBNull` by IDispatch. The typed getter throws `InvalidCastException`, HRESULT `0x80004002`, with message `OleAut reported a type mismatch.` The custom-state probe also preserves explicit `IncludeAlignment == false`, `IncludeProtection == false`, and an included dashed left border.
+- **Typed native binding**: The referenced PIA provides no object/nullable-returning Style getter for this member. `IStyleIndentLevelVariant` declares exactly one getter on the existing Style IDispatch interface (IID `00020852-0000-0000-C000-000000000046`, DISPID 201), with `object?` and `MarshalAs(UnmanagedType.Struct)` representing the native VARIANT. The helper uses a borrowed view of the same Style RCW, not a separately acquired COM object. It uses no C# `dynamic`, reflection, generic dispatch helper, or additional dependency.
+- **Preserved behavior**: The existing formatting reader preserves `IndentLevel == null` and the exact `indentLevel` entry in `mixedFields`; Service JSON continues omitting null-valued properties, and initialized indentation values remain numeric. All other Style getters and `Font.ThemeFont` remain PIA-typed. Inclusion flags do not identify whether indentation is unset, and a cleared cell's typed `Range.IndentLevel` is `0`, not the definition's native null; reading applied cell formatting cannot replace the Style-definition getter.
+- **Observed mixed-font behavior**: Native `Font.ThemeFont` returns integer `0`, matching typed `xlThemeFontNone`. Individual major/minor fonts retain their exact values `1` and `2`.
+- **Supported style behavior**: Excluded alignment/protection flags do not make the stored Style getters inherently nullable. Typed and native reads agree for the supported seeded state, including the `XlOrientation` enum rather than a Range rotation angle.
+- **Regression evidence**: `NativeNullableFormattingCapabilityTests.UnseededStyle_NativeGettersAndServicePreserveExactState` independently probes all ten Style scalars and `Font.ThemeFont`, asserting the exact native null and PIA failure only for `IndentLevel`, typed/native equivalence for the remaining getters, and exact Service null/mixed fields, inclusion flags, and border values. Both states failed the Service read before the fix. The exact typed native binding returns `DBNull` in both states and integer `2` in the initialized-style case; the tests verify interface IID agreement and identical RCW identity. The existing seeded, mixed-font, and differential-formatting capability cases retain their exact-value assertions.
 
 ---
 
 ## Migrated Typed Surfaces
 
-These were incorrectly left as `dynamic` during earlier PIA migration work due to false negatives from binary string search on the assembly. They are now typed or should remain typed.
+Earlier migration work sometimes mistook a binary string-search miss for a
+missing PIA API. Compile probes and typed callers establish the supported
+surfaces below; these must remain typed.
 
 ### DataModel typed surfaces — `Excel.Model`, `Excel.ModelTables`, etc.
 
@@ -137,15 +170,15 @@ These were incorrectly left as `dynamic` during earlier PIA migration work due t
 - **Compile test result**: All three sub-connection types compile cleanly
 - **Note**: The collection is `Excel.Connections` (NOT `WorkbookConnections`)
 - **Affected files**: `ConnectionCommands.cs` (`GetTypedSubConnection` helper)
-- **Migration effort**: Low — one helper method
+- **Helper result**: `GetTypedSubConnection(Excel.WorkbookConnection)` returns `object?` because supported connection subtypes have different interfaces. Callers dispatch to the concrete PIA type rather than using a general dynamic proxy.
 
 ### ComUtilities Helpers — Return Types
 
 - `FindQuery(Excel.Workbook workbook, ...)` returns `Excel.WorkbookQuery?`
-- `FindConnection(dynamic workbook, ...)` — return type can be `Excel.WorkbookConnection?`
-- `FindSheet(...)` — return type can be `Excel.Worksheet?`
-- `FindName(...)` — return type can be `Excel.Name?`
-- `ResolveRange()` in `RangeHelpers.cs` — return type can be `Excel.Range?`
+- `FindConnection(Excel.Workbook workbook, ...)` returns `Excel.WorkbookConnection?`
+- `FindSheet(Excel.Workbook workbook, ...)` returns `Excel.Worksheet?`
+- `FindName(Excel.Workbook workbook, ...)` returns `Excel.Name?`
+- `SafeGetString(object? comObject, string propertyName)` and `SafeGetInt(object? comObject, string propertyName)` dispatch to their supported typed interfaces; unsupported property/type pairs throw `ArgumentOutOfRangeException`.
 
 ---
 
@@ -156,10 +189,10 @@ These were incorrectly left as `dynamic` during earlier PIA migration work due t
 Create a probe project **outside the repo** (to avoid Central Package Management interference):
 
 ```powershell
-mkdir D:\temp\pia-probe
-cd D:\temp\pia-probe
+New-Item -ItemType Directory D:\temp\pia-probe
+Set-Location D:\temp\pia-probe
 dotnet new console
-dotnet add package Microsoft.Office.Interop.Excel --version 15.0.4795.1000
+dotnet add package Microsoft.Office.Interop.Excel --version 16.0.18925.20022
 ```
 
 Edit `Program.cs`:
@@ -178,7 +211,10 @@ Then:
 dotnet build
 ```
 
-If it compiles → the type is in the PIA. If CS0246 → it's not.
+Use the exact version selected by `Directory.Packages.props`. A successful
+compile establishes that the tested typed API exists; CS0246 identifies a
+missing type and CS1061 a missing member. A compile probe does not establish
+runtime support, ownership, or behavior; those require real-Excel tests.
 
 ### WRONG: Binary string search
 
@@ -200,16 +236,21 @@ Reflection works but may miss embedded types or forwarded types. Compile test is
 
 ---
 
-## Pre-Commit Enforcement
+## Build-Time Enforcement
 
-The `scripts/check-dynamic-casts.ps1` script enforces that every `((dynamic))` cast has a justification comment on the preceding line.
+Normal compilation enforces source safety through `ExcelSafetyAnalyzer`.
+Core and ComInterop are completed typed areas, activated by
+`excelmcp_typed_excel = true` in `.editorconfig`.
 
-Valid comment prefixes:
-- `// PIA gap: ...` — Type is a true gap (not in the referenced Excel PIA)
-- `// TODO: ...` — Type IS in PIA but migration is pending
-- `// Reason: ...` — Other documented reason
+Each remaining executable `dynamic` occurrence in a completed area requires an
+adjacent `// PIA gap:` comment on its containing declaration/statement, recording
+reviewed, exact member-specific PIA/runtime or external-model dependency evidence.
+Generic `TODO`/`Reason` comments do not exempt completed code; a gap comment does
+not exempt dynamic numeric conversions. See [source safety](SOURCE-SAFETY.md)
+for the bounded compiler policy and explicitly unfinished-area behavior.
 
-The check is run automatically by `scripts/pre-commit.ps1`.
+Existing scripts, including `scripts\check-dynamic-casts.ps1`, remain
+compiler-build compatibility adapters, not independent scanners.
 
 ---
 
@@ -219,4 +260,4 @@ During the original PIA migration, coverage was checked using binary string sear
 
 This caused 8 DataModel and 3 Connection sub-type APIs to be incorrectly classified as "PIA gaps" when they are in fact available in the referenced Excel PIA.
 
-**Prevention**: Always use a compile test (see above). This file and the `check-dynamic-casts.ps1` pre-commit check prevent silent regression.
+**Prevention**: Always use a compile test (see above). This inventory records verified coverage and gaps; normal compilation enforces the [source-safety policy](SOURCE-SAFETY.md).

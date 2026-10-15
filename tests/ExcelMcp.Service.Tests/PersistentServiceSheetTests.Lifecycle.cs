@@ -106,6 +106,115 @@ public sealed partial class PersistentServiceSheetTests
     }
 
     [Theory]
+    [InlineData("create")]
+    [InlineData("rename")]
+    [InlineData("copy")]
+    public void Lifecycle_WithChartSheet_ValidatesNamesAndPreservesContents(string action)
+    {
+        var source = CreateSeededSheet("Source");
+        var sourceContents = CaptureSheet(source);
+        var before = ReadCurrentSheetNames();
+        var chartName = $"Chart_{Guid.NewGuid():N}"[..31];
+        var target = $"Target_{Guid.NewGuid():N}"[..31];
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Sheets? charts = null;
+            Excel.Chart? chart = null;
+            try
+            {
+                charts = context.Book.Charts;
+                chart = (Excel.Chart)charts.Add();
+                chart.Name = chartName;
+            }
+            finally
+            {
+                ComUtilities.Release(ref chart);
+                ComUtilities.Release(ref charts);
+            }
+        });
+        PersistentServiceCleanupFailures.Run(
+            () =>
+            {
+                switch (action)
+                {
+                    case "create": RequireSuccess(_sheetCommands.Create(_fixture.BatchToken, target)); break;
+                    case "rename": RequireSuccess(_sheetCommands.Rename(_fixture.BatchToken, source, target)); break;
+                    case "copy": RequireSuccess(_sheetCommands.Copy(_fixture.BatchToken, source, target)); break;
+                    default: throw new ArgumentOutOfRangeException(nameof(action));
+                }
+                if (action == "rename")
+                {
+                    _fixture.RenameTrackedSheet(source, target);
+                    Assert.Equal(before.Select(name => name == source ? target : name), ReadCurrentSheetNames());
+                    Assert.Equal(sourceContents, CaptureSheet(target));
+                    source = target;
+                }
+                else
+                {
+                    _fixture.RegisterSheetForCleanup(target);
+                    var after = ReadCurrentSheetNames();
+                    Assert.Equal(before.Length + 1, after.Length);
+                    Assert.Equal(before, after.Where(name => name != target));
+                    Assert.Equal(sourceContents, CaptureSheet(source));
+                    if (action == "copy") { Assert.Equal(sourceContents, CaptureSheet(target)); }
+                    else
+                    {
+                        Assert.All(RequireSuccess(_commands.GetValues(_fixture.BatchToken, target, "A1:C3")).Values,
+                            row => Assert.All(row, Assert.Null));
+                    }
+                }
+                var names = ReadCurrentSheetNames();
+                var error = Assert.Throws<InvalidOperationException>(() =>
+                {
+                    var duplicate = chartName.ToUpperInvariant();
+                    switch (action)
+                    {
+                        case "create": _sheetCommands.Create(_fixture.BatchToken, duplicate); break;
+                        case "rename": _sheetCommands.Rename(_fixture.BatchToken, source, duplicate); break;
+                        case "copy": _sheetCommands.Copy(_fixture.BatchToken, source, duplicate); break;
+                    }
+                });
+                Assert.Contains($"sheet.{action} failed", error.Message, StringComparison.Ordinal);
+                Assert.Contains("already exists", error.Message, StringComparison.Ordinal);
+                Assert.Equal(names, ReadCurrentSheetNames());
+                Assert.Equal(sourceContents, CaptureSheet(source));
+                _fixture.ExecuteRawVerification((context, _) =>
+                {
+                    Excel.Sheets? charts = null;
+                    Excel.Chart? chart = null;
+                    try
+                    {
+                        charts = context.Book.Charts;
+                        Assert.Equal(1, charts.Count);
+                        chart = (Excel.Chart)charts.Item[chartName];
+                        Assert.Equal(chartName, chart.Name);
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref chart);
+                        ComUtilities.Release(ref charts);
+                    }
+                });
+            },
+            () => _fixture.ExecuteRawVerification((context, _) =>
+            {
+                Excel.Sheets? charts = null;
+                Excel.Chart? chart = null;
+                try
+                {
+                    charts = context.Book.Charts;
+                    chart = (Excel.Chart)charts.Item[chartName];
+                    chart.Delete();
+                }
+                finally
+                {
+                    ComUtilities.Release(ref chart);
+                    ComUtilities.Release(ref charts);
+                }
+            }));
+    }
+
+    [Theory]
     [InlineData("create-conflict")]
     [InlineData("rename-conflict")]
     [InlineData("rename-missing")]

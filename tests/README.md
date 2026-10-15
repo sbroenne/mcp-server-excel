@@ -346,12 +346,13 @@ unchanged CLI/MCP matrix or npm source suite. Contract edits also select generat
 consumers. Unknown inputs fail instead of selecting everything. Every selected
 test report must contain executed passing cases; unexpected skips, cleanup
 failures, and hard-deadline expiry fail the command.
-The four source guards are implemented in `tools\ExcelMcp.Build\SourceGuards.cs`
-and tested with xUnit. `check-source --rule` accepts `com-leaks`, `success-flag`,
-`dynamic-casts`, or `workbook-package-access`; the existing `scripts\check-*.ps1`
-commands forward to those rules. Their scan boundaries and exceptions are
-preserved. These checks identify risky patterns, not complete COM lifetime or
-success/error control-flow correctness.
+The four source safety policies run during ordinary production compilation,
+using Roslyn, Microsoft's banned-API analyzer and evaluated dependency targets.
+The compiler-testing library and real Debug/Release build-mutation regressions
+live in ScriptSafety. [Source safety](../docs/SOURCE-SAFETY.md) documents exact
+diagnostics, completed-area options, reviewed gaps and conservative scope.
+Legacy `check-source --rule` and `scripts\check-*.ps1` commands forward to
+compiler builds; no text scanner or second policy is retained.
 Ordinary documentation and developer instructions, including nested `AGENTS.md`
 and `CLAUDE.md`, avoid unrelated .NET tests and package jobs. Shipped documentation
 is different: root, product, and npm-package READMEs, `LICENSE`, `CHANGELOG.md`, and
@@ -386,8 +387,9 @@ the normal safety checks; unrelated OnDemand diagnostics remain excluded.
 Package and npm launcher checks have their own selections.
 Changes to `doc-counts.json` or `scripts\check-doc-counts.ps1` select the
 `Tooling` documentation-count regressions and source correctness checks,
-without unrelated runtime tests or packages. Source checks run once in `Fast`
-when selected, otherwise in `Tooling` for these count inputs. Preparatory CI
+without unrelated runtime tests or packages. Compiler source checks run inside
+the selected builds; documentation-count work remains owned by the selected
+`Fast` or `Tooling` group. Preparatory CI
 builds restore and build only selected test projects and their dependencies.
 Only shared build inputs and selected count derivation require the full Release
 solution, as required by `check-doc-counts.ps1 -SkipBuild`. Ordinary source guards

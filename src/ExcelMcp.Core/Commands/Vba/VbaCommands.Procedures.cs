@@ -33,9 +33,13 @@ public partial class VbaCommands
 
         return batch.Execute((ctx, ct) =>
         {
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? vbaProject = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? vbComponents = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? component = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? codeModule = null;
             try
             {
@@ -138,9 +142,13 @@ public partial class VbaCommands
 
         return batch.Execute((ctx, ct) =>
         {
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? vbaProject = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? vbComponents = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? component = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? codeModule = null;
             string? partialState = null;
             try
@@ -236,6 +244,7 @@ public partial class VbaCommands
 
     internal static List<VbaProcedureInfo> GetProcedures(object codeModuleObject, CancellationToken cancellationToken = default)
     {
+        // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
         dynamic codeModule = codeModuleObject;
         int moduleLineCount = Convert.ToInt32(codeModule.CountOfLines, CultureInfo.InvariantCulture);
         var procedures = new List<VbaProcedureInfo>();
@@ -361,6 +370,7 @@ public partial class VbaCommands
     }
 
     private static VbaProcedureInfo FindProcedure(
+        // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
         dynamic codeModule,
         string procedureName,
         string? procedureKind,
@@ -389,11 +399,13 @@ public partial class VbaCommands
         return matches[0];
     }
 
+    // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
     private static dynamic FindComponent(dynamic vbComponents, string moduleName)
     {
         int componentCount = Convert.ToInt32(vbComponents.Count, CultureInfo.InvariantCulture);
         for (int index = 1; index <= componentCount; index++)
         {
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? component = null;
             try
             {
@@ -401,6 +413,7 @@ public partial class VbaCommands
                 string name = Convert.ToString(component.Name, CultureInfo.InvariantCulture) ?? string.Empty;
                 if (name.Equals(moduleName, StringComparison.OrdinalIgnoreCase))
                 {
+                    // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
                     dynamic target = component;
                     component = null;
                     return target;
@@ -415,6 +428,7 @@ public partial class VbaCommands
         throw new OperationFailureException(OperationFailureCategory.NotFound, $"Module '{moduleName}' not found.");
     }
 
+    // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
     private static string ReadLines(dynamic codeModule, int startLine, int count)
     {
         return count <= 0

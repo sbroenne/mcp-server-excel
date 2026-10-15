@@ -180,7 +180,7 @@ public partial class ChartCommands
             Excel.Chart? chart = null;
             Excel.ChartArea? chartArea = null;
             Excel.PlotArea? plotArea = null;
-            dynamic? format = null;
+            Excel.ChartFormat? format = null;
             try
             {
                 chart = findResult.Chart;
@@ -219,7 +219,7 @@ public partial class ChartCommands
     }
 
     private static void ApplyMaterialFormat(
-        dynamic format,
+        Excel.ChartFormat format,
         string? fillColor,
         double? fillTransparency,
         string? lineColor,
@@ -227,15 +227,20 @@ public partial class ChartCommands
     {
         ValidateMaterialFormat(fillTransparency, lineWeight);
 
+        // PIA gap: ChartFormat.Fill/Line return Office-core FillFormat/LineFormat; office.dll is intentionally not referenced.
         dynamic? fill = null;
+        // PIA gap: ChartFormat.Fill/Line return Office-core FillFormat/LineFormat; office.dll is intentionally not referenced.
         dynamic? line = null;
+        // PIA gap: Office-core FillFormat/LineFormat.ForeColor returns ColorFormat; office.dll is intentionally not referenced.
         dynamic? fillForeColor = null;
+        // PIA gap: Office-core FillFormat/LineFormat.ForeColor returns ColorFormat; office.dll is intentionally not referenced.
         dynamic? lineForeColor = null;
         try
         {
             if (fillColor != null || fillTransparency.HasValue)
             {
-                fill = format.Fill;
+                // PIA gap: ChartFormat.Fill returns Office-core FillFormat; office.dll is intentionally not referenced.
+                fill = ((dynamic)format).Fill;
                 fill.Solid();
                 if (fillColor != null)
                 {
@@ -251,7 +256,8 @@ public partial class ChartCommands
 
             if (lineColor != null || lineWeight.HasValue)
             {
-                line = format.Line;
+                // PIA gap: ChartFormat.Line returns Office-core LineFormat; office.dll is intentionally not referenced.
+                line = ((dynamic)format).Line;
                 line.Visible = -1;
                 if (lineColor != null)
                 {

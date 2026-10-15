@@ -78,8 +78,8 @@ internal static class Program
                         var inputs = options.Get("--inputs-json") is { } inputJson
                             ? JsonSerializer.Deserialize<string[]>(inputJson) ?? throw new ArgumentException("Inputs must be a JSON array.")
                             : null;
-                        new SourceGuards(Path.GetFullPath(options.Get("--scan-root") ?? root))
-                            .Check(options.Get("--rule") ?? throw new ArgumentException("Select --rule."), inputs);
+                        await new SourceGuards(Path.GetFullPath(options.Get("--scan-root") ?? root))
+                            .CheckAsync(options.Get("--rule") ?? throw new ArgumentException("Select --rule."), inputs, runner);
                         return 0;
                     }
                 case "plan":

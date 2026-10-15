@@ -25,7 +25,7 @@ public partial class NamedRangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? namesCollection = null;
+            Excel.Names? namesCollection = null;
             try
             {
                 namesCollection = ctx.Book.Names;
@@ -35,8 +35,8 @@ public partial class NamedRangeCommands
                 {
                     ct.ThrowIfCancellationRequested();
 
-                    dynamic? nameObj = null;
-                    dynamic? refersToRange = null;
+                    Excel.Name? nameObj = null;
+                    Excel.Range? refersToRange = null;
                     try
                     {
                         nameObj = namesCollection.Item(i);
@@ -93,7 +93,7 @@ public partial class NamedRangeCommands
         });
     }
 
-    private static bool ShouldSkipNameFromList(dynamic nameObj, string name)
+    private static bool ShouldSkipNameFromList(Excel.Name nameObj, string name)
     {
         if (IsHiddenName(nameObj))
         {
@@ -103,7 +103,7 @@ public partial class NamedRangeCommands
         return IsBuiltInName(name);
     }
 
-    private static bool IsHiddenName(dynamic nameObj)
+    private static bool IsHiddenName(Excel.Name nameObj)
     {
         try
         {
@@ -128,14 +128,14 @@ public partial class NamedRangeCommands
         return bangIndex >= 0 ? name[(bangIndex + 1)..].Trim('\'') : name;
     }
 
-    private static Excel.Name? FindNameByKey(dynamic workbook, string name)
+    private static Excel.Name? FindNameByKey(Excel.Workbook workbook, string name)
     {
-        dynamic? names = null;
+        Excel.Names? names = null;
         Excel.Name? nameObj = null;
         try
         {
             names = workbook.Names;
-            nameObj = (Excel.Name)names.Item(name);
+            nameObj = names.Item(name);
             var result = nameObj;
             nameObj = null;
             return result;
@@ -151,7 +151,7 @@ public partial class NamedRangeCommands
         }
     }
 
-    private static void PopulateListValuePreview(dynamic refersToRange, NamedRangeInfo info)
+    private static void PopulateListValuePreview(Excel.Range refersToRange, NamedRangeInfo info)
     {
         var areaCount = GetAreaCount(refersToRange);
         if (areaCount > 1)
@@ -186,9 +186,9 @@ public partial class NamedRangeCommands
         }
     }
 
-    private static int GetAreaCount(dynamic range)
+    private static int GetAreaCount(Excel.Range range)
     {
-        dynamic? areas = null;
+        Excel.Areas? areas = null;
         try
         {
             areas = range.Areas;
@@ -200,7 +200,7 @@ public partial class NamedRangeCommands
         }
     }
 
-    private static long GetCellCount(dynamic range)
+    private static long GetCellCount(Excel.Range range)
     {
         return Convert.ToInt64(range.CountLarge);
     }
@@ -234,7 +234,7 @@ public partial class NamedRangeCommands
         return batch.Execute((ctx, ct) =>
         {
             Excel.Name? nameObj = null;
-            dynamic? refersToRange = null;
+            Excel.Range? refersToRange = null;
             int originalCalculation = -1;
             bool calculationChanged = false;
 
@@ -285,7 +285,7 @@ public partial class NamedRangeCommands
         return batch.Execute((ctx, ct) =>
         {
             Excel.Name? nameObj = null;
-            dynamic? refersToRange = null;
+            Excel.Range? refersToRange = null;
             try
             {
                 nameObj = FindNameByKey(ctx.Book, name);
@@ -344,7 +344,7 @@ public partial class NamedRangeCommands
         {
             Excel.Name? existing = null;
             Excel.Name? created = null;
-            dynamic? namesCollection = null;
+            Excel.Names? namesCollection = null;
             try
             {
                 // Check if parameter already exists

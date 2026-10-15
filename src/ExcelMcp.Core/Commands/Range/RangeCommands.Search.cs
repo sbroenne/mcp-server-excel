@@ -98,7 +98,7 @@ public partial class RangeCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? range = null;
+            Excel.Range? range = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -137,10 +137,11 @@ public partial class RangeCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? range = null;
-            dynamic? key1 = null;
-            dynamic? key2 = null;
-            dynamic? key3 = null;
+            Excel.Range? range = null;
+            Excel.Range? columns = null;
+            Excel.Range? key1 = null;
+            Excel.Range? key2 = null;
+            Excel.Range? key3 = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -161,9 +162,10 @@ public partial class RangeCommands
                 }
 
                 // Get sort key ranges
-                key1 = sortColumns.Count >= 1 ? range.Columns[sortColumns[0].ColumnIndex] : Type.Missing;
-                key2 = sortColumns.Count >= 2 ? range.Columns[sortColumns[1].ColumnIndex] : Type.Missing;
-                key3 = sortColumns.Count >= 3 ? range.Columns[sortColumns[2].ColumnIndex] : Type.Missing;
+                columns = range.Columns;
+                key1 = (Excel.Range)columns[sortColumns[0].ColumnIndex];
+                key2 = sortColumns.Count >= 2 ? (Excel.Range)columns[sortColumns[1].ColumnIndex] : null;
+                key3 = sortColumns.Count >= 3 ? (Excel.Range)columns[sortColumns[2].ColumnIndex] : null;
 
                 // Excel COM constants
                 int order1 = sortColumns[0].Ascending ? 1 : 2; // xlAscending : xlDescending
@@ -174,16 +176,16 @@ public partial class RangeCommands
                 // Call Range.Sort method
                 range.Sort(
                     Key1: key1,
-                    Order1: order1,
-                    Key2: key2,
-                    Order2: order2,
-                    Key3: key3,
-                    Order3: order3,
-                    Header: header,
+                    Order1: (Excel.XlSortOrder)order1,
+                    Key2: (object?)key2 ?? Type.Missing,
+                    Order2: (Excel.XlSortOrder)order2,
+                    Key3: (object?)key3 ?? Type.Missing,
+                    Order3: (Excel.XlSortOrder)order3,
+                    Header: (Excel.XlYesNoGuess)header,
                     OrderCustom: 1,
                     MatchCase: false,
-                    Orientation: 1, // xlTopToBottom
-                    SortMethod: 1   // xlPinYin
+                    Orientation: Excel.XlSortOrientation.xlSortColumns,
+                    SortMethod: Excel.XlSortMethod.xlPinYin
                 );
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
@@ -193,6 +195,7 @@ public partial class RangeCommands
                 ComUtilities.Release(ref key3);
                 ComUtilities.Release(ref key2);
                 ComUtilities.Release(ref key1);
+                ComUtilities.Release(ref columns);
                 ComUtilities.Release(ref range);
             }
         });
@@ -201,4 +204,3 @@ public partial class RangeCommands
     // === NATIVE EXCEL COM OPERATIONS ===
 
 }
-

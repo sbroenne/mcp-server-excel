@@ -2,7 +2,8 @@
 
 - Prefer typed Excel PIAs. Late binding needs a documented PIA/runtime gap;
   existing `Application.Run`, VBE, and Office-core calls may intentionally avoid
-  unavailable dependencies. Follow `scripts\check-dynamic-casts.ps1`.
+  unavailable dependencies. Completed-area compiler enforcement and verified
+  per-occurrence gap requirements are described in [source safety](../../SOURCE-SAFETY.md).
 - Excel may marshal integer properties as doubles. Use `Convert.*` rather than
   direct numeric/enum casts from dynamic values. Collections are one-based.
 - Release acquired COM references in reverse order in `finally` with

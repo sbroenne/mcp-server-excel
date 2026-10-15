@@ -23,10 +23,10 @@ public sealed class PersistentServicePowerQueryMutationFailureTests : IAsyncLife
     public void Dispose() => _fixture.Dispose();
 
     [Theory]
-    [InlineData("Formula.Firewall", "Query references other queries or steps, so it may not directly access a data source.")]
-    [InlineData("Privacy", "Information is needed in order to combine data. Please specify a privacy level for each data source.")]
+    [InlineData("Formula.Firewall", "Query references other queries or steps, so it may not directly access a data source.", "PrivacyFirewall")]
+    [InlineData("Privacy", "Information is needed in order to combine data. Please specify a privacy level for each data source.", "Privacy")]
     public async Task Create_PrivacyLoadFailure_ReportsSurvivingWorksheetNotRequestedBoth(
-        string reason, string message)
+        string reason, string message, string expectedCategory)
     {
         const string queryName = "FailedCreate";
         var mCode = FirewallMCode(reason, message);
@@ -35,13 +35,16 @@ public sealed class PersistentServicePowerQueryMutationFailureTests : IAsyncLife
             new { queryName, mCode, loadDestination = "both" });
 
         AssertStoredDefinition(queryName, mCode, PowerQueryLoadMode.LoadToTable, queryName);
-        Assert.Equal("Privacy", response.ErrorCategory);
+        Assert.Equal(expectedCategory, response.ErrorCategory);
         Assert.Equal("PowerQueryCommandException", response.ExceptionType);
         Assert.Equal("powerquery.create", response.Command);
         Assert.Equal("0x800A03EC", response.HResult);
         Assert.Contains(message, response.ErrorMessage, StringComparison.Ordinal);
         Assert.Contains(queryName, response.ErrorMessage, StringComparison.Ordinal);
         Assert.False(string.IsNullOrWhiteSpace(response.InnerError));
+        Assert.Contains(reason, response.InnerError, StringComparison.Ordinal);
+        if (expectedCategory == "PrivacyFirewall")
+            Assert.Contains("powerquery set-privacy-settings --ignore-privacy-levels true", response.ErrorMessage, StringComparison.Ordinal);
         var state = ReadPartialState(response);
         Assert.True(state.GetProperty("queryCreated").GetBoolean());
         Assert.False(state.TryGetProperty("mCodeUpdated", out _));
@@ -52,10 +55,10 @@ public sealed class PersistentServicePowerQueryMutationFailureTests : IAsyncLife
     }
 
     [Theory]
-    [InlineData("Formula.Firewall", "Query references other queries or steps, so it may not directly access a data source.")]
-    [InlineData("Privacy", "Information is needed in order to combine data. Please specify a privacy level for each data source.")]
+    [InlineData("Formula.Firewall", "Query references other queries or steps, so it may not directly access a data source.", "PrivacyFirewall")]
+    [InlineData("Privacy", "Information is needed in order to combine data. Please specify a privacy level for each data source.", "Privacy")]
     public async Task Update_PrivacyRefreshFailure_ReportsSavedCodeAndPreservesOldRows(
-        string reason, string message)
+        string reason, string message, string expectedCategory)
     {
         const string queryName = "FailedUpdate";
         await _fixture.SendAsync("powerquery.create", new { queryName, mCode = ValidMCode });
@@ -66,13 +69,16 @@ public sealed class PersistentServicePowerQueryMutationFailureTests : IAsyncLife
 
         AssertStoredDefinition(queryName, mCode, PowerQueryLoadMode.LoadToTable, queryName);
         AssertWorksheetValue(queryName, 1);
-        Assert.Equal("Privacy", response.ErrorCategory);
+        Assert.Equal(expectedCategory, response.ErrorCategory);
         Assert.Equal("PowerQueryCommandException", response.ExceptionType);
         Assert.Equal("powerquery.update", response.Command);
         Assert.Equal("0x800A03EC", response.HResult);
         Assert.Contains(message, response.ErrorMessage, StringComparison.Ordinal);
         Assert.Contains(queryName, response.ErrorMessage, StringComparison.Ordinal);
         Assert.False(string.IsNullOrWhiteSpace(response.InnerError));
+        Assert.Contains(reason, response.InnerError, StringComparison.Ordinal);
+        if (expectedCategory == "PrivacyFirewall")
+            Assert.Contains("powerquery set-privacy-settings --ignore-privacy-levels true", response.ErrorMessage, StringComparison.Ordinal);
         var state = ReadPartialState(response);
         Assert.True(state.GetProperty("mCodeUpdated").GetBoolean());
         Assert.False(state.TryGetProperty("queryCreated", out _));
@@ -141,8 +147,11 @@ public sealed class PersistentServicePowerQueryMutationFailureTests : IAsyncLife
         var response = await _fixture.SendForFailureAsync("powerquery.update", new { queryName, mCode });
 
         PowerQueryStateAssertions.AssertStored(scope, queryName, mCode, mode, sheet, ["X"], [[1]]);
-        Assert.Equal("Privacy", response.ErrorCategory);
+        Assert.Equal("PrivacyFirewall", response.ErrorCategory);
         Assert.Equal("PowerQueryCommandException", response.ExceptionType);
+        Assert.Contains("Formula.Firewall", response.InnerError, StringComparison.Ordinal);
+        Assert.Contains("Please specify a privacy level for each data source.", response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("powerquery set-privacy-settings --ignore-privacy-levels true", response.ErrorMessage, StringComparison.Ordinal);
         var state = ReadPartialState(response);
         Assert.Equal(queryName, state.GetProperty("queryName").GetString());
         Assert.True(state.GetProperty("mCodeUpdated").GetBoolean());

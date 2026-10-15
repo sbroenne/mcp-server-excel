@@ -39,13 +39,13 @@ public partial class PowerQueryCommands
         {
             Excel.Queries? queriesCollection = null;
             Excel.WorkbookQuery? query = null;
-            dynamic? worksheets = null;
-            dynamic? tempSheet = null;
-            dynamic? listObjects = null;
-            dynamic? listObject = null;
-            dynamic? queryTable = null;
-            dynamic? range = null;
-            dynamic? usedRange = null;
+            Excel.Sheets? worksheets = null;
+            Excel.Worksheet? tempSheet = null;
+            Excel.ListObjects? listObjects = null;
+            Excel.ListObject? listObject = null;
+            Excel.QueryTable? queryTable = null;
+            Excel.Range? range = null;
+            Excel.Range? usedRange = null;
             Exception? operationError = null;
 
             try
@@ -58,7 +58,7 @@ public partial class PowerQueryCommands
 
                 // STEP 2: Create temporary worksheet and load data to it
                 worksheets = ctx.Book.Worksheets;
-                tempSheet = worksheets.Add();
+                tempSheet = (Excel.Worksheet)worksheets.Add();
                 tempSheet.Name = tempSheetName;
 
                 // STEP 3: Load query to worksheet using QueryTable
@@ -68,10 +68,10 @@ public partial class PowerQueryCommands
 
                 listObjects = tempSheet.ListObjects;
                 listObject = listObjects.Add(
-                    0,                  // SourceType: 0 = xlSrcExternal
+                    Excel.XlListObjectSourceType.xlSrcExternal,
                     connectionString,   // Source: connection string
                     Type.Missing,       // LinkSource
-                    1,                  // XlListObjectHasHeaders: xlYes = 1
+                    Excel.XlYesNoGuess.xlYes,
                     range               // Destination: starting cell
                 );
 
@@ -79,7 +79,7 @@ public partial class PowerQueryCommands
                 queryTable = listObject.QueryTable;
 
                 // Configure QueryTable to select from the query
-                queryTable.CommandType = 2; // xlCmdSql
+                queryTable.CommandType = Excel.XlCmdType.xlCmdSql; // xlCmdSql
                 queryTable.CommandText = $"SELECT * FROM [{tempQueryName}]";
                 queryTable.BackgroundQuery = false; // Synchronous
 
@@ -100,15 +100,15 @@ public partial class PowerQueryCommands
 
                 // STEP 5: Read the results from the worksheet
                 // Get the data range from the ListObject
-                dynamic? dataBodyRange = null;
-                dynamic? headerRowRange = null;
+                Excel.Range? dataBodyRange = null;
+                Excel.Range? headerRowRange = null;
                 try
                 {
                     // Get column names from header row
                     headerRowRange = listObject.HeaderRowRange;
                     if (headerRowRange != null)
                     {
-                        dynamic? headerValues = headerRowRange.Value2;
+                        object? headerValues = headerRowRange.Value2;
                         if (headerValues != null)
                         {
                             if (headerValues is object[,] headers2D)
@@ -140,7 +140,7 @@ public partial class PowerQueryCommands
                     dataBodyRange = listObject.DataBodyRange;
                     if (dataBodyRange != null)
                     {
-                        dynamic? dataValues = dataBodyRange.Value2;
+                        object? dataValues = dataBodyRange.Value2;
                         if (dataValues != null)
                         {
                             if (dataValues is object[,] data2D)
@@ -217,7 +217,7 @@ public partial class PowerQueryCommands
                 if (tempSheet != null)
                 {
                     // Suppress alerts to avoid "Are you sure you want to delete?" prompt
-                    dynamic? app = null;
+                    Excel.Application? app = null;
                     try
                     {
                         app = ctx.Book.Application;

@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
@@ -18,14 +19,12 @@ public partial class RangeCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
 
             try
             {
-                sheet = string.IsNullOrEmpty(sheetName)
-                    ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                sheet = RangeHelpers.ResolveWorksheet(ctx.Book, sheetName);
 
                 range = sheet.Range[rangeAddress];
                 range.Style = styleName;
@@ -53,17 +52,15 @@ public partial class RangeCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? styles = null;
-            dynamic? style = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            Excel.Styles? styles = null;
+            Excel.Style? style = null;
             object? rangeStyle = null;
 
             try
             {
-                sheet = string.IsNullOrEmpty(sheetName)
-                    ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                sheet = RangeHelpers.ResolveWorksheet(ctx.Book, sheetName);
 
                 range = sheet.Range[rangeAddress];
 
@@ -71,15 +68,15 @@ public partial class RangeCommands
 
                 if (rangeStyle is null or DBNull)
                     rangeStyle = "Normal";
-                if (rangeStyle is Microsoft.Office.Interop.Excel.Style)
+                if (rangeStyle is Excel.Style nativeStyle)
                 {
-                    style = rangeStyle;
+                    style = nativeStyle;
                     rangeStyle = null;
                 }
                 else if (rangeStyle is string name)
                 {
                     styles = ctx.Book.Styles;
-                    style = styles.Item(name);
+                    style = styles[name];
                 }
                 else
                     throw new InvalidOperationException("Excel returned an unsupported cell-style identity. Use get-format to inspect each cell.");

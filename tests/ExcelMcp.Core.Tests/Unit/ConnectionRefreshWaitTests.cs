@@ -1,7 +1,10 @@
+using System.Globalization;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
+using ExcelProxy = Sbroenne.ExcelMcp.Core.Tests.Unit.RangeHelpersExceptionTests.ExcelProxy;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
 
@@ -12,14 +15,39 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
 [Trait("RequiresExcel", "false")]
 public sealed class ConnectionRefreshWaitTests
 {
-    [Fact]
-    public void OlapCapability_DynamicNumericConnectionType_IsConverted()
+    [Theory]
+    [InlineData(Excel.XlConnectionType.xlConnectionTypeODBC, 2, false, false)]
+    [InlineData(Excel.XlConnectionType.xlConnectionTypeOLEDB, 1, false, false)]
+    [InlineData(Excel.XlConnectionType.xlConnectionTypeOLEDB, 1, true, true)]
+    public void OlapCapability_TypedConnectionType_UsesOlapOnlyForOleDb(
+        Excel.XlConnectionType connectionType, int numericType, bool olap, bool expected)
     {
-        dynamic connection = new System.Dynamic.ExpandoObject();
-        connection.Type = 2d;
         var method = typeof(ConnectionCommands).GetMethod("IsOlapConnection", BindingFlags.NonPublic | BindingFlags.Static);
         Assert.NotNull(method);
-        Assert.False(Assert.IsType<bool>(method.Invoke(null, [(object)connection])));
+        Assert.Equal(numericType, Convert.ToInt32(connectionType, CultureInfo.InvariantCulture));
+        var accessedMembers = new List<string>();
+        var oledb = ExcelProxy.Create<Excel.OLEDBConnection>((member, _) =>
+        {
+            accessedMembers.Add(member);
+            Assert.Equal("get_OLAP", member);
+            return olap;
+        });
+        var connection = ExcelProxy.Create<Excel.WorkbookConnection>((member, _) =>
+        {
+            accessedMembers.Add(member);
+            return member switch
+            {
+                "get_Type" => connectionType,
+                "get_OLEDBConnection" => oledb,
+                _ => throw new NotSupportedException(member)
+            };
+        });
+
+        Assert.Equal(expected, Assert.IsType<bool>(method.Invoke(null, [connection])));
+        string[] expectedMembers = numericType == 1
+            ? ["get_Type", "get_OLEDBConnection", "get_OLAP"]
+            : ["get_Type"];
+        Assert.Equal(expectedMembers, accessedMembers);
     }
 
     [Fact]
