@@ -910,6 +910,64 @@ public partial class PersistentServicePivotTableOlapFieldTests
     [Fact]
     [Trait("Speed", "Medium")]
     [Trait("Category", "OLAP")]
+    public void SetFieldFormat_OlapAmbiguousCaption_PreservesFieldsAndAcceptsExactNames()
+    {
+        var batch = _fixture.BatchToken;
+        var (sheetName, pivotName) = CreateIsolatedPivot();
+        var suffix = Guid.NewGuid().ToString("N")[..8];
+        var firstMeasure = $"AmbiguousFirst{suffix}";
+        var secondMeasure = $"AmbiguousSecond{suffix}";
+        var caption = $"Shared caption {suffix}";
+        foreach (var name in new[] { firstMeasure, secondMeasure })
+        {
+            var created = _dataModelCommands.CreateMeasure(
+                batch, "RegionalSalesTable", name, "SUM('RegionalSalesTable'[Sales])");
+            Assert.True(created.Success, created.ErrorMessage);
+            _fixture.RegisterDataModelMeasureForCleanup(name);
+        }
+
+        RequireSuccess(_pivotCommands.Refresh(batch, pivotName));
+        RequireSuccess(_pivotCommands.AddValueField(
+            batch, pivotName, $"[Measures].[{firstMeasure}]", customName: $"First display {suffix}"));
+        SetCubeFieldCaption(sheetName, pivotName, $"[Measures].[{firstMeasure}]", caption);
+        RequireSuccess(_pivotCommands.AddValueField(
+            batch, pivotName, $"[Measures].[{secondMeasure}]", customName: caption));
+        RequireSuccess(_pivotCommands.SetFieldFormat(batch, pivotName, $"[Measures].[{firstMeasure}]", "0.00"));
+        RequireSuccess(_pivotCommands.SetFieldFormat(batch, pivotName, $"[Measures].[{secondMeasure}]", "#,##0"));
+        var firstBefore = ReadPivotDataField(sheetName, pivotName);
+        var secondBefore = ReadPivotDataField(sheetName, pivotName, 2);
+        Assert.Equal("0.00", firstBefore.NumberFormat);
+        Assert.Equal("#,##0", secondBefore.NumberFormat);
+
+        var error = Assert.Throws<InvalidOperationException>(() =>
+            _pivotCommands.SetFieldFormat(batch, pivotName, caption, "0.0%"));
+
+        Assert.Contains("ambiguous", error.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(firstBefore, ReadPivotDataField(sheetName, pivotName));
+        Assert.Equal(secondBefore, ReadPivotDataField(sheetName, pivotName, 2));
+
+        var firstResult = _pivotCommands.SetFieldFormat(
+            batch, pivotName, $"[Measures].[{firstMeasure}]", "0.0%");
+        Assert.True(firstResult.Success, firstResult.ErrorMessage);
+        Assert.Equal("0.0%", firstResult.NumberFormat);
+        Assert.Equal(FormatExpectedCellText("0.0%", 49000), firstResult.RenderedText);
+        var firstAfter = ReadPivotDataField(sheetName, pivotName);
+        Assert.Equal((firstResult.NumberFormat, firstResult.RenderedText), firstAfter);
+        Assert.Equal(secondBefore, ReadPivotDataField(sheetName, pivotName, 2));
+
+        var secondResult = _pivotCommands.SetFieldFormat(
+            batch, pivotName, $"[Measures].[{secondMeasure}]", "$#,##0.00");
+        Assert.True(secondResult.Success, secondResult.ErrorMessage);
+        Assert.Equal(@"\$#,##0.00", secondResult.NumberFormat);
+        Assert.Equal(FormatExpectedCellText("$#,##0.00", 49000), secondResult.RenderedText);
+        Assert.Equal((secondResult.NumberFormat, secondResult.RenderedText),
+            ReadPivotDataField(sheetName, pivotName, 2));
+        Assert.Equal(firstAfter, ReadPivotDataField(sheetName, pivotName));
+    }
+
+    [Fact]
+    [Trait("Speed", "Medium")]
+    [Trait("Category", "OLAP")]
     public void SetFieldFormat_OlapMeasureWithoutDisplayedValue_ReturnsEmptyRenderedText()
     {
         var batch = _fixture.BatchToken;
