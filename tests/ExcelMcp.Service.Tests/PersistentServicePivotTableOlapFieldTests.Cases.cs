@@ -757,7 +757,7 @@ public partial class PersistentServicePivotTableOlapFieldTests
         Assert.True(updateResult.Success, $"Update failed: {updateResult.ErrorMessage}");
         Assert.Contains("Sales Total", updateResult.FieldName);
         Assert.Equal("0%", updateResult.NumberFormat);
-        AssertPivotFieldFormat(sheetName, pivotName, "Sales Total", "0%");
+        Assert.Equal("0%", ReadPivotDataField(sheetName, pivotName).NumberFormat);
         AssertMeasureValue("Sales Total", 49000);
     }
 
@@ -767,9 +767,8 @@ public partial class PersistentServicePivotTableOlapFieldTests
     /// created via datamodel tool, which exist in CubeFields but not
     /// in the same code path as AddValueField-created measures.
     ///
-    /// BUG REGRESSION TEST: The old SetFieldFormat searched model.ModelMeasures
-    /// but pre-existing measures may not be there in the expected format.
-    /// The fix uses CubeField.PivotFields[1].NumberFormat directly.
+    /// Pre-existing measures receive the same data-field format update
+    /// as measures created through the PivotTable command.
     /// </summary>
     [Fact]
     [Trait("Speed", "Medium")]
@@ -804,7 +803,151 @@ public partial class PersistentServicePivotTableOlapFieldTests
         Assert.True(formatResult.Success, $"SetFieldFormat failed: {formatResult.ErrorMessage}");
         Assert.Contains("ACR", formatResult.FieldName);
         Assert.Equal("0%", formatResult.NumberFormat);
-        AssertPivotFieldFormat(sheetName, pivotName, "ACR", "0%");
+        Assert.Equal("0%", ReadPivotDataField(sheetName, pivotName).NumberFormat);
+    }
+
+    [Theory]
+    [InlineData("0.0%", "DIVIDE(SUM('RegionalSalesTable'[Sales]), 1000000)", 0.049)]
+    [InlineData("#,##0", "SUM('RegionalSalesTable'[Sales])", 49000)]
+    [InlineData("0.00", "SUM('RegionalSalesTable'[Sales])", 49000)]
+    [InlineData("$#,##0.00", "SUM('RegionalSalesTable'[Sales])", 49000)]
+    [InlineData("$0.00", "SUM('RegionalSalesTable'[Sales])", 49000)]
+    [InlineData("$#,##0.00;($#,##0.00)", "-SUM('RegionalSalesTable'[Sales])", -49000)]
+    [InlineData("000000", "SUM('RegionalSalesTable'[Sales])", 49000)]
+    [InlineData("#,##0.##", "DIVIDE(SUM('RegionalSalesTable'[Sales]), 10000)", 4.9)]
+    [Trait("Speed", "Medium")]
+    [Trait("Category", "OLAP")]
+    public void SetFieldFormat_OlapInvariantFormat_RendersUsingLocaleSeparators(
+        string format, string formula, double expectedValue)
+    {
+        var batch = _fixture.BatchToken;
+        var (sheetName, pivotName) = CreateIsolatedPivot();
+        var measureName = "LocaleFormat" + Guid.NewGuid().ToString("N")[..8];
+        var created = _dataModelCommands.CreateMeasure(
+            batch, "RegionalSalesTable", measureName, formula);
+        Assert.True(created.Success, created.ErrorMessage);
+        _fixture.RegisterDataModelMeasureForCleanup(measureName);
+        RequireSuccess(_pivotCommands.Refresh(batch, pivotName));
+        RequireSuccess(_pivotCommands.AddValueField(
+            batch, pivotName, $"[Measures].[{measureName}]"));
+
+        var result = _pivotCommands.SetFieldFormat(
+            batch, pivotName, $"[Measures].[{measureName}]", format);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(
+            FormatExpectedCellText(format, expectedValue),
+            ReadPivotDataField(sheetName, pivotName).Text);
+        Assert.Equal(
+            FormatExpectedCellText(format, expectedValue),
+            result.RenderedText);
+        Assert.Equal(ReadPivotDataField(sheetName, pivotName).NumberFormat, result.NumberFormat);
+        Assert.Equal(format.Replace("$", @"\$", StringComparison.Ordinal), result.NumberFormat);
+    }
+
+    [Fact]
+    [Trait("Speed", "Medium")]
+    [Trait("Category", "OLAP")]
+    public void SetFieldFormat_OlapMeasureCaption_ResolvesExactMeasure()
+    {
+        var batch = _fixture.BatchToken;
+        var (sheetName, pivotName) = CreateIsolatedPivot();
+        var otherMeasureName = "FirstValue" + Guid.NewGuid().ToString("N")[..8];
+        var measureName = "CaptionFormat" + Guid.NewGuid().ToString("N")[..8];
+        var measureCaption = $"Display {measureName}";
+        var otherCreated = _dataModelCommands.CreateMeasure(
+            batch,
+            "RegionalSalesTable",
+            otherMeasureName,
+            "DIVIDE(SUM('RegionalSalesTable'[Sales]), 1000000)");
+        Assert.True(otherCreated.Success, otherCreated.ErrorMessage);
+        _fixture.RegisterDataModelMeasureForCleanup(otherMeasureName);
+        var created = _dataModelCommands.CreateMeasure(
+            batch,
+            "RegionalSalesTable",
+            measureName,
+            "SUM('RegionalSalesTable'[Sales])");
+        Assert.True(created.Success, created.ErrorMessage);
+        _fixture.RegisterDataModelMeasureForCleanup(measureName);
+        RequireSuccess(_pivotCommands.Refresh(batch, pivotName));
+        RequireSuccess(_pivotCommands.AddValueField(
+            batch, pivotName, $"[Measures].[{otherMeasureName}]"));
+        RequireSuccess(_pivotCommands.AddValueField(
+            batch, pivotName, $"[Measures].[{measureName}]"));
+        SetCubeFieldCaption(sheetName, pivotName, $"[Measures].[{measureName}]", measureCaption);
+        var unchangedField = ReadPivotDataField(sheetName, pivotName);
+
+        var result = _pivotCommands.SetFieldFormat(
+            batch, pivotName, measureCaption, "0.00");
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(measureCaption, result.CustomName);
+        Assert.Equal("0.00", result.NumberFormat);
+        Assert.Equal(FormatExpectedCellText("0.00", 49000), result.RenderedText);
+        Assert.Equal(ReadPivotDataField(sheetName, pivotName, 2).Text, result.RenderedText);
+        Assert.Equal(unchangedField, ReadPivotDataField(sheetName, pivotName));
+    }
+
+    [Fact]
+    [Trait("Speed", "Medium")]
+    [Trait("Category", "OLAP")]
+    public void SetFieldFormat_OlapMeasureWithoutDisplayedValue_ReturnsEmptyRenderedText()
+    {
+        var batch = _fixture.BatchToken;
+        var (sheetName, pivotName) = CreateIsolatedPivot();
+        var measureName = "BlankFormat" + Guid.NewGuid().ToString("N")[..8];
+        var created = _dataModelCommands.CreateMeasure(
+            batch,
+            "RegionalSalesTable",
+            measureName,
+            "BLANK()");
+        Assert.True(created.Success, created.ErrorMessage);
+        _fixture.RegisterDataModelMeasureForCleanup(measureName);
+        RequireSuccess(_pivotCommands.Refresh(batch, pivotName));
+        RequireSuccess(_pivotCommands.AddValueField(
+            batch, pivotName, $"[Measures].[{measureName}]"));
+
+        var result = _pivotCommands.SetFieldFormat(
+            batch, pivotName, $"[Measures].[{measureName}]", "0.00");
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.True(string.IsNullOrEmpty(result.RenderedText));
+        Assert.Equal(ReadPivotDataField(sheetName, pivotName).Text, result.RenderedText);
+    }
+
+    [Fact]
+    [Trait("Speed", "Medium")]
+    [Trait("Category", "OLAP")]
+    public async Task SetFieldFormat_OlapCustomCurrency_PersistsWithoutChangingOtherPivot()
+    {
+        var batch = _fixture.BatchToken;
+        var (sheetName, pivotName) = CreateIsolatedPivot();
+        var (otherSheetName, otherPivotName) = CreateIsolatedPivot();
+        var measureName = "CurrencyScope" + Guid.NewGuid().ToString("N")[..8];
+        var created = _dataModelCommands.CreateMeasure(
+            batch, "RegionalSalesTable", measureName, "SUM('RegionalSalesTable'[Sales])");
+        Assert.True(created.Success, created.ErrorMessage);
+        _fixture.RegisterDataModelMeasureForCleanup(measureName);
+        foreach (var name in new[] { pivotName, otherPivotName })
+        {
+            RequireSuccess(_pivotCommands.Refresh(batch, name));
+            RequireSuccess(_pivotCommands.AddValueField(batch, name, $"[Measures].[{measureName}]"));
+        }
+
+        var unchangedPivot = ReadPivotDataField(otherSheetName, otherPivotName);
+        var result = _pivotCommands.SetFieldFormat(batch, pivotName, measureName, "$#,##0.00");
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Equal(FormatExpectedCellText("$#,##0.00", 49000), result.RenderedText);
+        var formattedPivot = ReadPivotDataField(sheetName, pivotName);
+        Assert.Equal(result.NumberFormat, formattedPivot.NumberFormat);
+        Assert.Equal(result.RenderedText, formattedPivot.Text);
+        Assert.Equal(unchangedPivot, ReadPivotDataField(otherSheetName, otherPivotName));
+
+        RequireSuccess(_pivotCommands.Refresh(batch, pivotName));
+        Assert.Equal(formattedPivot, ReadPivotDataField(sheetName, pivotName));
+        await _fixture.SaveAndReopenAsync();
+        Assert.Equal(formattedPivot, ReadPivotDataField(sheetName, pivotName));
+        Assert.Equal(unchangedPivot, ReadPivotDataField(otherSheetName, otherPivotName));
     }
 
     private (string SheetName, string PivotName) CreateIsolatedPivot(string tableName = "RegionalSalesTable")
@@ -817,41 +960,89 @@ public partial class PersistentServicePivotTableOlapFieldTests
         return (sheetName, pivotName);
     }
 
-    private void AssertPivotFieldFormat(string sheetName, string pivotName, string measureName, string expected) =>
+    private (string? NumberFormat, string? Text) ReadPivotDataField(
+        string sheetName, string pivotName, int fieldIndex = 1) =>
         _fixture.ExecuteRawVerification((context, _) =>
         {
             Excel.Sheets? sheets = null;
             Excel.Worksheet? sheet = null;
             Excel.PivotTables? pivots = null;
             Excel.PivotTable? pivot = null;
-            Excel.CubeFields? cubes = null;
-            Excel.CubeField? cube = null;
             Excel.PivotFields? fields = null;
             Excel.PivotField? field = null;
+            Excel.Range? dataRange = null;
+            Excel.Range? cells = null;
+            Excel.Range? firstCell = null;
             try
             {
                 sheets = context.Book.Worksheets;
                 sheet = (Excel.Worksheet)sheets[sheetName];
                 pivots = (Excel.PivotTables)sheet.PivotTables();
                 pivot = pivots.Item(pivotName);
-                cubes = pivot.CubeFields;
-                cube = cubes[$"[Measures].[{measureName}]"];
-                fields = cube.PivotFields;
-                field = fields.Item(1);
-                Assert.Equal(expected, field.NumberFormat);
+                fields = (Excel.PivotFields)pivot.DataFields;
+                field = fields.Item(fieldIndex);
+                string? numberFormat = field.NumberFormat;
+                dataRange = field.DataRange;
+                if (dataRange is null)
+                {
+                    return (numberFormat, null);
+                }
+
+                cells = dataRange.Cells;
+                firstCell = (Excel.Range)cells[1, 1];
+                string? text = firstCell.Text?.ToString();
+                return (numberFormat, text);
             }
             finally
             {
+                ComUtilities.Release(ref firstCell);
+                ComUtilities.Release(ref cells);
+                ComUtilities.Release(ref dataRange);
                 ComUtilities.Release(ref field);
                 ComUtilities.Release(ref fields);
-                ComUtilities.Release(ref cube);
-                ComUtilities.Release(ref cubes);
                 ComUtilities.Release(ref pivot);
                 ComUtilities.Release(ref pivots);
                 ComUtilities.Release(ref sheet);
                 ComUtilities.Release(ref sheets);
             }
         });
+
+    private void SetCubeFieldCaption(string sheetName, string pivotName, string cubeFieldName, string caption) =>
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.PivotTables? pivots = null;
+            Excel.PivotTable? pivot = null;
+            Excel.CubeFields? cubeFields = null;
+            Excel.CubeField? cubeField = null;
+            try
+            {
+                sheets = context.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets[sheetName];
+                pivots = (Excel.PivotTables)sheet.PivotTables();
+                pivot = pivots.Item(pivotName);
+                cubeFields = pivot.CubeFields;
+                cubeField = cubeFields[cubeFieldName];
+                cubeField.Caption = caption;
+                Assert.Equal(caption, cubeField.Caption);
+            }
+            finally
+            {
+                ComUtilities.Release(ref cubeField);
+                ComUtilities.Release(ref cubeFields);
+                ComUtilities.Release(ref pivot);
+                ComUtilities.Release(ref pivots);
+                ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
+            }
+        });
+
+    private static string FormatExpectedCellText(string format, double value)
+    {
+        var culture = System.Globalization.CultureInfo.CurrentCulture;
+        return value.ToString(format, culture);
+    }
 
     private void AssertMeasureValue(string measureName, double expected)
     {

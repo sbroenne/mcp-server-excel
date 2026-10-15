@@ -163,13 +163,13 @@ public interface IPivotTableFieldCommands
         string fieldName, string customName);
 
     /// <summary>
-    /// Sets number format for value field
+    /// Sets an invariant number format for a value field without changing the shared Data Model measure.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="pivotTableName">Name of the PivotTable</param>
-    /// <param name="fieldName">Name of the field</param>
-    /// <param name="numberFormat">Number format string</param>
-    /// <returns>Applied format with sample formatted value</returns>
+    /// <param name="fieldName">Field name. OLAP measures accept the exact cube-field name, bare measure name, or exact caption.</param>
+    /// <param name="numberFormat">Invariant/en-US number format string, including custom currency formats. Excel displays local numeric separators.</param>
+    /// <returns>Applied format read back from Excel, with the selected OLAP value field's first displayed data cell when available.</returns>
     [ServiceAction("set-field-format")]
     PivotFieldResult SetFieldFormat(IExcelBatch batch, string pivotTableName,
         string fieldName, string numberFormat);
