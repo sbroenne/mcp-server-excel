@@ -692,15 +692,8 @@ public partial class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         Excel.Range? firstDataCell = null;
         try
         {
-            cubeField = FindMeasureCubeField(pivot, fieldName) ??
-                FindMeasureCubeFieldByCaption((Excel.PivotTable)pivot, fieldName);
-            if (cubeField is null)
-            {
-                throw new InvalidOperationException(
-                    $"Measure '{fieldName}' not found in OLAP PivotTable. Use its exact CubeField name or caption.");
-            }
-
-            if (cubeField.Orientation != Excel.XlPivotFieldOrientation.xlDataField)
+            cubeField = FindMeasureCubeField(pivot, fieldName);
+            if (cubeField is not null && cubeField.Orientation != Excel.XlPivotFieldOrientation.xlDataField)
             {
                 throw new InvalidOperationException(
                     $"Field '{fieldName}' is not in the Values area (Orientation={cubeField.Orientation}). " +
@@ -709,7 +702,7 @@ public partial class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
 
             // CubeField.PivotFields exposes cube metadata, not the displayed data field.
             dataFields = (Excel.PivotFields)((Excel.PivotTable)pivot).DataFields;
-            string cubeFieldName = cubeField.Name;
+            string? cubeFieldName = cubeField?.Name;
             for (int index = 1; index <= dataFields.Count; index++)
             {
                 Excel.PivotField? candidate = null;
@@ -718,11 +711,20 @@ public partial class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
                 {
                     candidate = dataFields.Item(index);
                     candidateCubeField = candidate.CubeField;
-                    if (string.Equals(candidateCubeField.Name, cubeFieldName, StringComparison.OrdinalIgnoreCase))
+                    bool matches = cubeFieldName is not null
+                        ? string.Equals(candidateCubeField.Name, cubeFieldName, StringComparison.OrdinalIgnoreCase)
+                        : string.Equals(candidate.Caption, fieldName, StringComparison.OrdinalIgnoreCase) ||
+                          string.Equals(candidateCubeField.Caption, fieldName, StringComparison.OrdinalIgnoreCase);
+                    if (matches)
                     {
+                        if (dataField is not null)
+                        {
+                            throw new InvalidOperationException(
+                                $"Measure caption '{fieldName}' is ambiguous in the OLAP PivotTable. Use its exact CubeField name.");
+                        }
+
                         dataField = candidate;
                         candidate = null;
-                        break;
                     }
                 }
                 finally
@@ -735,7 +737,8 @@ public partial class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             if (dataField is null)
             {
                 throw new InvalidOperationException(
-                    $"Cannot format OLAP measure '{fieldName}' because its data field is not available.");
+                    $"Cannot format OLAP measure '{fieldName}' because its data field was not found. " +
+                    "Use its exact CubeField name or displayed caption and ensure it is in the Values area.");
             }
 
             dataField.NumberFormat = numberFormat;
@@ -753,7 +756,7 @@ public partial class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
             {
                 Success = true,
                 FieldName = fieldName,
-                CustomName = cubeField.Caption,
+                CustomName = dataField.Caption,
                 Area = PivotFieldArea.Value,
                 NumberFormat = appliedFormat,
                 RenderedText = renderedText,
@@ -1523,56 +1526,6 @@ public partial class OlapPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
         finally
         {
-            ComUtilities.Release(ref cubeFields);
-        }
-    }
-
-    private static Excel.CubeField? FindMeasureCubeFieldByCaption(Excel.PivotTable pivot, string caption)
-    {
-        Excel.CubeFields? cubeFields = null;
-        Excel.CubeField? matchingField = null;
-        try
-        {
-            cubeFields = pivot.CubeFields;
-            for (int i = 1; i <= cubeFields.Count; i++)
-            {
-                Excel.CubeField? candidate = null;
-                try
-                {
-                    candidate = cubeFields[i];
-                    if (candidate.CubeFieldType != Excel.XlCubeFieldType.xlMeasure ||
-                        !string.Equals(candidate.Caption, caption, StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
-
-                    if (matchingField is not null)
-                    {
-                        throw new InvalidOperationException(
-                            $"Measure caption '{caption}' is ambiguous in the OLAP PivotTable. Use its exact CubeField name.");
-                    }
-
-                    matchingField = candidate;
-                    candidate = null;
-                }
-                finally
-                {
-                    ComUtilities.Release(ref candidate);
-                }
-            }
-
-            if (matchingField is null)
-            {
-                return null;
-            }
-
-            var found = matchingField;
-            matchingField = null;
-            return found;
-        }
-        finally
-        {
-            ComUtilities.Release(ref matchingField);
             ComUtilities.Release(ref cubeFields);
         }
     }

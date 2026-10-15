@@ -235,7 +235,10 @@ sharing that cache. Choose independent caches when those effects are unwanted.
   data cell, including when several measures are present. It is omitted when no
   data cell is available. Readback failures are reported, not replaced with the
   requested format. OLAP measures can be selected by their exact cube-field
-  name, bare measure name, or exact caption.
+  name, bare measure name, or exact displayed value-field or cube caption.
+  Displayed captions include names supplied through `custom_name` (MCP) or
+  `--custom-name` (CLI) when adding a value field. Ambiguous captions are rejected;
+  use the exact cube-field name to select the measure.
 
 Choose Compact for a nested view or Tabular/Outline when separate field columns
 and repeated labels suit the output. Use the PivotTable's own styles and field

@@ -845,10 +845,12 @@ public partial class PersistentServicePivotTableOlapFieldTests
         Assert.Equal(format.Replace("$", @"\$", StringComparison.Ordinal), result.NumberFormat);
     }
 
-    [Fact]
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     [Trait("Speed", "Medium")]
     [Trait("Category", "OLAP")]
-    public void SetFieldFormat_OlapMeasureCaption_ResolvesExactMeasure()
+    public void SetFieldFormat_OlapMeasureCaption_ResolvesExactMeasure(bool useCustomName)
     {
         var batch = _fixture.BatchToken;
         var (sheetName, pivotName) = CreateIsolatedPivot();
@@ -872,9 +874,17 @@ public partial class PersistentServicePivotTableOlapFieldTests
         RequireSuccess(_pivotCommands.Refresh(batch, pivotName));
         RequireSuccess(_pivotCommands.AddValueField(
             batch, pivotName, $"[Measures].[{otherMeasureName}]"));
-        RequireSuccess(_pivotCommands.AddValueField(
-            batch, pivotName, $"[Measures].[{measureName}]"));
-        SetCubeFieldCaption(sheetName, pivotName, $"[Measures].[{measureName}]", measureCaption);
+        var added = _pivotCommands.AddValueField(
+            batch, pivotName, $"[Measures].[{measureName}]", customName: useCustomName ? measureCaption : null);
+        RequireSuccess(added);
+        if (useCustomName)
+        {
+            Assert.Equal(measureCaption, added.CustomName);
+        }
+        else
+        {
+            SetCubeFieldCaption(sheetName, pivotName, $"[Measures].[{measureName}]", measureCaption);
+        }
         var unchangedField = ReadPivotDataField(sheetName, pivotName);
 
         var result = _pivotCommands.SetFieldFormat(
@@ -885,6 +895,15 @@ public partial class PersistentServicePivotTableOlapFieldTests
         Assert.Equal("0.00", result.NumberFormat);
         Assert.Equal(FormatExpectedCellText("0.00", 49000), result.RenderedText);
         Assert.Equal(ReadPivotDataField(sheetName, pivotName, 2).Text, result.RenderedText);
+        Assert.Equal(unchangedField, ReadPivotDataField(sheetName, pivotName));
+
+        var byExactName = _pivotCommands.SetFieldFormat(
+            batch, pivotName, $"[Measures].[{measureName}]", "0.0%");
+        Assert.True(byExactName.Success, byExactName.ErrorMessage);
+        Assert.Equal(measureCaption, byExactName.CustomName);
+        Assert.Equal("0.0%", byExactName.NumberFormat);
+        Assert.Equal(FormatExpectedCellText("0.0%", 49000), byExactName.RenderedText);
+        Assert.Equal(ReadPivotDataField(sheetName, pivotName, 2).Text, byExactName.RenderedText);
         Assert.Equal(unchangedField, ReadPivotDataField(sheetName, pivotName));
     }
 
