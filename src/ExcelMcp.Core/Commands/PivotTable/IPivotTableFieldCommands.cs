@@ -228,11 +228,11 @@ public interface IPivotTableFieldCommands
     [ServiceAction("get-field-filters")]
     PivotFiltersResult GetFieldFilters(IExcelBatch batch, string pivotTableName, string fieldName);
 
-    /// <summary>Adds a native label, value, or top/bottom filter without clearing existing filters. Regular PivotTables also support date filters; Excel does not support native OLAP date filters.</summary>
+    /// <summary>Adds a native label, value, top/bottom, or date filter without clearing existing filters. OLAP date filters require a source date level recognized by Excel and the provider; a date-looking caption alone is insufficient.</summary>
     /// <param name="batch">Excel batch session.</param>
     /// <param name="pivotTableName">Selected PivotTable.</param>
     /// <param name="fieldName">Exact placed field caption; for OLAP, the exact hierarchy name or placed row/column level name.</param>
-    /// <param name="filterOptions">Filter criteria: type selects a Caption, Value, Top/Bottom, or Date filter; Caption uses text1 and optional text2, Value/Top/Bottom uses dataFieldName and number1 plus number2 for intervals, and regular PivotTable Date filters use ISO date1 plus date2 for intervals. OLAP does not support native Date filters. OLAP dataFieldName accepts the displayed value caption or its [Measures] unique name.</param>
+    /// <param name="filterOptions">Filter criteria: type selects a Caption, Value, Top/Bottom, or Date filter; Caption uses text1 and optional text2, Value/Top/Bottom uses dataFieldName and number1 plus number2 for intervals, and Date filters use ISO date1 plus date2 for intervals. OLAP date support depends on the source date level and provider. OLAP dataFieldName accepts the displayed value caption or its [Measures] unique name.</param>
     [ServiceAction("add-field-filter")]
     PivotFiltersResult AddFieldFilter(IExcelBatch batch, string pivotTableName, string fieldName, PivotFilterOptions filterOptions);
 

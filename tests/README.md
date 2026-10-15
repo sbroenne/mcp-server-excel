@@ -618,8 +618,9 @@ The All-member regression introduced for issue #1135 was verified against
 Atoti Community Edition 6.2.2, Excel's built-in Data Model (Power Pivot), and
 SSAS 17.0.25.223 in multidimensional mode using the AdventureWorks sample cube.
 The focused SSAS Service regression passed on the Excel Runner; this does not
-mean the complete external suite was run against SSAS. Azure Analysis Services,
-Power BI XMLA, and SSAS tabular mode have not been tested.
+mean the complete external suite was run against SSAS. Azure Analysis Services
+and Power BI XMLA have not been tested. SSAS tabular date-filter coverage is
+documented separately below; it does not cover this All-member regression.
 
 The focused SSAS regression is separate from the Atoti fixture. Configure
 `EXCELMCP_TEST_SSAS_CONNECTION_STRING` in the test process for the sample database;
@@ -636,6 +637,82 @@ It reads the actual All-member identity through Excel's ADO connection and
 requires a nonstandard name. It checks filter reads and semantic snapshots,
 explicit All assignment, a real selected member, clearing, unchanged
 single-selection mode, data totals, and save/reopen followed by explicit refresh.
+
+#### SSAS tabular date filters
+
+The separate date-filter regression uses a small synthetic SSAS tabular model,
+not the multidimensional Adventure Works cube or the generic Atoti fixture.
+Execute this TMSL in an SSAS management query window connected to a tabular
+test instance. The create command refuses to overwrite an existing database:
+
+```json
+{
+  "create": {
+    "database": {
+      "name": "ExcelMcpDateFilterTest",
+      "compatibilityLevel": 1200,
+      "model": {
+        "culture": "en-US",
+        "tables": [{
+          "name": "Dates",
+          "dataCategory": "Time",
+          "columns": [
+            { "name": "Date", "type": "calculatedTableColumn", "dataType": "dateTime", "sourceColumn": "[Date]", "isKey": true, "formatString": "yyyy-mm-dd" },
+            { "name": "Amount", "type": "calculatedTableColumn", "dataType": "int64", "sourceColumn": "[Amount]" }
+          ],
+          "partitions": [{
+            "name": "Dates",
+            "source": {
+              "type": "calculated",
+              "expression": "UNION(ROW(\"Date\",DATE(2024,1,15),\"Amount\",100),ROW(\"Date\",DATE(2024,2,10),\"Amount\",200),ROW(\"Date\",DATE(2024,3,5),\"Amount\",400),ROW(\"Date\",DATE(2024,4,12),\"Amount\",800))"
+            }
+          }],
+          "measures": [{ "name": "Total Amount", "expression": "SUM(Dates[Amount])", "formatString": "0" }]
+        }]
+      }
+    }
+  }
+}
+```
+
+Process the newly created `ExcelMcpDateFilterTest` database:
+
+```json
+{
+  "refresh": {
+    "type": "full",
+    "objects": [{ "database": "ExcelMcpDateFilterTest" }]
+  }
+}
+```
+
+The model has one time table, `Dates`, with a date-time key column `Date`,
+an `Amount` column, and the `Total Amount` measure. Its four dates are
+2024-01-15, 2024-02-10, 2024-03-05, and 2024-04-12, with amounts 100, 200,
+400, and 800. It has no external data source or credentials.
+
+Set `EXCELMCP_TEST_SSAS_DATE_CONNECTION_STRING` in the test process to an
+MSOLAP connection to this database. This setting is independent of the
+Adventure Works connection above. Without it, the on-demand tests skip;
+a skipped test is not SSAS validation.
+
+```powershell
+dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Release --no-restore --filter 'FullyQualifiedName~SsasDateFilters_TypedDateLevel' --logger 'trx;LogFileName=ssas-date.trx' --results-directory TestResults\ssas-date --blame-hang-timeout 3m --verbosity quiet
+```
+
+All eight supported date-filter types were verified against SSAS 17.0.25.218
+in tabular mode through desktop Excel and the Service entry point. Each case
+checks exact returned criteria, actual date rows and totals, semantic snapshot
+completeness, and clear/readback restoring all four dates. Excel reports this
+valid SSAS date level's `PivotField.DataType` as `xlText`, so that property
+cannot be used to reject OLAP date filters. Native OLAP calls omit
+`WholeDayFilter`; regular PivotTables retain their date-type check and
+whole-day behavior. Source metadata still matters: the existing Data Model
+`SalesTable.Date` fixture rejects native date filtering and remains a negative
+regression, not evidence that every OLAP date field is unsupported.
+
+This is SSAS tabular coverage only; it does not establish date-filter support
+on SSAS multidimensional, Atoti, Power BI XMLA, or every Data Model date field.
 
 To use the general external suite against another SSAS fixture, configure all
 four `EXCELMCP_TEST_OLAP_*` settings listed above in the test process.

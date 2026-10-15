@@ -80,7 +80,7 @@ public enum PivotFilterType
     DateNotBetween
 }
 
-/// <summary>Typed native filter criteria. Supply only fields required by type: Caption uses text, Value/Top/Bottom uses a value field and numbers, and regular PivotTable Date filters use dates. Excel does not support native OLAP Date filters.</summary>
+/// <summary>Typed native filter criteria. Supply only fields required by type: Caption uses text, Value/Top/Bottom uses a value field and numbers, and Date filters use dates. OLAP date support depends on the source date level and provider.</summary>
 [JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed class PivotFilterOptions
 {
@@ -97,9 +97,9 @@ public sealed class PivotFilterOptions
     public double? Number1 { get; set; }
     /// <summary>Second numeric criterion for Value* interval filters.</summary>
     public double? Number2 { get; set; }
-    /// <summary>First date criterion in ISO date/time format; required for regular PivotTable date comparisons.</summary>
+    /// <summary>First date criterion in ISO date/time format; required for date comparisons.</summary>
     public DateTime? Date1 { get; set; }
-    /// <summary>Second ISO date/time criterion for regular PivotTable DateBetween and DateNotBetween.</summary>
+    /// <summary>Second ISO date/time criterion for DateBetween and DateNotBetween.</summary>
     public DateTime? Date2 { get; set; }
 }
 

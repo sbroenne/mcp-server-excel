@@ -245,7 +245,7 @@ public sealed class PersistentServicePivotDepthOlapTests(PersistentServiceDataMo
     }
 
     [Fact]
-    public async Task OlapCaptionFiltersWorkAndDateFiltersFailWithoutChangingData()
+    public async Task OlapCaptionFiltersWorkAndUnrecognizedDateLevelPreservesNativeFailure()
     {
         var pivot = _fixture.CreateCommands<IPersistentPivotTableCommands>();
         var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);
@@ -292,9 +292,8 @@ public sealed class PersistentServicePivotDepthOlapTests(PersistentServiceDataMo
             }
         });
         Assert.False(dateFilter.Success);
-        Assert.Equal(nameof(NotSupportedException), dateFilter.ExceptionType);
-        Assert.Contains("Excel does not support native date filters on OLAP/Data Model PivotTable fields",
-            dateFilter.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal(nameof(System.Runtime.InteropServices.COMException), dateFilter.ExceptionType);
+        Assert.False(string.IsNullOrWhiteSpace(dateFilter.ErrorMessage));
         var filteredDates = _fixture.Send("pivottablecalc.get-data", new { pivotTableName = dateName });
         AssertSuccessful(filteredDates);
         Assert.Equal(beforeDateFilter.Result, filteredDates.Result);

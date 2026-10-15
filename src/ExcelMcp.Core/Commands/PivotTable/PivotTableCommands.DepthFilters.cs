@@ -30,15 +30,13 @@ public partial class PivotTableCommands
             try
             {
                 cache = pivot.PivotCache();
-                if (cache.OLAP && filterOptions.Date1.HasValue)
-                    throw new NotSupportedException(
-                        "Excel does not support native date filters on OLAP/Data Model PivotTable fields. Use a caption filter where appropriate.");
                 if (filterOptions.DataFieldName is not null)
                 {
                     dataFields = (Excel.PivotFields)pivot.DataFields;
                     dataField = FindValueField(dataFields, filterOptions.DataFieldName, ct, allowOlapNames: cache.OLAP);
                 }
-                if (filterOptions.Date1.HasValue && field.DataType != Excel.XlPivotFieldDataType.xlDate)
+                if (filterOptions.Date1.HasValue && !cache.OLAP &&
+                    field.DataType != Excel.XlPivotFieldDataType.xlDate)
                     throw new ArgumentException("Date filters require a native date field; grouping a text label does not make it a date.");
                 filters = field.PivotFilters;
                 if (filters.Count > 0 && !pivot.AllowMultipleFilters)
@@ -47,7 +45,7 @@ public partial class PivotTableCommands
                     _ = ReadPivotFilters(field, pivotTableName, batch.WorkbookPath, ct, isOlap: true);
                 ct.ThrowIfCancellationRequested();
                 added = filters.Add2(type, dataField ?? (object)Type.Missing, value1, value2,
-                    WholeDayFilter: filterOptions.Date1.HasValue ? true : Type.Missing);
+                    WholeDayFilter: filterOptions.Date1.HasValue && !cache.OLAP ? true : Type.Missing);
                 var result = ReadPivotFilters(field, pivotTableName, batch.WorkbookPath, ct, cache.OLAP);
                 if (cache.OLAP && dataField is not null && result.Filters.Count > 0)
                     result.Filters[^1].DataFieldName = dataField.Caption;
