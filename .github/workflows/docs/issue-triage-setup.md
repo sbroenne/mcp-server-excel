@@ -19,10 +19,9 @@ copied automation markers, are never edited.
 
 When automatic fixing is enabled, a clear, localized easy-fix assessment can
 assign the existing issue to Copilot. The coding task is instructed to follow
-the existing Squad roster, routing, specialist charter, repository rules, and
-review requirements. **It does not launch the Squad coordinator itself.**
-No Squad profiles, configuration, routing, or state are changed by this workflow.
-Existing manually applied `squad`/`squad:*` label workflows remain separate.
+the repository rules and applicable task guides, and to verify the diagnosis
+before editing. It does not use a custom agent profile or change repository
+agent settings.
 
 The coding agent independently verifies the diagnosis, implements the fix,
 and opens or updates one **draft PR** linked to the issue. It must stop if the

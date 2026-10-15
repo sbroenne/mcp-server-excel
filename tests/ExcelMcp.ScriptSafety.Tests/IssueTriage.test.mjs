@@ -167,7 +167,7 @@ test('auto-fix off switch does not prevent advisory publication', async () => {
     assert.equal(state.issue.assignees.length, 0);
 });
 
-test('assignment uses existing Squad guidance without modifying or loading Squad profiles', () => {
+test('assignment uses repository guidance without custom-agent overrides', () => {
     const body = assignmentBody({ default_branch: 'main' }, result(), 'a'.repeat(40));
     assert.deepEqual(body.assignees, ['copilot-swe-agent[bot]']);
     assert.ok(!Object.hasOwn(body.agent_assignment, 'custom_agent'));
@@ -175,8 +175,10 @@ test('assignment uses existing Squad guidance without modifying or loading Squad
     assert.equal(body.agent_assignment.base_branch, 'main');
     assert.match(body.agent_assignment.custom_instructions, /draft/i);
     assert.match(body.agent_assignment.custom_instructions, /Test-E2E/);
-    assert.match(body.agent_assignment.custom_instructions, /\.squad\/routing\.md/);
-    assert.match(body.agent_assignment.custom_instructions, /Do not change Squad/);
+    assert.match(body.agent_assignment.custom_instructions, /AGENTS\.md, CONTEXT\.md/);
+    assert.match(body.agent_assignment.custom_instructions, /applicable task guides/);
+    assert.match(body.agent_assignment.custom_instructions, /independent review/);
+    assert.doesNotMatch(body.agent_assignment.custom_instructions, /Squad|\.squad/i);
     assert.ok(body.agent_assignment.custom_instructions.includes(result().easy_fix.validation[0]));
     assert.ok(!Object.hasOwn(body.agent_assignment, 'model'));
 });
@@ -290,7 +292,7 @@ test('failed comment writes never lead to assignment or a success receipt', asyn
     assert.equal(ownedState(state.comments[0], 42).handoff, 'none');
 });
 
-test('workflow preserves Squad and existing runner settings', () => {
+test('workflow preserves safety boundaries and existing runner settings', () => {
     const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'issue-triage.md'), 'utf8');
     assert.match(workflow, /types: \[opened, reopened\]/);
     assert.match(workflow, /roles: all/);
@@ -300,9 +302,8 @@ test('workflow preserves Squad and existing runner settings', () => {
     assert.match(workflow, /detection_success == 'true'/);
     assert.match(workflow, /ISSUE_AUTO_FIX_ENABLED/);
     assert.doesNotMatch(workflow, /add-labels:|close-issue:|create-pull-request:|issues: \[write\]/);
-    for (const profile of ['squad-auto-fix', 'squad-fix-worker', 'squad-fix-reviewer']) {
-        assert.equal(fs.existsSync(path.join(root, '.github', 'agents', `${profile}.agent.md`)), false);
-    }
+    assert.match(workflow, /Do not recommend the retired `squad` or `squad:\*` routing labels/);
+    assert.doesNotMatch(workflow, /Squad|\.squad/);
     assert.match(fs.readFileSync(path.join(root, '.github', 'workflows', 'copilot-setup-steps.yml'), 'utf8'),
         /vars.EXCEL_COPILOT_ENABLED == 'true'/);
 });
