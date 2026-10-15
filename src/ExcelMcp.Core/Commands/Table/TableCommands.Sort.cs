@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
@@ -52,8 +53,9 @@ public partial class TableCommands
                 // Perform sort
                 sortRange.Sort(
                     Key1: columnRange,
-                    Order1: ascending ? xlAscending : xlDescending,
-                    Header: xlYes
+                    Order1: (Excel.XlSortOrder)(ascending ? xlAscending : xlDescending),
+                    Header: Excel.XlYesNoGuess.xlYes,
+                    Orientation: Excel.XlSortOrientation.xlSortColumns
                 );
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
@@ -135,30 +137,33 @@ public partial class TableCommands
                 {
                     sortRange.Sort(
                         Key1: key1,
-                        Order1: sortColumns[0].Ascending ? xlAscending : xlDescending,
-                        Header: xlYes
+                        Order1: (Excel.XlSortOrder)(sortColumns[0].Ascending ? xlAscending : xlDescending),
+                        Header: Excel.XlYesNoGuess.xlYes,
+                        Orientation: Excel.XlSortOrientation.xlSortColumns
                     );
                 }
                 else if (sortColumns.Count == 2)
                 {
                     sortRange.Sort(
                         Key1: key1,
-                        Order1: sortColumns[0].Ascending ? xlAscending : xlDescending,
+                        Order1: (Excel.XlSortOrder)(sortColumns[0].Ascending ? xlAscending : xlDescending),
                         Key2: key2,
-                        Order2: sortColumns[1].Ascending ? xlAscending : xlDescending,
-                        Header: xlYes
+                        Order2: (Excel.XlSortOrder)(sortColumns[1].Ascending ? xlAscending : xlDescending),
+                        Header: Excel.XlYesNoGuess.xlYes,
+                        Orientation: Excel.XlSortOrientation.xlSortColumns
                     );
                 }
                 else if (sortColumns.Count == 3)
                 {
                     sortRange.Sort(
                         Key1: key1,
-                        Order1: sortColumns[0].Ascending ? xlAscending : xlDescending,
+                        Order1: (Excel.XlSortOrder)(sortColumns[0].Ascending ? xlAscending : xlDescending),
                         Key2: key2,
-                        Order2: sortColumns[1].Ascending ? xlAscending : xlDescending,
+                        Order2: (Excel.XlSortOrder)(sortColumns[1].Ascending ? xlAscending : xlDescending),
                         Key3: key3,
-                        Order3: sortColumns[2].Ascending ? xlAscending : xlDescending,
-                        Header: xlYes
+                        Order3: (Excel.XlSortOrder)(sortColumns[2].Ascending ? xlAscending : xlDescending),
+                        Header: Excel.XlYesNoGuess.xlYes,
+                        Orientation: Excel.XlSortOrientation.xlSortColumns
                     );
                 }
 
@@ -178,5 +183,4 @@ public partial class TableCommands
         });
     }
 }
-
 
