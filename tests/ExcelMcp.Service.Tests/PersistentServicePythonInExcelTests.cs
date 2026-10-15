@@ -17,7 +17,7 @@ internal interface IPersistentPythonInExcelCommands :
 /// Python cloud sandbox. They are intentionally excluded from default CI runs via
 /// [Trait("RunType", "OnDemand")] since results depend on a real cloud round-trip
 /// (typically a few seconds, occasionally longer under cold-start conditions).
-/// Tests use Core commands directly (not through CLI wrapper).
+/// Tests use typed production Service proxies (not the CLI wrapper).
 /// </summary>
 [Trait("Layer", "Service")]
 [Trait("Category", "Integration")]
@@ -117,10 +117,11 @@ public class PersistentServicePythonInExcelTests :
         const int startRow = 1;
         string sourceRange = WriteSourceData(batch, sheetName, startRow); // 5,15,25,35,45 => sum 125
         string targetCell = $"D{startRow}";
-        string code = $"xl('{sourceRange}').sum()";
+        string code = $"xl(\"{sourceRange}\").sum()";
 
         var setResult = _pythonCommands.SetFormula(batch, sheetName, targetCell, code, returnType: 0);
         Assert.True(setResult.Success, setResult.ErrorMessage);
+        AssertPythonFormula(batch, sheetName, targetCell, code);
 
         // Act - a SINGLE GetResult call, deliberately NOT wrapped in GetResultWithRetry.
         var getResult = _pythonCommands.GetResult(batch, sheetName, targetCell, DefaultMaxWaitSeconds);
@@ -156,7 +157,17 @@ public class PersistentServicePythonInExcelTests :
 
         var formulaResult = _rangeCommands.GetFormulas(batch, sheetName, targetRange);
         Assert.True(formulaResult.Success, formulaResult.ErrorMessage);
+        Assert.Equal(2, formulaResult.RowCount);
+        Assert.Equal(1, formulaResult.ColumnCount);
         Assert.All(formulaResult.Formulas, row => Assert.StartsWith("=PY(", row[0], StringComparison.Ordinal));
+        foreach (string cell in new[] { "D1", "D2" })
+        {
+            AssertPythonFormula(batch, sheetName, cell, "1 + 1");
+            var result = RequireSuccess(_pythonCommands.GetResult(batch, sheetName, cell, DefaultMaxWaitSeconds));
+            Assert.False(result.IsPythonError);
+            Assert.False(result.IsPythonObject);
+            Assert.Equal(2d, Convert.ToDouble(result.Value, System.Globalization.CultureInfo.InvariantCulture));
+        }
     }
 
     /// <inheritdoc/>
@@ -169,11 +180,12 @@ public class PersistentServicePythonInExcelTests :
         const int startRow = 1;
         string sourceRange = WriteSourceData(batch, sheetName, startRow);
         string targetCell = $"D{startRow}";
-        string code = $"xl('{sourceRange}').mean()";
+        string code = $"xl(\"{sourceRange}\").mean()";
 
         // Act
         var setResult = _pythonCommands.SetFormula(batch, sheetName, targetCell, code, returnType: 0);
         Assert.True(setResult.Success, setResult.ErrorMessage);
+        AssertPythonFormula(batch, sheetName, targetCell, code);
 
         var getResult = GetResultWithRetry(
             batch, sheetName, targetCell,
@@ -197,16 +209,20 @@ public class PersistentServicePythonInExcelTests :
         const int startRow = 1;
         string sourceRange = WriteSourceData(batch, sheetName, startRow);
         string targetCell = $"D{startRow}";
-        string code = $"xl('{sourceRange}').max()";
+        string code = $"xl(\"{sourceRange}\").max()";
 
         // Act
-        _pythonCommands.SetFormula(batch, sheetName, targetCell, code, returnType: 0);
+        RequireSuccess(_pythonCommands.SetFormula(batch, sheetName, targetCell, code, returnType: 0));
+        AssertPythonFormula(batch, sheetName, targetCell, code);
         var getResult = GetResultWithRetry(
             batch, sheetName, targetCell,
             r => r.Success && !r.IsPythonError && Convert.ToDouble(r.Value, System.Globalization.CultureInfo.InvariantCulture) == 45d);
 
         // Assert
         Assert.True(getResult.Success, getResult.ErrorMessage);
+        Assert.False(getResult.IsPythonError);
+        Assert.False(getResult.IsPythonObject);
+        Assert.NotNull(getResult.Value);
         Assert.Equal(45d, Convert.ToDouble(getResult.Value, System.Globalization.CultureInfo.InvariantCulture));
     }
 
@@ -284,5 +300,13 @@ public class PersistentServicePythonInExcelTests :
         // Act & Assert
         Assert.Throws<ArgumentException>(
             () => _pythonCommands.SetFormula(batch, sheetName, targetCell, string.Empty));
+    }
+
+    private void AssertPythonFormula(IExcelBatch batch, string sheetName, string cell, string code)
+    {
+        var result = RequireSuccess(_rangeCommands.GetFormulas(batch, sheetName, cell));
+        string formula = Assert.Single(Assert.Single(result.Formulas));
+        string escapedCode = code.Replace("\"", "\"\"", StringComparison.Ordinal);
+        Assert.Equal($"=PY(\"{escapedCode}\",0)", formula);
     }
 }
