@@ -31,8 +31,11 @@ public partial class WorkbookCommands
 
     private static WorkbookThemeResult ReadWorkbookTheme(Excel.Workbook book, string filePath, CancellationToken ct)
     {
+        // PIA gap: Office.Theme, ThemeColorScheme and ThemeFontScheme require the unreferenced Office.Core library.
         dynamic? theme = null;
+        // PIA gap: Office.Theme, ThemeColorScheme and ThemeFontScheme require the unreferenced Office.Core library.
         dynamic? colors = null;
+        // PIA gap: Office.Theme, ThemeColorScheme and ThemeFontScheme require the unreferenced Office.Core library.
         dynamic? fonts = null;
         try
         {
@@ -48,6 +51,7 @@ public partial class WorkbookCommands
             for (int index = 1; index <= 12; index++)
             {
                 ct.ThrowIfCancellationRequested();
+                // PIA gap: Office.Theme, ThemeColorScheme and ThemeFontScheme require the unreferenced Office.Core library.
                 dynamic? color = null;
                 try
                 {
@@ -73,6 +77,7 @@ public partial class WorkbookCommands
         }
     }
 
+    // PIA gap: Office.Theme, ThemeColorScheme and ThemeFontScheme require the unreferenced Office.Core library.
     private static List<WorkbookThemeFont> ReadThemeFonts(dynamic fontScheme, bool major, CancellationToken ct)
     {
         List<WorkbookThemeFont> result = [];
@@ -80,6 +85,7 @@ public partial class WorkbookCommands
         for (int index = 1; index <= scripts.Length; index++)
         {
             ct.ThrowIfCancellationRequested();
+            // PIA gap: Office.Theme, ThemeColorScheme and ThemeFontScheme require the unreferenced Office.Core library.
             dynamic? font = null;
             try
             {

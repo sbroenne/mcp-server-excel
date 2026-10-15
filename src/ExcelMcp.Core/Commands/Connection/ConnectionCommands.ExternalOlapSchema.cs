@@ -47,6 +47,7 @@ public partial class ConnectionCommands
         {
             Excel.WorkbookConnection? connection = null;
             Excel.OLEDBConnection? oledbConnection = null;
+            // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
             dynamic? adoConnection = null;
             try
             {
@@ -126,6 +127,7 @@ public partial class ConnectionCommands
         {
             Excel.WorkbookConnection? connection = null;
             Excel.OLEDBConnection? oledbConnection = null;
+            // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
             dynamic? adoConnection = null;
             try
             {
@@ -252,12 +254,14 @@ public partial class ConnectionCommands
         }
     }
 
+    // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
     private static dynamic GetAdoConnection(
         string connectionName,
         Excel.OLEDBConnection? oledbConnection)
     {
         try
         {
+            // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
             dynamic? adoConnection = oledbConnection?.ADOConnection;
             if (adoConnection is null)
             {
@@ -314,6 +318,7 @@ public partial class ConnectionCommands
 
     // ADO schema rowsets have no referenced PIA; late binding works with installed OLAP providers.
     internal static List<IReadOnlyDictionary<string, object?>> OpenSchemaRowset(
+        // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
         dynamic adoConnection,
         OlapSchemaRequest request,
         string connectionName,
@@ -321,7 +326,9 @@ public partial class ConnectionCommands
         int? maximumRows = null,
         ILogger? logger = null)
     {
+        // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
         dynamic? recordset = null;
+        // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
         dynamic? fields = null;
         bool readCompleted = false;
         Exception? cleanupFailure = null;
@@ -343,6 +350,7 @@ public partial class ConnectionCommands
                 var columnNames = new string[fieldCount];
                 for (int i = 0; i < fieldCount; i++)
                 {
+                    // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
                     dynamic? field = null;
                     try
                     {
@@ -370,6 +378,7 @@ public partial class ConnectionCommands
                             continue;
                         }
 
+                        // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
                         dynamic? field = null;
                         try
                         {

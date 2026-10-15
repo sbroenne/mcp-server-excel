@@ -11,7 +11,8 @@ unknown operational inputs fail rather than silently selecting everything.
 
 The existing .NET SDK and xUnit own build and test execution. A small PowerShell
 bootstrap loads isolated tool output, and compatibility commands forward to
-the typed implementation. Source safeguards live in the same internal tool.
+the typed implementation. Source safeguards run during ordinary production
+compilation, not as a separate source scanner.
 This tooling is not a product entry point and does not publish distributions.
 
 ## Reasons and tradeoffs
@@ -32,7 +33,7 @@ source guards cannot establish Excel behavior. Shared inputs can legitimately
 select several owners, and source ownership needs focused regressions as the
 test structure evolves.
 
-Changed-area selection, native CLI workflow checks, source guards, package
+Changed-area selection, native CLI workflow checks, source safety regressions, package
 preparation, and result verification are xUnit cases or typed components.
 Some PowerShell scripts still own work the typed tool calls, such as the
 explicit complete acceptance command and cloud runner entry point
@@ -46,7 +47,8 @@ VSIX tools still produce the distributions.
 
 - [Selection policy](../tools/ExcelMcp.Build/ValidationPolicy.cs)
 - [Execution and result verification](../tools/ExcelMcp.Build/TestExecution.cs)
-- [Source safeguards](../tools/ExcelMcp.Build/SourceGuards.cs)
+- [Compiler source safeguards and scope](SOURCE-SAFETY.md)
+- [Internal compiler analyzer](../src/ExcelMcp.Analyzers/ExcelSafetyAnalyzer.cs)
 - [Package preparation](../tools/ExcelMcp.Build/PackageExecution.cs)
 - [Built Excel group inventory](../tools/ExcelMcp.Build/ExcelGroupExecution.cs)
 - [Build constraints](agents/rules/development-workflow.md)

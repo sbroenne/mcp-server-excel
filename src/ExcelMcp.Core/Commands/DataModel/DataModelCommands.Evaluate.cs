@@ -35,8 +35,11 @@ public partial class DataModelCommands
             Excel.Model? model = null;
             Excel.WorkbookConnection? dataModelConn = null;
             Excel.ModelConnection? modelConn = null;
+            // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
             dynamic? adoConnection = null;
+            // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
             dynamic? recordset = null;
+            // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
             dynamic? fields = null;
 
             try
@@ -105,6 +108,7 @@ public partial class DataModelCommands
                 for (int i = 0; i < fieldCount; i++)
                 {
                     ct.ThrowIfCancellationRequested();
+                    // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
                     dynamic? field = null;
                     try
                     {
@@ -128,6 +132,7 @@ public partial class DataModelCommands
                     for (int i = 0; i < fieldCount; i++)
                     {
                         ct.ThrowIfCancellationRequested();
+                        // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
                         dynamic? field = null;
                         try
                         {
@@ -166,7 +171,7 @@ public partial class DataModelCommands
                     try
                     {
                         // State 1 = adStateOpen
-                        if ((int)recordset.State == 1)
+                        if (Convert.ToInt32((object)recordset.State, System.Globalization.CultureInfo.InvariantCulture) == 1)
                         {
                             recordset.Close();
                         }

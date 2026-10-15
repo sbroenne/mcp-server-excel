@@ -1,4 +1,35 @@
 <Project>
+  <PropertyGroup>
+    <ExcelMcpProductionSafety Condition="'$(ExcelMcpProductionSafety)' == '' AND '$(IsTestProject)' != 'true' AND $([System.String]::Copy('$(MSBuildProjectDirectory)').StartsWith($([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', 'src')))) AND '$(MSBuildProjectName)' != 'ExcelMcp.Analyzers' AND !$([System.String]::Copy('$(MSBuildProjectName)').StartsWith('ExcelMcp.Generators'))">true</ExcelMcpProductionSafety>
+    <_ExcelMcpForbiddenDependencyPattern>(?i)^(DocumentFormat\.OpenXml(\..*)?|System\.IO\.Packaging|WindowsBase)(,|$)</_ExcelMcpForbiddenDependencyPattern>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(ExcelMcpProductionSafety)' == 'true'">
+    <ProjectReference Include="$(MSBuildThisFileDirectory)src\ExcelMcp.Analyzers\ExcelMcp.Analyzers.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" PrivateAssets="all" />
+    <AdditionalFiles Include="$(MSBuildThisFileDirectory)config\BannedSymbols.txt" />
+  </ItemGroup>
+  <Target Name="IncludeSourceSafetyBuildFiles" BeforeTargets="CoreCompile"
+          Condition="'$(ExcelMcpProductionSafety)' == 'true'">
+    <ItemGroup>
+      <AdditionalFiles Include="$(MSBuildProjectFullPath);$(MSBuildAllProjects)" />
+    </ItemGroup>
+  </Target>
+  <!-- Evaluated items include imported references and resolved transitive packages.
+       This target also runs on incremental builds where CoreCompile is skipped. -->
+  <Target Name="RejectWorkbookPackageDependencies" BeforeTargets="CollectPackageReferences;CoreCompile"
+          DependsOnTargets="" Condition="'$(ExcelMcpProductionSafety)' == 'true'">
+    <ItemGroup>
+      <_ForbiddenWorkbookDependency Include="@(PackageReference)"
+        Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(PackageReference.Identity)', '$(_ExcelMcpForbiddenDependencyPattern)'))" />
+      <_ForbiddenWorkbookDependency Include="@(Reference)"
+        Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(Reference.Identity)', '$(_ExcelMcpForbiddenDependencyPattern)'))" />
+      <_ForbiddenWorkbookDependency Include="@(ReferencePath)"
+        Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('%(ReferencePath.NuGetPackageId)', '$(_ExcelMcpForbiddenDependencyPattern)')) OR $([System.Text.RegularExpressions.Regex]::IsMatch($([System.IO.Path]::GetFileNameWithoutExtension('%(ReferencePath.Identity)')), '$(_ExcelMcpForbiddenDependencyPattern)'))" />
+    </ItemGroup>
+    <Error Code="EXCEL005" File="$(MSBuildProjectFullPath)" Condition="'@(_ForbiddenWorkbookDependency)' != ''"
+           Text="Use Excel COM in production. Forbidden workbook package dependency: @(_ForbiddenWorkbookDependency)." />
+  </Target>
 
   <!--
     Force genuine embedding of the Excel Primary Interop Assembly (PIA).

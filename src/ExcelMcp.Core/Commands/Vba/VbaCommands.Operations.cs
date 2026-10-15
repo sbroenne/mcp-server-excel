@@ -39,6 +39,7 @@ public partial class VbaCommands
                 // Explicit macro execution is an opt-in operation. Temporarily switch automation
                 // security to low so Application.Run can execute on workbooks reopened by the
                 // automation host, then restore the previous setting after the call.
+                // PIA gap: Application.AutomationSecurity uses Office.Core.MsoAutomationSecurity, which is not referenced.
                 dynamic app = (dynamic)(object)ctx.App;
                 originalAutomationSecurity = app.AutomationSecurity;
                 app.AutomationSecurity = 1;
@@ -127,8 +128,11 @@ public partial class VbaCommands
 
         return batch.Execute((ctx, ct) =>
         {
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? vbaProject = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? vbComponents = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? targetComponent = null;
             try
             {
@@ -140,6 +144,7 @@ public partial class VbaCommands
 
                 for (int i = 1; i <= vbComponents.Count; i++)
                 {
+                    // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
                     dynamic? component = null;
                     try
                     {

@@ -12,15 +12,15 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
 {
     /// <inheritdoc/>
-    public bool CanHandle(dynamic pivot)
+    public bool CanHandle(Excel.PivotTable pivot)
     {
         // Regular PivotTables are NOT OLAP and have PivotFields
         if (PivotTableHelpers.IsOlapPivotTable(pivot))
             return false; // This is OLAP, not regular
-        dynamic? pivotFields = null;
+        Excel.PivotFields? pivotFields = null;
         try
         {
-            pivotFields = pivot.PivotFields;
+            pivotFields = (Excel.PivotFields)pivot.PivotFields();
             return pivotFields != null;
         }
         catch (System.Runtime.InteropServices.COMException)
@@ -34,13 +34,13 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     /// <inheritdoc/>
-    public dynamic GetFieldForManipulation(dynamic pivot, string fieldName)
+    private static Excel.PivotField GetPivotFieldForManipulation(Excel.PivotTable pivot, string fieldName)
     {
-        dynamic? pivotFields = null;
+        Excel.PivotFields? pivotFields = null;
         try
         {
-            pivotFields = pivot.PivotFields;
-            return pivotFields.Item(fieldName); // COM will throw if not found
+            pivotFields = (Excel.PivotFields)pivot.PivotFields();
+            return (Excel.PivotField)pivotFields.Item(fieldName); // COM will throw if not found
         }
         catch (Exception ex)
         {
@@ -53,23 +53,23 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     /// <inheritdoc/>
-    public PivotFieldListResult ListFields(dynamic pivot, string workbookPath)
+    public PivotFieldListResult ListFields(Excel.PivotTable pivot, string workbookPath)
     {
         var fields = new List<PivotFieldInfo>();
-        dynamic? pivotFields = null;
+        Excel.PivotFields? pivotFields = null;
 
         try
         {
-            pivotFields = pivot.PivotFields;
+            pivotFields = (Excel.PivotFields)pivot.PivotFields();
             int fieldCount = pivotFields.Count;
 
             for (int i = 1; i <= fieldCount; i++)
             {
-                dynamic? field = null;
+                Excel.PivotField? field = null;
                 try
                 {
-                    field = pivotFields.Item(i);
-                    int orientation = Convert.ToInt32(field.Orientation);
+                    field = (Excel.PivotField)pivotFields.Item(i);
+                    int orientation = (int)field.Orientation;
 
                     var fieldInfo = new PivotFieldInfo
                     {
@@ -82,7 +82,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                     // For value fields, get function from DataFields
                     if (orientation == XlPivotFieldOrientation.xlDataField)
                     {
-                        int comFunction = Convert.ToInt32(field.Function);
+                        int comFunction = (int)field.Function;
                         fieldInfo.Function = PivotTableHelpers.GetAggregationFunctionFromCom(comFunction);
                     }
 
@@ -113,22 +113,22 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     /// <inheritdoc/>
-    public PivotFieldResult AddRowField(dynamic pivot, string fieldName, int? position, string workbookPath)
+    public PivotFieldResult AddRowField(Excel.PivotTable pivot, string fieldName, int? position, string workbookPath)
     {
-        dynamic? field = null;
+        Excel.PivotField? field = null;
         try
         {
-            field = GetFieldForManipulation(pivot, fieldName);
+            field = GetPivotFieldForManipulation(pivot, fieldName);
 
             // Check if field is already placed
-            int currentOrientation = Convert.ToInt32(field.Orientation);
+            int currentOrientation = (int)field.Orientation;
             if (currentOrientation != XlPivotFieldOrientation.xlHidden)
             {
                 throw new InvalidOperationException($"Field '{fieldName}' is already placed in {PivotTableHelpers.GetAreaName(currentOrientation)} area. Remove it first.");
             }
 
             // Add to Row area
-            field.Orientation = XlPivotFieldOrientation.xlRowField;
+            field.Orientation = Excel.XlPivotFieldOrientation.xlRowField;
             if (position.HasValue)
             {
                 field.Position = (double)position.Value;
@@ -137,7 +137,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             // NOTE: No RefreshTable() needed - orientation change takes effect immediately
             // Removed for consistency with OLAP strategy and improved performance (issue #426)
 
-            if (field.Orientation != XlPivotFieldOrientation.xlRowField)
+            if (field.Orientation != Excel.XlPivotFieldOrientation.xlRowField)
             {
                 throw new InvalidOperationException($"Field '{fieldName}' was not successfully added to Row area.");
             }
@@ -161,20 +161,20 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     /// <inheritdoc/>
-    public PivotFieldResult AddColumnField(dynamic pivot, string fieldName, int? position, string workbookPath)
+    public PivotFieldResult AddColumnField(Excel.PivotTable pivot, string fieldName, int? position, string workbookPath)
     {
-        dynamic? field = null;
+        Excel.PivotField? field = null;
         try
         {
-            field = GetFieldForManipulation(pivot, fieldName);
+            field = GetPivotFieldForManipulation(pivot, fieldName);
 
-            int currentOrientation = Convert.ToInt32(field.Orientation);
+            int currentOrientation = (int)field.Orientation;
             if (currentOrientation != XlPivotFieldOrientation.xlHidden)
             {
                 throw new InvalidOperationException($"Field '{fieldName}' is already placed in {PivotTableHelpers.GetAreaName(currentOrientation)} area. Remove it first.");
             }
 
-            field.Orientation = XlPivotFieldOrientation.xlColumnField;
+            field.Orientation = Excel.XlPivotFieldOrientation.xlColumnField;
             if (position.HasValue)
             {
                 field.Position = (double)position.Value;
@@ -183,7 +183,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             // NOTE: No RefreshTable() needed - orientation change takes effect immediately
             // Removed for consistency with OLAP strategy and improved performance (issue #426)
 
-            if (field.Orientation != XlPivotFieldOrientation.xlColumnField)
+            if (field.Orientation != Excel.XlPivotFieldOrientation.xlColumnField)
             {
                 throw new InvalidOperationException($"Field '{fieldName}' was not successfully added to Column area.");
             }
@@ -207,12 +207,12 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     /// <inheritdoc/>
-    public PivotFieldResult AddValueField(dynamic pivot, string fieldName, AggregationFunction aggregationFunction, string? customName, string workbookPath)
+    public PivotFieldResult AddValueField(Excel.PivotTable pivot, string fieldName, AggregationFunction aggregationFunction, string? customName, string workbookPath)
     {
-        dynamic? field = null;
+        Excel.PivotField? field = null;
         try
         {
-            field = GetFieldForManipulation(pivot, fieldName);
+            field = GetPivotFieldForManipulation(pivot, fieldName);
 
             // Validate aggregation function for field data type
             string dataType = PivotTableHelpers.DetectFieldDataType(field);
@@ -222,15 +222,15 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 throw new InvalidOperationException($"Aggregation function '{aggregationFunction}' is not valid for {dataType} field '{fieldName}'. Valid functions: {string.Join(", ", validFunctions)}");
             }
 
-            int currentOrientation = Convert.ToInt32(field.Orientation);
+            int currentOrientation = (int)field.Orientation;
             if (currentOrientation != XlPivotFieldOrientation.xlHidden)
             {
                 throw new InvalidOperationException($"Field '{fieldName}' is already placed in {PivotTableHelpers.GetAreaName(currentOrientation)} area. Remove it first.");
             }
 
-            field.Orientation = XlPivotFieldOrientation.xlDataField;
+            field.Orientation = Excel.XlPivotFieldOrientation.xlDataField;
             int comFunction = GetComAggregationFunction(aggregationFunction);
-            field.Function = comFunction;
+            field.Function = (Excel.XlConsolidationFunction)comFunction;
 
             if (!string.IsNullOrEmpty(customName))
             {
@@ -258,25 +258,25 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     /// <inheritdoc/>
-    public PivotFieldResult AddFilterField(dynamic pivot, string fieldName, string workbookPath)
+    public PivotFieldResult AddFilterField(Excel.PivotTable pivot, string fieldName, string workbookPath)
     {
-        dynamic? field = null;
+        Excel.PivotField? field = null;
         try
         {
-            field = GetFieldForManipulation(pivot, fieldName);
+            field = GetPivotFieldForManipulation(pivot, fieldName);
 
-            int currentOrientation = Convert.ToInt32(field.Orientation);
+            int currentOrientation = (int)field.Orientation;
             if (currentOrientation != XlPivotFieldOrientation.xlHidden)
             {
                 throw new InvalidOperationException($"Field '{fieldName}' is already placed in {PivotTableHelpers.GetAreaName(currentOrientation)} area. Remove it first.");
             }
 
-            field.Orientation = XlPivotFieldOrientation.xlPageField;
+            field.Orientation = Excel.XlPivotFieldOrientation.xlPageField;
 
             // NOTE: No RefreshTable() needed - orientation change takes effect immediately
             // Removed for consistency with OLAP strategy and improved performance (issue #426)
 
-            if (field.Orientation != XlPivotFieldOrientation.xlPageField)
+            if (field.Orientation != Excel.XlPivotFieldOrientation.xlPageField)
             {
                 throw new InvalidOperationException($"Field '{fieldName}' was not successfully added to Filter area.");
             }
@@ -300,20 +300,20 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     /// <inheritdoc/>
-    public PivotFieldResult RemoveField(dynamic pivot, string fieldName, string workbookPath)
+    public PivotFieldResult RemoveField(Excel.PivotTable pivot, string fieldName, string workbookPath)
     {
-        dynamic? field = null;
+        Excel.PivotField? field = null;
         try
         {
-            field = GetFieldForManipulation(pivot, fieldName);
+            field = GetPivotFieldForManipulation(pivot, fieldName);
 
-            int currentOrientation = Convert.ToInt32(field.Orientation);
+            int currentOrientation = (int)field.Orientation;
             if (currentOrientation == XlPivotFieldOrientation.xlHidden)
             {
                 throw new InvalidOperationException($"Field '{fieldName}' is not currently placed in any area");
             }
 
-            field.Orientation = XlPivotFieldOrientation.xlHidden;
+            field.Orientation = Excel.XlPivotFieldOrientation.xlHidden;
 
             // NOTE: No RefreshTable() needed - orientation change takes effect immediately
             // Removed for consistency with OLAP strategy and improved performance (issue #426)
@@ -333,13 +333,13 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     /// <inheritdoc/>
-    public PivotFieldResult SetFieldName(dynamic pivot, string fieldName, string customName, string workbookPath)
+    public PivotFieldResult SetFieldName(Excel.PivotTable pivot, string fieldName, string customName, string workbookPath)
     {
         Excel.PivotField? field = null;
         try
         {
             field = FindDataField((Excel.PivotTable)pivot, fieldName)
-                ?? (Excel.PivotField)GetFieldForManipulation(pivot, fieldName);
+                ?? (Excel.PivotField)GetPivotFieldForManipulation(pivot, fieldName);
             field.Caption = customName;
 
             // NOTE: No RefreshTable() needed - Caption is a visual-only property
@@ -360,16 +360,16 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     /// <inheritdoc/>
-    public PivotFieldResult SetFieldFunction(dynamic pivot, string fieldName, AggregationFunction aggregationFunction, string workbookPath)
+    public PivotFieldResult SetFieldFunction(Excel.PivotTable pivot, string fieldName, AggregationFunction aggregationFunction, string workbookPath)
     {
-        dynamic? field = null;
+        Excel.PivotField? field = null;
         try
         {
             field = FindDataField((Excel.PivotTable)pivot, fieldName);
             if (field is null)
             {
-                field = GetFieldForManipulation(pivot, fieldName);
-                int orientation = Convert.ToInt32(field.Orientation);
+                field = GetPivotFieldForManipulation(pivot, fieldName);
+                int orientation = (int)field.Orientation;
                 if (orientation != XlPivotFieldOrientation.xlDataField)
                 {
                     throw new InvalidOperationException($"Field '{fieldName}' is not in the Values area. It is in {PivotTableHelpers.GetAreaName(orientation)} area.");
@@ -377,7 +377,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             }
 
             // Get source field for data type detection
-            dynamic? sourceField = GetFieldForManipulation(pivot, fieldName);
+            Excel.PivotField? sourceField = GetPivotFieldForManipulation(pivot, fieldName);
             string dataType = PivotTableHelpers.DetectFieldDataType(sourceField);
             ComUtilities.Release(ref sourceField);
 
@@ -388,7 +388,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             }
 
             int comFunction = GetComAggregationFunction(aggregationFunction);
-            field.Function = comFunction;
+            field.Function = (Excel.XlConsolidationFunction)comFunction;
             // NOTE: No RefreshTable() needed - Function change persists without refresh
             // (Verified by diagnostic test: FunctionChange_WithoutRefresh_VerifyPersistence)
 
@@ -410,16 +410,16 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     /// <inheritdoc/>
-    public PivotFieldResult SetFieldFormat(dynamic pivot, string fieldName, string numberFormat, string workbookPath)
+    public PivotFieldResult SetFieldFormat(Excel.PivotTable pivot, string fieldName, string numberFormat, string workbookPath)
     {
-        dynamic? field = null;
+        Excel.PivotField? field = null;
         try
         {
             field = FindDataField((Excel.PivotTable)pivot, fieldName);
             if (field is null)
             {
-                field = GetFieldForManipulation(pivot, fieldName);
-                int orientation = Convert.ToInt32(field.Orientation);
+                field = GetPivotFieldForManipulation(pivot, fieldName);
+                int orientation = (int)field.Orientation;
                 if (orientation != XlPivotFieldOrientation.xlDataField)
                 {
                     throw new InvalidOperationException($"Field '{fieldName}' is not in the Values area. Only value fields can have number formats.");
@@ -491,24 +491,24 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     /// <inheritdoc/>
-    public PivotFieldFilterResult SetFieldFilter(dynamic pivot, string fieldName, List<string> filterValues, string workbookPath)
+    public PivotFieldFilterResult SetFieldFilter(Excel.PivotTable pivot, string fieldName, List<string> filterValues, string workbookPath)
     {
-        dynamic? field = null;
-        dynamic? pivotItems = null;
+        Excel.PivotField? field = null;
+        Excel.PivotItems? pivotItems = null;
         try
         {
-            field = GetFieldForManipulation(pivot, fieldName);
+            field = GetPivotFieldForManipulation(pivot, fieldName);
 
             // Clear all existing filters first
             field.ClearAllFilters();
 
             // Set visibility based on filter values
-            pivotItems = field.PivotItems;
+            pivotItems = (Excel.PivotItems)field.PivotItems();
             var availableItems = new List<string>();
 
             for (int i = 1; i <= pivotItems.Count; i++)
             {
-                dynamic? item = null;
+                Excel.PivotItem? item = null;
                 try
                 {
                     item = pivotItems.Item(i);
@@ -543,12 +543,12 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     /// <inheritdoc/>
-    public PivotFieldResult SortField(dynamic pivot, string fieldName, SortDirection direction, string workbookPath)
+    public PivotFieldResult SortField(Excel.PivotTable pivot, string fieldName, SortDirection direction, string workbookPath)
     {
-        dynamic? field = null;
+        Excel.PivotField? field = null;
         try
         {
-            field = GetFieldForManipulation(pivot, fieldName);
+            field = GetPivotFieldForManipulation(pivot, fieldName);
 
             int sortOrder = direction == SortDirection.Ascending
                 ? XlSortOrder.xlAscending
@@ -640,17 +640,19 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// This method groups date fields by Days, Months, Quarters, or Years. Excel automatically creates
     /// hierarchical groupings (e.g., Months + Years) for proper time-based analysis.
     /// </remarks>
-    public PivotFieldResult GroupByDate(dynamic pivot, string fieldName, DateGroupingInterval interval, string workbookPath, ILogger? logger = null)
+    public PivotFieldResult GroupByDate(Excel.PivotTable pivot, string fieldName, DateGroupingInterval interval, string workbookPath, ILogger? logger = null)
     {
-        dynamic? field = null;
-        dynamic? singleCell = null;
+        Excel.PivotField? field = null;
+        Excel.Range? dataRange = null;
+        Excel.Range? cells = null;
+        Excel.Range? singleCell = null;
         try
         {
             // CRITICAL: Refresh PivotTable FIRST to populate field with actual date values
             // Excel needs populated items before grouping can work
             pivot.RefreshTable();
 
-            field = GetFieldForManipulation(pivot, fieldName);
+            field = GetPivotFieldForManipulation(pivot, fieldName);
 
             // CRITICAL: Microsoft documentation states:
             // "The Range object must be a single cell in the PivotTable field's data range"
@@ -666,7 +668,9 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             // Use the first cell from field.DataRange - this is where the actual date values appear
 
             // Get first cell from field.DataRange (items in the field)
-            singleCell = field.DataRange.Cells[1, 1];
+            dataRange = field.DataRange;
+            cells = dataRange.Cells;
+            singleCell = (Excel.Range)cells[1, 1];
 
             // CRITICAL: Periods is a boolean array with 7 elements (Seconds, Minutes, Hours, Days, Months, Quarters, Years)
             // See: https://learn.microsoft.com/en-us/office/vba/api/excel.range.group
@@ -729,22 +733,26 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
         finally
         {
             ComUtilities.Release(ref singleCell);
+            ComUtilities.Release(ref cells);
+            ComUtilities.Release(ref dataRange);
             ComUtilities.Release(ref field);
         }
     }
 
     /// <inheritdoc/>
-    public PivotFieldResult GroupByNumeric(dynamic pivot, string fieldName, double? start, double? endValue, double intervalSize, string workbookPath, ILogger? logger = null)
+    public PivotFieldResult GroupByNumeric(Excel.PivotTable pivot, string fieldName, double? start, double? endValue, double intervalSize, string workbookPath, ILogger? logger = null)
     {
-        dynamic? field = null;
-        dynamic? singleCell = null;
+        Excel.PivotField? field = null;
+        Excel.Range? dataRange = null;
+        Excel.Range? cells = null;
+        Excel.Range? singleCell = null;
         try
         {
             // CRITICAL: Refresh PivotTable FIRST to populate field with actual numeric values
             // Excel needs populated items before grouping can work (same as date grouping)
             pivot.RefreshTable();
 
-            field = GetFieldForManipulation(pivot, fieldName);
+            field = GetPivotFieldForManipulation(pivot, fieldName);
 
             // CRITICAL: Microsoft documentation states:
             // "The Range object must be a single cell in the PivotTable field's data range"
@@ -758,7 +766,9 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             // - Periods parameter is IGNORED (only used for date grouping)
 
             // Get first cell from field.DataRange (items in the field)
-            singleCell = field.DataRange.Cells[1, 1];
+            dataRange = field.DataRange;
+            cells = dataRange.Cells;
+            singleCell = (Excel.Range)cells[1, 1];
 
             // Convert nullable to object
             // If start/end are null, use true to let Excel auto-detect min/max
@@ -801,15 +811,17 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
         finally
         {
             ComUtilities.Release(ref singleCell);
+            ComUtilities.Release(ref cells);
+            ComUtilities.Release(ref dataRange);
             ComUtilities.Release(ref field);
         }
     }
 
     /// <inheritdoc/>
-    public PivotFieldResult CreateCalculatedField(dynamic pivot, string fieldName, string formula, string workbookPath, ILogger? logger = null)
+    public PivotFieldResult CreateCalculatedField(Excel.PivotTable pivot, string fieldName, string formula, string workbookPath, ILogger? logger = null)
     {
-        dynamic? calculatedFields = null;
-        dynamic? newField = null;
+        Excel.CalculatedFields? calculatedFields = null;
+        Excel.PivotField? newField = null;
 
         try
         {
@@ -864,10 +876,10 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
     }
     /// <inheritdoc/>
-    public OperationResult SetLayout(dynamic pivot, int rowLayout, string workbookPath, ILogger? logger = null)
+    public OperationResult SetLayout(Excel.PivotTable pivot, int rowLayout, string workbookPath, ILogger? logger = null)
     {
         // xlCompactRow=0, xlTabularRow=1, xlOutlineRow=2
-        pivot.RowAxisLayout(rowLayout);
+        pivot.RowAxisLayout((Excel.XlLayoutRowType)rowLayout);
 
         // NOTE: No RefreshTable() needed - Layout is a visual-only property
 
@@ -884,18 +896,18 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
     /// <inheritdoc/>
     public PivotFieldResult SetSubtotals(
-        dynamic pivot,
+        Excel.PivotTable pivot,
         string fieldName,
         bool showSubtotals,
         string workbookPath,
         ILogger? logger = null)
     {
-        dynamic? field = null;
+        Excel.PivotField? field = null;
         try
         {
             // Get the field from row fields
-            dynamic pivotFields = pivot.PivotFields;
-            field = pivotFields.Item(fieldName);
+            Excel.PivotFields pivotFields = (Excel.PivotFields)pivot.PivotFields();
+            field = (Excel.PivotField)pivotFields.Item(fieldName);
 
             // Set subtotals: index 1 = Automatic
             // If showSubtotals=true, enable Automatic (which sets all others to false)
@@ -925,7 +937,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
         }
     }
     /// <inheritdoc/>
-    public OperationResult SetGrandTotals(dynamic pivot, bool showRowGrandTotals, bool showColumnGrandTotals, string workbookPath, ILogger? logger = null)
+    public OperationResult SetGrandTotals(Excel.PivotTable pivot, bool showRowGrandTotals, bool showColumnGrandTotals, string workbookPath, ILogger? logger = null)
     {
         try
         {

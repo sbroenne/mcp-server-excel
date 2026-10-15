@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
@@ -53,7 +54,7 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? range = null;
+            Excel.Range? range = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -81,7 +82,7 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? range = null;
+            Excel.Range? range = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -133,4 +134,3 @@ public partial class RangeCommands
     // === FIND/REPLACE OPERATIONS ===
 
 }
-

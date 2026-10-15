@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
@@ -36,16 +37,14 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? validation = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            Excel.Validation? validation = null;
 
             try
             {
                 // Get sheet
-                sheet = string.IsNullOrEmpty(sheetName)
-                    ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                sheet = RangeHelpers.ResolveWorksheet(ctx.Book, sheetName);
 
                 // Get range
                 range = sheet.Range[rangeAddress];
@@ -58,7 +57,7 @@ public partial class RangeCommands
 
                 // Add validation
                 validation.Add(
-                    Type: xlType,
+                    Type: (Excel.XlDVType)xlType,
                     AlertStyle: xlAlertStyle,
                     Operator: xlOperator,
                     Formula1: formula1 ?? "",
@@ -150,16 +149,14 @@ public partial class RangeCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? validation = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            Excel.Validation? validation = null;
 
             try
             {
                 // Get sheet
-                sheet = string.IsNullOrEmpty(sheetName)
-                    ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                sheet = RangeHelpers.ResolveWorksheet(ctx.Book, sheetName);
 
                 // Get range
                 range = sheet.Range[rangeAddress];
@@ -196,11 +193,11 @@ public partial class RangeCommands
                 var validationOperator = GetValidationOperatorName(validation.Operator);
                 var formula1 = validation.Formula1?.ToString() ?? string.Empty;
                 var formula2 = validation.Formula2?.ToString() ?? string.Empty;
-                var ignoreBlank = validation.IgnoreBlank ?? true;
-                var showInputMessage = validation.ShowInput ?? false;
+                var ignoreBlank = validation.IgnoreBlank;
+                var showInputMessage = validation.ShowInput;
                 var inputTitle = validation.InputTitle?.ToString() ?? string.Empty;
                 var inputMessage = validation.InputMessage?.ToString() ?? string.Empty;
-                var showErrorAlert = validation.ShowError ?? true;
+                var showErrorAlert = validation.ShowError;
                 var errorStyle = GetErrorStyleName(validation.AlertStyle);
                 var errorTitle = validation.ErrorTitle?.ToString() ?? string.Empty;
                 var validationErrorMessage = validation.ErrorMessage?.ToString() ?? string.Empty;
@@ -243,16 +240,14 @@ public partial class RangeCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? validation = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            Excel.Validation? validation = null;
 
             try
             {
                 // Get sheet
-                sheet = string.IsNullOrEmpty(sheetName)
-                    ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                sheet = RangeHelpers.ResolveWorksheet(ctx.Book, sheetName);
 
                 // Get range
                 range = sheet.Range[rangeAddress];

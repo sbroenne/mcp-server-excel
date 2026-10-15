@@ -21,7 +21,7 @@ public static class ComUtilities
     /// </remarks>
     /// <example>
     /// <code>
-    /// dynamic? queries = null;
+    /// Excel.Queries? queries = null;
     /// try
     /// {
     ///     queries = workbook.Queries;
@@ -53,7 +53,7 @@ public static class ComUtilities
     /// Safely attempts to quit an Excel application COM object.
     /// This is a fire-and-forget cleanup helper - errors are swallowed.
     /// </summary>
-    /// <param name="excel">The Excel.Application COM object (dynamic)</param>
+    /// <param name="excel">The Excel.Application COM object</param>
     /// <remarks>
     /// Use this for cleanup scenarios where you want to quit Excel but don't
     /// need to handle or report errors. For production shutdown with retry
@@ -340,21 +340,23 @@ public static class ComUtilities
     /// <param name="obj">COM object</param>
     /// <param name="propertyName">Property name</param>
     /// <returns>Property value or empty string</returns>
-    public static string SafeGetString(dynamic? obj, string propertyName)
+    public static string SafeGetString(object? obj, string propertyName)
     {
-        ArgumentNullException.ThrowIfNull((object?)obj, nameof(obj));
+        ArgumentNullException.ThrowIfNull(obj);
         if (obj is string name && propertyName == "Name")
         {
             return name;
         }
 
-        var value = propertyName switch
+        var value = (obj, propertyName) switch
         {
-            "Name" => obj.Name,
-            "NameLocal" => obj.NameLocal,
-            "Formula" => obj.Formula,
-            "Description" => obj.Description,
-            "SourceName" => obj.SourceName,
+            (Excel.ModelTable table, "Name") => table.Name,
+            (Excel.ModelTable table, "SourceName") => table.SourceName,
+            (Excel.ModelTableColumn column, "Name") => column.Name,
+            (Excel.ModelMeasure measure, "Name") => measure.Name,
+            (Excel.ModelMeasure measure, "Formula") => measure.Formula,
+            (Excel.ModelMeasure measure, "Description") => measure.Description,
+            (Excel.Worksheet sheet, "Name") => sheet.Name,
             _ => throw new ArgumentOutOfRangeException(nameof(propertyName), propertyName, "Unsupported string property.")
         };
         return value?.ToString() ?? string.Empty;
@@ -366,13 +368,12 @@ public static class ComUtilities
     /// <param name="obj">COM object</param>
     /// <param name="propertyName">Property name</param>
     /// <returns>Property value; zero only when Excel reports zero</returns>
-    public static int SafeGetInt(dynamic? obj, string propertyName)
+    public static int SafeGetInt(object? obj, string propertyName)
     {
-        ArgumentNullException.ThrowIfNull((object?)obj, nameof(obj));
-        var value = propertyName switch
+        ArgumentNullException.ThrowIfNull(obj);
+        object? value = (obj, propertyName) switch
         {
-            "RecordCount" => obj.RecordCount,
-            "Count" => obj.Count,
+            (Excel.ModelTable table, "RecordCount") => table.RecordCount,
             _ => throw new ArgumentOutOfRangeException(nameof(propertyName), propertyName, "Unsupported integer property.")
         };
         if (value is null)

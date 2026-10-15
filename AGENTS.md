@@ -107,16 +107,19 @@ only when the user explicitly requests evaluation work. Unrun evaluations or
 unavailable Python/SDK dependencies are not implementation, commit, PR, or merge blockers.
 This does not waive required .NET/COM/E2E validation or normal Git hooks.
 
+Ordinary Debug/Release production builds enforce the four source safety policies
+through compiler analyzers and evaluated dependency targets. Completed typed
+areas use `excelmcp_typed_excel = true` in `.editorconfig`; each remaining dynamic
+occurrence needs reviewed, member-specific `// PIA gap:` evidence. Do not add
+generic TODO exemptions, filename exclusions, or source-safety diagnostic suppressions.
+See [source safety scope and tests](docs/SOURCE-SAFETY.md).
+
 Run applicable existing checks, not replacement audits:
 
 ```powershell
-& .\scripts\check-com-leaks.ps1
 & .\build.ps1 plan --base-ref origin/main --output artifacts\validation-plan.json
 & .\build.ps1 validate --plan artifacts\validation-plan.json
-& .\scripts\check-success-flag.ps1
 & .\scripts\check-doc-counts.ps1 -SkipBuild
-& .\scripts\check-dynamic-casts.ps1
-& .\scripts\check-workbook-package-access.ps1
 ```
 
 `-SkipBuild` requires a successful Release solution build in this worktree.

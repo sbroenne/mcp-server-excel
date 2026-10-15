@@ -1,3 +1,4 @@
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
@@ -19,7 +20,7 @@ public static class PivotTableFieldStrategyFactory
     /// <param name="pivot">The PivotTable object</param>
     /// <returns>Strategy that can handle this PivotTable type</returns>
     /// <exception cref="InvalidOperationException">If no strategy can handle the PivotTable</exception>
-    public static IPivotTableFieldStrategy GetStrategy(dynamic pivot)
+    public static IPivotTableFieldStrategy GetStrategy(Excel.PivotTable pivot)
     {
         if (pivot == null)
             throw new InvalidOperationException("PivotTable object is null");
@@ -31,23 +32,25 @@ public static class PivotTableFieldStrategyFactory
         }
 
         // Fall back to Regular
+        Excel.PivotFields? pivotFields = null;
         try
         {
-            dynamic? pivotFields = pivot.PivotFields;
+            pivotFields = (Excel.PivotFields)pivot.PivotFields();
             if (pivotFields != null)
             {
-                ComUtilities.Release(ref pivotFields);
                 return _strategies[1]; // RegularPivotTableFieldStrategy
             }
-            ComUtilities.Release(ref pivotFields);
         }
         catch (System.Runtime.InteropServices.COMException)
         {
             // Not Regular either
         }
+        finally
+        {
+            ComUtilities.Release(ref pivotFields);
+        }
 
         throw new InvalidOperationException("No strategy found for PivotTable type. Unable to determine if OLAP or Regular PivotTable.");
     }
 }
-
 

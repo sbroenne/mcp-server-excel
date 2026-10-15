@@ -194,6 +194,14 @@ public sealed partial class ValidationPolicy(string root)
         {
             SelectSharedBuild(plan, path);
         }
+        else if (path.StartsWith("src/ExcelMcp.Analyzers/", StringComparison.Ordinal) || path == "config/BannedSymbols.txt")
+        {
+            AddClasses(plan, Catalog.ForOwner("ScriptSafety").Where(type => type.Name is
+                "TypedSourceGuardTests" or "WorkbookPackageAccessGuardTests" or "TypedValidationPolicyTests" or
+                "TypedOrchestrationMigrationTests" or "AutomationSafetyTests" or "PreCommitScriptTests"), "Compiler source safety");
+            plan.FullSolutionBuild = plan.SourceChecks = true;
+            plan.Reasons.Add($"{path} -> all production compiler consumers and source safety regressions");
+        }
         else if (path.StartsWith("src/ExcelMcp.Generators", StringComparison.Ordinal))
         {
             foreach (var owner in new[] { "Core", "CLI", "McpServer" })
@@ -476,7 +484,7 @@ public sealed partial class ValidationPolicy(string root)
     private bool SelectDocumentation(ValidationPlan plan, string path)
     {
         if (!path.EndsWith(".md", StringComparison.Ordinal) && path != "LICENSE") { return false; }
-        if (Matches(path, @"^(mcpb/|skills/|\.github/plugins/|docs/AGENT-SKILLS\.md$|docs/reference/report-formatting\.md$|\.github/workflows/(update-awesome-copilot|issue-triage)\.md$)")) { return false; }
+        if (Matches(path, @"^(src/ExcelMcp\.Analyzers/|mcpb/|skills/|\.github/plugins/|docs/AGENT-SKILLS\.md$|docs/reference/report-formatting\.md$|\.github/workflows/(update-awesome-copilot|issue-triage)\.md$)")) { return false; }
         if (Matches(path, @"(^|/)(AGENTS|CLAUDE)\.md$|^\.github/copilot-instructions\.md$")) { return true; }
         var cli = Matches(path, @"^README\.md$|^src/ExcelMcp\.CLI/README\.md$|^npm-packages/excelcli[^/]*/README\.md$|^(CHANGELOG\.md|LICENSE)$");
         var mcp = Matches(path, @"^README\.md$|^src/ExcelMcp\.McpServer/README\.md$|^npm-packages/mcp-server-excel[^/]*/README\.md$|^(CHANGELOG\.md|LICENSE)$");

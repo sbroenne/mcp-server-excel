@@ -91,6 +91,7 @@ dotnet_diagnostic.CA1707.severity = suggestion
 
 # Core layer: treat warnings as errors (all warnings fixed)
 [src/ExcelMcp.Core/**/*.cs]
+excelmcp_typed_excel = true
 dotnet_analyzer_diagnostic.category-CodeQuality.severity = error
 dotnet_analyzer_diagnostic.category-Design.severity = warning  # API design changes require careful planning
 dotnet_analyzer_diagnostic.category-Performance.severity = error
@@ -132,6 +133,6 @@ dotnet_diagnostic.CA1869.severity = warning  # JsonSerializerOptions caching - f
 
 # ComInterop layer: Windows-only, platform warnings expected
 [src/ExcelMcp.ComInterop/**/*.cs]
+excelmcp_typed_excel = true
 dotnet_diagnostic.CA1416.severity = suggestion  # Platform-specific APIs expected (Windows-only library)
-
 

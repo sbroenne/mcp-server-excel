@@ -27,7 +27,7 @@ public partial class ConnectionCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? connections = null;
+            Excel.Connections? connections = null;
 
             try
             {
@@ -35,7 +35,7 @@ public partial class ConnectionCommands
 
                 for (int i = 1; i <= connections.Count; i++)
                 {
-                    dynamic? conn = null;
+                    Excel.WorkbookConnection? conn = null;
                     try
                     {
                         conn = connections.Item(i);
@@ -44,7 +44,7 @@ public partial class ConnectionCommands
                         {
                             Name = conn.Name?.ToString() ?? "",
                             Description = conn.Description?.ToString() ?? "",
-                            Type = ConnectionHelpers.GetConnectionTypeName(conn.Type),
+                            Type = ConnectionHelpers.GetConnectionTypeName((int)conn.Type),
                             IsPowerQuery = PowerQueryHelpers.IsPowerQueryConnection(conn),
                             BackgroundQuery = GetBackgroundQuerySetting(conn),
                             RefreshOnFileOpen = GetRefreshOnFileOpenSetting(conn),
@@ -200,7 +200,7 @@ public partial class ConnectionCommands
 
     internal static void RefreshWorkbookConnection(Excel.WorkbookConnection connection, CancellationToken cancellationToken)
     {
-        dynamic? subConnection = null;
+        object? subConnection = null;
         bool originalBackgroundQuery = false;
         bool canRestoreBackgroundQuery = false;
         Exception? refreshFailure = null;
@@ -212,9 +212,9 @@ public partial class ConnectionCommands
             {
                 subConnection = GetTypedSubConnection(connection);
                 if (subConnection != null
-                    && (connection.Type != Excel.XlConnectionType.xlConnectionTypeOLEDB || !subConnection.OLAP))
+                    && subConnection is not Excel.OLEDBConnection { OLAP: true })
                 {
-                    originalBackgroundQuery = subConnection.BackgroundQuery;
+                    originalBackgroundQuery = ReadSubConnectionBackgroundQuery(subConnection);
                     canRestoreBackgroundQuery = true;
 
                     // CRITICAL: Force BackgroundQuery = false to ensure synchronous refresh.
@@ -229,7 +229,7 @@ public partial class ConnectionCommands
                     // With BackgroundQuery = false (synchronous), connection.Refresh() blocks the
                     // STA thread until done. connection.Refreshing is false when it returns, so
                     // WaitForConnectionRefreshCompletion exits immediately with zero CPU overhead.
-                    subConnection.BackgroundQuery = false;
+                    SetSubConnectionBackgroundQuery(subConnection, false);
                 }
             }
             catch (COMException ex) when (ex.HResult is unchecked((int)0x80020003) or unchecked((int)0x80004001))
@@ -272,9 +272,10 @@ public partial class ConnectionCommands
             {
                 if (canRestoreBackgroundQuery && subConnection != null)
                 {
-                    subConnection.BackgroundQuery = originalBackgroundQuery;
+                    SetSubConnectionBackgroundQuery(subConnection, originalBackgroundQuery);
                 }
             }
+
             catch (COMException ex)
             {
                 restoreFailure = ex;
@@ -295,6 +296,22 @@ public partial class ConnectionCommands
         {
             System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(refreshFailure).Throw();
         }
+    }
+
+    private static bool ReadSubConnectionBackgroundQuery(object subConnection)
+    {
+        if (subConnection is Excel.OLEDBConnection oledb) return oledb.BackgroundQuery;
+        if (subConnection is Excel.ODBCConnection odbc) return odbc.BackgroundQuery;
+        // PIA gap: TextConnection.BackgroundQuery and the WebConnection object model are absent from the Excel PIA.
+        return Convert.ToBoolean(((dynamic)subConnection).BackgroundQuery);
+    }
+
+    private static void SetSubConnectionBackgroundQuery(object subConnection, bool value)
+    {
+        if (subConnection is Excel.OLEDBConnection oledb) oledb.BackgroundQuery = value;
+        else if (subConnection is Excel.ODBCConnection odbc) odbc.BackgroundQuery = value;
+        // PIA gap: TextConnection.BackgroundQuery and the WebConnection object model are absent from the Excel PIA.
+        else ((dynamic)subConnection).BackgroundQuery = value;
     }
 
     private static void WaitForConnectionRefreshCompletion(

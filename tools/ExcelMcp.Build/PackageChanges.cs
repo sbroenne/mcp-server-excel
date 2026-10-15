@@ -5,6 +5,7 @@ namespace Sbroenne.ExcelMcp.Build;
 public sealed record PackageChanges(bool VersionOnly, string[] PackageIds, string[] Projects)
 {
     private const string PackagesPath = "Directory.Packages.props";
+    private const string ThisFileDirectory = "$(MSBuildThisFileDirectory)";
 
     public static async Task<PackageChanges> ReadAsync(string root, IProcessRunner runner,
         string? baseRef = null, string? headRef = null, bool staged = false, bool directComparison = false)
@@ -68,9 +69,12 @@ public sealed record PackageChanges(bool VersionOnly, string[] PackageIds, strin
                     }
                     foreach (var reference in document.Descendants().Where(element => element.Name.LocalName == "ProjectReference"))
                     {
-                        foreach (var include in ReferenceIds(reference, path))
+                        foreach (var include in ReferenceIds(reference, path, projectReference: true))
                         {
-                            references.Add(ResolvePath(project, include));
+                            // Literal items are project-relative, but this intrinsic belongs to the declaring import.
+                            var fileRelative = include.StartsWith(ThisFileDirectory, StringComparison.OrdinalIgnoreCase);
+                            references.Add(ResolvePath(fileRelative ? path : project,
+                                fileRelative ? include[ThisFileDirectory.Length..] : include));
                         }
                     }
                 }
@@ -173,12 +177,16 @@ public sealed record PackageChanges(bool VersionOnly, string[] PackageIds, strin
         }
     }
 
-    private static string[] ReferenceIds(XElement reference, string path)
+    private static string[] ReferenceIds(XElement reference, string path, bool projectReference = false)
     {
         var value = reference.Attribute("Include")?.Value ?? reference.Attribute("Update")?.Value;
         if (string.IsNullOrWhiteSpace(value)) { throw new InvalidOperationException($"Cannot resolve {reference.Name} in {path}."); }
         var ids = value.Split(';', StringSplitOptions.TrimEntries);
-        if (ids.Any(id => !IsLiteral(id))) { throw new InvalidOperationException($"Cannot resolve {reference.Name} '{value}' in {path}."); }
+        if (ids.Any(id => !IsLiteral(projectReference && id.StartsWith(ThisFileDirectory, StringComparison.OrdinalIgnoreCase)
+            ? id[ThisFileDirectory.Length..] : id)))
+        {
+            throw new InvalidOperationException($"Cannot resolve {reference.Name} '{value}' in {path}.");
+        }
         return ids;
     }
 

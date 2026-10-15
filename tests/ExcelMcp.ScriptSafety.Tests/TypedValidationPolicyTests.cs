@@ -17,6 +17,25 @@ public sealed class TypedValidationPolicyTests
     };
 
     [Theory]
+    [InlineData("src/ExcelMcp.Analyzers/ExcelSafetyAnalyzer.cs")]
+    [InlineData("src/ExcelMcp.Analyzers/ExcelMcp.Analyzers.csproj")]
+    [InlineData("config/BannedSymbols.txt")]
+    [InlineData("src/ExcelMcp.Analyzers/AnalyzerReleases.Unshipped.md")]
+    [InlineData("src/ExcelMcp.Analyzers/AnalyzerReleases.Shipped.md")]
+    public void CompilerPolicyChanges_SelectAllCompilerConsumersAndExactSafetyRegressions(string path)
+    {
+        var plan = Policy.Select([path]);
+        Assert.True(plan.Build && plan.SourceChecks && plan.FullSolutionBuild);
+        Assert.Equal("Tooling", plan.FullSolutionBuildGroup);
+        Assert.Equal(["Sbroenne.ExcelMcp.sln"], new ValidationExecution(Root, new ProcessRunner(Root)).BuildProjects(plan, "Tooling"));
+        Assert.Contains("TypedSourceGuardTests.", plan.ToolingFilters["ScriptSafety"], StringComparison.Ordinal);
+        Assert.Contains("WorkbookPackageAccessGuardTests.", plan.ToolingFilters["ScriptSafety"], StringComparison.Ordinal);
+        Assert.False(plan.Excel);
+        Assert.False(plan.DocumentationCounts);
+        Assert.False(plan.Packages);
+    }
+
+    [Theory]
     [InlineData("Range", "RangeCommands.Values.cs")]
     [InlineData("PowerQuery", "PowerQueryCommands.Read.cs")]
     public void FeatureEdits_SelectBehaviorWithoutUnchangedAdapters(string area, string file)

@@ -29,6 +29,7 @@ public sealed class PreCommitScriptTests
         Assert.DoesNotContain("npm run", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("git add", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("cleanup-ran", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("check-com-leaks", result.Output, StringComparison.Ordinal);
         if (path == "docs/reference/report-formatting.md")
         {
             Assert.Contains("-ChangedPaths", result.Output, StringComparison.Ordinal);
@@ -92,6 +93,7 @@ public sealed class PreCommitScriptTests
     [InlineData("docs/reference/report-formatting.md")]
     [InlineData("Directory.Build.props")]
     [InlineData(".editorconfig")]
+    [InlineData("config/BannedSymbols.txt")]
     public async Task UnstagedBuildInputs_BlockBeforeBuilding(string unstaged)
     {
         var result = await RunHookAsync("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", unstaged: unstaged);
@@ -119,10 +121,6 @@ public sealed class PreCommitScriptTests
     }
 
     [Theory]
-    [InlineData("check-com-leaks")]
-    [InlineData("check-success-flag")]
-    [InlineData("check-dynamic-casts")]
-    [InlineData("check-workbook-package-access")]
     [InlineData("Invoke-ExcelFreeTests")]
     [InlineData("Invoke-ExcelTests")]
     [InlineData("Test-E2E")]
@@ -165,7 +163,7 @@ public sealed class PreCommitScriptTests
     private static async Task<(int ExitCode, string Output)> RunHookAsync(
         string staged, string unstaged = "", string untracked = "", string failure = "", bool merge = false)
     {
-        var sandbox = Path.Combine(Path.GetTempPath(), $"ExcelMcp.Hook.{Guid.NewGuid():N}");
+        var sandbox = Path.Combine(RepoRoot, "artifacts", "script-safety-fixtures", $"ExcelMcp.Hook.{Guid.NewGuid():N}");
         var scripts = Path.Combine(sandbox, "scripts");
         Directory.CreateDirectory(scripts);
         try
@@ -189,10 +187,6 @@ public sealed class PreCommitScriptTests
                 """);
             foreach (var (name, message) in new[]
             {
-                ("check-com-leaks", "com-check-ran"),
-                ("check-success-flag", "success-check-ran"),
-                ("check-dynamic-casts", "casts-check-ran"),
-                ("check-workbook-package-access", "package-access-check-ran"),
                 ("Stop-ExcelCliService", "cleanup-ran"),
                 ("Invoke-ExcelFreeTests", "excel-free-tests-ran"),
                 ("Invoke-ExcelTests", "excel-feature-tests-ran"),
@@ -200,7 +194,7 @@ public sealed class PreCommitScriptTests
             })
             {
                 await File.WriteAllTextAsync(Path.Combine(scripts, $"{name}.ps1"),
-                    failure == "throw" && name == "check-com-leaks"
+                    failure == "throw" && name == "Invoke-ExcelFreeTests"
                         ? "throw 'check-root-cause'"
                         : name == failure
                         ? "Write-Host 'check-root-cause'; exit 19"

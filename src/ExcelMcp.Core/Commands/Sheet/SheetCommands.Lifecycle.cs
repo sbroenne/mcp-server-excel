@@ -19,18 +19,18 @@ public partial class SheetCommands
         return batch.Execute((ctx, ct) =>
         {
             // Get the workbook to list from
-            dynamic workbook = filePath != null ? batch.GetWorkbook(filePath) : ctx.Book;
+            Excel.Workbook workbook = filePath != null ? batch.GetWorkbook(filePath) : ctx.Book;
 
-            dynamic? sheets = null;
+            Excel.Sheets? sheets = null;
             try
             {
                 sheets = workbook.Worksheets;
                 for (int i = 1; i <= sheets.Count; i++)
                 {
-                    dynamic? sheet = null;
+                    Excel.Worksheet? sheet = null;
                     try
                     {
-                        sheet = sheets.Item(i);
+                        sheet = (Excel.Worksheet)sheets.Item[i];
                         result.Worksheets.Add(new WorksheetInfo
                         {
                             Name = sheet.Name,
@@ -242,8 +242,8 @@ public partial class SheetCommands
         {
             Excel.Worksheet? sheet = null;
             Excel.Worksheet? targetSheet = null;
-            dynamic? sheets = null;
-            dynamic? lastSheet = null;
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? lastSheet = null;
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
@@ -256,7 +256,7 @@ public partial class SheetCommands
                 if (string.IsNullOrWhiteSpace(beforeSheet) && string.IsNullOrWhiteSpace(afterSheet))
                 {
                     sheets = ctx.Book.Worksheets;
-                    lastSheet = sheets.Item(sheets.Count);
+                    lastSheet = (Excel.Worksheet)sheets.Item[sheets.Count];
                     sheet.Move(After: lastSheet);
                 }
                 else
@@ -331,10 +331,10 @@ public partial class SheetCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sourceWb = null;
-            dynamic? targetWb = null;
+            Excel.Workbook? sourceWb = null;
+            Excel.Workbook? targetWb = null;
             Excel.Worksheet? sourceSheetObj = null;
-            dynamic? targetSheets = null;
+            Excel.Sheets? targetSheets = null;
             Excel.Worksheet? targetPositionSheet = null;
             Excel.Worksheet? copiedSheet = null;
 
@@ -386,7 +386,7 @@ public partial class SheetCommands
                 else
                 {
                     // Copy to end of target workbook
-                    dynamic? lastSheet = targetSheets.Item(targetSheets.Count);
+                    Excel.Worksheet? lastSheet = (Excel.Worksheet)targetSheets.Item[targetSheets.Count];
                     try
                     {
                         sourceSheetObj.Copy(After: lastSheet);
@@ -402,7 +402,7 @@ public partial class SheetCommands
                 // Rename if requested - use correct position based on where sheet was copied
                 if (targetSheetName is not null && copiedSheetPosition.HasValue)
                 {
-                    copiedSheet = (Excel.Worksheet)targetSheets.Item(copiedSheetPosition.Value);
+                    copiedSheet = (Excel.Worksheet)targetSheets.Item[copiedSheetPosition.Value];
                     var copiedSheetCurrentName = copiedSheet.Name;
                     SetSheetNameWithContext(copiedSheet, targetSheetName, copiedSheetCurrentName, isNewSheet: true);
                 }
@@ -467,10 +467,10 @@ public partial class SheetCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sourceWb = null;
-            dynamic? targetWb = null;
+            Excel.Workbook? sourceWb = null;
+            Excel.Workbook? targetWb = null;
             Excel.Worksheet? sourceSheetObj = null;
-            dynamic? targetSheets = null;
+            Excel.Sheets? targetSheets = null;
             Excel.Worksheet? targetPositionSheet = null;
 
             try
@@ -510,7 +510,7 @@ public partial class SheetCommands
                 else
                 {
                     // Move to end of target workbook
-                    dynamic? lastSheet = targetSheets.Item(targetSheets.Count);
+                    Excel.Worksheet? lastSheet = (Excel.Worksheet)targetSheets.Item[targetSheets.Count];
                     try
                     {
                         sourceSheetObj.Move(After: lastSheet);

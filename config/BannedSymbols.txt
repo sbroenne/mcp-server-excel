@@ -1,0 +1,3 @@
+# Production workbook contents must be accessed through Excel COM.
+N:DocumentFormat.OpenXml; Use Excel COM in production; OOXML belongs only in test fixtures.
+N:System.IO.Packaging; Use Excel COM in production; package APIs belong only in test fixtures.

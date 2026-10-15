@@ -1,3 +1,4 @@
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -16,9 +17,9 @@ public partial class PivotTableCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? pivot = null;
-            dynamic? pivotFields = null;
-            dynamic? cubeFields = null;
+            Excel.PivotTable? pivot = null;
+            Excel.PivotFields? pivotFields = null;
+            Excel.CubeFields? cubeFields = null;
 
             pivot = FindPivotTable(ctx.Book, pivotTableName);
 
@@ -30,7 +31,7 @@ public partial class PivotTableCommands
                 // For OLAP PivotTables, use CubeFields instead of PivotFields
                 if (isOlap)
                 {
-                    var result = ListCubeFieldsAsync(cubeFields, batch.WorkbookPath);
+                    var result = ListCubeFieldsAsync(cubeFields!, batch.WorkbookPath);
                     result.ValueFields = ReadAllValueFieldCalculations(
                         (Microsoft.Office.Interop.Excel.PivotTable)pivot, batch.WorkbookPath, ct);
                     return result;
@@ -38,7 +39,7 @@ public partial class PivotTableCommands
                 else
                 {
                     // Regular PivotTable - use PivotFields
-                    pivotFields = pivot.PivotFields;
+                    pivotFields = (Excel.PivotFields)pivot.PivotFields();
                     var result = ListRegularFieldsAsync(pivotFields, batch.WorkbookPath);
                     result.ValueFields = ReadAllValueFieldCalculations(
                         (Microsoft.Office.Interop.Excel.PivotTable)pivot, batch.WorkbookPath, ct);
@@ -57,7 +58,7 @@ public partial class PivotTableCommands
     /// <summary>
     /// Lists fields from OLAP/Data Model PivotTable using CubeFields
     /// </summary>
-    private static PivotFieldListResult ListCubeFieldsAsync(dynamic cubeFields, string filePath)
+    private static PivotFieldListResult ListCubeFieldsAsync(Excel.CubeFields cubeFields, string filePath)
     {
         return new PivotFieldListResult
         {
@@ -70,7 +71,7 @@ public partial class PivotTableCommands
     /// <summary>
     /// Lists fields from regular PivotTable using PivotFields
     /// </summary>
-    private static PivotFieldListResult ListRegularFieldsAsync(dynamic pivotFields, string filePath)
+    private static PivotFieldListResult ListRegularFieldsAsync(Excel.PivotFields pivotFields, string filePath)
     {
         var fields = new List<PivotFieldInfo>();
 
@@ -78,10 +79,10 @@ public partial class PivotTableCommands
 
         for (int i = 1; i <= fieldCount; i++)
         {
-            dynamic? field = null;
+            Excel.PivotField? field = null;
             try
             {
-                field = pivotFields.Item(i);
+                field = (Excel.PivotField)pivotFields.Item(i);
 
                 // Get field name with defensive handling (can throw on Data Model fields)
                 string fieldName;
@@ -98,7 +99,7 @@ public partial class PivotTableCommands
                 int orientation;
                 try
                 {
-                    orientation = Convert.ToInt32(field.Orientation);
+                    orientation = (int)field.Orientation;
                 }
                 catch (System.Runtime.InteropServices.COMException)
                 {
@@ -153,7 +154,7 @@ public partial class PivotTableCommands
                 {
                     try
                     {
-                        int comFunction = Convert.ToInt32(field.Function);
+                        int comFunction = (int)field.Function;
                         fieldInfo.Function = PivotTableHelpers.GetAggregationFunctionFromCom(comFunction);
                     }
                     catch (System.Runtime.InteropServices.COMException)
@@ -263,7 +264,7 @@ public partial class PivotTableCommands
         var invariantFormat = NumberFormatLiterals.PreserveCurrencyLiterals(numberFormat);
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? pivot = null;
+            Excel.PivotTable? pivot = null;
 
             pivot = FindPivotTable(ctx.Book, pivotTableName);
 

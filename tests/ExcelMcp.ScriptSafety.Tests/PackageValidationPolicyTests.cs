@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Xml.Linq;
 using Sbroenne.ExcelMcp.Build;
 using Xunit;
 
@@ -8,6 +9,52 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 [Trait("Feature", "PreCommit")]
 public sealed class PackageValidationPolicyTests
 {
+    [Fact]
+    public async Task CurrentCentralManifest_UnrelatedConsumedVersionChangeRetainsNarrowSelection()
+    {
+        using var repo = new Repository();
+        var manifest = XDocument.Load(Path.Combine(TypedValidationPolicyTests.Root, "Directory.Packages.props"));
+        repo.Write("Directory.Packages.props", manifest.ToString());
+        repo.Project("CLI", packages: ["Spectre.Console.Cli"]);
+        repo.Project("Core");
+        await repo.CommitAsync();
+        var package = manifest.Descendants("PackageVersion")
+            .Single(item => (string?)item.Attribute("Include") == "Spectre.Console.Cli");
+        package.SetAttributeValue("Version", "999.0.0");
+        repo.Write("Directory.Packages.props", manifest.ToString());
+
+        var changes = await PackageChanges.ReadAsync(repo.Root, repo.Runner);
+        Assert.True(changes.VersionOnly, "The current central manifest must allow unrelated version-only package selection.");
+        Assert.Equal(["Spectre.Console.Cli"], changes.PackageIds);
+        Assert.Equal(["src/ExcelMcp.CLI/ExcelMcp.CLI.csproj"], changes.Projects);
+        var plan = repo.Select();
+        Assert.Equal(["CLI"], plan.FastProjects);
+        Assert.Equal(["CLI"], plan.ExcelSelections.Select(selection => selection.Project).Distinct());
+        Assert.True(plan.Cli && plan.FullSolutionBuild);
+        Assert.False(plan.FullE2E || plan.InfrastructureDiagnostics || plan.Mcp || plan.SkillTests);
+        Assert.Empty(plan.ToolingProjects);
+    }
+
+    [Fact]
+    public void AnalyzerHarnessSecurityPin_IsPrivateAndLocalToScriptSafety()
+    {
+        const string packageId = "System.Security.Cryptography.Pkcs";
+        var root = TypedValidationPolicyTests.Root;
+        var manifest = XDocument.Load(Path.Combine(root, "Directory.Packages.props"));
+        Assert.DoesNotContain(manifest.Descendants("PackageVersion"),
+            item => (string?)item.Attribute("Include") == packageId);
+        var project = XDocument.Load(Path.Combine(root, "tests", "ExcelMcp.ScriptSafety.Tests", "ExcelMcp.ScriptSafety.Tests.csproj"));
+        var reference = Assert.Single(project.Descendants("PackageReference"),
+            item => (string?)item.Attribute("Include") == packageId);
+        Assert.Equal("9.0.21", (string?)reference.Attribute("VersionOverride"));
+        Assert.Equal("all", (string?)reference.Attribute("PrivateAssets"));
+        foreach (var path in Directory.EnumerateFiles(Path.Combine(root, "src"), "*.csproj", SearchOption.AllDirectories))
+        {
+            Assert.DoesNotContain(XDocument.Load(path).Descendants("PackageReference"),
+                item => (string?)item.Attribute("Include") == packageId);
+        }
+    }
+
     [Theory]
     [InlineData("add")]
     [InlineData("remove")]
@@ -202,8 +249,89 @@ public sealed class PackageValidationPolicyTests
     }
 
     [Theory]
+    [InlineData("build/References.targets")]
+    [InlineData("build/nested/References.targets")]
+    public async Task ThisFileDirectoryProjectReferences_UseTheDeclaringFileAndRetainTransitiveConsumers(string target)
+    {
+        using var repo = new Repository();
+        repo.Packages(Package("Compiler", "1.0"));
+        repo.Project("Analyzers", packages: ["Compiler"]);
+        repo.Project("McpServer", references: ["CLI"]);
+        repo.Project("Core");
+        var prefix = target.StartsWith("build/nested/", StringComparison.Ordinal) ? "..\\..\\" : "..\\";
+        repo.Write(target, $$"""
+            <Project>
+              <ItemGroup Condition="'$(Configuration)' == 'Release'">
+                <ProjectReference Include="$(MSBuildThisFileDirectory){{prefix}}src\ExcelMcp.Analyzers\ExcelMcp.Analyzers.csproj"
+                                  OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+              </ItemGroup>
+            </Project>
+            """);
+        repo.Write("src/ExcelMcp.CLI/ExcelMcp.CLI.csproj",
+            $"<Project><Import Project=\"..\\..\\{target.Replace('/', '\\')}\" /></Project>");
+        await repo.CommitAsync();
+        repo.Packages(Package("Compiler", "2.0"));
+
+        var changes = await PackageChanges.ReadAsync(repo.Root, repo.Runner);
+
+        Assert.Equal(["Compiler"], changes.PackageIds);
+        Assert.Equal([
+            "src/ExcelMcp.Analyzers/ExcelMcp.Analyzers.csproj",
+            "src/ExcelMcp.CLI/ExcelMcp.CLI.csproj",
+            "src/ExcelMcp.McpServer/ExcelMcp.McpServer.csproj"
+        ], changes.Projects);
+    }
+
+    [Fact]
+    public async Task ProductionAnalyzerTargets_DoNotBroadenUnrelatedPackageSelection()
+    {
+        using var repo = new Repository();
+        repo.Packages(Package("Adapter", "1.0"));
+        repo.Project("CLI", packages: ["Adapter"]);
+        repo.Project("McpServer");
+        repo.Project("Analyzers");
+        repo.Write("Directory.Build.targets",
+            File.ReadAllText(Path.Combine(TypedValidationPolicyTests.Root, "Directory.Build.targets")));
+        await repo.CommitAsync();
+        repo.Packages(Package("Adapter", "2.0"));
+
+        var result = await repo.Runner.CheckedAsync("dotnet",
+            [typeof(ValidationPolicy).Assembly.Location, "plan", "--root", repo.Root,
+             "--paths-json", "[\"Directory.Packages.props\"]"], TimeSpan.FromSeconds(30));
+        var plan = JsonSerializer.Deserialize<ValidationPlan>(result.Output, Program.JsonOptions)!;
+
+        Assert.Equal(["CLI"], plan.FastProjects);
+        Assert.True(plan.Cli && plan.FullSolutionBuild);
+        Assert.False(plan.Mcp || plan.Extension || plan.FullE2E || plan.InfrastructureDiagnostics);
+        Assert.Empty(plan.ToolingProjects);
+    }
+
+    [Theory]
+    [InlineData("$(MSBuildThisFileDirectory)..\\Outside.csproj", "outside the repository")]
+    [InlineData("$(MSBuildThisFileDirectory)C:\\Outside.csproj", "repository-relative")]
+    [InlineData("$(MSBuildThisFileDirectory)\\Outside.csproj", "repository-relative")]
+    public async Task ThisFileDirectoryProjectReferences_RejectPathsOutsideTheSnapshot(string include, string message)
+    {
+        using var repo = new Repository();
+        repo.Packages(Package("Adapter", "1.0"));
+        repo.Project("CLI", packages: ["Adapter"]);
+        repo.Write("Directory.Build.targets", $"<Project><ItemGroup><ProjectReference Include=\"{include}\" /></ItemGroup></Project>");
+        await repo.CommitAsync();
+        repo.Packages(Package("Adapter", "2.0"));
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() => PackageChanges.ReadAsync(repo.Root, repo.Runner));
+
+        Assert.Contains(message, error.Message, StringComparison.Ordinal);
+        Assert.Contains("Outside.csproj", error.Message, StringComparison.Ordinal);
+    }
+
+    [Theory]
     [InlineData("<PackageReference Include=\"$(PackageId)\" />")]
     [InlineData("<ProjectReference Include=\"$(ProjectPath)\" />")]
+    [InlineData("<ProjectReference Include=\"$(MSBuildThisFileDirectory)$(ProjectPath)\" />")]
+    [InlineData("<ProjectReference Include=\"$(MSBuildProjectDirectory)\\Other.csproj\" />")]
+    [InlineData("<ProjectReference Include=\"$(MSBuildThisFileDirectory)Other*.csproj\" />")]
+    [InlineData("<ProjectReference Include=\"$(MSBuildThisFileDirectory)\" />")]
     [InlineData("<Import Project=\"$(SharedImports)\" />")]
     public async Task UnresolvedProjectInputs_FailExplicitly(string input)
     {
@@ -477,7 +605,8 @@ public sealed class PackageValidationPolicyTests
 
         internal async Task CommitAsync()
         {
-            await GitAsync("init", "--quiet");
+            await GitAsync("-c", "core.longpaths=true", "init", "--quiet");
+            await GitAsync("config", "core.longpaths", "true");
             await GitAsync("config", "user.name", "Selection Tests");
             await GitAsync("config", "user.email", "selection@example.invalid");
             await GitAsync("add", ".");

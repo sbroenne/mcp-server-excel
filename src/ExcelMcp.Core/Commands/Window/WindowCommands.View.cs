@@ -65,6 +65,7 @@ public partial class WindowCommands
             Excel.Worksheet? sheet = null;
             Excel.Windows? windows = null;
             Excel.Window? window = null;
+            Excel.Range? cells = null;
             Excel.Range? boundaryCell = null;
             try
             {
@@ -74,7 +75,8 @@ public partial class WindowCommands
                 ActivateWorksheetView(window, sheet);
 
                 window.FreezePanes = false;
-                boundaryCell = sheet.Cells[frozenRows + 1, frozenColumns + 1];
+                cells = sheet.Cells;
+                boundaryCell = cells[frozenRows + 1, frozenColumns + 1];
                 boundaryCell.Select();
                 window.FreezePanes = true;
 
@@ -83,6 +85,7 @@ public partial class WindowCommands
             finally
             {
                 ComUtilities.Release(ref boundaryCell);
+                ComUtilities.Release(ref cells);
                 ComUtilities.Release(ref window);
                 ComUtilities.Release(ref windows);
                 ComUtilities.Release(ref sheet);

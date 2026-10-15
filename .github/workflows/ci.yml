@@ -165,15 +165,6 @@ jobs:
         run: |
           ./scripts/Invoke-ExcelFreeTests.ps1 -Group '${{ matrix.group }}' `
             -PlanFile artifacts/ci-plan.json -ResultsDirectory 'TestResults/${{ matrix.group }}'
-      - name: Source correctness checks
-        if: matrix.group == needs.changes.outputs.source_checks_group
-        shell: pwsh
-        run: |
-          foreach ($script in @('check-com-leaks','check-workbook-package-access','check-success-flag','check-dynamic-casts')) {
-            & "./scripts/$script.ps1"
-            if ($LASTEXITCODE -ne 0) { throw "$script failed." }
-          }
-
       - name: Documentation count checks
         if: matrix.group == needs.changes.outputs.source_checks_group && needs.changes.outputs.documentation_counts == 'true'
         shell: pwsh

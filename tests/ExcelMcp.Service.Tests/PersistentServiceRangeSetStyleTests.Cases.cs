@@ -84,9 +84,8 @@ public sealed partial class PersistentServiceRangeSetStyleTests
     }
 
     [Fact]
-    public void SetStyle_InvalidStyleName_ThrowsException()
+    public async Task SetStyle_InvalidStyleName_ReportsComFailureWithoutChangingWorkbook()
     {
-        // Arrange & Act & Assert - Should throw when Excel COM rejects invalid style name
         var batch = _fixture.BatchToken;
         var sheetName = _fixture.CreateTestSheet(batch);
         RequireSuccess(_commands.SetValues(batch, sheetName, "A1:B1", [["guard", 7]]));
@@ -94,10 +93,13 @@ public sealed partial class PersistentServiceRangeSetStyleTests
         RequireSuccess(_commands.SetStyle(batch, sheetName, "A1", "Good"));
         var before = RequireSuccess(_commands.GetStyle(batch, sheetName, "A1"));
         var beforeCells = CaptureStyleGuard(batch, sheetName);
-        var exception = Assert.Throws<System.Reflection.TargetParameterCountException>(
-            () => _commands.SetStyle(batch, sheetName, "A1", "NonExistentStyle"));
+        var failure = await _fixture.SendForFailureAsync("rangeformat.set-style",
+            new { sheetName, rangeAddress = "A1", styleName = "NonExistentStyle" });
 
-        Assert.Contains("Style", exception.Message);
+        Assert.False(failure.Success);
+        Assert.Equal("ComInterop", failure.ErrorCategory);
+        Assert.Equal(nameof(System.Runtime.InteropServices.COMException), failure.ExceptionType);
+        Assert.Contains("Style 'NonExistentStyle' not found.", failure.ErrorMessage, StringComparison.Ordinal);
         AssertAppliedStyle(sheetName, "A1", before.StyleName);
         AssertAppliedStyle(sheetName, "B1", "Normal");
         Assert.Equal(beforeCells, CaptureStyleGuard(batch, sheetName));

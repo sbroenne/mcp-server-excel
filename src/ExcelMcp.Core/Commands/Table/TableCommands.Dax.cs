@@ -11,20 +11,15 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 /// </summary>
 public partial class TableCommands
 {
-    // Excel constants for DAX operations
-    private const int xlSrcModel = 4;  // PowerPivot Data Model source type
-    private const int xlCmdDAX = 8;    // DAX command type
-    // xlYes is defined in TableCommands.Sort.cs
-
     /// <summary>
     /// Finds the WorkbookConnection for a table by trying the TableObject path first,
     /// then falling back to the QueryTable path. Returns null if neither works.
     /// Caller is responsible for releasing the out parameters.
     /// </summary>
-    private static dynamic? FindTableWorkbookConnection(
-        dynamic table,
-        out dynamic? tableObject,
-        out dynamic? queryTable)
+    private static Excel.WorkbookConnection? FindTableWorkbookConnection(
+        Excel.ListObject table,
+        out Excel.TableObject? tableObject,
+        out Excel.QueryTable? queryTable)
     {
         queryTable = null;
 
@@ -34,7 +29,7 @@ public partial class TableCommands
             tableObject = table.TableObject;
             if (tableObject != null)
             {
-                dynamic? conn = tableObject.WorkbookConnection;
+                Excel.WorkbookConnection? conn = tableObject.WorkbookConnection;
                 if (conn != null) return conn;
             }
         }
@@ -49,7 +44,7 @@ public partial class TableCommands
             queryTable = table.QueryTable;
             if (queryTable != null)
             {
-                dynamic? conn = queryTable.WorkbookConnection;
+                Excel.WorkbookConnection? conn = queryTable.WorkbookConnection;
                 if (conn != null) return conn;
             }
         }
@@ -84,13 +79,13 @@ public partial class TableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? model = null;
-            dynamic? modelWbConn = null;
-            dynamic? modelConnection = null;
+            Excel.Model? model = null;
+            Excel.WorkbookConnection? modelWbConn = null;
+            Excel.ModelConnection? modelConnection = null;
             Excel.Worksheet? sheet = null;
-            dynamic? destRange = null;
-            dynamic? listObjects = null;
-            dynamic? listObject = null;
+            Excel.Range? destRange = null;
+            Excel.ListObjects? listObjects = null;
+            Excel.ListObject? listObject = null;
 
             try
             {
@@ -110,7 +105,7 @@ public partial class TableCommands
                 // Check if workbook has Data Model and get first table name
                 // CreateModelWorkbookConnection requires a ModelTable name to create the connection
                 model = ctx.Book.Model;
-                dynamic? modelTables = null;
+                Excel.ModelTables? modelTables = null;
                 string? baseModelTableName = null;
                 try
                 {
@@ -121,7 +116,7 @@ public partial class TableCommands
                     }
 
                     // Get the first ModelTable name to use as base for connection
-                    dynamic? firstTable = modelTables.Item(1);
+                    Excel.ModelTable? firstTable = modelTables.Item(1);
                     try
                     {
                         baseModelTableName = firstTable.Name?.ToString();
@@ -147,7 +142,7 @@ public partial class TableCommands
                 modelConnection = modelWbConn.ModelConnection;
 
                 // Configure the connection for DAX EVALUATE query
-                modelConnection.CommandType = xlCmdDAX;  // 8 = xlCmdDAX
+                modelConnection.CommandType = Excel.XlCmdType.xlCmdDAX;  // 8 = xlCmdDAX
                 modelConnection.CommandText = daxQuery;
 
                 // Keep synchronous DAX refresh cancellable without blocking inbound COM callbacks.
@@ -168,10 +163,10 @@ public partial class TableCommands
                 // Create Excel Table (ListObject) backed by the DAX query
                 listObjects = sheet.ListObjects;
                 listObject = listObjects.Add(
-                    xlSrcModel,     // Source type: PowerPivot Data Model
+                    Excel.XlListObjectSourceType.xlSrcModel,     // Source type: PowerPivot Data Model
                     modelWbConn,    // The ModelWorkbookConnection with DAX
                     Type.Missing,   // LinkSource (not used)
-                    xlYes,          // HasHeaders: Yes
+                    Excel.XlYesNoGuess.xlYes,          // HasHeaders: Yes
                     destRange       // Target range
                 );
 
@@ -219,11 +214,11 @@ public partial class TableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
-            dynamic? tableObject = null;
-            dynamic? queryTable = null;
-            dynamic? workbookConnection = null;
-            dynamic? modelConnection = null;
+            Excel.ListObject? table = null;
+            Excel.TableObject? tableObject = null;
+            Excel.QueryTable? queryTable = null;
+            Excel.WorkbookConnection? workbookConnection = null;
+            Excel.ModelConnection? modelConnection = null;
 
             try
             {
@@ -253,8 +248,8 @@ public partial class TableCommands
                 }
 
                 // Check if current command type is DAX
-                int currentCmdType = Convert.ToInt32(modelConnection.CommandType);
-                if (currentCmdType != xlCmdDAX)
+                int currentCmdType = (int)modelConnection.CommandType;
+                if (currentCmdType != (int)Excel.XlCmdType.xlCmdDAX)
                 {
                     throw new InvalidOperationException($"Table '{tableName}' has command type {currentCmdType}, not xlCmdDAX (8). Use update-dax only with DAX-backed tables.");
                 }
@@ -312,11 +307,11 @@ public partial class TableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
-            dynamic? tableObject = null;
-            dynamic? queryTable = null;
-            dynamic? workbookConnection = null;
-            dynamic? modelConnection = null;
+            Excel.ListObject? table = null;
+            Excel.TableObject? tableObject = null;
+            Excel.QueryTable? queryTable = null;
+            Excel.WorkbookConnection? workbookConnection = null;
+            Excel.ModelConnection? modelConnection = null;
 
             try
             {
@@ -352,8 +347,8 @@ public partial class TableCommands
                 }
 
                 // Check if command type is DAX
-                int cmdType = Convert.ToInt32(modelConnection.CommandType);
-                if (cmdType == xlCmdDAX)
+                int cmdType = (int)modelConnection.CommandType;
+                if (cmdType == (int)Excel.XlCmdType.xlCmdDAX)
                 {
                     result.HasDaxConnection = true;
                     result.DaxQuery = modelConnection.CommandText?.ToString();

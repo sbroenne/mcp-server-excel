@@ -26,7 +26,7 @@ public partial class PowerQueryCommands
     /// </summary>
     /// <returns>True if refresh was executed, false if no connection or table found</returns>
     /// <exception cref="Exception">Thrown if Power Query has formula errors</exception>
-    internal static bool RefreshConnectionByQueryName(dynamic workbook, string queryName, CancellationToken cancellationToken)
+    internal static bool RefreshConnectionByQueryName(Excel.Workbook workbook, string queryName, CancellationToken cancellationToken)
     {
         // A LoadToBoth query has independent worksheet and Data Model connections.
         // Refresh both before reporting success so neither destination remains stale.
@@ -45,15 +45,15 @@ public partial class PowerQueryCommands
 
         // Connection-only queries may expose a workbook connection without either
         // a worksheet QueryTable or a Data Model table.
-        dynamic? targetConnection = null;
-        dynamic? connections = null;
+        Excel.WorkbookConnection? targetConnection = null;
+        Excel.Connections? connections = null;
         try
         {
             connections = workbook.Connections;
             for (int i = 1; i <= connections.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                dynamic? conn = null;
+                Excel.WorkbookConnection? conn = null;
                 try
                 {
                     conn = connections.Item(i);
@@ -95,12 +95,12 @@ public partial class PowerQueryCommands
     }
 
     private static bool RefreshDataModelConnectionByQueryName(
-        dynamic workbook,
+        Excel.Workbook workbook,
         string queryName,
         CancellationToken cancellationToken)
     {
-        dynamic? model = null;
-        dynamic? modelTables = null;
+        Excel.Model? model = null;
+        Excel.ModelTables? modelTables = null;
         try
         {
             try
@@ -116,7 +116,7 @@ public partial class PowerQueryCommands
             for (int i = 1; i <= modelTables.Count; i++)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                dynamic? modelTable = null;
+                Excel.ModelTable? modelTable = null;
                 Excel.WorkbookConnection? sourceConnection = null;
                 try
                 {
@@ -156,29 +156,29 @@ public partial class PowerQueryCommands
     /// </summary>
     /// <returns>True if QueryTable was found and refreshed</returns>
     /// <exception cref="Exception">Thrown if Power Query has formula errors</exception>
-    private static bool RefreshQueryTableByName(dynamic workbook, string queryName, CancellationToken cancellationToken)
+    private static bool RefreshQueryTableByName(Excel.Workbook workbook, string queryName, CancellationToken cancellationToken)
     {
-        dynamic? worksheets = null;
+        Excel.Sheets? worksheets = null;
         try
         {
             worksheets = workbook.Worksheets;
 
             for (int ws = 1; ws <= worksheets.Count; ws++)
             {
-                dynamic? worksheet = null;
-                dynamic? listObjects = null;
+                Excel.Worksheet? worksheet = null;
+                Excel.ListObjects? listObjects = null;
                 try
                 {
-                    worksheet = worksheets.Item(ws);
+                    worksheet = (Excel.Worksheet)worksheets.Item[ws];
                     listObjects = worksheet.ListObjects;
 
                     for (int lo = 1; lo <= listObjects.Count; lo++)
                     {
-                        dynamic? listObject = null;
+                        Excel.ListObject? listObject = null;
                         Excel.QueryTable? queryTable = null;
                         try
                         {
-                            listObject = listObjects.Item(lo);
+                            listObject = listObjects.Item[lo];
 
                             // Try to get QueryTable - not all ListObjects have one
                             try
@@ -257,9 +257,9 @@ public partial class PowerQueryCommands
         return false;
     }
 
-    private static void RefreshWorkbookConnection(dynamic connection, CancellationToken cancellationToken)
+    private static void RefreshWorkbookConnection(Excel.WorkbookConnection connection, CancellationToken cancellationToken)
     {
-        dynamic? oleDbConnection = null;
+        Excel.OLEDBConnection? oleDbConnection = null;
         bool originalBackgroundQuery = false;
         bool canRestoreBackgroundQuery = false;
         bool supportsRefreshing = false;

@@ -21,8 +21,8 @@ public partial class ConnectionCommands
         return batch.Execute((ctx, ct) =>
         {
             Excel.WorkbookConnection? conn = null;
-            dynamic? sheets = null;
-            dynamic? targetSheet = null;
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? targetSheet = null;
 
             try
             {
@@ -57,10 +57,10 @@ public partial class ConnectionCommands
 
                 for (int i = 1; i <= sheets.Count; i++)
                 {
-                    dynamic? sheet = null;
+                    Excel.Worksheet? sheet = null;
                     try
                     {
-                        sheet = sheets.Item(i);
+                        sheet = (Excel.Worksheet)sheets.Item[i];
                         if (sheet.Name.ToString().Equals(sheetName, StringComparison.OrdinalIgnoreCase))
                         {
                             targetSheet = sheet;
@@ -76,7 +76,7 @@ public partial class ConnectionCommands
 
                 if (targetSheet == null)
                 {
-                    targetSheet = sheets.Add();
+                    targetSheet = (Excel.Worksheet)sheets.Add();
                     targetSheet.Name = sheetName;
                 }
 

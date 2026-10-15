@@ -17,31 +17,31 @@ public partial class TableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheets = null;
+            Excel.Sheets? sheets = null;
             try
             {
                 sheets = ctx.Book.Worksheets;
                 for (int i = 1; i <= sheets.Count; i++)
                 {
-                    dynamic? sheet = null;
-                    dynamic? listObjects = null;
+                    Excel.Worksheet? sheet = null;
+                    Excel.ListObjects? listObjects = null;
                     try
                     {
-                        sheet = sheets.Item(i);
+                        sheet = (Excel.Worksheet)sheets.Item[i];
                         listObjects = sheet.ListObjects;
                         string sheetName = sheet.Name;
 
                         for (int j = 1; j <= listObjects.Count; j++)
                         {
-                            dynamic? table = null;
-                            dynamic? headerRowRange = null;
-                            dynamic? dataBodyRange = null;
-                            dynamic? tableRange = null;
-                            dynamic? listColumns = null;
-                            dynamic? dataRows = null;
+                            Excel.ListObject? table = null;
+                            Excel.Range? headerRowRange = null;
+                            Excel.Range? dataBodyRange = null;
+                            Excel.Range? tableRange = null;
+                            Excel.ListColumns? listColumns = null;
+                            Excel.Range? dataRows = null;
                             try
                             {
-                                table = listObjects.Item(j);
+                                table = listObjects.Item[j];
                                 string tableName = table.Name;
                                 tableRange = table.Range;
                                 string rangeAddress = tableRange.Address;
@@ -58,10 +58,10 @@ public partial class TableCommands
                                 {
                                     for (int k = 1; k <= listColumns.Count; k++)
                                     {
-                                        dynamic? column = null;
+                                        Excel.ListColumn? column = null;
                                         try
                                         {
-                                            column = listColumns.Item(k);
+                                            column = listColumns.Item[k];
                                             columns.Add(column.Name);
                                         }
                                         finally
@@ -136,8 +136,8 @@ public partial class TableCommands
         {
             Excel.Worksheet? sheet = null;
             Excel.Range? rangeObj = null;
-            dynamic? listObjects = null;
-            dynamic? newTable = null;
+            Excel.ListObjects? listObjects = null;
+            Excel.ListObject? newTable = null;
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
@@ -169,14 +169,11 @@ public partial class TableCommands
 
                 listObjects = sheet.ListObjects;
 
-                // Create table using numeric constant (xlSrcRange = 1)
-                // XlListObjectSourceType.xlSrcRange causes enum assembly loading issues
-                int xlSrcRange = 1;
                 int xlYes = 1;  // xlYes for has headers
                 int xlGuess = 0;  // xlGuess
                 int headerOption = hasHeaders ? xlYes : xlGuess;
 
-                newTable = listObjects.Add(xlSrcRange, rangeObj, null, headerOption);
+                newTable = listObjects.Add(Excel.XlListObjectSourceType.xlSrcRange, rangeObj, null, (Excel.XlYesNoGuess)headerOption);
                 newTable.Name = tableName;
 
                 // Apply table style if specified
@@ -205,7 +202,7 @@ public partial class TableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
+            Excel.ListObject? table = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
@@ -233,8 +230,8 @@ public partial class TableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
-            dynamic? tableRange = null;
+            Excel.ListObject? table = null;
+            Excel.Range? tableRange = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
@@ -274,18 +271,18 @@ public partial class TableCommands
         var result = new TableInfoResult { FilePath = batch.WorkbookPath };
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
-            dynamic? sheet = null;
-            dynamic? dataBodyRange = null;
-            dynamic? headerRowRange = null;
-            dynamic? tableRange = null;
-            dynamic? listColumns = null;
-            dynamic? dataRows = null;
+            Excel.ListObject? table = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? dataBodyRange = null;
+            Excel.Range? headerRowRange = null;
+            Excel.Range? tableRange = null;
+            Excel.ListColumns? listColumns = null;
+            Excel.Range? dataRows = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
 
-                sheet = table.Parent;
+                sheet = (Excel.Worksheet)table.Parent;
                 string sheetName = sheet.Name;
                 tableRange = table.Range;
                 string rangeAddress = tableRange.Address;
@@ -302,10 +299,10 @@ public partial class TableCommands
                 {
                     for (int i = 1; i <= listColumns.Count; i++)
                     {
-                        dynamic? column = null;
+                        Excel.ListColumn? column = null;
                         try
                         {
-                            column = listColumns.Item(i);
+                            column = listColumns.Item[i];
                             columns.Add(column.Name);
                         }
                         finally
@@ -360,7 +357,7 @@ public partial class TableCommands
             }
         });
     }
-    private static string GetTableStyleName(dynamic table)
+    private static string GetTableStyleName(Excel.ListObject table)
     {
         object? tableStyle = null;
         try
@@ -372,7 +369,7 @@ public partial class TableCommands
                 null or "\0" => "",
                 string styleName => styleName,
                 // Reason: Excel returns a COM TableStyle object or a string when no style is applied.
-                _ => ((dynamic)tableStyle).Name?.ToString() ?? ""
+                _ => ((Excel.TableStyle)tableStyle).Name ?? ""
             };
         }
         finally

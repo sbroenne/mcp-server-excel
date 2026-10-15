@@ -39,7 +39,7 @@ try {
             Read-Git @('-c', 'core.quotepath=false', 'ls-files', '--others', '--exclude-standard')
         )
         $inputs = @($workingPaths | Where-Object {
-            $_ -match '^(src[\\/]|tests[\\/]|skills[\\/]|scripts[\\/]|tools[\\/]ExcelMcp\.Build[\\/]|build\.ps1$|docs[\\/]reference[\\/]report-formatting\.md$|Directory\.|\.editorconfig$|global\.json$|NuGet\.Config$|Sbroenne\.ExcelMcp\.sln$)'
+            $_ -match '^(src[\\/]|tests[\\/]|skills[\\/]|scripts[\\/]|config[\\/]BannedSymbols\.txt$|tools[\\/]ExcelMcp\.Build[\\/]|build\.ps1$|docs[\\/]reference[\\/]report-formatting\.md$|Directory\.|\.editorconfig$|global\.json$|NuGet\.Config$|Sbroenne\.ExcelMcp\.sln$)'
         })
         if ($inputs.Count -gt 0) {
             throw "Validation inputs differ from the index. Stage or set aside these changes explicitly: $($inputs -join ', '). No files were staged or stashed."
@@ -48,13 +48,13 @@ try {
     if ($plan.Excel -and -not [OperatingSystem]::IsWindows()) {
         throw 'Required Excel validation needs Windows with desktop Excel; it cannot be reported as passed on this host.'
     }
-    if ($plan.SourceChecks) {
-        foreach ($script in @('check-com-leaks', 'check-success-flag', 'check-dynamic-casts', 'check-workbook-package-access')) {
-            Invoke-Check $script { & (Join-Path $PSScriptRoot "$script.ps1") }
-        }
+    if ($plan.SourceChecks -and -not $plan.Build) { throw 'Compiler source checks require selected build inputs.' }
+    if ($plan.Build -or $plan.Excel) {
+        $planDirectory = Join-Path $rootDir 'artifacts\validation'
+        $null = New-Item -ItemType Directory -Path $planDirectory -Force
     }
     if ($plan.Build) {
-        $buildPlan = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.CommitBuild.$([Guid]::NewGuid().ToString('N')).json"
+        $buildPlan = Join-Path $planDirectory "ExcelMcp.CommitBuild.$([Guid]::NewGuid().ToString('N')).json"
         try {
             $plan | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $buildPlan -Encoding utf8
             Invoke-Check 'Building selected Release inputs' {
@@ -66,7 +66,7 @@ try {
         } finally { Remove-Item -LiteralPath $buildPlan -ErrorAction Stop }
     }
     if ($plan.Excel) {
-        $planFile = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.CommitPlan.$([Guid]::NewGuid().ToString('N')).json"
+        $planFile = Join-Path $planDirectory "ExcelMcp.CommitPlan.$([Guid]::NewGuid().ToString('N')).json"
         try {
             $plan | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $planFile -Encoding utf8
             Invoke-Check 'Running selected Excel-dependent cases' {

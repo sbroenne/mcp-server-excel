@@ -8,7 +8,7 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 /// <summary>
 /// Tests for OLAP/Data Model PivotTable field operations (Strategy Pattern: OlapPivotTableFieldStrategy).
 /// Verifies that all field manipulation methods work correctly with Data Model PivotTables.
-/// Uses CubeFields API via GetFieldForManipulation() helper.
+/// Uses typed CubeFields API via GetCubeFieldForManipulation() helper.
 /// Organized as partial class for consistency with Strategy Pattern architecture.
 /// </summary>
 public partial class PersistentServicePivotTableOlapFieldTests

@@ -1,8 +1,9 @@
-using System.Dynamic;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 
@@ -20,7 +21,7 @@ public class RangeHelpersExceptionTests
 
         var actual = Assert.Throws<InvalidOperationException>(() =>
             RangeHelpers.ResolveRange(
-                new ThrowingWorkbook(expected),
+                ExcelProxy.Create<Excel.Workbook>((_, _) => throw expected),
                 string.Empty,
                 "TestRange",
                 out _));
@@ -37,7 +38,7 @@ public class RangeHelpersExceptionTests
 
         var actual = Assert.Throws<OperationFailureException>(() =>
             RangeHelpers.ResolveRange(
-                new Workbook(new MissingNames(comError)),
+                CreateWorkbook(0, _ => throw comError),
                 string.Empty,
                 "MissingRange",
                 out _));
@@ -55,7 +56,10 @@ public class RangeHelpersExceptionTests
 
         var actual = Assert.Throws<OperationFailureException>(() =>
             RangeHelpers.ResolveRange(
-                new Workbook(new NamesWithLocalCollision(comError)),
+                CreateWorkbook(1, key => key is string
+                    ? throw comError
+                    : ExcelProxy.Create<Excel.Name>((member, _) => member == "get_Name"
+                        ? "Sheet1!MissingRange" : throw new NotSupportedException(member))),
                 string.Empty,
                 "MissingRange",
                 out _));
@@ -73,7 +77,12 @@ public class RangeHelpersExceptionTests
 
         var actual = Assert.Throws<COMException>(() =>
             RangeHelpers.ResolveRange(
-                new Workbook(new NamesWithFormulaName(expected)),
+                CreateWorkbook(1, _ => ExcelProxy.Create<Excel.Name>((member, _) => member switch
+                {
+                    "get_Name" => "FormulaName",
+                    "get_RefersToRange" => throw expected,
+                    _ => throw new NotSupportedException(member)
+                })),
                 string.Empty,
                 "FormulaName",
                 out _));
@@ -91,7 +100,7 @@ public class RangeHelpersExceptionTests
 
         var actual = Assert.Throws<COMException>(() =>
             RangeHelpers.ResolveRange(
-                new Workbook(new NamesWithFailingEnumeration(lookupException, expected)),
+                CreateWorkbook(1, key => key is string ? throw lookupException : throw expected),
                 string.Empty,
                 "MissingRange",
                 out _));
@@ -99,151 +108,31 @@ public class RangeHelpersExceptionTests
         Assert.Same(expected, actual);
     }
 
-    private sealed class ThrowingWorkbook(Exception exception) : DynamicObject
+    private static Excel.Workbook CreateWorkbook(int count, Func<object?, Excel.Name> item)
     {
-        public override bool TryGetMember(GetMemberBinder binder, out object? result)
+        var names = ExcelProxy.Create<Excel.Names>((member, args) => member switch
         {
-            throw exception;
-        }
+            "get_Count" => count,
+            "Item" => item(args![0]),
+            _ => throw new NotSupportedException(member)
+        });
+        return ExcelProxy.Create<Excel.Workbook>((member, _) => member == "get_Names"
+            ? names : throw new NotSupportedException(member));
     }
 
-    private sealed class Workbook(object names) : DynamicObject
+    public class ExcelProxy : DispatchProxy
     {
-        public override bool TryGetMember(GetMemberBinder binder, out object? result)
-        {
-            result = binder.Name == "Names" ? names : null;
-            return binder.Name == "Names";
-        }
-    }
+        private Func<string, object?[]?, object?> _invoke = null!;
 
-    private sealed class MissingNames(COMException exception) : DynamicObject
-    {
-        public override bool TryGetMember(GetMemberBinder binder, out object? result)
+        public static T Create<T>(Func<string, object?[]?, object?> invoke) where T : class
         {
-            result = binder.Name == "Count" ? 0 : null;
-            return binder.Name == "Count";
+            var interfaceType = typeof(RangeHelpers).Assembly.GetType(typeof(T).FullName!) ?? typeof(T);
+            var proxy = DispatchProxy.Create(interfaceType, typeof(ExcelProxy));
+            ((ExcelProxy)proxy)._invoke = invoke;
+            return (T)proxy;
         }
 
-        public override bool TryInvokeMember(InvokeMemberBinder binder, object?[]? args, out object? result)
-        {
-            if (binder.Name == "Item")
-            {
-                throw exception;
-            }
-
-            result = null;
-            return false;
-        }
-    }
-
-    private sealed class NamesWithFormulaName(COMException exception) : DynamicObject
-    {
-        private readonly FormulaName _name = new(exception);
-
-        public override bool TryGetMember(GetMemberBinder binder, out object? result)
-        {
-            result = binder.Name == "Count" ? 1 : null;
-            return binder.Name == "Count";
-        }
-
-        public override bool TryInvokeMember(InvokeMemberBinder binder, object?[]? args, out object? result)
-        {
-            if (binder.Name == "Item" && args is [string])
-            {
-                result = _name;
-                return true;
-            }
-
-            if (binder.Name == "Item" && args is [int])
-            {
-                result = _name;
-                return true;
-            }
-
-            result = null;
-            return false;
-        }
-    }
-
-    private sealed class NamesWithLocalCollision(COMException exception) : DynamicObject
-    {
-        private readonly NamedItem _name = new("Sheet1!MissingRange");
-
-        public override bool TryGetMember(GetMemberBinder binder, out object? result)
-        {
-            result = binder.Name == "Count" ? 1 : null;
-            return binder.Name == "Count";
-        }
-
-        public override bool TryInvokeMember(InvokeMemberBinder binder, object?[]? args, out object? result)
-        {
-            if (binder.Name == "Item" && args is [string])
-            {
-                throw exception;
-            }
-
-            if (binder.Name == "Item" && args is [int])
-            {
-                result = _name;
-                return true;
-            }
-
-            result = null;
-            return false;
-        }
-    }
-
-    private sealed class NamesWithFailingEnumeration(COMException lookupException, COMException enumerationException) : DynamicObject
-    {
-        public override bool TryGetMember(GetMemberBinder binder, out object? result)
-        {
-            result = binder.Name == "Count" ? 1 : null;
-            return binder.Name == "Count";
-        }
-
-        public override bool TryInvokeMember(InvokeMemberBinder binder, object?[]? args, out object? result)
-        {
-            if (binder.Name == "Item" && args is [string])
-            {
-                throw lookupException;
-            }
-
-            if (binder.Name == "Item" && args is [int])
-            {
-                throw enumerationException;
-            }
-
-            result = null;
-            return false;
-        }
-    }
-
-    private sealed class FormulaName(COMException exception) : DynamicObject
-    {
-        public override bool TryGetMember(GetMemberBinder binder, out object? result)
-        {
-            if (binder.Name == "Name")
-            {
-                result = "FormulaName";
-                return true;
-            }
-
-            if (binder.Name == "RefersToRange")
-            {
-                throw exception;
-            }
-
-            result = null;
-            return false;
-        }
-    }
-
-    private sealed class NamedItem(string name) : DynamicObject
-    {
-        public override bool TryGetMember(GetMemberBinder binder, out object? result)
-        {
-            result = binder.Name == "Name" ? name : null;
-            return binder.Name == "Name";
-        }
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) =>
+            _invoke(targetMethod!.Name, args);
     }
 }

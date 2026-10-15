@@ -14,6 +14,7 @@ public partial class VbaCommands
         EnsureVbaFile(batch.WorkbookPath);
         return batch.Execute((ctx, ct) =>
         {
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? project = null;
             try
             {
@@ -56,7 +57,9 @@ public partial class VbaCommands
         EnsureVbaFile(batch.WorkbookPath);
         return batch.Execute((ctx, ct) =>
         {
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? project = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? references = null;
             try
             {
@@ -69,6 +72,7 @@ public partial class VbaCommands
                 for (int index = 1; index <= count; index++)
                 {
                     ct.ThrowIfCancellationRequested();
+                    // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
                     dynamic? reference = null;
                     try
                     {
@@ -126,7 +130,9 @@ public partial class VbaCommands
 
         return batch.Execute((ctx, ct) =>
         {
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? project = null;
+            // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
             dynamic? components = null;
             try
             {
@@ -140,7 +146,9 @@ public partial class VbaCommands
                 for (int index = 1; index <= count; index++)
                 {
                     ct.ThrowIfCancellationRequested();
+                    // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
                     dynamic? component = null;
+                    // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
                     dynamic? codeModule = null;
                     try
                     {
@@ -230,6 +238,7 @@ public partial class VbaCommands
 
     internal static VbaReferenceInfo ReadReferenceInfo(object referenceObject, int index)
     {
+        // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
         dynamic reference = referenceObject;
         bool broken = Convert.ToBoolean(reference.IsBroken, CultureInfo.InvariantCulture);
         var info = new VbaReferenceInfo { Index = index, IsBroken = broken };
@@ -263,6 +272,7 @@ public partial class VbaCommands
 
     private static void EnsureProjectUnlocked(object projectObject)
     {
+        // PIA gap: VBE project, component, reference and code-module types belong to the unreferenced Microsoft.Vbe.Interop object model.
         dynamic project = projectObject;
         if (GetProjectProtection(Convert.ToInt32(project.Protection, CultureInfo.InvariantCulture)) == "Locked")
         {

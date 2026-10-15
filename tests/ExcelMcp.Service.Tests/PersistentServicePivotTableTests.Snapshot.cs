@@ -1,6 +1,8 @@
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -22,6 +24,8 @@ public sealed partial class PersistentServicePivotTableTests
         RequireSuccess(_pivotCommands.SetFieldFilter(batch, pivotName, "Product", ["Widget"]));
         RequireSuccess(_pivotCommands.AddFieldFilter(batch, pivotName, "Product",
             new PivotFilterOptions { Type = PivotFilterType.CaptionEquals, Text1 = "Widget" }));
+        AssertTypedVisibleMembers(pivotName, "Region", ["North"]);
+        AssertTypedVisibleMembers(pivotName, "Product", ["Widget"]);
 
         var snapshot = RequireSuccess(_pivotCommands.Read(
             batch, pivotName, _salesSheetName, maxSelectedMembers: 1));
@@ -146,6 +150,7 @@ public sealed partial class PersistentServicePivotTableTests
         RequireSuccess(_pivotCommands.AddValueField(batch, pivotName, "Sales"));
         RequireSuccess(_pivotCommands.AddValueField(
             batch, pivotName, "Sales", AggregationFunction.Count, "Count of Sales"));
+        AssertValuesPlaceholderSourceNameError(pivotName);
 
         var snapshot = RequireSuccess(_pivotCommands.Read(batch, pivotName, _salesSheetName));
 
@@ -202,6 +207,68 @@ public sealed partial class PersistentServicePivotTableTests
         Assert.Null(value.BaseFieldName);
         Assert.Null(value.BaseItemKind);
         Assert.Null(value.BaseItemName);
+    }
+
+    private void AssertTypedVisibleMembers(string pivotName, string fieldName, string[] expectedMembers)
+    {
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.PivotTable? pivot = null;
+            Excel.PivotField? field = null;
+            Excel.PivotItems? items = null;
+            try
+            {
+                pivot = CoreLookupHelpers.FindPivotTable(context.Book, pivotName);
+                field = (Excel.PivotField)pivot.PivotFields(fieldName);
+                items = (Excel.PivotItems)field.VisibleItems[Type.Missing];
+                Assert.Equal(expectedMembers.Length, items.Count);
+                var members = new List<string>();
+                for (int index = 1; index <= items.Count; index++)
+                {
+                    Excel.PivotItem? item = null;
+                    try
+                    {
+                        item = items.Item(index);
+                        members.Add(item.Name);
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref item);
+                    }
+                }
+                Assert.Equal(expectedMembers.Order(StringComparer.Ordinal), members.Order(StringComparer.Ordinal));
+            }
+            finally
+            {
+                ComUtilities.Release(ref items);
+                ComUtilities.Release(ref field);
+                ComUtilities.Release(ref pivot);
+            }
+        });
+    }
+
+    private void AssertValuesPlaceholderSourceNameError(string pivotName)
+    {
+        _fixture.ExecuteRawVerification((context, cancellationToken) =>
+        {
+            Excel.PivotTable? pivot = null;
+            Excel.PivotField? placeholder = null;
+            try
+            {
+                pivot = CoreLookupHelpers.FindPivotTable(context.Book, pivotName);
+                placeholder = pivot.DataPivotField;
+                // PIA gap: PivotField.SourceName is declared string, but the Values placeholder exposes a native #N/A error.
+                object sourceName = ((dynamic)placeholder).SourceName;
+                Assert.IsType<int>(sourceName);
+                Assert.True(ExcelErrorMapper.TryGet(sourceName, out _, out var error));
+                Assert.Equal("#N/A", error.Name);
+            }
+            finally
+            {
+                ComUtilities.Release(ref placeholder);
+                ComUtilities.Release(ref pivot);
+            }
+        });
     }
 
     private void CreateSameNamedPivotWithProductColumn(string pivotName, string targetSheetName)

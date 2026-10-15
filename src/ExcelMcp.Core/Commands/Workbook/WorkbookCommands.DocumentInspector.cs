@@ -10,6 +10,7 @@ public partial class WorkbookCommands
     public DocumentInspectionResult InspectDocument(IExcelBatch batch) =>
         batch.Execute((ctx, ct) =>
         {
+            // PIA gap: Office.DocumentInspectors and DocumentInspector require the unreferenced Office.Core library.
             dynamic? inspectors = null;
             List<DocumentInspectorFinding> findings = [];
             bool savedBefore = ctx.Book.Saved;
@@ -21,6 +22,7 @@ public partial class WorkbookCommands
                 for (int index = 1; index <= count; index++)
                 {
                     ct.ThrowIfCancellationRequested();
+                    // PIA gap: Office.DocumentInspectors and DocumentInspector require the unreferenced Office.Core library.
                     dynamic? inspector = null;
                     try
                     {
@@ -61,7 +63,9 @@ public partial class WorkbookCommands
             if (ctx.Book.ProtectStructure || ctx.Book.ProtectWindows)
                 throw new InvalidOperationException(
                     "Cannot fix a document inspector on a structure/window-protected workbook. The workbook has not been changed.");
+            // PIA gap: Office.DocumentInspectors and DocumentInspector require the unreferenced Office.Core library.
             dynamic? inspectors = null;
+            // PIA gap: Office.DocumentInspectors and DocumentInspector require the unreferenced Office.Core library.
             dynamic? inspector = null;
             try
             {
@@ -106,6 +110,7 @@ public partial class WorkbookCommands
         });
     }
 
+    // PIA gap: Office.DocumentInspectors and DocumentInspector require the unreferenced Office.Core library.
     private static DocumentInspectorOutcome InvokeDocumentInspector(dynamic inspector, bool fix)
     {
         int status = -1;

@@ -569,7 +569,7 @@ public sealed partial class DrawingCommands
             return DrawingObjectKind.Connector;
         }
 
-        var shapeType = Convert.ToInt32(lateBoundShape.Type);
+        int shapeType = Convert.ToInt32((object)lateBoundShape.Type, System.Globalization.CultureInfo.InvariantCulture);
         return shapeType switch
         {
             1 => DrawingObjectKind.AutoShape,
@@ -585,19 +585,20 @@ public sealed partial class DrawingCommands
     {
         // PIA gap: Shape.AutoShapeType returns Office.Core.MsoAutoShapeType.
         dynamic lateBoundShape = (dynamic)(object)shape;
-        var value = Convert.ToInt32(lateBoundShape.AutoShapeType);
+        int value = Convert.ToInt32((object)lateBoundShape.AutoShapeType, System.Globalization.CultureInfo.InvariantCulture);
         return Enum.IsDefined(typeof(DrawingShapeType), value) ? (DrawingShapeType)value : null;
     }
 
     private static DrawingConnectorType? ReadConnectorType(Excel.Shape shape)
     {
+        // PIA gap: Shape fill, line, connector and color objects require the unreferenced Office.Core library.
         dynamic? connectorFormat = null;
         try
         {
             // PIA gap: Shape.ConnectorFormat returns an Office.Core object.
             dynamic lateBoundShape = (dynamic)(object)shape;
             connectorFormat = lateBoundShape.ConnectorFormat;
-            var value = Convert.ToInt32(connectorFormat.Type);
+            int value = Convert.ToInt32((object)connectorFormat.Type, System.Globalization.CultureInfo.InvariantCulture);
             return Enum.IsDefined(typeof(DrawingConnectorType), value) ? (DrawingConnectorType)value : null;
         }
         finally
@@ -822,7 +823,9 @@ public sealed partial class DrawingCommands
 
     private static void SetFillColor(Excel.Shape shape, string color)
     {
+        // PIA gap: Shape fill, line, connector and color objects require the unreferenced Office.Core library.
         dynamic? fill = null;
+        // PIA gap: Shape fill, line, connector and color objects require the unreferenced Office.Core library.
         dynamic? colorFormat = null;
         try
         {
@@ -842,7 +845,9 @@ public sealed partial class DrawingCommands
 
     private static string? ReadFillColor(Excel.Shape shape)
     {
+        // PIA gap: Shape fill, line, connector and color objects require the unreferenced Office.Core library.
         dynamic? fill = null;
+        // PIA gap: Shape fill, line, connector and color objects require the unreferenced Office.Core library.
         dynamic? colorFormat = null;
         try
         {
@@ -875,7 +880,9 @@ public sealed partial class DrawingCommands
             return;
         }
 
+        // PIA gap: Shape fill, line, connector and color objects require the unreferenced Office.Core library.
         dynamic? line = null;
+        // PIA gap: Shape fill, line, connector and color objects require the unreferenced Office.Core library.
         dynamic? colorFormat = null;
         try
         {
@@ -902,7 +909,9 @@ public sealed partial class DrawingCommands
 
     private static string? ReadLineColor(Excel.Shape shape)
     {
+        // PIA gap: Shape fill, line, connector and color objects require the unreferenced Office.Core library.
         dynamic? line = null;
+        // PIA gap: Shape fill, line, connector and color objects require the unreferenced Office.Core library.
         dynamic? colorFormat = null;
         try
         {
@@ -930,6 +939,7 @@ public sealed partial class DrawingCommands
 
     private static double? ReadLineWeight(Excel.Shape shape)
     {
+        // PIA gap: Shape fill, line, connector and color objects require the unreferenced Office.Core library.
         dynamic? line = null;
         try
         {

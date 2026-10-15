@@ -66,6 +66,7 @@ public partial class DataModelCommands
             _ => $"Unknown ({dataTypeValue.ToString(CultureInfo.InvariantCulture)})"
         };
 
+    // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
     private static DataModelAdoDiagnostics CollectAdoDiagnostics(dynamic? adoConnection)
     {
         if (adoConnection == null)
@@ -81,6 +82,7 @@ public partial class DataModelCommands
         };
     }
 
+    // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
     private static string? TryGetAdoConnectionString(dynamic adoConnection)
     {
         try
@@ -106,10 +108,15 @@ public partial class DataModelCommands
     {
         Excel.WorkbookConnection? dataModelConn = null;
         Excel.ModelConnection? modelConn = null;
+        // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
         dynamic? adoConnection = null;
+        // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
         dynamic? recordset = null;
+        // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
         dynamic? fields = null;
+        // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
         dynamic? nameField = null;
+        // PIA gap: ADO connection, recordset and field types belong to the unreferenced ADODB object model.
         dynamic? expressionField = null;
         try
         {

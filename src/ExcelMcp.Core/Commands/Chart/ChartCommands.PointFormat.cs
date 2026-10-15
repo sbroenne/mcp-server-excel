@@ -35,7 +35,7 @@ public partial class ChartCommands
         {
             Excel.Points? points = null;
             Excel.Point? point = null;
-            dynamic? format = null;
+            Excel.ChartFormat? format = null;
             try
             {
                 points = (Excel.Points)series.Points();
@@ -79,18 +79,24 @@ public partial class ChartCommands
     }
 
     private static ChartPointFormatResult ReadPointMaterial(
-        IExcelBatch batch, string name, int seriesIndex, int pointIndex, Excel.Point point, dynamic format, bool markers)
+        IExcelBatch batch, string name, int seriesIndex, int pointIndex, Excel.Point point, Excel.ChartFormat format, bool markers)
     {
+        // PIA gap: ChartFormat.Fill/Line return Office-core FillFormat/LineFormat; office.dll is intentionally not referenced.
         dynamic? fill = null;
+        // PIA gap: Office-core FillFormat/LineFormat.ForeColor returns ColorFormat; office.dll is intentionally not referenced.
         dynamic? fillColor = null;
+        // PIA gap: ChartFormat.Fill/Line return Office-core FillFormat/LineFormat; office.dll is intentionally not referenced.
         dynamic? line = null;
+        // PIA gap: Office-core FillFormat/LineFormat.ForeColor returns ColorFormat; office.dll is intentionally not referenced.
         dynamic? lineColor = null;
         try
         {
             // PIA gap: Office.Core fill/line/color getters need late binding.
-            fill = format.Fill;
+            // PIA gap: ChartFormat.Fill returns Office-core FillFormat; office.dll is intentionally not referenced.
+            fill = ((dynamic)format).Fill;
             fillColor = fill.ForeColor;
-            line = format.Line;
+            // PIA gap: ChartFormat.Line returns Office-core LineFormat; office.dll is intentionally not referenced.
+            line = ((dynamic)format).Line;
             lineColor = line.ForeColor;
             var transparency = Convert.ToDouble(fill.Transparency);
             var transparencyAvailable = !markers && double.IsFinite(transparency) && transparency is >= 0 and <= 1;

@@ -25,7 +25,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? worksheets = null;
+            Excel.Sheets? worksheets = null;
             try
             {
                 worksheets = ctx.Book.Worksheets;
@@ -33,27 +33,28 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
 
                 for (int i = 1; i <= wsCount; i++)
                 {
-                    dynamic? worksheet = null;
-                    dynamic? shapes = null;
+                    Excel.Worksheet? worksheet = null;
+                    Excel.Shapes? shapes = null;
 
                     try
                     {
-                        worksheet = worksheets.Item(i);
+                        worksheet = (Excel.Worksheet)worksheets.Item[i];
                         string sheetName = worksheet.Name?.ToString() ?? $"Sheet{i}";
                         shapes = worksheet.Shapes;
                         int shapeCount = Convert.ToInt32(shapes.Count);
 
                         for (int j = 1; j <= shapeCount; j++)
                         {
-                            dynamic? shape = null;
-                            dynamic? chart = null;
+                            Excel.Shape? shape = null;
+                            Excel.Chart? chart = null;
 
                             try
                             {
                                 shape = shapes.Item(j);
 
                                 // Check if this is a chart (msoChart = 3)
-                                if (Convert.ToInt32(shape.Type) != 3)
+                                // PIA gap: Shape.Type returns Office-core MsoShapeType; office.dll is intentionally not referenced.
+                                if (Convert.ToInt32(((dynamic)shape).Type) != 3)
                                 {
                                     continue;
                                 }
@@ -63,9 +64,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
 
                                 // Determine strategy and get info
                                 IChartStrategy strategy = _pivotStrategy.CanHandle(chart) ? _pivotStrategy : _regularStrategy;
-#pragma warning disable CS8604 // CodeQL false positive: Both strategies implement IChartStrategy.GetInfo with dynamic parameters
                                 var chartInfo = strategy.GetInfo(chart, chartName, sheetName, shape);
-#pragma warning restore CS8604
 
                                 result.Charts.Add(chartInfo);
                             }
@@ -100,7 +99,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
         return batch.Execute((ctx, ct) =>
         {
             // Find chart by name across all worksheets
-            dynamic? worksheets = null;
+            Excel.Sheets? worksheets = null;
             try
             {
                 worksheets = ctx.Book.Worksheets;
@@ -108,26 +107,27 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
 
                 for (int i = 1; i <= wsCount; i++)
                 {
-                    dynamic? worksheet = null;
-                    dynamic? shapes = null;
+                    Excel.Worksheet? worksheet = null;
+                    Excel.Shapes? shapes = null;
 
                     try
                     {
-                        worksheet = worksheets.Item(i);
+                        worksheet = (Excel.Worksheet)worksheets.Item[i];
                         string sheetName = worksheet.Name?.ToString() ?? $"Sheet{i}";
                         shapes = worksheet.Shapes;
                         int shapeCount = Convert.ToInt32(shapes.Count);
 
                         for (int j = 1; j <= shapeCount; j++)
                         {
-                            dynamic? shape = null;
-                            dynamic? chart = null;
+                            Excel.Shape? shape = null;
+                            Excel.Chart? chart = null;
 
                             try
                             {
                                 shape = shapes.Item(j);
 
-                                if (Convert.ToInt32(shape.Type) != 3)
+                                // PIA gap: Shape.Type returns Office-core MsoShapeType; office.dll is intentionally not referenced.
+                                if (Convert.ToInt32(((dynamic)shape).Type) != 3)
                                 {
                                     continue;
                                 }
@@ -140,9 +140,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
 
                                 chart = shape.Chart;
                                 IChartStrategy strategy = _pivotStrategy.CanHandle(chart) ? _pivotStrategy : _regularStrategy;
-#pragma warning disable CS8604 // CodeQL false positive: Both strategies implement IChartStrategy.GetDetailedInfo with dynamic parameters
                                 return strategy.GetDetailedInfo(chart, chartName, sheetName, shape);
-#pragma warning restore CS8604
                             }
                             finally
                             {
@@ -182,16 +180,18 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? worksheet = null;
-            dynamic? shapes = null;
-            dynamic? shape = null;
-            dynamic? chart = null;
-            dynamic? targetRangeObj = null;
-            dynamic? sourceRangeObj = null;
+            Excel.Worksheet? worksheet = null;
+            Excel.Shapes? shapes = null;
+            Excel.Shape? shape = null;
+            Excel.Chart? chart = null;
+            Excel.Range? targetRangeObj = null;
+            Excel.Range? sourceRangeObj = null;
+            Excel.Sheets? worksheets = null;
 
             try
             {
-                worksheet = ctx.Book.Worksheets[sheetName];
+                worksheets = ctx.Book.Worksheets;
+                worksheet = (Excel.Worksheet)worksheets[sheetName];
                 shapes = worksheet.Shapes;
 
                 // Resolve the source before creating anything so a bad address leaves no chart behind.
@@ -263,6 +263,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 ComUtilities.Release(ref shape!);
                 ComUtilities.Release(ref shapes!);
                 ComUtilities.Release(ref worksheet!);
+                ComUtilities.Release(ref worksheets);
             }
         });
     }
@@ -282,13 +283,14 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
-            dynamic? tableRange = null;
-            dynamic? worksheet = null;
-            dynamic? shapes = null;
-            dynamic? shape = null;
-            dynamic? chart = null;
-            dynamic? targetRangeObj = null;
+            Excel.ListObject? table = null;
+            Excel.Range? tableRange = null;
+            Excel.Worksheet? worksheet = null;
+            Excel.Shapes? shapes = null;
+            Excel.Shape? shape = null;
+            Excel.Chart? chart = null;
+            Excel.Range? targetRangeObj = null;
+            Excel.Sheets? worksheets = null;
 
             try
             {
@@ -299,7 +301,8 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 tableRange = table.Range;
 
                 // Get target worksheet
-                worksheet = ctx.Book.Worksheets[sheetName];
+                worksheets = ctx.Book.Worksheets;
+                worksheet = (Excel.Worksheet)worksheets[sheetName];
                 shapes = worksheet.Shapes;
 
                 // Resolve final position: targetRange > explicit left/top > auto-position
@@ -365,6 +368,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 ComUtilities.Release(ref shape!);
                 ComUtilities.Release(ref shapes!);
                 ComUtilities.Release(ref worksheet!);
+                ComUtilities.Release(ref worksheets);
                 ComUtilities.Release(ref tableRange!);
                 ComUtilities.Release(ref table!);
             }
@@ -545,9 +549,9 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
     }
 
     private static string ConfigureCreatedChart(
-        dynamic shape,
-        dynamic chart,
-        dynamic sourceRange,
+        Excel.Shape shape,
+        Excel.Chart chart,
+        Excel.Range sourceRange,
         string sourceDescription,
         string sheetName,
         string? chartName)
@@ -581,7 +585,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
         return batch.Execute((ctx, ct) =>
         {
             // Find and delete chart
-            dynamic? worksheets = null;
+            Excel.Sheets? worksheets = null;
             try
             {
                 worksheets = ctx.Book.Worksheets;
@@ -589,24 +593,25 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
 
                 for (int i = 1; i <= wsCount; i++)
                 {
-                    dynamic? worksheet = null;
-                    dynamic? shapes = null;
+                    Excel.Worksheet? worksheet = null;
+                    Excel.Shapes? shapes = null;
 
                     try
                     {
-                        worksheet = worksheets.Item(i);
+                        worksheet = (Excel.Worksheet)worksheets.Item[i];
                         shapes = worksheet.Shapes;
                         int shapeCount = Convert.ToInt32(shapes.Count);
 
                         for (int j = 1; j <= shapeCount; j++)
                         {
-                            dynamic? shape = null;
+                            Excel.Shape? shape = null;
 
                             try
                             {
                                 shape = shapes.Item(j);
 
-                                if (Convert.ToInt32(shape.Type) != 3)
+                                // PIA gap: Shape.Type returns Office-core MsoShapeType; office.dll is intentionally not referenced.
+                                if (Convert.ToInt32(((dynamic)shape).Type) != 3)
                                 {
                                     continue;
                                 }
@@ -654,30 +659,31 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
         return batch.Execute((ctx, ct) =>
         {
             // Find chart and update position/size
-            dynamic worksheets = ctx.Book.Worksheets;
+            Excel.Sheets worksheets = ctx.Book.Worksheets;
             int wsCount = Convert.ToInt32(worksheets.Count);
 
             for (int i = 1; i <= wsCount; i++)
             {
-                dynamic? worksheet = null;
-                dynamic? shapes = null;
+                Excel.Worksheet? worksheet = null;
+                Excel.Shapes? shapes = null;
 
                 try
                 {
-                    worksheet = worksheets.Item(i);
+                    worksheet = (Excel.Worksheet)worksheets.Item[i];
                     shapes = worksheet.Shapes;
                     int shapeCount = Convert.ToInt32(shapes.Count);
 
                     for (int j = 1; j <= shapeCount; j++)
                     {
-                        dynamic? shape = null;
+                        Excel.Shape? shape = null;
 
                         try
                         {
                             shape = shapes.Item(j);
 
                             // Check if this is a chart and name matches
-                            if (Convert.ToInt32(shape.Type) != 3)
+                            // PIA gap: Shape.Type returns Office-core MsoShapeType; office.dll is intentionally not referenced.
+                            if (Convert.ToInt32(((dynamic)shape).Type) != 3)
                             {
                                 continue;
                             }
@@ -689,10 +695,10 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                             }
 
                             // Update position and size
-                            if (left.HasValue) shape.Left = left.Value;
-                            if (top.HasValue) shape.Top = top.Value;
-                            if (width.HasValue) shape.Width = width.Value;
-                            if (height.HasValue) shape.Height = height.Value;
+                            if (left.HasValue) shape.Left = (float)left.Value;
+                            if (top.HasValue) shape.Top = (float)top.Value;
+                            if (width.HasValue) shape.Width = (float)width.Value;
+                            if (height.HasValue) shape.Height = (float)height.Value;
 
                             // Collision detection after repositioning
                             double finalLeft = Convert.ToDouble(shape.Left);
@@ -740,9 +746,9 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
     /// Finds a PivotTable by name across all worksheets.
     /// Delegates to CoreLookupHelpers.TryFindPivotTable for the actual lookup.
     /// </summary>
-    private static dynamic? FindPivotTable(dynamic workbook, string pivotTableName)
+    private static Excel.PivotTable? FindPivotTable(Excel.Workbook workbook, string pivotTableName)
     {
-        CoreLookupHelpers.TryFindPivotTable(workbook, pivotTableName, out dynamic? pivotTable);
+        CoreLookupHelpers.TryFindPivotTable(workbook, pivotTableName, out Excel.PivotTable? pivotTable);
         return pivotTable;
     }
 }

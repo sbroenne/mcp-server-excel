@@ -18,8 +18,8 @@ public partial class PivotTableCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? pivot = null;
-            dynamic? tableRange = null;
+            Excel.PivotTable? pivot = null;
+            Excel.Range? tableRange = null;
 
             try
             {
@@ -112,7 +112,7 @@ public partial class PivotTableCommands
                     throw new InvalidOperationException(
                         $"OLAP report-filter field '{fieldName}' has no PivotField available.");
                 }
-                pivotField = pivotFields.Item(1);
+                pivotField = (Excel.PivotField)pivotFields.Item(1);
 
                 failurePhase = "read-filter-state";
                 ReadReportFilterSelection(cubeField, pivotField, result, ct);
@@ -208,7 +208,7 @@ public partial class PivotTableCommands
                     throw new InvalidOperationException(
                         $"OLAP report-filter field '{fieldName}' has no PivotField available.");
                 }
-                pivotField = pivotFields.Item(1);
+                pivotField = (Excel.PivotField)pivotFields.Item(1);
 
                 failurePhase = "capture-state";
                 previousManualUpdate = pivot.ManualUpdate;
@@ -453,7 +453,7 @@ public partial class PivotTableCommands
                     levels = cube.PivotFields;
                     if (levels.Count == 0)
                         throw new ArgumentException("Place the OLAP hierarchy on the row or column axis before sorting.");
-                    field = levels.Item(1);
+                    field = (Excel.PivotField)levels.Item(1);
                 }
                 else
                 {

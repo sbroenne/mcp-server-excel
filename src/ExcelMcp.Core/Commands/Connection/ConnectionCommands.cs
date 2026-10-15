@@ -29,9 +29,9 @@ public partial class ConnectionCommands : IConnectionCommands
         };
     }
 
-    private static dynamic? GetTypedSubConnection(dynamic conn)
+    private static object? GetTypedSubConnection(Excel.WorkbookConnection conn)
     {
-        int connType = conn.Type;
+        int connType = (int)conn.Type;
 
         if (connType == 1)
         {
@@ -53,7 +53,9 @@ public partial class ConnectionCommands : IConnectionCommands
             {
                 try
                 {
-                    return conn.WebConnection;
+                    // PIA gap: WorkbookConnection.WebConnection is absent from the Excel PIA.
+
+                    return ((dynamic)(object)conn).WebConnection;
                 }
                 catch (COMException)
                 {
@@ -65,11 +67,11 @@ public partial class ConnectionCommands : IConnectionCommands
         return null;
     }
 
-    private static bool GetBackgroundQuerySetting(dynamic conn)
+    private static bool GetBackgroundQuerySetting(Excel.WorkbookConnection conn)
     {
         try
         {
-            int connType = conn.Type;
+            int connType = (int)conn.Type;
             if (connType == 1)
             {
                 Excel.OLEDBConnection? oledbConnection = null;
@@ -100,11 +102,12 @@ public partial class ConnectionCommands : IConnectionCommands
 
             if (connType is 3 or 4)
             {
-                dynamic? textConnection = null;
+                Excel.TextConnection? textConnection = null;
                 try
                 {
                     textConnection = conn.TextConnection;
-                    return textConnection?.BackgroundQuery ?? false;
+                    // PIA gap: TextConnection.BackgroundQuery is absent from the Excel PIA.
+                    return ((dynamic?)(object?)textConnection)?.BackgroundQuery ?? false;
                 }
                 catch (COMException)
                 {
@@ -114,10 +117,12 @@ public partial class ConnectionCommands : IConnectionCommands
                     ComUtilities.Release(ref textConnection);
                 }
 
+                // PIA gap: WorkbookConnection.WebConnection is absent from the Excel PIA.
                 dynamic? webConnection = null;
                 try
                 {
-                    webConnection = conn.WebConnection;
+                    // PIA gap: WorkbookConnection has no WebConnection or root ConnectionString member.
+                    webConnection = ((dynamic)(object)conn).WebConnection;
                     return webConnection?.BackgroundQuery ?? false;
                 }
                 finally
@@ -133,11 +138,11 @@ public partial class ConnectionCommands : IConnectionCommands
         return false;
     }
 
-    private static bool GetRefreshOnFileOpenSetting(dynamic conn)
+    private static bool GetRefreshOnFileOpenSetting(Excel.WorkbookConnection conn)
     {
         try
         {
-            int connType = conn.Type;
+            int connType = (int)conn.Type;
             if (connType == 1)
             {
                 Excel.OLEDBConnection? oledbConnection = null;
@@ -168,11 +173,12 @@ public partial class ConnectionCommands : IConnectionCommands
 
             if (connType is 3 or 4)
             {
-                dynamic? textConnection = null;
+                Excel.TextConnection? textConnection = null;
                 try
                 {
                     textConnection = conn.TextConnection;
-                    return textConnection?.RefreshOnFileOpen ?? false;
+                    // PIA gap: TextConnection.RefreshOnFileOpen is absent from the Excel PIA.
+                    return ((dynamic?)(object?)textConnection)?.RefreshOnFileOpen ?? false;
                 }
                 catch (COMException)
                 {
@@ -182,10 +188,12 @@ public partial class ConnectionCommands : IConnectionCommands
                     ComUtilities.Release(ref textConnection);
                 }
 
+                // PIA gap: WorkbookConnection.WebConnection is absent from the Excel PIA.
                 dynamic? webConnection = null;
                 try
                 {
-                    webConnection = conn.WebConnection;
+                    // PIA gap: WorkbookConnection has no WebConnection or root ConnectionString member.
+                    webConnection = ((dynamic)(object)conn).WebConnection;
                     return webConnection?.RefreshOnFileOpen ?? false;
                 }
                 finally
@@ -201,11 +209,11 @@ public partial class ConnectionCommands : IConnectionCommands
         return false;
     }
 
-    private static bool GetSavePasswordSetting(dynamic conn)
+    private static bool GetSavePasswordSetting(Excel.WorkbookConnection conn)
     {
         try
         {
-            int connType = conn.Type;
+            int connType = (int)conn.Type;
             if (connType == 1)
             {
                 Excel.OLEDBConnection? oledbConnection = null;
@@ -236,11 +244,12 @@ public partial class ConnectionCommands : IConnectionCommands
 
             if (connType is 3 or 4)
             {
-                dynamic? textConnection = null;
+                Excel.TextConnection? textConnection = null;
                 try
                 {
                     textConnection = conn.TextConnection;
-                    return textConnection?.SavePassword ?? false;
+                    // PIA gap: TextConnection.SavePassword is absent from the Excel PIA.
+                    return ((dynamic?)(object?)textConnection)?.SavePassword ?? false;
                 }
                 catch (COMException)
                 {
@@ -250,10 +259,12 @@ public partial class ConnectionCommands : IConnectionCommands
                     ComUtilities.Release(ref textConnection);
                 }
 
+                // PIA gap: WorkbookConnection.WebConnection is absent from the Excel PIA.
                 dynamic? webConnection = null;
                 try
                 {
-                    webConnection = conn.WebConnection;
+                    // PIA gap: WorkbookConnection has no WebConnection or root ConnectionString member.
+                    webConnection = ((dynamic)(object)conn).WebConnection;
                     return webConnection?.SavePassword ?? false;
                 }
                 finally
@@ -269,11 +280,11 @@ public partial class ConnectionCommands : IConnectionCommands
         return false;
     }
 
-    private static int GetRefreshPeriod(dynamic conn)
+    private static int GetRefreshPeriod(Excel.WorkbookConnection conn)
     {
         try
         {
-            int connType = conn.Type;
+            int connType = (int)conn.Type;
             if (connType == 1)
             {
                 Excel.OLEDBConnection? oledbConnection = null;
@@ -304,11 +315,12 @@ public partial class ConnectionCommands : IConnectionCommands
 
             if (connType is 3 or 4)
             {
-                dynamic? textConnection = null;
+                Excel.TextConnection? textConnection = null;
                 try
                 {
                     textConnection = conn.TextConnection;
-                    return textConnection?.RefreshPeriod ?? 0;
+                    // PIA gap: TextConnection.RefreshPeriod is absent from the Excel PIA.
+                    return ((dynamic?)(object?)textConnection)?.RefreshPeriod ?? 0;
                 }
                 catch (COMException)
                 {
@@ -318,10 +330,12 @@ public partial class ConnectionCommands : IConnectionCommands
                     ComUtilities.Release(ref textConnection);
                 }
 
+                // PIA gap: WorkbookConnection.WebConnection is absent from the Excel PIA.
                 dynamic? webConnection = null;
                 try
                 {
-                    webConnection = conn.WebConnection;
+                    // PIA gap: WorkbookConnection has no WebConnection or root ConnectionString member.
+                    webConnection = ((dynamic)(object)conn).WebConnection;
                     return webConnection?.RefreshPeriod ?? 0;
                 }
                 finally
@@ -337,11 +351,11 @@ public partial class ConnectionCommands : IConnectionCommands
         return 0;
     }
 
-    private static DateTime? GetLastRefreshDate(dynamic conn, ILogger logger)
+    private static DateTime? GetLastRefreshDate(Excel.WorkbookConnection conn, ILogger logger)
     {
         try
         {
-            int connType = conn.Type;
+            int connType = (int)conn.Type;
             if (connType == 1)
             {
                 Excel.OLEDBConnection? oledbConnection = null;
@@ -382,11 +396,11 @@ public partial class ConnectionCommands : IConnectionCommands
     private static bool IsUnsupportedConnectionProperty(COMException exception) =>
         exception.HResult is unchecked((int)0x80020003) or unchecked((int)0x80004001);
 
-    private static string? GetConnectionString(dynamic conn)
+    private static string? GetConnectionString(Excel.WorkbookConnection conn)
     {
         try
         {
-            int connType = conn.Type;
+            int connType = (int)conn.Type;
             string? connectionString = null;
 
             if (connType == 1)
@@ -417,7 +431,7 @@ public partial class ConnectionCommands : IConnectionCommands
             }
             else if (connType is 3 or 4)
             {
-                dynamic? textConnection = null;
+                Excel.TextConnection? textConnection = null;
                 try
                 {
                     textConnection = conn.TextConnection;
@@ -433,10 +447,12 @@ public partial class ConnectionCommands : IConnectionCommands
 
                 if (string.IsNullOrWhiteSpace(connectionString))
                 {
+                    // PIA gap: WorkbookConnection.WebConnection is absent from the Excel PIA.
                     dynamic? webConnection = null;
                     try
                     {
-                        webConnection = conn.WebConnection;
+                        // PIA gap: WorkbookConnection has no WebConnection or root ConnectionString member.
+                        webConnection = ((dynamic)(object)conn).WebConnection;
                         connectionString = webConnection?.Connection?.ToString();
                     }
                     catch (COMException)
@@ -454,7 +470,8 @@ public partial class ConnectionCommands : IConnectionCommands
             {
                 try
                 {
-                    connectionString = conn.ConnectionString?.ToString();
+                    // PIA gap: WorkbookConnection has no WebConnection or root ConnectionString member.
+                    connectionString = ((dynamic)(object)conn).ConnectionString?.ToString();
                 }
                 catch (COMException)
                 {
@@ -472,11 +489,11 @@ public partial class ConnectionCommands : IConnectionCommands
         return null;
     }
 
-    private static string? GetCommandText(dynamic conn)
+    private static string? GetCommandText(Excel.WorkbookConnection conn)
     {
         try
         {
-            int connType = conn.Type;
+            int connType = (int)conn.Type;
             if (connType == 1)
             {
                 Excel.OLEDBConnection? oledbConnection = null;
@@ -507,11 +524,12 @@ public partial class ConnectionCommands : IConnectionCommands
 
             if (connType is 3 or 4)
             {
-                dynamic? textConnection = null;
+                Excel.TextConnection? textConnection = null;
                 try
                 {
                     textConnection = conn.TextConnection;
-                    return textConnection?.CommandText?.ToString();
+                    // PIA gap: TextConnection.CommandText is absent from the Excel PIA.
+                    return ((dynamic?)(object?)textConnection)?.CommandText?.ToString();
                 }
                 catch (COMException)
                 {
@@ -521,10 +539,12 @@ public partial class ConnectionCommands : IConnectionCommands
                     ComUtilities.Release(ref textConnection);
                 }
 
+                // PIA gap: WorkbookConnection.WebConnection is absent from the Excel PIA.
                 dynamic? webConnection = null;
                 try
                 {
-                    webConnection = conn.WebConnection;
+                    // PIA gap: WorkbookConnection has no WebConnection or root ConnectionString member.
+                    webConnection = ((dynamic)(object)conn).WebConnection;
                     return webConnection?.CommandText?.ToString();
                 }
                 finally
@@ -540,12 +560,12 @@ public partial class ConnectionCommands : IConnectionCommands
         return null;
     }
 
-    private static string? GetCommandType(dynamic conn)
+    private static string? GetCommandType(Excel.WorkbookConnection conn)
     {
         int commandType;
         try
         {
-            int connType = conn.Type;
+            int connType = (int)conn.Type;
             if (connType == 1)
             {
                 Excel.OLEDBConnection? oledbConnection = null;
@@ -603,7 +623,7 @@ public partial class ConnectionCommands : IConnectionCommands
         };
     }
 
-    private static object GetConnectionProperties(dynamic conn, ILogger logger)
+    private static object GetConnectionProperties(Excel.WorkbookConnection conn, ILogger logger)
     {
         return new
         {
@@ -615,7 +635,7 @@ public partial class ConnectionCommands : IConnectionCommands
         };
     }
 
-    private static void CreateConnection(dynamic workbook, string connectionName, ConnectionDefinition definition)
+    private static void CreateConnection(Excel.Workbook workbook, string connectionName, ConnectionDefinition definition)
     {
         // Validate required fields
         if (string.IsNullOrWhiteSpace(definition.ConnectionString))
@@ -633,8 +653,8 @@ public partial class ConnectionCommands : IConnectionCommands
                 "Use powerquery tool for file/web imports, or create an ODC file and use import-odc action.");
         }
 
-        dynamic? connections = null;
-        dynamic? newConnection = null;
+        Excel.Connections? connections = null;
+        Excel.WorkbookConnection? newConnection = null;
 
         try
         {
@@ -663,7 +683,7 @@ public partial class ConnectionCommands : IConnectionCommands
         }
     }
 
-    private static bool IsOlapConnection(dynamic connection)
+    private static bool IsOlapConnection(Excel.WorkbookConnection connection)
     {
         int connectionType = Convert.ToInt32(connection.Type, CultureInfo.InvariantCulture);
         if (connectionType != 1) return false;
@@ -680,7 +700,7 @@ public partial class ConnectionCommands : IConnectionCommands
         }
     }
 
-    private static void UpdateConnectionProperties(dynamic conn, ConnectionDefinition definition)
+    private static void UpdateConnectionProperties(Excel.WorkbookConnection conn, ConnectionDefinition definition)
     {
         int connType = Convert.ToInt32(conn.Type, CultureInfo.InvariantCulture);
         if (connType == 1 && definition.BackgroundQuery.HasValue &&
@@ -818,7 +838,7 @@ public partial class ConnectionCommands : IConnectionCommands
             {
                 // Excel has type 3/4 confusion: CSV files created with "TEXT;filepath" may be reported as type 4 (WEB)
                 // Try TextConnection first (correct for type 3), fall back to WebConnection if that fails
-                dynamic? textConnection = null;
+                Excel.TextConnection? textConnection = null;
                 try
                 {
                     textConnection = conn.TextConnection; // Try TEXT first
@@ -837,23 +857,28 @@ public partial class ConnectionCommands : IConnectionCommands
                         }
                         if (!string.IsNullOrWhiteSpace(definition.CommandText))
                         {
-                            textConnection.CommandText = definition.CommandText;
+                            // PIA gap: TextConnection.CommandText is absent from the Excel PIA.
+                            ((dynamic)(object)textConnection).CommandText = definition.CommandText;
                         }
                         if (definition.BackgroundQuery.HasValue)
                         {
-                            textConnection.BackgroundQuery = definition.BackgroundQuery.Value;
+                            // PIA gap: TextConnection.BackgroundQuery is absent from the Excel PIA.
+                            ((dynamic)(object)textConnection).BackgroundQuery = definition.BackgroundQuery.Value;
                         }
                         if (definition.RefreshOnFileOpen.HasValue)
                         {
-                            textConnection.RefreshOnFileOpen = definition.RefreshOnFileOpen.Value;
+                            // PIA gap: TextConnection.RefreshOnFileOpen is absent from the Excel PIA.
+                            ((dynamic)(object)textConnection).RefreshOnFileOpen = definition.RefreshOnFileOpen.Value;
                         }
                         if (definition.SavePassword.HasValue)
                         {
-                            textConnection.SavePassword = definition.SavePassword.Value;
+                            // PIA gap: TextConnection.SavePassword is absent from the Excel PIA.
+                            ((dynamic)(object)textConnection).SavePassword = definition.SavePassword.Value;
                         }
                         if (definition.RefreshPeriod.HasValue)
                         {
-                            textConnection.RefreshPeriod = definition.RefreshPeriod.Value;
+                            // PIA gap: TextConnection.RefreshPeriod is absent from the Excel PIA.
+                            ((dynamic)(object)textConnection).RefreshPeriod = definition.RefreshPeriod.Value;
                         }
                     }
                     finally
@@ -864,10 +889,12 @@ public partial class ConnectionCommands : IConnectionCommands
                     return;
                 }
 
+                // PIA gap: WorkbookConnection.WebConnection is absent from the Excel PIA.
                 dynamic? webConnection = null;
                 try
                 {
-                    webConnection = conn.WebConnection; // Fall back to WEB
+                    // PIA gap: WorkbookConnection has no WebConnection or root ConnectionString member.
+                    webConnection = ((dynamic)(object)conn).WebConnection; // Fall back to WEB
                     if (webConnection != null)
                     {
                         if (!string.IsNullOrWhiteSpace(definition.ConnectionString))
@@ -968,50 +995,10 @@ public partial class ConnectionCommands : IConnectionCommands
         return Type.Missing;
     }
 
-    private static void SetConnectionProperty<T>(dynamic conn, string propertyName, T? value) where T : struct
-    {
-        if (!value.HasValue) return;
-
-        dynamic? subConn = null;
-        try
-        {
-            subConn = GetTypedSubConnection(conn);
-            if (subConn != null)
-            {
-                SetProperty(subConn, propertyName, value.Value);
-            }
-        }
-        catch (COMException)
-        {
-            // Property not available for this connection type
-        }
-        finally
-        {
-            ComUtilities.Release(ref subConn);
-        }
-    }
-
-    private static void SetProperty<T>(dynamic obj, string propertyName, T value)
-    {
-        try
-        {
-            // Use reflection to set property dynamically
-            var type = obj.GetType();
-            var property = type.GetProperty(propertyName);
-            if (property != null && property.CanWrite)
-            {
-                property.SetValue(obj, value);
-            }
-        }
-        catch (System.Runtime.InteropServices.COMException)
-        {
-            // Property doesn't exist or can't be set
-        }
-    }
 
     private static void CreateQueryTableForConnection(
-        dynamic targetSheet,
-        dynamic conn,
+        Excel.Worksheet targetSheet,
+        Excel.WorkbookConnection conn,
         PowerQueryHelpers.QueryTableOptions options,
         CancellationToken cancellationToken)
     {
@@ -1031,9 +1018,9 @@ public partial class ConnectionCommands : IConnectionCommands
             commandText = "";
         }
 
-        dynamic? queryTables = null;
+        Excel.QueryTables? queryTables = null;
         Excel.QueryTable? queryTable = null;
-        dynamic? range = null;
+        Excel.Range? range = null;
 
         try
         {

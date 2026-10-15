@@ -22,8 +22,8 @@ internal static class ChartSourceRange
     /// when the first block has no sheet name. Throws before any workbook change when the
     /// address is invalid, mixes sheets, or names a missing sheet.
     /// </summary>
-    internal static dynamic Resolve(
-        dynamic book, string defaultSheetName, string sourceAddress, CancellationToken ct)
+    internal static Excel.Range Resolve(
+        Excel.Workbook book, string defaultSheetName, string sourceAddress, CancellationToken ct)
     {
         var parsed = Parse(sourceAddress, defaultSheetName);
         try
@@ -61,7 +61,7 @@ internal static class ChartSourceRange
     /// <summary>
     /// Applies an already-resolved source to a chart, explaining Excel's generic rejection.
     /// </summary>
-    internal static void Apply(dynamic chart, dynamic sourceRange, string sourceAddress)
+    internal static void Apply(Excel.Chart chart, Excel.Range sourceRange, string sourceAddress)
     {
         try
         {
@@ -263,7 +263,7 @@ internal static class ChartSourceRange
     /// Returns the sheet's name as stored in the workbook, because Excel matches sheet names
     /// regardless of capital letters. A missing sheet keeps the given name so the range lookup reports it.
     /// </summary>
-    private static string ActualSheetName(dynamic book, string sheetName, CancellationToken ct)
+    private static string ActualSheetName(Excel.Workbook book, string sheetName, CancellationToken ct)
     {
         if (string.IsNullOrEmpty(sheetName))
         {
@@ -278,7 +278,7 @@ internal static class ChartSourceRange
             for (int index = 1; index <= worksheets.Count; index++)
             {
                 ct.ThrowIfCancellationRequested();
-                sheet = worksheets[index];
+                sheet = (Excel.Worksheet)worksheets[index];
                 if (string.Equals(sheet.Name, sheetName, StringComparison.OrdinalIgnoreCase))
                 {
                     return sheet.Name;
@@ -297,7 +297,7 @@ internal static class ChartSourceRange
     }
 
     private static void ValidateFirstBlockPosition(
-        dynamic book, string sheetName, IReadOnlyList<string> blocks, string sourceAddress, CancellationToken ct)
+        Excel.Workbook book, string sheetName, IReadOnlyList<string> blocks, string sourceAddress, CancellationToken ct)
     {
         Excel.Range? firstBlock = null;
         try
@@ -331,7 +331,7 @@ internal static class ChartSourceRange
         }
     }
 
-    private static dynamic ResolveDefinedName(dynamic book, string sourceAddress, OperationFailureException addressError)
+    private static Excel.Range ResolveDefinedName(Excel.Workbook book, string sourceAddress, OperationFailureException addressError)
     {
         try
         {

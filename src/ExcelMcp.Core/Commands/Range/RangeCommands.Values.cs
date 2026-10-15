@@ -24,7 +24,7 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? range = null;
+            Excel.Range? range = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -138,7 +138,7 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? range = null;
+            Excel.Range? range = null;
             int originalCalculation = -1;
             bool calculationChanged = false;
 

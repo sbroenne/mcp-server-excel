@@ -62,6 +62,7 @@ public sealed class ReportFilterCancellationTests(TempDirectoryFixture fixture) 
             new PivotTableCommands().SetReportFilter(batch, "Sheet", "Pivot", "[Sales].[Region]", []));
 
         Assert.Same(proxy.Failure, error);
+        Assert.Equal(hresult, error.HResult);
         Assert.True(proxy.WorkbookReadAttempted);
         Assert.Equal(disconnectAtCubeFields, proxy.CubeFieldsReadAttempted);
     }
@@ -99,11 +100,12 @@ public sealed class ReportFilterCancellationTests(TempDirectoryFixture fixture) 
 
         public static T Create<T>(DisconnectedBatch owner) where T : class
         {
-            var value = DispatchProxy.Create<T, DisconnectedPivotObjects>();
-            var proxy = (DisconnectedPivotObjects)(object)value;
+            var interfaceType = typeof(PivotTableCommands).Assembly.GetType(typeof(T).FullName!) ?? typeof(T);
+            var value = DispatchProxy.Create(interfaceType, typeof(DisconnectedPivotObjects));
+            var proxy = (DisconnectedPivotObjects)value;
             proxy.Owner = owner;
             proxy.ExcelType = typeof(T);
-            return value;
+            return (T)value;
         }
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)

@@ -15,6 +15,8 @@ public partial class TableCommands
 {
 
     /// <inheritdoc />
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static",
+        Justification = "Keep the instance command facade used by SlicerCommands and its existing callers.")]
     public SlicerResult CreateTableSlicer(IExcelBatch batch, string tableName,
         string columnName, string slicerName, string destinationSheet, string position)
     {
@@ -22,11 +24,11 @@ public partial class TableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
-            dynamic? slicerCaches = null;
-            dynamic? slicerCache = null;
-            dynamic? slicers = null;
-            dynamic? slicer = null;
+            Excel.ListObject? table = null;
+            Excel.SlicerCaches? slicerCaches = null;
+            Excel.SlicerCache? slicerCache = null;
+            Excel.Slicers? slicers = null;
+            Excel.Slicer? slicer = null;
             Excel.Worksheet? destSheet = null;
             Excel.Range? destRange = null;
 
@@ -102,6 +104,8 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static",
+        Justification = "Keep the instance command facade used by SlicerCommands and its existing callers.")]
     public SlicerListResult ListTableSlicers(IExcelBatch batch, string? tableName = null)
     {
         if (tableName != null)
@@ -112,8 +116,8 @@ public partial class TableCommands
         return batch.Execute((ctx, ct) =>
         {
             var result = new SlicerListResult { Success = true };
-            dynamic? slicerCaches = null;
-            dynamic? targetTable = null;
+            Excel.SlicerCaches? slicerCaches = null;
+            Excel.ListObject? targetTable = null;
 
             try
             {
@@ -127,19 +131,19 @@ public partial class TableCommands
 
                 for (int cacheIndex = 1; cacheIndex <= slicerCaches.Count; cacheIndex++)
                 {
-                    dynamic? cache = null;
-                    dynamic? slicers = null;
+                    Excel.SlicerCache? cache = null;
+                    Excel.Slicers? slicers = null;
 
                     try
                     {
-                        cache = slicerCaches.Item(cacheIndex);
+                        cache = slicerCaches.Item[cacheIndex];
 
                         // Check if this is a Table slicer using the List boolean property
                         // SlicerCache.List returns true if the slicer is connected to a ListObject (Table)
                         bool isTableSlicer = false;
                         try
                         {
-                            isTableSlicer = cache.List == true;
+                            isTableSlicer = cache.List;
                         }
                         catch (COMException)
                         {
@@ -164,10 +168,10 @@ public partial class TableCommands
                         slicers = cache.Slicers;
                         for (int slicerIndex = 1; slicerIndex <= slicers.Count; slicerIndex++)
                         {
-                            dynamic? slicer = null;
+                            Excel.Slicer? slicer = null;
                             try
                             {
-                                slicer = slicers.Item(slicerIndex);
+                                slicer = slicers.Item[slicerIndex];
                                 var slicerInfo = BuildTableSlicerInfo(slicer, cache, connectedTableName);
                                 result.Slicers.Add(slicerInfo);
                             }
@@ -195,12 +199,14 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static",
+        Justification = "Keep the instance command facade used by SlicerCommands and its existing callers.")]
     public SlicerResult SetTableSlicerSelection(IExcelBatch batch, string slicerName,
         List<string> selectedItems, bool clearFirst = true)
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? slicerCaches = null;
+            Excel.SlicerCaches? slicerCaches = null;
             Excel.SlicerCache? targetCache = null;
             Excel.Slicer? targetSlicer = null;
 
@@ -248,13 +254,15 @@ public partial class TableCommands
     }
 
     /// <inheritdoc />
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Performance", "CA1822:Mark members as static",
+        Justification = "Keep the instance command facade used by SlicerCommands and its existing callers.")]
     public OperationResult DeleteTableSlicer(IExcelBatch batch, string slicerName)
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? slicerCaches = null;
-            dynamic? targetCache = null;
-            dynamic? targetSlicer = null;
+            Excel.SlicerCaches? slicerCaches = null;
+            Excel.SlicerCache? targetCache = null;
+            Excel.Slicer? targetSlicer = null;
 
             try
             {
@@ -299,18 +307,18 @@ public partial class TableCommands
     /// <param name="table">The table (ListObject) to check</param>
     /// <param name="columnName">The column name to search for</param>
     /// <returns>True if the column exists, false otherwise</returns>
-    private static bool TableColumnExists(dynamic table, string columnName)
+    private static bool TableColumnExists(Excel.ListObject table, string columnName)
     {
-        dynamic? listColumns = null;
+        Excel.ListColumns? listColumns = null;
         try
         {
             listColumns = table.ListColumns;
             for (int i = 1; i <= listColumns.Count; i++)
             {
-                dynamic? column = null;
+                Excel.ListColumn? column = null;
                 try
                 {
-                    column = listColumns.Item(i);
+                    column = listColumns.Item[i];
                     string name = column.Name?.ToString() ?? string.Empty;
                     if (string.Equals(name, columnName, StringComparison.OrdinalIgnoreCase))
                     {
@@ -335,27 +343,27 @@ public partial class TableCommands
     /// </summary>
     private readonly struct TableSlicerSearchResult
     {
-        public dynamic? Cache { get; init; }
-        public dynamic? Slicer { get; init; }
+        public Excel.SlicerCache? Cache { get; init; }
+        public Excel.Slicer? Slicer { get; init; }
     }
 
     /// <summary>
     /// Finds an existing SlicerCache for a column on a specific Table
     /// </summary>
-    private static dynamic? FindExistingTableSlicerCache(dynamic slicerCaches, dynamic table, string columnName)
+    private static Excel.SlicerCache? FindExistingTableSlicerCache(Excel.SlicerCaches slicerCaches, Excel.ListObject table, string columnName)
     {
         for (int i = 1; i <= slicerCaches.Count; i++)
         {
-            dynamic? cache = null;
+            Excel.SlicerCache? cache = null;
             try
             {
-                cache = slicerCaches.Item(i);
+                cache = slicerCaches.Item[i];
 
                 // Check if this is a Table slicer using the List boolean property
                 bool isTableSlicer = false;
                 try
                 {
-                    isTableSlicer = cache.List == true;
+                    isTableSlicer = cache.List;
                 }
                 catch (COMException)
                 {
@@ -397,9 +405,9 @@ public partial class TableCommands
 
     /// <summary>
     /// Gets the source column name from a Table SlicerCache.
-    /// Precondition: cache.List == true (verified by caller)
+    /// Precondition: cache.List (verified by caller)
     /// </summary>
-    private static string GetSlicerCacheColumnName(dynamic cache)
+    private static string GetSlicerCacheColumnName(Excel.SlicerCache cache)
     {
         // Per MS docs: SourceName returns the field name for table slicers
         // https://learn.microsoft.com/en-us/office/vba/api/excel.slicercache.sourcename
@@ -418,13 +426,13 @@ public partial class TableCommands
 
     /// <summary>
     /// Gets the connected Table name from a SlicerCache.
-    /// Precondition: cache.List == true (verified by caller)
+    /// Precondition: cache.List (verified by caller)
     /// </summary>
-    private static string GetSlicerCacheTableName(dynamic cache)
+    private static string GetSlicerCacheTableName(Excel.SlicerCache cache)
     {
         // Per MS docs: ListObject returns the Table for table slicers
         // https://learn.microsoft.com/en-us/office/vba/api/excel.slicercache.listobject
-        dynamic? listObject = null;
+        Excel.ListObject? listObject = null;
         try
         {
             listObject = cache.ListObject;
@@ -438,12 +446,12 @@ public partial class TableCommands
 
     /// <summary>
     /// Checks if a SlicerCache is connected to a specific Table.
-    /// Precondition: cache.List == true (verified by caller)
+    /// Precondition: cache.List (verified by caller)
     /// </summary>
-    private static bool IsSlicerCacheConnectedToTable(dynamic cache, dynamic table)
+    private static bool IsSlicerCacheConnectedToTable(Excel.SlicerCache cache, Excel.ListObject table)
     {
         // Per MS docs: ListObject returns the Table for table slicers
-        dynamic? cacheListObject = null;
+        Excel.ListObject? cacheListObject = null;
         try
         {
             cacheListObject = cache.ListObject;
@@ -464,22 +472,22 @@ public partial class TableCommands
     /// <summary>
     /// Finds a Table slicer by name
     /// </summary>
-    private static TableSlicerSearchResult FindTableSlicerByName(dynamic slicerCaches, string slicerName)
+    private static TableSlicerSearchResult FindTableSlicerByName(Excel.SlicerCaches slicerCaches, string slicerName)
     {
         for (int cacheIndex = 1; cacheIndex <= slicerCaches.Count; cacheIndex++)
         {
-            dynamic? cache = null;
-            dynamic? slicers = null;
+            Excel.SlicerCache? cache = null;
+            Excel.Slicers? slicers = null;
 
             try
             {
-                cache = slicerCaches.Item(cacheIndex);
+                cache = slicerCaches.Item[cacheIndex];
 
                 // Check if this is a Table slicer using the List boolean property
                 bool isTableSlicer = false;
                 try
                 {
-                    isTableSlicer = cache.List == true;
+                    isTableSlicer = cache.List;
                 }
                 catch (COMException)
                 {
@@ -496,10 +504,10 @@ public partial class TableCommands
                 slicers = cache.Slicers;
                 for (int slicerIndex = 1; slicerIndex <= slicers.Count; slicerIndex++)
                 {
-                    dynamic? slicer = null;
+                    Excel.Slicer? slicer = null;
                     try
                     {
-                        slicer = slicers.Item(slicerIndex);
+                        slicer = slicers.Item[slicerIndex];
                         string name = slicer.Name?.ToString() ?? string.Empty;
 
                         if (string.Equals(name, slicerName, StringComparison.OrdinalIgnoreCase))
@@ -535,14 +543,14 @@ public partial class TableCommands
     /// <summary>
     /// Builds a SlicerInfo object for a Table slicer
     /// </summary>
-    private static SlicerInfo BuildTableSlicerInfo(dynamic slicer, dynamic cache, string tableName)
+    private static SlicerInfo BuildTableSlicerInfo(Excel.Slicer slicer, Excel.SlicerCache cache, string tableName)
     {
-        dynamic? parent = null;
-        dynamic? slicerItems = null;
+        Excel.Worksheet? parent = null;
+        Excel.SlicerItems? slicerItems = null;
 
         try
         {
-            parent = slicer.Parent;
+            parent = (Excel.Worksheet)slicer.Parent;
             slicerItems = cache.SlicerItems;
 
             var info = new SlicerInfo
@@ -552,7 +560,7 @@ public partial class TableCommands
                 FieldName = GetSlicerCacheColumnName(cache),
                 SheetName = parent?.Name?.ToString() ?? string.Empty,
                 Position = GetSlicerPosition(slicer),
-                ColumnCount = Convert.ToInt32(slicer.NumberOfColumns ?? 1),
+                ColumnCount = slicer.NumberOfColumns,
                 ConnectedTable = tableName,
                 SourceType = "Table"
             };
@@ -560,10 +568,10 @@ public partial class TableCommands
             // Collect selected and available items
             for (int i = 1; i <= slicerItems.Count; i++)
             {
-                dynamic? item = null;
+                Excel.SlicerItem? item = null;
                 try
                 {
-                    item = slicerItems.Item(i);
+                    item = slicerItems.Item[i];
                     string itemName = item.Name?.ToString() ?? string.Empty;
                     info.AvailableItems.Add(itemName);
 
@@ -591,14 +599,14 @@ public partial class TableCommands
     /// <summary>
     /// Builds a SlicerResult object for a Table slicer operation
     /// </summary>
-    private static SlicerResult BuildTableSlicerResult(dynamic slicer, dynamic cache, string columnName, string tableName)
+    private static SlicerResult BuildTableSlicerResult(Excel.Slicer slicer, Excel.SlicerCache cache, string columnName, string tableName)
     {
-        dynamic? parent = null;
-        dynamic? slicerItems = null;
+        Excel.Worksheet? parent = null;
+        Excel.SlicerItems? slicerItems = null;
 
         try
         {
-            parent = slicer.Parent;
+            parent = (Excel.Worksheet)slicer.Parent;
             slicerItems = cache.SlicerItems;
 
             var result = new SlicerResult
@@ -615,10 +623,10 @@ public partial class TableCommands
             // Collect selected and available items
             for (int i = 1; i <= slicerItems.Count; i++)
             {
-                dynamic? item = null;
+                Excel.SlicerItem? item = null;
                 try
                 {
-                    item = slicerItems.Item(i);
+                    item = slicerItems.Item[i];
                     string itemName = item.Name?.ToString() ?? string.Empty;
                     result.AvailableItems.Add(itemName);
 
@@ -646,12 +654,12 @@ public partial class TableCommands
     /// <summary>
     /// Gets the position string for a slicer (e.g., "H2")
     /// </summary>
-    private static string GetSlicerPosition(dynamic slicer)
+    private static string GetSlicerPosition(Excel.Slicer slicer)
     {
         // Per Microsoft docs: TopLeftCell is on Shape object, not Slicer
         // https://learn.microsoft.com/en-us/office/vba/api/excel.shape.topleftcell
-        dynamic? shape = null;
-        dynamic? topLeftCell = null;
+        Excel.Shape? shape = null;
+        Excel.Range? topLeftCell = null;
         try
         {
             shape = slicer.Shape;

@@ -90,6 +90,7 @@ public static class ExcelShutdownService
                     }
                     // The Excel PIA adds an LCID to Save, which can rewrite locale-specific
                     // table column format definitions. IDispatch preserves those definitions.
+                    // PIA gap: the typed Save signature injects an LCID; native dispatch preserves locale-specific table formats.
                     ((dynamic)(object)workbook).Save();
                     if (!workbook.Saved)
                     {

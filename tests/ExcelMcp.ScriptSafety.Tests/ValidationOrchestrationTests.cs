@@ -89,10 +89,11 @@ public sealed class ValidationOrchestrationTests
                     -not $workflow.Contains("if: needs.changes.outputs.full_solution_build == 'true' && matrix.group == needs.changes.outputs.full_solution_build_group")) {
                     throw 'Workflow does not route the selected source checks.'
                 }
-                $sourceChecks = [regex]::Match($workflow, '(?s)- name: Source correctness checks\r?\n(?<step>.*?)(?=\r?\n      - name:|\z)').Groups['step'].Value
+                $sourceChecks = [regex]::Match($workflow, '(?s)- name: Restore and build selected inputs\r?\n(?<step>.*?)(?=\r?\n      - name:|\z)').Groups['step'].Value
                 $documentation = [regex]::Match($workflow, '(?s)- name: Documentation count checks\r?\n(?<step>.*?)(?=\r?\n      - name:|\z)').Groups['step'].Value
                 $generateInputs = [regex]::Match($workflow, '(?s)- name: Generate complete skill inputs\r?\n(?<step>.*?)(?=\r?\n      - name:|\z)').Groups['step'].Value
                 if ($sourceChecks.Contains('Build-AgentSkills') -or $sourceChecks.Contains('check-doc-counts') -or
+                    -not $sourceChecks.Contains('Build-CiInputs.ps1') -or $workflow.Contains('check-com-leaks') -or
                     -not $documentation.Contains('check-doc-counts.ps1') -or -not $generateInputs.Contains('Build-AgentSkills.ps1')) {
                     throw 'Documentation generation/count validation is not isolated to its selected requirement.'
                 }

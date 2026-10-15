@@ -1,3 +1,4 @@
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -22,8 +23,8 @@ public partial class PivotTableCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? pivot = null;
-            dynamic? calculatedFields = null;
+            Excel.PivotTable? pivot = null;
+            Excel.CalculatedFields? calculatedFields = null;
 
             try
             {
@@ -50,7 +51,7 @@ public partial class PivotTableCommands
                 int count = calculatedFields.Count;
                 for (int i = 1; i <= count; i++)
                 {
-                    dynamic? field = null;
+                    Excel.PivotField? field = null;
                     try
                     {
                         field = calculatedFields.Item(i);
@@ -85,9 +86,9 @@ public partial class PivotTableCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? pivot = null;
-            dynamic? calculatedFields = null;
-            dynamic? field = null;
+            Excel.PivotTable? pivot = null;
+            Excel.CalculatedFields? calculatedFields = null;
+            Excel.PivotField? field = null;
 
             try
             {
@@ -110,7 +111,7 @@ public partial class PivotTableCommands
                 int count = calculatedFields.Count;
                 for (int i = 1; i <= count; i++)
                 {
-                    dynamic? checkField = null;
+                    Excel.PivotField? checkField = null;
                     try
                     {
                         checkField = calculatedFields.Item(i);
