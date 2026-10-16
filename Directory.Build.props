@@ -65,7 +65,7 @@
   <Target Name="StopExcelCliService"
           BeforeTargets="BeforeBuild"
           Condition="'$(MSBuildProjectName)' == 'ExcelMcp.CLI' AND ('$(CI)' != 'true' OR '$(RUNNER_ENVIRONMENT)' == 'self-hosted')">
-    <Exec Command="powershell -NoProfile -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\Stop-ExcelCliService.ps1&quot;" />
+    <Exec Command="pwsh -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;$(MSBuildThisFileDirectory)scripts\Stop-ExcelCliService.ps1&quot;" />
   </Target>
 
   <!-- Import user-specific properties (gitignored, for local secrets) -->

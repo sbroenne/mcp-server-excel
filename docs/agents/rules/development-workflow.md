@@ -11,6 +11,12 @@
 - `tools\ExcelMcp.Build\ValidationPolicy.cs` is the shared CI, CodeQL, and local
   selection source; `Get-ValidationPlan.ps1` only forwards to it. `build.ps1`
   bootstraps the internal .NET tool in isolated outputs, not a product entry point.
+  MSBuild owns project/import evaluation, .NET dependencies, restore, and
+  incremental compilation. Do not add a second XML dependency parser or
+  source-hash freshness cache. Shared dependency inputs use the normal solution
+  build and shared checks; path routing chooses checks, not rebuild decisions.
+  PR CI runs the normal npm checks and complete package preparation without
+  changed-path component selection. Only explicit manual commands narrow packages.
   Compiler analyzers replace the retired C# source-pattern scanners; diagnostics
   and banned APIs are build inputs, not a second script policy. Fix diagnostics
   at their source; review a local suppression's actual failure semantics.
@@ -35,8 +41,11 @@
   build. Compiler safeguards run in builds, not a source-scan group.
   Other groups build only their selected test projects and dependencies.
   Ungrouped local builds retain the complete solution build when required.
-  Local hooks run the selected real-Excel cases, with full
-  acceptance reserved for affected shared boundaries or explicit requests.
+  Local hooks run the selected Release build and the `Commit` projection of
+  `Fast`: CLI, MCP Server, Core, and Service only. ComInterop-specific tests
+  remain outside the commit hook.
+  Process, tooling, and real-Excel checks remain required before PR delivery;
+  full acceptance is reserved for affected shared boundaries or explicit requests.
   Cache dependency downloads,
   not writable compiled outputs. Packages build their own required binaries.
   Hosted test partitions use separate checkouts so rebuild tests cannot race

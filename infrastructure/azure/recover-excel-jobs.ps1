@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 param([ValidatePattern('^[a-f0-9]{32}$')][string]$OperationId)
 $ErrorActionPreference = 'Stop'
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()

@@ -1,15 +1,14 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
-    Creates and verifies selected distributable packages. Never publishes them.
+    Creates and verifies distributable packages. Never publishes them.
 .DESCRIPTION
-    PRs use the shared changed-area plan. Explicit runs default to all components.
+    Checks all components by default. Explicit runs may name components.
 #>
 [CmdletBinding()]
 param(
     [ValidateSet('Cli', 'Mcp', 'Extension', 'Mcpb', 'Plugins')]
     [string[]]$Components = @('Cli', 'Mcp', 'Extension', 'Mcpb', 'Plugins'),
-    [string]$BaseRef,
-    [string]$HeadRef = 'HEAD',
     [string]$Version,
     [string]$SkillsDirectory,
     [string]$McpRuntimeExecutable,
@@ -20,8 +19,8 @@ param(
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'PackageHelpers.ps1')
 Invoke-TypedPackage -SourceRoot (Split-Path $PSScriptRoot -Parent) -Options @{
-    Operation = 'Release'; Components = @($Components); BaseRef = $BaseRef
-    HeadRef = $HeadRef; Version = $Version; SkillsDirectory = $SkillsDirectory
+    Operation = 'Release'; Components = @($Components)
+    Version = $Version; SkillsDirectory = $SkillsDirectory
     McpRuntimeExecutable = $McpRuntimeExecutable; CliRuntimeExecutable = $CliRuntimeExecutable
     OutputDirectory = $OutputDirectory; SkipExtensionTests = [bool]$SkipExtensionTests
 }

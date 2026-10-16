@@ -209,7 +209,7 @@ Before submitting a PR:
 2. Test-owned Excel processes clean up; do not terminate unrelated user sessions
 3. Error conditions tested (missing files, invalid arguments, etc.)
 4. Build has zero warnings
-5. Pre-commit hook passes every gate applicable to the staged paths. Excel E2E is required only when Core, CLI, or MCP runtime paths change, including `ComInterop`, `Service`, and their source generators.
+5. Pre-commit passes the selected Release build and quick unit tests. Before PR delivery, also run the changed-area plan's affected process, tooling, and Excel checks; shared lifecycle changes require acceptance and infrastructure diagnostics. Passing the hook alone is not complete PR validation.
 
 ## 🔧 Adding a New Operation
 

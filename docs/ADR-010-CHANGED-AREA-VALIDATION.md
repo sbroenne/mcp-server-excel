@@ -15,6 +15,24 @@ the typed implementation. C# pattern safeguards run as compiler diagnostics
 and banned-API checks rather than source-text scanner scripts.
 This tooling is not a product entry point and does not publish distributions.
 
+MSBuild alone interprets project files and determines restore/build dependencies
+and incremental work. Do not maintain a package-consumer parser, a second
+project graph, or source-content freshness stamps in the wrappers. Changed-path
+routing chooses test environments, not package components or what MSBuild
+must rebuild. Shared dependency files select the normal solution build and
+shared checks. PR CI runs the normal npm and complete package checks without
+changed-path package selection. Explicit manual commands may name components.
+Package-consumer parsing and package-selection tests are deliberately removed.
+
+The pre-commit hook uses the selected Release build and existing `Fast` unit-test
+group's CLI, MCP Server, Core, and Service tests only, exposed as `Commit`.
+ComInterop-specific tests remain in normal CI, with real-Excel cases requiring
+a Windows/Excel environment. The hook does not run the `Process` or `Tooling` groups, package preparation,
+Excel tests, or acceptance. Those checks remain required for affected changes
+before PR delivery, using hosted CI where the environment supports them.
+This keeps a commit useful as a small checkpoint rather than an hours-long
+integration run; passing the hook does not establish complete PR validation.
+
 ## Reasons and tradeoffs
 
 Independent script policies drift, while blanket test runs obscure which
@@ -25,7 +43,7 @@ A new build framework would add another dependency without replacing the
 repository's standard build and test tools. Moving decisions into C# makes
 them directly testable while keeping Windows and existing callers supported.
 Isolated bootstrap output also avoids locking the executing tool during
-rebuild tests.
+rebuild tests; MSBuild owns compilation freshness.
 
 Source-derived test ownership is not a substitute for actual test execution.
 Selected reports must establish that cases ran and passed; compiler diagnostics

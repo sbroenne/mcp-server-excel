@@ -86,9 +86,6 @@ jobs:
       matrix: ${{ steps.select.outputs.matrix }}
       tests: ${{ steps.select.outputs.tests }}
       build_only: ${{ steps.select.outputs.build_only }}
-      packages: ${{ steps.select.outputs.packages }}
-      package_build: ${{ steps.select.outputs.package_build }}
-      npm: ${{ steps.select.outputs.npm }}
       documentation_checks_group: ${{ steps.select.outputs.documentation_checks_group }}
       documentation_counts: ${{ steps.select.outputs.documentation_counts }}
       full_solution_build: ${{ steps.select.outputs.full_solution_build }}
@@ -205,31 +202,22 @@ jobs:
         run: ./build.ps1 build --plan artifacts/ci-plan.json
 
   packages:
-    name: Affected packages
-    needs: changes
-    if: needs.changes.outputs.packages == 'true'
+    name: Package checks
     runs-on: windows-latest
     timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Read selection
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
-        with:
-          name: ci-validation-plan
-          path: artifacts
       - name: Setup .NET
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
       - name: Cache NuGet downloads
-        if: needs.changes.outputs.package_build == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('global.json', 'Directory.*', 'NuGet.Config', '**/*.csproj', '**/*.props', '**/*.targets') }}
       - name: Setup Node.js
-        if: needs.changes.outputs.package_build == 'true'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
@@ -241,19 +229,12 @@ jobs:
       - name: Generate complete skill inputs
         shell: pwsh
         run: ./scripts/Build-AgentSkills.ps1 -GenerateOnly
-      - name: Build and verify affected distributable packages
+      - name: Build and verify distributable packages
         shell: pwsh
-        run: |
-          $plan = Get-Content artifacts/ci-plan.json -Raw | ConvertFrom-Json
-          $components = @('Cli','Mcp','Extension','Mcpb','Plugins') | Where-Object { $plan.$_ }
-          if (-not $components) { throw 'Selected package job has no components.' }
-          ./scripts/Build-ReleasePackages.ps1 -Components $components -SkillsDirectory artifacts/generated-skills
-          if ($LASTEXITCODE -ne 0) { throw 'Selected package validation failed.' }
+        run: ./scripts/Build-ReleasePackages.ps1 -SkillsDirectory artifacts/generated-skills
 
   npm:
     name: npm launchers
-    needs: changes
-    if: needs.changes.outputs.npm == 'true'
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -298,10 +279,7 @@ jobs:
           NPM: ${{ needs.npm.result }}
           SELECTED_TESTS: ${{ needs.changes.outputs.tests }}
           SELECTED_BUILD_ONLY: ${{ needs.changes.outputs.build_only }}
-          SELECTED_PACKAGES: ${{ needs.changes.outputs.packages }}
-          SELECTED_NPM: ${{ needs.changes.outputs.npm }}
         run: |
           ./scripts/Test-CiCompletion.ps1 -Detection $env:DETECTION -Tests $env:TESTS `
             -Packages $env:PACKAGES -Npm $env:NPM -BuildOnly $env:BUILD_ONLY `
-            -SelectedTests $env:SELECTED_TESTS -SelectedPackages $env:SELECTED_PACKAGES `
-            -SelectedNpm $env:SELECTED_NPM -SelectedBuildOnly $env:SELECTED_BUILD_ONLY
+            -SelectedTests $env:SELECTED_TESTS -SelectedBuildOnly $env:SELECTED_BUILD_ONLY

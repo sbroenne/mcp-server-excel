@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
 Creates the non-admin Excel desktop using mcp-windows automatic-logon setup.
@@ -25,7 +26,7 @@ function Invoke-DesktopGuest {
     param([string]$Script)
     $path = Join-Path ([IO.Path]::GetTempPath()) "excel-desktop-command-$([Guid]::NewGuid().ToString('N')).ps1"
     try {
-        ("`$ErrorActionPreference = 'Stop'`n" + $Script) | Set-Content -LiteralPath $path -Encoding UTF8
+        ConvertTo-RunnerPowerShell7Command -Script $Script | Set-Content -LiteralPath $path -Encoding UTF8
         $response = Invoke-RunnerAzure @(
             'vm', 'run-command', 'invoke', '--resource-group', $ResourceGroup,
             '--name', $VmName, '--command-id', 'RunPowerShellScript', '--scripts', "@$path"

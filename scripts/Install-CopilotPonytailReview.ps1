@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 param(
     [string]$SkillsDirectory = (Join-Path $PSScriptRoot '..\.github\skills')
 )

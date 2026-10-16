@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 function Invoke-TypedPackage {
     param(
         [Parameter(Mandatory)][hashtable]$Options,

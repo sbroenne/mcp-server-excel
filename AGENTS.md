@@ -1,7 +1,7 @@
 # ExcelMcp agent instructions
 
 ExcelMcp automates installed desktop Excel through COM on Windows. Use
-PowerShell and the SDK selected by `global.json`. Desktop Excel is required
+PowerShell 7.4 or later (`pwsh`) and the SDK selected by `global.json`. Desktop Excel is required
 for COM tests; GitHub-hosted runners do not have Excel.
 
 MCP Server and `excelcli` are equal entry points: behavior, defaults, validation,
@@ -135,6 +135,11 @@ dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore
 Build with zero warnings. Use targeted tests; see the
 [testing strategy](tests/AGENTS.md). Run every Excel-dependent test command
 sequentially; never overlap Excel test fixtures, test hosts, or E2E runs.
+The commit hook builds selected inputs and runs only selected `Fast` unit
+tests from CLI, MCP Server, Core, and Service (`Commit` group). ComInterop-specific,
+process, tooling, package, Excel, and acceptance checks do not run on
+every commit; run the affected checks before PR delivery and use the hosted
+checks where supported. A passing hook is not complete PR validation.
 Use the changed-area plan from `tools\ExcelMcp.Build\ValidationPolicy.cs` for
 PR and local validation. Include affected dependencies, not unrelated features.
 Run its selected Excel cases locally; shared lifecycle changes also select

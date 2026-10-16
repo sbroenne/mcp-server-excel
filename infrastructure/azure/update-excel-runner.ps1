@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
 Runs bounded Windows and Click-to-Run update passes, without restarting.
@@ -192,7 +193,7 @@ switch ($Action) {
         New-ItemProperty "$policy\AU" -Name NoAutoRebootWithLoggedOnUsers -Value 1 -PropertyType DWord -Force | Out-Null
         New-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Office\ClickToRun\Configuration' `
             -Name UpdatesEnabled -Value 'False' -PropertyType String -Force | Out-Null
-        $taskAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument (
+        $taskAction = New-ScheduledTaskAction -Execute (Join-Path $env:ProgramFiles 'PowerShell\7\pwsh.exe') -Argument (
             "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Action Worker -Component $Component -PassId $PassId"
         )
         $principal = New-ScheduledTaskPrincipal -UserId SYSTEM -LogonType ServiceAccount -RunLevel Highest

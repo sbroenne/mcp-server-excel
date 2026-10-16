@@ -2,11 +2,13 @@ using System.Diagnostics;
 using System.IO.Compression;
 using System.Runtime.InteropServices;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 
 namespace Sbroenne.ExcelMcp.Build;
 
+[JsonUnmappedMemberHandling(JsonUnmappedMemberHandling.Disallow)]
 public sealed class PackageOptions
 {
     public string Operation { get; set; } = "Release";
@@ -24,8 +26,6 @@ public sealed class PackageOptions
     public bool GenerateOnly { get; set; }
     public bool ArchiveOnly { get; set; }
     public bool SkipExtensionTests { get; set; }
-    public string? BaseRef { get; set; }
-    public string HeadRef { get; set; } = "HEAD";
     public string? Source { get; set; }
     public string? Destination { get; set; }
     public string[] Inputs { get; set; } = [];
@@ -70,27 +70,7 @@ public sealed partial class PackageExecution(string root, PackageCommands? nativ
     {
         if (options.Components.Any(component => !Components.Contains(component))) { throw new ArgumentException("Unknown release package component."); }
         var selected = options.Components.Distinct(StringComparer.Ordinal).ToArray();
-        if (options.BaseRef is not null)
-        {
-            var result = await _commands.RunAsync(root, "git", ["-c", "core.quotepath=false", "diff", "--name-only", "--no-renames", $"{options.BaseRef}...{options.HeadRef}"]);
-            var paths = result.Output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
-            var packages = paths.Contains("Directory.Packages.props", StringComparer.Ordinal)
-                ? await PackageChanges.ReadAsync(root, new ProcessRunner(root), options.BaseRef, options.HeadRef)
-                : null;
-            var plan = new ValidationPolicy(root).Select(paths, packageChanges: packages);
-            selected = selected.Where(component => component switch
-            {
-                "Cli" => plan.Cli,
-                "Mcp" => plan.Mcp,
-                "Extension" => plan.Extension,
-                "Mcpb" => plan.Mcpb,
-                "Plugins" => plan.Plugins,
-                _ => false
-            }).ToArray();
-            options.SkipExtensionTests |= !plan.ExtensionTests;
-            foreach (var reason in plan.Reasons) { Console.WriteLine(reason); }
-        }
-        if (selected.Length == 0) { Console.WriteLine("No distributable package inputs changed."); return; }
+        if (selected.Length == 0) { throw new ArgumentException("At least one release package component is required."); }
         if (!OperatingSystem.IsWindows()) { throw new InvalidOperationException("Package installation checks require Windows (not Excel)."); }
         var authored = new AuthoredPackages(root);
         var version = AuthoredPackages.RequiredVersion(options.Version ?? authored.PackageVersion());

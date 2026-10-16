@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Generates CLI discovery and report-formatting skills.

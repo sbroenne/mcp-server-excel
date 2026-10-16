@@ -35,7 +35,7 @@ public sealed class ValidationOrchestrationTests
     }
 
     [Fact]
-    public async Task CiPreparatoryBuilds_DisableBuildServers()
+    public async Task CiPreparatoryBuilds_UseNativeSdkBuildsAndPreserveCompletionChecks()
     {
         var run = await ValidationSelectionTests.RunAsync("""
             $workflow = Get-Content .\.github\workflows\ci.yml -Raw
@@ -43,7 +43,9 @@ public sealed class ValidationOrchestrationTests
             $adapter = Get-Content .\scripts\Build-CiInputs.ps1 -Raw
             if (-not $adapter.Contains('Invoke-ExcelMcpBuild')) { throw 'Shared build execution was not wired.' }
             $executor = Get-Content .\tools\ExcelMcp.Build\ValidationExecution.cs -Raw
-            if (-not $executor.Contains('--disable-build-servers')) { throw 'Preparatory build can retain a locking build server.' }
+            if ($executor.Contains('--disable-build-servers') -or $executor.Contains('--no-incremental')) {
+                throw 'Preparatory builds must retain native SDK build optimizations.'
+            }
             $gate = [regex]::Match($workflow, '(?s)  ci-gate:\r?\n(.*?)(?=\r?\n  [a-zA-Z0-9_-]+:\r?\n|$)').Groups[1].Value
             if (-not $gate.Contains('actions/setup-dotnet') -or -not $gate.Contains('global-json-file: global.json')) {
                 throw 'CI completion runner does not set up the repository SDK.'
@@ -134,11 +136,11 @@ public sealed class ValidationOrchestrationTests
     }
 
     [Theory]
-    [InlineData("tests/AGENTS.md", "", false)]
-    [InlineData("scripts/PluginContent.mjs", "javascript-typescript", false)]
-    [InlineData("src/ExcelMcp.McpServer/Program.cs", "csharp", true)]
-    [InlineData("all", "actions,csharp,javascript-typescript,python", true)]
-    public async Task CiSelection_ExportsLanguageMatrixAndPackageBuild(string path, string languages, bool packageBuild)
+    [InlineData("tests/AGENTS.md", "")]
+    [InlineData("scripts/PluginContent.mjs", "javascript-typescript")]
+    [InlineData("src/ExcelMcp.McpServer/Program.cs", "csharp")]
+    [InlineData("all", "actions,csharp,javascript-typescript,python")]
+    public async Task CiSelection_ExportsLanguageMatrix(string path, string languages)
     {
         var run = await ValidationSelectionTests.RunAsync($$$"""
             $sandbox = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.LanguageOutputs.$([Guid]::NewGuid().ToString('N'))"
@@ -159,8 +161,7 @@ public sealed class ValidationOrchestrationTests
                 $matrix = $outputs.codeql_matrix | ConvertFrom-Json
                 if (($matrix.include.language -join ',') -cne '{{{languages}}}') { throw 'Wrong exported language matrix.' }
                 $expectedCodeQl = if ('{{{languages}}}') { 'true' } else { 'false' }
-                if ($outputs.codeql -cne $expectedCodeQl -or
-                    $outputs.package_build -cne '{{{packageBuild.ToString().ToLowerInvariant()}}}') {
+                if ($outputs.codeql -cne $expectedCodeQl) {
                     throw 'Wrong selection output flags.'
                 }
                 foreach ($entry in $matrix.include) {
@@ -227,8 +228,8 @@ public sealed class ValidationOrchestrationTests
     {
         var run = await ValidationSelectionTests.RunAsync($$"""
             & .\scripts\Test-CiCompletion.ps1 -Detection '{{detection}}' -Tests '{{result}}' `
-                -Packages skipped -Npm skipped -SelectedTests '{{selected}}' `
-                -SelectedPackages false -SelectedNpm false -BuildOnly skipped -SelectedBuildOnly false
+                -Packages success -Npm success -SelectedTests '{{selected}}' `
+                -BuildOnly skipped -SelectedBuildOnly false
             """);
         Assert.Equal(succeeds, run.ExitCode == 0);
         if (succeeds) { Assert.Contains("All selected CI checks succeeded.", run.Output, StringComparison.Ordinal); }
@@ -355,7 +356,7 @@ public sealed class ValidationOrchestrationTests
                 }
                 & $script -BaseRef $base -HeadRef $head -Comparison Direct -OutputPath direct.json
                 $direct = Get-Content direct.json -Raw | ConvertFrom-Json
-                if (-not $direct.Packages) { throw 'Direct range missed deleted runtime input.' }
+                if (-not $direct.Excel) { throw 'Direct range missed deleted runtime input.' }
                 try {
                     & $script -BaseRef invalid -HeadRef $head -OutputPath invalid.json
                     throw 'Invalid revisions were accepted.'

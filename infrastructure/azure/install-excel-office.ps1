@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
 Installs 64-bit retail Excel 2024 on the dedicated development VM.
@@ -107,7 +108,7 @@ switch ($Action) {
         }
         else {
             Write-OfficeInstallState @{ state = 'running' }
-            $taskAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument (
+            $taskAction = New-ScheduledTaskAction -Execute (Join-Path $env:ProgramFiles 'PowerShell\7\pwsh.exe') -Argument (
                 "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Action Worker"
             )
             $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest

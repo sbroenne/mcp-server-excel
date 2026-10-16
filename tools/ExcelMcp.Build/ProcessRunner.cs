@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text;
 
 namespace Sbroenne.ExcelMcp.Build;
 
@@ -47,12 +48,16 @@ public sealed class ProcessRunner(string root) : IProcessRunner
             foreach (var (key, value) in environment) { info.Environment[key] = value; }
         }
         using var process = Process.Start(info) ?? throw new InvalidOperationException($"Could not start {executable}.");
-        var output = process.StandardOutput.ReadToEndAsync();
-        var error = process.StandardError.ReadToEndAsync();
         using var timeout = new CancellationTokenSource(deadline);
+        var output = new StringBuilder();
+        var error = new StringBuilder();
+        var capture = Task.WhenAll(
+            CaptureAsync(process.StandardOutput, output, timeout.Token),
+            CaptureAsync(process.StandardError, error, timeout.Token));
         try
         {
-            await process.WaitForExitAsync(timeout.Token);
+            await Task.WhenAll(process.WaitForExitAsync(timeout.Token), capture).WaitAsync(timeout.Token);
+            timeout.Token.ThrowIfCancellationRequested();
         }
         catch (OperationCanceledException exception) when (timeout.IsCancellationRequested)
         {
@@ -64,10 +69,37 @@ public sealed class ProcessRunner(string root) : IProcessRunner
                     // The child exited between the state check and termination request.
                 }
             }
-            await process.WaitForExitAsync();
-            throw new TimeoutException($"{executable} exceeded its hard deadline.\n{await output}\n{await error}", exception);
+            using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            try
+            {
+                await process.WaitForExitAsync(cleanup.Token);
+                await capture.WaitAsync(cleanup.Token);
+            }
+            catch (Exception cleanupException)
+            {
+                throw new AggregateException($"{executable} exceeded its hard deadline and process/output cleanup failed.",
+                    exception, cleanupException);
+            }
+            throw new TimeoutException($"{executable} exceeded its hard deadline.\n{output}\n{error}", exception);
         }
-        return new ProcessResult(process.ExitCode, await output, await error);
+        return new ProcessResult(process.ExitCode, output.ToString(), error.ToString());
+    }
+
+    private static async Task CaptureAsync(StreamReader reader, StringBuilder target, CancellationToken cancellationToken)
+    {
+        var buffer = new char[4096];
+        try
+        {
+            int count;
+            while ((count = await reader.ReadAsync(buffer.AsMemory(), cancellationToken)) != 0)
+            {
+                target.Append(buffer, 0, count);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            // The caller reports the deadline with all output captured before cancellation.
+        }
     }
 
     public async Task<ProcessResult> CheckedAsync(

@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][ValidatePattern('^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$')][string]$Version,

@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 param(
     [Parameter(Mandatory)][string]$Path,
     [switch]$InspectOnly

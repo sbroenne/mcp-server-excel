@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Updates aggregate GitHub star history and generates its SVG chart.

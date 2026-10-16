@@ -1,4 +1,25 @@
+#Requires -Version 7.4
 # Callers supply their overall deadline and explicit subscription arguments.
+function ConvertTo-RunnerPowerShell7Command {
+    param([Parameter(Mandatory)][string]$Script)
+    $payload = @"
+`$ErrorActionPreference = 'Stop'
+if (`$PSVersionTable.PSVersion -lt [version]'7.4') { throw 'PowerShell 7.4 or later is required on the VM.' }
+$Script
+"@
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($payload))
+    # Azure owns the Windows PowerShell transport; repository code runs only in pwsh.
+    return @"
+`$ErrorActionPreference = 'Stop'
+`$pwsh = Join-Path `$env:ProgramFiles 'PowerShell\7\pwsh.exe'
+if (-not (Test-Path -LiteralPath `$pwsh -PathType Leaf)) { throw 'Preinstall PowerShell 7.4 or later on the VM image before provisioning.' }
+& `$pwsh -NoProfile -NonInteractive -EncodedCommand '$encoded'
+if (`$LASTEXITCODE -ne 0) { throw "PowerShell 7 guest command failed with exit code `$LASTEXITCODE." }
+[Console]::WriteLine()
+Write-Output 'EXCELMCP_PWSH_COMPLETE'
+"@
+}
+
 function Assert-RunnerIdentityWithoutAzureAccess {
     param($Vm, [object[]]$VaultPolicies)
     if (-not $Vm.identity -or $Vm.identity.type -eq 'None') { return }
@@ -35,8 +56,16 @@ function Invoke-RunnerAzure {
         if ($job.State -ne 'Completed') { throw 'Azure command job did not complete successfully.' }
         if ($output) {
             $parsed = ($output -join "`n") | ConvertFrom-Json
+            if ($Arguments -contains 'RunPowerShellScript') {
+                $completed = @($parsed.value | ForEach-Object { $_.message -split "`r?`n" } |
+                    Where-Object { $_ -eq 'EXCELMCP_PWSH_COMPLETE' })
+                if ($completed.Count -ne 1) {
+                    throw 'PowerShell 7 guest execution did not complete successfully; inspect the Azure Run Command error output.'
+                }
+            }
             return $parsed
         }
+        if ($Arguments -contains 'RunPowerShellScript') { throw 'Azure returned no guest execution result.' }
     }
     finally { Remove-Job -Job $job -Force }
 }

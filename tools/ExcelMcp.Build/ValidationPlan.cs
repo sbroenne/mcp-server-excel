@@ -12,14 +12,7 @@ public sealed class ValidationPlan
     public bool HookTests { get; set; }
     public bool SkillTests { get; set; }
     public bool PackagingTests { get; set; }
-    public bool Cli { get; set; }
-    public bool Mcp { get; set; }
-    public bool Extension { get; set; }
-    public bool ExtensionTests { get; set; }
-    public bool Mcpb { get; set; }
-    public bool Plugins { get; set; }
     public bool Docs { get; set; }
-    public bool NpmTests { get; set; }
     public bool InfrastructureDiagnostics { get; set; }
     public List<string> Reasons { get; } = [];
     public SortedDictionary<string, string> FastFilters { get; } = new(StringComparer.Ordinal);
@@ -40,8 +33,6 @@ public sealed class ValidationPlan
     ];
     public string FullSolutionBuildGroup => FullSolutionBuild ? CiTestGroups.FirstOrDefault() ?? "" : "";
     public bool BuildOnly => FullSolutionBuild && CiTestGroups.Length == 0;
-    public bool PackageBuild => Cli || Mcp || Extension;
-    public bool Packages => PackageBuild || Mcpb || Plugins;
     public string DocumentationChecksGroup => DocumentationCounts ? FullSolutionBuildGroup : "";
 }
 

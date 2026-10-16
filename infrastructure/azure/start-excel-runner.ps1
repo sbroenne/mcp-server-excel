@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
 Runs one complete GitHub job in the limited desktop, only after a current-boot grant.

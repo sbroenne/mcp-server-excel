@@ -16,6 +16,9 @@ or both:
 - A signed-in Windows desktop session, because Excel runs as a desktop app
 - Node.js 18 or later for the GitHub Copilot plugins, the Claude Desktop
   extension, or installation through npm
+- PowerShell 7.4 or later (`pwsh` on PATH) for the VS Code extension,
+  the CLI plugin's PowerShell wrapper, and repository scripts. Windows
+  PowerShell 5.1 is not supported for these paths.
 
 ## Pick your setup
 

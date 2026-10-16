@@ -48,7 +48,7 @@ public sealed class ValidationExecution(string root, IProcessRunner runner)
             Console.Error.WriteLine(restore.Output);
             if (!string.IsNullOrWhiteSpace(restore.Error)) { Console.Error.WriteLine(restore.Error); }
             var result = await runner.CheckedAsync("dotnet",
-                ["build", target, "-c", "Release", "--no-restore", "--disable-build-servers", "-p:NuGetAudit=false", "--verbosity", "minimal"],
+                ["build", target, "-c", "Release", "--no-restore", "--verbosity", "minimal"],
                 TimeSpan.FromMinutes(20));
             Console.Error.WriteLine(result.Output);
             if (!string.IsNullOrWhiteSpace(result.Error)) { Console.Error.WriteLine(result.Error); }

@@ -9,7 +9,7 @@ public sealed partial class ValidationPolicy(string root)
     private static readonly string[] RuntimeOwners = ["CLI", "ComInterop", "Core", "McpServer", "Service"];
     private static readonly string[] ToolingOwners = ["Packaging", "ScriptSafety", "SkillGeneration"];
 
-    public ValidationPlan Select(IEnumerable<string> paths, bool full = false, PackageChanges? packageChanges = null)
+    public ValidationPlan Select(IEnumerable<string> paths, bool full = false)
     {
         ArgumentNullException.ThrowIfNull(paths);
         var plan = new ValidationPlan { SchemaVersion = 1 };
@@ -24,9 +24,7 @@ public sealed partial class ValidationPolicy(string root)
             plan.FullSolutionBuild = true;
             plan.DocumentationCounts = true;
             plan.Docs = true;
-            plan.ExtensionTests = true;
-            plan.Cli = plan.Mcp = plan.Extension = plan.Mcpb = plan.Plugins = true;
-            plan.NpmTests = plan.InfrastructureDiagnostics = true;
+            plan.InfrastructureDiagnostics = true;
             foreach (var language in new[] { "actions", "csharp", "javascript-typescript", "python" })
             {
                 plan.CodeQlLanguages.Add(language);
@@ -43,13 +41,13 @@ public sealed partial class ValidationPolicy(string root)
             }
             AddLanguage(plan, path);
             plan.ChangedPaths.Add(path);
-            SelectPath(plan, path, packageChanges);
+            SelectPath(plan, path);
         }
         FinalizePlan(plan);
         return plan;
     }
 
-    private void SelectPath(ValidationPlan plan, string path, PackageChanges? packageChanges = null)
+    private void SelectPath(ValidationPlan plan, string path)
     {
         var reasonCount = plan.Reasons.Count;
         var feature = CommandPath().Match(path);
@@ -87,7 +85,6 @@ public sealed partial class ValidationPolicy(string root)
             {
                 AddFeature(plan, "Service", ["PowerQuery"], "PowerQuery refresh dependency");
             }
-            plan.Cli = plan.Mcp = plan.Extension = true;
             plan.BuildProjects.Add("src/ExcelMcp.Core/ExcelMcp.Core.csproj");
             plan.Reasons.Add($"{path} -> {area}{(contract ? " and generated consumers" : " implementation")}");
         }
@@ -128,7 +125,6 @@ public sealed partial class ValidationPolicy(string root)
             AddFeature(plan, "ScriptSafety", ["PreCommit"], "Build and selection");
             AddClasses(plan, Catalog.ForOwner("Packaging"), "Build-tool package consumers");
             AddClasses(plan, Catalog.ForOwner("SkillGeneration"), "Build-tool skill consumers");
-            plan.Cli = plan.Mcp = plan.Extension = plan.Mcpb = plan.Plugins = true;
             plan.Reasons.Add($"{path} -> shared build-tool consumers and package preparation");
         }
         else if (Matches(path, @"^tools/ExcelMcp\.Build/(PackageFiles|AuthoredPackages|RuntimePackages|PackageExecution)\.cs$"))
@@ -136,7 +132,6 @@ public sealed partial class ValidationPolicy(string root)
             AddFeature(plan, "Packaging", ["Packaging", "McpbPackaging", "PluginBootstrap", "PluginSkillVersion", "PluginPublication"], "Typed package operations");
             AddFeature(plan, "SkillGeneration", ["SkillGeneration"], "Typed prepared skills");
             AddClasses(plan, Catalog.ForOwner("ScriptSafety").Where(type => type.Name == "TypedPackageMigrationTests"), "Package adapters");
-            plan.Cli = plan.Mcp = plan.Extension = plan.Mcpb = plan.Plugins = true;
             plan.Reasons.Add($"{path} -> direct package and prepared-skill consumers, not workbook tests");
         }
         else if (Matches(path, @"^(tools/ExcelMcp\.Build/|build\.ps1$|scripts/(Get-ValidationPlan|Get-CiValidationPlan|Build-CiInputs|Invoke-BuildTool|Invoke-ExcelFreeTests|Invoke-ExcelTests|Get-ExcelTestGroups|Invoke-TestStage|Test-CiCompletion|pre-commit)\.ps1$|\.github/workflows/ci\.yml$)"))
@@ -167,25 +162,8 @@ public sealed partial class ValidationPolicy(string root)
             {
                 throw new InvalidOperationException($"No validation mapping for shared Core source {path}; add its actual consumers.");
             }
-            plan.Cli = plan.Mcp = plan.Extension = true;
             plan.BuildProjects.Add("src/ExcelMcp.Core/ExcelMcp.Core.csproj");
             plan.Reasons.Add($"{path} -> dependent command areas: {string.Join(", ", consumers.Areas)}");
-        }
-        else if (path == "Directory.Packages.props")
-        {
-            var packages = packageChanges ?? Task.Run(() => PackageChanges.ReadAsync(root, new ProcessRunner(root))).GetAwaiter().GetResult();
-            if (!packages.VersionOnly) { SelectSharedBuild(plan, path); }
-            else
-            {
-                plan.FullSolutionBuild = true;
-                foreach (var project in packages.Projects)
-                {
-                    SelectPath(plan, project);
-                    if (!File.Exists(Path.Combine(root, project.Replace('/', Path.DirectorySeparatorChar)))) { plan.BuildProjects.Remove(project); }
-                }
-                plan.Reasons.Add($"{path} -> changed packages: {string.Join(", ", packages.PackageIds)}; " +
-                    (packages.Projects.Length == 0 ? "no project consumers; solution build only" : $"affected projects: {string.Join(", ", packages.Projects)}"));
-            }
         }
         else if (Matches(path, @"^(Directory\.|global\.json$|NuGet\.Config$|Sbroenne\.ExcelMcp\.sln$|tests/Directory\.|src/ExcelMcp\.(Core|ComInterop|Service|Cleanup)/)"))
         {
@@ -207,7 +185,6 @@ public sealed partial class ValidationPolicy(string root)
                 AddFeature(plan, owner, ["GeneratedContracts"], "GeneratedContracts");
             }
             plan.DocumentationCounts = plan.FullSolutionBuild = true;
-            plan.Cli = plan.Mcp = plan.Extension = true;
             plan.Reasons.Add($"{path} -> generated contract consumers");
         }
         else if (path.StartsWith("src/ExcelMcp.Diagnostics/", StringComparison.Ordinal))
@@ -231,8 +208,6 @@ public sealed partial class ValidationPolicy(string root)
                 throw new InvalidOperationException($"No validation mapping for shared telemetry source {path}.");
             }
             AddClasses(plan, consumers, "Shared telemetry consumers");
-            plan.Cli = true;
-            plan.Mcp = plan.Extension = true;
             plan.Reasons.Add($"{path} -> CLI, MCP Server, and extension telemetry consumers");
         }
         else if (Matches(path, @"^src/ExcelMcp\.(CLI|McpServer)/Telemetry/"))
@@ -240,41 +215,33 @@ public sealed partial class ValidationPolicy(string root)
             // Telemetry migrations also remove sinks whose old symbols no longer have consumers.
             var owner = path.StartsWith("src/ExcelMcp.CLI/", StringComparison.Ordinal) ? "CLI" : "McpServer";
             AddFeature(plan, owner, ["Telemetry"], "Telemetry adapter consumers");
-            if (owner == "CLI") { plan.Cli = true; }
-            else { plan.Mcp = plan.Extension = true; }
             plan.Reasons.Add($"{path} -> {owner} telemetry consumers");
         }
         else if (path == "src/ExcelMcp.CLI/Commands/BatchCommand.cs")
         {
             AddFeature(plan, "CLI", ["Batch"], "Batch entry-point consumers");
-            plan.Cli = true;
             plan.Reasons.Add($"{path} -> batch parsing, dispatch, and output cases");
         }
         else if (path == "src/ExcelMcp.CLI/Infrastructure/CliServiceTray.cs")
         {
             AddClasses(plan, Catalog.ForOwner("CLI").Where(type => type.Name is "CliDaemonLifecycleTests" or "CliDaemonTests"),
                 "Daemon tray host startup and shutdown");
-            plan.Cli = true;
             plan.Reasons.Add($"{path} -> actual tray-hosting daemon process cases");
         }
         else if (Matches(path, @"^src/ExcelMcp\.(CLI|McpServer)/") && !path.EndsWith(".md", StringComparison.Ordinal))
         {
             var owner = path.StartsWith("src/ExcelMcp.CLI/", StringComparison.Ordinal) ? "CLI" : "McpServer";
             AddClasses(plan, new SourceDependencies(root, Catalog).AdapterConsumers(owner, path), $"{owner} adapter consumers");
-            if (owner == "CLI") { plan.Cli = true; }
-            else { plan.Mcp = plan.Extension = true; }
             plan.Reasons.Add($"{path} -> dependent {owner} adapter cases, not the entire adapter project");
         }
         else if (Matches(path, @"^(skills/|docs/reference/report-formatting\.md$|scripts/Build-AgentSkills\.ps1$|docs/AGENT-SKILLS\.md$)"))
         {
             AddFeature(plan, "SkillGeneration", ["SkillGeneration"], "Skill preparation");
-            if (path != "docs/AGENT-SKILLS.md") { plan.Plugins = plan.Extension = true; }
             plan.Reasons.Add($"{path} -> prepared skill consumers");
         }
         else if (Matches(path, @"^(\.github/plugins/|scripts/(Build-Plugins|Sync-PublishedPluginRepo|Publish-PreparedPlugins)\.ps1$|scripts/(PluginContent|AwesomeCopilotPolicy|Update-AwesomeCopilot)\.mjs$|\.github/workflows/(publish-plugins\.yml|update-awesome-copilot\.(md|lock\.yml))$)"))
         {
             AddFeature(plan, "Packaging", ["PluginPublication", "PluginBootstrap", "PluginSkillVersion"], "Plugin packaging");
-            plan.Plugins = true;
             plan.Reasons.Add($"{path} -> plugin packaging, not runtime tests");
         }
         else if (Matches(path, @"^(doc-counts\.json$|scripts/check-doc-counts\.ps1$)"))
@@ -287,13 +254,11 @@ public sealed partial class ValidationPolicy(string root)
         else if (Matches(path, @"^mcpb/"))
         {
             AddFeature(plan, "Packaging", ["McpbPackaging"], "Mcpb packaging");
-            plan.Mcpb = true;
             plan.Reasons.Add($"{path} -> metadata bundle");
         }
-        else if (Matches(path, @"^(scripts/(Build-NpmPackages|Test-NpmPackages|Build-ReleasePackages|PackageHelpers|Build-Changelog|Update-(ReleaseVersion|McpRegistry)Metadata|Resolve-McpRegistryRelease|Test-McpRegistryPublication)\.ps1$|\.github/workflows/(release|publish-mcp-registry)\.yml$|package(-lock)?\.json$|\.npmrc$)"))
+        else if (Matches(path, @"^(scripts/(Build-NpmPackages|Test-NpmPackages|Build-ReleasePackages|PackageHelpers|Build-Changelog|Format-ReleaseNotes|Publish-GitHubRelease|Update-(ReleaseVersion|McpRegistry)Metadata|Resolve-McpRegistryRelease|Test-McpRegistryPublication)\.ps1$|\.github/workflows/(release|publish-mcp-registry)\.yml$|package(-lock)?\.json$|\.npmrc$)"))
         {
             AddFeature(plan, "Packaging", ["Packaging", "McpbPackaging", "ReleaseMetadata", "PluginSkillVersion"], "Package preparation");
-            plan.Cli = plan.Mcp = plan.Extension = plan.Mcpb = plan.Plugins = true;
             plan.Reasons.Add($"{path} -> package preparation consumers");
         }
         else if (Matches(path, @"^scripts/IssueTriage\.mjs$|^\.github/workflows/issue-triage\.(md|lock\.yml)$"))
@@ -321,7 +286,7 @@ public sealed partial class ValidationPolicy(string root)
                 "FullyQualifiedName=Sbroenne.ExcelMcp.ScriptSafety.Tests.AutomationSafetyTests.AnalyticsOidc_SwitchesToSelectedTenantAndRestoresOriginalSubscription";
             plan.Reasons.Add($"{path} -> automation safety and selected Azure OnDemand cases");
         }
-        else if (Matches(path, @"^(scripts/check-|scripts/tests/|videos/excel-mcp-intro/Capture-Evidence\.ps1$)"))
+        else if (Matches(path, @"^(scripts/check-|scripts/tests/|scripts/Start-OlapTestCube\.ps1$|videos/excel-mcp-intro/Capture-Evidence\.ps1$)"))
         {
             AddFeature(plan, "ScriptSafety", ["AutomationSafety"], "Owning script safety");
             plan.Reasons.Add($"{path} -> script safety only");
@@ -335,16 +300,11 @@ public sealed partial class ValidationPolicy(string root)
         }
         else if (path.StartsWith("npm-packages/", StringComparison.Ordinal))
         {
-            plan.NpmTests = true;
-            plan.Cli |= path.Contains("excelcli", StringComparison.Ordinal) || path.Contains("/shared/", StringComparison.Ordinal);
-            plan.Mcp |= path.Contains("mcp-server-excel", StringComparison.Ordinal) || path.Contains("/shared/", StringComparison.Ordinal);
-            plan.Reasons.Add($"{path} -> npm launcher and affected packages");
+            plan.Reasons.Add($"{path} -> standard PR npm and package checks");
         }
         else if (path.StartsWith("vscode-extension/", StringComparison.Ordinal))
         {
-            plan.Extension = true;
-            plan.ExtensionTests = true;
-            plan.Reasons.Add($"{path} -> extension checks and package");
+            plan.Reasons.Add($"{path} -> standard PR extension and package checks");
         }
         else if (path.StartsWith("samples/world-bank-dashboard/", StringComparison.Ordinal))
         {
@@ -373,7 +333,6 @@ public sealed partial class ValidationPolicy(string root)
         foreach (var owner in owners) { AddClasses(plan, Catalog.ForOwner(owner), "Shared runtime/build"); }
         plan.InfrastructureDiagnostics = true;
         plan.FullSolutionBuild = true;
-        plan.Cli = plan.Mcp = plan.Extension = true;
         plan.Reasons.Add($"{path} -> shared runtime/build consumers");
     }
 
@@ -489,10 +448,6 @@ public sealed partial class ValidationPolicy(string root)
         var mcp = Matches(path, @"^README\.md$|^src/ExcelMcp\.McpServer/README\.md$|^npm-packages/mcp-server-excel[^/]*/README\.md$|^(CHANGELOG\.md|LICENSE)$");
         var extension = Matches(path, @"^vscode-extension/(README\.md|LICENSE|CHANGELOG\.md)$|^(CHANGELOG\.md|LICENSE)$");
         var mcpb = path is "LICENSE" or "CHANGELOG.md";
-        plan.Cli |= cli;
-        plan.Mcp |= mcp;
-        plan.Extension |= extension;
-        plan.Mcpb |= mcpb;
         if (cli || mcp || extension || mcpb)
         {
             AddFeature(plan, "Packaging", ["Packaging"], "Distributed documentation");

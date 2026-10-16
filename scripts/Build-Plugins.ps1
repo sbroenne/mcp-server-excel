@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Builds Agent Plugins from canonical templates and complete prepared skills.

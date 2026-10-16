@@ -13,6 +13,44 @@ public sealed partial class AutomationSafetyTests
 {
     private static readonly string RepoRoot = FindRepoRoot();
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RunnerGuestCommands_RequirePowerShell7AndPreserveNativeFailure(bool fail)
+    {
+        var root = NewSandbox();
+        try
+        {
+            var result = await RunAsync(root, $$"""
+                . '{{Quote(Path.Combine(RepoRoot, "scripts", "AzureRunnerHost.ps1"))}}'
+                New-Item -ItemType Directory -Path '{{Quote(Path.Combine(root, "PowerShell"))}}' | Out-Null
+                New-Item -ItemType Junction -Path '{{Quote(Path.Combine(root, "PowerShell", "7"))}}' -Target $PSHOME | Out-Null
+                $env:ProgramFiles = '{{Quote(root)}}'
+                $payload = {{(fail ? "'exit 23'" : "'[Console]::Write(\"guest-version:\" + $PSVersionTable.PSVersion.Major + \":\" + ''quotes & $ preserved'')'")}}
+                $command = ConvertTo-RunnerPowerShell7Command -Script $payload
+                & ([scriptblock]::Create($command))
+                """);
+
+            Assert.Equal(!fail, result.ExitCode == 0);
+            Assert.Contains(fail ? "exit code 23" : "guest-version:7:quotes & $ preserved", result.Output, StringComparison.Ordinal);
+            if (fail)
+            {
+                Assert.DoesNotContain("EXCELMCP_PWSH_COMPLETE", result.Output, StringComparison.Ordinal);
+            }
+            else
+            {
+                Assert.Single(result.Output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries),
+                    line => line == "EXCELMCP_PWSH_COMPLETE");
+            }
+        }
+        finally
+        {
+            var junction = Path.Combine(root, "PowerShell", "7");
+            if (Directory.Exists(junction)) { Directory.Delete(junction); }
+            Directory.Delete(root, recursive: true);
+        }
+    }
+
     [Fact]
     public void OlapCube_DiscoveryUsesExplicitSyntheticFixtureMarker()
     {
@@ -117,49 +155,6 @@ public sealed partial class AutomationSafetyTests
         finally { Directory.Delete(root, true); }
     }
 
-    [Theory]
-    [InlineData("Cli", "src/ExcelMcp.CLI/Program.cs")]
-    [InlineData("Mcp", "src/ExcelMcp.McpServer/Program.cs")]
-    [InlineData("Plugins", ".github/workflows/publish-plugins.yml")]
-    [InlineData("Extension", "vscode-extension/package.json")]
-    [InlineData("Mcpb", "mcpb/manifest.json")]
-    public async Task PackageSelection_ChoosesOwningComponent(string component, string path)
-    {
-        var root = NewSandbox();
-        try
-        {
-            var result = await RunAsync(root, $$"""
-                . '{{Quote(Path.Combine(RepoRoot, "scripts", "Get-ValidationPlan.ps1"))}}'
-                $plan = Get-ValidationPlan -Paths '{{path}}'
-                if (-not $plan.{{component}}) { throw 'Owning package was not selected.' }
-                """);
-            Assert.True(result.ExitCode == 0, result.Output);
-        }
-        finally { Directory.Delete(root, true); }
-    }
-
-    [Theory]
-    [InlineData("src/ExcelMcp.CLI/Program.cs", "Cli")]
-    [InlineData("src/ExcelMcp.McpServer/Program.cs", "Mcp,Extension")]
-    [InlineData("npm-packages/shared/launcher.js", "Cli,Mcp")]
-    [InlineData(".npmrc", "Cli,Mcp,Extension,Mcpb,Plugins")]
-    [InlineData("README.md", "Cli,Mcp")]
-    public async Task PackageSelection_ExcludesUnrelatedDistributions(string path, string expected)
-    {
-        var root = NewSandbox();
-        try
-        {
-            var result = await RunAsync(root, $$"""
-                . '{{Quote(Path.Combine(RepoRoot, "scripts", "Get-ValidationPlan.ps1"))}}'
-                $plan = Get-ValidationPlan -Paths '{{path}}'
-                $selected = @('Cli','Mcp','Extension','Mcpb','Plugins') | Where-Object { $plan.$_ }
-                if (($selected -join ',') -ne '{{expected}}') { throw "Wrong package selection: $selected" }
-                """);
-            Assert.True(result.ExitCode == 0, result.Output);
-        }
-        finally { Directory.Delete(root, true); }
-    }
-
     [Fact]
     public async Task CaptureEvidence_NeverSavesAndStillQuitsAfterCloseFails()
     {
@@ -226,8 +221,8 @@ public sealed partial class AutomationSafetyTests
             var cubePidFile = Path.Combine(root, "cube.pid");
             var childPidFile = Path.Combine(root, "cube-child.pid");
             File.WriteAllText(Path.Combine(scripts, "Start-OlapTestCube.ps1"), $$"""
-                $child = "Start-Process pwsh -ArgumentList '-NoProfile','-Command','Start-Sleep 120' -PassThru | ForEach-Object { @{ pid = `$_.Id; started = `$_.StartTime.ToUniversalTime().Ticks } | ConvertTo-Json } | Set-Content '{{Quote(childPidFile)}}'; Start-Sleep 120"
-                $process = Start-Process pwsh -ArgumentList '-NoProfile', '-Command', $child -PassThru
+                $child = "Start-Process pwsh -NoNewWindow -ArgumentList '-NoProfile','-Command','Start-Sleep 120' -PassThru | ForEach-Object { @{ pid = `$_.Id; started = `$_.StartTime.ToUniversalTime().Ticks } | ConvertTo-Json } | Set-Content '{{Quote(childPidFile)}}'; Start-Sleep 120"
+                $process = Start-Process pwsh -NoNewWindow -ArgumentList '-NoProfile', '-Command', $child -PassThru
                 @{ pid = $process.Id; started = $process.StartTime.ToUniversalTime().Ticks } | ConvertTo-Json | Set-Content '{{Quote(cubePidFile)}}'
                 while (-not (Test-Path '{{Quote(childPidFile)}}')) { Start-Sleep -Milliseconds 100 }
                 [pscustomobject]@{
@@ -333,13 +328,10 @@ public sealed partial class AutomationSafetyTests
         {
             var parentPid = Path.Combine(root, "parent.pid");
             var childPid = Path.Combine(root, "child.pid");
-            var source = File.ReadAllText(Path.Combine(RepoRoot, "scripts", "Start-OlapTestCube.ps1"));
-            var start = source.IndexOf("$null = $process.Handle", StringComparison.Ordinal);
-            var end = source.IndexOf("[pscustomobject]@{", start, StringComparison.Ordinal);
-            Assert.True(start >= 0 && end > start);
             var result = await RunAsync(root, $$"""
-                $child = "Start-Process pwsh -ArgumentList '-NoProfile','-Command','Start-Sleep 120' -PassThru | ForEach-Object { @{ pid = `$_.Id; started = `$_.StartTime.ToUniversalTime().Ticks } | ConvertTo-Json } | Set-Content '{{Quote(childPid)}}'; Start-Sleep 120"
-                $process = Start-Process pwsh -ArgumentList '-NoProfile','-Command',$child -PassThru
+                . '{{Quote(Path.Combine(RepoRoot, "scripts", "Start-OlapTestCube.ps1"))}}'
+                $child = "Start-Process pwsh -NoNewWindow -ArgumentList '-NoProfile','-Command','Start-Sleep 120' -PassThru | ForEach-Object { @{ pid = `$_.Id; started = `$_.StartTime.ToUniversalTime().Ticks } | ConvertTo-Json } | Set-Content '{{Quote(childPid)}}'; Start-Sleep 120"
+                $process = Start-Process pwsh -NoNewWindow -ArgumentList '-NoProfile','-Command',$child -PassThru
                 @{ pid = $process.Id; started = $process.StartTime.ToUniversalTime().Ticks } | ConvertTo-Json | Set-Content '{{Quote(parentPid)}}'
                 $deadline = [DateTime]::UtcNow.AddSeconds(15)
                 while (-not (Test-Path '{{Quote(childPid)}}')) {
@@ -351,7 +343,7 @@ public sealed partial class AutomationSafetyTests
                 $logPath = '{{Quote(Path.Combine(root, "cube.log"))}}'
                 'startup diagnostic' | Set-Content "$logPath.err"
                 try {
-                    {{source[start..end]}}
+                    Wait-OlapCubeStartup -Process $process -LogPath $logPath -Port $port -StartupTimeoutSeconds $StartupTimeoutSeconds
                 }
                 catch { $_.Exception.ToString() | Write-Output; exit 1 }
                 """);
@@ -421,12 +413,9 @@ public sealed partial class AutomationSafetyTests
             var script = Path.Combine(RepoRoot, "scripts", "Start-OlapTestCube.ps1");
             var childFile = Path.Combine(root, "setup-child.pid");
             var result = await RunAsync(root, $$"""
-                $ast = [Management.Automation.Language.Parser]::ParseFile('{{Quote(script)}}', [ref]$null, [ref]$null)
-                $function = $ast.Find({ param($node) $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Invoke-OlapSetupProcess' }, $true)
-                if (-not $function) { throw 'Missing bounded OLAP setup function.' }
-                . ([scriptblock]::Create($function.Extent.Text))
+                . '{{Quote(script)}}'
                 $body = @'
-                $child = Start-Process pwsh -ArgumentList '-NoProfile','-Command','Start-Sleep 120' -PassThru
+                $child = Start-Process pwsh -NoNewWindow -ArgumentList '-NoProfile','-Command','Start-Sleep 120' -PassThru
                 @{ pid = $child.Id; started = $child.StartTime.ToUniversalTime().Ticks } | ConvertTo-Json | Set-Content '{{Quote(childFile)}}'
                 Start-Sleep 120
                 '@
@@ -480,6 +469,7 @@ public sealed partial class AutomationSafetyTests
             catch (ArgumentException) { continue; }
             using (process)
             {
+                _ = process.Handle;
                 if (process.HasExited || process.StartTime.ToUniversalTime().Ticks !=
                     identity.RootElement.GetProperty("started").GetInt64()) { continue; }
                 process.Kill(entireProcessTree: true);
@@ -492,28 +482,14 @@ public sealed partial class AutomationSafetyTests
     {
         var script = Path.Combine(root, $"test-{Guid.NewGuid():N}.ps1");
         File.WriteAllText(script, "$ErrorActionPreference='Stop'\n$global:LASTEXITCODE=0\n" + body + "\nexit $LASTEXITCODE");
-        var info = new ProcessStartInfo("pwsh")
-        {
-            RedirectStandardError = true,
-            RedirectStandardOutput = true,
-            UseShellExecute = false,
-            WorkingDirectory = root
-        };
-        info.Environment["EXCELMCP_BUILD_ROOT"] = RepoRoot;
-        info.Environment["EXCELMCP_BUILD_DLL"] = typeof(Sbroenne.ExcelMcp.Build.ValidationPolicy).Assembly.Location;
-        foreach (var argument in new[] { "-NoProfile", "-File", script }) { info.ArgumentList.Add(argument); }
-        using var process = Process.Start(info)!;
-        var stdout = process.StandardOutput.ReadToEndAsync();
-        var stderr = process.StandardError.ReadToEndAsync();
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-        try { await process.WaitForExitAsync(timeout.Token); }
-        catch (OperationCanceledException)
-        {
-            process.Kill(entireProcessTree: true);
-            await process.WaitForExitAsync();
-            throw new TimeoutException("Automation script exceeded its 60-second deadline.");
-        }
-        return (process.ExitCode, await stdout + await stderr);
+        var result = await new Sbroenne.ExcelMcp.Build.ProcessRunner(root).RunAsync(
+            "pwsh", ["-NoProfile", "-File", script], TimeSpan.FromSeconds(60),
+            new Dictionary<string, string>
+            {
+                ["EXCELMCP_BUILD_ROOT"] = RepoRoot,
+                ["EXCELMCP_BUILD_DLL"] = typeof(Sbroenne.ExcelMcp.Build.ValidationPolicy).Assembly.Location
+            });
+        return (result.ExitCode, result.Output + result.Error);
     }
 
     private static string FindRepoRoot()

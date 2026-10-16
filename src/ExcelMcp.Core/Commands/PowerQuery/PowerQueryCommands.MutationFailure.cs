@@ -15,6 +15,8 @@ public partial class PowerQueryCommands
 
         for (Exception? current = exception; current != null; current = current.InnerException)
         {
+            if (current is AggregateException aggregate)
+                return aggregate.InnerExceptions.All(CanReportMutationFailure);
             if (current is TimeoutException or OperationCanceledException or InvalidComObjectException
                 or OperationFailureException { ErrorCategory: OperationFailureCategory.Cancelled })
                 return false;

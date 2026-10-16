@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
 Installs and registers the dedicated interactive runner, leaving it offline.
@@ -37,7 +38,7 @@ $token = $null
 function Invoke-RegistrationDesktop {
     param([ValidateSet('Prepare', 'Configure')][string]$Stage)
     $null = Invoke-ExcelRunnerGuest @"
-`$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "C:\ProgramData\ExcelMcp\Desktop\configure-excel-runner.ps1" -Action $Stage -OperationId $operation'
+`$action = New-ScheduledTaskAction -Execute 'C:\Program Files\PowerShell\7\pwsh.exe' -Argument '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "C:\ProgramData\ExcelMcp\Desktop\configure-excel-runner.ps1" -Action $Stage -OperationId $operation'
 `$principal = New-ScheduledTaskPrincipal -UserId "`$env:COMPUTERNAME\excelrunner" -LogonType Interactive -RunLevel Limited
 `$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 7)
 Register-ScheduledTask -TaskName 'ExcelMcp-Register-Runner' -Action `$action -Principal `$principal -Settings `$settings -Force | Out-Null
@@ -125,7 +126,7 @@ Write-Output 'EXCELMCP_CONTROL={"state":"transported"}'
         throw 'GitHub did not establish the expected offline, custom-label-only runner.'
     }
     $null = Invoke-ExcelRunnerGuest @"
-`$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "C:\ProgramData\ExcelMcp\Desktop\start-excel-runner.ps1"'
+`$action = New-ScheduledTaskAction -Execute 'C:\Program Files\PowerShell\7\pwsh.exe' -Argument '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "C:\ProgramData\ExcelMcp\Desktop\start-excel-runner.ps1"'
 `$principal = New-ScheduledTaskPrincipal -UserId "`$env:COMPUTERNAME\excelrunner" -LogonType Interactive -RunLevel Limited
 `$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Hours 6)
 Register-ScheduledTask -TaskName 'ExcelMcp-GitHub-Runner' -Action `$action -Principal `$principal -Settings `$settings -Force | Out-Null

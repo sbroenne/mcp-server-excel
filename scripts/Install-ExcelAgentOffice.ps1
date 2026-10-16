@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
 Installs current 64-bit Excel 2024 Retail on the owned Azure development VM.
@@ -27,7 +28,7 @@ function Invoke-OfficeGuest {
     param([string]$Script)
     $path = Join-Path ([IO.Path]::GetTempPath()) "excel-office-command-$([Guid]::NewGuid().ToString('N')).ps1"
     try {
-        ("`$ErrorActionPreference = 'Stop'`n" + $Script) | Set-Content -LiteralPath $path -Encoding UTF8
+        ConvertTo-RunnerPowerShell7Command -Script $Script | Set-Content -LiteralPath $path -Encoding UTF8
         $result = Invoke-RunnerAzure @(
             'vm', 'run-command', 'invoke', '--resource-group', $ResourceGroup,
             '--name', $VmName, '--command-id', 'RunPowerShellScript', '--scripts', "@$path"

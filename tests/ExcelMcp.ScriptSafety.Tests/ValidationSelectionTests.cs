@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
@@ -8,45 +7,46 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 [Trait("Feature", "PreCommit")]
 public sealed class ValidationSelectionTests
 {
+    private static readonly Sbroenne.ExcelMcp.Build.ValidationPolicy Policy = new(TypedValidationPolicyTests.Root);
+
     [Theory]
-    [InlineData(".github/dependabot.yml", "", "", false)]
-    [InlineData("README.md", "Tooling", "", true)]
-    [InlineData("tests/README.md", "", "", false)]
-    [InlineData("scripts/Install-ExcelAgentToolchain.ps1", "", "", false)]
-    [InlineData("scripts/Invoke-CopilotSetupNpm.ps1", "", "", false)]
-    [InlineData("scripts/Install-CopilotPonytailReview.ps1", "", "", false)]
-    [InlineData(".github/workflows/copilot-setup-steps.yml", "", "", false)]
-    [InlineData("scripts/Register-ExcelAgentRunner.ps1", "", "", false)]
-    [InlineData("infrastructure/azure/update-excel-runner.ps1", "", "", false)]
-    [InlineData(".github/workflows/excel-runner-control.yml", "", "", false)]
-    [InlineData("scripts/ExcelRunnerPolicy.ps1", "", "", false)]
-    [InlineData("scripts/Invoke-ExcelRunnerMaintenance.ps1", "", "", false)]
-    [InlineData("infrastructure/azure/excel-runner.bicep", "", "", false)]
-    [InlineData("infrastructure/azure/configure-analytics-oidc.ps1", "Tooling", "", false)]
-    [InlineData("infrastructure/azure/deploy-appinsights.ps1", "Tooling", "", false)]
-    [InlineData("scripts/tests/excel-runner-build-cleanup.tests.ps1", "Tooling", "", false)]
-    [InlineData("src/ExcelMcp.Analyzers/SafetyAnalyzer.cs", "Tooling", "", false)]
-    [InlineData("doc-counts.json", "Tooling", "", false)]
-    [InlineData("scripts/check-doc-counts.ps1", "Tooling", "", false)]
-    [InlineData("mcpb/README.md", "Tooling", "", true)]
-    [InlineData("vscode-extension/package-lock.json", "", "", true)]
-    [InlineData("src/ExcelMcp.CLI/Program.cs", "Fast,Process", "CLI adapter consumers", true)]
-    [InlineData("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", "Fast", "Range", true)]
-    [InlineData("src/ExcelMcp.Core/Commands/PowerQuery/PowerQueryCommands.cs", "Fast", "PowerQuery", true)]
-    [InlineData("src/ExcelMcp.Core/Commands/PythonInExcel/PythonInExcelCommands.cs", "Fast", "", true)]
-    [InlineData("src/ExcelMcp.Core/Commands/Calculation/CalculationModeCommands.cs", "Fast", "Calculation", true)]
-    [InlineData("src/ExcelMcp.Core/Commands/Table/TableCommands.cs", "Fast", "Table", true)]
-    [InlineData("src/ExcelMcp.Core/Commands/PivotTable/PivotTableCommands.cs", "Fast", "PivotTable", true)]
-    [InlineData("src/ExcelMcp.Core/Commands/DataModel/DataModelCommands.cs", "Fast", "DataModel,DataModel dependencies", true)]
-    [InlineData("scripts/PluginContent.mjs", "Tooling", "", true)]
-    [InlineData("tests/ExcelMcp.Packaging.Tests/PluginPublicationHistory.test.mjs", "Tooling", "", false)]
-    [InlineData("tests/ExcelMcp.CLI.Tests/Unit/ActionValidatorTests.cs", "Fast", "", false)]
-    public void Paths_SelectExactGroups(string path, string ciGroups, string excelGroups, bool packages)
+    [InlineData(".github/dependabot.yml", "", "")]
+    [InlineData("README.md", "Tooling", "")]
+    [InlineData("tests/README.md", "", "")]
+    [InlineData("scripts/Install-ExcelAgentToolchain.ps1", "", "")]
+    [InlineData("scripts/Invoke-CopilotSetupNpm.ps1", "", "")]
+    [InlineData("scripts/Install-CopilotPonytailReview.ps1", "", "")]
+    [InlineData(".github/workflows/copilot-setup-steps.yml", "", "")]
+    [InlineData("scripts/Register-ExcelAgentRunner.ps1", "", "")]
+    [InlineData("infrastructure/azure/update-excel-runner.ps1", "", "")]
+    [InlineData(".github/workflows/excel-runner-control.yml", "", "")]
+    [InlineData("scripts/ExcelRunnerPolicy.ps1", "", "")]
+    [InlineData("scripts/Invoke-ExcelRunnerMaintenance.ps1", "", "")]
+    [InlineData("infrastructure/azure/excel-runner.bicep", "", "")]
+    [InlineData("infrastructure/azure/configure-analytics-oidc.ps1", "Tooling", "")]
+    [InlineData("infrastructure/azure/deploy-appinsights.ps1", "Tooling", "")]
+    [InlineData("scripts/tests/excel-runner-build-cleanup.tests.ps1", "Tooling", "")]
+    [InlineData("src/ExcelMcp.Analyzers/SafetyAnalyzer.cs", "Tooling", "")]
+    [InlineData("doc-counts.json", "Tooling", "")]
+    [InlineData("scripts/check-doc-counts.ps1", "Tooling", "")]
+    [InlineData("mcpb/README.md", "Tooling", "")]
+    [InlineData("vscode-extension/package-lock.json", "", "")]
+    [InlineData("src/ExcelMcp.CLI/Program.cs", "Fast,Process", "CLI adapter consumers")]
+    [InlineData("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", "Fast", "Range")]
+    [InlineData("src/ExcelMcp.Core/Commands/PowerQuery/PowerQueryCommands.cs", "Fast", "PowerQuery")]
+    [InlineData("src/ExcelMcp.Core/Commands/PythonInExcel/PythonInExcelCommands.cs", "Fast", "")]
+    [InlineData("src/ExcelMcp.Core/Commands/Calculation/CalculationModeCommands.cs", "Fast", "Calculation")]
+    [InlineData("src/ExcelMcp.Core/Commands/Table/TableCommands.cs", "Fast", "Table")]
+    [InlineData("src/ExcelMcp.Core/Commands/PivotTable/PivotTableCommands.cs", "Fast", "PivotTable")]
+    [InlineData("src/ExcelMcp.Core/Commands/DataModel/DataModelCommands.cs", "Fast", "DataModel,DataModel dependencies")]
+    [InlineData("scripts/PluginContent.mjs", "Tooling", "")]
+    [InlineData("tests/ExcelMcp.Packaging.Tests/PluginPublicationHistory.test.mjs", "Tooling", "")]
+    [InlineData("tests/ExcelMcp.CLI.Tests/Unit/ActionValidatorTests.cs", "Fast", "")]
+    public void Paths_SelectExactGroups(string path, string ciGroups, string excelGroups)
     {
-        var plan = new Sbroenne.ExcelMcp.Build.ValidationPolicy(TypedValidationPolicyTests.Root).Select([path]);
+        var plan = Policy.Select([path]);
         Assert.Equal(ciGroups, string.Join(',', plan.CiTestGroups));
         Assert.Equal(excelGroups, string.Join(',', plan.ExcelGroups));
-        Assert.Equal(packages, plan.Packages);
     }
 
     [Theory]
@@ -56,35 +56,28 @@ public sealed class ValidationSelectionTests
     [InlineData("src/ExcelMcp.CLI/Program.cs", "")]
     [InlineData("tests/ExcelMcp.CLI.Tests/Unit/ActionValidatorTests.cs", "")]
     [InlineData("README.md", "")]
-    public async Task DocumentationChecks_RunInExactlyOneSelectedGroup(string path, string group)
+    public void DocumentationChecks_RunInExactlyOneSelectedGroup(string path, string group)
     {
-        var result = await RunAsync($$"""
-            $plan = Get-ValidationPlan -Paths '{{path}}'
-            if ($plan.DocumentationChecksGroup -cne '{{group}}') { throw "Wrong documentation-check group: $($plan.DocumentationChecksGroup)" }
-            if ($plan.DocumentationChecksGroup -and $plan.DocumentationChecksGroup -notin $plan.CiTestGroups) { throw 'Documentation checks have no selected job.' }
-            if ('{{group}}' -eq 'Tooling' -and $plan.ToolingFilters.Packaging -cne 'FullyQualifiedName~DocumentationCounts') {
-                throw 'Documentation-count regressions were not selected.'
-            }
-            """);
-        Assert.True(result.ExitCode == 0, result.Output);
+        var plan = Policy.Select([path]);
+        Assert.Equal(group, plan.DocumentationChecksGroup);
+        if (group.Length > 0) { Assert.Contains(group, plan.CiTestGroups); }
+        if (group == "Tooling") { Assert.Equal("FullyQualifiedName~DocumentationCounts", plan.ToolingFilters["Packaging"]); }
     }
 
     [Theory]
     [InlineData("scripts\\Invoke-CopilotSetupNpm.ps1")]
     [InlineData("scripts\\Install-CopilotPonytailReview.ps1")]
     [InlineData(".github\\workflows\\copilot-setup-steps.yml")]
-    public async Task CopilotSetup_DoesNotSelectAutomatedValidation(string path)
+    public void CopilotSetup_DoesNotSelectAutomatedValidation(string path)
     {
-        var result = await RunAsync($$"""
-            $plan = Get-ValidationPlan -Paths '{{path}}'
-            if ($plan.Build -or $plan.HookTests -or $plan.CiTestGroups.Count) {
-                throw 'Setup-only changes must not select automated validation.'
-            }
-            if ($plan.Excel -or $plan.ExcelGroups.Count -or $plan.FastProjects.Count -or $plan.ProcessProjects.Count) {
-                throw 'Setup-only selection must not require Excel or runtime validation.'
-            }
-            """);
-        Assert.True(result.ExitCode == 0, result.Output);
+        var plan = Policy.Select([path]);
+        Assert.False(plan.Build);
+        Assert.False(plan.HookTests);
+        Assert.Empty(plan.CiTestGroups);
+        Assert.False(plan.Excel);
+        Assert.Empty(plan.ExcelGroups);
+        Assert.Empty(plan.FastProjects);
+        Assert.Empty(plan.ProcessProjects);
     }
 
     [Fact]
@@ -113,16 +106,13 @@ public sealed class ValidationSelectionTests
     }
 
     [Fact]
-    public async Task FullSelection_ContainsEveryHostedGroupAndPackage()
+    public async Task FullSelection_ContainsEveryHostedTestGroup()
     {
         var result = await RunAsync("""
             $plan = Get-ValidationPlan -Full
             if (($plan.CiTestGroups -join ',') -ne 'Fast,Process,Tooling') { throw 'Full groups missing.' }
             foreach ($project in $plan.ToolingProjects) {
                 if (-not $plan.ToolingFilters.$project) { throw 'Full tooling selection has no cases.' }
-            }
-            foreach ($component in @('Cli','Mcp','Extension','Mcpb','Plugins')) {
-                if (-not $plan.$component) { throw "Missing $component package." }
             }
             """);
         Assert.True(result.ExitCode == 0, result.Output);
@@ -150,43 +140,21 @@ public sealed class ValidationSelectionTests
         Assert.NotNull(root);
         var script = Path.Combine(root.FullName, "scripts", "Get-ValidationPlan.ps1")
             .Replace("'", "''", StringComparison.Ordinal);
-        var info = new ProcessStartInfo("pwsh")
+        var environment = new Dictionary<string, string>
         {
-            WorkingDirectory = root.FullName,
-            UseShellExecute = false,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true
+            ["EXCELMCP_BUILD_ROOT"] = root.FullName,
+            ["EXCELMCP_BUILD_DLL"] = typeof(Sbroenne.ExcelMcp.Build.ValidationPolicy).Assembly.Location
         };
-        info.Environment["EXCELMCP_BUILD_ROOT"] = root.FullName;
-        info.Environment["EXCELMCP_BUILD_DLL"] = typeof(Sbroenne.ExcelMcp.Build.ValidationPolicy).Assembly.Location;
         if (environmentVariables is not null)
         {
-            foreach (var (name, value) in environmentVariables) { info.Environment[name] = value; }
+            foreach (var (name, value) in environmentVariables)
+            {
+                if (!name.StartsWith("GIT_", StringComparison.OrdinalIgnoreCase)) { environment[name] = value; }
+            }
         }
-        foreach (var name in info.Environment.Keys
-            .Where(name => name.StartsWith("GIT_", StringComparison.OrdinalIgnoreCase)).ToArray())
-        {
-            info.Environment.Remove(name);
-        }
-        foreach (var argument in new[] { "-NoProfile", "-Command", $"$ErrorActionPreference='Stop'; . '{script}'; {command}" })
-        {
-            info.ArgumentList.Add(argument);
-        }
-        using var process = Process.Start(info);
-        Assert.NotNull(process);
-        var stdout = process.StandardOutput.ReadToEndAsync();
-        var stderr = process.StandardError.ReadToEndAsync();
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(120));
-        try
-        {
-            await process.WaitForExitAsync(deadline.Token);
-        }
-        catch (OperationCanceledException) when (deadline.IsCancellationRequested)
-        {
-            process.Kill(entireProcessTree: true);
-            await process.WaitForExitAsync();
-            throw new TimeoutException($"Selection regression exceeded its deadline.\n{await stdout}\n{await stderr}");
-        }
-        return (process.ExitCode, await stdout + await stderr);
+        var result = await new Sbroenne.ExcelMcp.Build.ProcessRunner(root.FullName).RunAsync(
+            "pwsh", ["-NoProfile", "-Command", $"$ErrorActionPreference='Stop'; . '{script}'; {command}"],
+            TimeSpan.FromSeconds(120), environment);
+        return (result.ExitCode, result.Output + result.Error);
     }
 }

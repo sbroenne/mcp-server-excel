@@ -1,3 +1,5 @@
+using System.Runtime.InteropServices;
+using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Xunit;
 
@@ -33,6 +35,23 @@ public sealed class OperationCleanupTests
         var cleanup = new InvalidOperationException("Restoring state failed.");
         var failures = Assert.Throws<AggregateException>(() => OperationCleanup.Run(() => throw cleanup, primary));
         Assert.Equal([primary, cleanup], failures.InnerExceptions);
+    }
+
+    [Theory]
+    [InlineData(unchecked((int)0x80010108))]
+    [InlineData(unchecked((int)0x800706BE))]
+    [InlineData(unchecked((int)0x800706BA))]
+    public void MutationFailureAndDisconnectedCleanup_CannotBeReportedAsRecoverable(int hresult)
+    {
+        var primary = new InvalidOperationException("Filter mutation failed.");
+#pragma warning disable CA2201 // Synthetic native restoration error for the reporting guard.
+        var cleanup = new COMException("Restoring ManualUpdate failed.", hresult);
+#pragma warning restore CA2201
+        var failure = Assert.Throws<AggregateException>(() => OperationCleanup.Run(() => throw cleanup, primary));
+
+        Assert.Equal([primary, cleanup], failure.InnerExceptions);
+        Assert.False(CreatedObjectFailure.CanReport(failure));
+        Assert.False(CreatedObjectFailure.CanReport(new InvalidOperationException("Context", failure)));
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 function Get-ValidationPlan {
     [CmdletBinding()]
     param(

@@ -1,4 +1,5 @@
 #!/usr/bin/env pwsh
+#Requires -Version 7.4
 [CmdletBinding()]
 param([switch]$KeepFile, [string]$PipeName)
 

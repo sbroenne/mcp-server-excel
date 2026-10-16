@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Deploys Application Insights infrastructure for ExcelMcp telemetry.

@@ -1,7 +1,8 @@
 #!/usr/bin/env pwsh
+#Requires -Version 7.4
 <#
 .SYNOPSIS
-    Validates staged source and local Excel behavior. Never prepares release artifacts for publication.
+    Builds staged inputs and runs selected quick unit tests. Slow checks run before PR delivery.
 #>
 $ErrorActionPreference = 'Stop'
 $rootDir = Split-Path -Parent $PSScriptRoot
@@ -54,9 +55,6 @@ try {
             throw "Validation inputs differ from the index. Stage or set aside these changes explicitly: $($inputs -join ', '). No files were staged or stashed."
         }
     }
-    if ($plan.Excel -and -not [OperatingSystem]::IsWindows()) {
-        throw 'Required Excel validation needs Windows with desktop Excel; it cannot be reported as passed on this host.'
-    }
     if ($plan.Build) {
         $buildPlan = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.CommitBuild.$([Guid]::NewGuid().ToString('N')).json"
         try {
@@ -64,21 +62,14 @@ try {
             Invoke-Check 'Building selected Release inputs' {
                 Invoke-ExcelMcpBuild -Arguments @('build', '--plan', $buildPlan)
             }
-            Invoke-Check 'Running focused Excel-free tests' {
-                & (Join-Path $PSScriptRoot 'Invoke-ExcelFreeTests.ps1') -Local -ChangedPaths $paths -PlanFile $buildPlan
+            if ($plan.FastProjects.Count -gt 0) {
+                Invoke-Check 'Running selected quick unit tests' {
+                    & (Join-Path $PSScriptRoot 'Invoke-ExcelFreeTests.ps1') -Group Commit -PlanFile $buildPlan
+                }
             }
         } finally { Remove-Item -LiteralPath $buildPlan -ErrorAction Stop }
     }
-    if ($plan.Excel) {
-        $planFile = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.CommitPlan.$([Guid]::NewGuid().ToString('N')).json"
-        try {
-            $plan | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $planFile -Encoding utf8
-            Invoke-Check 'Running selected Excel-dependent cases' {
-                & (Join-Path $PSScriptRoot 'Invoke-ExcelTests.ps1') -PlanFile $planFile
-            }
-        } finally { Remove-Item -LiteralPath $planFile -ErrorAction Stop }
-    }
-    Write-Host 'All selected pre-commit checks passed. Release artifact validation belongs to PR CI.' -ForegroundColor Green
+    Write-Host 'All selected pre-commit checks passed. Run selected slow checks before PR delivery; package checks run in PR CI.' -ForegroundColor Green
 }
 catch {
     [Console]::Error.WriteLine($_.Exception.Message)

@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
 Runs a hosted wake/idle-shutdown check covering complete generated cloud-agent jobs.

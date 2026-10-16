@@ -60,7 +60,9 @@ link as automatic discovery or import.
 
 ## Windows setup
 
-Install PowerShell 7, the .NET SDK selected by `global.json`, and Node.js 24 LTS.
+Install PowerShell 7.4 or later (`pwsh`), the .NET SDK selected by `global.json`,
+and Node.js 24 LTS. Windows PowerShell 5.1 is not supported; scripts enforce the
+minimum version, not a particular patch release.
 Website work also needs Python 3.13. Use the checked-in lockfiles:
 
 ```powershell

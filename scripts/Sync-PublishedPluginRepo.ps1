@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Synchronizes the published Copilot plugin repo to the canonical marketplace layout.

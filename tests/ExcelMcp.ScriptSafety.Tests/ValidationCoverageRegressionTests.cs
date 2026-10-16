@@ -50,7 +50,6 @@ public sealed class ValidationCoverageRegressionTests
     {
         var plan = Policy.Select([path]);
         Assert.False(plan.Excel);
-        Assert.False(plan.Packages);
         Assert.Equal(["Tooling"], plan.CiTestGroups);
         using var json = JsonDocument.Parse(JsonSerializer.Serialize(plan));
         Assert.Equal(AzureCases, json.RootElement.GetProperty("ToolingOnDemandFilters").GetProperty("ScriptSafety").GetString());

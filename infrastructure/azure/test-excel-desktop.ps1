@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
 Qualifies licensed Excel and saved workbook behavior in the non-admin desktop.

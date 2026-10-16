@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
 Prepares a dedicated non-admin interactive Excel desktop.
@@ -130,6 +131,7 @@ switch ($Action) {
         }
         $profilePath = Join-Path $directory 'initialize-profile.ps1'
         @'
+#Requires -Version 7.4
 $ErrorActionPreference = 'Stop'
 Set-Culture -CultureInfo 'en-US'
 Set-WinUserLanguageList -LanguageList 'en-US' -Force
@@ -140,7 +142,7 @@ $security = 'HKCU:\SOFTWARE\Microsoft\Office\16.0\Excel\Security'
 New-Item -Path $security -Force | Out-Null
 New-ItemProperty -Path $security -Name AccessVBOM -Value 1 -PropertyType DWord -Force | Out-Null
 '@ | Set-Content -LiteralPath $profilePath -Encoding UTF8
-        $taskAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument (
+        $taskAction = New-ScheduledTaskAction -Execute (Join-Path $env:ProgramFiles 'PowerShell\7\pwsh.exe') -Argument (
             "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$profilePath`""
         )
         $principal = New-ScheduledTaskPrincipal -UserId $account -LogonType Interactive -RunLevel Limited

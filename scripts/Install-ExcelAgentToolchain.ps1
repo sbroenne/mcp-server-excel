@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
 Installs the repository's development tools on the dedicated Azure VM.
@@ -27,7 +28,7 @@ function Invoke-ToolchainGuest {
     param([string]$Script)
     $path = Join-Path ([IO.Path]::GetTempPath()) "excel-toolchain-$([Guid]::NewGuid().ToString('N')).ps1"
     try {
-        ("`$ErrorActionPreference = 'Stop'`n" + $Script) | Set-Content -LiteralPath $path -Encoding UTF8
+        ConvertTo-RunnerPowerShell7Command -Script $Script | Set-Content -LiteralPath $path -Encoding UTF8
         $response = Invoke-RunnerAzure @(
             'vm', 'run-command', 'invoke', '--resource-group', $ResourceGroup,
             '--name', $VmName, '--command-id', 'RunPowerShellScript', '--scripts', "@$path"
@@ -102,6 +103,7 @@ if ((Get-FileHash -LiteralPath (Join-Path `$directory '$name') -Algorithm SHA256
         $state.tools.sdk -notmatch '^\d+\.\d+\.\d+$' -or
         $state.tools.git -notmatch '^git version \d+\.\d+\.\d+\.windows\.\d+$' -or
         $state.tools.powershell -notmatch '^7\.\d+\.\d+$' -or
+        [version]$state.tools.powershell -lt [version]'7.4' -or
         $state.tools.node -notmatch '^v24\.\d+\.\d+$' -or
         [version]$state.tools.node.Substring(1) -lt [version]'24.11.0' -or
         $state.tools.python -notmatch '^Python 3\.13\.\d+$' -or

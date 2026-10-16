@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Restores durable aggregate star history from the GitHub Contents API.

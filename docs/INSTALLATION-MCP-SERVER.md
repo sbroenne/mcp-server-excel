@@ -11,7 +11,7 @@ Installation instructions for the ExcelMcp **MCP Server** — the entry point fo
 
 | Installation method | Additional requirements |
 |---|---|
-| VS Code extension | VS Code with GitHub Copilot; no separate Node.js or .NET |
+| VS Code extension | VS Code with GitHub Copilot and PowerShell 7.4+ (`pwsh` on PATH); no separate Node.js or .NET |
 | Claude Desktop MCPB | Claude Desktop and Node.js 18+ with npm/npx available on PATH; no separate .NET |
 | npm / Copilot plugin | Node.js 18+ with npm/npx; no separate .NET |
 | Standalone ZIP | No Node.js or .NET |
@@ -53,6 +53,10 @@ Use this order to avoid setup confusion:
 3. **Optional:** also install the [CLI](INSTALLATION-CLI.md) (`excelcli`) if you prefer terminal commands; it offers the same features and usually uses fewer AI tokens
 
 ### VS Code Extension (Easiest - One-Click Setup)
+
+Install PowerShell 7.4 or later first if `pwsh` is not available:
+`winget install --id Microsoft.PowerShell --source winget`.
+Restart VS Code after installation. Windows PowerShell 5.1 is not supported.
 
 1. **Install the Extension**
    - Open VS Code

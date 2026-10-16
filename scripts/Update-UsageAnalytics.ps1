@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Queries privacy-safe aggregate telemetry for the public usage analytics report.

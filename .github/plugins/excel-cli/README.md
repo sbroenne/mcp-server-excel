@@ -12,6 +12,8 @@ and workbook features.
 - GitHub Copilot CLI or Claude Code
 - Windows with desktop Excel 2016 or later
 - Node.js 18 or later with `npx`
+- PowerShell 7.4 or later (`pwsh`) when using `bin\start-cli.ps1`;
+  Windows PowerShell 5.1 is not supported
 
 ExcelMcp runs in an interactive desktop session.
 

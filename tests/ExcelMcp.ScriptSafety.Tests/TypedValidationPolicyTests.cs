@@ -43,8 +43,6 @@ public sealed class TypedValidationPolicyTests
         Assert.All(plan.ExcelSelections, selection => Assert.True(selection.Project is "Core" or "Service"));
         Assert.Contains(plan.ExcelSelections, selection => selection.Area == area && selection.Filter.Contains(area, StringComparison.Ordinal));
         Assert.False(plan.FullE2E);
-        Assert.False(plan.NpmTests);
-        Assert.True(plan.Cli && plan.Mcp && plan.Extension);
     }
 
     [Fact]
@@ -55,7 +53,6 @@ public sealed class TypedValidationPolicyTests
         Assert.Equal(["CLI"], plan.ProcessProjects);
         Assert.Contains(plan.ExcelSelections, selection => selection.Project == "CLI");
         Assert.All(plan.ExcelSelections, selection => Assert.Equal("CLI", selection.Project));
-        Assert.True(plan.Cli);
         Assert.False(plan.FullE2E);
     }
 
@@ -78,7 +75,6 @@ public sealed class TypedValidationPolicyTests
 
         Assert.Contains(plan.FastFilters.Values.Concat(plan.ProcessFilters.Values),
             filter => filter.Contains("BatchCommandTests.", StringComparison.Ordinal));
-        Assert.True(plan.Cli);
         Assert.False(plan.Excel);
         Assert.False(plan.FullE2E);
         Assert.False(plan.FullSolutionBuild);
@@ -113,7 +109,6 @@ public sealed class TypedValidationPolicyTests
         Assert.True(plan.Docs);
         Assert.False(plan.Build);
         Assert.False(plan.Excel);
-        Assert.False(plan.Packages);
         Assert.Empty(plan.CiTestGroups);
     }
 
@@ -132,22 +127,11 @@ public sealed class TypedValidationPolicyTests
     [Fact]
     public void MixedChanges_AreAUnionRegardlessOfPathOrder()
     {
-        var paths = new[] { "npm-packages/excelcli/package.json", "npm-packages/mcp-server-excel/package.json" };
+        var paths = new[] { "src/ExcelMcp.Core/Commands/Range/RangeCommands.Values.cs", "src/ExcelMcp.Core/Commands/PowerQuery/PowerQueryCommands.Read.cs" };
         var plan = Policy.Select(paths);
         var reversed = Policy.Select(paths.Reverse());
-        Assert.True(plan.Cli && plan.Mcp && plan.NpmTests);
+        Assert.NotEmpty(plan.FastFilters);
         Assert.Equal(JsonSerializer.Serialize(plan), JsonSerializer.Serialize(reversed));
-    }
-
-    [Theory]
-    [InlineData("src/ExcelMcp.Core/Commands/Range/RangeCommands.Values.cs", false)]
-    [InlineData("vscode-extension/src/extension.ts", true)]
-    public void ExtensionSourceTests_RunOnlyWhenTheirInputsChanged(string path, bool selected)
-    {
-        var plan = Policy.Select([path]);
-        using var document = JsonDocument.Parse(JsonSerializer.Serialize(plan));
-        Assert.Equal(selected, document.RootElement.GetProperty("ExtensionTests").GetBoolean());
-        Assert.True(plan.Extension);
     }
 
     [Theory]
@@ -173,7 +157,7 @@ public sealed class TypedValidationPolicyTests
         Assert.Contains("EntryPointTelemetryTests.", plan.FastFilters["CLI"], StringComparison.Ordinal);
         Assert.Contains("TelemetryUserIdentityTests.", plan.FastFilters["McpServer"], StringComparison.Ordinal);
         Assert.Contains("TelemetryTests.", plan.FastFilters["McpServer"], StringComparison.Ordinal);
-        Assert.True(plan.Cli && plan.Mcp && plan.Extension && plan.Build);
+        Assert.True(plan.Build);
         Assert.False(plan.Excel);
         Assert.False(plan.FullE2E);
     }
@@ -213,7 +197,6 @@ public sealed class TypedValidationPolicyTests
         Assert.Contains("SkillGeneration", plan.ToolingProjects);
         Assert.Contains("TypedProcessRunnerTests", plan.ToolingFilters["ScriptSafety"], StringComparison.Ordinal);
         Assert.Contains("TypedPackageOperationsTests", plan.ToolingFilters["Packaging"], StringComparison.Ordinal);
-        Assert.True(plan.Cli && plan.Mcp && plan.Extension && plan.Mcpb && plan.Plugins);
         Assert.False(plan.Excel);
         Assert.False(plan.FullE2E);
     }
@@ -222,7 +205,6 @@ public sealed class TypedValidationPolicyTests
     public void MetadataBundleReadme_SelectsMcpbPackagingInsteadOfGenericDocumentation()
     {
         var plan = Policy.Select(["mcpb/README.md"]);
-        Assert.True(plan.Mcpb);
         Assert.False(plan.Docs);
         Assert.Contains("McpbPackagingScriptTests", plan.ToolingFilters["Packaging"], StringComparison.Ordinal);
     }

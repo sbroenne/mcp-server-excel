@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 [CmdletBinding()]
 param(
     [string]$BaseRef,
@@ -40,11 +41,8 @@ if ($env:GITHUB_OUTPUT) {
         "full_solution_build_group=$($plan.FullSolutionBuildGroup)"
         "tests=$($plan.CiTestGroups.Count -gt 0)".ToLowerInvariant()
         "build_only=$($plan.BuildOnly)".ToLowerInvariant()
-        "packages=$($plan.Packages)".ToLowerInvariant()
-        "package_build=$($plan.PackageBuild)".ToLowerInvariant()
         "codeql_matrix=$codeQlMatrix"
         "codeql=$($plan.CodeQlLanguages.Count -gt 0)".ToLowerInvariant()
-        "npm=$($plan.NpmTests)".ToLowerInvariant()
         "docs=$($plan.Docs)".ToLowerInvariant()
     ) | Add-Content -LiteralPath $env:GITHUB_OUTPUT -Encoding utf8
 }

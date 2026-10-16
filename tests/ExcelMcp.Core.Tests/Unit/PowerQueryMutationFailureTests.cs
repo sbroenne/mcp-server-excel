@@ -149,6 +149,11 @@ public sealed class PowerQueryMutationFailureTests
         Assert.False(PowerQueryCommands.CanReportMutationFailure(cause));
         Assert.False(PowerQueryCommands.CanReportMutationFailure(
             new InvalidOperationException("Outer context", cause)));
+        Assert.False(PowerQueryCommands.CanReportMutationFailure(
+            new AggregateException(new InvalidOperationException("Mutation failed"), cause)));
+        Assert.False(PowerQueryCommands.CanReportMutationFailure(
+            new InvalidOperationException("Outer context",
+                new AggregateException(new InvalidOperationException("Mutation failed"), cause))));
     }
 
     [Theory]

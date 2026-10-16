@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 [CmdletBinding()]
 param(
     [switch]$Local,
@@ -6,7 +7,7 @@ param(
     [switch]$SkillTests,
     [switch]$PackagingTests,
     [string[]]$ChangedPaths = @(),
-    [ValidateSet('Fast', 'Process', 'Tooling')][string]$Group,
+    [ValidateSet('Commit', 'Fast', 'Process', 'Tooling')][string]$Group,
     [string]$PlanFile,
     [string]$ResultsDirectory
 )

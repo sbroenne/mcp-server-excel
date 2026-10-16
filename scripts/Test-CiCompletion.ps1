@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$Detection,
@@ -6,8 +7,6 @@ param(
     [Parameter(Mandatory)][string]$Npm,
     [Parameter(Mandatory)][string]$BuildOnly,
     [Parameter(Mandatory)][string]$SelectedTests,
-    [Parameter(Mandatory)][string]$SelectedPackages,
-    [Parameter(Mandatory)][string]$SelectedNpm,
     [Parameter(Mandatory)][string]$SelectedBuildOnly
 )
 $ErrorActionPreference = 'Stop'
@@ -16,8 +15,8 @@ Invoke-ExcelMcpBuild -Arguments @('complete') -OptionsParameter '--completion-op
     Detection = $Detection
     Checks = @(
         @{ Name = 'tests'; Selected = $SelectedTests; Result = $Tests },
-        @{ Name = 'packages'; Selected = $SelectedPackages; Result = $Packages },
-        @{ Name = 'npm'; Selected = $SelectedNpm; Result = $Npm },
+        @{ Name = 'packages'; Selected = 'true'; Result = $Packages },
+        @{ Name = 'npm'; Selected = 'true'; Result = $Npm },
         @{ Name = 'build-only'; Selected = $SelectedBuildOnly; Result = $BuildOnly }
     )
 }

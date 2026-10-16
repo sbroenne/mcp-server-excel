@@ -42,7 +42,7 @@ public sealed class TypedProcessRunnerTests
         try
         {
             var runner = new ProcessRunner(TypedValidationPolicyTests.Root);
-            var script = $"$p=Get-Process -Id $PID; $child=Start-Process pwsh -ArgumentList '-NoProfile','-Command','Start-Sleep -Seconds 60' -PassThru; @($p,$child) | ForEach-Object {{ \"$($_.Id),$($_.StartTime.ToUniversalTime().Ticks)\" }} | Set-Content -LiteralPath '{file.Replace("'", "''", StringComparison.Ordinal)}'; Start-Sleep -Seconds 60";
+            var script = $"$p=Get-Process -Id $PID; $child=Start-Process pwsh -NoNewWindow -ArgumentList '-NoProfile','-Command','Start-Sleep -Seconds 60' -PassThru; @($p,$child) | ForEach-Object {{ \"$($_.Id),$($_.StartTime.ToUniversalTime().Ticks)\" }} | Set-Content -LiteralPath '{file.Replace("'", "''", StringComparison.Ordinal)}'; Start-Sleep -Seconds 60";
             await Assert.ThrowsAsync<TimeoutException>(() =>
                 runner.RunAsync("pwsh", ["-NoProfile", "-Command", script], TimeSpan.FromSeconds(10)));
             Assert.True(File.Exists(file), "The native child did not reach its startup marker.");
@@ -65,7 +65,66 @@ public sealed class TypedProcessRunnerTests
                 }
             }
         }
-        finally { File.Delete(file); }
+        finally
+        {
+            try { StopOwnedProcesses(file); }
+            finally { File.Delete(file); }
+        }
+    }
+
+    [Fact]
+    public async Task HardDeadline_AlsoBoundsOutputHeldOpenAfterTheParentExits()
+    {
+        var file = Path.Combine(Path.GetTempPath(), $"ExcelMcp.OutputDeadline.{Guid.NewGuid():N}.txt");
+        Task<ProcessResult>? operation = null;
+        try
+        {
+            var script = $"$p=Get-Process -Id $PID; $child=Start-Process pwsh -NoNewWindow -ArgumentList '-NoProfile','-Command','Start-Sleep -Seconds 60' -PassThru; @($p,$child) | ForEach-Object {{ \"$($_.Id),$($_.StartTime.ToUniversalTime().Ticks)\" }} | Set-Content -LiteralPath '{file.Replace("'", "''", StringComparison.Ordinal)}'; [Console]::Write('parent-stdout'); [Console]::Error.Write('parent-stderr'); exit 0";
+            operation = new ProcessRunner(TypedValidationPolicyTests.Root).RunAsync(
+                "pwsh", ["-NoProfile", "-Command", script], TimeSpan.FromSeconds(3));
+
+            var error = await Assert.ThrowsAsync<TimeoutException>(() => operation.WaitAsync(TimeSpan.FromSeconds(8)));
+
+            Assert.Contains("hard deadline", error.Message, StringComparison.Ordinal);
+            Assert.Contains("parent-stdout", error.Message, StringComparison.Ordinal);
+            Assert.Contains("parent-stderr", error.Message, StringComparison.Ordinal);
+            Assert.Equal(2, File.ReadAllLines(file).Length);
+            var parent = File.ReadAllLines(file)[0].Split(',');
+            try
+            {
+                using var process = Process.GetProcessById(int.Parse(parent[0], CultureInfo.InvariantCulture));
+                Assert.True(process.HasExited || process.StartTime.ToUniversalTime().Ticks != long.Parse(parent[1], CultureInfo.InvariantCulture));
+            }
+            catch (ArgumentException) { }
+        }
+        finally
+        {
+            try
+            {
+                StopOwnedProcesses(file);
+                if (operation is { IsCompleted: false }) { await operation.WaitAsync(TimeSpan.FromSeconds(10)); }
+            }
+            finally { File.Delete(file); }
+        }
+    }
+
+    private static void StopOwnedProcesses(string file)
+    {
+        if (!File.Exists(file)) { return; }
+        foreach (var row in File.ReadAllLines(file))
+        {
+            var identity = row.Split(',');
+            Process process;
+            try { process = Process.GetProcessById(int.Parse(identity[0], CultureInfo.InvariantCulture)); }
+            catch (ArgumentException) { continue; }
+            using (process)
+            {
+                _ = process.Handle;
+                if (process.HasExited || process.StartTime.ToUniversalTime().Ticks != long.Parse(identity[1], CultureInfo.InvariantCulture)) { continue; }
+                process.Kill(entireProcessTree: true);
+                Assert.True(process.WaitForExit(10_000), "An exact owned process survived test cleanup.");
+            }
+        }
     }
 
     [Theory]
@@ -113,7 +172,7 @@ public sealed class TypedProcessRunnerTests
                 using (retained)
                 {
                     if (!retained.HasExited) { retained.Kill(entireProcessTree: true); }
-                    await retained.WaitForExitAsync();
+                    Assert.True(retained.WaitForExit(10_000), "The exact retained process survived test cleanup.");
                 }
             }
         }

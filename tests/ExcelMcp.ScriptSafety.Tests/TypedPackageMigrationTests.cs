@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Sbroenne.ExcelMcp.Build;
 using Xunit;
 
@@ -7,6 +8,13 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 [Trait("Feature", "PreCommit")]
 public sealed class TypedPackageMigrationTests
 {
+    [Fact]
+    public void PackageOptions_RejectUnknownFields()
+    {
+        Assert.Throws<JsonException>(() =>
+            JsonSerializer.Deserialize<PackageOptions>("""{"UnexpectedOption":"value"}"""));
+    }
+
     [Theory]
     [InlineData("Build-AgentSkills.ps1")]
     [InlineData("Build-Plugins.ps1")]
@@ -34,6 +42,5 @@ public sealed class TypedPackageMigrationTests
         Assert.Contains("SkillGeneration", plan.ToolingProjects);
         Assert.False(plan.Excel);
         Assert.False(plan.FullE2E);
-        Assert.True(plan.Cli && plan.Mcp && plan.Extension && plan.Mcpb && plan.Plugins);
     }
 }

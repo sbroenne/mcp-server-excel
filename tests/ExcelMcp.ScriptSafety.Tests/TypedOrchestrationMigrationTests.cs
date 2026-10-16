@@ -10,6 +10,54 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 public sealed class TypedOrchestrationMigrationTests
 {
     [Fact]
+    public void CiPackages_AlwaysRunTheNormalPackageChecks()
+    {
+        var workflow = File.ReadAllText(Path.Combine(TypedValidationPolicyTests.Root, ".github", "workflows", "ci.yml"));
+        var job = System.Text.RegularExpressions.Regex.Match(workflow, @"(?ms)^  packages:\r?\n.*?(?=^  \S|\z)").Value;
+        Assert.NotEmpty(job);
+        Assert.DoesNotContain("if:", job, StringComparison.Ordinal);
+        Assert.DoesNotContain("ci-plan.json", job, StringComparison.Ordinal);
+        Assert.Contains("./scripts/Build-ReleasePackages.ps1 -SkillsDirectory artifacts/generated-skills", job, StringComparison.Ordinal);
+        Assert.DoesNotContain("-Components", job, StringComparison.Ordinal);
+        Assert.DoesNotContain("SELECTED_PACKAGES", workflow, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("true", "success", true)]
+    [InlineData("false", "skipped", true)]
+    [InlineData("true", "skipped", false)]
+    [InlineData("true", "failure", false)]
+    [InlineData("true", "cancelled", false)]
+    [InlineData("false", "success", false)]
+    public void CiCompletion_RequiresTheExactBuildOnlyResult(string selected, string result, bool succeeds)
+    {
+        var error = Record.Exception(() => CiCompletion.Verify(new CiCompletionOptions
+        {
+            Detection = "success",
+            Checks = [
+                new("tests", "false", "skipped"), new("packages", "false", "skipped"),
+                new("npm", "false", "skipped"), new("build-only", selected, result)
+            ]
+        }));
+        if (succeeds) { Assert.Null(error); }
+        else { Assert.IsType<InvalidOperationException>(error); }
+    }
+
+    [Fact]
+    public void CiBuildOnlyJob_BuildsTheSavedPlanAndReportsToTheRequiredGate()
+    {
+        var workflow = File.ReadAllText(Path.Combine(TypedValidationPolicyTests.Root, ".github", "workflows", "ci.yml"));
+        var job = System.Text.RegularExpressions.Regex.Match(workflow, @"(?ms)^  build-only:\r?\n.*?(?=^  \S|\z)").Value;
+        Assert.NotEmpty(job);
+        Assert.Contains("if: needs.changes.outputs.build_only == 'true'", job, StringComparison.Ordinal);
+        Assert.Contains("./build.ps1 build --plan artifacts/ci-plan.json", job, StringComparison.Ordinal);
+        Assert.DoesNotContain("Invoke-ExcelFreeTests", job, StringComparison.Ordinal);
+        Assert.Contains("needs: [changes, tests, build-only, packages, npm]", workflow, StringComparison.Ordinal);
+        Assert.Contains("BUILD_ONLY: ${{ needs.build-only.result }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("-SelectedBuildOnly $env:SELECTED_BUILD_ONLY", workflow, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task CompleteCiBuild_RestoresAndBuildsSolutionInOnlyOneSelectedGroup()
     {
         var plan = new ValidationPolicy(TypedValidationPolicyTests.Root).Select([], full: true);
@@ -31,6 +79,11 @@ public sealed class TypedOrchestrationMigrationTests
             Assert.Contains(runner.SelectedProjects.Values.SelectMany(projects => projects),
                 project => project.EndsWith("ExcelMcp.ScriptSafety.Tests.csproj", StringComparison.Ordinal));
         }
+        Assert.All(runner.Commands.Where(command => command[0] == "build"), command =>
+        {
+            Assert.DoesNotContain("--no-incremental", command);
+            Assert.DoesNotContain("--disable-build-servers", command);
+        });
     }
 
     [Theory]

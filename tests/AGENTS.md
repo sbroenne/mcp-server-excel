@@ -11,7 +11,10 @@ behavior and dependencies, and retain the selected results. Use
 build; `scripts\Test-E2E.ps1` runs complete CLI/MCP acceptance. These runners
 set hard execution deadlines; returning control while a test keeps running
 is not a timeout.
-PR and commit checks share the typed changed-area policy. A test-only change
+PR and commit checks share the typed changed-area policy. The commit hook runs
+the selected Release build and quick CLI/MCP/Core/Service tests (`Commit`
+projection of `Fast`) only; run selected slower checks
+before PR delivery, not on every commit. A test-only change
 selects its class and actual helper consumers; shared changes include affected
 dependencies. Empty or unknown selections must not be presented as passed tests.
 Session/batch infrastructure changes also require relevant ComInterop OnDemand
