@@ -7,8 +7,6 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 [Trait("Feature", "PreCommit")]
 public sealed class ValidationSelectionTests
 {
-    private static readonly Sbroenne.ExcelMcp.Build.ValidationPolicy Policy = new(TypedValidationPolicyTests.Root);
-
     [Theory]
     [InlineData(".github/dependabot.yml", "", "")]
     [InlineData("README.md", "Tooling", "")]
@@ -32,22 +30,25 @@ public sealed class ValidationSelectionTests
     [InlineData("scripts/check-doc-counts.ps1", "Tooling", "")]
     [InlineData("mcpb/README.md", "Tooling", "")]
     [InlineData("vscode-extension/package-lock.json", "", "")]
-    [InlineData("src/ExcelMcp.CLI/Program.cs", "Fast,Process", "CLI adapter consumers")]
+    [InlineData("src/ExcelMcp.CLI/Program.cs", "Fast,Process", "All")]
     [InlineData("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", "Fast", "Range")]
     [InlineData("src/ExcelMcp.Core/Commands/PowerQuery/PowerQueryCommands.cs", "Fast", "PowerQuery")]
-    [InlineData("src/ExcelMcp.Core/Commands/PythonInExcel/PythonInExcelCommands.cs", "Fast", "")]
+    [InlineData("src/ExcelMcp.Core/Commands/PythonInExcel/PythonInExcelCommands.cs", "Fast", "PythonInExcel")]
     [InlineData("src/ExcelMcp.Core/Commands/Calculation/CalculationModeCommands.cs", "Fast", "Calculation")]
     [InlineData("src/ExcelMcp.Core/Commands/Table/TableCommands.cs", "Fast", "Table")]
     [InlineData("src/ExcelMcp.Core/Commands/PivotTable/PivotTableCommands.cs", "Fast", "PivotTable")]
     [InlineData("src/ExcelMcp.Core/Commands/DataModel/DataModelCommands.cs", "Fast", "DataModel,DataModel dependencies")]
     [InlineData("scripts/PluginContent.mjs", "Tooling", "")]
     [InlineData("tests/ExcelMcp.Packaging.Tests/PluginPublicationStaging.test.mjs", "Tooling", "")]
-    [InlineData("tests/ExcelMcp.CLI.Tests/Unit/ActionValidatorTests.cs", "Fast", "")]
-    public void Paths_SelectExactGroups(string path, string ciGroups, string excelGroups)
+    [InlineData("tests/ExcelMcp.CLI.Tests/Unit/ActionValidatorTests.cs", "Fast,Process", "")]
+    public async Task Paths_SelectExactGroups(string path, string ciGroups, string excelGroups)
     {
-        var plan = Policy.Select([path]);
-        Assert.Equal(ciGroups, string.Join(',', plan.CiTestGroups));
-        Assert.Equal(excelGroups, string.Join(',', plan.ExcelGroups));
+        var run = await RunAsync($$"""
+            $plan = Get-ValidationPlan -Paths '{{path}}'
+            if (($plan.CiTestGroups -join ',') -cne '{{ciGroups}}') { throw "Wrong CI groups: $($plan.CiTestGroups)" }
+            if (($plan.ExcelGroups -join ',') -cne '{{excelGroups}}') { throw "Wrong Excel groups: $($plan.ExcelGroups)" }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
     }
 
     [Theory]
@@ -57,28 +58,27 @@ public sealed class ValidationSelectionTests
     [InlineData("src/ExcelMcp.CLI/Program.cs", "")]
     [InlineData("tests/ExcelMcp.CLI.Tests/Unit/ActionValidatorTests.cs", "")]
     [InlineData("README.md", "")]
-    public void DocumentationChecks_RunInExactlyOneSelectedGroup(string path, string group)
+    public async Task DocumentationChecks_RunInExactlyOneSelectedGroup(string path, string group)
     {
-        var plan = Policy.Select([path]);
-        Assert.Equal(group, plan.DocumentationChecksGroup);
-        if (group.Length > 0) { Assert.Contains(group, plan.CiTestGroups); }
-        if (group == "Tooling") { Assert.Equal("FullyQualifiedName~DocumentationCounts", plan.ToolingFilters["Packaging"]); }
+        var run = await RunAsync($$"""
+            $plan = Get-ValidationPlan -Paths '{{path}}'
+            if ($plan.DocumentationChecksGroup -cne '{{group}}') { throw 'Wrong documentation check group.' }
+            if ('{{group}}' -and '{{group}}' -notin $plan.CiTestGroups) { throw 'Missing documentation owner.' }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
     }
 
     [Theory]
     [InlineData("scripts\\Invoke-CopilotSetupNpm.ps1")]
     [InlineData("scripts\\Install-CopilotPonytailReview.ps1")]
     [InlineData(".github\\workflows\\copilot-setup-steps.yml")]
-    public void CopilotSetup_DoesNotSelectAutomatedValidation(string path)
+    public async Task CopilotSetup_DoesNotSelectAutomatedValidation(string path)
     {
-        var plan = Policy.Select([path]);
-        Assert.False(plan.Build);
-        Assert.False(plan.HookTests);
-        Assert.Empty(plan.CiTestGroups);
-        Assert.False(plan.Excel);
-        Assert.Empty(plan.ExcelGroups);
-        Assert.Empty(plan.FastProjects);
-        Assert.Empty(plan.ProcessProjects);
+        var run = await RunAsync($$"""
+            $plan = Get-ValidationPlan -Paths '{{path}}'
+            if ($plan.Build -or $plan.Excel -or $plan.HookTests -or $plan.CiTestGroups.Count) { throw 'Operational setup selected automated tests.' }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
     }
 
     [Fact]
@@ -141,11 +141,7 @@ public sealed class ValidationSelectionTests
         Assert.NotNull(root);
         var script = Path.Combine(root.FullName, "scripts", "Get-ValidationPlan.ps1")
             .Replace("'", "''", StringComparison.Ordinal);
-        var environment = new Dictionary<string, string>
-        {
-            ["EXCELMCP_BUILD_ROOT"] = root.FullName,
-            ["EXCELMCP_BUILD_DLL"] = typeof(Sbroenne.ExcelMcp.Build.ValidationPolicy).Assembly.Location
-        };
+        var environment = new Dictionary<string, string>();
         if (environmentVariables is not null)
         {
             foreach (var (name, value) in environmentVariables)
@@ -153,8 +149,8 @@ public sealed class ValidationSelectionTests
                 if (!name.StartsWith("GIT_", StringComparison.OrdinalIgnoreCase)) { environment[name] = value; }
             }
         }
-        var result = await new Sbroenne.ExcelMcp.Build.ProcessRunner(root.FullName).RunAsync(
-            "pwsh", ["-NoProfile", "-Command", $"$ErrorActionPreference='Stop'; . '{script}'; {command}"],
+        var result = await new ScriptTestProcess(root.FullName).RunAsync(
+            "pwsh", ["-NoProfile", "-Command", $"$ErrorActionPreference='Stop'; . '{script}'; {command}; exit 0"],
             TimeSpan.FromSeconds(120), environment);
         return (result.ExitCode, result.Output + result.Error);
     }

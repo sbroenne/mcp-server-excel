@@ -126,10 +126,12 @@ manually (preview first). See [Awesome Copilot setup](awesome-copilot-update-set
 
 ## Manual repair
 
-Current skill and plugin build commands forward to the internal SDK-native
-preparation tool. `EXCELMCP_BUILD_ROOT` can locate current tooling while an
-explicit source checkout remains the package input; it must not replace the
-requested tagged content. Preparation and publication remain separate.
+Current skill and plugin build commands run directly in PowerShell, with no
+C# packaging bootstrap. They use the source checkout containing the invoked
+script. Exact-release repair still consumes the verified prepared release
+payload or the explicitly requested tagged source, not current untagged content.
+Preparation and publication remain separate. PR/release jobs validate generated
+skills early; publication also validates downloaded or recovered skills.
 
 With publication authorization, rerun an existing release:
 

@@ -1,7 +1,6 @@
 using System.Text.RegularExpressions;
 using System.Xml.Linq;
 using Microsoft.CodeAnalysis;
-using Sbroenne.ExcelMcp.Build;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
@@ -92,7 +91,7 @@ public sealed class BannedApiAnalyzerTests
                 namespace System.IO.Packaging { public class Package {} }
                 namespace Microsoft.Office.Interop.Excel { public interface _Workbook { void RefreshAll(); } }
                 """);
-            var result = await new ProcessRunner(root).RunAsync("dotnet",
+            var result = await new ScriptTestProcess(root).RunAsync("dotnet",
                 ["build", project, "-c", "Release", "--disable-build-servers", "--nologo", "--verbosity", "minimal"],
                 TimeSpan.FromMinutes(3));
             var output = result.Output + result.Error;

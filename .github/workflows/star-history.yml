@@ -23,6 +23,7 @@ on:
       - 'scripts/Restore-StarHistory.ps1'
       - 'scripts/Persist-StarHistory.ps1'
       - 'scripts/Test-StarHistory.ps1'
+      - 'scripts/AnalyticsStorage.ps1'
       - '.github/workflows/star-history.yml'
   pull_request:
     paths:
@@ -30,6 +31,7 @@ on:
       - 'scripts/Restore-StarHistory.ps1'
       - 'scripts/Persist-StarHistory.ps1'
       - 'scripts/Test-StarHistory.ps1'
+      - 'scripts/AnalyticsStorage.ps1'
       - '.github/workflows/star-history.yml'
   workflow_dispatch:
 

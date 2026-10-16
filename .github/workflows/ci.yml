@@ -64,6 +64,11 @@ jobs:
       - name: Check sample data and build scripts
         run: python -m unittest discover -s samples/world-bank-dashboard -p "test_*.py"
 
+      # This source check does not need a finished site.
+      - name: Verify deploy path filter covers every mirrored source
+        working-directory: gh-pages
+        run: python check_deploy_paths.py
+
       - name: Build with MkDocs
         working-directory: gh-pages
         run: mkdocs build --strict --clean
@@ -71,13 +76,6 @@ jobs:
       - name: Audit built site
         working-directory: gh-pages
         run: python audit_site.py
-
-      # Guards against the deploy workflow's hand-written paths: filter drifting
-      # from the canonical sources listed in sitegen/sources.py, which would publish a
-      # silently stale site until the nightly cron caught up.
-      - name: Verify deploy path filter covers every mirrored source
-        working-directory: gh-pages
-        run: python check_deploy_paths.py
 
   changes:
     name: Select validation
@@ -95,10 +93,6 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-      - name: Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
-        with:
-          global-json-file: global.json
       - name: Select changed inputs
         id: select
         shell: pwsh
@@ -229,6 +223,19 @@ jobs:
       - name: Generate complete skill inputs
         shell: pwsh
         run: ./scripts/Build-AgentSkills.ps1 -GenerateOnly
+      - name: Setup Python for skill validation
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.13'
+      - name: Install pinned Agent Skills validator
+        run: python -m pip install "git+https://github.com/agentskills/agentskills.git@69ef37e9424c0a7ea9dd2293b559e43ec8176379#subdirectory=skills-ref"
+      - name: Validate generated skills before packaging
+        shell: pwsh
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          foreach ($name in @('excel-cli', 'excel-cli-report-formatting', 'excel-mcp-report-formatting')) {
+            skills-ref validate "artifacts/generated-skills/$name"
+          }
       - name: Build and verify distributable packages
         shell: pwsh
         run: ./scripts/Build-ReleasePackages.ps1 -SkillsDirectory artifacts/generated-skills
@@ -265,10 +272,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - name: Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
-        with:
-          global-json-file: global.json
       - name: Verify every selected result
         shell: pwsh
         env:

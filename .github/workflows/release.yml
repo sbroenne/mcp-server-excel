@@ -118,6 +118,23 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.13'
+      - name: Install pinned Agent Skills validator
+        run: python -m pip install "git+https://github.com/agentskills/agentskills.git@69ef37e9424c0a7ea9dd2293b559e43ec8176379#subdirectory=skills-ref"
+      - name: Prepare and validate exact release skills
+        shell: pwsh
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          $PSNativeCommandUseErrorActionPreference = $true
+          git apply --check prepared-release/release-metadata.patch
+          git apply prepared-release/release-metadata.patch
+          .\scripts\Build-AgentSkills.ps1 -GenerateOnly -Version $env:VERSION
+          foreach ($name in @('excel-cli', 'excel-cli-report-formatting', 'excel-mcp-report-formatting')) {
+            skills-ref validate "artifacts/generated-skills/$name"
+          }
       - name: Build exact prepared source and all deliverables
         shell: pwsh
         env:
@@ -125,11 +142,9 @@ jobs:
           APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
-          git apply --check prepared-release/release-metadata.patch
-          git apply prepared-release/release-metadata.patch
           dotnet restore Sbroenne.ExcelMcp.sln
           dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore
-          .\scripts\Build-ReleasePackages.ps1 -Version $env:VERSION -OutputDirectory artifacts\release
+          .\scripts\Build-ReleasePackages.ps1 -Version $env:VERSION -OutputDirectory artifacts\release -SkillsDirectory artifacts\generated-skills
       - name: Upload verified packages
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:

@@ -6,7 +6,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\tools\ExcelMcp.Build\ExcelMcp.Build.csproj" />
     <Compile Include="..\Shared\TestClassificationArchitectureTests.cs" Link="Helpers\TestClassificationArchitectureTests.cs" />
     <Compile Include="..\Shared\GeneratedAssetsFixture.cs" Link="Helpers\GeneratedAssetsFixture.cs" />
     <Compile Include="..\Shared\PackagingScriptTestHelper.cs" Link="Helpers\PackagingScriptTestHelper.cs" />

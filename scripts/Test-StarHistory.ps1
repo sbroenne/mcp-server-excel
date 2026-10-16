@@ -356,6 +356,52 @@ date,count
     Assert-True -Condition ($persistedText -eq [IO.File]::ReadAllText($historyPath)) `
         -Message "The missing aggregate create did not persist the current validated content."
     $testsRun++
+
+    $unchangedContent = [Convert]::ToBase64String([IO.File]::ReadAllBytes($historyPath))
+    $unchangedInvoker = {
+        param([string[]]$Arguments)
+        $request = $Arguments -join ' '
+        if ($request -like 'api */git/ref/heads/*') { return [pscustomobject]@{ ExitCode = 0; Output = @('{}') } }
+        if ($Arguments[1] -like 'repos/*/contents/*') {
+            return [pscustomobject]@{ ExitCode = 0; Output = @((@{ content = $unchangedContent; sha = 'same-sha' } | ConvertTo-Json -Compress)) }
+        }
+        throw "Unchanged content must not write: $request"
+    }
+    & $persistScriptPath -Repository 'owner/repository' -Branch 'star-history-data' -HistoryPath $historyPath `
+        -RemotePath '.github/star-history.csv' -CommitSha ('a' * 40) -TempPath $testRoot -ApiInvoker $unchangedInvoker
+    Assert-True (@(Get-ChildItem $testRoot -Filter 'star-history-*.json').Count -eq 0) 'Persistence left a temporary payload.'
+    $testsRun++
+
+    foreach ($failureStage in 'inspect', 'create', 'read', 'write') {
+        $failedPersistInvoker = {
+            param([string[]]$Arguments)
+            $request = $Arguments -join ' '
+            if ($request -like 'api */git/ref/heads/*') {
+                if ($failureStage -eq 'inspect') { return [pscustomobject]@{ ExitCode = 1; Output = @('HTTP 403') } }
+                if ($failureStage -eq 'create') { return [pscustomobject]@{ ExitCode = 1; Output = @('HTTP 404') } }
+                return [pscustomobject]@{ ExitCode = 0; Output = @('{}') }
+            }
+            if ($request -like 'api --silent --method POST *') { return [pscustomobject]@{ ExitCode = 1; Output = @('HTTP 403') } }
+            if ($Arguments[1] -like 'repos/*/contents/*') {
+                $code = if ($failureStage -eq 'read') { 500 } else { 404 }
+                return [pscustomobject]@{ ExitCode = 1; Output = @("HTTP $code") }
+            }
+            if ($request -like 'api --silent --method PUT *') { return [pscustomobject]@{ ExitCode = 1; Output = @('HTTP 409') } }
+            throw "Unexpected request: $request"
+        }
+        $message = switch ($failureStage) {
+            'inspect' { 'Unable to inspect' }
+            'create' { 'Unable to create' }
+            'read' { 'Unable to read' }
+            'write' { 'Unable to persist' }
+        }
+        Assert-Throws -ExpectedMessage $message -Action {
+            & $persistScriptPath -Repository 'owner/repository' -Branch 'star-history-data' -HistoryPath $historyPath `
+                -RemotePath '.github/star-history.csv' -CommitSha ('a' * 40) -TempPath $testRoot -ApiInvoker $failedPersistInvoker
+        }
+        Assert-True (@(Get-ChildItem $testRoot -Filter 'star-history-*.json').Count -eq 0) 'Failed persistence left a temporary payload.'
+        $testsRun++
+    }
 }
 finally {
     if (Test-Path $testRoot) {

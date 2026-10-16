@@ -104,11 +104,18 @@ The workflow will:
 
 The release shares prepared inputs instead of repeating builds in each package job:
 
-`Build-ReleasePackages.ps1` forwards to the internal SDK-native tool under
-`tools\ExcelMcp.Build`. The same typed preparation is available locally through
-`build.ps1 package`; it builds and verifies output but never publishes it.
-Standalone preparation commands preserve their arguments and share these
-operations rather than implementing separate packaging rules.
+`Build-ReleasePackages.ps1` directly coordinates the existing PowerShell
+package commands and standard SDK, npm, and VSIX tools. Actions and optional
+local troubleshooting use that same command; it builds and verifies output
+but never publishes it. No C# packaging bootstrap or options-JSON bridge is
+involved. Shared PowerShell selects tests and verifies their results; standard
+.NET and xUnit commands own compilation, test discovery, and execution.
+Complete local packaging is not a normal commit prerequisite.
+
+Hosted jobs validate generated skills before packaging. Extension source checks
+run before runtime publishing, and both VSIX targets reuse one compilation.
+Finished-package inspection, launcher checks, and native ARM64 checks remain
+separate requirements; source checks cannot establish their results.
 
 1. **version** → Calculates the version from the latest tag and dispatch input
 2. **prepare-release** → Compiles changesets once and uploads the exact metadata patch and notes

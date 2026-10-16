@@ -67,7 +67,6 @@ internal static class PackagingScriptTestHelper
         startInfo.ArgumentList.Add("Bypass");
         startInfo.ArgumentList.Add("-Command");
         startInfo.ArgumentList.Add(commandText);
-        startInfo.Environment["EXCELMCP_BUILD_ROOT"] = RepoRoot;
 
         using var process = new Process { StartInfo = startInfo };
         var stdout = new StringBuilder();
@@ -106,6 +105,18 @@ internal static class PackagingScriptTestHelper
         }
 
         return new ProcessResult(process.ExitCode, stdout.ToString(), stderr.ToString());
+    }
+
+    public static async Task<ProcessResult> RunPowerShellCommandAsync(string command)
+    {
+        var sandbox = CreateSandbox("package-command");
+        try
+        {
+            var script = Path.Combine(sandbox, "invoke.ps1");
+            File.WriteAllText(script, "$ErrorActionPreference = 'Stop'\n" + command);
+            return await RunPowerShellFileAsync(script, []);
+        }
+        finally { DeleteDirectoryIfExists(sandbox); }
     }
 
     public sealed record ProcessResult(int ExitCode, string Stdout, string Stderr)

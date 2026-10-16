@@ -1,12 +1,17 @@
 # Build and release constraints
 
-These rules also apply to workflows, project/SDK configuration, changesets, and
-`tools/ExcelMcp.Build`; the root task map requires them outside this directory.
+These rules also apply to workflows, project/SDK configuration and changesets;
+the root task map requires them outside this directory.
 
 - MSBuild owns .NET dependency evaluation, restore and incremental compilation.
   Do not add a project XML interpreter or source-hash freshness cache.
-- Typed build components own check selection, execution and results; scripts
-  translate arguments. Unknown paths and failed/cancelled checks must fail
+- `Get-ValidationPlan.ps1` owns explicit changed-path rules. Standard .NET and
+  xUnit commands own compilation, test discovery and execution; shared
+  PowerShell coordinates groups, deadlines and required-case evidence.
+  Do not recreate source-reference inference or a custom build executable.
+  Existing PowerShell package
+  commands own distribution preparation with standard SDK/npm/VSIX tools;
+  Actions owns authorized publication. Unknown paths and failed/cancelled checks must fail
   explicitly, never silently broaden selection or satisfy a completion gate.
 - Keep SDK setup aligned with `global.json` and preserve compiler safeguards.
   Compiler inputs, including EXL030 documentation, must reach selected builds.
