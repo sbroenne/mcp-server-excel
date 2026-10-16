@@ -33,6 +33,22 @@ public sealed class McpServerVersionCheckerTests
     }
 
     [Fact]
+    public async Task CheckForUpdateAsync_WhenCurrentVersionIsUnavailable_ReturnsNullWithoutLookup()
+    {
+        var lookupCalled = false;
+        var version = await Infrastructure.McpServerVersionChecker.CheckForUpdateAsync(
+            () => throw new InvalidOperationException("Synthetic version metadata failure."),
+            _ =>
+            {
+                lookupCalled = true;
+                return Task.FromResult<string?>("1.2.4");
+            });
+
+        Assert.Null(version);
+        Assert.False(lookupCalled);
+    }
+
+    [Fact]
     public void GetCurrentVersion_ReturnsNonEmptyString()
     {
         var version = Infrastructure.McpServerVersionChecker.GetCurrentVersion();
