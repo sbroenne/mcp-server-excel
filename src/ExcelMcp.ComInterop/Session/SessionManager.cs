@@ -839,6 +839,15 @@ public sealed class SessionManager : IDisposable
         var isVisible = IsExcelVisible(sessionId);
         var refreshState = GetRefreshState(batch);
 
+        if (refreshState == WorkbookRefreshState.NativeQueryApproval)
+        {
+            return new CloseValidationResult(true, isVisible, activeOps, "nativeQueryApproval")
+            {
+                RefreshState = refreshState,
+                BlockingMessage = ExcelBusyException.NativeQueryApprovalGuidance
+            };
+        }
+
         if (activeOps > 0 && refreshState != WorkbookRefreshState.DialogOpen)
         {
             return new CloseValidationResult(true, isVisible, activeOps,
@@ -1379,6 +1388,11 @@ public sealed record CloseValidationResult(
     internal WorkbookRefreshState RefreshState { get; init; } = WorkbookRefreshState.Unknown;
 
     /// <summary>
+    /// Actionable explanation for a machine-readable blocking reason, when available.
+    /// </summary>
+    public string? BlockingMessage { get; init; }
+
+    /// <summary>
     /// Live Excel readiness, including owned modal dialogs; unknown is not proof of readiness.
     /// </summary>
     public string ExcelState => RefreshState switch
@@ -1387,8 +1401,16 @@ public sealed record CloseValidationResult(
         WorkbookRefreshState.Refreshing => "refreshing",
         WorkbookRefreshState.Busy => "busy",
         WorkbookRefreshState.DialogOpen => "dialogOpen",
+        WorkbookRefreshState.NativeQueryApproval => "nativeQueryApproval",
         _ => "unknown"
     };
+
+    /// <summary>
+    /// Whether a server-tracked operation or an Excel refresh/native-query approval is still pending.
+    /// </summary>
+    public bool OperationPending =>
+        ActiveOperationCount > 0
+        || RefreshState is WorkbookRefreshState.Refreshing or WorkbookRefreshState.NativeQueryApproval;
 
     /// <summary>
     /// Whether the session can be closed (no blocking conditions).

@@ -536,9 +536,11 @@ public sealed class ExcelMcpService : IDisposable
                     filePath = s.FilePath,
                     isExcelVisible = validation.IsExcelVisible,
                     activeOperations = validation.ActiveOperationCount,
+                    operationPending = validation.OperationPending,
                     canClose = validation.CanClose,
                     excelState = validation.ExcelState,
-                    blockingReason = validation.BlockingReason
+                    blockingReason = validation.BlockingReason,
+                    blockingMessage = validation.BlockingMessage
                 };
             })
             .ToList();

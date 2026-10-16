@@ -208,9 +208,11 @@ public sealed class FileToolRecordingContractTests(
                         filePath = @"C:\workbook.xlsx",
                         isExcelVisible,
                         activeOperations = 0,
+                        operationPending = false,
                         canClose,
                         excelState = canClose ? "ready" : "dialogOpen",
-                        blockingReason = canClose ? null : "Check the Excel window for a prompt."
+                        blockingReason = canClose ? null : "Check the Excel window for a prompt.",
+                        blockingMessage = (string?)null
                     }
                 }
             }, ServiceProtocol.JsonOptions)
@@ -236,12 +238,60 @@ public sealed class FileToolRecordingContractTests(
         Assert.Equal(@"C:\workbook.xlsx", session.GetProperty("filePath").GetString());
         Assert.Equal(isExcelVisible, session.GetProperty("isExcelVisible").GetBoolean());
         Assert.Equal(0, session.GetProperty("activeOperations").GetInt32());
+        Assert.False(session.GetProperty("operationPending").GetBoolean());
         Assert.Equal(canClose, session.GetProperty("canClose").GetBoolean());
         Assert.Equal(canClose ? "ready" : "dialogOpen", session.GetProperty("excelState").GetString());
         if (!canClose)
         {
             Assert.Equal("Check the Excel window for a prompt.", session.GetProperty("blockingReason").GetString());
         }
+    }
+
+    [Fact]
+    public async Task List_PreservesNativeQueryApprovalAndPendingGuidance()
+    {
+        var response = new ServiceResponse
+        {
+            Success = true,
+            Result = JsonSerializer.Serialize(new
+            {
+                success = true,
+                count = 1,
+                sessions = new[]
+                {
+                    new
+                    {
+                        sessionId = "pending-native-query",
+                        filePath = @"C:\workbook.xlsx",
+                        isExcelVisible = false,
+                        activeOperations = 1,
+                        operationPending = true,
+                        canClose = false,
+                        excelState = "nativeQueryApproval",
+                        blockingReason = "nativeQueryApproval",
+                        blockingMessage = "Show Excel and approve the query manually."
+                    }
+                }
+            }, ServiceProtocol.JsonOptions)
+        };
+
+        var call = await _fixture.CallToolAsync(
+            "file_read",
+            new Dictionary<string, object?> { ["action"] = "list" },
+            response,
+            "session.list",
+            expectedSessionId: null,
+            expectedArgsJson: null);
+
+        using var result = JsonDocument.Parse(call.JsonResult);
+        var session = Assert.Single(result.RootElement.GetProperty("sessions").EnumerateArray());
+        Assert.Equal("pending-native-query", session.GetProperty("workbook_session_id").GetString());
+        Assert.Equal("nativeQueryApproval", session.GetProperty("excelState").GetString());
+        Assert.Equal("nativeQueryApproval", session.GetProperty("blockingReason").GetString());
+        Assert.Equal("Show Excel and approve the query manually.", session.GetProperty("blockingMessage").GetString());
+        Assert.True(session.GetProperty("operationPending").GetBoolean());
+        Assert.Equal(1, session.GetProperty("activeOperations").GetInt32());
+        Assert.False(session.GetProperty("canClose").GetBoolean());
     }
 
     [Theory]

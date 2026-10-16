@@ -46,11 +46,15 @@ internal sealed class FileSessionOutputSchema
     public string FilePath { get; set; } = string.Empty;
     public bool IsExcelVisible { get; set; }
     public int ActiveOperations { get; set; }
+    public bool OperationPending { get; set; }
     public bool CanClose { get; set; }
     public string ExcelState { get; set; } = string.Empty;
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? BlockingReason { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? BlockingMessage { get; set; }
 }
 
 internal sealed class WorksheetToolOutputSchema

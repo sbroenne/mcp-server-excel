@@ -8,7 +8,22 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 internal static class ExcelDialogProbe
 {
     internal readonly record struct WindowSnapshot(
-        nint Handle, nint Owner, int ProcessId, bool Visible, bool Enabled, string ClassName);
+        nint Handle, nint Owner, int ProcessId, bool Visible, bool Enabled, string ClassName, string Title = "");
+
+    private static readonly string[] NativeQueryApprovalTitleFragments =
+    [
+        "Native Database Query",
+        "Native Datenbankabfrage",
+        "Requête de base de données native",
+        "Consulta de base de datos nativa",
+        "Consulta de base de dados nativa",
+        "Consulta de banco de dados nativa",
+        "Query di database nativa",
+        "ネイティブ データベース クエリ",
+        "네이티브 데이터베이스 쿼리",
+        "本机数据库查询",
+        "原生資料庫查詢"
+    ];
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "Win32 readiness probe handles only process/window inspection failures, logs the original exception, and returns Unknown so save and close remain blocked rather than reporting readiness.")]
@@ -35,6 +50,7 @@ internal static class ExcelDialogProbe
             {
                 if (GetWindowThreadProcessId(window, out var processId) == 0) return true;
                 var className = string.Empty;
+                var title = string.Empty;
                 if (processId == ownedProcess.ProcessId)
                 {
                     var buffer = new char[256];
@@ -45,9 +61,15 @@ internal static class ExcelDialogProbe
                         return true;
                     }
                     className = new string(buffer, 0, length);
+                    var titleBuffer = new char[512];
+                    var titleLength = GetWindowText(window, titleBuffer, titleBuffer.Length);
+                    if (titleLength > 0)
+                    {
+                        title = new string(titleBuffer, 0, titleLength);
+                    }
                 }
                 windows.Add(new WindowSnapshot(window, GetWindow(window, 4),
-                    checked((int)processId), IsWindowVisible(window), IsWindowEnabled(window), className));
+                    checked((int)processId), IsWindowVisible(window), IsWindowEnabled(window), className, title));
                 return true;
             }, nint.Zero);
 
@@ -84,7 +106,12 @@ internal static class ExcelDialogProbe
                 var owner = window.Owner;
                 for (var depth = 0; owner != nint.Zero && depth < windows.Count; depth++)
                 {
-                    if (owner == root.Handle) return WorkbookRefreshState.DialogOpen;
+                    if (owner == root.Handle)
+                    {
+                        return IsNativeQueryApprovalTitle(window.Title)
+                            ? WorkbookRefreshState.NativeQueryApproval
+                            : WorkbookRefreshState.DialogOpen;
+                    }
                     if (!byHandle.TryGetValue(owner, out var parent)) break;
                     owner = parent.Owner;
                 }
@@ -92,6 +119,10 @@ internal static class ExcelDialogProbe
         }
         return WorkbookRefreshState.Ready;
     }
+
+    private static bool IsNativeQueryApprovalTitle(string title) =>
+        NativeQueryApprovalTitleFragments.Any(fragment =>
+            title.Contains(fragment, StringComparison.OrdinalIgnoreCase));
 
     private delegate bool WindowCallback(nint window, nint data);
 
@@ -104,6 +135,9 @@ internal static class ExcelDialogProbe
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern int GetClassName(nint window, [Out] char[] className, int capacity);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetWindowText(nint window, [Out] char[] text, int capacity);
 
     [DllImport("user32.dll")]
     private static extern nint GetWindow(nint window, uint command);

@@ -20,6 +20,54 @@ public sealed class ExcelDialogProbeWindowTests
 {
     private static readonly WindowProcedure Procedure = DefWindowProc;
 
+    [Theory]
+    [InlineData("Native Database Query - Do you approve running this native query?")]
+    [InlineData("Native Datenbankabfrage")]
+    [InlineData("Requête de base de données native")]
+    public void NativeQueryApprovalWindow_IsDetectedWithinOneSecond(string title)
+    {
+        var windowClass = new WindowClass
+        {
+            WindowProcedure = Marshal.GetFunctionPointerForDelegate(Procedure),
+            ClassName = "XLMAIN"
+        };
+        Assert.NotEqual(0, RegisterClass(ref windowClass));
+        nint root = 0;
+        nint dialog = 0;
+        var failures = new List<Exception>();
+        try
+        {
+            root = CreateWindowEx(0x08000000, "XLMAIN", "", 0, 0, 0, 1, 1, 0, 0, 0, 0);
+            Assert.NotEqual(nint.Zero, root);
+            using var process = Process.GetCurrentProcess();
+            var identity = new ExcelProcessIdentity(
+                process.Id, process.StartTime.ToUniversalTime().ToFileTimeUtc());
+            dialog = CreateWindowEx(0x08000000, "STATIC", title, 0x90000000,
+                -10000, -10000, 1, 1, root, 0, 0, 0);
+            Assert.NotEqual(nint.Zero, dialog);
+            EnableWindow(root, false);
+
+            var started = Stopwatch.GetTimestamp();
+            Assert.Equal(WorkbookRefreshState.NativeQueryApproval, ExcelDialogProbe.Read(identity, NullLogger.Instance));
+            Assert.True(Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(1));
+        }
+        catch (Exception ex)
+        {
+            failures.Add(ex);
+        }
+        finally
+        {
+            if (dialog != 0 && !DestroyWindow(dialog))
+                failures.Add(new Win32Exception("Could not destroy the test dialog."));
+            if (root != 0 && !DestroyWindow(root))
+                failures.Add(new Win32Exception("Could not destroy the test root window."));
+            if (!UnregisterClass("XLMAIN", 0))
+                failures.Add(new Win32Exception("Could not unregister the test window class."));
+        }
+        if (failures.Count == 1) ExceptionDispatchInfo.Capture(failures[0]).Throw();
+        if (failures.Count > 1) throw new AggregateException("Dialog test or cleanup failed.", failures);
+    }
+
     [Fact]
     public void OwnedModalWindow_IsDetectedBeforeAnOccupiedExcelThread()
     {

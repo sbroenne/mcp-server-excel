@@ -152,7 +152,7 @@ internal sealed class Program
                 branch.AddCommand<SessionCloseCommand>("close")
                     .WithDescription("Close a session. Use --save to persist changes.");
                 branch.AddCommand<SessionListCommand>("list")
-                    .WithDescription("List active sessions with canClose, excelState and blockingReason. For dialogOpen, check Excel for a prompt; transport failures return unresponsive instead of an empty list.");
+                    .WithDescription("List active sessions with canClose, excelState, operationPending and blocker details. For nativeQueryApproval, show Excel and approve the query manually; the operation remains pending.");
                 branch.AddCommand<SessionTestCommand>("test")
                     .WithDescription("Test file existence, validity, openability, and IRM/AIP read-only requirements.");
             });
