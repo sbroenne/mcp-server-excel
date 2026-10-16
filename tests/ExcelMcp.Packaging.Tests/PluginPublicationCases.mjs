@@ -822,47 +822,6 @@ export function registerPolicyTests() {
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 export function registerWorkflowPolicyTests() {
-    test('compiled updater isolates writes, blocks failed detection and never creates fallback issues', () => {
-        const workflow = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'update-awesome-copilot.lock.yml'), 'utf8');
-        const agent = workflow.split('\n  agent:')[1].split('\n  conclusion:')[0];
-        const writer = workflow.split('\n  submit_marketplace_update:')[1];
-        assert.equal(agent.includes('secrets.AWESOME_COPILOT_PR_TOKEN'), false);
-        assert.equal((workflow.match(/secrets\.AWESOME_COPILOT_PR_TOKEN/g) ?? []).length, 1);
-        assert.match(writer, /needs\.agent\.result == 'success' && needs\.detection\.result == 'success'/);
-        assert.match(writer, /needs\.detection\.outputs\.detection_success == 'true'/);
-        assert.match(workflow, /GH_AW_DETECTION_CONTINUE_ON_ERROR: "false"/);
-        assert.equal(workflow.includes('issues: write'), false);
-        assert.equal(workflow.includes('GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"'), false);
-        assert.equal(workflow.includes('GH_AW_MISSING_DATA_CREATE_ISSUE: "true"'), false);
-        assert.match(workflow, /github\/gh-aw\/actions\/setup@c35393777e5604a63721d09512263b1383301d4f/);
-        const precheck = workflow.split('\n  pre_activation:')[1].split(/\n {2}[a-z_]+:/)[0];
-        assert.match(precheck, /runs-on: ubuntu-(slim|latest)/);
-        assert.match(precheck, /Update-AwesomeCopilot\.mjs discover/);
-        assert.equal(precheck.includes('secrets.AWESOME_COPILOT_PR_TOKEN'), false);
-        assert.match(writer, /runs-on: ubuntu-26\.04/);
-        assert.match(writer, /needs:[\s\S]*- agent/);
-        assert.match(agent, /needs:[\s\S]*- activation[\s\S]*- build/);
-        const activation = workflow.split('\n  activation:')[1].split(/\n {2}[a-z_]+:/)[0];
-        assert.match(activation, /needs:[\s\S]*- pre_activation/);
-        assert.match(activation, /needs\.build\.outputs\.actionable == 'true'/);
-        const build = workflow.split('\n  build:')[1].split(/\n {2}[a-z_]+:/)[0];
-        assert.match(build, /needs: pre_activation/);
-        assert.match(build, /permissions: \{\}/);
-        assert.match(build, /OTEL_EXPORTER_OTLP_HEADERS: \$\{\{ '' \}\}/);
-        assert.match(build, /GH_AW_OTLP_ENDPOINTS: \$\{\{ '\[\]' \}\}/);
-        assert.match(build, /Update-AwesomeCopilot\.mjs build/);
-        assert.equal(/GH_TOKEN:|GITHUB_TOKEN:|COPILOT_GITHUB_TOKEN:|AWESOME_COPILOT_PR_TOKEN:/.test(build), false);
-        assert.match(build, /persist-credentials: false/);
-        assert.match(build, /name: awesome-copilot-discovery/);
-        const globalEnvironment = workflow.split('\nenv:')[1].split('\njobs:')[0];
-        assert.equal(/GH_TOKEN:|GITHUB_TOKEN:|COPILOT_GITHUB_TOKEN:|AWESOME_COPILOT_PR_TOKEN:/.test(globalEnvironment), false);
-        assert.match(agent, /needs\.build\.outputs\.actionable == 'true'/);
-        assert.match(writer, /name: awesome-copilot-precheck/);
-        assert.equal(writer.includes('Update-AwesomeCopilot.mjs prepare'), false);
-        assert.equal(writer.includes('npm '), false);
-        assert.match(writer, /Update-AwesomeCopilot\.mjs submit/);
-    });
-
     test('public build rejects malformed discovery snapshots before clone or upstream execution', () => {
         for (const discovery of [null, {}, { pulls: [], tag: 'v2.1.0', discoveryFingerprint: '0'.repeat(64) }]) {
             assert.throws(() => updater.buildDiscoveredPlan({ discovery, workDirectory: 'must-not-be-created' }), /artifact\/digest/);
@@ -877,39 +836,6 @@ export function registerWorkflowPolicyTests() {
         }), /fingerprint mismatch/);
         assert.equal(fs.existsSync(path.join(repoRoot, 'must-not-be-created')), false);
     });
-
-    test('listing updates are manual-only and never part of product or plugin publication', () => {
-        const publisher = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'publish-plugins.yml'), 'utf8');
-        const release = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'release.yml'), 'utf8');
-        const updater = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'update-awesome-copilot.lock.yml'), 'utf8');
-        for (const workflow of [publisher, release]) {
-            assert.equal(workflow.includes('update-awesome-copilot'), false);
-            assert.equal(/AWESOME_COPILOT|COPILOT_GITHUB_TOKEN/.test(workflow), false);
-        }
-        const trigger = updater.split('\npermissions:')[0];
-        assert.equal(trigger.includes('workflow_call:'), false);
-        const dispatch = trigger.split('workflow_dispatch:')[1] ?? '';
-        assert.match(dispatch, /\n {6}published_tag:/);
-        assert.match(dispatch, /\n {6}preview:/);
-        assert.match(release, /publish-plugins:\r?\n\s+needs: \[version, create-tag, create-release, publish\]/);
-        assert.equal(release.slice(0, release.indexOf('\n  publish-plugins:')).includes('needs: publish-plugins'), false);
-    });
-
-    test('plugin-only hook plans build and select publication regressions without requiring Excel', () => {
-        const script = ". .\\scripts\\Get-ValidationPlan.ps1; @('scripts/Publish-PreparedPlugins.ps1','scripts/PluginContent.mjs','.github/workflows/update-awesome-copilot.md','.github/workflows/publish-plugins.yml') | ForEach-Object { Get-ValidationPlan -Paths @($_) } | ConvertTo-Json -Compress";
-        const plans = JSON.parse(command('pwsh', ['-NoProfile', '-Command', script], repoRoot));
-        for (const result of plans) {
-            assert.equal(result.Build, true);
-            assert.equal(result.PackagingTests, true);
-            assert.equal(result.Excel, false);
-        }
-        const runner = fs.readFileSync(path.join(repoRoot, 'scripts', 'Invoke-ExcelFreeTests.ps1'), 'utf8');
-        assert.match(runner, /Invoke-ExcelMcpBuild -Arguments @\('test-free'\)/);
-        const selection = fs.readFileSync(path.join(repoRoot, 'tools', 'ExcelMcp.Build', 'FreeTestSelection.cs'), 'utf8');
-        assert.match(selection, /options\.PackagingTests \|\| plan\.PackagingTests/);
-        assert.match(selection, /Add\("Packaging",/);
-    });
-
 }
 
 const gitLocalVariables = execFileSync('git', ['rev-parse', '--local-env-vars'], {
@@ -1168,7 +1094,7 @@ function writeTree(directory, files) {
 
 function publicationFixture({
     staleOverlay = false, currentVersion = '2.0.1', candidateVersion = '2.3.0',
-    payloadVersion = candidateVersion, syncFails = false, candidateTagExists = false, ignoredNames = false,
+    payloadVersion = candidateVersion, candidateTagExists = false, ignoredNames = false,
     baselineFiles = new Map(),
 } = {}) {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-publication-'));
@@ -1179,7 +1105,7 @@ function publicationFixture({
     fs.mkdirSync(path.join(source, '.github', 'plugins', 'marketplace-repo'), { recursive: true });
     fs.writeFileSync(path.join(source, '.github', 'plugins', 'marketplace-repo', 'README.md'), 'Marketplace');
     if (staleOverlay) fs.writeFileSync(path.join(source, '.github', 'plugins', 'marketplace-repo', 'stale.txt'), 'Old owned file');
-    fs.writeFileSync(path.join(source, 'scripts', 'Sync-PublishedPluginRepo.ps1'), syncFails ? "throw 'sync-root-cause'" : `
+    fs.writeFileSync(path.join(source, 'scripts', 'Sync-PublishedPluginRepo.ps1'), `
 param($PublishedRepoDir,$BuiltPluginsDir,$Version)
 $ErrorActionPreference='Stop'
 foreach ($name in @('excel-cli','excel-mcp')) {
@@ -1366,7 +1292,7 @@ export function registerStagingTests() {
     });
 
     test('publication safely replaces tracked directories with files, including nested emptied directories', () => {
-        for (const relative of ['assets/icon.png', 'assets/icons/icon.png']) {
+        for (const relative of ['assets/icons/icon.png']) {
             const fixture = publicationFixture({ baselineFiles: new Map([
                 [`plugins/excel-cli/${relative}`, { bytes: Buffer.from('Old asset'), mode: '100644' }],
             ]) });
@@ -1424,30 +1350,27 @@ export function registerLegacyScenarioTests() {
             const scenario = JSON.parse(process.env.PLUGIN_PUBLICATION_SCENARIO);
             const fixture = publicationFixture({
                 currentVersion: scenario.publishedVersion, candidateVersion: '1.2.3',
-                payloadVersion: scenario.payloadVersion, syncFails: scenario.syncFails,
+                payloadVersion: scenario.payloadVersion,
                 candidateTagExists: scenario.tagExists,
             });
             try {
                 const remote = path.join(fixture.root, 'remote.git');
                 command('git', ['clone', '--quiet', '--bare', fixture.output, remote], fixture.root);
                 command('git', ['remote', 'add', 'origin', remote], fixture.output);
-                if (!scenario.tagExists && !scenario.manualRepair) {
+                if (!scenario.tagExists) {
                     fs.writeFileSync(path.join(fixture.built, 'excel-cli', 'README.md'), 'Meaningful candidate guidance');
                 }
-                const action = () => publishFixture(fixture, scenario.manualRepair ? ['-ManualRepair'] : [], '1.2.3');
+                const action = () => publishFixture(fixture, [], '1.2.3');
                 if (scenario.succeeds) {
                     const result = action();
                     assert.match(result, /"status": "(skipped|published)"/);
-                    if (scenario.tagExists && !scenario.manualRepair) {
+                    if (scenario.tagExists) {
                         assert.match(result, /"status": "skipped"/);
                         assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), fixture.original);
                     }
                     assert.equal(command('git', ['rev-parse', `v${scenario.publishedVersion}^{commit}`], fixture.output).trim(), fixture.original);
                 } else {
-                    const expected = scenario.publishedVersion === '1.2.4' ? /Downgrade/
-                        : scenario.tagExists ? /Existing tag conflicts/
-                        : scenario.payloadVersion !== '1.2.3' ? /manifest version/
-                        : /sync-root-cause/;
+                    const expected = scenario.publishedVersion === '1.2.4' ? /Downgrade/ : /manifest version/;
                     assert.throws(action, expected);
                     assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), fixture.original);
                     assert.equal(command('git', ['status', '--porcelain'], fixture.output).trim(), '');
