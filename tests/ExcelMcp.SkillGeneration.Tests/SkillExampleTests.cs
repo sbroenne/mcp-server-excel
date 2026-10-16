@@ -1,4 +1,4 @@
-using Sbroenne.ExcelMcp.Build;
+using static Sbroenne.ExcelMcp.Tests.Infrastructure.PackagingScriptTestHelper;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.SkillGeneration.Tests;
@@ -12,7 +12,7 @@ public sealed class SkillExampleTests
     [Theory]
     [InlineData("\n")]
     [InlineData("\r\n")]
-    public void SkillGeneration_SelectsNativeExamplesWithoutTranslatingContent(string newline)
+    public async Task SkillGeneration_SelectsNativeExamplesWithoutTranslatingContent(string newline)
     {
         var root = Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"ExcelMcp.SkillExamples.{Guid.NewGuid():N}")).FullName;
         try
@@ -39,7 +39,15 @@ public sealed class SkillExampleTests
                 var source = Directory.CreateDirectory(Path.Combine(root, "skills", $"excel-{surface}-report-formatting")).FullName;
                 File.WriteAllText(Path.Combine(source, "SKILL.md"), "Authored skill");
             }
-            var output = new AuthoredPackages(root).Skills("1.2.3", null, generateOnly: true);
+            var scripts = Directory.CreateDirectory(Path.Combine(root, "scripts")).FullName;
+            foreach (var name in new[] { "Build-AgentSkills.ps1", "PackageHelpers.ps1" })
+            {
+                File.Copy(Path.Combine(RepoRoot, "scripts", name), Path.Combine(scripts, name));
+            }
+            var result = await RunPowerShellFileAsync(Path.Combine(scripts, "Build-AgentSkills.ps1"),
+                ["-Version", "1.2.3", "-GenerateOnly"]);
+            Assert.True(result.ExitCode == 0, result.CombinedOutput);
+            var output = Path.Combine(root, "artifacts", "generated-skills");
             Assert.Equal(["excel-cli", "excel-cli-report-formatting", "excel-mcp-report-formatting"],
                 Directory.GetDirectories(output).Select(Path.GetFileName).Order(StringComparer.Ordinal));
             Assert.Equal("Authored CLI discovery", File.ReadAllText(Path.Combine(output, "excel-cli", "SKILL.md")));

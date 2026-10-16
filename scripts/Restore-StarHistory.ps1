@@ -30,51 +30,25 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-function Invoke-GitHubApi {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string[]]$Arguments
-    )
-
-    $result = & $ApiInvoker -Arguments $Arguments
-    if ($null -eq $result -or
-        $null -eq $result.PSObject.Properties["ExitCode"] -or
-        $null -eq $result.PSObject.Properties["Output"]) {
-        throw "The GitHub API invoker returned an invalid result."
-    }
-
-    return $result
-}
+. (Join-Path $PSScriptRoot 'AnalyticsStorage.ps1')
 
 $resolvedHistoryPath = [IO.Path]::GetFullPath($HistoryPath)
 if (-not (Test-Path -LiteralPath $resolvedHistoryPath -PathType Leaf)) {
     throw "Star-history bootstrap file '$resolvedHistoryPath' does not exist."
 }
 
-$contentApi = "repos/$Repository/contents/$RemotePath" + "?ref=$Branch"
-$contentResult = Invoke-GitHubApi -Arguments @("api", $contentApi)
-$responseText = @($contentResult.Output) -join "`n"
-
-if ($contentResult.ExitCode -eq 0) {
-    $state = $responseText | ConvertFrom-Json
-    if ($null -eq $state -or
-        $null -eq $state.PSObject.Properties["content"] -or
-        [string]::IsNullOrWhiteSpace([string]$state.content)) {
-        throw "GitHub did not return a file content payload for persisted star history."
-    }
-
-    $content = [Convert]::FromBase64String(($state.content -replace "\s", ""))
-    [IO.File]::WriteAllBytes($resolvedHistoryPath, $content)
+$stored = Read-AnalyticsFile $Repository $Branch $RemotePath $ApiInvoker `
+    'Unable to restore persisted star history' 'GitHub did not return a file content payload for persisted star history.'
+if ($stored) {
+    [IO.File]::WriteAllBytes($resolvedHistoryPath, $stored.Bytes)
     $global:LASTEXITCODE = 0
     Write-Host "Restored aggregate snapshots from $Branch."
     return
 }
 
-if ($responseText -match "HTTP 404") {
+else {
     # GitHub Actions propagates the last native exit code even when this expected 404 is handled.
     $global:LASTEXITCODE = 0
     Write-Host "No persisted branch or aggregate file exists yet; using the exact aggregate bootstrap."
     return
 }
-
-throw "Unable to restore persisted star history: $responseText"

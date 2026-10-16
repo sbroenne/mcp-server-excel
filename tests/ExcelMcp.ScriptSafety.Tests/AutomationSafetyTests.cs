@@ -483,13 +483,8 @@ public sealed partial class AutomationSafetyTests
     {
         var script = Path.Combine(root, $"test-{Guid.NewGuid():N}.ps1");
         File.WriteAllText(script, "$ErrorActionPreference='Stop'\n$global:LASTEXITCODE=0\n" + body + "\nexit $LASTEXITCODE");
-        var result = await new Sbroenne.ExcelMcp.Build.ProcessRunner(root).RunAsync(
-            "pwsh", ["-NoProfile", "-File", script], TimeSpan.FromSeconds(60),
-            new Dictionary<string, string>
-            {
-                ["EXCELMCP_BUILD_ROOT"] = RepoRoot,
-                ["EXCELMCP_BUILD_DLL"] = typeof(Sbroenne.ExcelMcp.Build.ValidationPolicy).Assembly.Location
-            });
+        var result = await new ScriptTestProcess(root).RunAsync(
+            "pwsh", ["-NoProfile", "-File", script], TimeSpan.FromSeconds(60));
         return (result.ExitCode, result.Output + result.Error);
     }
 

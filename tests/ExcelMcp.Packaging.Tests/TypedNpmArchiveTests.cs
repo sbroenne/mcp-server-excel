@@ -2,8 +2,8 @@ using System.Formats.Tar;
 using System.IO.Compression;
 using System.Text;
 using System.Text.Json.Nodes;
-using Sbroenne.ExcelMcp.Build;
 using Xunit;
+using static Sbroenne.ExcelMcp.Tests.Infrastructure.PackagingScriptTestHelper;
 
 namespace Sbroenne.ExcelMcp.Packaging.Tests;
 
@@ -16,21 +16,23 @@ public sealed class TypedNpmArchiveTests
     [InlineData("package/../../escape.txt", TarEntryType.RegularFile)]
     [InlineData("package/link", TarEntryType.SymbolicLink)]
     [InlineData("package/link", TarEntryType.HardLink)]
-    public void ArchiveExtraction_RejectsTraversalAndLinks(string name, TarEntryType kind)
+    public async Task ArchiveExtraction_RejectsTraversalAndLinks(string name, TarEntryType kind)
     {
         var sandbox = NewSandbox();
         try
         {
             var archive = Path.Combine(sandbox, "unsafe.tgz");
             WriteArchive(archive, [(name, kind, Encoding.UTF8.GetBytes("unsafe"))]);
-            Assert.Throws<InvalidOperationException>(() => RuntimePackages.ExtractTar(archive, Path.Combine(sandbox, "extracted")));
+            var result = await ExpandAsync(archive, Path.Combine(sandbox, "extracted"));
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains(kind == TarEntryType.RegularFile ? "Unsafe or duplicate" : "Unsupported", result.CombinedOutput, StringComparison.Ordinal);
             Assert.False(File.Exists(Path.Combine(sandbox, "escape.txt")));
         }
         finally { Directory.Delete(sandbox, true); }
     }
 
     [Fact]
-    public void ArchiveExtraction_RejectsDuplicatePathsAndMalformedArchives()
+    public async Task ArchiveExtraction_RejectsDuplicatePathsAndMalformedArchives()
     {
         var sandbox = NewSandbox();
         try
@@ -40,9 +42,12 @@ public sealed class TypedNpmArchiveTests
                 ("package/payload", TarEntryType.RegularFile, Encoding.UTF8.GetBytes("first")),
                 ("package/PAYLOAD", TarEntryType.RegularFile, Encoding.UTF8.GetBytes("second"))
             ]);
-            Assert.Throws<InvalidOperationException>(() => RuntimePackages.ExtractTar(archive, Path.Combine(sandbox, "duplicates")));
+            var duplicate = await ExpandAsync(archive, Path.Combine(sandbox, "duplicates"));
+            Assert.NotEqual(0, duplicate.ExitCode);
+            Assert.Contains("Unsafe or duplicate", duplicate.CombinedOutput, StringComparison.Ordinal);
             File.WriteAllText(archive, "not a gzip archive");
-            Assert.Throws<InvalidDataException>(() => RuntimePackages.ExtractTar(archive, Path.Combine(sandbox, "malformed")));
+            var malformed = await ExpandAsync(archive, Path.Combine(sandbox, "malformed"));
+            Assert.NotEqual(0, malformed.ExitCode);
         }
         finally { Directory.Delete(sandbox, true); }
     }
@@ -85,12 +90,16 @@ public sealed class TypedNpmArchiveTests
             var launcherPath = Path.Combine(sandbox, "launcher.tgz");
             WriteArchive(runtimePath, runtimeEntries);
             WriteArchive(launcherPath, launcherEntries);
-            var commands = new PackageCommands(_ => throw new InvalidOperationException("Archive-only verification must not execute native commands."));
-            var error = await Record.ExceptionAsync(() => new RuntimePackages(sandbox, commands).VerifyNpmAsync("Cli", "x64", launcherPath, runtimePath, archiveOnly: true));
-            if (mutation == "valid") { Assert.Null(error); }
+            var result = await RunPowerShellFileAsync(Path.Combine(RepoRoot, "scripts", "Test-NpmPackages.ps1"),
+                ["-Component", "Cli", "-Architecture", "x64", "-LauncherPackage", launcherPath, "-RuntimePackage", runtimePath, "-ArchiveOnly"]);
+            if (mutation == "valid")
+            {
+                Assert.True(result.ExitCode == 0, result.CombinedOutput);
+                Assert.Contains("Archive-only validation requested", result.CombinedOutput, StringComparison.Ordinal);
+            }
             else
             {
-                Assert.IsType<InvalidOperationException>(error);
+                Assert.NotEqual(0, result.ExitCode);
                 var expected = mutation switch
                 {
                     "name" => "Unexpected npm package name",
@@ -100,7 +109,7 @@ public sealed class TypedNpmArchiveTests
                     "launcher" => "Missing launcher file",
                     _ => "matching arm64 release version"
                 };
-                Assert.Contains(expected, error.Message, StringComparison.Ordinal);
+                Assert.Contains(expected, result.CombinedOutput, StringComparison.Ordinal);
             }
         }
         finally { Directory.Delete(sandbox, true); }
@@ -108,6 +117,12 @@ public sealed class TypedNpmArchiveTests
 
     private static string NewSandbox() =>
         Directory.CreateDirectory(Path.Combine(Path.GetTempPath(), $"ExcelMcp.NpmArchive.{Guid.NewGuid():N}")).FullName;
+
+    private static Task<ProcessResult> ExpandAsync(string archive, string destination) =>
+        RunPowerShellCommandAsync($"""
+            . '{Path.Combine(RepoRoot, "scripts", "PackageHelpers.ps1")}'
+            Expand-PackageTar '{archive}' '{destination}'
+            """);
 
     private static void WriteArchive(string path, IEnumerable<(string Name, TarEntryType Kind, byte[] Contents)> entries)
     {

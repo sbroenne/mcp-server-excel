@@ -32,9 +32,10 @@ and verify actual workbook or Excel-session outcomes against desktop Excel.
 Excel-free parsing, adapter, packaging, and tooling checks remain separate.
 
 During development, use a focused `dotnet test` filter as above and retain TRX
-results. Check that the intended cases actually ran: `dotnet test` can return
-zero when no tests match. Direct `dotnet test` has per-test hang protection with
-`--blame-hang-timeout`, but not the typed runner's hard stage deadline.
+results. Use `--settings tests\strict.runsettings` to make empty selections,
+skips and runner warnings fail. Direct `dotnet test` has per-test hang protection
+with `--blame-hang-timeout`, but not the shared PowerShell runner's owned-tree
+deadline, which also covers child processes and output drain.
 
 For explicit Excel group runs, build Release first and use
 `scripts\Invoke-ExcelTests.ps1`. It keeps class fixtures together and runs groups
@@ -312,10 +313,12 @@ process, deadline, crash, rebuild, and ownership cases below.
 
 ### Changed-path CI selection
 
-`tools\ExcelMcp.Build\ValidationPolicy.cs` owns the selections used by CI,
-CodeQL, and the local hook. `scripts\Get-ValidationPlan.ps1` is a forwarding
-adapter, not a second policy. The internal .NET tool uses the existing SDK and
-xUnit; it is not another supported product entry point. Pull requests compare
+`scripts\Get-ValidationPlan.ps1` owns the explicit changed-path and feature-label
+rules used by CI, CodeQL and the local hook. Standard .NET and xUnit commands
+perform builds and tests; there is no custom C# tool to compile or load.
+Test-only changes select their owning project group; unit and protocol-tool
+folders remain Excel-free. Shared runtime helpers select broader coverage
+instead of rebuilding a source-reference catalogue. Pull requests compare
 their head with the base branch's merge base. The hook uses staged inputs and
 retains merge-parent and unstaged-input safeguards.
 
@@ -449,23 +452,26 @@ against the published schema. Contract and generator changes select these same
 suites. Tests retain their existing feature traits as well as
 `Feature=GeneratedContracts`.
 
-These commands forward to the internal .NET tool. `Invoke-TestStage.ps1` uses
+These commands call shared PowerShell coordination. `Invoke-TestStage.ps1` uses
 the same hard deadlines, owned-process environment and strict report checks as
 saved-plan execution. `Get-ExcelTestGroups.ps1` exports the actual built inventory,
-not a guessed list of source classes. Build inputs and CI completion checks also
-forward to typed components; detection failure, missing cases and unexpected
-skips are errors.
+not a guessed list of source classes. MSBuild evaluates selected build inputs.
+CI completion checks use PowerShell without installing an SDK; detection failure,
+missing cases and unexpected skips are errors.
 
-Package preparation uses the same internal tool without publishing anything:
+Package preparation uses the same PowerShell command as Actions, without publishing anything:
 
 ```powershell
-.\build.ps1 package --components Cli,Mcp --output artifacts\local-packages
+.\scripts\Build-ReleasePackages.ps1 -Components Cli,Mcp -OutputDirectory artifacts\local-packages
 ```
 
 Use a new output directory. Existing `Build-ReleasePackages.ps1`,
 `Build-NpmPackages.ps1`, `Test-NpmPackages.ps1`, `Build-AgentSkills.ps1`,
 `Build-Plugins.ps1` and `mcpb\Build-McpBundle.ps1` keep their parameters and
-forward to typed preparation. Runtime packages retain architecture and version
+own their named operations directly. Shared helpers cover process deadlines and
+filesystem/archive safety; no C# packaging bootstrap is involved.
+This is optional local troubleshooting, not an added commit check.
+Runtime packages retain architecture and version
 checks, npm archive inspection and native launcher checks. ARM64 archive
 validation is not ARM64 execution on an x64 machine. Extension preparation still
 compiles, lints and inspects both VSIX targets when unchanged source tests are
@@ -492,8 +498,9 @@ documentation scanner. Authored prose still needs review; API tests do not
 validate its examples automatically.
 
 Shared skill Markdown selects the existing skill-generation checks locally,
-not Excel E2E. Program source, mixed runtime changes, and unknown inputs still
-select Excel validation. Run the focused skill selection after a Release build:
+not Excel E2E. Program source and mixed runtime changes can still select Excel
+validation; unknown operational inputs fail selection. Run the focused skill
+selection after a Release build:
 
 ```powershell
 & .\scripts\Invoke-ExcelFreeTests.ps1 -Local -SkillTests
@@ -609,8 +616,7 @@ selections, skipped tests, failures, and assembly cleanup failures fail the run.
 `-Stages Cli`, `-Stages Mcp`, or an OLAP-only selection is focused, not complete
 runtime acceptance. `Test-CliWorkflow.ps1` is a
 compatible wrapper for the CLI stage, including `-PipeName` and `-KeepFile`.
-`Test-CliApiCoverage.ps1` remains only a forwarding command for complete CLI
-acceptance.
+Use `Test-E2E.ps1 -Stages Cli` for the direct CLI acceptance command.
 
 ### OLAP server coverage and the Excel Runner
 

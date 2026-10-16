@@ -1,323 +1,128 @@
-using Sbroenne.ExcelMcp.Build;
-using System.ComponentModel;
-using System.Text.Json;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 
+[Collection("Sequential")]
 [Trait("RequiresExcel", "false")]
 [Trait("Feature", "PreCommit")]
 public sealed class TypedOrchestrationMigrationTests
 {
-    [Fact]
-    public void CiPackages_AlwaysRunTheNormalPackageChecks()
-    {
-        var workflow = File.ReadAllText(Path.Combine(TypedValidationPolicyTests.Root, ".github", "workflows", "ci.yml"));
-        var job = System.Text.RegularExpressions.Regex.Match(workflow, @"(?ms)^  packages:\r?\n.*?(?=^  \S|\z)").Value;
-        Assert.NotEmpty(job);
-        Assert.DoesNotContain("if:", job, StringComparison.Ordinal);
-        Assert.DoesNotContain("ci-plan.json", job, StringComparison.Ordinal);
-        Assert.Contains("./scripts/Build-ReleasePackages.ps1 -SkillsDirectory artifacts/generated-skills", job, StringComparison.Ordinal);
-        Assert.DoesNotContain("-Components", job, StringComparison.Ordinal);
-        Assert.DoesNotContain("SELECTED_PACKAGES", workflow, StringComparison.Ordinal);
-    }
-
-    [Theory]
-    [InlineData("true", "success", true)]
-    [InlineData("false", "skipped", true)]
-    [InlineData("true", "skipped", false)]
-    [InlineData("true", "failure", false)]
-    [InlineData("true", "cancelled", false)]
-    [InlineData("false", "success", false)]
-    public void CiCompletion_RequiresTheExactBuildOnlyResult(string selected, string result, bool succeeds)
-    {
-        var error = Record.Exception(() => CiCompletion.Verify(new CiCompletionOptions
-        {
-            Detection = "success",
-            Checks = [
-                new("tests", "false", "skipped"), new("packages", "false", "skipped"),
-                new("npm", "false", "skipped"), new("build-only", selected, result)
-            ]
-        }));
-        if (succeeds) { Assert.Null(error); }
-        else { Assert.IsType<InvalidOperationException>(error); }
-    }
-
-    [Fact]
-    public void CiBuildOnlyJob_BuildsTheSavedPlanAndReportsToTheRequiredGate()
-    {
-        var workflow = File.ReadAllText(Path.Combine(TypedValidationPolicyTests.Root, ".github", "workflows", "ci.yml"));
-        var job = System.Text.RegularExpressions.Regex.Match(workflow, @"(?ms)^  build-only:\r?\n.*?(?=^  \S|\z)").Value;
-        Assert.NotEmpty(job);
-        Assert.Contains("if: needs.changes.outputs.build_only == 'true'", job, StringComparison.Ordinal);
-        Assert.Contains("./build.ps1 build --plan artifacts/ci-plan.json", job, StringComparison.Ordinal);
-        Assert.DoesNotContain("Invoke-ExcelFreeTests", job, StringComparison.Ordinal);
-        Assert.Contains("needs: [changes, tests, build-only, packages, npm]", workflow, StringComparison.Ordinal);
-        Assert.Contains("BUILD_ONLY: ${{ needs.build-only.result }}", workflow, StringComparison.Ordinal);
-        Assert.Contains("-SelectedBuildOnly $env:SELECTED_BUILD_ONLY", workflow, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public async Task CompleteCiBuild_RestoresAndBuildsSolutionInOnlyOneSelectedGroup()
-    {
-        var plan = new ValidationPolicy(TypedValidationPolicyTests.Root).Select([], full: true);
-        var runner = new BuildRunner();
-        var execution = new ValidationExecution(TypedValidationPolicyTests.Root, runner);
-        foreach (var group in plan.CiTestGroups)
-        {
-            var projects = execution.BuildProjects(plan, group);
-            if (group == plan.FullSolutionBuildGroup) { Assert.Equal(["Sbroenne.ExcelMcp.sln"], projects); }
-            else { Assert.All(projects, project => Assert.EndsWith(".Tests.csproj", project, StringComparison.Ordinal)); }
-            await execution.BuildAsync(plan, group);
-        }
-        foreach (var verb in new[] { "restore", "build" })
-        {
-            var commands = runner.Commands.Where(command => command[0] == verb).ToArray();
-            Assert.Equal(plan.CiTestGroups.Length, commands.Length);
-            Assert.Single(commands, command => Path.GetFileName(command[1]) == "Sbroenne.ExcelMcp.sln");
-            Assert.Contains(commands, command => command[1].EndsWith("ExcelMcp.CLI.Tests.csproj", StringComparison.Ordinal));
-            Assert.Contains(runner.SelectedProjects.Values.SelectMany(projects => projects),
-                project => project.EndsWith("ExcelMcp.ScriptSafety.Tests.csproj", StringComparison.Ordinal));
-        }
-        Assert.All(runner.Commands.Where(command => command[0] == "build"), command =>
-        {
-            Assert.DoesNotContain("--no-incremental", command);
-            Assert.DoesNotContain("--disable-build-servers", command);
-        });
-    }
-
     [Theory]
     [InlineData("")]
     [InlineData("restore")]
     [InlineData("build")]
-    public async Task FocusedBuild_UsesOneSelectedGraphAndCleansItOnEveryExit(string failure)
+    public async Task FocusedBuild_UsesOneMsbuildGraphAndCleansItOnEveryExit(string failure)
     {
-        var plan = new ValidationPlan();
-        plan.BuildProjects.UnionWith([
-            "src/ExcelMcp.Core/ExcelMcp.Core.csproj",
-            "tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj",
-            "tests/ExcelMcp.Service.Tests/ExcelMcp.Service.Tests.csproj"
-        ]);
-        var runner = new BuildRunner(failure);
-        var exception = await Record.ExceptionAsync(() =>
-            new ValidationExecution(TypedValidationPolicyTests.Root, runner).BuildAsync(plan));
-        Assert.Equal(failure.Length != 0, exception != null);
-        if (exception != null) { Assert.Contains("native-root-cause", exception.Message, StringComparison.Ordinal); }
-        Assert.Equal(failure == "restore" ? 1 : 2, runner.Commands.Count);
-        var graph = Assert.Single(runner.SelectedProjects);
-        Assert.Equal(plan.BuildProjects.Select(path => path.Replace('/', Path.DirectorySeparatorChar)), graph.Value);
-        Assert.False(File.Exists(graph.Key), "Temporary solution filter must be removed after success or failure.");
-        Assert.All(runner.Commands, command => Assert.Equal(graph.Key, command[1]));
-    }
-
-    [Theory]
-    [InlineData(true, false, true, false, "Fast")]
-    [InlineData(false, true, true, false, "Process")]
-    [InlineData(false, false, true, false, "Tooling")]
-    [InlineData(true, false, true, true, "Fast")]
-    [InlineData(false, true, false, true, "Process")]
-    public void CompleteGroupedBuild_HasOneDeterministicOwner(
-        bool fast, bool process, bool tooling, bool documentationCounts, string expectedOwner)
-    {
-        var plan = new ValidationPlan
-        {
-            FullSolutionBuild = true,
-            DocumentationCounts = documentationCounts
-        };
-        if (fast) { plan.FastFilters["Core"] = "All"; }
-        if (process) { plan.ProcessFilters["CLI"] = "All"; }
-        if (tooling) { plan.ToolingFilters["ScriptSafety"] = "All"; }
-        var execution = new ValidationExecution(TypedValidationPolicyTests.Root, new BuildRunner());
-        Assert.Equal(expectedOwner, plan.FullSolutionBuildGroup);
-        foreach (var group in plan.CiTestGroups)
-        {
-            var projects = execution.BuildProjects(plan, group);
-            if (group == expectedOwner) { Assert.Equal(["Sbroenne.ExcelMcp.sln"], projects); }
-            else { Assert.All(projects, project => Assert.EndsWith(".Tests.csproj", project, StringComparison.Ordinal)); }
-        }
-        Assert.Equal(["Sbroenne.ExcelMcp.sln"], execution.BuildProjects(plan));
-        Assert.Throws<InvalidOperationException>(() => execution.BuildProjects(plan, "Unknown"));
-    }
-
-    [Fact]
-    public async Task ExcelValidation_CleansUpAndPreservesUnexpectedPrimaryAndCleanupFailures()
-    {
-        if (!OperatingSystem.IsWindows()) { return; }
-        var plan = new ValidationPlan { Excel = true };
-        plan.ExcelSelections.Add(new ExcelSelection("CLI", "FullyQualifiedName~Example", "Acceptance"));
-        var runner = new CleanupFailureRunner();
-        var results = Path.Combine(Path.GetTempPath(), $"ExcelMcp.Cleanup.{Guid.NewGuid():N}");
-        try
-        {
-            var exception = await Assert.ThrowsAsync<AggregateException>(() =>
-                new ValidationExecution(TypedValidationPolicyTests.Root, runner).TestAsync(plan, null, results));
-            Assert.IsType<UnauthorizedAccessException>(exception.InnerExceptions[0]);
-            Assert.IsType<Win32Exception>(exception.InnerExceptions[1]);
-            Assert.Equal("pwsh", runner.CleanupExecutable);
-            var cleanupScript = Path.GetFullPath(Path.Combine(TypedValidationPolicyTests.Root, "scripts", "Stop-ExcelCliService.ps1"));
-            Assert.True(File.Exists(cleanupScript));
-            Assert.Contains(cleanupScript, runner.CleanupArguments, StringComparer.OrdinalIgnoreCase);
-        }
-        finally { if (Directory.Exists(results)) { Directory.Delete(results, recursive: true); } }
-    }
-
-    [Fact]
-    public void ExcelExecutionPaths_ReconcileCasesAndUseTheExistingCleanupScript()
-    {
-        var root = TypedValidationPolicyTests.Root;
-        var cleanupScript = Path.Combine(root, "scripts", "Stop-ExcelCliService.ps1");
-        Assert.True(File.Exists(cleanupScript));
-
-        var groups = File.ReadAllText(Path.Combine(root, "tools", "ExcelMcp.Build", "ExcelGroupExecution.cs"));
-        var validation = File.ReadAllText(Path.Combine(root, "tools", "ExcelMcp.Build", "ValidationExecution.cs"));
-        var policy = File.ReadAllText(Path.Combine(root, "tools", "ExcelMcp.Build", "ValidationPolicy.cs"));
-        Assert.Equal(2, CountOccurrences(groups, "ReconcileCases = true"));
-        Assert.Equal(2, CountOccurrences(validation, "reconcileCases: true"));
-        Assert.Contains("Stop-ExcelCliService.ps1", groups, StringComparison.Ordinal);
-        Assert.Contains("Stop-ExcelCliService.ps1", validation, StringComparison.Ordinal);
-        Assert.Contains("Stop-ExcelCliService", policy, StringComparison.Ordinal);
-        var cleanup = File.ReadAllText(cleanupScript);
-        Assert.Contains("tests\\ExcelMcp.CLI.Tests\\bin\\Release\\net10.0-windows\\excelcli.exe", cleanup, StringComparison.Ordinal);
-        Assert.Contains("if (-not [string]::IsNullOrWhiteSpace($PipeName))", cleanup, StringComparison.Ordinal);
-        Assert.DoesNotContain("Stop-ExcelMcpProcesses.ps1", groups, StringComparison.Ordinal);
-        Assert.DoesNotContain("Stop-ExcelMcpProcesses.ps1", validation, StringComparison.Ordinal);
-    }
-
-    private static int CountOccurrences(string source, string value) =>
-        (source.Length - source.Replace(value, "", StringComparison.Ordinal).Length) / value.Length;
-
-    [Fact]
-    public void FocusedGroupedBuild_KeepsOnlyItsOwningProject()
-    {
-        var plan = new ValidationPolicy(TypedValidationPolicyTests.Root).Select(
-            ["tests/ExcelMcp.Core.Tests/Unit/GeneratedActionContractTests.cs"]);
-        var projects = new ValidationExecution(TypedValidationPolicyTests.Root, new BuildRunner()).BuildProjects(plan, "Fast");
-        Assert.Equal(Path.Combine("tests", "ExcelMcp.Core.Tests", "ExcelMcp.Core.Tests.csproj"), Assert.Single(projects));
-    }
-
-    [Theory]
-    [InlineData("Invoke-TestStage.ps1")]
-    [InlineData("Invoke-ExcelFreeTests.ps1")]
-    [InlineData("Invoke-ExcelTests.ps1")]
-    [InlineData("Get-ExcelTestGroups.ps1")]
-    [InlineData("Build-CiInputs.ps1")]
-    [InlineData("Test-CiCompletion.ps1")]
-    public void CompatibilityCommands_UseTheSharedTypedExecution(string name)
-    {
-        var source = File.ReadAllText(Path.Combine(TypedValidationPolicyTests.Root, "scripts", name));
-        Assert.Contains("Invoke-ExcelMcpBuild", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("ProcessStartInfo", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("dotnet build", source, StringComparison.Ordinal);
-        Assert.DoesNotContain("Assert-TestReport -Path $report", source, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Completion_CannotPassWithASelectedMissingResult()
-    {
-        Assert.Throws<InvalidOperationException>(() => CiCompletion.Verify(new CiCompletionOptions
-        {
-            Detection = "success",
-            Checks = [
-                new("tests", "true", "skipped"), new("packages", "false", "skipped"),
-                new("npm", "false", "skipped"), new("build-only", "false", "skipped")
-            ]
-        }));
-    }
-
-    [Fact]
-    public async Task BuiltInventory_PreservesClassFixtureBoundariesAndMixedMethodGroups()
-    {
-        var results = Path.Combine(Path.GetTempPath(), $"ExcelMcp.Inventory.{Guid.NewGuid():N}");
-        try
-        {
-            var runner = new InventoryRunner();
-            var groups = await new ExcelGroupExecution(TypedValidationPolicyTests.Root, runner).InventoryAsync(results);
-            Assert.Equal(["Core", "Service", "CLI", "McpServer", "ComInterop"], runner.Owners);
-            Assert.Equal(15, groups.Length);
-            foreach (var owner in runner.Owners)
-            {
-                var selected = groups.Where(item => item.ProjectName == owner).ToArray();
-                Assert.Contains(selected, item => item.Filter == $"(FullyQualifiedName~Fixture.{owner}.)" && item.Cases.Length == 2);
-                Assert.Contains(selected, item => item.Filter == "(FullyQualifiedName=Mixed.Normal)" && item.Group == "Lifecycle");
-                Assert.Contains(selected, item => item.Filter == "(FullyQualifiedName=Mixed.Macro)" && item.Group == "VBA" && item.Cases[0].Prerequisite);
+        var run = await ValidationSelectionTests.RunAsync($$"""
+            . .\scripts\ValidationExecution.ps1
+            $global:buildCommands = @()
+            $global:buildGraph = $null
+            function Invoke-NativeCommand {
+                param($Executable, $Arguments)
+                if ($Executable -ne 'dotnet') { throw 'Unexpected executable.' }
+                $global:buildCommands += ,$Arguments
+                $global:buildGraph = $Arguments[1]
+                $graph = Get-Content -LiteralPath $global:buildGraph -Raw | ConvertFrom-Json
+                if (($graph.solution.projects -join ',') -cne 'src\ExcelMcp.Core\ExcelMcp.Core.csproj,tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj') {
+                    throw 'The SDK graph lost selected inputs.'
+                }
+                if ($Arguments -contains '--no-incremental' -or $Arguments -contains '--disable-build-servers') { throw 'Native optimizations disabled.' }
+                if ($Arguments[0] -eq 'build' -and $Arguments -notcontains '-p:UseSharedCompilation=false') {
+                    throw 'A persistent compiler server would outlive its owned build.'
+                }
+                if ($Arguments[0] -eq '{{failure}}') { throw 'native-root-cause' }
+                @{ Output='fixture'; Error='' }
             }
-            Assert.Contains("new inventory path", (await Assert.ThrowsAsync<InvalidOperationException>(
-                () => new ExcelGroupExecution(TypedValidationPolicyTests.Root, runner).InventoryAsync(results))).Message, StringComparison.Ordinal);
-        }
-        finally { if (Directory.Exists(results)) { Directory.Delete(results, true); } }
-    }
-
-    private sealed class BuildRunner(string failure = "") : IProcessRunner
-    {
-        public List<string[]> Commands { get; } = [];
-        public Dictionary<string, string[]> SelectedProjects { get; } = new(StringComparer.Ordinal);
-        public Task<ProcessResult> CheckedAsync(string executable, IEnumerable<string> arguments, TimeSpan deadline,
-            IReadOnlyDictionary<string, string>? environment = null, bool preserveGitContext = false)
-        {
-            Assert.Equal("dotnet", executable);
-            var command = arguments.ToArray();
-            Commands.Add(command);
-            if (Path.GetExtension(command[1]) == ".slnf")
-            {
-                using var document = JsonDocument.Parse(File.ReadAllText(command[1]));
-                var solution = document.RootElement.GetProperty("solution");
-                Assert.Equal(Path.Combine(TypedValidationPolicyTests.Root, "Sbroenne.ExcelMcp.sln"), solution.GetProperty("path").GetString());
-                SelectedProjects[command[1]] = solution.GetProperty("projects").EnumerateArray()
-                    .Select(project => project.GetString() ?? throw new InvalidOperationException("Missing selected project.")).ToArray();
+            $plan = Get-ValidationPlan -Paths @()
+            $plan.BuildProjects = @('src/ExcelMcp.Core/ExcelMcp.Core.csproj','tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj')
+            try {
+                Invoke-SelectedBuild $plan
+                if ('{{failure}}') { throw 'Native failure was hidden.' }
+            } catch {
+                if (-not '{{failure}}' -or $_ -notmatch 'native-root-cause') { throw }
             }
-            if (command[0] == failure) { throw new InvalidOperationException("native-root-cause"); }
-            return Task.FromResult(new ProcessResult(0, "", ""));
-        }
-        public Task<ProcessResult> RunAsync(string executable, IEnumerable<string> arguments, TimeSpan deadline,
-            IReadOnlyDictionary<string, string>? environment = null, bool preserveGitContext = false) =>
-            throw new InvalidOperationException("Builds must check command results.");
+            if (Test-Path -LiteralPath $global:buildGraph) { throw 'Temporary graph was not removed.' }
+            $expected = if ('{{failure}}' -eq 'restore') { 1 } else { 2 }
+            if ($global:buildCommands.Count -ne $expected -or $global:buildCommands[0][0] -ne 'restore') { throw 'Wrong build sequence.' }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
     }
 
-    private sealed class CleanupFailureRunner : IProcessRunner
+    [Fact]
+    public async Task CompleteBuild_HasOneDeterministicOwningGroup()
     {
-        public string? CleanupExecutable { get; private set; }
-        public string[] CleanupArguments { get; private set; } = [];
-
-        public Task<ProcessResult> RunAsync(string executable, IEnumerable<string> arguments, TimeSpan deadline,
-            IReadOnlyDictionary<string, string>? environment = null, bool preserveGitContext = false) =>
-            throw new UnauthorizedAccessException("test host launch failure");
-
-        public Task<ProcessResult> CheckedAsync(string executable, IEnumerable<string> arguments, TimeSpan deadline,
-            IReadOnlyDictionary<string, string>? environment = null, bool preserveGitContext = false)
-        {
-            CleanupExecutable = executable;
-            CleanupArguments = arguments.ToArray();
-            throw new Win32Exception("owned cleanup launch failure");
-        }
+        var run = await ValidationSelectionTests.RunAsync("""
+            . .\scripts\ValidationExecution.ps1
+            $plan = Get-ValidationPlan -Full
+            foreach ($group in $plan.CiTestGroups) {
+                $projects = @(Get-SelectedBuildProjects $plan $group)
+                if ($group -eq $plan.FullSolutionBuildGroup) {
+                    if (($projects -join ',') -cne 'Sbroenne.ExcelMcp.sln') { throw 'Complete build missing.' }
+                } elseif (@($projects | Where-Object { -not $_.EndsWith('.Tests.csproj') }).Count) {
+                    throw 'Solution was rebuilt in a second group.'
+                }
+            }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
     }
 
-    private sealed class InventoryRunner : IProcessRunner
+    [Fact]
+    public async Task ExcelFailure_PreservesPrimaryAndOwnedCleanupErrors()
     {
-        public List<string> Owners { get; } = [];
-        public async Task<ProcessResult> RunAsync(string executable, IEnumerable<string> arguments, TimeSpan deadline,
-            IReadOnlyDictionary<string, string>? environment = null, bool preserveGitContext = false)
-        {
-            Assert.Equal("dotnet", executable);
-            Assert.Equal(TimeSpan.FromSeconds(120), deadline);
-            Assert.False(preserveGitContext);
-            var command = arguments.ToArray();
-            Assert.Contains("FullyQualifiedName~ExcelValidationGroups_PreserveClassFixturesAndExportBuiltInventory", command);
-            Assert.NotNull(environment);
-            var path = environment["EXCELMCP_TEST_SELECTION_OUTPUT"];
-            var owner = Path.GetFileName(path).Replace("-inventory.json", "", StringComparison.Ordinal);
-            Owners.Add(owner);
-            await File.WriteAllTextAsync(path, JsonSerializer.Serialize(new BuiltTestCase[] {
-                new($"Fixture.{owner}", $"Fixture.{owner}.One", "Editing", false, false, false),
-                new($"Fixture.{owner}", $"Fixture.{owner}.Two", "Editing", false, false, false),
-                new("Mixed", "Mixed.Normal", "Lifecycle", false, false, false),
-                new("Mixed", "Mixed.Macro", "VBA", true, true, false)
-            }));
-            await File.WriteAllTextAsync(Path.Combine(Path.GetDirectoryName(path)!, $"{owner}-inventory.trx"),
-                """<TestRun><Results><UnitTestResult outcome="Passed"/></Results><ResultSummary outcome="Completed"><Counters total="1" passed="1" executed="1" failed="0" notExecuted="0"/></ResultSummary></TestRun>""");
-            return new ProcessResult(0, "fixture", "");
-        }
-        public Task<ProcessResult> CheckedAsync(string executable, IEnumerable<string> arguments, TimeSpan deadline,
-            IReadOnlyDictionary<string, string>? environment = null, bool preserveGitContext = false) =>
-            throw new InvalidOperationException("Inventory must not execute workbook tests or process cleanup.");
+        var run = await ValidationSelectionTests.RunAsync("""
+            . .\scripts\ValidationExecution.ps1
+            function Invoke-TestStage { throw 'test-root-cause' }
+            $directory = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.Cleanup.$([Guid]::NewGuid().ToString('N'))"
+            New-Item -ItemType Directory "$directory\scripts" -Force | Out-Null
+            try {
+                'param($PipeName); if ($PipeName -notlike "excelmcp-selected-*") { throw "Wrong identity" }; throw "cleanup-root-cause"' |
+                    Set-Content "$directory\scripts\Stop-ExcelCliService.ps1"
+                $definition = ${function:Invoke-ExcelPlan}.ToString().Replace(
+                    '$root = Split-Path -Parent $PSScriptRoot', ('$root = ''' + $directory.Replace("'","''") + ''''))
+                Set-Item Function:\Invoke-ExcelPlan ([scriptblock]::Create($definition))
+                $plan = Get-ValidationPlan -Paths 'scripts/Test-E2E.ps1'
+                $plan.FullE2E = $false
+                try {
+                    Invoke-ExcelPlan -Plan $plan -ResultsDirectory $directory
+                    throw 'Selected failure was swallowed.'
+                } catch {
+                    if ($_.Exception -isnot [AggregateException] -or $_ -notmatch 'test-root-cause' -or $_ -notmatch 'cleanup-root-cause') { throw }
+                }
+            } finally { Remove-Item -LiteralPath $directory -Recurse -Force }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
+    }
+
+    [Fact]
+    public async Task BuiltInventory_UsesWholeFixturesAndOnlySplitsMixedMethodGroups()
+    {
+        var run = await ValidationSelectionTests.RunAsync("""
+            . .\scripts\Get-ExcelTestGroups.ps1
+            function Invoke-TestStage {
+                param($Environment)
+                @(
+                    @{Class='Fixture.Cases'; Method='Fixture.Cases.One'; Group='Editing'; OnDemand=$false; Required=$false; Prerequisite=$false},
+                    @{Class='Fixture.Cases'; Method='Fixture.Cases.Two'; Group='Editing'; OnDemand=$false; Required=$false; Prerequisite=$false},
+                    @{Class='Mixed.Cases'; Method='Mixed.Cases.Normal'; Group='Lifecycle'; OnDemand=$false; Required=$false; Prerequisite=$false},
+                    @{Class='Mixed.Cases'; Method='Mixed.Cases.Macro'; Group='VBA'; OnDemand=$false; Required=$false; Prerequisite=$true}
+                ) | ConvertTo-Json | Set-Content -LiteralPath $Environment.EXCELMCP_TEST_SELECTION_OUTPUT
+            }
+            $directory = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.Inventory.$([Guid]::NewGuid().ToString('N'))"
+            New-Item -ItemType Directory $directory | Out-Null
+            try {
+                $groups = @(Get-ExcelTestGroups -ResultsDirectory $directory)
+                if ($groups.Count -ne 15) { throw 'An inventory owner or group was lost.' }
+                foreach ($owner in @('Core','Service','CLI','McpServer','ComInterop')) {
+                    $selected = @($groups | Where-Object ProjectName -eq $owner)
+                    if (@($selected | Where-Object { $_.Filter -eq '(FullyQualifiedName~Fixture.Cases.)' -and $_.Cases.Count -eq 2 }).Count -ne 1 -or
+                        @($selected | Where-Object { $_.Filter -eq '(FullyQualifiedName=Mixed.Cases.Macro)' -and $_.Cases[0].Prerequisite }).Count -ne 1) {
+                        throw 'Fixture boundary or mixed-method group changed.'
+                    }
+                }
+                try { Get-ExcelTestGroups -ResultsDirectory $directory; throw 'Stale inventory accepted.' }
+                catch { if ($_ -notmatch 'new inventory path') { throw } }
+            } finally { Remove-Item -LiteralPath $directory -Recurse -Force }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
     }
 }

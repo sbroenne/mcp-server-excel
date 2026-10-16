@@ -1,6 +1,5 @@
 using System.IO.Compression;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.Build;
 using Xunit;
 using static Sbroenne.ExcelMcp.Tests.Infrastructure.PackagingScriptTestHelper;
 
@@ -36,13 +35,9 @@ public sealed class McpbPackagingScriptTests
         {
             StageMcpbInputs(sandbox);
             var output = Path.Combine(sandbox, "artifacts", "packages");
-            var commands = new PackageCommands(_ => throw new InvalidOperationException("Metadata bundles must not install npm dependencies or publish a runtime."));
-            await new PackageExecution(sandbox, commands).ReleaseAsync(new PackageOptions
-            {
-                Components = ["Mcpb"],
-                Version = "1.2.3",
-                OutputDirectory = output
-            });
+            var result = await RunPowerShellFileAsync(Path.Combine(sandbox, "scripts", "Build-ReleasePackages.ps1"),
+                ["-Components", "Mcpb", "-Version", "1.2.3", "-OutputDirectory", output]);
+            Assert.True(result.ExitCode == 0, result.CombinedOutput);
             await AssertDirectNpxBundleAsync(Path.Combine(output, "mcpb", "excel-mcp-1.2.3.mcpb"));
             Assert.False(Directory.Exists(Path.Combine(output, "runtimes")));
             Assert.False(Directory.Exists(Path.Combine(output, "nuget")));
@@ -59,6 +54,7 @@ public sealed class McpbPackagingScriptTests
         var sandbox = CreateSandbox("prepared-skill-version");
         try
         {
+            StageMcpbInputs(sandbox);
             var skills = Path.Combine(sandbox, "prepared");
             foreach (var name in new[] { "excel-cli", "excel-mcp" })
             {
@@ -66,22 +62,17 @@ public sealed class McpbPackagingScriptTests
                 if (stamp.Length > 0) { File.WriteAllText(Path.Combine(directory, "VERSION"), stamp); }
             }
             var output = Path.Combine(sandbox, "artifacts", "packages");
-            var commands = new PackageCommands(_ => throw new InvalidOperationException("Payload packaging was reached."));
-            var error = await Assert.ThrowsAsync<InvalidOperationException>(() => new PackageExecution(sandbox, commands).ReleaseAsync(new PackageOptions
-            {
-                Components = ["Plugins"],
-                Version = "1.2.3",
-                SkillsDirectory = skills,
-                OutputDirectory = output
-            }));
-            Assert.Contains("skill must match package version", error.Message, StringComparison.Ordinal);
+            var result = await RunPowerShellFileAsync(Path.Combine(sandbox, "scripts", "Build-ReleasePackages.ps1"),
+                ["-Components", "Plugins", "-Version", "1.2.3", "-SkillsDirectory", skills, "-OutputDirectory", output]);
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("skill must match package version", result.CombinedOutput, StringComparison.Ordinal);
             Assert.False(Directory.Exists(output));
         }
         finally { DeleteDirectoryIfExists(sandbox); }
     }
 
     [Fact]
-    public void FailedBuild_PreservesExistingOutput()
+    public async Task FailedBuild_PreservesExistingOutput()
     {
         var sandbox = CreateSandbox("mcpb-preserved-output");
         try
@@ -92,9 +83,11 @@ public sealed class McpbPackagingScriptTests
             var unrelated = Path.Combine(output, "keep.txt");
             File.WriteAllText(previous, "previous-good-package");
             File.WriteAllText(unrelated, "unrelated");
-            var error = Assert.Throws<IOException>(() => new AuthoredPackages(sandbox, (_, _) =>
-                throw new IOException("archive-root-cause")).Mcpb("1.2.3", output));
-            Assert.Contains("archive-root-cause", error.Message, StringComparison.Ordinal);
+            File.Delete(Path.Combine(bundle, "icon-512.png"));
+            var result = await RunPowerShellFileAsync(Path.Combine(bundle, "Build-McpBundle.ps1"),
+                ["-Version", "1.2.3", "-OutputDir", output]);
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("icon-512.png", result.CombinedOutput, StringComparison.Ordinal);
             Assert.Equal("previous-good-package", File.ReadAllText(previous));
             Assert.Equal("unrelated", File.ReadAllText(unrelated));
         }
@@ -105,14 +98,18 @@ public sealed class McpbPackagingScriptTests
     [InlineData("src/output")]
     [InlineData("skills/generated")]
     [InlineData(".github/plugins/output")]
-    public void PackageOutputs_RejectSourceDestinations(string relativePath)
+    public async Task PackageOutputs_RejectSourceDestinations(string relativePath)
     {
         var sandbox = CreateSandbox("package-source-destination");
         try
         {
             var output = Path.Combine(sandbox, relativePath);
-            var error = Assert.Throws<ArgumentException>(() => PackageFiles.AssertOutput(output, sandbox));
-            Assert.Contains("Unsafe package output", error.Message, StringComparison.Ordinal);
+            var result = await RunPowerShellCommandAsync($"""
+                . '{Path.Combine(RepoRoot, "scripts", "PackageHelpers.ps1")}'
+                Assert-PackageOutputPath '{output}' '{sandbox}'
+                """);
+            Assert.NotEqual(0, result.ExitCode);
+            Assert.Contains("Unsafe package output", result.CombinedOutput, StringComparison.Ordinal);
             Assert.False(Directory.Exists(output));
         }
         finally { DeleteDirectoryIfExists(sandbox); }
@@ -194,7 +191,7 @@ public sealed class McpbPackagingScriptTests
     {
         var bundle = Directory.CreateDirectory(Path.Combine(sandbox, "mcpb")).FullName;
         var scripts = Directory.CreateDirectory(Path.Combine(sandbox, "scripts")).FullName;
-        foreach (var name in new[] { "Build-ReleasePackages.ps1", "PackageHelpers.ps1" })
+        foreach (var name in new[] { "Build-ReleasePackages.ps1", "PackageHelpers.ps1", "ExtensionPackaging.ps1" })
         {
             File.Copy(Path.Combine(RepoRoot, "scripts", name), Path.Combine(scripts, name));
         }

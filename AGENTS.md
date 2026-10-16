@@ -147,7 +147,7 @@ CLI, MCP Server, Core, and Service (`Commit` group), excluding
 package, Excel, and acceptance checks do not run on
 every commit. CI owns hosted checks; run local process checks when changing
 their boundary, not on every push. A passing hook is not complete PR validation.
-Use the changed-area plan from `tools\ExcelMcp.Build\ValidationPolicy.cs` for
+Use the changed-area plan from `scripts\Get-ValidationPlan.ps1` for
 PR and local validation. Include affected dependencies, not unrelated features.
 Run its selected Excel cases locally; shared lifecycle changes also select
 acceptance and ComInterop diagnostics. `scripts\Test-E2E.ps1` remains an explicit

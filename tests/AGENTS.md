@@ -11,13 +11,14 @@ behavior and dependencies, and retain the selected results. Use
 build; `scripts\Test-E2E.ps1` runs complete CLI/MCP acceptance. These runners
 set hard execution deadlines; returning control while a test keeps running
 is not a timeout.
-PR and commit checks share the typed changed-area policy. The commit hook runs
+PR and commit checks share the PowerShell changed-area policy. The commit hook runs
 the selected Release build and deterministic CLI/MCP/Core/Service tests
 (`Commit` projection of `Fast`), excluding `AdapterTestKind=System` and
 `Speed=Slow`. CI retains those system and slow tests; run local process checks
 when changing their boundary, not on every push. Run selected Excel
-checks locally because hosted runners lack Excel. A test-only change
-selects its class and actual helper consumers; shared changes include affected
+checks locally because hosted runners lack Excel. Test-only changes select their
+owning project group; unit and protocol-tool folders remain Excel-free.
+Shared changes include affected
 dependencies. Empty or unknown selections must not be presented as passed tests.
 Session/batch infrastructure changes also require relevant ComInterop OnDemand
 tests. Core OnDemand tests are optional diagnostics, not mandatory CI gates.

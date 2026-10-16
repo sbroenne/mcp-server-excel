@@ -33,6 +33,7 @@ on:
       - 'scripts/Restore-UsageAnalytics.ps1'
       - 'scripts/Update-StarHistory.ps1'
       - 'scripts/Restore-StarHistory.ps1'
+      - 'scripts/AnalyticsStorage.ps1'
   schedule:
     # After star-history.yml (02:17 UTC) so the site renders the same day's snapshot.
     - cron: "17 3 * * *"
@@ -119,16 +120,16 @@ jobs:
       - name: Install dependencies
         run: pip install -r gh-pages/requirements.txt
 
-      - name: Build with MkDocs
-        working-directory: gh-pages
-        run: mkdocs build --strict --clean
-
       - name: Unit test site generator and sample packaging
         working-directory: gh-pages
         run: python -m unittest discover -s tests
 
       - name: Check sample data and build scripts
         run: python -m unittest discover -s samples/world-bank-dashboard -p "test_*.py"
+
+      - name: Build with MkDocs
+        working-directory: gh-pages
+        run: mkdocs build --strict --clean
 
       - name: Audit built site
         working-directory: gh-pages

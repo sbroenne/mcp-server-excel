@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/usage-analytics.yml'
       - 'scripts/*UsageAnalytics*.ps1'
+      - 'scripts/AnalyticsStorage.ps1'
       - 'gh-pages/**'
       - '.github/usage-analytics.json'
       - '.github/usage-analytics-weights.json'

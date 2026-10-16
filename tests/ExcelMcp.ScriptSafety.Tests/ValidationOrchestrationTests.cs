@@ -41,19 +41,19 @@ public sealed class ValidationOrchestrationTests
             $workflow = Get-Content .\.github\workflows\ci.yml -Raw
             if (-not $workflow.Contains('./scripts/Build-CiInputs.ps1')) { throw 'Scoped preparation was not wired.' }
             $adapter = Get-Content .\scripts\Build-CiInputs.ps1 -Raw
-            if (-not $adapter.Contains('Invoke-ExcelMcpBuild')) { throw 'Shared build execution was not wired.' }
-            $executor = Get-Content .\tools\ExcelMcp.Build\ValidationExecution.cs -Raw
+            if (-not $adapter.Contains('Invoke-SelectedBuild')) { throw 'Shared build execution was not wired.' }
+            $executor = Get-Content .\scripts\ValidationExecution.ps1 -Raw
             if ($executor.Contains('--disable-build-servers') -or $executor.Contains('--no-incremental')) {
                 throw 'Preparatory builds must retain native SDK build optimizations.'
             }
             $gate = [regex]::Match($workflow, '(?s)  ci-gate:\r?\n(.*?)(?=\r?\n  [a-zA-Z0-9_-]+:\r?\n|$)').Groups[1].Value
-            if (-not $gate.Contains('actions/setup-dotnet') -or -not $gate.Contains('global-json-file: global.json')) {
-                throw 'CI completion runner does not set up the repository SDK.'
+            if ($gate.Contains('actions/setup-dotnet')) {
+                throw 'CI completion must not install an unused SDK.'
             }
             $stage = Get-Content .\scripts\Invoke-TestStage.ps1 -Raw
             $e2e = Get-Content .\scripts\Test-E2E.ps1 -Raw
             if (-not $stage.Contains('[switch]$ReconcileCases') -or
-                -not $stage.Contains('ReconcileCases = [bool]$ReconcileCases') -or
+                -not $stage.Contains('$check.ExpectedCases = $expected') -or
                 -not $e2e.Contains('Invoke-TestStage @parameters -ReconcileCases')) {
                 throw 'Acceptance case reconciliation is not wired through its supported entry point.'
             }
@@ -109,7 +109,7 @@ public sealed class ValidationOrchestrationTests
     {
         var run = await ValidationSelectionTests.RunAsync("""
             $workflow = Get-Content .\.github\workflows\ci.yml -Raw
-            foreach ($jobName in @('changes', 'packages', 'npm')) {
+            foreach ($jobName in @('packages', 'npm')) {
                 $job = [regex]::Match($workflow, "(?s)  ${jobName}:`r?`n(.*?)(?=`r?`n  [a-zA-Z0-9_-]+:`r?`n|$)").Groups[1].Value
                 if (-not $job) { throw "Missing CI job: $jobName" }
                 if (-not $job.Contains('actions/setup-dotnet') -or -not $job.Contains('global-json-file: global.json')) {
@@ -117,9 +117,8 @@ public sealed class ValidationOrchestrationTests
                 }
             }
             $changes = [regex]::Match($workflow, '(?s)  changes:\r?\n(.*?)(?=\r?\n  [a-zA-Z0-9_-]+:\r?\n|$)').Groups[1].Value
-            if ($changes.IndexOf('name: Setup .NET') -lt 0 -or
-                $changes.IndexOf('name: Setup .NET') -gt $changes.IndexOf('name: Select changed inputs')) {
-                throw 'CI selection runs before setting up the repository SDK.'
+            if ($changes.Contains('actions/setup-dotnet')) {
+                throw 'Native CI selection must not install or compile a custom tool.'
             }
             $packages = [regex]::Match($workflow, '(?s)  packages:\r?\n(.*?)(?=\r?\n  [a-zA-Z0-9_-]+:\r?\n|$)').Groups[1].Value
             $setup = [regex]::Match($packages, '(?s)- name: Setup \.NET\r?\n(?<step>.*?)(?=\r?\n      - name:|\z)')

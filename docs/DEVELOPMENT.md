@@ -21,10 +21,13 @@ changes, not as a blanket pre-push requirement. Run selected real-Excel checks
 locally because ordinary hosted runners do not have desktop Excel. Commands
 and explicit test groups are in [tests/README](../tests/README.md).
 
-`tools/ExcelMcp.Build/ValidationPolicy.cs` selects checks, not rebuild decisions.
-`Get-ValidationPlan.ps1` forwards to it; `build.ps1` bootstraps the internal tool
-into isolated execution output. MSBuild evaluates projects/imports and owns
-restore, dependency builds and incremental compilation.
+`scripts/Get-ValidationPlan.ps1` selects checks through explicit changed-path
+and feature-label rules, not source-reference analysis or rebuild decisions.
+`build.ps1` calls shared PowerShell coordination directly; there is no custom
+C# build executable, SDK bootstrap or tool-output cache. MSBuild evaluates
+projects/imports and owns restore, dependency builds and incremental compilation.
+Selection and CI completion need only PowerShell, so their Actions jobs do not
+install the .NET SDK.
 
 The commit hook builds selected inputs and uses the `Commit` projection of
 `Fast`: CLI, MCP Server, Core and Service, excluding `AdapterTestKind=System`
@@ -36,10 +39,20 @@ selected projects and dependencies. `Build-CiInputs.ps1` performs those builds.
 
 The MCP compilation checks documentation counts through EXL030 using the
 compiled Core manifest. There is no separate source scanner or count updater.
-Package preparation, built test inventories, execution and completion reporting
-are typed build-tool operations, with PowerShell wrappers translating arguments.
+The existing xUnit architecture test exports the built Excel inventory.
+Standard `dotnet test` uses `tests/strict.runsettings` to reject empty selections,
+skips and runner warnings. Shared PowerShell adds bounded process ownership and
+checks discovered-versus-executed names for Excel and acceptance runs.
+Test-only edits select their owning project group; unit and protocol-tool
+folders do not select Excel. Shared runtime helpers intentionally select broader
+runtime and acceptance coverage rather than maintaining a second source analyser.
+Package preparation belongs to the existing PowerShell commands.
 PR CI runs normal npm checks and complete package preparation. Explicit manual
 `Build-ReleasePackages.ps1 -Components ...` runs may narrow components.
+The same packaging commands are available for local troubleshooting; a complete
+local package run is not required for every edit or commit. Actions runs cheap
+skill/extension source checks before expensive packaging and retains checks of
+the finished distributions. Publication stays in authorized Actions workflows.
 
 For the constraints behind this workflow, including completion checks, output
 isolation and owned-process cleanup, follow [build rules](../scripts/AGENTS.md).
@@ -190,7 +203,7 @@ dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj -c Releas
 ```
 
 **Before Commit:** Rerun affected tests and applicable repository checks.
-The hook selects staged changes with the same C# policy used by PR CI, including
+The hook selects staged changes with the same PowerShell policy used by PR CI, including
 affected dependencies. It does not automatically run every workbook feature or
 all acceptance scenarios after a feature-local edit. Full acceptance remains
 available explicitly and is selected for shared runtime boundaries.

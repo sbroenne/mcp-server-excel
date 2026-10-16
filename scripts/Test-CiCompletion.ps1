@@ -10,13 +10,16 @@ param(
     [Parameter(Mandatory)][string]$SelectedBuildOnly
 )
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot 'Invoke-BuildTool.ps1')
-Invoke-ExcelMcpBuild -Arguments @('complete') -OptionsParameter '--completion-options' -Options @{
-    Detection = $Detection
-    Checks = @(
-        @{ Name = 'tests'; Selected = $SelectedTests; Result = $Tests },
-        @{ Name = 'packages'; Selected = 'true'; Result = $Packages },
-        @{ Name = 'npm'; Selected = 'true'; Result = $Npm },
-        @{ Name = 'build-only'; Selected = $SelectedBuildOnly; Result = $BuildOnly }
-    )
+if ($Detection -cne 'success') { throw "Change detection did not succeed: $Detection." }
+foreach ($check in @(
+    @{ Name = 'tests'; Selected = $SelectedTests; Result = $Tests },
+    @{ Name = 'packages'; Selected = 'true'; Result = $Packages },
+    @{ Name = 'npm'; Selected = 'true'; Result = $Npm },
+    @{ Name = 'build-only'; Selected = $SelectedBuildOnly; Result = $BuildOnly }
+)) {
+    if ($check.Selected -cnotin @('true', 'false')) { throw "Invalid selection flag for $($check.Name)." }
+    $expected = if ($check.Selected -ceq 'true') { 'success' } else { 'skipped' }
+    if ($check.Result -cne $expected) { throw "$($check.Name) returned '$($check.Result)', expected '$expected'." }
 }
+Write-Host 'All selected CI checks succeeded.'
+$global:LASTEXITCODE = 0

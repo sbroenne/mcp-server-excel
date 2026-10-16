@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using Sbroenne.ExcelMcp.Build;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
@@ -42,7 +41,7 @@ public sealed class PreCommitScriptTests
     }
 
     [Fact]
-    public void ChangedPaths_ClassifyAllInputsInOneInvocation()
+    public async Task ChangedPaths_ClassifyAllInputsInOneInvocation()
     {
         (string Path, bool Build, bool Excel, bool SkillTests)[] cases =
         [
@@ -80,15 +79,17 @@ public sealed class PreCommitScriptTests
             ("docs/reference/range.md", false, false, false),
             ("skills/excel-cli-report-formatting/SKILL.md", true, false, true)
         ];
-        var policy = new ValidationPolicy(RepoRoot);
-        foreach (var (path, build, excel, skills) in cases)
-        {
-            var plan = policy.Select(path.Split('\n'));
-            Assert.True(build == plan.Build, $"{path}: incorrect Build selection.");
-            Assert.True(excel == plan.Excel, $"{path}: incorrect Excel selection.");
-            Assert.True(skills == plan.SkillTests, $"{path}: incorrect SkillTests selection.");
-            Assert.True(!excel || plan.Build, $"{path}: compiler checks missing.");
-        }
+        var json = System.Text.Json.JsonSerializer.Serialize(cases.Select(item => new { item.Path, item.Build, item.Excel, item.SkillTests }));
+        var result = await ValidationSelectionTests.RunAsync($$"""
+            foreach ($case in ('{{json}}' | ConvertFrom-Json)) {
+                $plan = Get-ValidationPlan -Paths ($case.Path -split '\n')
+                if ($plan.Build -ne $case.Build -or $plan.Excel -ne $case.Excel -or $plan.SkillTests -ne $case.SkillTests) {
+                    throw "Wrong selection for $($case.Path)"
+                }
+                if ($plan.Excel -and -not $plan.Build) { throw 'Compiler checks missing.' }
+            }
+            """);
+        Assert.True(result.ExitCode == 0, result.Output);
     }
 
     [Theory]
@@ -173,12 +174,9 @@ public sealed class PreCommitScriptTests
             {
                 File.Copy(Path.Combine(RepoRoot, "scripts", $"{name}.ps1"), Path.Combine(scripts, $"{name}.ps1"));
             }
-            await File.WriteAllTextAsync(Path.Combine(scripts, "Invoke-BuildTool.ps1"), """
-                function Invoke-ExcelMcpBuild {
-                    param([string[]]$Arguments)
-                    if ($Arguments[0] -ne 'build') { throw 'Unexpected hook build operation.' }
-                    $file = $Arguments[[Array]::IndexOf($Arguments, '--plan') + 1]
-                    $plan = Get-Content -LiteralPath $file -Raw | ConvertFrom-Json
+            await File.WriteAllTextAsync(Path.Combine(scripts, "ValidationExecution.ps1"), """
+                function Invoke-SelectedBuild {
+                    param($plan)
                     $projects = if ($plan.FullSolutionBuild) { @('Sbroenne.ExcelMcp.sln') } else { @($plan.BuildProjects) }
                     foreach ($project in $projects) {
                         dotnet build $project -c Release --disable-build-servers
@@ -250,13 +248,8 @@ public sealed class PreCommitScriptTests
 
     private static async Task<(int ExitCode, string Output)> RunScriptAsync(string sandbox, string runner)
     {
-        var result = await new Sbroenne.ExcelMcp.Build.ProcessRunner(sandbox).RunAsync(
-            "pwsh", ["-NoLogo", "-NoProfile", "-File", runner], TimeSpan.FromSeconds(30),
-            new Dictionary<string, string>
-            {
-                ["EXCELMCP_BUILD_ROOT"] = RepoRoot,
-                ["EXCELMCP_BUILD_DLL"] = typeof(Sbroenne.ExcelMcp.Build.ValidationPolicy).Assembly.Location
-            });
+        var result = await new ScriptTestProcess(sandbox).RunAsync(
+            "pwsh", ["-NoLogo", "-NoProfile", "-File", runner], TimeSpan.FromSeconds(30));
         return (result.ExitCode, result.Output + result.Error);
     }
 

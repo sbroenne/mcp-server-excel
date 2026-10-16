@@ -11,18 +11,33 @@ param(
     [ValidateRange(1, 28800)][int]$DeadlineSeconds = 7200
 )
 $ErrorActionPreference = 'Stop'
-. (Join-Path $PSScriptRoot 'Invoke-BuildTool.ps1')
+. (Join-Path $PSScriptRoot 'Get-ExcelTestGroups.ps1')
+if (-not $ResultsDirectory) { $ResultsDirectory = Join-Path (Split-Path -Parent $PSScriptRoot) "TestResults\excel-$([Guid]::NewGuid().ToString('N'))" }
 if ($PlanFile) {
-    $arguments = @('test', '--plan', $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($PlanFile),
-        '--group', 'Excel', '--no-build', '--deadline-seconds', "$DeadlineSeconds")
-    if ($ListTests) { $arguments += '--list-tests' }
-    if ($ResultsDirectory) { $arguments += @('--results-directory', $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ResultsDirectory)) }
-    Invoke-ExcelMcpBuild -Arguments $arguments
-    return
+    Invoke-ExcelPlan -Plan (Read-ValidationPlan $PlanFile) -ResultsDirectory $ResultsDirectory -ListTests:$ListTests -DeadlineSeconds $DeadlineSeconds
+} else {
+    if (-not $IsWindows) { throw 'Real-Excel validation requires Windows with desktop Excel.' }
+    if (-not $ListTests -and -not [type]::GetTypeFromProgID('Excel.Application')) {
+        throw 'Desktop Excel is not registered. Selected Excel tests were not run.'
+    }
+    $inventory = @(Get-ExcelTestGroups -ResultsDirectory (Join-Path $ResultsDirectory inventory))
+    $plan = Get-ValidationPlan -Paths @()
+    foreach ($group in @($Groups | Select-Object -Unique)) {
+        $selected = @($inventory | Where-Object { $_.Group -eq $group -and @($_.Cases | Where-Object { -not $_.OnDemand }).Count })
+        if (-not $selected.Count) { throw "$group has no matching Excel classes." }
+        foreach ($item in $selected) {
+            $filter = $item.Filter
+            if ($group -eq 'Acceptance' -and -not $ListTests) {
+                $plan.FullE2E = $true
+                $methods = @($item.Cases | Where-Object { -not $_.Required -and -not $_.OnDemand })
+                if (-not $methods.Count) { continue }
+                $filter = '(' + (($methods.Method | ForEach-Object { "FullyQualifiedName=$_" }) -join '|') + ')'
+            }
+            $plan.ExcelSelections += @{ Project = $item.ProjectName; Filter = $filter; Area = $group }
+        }
+    }
+    $plan.Excel = $true
+    $plan.InfrastructureDiagnostics = [bool]$IncludeInfrastructureDiagnostics
+    Invoke-ExcelPlan -Plan $plan -ResultsDirectory $ResultsDirectory -ListTests:$ListTests -DeadlineSeconds $DeadlineSeconds
 }
-$options = @{
-    Groups = @($Groups); IncludeInfrastructureDiagnostics = [bool]$IncludeInfrastructureDiagnostics
-    ListTests = [bool]$ListTests; DeadlineSeconds = $DeadlineSeconds
-}
-if ($ResultsDirectory) { $options.ResultsDirectory = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ResultsDirectory) }
-Invoke-ExcelMcpBuild -Arguments @('test-excel') -OptionsParameter '--test-options' -Options $options
+$global:LASTEXITCODE = 0

@@ -7,7 +7,7 @@
 $ErrorActionPreference = 'Stop'
 $rootDir = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'Get-ValidationPlan.ps1')
-. (Join-Path $PSScriptRoot 'Invoke-BuildTool.ps1')
+. (Join-Path $PSScriptRoot 'ValidationExecution.ps1')
 
 function Invoke-Check {
     param([string]$Name, [scriptblock]$Action)
@@ -60,7 +60,7 @@ try {
         try {
             $plan | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $buildPlan -Encoding utf8
             Invoke-Check 'Building selected Release inputs' {
-                Invoke-ExcelMcpBuild -Arguments @('build', '--plan', $buildPlan)
+                Invoke-SelectedBuild $plan
             }
             if ($plan.FastProjects.Count -gt 0) {
                 Invoke-Check 'Running selected quick unit tests' {
