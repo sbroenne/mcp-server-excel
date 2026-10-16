@@ -9,7 +9,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 /// <summary>
 /// Integration tests for the batch CLI command.
 /// Tests real CLI parsing, Service dispatch, and NDJSON output without Excel.
-/// One smoke case retains the full executable and daemon pipeline.
+/// The in-process tests keep the commit hook independent of child processes.
 /// </summary>
 [Collection("Service")]
 [Trait("Layer", "CLI")]
@@ -82,25 +82,6 @@ public sealed class BatchCommandTests : IDisposable
     // ============================================
     // SINGLE COMMAND - Basic execution
     // ============================================
-
-    [Fact]
-    public async Task Batch_SinglePingCommand_ReturnsSuccess()
-    {
-        var inputFile = WriteBatchFile("""
-            [
-              {"command": "diag.ping"}
-            ]
-            """);
-
-        var results = await RunBatchAsync(
-            $"batch --input \"{inputFile}\"",
-            useProcess: true);
-
-        Assert.Single(results);
-        Assert.Equal(0, results[0].GetProperty("index").GetInt32());
-        Assert.Equal("diag.ping", results[0].GetProperty("command").GetString());
-        Assert.True(results[0].GetProperty("success").GetBoolean());
-    }
 
     // ============================================
     // MULTIPLE COMMANDS - Sequential execution
@@ -355,12 +336,9 @@ public sealed class BatchCommandTests : IDisposable
     /// Runs a batch command and parses the NDJSON output into a list of JsonElements.
     /// </summary>
     private async Task<List<JsonElement>> RunBatchAsync(
-        string args,
-        bool useProcess = false)
+        string args)
     {
-        var result = useProcess
-            ? await CliProcessHelper.RunAsync(args)
-            : await InProcessCliHelper.RunWithServiceAsync(args);
+        var result = await InProcessCliHelper.RunWithServiceAsync(args);
         _output.WriteLine($"Exit: {result.ExitCode}");
         _output.WriteLine($"Stdout: {result.Stdout}");
         if (!string.IsNullOrEmpty(result.Stderr))
@@ -384,5 +362,40 @@ public sealed class BatchCommandTests : IDisposable
         }
 
         return results;
+    }
+}
+
+[Trait("Layer", "CLI")]
+[Trait("Category", "Integration")]
+[Trait("Feature", "Batch")]
+[Trait("RequiresExcel", "false")]
+[Trait("AdapterTestKind", "System")]
+[Trait("Speed", "Medium")]
+[Collection("Service")]
+public sealed class BatchProcessSmokeTests
+{
+    [Fact]
+    public async Task Batch_SinglePingCommand_ReturnsSuccess()
+    {
+        var inputFile = Path.Combine(Path.GetTempPath(), $"BatchProcessSmoke_{Guid.NewGuid():N}.json");
+        await File.WriteAllTextAsync(inputFile, """
+            [
+              {"command": "diag.ping"}
+            ]
+            """);
+
+        try
+        {
+            var result = await CliProcessHelper.RunAsync($"batch --input \"{inputFile}\"");
+            Assert.Equal(0, result.ExitCode);
+            using var json = JsonDocument.Parse(result.Stdout.Trim());
+            Assert.Equal(0, json.RootElement.GetProperty("index").GetInt32());
+            Assert.Equal("diag.ping", json.RootElement.GetProperty("command").GetString());
+            Assert.True(json.RootElement.GetProperty("success").GetBoolean());
+        }
+        finally
+        {
+            File.Delete(inputFile);
+        }
     }
 }

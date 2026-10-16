@@ -25,6 +25,11 @@ public sealed class TestSelectionTests
             new FreeTestOptions { Group = "Commit" }, plan);
         Assert.Equal(["CLI", "Core", "McpServer", "Service"], selected.Select(item => item.Owner));
         Assert.All(selected, item => Assert.Contains("AdapterTestKind!=System", item.Filter, StringComparison.Ordinal));
+        Assert.All(selected, item => Assert.Contains("Speed!=Slow", item.Filter, StringComparison.Ordinal));
+
+        var ci = FreeTestSelection.Select(TypedValidationPolicyTests.Root,
+            new FreeTestOptions { Group = "Fast" }, plan);
+        Assert.All(ci, item => Assert.DoesNotContain("Speed!=Slow", item.Filter, StringComparison.Ordinal));
     }
 
     [Fact]

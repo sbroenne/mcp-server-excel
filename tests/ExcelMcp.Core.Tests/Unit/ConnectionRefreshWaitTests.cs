@@ -77,32 +77,47 @@ public sealed class ConnectionRefreshWaitTests
         Assert.Contains(native, causes.InnerExceptions);
     }
 
+    internal static MethodInfo GetRefreshWaitMethod()
+    {
+        var waitMethod = typeof(ConnectionCommands).GetMethod(
+            "WaitForConnectionRefreshCompletion",
+            BindingFlags.NonPublic | BindingFlags.Static);
+
+        return waitMethod ?? throw new InvalidOperationException(
+            "Expected private method WaitForConnectionRefreshCompletion was not found.");
+    }
+}
+
+[Trait("Category", "Integration")]
+[Trait("Speed", "Slow")]
+[Trait("Layer", "Core")]
+[Trait("Feature", "Connection")]
+[Trait("RequiresExcel", "false")]
+public sealed class ConnectionRefreshWaitPollingTests
+{
     [Fact]
     public void RefreshWait_WhenCancellationRequested_InvokesCancelActionAndThrows()
     {
-        MethodInfo waitMethod = GetRefreshWaitMethod();
-
-        bool cancelCalled = false;
-        using var cts = new CancellationTokenSource();
-
+        using var cancelled = new CancellationTokenSource();
         var cancellationThread = new Thread(() =>
         {
             Thread.Sleep(50);
-            cts.Cancel();
+            cancelled.Cancel();
         });
         cancellationThread.Start();
 
+        var cancelCalled = false;
         try
         {
-            var exception = Assert.Throws<TargetInvocationException>(() =>
-                waitMethod.Invoke(null,
+            var error = Assert.Throws<TargetInvocationException>(() =>
+                ConnectionRefreshWaitTests.GetRefreshWaitMethod().Invoke(null,
                 [
                     (Func<bool>)(() => true),
                     (Action)(() => cancelCalled = true),
-                    cts.Token
+                    cancelled.Token
                 ]));
 
-            Assert.IsType<OperationCanceledException>(exception.InnerException);
+            Assert.IsType<OperationCanceledException>(error.InnerException);
             Assert.True(cancelCalled);
         }
         finally
@@ -114,12 +129,10 @@ public sealed class ConnectionRefreshWaitTests
     [Fact]
     public void RefreshWait_WhenRefreshCompletes_DoesNotInvokeCancelAction()
     {
-        MethodInfo waitMethod = GetRefreshWaitMethod();
+        var pollCount = 0;
+        var cancelCalled = false;
 
-        int pollCount = 0;
-        bool cancelCalled = false;
-
-        waitMethod.Invoke(null,
+        ConnectionRefreshWaitTests.GetRefreshWaitMethod().Invoke(null,
         [
             (Func<bool>)(() => Interlocked.Increment(ref pollCount) == 1),
             (Action)(() => cancelCalled = true),
@@ -130,13 +143,4 @@ public sealed class ConnectionRefreshWaitTests
         Assert.False(cancelCalled);
     }
 
-    private static MethodInfo GetRefreshWaitMethod()
-    {
-        var waitMethod = typeof(ConnectionCommands).GetMethod(
-            "WaitForConnectionRefreshCompletion",
-            BindingFlags.NonPublic | BindingFlags.Static);
-
-        return waitMethod ?? throw new InvalidOperationException(
-            "Expected private method WaitForConnectionRefreshCompletion was not found.");
-    }
 }

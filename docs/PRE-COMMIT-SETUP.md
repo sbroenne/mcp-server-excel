@@ -52,12 +52,13 @@ The hook prints its reasons before running expensive checks and the elapsed time
 for selection, building, and quick unit tests, including failed stages.
 
 The hook uses the `Commit` projection of CI's existing `Fast` group: CLI, MCP
-Server, Core, and Service only. It excludes ComInterop-specific and diagnostics
-tests, CLI system/process tests, and all `Tooling` projects. ComInterop remains
-a normal build dependency; its tests run separately, not before every commit.
-`RequiresExcel=false` alone is not a promise that a test is quick: publishing
-fixtures, child-process timeouts, and SDK-build regressions can be slow without
-ever opening Excel.
+Server, Core, and Service, excluding `AdapterTestKind=System` and `Speed=Slow`.
+It also excludes ComInterop-specific and diagnostics tests, and all `Tooling`
+projects. ComInterop remains a normal build dependency; its tests run
+separately, not before every commit. CI retains the excluded system and slow
+coverage. `RequiresExcel=false` alone is not a promise that a test is quick:
+publishing fixtures, child-process timeouts, and SDK-build regressions can be
+slow without ever opening Excel.
 
 Each test stage writes live VSTest diagnostics to `<stage>.vstest.log` and
 neighboring host/collector logs in its results directory. These logs record

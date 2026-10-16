@@ -25,11 +25,13 @@ changed-path package selection. Explicit manual commands may name components.
 Package-consumer parsing and package-selection tests are deliberately removed.
 
 The pre-commit hook uses the selected Release build and existing `Fast` unit-test
-group's CLI, MCP Server, Core, and Service tests only, exposed as `Commit`.
+group's CLI, MCP Server, Core, and Service tests, exposed as `Commit` and
+excluding `AdapterTestKind=System` and `Speed=Slow`.
 ComInterop-specific tests remain in normal CI, with real-Excel cases requiring
 a Windows/Excel environment. The hook does not run the `Process` or `Tooling` groups, package preparation,
-Excel tests, or acceptance. CI owns supported slower checks; local process
-checks apply when that boundary changes, not on every push. Selected Excel
+Excel tests, or acceptance. CI retains excluded test coverage in the appropriate
+partitions. CI owns supported slower checks; local process checks apply when
+that boundary changes, not on every push. Selected Excel
 checks still require a local Windows/Excel environment.
 This keeps a commit useful as a small checkpoint rather than an hours-long
 integration run; passing the hook does not establish complete PR validation.

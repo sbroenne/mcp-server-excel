@@ -27,10 +27,11 @@ into isolated execution output. MSBuild evaluates projects/imports and owns
 restore, dependency builds and incremental compilation.
 
 The commit hook builds selected inputs and uses the `Commit` projection of
-`Fast`: CLI, MCP Server, Core and Service only. CI retains `Fast`, `Process` and
-`Tooling`. A shared input can require a complete solution build even though the
-hook executes only quick product tests. In CI, the first selected group in
-Fast/Process/Tooling order owns that complete build; other groups build their
+`Fast`: CLI, MCP Server, Core and Service, excluding `AdapterTestKind=System`
+and `Speed=Slow`. CI retains the full `Fast`, `Process` and `Tooling`
+partitions. A shared input can require a complete solution build even though the
+hook executes only deterministic product tests. In CI, the first selected group
+in Fast/Process/Tooling order owns that complete build; other groups build their
 selected projects and dependencies. `Build-CiInputs.ps1` performs those builds.
 
 The MCP compilation checks documentation counts through EXL030 using the
