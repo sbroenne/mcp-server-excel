@@ -49,6 +49,27 @@ public sealed class McpServerVersionCheckerTests
     }
 
     [Fact]
+    public async Task CheckForUpdateAsync_ForwardsCancellationAndReturnsNull()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var forwardedToken = CancellationToken.None;
+
+        var version = await Infrastructure.McpServerVersionChecker.CheckForUpdateAsync(
+            () => "1.2.3",
+            token =>
+            {
+                forwardedToken = token;
+                return Task.FromCanceled<string?>(token);
+            },
+            cancellation.Token);
+
+        Assert.Null(version);
+        Assert.Equal(cancellation.Token, forwardedToken);
+        Assert.True(forwardedToken.IsCancellationRequested);
+    }
+
+    [Fact]
     public void GetCurrentVersion_ReturnsNonEmptyString()
     {
         var version = Infrastructure.McpServerVersionChecker.GetCurrentVersion();

@@ -371,6 +371,7 @@ public sealed class BatchCommandTests : IDisposable
 [Trait("RequiresExcel", "false")]
 [Trait("AdapterTestKind", "System")]
 [Trait("Speed", "Medium")]
+[Collection("Service")]
 public sealed class BatchProcessSmokeTests
 {
     [Fact]
