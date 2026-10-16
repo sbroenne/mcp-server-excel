@@ -50,7 +50,7 @@ service for an update.
 
 ### Primary Installation: Standalone Executable
 
-1. Download **`ExcelMcp-CLI-{version}-windows.zip`** from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
+1. Download **`ExcelMcp-CLI-{version}-windows.zip`** for x64 Windows or **`ExcelMcp-CLI-{version}-windows-arm64.zip`** for ARM64 Windows from the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 2. Extract `excelcli.exe` to a permanent location (e.g., `C:\Tools\ExcelMcp\`) and add the directory to your PATH
 3. Verify: `excelcli --version` and `excelcli --help`
 
@@ -214,7 +214,9 @@ jobs:
         shell: pwsh
         run: |
           $version = (Invoke-RestMethod "https://api.github.com/repos/sbroenne/mcp-server-excel/releases/latest").tag_name.TrimStart('v')
-          Invoke-WebRequest "https://github.com/sbroenne/mcp-server-excel/releases/download/v$version/ExcelMcp-CLI-$version-windows.zip" -OutFile cli.zip
+          $architecture = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture
+          $suffix = if ($architecture -eq 'Arm64') { 'windows-arm64' } else { 'windows' }
+          Invoke-WebRequest "https://github.com/sbroenne/mcp-server-excel/releases/download/v$version/ExcelMcp-CLI-$version-$suffix.zip" -OutFile cli.zip
           Expand-Archive cli.zip -DestinationPath C:\Tools\ExcelMcp
           "C:\Tools\ExcelMcp" >> $env:GITHUB_PATH
 

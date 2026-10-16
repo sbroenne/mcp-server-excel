@@ -47,7 +47,8 @@ npm resolves `@latest` at launch using its normal cache policy.
 **Standalone executable:**
 
 ```powershell
-# Download ExcelMcp-MCP-Server-{version}-windows.zip from GitHub Releases,
+# Download the x64 ExcelMcp-MCP-Server-{version}-windows.zip or ARM64
+# ExcelMcp-MCP-Server-{version}-windows-arm64.zip from GitHub Releases,
 # extract mcp-excel.exe, and configure the client with { "command": "mcp-excel" }.
 ```
 

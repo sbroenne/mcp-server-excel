@@ -54,7 +54,8 @@ Restart Claude Desktop after saving the configuration.
 
 This method does not require Node.js, but executable updates are manual.
 
-1. Download `ExcelMcp-MCP-Server-{version}-windows.zip` from the
+1. Download `ExcelMcp-MCP-Server-{version}-windows.zip` for x64 Windows or
+   `ExcelMcp-MCP-Server-{version}-windows-arm64.zip` for ARM64 Windows from the
    [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest).
 2. Extract it to a permanent directory such as `C:\Tools\ExcelMcp`.
 3. Add the server to `%APPDATA%\Claude\claude_desktop_config.json`:

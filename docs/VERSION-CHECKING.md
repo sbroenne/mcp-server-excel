@@ -112,8 +112,10 @@ When a new version is available:
 1. Download the latest release from:
    - [https://github.com/sbroenne/mcp-server-excel/releases/latest](https://github.com/sbroenne/mcp-server-excel/releases/latest)
 2. Extract the new exe(s):
-   - `ExcelMcp-MCP-Server-{version}-windows.zip` → `mcp-excel.exe`
-   - `ExcelMcp-CLI-{version}-windows.zip` → `excelcli.exe`
+   - `ExcelMcp-MCP-Server-{version}-windows.zip` → x64 `mcp-excel.exe`
+   - `ExcelMcp-MCP-Server-{version}-windows-arm64.zip` → ARM64 `mcp-excel.exe`
+   - `ExcelMcp-CLI-{version}-windows.zip` → x64 `excelcli.exe`
+   - `ExcelMcp-CLI-{version}-windows-arm64.zip` → ARM64 `excelcli.exe`
 3. Replace the existing exe(s) in your installation directory
 4. Restart your MCP client
 
