@@ -65,6 +65,22 @@ public sealed class ExcelDialogProbeTests
     }
 
     [Fact]
+    public void ModelessFindReplaceWindow_DoesNotBlockReadinessOrSaveClose()
+    {
+        ExcelDialogProbe.WindowSnapshot[] windows =
+        [
+            new(1, 0, 42, true, true, "XLMAIN"),
+            new(2, 1, 42, true, true, "bosa_sdm_XL9", "Find and Replace")
+        ];
+        Assert.Equal(WorkbookRefreshState.Ready, ExcelDialogProbe.Classify(42, windows));
+        var timeoutState = ExcelDialogProbe.Classify(
+            42, windows, includeEnabledOwnerOfficeDialog: true, out _);
+        Assert.Equal(WorkbookRefreshState.DialogOpen, timeoutState);
+        foreach (var operation in new[] { "save", "close" })
+            ExcelBusyException.ThrowIfNotReady(ExcelDialogProbe.Classify(42, windows), operation);
+    }
+
+    [Fact]
     public void DialogOwnerChain_CanIncludeAnotherProcessAndHiddenOwner()
     {
         ExcelDialogProbe.WindowSnapshot[] windows =
