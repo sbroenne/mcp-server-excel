@@ -13,6 +13,44 @@ namespace Sbroenne.ExcelMcp.Packaging.Tests;
 public sealed class TypedPackageOperationsTests
 {
     [Theory]
+    [InlineData("Cli", "x64", "ExcelMcp-CLI-1.2.3-windows.zip", "excelcli.exe", 0x8664)]
+    [InlineData("Cli", "arm64", "ExcelMcp-CLI-1.2.3-windows-arm64.zip", "excelcli.exe", 0xaa64)]
+    [InlineData("Mcp", "x64", "ExcelMcp-MCP-Server-1.2.3-windows.zip", "mcp-excel.exe", 0x8664)]
+    [InlineData("Mcp", "arm64", "ExcelMcp-MCP-Server-1.2.3-windows-arm64.zip", "mcp-excel.exe", 0xaa64)]
+    public void StandaloneArchive_ContainsMatchingArchitectureRuntimeAndSupportFiles(
+        string component, string architecture, string expectedName, string executableName, int expectedMachine)
+    {
+        var sandbox = NewSandbox();
+        try
+        {
+            var output = Directory.CreateDirectory(Path.Combine(sandbox, "artifacts")).FullName;
+            var payload = File.ReadAllBytes(typeof(TypedPackageOperationsTests).Assembly.Location);
+            var offset = BitConverter.ToInt32(payload, 0x3c);
+            BitConverter.GetBytes((ushort)expectedMachine).CopyTo(payload, offset + 4);
+            var executable = Path.Combine(sandbox, executableName);
+            File.WriteAllBytes(executable, payload);
+            foreach (var file in new[] { "README.md", "LICENSE", "CHANGELOG.md" })
+            {
+                File.WriteAllText(Path.Combine(sandbox, file), file);
+            }
+
+            var archive = PackageExecution.CreateStandaloneArchive(component, "1.2.3", executable, architecture, output, sandbox);
+
+            Assert.Equal(Path.Combine(output, expectedName), archive);
+            using var zip = ZipFile.OpenRead(archive);
+            foreach (var file in new[] { executableName, "README.md", "LICENSE", "CHANGELOG.md" })
+            {
+                Assert.NotNull(zip.GetEntry(file));
+            }
+            using var stream = zip.GetEntry(executableName)!.Open();
+            using var memory = new MemoryStream();
+            stream.CopyTo(memory);
+            Assert.Equal((ushort)expectedMachine, BitConverter.ToUInt16(memory.ToArray(), offset + 4));
+        }
+        finally { Directory.Delete(sandbox, recursive: true); }
+    }
+
+    [Theory]
     [InlineData(false, true, null, false)]
     [InlineData(true, true, null, false)]
     [InlineData(false, false, null, false)]

@@ -116,11 +116,8 @@ public sealed partial class PackageExecution(string root, PackageCommands? nativ
                 }
                 var archives = await npm.BuildNpmAsync(component, architecture, version, runtime, Path.Combine(output, "npm"));
                 await npm.VerifyNpmAsync(component, architecture, archives.Launcher, archives.Runtime, archiveOnly: architecture == "arm64");
+                CreateStandaloneArchive(component, version, runtime, architecture, output, root);
             }
-            var stage = Path.Combine(output, $"zip-{component}");
-            PackageFiles.Copy(executable, Path.Combine(stage, component == "Cli" ? "excelcli.exe" : "mcp-excel.exe"));
-            foreach (var file in new[] { "README.md", "LICENSE", "CHANGELOG.md" }) { PackageFiles.Copy(Path.Combine(root, file), Path.Combine(stage, file)); }
-            ZipFile.CreateFromDirectory(stage, Path.Combine(output, component == "Cli" ? $"ExcelMcp-CLI-{version}-windows.zip" : $"ExcelMcp-MCP-Server-{version}-windows.zip"));
         }
         if (selected.Contains("Mcpb")) { authored.Mcpb(version, Path.Combine(output, "mcpb")); }
         if (needsSkills && skills is null) { skills = authored.Skills(version, Path.Combine(output, "generated-skills"), generateOnly: true); }
@@ -131,6 +128,34 @@ public sealed partial class PackageExecution(string root, PackageCommands? nativ
         }
         if (selected.Contains("Extension")) { await ExtensionAsync(version, Required(skills), output, prepared, options.SkipExtensionTests); }
         Console.WriteLine($"Verified packages: {string.Join(", ", selected)}. Output: {output}");
+    }
+
+    internal static string CreateStandaloneArchive(string component, string version, string executable, string architecture, string output, string root)
+    {
+        var (archiveBaseName, executableName) = component switch
+        {
+            "Cli" => ("ExcelMcp-CLI", "excelcli.exe"),
+            "Mcp" => ("ExcelMcp-MCP-Server", "mcp-excel.exe"),
+            _ => throw new ArgumentException($"Unknown standalone package component: {component}.")
+        };
+        if (architecture is not ("x64" or "arm64")) { throw new ArgumentException($"Unknown runtime architecture: {architecture}."); }
+        version = AuthoredPackages.RequiredVersion(version);
+        PackageFiles.AssertArchitecture(executable, architecture);
+
+        var stage = AuthoredPackages.NewStage("standalone");
+        try
+        {
+            PackageFiles.Copy(executable, Path.Combine(stage, executableName));
+            foreach (var file in new[] { "README.md", "LICENSE", "CHANGELOG.md" })
+            {
+                PackageFiles.Copy(Path.Combine(root, file), Path.Combine(stage, file));
+            }
+            var suffix = architecture == "x64" ? "windows" : "windows-arm64";
+            var archive = Path.Combine(output, $"{archiveBaseName}-{version}-{suffix}.zip");
+            ZipFile.CreateFromDirectory(stage, archive);
+            return archive;
+        }
+        finally { PackageFiles.RemoveStaging(stage); }
     }
 
     public async Task ExtensionAsync(string version, string skills, string output, IDictionary<string, string> prepared, bool skipTests)

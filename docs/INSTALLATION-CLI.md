@@ -19,8 +19,9 @@ The npm option also requires **Node.js 18 or later**. Install the current LTS
 with `winget install OpenJS.NodeJS.LTS`. Windows x64 and ARM64 are supported;
 ARM64 Node.js uses a native ARM64 executable.
 
-The standalone ZIP currently contains the x64 CLI. For a native ARM64 CLI,
-use the npm installation with ARM64 Node.js.
+The standalone release includes separate x64 and ARM64 ZIPs. Choose the
+download that matches your Windows architecture; the ARM64 archive contains a
+native ARM64 executable.
 
 ### Optional (for specific features)
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
@@ -83,12 +84,15 @@ Avoid installing multiple distributions of `excelcli` on the same PATH. Use
 ### Standalone Executable (Also Primary)
 
 1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-2. Download **`ExcelMcp-CLI-{version}-windows.zip`**
+2. Download **`ExcelMcp-CLI-{version}-windows.zip`** for x64 Windows or
+   **`ExcelMcp-CLI-{version}-windows-arm64.zip`** for ARM64 Windows
 3. Extract to a permanent location (e.g., `C:\Tools\ExcelMcp\`)
 
 ```powershell
 Expand-Archive "ExcelMcp-CLI-1.x.x-windows.zip" -DestinationPath "C:\Tools\ExcelMcp"
 ```
+
+For ARM64 Windows, use `ExcelMcp-CLI-1.x.x-windows-arm64.zip` instead.
 
 #### Add the Standalone CLI to PATH
 
@@ -240,7 +244,8 @@ npm uninstall --global @sbroenne/excelcli
 **Standalone exe (primary):**
 
 1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-2. Download the new ZIP: `ExcelMcp-CLI-{version}-windows.zip`
+2. Download the new ZIP matching your installation: `ExcelMcp-CLI-{version}-windows.zip`
+   for x64 Windows or `ExcelMcp-CLI-{version}-windows-arm64.zip` for ARM64 Windows
 3. Extract and overwrite the existing files in your installation directory
 
 ```powershell

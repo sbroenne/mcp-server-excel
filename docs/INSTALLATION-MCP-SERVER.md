@@ -30,7 +30,8 @@ installation is needed.
 
 With npm, including the npx-based Claude Desktop MCPB, ARM64 Node.js selects
 the native ARM64 server; x64 Node.js selects the x64 server, including on
-ARM64 Windows. Standalone ZIP downloads currently bundle the x64 server.
+ARM64 Windows. Standalone release downloads have separate x64 and ARM64 ZIPs;
+choose the one matching your Windows architecture.
 
 ### Optional (for specific features)
 - **Microsoft Analysis Services OLE DB Provider (MSOLAP)** - Required for DAX query execution (`evaluate`, `execute-dmv` actions)
@@ -169,7 +170,8 @@ falling back to another architecture.
 #### Option B: Standalone Executable
 
 1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-2. Download **`ExcelMcp-MCP-Server-{version}-windows.zip`**
+2. Download **`ExcelMcp-MCP-Server-{version}-windows.zip`** for x64 Windows or
+   **`ExcelMcp-MCP-Server-{version}-windows-arm64.zip`** for ARM64 Windows
 3. Extract the ZIP to a permanent location (e.g., `C:\Tools\ExcelMcp\`)
 
 ```powershell
@@ -177,7 +179,8 @@ falling back to another architecture.
 Expand-Archive "ExcelMcp-MCP-Server-1.x.x-windows.zip" -DestinationPath "C:\Tools\ExcelMcp"
 ```
 
-The ZIP contains `mcp-excel.exe` — a fully self-contained executable (no .NET runtime needed).
+For ARM64 Windows, use `ExcelMcp-MCP-Server-1.x.x-windows-arm64.zip` instead.
+Each ZIP contains `mcp-excel.exe` — a fully self-contained executable (no .NET runtime needed).
 
 ### Step 2: Add the Standalone Executable to PATH
 
@@ -423,7 +426,8 @@ to discard its cached tool definitions.
 **Standalone exe:**
 
 1. Go to the [latest release](https://github.com/sbroenne/mcp-server-excel/releases/latest)
-2. Download the new ZIP: `ExcelMcp-MCP-Server-{version}-windows.zip`
+2. Download the new ZIP matching your installation: `ExcelMcp-MCP-Server-{version}-windows.zip`
+   for x64 Windows or `ExcelMcp-MCP-Server-{version}-windows-arm64.zip` for ARM64 Windows
 3. Extract and overwrite the existing files in your installation directory
 
 ```powershell

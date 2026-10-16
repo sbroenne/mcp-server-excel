@@ -75,7 +75,8 @@ public sealed class ReleaseMetadataScriptTests
             Directory.CreateDirectory(artifacts);
             foreach (var name in new[]
             {
-                "ExcelMcp-CLI-1.2.3-windows.zip", "ExcelMcp-MCP-Server-1.2.3-windows.zip",
+                "ExcelMcp-CLI-1.2.3-windows.zip", "ExcelMcp-CLI-1.2.3-windows-arm64.zip",
+                "ExcelMcp-MCP-Server-1.2.3-windows.zip", "ExcelMcp-MCP-Server-1.2.3-windows-arm64.zip",
                 "excel-plugins-v1.2.3.zip",
                 "excel-mcp-1.2.3.vsix", "excel-mcp-1.2.3-win32-arm64.vsix", "excel-mcp-1.2.3.mcpb"
             })
@@ -277,7 +278,7 @@ public sealed class ReleaseMetadataScriptTests
                 Assert.Equal(
                     Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(Path.Combine(sandbox, "metadata.patch")))),
                     inputs.RootElement.GetProperty("metadataPatchSha256").GetString());
-                Assert.Equal(6, inputs.RootElement.GetProperty("artifacts").GetArrayLength());
+                Assert.Equal(8, inputs.RootElement.GetProperty("artifacts").GetArrayLength());
                 foreach (var artifact in inputs.RootElement.GetProperty("artifacts").EnumerateArray())
                 {
                     var name = artifact.GetProperty("name").GetString()!;
@@ -286,7 +287,7 @@ public sealed class ReleaseMetadataScriptTests
                         artifact.GetProperty("sha256").GetString());
                 }
                 var checksumLines = File.ReadAllLines(Path.Combine(sandbox, "publish", "SHA256SUMS"));
-                Assert.Equal(8, checksumLines.Length);
+                Assert.Equal(10, checksumLines.Length);
                 foreach (var line in checksumLines)
                 {
                     var parts = line.Split("  ", StringSplitOptions.None);

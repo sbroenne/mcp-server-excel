@@ -37,7 +37,9 @@ updates, and troubleshooting.
 | `excel-mcp-{{VERSION}}.vsix` | VS Code extension for manual installation. |
 | `excel-mcp-{{VERSION}}.mcpb` | Claude Desktop bundle that launches the MCP Server through npm. |
 | `ExcelMcp-MCP-Server-{{VERSION}}-windows.zip` | Standalone MCP Server (`mcp-excel.exe`). |
+| `ExcelMcp-MCP-Server-{{VERSION}}-windows-arm64.zip` | Native ARM64 standalone MCP Server (`mcp-excel.exe`). |
 | `ExcelMcp-CLI-{{VERSION}}-windows.zip` | Standalone CLI (`excelcli.exe`). |
+| `ExcelMcp-CLI-{{VERSION}}-windows-arm64.zip` | Native ARM64 standalone CLI (`excelcli.exe`). |
 
 Before updating, finish your work and explicitly save and close workbook
 sessions. Restart the MCP Server or CLI service to use the updated version;

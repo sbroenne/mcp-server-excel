@@ -92,7 +92,9 @@ if (Test-Path -LiteralPath $PublishDirectory) {
 }
 $requiredNames = @(
     "ExcelMcp-CLI-$Version-windows.zip",
+    "ExcelMcp-CLI-$Version-windows-arm64.zip",
     "ExcelMcp-MCP-Server-$Version-windows.zip",
+    "ExcelMcp-MCP-Server-$Version-windows-arm64.zip",
     "excel-plugins-v$Version.zip",
     "excel-mcp-$Version.vsix",
     "excel-mcp-$Version-win32-arm64.vsix",
