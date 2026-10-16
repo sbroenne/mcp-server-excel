@@ -108,7 +108,8 @@ The release shares prepared inputs instead of repeating builds in each package j
 package commands and standard SDK, npm, and VSIX tools. Actions and optional
 local troubleshooting use that same command; it builds and verifies output
 but never publishes it. No C# packaging bootstrap or options-JSON bridge is
-involved. The C# development tool still selects tests and verifies their results.
+involved. Shared PowerShell selects tests and verifies their results; standard
+.NET and xUnit commands own compilation, test discovery, and execution.
 Complete local packaging is not a normal commit prerequisite.
 
 Hosted jobs validate generated skills before packaging. Extension source checks
