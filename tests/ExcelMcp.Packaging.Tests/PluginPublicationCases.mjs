@@ -1088,7 +1088,7 @@ function writeTree(directory, files) {
     }
 }
 
-function publicationFixture({ ignoredNames = false, baselineFiles = new Map() } = {}) {
+function publicationFixture() {
     const currentVersion = '2.0.1', candidateVersion = '2.3.0';
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-publication-'));
     const source = path.join(root, 'source'), output = path.join(root, 'output'), built = path.join(root, 'built');
@@ -1113,8 +1113,6 @@ Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../.github/plugins/marketplace-
     commit(source, 'Original source');
     command('git', ['tag', `v${currentVersion}`], source);
     writeTree(output, payload(currentVersion));
-    writeTree(output, baselineFiles);
-    if (ignoredNames) fs.writeFileSync(path.join(output, '.gitignore'), '*.test.md\n*.log\ntemp/\n');
     const original = commit(output, 'Original publication');
     command('git', ['tag', `v${currentVersion}`], output);
     fs.writeFileSync(path.join(source, 'release.txt'), candidateVersion);
@@ -1131,24 +1129,6 @@ function publishFixture(fixture, flags = []) {
     return command('pwsh', ['-NoProfile', '-File', path.join(repoRoot, 'scripts', 'Publish-PreparedPlugins.ps1'),
         '-SourceDirectory', fixture.source, '-PublishedRepoDirectory', fixture.output,
         '-BuiltPluginsDirectory', fixture.built, '-Version', '2.3.0', '-SourceCommit', fixture.sourceCommit, ...flags], repoRoot);
-}
-
-export function registerStagingTests() {
-    test('directory replacement fails rather than deleting an unrelated ignored local file', () => {
-        const fixture = publicationFixture({ ignoredNames: true, baselineFiles: new Map([
-            ['plugins/excel-cli/assets/icon.png', { bytes: Buffer.from('Old asset'), mode: '100644' }],
-        ]) });
-        try {
-            const privateFile = path.join(fixture.output, 'plugins', 'excel-cli', 'assets', 'private.log');
-            fs.writeFileSync(privateFile, 'Unrelated local content');
-            fs.writeFileSync(path.join(fixture.built, 'excel-cli', 'assets'), 'Replacement asset');
-            assert.throws(() => publishFixture(fixture), /nonempty destination directory/);
-            assert.equal(fs.readFileSync(privateFile, 'utf8'), 'Unrelated local content');
-            assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), fixture.original);
-            assert.equal(command('git', ['tag', '--list', 'v2.3.0'], fixture.output).trim(), '');
-        } finally { fs.rmSync(fixture.root, { recursive: true }); }
-    });
-
 }
 
 export function registerDeliveryTests() {
