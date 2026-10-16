@@ -19,18 +19,20 @@ public sealed class TypedCatalogueRegressionTests
     }
 
     [Theory]
-    [InlineData("Range", "IRangeCommands.cs", "CliNativeRangeAcceptanceTests.")]
-    [InlineData("Chart", "IChartConfigCommands.cs", "CliNativeChartAcceptanceTests.")]
-    public void ChangedNativeContracts_SelectTheirSpecificExecutableCase(string area, string contract, string required)
+    [InlineData("Range", "IRangeCommands.cs", "RangeOverwritePolicyCliTests", "RangeOverwritePolicyProtocolTests")]
+    [InlineData("Chart", "IChartConfigCommands.cs", "ChartDepthContractCliTests", "ChartDepthProtocolTests")]
+    public void ChangedContracts_SelectExcelFreeAdapterCases(string area, string contract, string cli, string mcp)
     {
         var plan = new ValidationPolicy(TypedValidationPolicyTests.Root).Select([$"src/ExcelMcp.Core/Commands/{area}/{contract}"]);
-        Assert.Contains(plan.ExcelSelections, selection => selection.Project == "CLI" && selection.Filter.Contains(required, StringComparison.Ordinal));
-        Assert.DoesNotContain(plan.ExcelSelections, selection => selection.Project == "CLI" && selection.Filter.Contains("CliNativePivotAcceptanceTests.", StringComparison.Ordinal));
+        Assert.Contains($"{cli}.", plan.FastFilters["CLI"], StringComparison.Ordinal);
+        Assert.Contains($"{mcp}.", plan.FastFilters["McpServer"], StringComparison.Ordinal);
+        Assert.DoesNotContain("PivotDepthContractCliTests.", plan.FastFilters["CLI"], StringComparison.Ordinal);
+        Assert.DoesNotContain(plan.ExcelSelections, selection => selection.Project is "CLI" or "McpServer");
         Assert.False(plan.FullE2E);
     }
 
     [Theory]
-    [InlineData("src/ExcelMcp.CLI/Commands/ListActionsCommand.cs", "CLI", "ActionValidatorTests.", "CliNativeChartAcceptanceTests.")]
+    [InlineData("src/ExcelMcp.CLI/Commands/ListActionsCommand.cs", "CLI", "ActionValidatorTests.", "ChartDepthContractCliTests.")]
     [InlineData("src/ExcelMcp.McpServer/Telemetry/SensitiveDataRedactor.cs", "McpServer", "TelemetryTests.", "ExcelWorksheetToolTests.")]
     [InlineData("src/ExcelMcp.McpServer/Tools/ExcelFileTool.cs", "McpServer", "ExcelFileToolTests.", "ExcelWorksheetToolTests.")]
     public void AdapterProductionEdits_SelectActualConsumers(string path, string owner, string required, string excluded)

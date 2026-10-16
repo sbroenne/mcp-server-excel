@@ -73,7 +73,7 @@ public sealed partial class ValidationPolicy(string root)
                 AddFeature(plan, "Core", ["GeneratedContracts"], "GeneratedContracts");
                 AddFeature(plan, "CLI", ["GeneratedContracts"], "GeneratedContracts");
                 AddFeature(plan, "McpServer", ["GeneratedContracts"], "GeneratedContracts");
-                AddClasses(plan, Catalog.ForFeatures("CLI", features).Where(type => type.RequiredOnly && type.Name.StartsWith("CliNative", StringComparison.Ordinal)), $"{area} native parameter boundary");
+                AddClasses(plan, Catalog.ForFeatures("CLI", features).Concat(Catalog.ForFeatures("McpServer", features)).Where(type => type.ExcelFree), $"{area} adapter argument mapping");
                 plan.DocumentationCounts = true;
                 plan.FullSolutionBuild = true;
             }

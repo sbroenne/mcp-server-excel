@@ -269,16 +269,6 @@ public sealed class TypedValidationPolicyTests
         Assert.False(diagnostic.ExcelFree);
     }
 
-    [Theory]
-    [InlineData("Range", "CliNativeRangeAcceptanceTests")]
-    [InlineData("Charts", "CliNativeChartAcceptanceTests")]
-    [InlineData("PivotTables", "CliNativePivotAcceptanceTests")]
-    public void NativeCliWorkflow_HasIndependentlySelectableOwners(string feature, string name)
-    {
-        var catalogue = new TestCatalog(Root);
-        Assert.Contains(catalogue.ForFeatures("CLI", [feature]), type => type.Name == name && type.Excel);
-    }
-
     [Fact]
     public void NativeCliWorkflow_DoesNotLaunchAnEmbeddedPowerShellTestRunner()
     {

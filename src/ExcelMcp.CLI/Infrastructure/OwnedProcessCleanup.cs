@@ -1,5 +1,3 @@
-using System.ComponentModel;
-using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -169,43 +167,6 @@ internal static class OwnedProcessCleanup
             success
                 ? null
                 : $"One or more processes tracked for CLI pipe '{pipeName}' could not be stopped.");
-    }
-
-    internal static bool TryTerminateProcess(Process process, bool entireProcessTree)
-    {
-        try
-        {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree);
-            }
-
-            return true;
-        }
-        catch (InvalidOperationException)
-        {
-            return true;
-        }
-        catch (Win32Exception)
-        {
-            try
-            {
-                process.Refresh();
-                return process.HasExited;
-            }
-            catch (InvalidOperationException)
-            {
-                return true;
-            }
-            catch (Win32Exception)
-            {
-                return false;
-            }
-        }
-        catch (NotSupportedException)
-        {
-            return false;
-        }
     }
 
     private static async Task<bool> TryTerminateProcessAsync(
