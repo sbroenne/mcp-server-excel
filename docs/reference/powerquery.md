@@ -35,6 +35,87 @@ Set explicit M column types for dates and relationship keys. Query refresh
 synchronizes its model load; refresh dependent PivotTables afterward.
 See [Data Model](datamodel.md).
 
+## Power Query tracing
+
+Tracing is controlled by a setting for the current Windows user and does not
+belong to a workbook or session. Enable it with:
+
+```cli
+excelcli settings set-pq-tracing --enabled true
+```
+
+```mcp
+settings(action: 'set-pq-tracing', enabled: true)
+```
+
+Restart Excel for a tracing change to take effect. The setting stays as chosen
+until you change it; closing a workbook, session, or ExcelMCP service does not
+restore it. Any Excel process started while tracing is on may write trace files.
+
+Troubleshoot one workbook session at a time. There is no need to empty the
+trace folder: filter by the workbook session and refresh time instead. One
+Excel process can produce several files, including Power Query helper-process
+logs; the session filter matches the Excel process ID and start time, so a
+recycled process ID does not pull in earlier files.
+
+Use `trace: true` on Power Query `refresh` or `refresh-all` to attach a compact
+summary for that refresh. For existing traces, use `powerquery_trace_read` to list or summarize files:
+
+```mcp
+powerquery(action: 'refresh', query_name: 'SalesData', trace: true)
+powerquery_trace_read(action: 'summarize', workbook_session_id: sessionId)
+```
+
+```cli
+excelcli powerquery refresh --session $session --query-name SalesData --trace
+excelcli powerquerytrace summarize --workbook-session-id $session --since 15m
+```
+
+If optional trace collection fails, the refresh outcome is preserved.
+`traceSummary.success` is false and `traceSummary.errorMessage` explains the
+trace-read failure; `traceNote` distinguishes that failure from the refresh.
+Do not repeat a completed refresh merely to collect traces.
+
+Summaries hide native query text and exception messages by default. Set
+`include_query_text: true` (CLI: `--include-query-text`) only when those details
+are needed; they can contain sensitive information. Trace files are stored by
+Excel under the current user's local application data folder. They may contain
+source names, query text, and error details. Manage or remove these files
+outside ExcelMcp. Use the returned `traceCursor` as `since` on the next summary
+to inspect only newer entries.
+
+The global setting can also be read with `settings_read` action
+`get-pq-tracing` and changed with `settings` action `set-pq-tracing`; CLI
+commands are `excelcli settings get-pq-tracing` and
+`excelcli settings set-pq-tracing --enabled true`.
+
+### Native database query approval
+
+Use `settings_read` action `get-native-query-approval` (CLI:
+`excelcli settings get-native-query-approval`) to inspect whether Power Query
+requires approval before running new native database queries. The result says
+whether the setting was explicitly stored and includes the settings file path.
+If the setting is absent, Excel's default is reported: approval is required.
+
+The setting is global for the current Windows user and affects every workbook.
+Disabling approval allows new native database queries to run without that
+approval; it is not a required automation setup. The setting change requires
+explicit confirmation and all Excel processes must be closed. ExcelMcp does not
+stop Excel. Restart Excel after a change.
+
+Only the observed Office 16.0 Power Query settings archive is supported:
+`%LOCALAPPDATA%\Microsoft\Office\16.0\PowerQuery\User.zip`. This file format
+is not a documented Excel automation API, and the setting mapping has only
+been verified for the Office 16.0 installation under test. Missing archives,
+ambiguous entries, unsupported values or structures, and read/write/verification
+failures are reported as errors rather than guessed.
+
+Before a change, ExcelMcp creates a timestamped `.bak` archive beside
+`User.zip` and returns its path. Keep that backup if recovery may be needed.
+With Excel closed, use Excel's Data > Get Data > Query Options > Global >
+Security page to inspect or restore the option manually; this is also the
+manual alternative to changing it through ExcelMcp.
+
 ## Workbook privacy setting
 
 Use `get-privacy-settings` to read this workbook's Power Query privacy behavior

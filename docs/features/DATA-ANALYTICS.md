@@ -10,13 +10,14 @@ MCP tool descriptions; the linked guides explain practical decisions and workflo
 
 ---
 
-## Power Query & M Code (14 operations)
+## Power Query & M Code (16 operations)
 
 - **Import and transform:** Create or update reusable M queries and load their results to worksheets, the Data Model, or both.
 - **Manage queries:** Inspect definitions and load destinations, rename queries, or remove their loads while retaining the query.
 - **Privacy behavior:** Read or change the workbook setting for combining data sources, with a warning when privacy levels are ignored.
 - **Refresh data:** Refresh selected queries or attempt a workbook-wide query refresh, with errors reported rather than hidden.
 - **Try M code:** Evaluate code without retaining a permanent query.
+- **Trace refreshes:** Attach a compact trace summary to a refresh or inspect local Power Query trace files.
 
 Creating or loading a query can execute its data sources. Evaluation also runs
 code and temporarily changes the workbook, so it is not a read-only audit.
@@ -30,6 +31,13 @@ sends code to an external service and needs consent.
 
 [Loading and recovery guidance](../reference/powerquery.md) |
 [Refresh walkthrough](../guides/REFRESH-POWER-QUERY.md)
+
+---
+
+## Excel Settings (4 operations)
+
+- **Control Power Query tracing:** Read or change the current user's tracing setting without opening a workbook. Restart Excel for changes to take effect; the setting remains as chosen until changed again.
+- **Inspect native-query approval:** Read or change the current user's global requirement for approval before new native database queries run. The change requires confirmation, Excel to be closed, and affects every workbook for that Windows user.
 
 ---
 

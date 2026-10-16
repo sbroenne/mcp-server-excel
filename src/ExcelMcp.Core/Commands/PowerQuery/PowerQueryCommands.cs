@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.Core.Commands.PowerQueryTrace;
 using Sbroenne.ExcelMcp.Core.Models;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -14,14 +15,17 @@ public partial class PowerQueryCommands : IPowerQueryCommands
         "(MCP action set-privacy-settings with ignore_privacy_levels=true). This can allow data to be shared between sources.";
 
     private readonly IDataModelCommands _dataModelCommands;
+    private readonly PowerQueryTraceReader _traceReader;
 
     /// <summary>
     /// Constructor with dependency injection for atomic Data Model operations
     /// </summary>
     /// <param name="dataModelCommands">Data Model commands for atomic refresh operations in SetLoadToDataModelAsync</param>
-    public PowerQueryCommands(IDataModelCommands dataModelCommands)
+    public PowerQueryCommands(IDataModelCommands dataModelCommands, IPowerQueryTraceSettings? traceSettings = null)
     {
         _dataModelCommands = dataModelCommands ?? throw new ArgumentNullException(nameof(dataModelCommands));
+        var settings = traceSettings ?? new RegistryPowerQueryTraceSettings();
+        _traceReader = new PowerQueryTraceReader(settings.TraceFolder);
     }
 
     /// <summary>

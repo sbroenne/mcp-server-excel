@@ -80,6 +80,30 @@ Successful refreshes keep their new data. For Excel-style workbook-wide refresh
 of Power Query and other data connections plus all PivotTables, use
 `workbook refresh-all`.
 
+## Include a trace summary
+
+Add `trace: true` to MCP `powerquery` action `refresh` or `refresh-all`, or pass
+`--trace` in the CLI. The result includes a compact summary of Power Query's
+activity during that refresh, including data-source time and quiet gaps. It does
+not restart Excel. If no trace entries are found, enable tracing with MCP
+`settings` action `set-pq-tracing` and `enabled=true`, or CLI
+`excelcli settings set-pq-tracing --enabled true`, then restart Excel before
+refreshing again. This is a per-user setting, so other Excel processes started
+while it is on may also write trace files. The setting remains enabled until
+you explicitly turn it off.
+
+Keep troubleshooting scoped to one workbook session. A session can write more
+than one trace file because Power Query uses helper processes. There is no need
+to clear the folder: `trace: true` selects the current Excel process and refresh
+time automatically. If reading the trace files fails, the refresh outcome is
+unchanged; inspect `traceSummary.errorMessage` and `traceNote` separately.
+
+For traces collected outside a refresh call, use MCP `powerquery_trace_read`
+actions `list` and `summarize` or CLI `powerquerytrace list` and
+`powerquerytrace summarize`. `traceCursor` can be passed back as `since` to
+read only newer entries. Query text and exception messages are omitted unless
+`include_query_text: true` is explicitly requested.
+
 ## Test M code before you save it
 
 The most valuable habit when an AI assistant writes Power Query for you is
@@ -160,9 +184,15 @@ Query auto-sync, so PivotTables connected to the Data Model update too. Workshee
 tables edited directly do *not* — see
 [Query the Data Model with DAX](QUERY-DATA-MODEL-WITH-DAX.md).
 
-**Credential and privacy dialogs.** If Excel blocks on a sign-in or privacy prompt,
-the operation returns suggested next actions rather than hanging. Surface those to
-the user and retry once the prompt is cleared.
+**Approval and other Excel dialogs.** If Excel reports
+`excelState: "nativeQueryApproval"` in MCP `file_read` action `list` or CLI
+`excelcli session list`, the refresh is still pending. Show Excel and approve the
+query manually; the server does not approve it or change the global security
+setting. Session status detects the native-query approval prompt within one
+second of a status check, scoped to the session's Excel process and supported
+localized dialog captions. It does not return query text or source details.
+Other owned modal prompts remain `dialogOpen`; check Excel for sign-in, privacy,
+or another user-input prompt.
 
 **M code is never sent anywhere by default.** `create` and `update` preserve your M
 code exactly. Only opting in to remote formatting sends it to the external

@@ -996,12 +996,14 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         }
 
         // Inspect native windows directly; the Excel thread may be blocked by the prompt.
-        var dialogOpen = ExcelDialogProbe.ReadWithText(_excelProcessIdentity, _logger, out var dialogText)
-            == WorkbookRefreshState.DialogOpen;
+        var dialogState = ExcelDialogProbe.ReadWithText(_excelProcessIdentity, _logger, out var dialogText);
+        var dialogOpen = dialogState is WorkbookRefreshState.DialogOpen or WorkbookRefreshState.NativeQueryApproval;
         return new TimeoutException(
             $"Excel operation timed out after {_operationTimeout.TotalSeconds} seconds for '{Path.GetFileName(_workbookPath)}'. " +
             (dialogOpen
-                ? "Excel had a dialog open when the operation timed out and may have been waiting for input. " +
+                ? (dialogState == WorkbookRefreshState.NativeQueryApproval
+                    ? "Excel was waiting for approval to run a native database query. "
+                    : "Excel had a dialog open when the operation timed out and may have been waiting for input. ") +
                   "This timeout does not itself cancel the operation or undo workbook changes. " +
                   "The session's timeout recovery may close Excel; the captured dialog text is included below. " +
                   $"Dialog text: {dialogText}"

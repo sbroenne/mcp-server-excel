@@ -68,6 +68,47 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public async Task Discovery_PowerQueryTracingUsesSharedSettingsAndSessionlessTraceTools()
+    {
+        var tools = (await Client!.ListToolsAsync(cancellationToken: TestCancellationToken))
+            .ToDictionary(tool => tool.Name, StringComparer.Ordinal);
+        string[] Actions(string toolName) => tools[toolName].JsonSchema.GetProperty("properties")
+            .GetProperty("action").GetProperty("enum").EnumerateArray()
+            .Select(value => value.GetString()!).ToArray();
+
+        Assert.Equal(["set-pq-tracing", "set-native-query-approval"], Actions("settings"));
+        Assert.Equal(["get-pq-tracing", "get-native-query-approval"], Actions("settings_read"));
+        Assert.Equal(["list", "summarize"], Actions("powerquery_trace_read"));
+        Assert.DoesNotContain("get-pq-tracing", Actions("powerquery"));
+        Assert.DoesNotContain("set-pq-tracing", Actions("powerquery"));
+
+        var settingsProperties = tools["settings"].JsonSchema.GetProperty("properties");
+        Assert.False(settingsProperties.TryGetProperty("workbook_session_id", out _));
+        Assert.True(settingsProperties.TryGetProperty("enabled", out _));
+        Assert.True(settingsProperties.TryGetProperty("required", out _));
+        Assert.True(settingsProperties.TryGetProperty("confirm", out _));
+        string[] requiredSettingsInputs = tools["settings"].JsonSchema.GetProperty("required").EnumerateArray()
+            .Select(value => value.GetString()!).ToArray();
+        Assert.Equal(["action"], requiredSettingsInputs);
+        Assert.Contains("null", settingsProperties.GetProperty("required").GetRawText(), StringComparison.Ordinal);
+        Assert.Contains("global requirement", tools["settings"].Description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("explicit confirmation", tools["settings"].Description, StringComparison.OrdinalIgnoreCase);
+
+        var settingsReadProperties = tools["settings_read"].JsonSchema.GetProperty("properties");
+        Assert.False(settingsReadProperties.TryGetProperty("workbook_session_id", out _));
+
+        var traceProperties = tools["powerquery_trace_read"].JsonSchema.GetProperty("properties");
+        Assert.True(traceProperties.TryGetProperty("workbook_session_id", out _));
+        Assert.Contains(
+            "\"requiresSession\":false",
+            JsonSerializer.Serialize(tools["powerquery_trace_read"].ProtocolTool),
+            StringComparison.Ordinal);
+        Assert.Contains("string", traceProperties.GetProperty("since").GetProperty("type").ToString(), StringComparison.Ordinal);
+        Assert.True(tools["powerquery"].JsonSchema.GetProperty("properties").TryGetProperty("trace", out _));
+        Assert.False(tools["file"].JsonSchema.GetProperty("properties").TryGetProperty("pq_tracing", out _));
+    }
+
+    [Fact]
     public async Task Discovery_WriteToolDescriptionsDoNotAdvertiseMovedReadActions()
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
@@ -401,7 +442,7 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         var sessions = schema.GetProperty("properties").GetProperty("sessions");
 
         var properties = sessions.GetProperty("items").GetProperty("properties");
-        foreach (var name in new[] { "workbook_session_id", "filePath", "isExcelVisible", "activeOperations", "canClose", "excelState", "blockingReason" })
+        foreach (var name in new[] { "workbook_session_id", "filePath", "isExcelVisible", "activeOperations", "operationPending", "canClose", "excelState", "blockingReason", "blockingMessage" })
         {
             Assert.True(properties.TryGetProperty(name, out _),
                 $"File session output schema does not describe {name}.");

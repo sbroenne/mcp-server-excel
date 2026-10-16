@@ -176,6 +176,25 @@ public sealed class SafetyAnalyzerTests
     }
 
     [Theory]
+    [InlineData("src\\ExcelMcp.Core\\Commands\\Settings\\NativeQueryApprovalSettings.cs", false)]
+    [InlineData("src\\ExcelMcp.Core\\Commands\\Settings\\OtherSettings.cs", true)]
+    public async Task ArchiveAccess_IsAllowedOnlyForNativeQuerySettings(string sourcePath, bool expected)
+    {
+        const string source = """
+            using System.IO;
+            using System.IO.Compression;
+            class C {
+                void M(Stream stream, string path) {
+                    using var archive = new ZipArchive(stream);
+                    using var other = ZipFile.OpenRead(path);
+                }
+            }
+            """;
+        var diagnostics = await AnalyzeAsync(source, new ComAccessAnalyzer(), path: sourcePath);
+        Assert.Equal(expected, diagnostics.Any(diagnostic => diagnostic.Id == "EXL009"));
+    }
+
+    [Theory]
     [InlineData("", "EXL020")]
     [InlineData("[Trait(\"RequiresExcel\", \"sometimes\")]", "EXL020")]
     [InlineData("[Trait(\"RequiresExcel\", \"true\")]", "EXL021")]
@@ -202,17 +221,21 @@ public sealed class SafetyAnalyzerTests
     }
 
     internal static async Task<ImmutableArray<Diagnostic>> AnalyzeAsync(string source, DiagnosticAnalyzer? analyzer = null,
-        string assemblyName = "Fixture", ImmutableArray<AdditionalText> documents = default)
+        string assemblyName = "Fixture", ImmutableArray<AdditionalText> documents = default,
+        string path = "src\\ExcelMcp.Core\\Fixture.cs")
     {
-        var compilation = CreateCompilation(source, assemblyName);
+        var compilation = CreateCompilation(source, assemblyName, path);
         var errors = compilation.GetDiagnostics().Where(d => d.Severity == DiagnosticSeverity.Error);
         Assert.Empty(errors);
         return await compilation.WithAnalyzers([analyzer ?? new SafetyAnalyzer()],
             new AnalyzerOptions(documents.IsDefault ? [] : documents)).GetAnalyzerDiagnosticsAsync();
     }
 
-    internal static CSharpCompilation CreateCompilation(string source, string assemblyName = "Fixture") =>
+    internal static CSharpCompilation CreateCompilation(
+        string source,
+        string assemblyName = "Fixture",
+        string path = "src\\ExcelMcp.Core\\Fixture.cs") =>
         CSharpCompilation.Create(assemblyName,
-            [CSharpSyntaxTree.ParseText(source, path: "src\\ExcelMcp.Core\\Fixture.cs")], References,
+            [CSharpSyntaxTree.ParseText(source, path: path)], References,
             new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
 }

@@ -73,7 +73,6 @@ public sealed class BannedApiAnalyzerTests
                     "System.Diagnostics.Process.GetProcessesByName(\"probe\", \".\");",
                     "System.Runtime.InteropServices.Marshal.ReleaseComObject(new object());",
                     "System.Runtime.InteropServices.Marshal.FinalReleaseComObject(new object());",
-                    "using var archive = new System.IO.Compression.ZipArchive(System.IO.Stream.Null);",
                     "_ = new DocumentFormat.OpenXml.Document();",
                     "_ = new DocumentFormat.OpenXml.Packaging.Document();",
                     "_ = new System.IO.Packaging.Package();",

@@ -13,6 +13,45 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 public sealed class ExcelDialogProbeTests
 {
     [Theory]
+    [InlineData("Native Database Query - Do you approve running this native query?")]
+    [InlineData("Native Datenbankabfrage")]
+    [InlineData("Requête de base de données native")]
+    public void OwnedNativeQueryApprovalDialog_IsIdentifiedAcrossLocalizedTitles(string title)
+    {
+        ExcelDialogProbe.WindowSnapshot[] windows =
+        [
+            new(1, 0, 42, true, false, "XLMAIN"),
+            new(2, 1, 42, true, true, "#32770", title)
+        ];
+
+        Assert.Equal(WorkbookRefreshState.NativeQueryApproval, ExcelDialogProbe.Classify(42, windows));
+    }
+
+    [Fact]
+    public void NativeQueryApprovalTitleWithoutOwnedModal_DoesNotBlockExcel()
+    {
+        ExcelDialogProbe.WindowSnapshot[] windows =
+        [
+            new(1, 0, 42, true, true, "XLMAIN"),
+            new(2, 0, 42, true, true, "#32770", "Native Database Query")
+        ];
+
+        Assert.Equal(WorkbookRefreshState.Ready, ExcelDialogProbe.Classify(42, windows));
+    }
+
+    [Fact]
+    public void OtherOwnedModalDialog_RemainsGeneric()
+    {
+        ExcelDialogProbe.WindowSnapshot[] windows =
+        [
+            new(1, 0, 42, true, false, "XLMAIN"),
+            new(2, 1, 42, true, true, "#32770", "Sign in")
+        ];
+
+        Assert.Equal(WorkbookRefreshState.DialogOpen, ExcelDialogProbe.Classify(42, windows));
+    }
+
+    [Theory]
     [InlineData(42)]
     [InlineData(99)]
     public void VisibleModalOwnedByDisabledExcel_DetectedAcrossProcesses(int dialogProcessId)
@@ -26,12 +65,12 @@ public sealed class ExcelDialogProbeTests
     }
 
     [Fact]
-    public void OfficeInputDialog_WithEnabledExcelOwner_IsDetected()
+    public void ModelessFindReplaceWindow_DoesNotBlockReadinessOrSaveClose()
     {
         ExcelDialogProbe.WindowSnapshot[] windows =
         [
-            new(1, 0, 42, false, true, "XLMAIN"),
-            new(2, 1, 42, true, true, "bosa_sdm_XL9")
+            new(1, 0, 42, true, true, "XLMAIN"),
+            new(2, 1, 42, true, true, "bosa_sdm_XL9", "Find and Replace")
         ];
         Assert.Equal(WorkbookRefreshState.Ready, ExcelDialogProbe.Classify(42, windows));
         var timeoutState = ExcelDialogProbe.Classify(
@@ -75,10 +114,10 @@ public sealed class ExcelDialogProbeTests
         [
             new(1, 0, 42, true, false, "XLMAIN"),
             new(2, 0, 99, true, false, "XLMAIN"),
-            new(3, 2, 99, true, true, "#32770")
+            new(3, 2, 99, true, true, "#32770", "Native Database Query")
         ];
         Assert.Equal(WorkbookRefreshState.Ready, ExcelDialogProbe.Classify(42, windows));
-        Assert.Equal(WorkbookRefreshState.DialogOpen, ExcelDialogProbe.Classify(99, windows));
+        Assert.Equal(WorkbookRefreshState.NativeQueryApproval, ExcelDialogProbe.Classify(99, windows));
     }
 
     [Fact]

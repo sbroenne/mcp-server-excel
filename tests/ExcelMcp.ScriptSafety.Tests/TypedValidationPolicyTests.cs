@@ -32,12 +32,12 @@ public sealed class TypedValidationPolicyTests
     }
 
     [Theory]
-    [InlineData("Range", "RangeCommands.Values.cs")]
-    [InlineData("PowerQuery", "PowerQueryCommands.Read.cs")]
-    public void FeatureEdits_SelectBehaviorWithoutUnchangedAdapters(string area, string file)
+    [InlineData("Range", "RangeCommands.Values.cs", new[] { "Core" })]
+    [InlineData("PowerQuery", "PowerQueryCommands.Read.cs", new[] { "Core", "Service" })]
+    public void FeatureEdits_SelectBehaviorWithoutUnchangedAdapters(string area, string file, string[] expectedProjects)
     {
         var plan = Policy.Select([$"src/ExcelMcp.Core/Commands/{area}/{file}"]);
-        Assert.Equal(["Core"], plan.FastProjects);
+        Assert.Equal(expectedProjects, plan.FastProjects);
         Assert.Empty(plan.ProcessProjects);
         Assert.Empty(plan.ToolingProjects);
         Assert.All(plan.ExcelSelections, selection => Assert.True(selection.Project is "Core" or "Service"));

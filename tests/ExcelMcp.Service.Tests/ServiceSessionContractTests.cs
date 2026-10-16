@@ -63,6 +63,28 @@ public sealed class ServiceSessionContractTests
             StringComparison.OrdinalIgnoreCase);
     }
 
+    [Theory]
+    [InlineData("session.open", true)]
+    [InlineData("session.open", false)]
+    [InlineData("session.create", true)]
+    [InlineData("session.create", false)]
+    public async Task OpenAndCreate_RejectRemovedTracingOption(string command, bool enabled)
+    {
+        using var service = new ExcelMcpService();
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = command,
+            Args = JsonSerializer.Serialize(new { filePath = @"C:\missing\book.xlsx", pqTracing = enabled })
+        });
+
+        Assert.False(response.Success);
+        Assert.Equal("InvalidInput", response.ErrorCategory);
+        Assert.Contains("Unknown parameter(s)", response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("pqTracing", response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal(0, service.SessionCount);
+    }
+
     [Fact]
     public async Task Test_SharePointUrl_ReportsInteractiveValidationWithoutLocalFileChecks()
     {

@@ -99,9 +99,10 @@ that passing compilation proves runtime correctness.
   destructive consequences without adding file-copy steps. Copying or exporting
   is appropriate only when part of the user's request.
 - Production code must access workbook contents through Excel COM. Never open
-  an Excel file as a ZIP/OOXML package or parse/modify its internal XML outside
-  tests. Pre-open binary container detection may read only IRM/AIP protection
-  metadata; it must not parse workbook content.
+  an Excel workbook file as a ZIP/OOXML package or parse/modify its internal XML
+  outside tests. The isolated Power Query user-settings archive reader is not a
+  workbook-content path. Pre-open binary container detection may read only
+  IRM/AIP protection metadata; it must not parse workbook content.
 - Behavioral changes require a focused failing regression test before the fix.
   Documentation/configuration-only changes do not need synthetic tests.
 - MCP Server and `excelcli` are the only supported product entry points. Do not

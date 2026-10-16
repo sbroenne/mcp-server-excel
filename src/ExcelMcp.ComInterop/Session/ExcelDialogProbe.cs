@@ -9,7 +9,22 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 internal static class ExcelDialogProbe
 {
     internal readonly record struct WindowSnapshot(
-        nint Handle, nint Owner, int ProcessId, bool Visible, bool Enabled, string ClassName);
+        nint Handle, nint Owner, int ProcessId, bool Visible, bool Enabled, string ClassName, string Title = "");
+
+    private static readonly string[] NativeQueryApprovalTitleFragments =
+    [
+        "Native Database Query",
+        "Native Datenbankabfrage",
+        "Requête de base de données native",
+        "Consulta de base de datos nativa",
+        "Consulta de base de dados nativa",
+        "Consulta de banco de dados nativa",
+        "Query di database nativa",
+        "ネイティブ データベース クエリ",
+        "네이티브 데이터베이스 쿼리",
+        "本机数据库查询",
+        "原生資料庫查詢"
+    ];
 
     internal static WorkbookRefreshState Read(ExcelProcessIdentity? identity, ILogger logger) =>
         Read(identity, logger, includeText: false, out _);
@@ -45,6 +60,7 @@ internal static class ExcelDialogProbe
             {
                 if (GetWindowThreadProcessId(window, out var processId) == 0) return true;
                 var className = string.Empty;
+                var title = string.Empty;
                 if (processId == ownedProcess.ProcessId)
                 {
                     var buffer = new char[256];
@@ -55,9 +71,10 @@ internal static class ExcelDialogProbe
                         return true;
                     }
                     className = new string(buffer, 0, length);
+                    title = ReadWindowTitle(window);
                 }
                 windows.Add(new WindowSnapshot(window, GetWindow(window, 4),
-                    checked((int)processId), IsWindowVisible(window), IsWindowEnabled(window), className));
+                    checked((int)processId), IsWindowVisible(window), IsWindowEnabled(window), className, title));
                 return true;
             }, nint.Zero);
 
@@ -109,7 +126,9 @@ internal static class ExcelDialogProbe
                     if (owner == root.Handle)
                     {
                         dialog = window.Handle;
-                        return WorkbookRefreshState.DialogOpen;
+                        return IsNativeQueryApprovalTitle(window.Title)
+                            ? WorkbookRefreshState.NativeQueryApproval
+                            : WorkbookRefreshState.DialogOpen;
                     }
                     if (!byHandle.TryGetValue(owner, out var parent)) break;
                     owner = parent.Owner;
@@ -182,6 +201,19 @@ internal static class ExcelDialogProbe
         else if (text.Length == titleLength)
             text.AppendLine().Append("[The dialog did not expose readable message text.]");
         return text.ToString();
+    }
+
+    private static bool IsNativeQueryApprovalTitle(string title) =>
+        NativeQueryApprovalTitleFragments.Any(fragment =>
+            title.Contains(fragment, StringComparison.OrdinalIgnoreCase));
+
+    private static string ReadWindowTitle(nint window)
+    {
+        var buffer = new char[512];
+        if (SendMessageTimeout(window, 0x000D, (nuint)buffer.Length, buffer,
+                0x0003, 100, out var length) == nint.Zero)
+            return string.Empty;
+        return new string(buffer, 0, (int)Math.Min(length, (nuint)(buffer.Length - 1)));
     }
 
     private delegate bool WindowCallback(nint window, nint data);

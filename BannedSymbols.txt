@@ -1,8 +1,6 @@
 // Production workbook access goes through Excel COM. Test fixtures may inspect packages.
 N:DocumentFormat.OpenXml; Use Excel COM in production, not workbook package APIs.
 N:System.IO.Packaging; Use Excel COM in production, not workbook package APIs.
-T:System.IO.Compression.ZipArchive; Do not open workbook containers in production.
-T:System.IO.Compression.ZipFile; Do not open workbook containers in production.
 M:System.Diagnostics.Process.GetProcessesByName(System.String); Use the retained PID/start-time identity, never a process name.
 M:System.Diagnostics.Process.GetProcessesByName(System.String,System.String); Use the retained PID/start-time identity, never a process name.
 M:System.Runtime.InteropServices.Marshal.ReleaseComObject(System.Object); Use ComUtilities.Release; only its implementation and documented shutdown metadata cleanup may release directly.

@@ -113,7 +113,7 @@ public sealed class InProcessCliCommandTests
         var daemonConnection = new RecordingDaemonConnection(new ServiceResponse
         {
             Success = true,
-            Result = $$"""{"success":true,"sessions":[{"sessionId":"busy-session","activeOperations":0,"canClose":false,"excelState":"{{excelState}}","blockingReason":"Check Excel before retrying."}]}"""
+            Result = $$"""{"success":true,"sessions":[{"sessionId":"busy-session","activeOperations":0,"operationPending":false,"canClose":false,"excelState":"{{excelState}}","blockingReason":"Check Excel before retrying."}]}"""
         }, new DaemonConnectionPolicy.DaemonFailureState(DaemonConnectionPolicy.RunningState, true));
         var output = new StringWriter();
         var error = new StringWriter();
@@ -125,9 +125,36 @@ public sealed class InProcessCliCommandTests
         using var result = JsonDocument.Parse(output.ToString());
         var session = Assert.Single(result.RootElement.GetProperty("sessions").EnumerateArray());
         Assert.Equal(0, session.GetProperty("activeOperations").GetInt32());
+        Assert.False(session.GetProperty("operationPending").GetBoolean());
         Assert.False(session.GetProperty("canClose").GetBoolean());
         Assert.Equal(excelState, session.GetProperty("excelState").GetString());
         Assert.Equal("Check Excel before retrying.", session.GetProperty("blockingReason").GetString());
+        Assert.Empty(error.ToString());
+    }
+
+    [Fact]
+    public async Task SessionList_PreservesNativeQueryApprovalAndPendingState()
+    {
+        var daemonConnection = new RecordingDaemonConnection(new ServiceResponse
+        {
+            Success = true,
+            Result = """{"success":true,"sessions":[{"sessionId":"pending-native-query","activeOperations":1,"operationPending":true,"canClose":false,"excelState":"nativeQueryApproval","blockingReason":"nativeQueryApproval","blockingMessage":"Show Excel and approve the query manually."}]}"""
+        }, new DaemonConnectionPolicy.DaemonFailureState(DaemonConnectionPolicy.RunningState, true));
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "session", "list"],
+            CreateRuntime(new RecordingClientFactory(), output, error, daemonConnection: daemonConnection));
+
+        Assert.Equal(0, exitCode);
+        using var result = JsonDocument.Parse(output.ToString());
+        var session = Assert.Single(result.RootElement.GetProperty("sessions").EnumerateArray());
+        Assert.Equal("nativeQueryApproval", session.GetProperty("excelState").GetString());
+        Assert.Equal("nativeQueryApproval", session.GetProperty("blockingReason").GetString());
+        Assert.Equal("Show Excel and approve the query manually.", session.GetProperty("blockingMessage").GetString());
+        Assert.True(session.GetProperty("operationPending").GetBoolean());
+        Assert.Equal(1, session.GetProperty("activeOperations").GetInt32());
+        Assert.False(session.GetProperty("canClose").GetBoolean());
         Assert.Empty(error.ToString());
     }
 
@@ -561,7 +588,7 @@ public sealed class InProcessCliCommandTests
     [InlineData("open", true, "session.open")]
     [InlineData("create", false, "session.create")]
     [InlineData("create", true, "session.create")]
-    public async Task SessionCommand_MapsShowFlagAndDefaults(
+    public async Task SessionCommand_MapsShowFlag(
         string action,
         bool show,
         string expectedCommand)
@@ -584,7 +611,6 @@ public sealed class InProcessCliCommandTests
         {
             arguments.Add("--show");
         }
-
         var exitCode = await Program.RunAsync(arguments.ToArray(), runtime);
 
         Assert.Equal(0, exitCode);
@@ -592,9 +618,7 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(expectedCommand, request.Command);
         Assert.Null(request.SessionId);
         Assert.Equal(
-            show
-                ? """{"filePath":"C:\\workbooks\\book.xlsx","show":true}"""
-                : """{"filePath":"C:\\workbooks\\book.xlsx","show":false}""",
+            $$"""{"filePath":"C:\\workbooks\\book.xlsx","show":{{show.ToString().ToLowerInvariant()}}}""",
             request.Args);
     }
 

@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands.PowerQueryTrace;
 using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -13,7 +14,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 public partial class PowerQueryCommands
 {
     /// <inheritdoc />
-    public PowerQueryRefreshResult Refresh(IExcelBatch batch, string queryName, TimeSpan timeout, IProgress<ProgressInfo>? progress = null)
+    public PowerQueryRefreshResult Refresh(
+        IExcelBatch batch,
+        string queryName,
+        TimeSpan timeout,
+        bool trace = false,
+        IProgress<ProgressInfo>? progress = null)
     {
         var result = new PowerQueryRefreshResult
         {
@@ -29,13 +35,14 @@ public partial class PowerQueryCommands
         }
 
         timeout = NormalizeRefreshTimeout(timeout);
+        DateTime traceStartUtc = DateTime.UtcNow;
 
         using var timeoutCts = new CancellationTokenSource(timeout);
         string? queryFormula = null;
 
         try
         {
-            return batch.Execute((ctx, ct) =>
+            var refreshResult = batch.Execute((ctx, ct) =>
             {
                 Excel.WorkbookQuery? query = null;
                 try
@@ -85,6 +92,12 @@ public partial class PowerQueryCommands
                     ComUtilities.Release(ref query);
                 }
             }, timeoutCts.Token);
+            if (trace)
+            {
+                AddRefreshTrace(refreshResult, batch.ExcelProcessId, traceStartUtc, DateTime.UtcNow, failed: false);
+            }
+
+            return refreshResult;
         }
         catch (TimeoutException ex) when (IsLikelyPrivacyFirewallRisk(queryFormula))
         {
@@ -111,13 +124,15 @@ public partial class PowerQueryCommands
         IExcelBatch batch,
         TimeSpan timeout = default,
         bool refreshPivotTables = true,
+        bool trace = false,
         IProgress<ProgressInfo>? progress = null)
     {
         timeout = NormalizeRefreshTimeout(timeout);
+        DateTime traceStartUtc = DateTime.UtcNow;
 
         using var timeoutCts = new CancellationTokenSource(timeout);
 
-        return batch.Execute((ctx, ct) =>
+        var result = batch.Execute((ctx, ct) =>
         {
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
             var queryNames = ReadQueryNames(ctx.Book, linkedCts.Token);
@@ -139,6 +154,90 @@ public partial class PowerQueryCommands
             result.FilePath = batch.WorkbookPath;
             return result;
         }, timeoutCts.Token);
+        if (trace)
+        {
+            AddRefreshTrace(result, batch.ExcelProcessId, traceStartUtc, DateTime.UtcNow, failed: !result.Success);
+        }
+
+        return result;
+    }
+
+    internal void AddRefreshTrace(
+        PowerQueryRefreshResult result,
+        int? processId,
+        DateTime startUtc,
+        DateTime endUtc,
+        bool failed)
+    {
+        var summary = ReadRefreshTrace(processId, startUtc, endUtc);
+        result.TraceSummary = summary;
+        result.TraceNote = CreateRefreshTraceNote(summary, endUtc - startUtc, failed);
+    }
+
+    internal void AddRefreshTrace(
+        PowerQueryRefreshAllResult result,
+        int? processId,
+        DateTime startUtc,
+        DateTime endUtc,
+        bool failed)
+    {
+        var summary = ReadRefreshTrace(processId, startUtc, endUtc);
+        result.TraceSummary = summary;
+        result.TraceNote = CreateRefreshTraceNote(summary, endUtc - startUtc, failed);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Optional trace-file I/O failures are reported in traceSummary with Success=false and the original error message plus a traceNote; the completed refresh outcome is unchanged. Cancellation and unexpected failures propagate.")]
+    private PowerQueryTraceSummaryResult ReadRefreshTrace(int? processId, DateTime startUtc, DateTime endUtc)
+    {
+        try
+        {
+            return _traceReader.Summarize(new PowerQueryTraceFilter(
+                ProcessId: processId,
+                SinceUtc: startUtc,
+                UntilUtc: endUtc));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            return new PowerQueryTraceSummaryResult
+            {
+                Success = false,
+                ErrorMessage = ex.Message,
+                ProcessId = processId,
+                WindowStartUtc = startUtc,
+                WindowEndUtc = endUtc
+            };
+        }
+    }
+
+    private static string? CreateRefreshTraceNote(
+        PowerQueryTraceSummaryResult summary,
+        TimeSpan elapsed,
+        bool failed)
+    {
+        if (!summary.Success)
+        {
+            return "The refresh result above is unchanged, but the trace files could not be read. See traceSummary.errorMessage; do not repeat the refresh just to collect traces.";
+        }
+
+        var notes = new List<string>();
+        if (summary.EntriesMatched == 0)
+        {
+            notes.Add(
+                "No trace entries were found. Power Query reads tracing when Excel starts. Enable it with `excelcli settings set-pq-tracing --enabled true` (MCP: `settings`, action `set-pq-tracing` with `enabled=true`), restart Excel, then refresh again. This setting applies to the current Windows user and is not changed when a workbook or session closes. The refresh did not restart Excel.");
+        }
+
+        if (elapsed >= TimeSpan.FromSeconds(60))
+        {
+            notes.Add("This refresh took at least 60 seconds; use the trace summary to inspect data-source time and quiet gaps.");
+        }
+
+        if (failed)
+        {
+            notes.Add("One or more refresh operations failed; review the failed query list together with the trace summary.");
+        }
+
+        return notes.Count == 0 ? null : string.Join(" ", notes);
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",

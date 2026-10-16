@@ -54,7 +54,8 @@ public class McpToolSurfaceTests(ITestOutputHelper output)
                 .Where(attribute => attribute?.Name?.EndsWith("_read", StringComparison.Ordinal) == true)
                 .Select(attribute => attribute!.Name!))
             .ToHashSet(StringComparer.Ordinal);
-        Assert.Equal(expected.Count + expectedReadTools.Count, McpToolSurface.ToolCount);
+        // Power Query trace inspection has no mutating actions, so it contributes only its _read endpoint.
+        Assert.Equal(expected.Count + expectedReadTools.Count - 1, McpToolSurface.ToolCount);
         Assert.True(expectedReadTools.SetEquals(McpToolSurface.Tools
             .Where(tool => tool.Name.EndsWith("_read", StringComparison.Ordinal))
             .Select(tool => tool.Name)));
