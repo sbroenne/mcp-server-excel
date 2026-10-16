@@ -27,6 +27,14 @@ public sealed class TestSelectionTests
         Assert.All(selected, item => Assert.Contains("AdapterTestKind!=System", item.Filter, StringComparison.Ordinal));
     }
 
+    [Fact]
+    public void LocalTelemetryProcesses_RunInProcessGroupNotFastGroup()
+    {
+        var plan = Policy.Select(["tests/ExcelMcp.CLI.Tests/Unit/LocalTelemetryProcessTests.cs"]);
+        Assert.Contains("LocalTelemetryProcessTests", plan.ProcessFilters["CLI"], StringComparison.Ordinal);
+        Assert.False(plan.FastFilters.ContainsKey("CLI"));
+    }
+
     [Theory]
     [InlineData("tests/ExcelMcp.SkillGeneration.Tests/SkillSourceSafetyTests.cs", "SkillGeneration")]
     [InlineData("tests/ExcelMcp.Packaging.Tests/ReleaseMetadataScriptTests.cs", "Packaging")]
