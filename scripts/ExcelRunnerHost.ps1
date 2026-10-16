@@ -12,23 +12,26 @@ function Invoke-ExcelRunnerGithub {
             $arguments = @('api', $Endpoint, '--method', $Method)
             if ($Paginate) { $arguments += @('--paginate', '--slurp') }
             $output = @(& gh @arguments 2>&1)
-            if ($LASTEXITCODE -ne 0) {
-                $message = ($output | ForEach-Object { $_.ToString() }) -join "`n"
-                if ($message -match '(?i)unexpected end|end of JSON input') {
-                    throw 'GitHub returned an incomplete JSON response.'
-                }
-                throw 'GitHub runner status query failed; do not assume the machine is idle.'
+            [pscustomobject]@{
+                ExitCode = $LASTEXITCODE
+                Text = ($output | ForEach-Object { $_.ToString() }) -join "`n"
             }
-            return $output
         } -ArgumentList $Endpoint, $Paginate.IsPresent, $Method
         try {
             if (-not (Wait-Job $job -Timeout ([Math]::Min(120, $remaining)))) {
                 Stop-Job $job
                 throw 'GitHub runner status query timed out; keep active work undisturbed.'
             }
-            $output = Receive-Job $job -ErrorAction Stop
+            $output = @(Receive-Job $job -ErrorAction Stop)
             if ($job.State -ne 'Completed') { throw 'GitHub runner status query did not complete.' }
-            $response = $output -join "`n"
+            if ($output.Count -ne 1) { throw 'GitHub runner status query returned an unexpected result.' }
+            $response = $output[0].Text
+            if ($output[0].ExitCode -ne 0) {
+                if ($response -match '(?i)unexpected end|end of JSON input') {
+                    throw 'GitHub returned an incomplete JSON response.'
+                }
+                throw 'GitHub runner status query failed; do not assume the machine is idle.'
+            }
             if ([string]::IsNullOrWhiteSpace($response)) { throw 'GitHub returned an empty JSON response.' }
             try { $parsed = $response | ConvertFrom-Json -ErrorAction Stop }
             catch {
@@ -44,7 +47,7 @@ function Invoke-ExcelRunnerGithub {
             $failure = $_.Exception
             if ($failure -is [OperationCanceledException] -or
                 $failure -is [System.Management.Automation.PipelineStoppedException]) { throw }
-            $incomplete = $failure.Message -match '(?i)incomplete JSON response|unexpected end|end of JSON input|empty JSON response'
+            $incomplete = $failure.Message -match '(?i)incomplete JSON response|unexpected end|end of JSON input|unterminated string|empty JSON response'
             if ($attempt -eq 1 -and $Method -eq 'GET' -and $incomplete) {
                 Start-Sleep -Seconds 1
                 continue
