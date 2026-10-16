@@ -12,9 +12,10 @@ build; `scripts\Test-E2E.ps1` runs complete CLI/MCP acceptance. These runners
 set hard execution deadlines; returning control while a test keeps running
 is not a timeout.
 PR and commit checks share the typed changed-area policy. The commit hook runs
-the selected Release build and quick CLI/MCP/Core/Service tests (`Commit`
-projection of `Fast`) only. CI owns hosted slower checks; run local process
-checks when changing their boundary, not on every push. Run selected Excel
+the selected Release build and deterministic CLI/MCP/Core/Service tests
+(`Commit` projection of `Fast`), excluding `AdapterTestKind=System` and
+`Speed=Slow`. CI retains those system and slow tests; run local process checks
+when changing their boundary, not on every push. Run selected Excel
 checks locally because hosted runners lack Excel. A test-only change
 selects its class and actual helper consumers; shared changes include affected
 dependencies. Empty or unknown selections must not be presented as passed tests.

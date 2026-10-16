@@ -15,6 +15,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Feature", "DataModel")]
 [Trait("RequiresExcel", "false")]
 [Trait("Speed", "Fast")]
+[Trait("AdapterTestKind", "System")]
 public sealed class DataModelRefreshTimeoutRegressionTests
 {
     [Fact]

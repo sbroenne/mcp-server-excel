@@ -286,11 +286,21 @@ that public boundary. Keep a small executable-and-pipe smoke set plus the
 distinct mutex, startup, deadline, crash, persistence, and forced-stop cases;
 do not launch a process for every argument or alias row.
 
-Use these Excel-free groups for quick adapter feedback:
+The commit hook keeps only deterministic in-process adapter tests: its `Commit`
+projection excludes `AdapterTestKind=System` and `Speed=Slow`. CI still runs
+both classes in its regular `Fast` partition and the separately classified
+`Process` partition. The `Fast` partition is a validation group, not a promise
+that every included case is cheap.
+
+MCP still has a small set of real SDK calls in the hook. These catch request
+binding and serialization mistakes that source or generated-metadata checks
+cannot prove. Exhaustive all-action schema and protocol sweeps remain in CI.
+
+Use these Excel-free filters for quick adapter feedback:
 
 ```powershell
-dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj -c Release --no-build --filter 'RunType!=OnDemand&RequiresExcel=false&AdapterTestKind!=System'
-dotnet test tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj -c Release --no-build --filter 'RunType!=OnDemand&RequiresExcel=false&AdapterTestKind!=System'
+dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj -c Release --no-build --filter 'RunType!=OnDemand&RequiresExcel=false&AdapterTestKind!=System&Speed!=Slow'
+dotnet test tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj -c Release --no-build --filter 'RunType!=OnDemand&RequiresExcel=false&AdapterTestKind!=System&Speed!=Slow'
 ```
 
 The quick groups are not acceptance gates. Complete normal validation still

@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
@@ -17,6 +16,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Feature", "Diag")]
 [Trait("RequiresExcel", "false")]
 [Trait("Speed", "Fast")]
+[Trait("AdapterTestKind", "System")]
 public sealed class DiagCommandTests
 {
     private readonly ITestOutputHelper _output;
@@ -28,7 +28,7 @@ public sealed class DiagCommandTests
     // ============================================
 
     [Fact]
-    public async Task Ping_ReturnsSuccess()
+    public async Task Ping_ReturnsSuccessWithoutSession()
     {
         var (result, json) = await CliProcessHelper.RunJsonAsync("diag ping");
         _output.WriteLine(result.Stdout);
@@ -38,16 +38,6 @@ public sealed class DiagCommandTests
         Assert.Equal("ping", json.RootElement.GetProperty("action").GetString());
         Assert.Equal("pong", json.RootElement.GetProperty("message").GetString());
         Assert.True(json.RootElement.TryGetProperty("timestamp", out _));
-    }
-
-    [Fact]
-    public async Task Ping_DoesNotRequireSession()
-    {
-        // Ping should work without --session parameter
-        var (result, json) = await CliProcessHelper.RunJsonAsync("diag ping");
-
-        Assert.Equal(0, result.ExitCode);
-        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
     }
 
     // ============================================
@@ -212,27 +202,12 @@ public sealed class DiagCommandTests
     // ============================================
 
     [Fact]
-    public async Task AllResponses_AreValidJson()
-    {
-        // Verify success responses are valid JSON
-        var pingResult = await CliProcessHelper.RunAsync("diag ping");
-        Assert.DoesNotContain("Unhandled error", pingResult.Stdout);
-        var pingJson = JsonDocument.Parse(pingResult.Stdout);
-        Assert.NotNull(pingJson);
-
-        // Verify error responses are valid JSON
-        var errorResult = await CliProcessHelper.RunAsync("diag echo");
-        Assert.DoesNotContain("Unhandled error", errorResult.Stdout);
-        var errorJson = JsonDocument.Parse(errorResult.Stdout);
-        Assert.NotNull(errorJson);
-    }
-
-    [Fact]
     public async Task ErrorResponse_HasCorrectStructure()
     {
-        var (_, json) = await CliProcessHelper.RunJsonAsync("diag echo");
+        var (result, json) = await CliProcessHelper.RunJsonAsync("diag echo");
 
         // Error responses must have 'success' and 'errorMessage' properties.
+        Assert.DoesNotContain("Unhandled error", result.Stdout);
         Assert.True(json.RootElement.TryGetProperty("success", out var success));
         Assert.False(success.GetBoolean());
         Assert.True(json.RootElement.TryGetProperty("errorMessage", out var error));
@@ -243,9 +218,10 @@ public sealed class DiagCommandTests
     [Fact]
     public async Task SuccessResponse_HasCorrectStructure()
     {
-        var (_, json) = await CliProcessHelper.RunJsonAsync("diag ping");
+        var (result, json) = await CliProcessHelper.RunJsonAsync("diag ping");
 
         // Success responses must have 'success' property
+        Assert.DoesNotContain("Unhandled error", result.Stdout);
         Assert.True(json.RootElement.TryGetProperty("success", out var success));
         Assert.True(success.GetBoolean());
 

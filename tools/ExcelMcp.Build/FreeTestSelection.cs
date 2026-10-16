@@ -36,6 +36,7 @@ public static class FreeTestSelection
                 if (string.IsNullOrWhiteSpace(filter)) { throw new InvalidOperationException($"Missing filter for {owner}."); }
                 selections[owner] = group switch
                 {
+                    "Fast" when commit => $"AdapterTestKind!=System&Speed!=Slow&({filter})",
                     "Fast" => $"AdapterTestKind!=System&({filter})",
                     "Process" => $"AdapterTestKind=System&({filter})",
                     _ => filter

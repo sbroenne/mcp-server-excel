@@ -17,13 +17,8 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "GeneratedContracts")]
 [Trait("RequiresExcel", "false")]
-public sealed class UnifiedToolContractTests(RecordingProgramTransportFixture fixture)
+public sealed class McpToolContractBindingTests(RecordingProgramTransportFixture fixture)
 {
-    private static readonly JsonSerializerOptions SchemaJsonOptions = new()
-    {
-        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
-    };
-
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -70,6 +65,20 @@ public sealed class UnifiedToolContractTests(RecordingProgramTransportFixture fi
                 ServiceProtocol.JsonOptions));
         Assert.False(call.Result.IsError == true);
     }
+}
+
+[Collection("RecordingProgramTransport")]
+[Trait("Category", "Integration")]
+[Trait("Speed", "Slow")]
+[Trait("Layer", "McpServer")]
+[Trait("Feature", "GeneratedContracts")]
+[Trait("RequiresExcel", "false")]
+public sealed class UnifiedToolContractTests(RecordingProgramTransportFixture fixture)
+{
+    private static readonly JsonSerializerOptions SchemaJsonOptions = new()
+    {
+        Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() }
+    };
 
     [Fact]
     public async Task EveryDiscoveredAction_AdvertisesExactlyItsRuntimeParameters()

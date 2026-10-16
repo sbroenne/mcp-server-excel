@@ -141,9 +141,10 @@ dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore
 Build with zero warnings. Use targeted tests; see the
 [testing strategy](tests/AGENTS.md). Run every Excel-dependent test command
 sequentially; never overlap Excel test fixtures, test hosts, or E2E runs.
-The commit hook builds selected inputs and runs only selected `Fast` unit
-tests from CLI, MCP Server, Core, and Service (`Commit` group). ComInterop-specific,
-process, tooling, package, Excel, and acceptance checks do not run on
+The commit hook builds selected inputs and runs selected `Fast` unit tests from
+CLI, MCP Server, Core, and Service (`Commit` group), excluding
+`AdapterTestKind=System` and `Speed=Slow`. ComInterop-specific, process, tooling,
+package, Excel, and acceptance checks do not run on
 every commit. CI owns hosted checks; run local process checks when changing
 their boundary, not on every push. A passing hook is not complete PR validation.
 Use the changed-area plan from `tools\ExcelMcp.Build\ValidationPolicy.cs` for

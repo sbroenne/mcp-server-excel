@@ -9,26 +9,27 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 [Trait("RequiresExcel", "false")]
 public sealed class McpServerVersionCheckerTests
 {
-    [Fact]
-    public async Task CheckForUpdateAsync_WhenCalled_DoesNotThrow()
+    [Theory]
+    [InlineData("1.2.4", "1.2.4")]
+    [InlineData("1.2.3", null)]
+    [InlineData("1.2.2", null)]
+    public async Task CheckForUpdateAsync_ReturnsOnlyNewerVersions(string latestVersion, string? expected)
     {
-        // Verify the method doesn't throw — result depends on network/NuGet state
-        var latestVersion = await Infrastructure.McpServerVersionChecker.CheckForUpdateAsync();
+        var version = await Infrastructure.McpServerVersionChecker.CheckForUpdateAsync(
+            () => "1.2.3",
+            _ => Task.FromResult<string?>(latestVersion));
 
-        // Result can be null (no update or network error) or a version string
-        if (latestVersion != null)
-        {
-            Assert.NotEmpty(latestVersion);
-        }
+        Assert.Equal(expected, version);
     }
 
     [Fact]
-    public async Task CheckForUpdateAsync_NetworkFailure_ReturnsNull()
+    public async Task CheckForUpdateAsync_WhenLookupFails_ReturnsNull()
     {
-        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(1));
-        var latestVersion = await Infrastructure.McpServerVersionChecker.CheckForUpdateAsync(cts.Token);
+        var version = await Infrastructure.McpServerVersionChecker.CheckForUpdateAsync(
+            () => "1.2.3",
+            _ => Task.FromException<string?>(new HttpRequestException("Synthetic lookup failure.")));
 
-        Assert.Null(latestVersion);
+        Assert.Null(version);
     }
 
     [Fact]
@@ -41,4 +42,3 @@ public sealed class McpServerVersionCheckerTests
         Assert.NotEqual("0.0.0", version);
     }
 }
-

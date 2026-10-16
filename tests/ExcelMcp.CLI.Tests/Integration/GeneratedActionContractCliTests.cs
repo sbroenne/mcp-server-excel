@@ -40,6 +40,32 @@ public sealed class GeneratedActionContractCliTests : IDisposable
     }
 
     [Fact]
+    public async Task DataModelRefresh_ForwardsNumericTimeoutInProcess()
+    {
+        ServiceRequest? dispatched = null;
+        var result = await InProcessCliHelper.RunAsync(
+            ["datamodel", "refresh", "--session", "timeout-session", "--timeout-seconds", "600"],
+            request =>
+            {
+                dispatched = request;
+                return new ServiceResponse
+                {
+                    Success = true,
+                    Command = request.Command,
+                    SessionId = request.SessionId,
+                    Result = """{"success":true}"""
+                };
+            });
+
+        Assert.Equal(0, result.ExitCode);
+        var request = Assert.IsType<ServiceRequest>(dispatched);
+        Assert.Equal("datamodel.refresh", request.Command);
+        Assert.Equal("timeout-session", request.SessionId);
+        using var args = JsonDocument.Parse(request.Args!);
+        Assert.Equal(600, args.RootElement.GetProperty("timeoutSeconds").GetInt32());
+    }
+
+    [Fact]
     public async Task SubtotalFunctions_GeneratedCliParser_AcceptsDocumentedNames()
     {
         ServiceRequest? dispatched = null;
