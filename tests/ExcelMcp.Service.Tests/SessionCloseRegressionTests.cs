@@ -426,6 +426,40 @@ public sealed class SessionCloseRegressionTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeQueryApproval_WithActiveOperation_BlocksCloseWithManualGuidance(bool save)
+    {
+        using var service = new ExcelMcpService();
+        var batch = new FakeBatch
+        {
+            WorkbookPath = CreateFakeWorkbookPath(),
+            RefreshState = WorkbookRefreshState.NativeQueryApproval
+        };
+        const string sessionId = "native-query-approval-active";
+        RegisterSession(service, sessionId, batch, addKnownSessionId: true);
+        var operationCounts = GetPrivateField<ConcurrentDictionary<string, int>>(
+            GetSessionManager(service), "_activeOperationCounts");
+        operationCounts[sessionId] = 1;
+
+        try
+        {
+            var close = await CloseSessionAsync(service, sessionId, save);
+
+            Assert.False(close.Success);
+            Assert.Equal("Busy", close.ErrorCategory);
+            Assert.Contains("approve the query manually", close.ErrorMessage, StringComparison.Ordinal);
+            Assert.Equal(0, batch.DisposeCalls);
+            Assert.Same(batch, GetSessionManager(service).GetSession(sessionId));
+        }
+        finally
+        {
+            batch.RefreshState = WorkbookRefreshState.Ready;
+            operationCounts[sessionId] = 0;
+        }
+    }
+
+    [Theory]
     [InlineData(1)]
     [InlineData(2)]
     [InlineData(3)]
@@ -600,13 +634,16 @@ public sealed class SessionCloseRegressionTests
         return Path.Combine(Path.GetTempPath(), $"fake-batch-{Guid.NewGuid():N}.xlsx");
     }
 
-    private static Task<ServiceResponse> CloseSessionAsync(ExcelMcpService service, string sessionId)
+    private static Task<ServiceResponse> CloseSessionAsync(
+        ExcelMcpService service,
+        string sessionId,
+        bool save = false)
     {
         return service.ProcessAsync(new ServiceRequest
         {
             Command = "session.close",
             SessionId = sessionId,
-            Args = JsonSerializer.Serialize(new { save = false }, ServiceProtocol.JsonOptions)
+            Args = JsonSerializer.Serialize(new { save }, ServiceProtocol.JsonOptions)
         });
     }
 

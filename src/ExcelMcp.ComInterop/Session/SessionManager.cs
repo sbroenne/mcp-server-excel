@@ -920,7 +920,7 @@ public sealed class SessionManager : IDisposable
             var refreshState = !resolvedFailedTeardown && !force && !batch.HasTimedOutOperation
                 ? GetRefreshState(batch)
                 : WorkbookRefreshState.Ready;
-            if (refreshState == WorkbookRefreshState.DialogOpen)
+            if (refreshState is WorkbookRefreshState.DialogOpen or WorkbookRefreshState.NativeQueryApproval)
             {
                 ExcelBusyException.ThrowIfNotReady(refreshState, "close");
             }
