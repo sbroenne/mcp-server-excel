@@ -36,7 +36,7 @@ sends code to an external service and needs consent.
 
 ## Excel Settings (2 operations)
 
-- **Control Power Query tracing:** Read or change the current user's tracing setting without opening a workbook; session-open tracing temporarily enables that user-wide setting and restores it after opted-in sessions close.
+- **Control Power Query tracing:** Read or change the current user's tracing setting without opening a workbook. Restart Excel for changes to take effect; the setting remains as chosen until changed again.
 
 ---
 

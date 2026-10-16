@@ -94,7 +94,7 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
             StringComparison.Ordinal);
         Assert.Contains("string", traceProperties.GetProperty("since").GetProperty("type").ToString(), StringComparison.Ordinal);
         Assert.True(tools["powerquery"].JsonSchema.GetProperty("properties").TryGetProperty("trace", out _));
-        Assert.True(tools["file"].JsonSchema.GetProperty("properties").TryGetProperty("pq_tracing", out _));
+        Assert.False(tools["file"].JsonSchema.GetProperty("properties").TryGetProperty("pq_tracing", out _));
     }
 
     [Fact]

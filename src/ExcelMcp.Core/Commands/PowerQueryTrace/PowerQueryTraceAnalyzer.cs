@@ -15,7 +15,8 @@ internal sealed record PowerQueryTraceFilter(
     DateTime? SinceUtc = null,
     DateTime? UntilUtc = null,
     int Top = PowerQueryTraceAnalyzer.DefaultTop,
-    bool IncludeQueryText = false);
+    bool IncludeQueryText = false,
+    DateTime? ProcessStartedUtc = null);
 
 /// <summary>
 /// Builds a compact summary from Power Query trace entries.
@@ -311,7 +312,12 @@ internal sealed partial class PowerQueryTraceAnalyzer
             return result;
         }
 
-        result.TraceCursor = _lastEnd!.Value.ToString("o", CultureInfo.InvariantCulture);
+        var cursor = _lastEnd!.Value;
+        if (_filter.UntilUtc is DateTime until && cursor > until)
+        {
+            cursor = until;
+        }
+        result.TraceCursor = cursor.ToString("o", CultureInfo.InvariantCulture);
 
         var merged = MergeIntervals(result.WindowStartUtc, result.WindowEndUtc);
         double busy = merged.Sum(i => (i.End - i.Start).TotalSeconds);

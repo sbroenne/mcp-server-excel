@@ -43,12 +43,21 @@ internal sealed class PowerQueryTraceReader
         _isProcessRunning = isProcessRunning ?? IsProcessRunning;
     }
 
-    public PowerQueryTraceListResult List(int? processId, DateTime? sinceUtc)
+    public PowerQueryTraceListResult List(
+        int? processId,
+        DateTime? sinceUtc,
+        DateTime? processStartedUtc = null)
     {
         var files = new List<PowerQueryTraceFileInfo>();
         foreach (var file in PowerQueryTraceFiles.EnumerateTraceFiles(_traceFolder))
         {
             if (!PowerQueryTraceFileName.TryParse(file.Name, out string kind, out int fileProcessId, out DateTime? startedUtc))
+            {
+                continue;
+            }
+
+            if (processStartedUtc is DateTime processStart &&
+                (startedUtc is not DateTime fileStart || fileStart < processStart))
             {
                 continue;
             }
@@ -148,6 +157,12 @@ internal sealed class PowerQueryTraceReader
             }
 
             if (filter.UntilUtc is DateTime until && startedUtc is DateTime start && start > until)
+            {
+                continue;
+            }
+
+            if (filter.ProcessStartedUtc is DateTime processStart &&
+                (startedUtc is not DateTime fileStart || fileStart < processStart))
             {
                 continue;
             }

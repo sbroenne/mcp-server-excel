@@ -35,10 +35,7 @@ public sealed class ExcelMcpService : IDisposable
 {
     private readonly SessionManager _sessionManager = new();
     private readonly ConcurrentDictionary<string, byte> _knownSessionIds = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, string> _pqTracingSessionOwners = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, bool> _pqTracingActiveBySession = new(StringComparer.Ordinal);
     private readonly IPowerQueryTraceSettings _pqTraceSettings;
-    private readonly PowerQueryTracingLeases _pqTracingLeases;
     private readonly DaemonHost _daemonHost;
     private readonly Lock _shutdownLock = new();
     private readonly DateTime _startTime = DateTime.UtcNow;
@@ -80,11 +77,10 @@ public sealed class ExcelMcpService : IDisposable
         IPowerQueryTraceSettings? pqTraceSettings = null)
     {
         _pqTraceSettings = pqTraceSettings ?? new RegistryPowerQueryTraceSettings();
-        _pqTracingLeases = new PowerQueryTracingLeases(_pqTraceSettings);
-        _settingsCommands = new SettingsCommands(_pqTraceSettings, _pqTracingLeases);
+        _settingsCommands = new SettingsCommands(_pqTraceSettings);
         _powerQueryTraceCommands = new PowerQueryTraceCommands(
             _pqTraceSettings.TraceFolder,
-            ResolveSessionProcessId);
+            ResolveSessionProcess);
         _powerQueryCommands = new PowerQueryCommands(_dataModelCommands, _pqTraceSettings);
         _daemonHost = new DaemonHost(
             request => trackDaemonRequest == null
@@ -111,14 +107,7 @@ public sealed class ExcelMcpService : IDisposable
         lock (_shutdownLock)
         {
             _sessionManager.Dispose();
-            try
-            {
-                _pqTracingLeases.ReleaseAll();
-            }
-            finally
-            {
-                _daemonHost.RequestShutdown();
-            }
+            _daemonHost.RequestShutdown();
         }
     }
 
@@ -252,14 +241,7 @@ public sealed class ExcelMcpService : IDisposable
         lock (_shutdownLock)
         {
             _sessionManager.Dispose();
-            try
-            {
-                _pqTracingLeases.ReleaseAll();
-            }
-            finally
-            {
-                _daemonHost.RequestShutdownAfterResponse();
-            }
+            _daemonHost.RequestShutdownAfterResponse();
             return new ServiceResponse { Success = true };
         }
     }
@@ -307,7 +289,6 @@ public sealed class ExcelMcpService : IDisposable
         ["filePath"] = "absolute path to the workbook",
         ["show"] = "true to show the Excel window",
         ["timeoutSeconds"] = "whole seconds from 10 through 3600 (default 120)",
-        ["pqTracing"] = "true to temporarily enable per-user Power Query tracing and restore the prior setting when opted-in sessions close; other Excel processes started meanwhile may also write trace files",
         ["save"] = "true to save the workbook before closing",
     };
 
@@ -315,7 +296,7 @@ public sealed class ExcelMcpService : IDisposable
     {
         string[] allowedParameters = action switch
         {
-            "create" or "open" => ["filePath", "show", "timeoutSeconds", "pqTracing"],
+            "create" or "open" => ["filePath", "show", "timeoutSeconds"],
             "close" => ["save"],
             "test" => ["filePath", "timeoutSeconds"],
             _ => []
@@ -377,38 +358,21 @@ public sealed class ExcelMcpService : IDisposable
             };
         }
 
-        string? pendingLeaseOwner = null;
         try
         {
-            if (args.PqTracing)
-            {
-                pendingLeaseOwner = $"pending:{Guid.NewGuid():N}";
-                _pqTracingLeases.Acquire(pendingLeaseOwner);
-            }
-
-            bool tracingActive = _pqTraceSettings.Read().Enabled;
             // Use the combined create+open which starts Excel only once
             var sessionId = _sessionManager.CreateSessionForNewFile(fullPath, show: args.Show, operationTimeout: timeout, origin: SessionOrigin.CLI);
             _knownSessionIds.TryAdd(sessionId, 0);
-            RegisterSessionTracing(sessionId, pendingLeaseOwner, tracingActive);
-            pendingLeaseOwner = null;
 
             return new ServiceResponse
             {
                 Success = true,
-                Result = JsonSerializer.Serialize(new
-                {
-                    success = true,
-                    sessionId,
-                    filePath = fullPath,
-                    excelProcessId = _sessionManager.GetSession(sessionId)?.ExcelProcessId,
-                    pqTracingActive = tracingActive
-                }, ServiceProtocol.JsonOptions)
+                Result = JsonSerializer.Serialize(new { success = true, sessionId, filePath = fullPath }, ServiceProtocol.JsonOptions)
             };
         }
         catch (Exception ex)
         {
-            return CreateErrorResponse(ReleasePendingLease(pendingLeaseOwner, ex));
+            return CreateErrorResponse(ex);
         }
     }
 
@@ -433,36 +397,19 @@ public sealed class ExcelMcpService : IDisposable
         }
         var fullPath = FilePathValidation.NormalizeWorkbookLocation(args.FilePath);
 
-        string? pendingLeaseOwner = null;
         try
         {
-            if (args.PqTracing)
-            {
-                pendingLeaseOwner = $"pending:{Guid.NewGuid():N}";
-                _pqTracingLeases.Acquire(pendingLeaseOwner);
-            }
-
-            bool tracingActive = _pqTraceSettings.Read().Enabled;
             var sessionId = _sessionManager.CreateSession(fullPath, show: args.Show, operationTimeout: timeout, origin: SessionOrigin.CLI);
             _knownSessionIds.TryAdd(sessionId, 0);
-            RegisterSessionTracing(sessionId, pendingLeaseOwner, tracingActive);
-            pendingLeaseOwner = null;
             return new ServiceResponse
             {
                 Success = true,
-                Result = JsonSerializer.Serialize(new
-                {
-                    success = true,
-                    sessionId,
-                    filePath = fullPath,
-                    excelProcessId = _sessionManager.GetSession(sessionId)?.ExcelProcessId,
-                    pqTracingActive = tracingActive
-                }, ServiceProtocol.JsonOptions)
+                Result = JsonSerializer.Serialize(new { success = true, sessionId, filePath = fullPath }, ServiceProtocol.JsonOptions)
             };
         }
         catch (Exception ex)
         {
-            return CreateErrorResponse(ReleasePendingLease(pendingLeaseOwner, ex));
+            return CreateErrorResponse(ex);
         }
     }
 
@@ -498,13 +445,11 @@ public sealed class ExcelMcpService : IDisposable
 
         if (closed)
         {
-            ReleaseTracingSession(request.SessionId);
             return new ServiceResponse { Success = true };
         }
 
         if (_knownSessionIds.ContainsKey(request.SessionId))
         {
-            ReleaseTracingSession(request.SessionId);
             return new ServiceResponse
             {
                 Success = true,
@@ -581,17 +526,7 @@ public sealed class ExcelMcpService : IDisposable
 
     private ServiceResponse HandleSessionList()
     {
-        var activeSessions = _sessionManager.GetActiveSessions();
-        var activeIds = activeSessions.Select(session => session.SessionId).ToHashSet(StringComparer.Ordinal);
-        foreach (string trackedSessionId in _pqTracingSessionOwners.Keys)
-        {
-            if (!activeIds.Contains(trackedSessionId))
-            {
-                ReleaseTracingSession(trackedSessionId);
-            }
-        }
-
-        var sessions = activeSessions
+        var sessions = _sessionManager.GetActiveSessions()
             .Select(s =>
             {
                 var validation = _sessionManager.ValidateClose(s.SessionId);
@@ -599,8 +534,6 @@ public sealed class ExcelMcpService : IDisposable
                 {
                     sessionId = s.SessionId,
                     filePath = s.FilePath,
-                    excelProcessId = _sessionManager.GetSession(s.SessionId)?.ExcelProcessId,
-                    pqTracingActive = _pqTracingActiveBySession.GetValueOrDefault(s.SessionId),
                     isExcelVisible = validation.IsExcelVisible,
                     activeOperations = validation.ActiveOperationCount,
                     canClose = validation.CanClose,
@@ -1070,62 +1003,21 @@ public sealed class ExcelMcpService : IDisposable
         {
             System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
         }
-        finally
-        {
-            ReleaseTracingSession(sessionId);
-        }
     }
 
-    private int? ResolveSessionProcessId(string sessionId)
+    private (int ProcessId, DateTime StartedUtc)? ResolveSessionProcess(string sessionId)
     {
         var batch = _sessionManager.GetSession(sessionId);
-        if (batch is null)
+        if (batch?.ExcelProcessId is not int processId)
         {
-            CleanupDeadSession(sessionId);
             return null;
         }
 
-        return batch.ExcelProcessId;
-    }
-
-    private void RegisterSessionTracing(string sessionId, string? pendingLeaseOwner, bool tracingActive)
-    {
-        if (pendingLeaseOwner is not null)
-        {
-            _pqTracingLeases.Rename(pendingLeaseOwner, sessionId);
-            _pqTracingSessionOwners[sessionId] = sessionId;
-        }
-
-        _pqTracingActiveBySession[sessionId] = tracingActive;
-    }
-
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
-        Justification = "Returns the original startup exception or aggregates it with the tracing-restoration exception; the caller reports both through CreateErrorResponse with Success=false.")]
-    private Exception ReleasePendingLease(string? pendingLeaseOwner, Exception primaryException)
-    {
-        if (pendingLeaseOwner is null)
-        {
-            return primaryException;
-        }
-
-        try
-        {
-            _pqTracingLeases.Release(pendingLeaseOwner);
-            return primaryException;
-        }
-        catch (Exception cleanupException)
-        {
-            return new AggregateException("Session startup and tracing-setting restoration both failed.", primaryException, cleanupException);
-        }
-    }
-
-    private void ReleaseTracingSession(string sessionId)
-    {
-        _pqTracingActiveBySession.TryRemove(sessionId, out _);
-        if (_pqTracingSessionOwners.TryRemove(sessionId, out var owner))
-        {
-            _pqTracingLeases.Release(owner);
-        }
+        var identity = SessionManager.GetTrackedExcelProcesses()
+            .SingleOrDefault(process => process.ProcessId == processId);
+        return identity.ProcessId == processId
+            ? (processId, DateTime.FromFileTimeUtc(identity.StartedAtUtcFileTime))
+            : null;
     }
 
     private static ServiceResponse CreateExcelDisconnectedResponse(string sessionId, Exception ex, string message)
@@ -1299,16 +1191,9 @@ public sealed class ExcelMcpService : IDisposable
             {
                 if (_sessionManager.ActiveSessionCount == 0)
                 {
-                    try
-                    {
-                        _pqTracingLeases.ReleaseAll();
-                    }
-                    finally
-                    {
-                        _disposed = true;
-                        _daemonHost.RequestShutdown();
-                        _daemonHost.Dispose();
-                    }
+                    _disposed = true;
+                    _daemonHost.RequestShutdown();
+                    _daemonHost.Dispose();
                 }
             }
         }
@@ -1323,7 +1208,6 @@ public sealed class SessionOpenArgs
     public string? FilePath { get; set; }
     public bool Show { get; set; }
     public int? TimeoutSeconds { get; set; }
-    public bool PqTracing { get; set; }
 }
 public sealed class SessionCloseArgs { public bool Save { get; set; } }
 public sealed class SessionTestArgs

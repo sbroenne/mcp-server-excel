@@ -6,22 +6,16 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Settings;
 /// <summary>
 /// Per-user Excel settings commands.
 /// </summary>
-public sealed partial class SettingsCommands : ISettingsCommands
+public sealed class SettingsCommands : ISettingsCommands
 {
     internal const string TracingTakesEffectNote =
-        "This is a per-user setting, not a workbook setting. Any Excel process started while tracing is on may write trace files; processes already running keep their current tracing state.";
+        "This is a per-user setting, not a workbook setting. Restart Excel for the change to take effect. Any Excel process started while tracing is on may write trace files.";
 
     private readonly IPowerQueryTraceSettings _traceSettings;
-    private readonly PowerQueryTracingLeases _tracingLeases;
 
     /// <summary>Creates settings commands that use the current user's registry.</summary>
-    public SettingsCommands(
-        IPowerQueryTraceSettings? traceSettings = null,
-        PowerQueryTracingLeases? tracingLeases = null)
-    {
+    public SettingsCommands(IPowerQueryTraceSettings? traceSettings = null) =>
         _traceSettings = traceSettings ?? new RegistryPowerQueryTraceSettings();
-        _tracingLeases = tracingLeases ?? new PowerQueryTracingLeases(_traceSettings);
-    }
 
     /// <inheritdoc />
     public PowerQueryTracingStatusResult GetPqTracing()
@@ -38,7 +32,9 @@ public sealed partial class SettingsCommands : ISettingsCommands
             throw new ArgumentOutOfRangeException(nameof(level), level, "level must be zero or greater.");
         }
 
-        var (previous, current) = _tracingLeases.SetExplicitly(enabled, level);
+        var previous = _traceSettings.Read();
+        _traceSettings.Write(enabled, level);
+        var current = _traceSettings.Read();
         var result = CreateStatus(current);
         result.PreviousEnabled = previous.Enabled;
         result.PreviousLevel = previous.LevelValue ?? RegistryPowerQueryTraceSettings.DefaultTracingLevel;

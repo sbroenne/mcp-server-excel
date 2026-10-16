@@ -158,8 +158,8 @@ workbook data.
 
 ## Local Power Query trace files
 
-Power Query tracing is off unless you enable it through the workbook-free
-Settings tools or when opening a workbook session. Excel writes trace files to
+Power Query tracing follows the current Windows user's setting, which you can
+read or change through the workbook-free Settings tools. Excel writes trace files to
 the current user's local application data folder. These files are created and
 retained by Excel, not sent by ExcelMcp telemetry. They can contain data-source
 names and paths, native query text, and exception details.
@@ -169,9 +169,9 @@ CLI. Query text and exception messages are hidden from summaries by default;
 requesting `include_query_text: true` includes those details in the tool result,
 which is then subject to the AI assistant's privacy policy. Trace files remain
 in the local folder until you remove them outside ExcelMcp. Tracing changes
-apply to Excel processes started after the setting is changed. The session
-tracing option temporarily changes a per-user setting, so other Excel processes
-started while it is on may also write trace files.
+require restarting Excel to take effect. The setting remains as chosen until
+you change it; closing workbooks, sessions, or ExcelMCP does not restore it.
+Other Excel processes started while it is on may also write trace files.
 
 ## Third-Party Services
 

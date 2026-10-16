@@ -10,7 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Settings;
 [ServiceCategory("Settings")]
 [NoSession]
 [McpTool("settings", Title = "Excel Settings", Destructive = true, Category = "settings",
-    Description = "Read and change per-user Excel settings that apply to every workbook, including Power Query tracing (the same setting as Query Options, Diagnostics, Enable tracing); no workbook session is needed. Changing tracing affects only Excel processes started afterwards, so open a new session after enabling it. Open/create with pq_tracing=true (CLI: --pq-tracing) to temporarily enable tracing and restore the prior setting when the last opted-in session closes. This is a per-user switch, so any Excel process started while it is on may also write trace files. Use powerquery_trace_read to list or summarize trace files. Trace files can contain data-source names and native query text.")]
+    Description = "Read and change per-user Excel settings that apply to every workbook, including Power Query tracing (the same setting as Query Options, Diagnostics, Enable tracing); no workbook session is needed. Restart Excel for tracing changes to take effect. This is a per-user switch, so any Excel process started while it is on may also write trace files. Use powerquery_trace_read to list or summarize trace files. Trace files can contain data-source names and native query text.")]
 [McpReadOnlyActions("get-pq-tracing")]
 public interface ISettingsCommands
 {
@@ -21,8 +21,8 @@ public interface ISettingsCommands
     PowerQueryTracingStatusResult GetPqTracing();
 
     /// <summary>
-    /// Switches Power Query tracing on or off for Excel processes started afterwards.
-    /// Returns the previous values.
+    /// Switches Power Query tracing on or off for Excel processes started after Excel is restarted.
+    /// Returns the previous values and reminds the caller to restart Excel.
     /// </summary>
     /// <param name="enabled">True to switch tracing on, false to switch it off</param>
     /// <param name="level">Optional tracing level to store (zero or greater). Omit to keep the current level; Excel's default is 15.</param>

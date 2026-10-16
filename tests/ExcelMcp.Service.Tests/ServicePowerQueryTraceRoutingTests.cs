@@ -50,6 +50,9 @@ public sealed class ServicePowerQueryTraceRoutingTests
             Assert.False(result.PreviousEnabled);
             Assert.Equal(15, result.PreviousLevel);
             Assert.Equal(0, service.SessionCount);
+            Assert.Contains("Restart Excel", result.Note, StringComparison.Ordinal);
+            service.Dispose();
+            Assert.True(settings.Read().Enabled);
         }
         finally
         {
@@ -72,10 +75,5 @@ public sealed class ServicePowerQueryTraceRoutingTests
             _level = level ?? _level;
         }
 
-        public void Restore(PowerQueryTracingSnapshot snapshot)
-        {
-            _enabled = snapshot.EnabledValue;
-            _level = snapshot.LevelValue;
-        }
     }
 }

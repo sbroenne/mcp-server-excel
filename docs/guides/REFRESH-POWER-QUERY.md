@@ -85,11 +85,12 @@ of Power Query and other data connections plus all PivotTables, use
 Add `trace: true` to MCP `powerquery` action `refresh` or `refresh-all`, or pass
 `--trace` in the CLI. The result includes a compact summary of Power Query's
 activity during that refresh, including data-source time and quiet gaps. It does
-not restart Excel. If no trace entries are found, enable tracing before opening
-a new session with MCP `file` action `open`/`create` and `pq_tracing: true`, or
-CLI `session open/create --pq-tracing`. This temporarily enables a per-user
-setting, so other Excel processes started while it is on may also write trace
-files.
+not restart Excel. If no trace entries are found, enable tracing with MCP
+`settings` action `set-pq-tracing` and `enabled=true`, or CLI
+`excelcli settings set-pq-tracing --enabled true`, then restart Excel before
+refreshing again. This is a per-user setting, so other Excel processes started
+while it is on may also write trace files. The setting remains enabled until
+you explicitly turn it off.
 
 Keep troubleshooting scoped to one workbook session. A session can write more
 than one trace file because Power Query uses helper processes. There is no need

@@ -145,6 +145,38 @@ public sealed class PowerQueryTraceAnalyzerTests
         Assert.Equal("SELECT 1".Length, Assert.Single(result.SlowestCommands!).CommandLength);
     }
 
+    [Fact]
+    public void Build_CursorDoesNotSkipCommandsAfterRequestedUpperBound()
+    {
+        var entries = new[]
+        {
+            Entry("SimpleDocumentEvaluator/GetResult/Evaluate", Start, TimeSpan.FromSeconds(100)),
+            Entry("Engine/IO/AnalysisServices/Command/ExecuteReader",
+                Start.AddSeconds(20), TimeSpan.FromSeconds(2),
+                resourceKind: "AnalysisServices", commandText: "SELECT 1")
+        };
+        var first = new PowerQueryTraceAnalyzer(new PowerQueryTraceFilter(
+            SinceUtc: Start, UntilUtc: Start.AddSeconds(10)));
+        foreach (var entry in entries)
+        {
+            first.Add(entry);
+        }
+
+        var result = first.Build();
+
+        Assert.Equal(1, result.EntriesMatched);
+        Assert.Equal(Start.AddSeconds(10).ToString("o"), result.TraceCursor);
+        var next = new PowerQueryTraceAnalyzer(new PowerQueryTraceFilter(
+            SinceUtc: PowerQueryTraceTime.Parse(result.TraceCursor, Start, "since"),
+            UntilUtc: Start.AddSeconds(30)));
+        foreach (var entry in entries)
+        {
+            next.Add(entry);
+        }
+
+        Assert.Equal(1, next.Build().DataSourceCalls);
+    }
+
     private static PowerQueryTraceEntry Entry(
         string action,
         DateTime start,

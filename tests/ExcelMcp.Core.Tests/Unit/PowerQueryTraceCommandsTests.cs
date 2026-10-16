@@ -35,7 +35,7 @@ public sealed class PowerQueryTraceCommandsTests
         Assert.True(after.Enabled);
         Assert.Equal(15, after.Level);
         Assert.Equal("1", settings.Read().EnabledValue?.ToString(CultureInfo.InvariantCulture));
-        Assert.False(string.IsNullOrWhiteSpace(after.Note));
+        Assert.Contains("Restart Excel", after.Note, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -77,6 +77,41 @@ public sealed class PowerQueryTraceCommandsTests
         Assert.Equal(2, summary.EntriesMatched);
         Assert.Equal(1, summary.DataSourceCalls);
         Assert.Equal("SELECT 1", Assert.Single(summary.SlowestCommands!).CommandText);
+    }
+
+    [Fact]
+    public void TraceCommands_SessionFilterExcludesFilesFromPreviousProcessWithReusedPid()
+    {
+        using var folder = new TemporaryFolder();
+        var processStarted = new DateTime(2026, 10, 15, 7, 27, 20, DateTimeKind.Utc);
+        File.WriteAllText(
+            Path.Combine(folder.Path, "EXCEL.42.2026-10-15T07-27-19-661979.log"),
+            TraceLine("run/old-excel", 42, null, "00:00:02", null));
+        File.WriteAllText(
+            Path.Combine(folder.Path, "Microsoft.Mashup.Container.Loader.100.2026-10-15T07-27-19-661979.log"),
+            TraceLine("Engine/IO/AnalysisServices/Command/ExecuteReader", 100, "42", "00:00:03", "SELECT previous workbook"));
+        File.WriteAllText(
+            Path.Combine(folder.Path, "EXCEL.42.2026-10-15T07-27-21-000000.log"),
+            TraceLine("run/current-excel", 42, null, "00:00:02", null));
+        File.WriteAllText(
+            Path.Combine(folder.Path, "Microsoft.Mashup.Container.Loader.101.2026-10-15T07-27-21-000000.log"),
+            TraceLine("Engine/IO/AnalysisServices/Command/ExecuteReader", 101, "42", "00:00:03", "SELECT current workbook"));
+        var commands = new PowerQueryTraceCommands(
+            folder.Path,
+            _ => (42, processStarted),
+            () => new DateTime(2026, 10, 15, 8, 0, 0, DateTimeKind.Utc));
+
+        var listed = commands.List(workbookSessionId: "current-session");
+        var summary = commands.Summarize(workbookSessionId: "current-session", includeQueryText: true);
+
+        Assert.Equal(2, listed.Files.Count);
+        Assert.All(listed.Files, file => Assert.True(file.StartedUtc >= processStarted));
+        Assert.Equal(2, summary.FilesRead);
+        Assert.Equal(1, summary.DataSourceCalls);
+        Assert.Equal("SELECT current workbook", Assert.Single(summary.SlowestCommands!).CommandText);
+        Assert.DoesNotContain("previous workbook",
+            summary.SlowestCommands!.Single().CommandText,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -201,101 +236,6 @@ public sealed class PowerQueryTraceCommandsTests
         Assert.Contains("could not be read", result.TraceNote, StringComparison.Ordinal);
     }
 
-    [Fact]
-    public void TracingLeases_SeparateServices_CannotOverwriteAnActiveTracingSetting()
-    {
-        using var folder = new TemporaryFolder();
-        var settings = new FakeTraceSettings(folder.Path, new PowerQueryTracingSnapshot(0, 15));
-        var first = new PowerQueryTracingLeases(settings);
-        var second = new PowerQueryTracingLeases(settings);
-        first.Acquire("first");
-        try
-        {
-            Assert.Throws<IOException>(() => second.Acquire("second"));
-            Assert.True(settings.Read().Enabled);
-        }
-        finally
-        {
-            first.ReleaseAll();
-            second.ReleaseAll();
-        }
-
-        Assert.False(settings.Read().Enabled);
-        second.Acquire("second");
-        Assert.True(settings.Read().Enabled);
-        second.ReleaseAll();
-        Assert.Equal(new PowerQueryTracingSnapshot(0, 15), settings.Read());
-    }
-
-    [Fact]
-    public void SettingsCommands_SeparateService_CannotChangeAnActiveTracingSetting()
-    {
-        using var folder = new TemporaryFolder();
-        var settings = new FakeTraceSettings(folder.Path, new PowerQueryTracingSnapshot(0, 15));
-        var leases = new PowerQueryTracingLeases(settings);
-        leases.Acquire("session");
-        try
-        {
-            var otherService = new SettingsCommands(settings);
-            Assert.Throws<IOException>(() => otherService.SetPqTracing(enabled: false));
-            Assert.True(settings.Read().Enabled);
-        }
-        finally
-        {
-            leases.ReleaseAll();
-        }
-
-        Assert.Equal(new PowerQueryTracingSnapshot(0, 15), settings.Read());
-    }
-
-    [Fact]
-    public void TracingLeases_RestoreOriginalSettingAfterLastSessionCloses()
-    {
-        using var folder = new TemporaryFolder();
-        var settings = new FakeTraceSettings(folder.Path, new PowerQueryTracingSnapshot(null, null));
-        var leases = new PowerQueryTracingLeases(settings);
-
-        leases.Acquire("first");
-        leases.Acquire("second");
-        Assert.True(settings.Read().Enabled);
-        Assert.False(leases.Release("first"));
-        Assert.True(settings.Read().Enabled);
-
-        Assert.True(leases.Release("second"));
-        Assert.Null(settings.Read().EnabledValue);
-        Assert.Null(settings.Read().LevelValue);
-    }
-
-    [Fact]
-    public void TracingLeases_UserDisablesTracingDuringLease_KeepsUserChoice()
-    {
-        using var folder = new TemporaryFolder();
-        var settings = new FakeTraceSettings(folder.Path, new PowerQueryTracingSnapshot(0, 15));
-        var leases = new PowerQueryTracingLeases(settings);
-        leases.Acquire("session");
-        settings.Write(enabled: false, level: null);
-
-        Assert.False(leases.Release("session"));
-        Assert.Equal(0, settings.Read().EnabledValue);
-        Assert.Equal(15, settings.Read().LevelValue);
-    }
-
-    [Fact]
-    public void TracingLeases_ExplicitEnableDuringLease_PreservesUpdatedSetting()
-    {
-        using var folder = new TemporaryFolder();
-        var settings = new FakeTraceSettings(folder.Path, new PowerQueryTracingSnapshot(0, 15));
-        var leases = new PowerQueryTracingLeases(settings);
-        var settingsCommands = new SettingsCommands(settings, leases);
-        leases.Acquire("session");
-
-        settingsCommands.SetPqTracing(enabled: true, level: 20);
-
-        Assert.False(leases.Release("session"));
-        Assert.Equal(1, settings.Read().EnabledValue);
-        Assert.Equal(20, settings.Read().LevelValue);
-    }
-
     private static string TraceLine(string action, int processId, string? hostProcessId, string duration, string? commandText)
     {
         string host = hostProcessId == null ? string.Empty : $",\"HostProcessId\":\"{hostProcessId}\"";
@@ -318,11 +258,6 @@ public sealed class PowerQueryTraceCommandsTests
             _level = level ?? _level;
         }
 
-        public void Restore(PowerQueryTracingSnapshot snapshot)
-        {
-            _enabled = snapshot.EnabledValue;
-            _level = snapshot.LevelValue;
-        }
     }
 
     private sealed class TemporaryFolder : IDisposable

@@ -414,7 +414,7 @@ public sealed class InProcessCliCommandTests
         Assert.Equal("session.open", request.Command);
         Assert.Null(request.SessionId);
         Assert.Equal(
-            """{"filePath":"C:\\workbooks\\locked.xlsx","show":false,"pqTracing":false}""",
+            """{"filePath":"C:\\workbooks\\locked.xlsx","show":false}""",
             request.Args);
 
         using var envelope = JsonDocument.Parse(output.ToString());
@@ -557,16 +557,13 @@ public sealed class InProcessCliCommandTests
     }
 
     [Theory]
-    [InlineData("open", false, false, "session.open")]
-    [InlineData("open", true, false, "session.open")]
-    [InlineData("open", false, true, "session.open")]
-    [InlineData("create", false, false, "session.create")]
-    [InlineData("create", true, false, "session.create")]
-    [InlineData("create", false, true, "session.create")]
-    public async Task SessionCommand_MapsShowAndPowerQueryTracingFlags(
+    [InlineData("open", false, "session.open")]
+    [InlineData("open", true, "session.open")]
+    [InlineData("create", false, "session.create")]
+    [InlineData("create", true, "session.create")]
+    public async Task SessionCommand_MapsShowFlag(
         string action,
         bool show,
-        bool pqTracing,
         string expectedCommand)
     {
         var factory = new RecordingClientFactory(new ServiceResponse
@@ -587,11 +584,6 @@ public sealed class InProcessCliCommandTests
         {
             arguments.Add("--show");
         }
-        if (pqTracing)
-        {
-            arguments.Add("--pq-tracing");
-        }
-
         var exitCode = await Program.RunAsync(arguments.ToArray(), runtime);
 
         Assert.Equal(0, exitCode);
@@ -599,7 +591,7 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(expectedCommand, request.Command);
         Assert.Null(request.SessionId);
         Assert.Equal(
-            $$"""{"filePath":"C:\\workbooks\\book.xlsx","show":{{show.ToString().ToLowerInvariant()}},"pqTracing":{{pqTracing.ToString().ToLowerInvariant()}}}""",
+            $$"""{"filePath":"C:\\workbooks\\book.xlsx","show":{{show.ToString().ToLowerInvariant()}}}""",
             request.Args);
     }
 

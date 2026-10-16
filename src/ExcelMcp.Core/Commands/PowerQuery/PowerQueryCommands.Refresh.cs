@@ -224,7 +224,7 @@ public partial class PowerQueryCommands
         if (summary.EntriesMatched == 0)
         {
             notes.Add(
-                "No trace entries were found. Power Query reads tracing when Excel starts. Enable it with `excelcli settings set-pq-tracing --enabled true` (MCP: `settings`, action `set-pq-tracing` with `enabled=true`), then open a new session with `--pq-tracing` (MCP: `file`, action `open` or `create`, with `pq_tracing=true`). The refresh did not restart Excel.");
+                "No trace entries were found. Power Query reads tracing when Excel starts. Enable it with `excelcli settings set-pq-tracing --enabled true` (MCP: `settings`, action `set-pq-tracing` with `enabled=true`), restart Excel, then refresh again. This setting applies to the current Windows user and is not changed when a workbook or session closes. The refresh did not restart Excel.");
         }
 
         if (elapsed >= TimeSpan.FromSeconds(60))

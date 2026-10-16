@@ -64,21 +64,24 @@ public sealed class ServiceSessionContractTests
     }
 
     [Theory]
-    [InlineData("session.open")]
-    [InlineData("session.create")]
-    public async Task OpenAndCreate_PqTracingOption_IsAcceptedBeforePathValidation(string command)
+    [InlineData("session.open", true)]
+    [InlineData("session.open", false)]
+    [InlineData("session.create", true)]
+    [InlineData("session.create", false)]
+    public async Task OpenAndCreate_RejectRemovedTracingOption(string command, bool enabled)
     {
         using var service = new ExcelMcpService();
 
         var response = await service.ProcessAsync(new ServiceRequest
         {
             Command = command,
-            Args = """{"filePath":"relative\\book.xlsx","pqTracing":true}"""
+            Args = JsonSerializer.Serialize(new { filePath = @"C:\missing\book.xlsx", pqTracing = enabled })
         });
 
         Assert.False(response.Success);
-        Assert.Contains("absolute Windows path", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("Unknown parameter", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("InvalidInput", response.ErrorCategory);
+        Assert.Contains("Unknown parameter(s)", response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("pqTracing", response.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(0, service.SessionCount);
     }
 
