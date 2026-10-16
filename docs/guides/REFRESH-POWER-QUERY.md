@@ -184,9 +184,15 @@ Query auto-sync, so PivotTables connected to the Data Model update too. Workshee
 tables edited directly do *not* — see
 [Query the Data Model with DAX](QUERY-DATA-MODEL-WITH-DAX.md).
 
-**Credential and privacy dialogs.** If Excel blocks on a sign-in or privacy prompt,
-the operation returns suggested next actions rather than hanging. Surface those to
-the user and retry once the prompt is cleared.
+**Approval and other Excel dialogs.** If Excel reports
+`excelState: "nativeQueryApproval"` in MCP `file_read` action `list` or CLI
+`excelcli session list`, the refresh is still pending. Show Excel and approve the
+query manually; the server does not approve it or change the global security
+setting. Session status detects the native-query approval prompt within one
+second of a status check, scoped to the session's Excel process and supported
+localized dialog captions. It does not return query text or source details.
+Other owned modal prompts remain `dialogOpen`; check Excel for sign-in, privacy,
+or another user-input prompt.
 
 **M code is never sent anywhere by default.** `create` and `update` preserve your M
 code exactly. Only opting in to remote formatting sends it to the external

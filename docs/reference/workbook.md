@@ -210,13 +210,13 @@ worktree's CLI background services without requesting graceful shutdown or
 saving workbooks. Unsaved development-session work may be lost. They do not
 terminate Excel, MCP, foreground CLI commands, or other worktrees' services.
 
-The same session listing exposes `excelState` and `blockingReason`. When
-`excelState` is `dialogOpen`, check the Excel window for a prompt before simply
-waiting longer. The server observes window ownership without reading dialog
-contents; this can detect a separate Microsoft sign-in host but cannot confirm
-that authentication is the dialog's purpose. It never enters credentials or
-responds to the prompt. After responding, check readiness and refreshed data
-before saving.
+The same session listing exposes `excelState`, `operationPending`, and
+`blockingReason`. When `excelState` is `nativeQueryApproval`, Excel is waiting
+for a manual decision: show its window and approve the query there. The operation
+is still pending; the server does not cancel it, approve automatically, change
+the global setting, or return query/source details. For other `dialogOpen`
+states, check Excel for a prompt; its type is not identified. After responding,
+check readiness and refreshed data before saving.
 
 Power BI/MSOLAP (OLAP) connections always refresh synchronously. Their unsupported
 background setting is reported as false; enabling it is rejected before changing

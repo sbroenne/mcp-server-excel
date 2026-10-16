@@ -81,8 +81,8 @@ blocked in these cases; the workbook remains open. Wait for Excel to finish,
 list sessions again, and retry only when ready. Do not cancel a query or discard
 edits merely to make closing possible.
 
-MCP `file_read` action `list` and `excelcli session list` expose `excelState`
-and, when closing is blocked, `blockingReason`. `excelState: "dialogOpen"`
+MCP `file_read` action `list` and `excelcli session list` expose `excelState`,
+`operationPending`, and, when closing is blocked, `blockingReason`. `excelState: "dialogOpen"`
 means a visible, enabled window is owned by a disabled Excel main window,
 including a dialog hosted in another process. This check does not call Excel COM,
 so it can report a dialog while an Excel operation is waiting. Ask the user to
@@ -92,6 +92,14 @@ read account details or passwords, select an account, or dismiss it. A progress
 dialog can also be reported; an open dialog is not proof that a query has stopped.
 Unrelated windows and modeless windows do not establish `dialogOpen`. If window
 inspection fails, readiness is `unknown`, not ready.
+
+`excelState: "nativeQueryApproval"` and
+`blockingReason: "nativeQueryApproval"` specifically indicate that Excel is
+waiting for approval to run a native database query. `operationPending` remains
+true until Excel receives a response. The separate `blockingMessage` directs
+the user to show Excel and approve the query manually. The server does not
+approve it or change the global approval setting. Query text and source details
+are not returned.
 
 Excel busy error `0x800AC472` does not establish a file lock or a visible dialog.
 A failed refresh-status read does not establish completion. After refresh or
