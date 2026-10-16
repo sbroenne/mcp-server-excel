@@ -4,9 +4,8 @@ using Xunit;
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 
 /// <summary>
-/// MCP arguments and output for actions whose workbook behavior is covered by
-/// the Service tests (Power Query privacy and loading, DAX measures, and
-/// cross-file worksheet copies).
+/// MCP arguments and output for Power Query privacy settings and load-to.
+/// Workbook behavior for these actions is covered by the Service tests.
 /// </summary>
 [Collection("RecordingProgramTransport")]
 [Trait("Category", "Integration")]
@@ -14,7 +13,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 [Trait("Layer", "McpServer")]
 [Trait("Feature", "PowerQuery")]
 [Trait("RequiresExcel", "false")]
-public sealed class ModelAndTransferProtocolTests(
+public sealed class PowerQueryPrivacyAndLoadProtocolTests(
     RecordingProgramTransportFixture fixture)
 {
     private const string SessionId = "recording-session";
@@ -77,57 +76,4 @@ public sealed class ModelAndTransferProtocolTests(
         Assert.True(document.RootElement.GetProperty("isLoadedToDataModel").GetBoolean());
     }
 
-    [Fact]
-    public async Task DaxMeasureWrites_SendFormulaUnchanged()
-    {
-        const string formula = "DIVIDE(SUM(SalesTable[Amount]), 1000)";
-        await _fixture.CallToolAsync(
-            "datamodel",
-            new Dictionary<string, object?>
-            {
-                ["action"] = "create-measure",
-                ["workbook_session_id"] = SessionId,
-                ["table_name"] = "SalesTable",
-                ["measure_name"] = "Total",
-                ["dax_formula"] = formula,
-                ["format_type"] = "Decimal"
-            },
-            RecordingToolTest.Success("""{"success":true}"""),
-            "datamodel.create-measure",
-            $$"""{"tableName":"SalesTable","measureName":"Total","daxFormula":{{JsonSerializer.Serialize(formula)}},"formatType":"Decimal"}""");
-        await _fixture.CallToolAsync(
-            "datamodel",
-            new Dictionary<string, object?>
-            {
-                ["action"] = "update-measure",
-                ["workbook_session_id"] = SessionId,
-                ["measure_name"] = "Total",
-                ["dax_formula"] = formula,
-                ["format_type"] = "Decimal"
-            },
-            RecordingToolTest.Success("""{"success":true}"""),
-            "datamodel.update-measure",
-            $$"""{"measureName":"Total","daxFormula":{{JsonSerializer.Serialize(formula)}},"formatType":"Decimal"}""");
-    }
-
-    [Fact]
-    public async Task WorksheetCopyToFile_WithoutSessionId_DispatchesWithoutSession()
-    {
-        var call = await _fixture.CallToolAsync(
-            "worksheet",
-            new Dictionary<string, object?>
-            {
-                ["action"] = "copy-to-file",
-                ["source_file"] = "source.xlsx",
-                ["source_sheet"] = "Sheet1",
-                ["target_file"] = "target.xlsx",
-                ["target_sheet_name"] = "CopiedSheet"
-            },
-            RecordingToolTest.Success("""{"success":true}"""),
-            "sheet.copy-to-file",
-            string.Empty,
-            """{"sourceFile":"source.xlsx","sourceSheet":"Sheet1","targetFile":"target.xlsx","targetSheetName":"CopiedSheet"}""");
-
-        Assert.False(call.Result.IsError);
-    }
 }

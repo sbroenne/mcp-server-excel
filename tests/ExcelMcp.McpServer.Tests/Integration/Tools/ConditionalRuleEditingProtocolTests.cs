@@ -67,6 +67,25 @@ public sealed class ConditionalRuleEditingProtocolTests(RecordingProgramTranspor
     }
 
     [Fact]
+    public async Task AddTop10Rule_MapsTypedArguments()
+    {
+        var call = await fixture.CallToolAsync("conditionalformat", new()
+        {
+            ["action"] = "add-rule",
+            ["workbook_session_id"] = "session-1",
+            ["sheet_name"] = "Data",
+            ["range_address"] = "C2:C3",
+            ["rule_type"] = "top10",
+            ["rank"] = 7,
+            ["top10_percent"] = true,
+            ["font_bold"] = true,
+            ["font_italic"] = false
+        }, RecordingToolTest.Success("""{"success":true}"""), "conditionalformat.add-rule",
+            """{"sheetName":"Data","rangeAddress":"C2:C3","ruleType":"top10","rank":7,"top10Percent":true,"fontBold":true,"fontItalic":false}""");
+        Assert.False(call.Result.IsError);
+    }
+
+    [Fact]
     public async Task Discovery_ExposesStaleGuardAndCreationControls()
     {
         var tools = await fixture.ListToolsAsync();
