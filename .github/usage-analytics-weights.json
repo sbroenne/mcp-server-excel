@@ -479,7 +479,9 @@
       "feature": "power-query",
       "actions": {
         "get-pq-tracing": "light",
-        "set-pq-tracing": "medium"
+        "set-pq-tracing": "medium",
+        "get-native-query-approval": "light",
+        "set-native-query-approval": "medium"
       }
     },
     "service": {

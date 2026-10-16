@@ -10,8 +10,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Settings;
 [ServiceCategory("Settings")]
 [NoSession]
 [McpTool("settings", Title = "Excel Settings", Destructive = true, Category = "settings",
-    Description = "Read and change per-user Excel settings that apply to every workbook, including Power Query tracing (the same setting as Query Options, Diagnostics, Enable tracing); no workbook session is needed. Restart Excel for tracing changes to take effect. This is a per-user switch, so any Excel process started while it is on may also write trace files. Use powerquery_trace_read to list or summarize trace files. Trace files can contain data-source names and native query text.")]
-[McpReadOnlyActions("get-pq-tracing")]
+    Description = "Read and change per-user Excel settings that apply to every workbook, including Power Query tracing and the global requirement for approval before new native database queries run. Changing native-query approval requires explicit confirmation and Excel to be closed; turning approval off reduces security. No workbook session is needed. Restart Excel for tracing changes to take effect. Any Excel process started while tracing is on may write trace files. Use powerquery_trace_read to list or summarize trace files, which can contain data-source names and native query text.")]
+[McpReadOnlyActions("get-pq-tracing", "get-native-query-approval")]
 public interface ISettingsCommands
 {
     /// <summary>
@@ -28,4 +28,22 @@ public interface ISettingsCommands
     /// <param name="level">Optional tracing level to store (zero or greater). Omit to keep the current level; Excel's default is 15.</param>
     [ServiceAction("set-pq-tracing")]
     PowerQueryTracingStatusResult SetPqTracing([RequiredParameter] bool enabled, int? level = null);
+
+    /// <summary>
+    /// Reads whether new native database queries require approval in Power Query.
+    /// This applies to all workbooks for the current Windows user.
+    /// </summary>
+    [ServiceAction("get-native-query-approval")]
+    NativeQueryApprovalResult GetNativeQueryApproval();
+
+    /// <summary>
+    /// Changes the current user's global native database query approval setting.
+    /// Excel must be closed, and the caller must explicitly confirm the security impact.
+    /// </summary>
+    /// <param name="required">True to require approval, false to allow native database queries without approval.</param>
+    /// <param name="confirm">Must be true to authorize changing this global security setting.</param>
+    [ServiceAction("set-native-query-approval")]
+    NativeQueryApprovalResult SetNativeQueryApproval(
+        [RequiredParameter] bool? required,
+        [RequiredParameter] bool confirm);
 }

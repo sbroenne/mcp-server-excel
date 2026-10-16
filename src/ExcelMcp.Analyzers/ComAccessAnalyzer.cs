@@ -30,6 +30,7 @@ public sealed class ComAccessAnalyzer : DiagnosticAnalyzer
             if (start.Compilation.AssemblyName?.EndsWith(".Tests", StringComparison.Ordinal) == true) { return; }
             start.RegisterOperationAction(AnalyzeProperty, OperationKind.PropertyReference);
             start.RegisterOperationAction(AnalyzeInvocation, OperationKind.Invocation);
+            start.RegisterOperationAction(AnalyzeObjectCreation, OperationKind.ObjectCreation);
             start.RegisterSyntaxNodeAction(AnalyzeLiteral, SyntaxKind.StringLiteralExpression);
             start.RegisterSyntaxNodeAction(AnalyzeDynamicChain, SyntaxKind.SimpleMemberAccessExpression);
         });
@@ -77,6 +78,11 @@ public sealed class ComAccessAnalyzer : DiagnosticAnalyzer
     private static void AnalyzeInvocation(OperationAnalysisContext context)
     {
         var invocation = (IInvocationOperation)context.Operation;
+        if (IsArchiveApi(invocation.TargetMethod.ContainingType))
+        {
+            ReportArchiveAccess(context, invocation.Syntax, invocation.TargetMethod.ToDisplayString());
+            return;
+        }
         if (!IsExcel(invocation.Type)) { return; }
         IOperation? parent = invocation.Parent;
         while (parent is IConversionOperation or IParenthesizedOperation) { parent = parent.Parent; }
@@ -90,6 +96,33 @@ public sealed class ComAccessAnalyzer : DiagnosticAnalyzer
             context.ReportDiagnostic(Diagnostic.Create(Rules.ChainedComAccess, invocation.Syntax.GetLocation(),
                 invocation.Syntax.ToString()));
         }
+    }
+
+    private static void AnalyzeObjectCreation(OperationAnalysisContext context)
+    {
+        var creation = (IObjectCreationOperation)context.Operation;
+        if (IsArchiveApi(creation.Type))
+        {
+            ReportArchiveAccess(context, creation.Syntax, creation.Type!.ToDisplayString());
+        }
+    }
+
+    private static bool IsArchiveApi(ITypeSymbol? type) =>
+        type is not null &&
+        type.ContainingNamespace?.ToDisplayString() == "System.IO.Compression" &&
+        type.Name is "ZipArchive" or "ZipFile";
+
+    private static void ReportArchiveAccess(OperationAnalysisContext context, SyntaxNode syntax, string symbol)
+    {
+        string path = syntax.SyntaxTree.FilePath.Replace('\\', '/');
+        if (path.EndsWith(
+                "src/ExcelMcp.Core/Commands/Settings/NativeQueryApprovalSettings.cs",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        context.ReportDiagnostic(Diagnostic.Create(Rules.WorkbookPackageAccess, syntax.GetLocation(), symbol));
     }
 
     private static void AnalyzeLiteral(SyntaxNodeAnalysisContext context)

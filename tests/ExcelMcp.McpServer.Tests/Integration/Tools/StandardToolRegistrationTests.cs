@@ -76,8 +76,8 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
             .GetProperty("action").GetProperty("enum").EnumerateArray()
             .Select(value => value.GetString()!).ToArray();
 
-        Assert.Equal(["set-pq-tracing"], Actions("settings"));
-        Assert.Equal(["get-pq-tracing"], Actions("settings_read"));
+        Assert.Equal(["set-pq-tracing", "set-native-query-approval"], Actions("settings"));
+        Assert.Equal(["get-pq-tracing", "get-native-query-approval"], Actions("settings_read"));
         Assert.Equal(["list", "summarize"], Actions("powerquery_trace_read"));
         Assert.DoesNotContain("get-pq-tracing", Actions("powerquery"));
         Assert.DoesNotContain("set-pq-tracing", Actions("powerquery"));
@@ -85,6 +85,17 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         var settingsProperties = tools["settings"].JsonSchema.GetProperty("properties");
         Assert.False(settingsProperties.TryGetProperty("workbook_session_id", out _));
         Assert.True(settingsProperties.TryGetProperty("enabled", out _));
+        Assert.True(settingsProperties.TryGetProperty("required", out _));
+        Assert.True(settingsProperties.TryGetProperty("confirm", out _));
+        string[] requiredSettingsInputs = tools["settings"].JsonSchema.GetProperty("required").EnumerateArray()
+            .Select(value => value.GetString()!).ToArray();
+        Assert.Equal(["action"], requiredSettingsInputs);
+        Assert.Contains("null", settingsProperties.GetProperty("required").GetRawText(), StringComparison.Ordinal);
+        Assert.Contains("global requirement", tools["settings"].Description, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("explicit confirmation", tools["settings"].Description, StringComparison.OrdinalIgnoreCase);
+
+        var settingsReadProperties = tools["settings_read"].JsonSchema.GetProperty("properties");
+        Assert.False(settingsReadProperties.TryGetProperty("workbook_session_id", out _));
 
         var traceProperties = tools["powerquery_trace_read"].JsonSchema.GetProperty("properties");
         Assert.True(traceProperties.TryGetProperty("workbook_session_id", out _));

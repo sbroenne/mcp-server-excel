@@ -34,9 +34,10 @@ sends code to an external service and needs consent.
 
 ---
 
-## Excel Settings (2 operations)
+## Excel Settings (4 operations)
 
 - **Control Power Query tracing:** Read or change the current user's tracing setting without opening a workbook. Restart Excel for changes to take effect; the setting remains as chosen until changed again.
+- **Inspect native-query approval:** Read or change the current user's global requirement for approval before new native database queries run. The change requires confirmation, Excel to be closed, and affects every workbook for that Windows user.
 
 ---
 
