@@ -85,7 +85,7 @@ not stop another worktree's sessions.
 
 Skill preparation,
 packaging/release, and script safety checks live in separate test projects.
-Packaging changes require their regression tests before PR delivery; those may build packages in
+CI runs packaging regressions; local runs for packaging changes may build packages in
 temporary folders and use disposable local publication repositories. Actual
 release artifact creation belongs to CI or explicit manual validation.
 Run the changed-area plan's selected cases on final source; complete acceptance

@@ -1,5 +1,7 @@
 # Connection pitfalls
 
+These rules also apply to connection sanitizers and their tests/helpers/fixtures.
+
 - `connection create` rejects `TEXT;`/`URL;`. Direct text/web imports belong to
   `querytable`; transformations and Power Query load management to `powerquery`.
   A Power Query connection's OLEDB provider does not make it an ordinary

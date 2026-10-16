@@ -19,6 +19,7 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
    - Windows OS (required for Excel COM)
    - Visual Studio 2022 or VS Code
    - .NET 10 SDK
+   - PowerShell 7.4 or later (`pwsh`)
    - Microsoft Excel installed
 
 2. **Setup**:
@@ -46,9 +47,11 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 2. **Make changes**: Code, tests, documentation
 3. **Run the pre-commit hook**: follow the
    [pre-commit setup guide](PRE-COMMIT-SETUP.md), then let it run on every
-   commit. Changed paths select the Release build with compiler safety checks,
-   contract tests, and required local Excel checks. The hook never builds or
-   installs distributable packages; PR CI owns package validation.
+   commit. Changed paths select the Release build with compiler safety checks
+   and quick CLI, MCP Server, Core and Service tests. Slow process, tooling,
+   package and Excel tests are outside the hook. CI owns hosted checks; run
+   affected process checks locally when changing their boundary and selected
+   Excel checks on a desktop with Excel. The hook never installs packages.
    Never bypass it with `--no-verify`.
 4. **Push branch**: `git push origin feature/your-feature`
 5. **Create PR**: Use GitHub's PR template

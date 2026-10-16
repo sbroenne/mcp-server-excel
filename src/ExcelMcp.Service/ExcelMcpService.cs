@@ -863,7 +863,7 @@ public sealed class ExcelMcpService : IDisposable
             var response = action(batch!);
             return Task.FromResult(response);
         }
-        catch (TimeoutException ex)
+        catch (TimeoutException ex) when (!IsFatalExcelDisconnect(ex))
         {
             if (batch!.HasTimedOutOperation)
             {
@@ -886,7 +886,7 @@ public sealed class ExcelMcpService : IDisposable
                 ExceptionType = ex.GetType().Name
             });
         }
-        catch (OperationCanceledException ex)
+        catch (OperationCanceledException ex) when (!IsFatalExcelDisconnect(ex))
         {
             if (batch!.HasTimedOutOperation)
             {
@@ -992,6 +992,18 @@ public sealed class ExcelMcpService : IDisposable
                 return IsFatalComHResult(comEx.HResult) ? comEx.HResult : comEx.ErrorCode;
             }
 
+            if (current is AggregateException aggregate)
+            {
+                foreach (var cause in aggregate.InnerExceptions)
+                {
+                    if (TryGetFatalComHResult(cause) is { } hresult)
+                    {
+                        return hresult;
+                    }
+                }
+
+                return null;
+            }
         }
 
         return null;

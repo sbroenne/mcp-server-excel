@@ -1,76 +1,38 @@
 ## Summary
-Explain the problem, its root cause, and the intended outcome. Do not include
-customer/workbook data, credentials, connection strings, or private paths.
+Explain the problem, root cause, and intended outcome. Link related issues
+(`Closes #...`, `Relates to #...`) or write N/A.
 
-## Type of Change
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Breaking change
-- [ ] Documentation update
-- [ ] Maintenance, tests, or CI
+## Changes and consequences
+Describe affected behavior and contracts, migration or partial-state/recovery
+consequences, and documentation changes. MCP Server and `excelcli` are equal
+entry points: explain any intentional difference.
+For contract/generator changes, follow
+[Core guidance](https://github.com/sbroenne/mcp-server-excel/blob/main/src/ExcelMcp.Core/AGENTS.md)
+and record the generated surfaces inspected.
 
-## Related Issues
-Use `Closes #...` for an issue this change resolves, `Relates to #...` for related
-work, or N/A. Do not leave placeholder issue references.
+## Evidence
+Follow [AGENTS.md](https://github.com/sbroenne/mcp-server-excel/blob/main/AGENTS.md)
+and the applicable nested guides. List each exact command and its result
+(passed, failed, or not run); include the changed-area plan and explain gaps.
+For behavior fixes, identify the regression that failed before the fix and what
+returned fields or actual workbook state it verifies.
 
-## Changeset
-- [ ] Added a changeset for user-visible changes; see [.changeset/README.md](https://github.com/sbroenne/mcp-server-excel/blob/main/.changeset/README.md)
-- [ ] Not applicable (internal/docs/tests/CI-only); added `skip-changelog` instead
+Desktop Excel is required for COM/acceptance checks; ordinary hosted runners
+cannot supply that evidence. Run Excel commands sequentially and preserve owned
+process/session cleanup. Compilation is not proof of COM ownership or native
+behavior. Python evaluations are on-demand only.
 
-## Changes Made
-Summarize the approach, affected contracts and entry points, and any migration or
-partial-state/recovery consequences. MCP Server and `excelcli` are equal entry
-points; explain any adapter-only change.
+## Review and release
+Record independent complete-branch review findings and their disposition,
+followed by `ponytail-review` when available. Address and resolve review threads
+or record why no change is appropriate. Never bypass Git hooks.
 
-## Testing Performed
-Follow [AGENTS.md](https://github.com/sbroenne/mcp-server-excel/blob/main/AGENTS.md) and [tests/AGENTS.md](https://github.com/sbroenne/mcp-server-excel/blob/main/tests/AGENTS.md).
-Check only completed, applicable items; explain anything not run below.
+Link the [changeset](https://github.com/sbroenne/mcp-server-excel/blob/main/.changeset/README.md)
+for user-visible changes, or explain why this is internal/docs/tests/CI-only
+and uses `skip-changelog`. Versions and changelogs are release-generated.
 
-- [ ] Behavioral fix has a focused regression that failed before the fix
-- [ ] Required Release build and compiler safety checks completed with zero warnings
-- [ ] Affected tests and dependencies selected by the changed-area plan passed
-- [ ] Selected Excel cases, including acceptance and infrastructure diagnostics when selected, passed locally with desktop Excel
-- [ ] Applicable Excel-free and contract checks passed
-- [ ] Assertions verify returned fields and actual Excel state, including partial state or recovery after failure
-- [ ] Excel-dependent commands ran sequentially; cleanup affected only owned sessions/process identities
-
-List each exact validation command and its result (passed/failed/not run).
-Explain unavailable validation; do not paste a command transcript or treat a
-compiler check as proof of COM ownership or real Excel behavior.
-
-Desktop Excel is required for COM/E2E checks; ordinary GitHub-hosted runners do
-not have it. Report unavailable Excel checks as not run. Documentation/configuration-only
-changes do not need synthetic runtime tests. LLM evaluations under `llm-tests/`
-are on-demand only, not a normal implementation or PR gate.
-
-## Screenshots (if applicable)
-N/A unless visuals help explain the change and an interactive desktop is available.
-Use only synthetic data.
-
-## Core Commands Coverage Checklist
-
-**Does this PR change Core contracts or generated routing?** [ ] Yes [ ] No
-
-If yes, follow [generated contract guidance](https://github.com/sbroenne/mcp-server-excel/blob/main/docs/agents/rules/coverage-prevention-strategy.md):
-
-- [ ] Edited source contracts/generators, not emitted files
-- [ ] Built Release and inspected generated Service, CLI options/batch JSON, and MCP schemas
-- [ ] Ran `scripts\Invoke-ExcelFreeTests.ps1 -Local -Contracts`
-- [ ] Verified matching names, parameters, defaults, validation, results, and timeouts across both entry points
-- [ ] Updated focused tests and applicable source guidance
-- [ ] Updated affected advertised counts using EXL030's exact expected values, reviewed the changes, and rebuilt successfully
-
-## Checklist
-- [ ] Self-review of code completed
-- [ ] Independent pre-PR review of the complete branch diff completed; confirmed findings addressed; followed by `ponytail-review` when available
-- [ ] Followed AGENTS.md and matching task guides
-- [ ] Updated directly affected documentation and agent-facing metadata
-- [ ] Changed failure paths preserve cause, cancellation, session recovery, and exact partial state; optional COM reads tolerate only known unavailable-member codes
-- [ ] Applicable COM safety rules followed, including `finally` cleanup and PID/start-time process ownership
-- [ ] No sensitive data in public artifacts
-- [ ] No Git hooks skipped or bypassed
-- [ ] Addressed and resolved review threads, or recorded a clear reason for no change
-
-## Additional Notes
-Record limitations, unavailable validation, and anything requiring careful review.
-Merging or publishing requires separate authorization.
+## Limitations
+Record remaining risks, unavailable validation, and any screenshots that
+actually help explain a visual change (synthetic data only).
+Do not include customer/workbook data, credentials, connection strings, or
+private paths. Merging and publishing require separate authorization.

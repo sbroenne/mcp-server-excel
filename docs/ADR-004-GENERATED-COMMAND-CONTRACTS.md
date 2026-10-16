@@ -32,5 +32,5 @@ responsibilities.
 - [CLI generator](../src/ExcelMcp.Generators.Cli/CliSettingsGenerator.cs)
 - [MCP generator](../src/ExcelMcp.Generators.Mcp/McpToolGenerator.cs)
 - Hand-written MCP tools: [file](../src/ExcelMcp.McpServer/Tools/ExcelFileTool.cs), [worksheet](../src/ExcelMcp.McpServer/Tools/ExcelWorksheetTool.cs), and [screenshot](../src/ExcelMcp.McpServer/Tools/ExcelScreenshotTool.cs)
-- [Contract checks](agents/rules/coverage-prevention-strategy.md)
-- [Agent-facing metadata sources](agents/rules/mcp-llm-guidance.md)
+- [Contract checks](../src/ExcelMcp.Core/AGENTS.md)
+- [Agent-facing metadata sources](../skills/AGENTS.md)

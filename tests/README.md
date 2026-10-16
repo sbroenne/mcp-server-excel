@@ -321,8 +321,9 @@ The hook reuses its saved staged-input plan for quick CLI, MCP Server, Core,
 and Service tests (`Commit`, a projection of `Fast`). ComInterop-specific
 tests remain in CI; their real-Excel cases require a Windows/Excel environment.
 It does not run process, tooling, packaging, Excel, or acceptance checks on each
-commit. Run affected slower checks before PR delivery; hosted CI covers the
-environments it supports, not desktop Excel. CI uses its
+commit. CI owns supported slower checks; run local process checks when changing
+their boundary, not on every push. Selected Excel checks still require desktop
+Excel locally. CI uses its
 selected base, head, and `MergeBase`/`Direct` comparison mode for changed paths.
 When no test group owns that build, CI runs a separate build-only job.
 The required CI gate checks its exact result, without presenting an empty

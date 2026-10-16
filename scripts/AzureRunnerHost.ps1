@@ -8,12 +8,17 @@ if (`$PSVersionTable.PSVersion -lt [version]'7.4') { throw 'PowerShell 7.4 or la
 $Script
 "@
     $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($payload))
+    $loader = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes(@'
+$ErrorActionPreference = 'Stop'
+$script = [Text.Encoding]::Unicode.GetString([Convert]::FromBase64String([Console]::In.ReadToEnd()))
+& ([scriptblock]::Create($script))
+'@))
     # Azure owns the Windows PowerShell transport; repository code runs only in pwsh.
     return @"
 `$ErrorActionPreference = 'Stop'
 `$pwsh = Join-Path `$env:ProgramFiles 'PowerShell\7\pwsh.exe'
 if (-not (Test-Path -LiteralPath `$pwsh -PathType Leaf)) { throw 'Preinstall PowerShell 7.4 or later on the VM image before provisioning.' }
-& `$pwsh -NoProfile -NonInteractive -EncodedCommand '$encoded'
+'$encoded' | & `$pwsh -NoProfile -NonInteractive -EncodedCommand '$loader'
 if (`$LASTEXITCODE -ne 0) { throw "PowerShell 7 guest command failed with exit code `$LASTEXITCODE." }
 [Console]::WriteLine()
 Write-Output 'EXCELMCP_PWSH_COMPLETE'

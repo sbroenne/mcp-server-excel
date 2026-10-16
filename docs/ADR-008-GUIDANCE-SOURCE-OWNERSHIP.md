@@ -37,4 +37,4 @@ source edits reach installed packages.
 - [Skill preparation](../scripts/Build-AgentSkills.ps1) and [skill scope](AGENT-SKILLS.md)
 - [Website source handling](../gh-pages/sitegen/sources.py)
 - [Contributor discovery](agents/development.md)
-- [Instruction maintenance](agents/rules/meta.md) and [product guidance sources](agents/rules/mcp-llm-guidance.md)
+- [Instruction maintenance](AGENTS.md#instruction-maintenance) and [product guidance sources](../skills/AGENTS.md)

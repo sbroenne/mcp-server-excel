@@ -25,6 +25,10 @@ older-version compatibility wrappers or a VS Code built-in review configuration.
 | Codex | Builds a root-to-working-directory instruction chain at session startup. Start a fresh session in the intended directory and ask which instruction sources were loaded. |
 
 The root task map explicitly tells agents to read relevant nested/shared guides.
+The root task map also requires owner-local guides for cross-area work;
+moving a rule does not guarantee every client loads it.
+Build procedures live in [Development](../DEVELOPMENT.md#build-and-check-ownership),
+not in the automatically loaded build constraints.
 This matters for Codex started at the repository root: its startup walk does not
 automatically include instructions in every descendant directory. Codex prefers
 `AGENTS.override.md` over `AGENTS.md` in the same directory and limits combined

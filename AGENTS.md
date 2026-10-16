@@ -65,21 +65,25 @@ Paths are relative to the repository root.
 | Work | Required guidance |
 | --- | --- |
 | `src/**/*.cs` | [Runtime boundaries](src/AGENTS.md) |
-| Core commands/action models, Service, CLI, MCP, generators, or `.github/usage-analytics-weights.json` | [Generated contracts](docs/agents/rules/coverage-prevention-strategy.md) |
+| Core commands/action models, Service, CLI, MCP, generators, or `.github/usage-analytics-weights.json` | [Generated contracts](src/ExcelMcp.Core/AGENTS.md) |
 | Core or ComInterop C# | [COM safety](src/ExcelMcp.ComInterop/AGENTS.md) |
-| Connection commands/sanitizer or connection tests/helpers/fixtures | [Connections](docs/agents/rules/excel-connection-types-guide.md) |
+| Connection commands/sanitizer or connection tests/helpers/fixtures | [Connections](src/ExcelMcp.Core/Commands/Connection/AGENTS.md) |
 | `tests/**/*.cs` | [Testing strategy](tests/AGENTS.md) |
-| Workflows, project files, SDK/build configuration, PowerShell scripts, `.changeset/**` | [Build and release](docs/agents/rules/development-workflow.md) |
-| README/index files, FEATURES, CHANGELOG, SECURITY, PRIVACY, docs, specs, skills, or website | [Documentation](docs/agents/rules/documentation-structure.md) |
-| Skill sources, Core command metadata, generators, MCP, or Build-AgentSkills.ps1 | [Product agent guidance](docs/agents/rules/mcp-llm-guidance.md) |
+| Workflows, project files, SDK/build configuration, PowerShell scripts, `.changeset/**` | [Build and release](scripts/AGENTS.md) |
+| README/index files, FEATURES, CHANGELOG, SECURITY, PRIVACY, docs, specs, skills, or website | [Documentation](docs/AGENTS.md) |
+| Skill sources, Core command metadata, generators, MCP, or Build-AgentSkills.ps1 | [Product agent guidance](skills/AGENTS.md) |
 | MCP Server or MCP generator | [MCP boundaries](src/ExcelMcp.McpServer/AGENTS.md) |
 | `llm-tests/**` | [LLM evaluations](llm-tests/AGENTS.md) |
-| Repository/agent instructions, CONTEXT, or `docs/agents/**` | [Instruction maintenance](docs/agents/rules/meta.md) |
+| Repository/agent instructions, CONTEXT, or `docs/agents/**` | [Instruction maintenance](docs/AGENTS.md#instruction-maintenance) |
 | `vscode-extension/**` | [Extension](vscode-extension/AGENTS.md) |
 | `videos/excel-mcp-intro/**` | [Video](videos/excel-mcp-intro/AGENTS.md) |
 | `videos/agentic-world-bank-briefing/**` | [Agentic workflow video](videos/agentic-world-bank-briefing/AGENTS.md) |
 
 ## Implementation
+
+The build enforces supported COM, contract, result, and test patterns. Fix
+diagnostics at their source; a suppression needs a reason, not an assumption
+that passing compilation proves runtime correctness.
 
 - Core `[ServiceCategory]` interfaces drive generated Service, CLI, and MCP
   routing. Change contracts/generators, not emitted code. Follow a changed
@@ -100,6 +104,14 @@ Paths are relative to the repository root.
   metadata; it must not parse workbook content.
 - Behavioral changes require a focused failing regression test before the fix.
   Documentation/configuration-only changes do not need synthetic tests.
+- MCP Server and `excelcli` are the only supported product entry points. Do not
+  preserve or add public Core/ComInterop compatibility APIs for hypothetical
+  external consumers when neither entry point uses them.
+- Keep customer/workbook data, credentials, connection strings, and private
+  paths out of public artifacts. Keep temporary notes outside the repository.
+
+## Errors
+
 - Handle failures only where the layer owns recovery or failure transport.
   Preserve the original exception and operation context. Optional reads must not
   treat arbitrary COM failures as absent data. A deliberate best-effort boundary
@@ -108,12 +120,6 @@ Paths are relative to the repository root.
 - Do not automatically clean up or roll back workbook changes when an
   operation fails. Report the exact partial state and error so the agent can
   inspect the workbook and decide whether cleanup is appropriate.
-- `Success == true` requires an empty or null `ErrorMessage`.
-- MCP Server and `excelcli` are the only supported product entry points. Do not
-  preserve or add public Core/ComInterop compatibility APIs for hypothetical
-  external consumers when neither entry point uses them.
-- Keep customer/workbook data, credentials, connection strings, and private
-  paths out of public artifacts. Keep temporary notes outside the repository.
 
 ## Build and validation
 
@@ -138,8 +144,8 @@ sequentially; never overlap Excel test fixtures, test hosts, or E2E runs.
 The commit hook builds selected inputs and runs only selected `Fast` unit
 tests from CLI, MCP Server, Core, and Service (`Commit` group). ComInterop-specific,
 process, tooling, package, Excel, and acceptance checks do not run on
-every commit; run the affected checks before PR delivery and use the hosted
-checks where supported. A passing hook is not complete PR validation.
+every commit. CI owns hosted checks; run local process checks when changing
+their boundary, not on every push. A passing hook is not complete PR validation.
 Use the changed-area plan from `tools\ExcelMcp.Build\ValidationPolicy.cs` for
 PR and local validation. Include affected dependencies, not unrelated features.
 Run its selected Excel cases locally; shared lifecycle changes also select

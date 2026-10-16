@@ -28,8 +28,9 @@ The pre-commit hook uses the selected Release build and existing `Fast` unit-tes
 group's CLI, MCP Server, Core, and Service tests only, exposed as `Commit`.
 ComInterop-specific tests remain in normal CI, with real-Excel cases requiring
 a Windows/Excel environment. The hook does not run the `Process` or `Tooling` groups, package preparation,
-Excel tests, or acceptance. Those checks remain required for affected changes
-before PR delivery, using hosted CI where the environment supports them.
+Excel tests, or acceptance. CI owns supported slower checks; local process
+checks apply when that boundary changes, not on every push. Selected Excel
+checks still require a local Windows/Excel environment.
 This keeps a commit useful as a small checkpoint rather than an hours-long
 integration run; passing the hook does not establish complete PR validation.
 
@@ -76,5 +77,5 @@ Excel, or validate prepared outputs are not all replaceable by compilation.
 - [Compiler safeguards](../src/ExcelMcp.Analyzers/) and [build integration](../Directory.Build.targets)
 - [Package preparation](../tools/ExcelMcp.Build/PackageExecution.cs)
 - [Built Excel group inventory](../tools/ExcelMcp.Build/ExcelGroupExecution.cs)
-- [Build constraints](agents/rules/development-workflow.md)
+- [Build constraints](../scripts/AGENTS.md)
 - [Commands and test boundaries](../tests/README.md)

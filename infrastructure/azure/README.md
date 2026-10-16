@@ -164,7 +164,9 @@ approved upgrade while idle.
 
 Azure's vendor-owned `RunPowerShellScript` transport still uses Windows
 PowerShell. Its only repository launch step starts the protected `pwsh.exe`
-with an encoded payload; all guest configuration runs in PowerShell 7.4+.
+with a small encoded loader and passes the encoded payload through standard
+input, avoiding Windows command-line size limits for embedded uploads. All
+guest configuration runs in PowerShell 7.4+.
 Missing or old PowerShell, a nonzero guest exit, or a missing completion marker
 fails the controller instead of reporting successful provisioning.
 

@@ -1,5 +1,8 @@
 # Generated contract checks
 
+Follow [runtime boundaries](../AGENTS.md). These rules also apply to Service,
+CLI, MCP, and owning generators; the root task map requires them explicitly.
+
 After changing a Core contract or generator, build Release and inspect generated
 CLI options, batch JSON dispatch, Service routing, and MCP schemas. Names,
 aliases, defaults, validation, results, and timeouts must agree. Hand-written MCP
@@ -16,4 +19,4 @@ an effort level, homepage feature, and (for CLI categories) the matching MCP
 tools. `UsageAnalyticsWeightsTests` in the McpServer and CLI test projects fail
 when the file and code disagree; update the file rather than the tests. Choose
 levels with the rules in
-[Public Usage Analytics Automation](../../DEVELOPMENT.md#public-usage-analytics-automation).
+[Public Usage Analytics Automation](../../docs/DEVELOPMENT.md#public-usage-analytics-automation).

@@ -27,6 +27,7 @@ public sealed partial class AutomationSafetyTests
                 New-Item -ItemType Junction -Path '{{Quote(Path.Combine(root, "PowerShell", "7"))}}' -Target $PSHOME | Out-Null
                 $env:ProgramFiles = '{{Quote(root)}}'
                 $payload = {{(fail ? "'exit 23'" : "'[Console]::Write(\"guest-version:\" + $PSVersionTable.PSVersion.Major + \":\" + ''quotes & $ preserved'')'")}}
+                $payload = ("# synthetic uploaded file content " + ('x' * 120000) + "`n") + $payload
                 $command = ConvertTo-RunnerPowerShell7Command -Script $payload
                 & ([scriptblock]::Create($command))
                 """);

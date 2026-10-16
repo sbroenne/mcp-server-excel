@@ -1,5 +1,8 @@
 # Agent guidance sources
 
+These rules also govern Core metadata, generators, MCP instructions, and skill
+preparation scripts; read them for those tasks even when working outside `skills`.
+
 | Content | Edit here |
 |---------|-----------|
 | Tool/parameter descriptions | Core interface XML docs/attributes; manual MCP metadata only where it owns the tool |

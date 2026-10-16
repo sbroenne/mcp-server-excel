@@ -439,6 +439,118 @@ public sealed class ExcelMcpServiceErrorTests
         Assert.Equal(0, batch.DisposeCalls);
     }
 
+    [Theory]
+    [InlineData(unchecked((int)0x800706BA), "aggregate")]
+    [InlineData(unchecked((int)0x800706BE), "aggregate")]
+    [InlineData(unchecked((int)0x80010108), "aggregate")]
+    [InlineData(unchecked((int)0x80010108), "nested")]
+    [InlineData(unchecked((int)0x80010108), "cancelled")]
+    [InlineData(unchecked((int)0x80010108), "timeout")]
+    public async Task ProcessAsync_SecondaryAggregateDisconnect_RetiresSession(int hresult, string wrapper)
+    {
+        using var service = new ExcelMcpService();
+        var mutationError = new InvalidOperationException("Workbook mutation failed.");
+#pragma warning disable CA2201 // Synthetic COM failures exercise Service transport without Excel.
+        Exception cleanupError = new COMException("Cleanup disconnected from Excel.", hresult);
+#pragma warning restore CA2201
+        if (wrapper == "nested")
+        {
+            cleanupError = new TargetInvocationException(new AggregateException(
+                new InvalidOperationException("Another cleanup failed."), cleanupError));
+        }
+        Exception error = new AggregateException(mutationError, cleanupError);
+        error = wrapper switch
+        {
+            "nested" => new InvalidOperationException("Operation failed.", new TargetInvocationException(error)),
+            "cancelled" => new OperationCanceledException("Operation cancelled.", error),
+            "timeout" => new TimeoutException("Operation timed out.", error),
+            _ => error
+        };
+        var batch = new FakeBatch { ExecuteException = error };
+        const string sessionId = "secondary-aggregate-disconnect";
+        RegisterSession(service, sessionId, batch);
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "sheet.list",
+            SessionId = sessionId
+        });
+
+        Assert.False(response.Success);
+        Assert.Equal("ExcelProcessDied", response.ErrorCategory);
+        Assert.Equal($"0x{hresult:X8}", response.HResult);
+        Assert.Equal(error.GetType().Name, response.ExceptionType);
+        Assert.Equal("sheet.list", response.Command);
+        Assert.Equal(sessionId, response.SessionId);
+        Assert.Contains("reopen", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(error.InnerException!.Message, response.InnerError);
+        Assert.False(batch.HasTimedOutOperation);
+        Assert.True(batch.IsAlive);
+        Assert.Equal(1, batch.ExecuteCalls);
+        Assert.Equal(1, batch.DisposeCalls);
+        Assert.Equal(0, batch.SaveCalls);
+
+        var listResponse = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+        Assert.True(listResponse.Success);
+        Assert.NotNull(listResponse.Result);
+        Assert.DoesNotContain(sessionId, listResponse.Result, StringComparison.Ordinal);
+
+        var retryResponse = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "sheet.list",
+            SessionId = sessionId
+        });
+        Assert.False(retryResponse.Success);
+        Assert.Equal("SessionNotFound", retryResponse.ErrorCategory);
+        Assert.Equal(1, batch.ExecuteCalls);
+    }
+
+    [Theory]
+    [InlineData("aggregate")]
+    [InlineData("cancelled")]
+    [InlineData("timeout")]
+    public async Task ProcessAsync_NonfatalAggregateOrCancellation_PreservesHealthySession(string wrapper)
+    {
+        using var service = new ExcelMcpService();
+#pragma warning disable CA2201 // Synthetic COM failures exercise Service transport without Excel.
+        Exception error = new AggregateException(
+            new InvalidOperationException("Workbook mutation failed."),
+            new COMException("Ordinary Excel error.", unchecked((int)0x800A03EC)));
+#pragma warning restore CA2201
+        error = wrapper switch
+        {
+            "cancelled" => new OperationCanceledException("Operation cancelled.", error),
+            "timeout" => new TimeoutException("Operation timed out.", error),
+            _ => error
+        };
+        var batch = new FakeBatch { ExecuteException = error };
+        const string sessionId = "healthy-aggregate-error";
+        RegisterSession(service, sessionId, batch);
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "sheet.list",
+            SessionId = sessionId
+        });
+
+        Assert.False(response.Success);
+        if (wrapper == "cancelled")
+        {
+            Assert.Equal("Cancelled", response.ErrorCategory);
+        }
+        else if (wrapper == "timeout")
+        {
+            Assert.Equal("Timeout", response.ErrorCategory);
+        }
+        Assert.NotEqual("ExcelProcessDied", response.ErrorCategory);
+        Assert.Contains(error.Message, response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal(error.GetType().Name, response.ExceptionType);
+        Assert.Equal(batch, GetPrivateField<SessionManager>(service, "_sessionManager").GetSession(sessionId));
+        Assert.Equal(1, batch.ExecuteCalls);
+        Assert.Equal(0, batch.DisposeCalls);
+        Assert.Equal(0, batch.SaveCalls);
+    }
+
     [Fact]
     public void FatalDisconnectClassification_DoesNotInferDeathFromMessageText()
     {
