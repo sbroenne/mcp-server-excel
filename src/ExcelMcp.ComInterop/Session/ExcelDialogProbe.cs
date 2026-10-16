@@ -66,7 +66,7 @@ internal static class ExcelDialogProbe
                 logger.LogWarning("Excel dialog window inspection failed; readiness remains unknown");
                 return WorkbookRefreshState.Unknown;
             }
-            var state = Classify(ownedProcess.ProcessId, windows, out var dialog);
+            var state = Classify(ownedProcess.ProcessId, windows, includeEnabledOwnerOfficeDialog: includeText, out var dialog);
             if (includeText && dialog != nint.Zero)
             {
                 dialogText = ReadDialogText(dialog);
@@ -85,10 +85,10 @@ internal static class ExcelDialogProbe
     }
 
     internal static WorkbookRefreshState Classify(int processId, IReadOnlyList<WindowSnapshot> windows)
-        => Classify(processId, windows, out _);
+        => Classify(processId, windows, includeEnabledOwnerOfficeDialog: false, out _);
 
-    private static WorkbookRefreshState Classify(
-        int processId, IReadOnlyList<WindowSnapshot> windows, out nint dialog)
+    internal static WorkbookRefreshState Classify(
+        int processId, IReadOnlyList<WindowSnapshot> windows, bool includeEnabledOwnerOfficeDialog, out nint dialog)
     {
         dialog = nint.Zero;
         var roots = windows.Where(window => window.ProcessId == processId && window.ClassName == "XLMAIN").ToArray();
@@ -100,7 +100,8 @@ internal static class ExcelDialogProbe
             {
                 if (!window.Visible || !window.Enabled || window.Handle == root.Handle) continue;
                 // Excel's InputBox uses an Office dialog without disabling its XLMAIN owner.
-                if (root.Enabled && (window.ProcessId != processId || window.ClassName != "bosa_sdm_XL9"))
+                if (root.Enabled && (!includeEnabledOwnerOfficeDialog ||
+                    window.ProcessId != processId || window.ClassName != "bosa_sdm_XL9"))
                     continue;
                 var owner = window.Owner;
                 for (var depth = 0; owner != nint.Zero && depth < windows.Count; depth++)

@@ -33,7 +33,12 @@ public sealed class ExcelDialogProbeTests
             new(1, 0, 42, false, true, "XLMAIN"),
             new(2, 1, 42, true, true, "bosa_sdm_XL9")
         ];
-        Assert.Equal(WorkbookRefreshState.DialogOpen, ExcelDialogProbe.Classify(42, windows));
+        Assert.Equal(WorkbookRefreshState.Ready, ExcelDialogProbe.Classify(42, windows));
+        var timeoutState = ExcelDialogProbe.Classify(
+            42, windows, includeEnabledOwnerOfficeDialog: true, out _);
+        Assert.Equal(WorkbookRefreshState.DialogOpen, timeoutState);
+        foreach (var operation in new[] { "save", "close" })
+            ExcelBusyException.ThrowIfNotReady(ExcelDialogProbe.Classify(42, windows), operation);
     }
 
     [Fact]
