@@ -174,6 +174,10 @@ public sealed partial class SlicerCommands
             Excel.PivotTable? target = null;
             Excel.SlicerPivotTables? pivots = null;
             Excel.PivotTable? source = null;
+            Excel.PivotCache? sourceCache = null;
+            Excel.PivotCache? targetCache = null;
+            Excel.WorkbookConnection? sourceConnection = null;
+            Excel.WorkbookConnection? targetConnection = null;
             try
             {
                 target = CoreLookupHelpers.FindPivotTable(book, pivotTableName);
@@ -186,7 +190,22 @@ public sealed partial class SlicerCommands
                         throw new InvalidOperationException("The control has no source PivotTable connection.");
                     source = pivots[1];
                     if (source.CacheIndex != target.CacheIndex)
-                        throw new ArgumentException("PivotTables must share the existing native PivotCache; no cache is rebuilt or replaced.");
+                    {
+                        sourceCache = source.PivotCache();
+                        targetCache = target.PivotCache();
+                        bool compatibleDataModel = sourceCache.OLAP && targetCache.OLAP;
+                        if (compatibleDataModel)
+                        {
+                            sourceConnection = sourceCache.WorkbookConnection;
+                            targetConnection = targetCache.WorkbookConnection;
+                            compatibleDataModel = sourceConnection is not null && targetConnection is not null &&
+                                sourceConnection.Type == Excel.XlConnectionType.xlConnectionTypeMODEL &&
+                                targetConnection.Type == Excel.XlConnectionType.xlConnectionTypeMODEL &&
+                                string.Equals(sourceConnection.Name, targetConnection.Name, StringComparison.OrdinalIgnoreCase);
+                        }
+                        if (!compatibleDataModel)
+                            throw new ArgumentException("PivotTables must share the existing native PivotCache unless both use the same workbook Data Model connection; no cache is rebuilt or replaced.");
+                    }
                     if (!connected)
                         pivots.AddPivotTable(target);
                 }
@@ -202,6 +221,10 @@ public sealed partial class SlicerCommands
             }
             finally
             {
+                ComUtilities.Release(ref targetConnection);
+                ComUtilities.Release(ref sourceConnection);
+                ComUtilities.Release(ref targetCache);
+                ComUtilities.Release(ref sourceCache);
                 ComUtilities.Release(ref source);
                 ComUtilities.Release(ref pivots);
                 ComUtilities.Release(ref target);

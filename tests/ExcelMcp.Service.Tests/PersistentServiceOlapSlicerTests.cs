@@ -259,7 +259,7 @@ public sealed class PersistentServiceOlapSlicerTests(
     }
 
     [Fact]
-    public void Selection_DataModel_SharedCacheFiltersBothConnectedPivots()
+    public void Selection_DataModel_DifferentCachesFilterBothConnectedPivots()
     {
         CreateModelSlicer();
         var batch = _fixture.BatchToken;
@@ -268,41 +268,20 @@ public sealed class PersistentServiceOlapSlicerTests(
         var fields = _fixture.CreateCommands<IPivotTableFieldCommands>();
         Assert.True(fields.AddRowField(batch, "SecondSlicerPivot", Field).Success);
         Assert.True(fields.AddValueField(batch, "SecondSlicerPivot", "[Measures].[SlicerTotal]").Success);
+        var pivotCommands = _fixture.CreateCommands<IPersistentPivotTableCommands>();
+        var firstConnection = pivotCommands.GetConnection(batch, Sheet, "SlicerPivot");
+        var secondConnection = pivotCommands.GetConnection(batch, Sheet, "SecondSlicerPivot");
+        Assert.True(firstConnection.Success, firstConnection.ErrorMessage);
+        Assert.True(secondConnection.Success, secondConnection.ErrorMessage);
+        Assert.True(firstConnection.IsDataModel);
+        Assert.True(secondConnection.IsDataModel);
+        Assert.False(string.IsNullOrWhiteSpace(firstConnection.ConnectionName));
+        Assert.Equal(firstConnection.ConnectionName, secondConnection.ConnectionName);
+        Assert.NotEqual(firstConnection.CacheIndex, secondConnection.CacheIndex);
 
-        // Connection management has no public action; prepare the native shared-cache state.
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            Excel.Sheets? sheets = null;
-            Excel.Worksheet? sheet = null;
-            Excel.PivotTables? pivots = null;
-            Excel.PivotTable? pivot = null;
-            Excel.SlicerCaches? caches = null;
-            Excel.SlicerCache? cache = null;
-            Excel.SlicerPivotTables? connected = null;
-            try
-            {
-                sheets = ctx.Book.Worksheets;
-                sheet = (Excel.Worksheet)sheets.Item[Sheet];
-                pivots = (Excel.PivotTables)sheet.PivotTables();
-                pivot = pivots.Item("SecondSlicerPivot");
-                caches = ctx.Book.SlicerCaches;
-                cache = caches.Item[1];
-                connected = cache.PivotTables;
-                ct.ThrowIfCancellationRequested();
-                connected.AddPivotTable(pivot);
-                Assert.Equal(2, connected.Count);
-            }
-            finally
-            {
-                ComUtilities.Release(ref connected);
-                ComUtilities.Release(ref cache);
-                ComUtilities.Release(ref caches);
-                ComUtilities.Release(ref pivot);
-                ComUtilities.Release(ref pivots);
-                ComUtilities.Release(ref sheet);
-                ComUtilities.Release(ref sheets);
-            }
-        });
+        var connected = _slicers.ConnectPivotTable(batch, "QuarterSlicer", "SecondSlicerPivot");
+        Assert.True(connected.Success, connected.ErrorMessage);
+        Assert.Equal(["SecondSlicerPivot", "SlicerPivot"], connected.Slicer.ConnectedPivotTables.Order());
 
         AssertPivot(100, Captions);
         AssertPivotAt(100, "G10:H15", Captions);

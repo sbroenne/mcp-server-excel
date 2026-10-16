@@ -57,9 +57,10 @@ pivottable(action: 'create-from-range', workbook_session_id: sessionId, source_s
 ```
 
 Sharing does not copy field layout or automatically connect slicers. Configure
-the new report's fields separately. `slicer` action `connect-pivottable` can then
-connect it to an existing slicer using that cache; selection filters every
-connected report, not independently cached reports. See the
+the new report's fields separately. `slicer` action `connect-pivottable` can
+connect a regular PivotTable to a slicer using that cache. Data Model
+PivotTables can also connect across separate caches when they use the same
+workbook Data Model connection. Selection filters every connected report. See the
 [complete CLI walkthrough](../guides/AUTOMATE-PIVOTTABLES.md).
 
 `read` returns `pivotTable.cacheIndex`, and each `list` entry returns `cacheIndex`.

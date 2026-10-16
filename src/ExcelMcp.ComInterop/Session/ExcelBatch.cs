@@ -972,12 +972,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     _operationTimeout,
                     Path.GetFileName(_workbookPath));
             }
-            throw new TimeoutException(
-                expiredWhileQueued
-                    ? $"Excel operation expired in the session queue after {_operationTimeout.TotalSeconds} seconds for '{Path.GetFileName(_workbookPath)}' and was not executed."
-                    : $"Excel operation timed out after {_operationTimeout.TotalSeconds} seconds for '{Path.GetFileName(_workbookPath)}'. " +
-                      "Excel may be unresponsive or the operation is taking longer than expected. " +
-                      "Consider increasing timeoutSeconds when opening the session.");
+            throw CreateOperationTimeoutException(expiredWhileQueued);
         }
         catch (OperationCanceledException)
         {
@@ -990,6 +985,28 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
             throw;
         }
+    }
+
+    internal TimeoutException CreateOperationTimeoutException(bool expiredWhileQueued)
+    {
+        if (expiredWhileQueued)
+        {
+            return new TimeoutException(
+                $"Excel operation expired in the session queue after {_operationTimeout.TotalSeconds} seconds for '{Path.GetFileName(_workbookPath)}' and was not executed.");
+        }
+
+        // Inspect native windows directly; the Excel thread may be blocked by the prompt.
+        var dialogOpen = ExcelDialogProbe.ReadWithText(_excelProcessIdentity, _logger, out var dialogText)
+            == WorkbookRefreshState.DialogOpen;
+        return new TimeoutException(
+            $"Excel operation timed out after {_operationTimeout.TotalSeconds} seconds for '{Path.GetFileName(_workbookPath)}'. " +
+            (dialogOpen
+                ? "Excel had a dialog open when the operation timed out and may have been waiting for input. " +
+                  "This timeout does not itself cancel the operation or undo workbook changes. " +
+                  "The session's timeout recovery may close Excel; the captured dialog text is included below. " +
+                  $"Dialog text: {dialogText}"
+                : "Excel may be unresponsive or the operation is taking longer than expected. " +
+                  "Consider increasing timeoutSeconds when opening the session."));
     }
 
     private void UpdateVisibilitySnapshot(Exception? operationFailure)

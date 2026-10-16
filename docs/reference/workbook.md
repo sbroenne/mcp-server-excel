@@ -218,6 +218,18 @@ that authentication is the dialog's purpose. It never enters credentials or
 responds to the prompt. After responding, check readiness and refreshed data
 before saving.
 
+If an executing operation reaches the session's operation timeout while a dialog
+is detected, its error reports the captured dialog instead of only suggesting a
+longer timeout. The timeout error includes the dialog's title and readable message labels, not editable input values.
+Reading the text does not dismiss the prompt, but existing timeout recovery
+closes the failed session and may terminate its Excel process. Text reads
+are bounded so an unresponsive dialog cannot block reporting indefinitely;
+unavailable or truncated text is noted explicitly. Session listing still checks
+window ownership without reading dialog contents. Some custom-drawn Office
+dialogs expose only their title, not their message text.
+The operation may still be running; timeout does not undo workbook changes, and
+the existing timed-out session recovery rules still apply.
+
 Power BI/MSOLAP (OLAP) connections always refresh synchronously. Their unsupported
 background setting is reported as false; enabling it is rejected before changing
 other properties. An empty last-refresh date is reported as unknown, not as proof

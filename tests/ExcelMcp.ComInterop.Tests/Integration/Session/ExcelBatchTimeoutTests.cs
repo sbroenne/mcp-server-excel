@@ -326,6 +326,35 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
         }
     }
 
+    [Fact]
+    public void Execute_ExcelPromptTimesOut_ReturnsTitleAndExplainsUnavailableMessageText()
+    {
+        using var owned = new OwnedExcelProcessScope();
+        using var batch = ExcelSession.BeginBatchWithTimeouts(
+            show: true,
+            operationTimeout: TimeSpan.FromSeconds(3),
+            startupTimeout: ComInteropConstants.DefaultOperationTimeout,
+            _testFileCopy!);
+        var failure = Record.Exception(() =>
+        {
+            var timeout = Assert.Throws<TimeoutException>(() =>
+                batch.Execute((context, _) => context.App.InputBox(
+                    "The test database is unavailable.", "SSAS connection test", Type: 2)));
+            _output.WriteLine(timeout.Message);
+            Assert.Contains("dialog open", timeout.Message, StringComparison.Ordinal);
+            Assert.Contains("SSAS connection test", timeout.Message, StringComparison.Ordinal);
+            Assert.Contains("did not expose readable message text", timeout.Message, StringComparison.Ordinal);
+            Assert.Contains("timeout recovery may close Excel", timeout.Message, StringComparison.Ordinal);
+            Assert.True(batch.HasTimedOutOperation);
+            Assert.Throws<TimeoutException>(() => batch.Execute((_, _) => 1));
+        });
+        var disposalFailure = Record.Exception(batch.Dispose);
+        var processFailure = Record.Exception(() => owned.AssertAllExited());
+        var failures = new[] { failure, disposalFailure, processFailure }.OfType<Exception>().ToArray();
+        if (failures.Length > 0)
+            throw new AggregateException("Excel dialog timeout regression or cleanup failed.", failures);
+    }
+
     /// <summary>
     /// REGRESSION TEST: Execute() must throw TimeoutException when operation exceeds the configured timeout.
     /// Before Bug 8 fix, timeout existed but had no recovery — the caller got the exception but

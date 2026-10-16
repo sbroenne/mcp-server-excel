@@ -18,8 +18,8 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
     Justification = "Synthetic getter errors exercise the real ExcelBatch STA work-item and caller boundary without depending on an Excel crash.")]
 public sealed class ExcelBatchFailurePreservationTests : IDisposable
 {
-    private readonly string _directory = Path.GetFullPath(
-        Path.Combine("artifacts", "execution-preservation-tests", Guid.NewGuid().ToString("N")));
+    private readonly string _directory = Path.Join(
+        Path.GetTempPath(), $"execution-preservation-{Guid.NewGuid():N}");
     private readonly string _file;
 
     public ExcelBatchFailurePreservationTests()

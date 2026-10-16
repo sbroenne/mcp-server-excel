@@ -26,6 +26,17 @@ public sealed class ExcelDialogProbeTests
     }
 
     [Fact]
+    public void OfficeInputDialog_WithEnabledExcelOwner_IsDetected()
+    {
+        ExcelDialogProbe.WindowSnapshot[] windows =
+        [
+            new(1, 0, 42, false, true, "XLMAIN"),
+            new(2, 1, 42, true, true, "bosa_sdm_XL9")
+        ];
+        Assert.Equal(WorkbookRefreshState.DialogOpen, ExcelDialogProbe.Classify(42, windows));
+    }
+
+    [Fact]
     public void DialogOwnerChain_CanIncludeAnotherProcessAndHiddenOwner()
     {
         ExcelDialogProbe.WindowSnapshot[] windows =
