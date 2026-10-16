@@ -15,12 +15,10 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 public sealed class WorksheetCopyToFileProtocolTests(
     RecordingProgramTransportFixture fixture)
 {
-    private readonly RecordingProgramTransportFixture _fixture = fixture;
-
     [Fact]
     public async Task WorksheetCopyToFile_WithoutSessionId_DispatchesWithoutSession()
     {
-        var call = await _fixture.CallToolAsync(
+        var call = await fixture.CallToolAsync(
             "worksheet",
             new Dictionary<string, object?>
             {

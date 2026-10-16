@@ -17,7 +17,6 @@ public sealed class PowerQueryPrivacyAndLoadProtocolTests(
     RecordingProgramTransportFixture fixture)
 {
     private const string SessionId = "recording-session";
-    private readonly RecordingProgramTransportFixture _fixture = fixture;
 
     [Theory]
     [InlineData(true)]
@@ -27,7 +26,7 @@ public sealed class PowerQueryPrivacyAndLoadProtocolTests(
         var flag = ignorePrivacyLevels ? "true" : "false";
         var resultJson = $$"""{"success":true,"ignorePrivacyLevels":{{flag}},"message":"global privacy option may override"}""";
 
-        var set = await _fixture.CallToolAsync(
+        var set = await fixture.CallToolAsync(
             "powerquery",
             new Dictionary<string, object?>
             {
@@ -38,7 +37,7 @@ public sealed class PowerQueryPrivacyAndLoadProtocolTests(
             RecordingToolTest.Success(resultJson),
             "powerquery.set-privacy-settings",
             $$"""{"ignorePrivacyLevels":{{flag}}}""");
-        var get = await _fixture.CallToolAsync(
+        var get = await fixture.CallToolAsync(
             "powerquery_read",
             new Dictionary<string, object?>
             {
@@ -59,7 +58,7 @@ public sealed class PowerQueryPrivacyAndLoadProtocolTests(
     [Fact]
     public async Task PowerQueryLoadTo_DataModelDestinationReachesService()
     {
-        var call = await _fixture.CallToolAsync(
+        var call = await fixture.CallToolAsync(
             "powerquery",
             new Dictionary<string, object?>
             {
@@ -75,5 +74,4 @@ public sealed class PowerQueryPrivacyAndLoadProtocolTests(
         using var document = JsonDocument.Parse(call.JsonResult);
         Assert.True(document.RootElement.GetProperty("isLoadedToDataModel").GetBoolean());
     }
-
 }

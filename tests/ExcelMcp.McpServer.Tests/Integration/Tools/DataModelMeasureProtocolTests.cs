@@ -17,13 +17,12 @@ public sealed class DataModelMeasureProtocolTests(
     RecordingProgramTransportFixture fixture)
 {
     private const string SessionId = "recording-session";
-    private readonly RecordingProgramTransportFixture _fixture = fixture;
 
     [Fact]
     public async Task DaxMeasureWrites_SendFormulaUnchanged()
     {
         const string formula = "DIVIDE(SUM(SalesTable[Amount]), 1000)";
-        await _fixture.CallToolAsync(
+        await fixture.CallToolAsync(
             "datamodel",
             new Dictionary<string, object?>
             {
@@ -37,7 +36,7 @@ public sealed class DataModelMeasureProtocolTests(
             RecordingToolTest.Success("""{"success":true}"""),
             "datamodel.create-measure",
             $$"""{"tableName":"SalesTable","measureName":"Total","daxFormula":{{JsonSerializer.Serialize(formula)}},"formatType":"Decimal"}""");
-        await _fixture.CallToolAsync(
+        await fixture.CallToolAsync(
             "datamodel",
             new Dictionary<string, object?>
             {
@@ -51,5 +50,4 @@ public sealed class DataModelMeasureProtocolTests(
             "datamodel.update-measure",
             $$"""{"measureName":"Total","daxFormula":{{JsonSerializer.Serialize(formula)}},"formatType":"Decimal"}""");
     }
-
 }
