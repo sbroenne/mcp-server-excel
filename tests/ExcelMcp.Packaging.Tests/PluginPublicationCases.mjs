@@ -1132,22 +1132,41 @@ function publishFixture(fixture, flags = []) {
 }
 
 export function registerDeliveryTests() {
-    test('real publication after skipped versions pushes and tags only a disposable local remote', () => {
+    test('real publication pushes a committed repair and file/folder swaps to a disposable local remote', () => {
         const fixture = publicationFixture();
         try {
-            publishFixture(fixture);
+            const old = { bytes: Buffer.from('Old asset'), mode: '100644' };
+            const repaired = { bytes: Buffer.from('Repaired guidance'), mode: '100644' };
+            writeTree(fixture.output, new Map([
+                ['plugins/excel-cli/assets/icons/icon.png', old], ['plugins/excel-mcp/assets', old],
+                ['plugins/excel-cli/README.md', repaired],
+            ]));
+            const repairedHead = commit(fixture.output, 'Simulate committed repair after the release tag');
             const remote = path.join(fixture.root, 'remote.git');
             command('git', ['clone', '--quiet', '--bare', fixture.output, remote], fixture.root);
             command('git', ['remote', 'add', 'origin', remote], fixture.output);
-            fs.writeFileSync(path.join(fixture.built, 'excel-cli', 'README.md'), 'New CLI guidance');
-            const result = publishFixture(fixture);
-            assert.match(result, /"status": "published"/);
-            assert.match(result, /"handoff": true/);
-            assert.match(result, /"published_tag": "v2.3.0"/);
-            assert.notEqual(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), fixture.original);
+            fs.writeFileSync(path.join(fixture.built, 'excel-cli', 'assets'), 'Replacement asset');
+            writeTree(fixture.built, new Map([
+                ['excel-mcp/assets/icon.png', { bytes: Buffer.from('New asset'), mode: '100644' }],
+                ['excel-cli/README.md', repaired],
+            ]));
+            const text = publishFixture(fixture);
+            const result = JSON.parse(text.slice(text.search(/^\{\r?$/m)));
+            assert.equal(result.status, 'published');
+            assert.equal(result.handoff, true);
+            assert.equal(result.published_tag, 'v2.3.0');
+            assert.ok(!result.destination_changed_paths.includes('plugins/excel-cli/README.md'));
+            assert.ok(result.distributed_changed_paths.includes('plugins/excel-cli/README.md'));
+            assert.ok(result.changed_plugins.includes('excel-cli'));
+            const head = command('git', ['rev-parse', 'HEAD'], fixture.output).trim();
+            assert.notEqual(head, repairedHead);
             assert.equal(command('git', ['rev-parse', 'v2.0.1'], fixture.output).trim(), fixture.original);
-            assert.equal(command('git', [`--git-dir=${remote}`, 'rev-parse', 'v2.3.0^{commit}'], fixture.root).trim(),
-                command('git', ['rev-parse', 'HEAD'], fixture.output).trim());
+            assert.equal(command('git', [`--git-dir=${remote}`, 'rev-parse', 'v2.3.0^{commit}'], fixture.root).trim(), head);
+            const pushed = name => command('git', [`--git-dir=${remote}`, 'show', `v2.3.0:${name}`], fixture.root);
+            assert.equal(pushed('plugins/excel-cli/assets'), 'Replacement asset');
+            assert.equal(pushed('plugins/excel-mcp/assets/icon.png'), 'New asset');
+            assert.equal(pushed('plugins/excel-cli/README.md'), 'Repaired guidance');
+            assert.equal(command('git', ['status', '--porcelain'], fixture.output).trim(), '');
         } finally { fs.rmSync(fixture.root, { recursive: true }); }
     });
 }
