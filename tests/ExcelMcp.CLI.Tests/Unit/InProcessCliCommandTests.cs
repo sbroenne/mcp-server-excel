@@ -561,7 +561,7 @@ public sealed class InProcessCliCommandTests
     [InlineData("open", true, "session.open")]
     [InlineData("create", false, "session.create")]
     [InlineData("create", true, "session.create")]
-    public async Task SessionCommand_MapsShowFlagAndDefaults(
+    public async Task SessionCommand_MapsShowFlag(
         string action,
         bool show,
         string expectedCommand)
@@ -584,7 +584,6 @@ public sealed class InProcessCliCommandTests
         {
             arguments.Add("--show");
         }
-
         var exitCode = await Program.RunAsync(arguments.ToArray(), runtime);
 
         Assert.Equal(0, exitCode);
@@ -592,9 +591,7 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(expectedCommand, request.Command);
         Assert.Null(request.SessionId);
         Assert.Equal(
-            show
-                ? """{"filePath":"C:\\workbooks\\book.xlsx","show":true}"""
-                : """{"filePath":"C:\\workbooks\\book.xlsx","show":false}""",
+            $$"""{"filePath":"C:\\workbooks\\book.xlsx","show":{{show.ToString().ToLowerInvariant()}}}""",
             request.Args);
     }
 

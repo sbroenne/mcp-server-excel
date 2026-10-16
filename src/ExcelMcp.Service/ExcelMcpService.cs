@@ -15,6 +15,8 @@ using Sbroenne.ExcelMcp.Service.Rpc;
 using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 using Sbroenne.ExcelMcp.Core.Commands.Slicer;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
+using Sbroenne.ExcelMcp.Core.Commands.PowerQueryTrace;
+using Sbroenne.ExcelMcp.Core.Commands.Settings;
 using Sbroenne.ExcelMcp.Core.Commands.Window;
 using Sbroenne.ExcelMcp.Core.Commands.Workbook;
 using Sbroenne.ExcelMcp.Core.Commands.XmlMap;
@@ -33,6 +35,7 @@ public sealed class ExcelMcpService : IDisposable
 {
     private readonly SessionManager _sessionManager = new();
     private readonly ConcurrentDictionary<string, byte> _knownSessionIds = new(StringComparer.Ordinal);
+    private readonly IPowerQueryTraceSettings _pqTraceSettings;
     private readonly DaemonHost _daemonHost;
     private readonly Lock _shutdownLock = new();
     private readonly DateTime _startTime = DateTime.UtcNow;
@@ -55,6 +58,8 @@ public sealed class ExcelMcpService : IDisposable
     private readonly CalculationModeCommands _calculationModeCommands = new();
     private readonly ScreenshotCommands _screenshotCommands = new();
     private readonly DiagCommands _diagCommands = new();
+    private readonly SettingsCommands _settingsCommands;
+    private readonly PowerQueryTraceCommands _powerQueryTraceCommands;
     private readonly DrawingCommands _drawingCommands = new();
     private readonly WindowCommands _windowCommands = new();
     private readonly WorkbookCommands _workbookCommands = new();
@@ -68,9 +73,15 @@ public sealed class ExcelMcpService : IDisposable
     }
 
     internal ExcelMcpService(
-        Func<ServiceRequest, Func<Task<ServiceResponse>>, Task<ServiceResponse>>? trackDaemonRequest)
+        Func<ServiceRequest, Func<Task<ServiceResponse>>, Task<ServiceResponse>>? trackDaemonRequest,
+        IPowerQueryTraceSettings? pqTraceSettings = null)
     {
-        _powerQueryCommands = new PowerQueryCommands(_dataModelCommands);
+        _pqTraceSettings = pqTraceSettings ?? new RegistryPowerQueryTraceSettings();
+        _settingsCommands = new SettingsCommands(_pqTraceSettings);
+        _powerQueryTraceCommands = new PowerQueryTraceCommands(
+            _pqTraceSettings.TraceFolder,
+            ResolveSessionProcess);
+        _powerQueryCommands = new PowerQueryCommands(_dataModelCommands, _pqTraceSettings);
         _daemonHost = new DaemonHost(
             request => trackDaemonRequest == null
                 ? ProcessAsync(request)
@@ -180,7 +191,7 @@ public sealed class ExcelMcpService : IDisposable
                     (a, batch) => ServiceRegistry.Screenshot.DispatchToCore(_screenshotCommands, a, batch, request.Args)),
                 "window" => await DispatchWindowAsync(action, request),
                 "workbook" => await DispatchWorkbookAsync(action, request),
-                "diag" => DispatchSessionless(action, request),
+                "diag" or "settings" or "powerquerytrace" => DispatchSessionless(category, action, request),
                 "drawing" => await DispatchSimpleAsync<DrawingAction>(action, request,
                     ServiceRegistry.Drawing.TryParseAction,
                     (a, batch) => ServiceRegistry.Drawing.DispatchToCore(_drawingCommands, a, batch, request.Args)),
@@ -596,17 +607,45 @@ public sealed class ExcelMcpService : IDisposable
     /// Dispatches a session-less command (no Excel batch required).
     /// Used for [NoSession] categories like diag.
     /// </summary>
-    private ServiceResponse DispatchSessionless(string actionString, ServiceRequest request)
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Sessionless command failures are transported through CreateErrorResponse with Success=false and the original exception, command and session context.")]
+    private ServiceResponse DispatchSessionless(string category, string actionString, ServiceRequest request)
     {
-        if (!ServiceRegistry.Diag.TryParseAction(actionString, out var action))
+        try
+        {
+            if (category == "diag")
+            {
+                if (ServiceRegistry.Diag.TryParseAction(actionString, out var action))
+                {
+                    return WrapResult(ServiceRegistry.Diag.DispatchToCore(_diagCommands, action, request.Args));
+                }
+            }
+            else if (category == "settings")
+            {
+                if (ServiceRegistry.Settings.TryParseAction(actionString, out var action))
+                {
+                    return WrapResult(ServiceRegistry.Settings.DispatchToCore(_settingsCommands, action, request.Args));
+                }
+            }
+            else if (category == "powerquerytrace")
+            {
+                if (ServiceRegistry.PowerQueryTrace.TryParseAction(actionString, out var action))
+                {
+                    return WrapResult(ServiceRegistry.PowerQueryTrace.DispatchToCore(_powerQueryTraceCommands, action, request.Args));
+                }
+            }
+
             return new ServiceResponse
             {
                 Success = false,
                 ErrorCategory = "InvalidInput",
                 ErrorMessage = $"Unknown action: {actionString}"
             };
-
-        return WrapResult(ServiceRegistry.Diag.DispatchToCore(_diagCommands, action, request.Args));
+        }
+        catch (Exception ex)
+        {
+            return CreateErrorResponse(ex, request.Command, request.SessionId);
+        }
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
@@ -964,6 +1003,21 @@ public sealed class ExcelMcpService : IDisposable
         {
             System.Diagnostics.Debug.WriteLine($"Session cleanup failed for {sessionId}: {cleanupEx.Message}");
         }
+    }
+
+    private (int ProcessId, DateTime StartedUtc)? ResolveSessionProcess(string sessionId)
+    {
+        var batch = _sessionManager.GetSession(sessionId);
+        if (batch?.ExcelProcessId is not int processId)
+        {
+            return null;
+        }
+
+        var identity = SessionManager.GetTrackedExcelProcesses()
+            .SingleOrDefault(process => process.ProcessId == processId);
+        return identity.ProcessId == processId
+            ? (processId, DateTime.FromFileTimeUtc(identity.StartedAtUtcFileTime))
+            : null;
     }
 
     private static ServiceResponse CreateExcelDisconnectedResponse(string sessionId, Exception ex, string message)

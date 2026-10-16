@@ -140,7 +140,12 @@ public static partial class ExcelFileTool
                 FileAction.List => await bridge.SendAsync("session.list", cancellationToken: cancellationToken),
                 FileAction.Close => await bridge.SendAsync("session.close", workbook_session_id, new { save }, cancellationToken: cancellationToken),
                 FileAction.Open or FileAction.Create => await bridge.SendAsync(
-                    $"session.{action.ToActionString()}", args: new { filePath = file_path, show, timeoutSeconds = timeout_seconds },
+                    $"session.{action.ToActionString()}", args: new
+                    {
+                        filePath = file_path,
+                        show,
+                        timeoutSeconds = timeout_seconds
+                    },
                     timeoutSeconds: timeout_seconds, cancellationToken: cancellationToken),
                 FileAction.Test => await bridge.SendAsync("session.test", args: new { filePath = file_path, timeoutSeconds = timeout_seconds },
                     timeoutSeconds: timeout_seconds, cancellationToken: cancellationToken),

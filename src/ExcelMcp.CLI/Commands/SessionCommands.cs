@@ -75,6 +75,7 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
         [CommandOption("--show")]
         [Description("Show the Excel window for IRM/auth prompts instead of running hidden")]
         public bool Show { get; init; }
+
     }
 }
 
@@ -139,6 +140,7 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
         [CommandOption("--show")]
         [Description("Show the Excel window for IRM/auth prompts instead of running hidden")]
         public bool Show { get; init; }
+
     }
 }
 

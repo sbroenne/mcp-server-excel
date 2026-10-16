@@ -108,13 +108,13 @@ public sealed class ChangedAreaRegressionTests
     }
 
     [Theory]
-    [InlineData("Range", "RangeCommands.Values.cs")]
-    [InlineData("PowerQuery", "PowerQueryCommands.Read.cs")]
-    public async Task ImplementationChange_SelectsItsFeatureWithoutUnrelatedAdapters(string area, string file)
+    [InlineData("Range", "RangeCommands.Values.cs", "Core")]
+    [InlineData("PowerQuery", "PowerQueryCommands.Read.cs", "Core,Service")]
+    public async Task ImplementationChange_SelectsItsFeatureWithoutUnrelatedAdapters(string area, string file, string expectedProjects)
     {
         var run = await ValidationSelectionTests.RunAsync($$"""
             $plan = Get-ValidationPlan -Paths 'src/ExcelMcp.Core/Commands/{{area}}/{{file}}'
-            if (($plan.FastProjects -join ',') -ne 'Core') { throw 'Unrelated runtime projects selected.' }
+            if (($plan.FastProjects -join ',') -ne '{{expectedProjects}}') { throw 'Unrelated runtime projects selected.' }
             if ($plan.ProcessProjects.Count) { throw 'Unchanged CLI process behavior selected.' }
             if (-not $plan.FastFilters.Core.Contains('{{area}}')) { throw 'Owning Core feature filter missing.' }
             if (-not @($plan.ExcelSelections | Where-Object { $_.Project -eq 'Service' -and $_.Area -eq '{{area}}' }).Count) {

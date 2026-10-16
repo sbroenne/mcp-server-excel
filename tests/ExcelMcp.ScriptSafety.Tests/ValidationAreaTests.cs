@@ -86,8 +86,8 @@ public sealed class ValidationAreaTests
     {
         var result = await ValidationSelectionTests.RunAsync("""
             $plan = Get-ValidationPlan -Paths 'src/ExcelMcp.Core/Commands/DataModel/DataModelCommands.Read.cs'
-            if (($plan.FastProjects -join ',') -ne 'Core') {
-                throw 'Unchanged adapters selected.'
+            if (($plan.FastProjects -join ',') -ne 'Core,Service') {
+                throw 'Owning Core and dependent Service tests were not selected.'
             }
             if ($plan.ProcessProjects.Count -or -not $plan.Excel) {
                 throw 'Owning workbook coverage lost or unchanged process tests selected.'
@@ -193,7 +193,7 @@ public sealed class ValidationAreaTests
     [InlineData("scripts/Publish-PreparedPlugins.ps1", "Tooling",
         "tests\\ExcelMcp.Packaging.Tests\\ExcelMcp.Packaging.Tests.csproj")]
     [InlineData("src/ExcelMcp.Core/Commands/DataModel/Example.cs", "Fast",
-        "tests\\ExcelMcp.Core.Tests\\ExcelMcp.Core.Tests.csproj")]
+        "tests\\ExcelMcp.Core.Tests\\ExcelMcp.Core.Tests.csproj,tests\\ExcelMcp.Service.Tests\\ExcelMcp.Service.Tests.csproj")]
     [InlineData("src/ExcelMcp.CLI/Program.cs", "Process",
         "tests\\ExcelMcp.CLI.Tests\\ExcelMcp.CLI.Tests.csproj")]
     [InlineData("doc-counts.json", "Tooling", "Sbroenne.ExcelMcp.sln")]

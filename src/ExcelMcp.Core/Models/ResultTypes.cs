@@ -1772,6 +1772,14 @@ public class PowerQueryRefreshResult : ResultBase
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? LoadedToSheet { get; set; }
+
+    /// <summary>Compact Power Query trace summary when requested.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PowerQueryTraceSummaryResult? TraceSummary { get; set; }
+
+    /// <summary>Guidance about trace availability or a slow refresh.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TraceNote { get; set; }
 }
 
 /// <summary>
@@ -1807,6 +1815,14 @@ public class PowerQueryRefreshAllResult : OperationResult
     /// PivotTables whose refresh failed. The operation continued with other caches.
     /// </summary>
     public List<PowerQueryPivotRefreshFailure> FailedPivotTables { get; set; } = [];
+
+    /// <summary>Compact Power Query trace summary when requested.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public PowerQueryTraceSummaryResult? TraceSummary { get; set; }
+
+    /// <summary>Guidance about trace availability or a slow or failed refresh.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? TraceNote { get; set; }
 
     /// <summary>
     /// Failure category shared by every failed query; omitted when no query failed or

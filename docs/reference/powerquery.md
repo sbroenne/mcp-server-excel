@@ -35,6 +35,60 @@ Set explicit M column types for dates and relationship keys. Query refresh
 synchronizes its model load; refresh dependent PivotTables afterward.
 See [Data Model](datamodel.md).
 
+## Power Query tracing
+
+Tracing is controlled by a setting for the current Windows user and does not
+belong to a workbook or session. Enable it with:
+
+```cli
+excelcli settings set-pq-tracing --enabled true
+```
+
+```mcp
+settings(action: 'set-pq-tracing', enabled: true)
+```
+
+Restart Excel for a tracing change to take effect. The setting stays as chosen
+until you change it; closing a workbook, session, or ExcelMCP service does not
+restore it. Any Excel process started while tracing is on may write trace files.
+
+Troubleshoot one workbook session at a time. There is no need to empty the
+trace folder: filter by the workbook session and refresh time instead. One
+Excel process can produce several files, including Power Query helper-process
+logs; the session filter matches the Excel process ID and start time, so a
+recycled process ID does not pull in earlier files.
+
+Use `trace: true` on Power Query `refresh` or `refresh-all` to attach a compact
+summary for that refresh. For existing traces, use `powerquery_trace_read` to list or summarize files:
+
+```mcp
+powerquery(action: 'refresh', query_name: 'SalesData', trace: true)
+powerquery_trace_read(action: 'summarize', workbook_session_id: sessionId)
+```
+
+```cli
+excelcli powerquery refresh --session $session --query-name SalesData --trace
+excelcli powerquerytrace summarize --workbook-session-id $session --since 15m
+```
+
+If optional trace collection fails, the refresh outcome is preserved.
+`traceSummary.success` is false and `traceSummary.errorMessage` explains the
+trace-read failure; `traceNote` distinguishes that failure from the refresh.
+Do not repeat a completed refresh merely to collect traces.
+
+Summaries hide native query text and exception messages by default. Set
+`include_query_text: true` (CLI: `--include-query-text`) only when those details
+are needed; they can contain sensitive information. Trace files are stored by
+Excel under the current user's local application data folder. They may contain
+source names, query text, and error details. Manage or remove these files
+outside ExcelMcp. Use the returned `traceCursor` as `since` on the next summary
+to inspect only newer entries.
+
+The global setting can also be read with `settings_read` action
+`get-pq-tracing` and changed with `settings` action `set-pq-tracing`; CLI
+commands are `excelcli settings get-pq-tracing` and
+`excelcli settings set-pq-tracing --enabled true`.
+
 ## Workbook privacy setting
 
 Use `get-privacy-settings` to read this workbook's Power Query privacy behavior

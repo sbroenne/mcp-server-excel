@@ -127,7 +127,8 @@ public sealed class DocumentationAnalyzer : DiagnosticAnalyzer
             .Select(attribute => attribute.NamedArguments.FirstOrDefault(argument => argument.Key == "Name").Value.Value as string)
             .Where(name => name != null).Select(name => name!).ToArray();
         if (!toolNames.Contains("file", StringComparer.Ordinal) || toolNames.Contains("diag", StringComparer.Ordinal) ||
-            toolNames.Where(name => !name.EndsWith("_read", StringComparison.Ordinal)).Distinct(StringComparer.Ordinal).Count() != areas ||
+            toolNames.Select(name => name.EndsWith("_read", StringComparison.Ordinal)
+                ? name.Substring(0, name.Length - "_read".Length) : name).Distinct(StringComparer.Ordinal).Count() != areas ||
             toolNames.Distinct(StringComparer.Ordinal).Count() != toolNames.Length)
         {
             Report("Compiled MCP endpoints disagree with Core feature areas, contain duplicate names, or expose the CLI-only diag category.");
