@@ -50,6 +50,32 @@ public sealed class ConditionalRuleEditingContractCliTests
             Assert.Equal(1, args.RootElement.GetProperty("newPriority").GetInt32());
     }
 
+    [Fact]
+    public async Task AddTop10Rule_MapsTypedFlags()
+    {
+        ServiceRequest? captured = null;
+        var result = await InProcessCliHelper.RunAsync(
+            ["conditionalformat", "add-rule", "--session", "session-1", "--sheet-name", "Data",
+             "--range-address", "B1:B10", "--rule-type", "top10", "--rank", "7", "--top10-percent", "true",
+             "--font-bold", "true", "--font-italic", "false"],
+            request =>
+            {
+                captured = request;
+                return new ServiceResponse { Success = true, Result = """{"success":true}""" };
+            });
+        Assert.True(result.ExitCode == 0, result.Stdout + result.Stderr);
+        Assert.NotNull(captured);
+        Assert.Equal("conditionalformat.add-rule", captured.Command);
+        using var args = JsonDocument.Parse(captured.Args!);
+        var root = args.RootElement;
+        Assert.Equal("B1:B10", root.GetProperty("rangeAddress").GetString());
+        Assert.Equal("top10", root.GetProperty("ruleType").GetString());
+        Assert.Equal(7, root.GetProperty("rank").GetInt32());
+        Assert.True(root.GetProperty("top10Percent").GetBoolean());
+        Assert.True(root.GetProperty("fontBold").GetBoolean());
+        Assert.False(root.GetProperty("fontItalic").GetBoolean());
+    }
+
     [Theory]
     [InlineData(null)]
     [InlineData("""{"wrongName":true}""")]

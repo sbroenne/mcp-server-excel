@@ -273,10 +273,13 @@ protocol-only tests use the real Program transport with an explicit recording
 Service backend and assert the exact dispatched command, session, arguments,
 and serialized result or error. This proves the adapter contract, not workbook
 behavior; the matching workbook inputs and state assertions stay in Service
-tests. Independent safe adapter cases may reuse a real host/session. Retain
-focused real adapter-to-Excel smokes plus intentional fresh-process, deadline,
-crash, and ownership coverage. Do not remove adapter regressions or shorten
-production waits merely to speed tests.
+tests. Independent safe adapter cases may reuse a real host/session. Real
+Excel is used by CLI/MCP tests only for one save-and-reopen smoke per entry
+point (`CliWorkflowAcceptanceTests` and `McpServerSmokeTests`) and for
+fresh-process, deadline, crash, protected-file, and ownership coverage. When an
+adapter regression involves workbook behavior, keep the workbook assertion in
+Service and the adapter assertion as an Excel-free recorded-request test. Do
+not remove adapter regressions or shorten production waits merely to speed tests.
 
 CLI parser contracts use the production Spectre command app in-process with an
 explicit request client and captured input/output. They assert the exact
@@ -596,12 +599,8 @@ selections, skipped tests, failures, and assembly cleanup failures fail the run.
 `-Stages Cli`, `-Stages Mcp`, or an OLAP-only selection is focused, not complete
 runtime acceptance. `Test-CliWorkflow.ps1` is a
 compatible wrapper for the CLI stage, including `-PipeName` and `-KeepFile`.
-The CLI stage includes independently selectable `CliNative*AcceptanceTests`
-for ranges, formatting, conditional rules, PivotTables, slicers, drawings,
-charts, protection, calculation, window/theme context, filtering, and page layout.
-Their direct executable arguments and concrete save/reopen assertions replace
-the nested PowerShell test runner. `Test-CliApiCoverage.ps1` remains only a
-forwarding command for complete CLI acceptance.
+`Test-CliApiCoverage.ps1` remains only a forwarding command for complete CLI
+acceptance.
 
 ### OLAP server coverage and the Excel Runner
 
@@ -825,8 +824,8 @@ $testArgs = @('-c', 'Release', '--no-build', '--disable-build-servers',
 # Ordinary groups. Run sequentially for the simplest reproducible ordering.
 dotnet test tests\ExcelMcp.Core.Tests\ExcelMcp.Core.Tests.csproj @testArgs --filter 'RunType!=OnDemand&Feature!=VBA&Feature!=VBATrust&Feature!=Screenshot' --logger 'trx;LogFileName=Core-main.trx'
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj @testArgs --filter 'RunType!=OnDemand&Feature!=VBA&Feature!=Screenshot' --logger 'trx;LogFileName=Service-main.trx'
-dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj @testArgs --filter 'RunType!=OnDemand&FullyQualifiedName!~VbaRun_OnMacroWorkbook' --logger 'trx;LogFileName=CLI-main.trx'
-dotnet test tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj @testArgs --filter 'RunType!=OnDemand&FullyQualifiedName!~VbaRun_OnMacroWorkbook' --logger 'trx;LogFileName=MCP-main.trx'
+dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=CLI-main.trx'
+dotnet test tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=MCP-main.trx'
 dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=ComInterop-normal.trx'
 dotnet test tests\ExcelMcp.SkillGeneration.Tests\ExcelMcp.SkillGeneration.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=Skills-normal.trx'
 dotnet test tests\ExcelMcp.Packaging.Tests\ExcelMcp.Packaging.Tests.csproj @testArgs --filter 'RunType!=OnDemand' --logger 'trx;LogFileName=Packaging-normal.trx'
@@ -837,8 +836,6 @@ dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj @te
 # Exclusive VBA groups: obtain permission, capture the original setting, enable
 # access only for the run, then restore/verify it as described above.
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj @testArgs --filter 'RunType!=OnDemand&Feature=VBA' --logger 'trx;LogFileName=Service-vba.trx'
-dotnet test tests\ExcelMcp.CLI.Tests\ExcelMcp.CLI.Tests.csproj @testArgs --filter 'RunType!=OnDemand&FullyQualifiedName~VbaRun_OnMacroWorkbook' --logger 'trx;LogFileName=CLI-vba.trx'
-dotnet test tests\ExcelMcp.McpServer.Tests\ExcelMcp.McpServer.Tests.csproj @testArgs --filter 'RunType!=OnDemand&FullyQualifiedName~VbaRun_OnMacroWorkbook' --logger 'trx;LogFileName=MCP-vba.trx'
 
 # Exclusive desktop group: no other Excel test hosts.
 dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj @testArgs --filter 'RunType!=OnDemand&Feature=Screenshot' --logger 'trx;LogFileName=Service-screenshot.trx'
@@ -1061,7 +1058,6 @@ tests/ExcelMcp.Core.Tests/Integration/Commands/Vba/
 
 tests/ExcelMcp.CLI.Tests/Integration/
   - VbaRunValidationCliTests.cs
-  - VbaRunCliTransportProofTests.cs
 ```
 
 ### VBA Trust Setup

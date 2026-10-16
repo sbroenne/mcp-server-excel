@@ -24,7 +24,7 @@ public sealed class TestClassificationArchitectureTests
                 .Select(method => new ExcelSelection(
                     type.FullName!,
                     $"{type.FullName}.{method.Name}",
-                    method.Name.StartsWith("VbaRun_OnMacroWorkbook", StringComparison.Ordinal) ? "VBA" : classGroup,
+                    classGroup,
                     Traits(type, method, "RunType").Contains("OnDemand", StringComparer.OrdinalIgnoreCase),
                     method.GetCustomAttributes(inherit: true).Any(attribute =>
                         attribute.GetType().Name is "ConfiguredIrmFactAttribute" or "JapaneseLocaleFactAttribute"),

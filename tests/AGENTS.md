@@ -75,8 +75,12 @@ Fixture, template, raw-COM/OOXML, and parallel-safety procedures:
 ## Entry-point and migration coverage
 
 CLI and MCP tests cover adapter responsibilities, not a second full workbook
-matrix. Preserve adapter regressions and real Excel smokes; do not shorten
-production waits for test speed.
+matrix. Real-Excel CLI/MCP tests are limited to one save-and-reopen smoke per
+entry point and process boundaries (background service, crash, deadline,
+protected file, and Excel ownership). Test other adapter behavior without
+Excel against a recorded Service request/response; workbook outcomes belong in
+Service tests. Preserve adapter regressions as Excel-free tests; do not
+shorten production waits for test speed.
 
 Adapter test design:
 [CLI and MCP coverage](README.md#cli-and-mcp-coverage).
