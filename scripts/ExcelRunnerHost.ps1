@@ -28,11 +28,12 @@ function Invoke-ExcelRunnerGithub {
             }
             $output = Receive-Job $job -ErrorAction Stop
             if ($job.State -ne 'Completed') { throw 'GitHub runner status query did not complete.' }
-            if (-not $output) { throw 'GitHub returned an empty JSON response.' }
-            try { $parsed = ($output -join "`n") | ConvertFrom-Json -ErrorAction Stop }
+            $response = $output -join "`n"
+            if ([string]::IsNullOrWhiteSpace($response)) { throw 'GitHub returned an empty JSON response.' }
+            try { $parsed = $response | ConvertFrom-Json -ErrorAction Stop }
             catch {
                 $message = $_.Exception.Message
-                if ($message -match '(?i)unexpected end|end of JSON input') {
+                if ($message -match '(?i)unexpected end|end of JSON input|unterminated string') {
                     throw 'GitHub returned an incomplete JSON response.'
                 }
                 throw [System.IO.InvalidDataException]::new("GitHub runner returned invalid JSON for '$Endpoint'.", $_.Exception)
