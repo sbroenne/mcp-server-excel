@@ -20,6 +20,18 @@ public sealed class DocumentationAnalyzerTests
         Assert.Empty(await AnalyzeAsync(Documents()));
     }
 
+    [Fact]
+    public async Task ReadOnlyCategory_AcceptsCompiledCountsWithoutWriteEndpoint()
+    {
+        var documents = Documents().ToDictionary(pair => pair.Key,
+            pair => pair.Value.Replace("1", "2", StringComparison.Ordinal), StringComparer.Ordinal);
+        const string manifest = """
+            {"totalCommands":2,"totalOperations":2,"commands":[{"name":"diag","actions":["self-test"]},{"name":"powerquerytrace","actions":["summarize"]}]}
+            """;
+        Assert.Empty(await AnalyzeAsync(documents, manifest,
+            """[ModelContextProtocol.Server.McpServerTool(Name = "powerquery_trace_read")] public void Trace() {}"""));
+    }
+
     [Theory]
     [InlineData("README.md", "2 MCP tools across 1 feature areas, with 1 operations\nall 1 operations")]
     [InlineData("doc-counts.json", """{"tools":1,"operations":2}""")]
@@ -60,7 +72,7 @@ public sealed class DocumentationAnalyzerTests
     }
 
     private static async Task<ImmutableArray<Diagnostic>> AnalyzeAsync(Dictionary<string, string> documents,
-        string manifest = Manifest)
+        string manifest = Manifest, string additionalTools = "")
     {
         var source = """
             using System;
@@ -70,6 +82,7 @@ public sealed class DocumentationAnalyzerTests
             }
             class Tools {
                 [ModelContextProtocol.Server.McpServerTool(Name = "file")] public void File() {}
+            """ + additionalTools + """
             }
             enum FileAction { [JsonStringEnumMemberName("open")] Open }
             namespace Sbroenne.ExcelMcp.Generated { class _SkillManifest { public const string Json =

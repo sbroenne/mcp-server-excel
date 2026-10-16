@@ -99,7 +99,7 @@ public sealed class ValidationSelectionTests
         var result = await RunAsync("""
             $plan = Get-ValidationPlan -Paths @('src\ExcelMcp.Core\Commands\Range\Deleted.cs', 'src/ExcelMcp.Core/Commands/PowerQuery/Renamed.cs')
             if (($plan.ExcelGroups -join ',') -ne 'PowerQuery,Range') { throw "Wrong union: $($plan.ExcelGroups)" }
-            if (($plan.FastProjects -join ',') -ne 'Core') { throw 'Unchanged adapters selected.' }
+            if (($plan.FastProjects -join ',') -ne 'Core,Service') { throw 'Owning Core and Service tests were not selected.' }
             if (-not $plan.ExcelSelections.Count) { throw 'Owning workbook coverage missing.' }
             """);
         Assert.True(result.ExitCode == 0, result.Output);

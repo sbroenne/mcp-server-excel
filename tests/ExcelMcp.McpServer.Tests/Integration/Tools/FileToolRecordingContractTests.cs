@@ -44,7 +44,8 @@ public sealed class FileToolRecordingContractTests(
             {
                 filePath = url,
                 show = true,
-                timeoutSeconds = 120
+                timeoutSeconds = 120,
+                pqTracing = false
             }, ServiceProtocol.JsonOptions));
 
         using var result = JsonDocument.Parse(call.JsonResult);
@@ -127,7 +128,8 @@ public sealed class FileToolRecordingContractTests(
             {
                 filePath = path,
                 show = false,
-                timeoutSeconds = 120
+                timeoutSeconds = 120,
+                pqTracing = false
             }, ServiceProtocol.JsonOptions);
 
             var call = await _fixture.CallToolAsync(
@@ -366,7 +368,8 @@ public sealed class FileToolRecordingContractTests(
         {
             filePath = path,
             show = false,
-            timeoutSeconds = 120
+            timeoutSeconds = 120,
+            pqTracing = false
         }, ServiceProtocol.JsonOptions);
 
         try

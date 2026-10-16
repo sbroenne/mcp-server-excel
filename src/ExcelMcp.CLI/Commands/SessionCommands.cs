@@ -44,7 +44,8 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
             {
                 filePath = settings.FilePath,
                 show = settings.Show,
-                timeoutSeconds = settings.TimeoutSeconds
+                timeoutSeconds = settings.TimeoutSeconds,
+                pqTracing = settings.PqTracing
             }, ServiceProtocol.JsonOptions)
         };
         var response = await CliTelemetry.TrackCommandAsync(
@@ -75,6 +76,10 @@ internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.S
         [CommandOption("--show")]
         [Description("Show the Excel window for IRM/auth prompts instead of running hidden")]
         public bool Show { get; init; }
+
+        [CommandOption("--pq-tracing")]
+        [Description("Temporarily enable per-user Power Query tracing and restore the prior setting when opted-in sessions close; other Excel processes started meanwhile may also write trace files")]
+        public bool PqTracing { get; init; }
     }
 }
 
@@ -108,7 +113,8 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
             {
                 filePath = settings.FilePath,
                 show = settings.Show,
-                timeoutSeconds = settings.TimeoutSeconds
+                timeoutSeconds = settings.TimeoutSeconds,
+                pqTracing = settings.PqTracing
             }, ServiceProtocol.JsonOptions)
         };
         var response = await CliTelemetry.TrackCommandAsync(
@@ -139,6 +145,10 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
         [CommandOption("--show")]
         [Description("Show the Excel window for IRM/auth prompts instead of running hidden")]
         public bool Show { get; init; }
+
+        [CommandOption("--pq-tracing")]
+        [Description("Temporarily enable per-user Power Query tracing and restore the prior setting when opted-in sessions close; other Excel processes started meanwhile may also write trace files")]
+        public bool PqTracing { get; init; }
     }
 }
 

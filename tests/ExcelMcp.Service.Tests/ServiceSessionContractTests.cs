@@ -63,6 +63,25 @@ public sealed class ServiceSessionContractTests
             StringComparison.OrdinalIgnoreCase);
     }
 
+    [Theory]
+    [InlineData("session.open")]
+    [InlineData("session.create")]
+    public async Task OpenAndCreate_PqTracingOption_IsAcceptedBeforePathValidation(string command)
+    {
+        using var service = new ExcelMcpService();
+
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = command,
+            Args = """{"filePath":"relative\\book.xlsx","pqTracing":true}"""
+        });
+
+        Assert.False(response.Success);
+        Assert.Contains("absolute Windows path", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Unknown parameter", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(0, service.SessionCount);
+    }
+
     [Fact]
     public async Task Test_SharePointUrl_ReportsInteractiveValidationWithoutLocalFileChecks()
     {

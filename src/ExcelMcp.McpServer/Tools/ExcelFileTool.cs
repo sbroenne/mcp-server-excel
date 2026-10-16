@@ -34,6 +34,7 @@ public static partial class ExcelFileTool
     /// <param name="save">Save before close; otherwise discard unsaved changes. Only valid for close.</param>
     /// <param name="show">Show Excel. Only valid for open/create; protected files may force visible authentication.</param>
     /// <param name="timeout_seconds">Timeout for open/create, in seconds (10-3600). Also sets the session operation timeout.</param>
+    /// <param name="pq_tracing">Temporarily enable per-user Power Query tracing and restore the prior setting when the last opted-in session closes. Other Excel processes started while tracing is enabled may also write trace files.</param>
     [McpServerTool(Name = "file", Title = "File Operations", Destructive = true,
         UseStructuredContent = true, OutputSchemaType = typeof(FileToolOutputSchema))]
     [McpMeta("category", "session")]
@@ -48,6 +49,7 @@ public static partial class ExcelFileTool
         [McpActionParameter("close"), DefaultValue(false)] bool save,
         [McpActionParameter("open"), McpActionParameter("create"), DefaultValue(false)] bool show,
         [McpActionParameter("open"), McpActionParameter("create"), DefaultValue(120)] int timeout_seconds,
+        [McpActionParameter("open"), McpActionParameter("create"), DefaultValue(false)] bool pq_tracing = false,
         CancellationToken cancellationToken = default) =>
         ExecuteFileToolActionAsync(
             "file",
@@ -58,7 +60,7 @@ public static partial class ExcelFileTool
                 FileWriteAction.Close => FileAction.Close,
                 _ => throw new ArgumentOutOfRangeException(nameof(action))
             },
-            bridge, file_path, workbook_session_id, save, show, timeout_seconds, cancellationToken);
+            bridge, file_path, workbook_session_id, save, show, timeout_seconds, pq_tracing, cancellationToken);
 
     /// <summary>List workbook sessions with live canClose, excelState and blockingReason, and validate a workbook path without opening an editable session. dialogOpen means an Excel-owned modal window is visible: ask the user to check Excel for a prompt, which may require sign-in. It does not identify the dialog type or prove a query has stopped. activeOperations:0 does not prove a background refresh has finished.</summary>
     /// <remarks>
@@ -93,7 +95,7 @@ public static partial class ExcelFileTool
                 _ => throw new ArgumentOutOfRangeException(nameof(action))
             },
             bridge, file_path, null, save: false, show: false,
-            timeout_seconds: timeout_seconds, cancellationToken: cancellationToken);
+            timeout_seconds: timeout_seconds, pq_tracing: false, cancellationToken: cancellationToken);
 
     private static Task<CallToolResult> ExecuteFileToolActionAsync(
         string toolName,
@@ -104,6 +106,7 @@ public static partial class ExcelFileTool
         bool save,
         bool show,
         int timeout_seconds,
+        bool pq_tracing,
         CancellationToken cancellationToken) =>
         ExcelToolsBase.ExecuteToolActionAsync(toolName, action.ToActionString(), async () =>
         {
@@ -140,7 +143,13 @@ public static partial class ExcelFileTool
                 FileAction.List => await bridge.SendAsync("session.list", cancellationToken: cancellationToken),
                 FileAction.Close => await bridge.SendAsync("session.close", workbook_session_id, new { save }, cancellationToken: cancellationToken),
                 FileAction.Open or FileAction.Create => await bridge.SendAsync(
-                    $"session.{action.ToActionString()}", args: new { filePath = file_path, show, timeoutSeconds = timeout_seconds },
+                    $"session.{action.ToActionString()}", args: new
+                    {
+                        filePath = file_path,
+                        show,
+                        timeoutSeconds = timeout_seconds,
+                        pqTracing = pq_tracing
+                    },
                     timeoutSeconds: timeout_seconds, cancellationToken: cancellationToken),
                 FileAction.Test => await bridge.SendAsync("session.test", args: new { filePath = file_path, timeoutSeconds = timeout_seconds },
                     timeoutSeconds: timeout_seconds, cancellationToken: cancellationToken),
@@ -184,7 +193,12 @@ public static partial class ExcelFileTool
             {
                 success = true,
                 workbook_session_id = id,
-                filePath = document.RootElement.GetProperty("filePath").GetString()
+                filePath = document.RootElement.GetProperty("filePath").GetString(),
+                excelProcessId = document.RootElement.TryGetProperty("excelProcessId", out var processId)
+                    ? processId.GetInt32()
+                    : (int?)null,
+                pqTracingActive = document.RootElement.TryGetProperty("pqTracingActive", out var tracingActive)
+                    && tracingActive.GetBoolean()
             }, ExcelToolsBase.JsonOptions);
         }, cancellationToken);
 }

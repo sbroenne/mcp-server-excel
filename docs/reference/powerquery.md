@@ -35,6 +35,67 @@ Set explicit M column types for dates and relationship keys. Query refresh
 synchronizes its model load; refresh dependent PivotTables afterward.
 See [Data Model](datamodel.md).
 
+## Power Query tracing
+
+Tracing settings apply to the current Windows user and do not require a workbook.
+Power Query reads the setting when Excel starts, so changing it does not enable
+tracing in an Excel process that is already running. To temporarily enable
+tracing before opening a session, use:
+
+```mcp
+file(action: 'open', file_path: 'C:\reports\Q3-report.xlsx', pq_tracing: true)
+```
+
+```cli
+excelcli session open C:\reports\Q3-report.xlsx --pq-tracing
+```
+
+This temporarily turns on a per-user setting, not a workbook-only setting.
+Other Excel processes started while it is on may also write trace files. The
+prior setting is restored when the last opted-in session closes, unless tracing
+was already on or you explicitly changed the setting while a session was open.
+Check `pqTracingActive` in the session list to see whether tracing was enabled
+when Excel started.
+
+Troubleshoot one session at a time. There is no need to empty the trace folder:
+filter by the workbook session and the refresh time instead. One Excel session
+can produce several files, including Power Query helper-process logs; the
+session filter includes those files too. While a service holds tracing-enabled
+sessions, another CLI or MCP service cannot take temporary control of tracing
+or change the tracing setting. Close the first service's tracing-enabled
+sessions before switching services.
+
+Use `trace: true` on Power Query `refresh` or `refresh-all` to attach a compact
+summary for that refresh. For existing traces, use `powerquery_trace_read` to list or summarize files:
+
+```mcp
+powerquery(action: 'refresh', query_name: 'SalesData', trace: true)
+powerquery_trace_read(action: 'summarize', workbook_session_id: sessionId)
+```
+
+```cli
+excelcli powerquery refresh --session $session --query-name SalesData --trace
+excelcli powerquerytrace summarize --workbook-session-id $session --since 15m
+```
+
+If optional trace collection fails, the refresh outcome is preserved.
+`traceSummary.success` is false and `traceSummary.errorMessage` explains the
+trace-read failure; `traceNote` distinguishes that failure from the refresh.
+Do not repeat a completed refresh merely to collect traces.
+
+Summaries hide native query text and exception messages by default. Set
+`include_query_text: true` (CLI: `--include-query-text`) only when those details
+are needed; they can contain sensitive information. Trace files are stored by
+Excel under the current user's local application data folder. They may contain
+source names, query text, and error details. Manage or remove these files
+outside ExcelMcp. Use the returned `traceCursor` as `since` on the next summary
+to inspect only newer entries.
+
+The global setting can also be read with `settings_read` action
+`get-pq-tracing` and changed with `settings` action `set-pq-tracing`; CLI
+commands are `excelcli settings get-pq-tracing` and
+`excelcli settings set-pq-tracing --enabled true`.
+
 ## Workbook privacy setting
 
 Use `get-privacy-settings` to read this workbook's Power Query privacy behavior

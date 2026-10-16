@@ -13,6 +13,12 @@ internal sealed class FileToolOutputSchema
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? FilePath { get; set; }
 
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? ExcelProcessId { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public bool? PqTracingActive { get; set; }
+
     [JsonPropertyName("workbook_session_id")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? SessionId { get; set; }
@@ -44,6 +50,9 @@ internal sealed class FileSessionOutputSchema
     [JsonPropertyName("workbook_session_id")]
     public string SessionId { get; set; } = string.Empty;
     public string FilePath { get; set; } = string.Empty;
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public int? ExcelProcessId { get; set; }
+    public bool PqTracingActive { get; set; }
     public bool IsExcelVisible { get; set; }
     public int ActiveOperations { get; set; }
     public bool CanClose { get; set; }

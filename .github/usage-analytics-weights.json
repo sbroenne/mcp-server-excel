@@ -40,6 +40,7 @@
     "pivottablecalc": ["pivottable_calc"],
     "pivottablefield": ["pivottable_field"],
     "powerquery": ["powerquery"],
+    "powerquerytrace": ["powerquery_trace"],
     "pythoninexcel": ["pythoninexcel"],
     "querytable": ["querytable"],
     "range": ["range"],
@@ -49,6 +50,7 @@
     "screenshot": ["screenshot"],
     "service": ["service"],
     "session": ["file"],
+    "settings": ["settings"],
     "sheet": ["worksheet", "worksheet_style"],
     "slicer": ["slicer"],
     "table": ["table"],
@@ -354,6 +356,13 @@
         "view": "light"
       }
     },
+    "powerquery_trace": {
+      "feature": "power-query",
+      "actions": {
+        "list": "light",
+        "summarize": "light"
+      }
+    },
     "pythoninexcel": {
       "feature": "python-in-excel",
       "actions": {
@@ -464,6 +473,13 @@
       "actions": {
         "capture": "medium",
         "capture-sheet": "medium"
+      }
+    },
+    "settings": {
+      "feature": "power-query",
+      "actions": {
+        "get-pq-tracing": "light",
+        "set-pq-tracing": "medium"
       }
     },
     "service": {

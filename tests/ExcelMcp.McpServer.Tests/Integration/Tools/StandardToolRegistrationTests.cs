@@ -68,6 +68,36 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public async Task Discovery_PowerQueryTracingUsesSharedSettingsAndSessionlessTraceTools()
+    {
+        var tools = (await Client!.ListToolsAsync(cancellationToken: TestCancellationToken))
+            .ToDictionary(tool => tool.Name, StringComparer.Ordinal);
+        string[] Actions(string toolName) => tools[toolName].JsonSchema.GetProperty("properties")
+            .GetProperty("action").GetProperty("enum").EnumerateArray()
+            .Select(value => value.GetString()!).ToArray();
+
+        Assert.Equal(["set-pq-tracing"], Actions("settings"));
+        Assert.Equal(["get-pq-tracing"], Actions("settings_read"));
+        Assert.Equal(["list", "summarize"], Actions("powerquery_trace_read"));
+        Assert.DoesNotContain("get-pq-tracing", Actions("powerquery"));
+        Assert.DoesNotContain("set-pq-tracing", Actions("powerquery"));
+
+        var settingsProperties = tools["settings"].JsonSchema.GetProperty("properties");
+        Assert.False(settingsProperties.TryGetProperty("workbook_session_id", out _));
+        Assert.True(settingsProperties.TryGetProperty("enabled", out _));
+
+        var traceProperties = tools["powerquery_trace_read"].JsonSchema.GetProperty("properties");
+        Assert.True(traceProperties.TryGetProperty("workbook_session_id", out _));
+        Assert.Contains(
+            "\"requiresSession\":false",
+            JsonSerializer.Serialize(tools["powerquery_trace_read"].ProtocolTool),
+            StringComparison.Ordinal);
+        Assert.Contains("string", traceProperties.GetProperty("since").GetProperty("type").ToString(), StringComparison.Ordinal);
+        Assert.True(tools["powerquery"].JsonSchema.GetProperty("properties").TryGetProperty("trace", out _));
+        Assert.True(tools["file"].JsonSchema.GetProperty("properties").TryGetProperty("pq_tracing", out _));
+    }
+
+    [Fact]
     public async Task Discovery_WriteToolDescriptionsDoNotAdvertiseMovedReadActions()
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
