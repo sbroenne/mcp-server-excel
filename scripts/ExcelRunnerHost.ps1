@@ -4,27 +4,64 @@
 
 function Invoke-ExcelRunnerGithub {
     param([string]$Endpoint, [switch]$Paginate, [ValidateSet('GET', 'POST')][string]$Method = 'GET')
-    $remaining = [int]($deadline - [DateTime]::UtcNow).TotalSeconds
-    if ($remaining -le 0) { throw 'GitHub runner control exceeded its deadline.' }
-    $job = Start-Job -ScriptBlock {
-        param($Endpoint, $Paginate, $Method)
-        $arguments = @('api', $Endpoint, '--method', $Method)
-        if ($Paginate) { $arguments += @('--paginate', '--slurp') }
-        $output = & gh @arguments
-        if ($LASTEXITCODE -ne 0) { throw 'GitHub runner status query failed; do not assume the machine is idle.' }
-        return $output
-    } -ArgumentList $Endpoint, $Paginate.IsPresent, $Method
-    try {
-        if (-not (Wait-Job $job -Timeout ([Math]::Min(120, $remaining)))) {
-            Stop-Job $job
-            throw 'GitHub runner status query timed out; keep active work undisturbed.'
+    for ($attempt = 1; $attempt -le 2; $attempt++) {
+        $remaining = [int]($deadline - [DateTime]::UtcNow).TotalSeconds
+        if ($remaining -le 0) { throw 'GitHub runner control exceeded its deadline.' }
+        $job = Start-Job -ScriptBlock {
+            param($Endpoint, $Paginate, $Method)
+            $arguments = @('api', $Endpoint, '--method', $Method)
+            if ($Paginate) { $arguments += @('--paginate', '--slurp') }
+            $output = @(& gh @arguments 2>&1)
+            if ($LASTEXITCODE -ne 0) {
+                $message = ($output | ForEach-Object { $_.ToString() }) -join "`n"
+                if ($message -match '(?i)unexpected end|end of JSON input') {
+                    throw 'GitHub returned an incomplete JSON response.'
+                }
+                throw 'GitHub runner status query failed; do not assume the machine is idle.'
+            }
+            return $output
+        } -ArgumentList $Endpoint, $Paginate.IsPresent, $Method
+        try {
+            if (-not (Wait-Job $job -Timeout ([Math]::Min(120, $remaining)))) {
+                Stop-Job $job
+                throw 'GitHub runner status query timed out; keep active work undisturbed.'
+            }
+            $output = Receive-Job $job -ErrorAction Stop
+            if ($job.State -ne 'Completed') { throw 'GitHub runner status query did not complete.' }
+            if (-not $output) { throw 'GitHub returned an empty JSON response.' }
+            try { $parsed = ($output -join "`n") | ConvertFrom-Json -ErrorAction Stop }
+            catch {
+                $message = $_.Exception.Message
+                if ($message -match '(?i)unexpected end|end of JSON input') {
+                    throw 'GitHub returned an incomplete JSON response.'
+                }
+                throw [System.IO.InvalidDataException]::new("GitHub runner returned invalid JSON for '$Endpoint'.", $_.Exception)
+            }
+            return ,$parsed
         }
-        $output = Receive-Job $job -ErrorAction Stop
-        if ($job.State -ne 'Completed') { throw 'GitHub runner status query did not complete.' }
-        $parsed = ($output -join "`n") | ConvertFrom-Json
-        return ,$parsed
+        catch {
+            $failure = $_.Exception
+            if ($failure -is [OperationCanceledException] -or
+                $failure -is [System.Management.Automation.PipelineStoppedException]) { throw }
+            $incomplete = $failure.Message -match '(?i)incomplete JSON response|unexpected end|end of JSON input|empty JSON response'
+            if ($attempt -eq 1 -and $Method -eq 'GET' -and $incomplete) {
+                Start-Sleep -Seconds 1
+                continue
+            }
+            if ($incomplete) {
+                $retryContext = if ($attempt -eq 1) { 'without retry' } else { 'after one retry' }
+                throw [InvalidOperationException]::new(
+                    "GitHub runner status query for '$Endpoint' returned an incomplete JSON response $retryContext; control stopped safely.",
+                    $failure
+                )
+            }
+            throw [InvalidOperationException]::new(
+                "GitHub runner status query failed for '$Endpoint': $($failure.Message)",
+                $failure
+            )
+        }
+        finally { Remove-Job $job -Force }
     }
-    finally { Remove-Job $job -Force }
 }
 
 function Get-ExcelRunnerActiveJobs {

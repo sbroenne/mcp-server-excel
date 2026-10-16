@@ -26,6 +26,7 @@ public sealed class ValidationSelectionTests
     [InlineData("infrastructure/azure/configure-analytics-oidc.ps1", "Tooling", "")]
     [InlineData("infrastructure/azure/deploy-appinsights.ps1", "Tooling", "")]
     [InlineData("scripts/tests/excel-runner-build-cleanup.tests.ps1", "Tooling", "")]
+    [InlineData("scripts/tests/excel-runner-control.tests.ps1", "Tooling", "")]
     [InlineData("src/ExcelMcp.Analyzers/SafetyAnalyzer.cs", "Tooling", "")]
     [InlineData("doc-counts.json", "Tooling", "")]
     [InlineData("scripts/check-doc-counts.ps1", "Tooling", "")]
