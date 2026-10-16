@@ -89,6 +89,33 @@ The global setting can also be read with `settings_read` action
 commands are `excelcli settings get-pq-tracing` and
 `excelcli settings set-pq-tracing --enabled true`.
 
+### Native database query approval
+
+Use `settings_read` action `get-native-query-approval` (CLI:
+`excelcli settings get-native-query-approval`) to inspect whether Power Query
+requires approval before running new native database queries. The result says
+whether the setting was explicitly stored and includes the settings file path.
+If the setting is absent, Excel's default is reported: approval is required.
+
+The setting is global for the current Windows user and affects every workbook.
+Disabling approval allows new native database queries to run without that
+approval; it is not a required automation setup. The setting change requires
+explicit confirmation and all Excel processes must be closed. ExcelMcp does not
+stop Excel. Restart Excel after a change.
+
+Only the observed Office 16.0 Power Query settings archive is supported:
+`%LOCALAPPDATA%\Microsoft\Office\16.0\PowerQuery\User.zip`. This file format
+is not a documented Excel automation API, and the setting mapping has only
+been verified for the Office 16.0 installation under test. Missing archives,
+ambiguous entries, unsupported values or structures, and read/write/verification
+failures are reported as errors rather than guessed.
+
+Before a change, ExcelMcp creates a timestamped `.bak` archive beside
+`User.zip` and returns its path. Keep that backup if recovery may be needed.
+With Excel closed, use Excel's Data > Get Data > Query Options > Global >
+Security page to inspect or restore the option manually; this is also the
+manual alternative to changing it through ExcelMcp.
+
 ## Workbook privacy setting
 
 Use `get-privacy-settings` to read this workbook's Power Query privacy behavior
