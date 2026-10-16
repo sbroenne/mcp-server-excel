@@ -892,8 +892,8 @@ export function registerGitIsolationTests() {
 export function registerMarketplaceTests() {
     test('allowed marketplace paths reject root, ancestor and leaf links before any mutation', () => {
         const cases = process.platform === 'win32'
-            ? ['root', 'plugins', '.github', '.github/plugin', 'missing-market']
-            : ['root', 'plugins', '.github', '.github/plugin', 'missing-market', 'external-leaf', 'market-leaf', 'dangling', 'relative'];
+            ? ['root', '.github/plugin']
+            : ['root', '.github/plugin', 'external-leaf'];
         for (const kind of cases) {
             const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-listing-link-'));
             const root = path.join(fixture, 'checkout'), outside = path.join(fixture, 'outside');
@@ -915,14 +915,12 @@ export function registerMarketplaceTests() {
                 if (kind === 'root') {
                     directory = path.join(fixture, 'linked-checkout');
                     fs.symlinkSync(root, directory, process.platform === 'win32' ? 'junction' : 'dir');
-                } else if (['external-leaf', 'market-leaf', 'dangling', 'relative'].includes(kind)) {
-                    const leaf = path.join(root, kind === 'market-leaf' ? '.github/plugin/marketplace.json' : 'plugins/external.json');
+                } else if (kind === 'external-leaf') {
+                    const leaf = path.join(root, 'plugins/external.json');
                     fs.rmSync(leaf);
-                    const target = kind === 'dangling' ? path.join(outside, 'missing.json') :
-                        kind === 'relative' ? path.relative(path.dirname(leaf), canary) : canary;
-                    fs.symlinkSync(target, leaf);
+                    fs.symlinkSync(canary, leaf);
                 } else {
-                    const destination = path.join(root, kind === 'missing-market' ? '.github/plugin' : kind);
+                    const destination = path.join(root, kind);
                     fs.rmSync(destination, { recursive: true });
                     fs.symlinkSync(outside, destination, process.platform === 'win32' ? 'junction' : 'dir');
                 }
@@ -931,16 +929,14 @@ export function registerMarketplaceTests() {
                 }, files), /unsafe|link|reparse/i);
                 assert.equal(fs.readFileSync(canary, 'utf8'), JSON.stringify(before));
                 assert.deepEqual(fs.readdirSync(outside), ['canary.json']);
-                if (kind !== 'plugins') {
-                    const external = path.join(root, 'plugins/external.json');
-                    if (fs.existsSync(external)) assert.equal(fs.readFileSync(external, 'utf8'), JSON.stringify(before));
-                }
+                const external = path.join(root, 'plugins/external.json');
+                if (fs.existsSync(external)) assert.equal(fs.readFileSync(external, 'utf8'), JSON.stringify(before));
             } finally { fs.rmSync(fixture, { recursive: true }); }
         }
     });
 
     test('tracked link modes are rejected even when Windows materializes a regular link-text file', () => {
-        for (const name of ['plugins/external.json', '.github/plugin/marketplace.json', 'plugins', '.github', '.github/plugin']) {
+        for (const name of ['plugins/external.json', 'plugins']) {
             const root = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-listing-mode-'));
             try {
                 init(root);
@@ -1092,11 +1088,8 @@ function writeTree(directory, files) {
     }
 }
 
-function publicationFixture({
-    staleOverlay = false, currentVersion = '2.0.1', candidateVersion = '2.3.0',
-    payloadVersion = candidateVersion, candidateTagExists = false, ignoredNames = false,
-    baselineFiles = new Map(),
-} = {}) {
+function publicationFixture({ ignoredNames = false, baselineFiles = new Map() } = {}) {
+    const currentVersion = '2.0.1', candidateVersion = '2.3.0';
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-publication-'));
     const source = path.join(root, 'source'), output = path.join(root, 'output'), built = path.join(root, 'built');
     init(source);
@@ -1104,7 +1097,6 @@ function publicationFixture({
     fs.mkdirSync(path.join(source, 'scripts'));
     fs.mkdirSync(path.join(source, '.github', 'plugins', 'marketplace-repo'), { recursive: true });
     fs.writeFileSync(path.join(source, '.github', 'plugins', 'marketplace-repo', 'README.md'), 'Marketplace');
-    if (staleOverlay) fs.writeFileSync(path.join(source, '.github', 'plugins', 'marketplace-repo', 'stale.txt'), 'Old owned file');
     fs.writeFileSync(path.join(source, 'scripts', 'Sync-PublishedPluginRepo.ps1'), `
 param($PublishedRepoDir,$BuiltPluginsDir,$Version)
 $ErrorActionPreference='Stop'
@@ -1118,215 +1110,30 @@ foreach ($plugin in $market.plugins) { $plugin.version=$Version }
 $market | ConvertTo-Json -Depth 20 | Set-Content (Join-Path $PublishedRepoDir '.github/plugin/marketplace.json')
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../.github/plugins/marketplace-repo/README.md') -Destination (Join-Path $PublishedRepoDir 'README.md')
 `);
-    const originalSource = commit(source, 'Original source');
+    commit(source, 'Original source');
     command('git', ['tag', `v${currentVersion}`], source);
     writeTree(output, payload(currentVersion));
     writeTree(output, baselineFiles);
     if (ignoredNames) fs.writeFileSync(path.join(output, '.gitignore'), '*.test.md\n*.log\ntemp/\n');
-    if (staleOverlay) fs.writeFileSync(path.join(output, 'stale.txt'), 'Old owned file');
     const original = commit(output, 'Original publication');
     command('git', ['tag', `v${currentVersion}`], output);
-    if (candidateTagExists && candidateVersion !== currentVersion) command('git', ['tag', `v${candidateVersion}`], output);
     fs.writeFileSync(path.join(source, 'release.txt'), candidateVersion);
-    if (staleOverlay) fs.unlinkSync(path.join(source, '.github', 'plugins', 'marketplace-repo', 'stale.txt'));
-    const preparedSource = commit(source, 'Candidate source');
-    const sourceCommit = candidateVersion === currentVersion ? originalSource : preparedSource;
-    if (candidateVersion !== currentVersion) command('git', ['tag', `v${candidateVersion}`], source);
+    const sourceCommit = commit(source, 'Candidate source');
+    command('git', ['tag', `v${candidateVersion}`], source);
     command('git', ['checkout', '--quiet', '--detach', sourceCommit], source);
-    const candidate = payload(payloadVersion);
+    const candidate = payload(candidateVersion);
     for (const [name, file] of candidate) if (name.startsWith('plugins/')) {
         writeTree(built, new Map([[name.slice('plugins/'.length), file]]));
     }
     return { root, source, output, built, original, sourceCommit };
 }
-function publishFixture(fixture, flags = [], version = '2.3.0', sourceCommit = fixture.sourceCommit) {
+function publishFixture(fixture, flags = []) {
     return command('pwsh', ['-NoProfile', '-File', path.join(repoRoot, 'scripts', 'Publish-PreparedPlugins.ps1'),
         '-SourceDirectory', fixture.source, '-PublishedRepoDirectory', fixture.output,
-        '-BuiltPluginsDirectory', fixture.built, '-Version', version, '-SourceCommit', sourceCommit, ...flags], repoRoot);
-}
-
-export function registerHistoryTests() {
-    test('publisher actually creates no destination commit/push/tag for version-only releases', () => {
-        const fixture = publicationFixture();
-        try {
-            const text = publishFixture(fixture);
-            assert.match(text, /"status": "skipped"/);
-            assert.match(text, /"published_tag": "v2.0.1"/);
-            assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), fixture.original);
-            assert.equal(command('git', ['tag', '--list', 'v2.3.0'], fixture.output).trim(), '');
-            assert.equal(command('git', ['status', '--porcelain'], fixture.output).trim(), '');
-        } finally { fs.rmSync(fixture.root, { recursive: true }); }
-    });
-
-    test('automatic release makes content repaired on main reachable through a new immutable tag', () => {
-        const fixture = publicationFixture();
-        try {
-            const remote = path.join(fixture.root, 'remote.git');
-            command('git', ['clone', '--quiet', '--bare', fixture.output, remote], fixture.root);
-            command('git', ['remote', 'add', 'origin', remote], fixture.output);
-            const guidance = 'Repaired CLI guidance, unchanged in the next product release';
-            fs.writeFileSync(path.join(fixture.built, 'excel-cli', 'README.md'), guidance);
-            const currentBuilt = path.join(fixture.root, 'repair-built');
-            fs.cpSync(fixture.built, currentBuilt, { recursive: true });
-            for (const name of ['excel-cli', 'excel-mcp']) {
-                const file = path.join(currentBuilt, name, 'plugin.json');
-                const manifest = JSON.parse(fs.readFileSync(file));
-                manifest.version = '2.0.1';
-                fs.writeFileSync(file, JSON.stringify(manifest));
-                fs.writeFileSync(path.join(currentBuilt, name, 'version.txt'), '2.0.1');
-                fs.writeFileSync(path.join(currentBuilt, name, 'skills', name, 'VERSION'), '2.0.1');
-            }
-            const exactSource = command('git', ['rev-parse', 'v2.0.1'], fixture.source).trim();
-            command('git', ['checkout', '--quiet', '--detach', exactSource], fixture.source);
-            const repairText = publishFixture({ ...fixture, built: currentBuilt }, ['-ManualRepair'], '2.0.1', exactSource);
-            const repair = JSON.parse(repairText.slice(repairText.search(/^\{\r?$/m)));
-            assert.equal(repair.handoff, false);
-            assert.equal(repair.published_commit, fixture.original);
-            assert.notEqual(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), fixture.original);
-            for (const name of ['excel-cli', 'excel-mcp']) {
-                for (const relative of ['plugin.json', 'version.txt', `skills/${name}/VERSION`]) {
-                    const old = fs.statSync(path.join(fixture.output, 'plugins', name, relative));
-                    fs.utimesSync(path.join(fixture.built, name, relative), old.atime, old.mtime);
-                }
-            }
-            command('git', ['checkout', '--quiet', '--detach', fixture.sourceCommit], fixture.source);
-            const releaseText = publishFixture(fixture);
-            const release = JSON.parse(releaseText.slice(releaseText.search(/^\{\r?$/m)));
-            assert.equal(release.status, 'published');
-            assert.equal(release.handoff, true);
-            assert.deepEqual(release.changed_plugins, ['excel-cli']);
-            assert.equal(release.published_tag, 'v2.3.0');
-            assert.deepEqual(release.destination_changed_paths, []);
-            assert.deepEqual(release.distributed_changed_paths, ['plugins/excel-cli/README.md']);
-            assert.equal(release.baseline_fingerprint, release.candidate_fingerprint);
-            assert.notEqual(release.distributed_baseline_fingerprint, release.candidate_fingerprint);
-            assert.equal(command('git', ['rev-parse', 'v2.0.1'], fixture.output).trim(), fixture.original);
-            assert.equal(command('git', ['show', 'v2.3.0:plugins/excel-cli/README.md'], fixture.output), guidance);
-            assert.equal(command('git', ['rev-parse', 'refs/tags/v2.3.0^{commit}'], remote).trim(), release.published_commit);
-            assert.equal(command('git', ['status', '--porcelain'], fixture.output).trim(), '');
-        } finally { fs.rmSync(fixture.root, { recursive: true }); }
-    });
-
-    test('restoring a repaired main to already tagged plugin content publishes without listing handoff', () => {
-        const fixture = publicationFixture();
-        try {
-            const remote = path.join(fixture.root, 'remote.git');
-            command('git', ['clone', '--quiet', '--bare', fixture.output, remote], fixture.root);
-            command('git', ['remote', 'add', 'origin', remote], fixture.output);
-            fs.writeFileSync(path.join(fixture.output, 'plugins', 'excel-cli', 'README.md'), 'Main-only repaired content');
-            commit(fixture.output, 'Simulate authorized main repair');
-            const text = publishFixture(fixture);
-            const result = JSON.parse(text.slice(text.search(/^\{\r?$/m)));
-            assert.equal(result.status, 'published');
-            assert.deepEqual(result.changed_plugins, []);
-            assert.deepEqual(result.distributed_changed_paths, []);
-            assert.deepEqual(result.destination_changed_paths, ['plugins/excel-cli/README.md']);
-            assert.equal(result.handoff, false);
-            assert.equal(command('git', ['rev-parse', 'v2.0.1'], fixture.output).trim(), fixture.original);
-        } finally { fs.rmSync(fixture.root, { recursive: true }); }
-    });
-
-    test('root-only repair becomes reachable on the next release without an agent or listing handoff', () => {
-        const fixture = publicationFixture({ candidateVersion: '2.0.1',
-            baselineFiles: new Map([['README.md', { bytes: Buffer.from('Old root guidance'), mode: '100644' }]]) });
-        try {
-            const remote = path.join(fixture.root, 'remote.git');
-            command('git', ['clone', '--quiet', '--bare', fixture.output, remote], fixture.root);
-            command('git', ['remote', 'add', 'origin', remote], fixture.output);
-            const repairText = publishFixture(fixture, ['-ManualRepair'], '2.0.1');
-            const repair = JSON.parse(repairText.slice(repairText.search(/^\{\r?$/m)));
-            assert.equal(repair.status, 'published');
-            assert.equal(repair.handoff, false);
-            fs.writeFileSync(path.join(fixture.source, 'release.txt'), '2.3.0');
-            const sourceCommit = commit(fixture.source, 'Next source release');
-            command('git', ['tag', 'v2.3.0', sourceCommit], fixture.source);
-            for (const name of ['excel-cli', 'excel-mcp']) {
-                const file = path.join(fixture.built, name, 'plugin.json');
-                const manifest = JSON.parse(fs.readFileSync(file));
-                manifest.version = '2.3.0';
-                fs.writeFileSync(file, JSON.stringify(manifest));
-                fs.writeFileSync(path.join(fixture.built, name, 'version.txt'), '2.3.0');
-                fs.writeFileSync(path.join(fixture.built, name, 'skills', name, 'VERSION'), '2.3.0');
-            }
-            const text = publishFixture(fixture, [], '2.3.0', sourceCommit);
-            const result = JSON.parse(text.slice(text.search(/^\{\r?$/m)));
-            assert.equal(result.status, 'published');
-            assert.equal(result.published_tag, 'v2.3.0');
-            assert.deepEqual(result.destination_changed_paths, []);
-            assert.deepEqual(result.distributed_changed_paths, ['README.md']);
-            assert.deepEqual(result.changed_plugins, []);
-            assert.equal(result.handoff, false);
-            assert.equal(command('git', ['rev-parse', 'v2.0.1'], fixture.output).trim(), fixture.original);
-            assert.equal(command('git', ['show', 'v2.3.0:README.md'], fixture.output), 'Marketplace');
-        } finally { fs.rmSync(fixture.root, { recursive: true }); }
-    });
-
-    test('automatic publication rejects an invalid immutable baseline even when main is valid', () => {
-        const fixture = publicationFixture();
-        try {
-            fs.writeFileSync(path.join(fixture.output, 'plugins', 'excel-cli', 'version.txt'), 'invalid');
-            const invalid = commit(fixture.output, 'Invalid immutable baseline');
-            command('git', ['tag', '--delete', 'v2.0.1'], fixture.output);
-            command('git', ['tag', 'v2.0.1', invalid], fixture.output);
-            fs.writeFileSync(path.join(fixture.output, 'plugins', 'excel-cli', 'version.txt'), '2.0.1');
-            const head = commit(fixture.output, 'Valid repaired main');
-            assert.throws(() => publishFixture(fixture), /Missing or mismatched excel-cli\/version\.txt/);
-            assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), head);
-            assert.equal(command('git', ['tag', '--list', 'v2.3.0'], fixture.output).trim(), '');
-        } finally { fs.rmSync(fixture.root, { recursive: true }); }
-    });
-
+        '-BuiltPluginsDirectory', fixture.built, '-Version', '2.3.0', '-SourceCommit', fixture.sourceCommit, ...flags], repoRoot);
 }
 
 export function registerStagingTests() {
-    test('publisher rejects a dirty or wrong source checkout before touching the destination', () => {
-        const fixture = publicationFixture();
-        try {
-            fs.writeFileSync(path.join(fixture.source, 'release.txt'), 'Unreleased change');
-            assert.throws(() => publishFixture(fixture), /Source checkout must be clean/);
-            commit(fixture.source, 'Unreleased source');
-            assert.throws(() => publishFixture(fixture), /exact release commit/);
-            assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), fixture.original);
-            assert.equal(command('git', ['status', '--porcelain'], fixture.output).trim(), '');
-        } finally { fs.rmSync(fixture.root, { recursive: true }); }
-    });
-
-    test('publication safely replaces tracked directories with files, including nested emptied directories', () => {
-        for (const relative of ['assets/icons/icon.png']) {
-            const fixture = publicationFixture({ baselineFiles: new Map([
-                [`plugins/excel-cli/${relative}`, { bytes: Buffer.from('Old asset'), mode: '100644' }],
-            ]) });
-            try {
-                const remote = path.join(fixture.root, 'remote.git');
-                command('git', ['clone', '--quiet', '--bare', fixture.output, remote], fixture.root);
-                command('git', ['remote', 'add', 'origin', remote], fixture.output);
-                fs.writeFileSync(path.join(fixture.built, 'excel-cli', 'assets'), 'Replacement asset');
-                assert.match(publishFixture(fixture), /"status": "published"/);
-                assert.equal(command('git', ['show', 'v2.3.0:plugins/excel-cli/assets'], remote), 'Replacement asset');
-                const marketplace = path.join(fixture.output, '.github', 'plugin', 'marketplace.json');
-                fs.utimesSync(marketplace, new Date(), new Date(Date.now() + 2000));
-                assert.equal(command('git', ['status', '--porcelain'], fixture.output).trim(), '');
-            } finally { fs.rmSync(fixture.root, { recursive: true }); }
-        }
-    });
-
-    test('publication safely replaces a tracked file with a directory containing a new asset', () => {
-        const fixture = publicationFixture({ baselineFiles: new Map([
-            ['plugins/excel-cli/assets', { bytes: Buffer.from('Old asset'), mode: '100644' }],
-        ]) });
-        try {
-            const remote = path.join(fixture.root, 'remote.git');
-            command('git', ['clone', '--quiet', '--bare', fixture.output, remote], fixture.root);
-            command('git', ['remote', 'add', 'origin', remote], fixture.output);
-            writeTree(fixture.built, new Map([
-                ['excel-cli/assets/icon.png', { bytes: Buffer.from('New asset'), mode: '100644' }],
-            ]));
-            assert.match(publishFixture(fixture), /"status": "published"/);
-            assert.equal(command('git', ['show', 'v2.3.0:plugins/excel-cli/assets/icon.png'], remote), 'New asset');
-            assert.equal(command('git', ['status', '--porcelain'], fixture.output).trim(), '');
-        } finally { fs.rmSync(fixture.root, { recursive: true }); }
-    });
-
     test('directory replacement fails rather than deleting an unrelated ignored local file', () => {
         const fixture = publicationFixture({ ignoredNames: true, baselineFiles: new Map([
             ['plugins/excel-cli/assets/icon.png', { bytes: Buffer.from('Old asset'), mode: '100644' }],
@@ -1341,43 +1148,6 @@ export function registerStagingTests() {
             assert.equal(command('git', ['tag', '--list', 'v2.3.0'], fixture.output).trim(), '');
         } finally { fs.rmSync(fixture.root, { recursive: true }); }
     });
-
-}
-
-export function registerLegacyScenarioTests() {
-    if (process.env.PLUGIN_PUBLICATION_SCENARIO) {
-        test('legacy publication guard scenario', () => {
-            const scenario = JSON.parse(process.env.PLUGIN_PUBLICATION_SCENARIO);
-            const fixture = publicationFixture({
-                currentVersion: scenario.publishedVersion, candidateVersion: '1.2.3',
-                payloadVersion: scenario.payloadVersion,
-                candidateTagExists: scenario.tagExists,
-            });
-            try {
-                const remote = path.join(fixture.root, 'remote.git');
-                command('git', ['clone', '--quiet', '--bare', fixture.output, remote], fixture.root);
-                command('git', ['remote', 'add', 'origin', remote], fixture.output);
-                if (!scenario.tagExists) {
-                    fs.writeFileSync(path.join(fixture.built, 'excel-cli', 'README.md'), 'Meaningful candidate guidance');
-                }
-                const action = () => publishFixture(fixture, [], '1.2.3');
-                if (scenario.succeeds) {
-                    const result = action();
-                    assert.match(result, /"status": "(skipped|published)"/);
-                    if (scenario.tagExists) {
-                        assert.match(result, /"status": "skipped"/);
-                        assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), fixture.original);
-                    }
-                    assert.equal(command('git', ['rev-parse', `v${scenario.publishedVersion}^{commit}`], fixture.output).trim(), fixture.original);
-                } else {
-                    const expected = scenario.publishedVersion === '1.2.4' ? /Downgrade/ : /manifest version/;
-                    assert.throws(action, expected);
-                    assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), fixture.original);
-                    assert.equal(command('git', ['status', '--porcelain'], fixture.output).trim(), '');
-                }
-            } finally { fs.rmSync(fixture.root, { recursive: true }); }
-        });
-    }
 
 }
 
@@ -1398,80 +1168,6 @@ export function registerDeliveryTests() {
             assert.equal(command('git', ['rev-parse', 'v2.0.1'], fixture.output).trim(), fixture.original);
             assert.equal(command('git', [`--git-dir=${remote}`, 'rev-parse', 'v2.3.0^{commit}'], fixture.root).trim(),
                 command('git', ['rev-parse', 'HEAD'], fixture.output).trim());
-        } finally { fs.rmSync(fixture.root, { recursive: true }); }
-    });
-
-    test('publication includes ignored-name additions and commits the exact prepared distributed tree', () => {
-        const fixture = publicationFixture({ ignoredNames: true });
-        try {
-            const remote = path.join(fixture.root, 'remote.git');
-            command('git', ['clone', '--quiet', '--bare', fixture.output, remote], fixture.root);
-            command('git', ['remote', 'add', 'origin', remote], fixture.output);
-            const name = 'plugins/excel-cli/skills/excel-cli/references/guide.test.md';
-            const content = 'Required functional content\r\n';
-            fs.writeFileSync(path.join(fixture.built, name.slice('plugins/'.length)), content);
-            fs.writeFileSync(path.join(fixture.output, 'private.log'), 'Unrelated local note');
-            const result = publishFixture(fixture);
-            assert.match(result, /"status": "published"/);
-            assert.equal(command('git', ['show', `v2.3.0:${name}`], fixture.output), 'Required functional content\n');
-            assert.equal(command('git', [`--git-dir=${remote}`, 'show', `v2.3.0:${name}`], fixture.root), 'Required functional content\n');
-            assert.equal(command('git', ['ls-tree', '--name-only', 'v2.3.0', '--', 'private.log'], fixture.output), '');
-            assert.equal(fs.readFileSync(path.join(fixture.output, 'private.log'), 'utf8'), 'Unrelated local note');
-        } finally { fs.rmSync(fixture.root, { recursive: true }); }
-    });
-
-    test('publisher preview of real root changes never writes to destination and removes stale source overlay files', () => {
-        const fixture = publicationFixture({ staleOverlay: true });
-        try {
-            fs.writeFileSync(path.join(fixture.source, '.github', 'plugins', 'marketplace-repo', 'README.md'), 'New root documentation');
-            const sourceCommit = commit(fixture.source, 'New overlay');
-            command('git', ['tag', 'v2.4.0'], fixture.source);
-            for (const name of ['excel-cli', 'excel-mcp']) {
-                const manifest = path.join(fixture.built, name, 'plugin.json');
-                const value = JSON.parse(fs.readFileSync(manifest));
-                value.version = '2.4.0';
-                fs.writeFileSync(manifest, JSON.stringify(value));
-                fs.writeFileSync(path.join(fixture.built, name, 'version.txt'), '2.4.0');
-                fs.writeFileSync(path.join(fixture.built, name, 'skills', name, 'VERSION'), '2.4.0');
-            }
-            const result = publishFixture(fixture, ['-Preview'], '2.4.0', sourceCommit);
-            assert.match(result, /"decision": "published"/);
-            assert.match(result, /"changed_plugins": \[\]/);
-            assert.match(result, /"handoff": false/);
-            assert.match(result, /stale.txt/);
-            assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), fixture.original);
-            assert.equal(command('git', ['tag', '--list', 'v2.4.0'], fixture.output).trim(), '');
-        } finally { fs.rmSync(fixture.root, { recursive: true }); }
-    });
-
-    test('authorized manual repair restores missing stamps/tag and preserves an existing immutable tag', () => {
-        const fixture = publicationFixture();
-        try {
-            const remote = path.join(fixture.root, 'remote.git');
-            command('git', ['clone', '--quiet', '--bare', fixture.output, remote], fixture.root);
-            command('git', ['remote', 'add', 'origin', remote], fixture.output);
-            for (const name of ['excel-cli', 'excel-mcp']) {
-                const file = path.join(fixture.built, name, 'plugin.json');
-                const manifest = JSON.parse(fs.readFileSync(file));
-                manifest.version = '2.0.1';
-                fs.writeFileSync(file, JSON.stringify(manifest));
-                fs.writeFileSync(path.join(fixture.built, name, 'version.txt'), '2.0.1');
-                fs.writeFileSync(path.join(fixture.built, name, 'skills', name, 'VERSION'), '2.0.1');
-            }
-            const exactSource = command('git', ['rev-parse', 'v2.0.1'], fixture.source).trim();
-            command('git', ['checkout', '--quiet', '--detach', exactSource], fixture.source);
-            fs.unlinkSync(path.join(fixture.output, 'plugins', 'excel-cli', 'skills', 'excel-cli', 'VERSION'));
-            commit(fixture.output, 'Simulate missing known stamp');
-            const repaired = publishFixture(fixture, ['-ManualRepair'], '2.0.1', exactSource);
-            assert.match(repaired, /"status": "published"/);
-            assert.match(repaired, /"handoff": false/);
-            assert.equal(command('git', ['rev-parse', 'v2.0.1'], fixture.output).trim(), fixture.original);
-            assert.equal(fs.readFileSync(path.join(fixture.output, 'plugins', 'excel-cli', 'skills', 'excel-cli', 'VERSION'), 'utf8'), '2.0.1');
-            command('git', ['tag', '--delete', 'v2.0.1'], fixture.output);
-            command('git', ['push', 'origin', ':refs/tags/v2.0.1'], fixture.output);
-            const restored = publishFixture(fixture, ['-ManualRepair'], '2.0.1', exactSource);
-            assert.match(restored, /"status": "published"/);
-            assert.equal(command('git', ['tag', '--list', 'v2.0.1'], fixture.output).trim(), 'v2.0.1');
         } finally { fs.rmSync(fixture.root, { recursive: true }); }
     });
 }

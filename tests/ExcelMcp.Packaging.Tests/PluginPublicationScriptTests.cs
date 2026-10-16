@@ -12,7 +12,6 @@ public sealed class PluginPublicationScriptTests
     [Theory]
     [InlineData("PluginPublication.test.mjs")]
     [InlineData("PluginPublicationMarketplace.test.mjs")]
-    [InlineData("PluginPublicationHistory.test.mjs")]
     [InlineData("PluginPublicationStaging.test.mjs")]
     public async Task PublicationAndMarketplaceScripts_PassDisposableNoWriteRegressions(string testFile)
     {

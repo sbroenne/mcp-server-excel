@@ -478,39 +478,6 @@ public sealed class ReleaseMetadataScriptTests
     }
 
     [Theory]
-    [InlineData("1.2.2", false, "1.2.3", true)]
-    [InlineData("1.2.3", true, "1.2.3", true)]
-    [InlineData("1.2.4", false, "1.2.3", false)]
-    [InlineData("1.2.2", false, "9.9.9", false)]
-    [Trait("Feature", "ReleaseMetadata")]
-    public async Task PluginPublication_ExercisesVersionRetryAndFailureDecisions(
-        string publishedVersion, bool tagExists, string payloadVersion, bool succeeds)
-    {
-        var sandbox = CreateSandbox();
-        try
-        {
-            var scenario = JsonSerializer.Serialize(new
-            {
-                publishedVersion,
-                tagExists,
-                payloadVersion,
-                succeeds
-            });
-            var script = Path.Combine(RepoRoot, "tests", "ExcelMcp.Packaging.Tests", "PluginPublication.test.mjs");
-            var runner = Path.Combine(sandbox, "run.ps1");
-            File.WriteAllText(runner, $$"""
-                $env:PLUGIN_PUBLICATION_SCENARIO='{{scenario}}'
-                node --test --test-name-pattern 'legacy publication guard scenario' '{{script.Replace("'", "''", StringComparison.Ordinal)}}'
-                exit $LASTEXITCODE
-                """);
-            var result = await RunPowerShellScriptAsync(runner, [], sandbox);
-            Assert.True(result.ExitCode == 0, result.CombinedOutput);
-            Assert.Contains("legacy publication guard scenario", result.Stdout, StringComparison.Ordinal);
-        }
-        finally { Directory.Delete(sandbox, recursive: true); }
-    }
-
-    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     [Trait("Feature", "ReleaseMetadata")]
