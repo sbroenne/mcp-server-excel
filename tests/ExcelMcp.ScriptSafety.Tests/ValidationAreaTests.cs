@@ -24,7 +24,7 @@ public sealed class ValidationAreaTests
     [InlineData("global.json", "csharp")]
     [InlineData("scripts/PluginContent.mjs", "javascript-typescript")]
     [InlineData("scripts/AwesomeCopilotPolicy.mjs", "javascript-typescript")]
-    [InlineData("tests/ExcelMcp.Packaging.Tests/PluginPublicationHistory.test.mjs", "javascript-typescript")]
+    [InlineData("tests/ExcelMcp.Packaging.Tests/PluginPublicationStaging.test.mjs", "javascript-typescript")]
     [InlineData("vscode-extension/vitest.config.mts", "javascript-typescript")]
     [InlineData("npm-packages/shared/package-lock.json", "javascript-typescript")]
     [InlineData("gh-pages/hooks.py", "python")]

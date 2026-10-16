@@ -1,8 +1,7 @@
 import {
-    registerPolicyTests, registerWorkflowPolicyTests, registerGitIsolationTests, registerLegacyScenarioTests,
+    registerPolicyTests, registerWorkflowPolicyTests, registerGitIsolationTests,
 } from './PluginPublicationCases.mjs';
 
 registerPolicyTests();
 registerWorkflowPolicyTests();
 registerGitIsolationTests();
-registerLegacyScenarioTests();

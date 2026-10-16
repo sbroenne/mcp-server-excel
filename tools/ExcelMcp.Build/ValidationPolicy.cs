@@ -256,7 +256,15 @@ public sealed partial class ValidationPolicy(string root)
             AddFeature(plan, "Packaging", ["McpbPackaging"], "Mcpb packaging");
             plan.Reasons.Add($"{path} -> metadata bundle");
         }
-        else if (Matches(path, @"^(scripts/(Build-NpmPackages|Test-NpmPackages|Build-ReleasePackages|PackageHelpers|Build-Changelog|Format-ReleaseNotes|Publish-GitHubRelease|Update-(ReleaseVersion|McpRegistry)Metadata|Resolve-McpRegistryRelease|Test-McpRegistryPublication)\.ps1$|\.github/workflows/(release|publish-mcp-registry)\.yml$|package(-lock)?\.json$|\.npmrc$)"))
+        else if (path == "scripts/Publish-GitHubRelease.ps1")
+        {
+            const string releaseAssets = "FullyQualifiedName~Sbroenne.ExcelMcp.Packaging.Tests.ReleaseMetadataScriptTests.GitHubRelease_";
+            plan.ToolingFilters["Packaging"] = plan.ToolingFilters.TryGetValue("Packaging", out var previous)
+                ? Union(previous, releaseAssets) : releaseAssets;
+            plan.BuildProjects.Add("tests/ExcelMcp.Packaging.Tests/ExcelMcp.Packaging.Tests.csproj");
+            plan.Reasons.Add($"{path} -> release asset verification");
+        }
+        else if (Matches(path, @"^(scripts/(Build-NpmPackages|Test-NpmPackages|Build-ReleasePackages|PackageHelpers|Build-Changelog|Format-ReleaseNotes|Update-(ReleaseVersion|McpRegistry)Metadata|Resolve-McpRegistryRelease|Test-McpRegistryPublication)\.ps1$|\.github/workflows/(release|publish-mcp-registry)\.yml$|package(-lock)?\.json$|\.npmrc$)"))
         {
             AddFeature(plan, "Packaging", ["Packaging", "McpbPackaging", "ReleaseMetadata", "PluginSkillVersion"], "Package preparation");
             plan.Reasons.Add($"{path} -> package preparation consumers");

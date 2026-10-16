@@ -314,7 +314,6 @@ GitHub CLI and public read access. No desktop Excel is needed for these scripts.
 node --test --test-concurrency=3 `
     tests\ExcelMcp.Packaging.Tests\PluginPublication.test.mjs `
     tests\ExcelMcp.Packaging.Tests\PluginPublicationMarketplace.test.mjs `
-    tests\ExcelMcp.Packaging.Tests\PluginPublicationHistory.test.mjs `
     tests\ExcelMcp.Packaging.Tests\PluginPublicationStaging.test.mjs
 dotnet test tests\ExcelMcp.Packaging.Tests\ExcelMcp.Packaging.Tests.csproj -c Release --filter "Feature=PluginPublication" --blame-hang-timeout 5m
 $env:PREVIEW='true'

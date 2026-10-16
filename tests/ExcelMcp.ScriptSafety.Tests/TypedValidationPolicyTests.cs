@@ -210,6 +210,21 @@ public sealed class TypedValidationPolicyTests
     }
 
     [Fact]
+    public void GitHubReleasePublisher_SelectsOnlyReleaseAssetVerification()
+    {
+        var plan = Policy.Select(["scripts/Publish-GitHubRelease.ps1"]);
+        Assert.Equal(["Packaging"], plan.ToolingProjects);
+        Assert.Equal(
+            "FullyQualifiedName~Sbroenne.ExcelMcp.Packaging.Tests.ReleaseMetadataScriptTests.GitHubRelease_",
+            plan.ToolingFilters["Packaging"]);
+        Assert.Equal(["tests/ExcelMcp.Packaging.Tests/ExcelMcp.Packaging.Tests.csproj"], plan.BuildProjects);
+        Assert.Empty(plan.FastProjects);
+        Assert.Empty(plan.ProcessProjects);
+        Assert.Empty(plan.ExcelSelections);
+        Assert.False(plan.FullSolutionBuild);
+    }
+
+    [Fact]
     public void ScopedRuntimeAndSourceGuardChanges_DoNotRequireFullBuildOrDocumentationCounts()
     {
         var range = Policy.Select(["src/ExcelMcp.Core/Commands/Range/RangeCommands.Values.cs"]);

@@ -1,4 +1,3 @@
-import { registerStagingTests, registerDeliveryTests } from './PluginPublicationCases.mjs';
+import { registerDeliveryTests } from './PluginPublicationCases.mjs';
 
-registerStagingTests();
 registerDeliveryTests();

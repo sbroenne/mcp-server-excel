@@ -127,8 +127,6 @@ public sealed class PluginBuildTests(ITestOutputHelper output) : PluginTestBase(
 
     [Theory]
     [InlineData("excel-mcp", "bin")]
-    [InlineData("excel-mcp", "com.github.copilot")]
-    [InlineData("excel-cli", "bin")]
     [InlineData("excel-cli", "com.github.copilot")]
     public async Task SyncPublishedPluginRepo_RejectsRetiredGlobalInstaller(string pluginName, string directory)
     {

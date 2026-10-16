@@ -40,7 +40,7 @@ public sealed class ValidationSelectionTests
     [InlineData("src/ExcelMcp.Core/Commands/PivotTable/PivotTableCommands.cs", "Fast", "PivotTable")]
     [InlineData("src/ExcelMcp.Core/Commands/DataModel/DataModelCommands.cs", "Fast", "DataModel,DataModel dependencies")]
     [InlineData("scripts/PluginContent.mjs", "Tooling", "")]
-    [InlineData("tests/ExcelMcp.Packaging.Tests/PluginPublicationHistory.test.mjs", "Tooling", "")]
+    [InlineData("tests/ExcelMcp.Packaging.Tests/PluginPublicationStaging.test.mjs", "Tooling", "")]
     [InlineData("tests/ExcelMcp.CLI.Tests/Unit/ActionValidatorTests.cs", "Fast", "")]
     public void Paths_SelectExactGroups(string path, string ciGroups, string excelGroups)
     {
