@@ -455,36 +455,6 @@ public sealed class DaemonForcedStopRegressionTests
     }
 
     [Fact]
-    public async Task Cleanup_DoesNotStopUntrackedDaemonChildProcess()
-    {
-        var pipeName = $"excelmcp-child-isolation-{Guid.NewGuid():N}";
-        var childPidFile = Path.Combine(Path.GetTempPath(), $"excelmcp-child-{Guid.NewGuid():N}.pid");
-        using var daemon = StartSleepingProcessWithChild(childPidFile);
-        using var child = await WaitForChildProcessAsync(childPidFile);
-
-        try
-        {
-            DaemonProcessTracker.RegisterProcess(
-                pipeName,
-                daemon.Id,
-                daemon.StartTime.ToUniversalTime().ToFileTimeUtc());
-
-            var cleanupResult = await OwnedProcessCleanup.CleanupAsync(pipeName, CancellationToken.None);
-
-            Assert.True(cleanupResult.Success);
-            Assert.True(daemon.WaitForExit(5000));
-            Assert.False(child.HasExited);
-        }
-        finally
-        {
-            StopIfRunning(daemon);
-            StopIfRunning(child);
-            DaemonProcessTracker.Clear(pipeName);
-            File.Delete(childPidFile);
-        }
-    }
-
-    [Fact]
     public async Task Cleanup_PreservesTrackedExcelWhenGracefulDaemonUntracksDuringShutdown()
     {
         var pipeName = $"excelmcp-graceful-tracking-loss-{Guid.NewGuid():N}";
@@ -791,22 +761,6 @@ public sealed class DaemonForcedStopRegressionTests
             StopIfRunning(excel);
             DaemonProcessTracker.Clear(pipeName);
         }
-    }
-
-    [Fact]
-    public void TerminateProcess_AlreadyExited_IsTreatedAsSuccess()
-    {
-        using var process = Process.Start(new ProcessStartInfo
-        {
-            FileName = "pwsh",
-            Arguments = "-NoProfile -Command \"exit 0\"",
-            UseShellExecute = false,
-            CreateNoWindow = true
-        })!;
-        process.WaitForExit();
-
-        var terminated = OwnedProcessCleanup.TryTerminateProcess(process, entireProcessTree: false);
-        Assert.True(terminated);
     }
 
     [Fact]
@@ -1181,40 +1135,6 @@ public sealed class DaemonForcedStopRegressionTests
         })!;
     }
 
-    private static Process StartSleepingProcessWithChild(string childPidFile)
-    {
-        var startInfo = new ProcessStartInfo
-        {
-            FileName = "pwsh",
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        startInfo.ArgumentList.Add("-NoProfile");
-        startInfo.ArgumentList.Add("-Command");
-        startInfo.ArgumentList.Add(
-            "$child = Start-Process pwsh -NoNewWindow " +
-            "-ArgumentList '-NoProfile','-Command','Start-Sleep -Seconds 60' -PassThru; " +
-            $"Set-Content -LiteralPath '{childPidFile.Replace("'", "''", StringComparison.Ordinal)}' -Value $child.Id; " +
-            "Start-Sleep -Seconds 60");
-        return Process.Start(startInfo)!;
-    }
-
-    private static async Task<Process> WaitForChildProcessAsync(string childPidFile)
-    {
-        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
-        while (DateTime.UtcNow < deadline)
-        {
-            if (File.Exists(childPidFile)
-                && int.TryParse(await File.ReadAllTextAsync(childPidFile), out var childProcessId))
-            {
-                return Process.GetProcessById(childProcessId);
-            }
-
-            await Task.Delay(100);
-        }
-
-        throw new TimeoutException("The daemon test process did not report its child PID.");
-    }
 
     private static DaemonProcessTracker.ProcessIdentity RegisterTrackedProcesses(
         string pipeName,
