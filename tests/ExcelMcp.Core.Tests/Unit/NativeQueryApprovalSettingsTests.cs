@@ -96,7 +96,8 @@ public sealed class NativeQueryApprovalSettingsTests
         File.WriteAllBytes(archivePath, originalContent);
         var settings = new NativeQueryApprovalSettings(archivePath);
 
-        var exception = Assert.Throws<IOException>(() => settings.Write(required: false));
+        var exception = Assert.Throws<IOException>(() =>
+            settings.Write(required: false, isExcelRunning: () => false));
 
         Assert.Contains("original archive was not replaced", exception.Message, StringComparison.Ordinal);
         Assert.Contains("The backup is", exception.Message, StringComparison.Ordinal);
@@ -146,6 +147,31 @@ public sealed class NativeQueryApprovalSettingsTests
         Assert.Contains("Close all Excel windows", exception.Message, StringComparison.Ordinal);
         Assert.True(settings.Snapshot.Required);
         Assert.Equal(0, settings.WriteCount);
+    }
+
+    [Fact]
+    public void Set_WhenExcelStartsDuringArchivePreparation_LeavesOriginalArchiveUnchanged()
+    {
+        using var folder = new TemporaryFolder();
+        string archivePath = Path.Combine(folder.Path, "User.zip");
+        CreateArchive(archivePath, SettingsXml("l0"));
+        byte[] originalArchive = File.ReadAllBytes(archivePath);
+        int processCheckCount = 0;
+        var settings = new NativeQueryApprovalSettings(archivePath);
+        var commands = new SettingsCommands(
+            null,
+            settings,
+            () => ++processCheckCount > 1);
+
+        var exception = Assert.Throws<IOException>(() =>
+            commands.SetNativeQueryApproval(required: false, confirm: true));
+
+        Assert.Contains("Excel started while", exception.InnerException!.Message, StringComparison.Ordinal);
+        Assert.Contains("The backup is", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(originalArchive, File.ReadAllBytes(archivePath));
+        Assert.Equal(2, processCheckCount);
+        Assert.Single(Directory.GetFiles(folder.Path, "*.bak"));
+        Assert.Single(Directory.GetFiles(folder.Path, "User.zip"));
     }
 
     [Fact]
@@ -291,7 +317,7 @@ public sealed class NativeQueryApprovalSettingsTests
             return Snapshot;
         }
 
-        public string Write(bool required)
+        public string Write(bool required, Func<bool> isExcelRunning)
         {
             WriteCount++;
             if (PersistOnWrite)

@@ -93,7 +93,7 @@ public sealed class SettingsCommands : ISettingsCommands
                 "Close all Excel windows before changing native-query approval. No Excel process was stopped and the setting was not changed.");
         }
 
-        string backupPath = _nativeQueryApprovalSettings.Write(requestedRequired);
+        string backupPath = _nativeQueryApprovalSettings.Write(requestedRequired, _isExcelRunning);
         NativeQueryApprovalSnapshot current;
         try
         {

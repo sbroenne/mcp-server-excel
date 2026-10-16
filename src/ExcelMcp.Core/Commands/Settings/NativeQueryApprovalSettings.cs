@@ -12,7 +12,7 @@ internal interface INativeQueryApprovalSettings
 
     NativeQueryApprovalSnapshot Read();
 
-    string Write(bool required);
+    string Write(bool required, Func<bool> isExcelRunning);
 }
 
 /// <summary>
@@ -73,7 +73,7 @@ internal sealed class NativeQueryApprovalSettings : INativeQueryApprovalSettings
         }
     }
 
-    public string Write(bool required)
+    public string Write(bool required, Func<bool> isExcelRunning)
     {
         EnsureWindows();
 
@@ -107,6 +107,11 @@ internal sealed class NativeQueryApprovalSettings : INativeQueryApprovalSettings
                 temporary.Flush(flushToDisk: true);
             }
             source.Dispose();
+            if (isExcelRunning())
+            {
+                throw new IOException(
+                    "Excel started while the native-query approval archive was being prepared. The original archive was not replaced.");
+            }
 
             File.Move(temporaryPath, _settingsFilePath, overwrite: true);
             return backupPath;
