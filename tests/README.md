@@ -316,8 +316,9 @@ process, deadline, crash, rebuild, and ownership cases below.
 `scripts\Get-ValidationPlan.ps1` owns the explicit changed-path and feature-label
 rules used by CI, CodeQL and the local hook. Standard .NET and xUnit commands
 perform builds and tests; there is no custom C# tool to compile or load.
-Test-only changes select their owning project group; unit and protocol-tool
-folders remain Excel-free. Shared runtime helpers select broader coverage
+Test-only changes select their owning project group; unit and recording-only
+protocol tests remain Excel-free. Real-Excel MCP transport fixtures and their
+shared helpers select Excel coverage. Shared runtime helpers select broader coverage
 instead of rebuilding a source-reference catalogue. Pull requests compare
 their head with the base branch's merge base. The hook uses staged inputs and
 retains merge-parent and unstaged-input safeguards.

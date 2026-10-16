@@ -11,6 +11,14 @@ public sealed class ChangedAreaRegressionTests
     [InlineData("tests/ExcelMcp.Core.Tests/Unit/GeneratedActionContractTests.cs", "Core", false)]
     [InlineData("tests/ExcelMcp.Core.Tests/Unit/DeletedTests.More.cs", "Core", false)]
     [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/CalculationGuidanceContractTests.cs", "McpServer", false)]
+    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpProcessOwnershipTests.cs", "McpServer", true)]
+    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpSessionLifetimeTests.cs", "McpServer", true)]
+    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpOwnedExcelProcesses.cs", "McpServer", true)]
+    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpIntegrationTestBase.cs", "McpServer", true)]
+    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpProgramTransportFixture.cs", "McpServer", true)]
+    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpResponseAssertions.cs", "McpServer", true)]
+    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/ProgramTransportTestHost.cs", "McpServer", true)]
+    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpProcessOwnershipTests.Deleted.cs", "McpServer", true)]
     [InlineData("tests/ExcelMcp.Service.Tests/DeletedFixture.cs", "Service", true)]
     public async Task TestChanges_SelectTheOwningGroupIncludingDeletedFiles(string path, string owner, bool excel)
     {
@@ -18,6 +26,25 @@ public sealed class ChangedAreaRegressionTests
             $plan = Get-ValidationPlan -Paths '{{path}}'
             if (($plan.FastProjects -join ',') -cne '{{owner}}' -or
                 $plan.Excel -ne {{(excel ? "$true" : "$false")}} -or $plan.FullE2E) { throw 'Wrong owning test group.' }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
+    }
+
+    [Fact]
+    public async Task RealExcelTransportFiles_CannotBeClassifiedAsRecordingOnlyProtocols()
+    {
+        var run = await ValidationSelectionTests.RunAsync("""
+            $checked = 0
+            foreach ($file in Get-ChildItem .\tests\ExcelMcp.McpServer.Tests\Integration\Tools -Filter *.cs) {
+                if ((Get-Content $file.FullName -Raw) -notmatch '\[Trait\("RequiresExcel",\s*"true"\)\]') { continue }
+                $checked++
+                $plan = Get-ValidationPlan -Paths "tests/ExcelMcp.McpServer.Tests/Integration/Tools/$($file.Name)"
+                if (-not $plan.Excel -or $plan.ExcelSelections.Count -ne 1 -or
+                    $plan.ExcelSelections[0].Project -ne 'McpServer') {
+                    throw "Real-Excel transport coverage missing for $($file.Name)."
+                }
+            }
+            if ($checked -lt 5) { throw 'The real-Excel transport fixture check did not inspect its expected inputs.' }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
     }

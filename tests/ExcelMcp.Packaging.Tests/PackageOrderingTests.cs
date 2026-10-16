@@ -10,6 +10,25 @@ namespace Sbroenne.ExcelMcp.Packaging.Tests;
 public sealed class PackageOrderingTests
 {
     [Fact]
+    public async Task NpmCommands_UseTheFirstNodeWhenSeveralInstallationsAreAvailable()
+    {
+        var result = await RunPowerShellCommandAsync($$"""
+            . '{{Path.Combine(RepoRoot, "scripts", "PackageHelpers.ps1")}}'
+            $global:primaryNode = (Get-Command node.exe -CommandType Application | Select-Object -First 1).Source
+            $cli = Join-Path (Split-Path $global:primaryNode -Parent) 'node_modules\npm\bin\npm-cli.js'
+            $expected = & $global:primaryNode $cli --version
+            if ($LASTEXITCODE -ne 0) { throw 'The fixture npm installation failed.' }
+            function Get-Command {
+                [pscustomobject]@{ Source = $global:primaryNode }
+                [pscustomobject]@{ Source = Join-Path $PSScriptRoot 'unused\node.exe' }
+            }
+            $actual = Invoke-PackageCommand $PSScriptRoot npm @('--version')
+            if ($actual.Trim() -cne $expected.Trim()) { throw 'The first Node installation was not used.' }
+            """);
+        Assert.True(result.ExitCode == 0, result.CombinedOutput);
+    }
+
+    [Fact]
     public async Task NativeCommands_PreserveArgumentBoundariesAndExactOutput()
     {
         var result = await RunPowerShellCommandAsync($$"""

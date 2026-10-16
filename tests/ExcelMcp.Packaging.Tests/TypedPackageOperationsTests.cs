@@ -272,8 +272,13 @@ public sealed class TypedPackageOperationsTests
         {
             var result = await RunPowerShellCommandAsync($$"""
                 . '{{Helpers}}'
-                Remove-PackageStaging '{{sandbox}}' -TimeoutMilliseconds 0 -RetryMilliseconds 0 -Remove {
-                    throw [UnauthorizedAccessException]::new('locked by scanner')
+                try {
+                    Remove-PackageStaging '{{sandbox}}' -TimeoutMilliseconds 0 -RetryMilliseconds 0 -Remove {
+                        throw [UnauthorizedAccessException]::new('locked by scanner')
+                    }
+                } catch [IO.IOException] {
+                    [Console]::Error.WriteLine($_.Exception.Message)
+                    throw
                 }
                 """);
             Assert.NotEqual(0, result.ExitCode);

@@ -149,8 +149,10 @@ function Get-ValidationPlan {
                 $owner = $Matches[1]
                 $file = $Matches[2]
                 if ($owner -notin $allOwners) { throw "No validation mapping for $path." }
+                $excelTransport = $owner -eq 'McpServer' -and
+                    $file -match '^Integration/Tools/(ExcelFileToolProtocolRegressionTests|McpProcessOwnershipTests|McpServerSmokeTests|McpSessionLifetimeTests|SharePointWorkbookTests|McpIntegrationTestBase|McpOwnedExcelProcesses|McpProgramTransportFixture|McpResponseAssertions|ProgramTransportTestHost)(?:\.[^/]+)?\.cs$'
                 # Shared helpers and partial classes are deliberately covered by the whole owning project.
-                if ($file -match '^(Unit/|Integration/Tools/)') {
+                if ($file -match '^(Unit/|Integration/Tools/)' -and -not $excelTransport) {
                     Add-Filter Fast $owner 'FullyQualifiedName~Sbroenne.ExcelMcp.'
                     if ($owner -eq 'CLI') { Add-Filter Process CLI 'FullyQualifiedName~Sbroenne.ExcelMcp.' }
                 } else { Add-Owner $owner }

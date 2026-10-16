@@ -183,7 +183,7 @@ function Assert-PackageRuntimeArchitecture {
 function Invoke-PackageCommand {
     param([string]$Directory, [string]$Executable, [string[]]$Arguments, [double]$TimeoutSeconds = 1200)
     if ($Executable -eq 'npm' -and $IsWindows) {
-        $node = (Get-Command node.exe -CommandType Application -ErrorAction Stop).Source
+        $node = (Get-Command node.exe -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
         $npm = Join-Path (Split-Path $node -Parent) 'node_modules\npm\bin\npm-cli.js'
         if (-not [IO.File]::Exists($npm)) { throw "The Node.js npm CLI is missing: $npm" }
         $Executable = $node

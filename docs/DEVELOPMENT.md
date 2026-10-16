@@ -43,8 +43,9 @@ The existing xUnit architecture test exports the built Excel inventory.
 Standard `dotnet test` uses `tests/strict.runsettings` to reject empty selections,
 skips and runner warnings. Shared PowerShell adds bounded process ownership and
 checks discovered-versus-executed names for Excel and acceptance runs.
-Test-only edits select their owning project group; unit and protocol-tool
-folders do not select Excel. Shared runtime helpers intentionally select broader
+Test-only edits select their owning project group; unit and recording-only
+protocol tests do not select Excel. Real-Excel MCP transport fixtures and their
+shared helpers select Excel coverage. Shared runtime helpers intentionally select broader
 runtime and acceptance coverage rather than maintaining a second source analyser.
 Package preparation belongs to the existing PowerShell commands.
 PR CI runs normal npm checks and complete package preparation. Explicit manual

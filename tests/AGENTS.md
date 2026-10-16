@@ -17,7 +17,8 @@ the selected Release build and deterministic CLI/MCP/Core/Service tests
 `Speed=Slow`. CI retains those system and slow tests; run local process checks
 when changing their boundary, not on every push. Run selected Excel
 checks locally because hosted runners lack Excel. Test-only changes select their
-owning project group; unit and protocol-tool folders remain Excel-free.
+owning project group; unit and recording-only protocol tests remain Excel-free.
+Real-Excel MCP transport fixtures and their shared helpers select Excel coverage.
 Shared changes include affected
 dependencies. Empty or unknown selections must not be presented as passed tests.
 Session/batch infrastructure changes also require relevant ComInterop OnDemand

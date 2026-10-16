@@ -36,9 +36,10 @@ fixture-cleanup failures, and support the existing feature filters.
 
 The source-derived catalogue is removed, not translated into PowerShell.
 Command implementations select explicit native feature labels and known
-dependencies. Test edits select their owning project group; unit and protocol
-tool folders remain Excel-free. Other test folders can select that owner's
-Excel cases. Shared runtime/helper changes intentionally select broader runtime,
+dependencies. Test edits select their owning project group; unit and recording-only
+protocol tests remain Excel-free. Real-Excel MCP transport fixtures, their shared
+helpers and other test folders can select that owner's Excel cases.
+Shared runtime/helper changes intentionally select broader runtime,
 acceptance and infrastructure checks. This trades some precision for rules that
 are smaller and easier to review. New areas and changed label ownership need
 explicit rules and regression coverage.
