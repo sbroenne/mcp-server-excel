@@ -42,7 +42,6 @@ public sealed class DocumentationAnalyzer : DiagnosticAnalyzer
         ("gh-pages/docs/index.md", @"(?<m>\d+) MCP tools and (?<o>\d+) operations"),
         (".github/plugins/excel-mcp/README.md", @"(?<m>\d+) MCP tools across (?<t>\d+) feature areas, with (?<o>\d+) operations"),
         (".github/plugins/excel-cli/README.md", @"command categories with (?<o>\d+) operations"),
-        (".github/plugins/excel-cli/README.md", @"\| (?<m>\d+) tool schemas loaded into context \|"),
         ("gh-pages/docs/faq.md", @"same (?<o>\d+) operations"),
         ("docs/INSTALLATION-CLI.md", @"all (?<t>\d+) feature command categories"),
         ("docs/COPILOT-PLUGIN-DISTRIBUTION.md", @"with (?<m>\d+) tools across (?<t>\d+) feature areas \((?<o>\d+) operations\)")

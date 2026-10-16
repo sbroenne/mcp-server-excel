@@ -10,6 +10,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Workbook;
 public partial class WorkbookCommands
 {
     private const int MsoPropertyTypeString = 4;
+    private const int BuiltInPropertyValueFailure = unchecked((int)0x80004005);
 
     /// <inheritdoc />
     public WorkbookInfoResult GetInfo(IExcelBatch batch)
@@ -239,21 +240,10 @@ public partial class WorkbookCommands
 
     private static DocumentPropertyInfo ReadProperty(dynamic property, DocumentPropertyScope scope)
     {
-        object? value;
-        try
-        {
-            value = property.Value;
-        }
-        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
-        {
-            value = null;
-        }
-
         var typeCode = Convert.ToInt32(property.Type, CultureInfo.InvariantCulture);
-        return new DocumentPropertyInfo
+        var result = new DocumentPropertyInfo
         {
             Name = Convert.ToString(property.Name, CultureInfo.InvariantCulture) ?? string.Empty,
-            Value = Convert.ToString(value, CultureInfo.InvariantCulture),
             ValueType = typeCode switch
             {
                 1 => "number",
@@ -265,6 +255,26 @@ public partial class WorkbookCommands
             },
             Scope = GetScopeName(scope)
         };
+        object? value;
+        try
+        {
+            value = property.Value;
+        }
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex) ||
+            (scope == DocumentPropertyScope.BuiltIn && ex.HResult == BuiltInPropertyValueFailure))
+        {
+            // Office documents errors for undefined built-in values but exposes no defined flag.
+            // E_FAIL alone cannot distinguish that state from a failed Value getter.
+            result.ValueAvailable = false;
+            result.ValueError =
+                $"Could not read document property '{result.Name}' Value (0x{ex.HResult:X8}): {ex.Message}. " +
+                (scope == DocumentPropertyScope.BuiltIn
+                    ? "The built-in value may be undefined or its getter may have failed; these states cannot be distinguished."
+                    : "The Value member is unavailable.");
+            return result;
+        }
+        result.Value = Convert.ToString(value, CultureInfo.InvariantCulture);
+        return result;
     }
 
     private static string GetFormatName(Excel.XlFileFormat format)

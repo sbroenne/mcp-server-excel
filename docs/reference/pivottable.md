@@ -227,6 +227,18 @@ sharing that cache. Choose independent caches when those effects are unwanted.
   quoted literals and bracketed currency/locale codes remain intact. Excel may
   return a normalized format with an escaped dollar sign. Use MCP `number_format`
   or CLI `--number-format`.
+  On OLAP and Data Model PivotTables, ExcelMcp formats the selected displayed
+  value field rather than its cube metadata. Invariant numeric and custom
+  currency formats therefore use Excel's local separators without changing the
+  shared Data Model measure. The result's `numberFormat` reports the format
+  read back from the value field, and `renderedText` contains its first displayed
+  data cell, including when several measures are present. It is omitted when no
+  data cell is available. Readback failures are reported, not replaced with the
+  requested format. OLAP measures can be selected by their exact cube-field
+  name, bare measure name, or exact displayed value-field or cube caption.
+  Displayed captions include names supplied through `custom_name` (MCP) or
+  `--custom-name` (CLI) when adding a value field. Ambiguous captions are rejected;
+  use the exact cube-field name to select the measure.
 
 Choose Compact for a nested view or Tabular/Outline when separate field columns
 and repeated labels suit the output. Use the PivotTable's own styles and field

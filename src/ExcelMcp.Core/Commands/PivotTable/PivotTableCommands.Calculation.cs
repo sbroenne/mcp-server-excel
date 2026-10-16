@@ -144,28 +144,53 @@ public partial class PivotTableCommands
         }
     }
 
-    private static Excel.PivotField FindValueField(Excel.PivotFields fields, string name, CancellationToken ct)
+    private static Excel.PivotField FindValueField(Excel.PivotFields fields, string name, CancellationToken ct,
+        bool allowOlapNames = false)
     {
-        for (int i = 1; i <= fields.Count; i++)
+        Excel.PivotField? sourceNameMatch = null;
+        try
         {
-            ct.ThrowIfCancellationRequested();
-            Excel.PivotField? field = null;
-            try
+            for (int i = 1; i <= fields.Count; i++)
             {
-                field = fields.Item(i);
-                if (string.Equals(field.Name, name, StringComparison.Ordinal))
+                ct.ThrowIfCancellationRequested();
+                Excel.PivotField? field = null;
+                try
                 {
-                    var found = field;
-                    field = null;
-                    return found;
+                    field = fields.Item(i);
+                    if (string.Equals(field.Name, name, StringComparison.Ordinal) ||
+                        (allowOlapNames && string.Equals(field.Caption, name, StringComparison.Ordinal)))
+                    {
+                        var found = field;
+                        field = null;
+                        return found;
+                    }
+                    if (allowOlapNames && string.Equals(field.SourceName, name, StringComparison.Ordinal))
+                    {
+                        if (sourceNameMatch is not null)
+                            throw new ArgumentException($"OLAP measure name '{name}' identifies multiple displayed value fields. Use the exact displayed caption.", nameof(name));
+                        sourceNameMatch = field;
+                        field = null;
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref field);
                 }
             }
-            finally
+            if (sourceNameMatch is not null)
             {
-                ComUtilities.Release(ref field);
+                var found = sourceNameMatch;
+                sourceNameMatch = null;
+                return found;
             }
+            if (allowOlapNames)
+                throw new ArgumentException($"Displayed value field or OLAP measure '{name}' was not found. Use the exact value caption or [Measures] unique name.", nameof(name));
+            throw new ArgumentException($"Displayed value field '{name}' was not found. Use the exact valueFields.fieldName from list-fields; source names do not identify repeated Values instances.", nameof(name));
         }
-        throw new ArgumentException($"Displayed value field '{name}' was not found. Use the exact valueFields.fieldName from list-fields; source names do not identify repeated Values instances.", nameof(name));
+        finally
+        {
+            ComUtilities.Release(ref sourceNameMatch);
+        }
     }
 
     private static Excel.PivotField FindCalculationBaseField(Excel.PivotTable pivot, string name, CancellationToken ct)

@@ -19,7 +19,9 @@ public partial class PersistentServicePivotTableOlapFieldTests
         var formatted = RequireSuccess(_pivotCommands.SetFieldFormat(
             batch, pivotName, "[Measures].[Native Format]", "0%"));
         Assert.Equal("0%", formatted.NumberFormat);
-        AssertPivotFieldFormat(sheetName, pivotName, "Native Format", "0%");
+        var displayed = ReadPivotDataField(sheetName, pivotName);
+        Assert.Equal("0%", displayed.NumberFormat);
+        Assert.Equal(displayed.Text, formatted.RenderedText);
         _fixture.ExecuteRawVerification((context, _) =>
         {
             Excel.Worksheet? sheet = null;

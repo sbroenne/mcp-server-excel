@@ -249,17 +249,8 @@ public static class ExcelShutdownService
                     }
                 }
 
-                // Release workbook COM reference (moved out of individual catch blocks)
-                try
-                {
-                    ComUtilities.Release(ref workbook);
-                    logger.LogDebug("Released workbook COM reference for {FileName}", fileName);
-                }
-                catch (InvalidComObjectException ex)
-                {
-                    logger.LogDebug(ex, "Workbook COM reference already released for {FileName}", fileName);
-                }
-                workbook = null;
+                ComUtilities.Release(ref workbook);
+                logger.LogDebug("Released workbook COM reference for {FileName}", fileName);
             }
 
             // Step 4: Quit Excel application with resilient retry + overall timeout

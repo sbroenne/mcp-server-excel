@@ -114,14 +114,11 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 Volatile.Write(ref _state, Completed);
                 completion.TrySetResult(result);
             }
-            catch (OperationCanceledException ex)
-            {
-                Volatile.Write(ref _state, Completed);
-                completion.TrySetCanceled(ex.CancellationToken);
-            }
             catch (Exception ex)
             {
                 Volatile.Write(ref _state, Completed);
+                // Preserve operation-originated cancellation and its inner failures.
+                // Execute handles cancellation of the caller's wait separately.
                 completion.TrySetException(ex);
             }
 
@@ -916,13 +913,19 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
             using var writeGuard = new ExcelWriteGuard((Excel.Application)_context!.App, _logger);
 
+            Exception? operationFailure = null;
             try
             {
                 return operation(_context!, cancellationToken);
             }
+            catch (Exception ex)
+            {
+                operationFailure = ex;
+                throw;
+            }
             finally
             {
-                UpdateVisibilitySnapshot();
+                UpdateVisibilitySnapshot(operationFailure);
             }
         }, completion);
 
@@ -938,23 +941,17 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         // respect it exclusively and don't layer the session _operationTimeout on top.
         // This prevents a double-cap where min(callerTimeout, sessionTimeout) is always the shorter one —
         // which caused heavy Power Query refreshes (~8+ min) to always fail against the session default.
+        using var timeoutCts = cancellationToken.CanBeCanceled
+            ? null
+            : new CancellationTokenSource(_operationTimeout);
         try
         {
-            if (cancellationToken.CanBeCanceled)
-            {
-                // Caller controls the timeout — use their token exclusively
-                return completion.Task.WaitAsync(cancellationToken).GetAwaiter().GetResult();
-            }
-            else
-            {
-                // No caller timeout — apply session-level operation timeout as safety net
-                using var timeoutCts = new CancellationTokenSource(_operationTimeout);
-                return completion.Task.WaitAsync(timeoutCts.Token).GetAwaiter().GetResult();
-            }
+            return completion.Task.WaitAsync(timeoutCts?.Token ?? cancellationToken).GetAwaiter().GetResult();
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (
+            timeoutCts is { IsCancellationRequested: true } && ex.CancellationToken == timeoutCts.Token)
         {
-            // Session timeout occurred (not caller cancellation) — only happens in the else branch
+            // Only cancellation of this wait's actual deadline is a session timeout.
             var expiredWhileQueued = workItem.TryDiscard();
             if (!expiredWhileQueued && workItem.IsExecuting)
             {
@@ -995,7 +992,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         }
     }
 
-    private void UpdateVisibilitySnapshot()
+    private void UpdateVisibilitySnapshot(Exception? operationFailure)
     {
         try
         {
@@ -1008,6 +1005,18 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         catch (InvalidComObjectException)
         {
             _isExcelVisible = false;
+        }
+        catch (Exception snapshotFailure) when (operationFailure is not null)
+        {
+            var failure = new AggregateException(
+                "The Excel operation and updating its visibility snapshot both failed.",
+                operationFailure, snapshotFailure);
+            if (operationFailure is OperationCanceledException canceled)
+            {
+                throw new OperationCanceledException(canceled.Message, failure, canceled.CancellationToken);
+            }
+
+            throw failure;
         }
     }
 

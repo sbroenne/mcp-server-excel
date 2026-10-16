@@ -98,7 +98,7 @@ public sealed class DocumentationAnalyzerTests
             ["gh-pages\\docs\\index.md"] = "1 MCP tools and 1 operations",
             ["gh-pages\\docs\\faq.md"] = "same 1 operations",
             [".github\\plugins\\excel-mcp\\README.md"] = headline,
-            [".github\\plugins\\excel-cli\\README.md"] = "command categories with 1 operations\n| 1 tool schemas loaded into context |",
+            [".github\\plugins\\excel-cli\\README.md"] = "The CLI provides 1 feature command categories with 1 operations.",
             ["docs\\INSTALLATION-CLI.md"] = "all 1 feature command categories",
             ["docs\\COPILOT-PLUGIN-DISTRIBUTION.md"] = "with 1 tools across 1 feature areas (1 operations)",
             ["Directory.Build.props"] = "<PackageProjectUrl>https://excelmcpserver.dev/</PackageProjectUrl>",

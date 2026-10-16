@@ -456,7 +456,7 @@ public partial class PivotTableCommands
                 }
                 RequireAxisField(field);
                 values = (Excel.PivotFields)pivot.DataFields;
-                value = FindValueField(values, dataFieldName, ct);
+                value = FindValueField(values, dataFieldName, ct, allowOlapNames: isOlap);
                 string sortBy = isOlap ? value.SourceName : value.Name;
                 ct.ThrowIfCancellationRequested();
                 var order = direction == SortDirection.Ascending
