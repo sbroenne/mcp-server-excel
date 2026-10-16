@@ -199,7 +199,13 @@ public sealed class ExternalOlapSchemaErrorTests
                 ExternalOlapSchemaMapper.BuildDimensionRequest("Cube"),
                 "Cube", CancellationToken.None, null, null]));
 
-        Assert.Equal("Query canceled.", Assert.IsType<OperationCanceledException>(invocation.InnerException).Message);
+        var canceled = Assert.IsType<OperationCanceledException>(invocation.InnerException);
+        Assert.Equal("Query canceled.", canceled.Message);
+        var failures = Assert.IsType<AggregateException>(canceled.InnerException);
+        Assert.Equal(2, failures.InnerExceptions.Count);
+        Assert.Equal("Query canceled.", Assert.IsType<OperationCanceledException>(failures.InnerExceptions[0]).Message);
+        Assert.Equal("0x80004005", OperationFailureClassifier.GetComHResult(failures.InnerExceptions[1]));
+        Assert.DoesNotContain(Sentinel, canceled.ToString(), StringComparison.Ordinal);
     }
 
     public sealed class CloseErrorSchemaConnection(bool cancelRead = false, int state = 1)

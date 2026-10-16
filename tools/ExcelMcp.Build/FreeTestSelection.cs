@@ -24,12 +24,15 @@ public static class FreeTestSelection
         var onDemand = new Dictionary<string, string>(StringComparer.Ordinal);
         if (options.Group is { } group)
         {
+            var commit = group == "Commit";
+            if (commit) { group = "Fast"; }
             var plan = savedPlan ?? new ValidationPolicy(root).Select([], full: true);
             if (!plan.CiTestGroups.Contains(group, StringComparer.Ordinal)) { throw new InvalidOperationException($"The requested {group} group was not selected."); }
             var filters = ValidationExecution.Filters(plan, group);
             if (filters.Count == 0) { throw new InvalidOperationException($"{group} has no selected test projects."); }
             foreach (var (owner, filter) in filters)
             {
+                if (commit && owner is not ("CLI" or "Core" or "McpServer" or "Service")) { continue; }
                 if (string.IsNullOrWhiteSpace(filter)) { throw new InvalidOperationException($"Missing filter for {owner}."); }
                 selections[owner] = group switch
                 {

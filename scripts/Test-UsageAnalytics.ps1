@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Tests analytics aggregation, privacy boundaries, and Copilot output validation.

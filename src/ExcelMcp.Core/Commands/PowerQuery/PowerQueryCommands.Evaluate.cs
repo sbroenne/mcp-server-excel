@@ -35,7 +35,11 @@ public partial class PowerQueryCommands
 
         using var timeoutCts = new CancellationTokenSource(batch.OperationTimeout);
 
-        PowerQueryEvaluateResult Execute() => batch.Execute((ctx, ct) =>
+        PowerQueryEvaluateResult Execute() => batch.Execute(EvaluateTemporaryQuery, timeoutCts.Token);
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+            Justification = "Retains the evaluation failure and every temporary-object cleanup failure, releases COM references, then throws the original or aggregate error; no failed evaluation returns success.")]
+        PowerQueryEvaluateResult EvaluateTemporaryQuery(ExcelContext ctx, CancellationToken ct)
         {
             Excel.Queries? queriesCollection = null;
             Excel.WorkbookQuery? query = null;
@@ -285,11 +289,14 @@ public partial class PowerQueryCommands
                     cleanupErrors.Insert(0, operationError);
                 }
 
-                throw new PowerQueryCommandException(
+                var cleanupFailure = new PowerQueryCommandException(
                     $"Power Query evaluate cleanup failed for temporary identity '{tempQueryName}'. " +
                     "Inspect powerquery list and connection list before saving, or close without saving and retry.",
                     "Cleanup",
                     new AggregateException(cleanupErrors));
+                if (operationError is OperationCanceledException canceled)
+                    throw new OperationCanceledException(cleanupFailure.Message, cleanupFailure, canceled.CancellationToken);
+                throw cleanupFailure;
             }
 
             if (operationError != null)
@@ -299,7 +306,7 @@ public partial class PowerQueryCommands
 
             result.Success = true;
             return result;
-        }, timeoutCts.Token);
+        }
 
         try
         {

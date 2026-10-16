@@ -35,7 +35,7 @@ public partial class SheetCommands
                         {
                             Name = sheet.Name,
                             Index = i,
-                            Visible = (int)sheet.Visible == -1  // xlSheetVisible = -1
+                            Visible = Convert.ToInt32((object)sheet.Visible, System.Globalization.CultureInfo.InvariantCulture) == -1
                         });
                     }
                     finally

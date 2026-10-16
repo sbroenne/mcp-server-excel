@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
 Provisions the dedicated Excel VM using the mcp-windows resource pattern.

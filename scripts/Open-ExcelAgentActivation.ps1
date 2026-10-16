@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
 Starts the qualified desktop for one-time user activation through free Bastion.
@@ -51,12 +52,13 @@ $failures = [Collections.Generic.List[Exception]]::new()
 try {
     $null = Invoke-RunnerAzure @('vm', 'start', '--resource-group', $ResourceGroup, '--name', $VmName) 900
     Start-Sleep -Seconds 60
-    @'
+    $guestScript = @'
 $ErrorActionPreference = 'Stop'
 $guest = 'C:\ProgramData\ExcelMcp\Provisioning\setup-excel-desktop.ps1'
 & $guest -Action Health
 & $guest -Action Activation
-'@ | Set-Content -LiteralPath $path -Encoding UTF8
+'@
+    ConvertTo-RunnerPowerShell7Command -Script $guestScript | Set-Content -LiteralPath $path -Encoding UTF8
     $response = Invoke-RunnerAzure @(
         'vm', 'run-command', 'invoke', '--resource-group', $ResourceGroup,
         '--name', $VmName, '--command-id', 'RunPowerShellScript', '--scripts', "@$path"

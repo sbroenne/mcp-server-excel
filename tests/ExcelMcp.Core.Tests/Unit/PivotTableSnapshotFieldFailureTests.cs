@@ -119,10 +119,13 @@ public sealed class PivotTableSnapshotFieldFailureTests
         {
             var result = PivotTableCommands.ReadOlapFieldSelection(
                 cube, "Pivot1", "book.xlsx", CancellationToken.None, 10);
+            Assert.NotNull(result);
             Assert.True(result.SelectionStateAvailable);
             Assert.False(result.FiltersAvailable);
             Assert.Empty(result.Filters);
             Assert.False(string.IsNullOrWhiteSpace(result.FiltersError));
+            Assert.Contains(failure.Message, result.FiltersError, StringComparison.Ordinal);
+            Assert.Contains($"0x{failure.HResult:X8}", result.FiltersError, StringComparison.Ordinal);
         }
     }
 

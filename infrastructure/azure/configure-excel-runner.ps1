@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
 Registers the repository runner in the non-admin interactive profile, without starting it.

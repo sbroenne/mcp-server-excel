@@ -28,7 +28,7 @@ public sealed partial class PersistentServicePivotTableTests
 
         Assert.False(snapshot.IsOlap);
         Assert.True(snapshot.IsOlapAvailable);
-        Assert.True(snapshot.FieldSelectionsAvailable);
+        Assert.True(snapshot.FieldSelectionsAvailable, snapshot.FieldSelectionsError);
         Assert.True(snapshot.ValueFieldsAvailable);
         Assert.Equal(1, snapshot.MaxSelectedMembers);
         Assert.False(snapshot.SnapshotComplete);
@@ -149,8 +149,8 @@ public sealed partial class PersistentServicePivotTableTests
 
         var snapshot = RequireSuccess(_pivotCommands.Read(batch, pivotName, _salesSheetName));
 
-        Assert.True(snapshot.FieldSelectionsAvailable);
-        Assert.True(snapshot.SnapshotComplete);
+        Assert.True(snapshot.FieldSelectionsAvailable, System.Text.Json.JsonSerializer.Serialize(snapshot));
+        Assert.True(snapshot.SnapshotComplete, System.Text.Json.JsonSerializer.Serialize(snapshot));
         var region = Assert.Single(snapshot.FieldSelections);
         Assert.Equal("Region", region.FieldName);
         Assert.Equal(PivotFieldArea.Column, region.Area);
@@ -163,6 +163,8 @@ public sealed partial class PersistentServicePivotTableTests
         Assert.Equal(["Sum of Sales", "Count of Sales"], snapshot.ValueFields.Select(value => value.FieldName));
         Assert.Equal([AggregationFunction.Sum, AggregationFunction.Count],
             snapshot.ValueFields.Select(value => value.Function));
+        Assert.Equal(["Date", "Product", "Region", "Sales"],
+            snapshot.Fields.Select(field => field.Name).Order(StringComparer.Ordinal));
     }
 
     [Fact]

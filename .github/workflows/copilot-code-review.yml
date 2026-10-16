@@ -23,7 +23,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install latest released Ponytail review skill
+      - name: Install pinned Ponytail review skill
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}

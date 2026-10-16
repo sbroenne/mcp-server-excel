@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Verifies aggregate star-history validation, snapshot updates, and SVG rendering.

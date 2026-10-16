@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Restores the latest validated analytics report from a dedicated data branch.

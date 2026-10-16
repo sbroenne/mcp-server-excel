@@ -18,7 +18,7 @@ mcpb/
 
 ## Prerequisites
 
-- PowerShell 7
+- PowerShell 7.4 or later (`pwsh`)
 - Node.js/npm when verifying the server launch (not needed to build the archive)
 
 Packaging copies metadata only. It does not publish .NET executables, install

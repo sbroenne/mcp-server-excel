@@ -23,9 +23,7 @@ public partial class RangeCommands
 
             try
             {
-                sheet = string.IsNullOrEmpty(sheetName)
-                    ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                sheet = Utilities.WorksheetLookup.Get(ctx.Book, sheetName);
 
                 range = sheet.Range[rangeAddress];
                 range.Style = styleName;
@@ -61,9 +59,7 @@ public partial class RangeCommands
 
             try
             {
-                sheet = string.IsNullOrEmpty(sheetName)
-                    ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                sheet = Utilities.WorksheetLookup.Get(ctx.Book, sheetName);
 
                 range = sheet.Range[rangeAddress];
 

@@ -15,6 +15,8 @@ public partial class PowerQueryCommands
 
         for (Exception? current = exception; current != null; current = current.InnerException)
         {
+            if (current is AggregateException aggregate)
+                return aggregate.InnerExceptions.All(CanReportMutationFailure);
             if (current is TimeoutException or OperationCanceledException or InvalidComObjectException
                 or OperationFailureException { ErrorCategory: OperationFailureCategory.Cancelled })
                 return false;
@@ -23,6 +25,8 @@ public partial class PowerQueryCommands
         return true;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Failure reporting boundary: the returned exception retains the mutation error and records any secondary state-inspection error verbatim.")]
     internal static PowerQueryCommandException CreateMutationFailure(
         Exception cause,
         string queryName,

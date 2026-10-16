@@ -209,6 +209,8 @@ public partial class RangeCommands
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Accepts SpecialCells' ambiguous no-match sentinel only after independently proving that the scope contains no matching cells; otherwise rethrows the original native error.")]
     private static void CollectSpecialCells(
         Excel.Range scope, Excel.XlCellType nativeKind, object valueKind,
         SpecialCellKind cellKind, Excel.WorksheetFunction? functions,

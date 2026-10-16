@@ -66,7 +66,9 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
         // Create Excel instance directly via COM
         var excelType = Type.GetTypeFromProgID("Excel.Application");
-        _excel = Activator.CreateInstance(excelType!);
+        Assert.NotNull(excelType);
+        _excel = Activator.CreateInstance(excelType);
+        Assert.NotNull((object?)_excel);
         _excel.Visible = false;
         _excel.DisplayAlerts = false;
 
@@ -116,9 +118,11 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
         try
         {
+            Assert.NotNull((object?)_workbook);
             model = _workbook.Model;
             _output.WriteLine($"Model object obtained: {model != null}");
 
+            Assert.NotNull((object?)model);
             modelTables = model.ModelTables;
             _output.WriteLine($"Initial ModelTables count: {modelTables.Count}");
 
@@ -153,6 +157,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario2_CreateTableInDataModel()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 2: Create Table in Data Model ===");
 
         dynamic? queries = null;
@@ -242,6 +247,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario3_AddDaxMeasure()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 3: Add DAX Measure ===");
 
         dynamic? model = null;
@@ -326,6 +332,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario4_UpdateDaxMeasure()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 4: Update DAX Measure ===");
 
         dynamic? model = null;
@@ -408,6 +415,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario5_DeleteDaxMeasure()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 5: Delete DAX Measure ===");
 
         dynamic? model = null;
@@ -463,6 +471,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario6_CreateRelationship()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 6: Create Relationship ===");
 
         dynamic? model = null;
@@ -508,6 +517,8 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             if (salesTable != null && productsTable != null)
             {
+                Assert.NotNull((object?)salesTable);
+                Assert.NotNull((object?)productsTable);
                 // Get the columns
                 dynamic? salesCols = salesTable.ModelTableColumns;
                 for (int i = 1; i <= salesCols.Count; i++)
@@ -592,6 +603,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario7_DeleteRelationship()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 7: Delete Relationship ===");
 
         dynamic? model = null;
@@ -644,6 +656,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario8_DeleteQueryWithDataModelTable()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 8: Delete Query That Loaded to Data Model ===");
 
         dynamic? queries = null;
@@ -727,6 +740,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario9_MeasureWithDeletedTable()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 9: Measure Referencing Deleted Table ===");
 
         dynamic? queries = null;
@@ -799,6 +813,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario10_MultipleMeasures()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 10: Multiple Measures on Same Table ===");
 
         dynamic? model = null;
@@ -841,6 +856,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario11_ModelRefresh()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 11: Model Refresh ===");
 
         dynamic? model = null;
@@ -898,6 +914,8 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario12_CubeValueRecalculationAfterRefresh()
     {
+        Assert.NotNull((object?)_excel);
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 12: CUBEVALUE Recalculation After Refresh ===");
         _output.WriteLine("This test verifies if CUBEVALUE formulas automatically recalculate after Data Model refresh.");
 
@@ -1247,6 +1265,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
     private void RefreshAllConnections()
     {
+        Assert.NotNull((object?)_workbook);
         dynamic? connections = null;
         try
         {
@@ -1281,6 +1300,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
     private void CreateDataModelTable(string queryName, string mCode)
     {
+        Assert.NotNull((object?)_workbook);
         dynamic? queries = null;
         dynamic? query = null;
         dynamic? connections = null;
@@ -1335,6 +1355,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
     private void CreateMeasure(string name, string formula)
     {
+        Assert.NotNull((object?)_workbook);
         dynamic? model = null;
         dynamic? modelTables = null;
         dynamic? measures = null;
@@ -1378,6 +1399,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
     private void CreateRelationshipBetweenTables()
     {
+        Assert.NotNull((object?)_workbook);
         dynamic? model = null;
         dynamic? modelTables = null;
         dynamic? relationships = null;
@@ -1412,6 +1434,8 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             }
 
             // Find columns
+            Assert.NotNull((object?)salesTable);
+            Assert.NotNull((object?)productsTable);
             dynamic? salesProductCol = null;
             dynamic? productsNameCol = null;
 
@@ -1491,7 +1515,9 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             // Step 1: Create fresh Excel instance
             _output.WriteLine("--- Step 1: Create fresh Excel instance ---");
             var excelType = Type.GetTypeFromProgID("Excel.Application");
-            excel = Activator.CreateInstance(excelType!);
+            Assert.NotNull(excelType);
+            excel = Activator.CreateInstance(excelType);
+            Assert.NotNull((object?)excel);
             excel.Visible = excelVisible;
             excel.DisplayAlerts = false;
             _output.WriteLine($"Excel instance created. Visible={excel.Visible}");
@@ -1642,6 +1668,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 string cName = c?.Name?.ToString() ?? "(null)";
                 int cType = Convert.ToInt32(c?.Type ?? 0);
                 bool inModel = false;
+                Assert.NotNull((object?)c);
                 try { inModel = c.InModel; } catch (COMException) { /* InModel property may not exist on all connection types */ }
                 _output.WriteLine($"  [{i}] Name: '{cName}', Type: {cType}, InModel: {inModel}");
                 ComUtilities.Release(ref c);
@@ -1928,6 +1955,3 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
         _output.WriteLine($"=== SCENARIO 13 ({visibilityLabel}) COMPLETE ===\n");
     }
 }
-
-
-

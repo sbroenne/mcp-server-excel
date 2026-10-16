@@ -69,8 +69,10 @@ vscode.lm.registerMcpServerDefinitionProvider('excel-mcp', {
 
 Discovery does not probe the installation or prompt the user.
 `resolveMcpServerDefinition` checks Windows, executable access, and Excel COM
-registration just before launch. The registration check uses noninteractive
-Windows PowerShell with a ten-second timeout and cancellation; it does not
+registration just before launch. The registration check requires PowerShell
+7.4 or later (`pwsh` on PATH), with a ten-second timeout and cancellation.
+Missing or older PowerShell produces an installation message; there is no
+Windows PowerShell 5.1 fallback. The check does not
 create Excel or open a workbook.
 
 The first-run Getting Started action opens the published user guides, not
@@ -97,6 +99,7 @@ manifest. Runtime skill discovery reads the matching frontmatter from
 ## Prerequisites
 
 - Windows
+- PowerShell 7.4 or later (`pwsh` on PATH)
 - The .NET SDK pinned by the repository `global.json`
 - Node.js 24 LTS and npm, compatible with the locked Vitest and vsce versions
 - Microsoft Excel for end-to-end MCP testing

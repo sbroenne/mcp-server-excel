@@ -19,6 +19,7 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
    - Windows OS (required for Excel COM)
    - Visual Studio 2022 or VS Code
    - .NET 10 SDK
+   - PowerShell 7.4 or later (`pwsh`)
    - Microsoft Excel installed
 
 2. **Setup**:
@@ -46,9 +47,11 @@ ExcelMcp aims to be the go-to command-line tool for coding agents to interact wi
 2. **Make changes**: Code, tests, documentation
 3. **Run the pre-commit hook**: follow the
    [pre-commit setup guide](PRE-COMMIT-SETUP.md), then let it run on every
-   commit. Changed paths select the Release build, source-pattern guards,
-   contract tests, and required local Excel checks. The hook never builds or
-   installs distributable packages; PR CI owns package validation.
+   commit. Changed paths select the Release build with compiler safety checks
+   and quick CLI, MCP Server, Core and Service tests. Slow process, tooling,
+   package and Excel tests are outside the hook. CI owns hosted checks; run
+   affected process checks locally when changing their boundary and selected
+   Excel checks on a desktop with Excel. The hook never installs packages.
    Never bypass it with `--no-verify`.
 4. **Push branch**: `git push origin feature/your-feature`
 5. **Create PR**: Use GitHub's PR template
@@ -185,7 +188,7 @@ context. Do not replace that context with a second generic error result.
 - **Input validation** - Check file existence and argument validity early
 - **Performance** - reuse sessions and bulk range operations instead of per-cell COM calls
 
-See the [COM pitfalls](agents/rules/excel-com-interop.md)
+See the [COM pitfalls](../src/ExcelMcp.ComInterop/AGENTS.md)
 for application-state, refresh, numeric conversion, and shutdown constraints.
 
 ### Testing
@@ -209,7 +212,7 @@ Before submitting a PR:
 2. Test-owned Excel processes clean up; do not terminate unrelated user sessions
 3. Error conditions tested (missing files, invalid arguments, etc.)
 4. Build has zero warnings
-5. Pre-commit hook passes every gate applicable to the staged paths. Excel E2E is required only when Core, CLI, or MCP runtime paths change, including `ComInterop`, `Service`, and their source generators.
+5. Pre-commit passes the selected Release build and quick unit tests. Before PR delivery, also run the changed-area plan's affected process, tooling, and Excel checks; shared lifecycle changes require acceptance and infrastructure diagnostics. Passing the hook alone is not complete PR validation.
 
 ## 🔧 Adding a New Operation
 
@@ -219,7 +222,7 @@ New operations are added to the **Core** interface/implementation; CLI commands 
 2. **Implement it** in the corresponding partial class (e.g. `SheetCommands.Lifecycle.cs`), following the batch-API pattern above.
 3. **Build the solution** - the source generators (`ExcelMcp.Generators`, `ExcelMcp.Generators.CLI`) produce the CLI verb and MCP tool automatically from the interface.
 4. **Add integration tests** for the new operation (TDD: write them first).
-5. **Update the appropriate `docs/features/*.md` file** with the new operation and its section count. Run `scripts\check-doc-counts.ps1 -Update` and review its generated headline changes; it checks but does not rewrite feature-section totals.
+5. **Update the appropriate `docs/features/*.md` file** with the new operation. Use EXL030's exact expected values to update affected section counts, `doc-counts.json`, and headline claims; review the changes and rebuild.
 
 ### Capability boundaries
 
@@ -278,9 +281,10 @@ specification or SUMMARY/FIX files. Core contracts and implementations define
 operation behavior; keep the feature guides and shared guidance aligned with them.
 
 Use current declared action names and verify operation tables and category
-counts. After a Release build and explicit skill generation, run
-`scripts\check-doc-counts.ps1 -SkipBuild -Update` and include the reviewed count
-changes in the same PR. CI requires exact agreement.
+counts. Resolve EXL030 diagnostics with the reported expected values, include
+the reviewed count changes in the same PR, and rebuild Release. Keep explicit
+skill preparation through `scripts\Build-AgentSkills.ps1` and the affected
+contract/skill tests; compilation does not prepare or validate every skill output.
 See the [website authoring guide](../gh-pages/README.md#publishing-canonical-documentation)
 for source maps, wrappers, navigation, and machine-readable outputs.
 
@@ -292,7 +296,7 @@ for source maps, wrappers, navigation, and machine-readable outputs.
 - [ ] Feature-scoped tests pass (`dotnet test --filter "Feature=<name>&RunType!=OnDemand"`)
 - [ ] Excel processes clean up properly
 - [ ] Added appropriate error handling (no suppressed exceptions)
-- [ ] Updated `docs/features/*.md` and generated advertised counts if operations or behaviors changed
+- [ ] Updated affected feature documentation and reviewed advertised counts; rebuilt without EXL030 errors
 - [ ] Pre-commit hook passes locally
 
 ### PR Description Template

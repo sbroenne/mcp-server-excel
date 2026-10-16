@@ -108,6 +108,7 @@ public sealed partial class PersistentServicePivotTableTests
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, destinationSheet);
+                Assert.NotNull(sheet);
                 pivotTables = (Excel.PivotTables)sheet.PivotTables();
                 pivot = pivotTables.Item("DrillThroughPivot");
                 dataBodyRange = pivot.DataBodyRange;
@@ -140,6 +141,7 @@ public sealed partial class PersistentServicePivotTableTests
             try
             {
                 detailSheet = ComUtilities.FindSheet(ctx.Book, result.DetailSheetName);
+                Assert.NotNull(detailSheet);
                 return detailSheet.Name == result.DetailSheetName;
             }
             finally
@@ -185,6 +187,7 @@ public sealed partial class PersistentServicePivotTableTests
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
+                Assert.NotNull(sheet);
                 pivotTables = (Excel.PivotTables)sheet.PivotTables();
                 pivot = pivotTables.Item(pivotTableName);
                 field = (Excel.PivotField)pivot.PivotFields(fieldName);

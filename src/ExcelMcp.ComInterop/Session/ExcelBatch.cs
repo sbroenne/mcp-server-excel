@@ -99,6 +99,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
         public bool IsExecuting => Volatile.Read(ref _state) == Executing;
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+            Justification = "STA work-item boundary transfers the exact operation exception to the waiting caller through TaskCompletionSource.TrySetException; throwing on this thread would break failure transport.")]
         public bool TryExecute()
         {
             if (Interlocked.CompareExchange(ref _state, Executing, Queued) != Queued)
@@ -112,14 +114,11 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 Volatile.Write(ref _state, Completed);
                 completion.TrySetResult(result);
             }
-            catch (OperationCanceledException ex)
-            {
-                Volatile.Write(ref _state, Completed);
-                completion.TrySetCanceled(ex.CancellationToken);
-            }
             catch (Exception ex)
             {
                 Volatile.Write(ref _state, Completed);
+                // Preserve operation-originated cancellation and its inner failures.
+                // Execute handles cancellation of the caller's wait separately.
                 completion.TrySetException(ex);
             }
 
@@ -230,7 +229,9 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         // Start STA thread with message pump
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        _staThread = new Thread(() =>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+            Justification = "The startup STA reports the original failure through started.TrySetException to the constructor caller. Its final cleanup logs OLE-filter revocation failure without replacing the startup exception.")]
+        void RunStaThread()
         {
             Excel.Application? startupExcel = null;
             Excel.Workbook? startupPrimaryWorkbook = null;
@@ -319,7 +320,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Failed to capture Excel process identity during startup.");
+                    throw new InvalidOperationException("Failed to capture Excel process identity during startup.", ex);
                 }
                 if (!_excelProcessIdentity.HasValue)
                 {
@@ -425,6 +426,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                             // locale-specific table column format definitions during a later save.
                             // IDispatch preserves the workbook's native definitions.
                             workbooks = tempExcel.Workbooks;
+                            // PIA gap: Workbooks.Open adds an LCID that can rewrite locale-specific table formats.
                             dynamic workbooksDispatch = (dynamic)(object)workbooks;
                             // Protection does not imply read-only rights. Excel enforces the
                             // signed-in user's permissions; only validation forces read-only.
@@ -643,7 +645,9 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
                 _logger.LogDebug("STA thread cleanup completed for {FileName}", Path.GetFileName(_workbookPath));
             }
-        })
+        }
+
+        _staThread = new Thread(RunStaThread)
         {
             IsBackground = true,
             Name = $"ExcelBatch-{Path.GetFileName(_workbookPath)}"
@@ -909,13 +913,19 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
             using var writeGuard = new ExcelWriteGuard((Excel.Application)_context!.App, _logger);
 
+            Exception? operationFailure = null;
             try
             {
                 return operation(_context!, cancellationToken);
             }
+            catch (Exception ex)
+            {
+                operationFailure = ex;
+                throw;
+            }
             finally
             {
-                UpdateVisibilitySnapshot();
+                UpdateVisibilitySnapshot(operationFailure);
             }
         }, completion);
 
@@ -931,23 +941,17 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         // respect it exclusively and don't layer the session _operationTimeout on top.
         // This prevents a double-cap where min(callerTimeout, sessionTimeout) is always the shorter one —
         // which caused heavy Power Query refreshes (~8+ min) to always fail against the session default.
+        using var timeoutCts = cancellationToken.CanBeCanceled
+            ? null
+            : new CancellationTokenSource(_operationTimeout);
         try
         {
-            if (cancellationToken.CanBeCanceled)
-            {
-                // Caller controls the timeout — use their token exclusively
-                return completion.Task.WaitAsync(cancellationToken).GetAwaiter().GetResult();
-            }
-            else
-            {
-                // No caller timeout — apply session-level operation timeout as safety net
-                using var timeoutCts = new CancellationTokenSource(_operationTimeout);
-                return completion.Task.WaitAsync(timeoutCts.Token).GetAwaiter().GetResult();
-            }
+            return completion.Task.WaitAsync(timeoutCts?.Token ?? cancellationToken).GetAwaiter().GetResult();
         }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (
+            timeoutCts is { IsCancellationRequested: true } && ex.CancellationToken == timeoutCts.Token)
         {
-            // Session timeout occurred (not caller cancellation) — only happens in the else branch
+            // Only cancellation of this wait's actual deadline is a session timeout.
             var expiredWhileQueued = workItem.TryDiscard();
             if (!expiredWhileQueued && workItem.IsExecuting)
             {
@@ -988,19 +992,31 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         }
     }
 
-    private void UpdateVisibilitySnapshot()
+    private void UpdateVisibilitySnapshot(Exception? operationFailure)
     {
         try
         {
             _isExcelVisible = _excel != null && (bool)_excel.Visible;
         }
-        catch (COMException)
+        catch (COMException ex) when (ex.HResult == ResiliencePipelines.RPC_E_DISCONNECTED)
         {
             _isExcelVisible = false;
         }
         catch (InvalidComObjectException)
         {
             _isExcelVisible = false;
+        }
+        catch (Exception snapshotFailure) when (operationFailure is not null)
+        {
+            var failure = new AggregateException(
+                "The Excel operation and updating its visibility snapshot both failed.",
+                operationFailure, snapshotFailure);
+            if (operationFailure is OperationCanceledException canceled)
+            {
+                throw new OperationCanceledException(canceled.Message, failure, canceled.CancellationToken);
+            }
+
+            throw failure;
         }
     }
 
@@ -1080,7 +1096,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         if (dialogState != WorkbookRefreshState.Ready) return dialogState;
         foreach (var workbook in _workbooks!.Values)
         {
-            var state = WorkbookRefreshProbe.Read(_excel!, workbook, _logger);
+            var state = WorkbookRefreshProbe.Read(_excel!, workbook);
             if (state != WorkbookRefreshState.Ready) return state;
         }
         return WorkbookRefreshState.Ready;

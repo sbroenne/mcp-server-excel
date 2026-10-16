@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Packages the direct-npx Windows MCP server configuration for Claude Desktop.

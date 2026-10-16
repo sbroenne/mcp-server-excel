@@ -10,10 +10,10 @@ namespace Sbroenne.ExcelMcp.ComInterop.Formatting;
 /// <remarks>
 /// <para><b>Design Principles:</b></para>
 /// <list type="bullet">
-/// <item>Never throws exceptions - returns original M code on any failure</item>
+/// <item>Returns original M code for expected network, timeout, or response parsing failures</item>
 /// <item>Uses powerqueryformatter.com API (by mogularGmbH, MIT License)</item>
 /// <item>Gracefully handles network failures, API errors, and rate limiting</item>
-/// <item>Formatting is best-effort - original M code is always preserved if formatting fails</item>
+/// <item>Expected service failures preserve the original M code; cancellation and unexpected failures propagate</item>
 /// </list>
 /// <para><b>Usage:</b></para>
 /// <code>
@@ -25,7 +25,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Formatting;
 /// <item>Network latency: Typically 100-500ms per API call</item>
 /// <item>Singleton HttpClient instance shared across all calls for efficiency</item>
 /// <item>10-second timeout prevents indefinite blocking</item>
-/// <item>Graceful fallback ensures operations never fail due to formatting</item>
+/// <item>Expected service unavailability does not prevent workbook operations</item>
 /// </list>
 /// <para><b>API Reference:</b></para>
 /// <list type="bullet">
@@ -50,14 +50,14 @@ public static class MCodeFormatter
     /// </summary>
     /// <param name="mCode">The M code to format</param>
     /// <param name="cancellationToken">Cancellation token for the HTTP request</param>
-    /// <returns>Formatted M code, or original code if formatting fails</returns>
+    /// <returns>Formatted M code, or original code on an expected service failure</returns>
     /// <remarks>
-    /// This method NEVER throws exceptions. If formatting fails for any reason
-    /// (network error, API error, timeout, invalid M code), it returns the original code unchanged.
-    /// This ensures that Power Query operations never break due to formatting issues.
+    /// Expected network, response parsing, and internal timeout failures return the original
+    /// code unchanged. Caller cancellation and unexpected programming failures propagate.
     /// </remarks>
     public static async Task<string> FormatAsync(string mCode, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         if (string.IsNullOrWhiteSpace(mCode))
             return mCode;
 
@@ -71,7 +71,7 @@ public static class MCodeFormatter
             var request = new MFormatterRequest { Code = mCode, ResultType = "text" };
 
             // Call the API
-            var response = await _httpClient.PostAsJsonAsync(ApiEndpoint, request, timeoutCts.Token)
+            using var response = await _httpClient.PostAsJsonAsync(ApiEndpoint, request, timeoutCts.Token)
                 .ConfigureAwait(false);
 
             response.EnsureSuccessStatusCode();
@@ -85,22 +85,19 @@ public static class MCodeFormatter
                 ? result.Result
                 : mCode;
         }
-        catch (Exception) when (IsExpectedFormattingException())
+        catch (HttpRequestException)
         {
-            // Expected failures (network, timeout, parsing, etc.) - return original M code
-            // This handles: HttpRequestException, TaskCanceledException, OperationCanceledException,
-            // JsonException, and any other API-related errors gracefully
+            return mCode;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return mCode;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
             return mCode;
         }
     }
-
-    /// <summary>
-    /// Filter for expected formatting exceptions. Always returns true because
-    /// ALL exceptions during formatting should result in graceful fallback.
-    /// This pattern satisfies CodeQL's generic catch clause warning while
-    /// maintaining the intentional catch-all behavior for formatting operations.
-    /// </summary>
-    private static bool IsExpectedFormattingException() => true;
 
     /// <summary>
     /// Request payload for the M-Formatter API.
@@ -129,5 +126,3 @@ public static class MCodeFormatter
         public object? Errors { get; init; }
     }
 }
-
-

@@ -53,8 +53,11 @@ public partial class PivotTableCommands
                         };
 
                         // Try to get optional properties (may not exist on all calculated member types)
-                        try { memberInfo.DisplayFolder = member.DisplayFolder?.ToString(); } catch (System.Runtime.InteropServices.COMException) { /* Property not available */ }
-                        try { memberInfo.NumberFormat = member.NumberFormat?.ToString(); } catch (System.Runtime.InteropServices.COMException) { /* Property not available */ }
+                        if (memberInfo.Type == CalculatedMemberType.Measure)
+                        {
+                            memberInfo.DisplayFolder = member.DisplayFolder?.ToString();
+                            memberInfo.NumberFormat = member.NumberFormat?.ToString();
+                        }
 
                         result.CalculatedMembers.Add(memberInfo);
                     }
@@ -149,8 +152,11 @@ public partial class PivotTableCommands
                 };
 
                 // Try to get optional properties (may not exist on all calculated member types)
-                try { result.DisplayFolder = newMember.DisplayFolder?.ToString(); } catch (System.Runtime.InteropServices.COMException) { /* Property not available */ }
-                try { result.NumberFormat = newMember.NumberFormat?.ToString(); } catch (System.Runtime.InteropServices.COMException) { /* Property not available */ }
+                if (result.Type == CalculatedMemberType.Measure)
+                {
+                    result.DisplayFolder = newMember.DisplayFolder?.ToString();
+                    result.NumberFormat = newMember.NumberFormat?.ToString();
+                }
 
                 return result;
             }
@@ -188,20 +194,16 @@ public partial class PivotTableCommands
 
                 calculatedMembers = pivot.CalculatedMembers;
 
-                // Find the member by name
-                try
+                // Enumeration distinguishes absence from a failing native indexer.
+                for (int index = 1; index <= Convert.ToInt32(calculatedMembers.Count); index++)
                 {
-                    member = calculatedMembers.Item(memberName);
+                    ct.ThrowIfCancellationRequested();
+                    member = calculatedMembers.Item(index);
+                    if (string.Equals(Convert.ToString(member.Name), memberName, StringComparison.OrdinalIgnoreCase))
+                        break;
+                    ComUtilities.Release(ref member);
                 }
-                catch (COMException)
-                {
-                    return new OperationResult
-                    {
-                        Success = false,
-                        ErrorMessage = $"Calculated member '{memberName}' not found in PivotTable '{pivotTableName}'. Use list-calculated-members to see available members."
-                    };
-                }
-                catch (ArgumentException)
+                if (member is null)
                 {
                     return new OperationResult
                     {

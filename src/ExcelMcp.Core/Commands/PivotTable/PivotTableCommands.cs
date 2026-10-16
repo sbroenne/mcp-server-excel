@@ -106,7 +106,7 @@ public partial class PivotTableCommands : IPivotTableCommands, IPivotTableFieldC
             // Check if this is an OLAP/Data Model PivotTable
             isOlap = PivotTableHelpers.TryGetCubeFields(pivot, out cubeFields);
 
-            if (isOlap)
+            if (isOlap && cubeFields is not null)
             {
                 // OLAP PivotTable - access via CubeFields
                 // CubeField names are hierarchical like "[TableName].[FieldName]" or "[Measures].[MeasureName]"
@@ -119,7 +119,7 @@ public partial class PivotTableCommands : IPivotTableCommands, IPivotTableFieldC
                     {
                         cubeField = cubeFields.Item(fieldName);
                     }
-                    catch (System.Runtime.InteropServices.COMException)
+                    catch (System.Runtime.InteropServices.COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                     {
                         // Field not found by exact name
                         cubeField = null;
@@ -133,7 +133,7 @@ public partial class PivotTableCommands : IPivotTableCommands, IPivotTableFieldC
                     // Get or create the PivotField from the CubeField
                     // Per Microsoft docs: CubeField.PivotFields returns collection of PivotFields for this CubeField
                     dynamic? pivotFields = cubeField.PivotFields;
-                    if (pivotFields == null || pivotFields.Count == 0)
+                    if (pivotFields is null || pivotFields.Count == 0)
                     {
                         // No PivotField exists yet - field hasn't been added to PivotTable
                         // Call CreatePivotFields() to create the PivotFields collection
@@ -145,7 +145,7 @@ public partial class PivotTableCommands : IPivotTableCommands, IPivotTableFieldC
 
                         // Now get the newly created PivotFields collection
                         pivotFields = cubeField.PivotFields;
-                        if (pivotFields == null || pivotFields.Count == 0)
+                        if (pivotFields is null || pivotFields.Count == 0)
                         {
                             // Still no PivotFields - this shouldn't happen after CreatePivotFields()
                             ComUtilities.Release(ref pivotFields);
@@ -198,5 +198,3 @@ public partial class PivotTableCommands : IPivotTableCommands, IPivotTableFieldC
 
     #endregion
 }
-
-

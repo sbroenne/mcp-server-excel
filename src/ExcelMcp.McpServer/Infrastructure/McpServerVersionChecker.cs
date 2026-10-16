@@ -11,6 +11,8 @@ public static class McpServerVersionChecker
     /// Checks for updates and returns the latest version if an update is available.
     /// </summary>
     /// <returns>Latest version string if update available, null otherwise.</returns>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Optional release notification must not affect MCP host availability or tool outcomes; failed version metadata is omitted.")]
     public static async Task<string?> CheckForUpdateAsync(CancellationToken cancellationToken = default)
     {
         try

@@ -95,7 +95,7 @@ public partial class TableCommands
                     }
                     finally
                     {
-                        if (col != null && col.Name != columnName)
+                        if (col is not null && col.Name != columnName)
                         {
                             ComUtilities.Release(ref col);
                         }
@@ -151,7 +151,7 @@ public partial class TableCommands
                     }
                     finally
                     {
-                        if (col != null && col.Name != oldName)
+                        if (col is not null && col.Name != oldName)
                         {
                             ComUtilities.Release(ref col);
                         }
@@ -195,5 +195,4 @@ public partial class TableCommands
         });
     }
 }
-
 

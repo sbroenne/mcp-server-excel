@@ -16,22 +16,27 @@ public sealed class PreCommitScriptTests
     [InlineData("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", true, true)]
     [InlineData("docs/reference/report-formatting.md", true, false)]
     [InlineData("README.md", true, false)]
+    [InlineData("Directory.Build.props", true, true)]
     [InlineData("README.md\nsrc/ExcelMcp.Core/Commands/Range/RangeCommands.cs", true, true)]
-    public async Task ChangedPaths_SelectChecksWithoutCreatingPackages(string path, bool build, bool excel)
+    public async Task ChangedPaths_SelectChecksWithoutCreatingPackages(string path, bool build, bool fast)
     {
         var result = await RunHookAsync(path);
 
         Assert.Equal(build, result.Output.Contains("dotnet build", StringComparison.Ordinal));
-        Assert.Equal(excel, result.Output.Contains("excel-feature-tests-ran", StringComparison.Ordinal));
+        Assert.Equal(fast, result.Output.Contains("excel-free-tests-ran", StringComparison.Ordinal));
+        Assert.DoesNotContain("excel-feature-tests-ran", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("e2e-ran", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("dotnet publish", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("dotnet pack", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("npm ci", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("npm run", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("git add", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("cleanup-ran", result.Output, StringComparison.Ordinal);
-        if (path == "docs/reference/report-formatting.md")
+        Assert.Contains("Elapsed:", result.Output, StringComparison.Ordinal);
+        if (fast)
         {
-            Assert.Contains("-ChangedPaths", result.Output, StringComparison.Ordinal);
+            Assert.Contains("-Group Commit", result.Output, StringComparison.Ordinal);
+            Assert.DoesNotContain("-Local", result.Output, StringComparison.Ordinal);
         }
         Assert.True(result.ExitCode == 0, result.Output);
     }
@@ -67,7 +72,7 @@ public sealed class PreCommitScriptTests
             ("src/ExcelMcp.Generators.Cli/Generator.cs", true, false, false),
             ("docs/reference/report-formatting.md", true, false, true),
             ("Directory.Build.props", true, true, true),
-            ("Directory.Packages.props", true, false, false),
+            ("Directory.Packages.props", true, true, true),
             ("global.json", true, true, true),
             (".editorconfig", true, false, true),
             ("README.md\nsrc/ExcelMcp.Core/Commands/Range/RangeCommands.cs", true, true, false),
@@ -76,14 +81,13 @@ public sealed class PreCommitScriptTests
             ("skills/excel-cli-report-formatting/SKILL.md", true, false, true)
         ];
         var policy = new ValidationPolicy(RepoRoot);
-        var packageChanges = new PackageChanges(true, [], []);
         foreach (var (path, build, excel, skills) in cases)
         {
-            var plan = policy.Select(path.Split('\n'), packageChanges: packageChanges);
+            var plan = policy.Select(path.Split('\n'));
             Assert.True(build == plan.Build, $"{path}: incorrect Build selection.");
             Assert.True(excel == plan.Excel, $"{path}: incorrect Excel selection.");
             Assert.True(skills == plan.SkillTests, $"{path}: incorrect SkillTests selection.");
-            Assert.True(!excel || plan.SourceChecks, $"{path}: source guards missing.");
+            Assert.True(!excel || plan.Build, $"{path}: compiler checks missing.");
         }
     }
 
@@ -114,21 +118,16 @@ public sealed class PreCommitScriptTests
     {
         var result = await RunHookAsync("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", unstaged: "docs/guide.md");
         Assert.True(result.ExitCode == 0, result.Output);
-        Assert.Contains("excel-feature-tests-ran", result.Output, StringComparison.Ordinal);
+        Assert.Contains("excel-free-tests-ran", result.Output, StringComparison.Ordinal);
+        Assert.Contains("-Group Commit", result.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("excel-feature-tests-ran", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("e2e-ran", result.Output, StringComparison.Ordinal);
     }
 
-    [Theory]
-    [InlineData("check-com-leaks")]
-    [InlineData("check-success-flag")]
-    [InlineData("check-dynamic-casts")]
-    [InlineData("check-workbook-package-access")]
-    [InlineData("Invoke-ExcelFreeTests")]
-    [InlineData("Invoke-ExcelTests")]
-    [InlineData("Test-E2E")]
-    public async Task SelectedCheckFailure_IsNeverSwallowed(string failure)
+    [Fact]
+    public async Task SelectedCheckFailure_IsNeverSwallowed()
     {
-        var result = await RunHookAsync(failure == "Test-E2E" ? "Directory.Build.props" : "src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", failure: failure);
+        var result = await RunHookAsync("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", failure: "Invoke-ExcelFreeTests");
         Assert.NotEqual(0, result.ExitCode);
         Assert.Contains("check-root-cause", result.Output, StringComparison.Ordinal);
         Assert.DoesNotContain("All selected pre-commit checks passed", result.Output, StringComparison.Ordinal);
@@ -189,10 +188,6 @@ public sealed class PreCommitScriptTests
                 """);
             foreach (var (name, message) in new[]
             {
-                ("check-com-leaks", "com-check-ran"),
-                ("check-success-flag", "success-check-ran"),
-                ("check-dynamic-casts", "casts-check-ran"),
-                ("check-workbook-package-access", "package-access-check-ran"),
                 ("Stop-ExcelCliService", "cleanup-ran"),
                 ("Invoke-ExcelFreeTests", "excel-free-tests-ran"),
                 ("Invoke-ExcelTests", "excel-feature-tests-ran"),
@@ -200,7 +195,7 @@ public sealed class PreCommitScriptTests
             })
             {
                 await File.WriteAllTextAsync(Path.Combine(scripts, $"{name}.ps1"),
-                    failure == "throw" && name == "check-com-leaks"
+                    failure == "throw" && name == "Invoke-ExcelFreeTests"
                         ? "throw 'check-root-cause'"
                         : name == failure
                         ? "Write-Host 'check-root-cause'; exit 19"
@@ -255,28 +250,14 @@ public sealed class PreCommitScriptTests
 
     private static async Task<(int ExitCode, string Output)> RunScriptAsync(string sandbox, string runner)
     {
-        var info = new ProcessStartInfo("pwsh")
-        {
-            WorkingDirectory = sandbox,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-        };
-        info.Environment["EXCELMCP_BUILD_ROOT"] = RepoRoot;
-        info.Environment["EXCELMCP_BUILD_DLL"] = typeof(Sbroenne.ExcelMcp.Build.ValidationPolicy).Assembly.Location;
-        foreach (var argument in new[] { "-NoLogo", "-NoProfile", "-File", runner }) { info.ArgumentList.Add(argument); }
-        using var process = Process.Start(info)!;
-        var stdout = process.StandardOutput.ReadToEndAsync();
-        var stderr = process.StandardError.ReadToEndAsync();
-        using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        try { await process.WaitForExitAsync(deadline.Token); }
-        catch (OperationCanceledException)
-        {
-            process.Kill(entireProcessTree: true);
-            await process.WaitForExitAsync();
-            throw new TimeoutException("Pre-commit regression exceeded 30 seconds.");
-        }
-        return (process.ExitCode, await stdout + await stderr);
+        var result = await new Sbroenne.ExcelMcp.Build.ProcessRunner(sandbox).RunAsync(
+            "pwsh", ["-NoLogo", "-NoProfile", "-File", runner], TimeSpan.FromSeconds(30),
+            new Dictionary<string, string>
+            {
+                ["EXCELMCP_BUILD_ROOT"] = RepoRoot,
+                ["EXCELMCP_BUILD_DLL"] = typeof(Sbroenne.ExcelMcp.Build.ValidationPolicy).Assembly.Location
+            });
+        return (result.ExitCode, result.Output + result.Error);
     }
 
     private static string FindRepoRoot()

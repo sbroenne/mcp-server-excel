@@ -32,6 +32,7 @@ public partial class TableCommands
             dynamic? cells = null;
             int originalCalculation = -1;
             bool calculationChanged = false;
+            Exception? operationFailure = null;
 
             try
             {
@@ -116,15 +117,8 @@ public partial class TableCommands
                 // Restore calculation before Resize (table operations may need recalculation)
                 if (calculationChanged && originalCalculation != -1)
                 {
-                    try
-                    {
-                        ctx.App.Calculation = (Excel.XlCalculation)originalCalculation;
-                        calculationChanged = false;
-                    }
-                    catch (System.Runtime.InteropServices.COMException)
-                    {
-                        // Ignore errors restoring calculation mode
-                    }
+                    ctx.App.Calculation = (Excel.XlCalculation)originalCalculation;
+                    calculationChanged = false;
                 }
 
                 // Resize table to include new rows
@@ -158,26 +152,31 @@ public partial class TableCommands
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
+            catch (Exception ex)
+            {
+                operationFailure = ex;
+                throw;
+            }
             finally
             {
-                if (calculationChanged && originalCalculation != -1)
+                try
                 {
-                    try
+                    if (calculationChanged && originalCalculation != -1)
                     {
-                        ctx.App.Calculation = (Excel.XlCalculation)originalCalculation;
-                    }
-                    catch (System.Runtime.InteropServices.COMException)
-                    {
-                        // Ignore errors restoring calculation mode
+                        OperationCleanup.Run(() => ctx.App.Calculation = (Excel.XlCalculation)originalCalculation,
+                            operationFailure);
                     }
                 }
-                ComUtilities.Release(ref cells);
-                ComUtilities.Release(ref tableRange);
-                ComUtilities.Release(ref listColumns);
-                ComUtilities.Release(ref dataRows);
-                ComUtilities.Release(ref dataBodyRange);
-                ComUtilities.Release(ref sheet);
-                ComUtilities.Release(ref table);
+                finally
+                {
+                    ComUtilities.Release(ref cells);
+                    ComUtilities.Release(ref tableRange);
+                    ComUtilities.Release(ref listColumns);
+                    ComUtilities.Release(ref dataRows);
+                    ComUtilities.Release(ref dataBodyRange);
+                    ComUtilities.Release(ref sheet);
+                    ComUtilities.Release(ref table);
+                }
             }
         });
     }
@@ -295,7 +294,7 @@ public partial class TableCommands
 
     private static bool IsListRowVisible(dynamic? listRows, int listRowCount, int index)
     {
-        if (listRows == null || index > listRowCount)
+        if (listRows is null || index > listRowCount)
         {
             return true;
         }

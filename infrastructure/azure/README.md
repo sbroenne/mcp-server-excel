@@ -16,7 +16,7 @@ telemetry testing uses in-memory tests and an optional local dashboard; see
 | `configure-analytics-oidc.ps1` | Read-only GitHub Actions workload identity setup |
 | `excel-runner.bicep` | Dedicated Windows Excel development VM, network, password vault and shutdown protection |
 | `install-excel-office.ps1` | SYSTEM worker for current 64-bit Excel 2024 Retail installation |
-| `install-excel-toolchain.ps1` | SYSTEM worker for the repository SDK, Git, PowerShell 7, Node.js 24 LTS and Python 3.13/pip |
+| `install-excel-toolchain.ps1` | SYSTEM worker for the repository SDK, Git, Node.js 24 LTS and Python 3.13/pip; verifies preinstalled PowerShell 7.4+ |
 | `setup-excel-desktop.ps1` | Dedicated non-admin desktop account, secure automatic logon and profile initialization |
 | `excel-desktop-access.bicep` | Free Developer Bastion for temporary private activation access |
 | `update-excel-runner.ps1` | Bounded Windows Update and separate Click-to-Run Excel servicing |
@@ -155,10 +155,25 @@ It does not install or activate Excel. Activation remains a user sign-in step.
 
 ### Development toolchain
 
+All repository controllers, guest workers, and scheduled tasks require
+PowerShell 7.4 or later. Before configuring a new VM, preinstall it for all
+users at `C:\Program Files\PowerShell\7\pwsh.exe`, or use an image that already
+contains it. The toolchain worker cannot install the shell it needs to start.
+Existing VMs with an older PowerShell 7 installation need an explicitly
+approved upgrade while idle.
+
+Azure's vendor-owned `RunPowerShellScript` transport still uses Windows
+PowerShell. Its only repository launch step starts the protected `pwsh.exe`
+with a small encoded loader and passes the encoded payload through standard
+input, avoiding Windows command-line size limits for embedded uploads. All
+guest configuration runs in PowerShell 7.4+.
+Missing or old PowerShell, a nonzero guest exit, or a missing completion marker
+fails the controller instead of reporting successful provisioning.
+
 Run `scripts\Install-ExcelAgentToolchain.ps1` after desktop preparation, with the
 VM deallocated. It follows the upstream prerequisite installer and SYSTEM worker
 pattern and the SDK version and roll-forward policy in `global.json`. It installs
-Git for Windows, PowerShell 7, Node.js 24 LTS and signed 64-bit Python 3.13 with pip,
+Git for Windows, Node.js 24 LTS and signed 64-bit Python 3.13 with pip,
 and verifies their actual executables and versions.
 Downloads require a valid signature from the expected publisher. Installer
 processes have bounded deadlines and retain their real exit codes. The worker
@@ -320,7 +335,7 @@ machine PATH. Python and pip are installed administratively before registration;
 the limited coding account must not run `actions/setup-python`'s first-time
 all-users installation. Hosted setup retains that action.
 Readiness verifies Python's version, architecture, pip and protected PATH.
-The native architecture probe works in both PowerShell versions. PATH checks
+The native architecture probe runs in the required PowerShell 7 host. PATH checks
 require the protected application first; a later Windows Python alias is not
 an override.
 Repository, extension and shared npm setup use
@@ -332,7 +347,7 @@ Hosted setup retains the npm selected by `actions/setup-node`. A missing
 protected command or failed installation stops setup explicitly.
 Each helper step explicitly selects `shell: pwsh`: the cloud agent does not
 inherit job-level shell defaults and otherwise runs these commands in Bash,
-which cannot execute their Windows PowerShell paths.
+which cannot execute their PowerShell commands and Windows paths.
 Complete development-tool provisioning before registration; the regular
 Windows/Excel maintenance worker does not install or update these tools.
 GitHub's generated

@@ -48,7 +48,7 @@ missing, extra, or duplicated cases fail the run.
 Windows/Azure runner setup and administration scripts are not part of the
 automated test suite. Product checks remain, including COM-reference safety,
 owned pre-build cleanup, test-result reporting, and real Excel acceptance.
-The retained PowerShell script tests run with PowerShell 7.
+The retained PowerShell script tests run with PowerShell 7.4 or later (`pwsh`).
 
 Use `-ListTests` with `scripts\Invoke-ExcelTests.ps1` or `--list-tests` with
 `build.ps1 test --plan <path> --no-build` to discover without executing tests.
@@ -252,7 +252,7 @@ delivery; retain these fault-check results with the run evidence.
 Before PR delivery, include affected existing callers as well as new feature
 tests. Use the shared changed-area plan rather than requiring every Excel-free
 project or complete acceptance after a feature-local edit. PR CI validates the
-affected packages, site, and launchers through their owning checks. Complete normal
+complete packages, site, and launchers through their owning checks. Complete normal
 runs remain explicit commands: `scripts\Invoke-ExcelFreeTests.ps1` (without
 `-Local`) includes packaged-plugin validation and complements, rather than
 replaces, focused native tests and normal hooked runtime E2E. Run
@@ -306,26 +306,25 @@ xUnit; it is not another supported product entry point. Pull requests compare
 their head with the base branch's merge base. The hook uses staged inputs and
 retains merge-parent and unstaged-input safeguards.
 
-Changes limited to literal `PackageVersion` additions, removals, or version
-updates in root `Directory.Packages.props` select package consumers from both
-comparison snapshots and their project dependants. Project files, ancestor
-`Directory.Build.props`/`Directory.Build.targets`, and literal imports supply
-references. CLI/MCP-only packages select those owners' existing checks and
-dependent packages, not complete Excel acceptance. Core/ComInterop/shared-runtime
-consumers retain full Excel coverage. Unreferenced packages need only a complete
-Release solution build. Property, import, conditional, or other non-version-only
-central-package changes retain the existing full shared-build selection.
-Other root `Directory.*`, SDK, NuGet, and solution inputs are unchanged.
-Unreadable snapshots, malformed XML, unresolved reference expressions, and
-unmapped consumers fail explicitly rather than silently selecting everything.
-Path-only local selection compares `HEAD` with the working tree; `--staged`
-uses the index and merge parent when present. The hook reuses that saved plan
-for its Excel-free checks, avoiding a second comparison against different inputs.
-CI forwards its selected base, head, and `MergeBase`/`Direct` comparison mode
-to the same package reader; `--comparison Direct` retains direct-range semantics.
-Consumer selection follows explicit `PackageReference` items, including shared
-project inputs, not restored transitive-package assets. A central pin with no
-such reference still requires the complete solution build.
+MSBuild owns .NET project evaluation, imports, dependencies, restore, compilation,
+and incremental build decisions. The wrappers call the normal SDK commands;
+they do not interpret project XML, reconstruct package consumers from Git
+snapshots, or maintain a separate up-to-date cache. Multiple selected entry
+projects use a native solution filter, whose dependencies MSBuild resolves.
+Root `Directory.*`, SDK, NuGet, and solution changes select the complete Release
+solution build and shared checks. This intentionally trades narrower checks on
+central package updates for removing a second, incomplete dependency evaluator.
+Malformed build inputs fail in MSBuild, not in a custom XML interpreter.
+Changed-path routing still selects test environments;
+it is not a substitute build system. Unknown paths fail explicitly.
+The hook reuses its saved staged-input plan for quick CLI, MCP Server, Core,
+and Service tests (`Commit`, a projection of `Fast`). ComInterop-specific
+tests remain in CI; their real-Excel cases require a Windows/Excel environment.
+It does not run process, tooling, packaging, Excel, or acceptance checks on each
+commit. CI owns supported slower checks; run local process checks when changing
+their boundary, not on every push. Selected Excel checks still require desktop
+Excel locally. CI uses its
+selected base, head, and `MergeBase`/`Direct` comparison mode for changed paths.
 When no test group owns that build, CI runs a separate build-only job.
 The required CI gate checks its exact result, without presenting an empty
 test selection as passed tests.
@@ -334,10 +333,9 @@ test selection as passed tests.
 .\build.ps1 plan --base-ref origin/main --head-ref HEAD --output artifacts\validation-plan.json
 .\build.ps1 validate --plan artifacts\validation-plan.json
 .\build.ps1 test --area PowerQuery
-.\build.ps1 check-source --rule com-leaks
 ```
 
-`validate` builds selected .NET inputs, runs applicable source/count checks,
+`validate` builds selected .NET inputs with compiler safety checks
 and runs selected .NET tests. Package preparation and website/npm checks remain
 separate CI jobs; `validate` does not publish or prepare release artifacts.
 Test-only edits select their classes and actual shared-helper consumers.
@@ -346,16 +344,15 @@ unchanged CLI/MCP matrix or npm source suite. Contract edits also select generat
 consumers. Unknown inputs fail instead of selecting everything. Every selected
 test report must contain executed passing cases; unexpected skips, cleanup
 failures, and hard-deadline expiry fail the command.
-The four source guards are implemented in `tools\ExcelMcp.Build\SourceGuards.cs`
-and tested with xUnit. `check-source --rule` accepts `com-leaks`, `success-flag`,
-`dynamic-casts`, or `workbook-package-access`; the existing `scripts\check-*.ps1`
-commands forward to those rules. Their scan boundaries and exceptions are
-preserved. These checks identify risky patterns, not complete COM lifetime or
+Compiler safety rules live in `src\ExcelMcp.Analyzers` and banned-API build inputs,
+with focused compiler regressions in `SafetyAnalyzerTests`. The old standalone
+source-pattern scanner commands have been retired. These checks identify
+supported risky patterns, not complete COM lifetime or
 success/error control-flow correctness.
 Ordinary documentation and developer instructions, including nested `AGENTS.md`
-and `CLAUDE.md`, avoid unrelated .NET tests and package jobs. Shipped documentation
+and `CLAUDE.md`, avoid unrelated .NET test selections. Shipped documentation
 is different: root, product, and npm-package READMEs, `LICENSE`, `CHANGELOG.md`, and
-`docs\AGENT-SKILLS.md` select their consuming packages and owning tooling checks,
+`docs\AGENT-SKILLS.md` select their owning tooling checks,
 not runtime tests. Authored skill and plugin template trees remain package inputs,
 including instruction files that their copy steps have not excluded. The extension
 excludes developer instructions from its VSIX. Shared inputs include affected
@@ -369,12 +366,12 @@ script-safety checks. Each Tooling project has its own filter, so a script-safet
 change cannot broaden a documentation-count or publication selection in another
 project. Runtime source changes select owning behavior and necessary boundaries,
 but do not automatically select publication tests, metadata-only MCPB/plugins,
-or standalone skill ZIPs (which are no longer published). Binary changes still select their consuming packages,
-including the extension when its bundled server changes.
-Bundled-server-only edits still compile and inspect the VSIX, but do not rerun
-the unchanged extension source suite. Extension source inputs and explicit full
-runs select that suite. Manual package preparation retains its full checks unless
-`-SkipExtensionTests` is supplied by the saved plan.
+or standalone skill ZIPs (which are no longer published).
+PR CI independently runs the normal npm launcher checks and prepares and verifies
+all package components, including the extension source suite. Package preparation
+does not inspect changed paths or evaluate project dependencies. Explicit manual
+runs may select `-Components` or opt out of extension tests with
+`-SkipExtensionTests`; CI does neither.
 Standalone tooling test-project changes select their owning project, not every
 runtime project.
 The full partitions cover the complete normal Excel-free selection without overlap.
@@ -383,15 +380,16 @@ Changes to `infrastructure\azure\configure-analytics-oidc.ps1` or
 subscription-restoration checks in `ToolingOnDemandFilters`. Both local and
 saved-plan Tooling runs include these selected `RunType=OnDemand` cases alongside
 the normal safety checks; unrelated OnDemand diagnostics remain excluded.
-Package and npm launcher checks have their own selections.
-Changes to `doc-counts.json` or `scripts\check-doc-counts.ps1` select the
-`Tooling` documentation-count regressions and source correctness checks,
-without unrelated runtime tests or packages. Source checks run once in `Fast`
-when selected, otherwise in `Tooling` for these count inputs. Preparatory CI
-builds restore and build only selected test projects and their dependencies.
-Only shared build inputs and selected count derivation require the full Release
-solution, as required by `check-doc-counts.ps1 -SkipBuild`. Ordinary source guards
-do not force a full build. All preparatory builds disable
+Package and npm launcher jobs run without changed-path selection.
+EXL030 validates count inputs during MCP compilation using the compiled Core
+manifest; there is no standalone count scanner or updater. Use the diagnostic's
+exact expected values to update affected source counts, review the changes,
+then rebuild. Retain `McpToolSurfaceTests` for compiled read-tool identities and
+help-banner behavior, and `SkillPreparationTests` for exact prepared-skill
+identities; these are stronger runtime contracts, not source regex checks.
+Preparatory CI builds follow the saved plan for selected projects and dependencies.
+When a full Release solution build is required, the first selected group owns it.
+All preparatory builds disable
 build servers so rebuild regressions do not inherit assembly locks. Package
 commands build their own required binaries without a preceding solution build;
 metadata-only packages avoid product runtime builds, but still require the
@@ -517,9 +515,10 @@ still require review. Collection settings serialize only one testhost;
 orchestration must keep separate Excel testhosts from overlapping.
 Keep pure logic tests fast while preserving separate real lifecycle checks.
 
-The classification architecture test reflects over the built test assembly. It
-fails when a discovered test is missing `RequiresExcel=true/false`, has both
-values, or an Excel test is outside an exclusive collection.
+The [compiler classification analyzer](../src/ExcelMcp.Analyzers/TestClassificationAnalyzer.cs)
+owns the supported trait, collection, fixture, and system-test ownership checks.
+The remaining built-assembly inventory and feature-group tests validate runtime
+selection semantics; compilation does not replace those checks or execute tests.
 
 ### Fair speed comparisons
 
@@ -1091,9 +1090,8 @@ Assert resulting workbook state and relevant returned fields rather than only
 and that new content is exact. Error assertions should distinguish the intended
 failure from other exceptions instead of accepting incompatible outcomes.
 
-Use a unique workbook with the established feature fixture. Combining
-`IClassFixture<T>` and a collection fixture on the same class can create competing
-Excel sessions. Follow neighboring trait conventions and the COM cleanup rules
+Use a unique workbook with the established feature fixture.
+Follow neighboring trait conventions and the COM cleanup rules
 for any references acquired by the test itself.
 
 Reviewed ordinary workbook behavior uses a class-scoped Service fixture: one

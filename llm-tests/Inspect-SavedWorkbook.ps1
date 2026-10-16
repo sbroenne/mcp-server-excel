@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 param(
     [Parameter(Mandatory)][string]$Path,
     [string]$SourceRange = 'A1:E9',

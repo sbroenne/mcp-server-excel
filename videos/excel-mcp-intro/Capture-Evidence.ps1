@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Captures demo-only Excel evidence without changing the supplied workbook.

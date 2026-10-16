@@ -53,7 +53,7 @@ telemetry. `ExcelMcpService` is not a standalone process. See
 
 ## Sources of truth
 
-- `AGENTS.md`, nested `AGENTS.md` files, and `docs/agents/rules/` define shared coding, testing, COM safety, and release rules. The root [Code Review Rules](AGENTS.md#code-review-rules) section covers review tasks.
+- Root and nested `AGENTS.md` files define contributor rules beside their owners. The root task map requires cross-area guides explicitly; clients do not all discover descendant files automatically. The root [Code Review Rules](AGENTS.md#code-review-rules) section covers review tasks; [runtime boundaries](src/AGENTS.md), [COM safety](src/ExcelMcp.ComInterop/AGENTS.md), and [MCP boundaries](src/ExcelMcp.McpServer/AGENTS.md) cover implementation.
 - [Architecture decisions](docs/DECISIONS.md) explain the reasons and tradeoffs behind current choices, without duplicating those instructions.
 - `docs/ARCHITECTURE.md` explains the public architecture.
 - Annotated Core interfaces and their implementations define operation contracts and behavior.

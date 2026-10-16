@@ -1,5 +1,6 @@
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Globalization;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -37,9 +38,8 @@ public class ScreenshotCommands : IScreenshotCommands
             dynamic? range = null;
             try
             {
-                sheet = string.IsNullOrWhiteSpace(sheetName)
-                    ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                sheet = Utilities.WorksheetLookup.Get(ctx.Book,
+                    string.IsNullOrWhiteSpace(sheetName) ? null : sheetName);
 
                 range = sheet.Range[rangeAddress];
                 string actualSheet = sheet.Name?.ToString() ?? "Sheet1";
@@ -69,9 +69,8 @@ public class ScreenshotCommands : IScreenshotCommands
             dynamic? captureRange = null;
             try
             {
-                sheet = string.IsNullOrWhiteSpace(sheetName)
-                    ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                sheet = Utilities.WorksheetLookup.Get(ctx.Book,
+                    string.IsNullOrWhiteSpace(sheetName) ? null : sheetName);
 
                 usedRange = sheet.UsedRange;
                 string actualSheet = sheet.Name?.ToString() ?? "Sheet1";
@@ -198,6 +197,8 @@ public class ScreenshotCommands : IScreenshotCommands
         return DpiAwareness.Execute<ScreenshotResult>(() => CaptureRangeImage(app, sheet, range, sheetName, rangeAddress, quality));
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Retains a capture failure until every view restoration has run, then rethrows it or all restoration failures; no failed capture is returned as success.")]
     private static ScreenshotResult CaptureRangeImage(dynamic app, dynamic sheet, dynamic range, string sheetName, string rangeAddress, ScreenshotQuality quality)
     {
         dynamic? window = null;
@@ -213,6 +214,9 @@ public class ScreenshotCommands : IScreenshotCommands
         int originalScrollRow = 1;
         int originalScrollColumn = 1;
         bool scrollChanged = false;
+        Exception? captureFailure = null;
+        var restoreFailures = new List<Exception>();
+        ScreenshotResult? result = null;
 
         try
         {
@@ -283,7 +287,7 @@ public class ScreenshotCommands : IScreenshotCommands
                 message += ". The range was too large to capture in full and was truncated to its top-left portion - capture a smaller range for complete output";
             }
 
-            return new ScreenshotResult
+            result = new ScreenshotResult
             {
                 Success = true,
                 ImageBase64 = Convert.ToBase64String(encoded.Data),
@@ -295,48 +299,72 @@ public class ScreenshotCommands : IScreenshotCommands
                 Message = message
             };
         }
+        catch (Exception exception)
+        {
+            captureFailure = exception;
+        }
         finally
         {
+            [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+                Justification = "Collects every view-restoration failure so later restoration still runs; all collected failures are thrown below, together with any capture failure.")]
+            void Restore(Action action)
+            {
+                try { action(); }
+                catch (Exception exception) { restoreFailures.Add(exception); }
+            }
+
             if (window != null)
             {
                 // Zoom first: Excel scrolls to keep the selection visible when zoom changes, so
                 // restoring the scroll position afterwards is what actually sticks.
                 if (zoomChanged)
                 {
-                    try { window.Zoom = originalZoom; } catch (COMException) { }
+                    Restore(() => window.Zoom = originalZoom);
                 }
 
                 if (scrollChanged)
                 {
-                    try { window.ScrollRow = originalScrollRow; } catch (COMException) { }
-                    try { window.ScrollColumn = originalScrollColumn; } catch (COMException) { }
+                    Restore(() => window.ScrollRow = originalScrollRow);
+                    Restore(() => window.ScrollColumn = originalScrollColumn);
                 }
             }
 
             if (previousSheet != null)
             {
-                try { previousSheet.Activate(); } catch (COMException) { }
+                Restore(() => previousSheet.Activate());
             }
 
             if (windowStateChanged)
             {
-                try { app.WindowState = originalWindowState; } catch (COMException) { }
+                Restore(() => app.WindowState = originalWindowState);
             }
 
             if (screenUpdatingChanged)
             {
-                try { app.ScreenUpdating = false; } catch (COMException) { }
+                Restore(() => app.ScreenUpdating = false);
             }
 
             if (visibilityChanged)
             {
-                try { app.Visible = false; } catch (COMException) { }
+                Restore(() => app.Visible = false);
             }
 
             composed?.Dispose();
             ComUtilities.Release(ref previousSheet);
             ComUtilities.Release(ref window);
         }
+        if (restoreFailures.Count > 0)
+        {
+            if (captureFailure is not null)
+                restoreFailures.Insert(0, captureFailure);
+            var failure = new AggregateException("Screenshot view restoration failed.", restoreFailures);
+            if (captureFailure is OperationCanceledException canceled)
+                throw new OperationCanceledException(failure.Message, failure, canceled.CancellationToken);
+            throw failure;
+        }
+        if (captureFailure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(captureFailure).Throw();
+        return result ?? throw new InvalidOperationException("Screenshot capture produced no image.");
     }
 
     /// <summary>
@@ -402,8 +430,8 @@ public class ScreenshotCommands : IScreenshotCommands
 
                         // Excel clamps scrolling near the sheet edges, so measure how far the tile
                         // actually sits from the pane corner rather than assuming it landed there.
-                        int offsetX = (int)Math.Round((Convert.ToDouble(tileRange.Left) - GetColumnLeft(sheet, Convert.ToInt32(window.ScrollColumn))) * pixelsPerPoint);
-                        int offsetY = (int)Math.Round((Convert.ToDouble(tileRange.Top) - GetRowTop(sheet, Convert.ToInt32(window.ScrollRow))) * pixelsPerPoint);
+                        int offsetX = (int)Math.Round((Convert.ToDouble((object)tileRange.Left, CultureInfo.InvariantCulture) - GetColumnLeft((object)sheet, Convert.ToInt32((object)window.ScrollColumn, CultureInfo.InvariantCulture))) * pixelsPerPoint);
+                        int offsetY = (int)Math.Round((Convert.ToDouble((object)tileRange.Top, CultureInfo.InvariantCulture) - GetRowTop((object)sheet, Convert.ToInt32((object)window.ScrollRow, CultureInfo.InvariantCulture))) * pixelsPerPoint);
 
                         int originX = (int)Math.Round(paneOrigin.X) + offsetX;
                         int originY = (int)Math.Round(paneOrigin.Y) + offsetY;
@@ -461,15 +489,8 @@ public class ScreenshotCommands : IScreenshotCommands
     /// </summary>
     private static PaneOrigin MeasurePaneOrigin(dynamic window)
     {
-        try
-        {
-            window.ScrollRow = 1;
-            window.ScrollColumn = 1;
-        }
-        catch (COMException)
-        {
-            // Fall through: the values below still describe wherever Excel actually is.
-        }
+        window.ScrollRow = 1;
+        window.ScrollColumn = 1;
 
         Thread.Sleep(ViewSettleMs);
 
@@ -602,15 +623,8 @@ public class ScreenshotCommands : IScreenshotCommands
     /// </summary>
     private static void ScrollIntoView(dynamic window, dynamic tileRange)
     {
-        try
-        {
-            window.ScrollRow = Convert.ToInt32(tileRange.Row);
-            window.ScrollColumn = Convert.ToInt32(tileRange.Column);
-        }
-        catch (COMException)
-        {
-            // Excel clamps scrolling near the sheet edges; the crop follows the actual position.
-        }
+        window.ScrollRow = Convert.ToInt32(tileRange.Row);
+        window.ScrollColumn = Convert.ToInt32(tileRange.Column);
 
         Thread.Sleep(ViewSettleMs);
     }
@@ -645,14 +659,7 @@ public class ScreenshotCommands : IScreenshotCommands
 
     private static dynamic? GetActiveSheet(dynamic app)
     {
-        try
-        {
-            return app.ActiveSheet;
-        }
-        catch (COMException)
-        {
-            return null;
-        }
+        return app.ActiveSheet;
     }
 
     private static IntPtr GetExcelWindowHandle(dynamic app)
@@ -671,20 +678,13 @@ public class ScreenshotCommands : IScreenshotCommands
 
     private static void BringExcelToForeground(dynamic app)
     {
-        try
+        IntPtr hwnd = new(Convert.ToInt64(app.Hwnd));
+        if (hwnd != IntPtr.Zero)
         {
-            IntPtr hwnd = new(Convert.ToInt64(app.Hwnd));
-            if (hwnd != IntPtr.Zero)
-            {
-                ShowWindow(hwnd, SwRestore);
-                SetForegroundWindow(hwnd);
-                Thread.Sleep(ViewSettleMs);
-            }
+            ShowWindow(hwnd, SwRestore);
+            SetForegroundWindow(hwnd);
+            Thread.Sleep(ViewSettleMs);
         }
-        catch (COMException) { }
-        catch (InvalidCastException) { }
-        catch (FormatException) { }
-        catch (OverflowException) { }
     }
 
     [DllImport("user32.dll")]

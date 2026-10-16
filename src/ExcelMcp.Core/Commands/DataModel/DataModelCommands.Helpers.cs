@@ -38,7 +38,11 @@ public partial class DataModelCommands
             // PIA gap: ModelTableColumn.IsCalculatedColumn does not compile against Excel PIA 16.0.18925.20022.
             isCalculated = ((dynamic)typedColumn).IsCalculatedColumn ?? false;
         }
-        catch (Exception ex) when (ex is RuntimeBinderException or COMException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
+        {
+            isCalculated = false;
+        }
+        catch (RuntimeBinderException)
         {
             isCalculated = false;
         }
@@ -87,7 +91,7 @@ public partial class DataModelCommands
         {
             return adoConnection.ConnectionString?.ToString();
         }
-        catch (Exception ex) when (ex is COMException or RuntimeBinderException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             return null;
         }
@@ -111,6 +115,7 @@ public partial class DataModelCommands
         dynamic? fields = null;
         dynamic? nameField = null;
         dynamic? expressionField = null;
+        Exception? operationFailure = null;
         try
         {
             dataModelConn = model.DataModelConnection;
@@ -145,35 +150,48 @@ public partial class DataModelCommands
 
             return formulas;
         }
-        catch (Exception ex) when (ex is COMException or RuntimeBinderException or InvalidCastException or FormatException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             return null;
         }
+        catch (Exception exception)
+        {
+            operationFailure = exception;
+            throw;
+        }
         finally
         {
-            if (recordset != null)
+            try
             {
-                try
-                {
-                    // 1 = adStateOpen
-                    if (Convert.ToInt32(recordset.State, CultureInfo.InvariantCulture) == 1)
-                    {
-                        recordset.Close();
-                    }
-                }
-                catch (Exception ex) when (ex is COMException or RuntimeBinderException)
-                {
-                    // Closing a finished recordset is best effort.
-                }
+                CloseRecordset(recordset, operationFailure);
             }
+            finally
+            {
+                ComUtilities.Release(ref expressionField);
+                ComUtilities.Release(ref nameField);
+                ComUtilities.Release(ref fields);
+                ComUtilities.Release(ref recordset);
+                ComUtilities.Release(ref adoConnection);
+                ComUtilities.Release(ref modelConn);
+                ComUtilities.Release(ref dataModelConn);
+            }
+        }
+    }
 
-            ComUtilities.Release(ref expressionField);
-            ComUtilities.Release(ref nameField);
-            ComUtilities.Release(ref fields);
-            ComUtilities.Release(ref recordset);
-            ComUtilities.Release(ref adoConnection);
-            ComUtilities.Release(ref modelConn);
-            ComUtilities.Release(ref dataModelConn);
+    private static void CloseRecordset(dynamic? recordset, Exception? operationFailure)
+    {
+        try
+        {
+            if (recordset is not null &&
+                Convert.ToInt32((object)recordset.State, CultureInfo.InvariantCulture) == 1)
+            {
+                recordset.Close();
+            }
+        }
+        catch (Exception cleanupFailure) when (operationFailure is not null)
+        {
+            throw new AggregateException("Data Model operation and closing its recordset both failed.",
+                operationFailure, cleanupFailure);
         }
     }
 

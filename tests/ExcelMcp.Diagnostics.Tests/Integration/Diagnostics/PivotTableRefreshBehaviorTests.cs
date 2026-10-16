@@ -49,7 +49,9 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
 
         // Create Excel instance directly (no abstraction)
         var excelType = Type.GetTypeFromProgID("Excel.Application");
-        _excel = Activator.CreateInstance(excelType!);
+        Assert.NotNull(excelType);
+        _excel = Activator.CreateInstance(excelType);
+        Assert.NotNull((object?)_excel);
         _excel.Visible = false;
         _excel.DisplayAlerts = false;
 
@@ -60,6 +62,7 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
 
     private void SetupTestData()
     {
+        Assert.NotNull((object?)_workbook);
         dynamic sheet = _workbook.Worksheets[1];
         sheet.Name = "Data";
 
@@ -92,6 +95,7 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
 
     private dynamic CreatePivotTable(string name)
     {
+        Assert.NotNull((object?)_workbook);
         dynamic dataSheet = _workbook.Worksheets["Data"];
         dynamic sourceRange = dataSheet.Range["A1:D5"];
 
@@ -109,6 +113,7 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
     [Fact]
     public void AddRowField_WithoutRefresh_VerifyOrientationTakesEffect()
     {
+        Assert.NotNull((object?)_workbook);
         // Arrange
         var pivot = CreatePivotTable("TestPivot1");
         dynamic field = pivot.PivotFields("Region");
@@ -135,6 +140,7 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
     [Fact]
     public void AddRowField_WithRefresh_VerifyOrientationTakesEffect()
     {
+        Assert.NotNull((object?)_workbook);
         // Arrange
         var pivot = CreatePivotTable("TestPivot2");
         dynamic field = pivot.PivotFields("Region");
@@ -160,6 +166,7 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
     [Fact]
     public void AddValueField_WithoutRefresh_VerifyDataAppears()
     {
+        Assert.NotNull((object?)_workbook);
         // Arrange
         var pivot = CreatePivotTable("TestPivot3");
         dynamic rowField = pivot.PivotFields("Region");
@@ -240,6 +247,7 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
     [Fact]
     public void ChangeFunction_WithoutRefresh_VerifyFunctionChanged()
     {
+        Assert.NotNull((object?)_workbook);
         // Arrange
         var pivot = CreatePivotTable("TestPivot6");
         dynamic rowField = pivot.PivotFields("Region");
@@ -307,6 +315,8 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
     [Fact]
     public void Persistence_WithoutRefresh_VerifySaveAndReopen()
     {
+        Assert.NotNull((object?)_excel);
+        Assert.NotNull((object?)_workbook);
         // Arrange
         var pivot = CreatePivotTable("TestPivot8");
 
@@ -349,6 +359,8 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
     [Fact]
     public void Persistence_WithRefresh_VerifySaveAndReopen()
     {
+        Assert.NotNull((object?)_excel);
+        Assert.NotNull((object?)_workbook);
         // Arrange
         var pivot = CreatePivotTable("TestPivot9");
 
@@ -391,6 +403,8 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
     [Fact]
     public void FunctionChange_WithoutRefresh_VerifyPersistence()
     {
+        Assert.NotNull((object?)_excel);
+        Assert.NotNull((object?)_workbook);
         // Arrange - Create PivotTable with value field using SUM
         var pivot = CreatePivotTable("TestPivot10");
         dynamic rowField = pivot.PivotFields("Region");
@@ -431,6 +445,8 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
     [Fact]
     public void Filter_WithoutRefresh_VerifyPersistence()
     {
+        Assert.NotNull((object?)_excel);
+        Assert.NotNull((object?)_workbook);
         // Arrange - Create PivotTable with row field
         var pivot = CreatePivotTable("TestPivot11");
         dynamic rowField = pivot.PivotFields("Region");
@@ -524,7 +540,6 @@ public class PivotTableRefreshBehaviorTests : IClassFixture<TempDirectoryFixture
         GC.WaitForPendingFinalizers();
     }
 }
-
 
 
 

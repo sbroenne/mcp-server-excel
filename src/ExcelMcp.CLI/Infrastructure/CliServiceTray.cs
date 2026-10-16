@@ -95,6 +95,8 @@ internal sealed class CliServiceTray : IDisposable
     /// <summary>
     /// Checks NuGet for a newer version after a 5-second delay and shows a balloon tip if available.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL001",
+        Justification = "Optional tray release notifications must not terminate the service or affect workbook operations when the network or notification UI is unavailable.")]
     private async void CheckForUpdateAsync()
     {
         try
@@ -123,6 +125,8 @@ internal sealed class CliServiceTray : IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL001",
+        Justification = "Refreshing the informational tray menu may race UI disposal and must not terminate the daemon. No workbook operation or close request is executed by this refresh.")]
     private void RefreshSessionsMenu()
     {
         if (_disposed) return;
@@ -195,6 +199,8 @@ internal sealed class CliServiceTray : IDisposable
         CloseSession(sessionId, save: result == System.Windows.Forms.DialogResult.Yes);
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Tray action boundary presents the exact failed close/save message in an Error balloon rather than terminating the UI thread or claiming the session closed.")]
     private void CloseSession(string sessionId, bool save)
     {
         try
@@ -210,6 +216,8 @@ internal sealed class CliServiceTray : IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Tray action boundary presents the original close failure in an Error balloon; the success balloon is not shown when any session close fails.")]
     private void CloseAllSessions()
     {
         try
@@ -252,6 +260,8 @@ internal sealed class CliServiceTray : IDisposable
         _notifyIcon.ShowBalloonTip(3000, title, message, icon);
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL001",
+        Justification = "Optional version metadata in the About dialog must not terminate the daemon or affect sessions; the dialog remains accurate without release-notification information.")]
     private static async void ShowAbout()
     {
         var version = GetCurrentVersion();
@@ -344,11 +354,7 @@ internal sealed class CliServiceTray : IDisposable
             AccessibleName = "GitHub repository link",
             AccessibleDescription = $"Opens {githubUrl} in browser"
         };
-        githubLink.Click += (_, _) =>
-        {
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(githubUrl) { UseShellExecute = true }); }
-            catch { /* Ignore navigation errors */ }
-        };
+        githubLink.Click += (_, _) => OpenLink(githubUrl);
 
         var docsLabel = new Label
         {
@@ -366,11 +372,7 @@ internal sealed class CliServiceTray : IDisposable
             AccessibleName = "Documentation link",
             AccessibleDescription = $"Opens {docsUrl} in browser"
         };
-        docsLink.Click += (_, _) =>
-        {
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(docsUrl) { UseShellExecute = true }); }
-            catch { /* Ignore navigation errors */ }
-        };
+        docsLink.Click += (_, _) => OpenLink(docsUrl);
 
         var tabIndex = 2;
         var buttonY = 165;
@@ -421,6 +423,21 @@ internal sealed class CliServiceTray : IDisposable
         form.ShowDialog();
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Optional About-dialog browser navigation failure is traced, not allowed to terminate the daemon or alter any workbook operation.")]
+    private static void OpenLink(string url)
+    {
+        try
+        {
+            using var process = System.Diagnostics.Process.Start(
+                new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceWarning("Could not open the requested product link: {0}", ex.Message);
+        }
+    }
+
     private static int CompareVersions(string current, string latest)
     {
         if (Version.TryParse(current, out var currentVer) && Version.TryParse(latest, out var latestVer))
@@ -435,6 +452,8 @@ internal sealed class CliServiceTray : IDisposable
         return informational?.Split('+')[0] ?? assembly.GetName().Version?.ToString() ?? "0.0.0";
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Tray exit boundary presents exact save/close failures and asks whether to continue; Busy shutdown refusal remains visible in a warning balloon rather than being treated as successful shutdown.")]
     private void ExitService()
     {
         var sessions = _sessionManager.GetActiveSessions();

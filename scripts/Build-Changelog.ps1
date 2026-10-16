@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Compiles pending .changeset/*.md fragments into CHANGELOG.md for a release.

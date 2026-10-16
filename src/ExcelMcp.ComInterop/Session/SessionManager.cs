@@ -121,6 +121,8 @@ public sealed class SessionManager : IDisposable
             .Distinct()
             .ToArray();
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Asynchronous process-tracking observers are isolated from each other; failures are traced per subscriber and do not change the already-published process identity.")]
     private static void NotifyTrackedExcelProcessesChanged()
     {
         var legacySubscribers = TrackedExcelProcessesChanged;
@@ -188,6 +190,8 @@ public sealed class SessionManager : IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "ProcessExit must continue cleanup of other exact owned process identities during runtime teardown; every failure is counted and written to stderr.")]
     private static void OnProcessExit(object? sender, EventArgs e)
     {
         // INSTRUMENTATION: Track ProcessExit handler execution
@@ -593,6 +597,8 @@ public sealed class SessionManager : IDisposable
     /// Cleans up a session whose Excel process has died.
     /// This removes all tracking data and disposes the batch (best effort).
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "The Excel process is already confirmed dead; disposal errors are logged while removing stale session tracking, not returned as successful workbook operations.")]
     private void CleanupDeadSession(string sessionId, IExcelBatch batch)
     {
         if (_teardownFailures.ContainsKey(sessionId)
@@ -1245,6 +1251,8 @@ public sealed class SessionManager : IDisposable
     /// <para>Excel COM objects must be disposed on their STA threads. Parallel disposal causes deadlocks.</para>
     /// </remarks>
     /// <exception cref="AggregateException">One or more sessions could not be saved or shut down.</exception>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "All per-session save and teardown failures are collected with their original exception and thrown as AggregateException after attempting the remaining sessions.")]
     public void Dispose()
     {
         KeyValuePair<string, IExcelBatch>[] sessions;

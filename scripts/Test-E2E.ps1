@@ -1,4 +1,5 @@
 #!/usr/bin/env pwsh
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Runs independently reported Excel-dependent acceptance stages before merge.

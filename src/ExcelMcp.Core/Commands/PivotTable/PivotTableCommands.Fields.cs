@@ -20,13 +20,10 @@ public partial class PivotTableCommands
             dynamic? pivotFields = null;
             dynamic? cubeFields = null;
 
-            pivot = FindPivotTable(ctx.Book, pivotTableName);
-
-            // Check if this is an OLAP/Data Model PivotTable
-            bool isOlap = PivotTableHelpers.TryGetCubeFields(pivot, out cubeFields);
-
             try
             {
+                pivot = FindPivotTable(ctx.Book, pivotTableName);
+                bool isOlap = PivotTableHelpers.TryGetCubeFields(pivot, out cubeFields);
                 // For OLAP PivotTables, use CubeFields instead of PivotFields
                 if (isOlap)
                 {
@@ -87,9 +84,12 @@ public partial class PivotTableCommands
                 string fieldName;
                 try
                 {
-                    fieldName = field.SourceName?.ToString() ?? field.Name?.ToString() ?? $"Field{i}";
+                    object? sourceName = field.SourceName;
+                    if (PivotTableHelpers.IsValuesPlaceholderSourceName(sourceName))
+                        continue; // The synthetic Values field exposes an error VARIANT, not a source name.
+                    fieldName = sourceName?.ToString() ?? field.Name?.ToString() ?? $"Field{i}";
                 }
-                catch (System.Runtime.InteropServices.COMException)
+                catch (System.Runtime.InteropServices.COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                 {
                     fieldName = $"Field{i}";
                 }
@@ -100,7 +100,7 @@ public partial class PivotTableCommands
                 {
                     orientation = Convert.ToInt32(field.Orientation);
                 }
-                catch (System.Runtime.InteropServices.COMException)
+                catch (System.Runtime.InteropServices.COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                 {
                     orientation = XlPivotFieldOrientation.xlHidden;
                 }
@@ -123,7 +123,7 @@ public partial class PivotTableCommands
                 {
                     fieldInfo.CustomName = field.Caption?.ToString() ?? string.Empty;
                 }
-                catch (System.Runtime.InteropServices.COMException)
+                catch (System.Runtime.InteropServices.COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                 {
                     fieldInfo.CustomName = string.Empty;
                 }
@@ -133,7 +133,7 @@ public partial class PivotTableCommands
                 {
                     fieldInfo.Position = orientation != XlPivotFieldOrientation.xlHidden ? Convert.ToInt32(field.Position) : 0;
                 }
-                catch (System.Runtime.InteropServices.COMException)
+                catch (System.Runtime.InteropServices.COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                 {
                     fieldInfo.Position = 0;
                 }
@@ -143,7 +143,7 @@ public partial class PivotTableCommands
                 {
                     fieldInfo.DataType = PivotTableHelpers.DetectFieldDataType(field);
                 }
-                catch (System.Runtime.InteropServices.COMException)
+                catch (System.Runtime.InteropServices.COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                 {
                     fieldInfo.DataType = "Unknown";
                 }
@@ -156,17 +156,13 @@ public partial class PivotTableCommands
                         int comFunction = Convert.ToInt32(field.Function);
                         fieldInfo.Function = PivotTableHelpers.GetAggregationFunctionFromCom(comFunction);
                     }
-                    catch (System.Runtime.InteropServices.COMException)
+                    catch (System.Runtime.InteropServices.COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                     {
                         fieldInfo.Function = AggregationFunction.Sum; // Default
                     }
                 }
 
                 fields.Add(fieldInfo);
-            }
-            catch (System.Runtime.InteropServices.COMException)
-            {
-                // Skip field if COM access fails - continue with other fields
             }
             finally
             {

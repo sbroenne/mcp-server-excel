@@ -40,4 +40,4 @@ whose availability depends on the installed Excel version and desktop.
 - [Excel batch](../src/ExcelMcp.ComInterop/Session/ExcelBatch.cs)
 - [Protection metadata reader](../src/ExcelMcp.ComInterop/OleCompoundFileReader.cs)
 - [Interop project](../src/ExcelMcp.ComInterop/ExcelMcp.ComInterop.csproj)
-- [COM instructions](agents/rules/excel-com-interop.md) and [PIA coverage](PIA-COVERAGE.md)
+- [COM instructions](../src/ExcelMcp.ComInterop/AGENTS.md) and [PIA coverage](PIA-COVERAGE.md)

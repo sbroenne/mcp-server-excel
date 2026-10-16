@@ -1,29 +1,19 @@
-using System.Runtime.InteropServices;
-using Microsoft.Extensions.Logging;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
 internal static class WorkbookRefreshProbe
 {
-    internal static WorkbookRefreshState Read(Excel.Application application, Excel.Workbook workbook, ILogger logger)
+    internal static WorkbookRefreshState Read(Excel.Application application, Excel.Workbook workbook)
     {
-        try
+        if (!application.Ready || application.CalculationState == Excel.XlCalculationState.xlCalculating)
         {
-            if (!application.Ready || application.CalculationState == Excel.XlCalculationState.xlCalculating)
-            {
-                return WorkbookRefreshState.Busy;
-            }
+            return WorkbookRefreshState.Busy;
+        }
 
-            return HasRefreshingConnection(workbook) || HasRefreshingQueryTable(workbook)
-                ? WorkbookRefreshState.Refreshing
-                : WorkbookRefreshState.Ready;
-        }
-        catch (Exception ex) when (ex is COMException or InvalidComObjectException or ArgumentException)
-        {
-            logger.LogWarning(ex, "Could not read Excel's refresh state; save and close remain blocked");
-            return WorkbookRefreshState.Unknown;
-        }
+        return HasRefreshingConnection(workbook) || HasRefreshingQueryTable(workbook)
+            ? WorkbookRefreshState.Refreshing
+            : WorkbookRefreshState.Ready;
     }
 
     private static bool HasRefreshingConnection(Excel.Workbook workbook)

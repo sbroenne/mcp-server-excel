@@ -551,8 +551,8 @@ public class McpToolGenerator : IIncrementalGenerator
             var snakeName = StringHelper.ToSnakeCase(ep.Name);
             var description = ep.DescriptionWithRequired;
             if (string.IsNullOrWhiteSpace(description) ||
-                description.StartsWith("(required", StringComparison.Ordinal) ||
-                description.StartsWith("(valid", StringComparison.Ordinal))
+                description?.StartsWith("(required", StringComparison.Ordinal) == true ||
+                description?.StartsWith("(valid", StringComparison.Ordinal) == true)
             {
                 var actionContext = BuildParameterActionContext(info, ep);
                 if (!string.IsNullOrWhiteSpace(actionContext))

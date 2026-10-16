@@ -115,6 +115,7 @@ public sealed partial class PersistentServiceConnectionTests
                 try
                 {
                     worksheet = ComUtilities.FindSheet(context.Book, sheet);
+                    Assert.NotNull(worksheet);
                     tables = worksheet.PivotTables();
                     table = tables.Item(pivot);
                     cubes = table.CubeFields;

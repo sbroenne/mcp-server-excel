@@ -9,6 +9,7 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Collection("Sequential")]
 [Trait("Layer", "CLI")]
 [Trait("Category", "Unit")]
+[Trait("AdapterTestKind", "System")]
 [Trait("Feature", "Telemetry")]
 [Trait("Speed", "Fast")]
 [Trait("RequiresExcel", "false")]

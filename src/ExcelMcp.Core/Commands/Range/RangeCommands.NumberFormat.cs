@@ -45,8 +45,7 @@ public partial class RangeCommands
                 object numberFormats = ((Excel.Range)range).NumberFormat;
 
                 // Get dimensions
-                int rowCount = Convert.ToInt32(range.Rows.Count);
-                int columnCount = Convert.ToInt32(range.Columns.Count);
+                (int rowCount, int columnCount) = RangeHelpers.GetDimensions((Excel.Range)range);
 
                 result.RowCount = rowCount;
                 result.ColumnCount = columnCount;
@@ -178,8 +177,7 @@ public partial class RangeCommands
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
-                int rowCount = Convert.ToInt32(range.Rows.Count);
-                int columnCount = Convert.ToInt32(range.Columns.Count);
+                (int rowCount, int columnCount) = RangeHelpers.GetDimensions((Excel.Range)range);
 
                 // Validate dimensions match
                 if (resolvedFormats.Count != rowCount)

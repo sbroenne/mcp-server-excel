@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Models;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -220,16 +219,9 @@ public partial class PowerQueryCommands : IPowerQueryCommands
                         {
                             listObject = listObjects.Item[lo];
 
-                            try
-                            {
-                                queryTable = listObject.QueryTable;
-                            }
-                            catch (COMException ex)
-                                when (ex.HResult == unchecked((int)0x800A03EC))
-                            {
-                                // A regular Excel table has no external QueryTable.
+                            if (listObject.SourceType is not (Excel.XlListObjectSourceType.xlSrcExternal or Excel.XlListObjectSourceType.xlSrcQuery))
                                 continue;
-                            }
+                            queryTable = listObject.QueryTable;
 
                             if (queryTable == null)
                             {

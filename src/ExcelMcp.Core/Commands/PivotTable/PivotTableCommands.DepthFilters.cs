@@ -356,7 +356,8 @@ public partial class PivotTableCommands
                     catch (System.Runtime.InteropServices.COMException ex) when (isOlap && CreatedObjectFailure.CanReport(ex))
                     {
                         throw new NotSupportedException(
-                            $"Excel could not read the filter type on OLAP field '{field.Name}'.", ex);
+                            $"Excel could not read the filter type on OLAP field '{field.Name}'. " +
+                            $"Native error (0x{ex.HResult:X8}): {ex.Message}", ex);
                     }
                     type = type.StartsWith("xl", StringComparison.Ordinal) ? type[2..] : type;
                     bool criterion = type.StartsWith("Caption", StringComparison.Ordinal) ||
@@ -371,7 +372,8 @@ public partial class PivotTableCommands
                     catch (System.Runtime.InteropServices.COMException ex) when (isOlap && CreatedObjectFailure.CanReport(ex))
                     {
                         throw new NotSupportedException(
-                            $"Excel could not verify the member-property identity of filter '{type}' on OLAP field '{field.Name}'.", ex);
+                            $"Excel could not verify the member-property identity of filter '{type}' on OLAP field '{field.Name}'. " +
+                            $"Native error (0x{ex.HResult:X8}): {ex.Message}", ex);
                     }
                     if (memberPropertyFilter)
                         throw new NotSupportedException("Member-property filters cannot be read as regular caption/value criteria.");
@@ -391,7 +393,8 @@ public partial class PivotTableCommands
                     catch (System.Runtime.InteropServices.COMException ex) when (isOlap && CreatedObjectFailure.CanReport(ex))
                     {
                         throw new NotSupportedException(
-                            $"Excel could not read the criteria for filter '{type}' on OLAP field '{field.Name}'.", ex);
+                            $"Excel could not read the criteria for filter '{type}' on OLAP field '{field.Name}'. " +
+                            $"Native error (0x{ex.HResult:X8}): {ex.Message}", ex);
                     }
                     result.Filters.Add(new PivotFilterInfo
                     {

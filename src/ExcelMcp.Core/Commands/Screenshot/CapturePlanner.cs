@@ -82,7 +82,7 @@ internal static class CapturePlanner
                 MeasureAxis(visible, false, workspaceWidth, zoomFactor),
                 MeasureAxis(visible, true, workspaceHeight, zoomFactor));
         }
-        catch (COMException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             // Excel exposes no visible range for some window states; the workspace size is the only
             // measurement left, so fall back to it rather than failing the capture.
@@ -189,8 +189,7 @@ internal static class CapturePlanner
     {
         double usableWidth = usable.Width;
         double usableHeight = usable.Height;
-        int rowCount = Convert.ToInt32(range.Rows.Count);
-        int columnCount = Convert.ToInt32(range.Columns.Count);
+        var (rowCount, columnCount) = Range.RangeHelpers.GetDimensions((Microsoft.Office.Interop.Excel.Range)range);
 
         List<Segment> rowSegments;
         List<Segment> columnSegments;

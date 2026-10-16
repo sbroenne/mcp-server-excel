@@ -135,6 +135,7 @@ public sealed partial class PersistentServiceConnectionTests
                 try
                 {
                     worksheet = ComUtilities.FindSheet(context.Book, sheet);
+                    Assert.NotNull(worksheet);
                     tables = worksheet.PivotTables();
                     table = tables.Item(pivot);
                     cubes = table.CubeFields;
@@ -324,6 +325,7 @@ public sealed partial class PersistentServiceConnectionTests
             try
             {
                 sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(sheet);
                 pivots = sheet.PivotTables();
                 pivot = pivots.Item(pivotName);
                 cubes = pivot.CubeFields;
@@ -362,6 +364,7 @@ public sealed partial class PersistentServiceConnectionTests
             try
             {
                 sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(sheet);
                 pivots = sheet.PivotTables();
                 pivot = pivots.Item(pivotName);
                 cubes = pivot.CubeFields;

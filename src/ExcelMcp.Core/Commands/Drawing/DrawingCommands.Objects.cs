@@ -553,7 +553,10 @@ public sealed partial class DrawingCommands
                 ComUtilities.Release(ref members);
             }
         }
-        else
+        else if (kind != DrawingObjectKind.Connector &&
+            (kind != DrawingObjectKind.FormControl ||
+                result.FormControlType is DrawingFormControlType.Button or DrawingFormControlType.CheckBox
+                    or DrawingFormControlType.GroupBox or DrawingFormControlType.Label or DrawingFormControlType.OptionButton))
         {
             ReadTextProperties(shape, result);
         }
@@ -585,7 +588,7 @@ public sealed partial class DrawingCommands
     {
         // PIA gap: Shape.AutoShapeType returns Office.Core.MsoAutoShapeType.
         dynamic lateBoundShape = (dynamic)(object)shape;
-        var value = Convert.ToInt32(lateBoundShape.AutoShapeType);
+        int value = Convert.ToInt32((object)lateBoundShape.AutoShapeType, System.Globalization.CultureInfo.InvariantCulture);
         return Enum.IsDefined(typeof(DrawingShapeType), value) ? (DrawingShapeType)value : null;
     }
 
@@ -597,7 +600,7 @@ public sealed partial class DrawingCommands
             // PIA gap: Shape.ConnectorFormat returns an Office.Core object.
             dynamic lateBoundShape = (dynamic)(object)shape;
             connectorFormat = lateBoundShape.ConnectorFormat;
-            var value = Convert.ToInt32(connectorFormat.Type);
+            int value = Convert.ToInt32((object)connectorFormat.Type, System.Globalization.CultureInfo.InvariantCulture);
             return Enum.IsDefined(typeof(DrawingConnectorType), value) ? (DrawingConnectorType)value : null;
         }
         finally
@@ -749,7 +752,7 @@ public sealed partial class DrawingCommands
                 ? null
                 : FormatColor(Convert.ToInt32(fontColor, System.Globalization.CultureInfo.InvariantCulture));
         }
-        catch (COMException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             result.Text = null;
             result.FontSize = null;
@@ -857,7 +860,7 @@ public sealed partial class DrawingCommands
             colorFormat = fill.ForeColor;
             return FormatColor(Convert.ToInt32(colorFormat.RGB));
         }
-        catch (COMException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             return null;
         }
@@ -917,7 +920,7 @@ public sealed partial class DrawingCommands
             colorFormat = line.ForeColor;
             return FormatColor(Convert.ToInt32(colorFormat.RGB));
         }
-        catch (COMException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             return null;
         }
@@ -938,7 +941,7 @@ public sealed partial class DrawingCommands
             line = lateBoundShape.Line;
             return Convert.ToDouble(line.Weight);
         }
-        catch (COMException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             return null;
         }

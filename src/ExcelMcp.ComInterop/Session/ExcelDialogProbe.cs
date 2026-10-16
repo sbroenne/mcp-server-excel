@@ -10,6 +10,8 @@ internal static class ExcelDialogProbe
     internal readonly record struct WindowSnapshot(
         nint Handle, nint Owner, int ProcessId, bool Visible, bool Enabled, string ClassName);
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Win32 readiness probe handles only process/window inspection failures, logs the original exception, and returns Unknown so save and close remain blocked rather than reporting readiness.")]
     internal static WorkbookRefreshState Read(ExcelProcessIdentity? identity, ILogger logger)
     {
         if (identity is not { } ownedProcess)

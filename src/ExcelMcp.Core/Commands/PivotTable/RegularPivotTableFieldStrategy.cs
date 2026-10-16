@@ -23,7 +23,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             pivotFields = pivot.PivotFields;
             return pivotFields != null;
         }
-        catch (System.Runtime.InteropServices.COMException)
+        catch (System.Runtime.InteropServices.COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             return false;
         }
@@ -69,11 +69,14 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 try
                 {
                     field = pivotFields.Item(i);
+                    object? sourceName = field.SourceName;
+                    if (PivotTableHelpers.IsValuesPlaceholderSourceName(sourceName))
+                        continue; // Excel's synthetic Values field has an error VARIANT, not a source column.
                     int orientation = Convert.ToInt32(field.Orientation);
 
                     var fieldInfo = new PivotFieldInfo
                     {
-                        Name = field.SourceName?.ToString() ?? field.Name?.ToString() ?? $"Field{i}",
+                        Name = sourceName?.ToString() ?? field.Name?.ToString() ?? $"Field{i}",
                         CustomName = field.Caption?.ToString() ?? "",
                         Area = (PivotFieldArea)orientation,
                         DataType = PivotTableHelpers.DetectFieldDataType(field)
@@ -87,11 +90,6 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                     }
 
                     fields.Add(fieldInfo);
-                }
-                catch (System.Runtime.InteropServices.COMException)
-                {
-                    // Individual field access failed - skip this field and continue
-                    // This can happen with calculated fields or special field types
                 }
                 finally
                 {
@@ -431,16 +429,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
             // NOTE: No RefreshTable() needed - NumberFormat is a visual-only property
 
             // Read back the format to verify it was set
-            string? appliedFormat = null;
-            try
-            {
-                appliedFormat = ((Excel.PivotField)field).NumberFormat;
-            }
-            catch (System.Runtime.InteropServices.COMException)
-            {
-                // If we can't read it back, use what we set
-                appliedFormat = numberFormat;
-            }
+            string? appliedFormat = ((Excel.PivotField)field!).NumberFormat;
 
             return new PivotFieldResult
             {
@@ -563,7 +552,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 Success = true,
                 FieldName = fieldName,
                 CustomName = field.Caption?.ToString() ?? fieldName,
-                Area = (PivotFieldArea)field.Orientation,
+                Area = (PivotFieldArea)Convert.ToInt32((object)field.Orientation, System.Globalization.CultureInfo.InvariantCulture),
                 FilePath = workbookPath
             };
         }
@@ -640,6 +629,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     /// This method groups date fields by Days, Months, Quarters, or Years. Excel automatically creates
     /// hierarchical groupings (e.g., Months + Years) for proper time-based analysis.
     /// </remarks>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002", Justification = "Grouping failure transport returns Success=false with the actual native message; cancellation and disconnection are excluded and propagate.")]
     public PivotFieldResult GroupByDate(dynamic pivot, string fieldName, DateGroupingInterval interval, string workbookPath, ILogger? logger = null)
     {
         dynamic? field = null;
@@ -708,12 +698,12 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 Success = true,
                 FieldName = fieldName,
                 CustomName = field.Caption?.ToString() ?? fieldName,
-                Area = (PivotFieldArea)field.Orientation,
+                Area = (PivotFieldArea)Convert.ToInt32((object)field.Orientation, System.Globalization.CultureInfo.InvariantCulture),
                 FilePath = workbookPath,
                 WorkflowHint = $"Field '{fieldName}' grouped by {interval}. Excel created automatic date hierarchy."
             };
         }
-        catch (Exception ex)
+        catch (Exception ex) when (CreatedObjectFailure.CanReport(ex))
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Error))
             {
@@ -734,6 +724,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     /// <inheritdoc/>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002", Justification = "Numeric grouping failure transport returns Success=false with the actual error; cancellation and disconnection are excluded and propagate.")]
     public PivotFieldResult GroupByNumeric(dynamic pivot, string fieldName, double? start, double? endValue, double intervalSize, string workbookPath, ILogger? logger = null)
     {
         dynamic? field = null;
@@ -780,12 +771,12 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                 Success = true,
                 FieldName = fieldName,
                 CustomName = field.Caption?.ToString() ?? fieldName,
-                Area = (PivotFieldArea)field.Orientation,
+                Area = (PivotFieldArea)Convert.ToInt32((object)field.Orientation, System.Globalization.CultureInfo.InvariantCulture),
                 FilePath = workbookPath,
                 WorkflowHint = $"Field '{fieldName}' grouped by intervals of {intervalSize}. Excel created numeric range groups."
             };
         }
-        catch (Exception ex)
+        catch (Exception ex) when (CreatedObjectFailure.CanReport(ex))
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Error))
             {
@@ -806,6 +797,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
     }
 
     /// <inheritdoc/>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002", Justification = "Calculated-field failure transport reports Success=false, the requested field/formula and the real error; cancellation and disconnection propagate.")]
     public PivotFieldResult CreateCalculatedField(dynamic pivot, string fieldName, string formula, string workbookPath, ILogger? logger = null)
     {
         dynamic? calculatedFields = null;
@@ -842,7 +834,7 @@ public class RegularPivotTableFieldStrategy : IPivotTableFieldStrategy
                               "Add to Values area with AddValueField to see results in PivotTable."
             };
         }
-        catch (Exception ex)
+        catch (Exception ex) when (CreatedObjectFailure.CanReport(ex))
         {
             if (logger is not null && logger.IsEnabled(LogLevel.Error))
             {

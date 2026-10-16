@@ -68,6 +68,8 @@ public static class ComDiagnostics
         return sb.ToString();
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL001",
+        Justification = "Registry-only diagnostic probe: unavailable registration must not replace the original COM activation failure. No workbook contents or operations are accessed.")]
     private static string? ProbeOfficeRegistration()
     {
         // Check Click-to-Run registration (most common modern Office install)
@@ -114,6 +116,8 @@ public static class ComDiagnostics
         return null;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL001",
+        Justification = "Registry-only diagnostic enrichment must not replace the original COM activation failure. Missing registration stays absent in the diagnostic report.")]
     private static void PopulateExcelTypeLibRegistration(ComDiagnosticReport report)
     {
         try

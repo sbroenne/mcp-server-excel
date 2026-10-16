@@ -12,8 +12,6 @@ on:
       - '**/*.csproj'
       - '**/package-lock.json'
       - gh-pages/requirements.txt
-      - llm-tests/pyproject.toml
-      - llm-tests/uv.lock
   pull_request:
     paths:
       - .github/workflows/copilot-setup-steps.yml
@@ -24,8 +22,6 @@ on:
       - '**/*.csproj'
       - '**/package-lock.json'
       - gh-pages/requirements.txt
-      - llm-tests/pyproject.toml
-      - llm-tests/uv.lock
 
 jobs:
   copilot-setup-steps:
@@ -39,7 +35,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install latest released Ponytail review skill
+      - name: Install pinned Ponytail review skill
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -73,14 +69,6 @@ jobs:
       - name: Restore .NET dependencies
         run: dotnet restore Sbroenne.ExcelMcp.sln
 
-      - name: Setup uv
-        if: runner.environment != 'self-hosted'
-        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
-        with:
-          version: "0.11.16"
-          enable-cache: true
-          cache-dependency-glob: llm-tests/uv.lock
-
       - name: Install repository tooling
         shell: pwsh
         run: .\scripts\Invoke-CopilotSetupNpm.ps1
@@ -98,10 +86,6 @@ jobs:
         shell: pwsh
         run: ..\..\scripts\Invoke-CopilotSetupNpm.ps1
 
-      - name: Install LLM evaluation dependencies without running evaluations
-        if: runner.environment != 'self-hosted'
-        run: uv sync --project llm-tests --locked --python 3.13
-
       - name: Verify setup tools and Excel-free boundary
         shell: pwsh
         run: |
@@ -111,8 +95,7 @@ jobs:
           node --version
           python --version
           if ($env:RUNNER_ENVIRONMENT -ne 'self-hosted') {
-            uv --version
-            Write-Output 'Hosted setup complete. Desktop Excel is unavailable; no COM behavior was verified.'
+            Write-Output 'Hosted setup complete. Desktop Excel is unavailable; no COM behavior was verified. LLM evaluations and their dependencies remain on demand.'
           } else {
             . 'C:\ProgramData\ExcelMcp\Desktop\ExcelRunnerPolicy.ps1'
             Assert-ExcelRunnerReadiness (Get-Content 'C:\ProgramData\ExcelMcp\Desktop\ready.json' -Raw | ConvertFrom-Json) `

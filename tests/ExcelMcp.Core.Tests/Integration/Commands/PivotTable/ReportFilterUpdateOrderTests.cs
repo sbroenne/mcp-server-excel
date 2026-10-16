@@ -37,6 +37,7 @@ public sealed class ReportFilterUpdateOrderTests(TempDirectoryFixture fixture) :
             batch, "Sheet", "Pivot", "[Region]", ["[Requested]"]);
 
         Assert.True(provider.RestorationAttempted, result.ErrorMessage);
+        Assert.Equal(1, provider.CacheReadCount);
         Assert.False(result.ShowAll);
         Assert.Equal(["[Normalized]"], result.SelectedItems);
         Assert.Equal(!restorationFails, result.Success);
@@ -58,6 +59,7 @@ public sealed class ReportFilterUpdateOrderTests(TempDirectoryFixture fixture) :
         public bool RestorationFails { get; set; }
         public bool MutationFails { get; set; }
         public bool RestorationAttempted { get; set; }
+        public int CacheReadCount { get; set; }
         public bool ManualUpdate { get; set; }
         public string[] Selection { get; set; } = [];
         public Excel.CubeFields CubeFields => Create<Excel.CubeFields>(Owner);
@@ -110,6 +112,11 @@ public sealed class ReportFilterUpdateOrderTests(TempDirectoryFixture fixture) :
                 return Create<Excel.PivotTable>(Owner);
             if (ExcelType == typeof(Excel.PivotTable))
             {
+                if (name == "PivotCache")
+                {
+                    Owner.CacheReadCount++;
+                    return Create<Excel.PivotCache>(Owner);
+                }
                 if (name == "get_CubeFields") return CubeFields;
                 if (name == "get_ManualUpdate") return Owner.ManualUpdate;
                 if (name == "set_ManualUpdate")
@@ -129,6 +136,8 @@ public sealed class ReportFilterUpdateOrderTests(TempDirectoryFixture fixture) :
                     return null;
                 }
             }
+            if (ExcelType == typeof(Excel.PivotCache) && name == "get_OLAP")
+                return true;
             if (ExcelType == typeof(Excel.CubeFields))
             {
                 if (name == "get_Count") return 1;

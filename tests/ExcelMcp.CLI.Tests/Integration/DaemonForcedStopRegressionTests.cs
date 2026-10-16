@@ -798,7 +798,7 @@ public sealed class DaemonForcedStopRegressionTests
     {
         using var process = Process.Start(new ProcessStartInfo
         {
-            FileName = "powershell.exe",
+            FileName = "pwsh",
             Arguments = "-NoProfile -Command \"exit 0\"",
             UseShellExecute = false,
             CreateNoWindow = true
@@ -1004,7 +1004,7 @@ public sealed class DaemonForcedStopRegressionTests
             var originalRecord = await File.ReadAllTextAsync(trackingFile);
 
             var result = await RunProcessAsync(
-                "powershell.exe",
+                "pwsh",
                 [
                     "-NoProfile",
                     "-ExecutionPolicy",
@@ -1162,7 +1162,7 @@ public sealed class DaemonForcedStopRegressionTests
     {
         return Process.Start(new ProcessStartInfo
         {
-            FileName = "powershell.exe",
+            FileName = "pwsh",
             Arguments = "-NoProfile -Command \"[Console]::ReadLine() | Out-Null\"",
             UseShellExecute = false,
             RedirectStandardInput = true,
@@ -1174,7 +1174,7 @@ public sealed class DaemonForcedStopRegressionTests
     {
         return Process.Start(new ProcessStartInfo
         {
-            FileName = "powershell.exe",
+            FileName = "pwsh",
             Arguments = $"-NoProfile -Command \"Start-Sleep -Seconds {seconds}\"",
             UseShellExecute = false,
             CreateNoWindow = true
@@ -1185,14 +1185,14 @@ public sealed class DaemonForcedStopRegressionTests
     {
         var startInfo = new ProcessStartInfo
         {
-            FileName = "powershell.exe",
+            FileName = "pwsh",
             UseShellExecute = false,
             CreateNoWindow = true
         };
         startInfo.ArgumentList.Add("-NoProfile");
         startInfo.ArgumentList.Add("-Command");
         startInfo.ArgumentList.Add(
-            "$child = Start-Process powershell.exe " +
+            "$child = Start-Process pwsh -NoNewWindow " +
             "-ArgumentList '-NoProfile','-Command','Start-Sleep -Seconds 60' -PassThru; " +
             $"Set-Content -LiteralPath '{childPidFile.Replace("'", "''", StringComparison.Ordinal)}' -Value $child.Id; " +
             "Start-Sleep -Seconds 60");

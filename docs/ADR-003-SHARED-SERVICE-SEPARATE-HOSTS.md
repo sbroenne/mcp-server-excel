@@ -31,4 +31,4 @@ names, output envelopes, or session identifiers across hosts.
 - [Service](../src/ExcelMcp.Service/ExcelMcpService.cs)
 - [CLI daemon host](../src/ExcelMcp.Service/Rpc/DaemonHost.cs)
 - [MCP bridge](../src/ExcelMcp.McpServer/ServiceBridge/ServiceBridge.cs)
-- [System map](../CONTEXT.md) and [runtime instructions](agents/rules/architecture-patterns.md)
+- [System map](../CONTEXT.md) and [runtime instructions](../src/AGENTS.md)

@@ -18,6 +18,8 @@ internal static class PivotTableSnapshotHelpers
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Snapshot failure transport records Available=false and the real error message; disconnected sessions and cancellation are not reportable and propagate.")]
     internal static PivotSnapshotProperty<T> TryReadSnapshotProperty<T>(Func<T> read)
     {
         try

@@ -5,10 +5,11 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 public sealed partial class AutomationSafetyTests
 {
     [Theory]
-    [InlineData("success", "Installed ponytail-review release v2.0.0.", 2)]
+    [InlineData("success", "Installed ponytail-review release v5.2.0.", 2)]
     [InlineData("release-failure", "Ponytail release lookup failed", 0)]
-    [InlineData("empty-release", "The latest Ponytail release has no tag", 0)]
-    [InlineData("invalid-revision", "The latest Ponytail release has no valid commit SHA", 0)]
+    [InlineData("empty-release", "The Ponytail release does not match the pinned tag", 0)]
+    [InlineData("invalid-revision", "The Ponytail release does not match the pinned commit SHA", 0)]
+    [InlineData("moved-tag", "The Ponytail release does not match the pinned commit SHA", 0)]
     [InlineData("download-failure", "Ponytail archive download failed", 1)]
     [InlineData("missing-skill", "The Ponytail release archive has no review SKILL.md", 1)]
     [InlineData("copy-failure", "Ponytail skill copy failed", 1)]
@@ -16,7 +17,8 @@ public sealed partial class AutomationSafetyTests
     public async Task PonytailSetup_RefreshesOnlyReviewSkillAndReportsFailures(
         string scenario, string expectedOutput, int downloadCount)
     {
-        var root = NewSandbox();
+        var root = Directory.CreateDirectory(Path.Combine(
+            RepoRoot, "artifacts", "ponytail-tests", Guid.NewGuid().ToString("N"))).FullName;
         try
         {
             var skills = Path.Combine(root, "skills");
@@ -44,32 +46,25 @@ public sealed partial class AutomationSafetyTests
             }
             var archive = Path.Combine(root, "release.zip");
             System.IO.Compression.ZipFile.CreateFromDirectory(Path.GetDirectoryName(archiveSource)!, archive);
-            if (scenario != "missing-skill")
-            {
-                File.WriteAllText(Path.Combine(sourceSkill, "SKILL.md"), "released review skill v2");
-            }
-            var nextArchive = Path.Combine(root, "next-release.zip");
-            System.IO.Compression.ZipFile.CreateFromDirectory(Path.GetDirectoryName(archiveSource)!, nextArchive);
             var calls = Path.Combine(root, "calls.txt");
             var downloads = Path.Combine(root, "downloads.txt");
             var target = Quote(Path.Combine(RepoRoot, "scripts", "Install-CopilotPonytailReview.ps1"));
             var result = await RunAsync(root, $$"""
-                $global:releaseTag = 'v1.0.0'
                 $env:GH_TOKEN = 'fixture-token'
                 function gh { throw 'Ponytail setup must not require GitHub CLI.' }
                 function Invoke-RestMethod {
                     param($Uri, $Headers, $TimeoutSec)
                     Add-Content -LiteralPath '{{Quote(calls)}}' -Value $Uri
                     if ($Headers.Authorization -ne 'Bearer fixture-token') { throw 'Expected scoped GitHub authentication.' }
-                    if ($Uri.EndsWith('/releases/latest')) {
+                    if ($Uri.EndsWith('/releases/latest')) { throw 'Setup must not select an unreviewed release.' }
+                    if ($Uri.EndsWith('/releases/tags/v5.2.0')) {
                         if ('{{scenario}}' -eq 'release-failure') { throw 'Ponytail release lookup failed.' }
                         if ('{{scenario}}' -eq 'empty-release') { return @{ tag_name = $null } }
-                        return @{ tag_name = $global:releaseTag }
+                        return @{ tag_name = 'v5.2.0' }
                     }
                     if ('{{scenario}}' -eq 'invalid-revision') { return @{ sha = 'invalid' } }
-                    $sha = if ($global:releaseTag -eq 'v1.0.0') {
-                        '0123456789012345678901234567890123456789'
-                    } else { '1123456789012345678901234567890123456789' }
+                    if ('{{scenario}}' -eq 'moved-tag') { return @{ sha = '1123456789012345678901234567890123456789' } }
+                    $sha = '2961b52fc1fe6a5a87c7a959a79512e5c2f3ffe5'
                     return @{ sha = $sha }
                 }
                 function Invoke-WebRequest {
@@ -80,10 +75,7 @@ public sealed partial class AutomationSafetyTests
                         [IO.File]::WriteAllText($OutFile, 'partial archive')
                         throw 'Ponytail archive download failed.'
                     }
-                    $sourceArchive = if ($Uri.EndsWith('/1123456789012345678901234567890123456789')) {
-                        '{{Quote(nextArchive)}}'
-                    } else { '{{Quote(archive)}}' }
-                    [IO.File]::Copy($sourceArchive, $OutFile)
+                    [IO.File]::Copy('{{Quote(archive)}}', $OutFile)
                 }
                 function Copy-Item {
                     param($LiteralPath, $Destination, [switch]$Recurse)
@@ -95,7 +87,6 @@ public sealed partial class AutomationSafetyTests
                     Microsoft.PowerShell.Management\Copy-Item -LiteralPath $LiteralPath -Destination $Destination -Recurse:$Recurse
                 }
                 & '{{target}}' -SkillsDirectory '{{Quote(skills)}}'
-                $global:releaseTag = 'v2.0.0'
                 & '{{target}}' -SkillsDirectory '{{Quote(skills)}}'
                 """);
             Assert.Equal(scenario == "success", result.ExitCode == 0);
@@ -107,8 +98,7 @@ public sealed partial class AutomationSafetyTests
             Assert.All(
                 recorded.Where(call => call.Contains("/zipball/", StringComparison.Ordinal)),
                 call => Assert.True(
-                    call == "https://api.github.com/repos/DietrichGebert/ponytail/zipball/0123456789012345678901234567890123456789" ||
-                    call == "https://api.github.com/repos/DietrichGebert/ponytail/zipball/1123456789012345678901234567890123456789",
+                    call == "https://api.github.com/repos/DietrichGebert/ponytail/zipball/2961b52fc1fe6a5a87c7a959a79512e5c2f3ffe5",
                     call));
             if (File.Exists(downloads))
             {
@@ -119,15 +109,12 @@ public sealed partial class AutomationSafetyTests
             if (scenario == "success")
             {
                 Assert.Contains(
-                    "https://api.github.com/repos/DietrichGebert/ponytail/commits/v1.0.0",
+                    "https://api.github.com/repos/DietrichGebert/ponytail/commits/v5.2.0",
                     recorded);
                 Assert.Contains(
-                    "https://api.github.com/repos/DietrichGebert/ponytail/commits/v2.0.0",
+                    "https://api.github.com/repos/DietrichGebert/ponytail/zipball/2961b52fc1fe6a5a87c7a959a79512e5c2f3ffe5",
                     recorded);
-                Assert.Contains(
-                    "https://api.github.com/repos/DietrichGebert/ponytail/zipball/1123456789012345678901234567890123456789",
-                    recorded);
-                Assert.Equal("released review skill v2", File.ReadAllText(installed));
+                Assert.Equal("released review skill v1", File.ReadAllText(installed));
                 Assert.Equal("released reference", File.ReadAllText(Path.Combine(skills, "ponytail-review", "references", "guide.txt")));
                 Assert.Equal("fixture license", File.ReadAllText(Path.Combine(skills, "ponytail-review", "LICENSE")));
                 Assert.Equal(2, Directory.GetDirectories(skills).Length);
@@ -140,5 +127,33 @@ public sealed partial class AutomationSafetyTests
             Assert.Equal("keep this skill", File.ReadAllText(unrelated));
         }
         finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void CopilotSetup_LeavesEvaluationsOnDemandAndPreservesReviewIsolation()
+    {
+        var app = File.ReadAllText(Path.Combine(RepoRoot, ".github", "github-app.yml"));
+        var coding = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "copilot-setup-steps.yml"));
+        var review = File.ReadAllText(Path.Combine(RepoRoot, ".github", "workflows", "copilot-code-review.yml"));
+        foreach (var configuration in new[] { app, coding, review })
+        {
+            Assert.DoesNotContain("uv sync", configuration, StringComparison.Ordinal);
+            Assert.DoesNotContain("setup-uv", configuration, StringComparison.Ordinal);
+            Assert.DoesNotContain("llm-tests/", configuration, StringComparison.Ordinal);
+        }
+        Assert.DoesNotContain("triggers:", app, StringComparison.Ordinal);
+        Assert.Contains("runs-on: ubuntu-latest", review, StringComparison.Ordinal);
+        Assert.Contains("-p:EnableWindowsTargeting=true", review, StringComparison.Ordinal);
+        Assert.DoesNotContain("dotnet test", review, StringComparison.Ordinal);
+        Assert.Contains("EXCEL_COPILOT_ENABLED", coding, StringComparison.Ordinal);
+        Assert.Contains("Assert-ExcelRunnerReadiness", coding, StringComparison.Ordinal);
+        foreach (var workflow in new[] { coding, review })
+        {
+            Assert.Contains("contents: read", workflow, StringComparison.Ordinal);
+            Assert.Contains("persist-credentials: false", workflow, StringComparison.Ordinal);
+            Assert.Contains("GH_TOKEN: ${{ github.token }}", workflow, StringComparison.Ordinal);
+            Assert.Contains("scripts\\Install-CopilotPonytailReview.ps1", workflow, StringComparison.Ordinal);
+            Assert.DoesNotContain("continue-on-error", workflow, StringComparison.Ordinal);
+        }
     }
 }

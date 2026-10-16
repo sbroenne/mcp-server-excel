@@ -10,6 +10,54 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 public sealed class TypedOrchestrationMigrationTests
 {
     [Fact]
+    public void CiPackages_AlwaysRunTheNormalPackageChecks()
+    {
+        var workflow = File.ReadAllText(Path.Combine(TypedValidationPolicyTests.Root, ".github", "workflows", "ci.yml"));
+        var job = System.Text.RegularExpressions.Regex.Match(workflow, @"(?ms)^  packages:\r?\n.*?(?=^  \S|\z)").Value;
+        Assert.NotEmpty(job);
+        Assert.DoesNotContain("if:", job, StringComparison.Ordinal);
+        Assert.DoesNotContain("ci-plan.json", job, StringComparison.Ordinal);
+        Assert.Contains("./scripts/Build-ReleasePackages.ps1 -SkillsDirectory artifacts/generated-skills", job, StringComparison.Ordinal);
+        Assert.DoesNotContain("-Components", job, StringComparison.Ordinal);
+        Assert.DoesNotContain("SELECTED_PACKAGES", workflow, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("true", "success", true)]
+    [InlineData("false", "skipped", true)]
+    [InlineData("true", "skipped", false)]
+    [InlineData("true", "failure", false)]
+    [InlineData("true", "cancelled", false)]
+    [InlineData("false", "success", false)]
+    public void CiCompletion_RequiresTheExactBuildOnlyResult(string selected, string result, bool succeeds)
+    {
+        var error = Record.Exception(() => CiCompletion.Verify(new CiCompletionOptions
+        {
+            Detection = "success",
+            Checks = [
+                new("tests", "false", "skipped"), new("packages", "false", "skipped"),
+                new("npm", "false", "skipped"), new("build-only", selected, result)
+            ]
+        }));
+        if (succeeds) { Assert.Null(error); }
+        else { Assert.IsType<InvalidOperationException>(error); }
+    }
+
+    [Fact]
+    public void CiBuildOnlyJob_BuildsTheSavedPlanAndReportsToTheRequiredGate()
+    {
+        var workflow = File.ReadAllText(Path.Combine(TypedValidationPolicyTests.Root, ".github", "workflows", "ci.yml"));
+        var job = System.Text.RegularExpressions.Regex.Match(workflow, @"(?ms)^  build-only:\r?\n.*?(?=^  \S|\z)").Value;
+        Assert.NotEmpty(job);
+        Assert.Contains("if: needs.changes.outputs.build_only == 'true'", job, StringComparison.Ordinal);
+        Assert.Contains("./build.ps1 build --plan artifacts/ci-plan.json", job, StringComparison.Ordinal);
+        Assert.DoesNotContain("Invoke-ExcelFreeTests", job, StringComparison.Ordinal);
+        Assert.Contains("needs: [changes, tests, build-only, packages, npm]", workflow, StringComparison.Ordinal);
+        Assert.Contains("BUILD_ONLY: ${{ needs.build-only.result }}", workflow, StringComparison.Ordinal);
+        Assert.Contains("-SelectedBuildOnly $env:SELECTED_BUILD_ONLY", workflow, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task CompleteCiBuild_RestoresAndBuildsSolutionInOnlyOneSelectedGroup()
     {
         var plan = new ValidationPolicy(TypedValidationPolicyTests.Root).Select([], full: true);
@@ -18,33 +66,62 @@ public sealed class TypedOrchestrationMigrationTests
         foreach (var group in plan.CiTestGroups)
         {
             var projects = execution.BuildProjects(plan, group);
-            if (group == plan.SourceChecksGroup) { Assert.Equal(["Sbroenne.ExcelMcp.sln"], projects); }
+            if (group == plan.FullSolutionBuildGroup) { Assert.Equal(["Sbroenne.ExcelMcp.sln"], projects); }
             else { Assert.All(projects, project => Assert.EndsWith(".Tests.csproj", project, StringComparison.Ordinal)); }
             await execution.BuildAsync(plan, group);
         }
         foreach (var verb in new[] { "restore", "build" })
         {
             var commands = runner.Commands.Where(command => command[0] == verb).ToArray();
+            Assert.Equal(plan.CiTestGroups.Length, commands.Length);
             Assert.Single(commands, command => Path.GetFileName(command[1]) == "Sbroenne.ExcelMcp.sln");
             Assert.Contains(commands, command => command[1].EndsWith("ExcelMcp.CLI.Tests.csproj", StringComparison.Ordinal));
-            Assert.Contains(commands, command => command[1].EndsWith("ExcelMcp.ScriptSafety.Tests.csproj", StringComparison.Ordinal));
+            Assert.Contains(runner.SelectedProjects.Values.SelectMany(projects => projects),
+                project => project.EndsWith("ExcelMcp.ScriptSafety.Tests.csproj", StringComparison.Ordinal));
         }
+        Assert.All(runner.Commands.Where(command => command[0] == "build"), command =>
+        {
+            Assert.DoesNotContain("--no-incremental", command);
+            Assert.DoesNotContain("--disable-build-servers", command);
+        });
     }
 
     [Theory]
-    [InlineData(true, false, true, false, false, "Fast")]
-    [InlineData(false, true, true, false, false, "Process")]
-    [InlineData(false, false, true, false, false, "Tooling")]
-    [InlineData(true, false, true, false, true, "Tooling")]
-    [InlineData(true, false, true, true, false, "Fast")]
-    [InlineData(false, true, false, false, true, "Process")]
+    [InlineData("")]
+    [InlineData("restore")]
+    [InlineData("build")]
+    public async Task FocusedBuild_UsesOneSelectedGraphAndCleansItOnEveryExit(string failure)
+    {
+        var plan = new ValidationPlan();
+        plan.BuildProjects.UnionWith([
+            "src/ExcelMcp.Core/ExcelMcp.Core.csproj",
+            "tests/ExcelMcp.Core.Tests/ExcelMcp.Core.Tests.csproj",
+            "tests/ExcelMcp.Service.Tests/ExcelMcp.Service.Tests.csproj"
+        ]);
+        var runner = new BuildRunner(failure);
+        var exception = await Record.ExceptionAsync(() =>
+            new ValidationExecution(TypedValidationPolicyTests.Root, runner).BuildAsync(plan));
+        Assert.Equal(failure.Length != 0, exception != null);
+        if (exception != null) { Assert.Contains("native-root-cause", exception.Message, StringComparison.Ordinal); }
+        Assert.Equal(failure == "restore" ? 1 : 2, runner.Commands.Count);
+        var graph = Assert.Single(runner.SelectedProjects);
+        Assert.Equal(plan.BuildProjects.Select(path => path.Replace('/', Path.DirectorySeparatorChar)), graph.Value);
+        Assert.False(File.Exists(graph.Key), "Temporary solution filter must be removed after success or failure.");
+        Assert.All(runner.Commands, command => Assert.Equal(graph.Key, command[1]));
+    }
+
+    [Theory]
+    [InlineData(true, false, true, false, "Fast")]
+    [InlineData(false, true, true, false, "Process")]
+    [InlineData(false, false, true, false, "Tooling")]
+    [InlineData(true, false, true, true, "Fast")]
+    [InlineData(false, true, false, true, "Process")]
     public void CompleteGroupedBuild_HasOneDeterministicOwner(
-        bool fast, bool process, bool tooling, bool sourceChecks, bool documentationCounts, string expectedOwner)
+        bool fast, bool process, bool tooling, bool documentationCounts, string expectedOwner)
     {
         var plan = new ValidationPlan
         {
             FullSolutionBuild = true,
-            SourceChecks = sourceChecks,
             DocumentationCounts = documentationCounts
         };
         if (fast) { plan.FastFilters["Core"] = "All"; }
@@ -170,14 +247,25 @@ public sealed class TypedOrchestrationMigrationTests
         finally { if (Directory.Exists(results)) { Directory.Delete(results, true); } }
     }
 
-    private sealed class BuildRunner : IProcessRunner
+    private sealed class BuildRunner(string failure = "") : IProcessRunner
     {
         public List<string[]> Commands { get; } = [];
+        public Dictionary<string, string[]> SelectedProjects { get; } = new(StringComparer.Ordinal);
         public Task<ProcessResult> CheckedAsync(string executable, IEnumerable<string> arguments, TimeSpan deadline,
             IReadOnlyDictionary<string, string>? environment = null, bool preserveGitContext = false)
         {
             Assert.Equal("dotnet", executable);
-            Commands.Add(arguments.ToArray());
+            var command = arguments.ToArray();
+            Commands.Add(command);
+            if (Path.GetExtension(command[1]) == ".slnf")
+            {
+                using var document = JsonDocument.Parse(File.ReadAllText(command[1]));
+                var solution = document.RootElement.GetProperty("solution");
+                Assert.Equal(Path.Combine(TypedValidationPolicyTests.Root, "Sbroenne.ExcelMcp.sln"), solution.GetProperty("path").GetString());
+                SelectedProjects[command[1]] = solution.GetProperty("projects").EnumerateArray()
+                    .Select(project => project.GetString() ?? throw new InvalidOperationException("Missing selected project.")).ToArray();
+            }
+            if (command[0] == failure) { throw new InvalidOperationException("native-root-cause"); }
             return Task.FromResult(new ProcessResult(0, "", ""));
         }
         public Task<ProcessResult> RunAsync(string executable, IEnumerable<string> arguments, TimeSpan deadline,

@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Persists a validated analytics report through the GitHub Contents API.

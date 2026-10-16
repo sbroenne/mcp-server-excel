@@ -12,7 +12,11 @@ public partial class VbaCommands
     public VbaProjectStatusResult Status(IExcelBatch batch)
     {
         EnsureVbaFile(batch.WorkbookPath);
-        return batch.Execute((ctx, ct) =>
+        return batch.Execute(ReadStatus);
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+            Justification = "VBA status transports a verified Trust Center denial as ProjectAccess=false and AccessMessage; generic native failures still throw.")]
+        VbaProjectStatusResult ReadStatus(ExcelContext ctx, CancellationToken ct)
         {
             dynamic? project = null;
             try
@@ -47,7 +51,7 @@ public partial class VbaCommands
             {
                 ComUtilities.Release(ref project);
             }
-        });
+        }
     }
 
     /// <inheritdoc />

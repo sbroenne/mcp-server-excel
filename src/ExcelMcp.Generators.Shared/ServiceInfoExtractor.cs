@@ -166,10 +166,10 @@ public static class ServiceInfoExtractor
             // Normalize multi-line XML doc comments: collapse whitespace runs into single space
             return Regex.Replace(text, @"\s+", " ");
         }
-        catch (Exception)
+        catch (XmlException exception)
         {
-            // XML comment parsing is best-effort — malformed XML should not break generation
-            return null;
+            throw new InvalidOperationException(
+                $"Cannot read XML documentation for '{interfaceSymbol.ToDisplayString()}': {exception.Message}", exception);
         }
     }
 
@@ -375,10 +375,10 @@ public static class ServiceInfoExtractor
 
             return new XmlDocumentation(summary, parameters);
         }
-        catch (Exception)
+        catch (XmlException exception)
         {
-            // XML doc parsing is best-effort — malformed XML should not break generation
-            return null;
+            throw new InvalidOperationException(
+                $"Cannot read XML documentation for '{method.ToDisplayString()}': {exception.Message}", exception);
         }
     }
 

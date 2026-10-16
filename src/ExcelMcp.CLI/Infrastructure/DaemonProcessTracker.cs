@@ -181,6 +181,8 @@ internal static class DaemonProcessTracker
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL001",
+        Justification = "Stale process-tracking file deletion is best-effort cleanup only; future process actions still validate exact PID/start-time ownership and never trust a stale file alone.")]
     public static void Clear(string pipeName)
     {
         try
@@ -203,7 +205,11 @@ internal static class DaemonProcessTracker
         }
     }
 
-    public static bool TryGetTrackedProcess(string pipeName, out Process? process)
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Process inspection is fail-closed: inability to verify a matching PID/start-time returns no owned process, so callers cannot terminate an unverified process.")]
+    public static bool TryGetTrackedProcess(
+        string pipeName,
+        [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out Process? process)
     {
         process = null;
         if (!TryReadRecord(pipeName, out var record))
@@ -569,6 +575,8 @@ internal static class DaemonProcessTracker
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Bounded retries handle only IOException/UnauthorizedAccessException while replacing the tracking file; retry exhaustion propagates the original storage failure.")]
     private static void MoveTrackingFile(string temporaryFile, string trackingFile)
     {
         for (var attempt = 1; ; attempt++)
@@ -612,7 +620,8 @@ internal static class DaemonProcessTracker
                 }
                 catch (AbandonedMutexException)
                 {
-                    // The abandoned mutex is acquired by the current thread.
+                    acquiredCount++;
+                    continue; // The abandoned mutex is acquired by the current thread.
                 }
 
                 acquiredCount++;

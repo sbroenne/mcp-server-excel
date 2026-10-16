@@ -1,12 +1,12 @@
 import { execFile } from 'node:child_process';
 import { constants } from 'node:fs';
 import { access } from 'node:fs/promises';
-import { join } from 'node:path';
 import { promisify } from 'node:util';
 
 const run = promisify(execFile);
 const registrationCheck = `
 $ErrorActionPreference = 'Stop'
+if ($PSVersionTable.PSVersion -lt [version]'7.4') { exit 3 }
 $key = [Microsoft.Win32.Registry]::ClassesRoot.OpenSubKey('Excel.Application\\CLSID')
 if ($null -eq $key) { exit 2 }
 try {
@@ -35,13 +35,8 @@ export async function checkLaunchPrerequisites(executable: string, signal: Abort
 	}
 	checkCancellation(signal);
 
-	const windowsDirectory = process.env.SystemRoot;
-	if (!windowsDirectory) {
-		throw new LaunchSetupError('Could not check Excel registration: the Windows system directory is not configured.');
-	}
-	const powershell = join(windowsDirectory, 'System32', 'WindowsPowerShell', 'v1.0', 'powershell.exe');
 	try {
-		await run(powershell, ['-NoProfile', '-NonInteractive', '-Command', registrationCheck], {
+		await run('pwsh', ['-NoProfile', '-NonInteractive', '-Command', registrationCheck], {
 			timeout: 10000,
 			windowsHide: true,
 			maxBuffer: 65536,
@@ -49,13 +44,16 @@ export async function checkLaunchPrerequisites(executable: string, signal: Abort
 		});
 	} catch (error) {
 		checkCancellation(signal);
+		if (error instanceof Error && 'code' in error && (error.code === 'ENOENT' || error.code === 3)) {
+			throw new LaunchSetupError('Install PowerShell 7.4 or later and make pwsh available on PATH, then restart VS Code.');
+		}
 		if (error instanceof Error && 'code' in error && error.code === 2) {
 			throw new LaunchSetupError('Microsoft Excel is not registered. Install or repair desktop Excel, open it once, and retry.');
 		}
 		if (error instanceof Error && 'killed' in error && error.killed === true) {
-			throw new LaunchSetupError('Checking Excel registration timed out. Verify Windows PowerShell and desktop Excel work, then retry.');
+			throw new LaunchSetupError('Checking Excel registration timed out. Verify PowerShell 7.4 or later and desktop Excel work, then retry.');
 		}
-		throw new LaunchSetupError('Could not check Excel registration. Verify Windows PowerShell works, then retry or repair Microsoft Office.');
+		throw new LaunchSetupError('Could not check Excel registration. Verify PowerShell 7.4 or later works, then retry or repair Microsoft Office.');
 	}
 	checkCancellation(signal);
 }

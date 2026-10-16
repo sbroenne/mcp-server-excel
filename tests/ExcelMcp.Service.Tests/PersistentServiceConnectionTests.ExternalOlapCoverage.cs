@@ -216,6 +216,7 @@ public sealed partial class PersistentServiceConnectionTests
                 try
                 {
                     worksheet = ComUtilities.FindSheet(context.Book, sheet);
+                    Assert.NotNull(worksheet);
                     tables = worksheet.PivotTables();
                     table = tables.Item(pivot);
                     cache = table.PivotCache();
@@ -273,6 +274,7 @@ public sealed partial class PersistentServiceConnectionTests
             try
             {
                 sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(sheet);
                 pivots = sheet.PivotTables();
                 pivot = pivots.Item(pivotName);
                 fields = pivot.CubeFields;

@@ -277,6 +277,8 @@ internal static class CliTelemetry
 
     internal static void SignalExit() => _reporter.SignalExit();
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL001",
+        Justification = "Optional telemetry construction/reporting must never change command results or exit codes; dropping a record avoids recursive reporting through a failing pipeline.")]
     internal static void TrackCommandInvocation(
         string command,
         long durationMs,

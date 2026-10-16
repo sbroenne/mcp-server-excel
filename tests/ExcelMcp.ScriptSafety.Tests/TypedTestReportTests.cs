@@ -147,6 +147,10 @@ public sealed class TypedTestReportTests
             Assert.Equal(2, runner.Commands.Count);
             Assert.Contains("--list-tests", runner.Commands[0]);
             Assert.DoesNotContain("--list-tests", runner.Commands[1]);
+            Assert.DoesNotContain("--diag", runner.Commands[0]);
+            Assert.Contains("--diag", runner.Commands[1]);
+            Assert.Equal(Path.Combine(results, "acceptance.vstest.log"),
+                runner.Commands[1][Array.IndexOf(runner.Commands[1], "--diag") + 1]);
         }
         finally { Directory.Delete(root, recursive: true); }
     }
@@ -202,7 +206,10 @@ public sealed class TypedTestReportTests
             if (command.Contains("--list-tests", StringComparer.Ordinal))
             {
                 var secondCase = includeOmittedCase ? "\n    Suite.OmittedCase" : "";
-                return new ProcessResult(0, $"The following Tests are available:\n    Suite.Case{secondCase}", "");
+                var diagnostics = command.Contains("--diag", StringComparer.Ordinal)
+                    ? "Logging Vstest Diagnostics in file: discovery.vstest.log\n"
+                    : "";
+                return new ProcessResult(0, $"The following Tests are available:\n{diagnostics}    Suite.Case{secondCase}", "");
             }
             var resultsDirectory = command[Array.IndexOf(command, "--results-directory") + 1];
             var logger = command.Single(argument => argument.StartsWith("trx;LogFileName=", StringComparison.Ordinal));

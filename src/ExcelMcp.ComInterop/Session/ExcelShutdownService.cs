@@ -39,6 +39,8 @@ public static class ExcelShutdownService
     /// <exception cref="OperationCanceledException">Cancellation was requested before save started</exception>
     /// <exception cref="ExcelBusyException">Excel rejected the final save because it is busy</exception>
     /// <exception cref="InvalidOperationException">Save failed due to unexpected error</exception>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Only bounded retries consume Excel's generic save error. Exhaustion reaches the enclosing COM catch, which throws with the original COM exception; no save failure becomes success.")]
     public static void SaveWorkbookWithTimeout(
         Excel.Workbook workbook,
         string? fileName = null,
@@ -82,14 +84,13 @@ public static class ExcelShutdownService
                     {
                         application = workbook.Application;
                         ExcelBusyException.ThrowIfNotReady(
-                            WorkbookRefreshProbe.Read(application, workbook, logger), "save");
+                            WorkbookRefreshProbe.Read(application, workbook), "save");
                     }
                     finally
                     {
                         ComUtilities.Release(ref application);
                     }
-                    // The Excel PIA adds an LCID to Save, which can rewrite locale-specific
-                    // table column format definitions. IDispatch preserves those definitions.
+                    // PIA gap: Save adds an LCID that rewrites locale-specific table formats; IDispatch preserves them.
                     ((dynamic)(object)workbook).Save();
                     if (!workbook.Saved)
                     {
@@ -167,6 +168,10 @@ public static class ExcelShutdownService
     /// <para><b>Resilience:</b> Retries Quit() on COM busy errors (RPC_E_SERVERCALL_RETRYLATER, RPC_E_CALL_REJECTED)</para>
     /// <para><b>Timeout:</b> No overall timeout - relies on retry exhaustion. Non-retriable errors bubble immediately.</para>
     /// </remarks>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Shutdown cleanup logs each original close/quit COM failure and continues releasing owned references; the owning batch subsequently verifies exact process exit and reports teardown failure. Save errors still propagate.")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0030",
+        Justification = "Collect unreachable dynamic-binder ITypeInfo RCWs while Excel can answer releases, without waiting for finalizers on the STA. This is supplementary to explicit release of all acquired references.")]
     public static void CloseAndQuit(
         Excel.Workbook? workbook,
         Excel.Application? excel,
@@ -244,15 +249,8 @@ public static class ExcelShutdownService
                     }
                 }
 
-                // Release workbook COM reference (moved out of individual catch blocks)
-                try
-                {
-                    var remainingReferences = Marshal.ReleaseComObject(workbook);
-                    logger.LogDebug("Released workbook COM reference for {FileName}; remaining RCW references: {Count}",
-                        fileName, remainingReferences);
-                }
-                catch { /* best effort */ }
-                workbook = null;
+                ComUtilities.Release(ref workbook);
+                logger.LogDebug("Released workbook COM reference for {FileName}", fileName);
             }
 
             // Step 4: Quit Excel application with resilient retry + overall timeout
@@ -351,10 +349,8 @@ public static class ExcelShutdownService
                 {
                     // Step 5: Release Excel COM reference (even if Quit failed/timed out)
                     logger.LogDebug("Releasing Excel application COM reference for {FileName}", fileName);
-                    var remainingReferences = Marshal.ReleaseComObject(excel);
-                    logger.LogDebug("Released Excel application COM reference for {FileName}; remaining RCW references: {Count}",
-                        fileName, remainingReferences);
-                    excel = null;
+                    ComUtilities.Release(ref excel);
+                    logger.LogDebug("Released Excel application COM reference for {FileName}", fileName);
                 }
 
                 // Additional diagnostic if quit failed

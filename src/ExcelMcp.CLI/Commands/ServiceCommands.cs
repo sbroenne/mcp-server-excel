@@ -17,6 +17,8 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 /// </summary>
 internal sealed class ServiceStartCommand : AsyncCommand
 {
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "CLI service-start boundary writes success=false JSON with the startup error message and returns exit code 1.")]
     public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
     {
         try
@@ -52,6 +54,8 @@ internal sealed class ServiceStopCommand : AsyncCommand
             cancellationToken);
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Explicit service-stop command uses retained tracked process identities for requested fallback cleanup; if cleanup fails it reports the original error and returns exit code 1.")]
     private static async Task<int> ExecuteWithStartupLockAsync(
         string pipeName,
         CancellationToken cancellationToken)

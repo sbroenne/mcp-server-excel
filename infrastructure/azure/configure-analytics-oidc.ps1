@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Configures read-only GitHub Actions OIDC access for usage analytics.

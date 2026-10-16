@@ -16,6 +16,8 @@ internal static class NuGetVersionChecker
     /// Checks GitHub Releases for the latest version.
     /// </summary>
     /// <returns>Latest version string, or null if check failed.</returns>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Optional release-notification lookup must not fail daemon startup or command execution; unavailable version metadata is omitted, never used as a workbook operation result.")]
     public static async Task<string?> GetLatestVersionAsync(CancellationToken cancellationToken = default)
     {
         try

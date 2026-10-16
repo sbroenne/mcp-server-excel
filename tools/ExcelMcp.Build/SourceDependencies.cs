@@ -7,7 +7,9 @@ public sealed class SourceDependencies(string root, TestCatalog catalog)
 {
     public IEnumerable<TestClass> AdapterConsumers(string owner, string path)
     {
-        if (!path.EndsWith(".cs", StringComparison.Ordinal) || Path.GetFileName(path) is "Program.cs" or "GlobalUsings.cs")
+        if (!path.EndsWith(".cs", StringComparison.Ordinal) ||
+            Path.GetFileName(path) is "Program.cs" or "GlobalUsings.cs" ||
+            owner == "CLI" && Path.GetFileName(path) == "ServiceCommandBase.cs")
         {
             return catalog.ForOwner(owner);
         }

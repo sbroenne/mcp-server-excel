@@ -31,7 +31,8 @@ public partial class RangeCommands
                     {
                         try
                         {
-                            range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddresses[index]);
+                            range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddresses[index])
+                                ?? throw new InvalidOperationException("Excel returned no range for the requested formatting target.");
                         }
                         catch (COMException ex)
                         {

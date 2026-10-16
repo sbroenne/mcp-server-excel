@@ -141,6 +141,7 @@ public partial class RangeCommands
             dynamic? range = null;
             int originalCalculation = -1;
             bool calculationChanged = false;
+            Exception? operationFailure = null;
 
             try
             {
@@ -212,22 +213,28 @@ public partial class RangeCommands
             catch (System.Runtime.InteropServices.COMException comEx) when (comEx.HResult == unchecked((int)0x8007000E))
             {
                 // E_OUTOFMEMORY - Excel's misleading error for sheet/range/session issues
-                throw new InvalidOperationException($"Cannot write to range '{rangeAddress}' on sheet '{sheetName}': {comEx.Message}", comEx);
+                operationFailure = new InvalidOperationException($"Cannot write to range '{rangeAddress}' on sheet '{sheetName}': {comEx.Message}", comEx);
+                throw operationFailure;
+            }
+            catch (Exception ex)
+            {
+                operationFailure = ex;
+                throw;
             }
             finally
             {
-                if (calculationChanged && originalCalculation != -1)
+                try
                 {
-                    try
+                    if (calculationChanged && originalCalculation != -1)
                     {
-                        ctx.App.Calculation = (Excel.XlCalculation)originalCalculation;
-                    }
-                    catch (System.Runtime.InteropServices.COMException)
-                    {
-                        // Ignore errors restoring calculation mode
+                        OperationCleanup.Run(() => ctx.App.Calculation = (Excel.XlCalculation)originalCalculation,
+                            operationFailure);
                     }
                 }
-                ComUtilities.Release(ref range);
+                finally
+                {
+                    ComUtilities.Release(ref range);
+                }
             }
         });
     }

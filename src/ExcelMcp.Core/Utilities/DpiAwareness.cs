@@ -14,6 +14,8 @@ internal static class DpiAwareness
     public static T Execute<T>(Func<T> operation) =>
         Execute(operation, SetThreadDpiAwarenessContext);
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Retains the primary failure until restoring DPI context, then rethrows it or an aggregate containing the restoration failure.")]
     internal static T Execute<T>(Func<T> operation, Func<IntPtr, IntPtr> setContext)
     {
         ArgumentNullException.ThrowIfNull(operation);

@@ -5,7 +5,7 @@ description: >-
   Windows, including reads, writes, formulas, data refreshes, and workbook
   automation. Use the installed excel-cli plugin's npx launcher and native help
   to find commands; report presentation conventions are a separate optional skill.
-compatibility: Windows with desktop Excel, Node.js 18 or later, and the excel-cli plugin.
+compatibility: Windows with desktop Excel, PowerShell 7.4 or later, Node.js 18 or later, and the excel-cli plugin.
 ---
 
 # Excel CLI discovery
@@ -17,6 +17,7 @@ installed or restore the retired GitHub-release downloader.
 For the plugin-bundled copy of this skill, `..\..\bin\start-cli.ps1` relative to
 the directory containing this `SKILL.md` locates the plugin launcher.
 Replace `<plugin-root>` below with that plugin's actual installed directory:
+Run these commands in PowerShell 7.4 or later (`pwsh`), not Windows PowerShell 5.1.
 
 ```powershell
 & "<plugin-root>\bin\start-cli.ps1" --help
@@ -24,7 +25,7 @@ Replace `<plugin-root>` below with that plugin's actual installed directory:
 ```
 
 Use the same full launcher path for subsequent commands, especially quoted JSON
-arguments in Windows PowerShell. Discover exact command names, flags, defaults,
+arguments. Discover exact command names, flags, defaults,
 and save/close behavior through native `--help`; do not invent syntax.
 
 Inspect the existing workbook state relevant to the request. Preserve unrelated

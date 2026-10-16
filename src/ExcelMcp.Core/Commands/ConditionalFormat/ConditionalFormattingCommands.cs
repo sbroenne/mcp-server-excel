@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -96,9 +97,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
 
             try
             {
-                sheet = string.IsNullOrEmpty(sheetName)
-                    ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                sheet = Utilities.WorksheetLookup.Get(ctx.Book, sheetName);
 
                 range = sheet.Range[rangeAddress];
                 formatConditions = range.FormatConditions;
@@ -357,9 +356,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
             try
             {
                 // Get sheet
-                sheet = string.IsNullOrEmpty(sheetName)
-                    ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                sheet = Utilities.WorksheetLookup.Get(ctx.Book, sheetName);
 
                 // Get range
                 range = sheet.Range[rangeAddress];
@@ -400,9 +397,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
 
             try
             {
-                sheet = string.IsNullOrEmpty(sheetName)
-                    ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                sheet = Utilities.WorksheetLookup.Get(ctx.Book, sheetName);
 
                 range = sheet.Range[rangeAddress];
                 formatConditions = range.FormatConditions;
@@ -442,9 +437,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
 
             try
             {
-                sheet = string.IsNullOrEmpty(sheetName)
-                    ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                sheet = Utilities.WorksheetLookup.Get(ctx.Book, sheetName);
 
                 cells = sheet.Cells;
                 formatConditions = cells.FormatConditions;
@@ -495,77 +488,95 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                     Type = typeNum >= 0 ? ConditionalFormattingTypeToString(typeNum) : "unknown"
                 };
 
-                rule.Operator = ReadRuleOperator(fc);
-                rule.Formula1 = ReadRuleString(fc, "Formula1");
-                rule.Formula2 = ReadRuleString(fc, "Formula2");
+                if (typeNum is 1 or 2)
+                {
+                    rule.Formula1 = ReadRuleString(fc, "Formula1");
+                    if (typeNum == 1)
+                    {
+                        rule.Operator = ReadRuleOperator(fc);
+                        if (rule.Operator is "between" or "notBetween")
+                            rule.Formula2 = ReadRuleString(fc, "Formula2");
+                    }
+                }
                 rule.Priority = ReadRuleInt(fc, "Priority");
-                rule.StopIfTrue = ReadRuleBool(fc, "StopIfTrue");
+                if (typeNum is not (3 or 4 or 6))
+                    rule.StopIfTrue = ReadRuleBool(fc, "StopIfTrue");
 
                 try
                 {
                     appliesTo = fc.AppliesTo;
                     rule.AppliesTo = appliesTo?.Address;
                 }
-                catch (Exception ex) when (IsComOrBinderException(ex)) { }
+                catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
 
-                // Interior (fill)
-                try
+                // Visual rules expose their own colors, not FormatCondition formatting.
+                if (typeNum is not (3 or 4 or 6))
                 {
-                    interior = fc.Interior;
-                    int colorIndex = Convert.ToInt32(interior.ColorIndex, System.Globalization.CultureInfo.InvariantCulture);
-                    if (colorIndex != -4142 && colorIndex != -4105) // not None/Automatic
-                    {
-                        rule.InteriorColor = FormattingHelpers.ColorToHex(Convert.ToInt32(interior.Color, System.Globalization.CultureInfo.InvariantCulture));
-                        try { rule.InteriorPattern = Convert.ToInt32(interior.Pattern, System.Globalization.CultureInfo.InvariantCulture); }
-                        catch (Exception ex) when (IsComOrBinderException(ex)) { }
-                    }
-                }
-                catch (Exception ex) when (IsComOrBinderException(ex)) { }
-
-                // Font
-                try
-                {
-                    font = fc.Font;
-                    object? bold = font.Bold;
-                    object? italic = font.Italic;
-                    rule.FontBold = bold is null ? null : Convert.ToBoolean(bold, System.Globalization.CultureInfo.InvariantCulture);
-                    rule.FontItalic = italic is null ? null : Convert.ToBoolean(italic, System.Globalization.CultureInfo.InvariantCulture);
+                    // Interior (fill)
                     try
                     {
-                        int fontColorIndex = Convert.ToInt32(font.ColorIndex, System.Globalization.CultureInfo.InvariantCulture);
-                        if (fontColorIndex != -4105 && fontColorIndex != -4142) // not Automatic/None
+                        interior = fc.Interior;
+                        int? colorIndex = ReadOptionalFormattingInt(interior.ColorIndex);
+                        if (colorIndex.HasValue && colorIndex != -4142 && colorIndex != -4105) // not None/Automatic
                         {
-                            rule.FontColor = FormattingHelpers.ColorToHex(Convert.ToInt32(font.Color, System.Globalization.CultureInfo.InvariantCulture));
+                            int? color = ReadOptionalFormattingInt(interior.Color);
+                            rule.InteriorColor = color.HasValue ? FormattingHelpers.ColorToHex(color.Value) : null;
+                            try { rule.InteriorPattern = ReadOptionalFormattingInt(interior.Pattern); }
+                            catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
                         }
                     }
-                    catch (Exception ex) when (IsComOrBinderException(ex)) { }
-                }
-                catch (Exception ex) when (IsComOrBinderException(ex)) { }
+                    catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
 
-                // Borders: scan all four edges and use the first that has a
-                // style (rules typically apply borders uniformly, but external
-                // rules may set only some edges).
-                try
-                {
-                    borders = fc.Borders;
-                    // NOTE: FormatCondition.Borders is a 4-item collection indexed 1-4
-                    // (left/top/bottom/right) - see write-side note in AddRule above.
-                    foreach (int edgeIndex in new[] { 1, 2, 3, 4 }) // left, top, bottom, right
+                    // Font
+                    try
                     {
-                        edgeBorder = borders.Item(edgeIndex);
-                        int lineStyle = Convert.ToInt32(edgeBorder.LineStyle, System.Globalization.CultureInfo.InvariantCulture);
-                        if (lineStyle != -4142) // xlLineStyleNone
+                        font = fc.Font;
+                        object? bold = font.Bold;
+                        object? italic = font.Italic;
+                        rule.FontBold = ReadOptionalFormattingBool(bold);
+                        rule.FontItalic = ReadOptionalFormattingBool(italic);
+                        try
                         {
-                            rule.BorderStyle = BorderStyleToString(lineStyle) ?? lineStyle.ToString(System.Globalization.CultureInfo.InvariantCulture);
-                            try { rule.BorderColor = FormattingHelpers.ColorToHex(Convert.ToInt32(edgeBorder.Color, System.Globalization.CultureInfo.InvariantCulture)); }
-                            catch (Exception ex) when (IsComOrBinderException(ex)) { }
-                            ComUtilities.Release(ref edgeBorder!);
-                            break;
+                            int? fontColorIndex = ReadOptionalFormattingInt(font.ColorIndex);
+                            if (fontColorIndex.HasValue && fontColorIndex != -4105 && fontColorIndex != -4142) // not Automatic/None
+                            {
+                                int? color = ReadOptionalFormattingInt(font.Color);
+                                rule.FontColor = color.HasValue ? FormattingHelpers.ColorToHex(color.Value) : null;
+                            }
                         }
-                        ComUtilities.Release(ref edgeBorder!);
+                        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
                     }
+                    catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
+
+                    // Borders: scan all four edges and use the first that has a
+                    // style (rules typically apply borders uniformly, but external
+                    // rules may set only some edges).
+                    try
+                    {
+                        borders = fc.Borders;
+                        // NOTE: FormatCondition.Borders is a 4-item collection indexed 1-4
+                        // (left/top/bottom/right) - see write-side note in AddRule above.
+                        foreach (int edgeIndex in new[] { 1, 2, 3, 4 }) // left, top, bottom, right
+                        {
+                            edgeBorder = borders.Item(edgeIndex);
+                            int? lineStyle = ReadOptionalFormattingInt(edgeBorder.LineStyle);
+                            if (lineStyle.HasValue && lineStyle != -4142) // xlLineStyleNone
+                            {
+                                rule.BorderStyle = BorderStyleToString(lineStyle.Value) ?? lineStyle.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+                                try
+                                {
+                                    int? color = ReadOptionalFormattingInt(edgeBorder.Color);
+                                    rule.BorderColor = color.HasValue ? FormattingHelpers.ColorToHex(color.Value) : null;
+                                }
+                                catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
+                                ComUtilities.Release(ref edgeBorder!);
+                                break;
+                            }
+                            ComUtilities.Release(ref edgeBorder!);
+                        }
+                    }
+                    catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
                 }
-                catch (Exception ex) when (IsComOrBinderException(ex)) { }
 
                 // Type-specific configuration (visual rule types).
                 switch (typeNum)
@@ -603,13 +614,19 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
     private static int ReadRuleTypeInt(dynamic fc)
     {
         try { return Convert.ToInt32(fc.Type, System.Globalization.CultureInfo.InvariantCulture); }
-        catch (Exception ex) when (IsComOrBinderException(ex)) { return -1; }
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { return -1; }
     }
+
+    private static int? ReadOptionalFormattingInt(object? value) =>
+        value is null or DBNull ? null : Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture);
+
+    private static bool? ReadOptionalFormattingBool(object? value) =>
+        value is null or DBNull ? null : Convert.ToBoolean(value, System.Globalization.CultureInfo.InvariantCulture);
 
     private static string? ReadRuleOperator(dynamic fc)
     {
         try { return ConditionalFormattingOperatorToString(Convert.ToInt32(fc.Operator, System.Globalization.CultureInfo.InvariantCulture)); }
-        catch (Exception ex) when (IsComOrBinderException(ex)) { return null; }
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { return null; }
     }
 
     private static string? ReadRuleString(dynamic fc, string property)
@@ -624,7 +641,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
             };
             return string.IsNullOrEmpty(value) ? null : value;
         }
-        catch (Exception ex) when (IsComOrBinderException(ex))
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             return null;
         }
@@ -639,9 +656,9 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 "Priority" => (object)fc.Priority,
                 _ => null
             };
-            return value == null ? null : (int?)Convert.ToInt32(value, System.Globalization.CultureInfo.InvariantCulture);
+            return ReadOptionalFormattingInt(value);
         }
-        catch (Exception ex) when (IsComOrBinderException(ex))
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             return null;
         }
@@ -658,18 +675,13 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 "Italic" => obj.Italic,
                 _ => null
             };
-            return value == null ? null : (bool?)Convert.ToBoolean(value, System.Globalization.CultureInfo.InvariantCulture);
+            return ReadOptionalFormattingBool(value);
         }
-        catch (Exception ex) when (IsComOrBinderException(ex))
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             return null;
         }
     }
-
-    private static bool IsComOrBinderException(Exception ex) =>
-        ex is Microsoft.CSharp.RuntimeBinder.RuntimeBinderException
-        or System.Runtime.InteropServices.COMException
-        or System.InvalidCastException;
 
     private static int ValidateAndParseBasicRuleArguments(
         string normalizedType,

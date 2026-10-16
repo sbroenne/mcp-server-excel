@@ -6,6 +6,8 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\ExcelMcp.Analyzers\ExcelMcp.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
     <ProjectReference Include="..\..\tools\ExcelMcp.Build\ExcelMcp.Build.csproj" />
     <Compile Include="..\Shared\TestClassificationArchitectureTests.cs" Link="Helpers\TestClassificationArchitectureTests.cs" />
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />

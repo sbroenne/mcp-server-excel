@@ -1,4 +1,4 @@
-using System.Runtime.InteropServices;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -191,7 +191,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
 
             try
             {
-                worksheet = ctx.Book.Worksheets[sheetName];
+                worksheet = Utilities.WorksheetLookup.Get(ctx.Book, sheetName);
                 shapes = worksheet.Shapes;
 
                 // Resolve the source before creating anything so a bad address leaves no chart behind.
@@ -299,7 +299,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
                 tableRange = table.Range;
 
                 // Get target worksheet
-                worksheet = ctx.Book.Worksheets[sheetName];
+                worksheet = Utilities.WorksheetLookup.Get(ctx.Book, sheetName);
                 shapes = worksheet.Shapes;
 
                 // Resolve final position: targetRange > explicit left/top > auto-position
@@ -401,6 +401,7 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
             Excel.PivotTable? linkedPivotTable = null;
             string? createdChartName = null;
             string creationStep = $"Creating a linked PivotChart for '{pivotTableName}'";
+            Exception? operationFailure = null;
 
             try
             {
@@ -510,36 +511,43 @@ public partial class ChartCommands : IChartCommands, IChartConfigCommands
             }
             catch (Exception ex) when (createdChartName != null && CreatedObjectFailure.CanReport(ex))
             {
-                throw DescribePivotChartCreationFailure(createdChartName, sheetName, creationStep, ex);
+                operationFailure = DescribePivotChartCreationFailure(createdChartName, sheetName, creationStep, ex);
+                throw operationFailure;
+            }
+            catch (Exception ex)
+            {
+                operationFailure = ex;
+                throw;
             }
             finally
             {
-                if (previousWorksheet != null)
+                try
                 {
-                    try
+                    if (previousWorksheet != null)
                     {
-                        previousWorksheet.Activate();
-                        previousCell?.Select();
-                    }
-                    catch (COMException)
-                    {
-                        // Restoring the prior selection is best-effort after Excel completed the operation.
+                        OperationCleanup.Run(() =>
+                        {
+                            previousWorksheet.Activate();
+                            previousCell?.Select();
+                        }, operationFailure);
                     }
                 }
-
-                ComUtilities.Release(ref linkedPivotTable);
-                ComUtilities.Release(ref pivotLayout);
-                ComUtilities.Release(ref targetRangeObj!);
-                ComUtilities.Release(ref chart!);
-                ComUtilities.Release(ref pivotChartShape!);
-                ComUtilities.Release(ref tableRange!);
-                ComUtilities.Release(ref shapes!);
-                ComUtilities.Release(ref worksheets);
-                ComUtilities.Release(ref previousCell);
-                ComUtilities.Release(ref previousWorksheet);
-                ComUtilities.Release(ref sourceWorksheet);
-                ComUtilities.Release(ref worksheet!);
-                ComUtilities.Release(ref pivotTable!);
+                finally
+                {
+                    ComUtilities.Release(ref linkedPivotTable);
+                    ComUtilities.Release(ref pivotLayout);
+                    ComUtilities.Release(ref targetRangeObj!);
+                    ComUtilities.Release(ref chart!);
+                    ComUtilities.Release(ref pivotChartShape!);
+                    ComUtilities.Release(ref tableRange!);
+                    ComUtilities.Release(ref shapes!);
+                    ComUtilities.Release(ref worksheets);
+                    ComUtilities.Release(ref previousCell);
+                    ComUtilities.Release(ref previousWorksheet);
+                    ComUtilities.Release(ref sourceWorksheet);
+                    ComUtilities.Release(ref worksheet!);
+                    ComUtilities.Release(ref pivotTable!);
+                }
             }
         });
     }

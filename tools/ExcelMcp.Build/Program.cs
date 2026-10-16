@@ -18,7 +18,7 @@ internal static class Program
         {
             if (args.Length == 0 || args[0] is "help" or "--help")
             {
-                Console.WriteLine("ExcelMcp development tooling: plan, build, test, validate, check-source, package, test-free, test-excel, inventory, stage, verify-report, complete.");
+                Console.WriteLine("ExcelMcp development tooling: plan, build, test, validate, package, test-free, test-excel, inventory, stage, verify-report, complete.");
                 Console.WriteLine("Use plan --base-ref <ref> or --staged; --full explicitly selects complete validation.");
                 return 0;
             }
@@ -56,6 +56,10 @@ internal static class Program
                     return 0;
                 case "package":
                     {
+                        if (options.Has("--base-ref") || options.Has("--head-ref"))
+                        {
+                            throw new ArgumentException("Changed-path package selection is not supported. Omit --components to check all packages, or specify components explicitly.");
+                        }
                         var package = options.Get("--package-options") is { } file
                             ? JsonSerializer.Deserialize<PackageOptions>(await File.ReadAllTextAsync(file), JsonOptions) ?? throw new ArgumentException("Package options are empty.")
                             : new PackageOptions
@@ -66,20 +70,9 @@ internal static class Program
                                 SkillsDirectory = options.Get("--skills-directory"),
                                 McpRuntimeExecutable = options.Get("--mcp-runtime"),
                                 CliRuntimeExecutable = options.Get("--cli-runtime"),
-                                SkipExtensionTests = options.Has("--skip-extension-tests"),
-                                BaseRef = options.Get("--base-ref"),
-                                HeadRef = options.Get("--head-ref") ?? "HEAD"
+                                SkipExtensionTests = options.Has("--skip-extension-tests")
                             };
                         await new PackageExecution(Path.GetFullPath(options.Get("--source-root") ?? root)).ExecuteAsync(package);
-                        return 0;
-                    }
-                case "check-source":
-                    {
-                        var inputs = options.Get("--inputs-json") is { } inputJson
-                            ? JsonSerializer.Deserialize<string[]>(inputJson) ?? throw new ArgumentException("Inputs must be a JSON array.")
-                            : null;
-                        new SourceGuards(Path.GetFullPath(options.Get("--scan-root") ?? root))
-                            .Check(options.Get("--rule") ?? throw new ArgumentException("Select --rule."), inputs);
                         return 0;
                     }
                 case "plan":
@@ -113,7 +106,7 @@ internal static class Program
 
                         if (args[0] == "validate")
                         {
-                            await execution.CheckSourcesAsync(plan);
+                            await execution.CheckDocumentationAsync(plan);
                         }
                         if (args[0] != "build")
                         {
@@ -172,10 +165,7 @@ internal static class Program
         var paths = options.Get("--paths-json") is { } json
             ? JsonSerializer.Deserialize<string[]>(json) ?? throw new ArgumentException("Paths must be a JSON array.")
             : options.Has("--full") ? [] : await ReadChangedPathsAsync(runner, options);
-        var packages = !options.Has("--full") && paths.Any(path => path?.Replace('\\', '/') == "Directory.Packages.props")
-            ? await PackageChanges.ReadAsync(root, runner, options.Get("--base-ref"), options.Get("--head-ref"), options.Has("--staged"), options.DirectComparison())
-            : null;
-        return new ValidationPolicy(root).Select(paths, options.Has("--full"), packages);
+        return new ValidationPolicy(root).Select(paths, options.Has("--full"));
     }
 
     private static async Task<string[]> ReadChangedPathsAsync(IProcessRunner runner, CommandOptions options)

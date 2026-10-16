@@ -12,6 +12,10 @@ the Service supplies shared session routing and structured failure responses.
 A timed-out executing batch is no longer usable. The MCP bridge ties
 cancellation cleanup to the Service instance and session that owned the
 request, including a session that finishes opening after cancellation.
+Core lets execution failures reach these owners rather than translating a COM
+failure into absent data. Optional property discovery tolerates only an exact
+known unavailable-member error; unexpected errors retain their cause and
+operation context at the failure-transport boundary.
 
 ## Reasons and tradeoffs
 
@@ -34,4 +38,4 @@ rather than hiding it in individual commands.
 - [Session ownership](../src/ExcelMcp.ComInterop/Session/SessionManager.cs)
 - [Shutdown](../src/ExcelMcp.ComInterop/Session/ExcelShutdownService.cs)
 - [Cancellation tests](../tests/ExcelMcp.McpServer.Tests/Unit/ServiceBridgeCancellationTests.cs)
-- [Lifecycle semantics](../CONTEXT.md#runtime-relationships) and [COM instructions](agents/rules/excel-com-interop.md)
+- [Lifecycle semantics](../CONTEXT.md#runtime-relationships) and [COM instructions](../src/ExcelMcp.ComInterop/AGENTS.md)

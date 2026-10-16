@@ -140,6 +140,7 @@ public sealed partial class PersistentServiceConnectionTests
             try
             {
                 sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(sheet);
                 pivots = sheet.PivotTables();
                 pivot = pivots.Item(pivotName);
                 fields = pivot.CubeFields;

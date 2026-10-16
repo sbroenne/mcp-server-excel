@@ -1,7 +1,4 @@
-using System.ComponentModel;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using System.Runtime.Versioning;
 using System.Text;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.Tests.Infrastructure;
@@ -40,42 +37,7 @@ public sealed class PluginBootstrapTests(ITestOutputHelper output) : PluginTestB
     }
 
     [Fact]
-    [SupportedOSPlatform("windows")]
-    public async Task StartCliWrapper_EscapesArgumentsSoTheyRoundTripThroughWin32Parsing()
-    {
-        var sandbox = CreateSandbox("argument-fidelity");
-        try
-        {
-            var harness = Path.Combine(sandbox, "harness.ps1");
-            File.WriteAllText(harness, """
-                param([Parameter(Mandatory = $true)][string]$ScriptPath)
-                $tokens = $null
-                $errors = $null
-                $ast = [Management.Automation.Language.Parser]::ParseFile($ScriptPath, [ref]$tokens, [ref]$errors)
-                if ($errors.Count) { throw "Parse errors in $ScriptPath" }
-                $definition = $ast.Find({
-                    param($node)
-                    $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
-                    $node.Name -eq 'ConvertTo-NativeArgument'
-                }, $true)
-                if ($null -eq $definition) { throw "ConvertTo-NativeArgument was not found" }
-                . ([scriptblock]::Create($definition.Extent.Text))
-                $cases = @('[["Name","Amount"]]', 'has space', 'quote"inside', '', '{"value":"a b"}')
-                Write-Output (($cases | ForEach-Object { ConvertTo-NativeArgument -Value $_ }) -join ' ')
-                """);
-
-            var result = await RunPowerShellFileAsync(
-                harness, ["-ScriptPath", Path.Combine(RepoRoot, ".github", "plugins", "excel-cli", "bin", "start-cli.ps1")]);
-
-            Assert.True(result.ExitCode == 0, result.CombinedOutput);
-            var parsed = SplitCommandLine($"excelcli.exe {result.Stdout.Trim()}").Skip(1).ToArray();
-            Assert.Equal(["[[\"Name\",\"Amount\"]]", "has space", "quote\"inside", "", "{\"value\":\"a b\"}"], parsed);
-        }
-        finally { DeleteDirectoryIfExists(sandbox); }
-    }
-
-    [Fact]
-    public async Task StartCliWrapper_UsesNpxAndPreservesJsonArgument()
+    public async Task StartCliWrapper_UsesNpxAndPreservesArguments()
     {
         var sandbox = CreateSandbox("npx-wrapper");
         try
@@ -87,22 +49,30 @@ public sealed class PluginBootstrapTests(ITestOutputHelper output) : PluginTestB
                 if (process.argv[2] !== "-y" || process.argv[3] !== "@sbroenne/excelcli@latest") {
                     throw new Error("Unexpected npx arguments");
                 }
-                process.stdout.write(process.argv[4]);
+                process.stdout.write(JSON.stringify(process.argv.slice(4)));
                 """);
-            const string json = """[["Name","Amount"],["Widget",1500]]""";
+            string[] arguments =
+            [
+                """[["Name","Amount"],["Widget",1500]]""", "has space", "quote\"inside", "",
+                """{"value":"a b"}""", "ends with space\\", "trailing\\", "slashes\\\\\"quoted",
+                "%PATH%", "& | < >", "$value;`literal"
+            ];
+            var argumentsFile = Path.Combine(sandbox, "arguments.json");
+            File.WriteAllText(argumentsFile, JsonSerializer.Serialize(arguments));
             var harness = Path.Combine(sandbox, "invoke.ps1");
             File.WriteAllText(harness, """
-                param([string]$Wrapper, [string]$NpxDirectory, [string]$Json)
+                param([string]$Wrapper, [string]$NpxDirectory, [string]$ArgumentsFile)
                 $env:PATH = "$NpxDirectory;$env:PATH"
-                & $Wrapper $Json
+                $cliArguments = Get-Content -LiteralPath $ArgumentsFile -Raw | ConvertFrom-Json
+                & $Wrapper @cliArguments
                 exit $LASTEXITCODE
                 """);
 
             var result = await RunPowerShellFileAsync(
-                harness, ["-Wrapper", wrapper, "-NpxDirectory", sandbox, "-Json", json]);
+                harness, ["-Wrapper", wrapper, "-NpxDirectory", sandbox, "-ArgumentsFile", argumentsFile]);
 
             Assert.True(result.ExitCode == 0, result.CombinedOutput);
-            Assert.Equal(json, result.Stdout.Trim());
+            Assert.Equal(arguments, JsonSerializer.Deserialize<string[]>(result.Stdout));
         }
         finally { DeleteDirectoryIfExists(sandbox); }
     }
@@ -115,26 +85,6 @@ public abstract class PluginTestBase(ITestOutputHelper output)
     protected static readonly string RepoRoot = FindRepoRoot();
     protected static readonly string BuildPluginsScript = Path.Combine(RepoRoot, "scripts", "Build-Plugins.ps1");
     protected static readonly string SyncPublishedRepoScript = Path.Combine(RepoRoot, "scripts", "Sync-PublishedPluginRepo.ps1");
-
-    [SupportedOSPlatform("windows")]
-    protected static string[] SplitCommandLine(string commandLine)
-    {
-        var argv = CommandLineToArgvW(commandLine, out var count);
-        if (argv == IntPtr.Zero) { throw new Win32Exception(Marshal.GetLastWin32Error()); }
-        try
-        {
-            return Enumerable.Range(0, count)
-                .Select(index => Marshal.PtrToStringUni(Marshal.ReadIntPtr(argv, index * IntPtr.Size)) ?? "")
-                .ToArray();
-        }
-        finally { LocalFree(argv); }
-    }
-
-    [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
-    private static extern IntPtr CommandLineToArgvW(string lpCmdLine, out int pNumArgs);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern IntPtr LocalFree(IntPtr hMem);
 
     protected static void AssertAgentPluginManifest(string pluginRoot, string expectedVersion)
     {

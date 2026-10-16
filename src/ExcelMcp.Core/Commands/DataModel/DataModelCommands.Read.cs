@@ -228,14 +228,7 @@ public partial class DataModelCommands
 
                 ForEachRelationship(model!, (relationship, index) =>
                 {
-                    var relInfo = new DataModelRelationshipInfo
-                    {
-                        FromTable = ComUtilities.SafeGetString(relationship.ForeignKeyColumn.Parent, "Name"),
-                        FromColumn = ComUtilities.SafeGetString(relationship.ForeignKeyColumn, "Name"),
-                        ToTable = ComUtilities.SafeGetString(relationship.PrimaryKeyColumn.Parent, "Name"),
-                        ToColumn = ComUtilities.SafeGetString(relationship.PrimaryKeyColumn, "Name"),
-                        IsActive = relationship.Active
-                    };
+                    var relInfo = ReadRelationshipInfo(relationship);
 
                     result.Relationships.Add(relInfo);
                 });
@@ -249,6 +242,36 @@ public partial class DataModelCommands
 
             return result;
         });
+    }
+
+    private static DataModelRelationshipInfo ReadRelationshipInfo(Excel.ModelRelationship relationship)
+    {
+        Excel.ModelTableColumn? foreignKey = null;
+        Excel.ModelTableColumn? primaryKey = null;
+        Excel.ModelTable? fromTable = null;
+        Excel.ModelTable? toTable = null;
+        try
+        {
+            foreignKey = relationship.ForeignKeyColumn;
+            primaryKey = relationship.PrimaryKeyColumn;
+            fromTable = (Excel.ModelTable)foreignKey.Parent;
+            toTable = (Excel.ModelTable)primaryKey.Parent;
+            return new DataModelRelationshipInfo
+            {
+                FromTable = fromTable.Name,
+                FromColumn = foreignKey.Name,
+                ToTable = toTable.Name,
+                ToColumn = primaryKey.Name,
+                IsActive = relationship.Active
+            };
+        }
+        finally
+        {
+            ComUtilities.Release(ref toTable);
+            ComUtilities.Release(ref fromTable);
+            ComUtilities.Release(ref primaryKey);
+            ComUtilities.Release(ref foreignKey);
+        }
     }
 
     /// <inheritdoc />
@@ -273,24 +296,14 @@ public partial class DataModelCommands
                 DataModelRelationshipInfo? foundRelationship = null;
                 ForEachRelationship(model!, (relationship, index) =>
                 {
-                    var relFromTable = ComUtilities.SafeGetString(relationship.ForeignKeyColumn.Parent, "Name");
-                    var relFromColumn = ComUtilities.SafeGetString(relationship.ForeignKeyColumn, "Name");
-                    var relToTable = ComUtilities.SafeGetString(relationship.PrimaryKeyColumn.Parent, "Name");
-                    var relToColumn = ComUtilities.SafeGetString(relationship.PrimaryKeyColumn, "Name");
+                    var info = ReadRelationshipInfo(relationship);
 
-                    if (string.Equals(relFromTable, fromTable, StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(relFromColumn, fromColumn, StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(relToTable, toTable, StringComparison.OrdinalIgnoreCase) &&
-                        string.Equals(relToColumn, toColumn, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(info.FromTable, fromTable, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(info.FromColumn, fromColumn, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(info.ToTable, toTable, StringComparison.OrdinalIgnoreCase) &&
+                        string.Equals(info.ToColumn, toColumn, StringComparison.OrdinalIgnoreCase))
                     {
-                        foundRelationship = new DataModelRelationshipInfo
-                        {
-                            FromTable = relFromTable,
-                            FromColumn = relFromColumn,
-                            ToTable = relToTable,
-                            ToColumn = relToColumn,
-                            IsActive = relationship.Active
-                        };
+                        foundRelationship = info;
                     }
                 });
 

@@ -132,7 +132,7 @@ public partial class PivotTableCommands
                     }
                 }
 
-                if (!found)
+                if (!found || field is null)
                 {
                     return new OperationResult
                     {
@@ -161,5 +161,4 @@ public partial class PivotTableCommands
         });
     }
 }
-
 

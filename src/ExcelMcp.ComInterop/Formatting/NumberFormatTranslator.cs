@@ -527,7 +527,7 @@ public sealed class NumberFormatTranslator
             object? value = excelApp.International[(Excel.XlApplicationInternational)index];
             return value?.ToString();
         }
-        catch (Exception ex) when (ex is System.Runtime.InteropServices.COMException)
+        catch (System.Runtime.InteropServices.COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             // International property access failed for this index
             return null;

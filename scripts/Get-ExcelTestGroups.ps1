@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 . (Join-Path $PSScriptRoot 'Invoke-BuildTool.ps1')
 function Get-ExcelTestGroups {
     [CmdletBinding()]

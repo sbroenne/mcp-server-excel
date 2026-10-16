@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Loads the hand-picked usage analytics work weights and builds matching query lookups.

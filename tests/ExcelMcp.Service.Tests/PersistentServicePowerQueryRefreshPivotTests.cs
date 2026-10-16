@@ -345,8 +345,10 @@ public sealed partial class PersistentServicePowerQueryRefreshTests
         AssertPivotContainsNumber(reportSheet, 300);
     }
 
-    [Fact]
-    public void WorkbookRefreshAll_RefreshesOrdinaryTextConnection()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void WorkbookRefreshAll_RefreshesOrdinaryTextConnection(bool backgroundQuery)
     {
         string sheetName = UniqueName("WorkbookRefreshText");
         string queryTableName = UniqueName("WorkbookRefreshTextQuery");
@@ -373,9 +375,12 @@ public sealed partial class PersistentServicePowerQueryRefreshTests
             try
             {
                 worksheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(worksheet);
                 worksheetQueryTables = worksheet.QueryTables;
                 queryTable = worksheetQueryTables.Item(queryTableName);
+                queryTable.BackgroundQuery = backgroundQuery;
                 connection = queryTable.WorkbookConnection;
+                Assert.Equal(Excel.XlConnectionType.xlConnectionTypeTEXT, connection.Type);
                 return connection.Name;
             }
             finally
@@ -389,15 +394,38 @@ public sealed partial class PersistentServicePowerQueryRefreshTests
         _fixture.RegisterConnectionForCleanup(connectionName);
         File.WriteAllText(sourcePath, "Name,Value\r\nBeta,37\r\n");
 
-        var result = RequireSuccess(_workbooks.RefreshAll(
+        var attempted = _workbooks.RefreshAll(
             _fixture.BatchToken,
-            TimeSpan.FromMinutes(1)));
+            TimeSpan.FromMinutes(1));
+        Assert.True(attempted.Success, System.Text.Json.JsonSerializer.Serialize(attempted));
+        var result = RequireSuccess(attempted);
 
         Assert.True(result.Success, $"Workbook refresh-all failed: {result.ErrorMessage}");
         Assert.Contains(connectionName, result.RefreshedConnections);
         Assert.Empty(result.FailedConnections);
         Assert.Empty(result.FailedQueries);
         Assert.Empty(result.FailedPivotTables);
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Worksheet? worksheet = null;
+            Excel.QueryTables? queries = null;
+            Excel.QueryTable? query = null;
+            try
+            {
+                worksheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(worksheet);
+                queries = worksheet.QueryTables;
+                query = queries.Item(queryTableName);
+                Assert.Equal(backgroundQuery, query.BackgroundQuery);
+                Assert.False(query.Refreshing);
+            }
+            finally
+            {
+                ComUtilities.Release(ref query);
+                ComUtilities.Release(ref queries);
+                ComUtilities.Release(ref worksheet);
+            }
+        });
         var rows = RequireSuccess(_commands.GetValues(
             _fixture.BatchToken,
             sheetName,

@@ -43,9 +43,8 @@ _FAQ_MIN_ENTITIES = 3
 def headline_counts() -> tuple[int, int]:
     """Read the canonical tool/operation totals from ``doc-counts.json``.
 
-    Written by ``scripts/check-doc-counts.ps1 -Update``. Every count consumer --
-    this site, release notes, packaging metadata -- reads that one file instead
-    of deriving or parsing totals from Markdown headline text.
+    Reviewed alongside contract changes and checked by compiler diagnostic
+    EXL030. This site reads those totals rather than parsing Markdown headlines.
     """
     counts = json.loads(read(DOC_COUNTS))
     return int(counts["tools"]), int(counts["operations"])

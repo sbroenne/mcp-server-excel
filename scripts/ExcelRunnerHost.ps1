@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 . (Join-Path $PSScriptRoot 'AzureRunnerHost.ps1')
 . (Join-Path $PSScriptRoot 'ExcelRunnerPolicy.ps1')
 
@@ -61,7 +62,7 @@ function Invoke-ExcelRunnerGuest {
     param([string]$Script, [string]$Marker = 'EXCELMCP_CONTROL=', [string]$OperationId)
     $path = Join-Path ([IO.Path]::GetTempPath()) "excel-control-$([Guid]::NewGuid().ToString('N')).ps1"
     try {
-        ("`$ErrorActionPreference = 'Stop'`n" + $Script) | Set-Content -LiteralPath $path -Encoding UTF8
+        ConvertTo-RunnerPowerShell7Command -Script $Script | Set-Content -LiteralPath $path -Encoding UTF8
         $response = Invoke-RunnerAzure @(
             'vm', 'run-command', 'invoke', '--resource-group', $ResourceGroup, '--name', $VmName,
             '--command-id', 'RunPowerShellScript', '--scripts', "@$path"
@@ -171,7 +172,7 @@ if (`$info.LastTaskResult -ne 0 -or `$info.LastRunTime -lt `$boot) { throw 'Prof
 if (`$profile.Count -ne 1 -or -not `$profile[0].Loaded) { throw 'The dedicated profile is not loaded.' }
 `$report = Join-Path `$profile[0].LocalPath 'AppData\Local\ExcelMcp\Health\$operation.json'
 if (Test-Path -LiteralPath `$report) { throw 'Health operation already exists.' }
-`$action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "C:\ProgramData\ExcelMcp\Desktop\test-excel-desktop.ps1" -OperationId $operation'
+`$action = New-ScheduledTaskAction -Execute 'C:\Program Files\PowerShell\7\pwsh.exe' -Argument '-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "C:\ProgramData\ExcelMcp\Desktop\test-excel-desktop.ps1" -OperationId $operation'
 `$principal = New-ScheduledTaskPrincipal -UserId "`$env:COMPUTERNAME\excelrunner" -LogonType Interactive -RunLevel Limited
 `$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 2)
 Register-ScheduledTask -TaskName 'ExcelMcp-Test-Desktop' -Action `$action -Principal `$principal -Settings `$settings -Force | Out-Null
@@ -209,7 +210,7 @@ function Invoke-ExcelRunnerJobRecovery {
     $operation = [Guid]::NewGuid().ToString('N')
     $null = Invoke-ExcelRunnerGuest @"
 if (@(Get-Process -Name Runner.Listener, Runner.Worker -ErrorAction SilentlyContinue).Count) { throw 'Work is still active.' }
-`$action = New-ScheduledTaskAction -Execute 'pwsh.exe' -Argument '-NoProfile -NonInteractive -File "C:\ProgramData\ExcelMcp\Desktop\recover-excel-jobs.ps1" -OperationId $operation'
+`$action = New-ScheduledTaskAction -Execute 'C:\Program Files\PowerShell\7\pwsh.exe' -Argument '-NoProfile -NonInteractive -File "C:\ProgramData\ExcelMcp\Desktop\recover-excel-jobs.ps1" -OperationId $operation'
 `$principal = New-ScheduledTaskPrincipal -UserId "`$env:COMPUTERNAME\excelrunner" -LogonType Interactive -RunLevel Limited
 `$settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit (New-TimeSpan -Minutes 3)
 Register-ScheduledTask -TaskName 'ExcelMcp-Recover-Jobs' -Action `$action -Principal `$principal -Settings `$settings -Force | Out-Null

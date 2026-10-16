@@ -43,25 +43,6 @@ public partial class ConnectionCommands : IConnectionCommands
             return conn.ODBCConnection;
         }
 
-        if (connType is 3 or 4)
-        {
-            try
-            {
-                return conn.TextConnection;
-            }
-            catch (COMException)
-            {
-                try
-                {
-                    return conn.WebConnection;
-                }
-                catch (COMException)
-                {
-                    return null;
-                }
-            }
-        }
-
         return null;
     }
 
@@ -106,7 +87,7 @@ public partial class ConnectionCommands : IConnectionCommands
                     textConnection = conn.TextConnection;
                     return textConnection?.BackgroundQuery ?? false;
                 }
-                catch (COMException)
+                catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                 {
                 }
                 finally
@@ -174,7 +155,7 @@ public partial class ConnectionCommands : IConnectionCommands
                     textConnection = conn.TextConnection;
                     return textConnection?.RefreshOnFileOpen ?? false;
                 }
-                catch (COMException)
+                catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                 {
                 }
                 finally
@@ -242,7 +223,7 @@ public partial class ConnectionCommands : IConnectionCommands
                     textConnection = conn.TextConnection;
                     return textConnection?.SavePassword ?? false;
                 }
-                catch (COMException)
+                catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                 {
                 }
                 finally
@@ -310,7 +291,7 @@ public partial class ConnectionCommands : IConnectionCommands
                     textConnection = conn.TextConnection;
                     return textConnection?.RefreshPeriod ?? 0;
                 }
-                catch (COMException)
+                catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                 {
                 }
                 finally
@@ -348,8 +329,11 @@ public partial class ConnectionCommands : IConnectionCommands
                 try
                 {
                     oledbConnection = conn.OLEDBConnection;
-                    // PIA gap: OLAP RefreshDate can be an empty VARIANT, not the PIA's non-nullable DateTime.
-                    return oledbConnection == null ? null : GetRefreshDateSafe(((dynamic)oledbConnection).RefreshDate);
+                    if (oledbConnection is null)
+                        return null;
+                    bool isConnected = oledbConnection.IsConnected;
+                    // PIA gap: an unset RefreshDate is not the PIA's non-nullable DateTime.
+                    return ReadOleDbRefreshDate(() => ((dynamic)oledbConnection).RefreshDate, isConnected);
                 }
                 finally
                 {
@@ -360,18 +344,23 @@ public partial class ConnectionCommands : IConnectionCommands
             if (connType == 2)
             {
                 Excel.ODBCConnection? odbcConnection = null;
+                Excel.Ranges? ranges = null;
                 try
                 {
+                    ranges = conn.Ranges;
+                    if (ranges.Count == 0)
+                        return null;
                     odbcConnection = conn.ODBCConnection;
                     return GetRefreshDateSafe(odbcConnection?.RefreshDate);
                 }
                 finally
                 {
                     ComUtilities.Release(ref odbcConnection);
+                    ComUtilities.Release(ref ranges);
                 }
             }
         }
-        catch (COMException ex)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             logger.LogWarning(ex, "Could not read the connection's last-refresh timestamp; reporting it as unknown");
         }
@@ -379,8 +368,23 @@ public partial class ConnectionCommands : IConnectionCommands
         return null;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Only RefreshDate's unset 1004 is tolerated when native IsConnected independently confirms no active OLE DB session. Successful dates are retained even when disconnected; other HRESULTs and connected-provider failures propagate.")]
+    private static DateTime? ReadOleDbRefreshDate(Func<object?> readRefreshDate, bool isConnected)
+    {
+        const int unsetRefreshDate = unchecked((int)0x800A03EC);
+        try
+        {
+            return GetRefreshDateSafe(readRefreshDate());
+        }
+        catch (COMException error) when (error.HResult == unsetRefreshDate && !isConnected)
+        {
+            return null;
+        }
+    }
+
     private static bool IsUnsupportedConnectionProperty(COMException exception) =>
-        exception.HResult is unchecked((int)0x80020003) or unchecked((int)0x80004001);
+        ComErrors.IsMemberUnavailable(exception);
 
     private static string? GetConnectionString(dynamic conn)
     {
@@ -423,7 +427,7 @@ public partial class ConnectionCommands : IConnectionCommands
                     textConnection = conn.TextConnection;
                     connectionString = textConnection?.Connection?.ToString();
                 }
-                catch (COMException)
+                catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                 {
                 }
                 finally
@@ -439,7 +443,7 @@ public partial class ConnectionCommands : IConnectionCommands
                         webConnection = conn.WebConnection;
                         connectionString = webConnection?.Connection?.ToString();
                     }
-                    catch (COMException)
+                    catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                     {
                     }
                     finally
@@ -456,7 +460,7 @@ public partial class ConnectionCommands : IConnectionCommands
                 {
                     connectionString = conn.ConnectionString?.ToString();
                 }
-                catch (COMException)
+                catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                 {
                     // Property not available
                 }
@@ -464,7 +468,7 @@ public partial class ConnectionCommands : IConnectionCommands
 
             return connectionString;
         }
-        catch (COMException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             // Property not available
         }
@@ -513,7 +517,7 @@ public partial class ConnectionCommands : IConnectionCommands
                     textConnection = conn.TextConnection;
                     return textConnection?.CommandText?.ToString();
                 }
-                catch (COMException)
+                catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                 {
                 }
                 finally
@@ -533,7 +537,7 @@ public partial class ConnectionCommands : IConnectionCommands
                 }
             }
         }
-        catch (COMException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
         }
 
@@ -587,7 +591,7 @@ public partial class ConnectionCommands : IConnectionCommands
                 return null;
             }
         }
-        catch (COMException)
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             return null;
         }
@@ -823,7 +827,7 @@ public partial class ConnectionCommands : IConnectionCommands
                 {
                     textConnection = conn.TextConnection; // Try TEXT first
                 }
-                catch (COMException)
+                catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                 {
                 }
 
@@ -896,7 +900,7 @@ public partial class ConnectionCommands : IConnectionCommands
                         }
                     }
                 }
-                catch (COMException)
+                catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
                 {
                     // Neither works - skip property updates
                 }
@@ -966,47 +970,6 @@ public partial class ConnectionCommands : IConnectionCommands
         }
 
         return Type.Missing;
-    }
-
-    private static void SetConnectionProperty<T>(dynamic conn, string propertyName, T? value) where T : struct
-    {
-        if (!value.HasValue) return;
-
-        dynamic? subConn = null;
-        try
-        {
-            subConn = GetTypedSubConnection(conn);
-            if (subConn != null)
-            {
-                SetProperty(subConn, propertyName, value.Value);
-            }
-        }
-        catch (COMException)
-        {
-            // Property not available for this connection type
-        }
-        finally
-        {
-            ComUtilities.Release(ref subConn);
-        }
-    }
-
-    private static void SetProperty<T>(dynamic obj, string propertyName, T value)
-    {
-        try
-        {
-            // Use reflection to set property dynamically
-            var type = obj.GetType();
-            var property = type.GetProperty(propertyName);
-            if (property != null && property.CanWrite)
-            {
-                property.SetValue(obj, value);
-            }
-        }
-        catch (System.Runtime.InteropServices.COMException)
-        {
-            // Property doesn't exist or can't be set
-        }
     }
 
     private static void CreateQueryTableForConnection(

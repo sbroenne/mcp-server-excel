@@ -5,6 +5,7 @@ using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -30,6 +31,7 @@ public partial class VbaCommands
             var originalCulture = CultureInfo.CurrentCulture;
             var originalUiCulture = CultureInfo.CurrentUICulture;
             object? originalAutomationSecurity = null;
+            Exception? operationFailure = null;
             try
             {
                 var excelCulture = CultureInfo.GetCultureInfo("en-US");
@@ -39,6 +41,7 @@ public partial class VbaCommands
                 // Explicit macro execution is an opt-in operation. Temporarily switch automation
                 // security to low so Application.Run can execute on workbooks reopened by the
                 // automation host, then restore the previous setting after the call.
+                // PIA gap: AutomationSecurity is an Office.Core enum unavailable in the supported Excel-only references.
                 dynamic app = (dynamic)(object)ctx.App;
                 originalAutomationSecurity = app.AutomationSecurity;
                 app.AutomationSecurity = 1;
@@ -69,7 +72,13 @@ public partial class VbaCommands
             }
             catch (TargetInvocationException ex) when (ex.InnerException != null)
             {
+                operationFailure = ex.InnerException;
                 ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw;
+            }
+            catch (Exception ex)
+            {
+                operationFailure = ex;
                 throw;
             }
             finally
@@ -78,15 +87,12 @@ public partial class VbaCommands
                 {
                     if (originalAutomationSecurity != null)
                     {
-                        try
+                        OperationCleanup.Run(() =>
                         {
                             // PIA gap: AutomationSecurity lives in office.dll (Microsoft.Office.Core),
                             // so restoring it must stay late-bound to avoid loading a missing Office core assembly.
                             ((dynamic)(object)ctx.App).AutomationSecurity = originalAutomationSecurity;
-                        }
-                        catch (COMException)
-                        {
-                        }
+                        }, operationFailure);
                     }
                 }
                 finally

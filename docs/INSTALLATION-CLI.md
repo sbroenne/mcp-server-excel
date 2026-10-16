@@ -147,7 +147,8 @@ direct-marketplace installations do not need to move.
 
 **Current plugin launch:** Use `npx -y @sbroenne/excelcli@latest`. The plugin also
 provides `bin\start-cli.ps1`, which launches the same npm package while preserving
-quoted JSON arguments in Windows PowerShell. npm resolves the `latest` tag and
+quoted JSON arguments in PowerShell 7.4 or later (`pwsh`); Windows PowerShell
+5.1 is not supported. npm resolves the `latest` tag and
 manages caching subject to its cache policy; the plugin has no GitHub-release
 downloader or separate update checker. No global installation helper, PATH
 change, or separate .NET runtime is required.

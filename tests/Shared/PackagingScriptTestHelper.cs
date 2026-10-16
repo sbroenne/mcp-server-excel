@@ -100,7 +100,8 @@ internal static class PackagingScriptTestHelper
         }
         catch (OperationCanceledException)
         {
-            process.Kill(entireProcessTree: true);
+            if (!process.HasExited) { process.Kill(entireProcessTree: true); }
+            if (!process.WaitForExit(10_000)) { throw new TimeoutException($"PowerShell script '{scriptPath}' timed out and its owned process did not stop."); }
             throw new TimeoutException($"PowerShell script '{scriptPath}' timed out after {timeoutMs}ms.");
         }
 

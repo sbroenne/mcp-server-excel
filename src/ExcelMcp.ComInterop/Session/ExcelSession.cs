@@ -40,7 +40,7 @@ public static class ExcelSession
     /// // Dispose closes workbook and quits Excel
     /// </code>
     /// </remarks>
-    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
+    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "Excel desktop automation is Windows-only; the shared BeginBatchWithTimeouts boundary enforces the platform requirement.")]
     public static IExcelBatch BeginBatch(params string[] filePaths)
         => BeginBatch(show: false, operationTimeout: null, filePaths);
 
@@ -53,7 +53,7 @@ public static class ExcelSession
     /// <param name="operationTimeout">Maximum time for startup and any single operation (default: 120 seconds).</param>
     /// <param name="filePaths">Paths to Excel files. First file is the primary workbook.</param>
     /// <returns>IExcelBatch for executing multiple operations</returns>
-    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility")]
+    [SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "Excel desktop automation is Windows-only; the shared BeginBatchWithTimeouts boundary enforces the platform requirement.")]
     public static IExcelBatch BeginBatch(
         bool show,
         TimeSpan? operationTimeout,

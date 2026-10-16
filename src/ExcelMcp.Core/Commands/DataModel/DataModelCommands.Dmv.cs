@@ -38,6 +38,7 @@ public partial class DataModelCommands
             dynamic? adoConnection = null;
             dynamic? recordset = null;
             dynamic? fields = null;
+            Exception? operationFailure = null;
 
             try
             {
@@ -143,36 +144,29 @@ public partial class DataModelCommands
                 result.RowCount = result.Rows.Count;
                 result.Success = true;
             }
+            catch (Exception exception)
+            {
+                operationFailure = exception;
+                throw;
+            }
             finally
             {
-                // Close recordset if open
-                if (recordset != null)
+                try
                 {
-                    try
-                    {
-                        // State 1 = adStateOpen
-                        if ((int)recordset.State == 1)
-                        {
-                            recordset.Close();
-                        }
-                    }
-                    catch (System.Runtime.InteropServices.COMException)
-                    {
-                        // Ignore errors closing recordset
-                    }
+                    CloseRecordset(recordset, operationFailure);
                 }
-
-                ComUtilities.Release(ref fields);
-                ComUtilities.Release(ref recordset);
-                ComUtilities.Release(ref adoConnection);
-                ComUtilities.Release(ref modelConn);
-                ComUtilities.Release(ref dataModelConn);
-                ComUtilities.Release(ref model);
+                finally
+                {
+                    ComUtilities.Release(ref fields);
+                    ComUtilities.Release(ref recordset);
+                    ComUtilities.Release(ref adoConnection);
+                    ComUtilities.Release(ref modelConn);
+                    ComUtilities.Release(ref dataModelConn);
+                    ComUtilities.Release(ref model);
+                }
             }
 
             return result;
         }, timeoutCts.Token);
     }
 }
-
-

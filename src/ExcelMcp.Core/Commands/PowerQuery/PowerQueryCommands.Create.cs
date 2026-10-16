@@ -137,36 +137,29 @@ public partial class PowerQueryCommands
     /// </summary>
     private static Excel.WorkbookQuery? FindQueryByName(Excel.Queries queriesCollection, string queryName)
     {
-        try
+        int count = queriesCollection.Count;
+        for (int i = 1; i <= count; i++)
         {
-            int count = queriesCollection.Count;
-            for (int i = 1; i <= count; i++)
+            Excel.WorkbookQuery? query = null;
+            try
             {
-                Excel.WorkbookQuery? query = null;
-                try
-                {
-                    query = queriesCollection.Item(i);
-                    string name = query.Name ?? string.Empty;
+                query = queriesCollection.Item(i);
+                string name = query.Name ?? string.Empty;
 
-                    if (name.Equals(queryName, StringComparison.OrdinalIgnoreCase))
-                    {
-                        var result = query;
-                        query = null;
-                        return result; // Caller must release
-                    }
-                }
-                finally
+                if (name.Equals(queryName, StringComparison.OrdinalIgnoreCase))
                 {
-                    if (query != null)
-                    {
-                        ComUtilities.Release(ref query);
-                    }
+                    var result = query;
+                    query = null;
+                    return result; // Caller must release
                 }
             }
-        }
-        catch (System.Runtime.InteropServices.COMException)
-        {
-            // Query not found or error accessing collection
+            finally
+            {
+                if (query != null)
+                {
+                    ComUtilities.Release(ref query);
+                }
+            }
         }
 
         return null;

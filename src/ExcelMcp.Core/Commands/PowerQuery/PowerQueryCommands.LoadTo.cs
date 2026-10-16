@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -171,6 +172,7 @@ public partial class PowerQueryCommands
         dynamic? listObjects = null;
         dynamic? listObject = null;
         dynamic? queryTable = null;
+        dynamic? listObjectRange = null;
 
         try
         {
@@ -243,8 +245,9 @@ public partial class PowerQueryCommands
 
                                 int tableStartRow = Convert.ToInt32(tableRange.Row);
                                 int tableStartCol = Convert.ToInt32(tableRange.Column);
-                                int tableEndRow = tableStartRow + Convert.ToInt32(tableRange.Rows.Count) - 1;
-                                int tableEndCol = tableStartCol + Convert.ToInt32(tableRange.Columns.Count) - 1;
+                                (int tableRows, int tableColumns) = Range.RangeHelpers.GetDimensions((Excel.Range)tableRange);
+                                int tableEndRow = tableStartRow + tableRows - 1;
+                                int tableEndCol = tableStartCol + tableColumns - 1;
 
                                 // Check if destination cell would overlap with existing table
                                 if (destRow >= tableStartRow && destRow <= tableEndRow &&
@@ -268,7 +271,7 @@ public partial class PowerQueryCommands
 
                 // Also check if target cell contains data (Excel UI validation)
                 dynamic? cellValue = destination.Value2;
-                bool cellHasData = cellValue != null && !string.IsNullOrWhiteSpace(cellValue.ToString());
+                bool cellHasData = cellValue is not null && !string.IsNullOrWhiteSpace(cellValue.ToString());
                 ComUtilities.Release(ref cellValue!);
 
                 if (cellHasData)
@@ -328,21 +331,30 @@ public partial class PowerQueryCommands
             // Name the table after the query for predictable M-code referencing.
             // Without this, Excel auto-assigns a generic name ("Table1", "Table2", etc.)
             // which makes Excel.CurrentWorkbook(){[Name=queryName]}[Content] lookups unreliable.
-            try { listObject.Name = queryName; }
-            catch { /* Non-critical — if rename fails (e.g. name conflict), load still succeeded. */ }
+            string createdTableName = listObject.Name;
+            try
+            {
+                listObject.Name = queryName;
+            }
+            catch (COMException ex)
+            {
+                throw new InvalidOperationException(
+                    $"Query '{queryName}' loaded into table '{createdTableName}' on worksheet '{sheetName}', " +
+                    $"but renaming the table failed: {ex.Message}. The loaded table remains; no changes were rolled back.", ex);
+            }
 
             // Capture results - use ListObject Range for total rows, subtract header
-            dynamic? listObjectRange = listObject.Range;
-            int totalRows = listObjectRange != null ? Convert.ToInt32(listObjectRange.Rows.Count) : 0;
+            listObjectRange = listObject.Range;
+            int totalRows = listObjectRange is not null ? Range.RangeHelpers.GetDimensions((Excel.Range)listObjectRange).Rows : 0;
             result.TargetCellAddress = targetCellAddress;
             result.RowsLoaded = totalRows > 0 ? totalRows - 1 : 0; // Subtract header row
             result.Success = true;
 
-            ComUtilities.Release(ref listObjectRange!);
             return true;
         }
         finally
         {
+            ComUtilities.Release(ref listObjectRange);
             ComUtilities.Release(ref queryTable);
             ComUtilities.Release(ref listObject);
             ComUtilities.Release(ref listObjects);

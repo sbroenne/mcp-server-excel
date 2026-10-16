@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
 Patches the dedicated VM and proves recovery, following mcp-windows maintenance.

@@ -99,7 +99,9 @@ public sealed class ReportFilterCancellationTests(TempDirectoryFixture fixture) 
 
         public static T Create<T>(DisconnectedBatch owner) where T : class
         {
-            var value = DispatchProxy.Create<T, DisconnectedPivotObjects>();
+            // Match Core's embedded PIA member subset, including PivotCache().
+            var interfaceType = typeof(PivotTableCommands).Assembly.GetType(typeof(T).FullName!) ?? typeof(T);
+            var value = (T)DispatchProxy.Create(interfaceType, typeof(DisconnectedPivotObjects));
             var proxy = (DisconnectedPivotObjects)(object)value;
             proxy.Owner = owner;
             proxy.ExcelType = typeof(T);
@@ -114,6 +116,10 @@ public sealed class ReportFilterCancellationTests(TempDirectoryFixture fixture) 
                 return Create<Excel.PivotTables>(Owner);
             if (ExcelType == typeof(Excel.PivotTables) && targetMethod?.Name == "Item")
                 return Create<Excel.PivotTable>(Owner);
+            if (ExcelType == typeof(Excel.PivotTable) && targetMethod?.Name == "PivotCache")
+                return Create<Excel.PivotCache>(Owner);
+            if (ExcelType == typeof(Excel.PivotCache) && targetMethod?.Name == "get_OLAP")
+                return true;
             if (ExcelType == typeof(Excel.PivotTable) && targetMethod?.Name == "get_CubeFields")
                 return CubeFields;
             throw new NotSupportedException($"Unexpected {ExcelType.Name} member: {targetMethod?.Name}");

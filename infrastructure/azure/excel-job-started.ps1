@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 $ErrorActionPreference = 'Stop'
 $permit = Get-Content (Join-Path $PSScriptRoot 'permit.json') -Raw | ConvertFrom-Json
 . (Join-Path $PSScriptRoot 'ExcelRunnerPolicy.ps1')

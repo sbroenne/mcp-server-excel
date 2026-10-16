@@ -234,20 +234,9 @@ public partial class TableCommands
         return batch.Execute((ctx, ct) =>
         {
             dynamic? table = null;
-            dynamic? tableRange = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
-
-                // SECURITY FIX: Store range info before Unlist() for proper cleanup
-                try
-                {
-                    tableRange = table.Range;
-                }
-                catch (System.Runtime.InteropServices.COMException)
-                {
-                    // Ignore if range is not accessible
-                }
 
                 // Convert table back to range (Unlist)
                 table.Unlist();
@@ -260,7 +249,6 @@ public partial class TableCommands
             }
             finally
             {
-                ComUtilities.Release(ref tableRange);
                 ComUtilities.Release(ref table);
             }
         });

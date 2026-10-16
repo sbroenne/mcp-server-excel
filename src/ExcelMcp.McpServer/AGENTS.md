@@ -1,10 +1,13 @@
 # MCP boundaries
 
+Follow [repository review checks](../../AGENTS.md#code-review-rules) and
+[runtime boundaries](../AGENTS.md). Owning MCP generators share these rules.
+
 - Register with the SDK's `WithToolsFromAssembly`; it owns schemas, dependency
   injection, binding, transport, cancellation, and unexpected protocol errors.
   Do not introduce replacement registration or client-specific schema rewriting.
-- Tool methods return `Task<CallToolResult>`. Inject the host-owned Service
-  bridge and pass the SDK cancellation token explicitly through generated routes.
+- Compiler diagnostics enforce the supported tool signature. Inject the
+  host-owned Service bridge and pass cancellation through generated routes.
   Core commands remain synchronous on the owning Excel thread.
 - Use `ExecuteToolActionAsync` for result conversion and telemetry. Execution
   failures set the actual SDK `CallToolResult.IsError`, not just a JSON field.
@@ -20,6 +23,6 @@
 
 Descriptions, input naming, server instructions, supported MCP capabilities,
 and guidance validation follow
-[Agent guidance sources](mcp-llm-guidance.md).
+[Agent guidance sources](../../skills/AGENTS.md).
 
-Manual routing example and explanation: [DEVELOPMENT](../../DEVELOPMENT.md).
+Manual routing example and explanation: [DEVELOPMENT](../../docs/DEVELOPMENT.md).

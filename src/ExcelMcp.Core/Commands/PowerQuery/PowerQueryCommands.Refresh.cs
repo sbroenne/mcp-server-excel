@@ -141,6 +141,8 @@ public partial class PowerQueryCommands
         }, timeoutCts.Token);
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Transports recordable refresh failures in FailedQueries with native diagnostics; overall success is false, and cancellation/disconnection are excluded.")]
     internal static PowerQueryRefreshAllResult RefreshQueries(
         IReadOnlyList<string> queryNames,
         Func<string, bool> refreshQuery,
@@ -348,6 +350,8 @@ public partial class PowerQueryCommands
             " Inspect failedQueries and failedPivotTables for details.";
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Transports cache-classification and refresh errors as FailedPivotTables with original diagnostics; cancellation and session disconnection propagate.")]
     private static void RefreshDependentPivotTables(
         Excel.Workbook workbook,
         PowerQueryRefreshAllResult result,
@@ -508,14 +512,9 @@ public partial class PowerQueryCommands
                         try
                         {
                             table = tables.Item[j];
-                            try
-                            {
-                                queryTable = table.QueryTable;
-                            }
-                            catch (COMException ex) when (IsRecordableQueryFailure(ex, cancellationToken))
-                            {
+                            if (table.SourceType is not (Excel.XlListObjectSourceType.xlSrcExternal or Excel.XlListObjectSourceType.xlSrcQuery))
                                 continue;
-                            }
+                            queryTable = table.QueryTable;
 
                             string? connectionString = queryTable.Connection?.ToString();
                             if (queryNames.Any(queryName =>

@@ -17,7 +17,8 @@ public sealed class TestCatalog
     public TestCatalog(string root)
     {
         _root = root;
-        foreach (var project in Directory.EnumerateFiles(Path.Combine(root, "tests"), "*.csproj", SearchOption.AllDirectories))
+        foreach (var project in Directory.EnumerateDirectories(Path.Combine(root, "tests"))
+            .SelectMany(directory => Directory.EnumerateFiles(directory, "*.csproj")))
         {
             var projectName = Path.GetFileNameWithoutExtension(project);
             if (!projectName.StartsWith("ExcelMcp.", StringComparison.Ordinal) || !projectName.EndsWith(".Tests", StringComparison.Ordinal)) { continue; }
@@ -30,7 +31,7 @@ public sealed class TestCatalog
     {
         var directory = Path.GetDirectoryName(project)!;
         var document = XDocument.Load(project);
-        var files = Directory.EnumerateFiles(directory, "*.cs", SearchOption.AllDirectories).Where(IsSource).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var files = SourceFiles(directory, "*.cs").ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var include in document.Descendants("Compile").Attributes("Include"))
         {
             var path = Path.GetFullPath(include.Value.Replace('\\', Path.DirectorySeparatorChar), directory);
@@ -203,14 +204,16 @@ public sealed class TestCatalog
 
     private static IEnumerable<string> References(IEnumerable<Part> parts) =>
         parts.SelectMany(part => part.Node.DescendantNodes().OfType<SimpleNameSyntax>()
-            .Concat(part.Node.SyntaxTree.GetRoot().DescendantNodes().OfType<UsingDirectiveSyntax>()
+            .Concat(part.Node.SyntaxTree.GetRoot().DescendantNodes(node =>
+                    node is CompilationUnitSyntax or BaseNamespaceDeclarationSyntax).OfType<UsingDirectiveSyntax>()
                 .Where(directive => directive.StaticKeyword.IsKind(SyntaxKind.StaticKeyword) || directive.Alias is not null)
                 .SelectMany(directive => directive.DescendantNodes().OfType<SimpleNameSyntax>())))
             .Select(identifier => identifier.Identifier.ValueText);
 
     private static IEnumerable<Part> Parse(string source, string file, CSharpParseOptions options)
     {
-        foreach (var node in CSharpSyntaxTree.ParseText(source, options).GetRoot().DescendantNodes())
+        foreach (var node in CSharpSyntaxTree.ParseText(source, options).GetRoot().DescendantNodes(node =>
+            node is CompilationUnitSyntax or BaseNamespaceDeclarationSyntax or TypeDeclarationSyntax))
         {
             var name = node switch
             {
@@ -238,7 +241,8 @@ public sealed class TestCatalog
     private static string AttributeName(AttributeSyntax attribute)
     {
         var name = attribute.Name.ToString().Split('.').Last();
-        var alias = attribute.SyntaxTree.GetRoot().DescendantNodes().OfType<UsingDirectiveSyntax>()
+        var alias = attribute.SyntaxTree.GetRoot().DescendantNodes(node =>
+                node is CompilationUnitSyntax or BaseNamespaceDeclarationSyntax).OfType<UsingDirectiveSyntax>()
             .FirstOrDefault(directive => directive.Alias?.Name.Identifier.ValueText == name);
         if (alias?.Name is { } target) { name = target.ToString().Split('.').Last(); }
         return name.EndsWith("Attribute", StringComparison.Ordinal) ? name[..^"Attribute".Length] : name;
@@ -253,6 +257,17 @@ public sealed class TestCatalog
         }
     }
     private static bool IsSource(string path) => !path.Split(Path.DirectorySeparatorChar).Any(segment => segment is "bin" or "obj");
+    private static IEnumerable<string> SourceFiles(string directory, string pattern)
+    {
+        foreach (var file in Directory.EnumerateFiles(directory, pattern)) { yield return file; }
+        foreach (var child in Directory.EnumerateDirectories(directory))
+        {
+            var name = Path.GetFileName(child);
+            if (name.Equals("bin", StringComparison.OrdinalIgnoreCase) || name.Equals("obj", StringComparison.OrdinalIgnoreCase)) { continue; }
+            foreach (var file in SourceFiles(child, pattern)) { yield return file; }
+        }
+    }
+
     private static HashSet<string> ProjectSymbols(string project)
     {
         var symbols = new HashSet<string>(StringComparer.Ordinal) { "TRACE", "NET", "NETCOREAPP", "NET10_0", "NET10_0_OR_GREATER" };

@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 function ConvertTo-ExcelRunnerUtc {
     param($Value)
     if ($Value -is [DateTime] -and $Value.Kind -eq [DateTimeKind]::Utc) { return $Value }

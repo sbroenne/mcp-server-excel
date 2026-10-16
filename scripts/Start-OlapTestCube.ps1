@@ -1,4 +1,5 @@
 #!/usr/bin/env pwsh
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Starts the synthetic Atoti OLAP cube used by the external OLAP integration test.
@@ -40,6 +41,7 @@ function Invoke-OlapSetupProcess {
     if ($remaining -le 0) { throw 'OLAP environment setup exceeded its hard deadline.' }
     $info = [Diagnostics.ProcessStartInfo]::new($Executable)
     $info.UseShellExecute = $false
+    $info.CreateNoWindow = $true
     $info.RedirectStandardOutput = $true
     $info.RedirectStandardError = $true
     foreach ($argument in $Arguments) { $info.ArgumentList.Add($argument) }
@@ -70,6 +72,45 @@ function Invoke-OlapSetupProcess {
     if ($failures.Count) { throw [AggregateException]::new('OLAP environment setup failed.', $failures) }
 }
 
+function Wait-OlapCubeStartup {
+    param(
+        [Diagnostics.Process]$Process, [string]$LogPath, [int]$Port,
+        [ValidateRange(1, 1800)][int]$StartupTimeoutSeconds
+    )
+    $null = $process.Handle
+    $ready = $false
+    $failures = [Collections.Generic.List[Exception]]::new()
+    $deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
+    try {
+        while (-not $ready) {
+            if ($process.HasExited -or [DateTime]::UtcNow -gt $deadline) {
+                $errorText = Get-Content -LiteralPath "$logPath.err" -Tail 20 | Out-String
+                throw "The OLAP test cube did not start on port $port. Diagnostics: $logPath. $errorText"
+            }
+            $ready = (Test-Path -LiteralPath $logPath) -and
+                (Select-String -LiteralPath $logPath -Pattern '^READY$' -Quiet)
+            if (-not $ready) { Start-Sleep -Seconds 2 }
+        }
+    }
+    catch { $failures.Add($_.Exception) }
+    finally {
+        if (-not $ready) {
+            try {
+                if (-not $process.HasExited) {
+                    $process.Kill($true)
+                    if (-not $process.WaitForExit(10000)) {
+                        throw "OLAP test cube cleanup timed out for PID $($process.Id)."
+                    }
+                }
+            }
+            catch { $failures.Add($_.Exception) }
+            finally { $process.Dispose() }
+        }
+    }
+    if ($failures.Count) { throw [AggregateException]::new('OLAP test cube startup failed.', $failures) }
+}
+
+if ($MyInvocation.InvocationName -eq '.') { return }
 if (-not (Test-Path $marker)) {
     Write-Host "Installing Atoti $atotiVersion into $ToolDirectory..." -ForegroundColor Cyan
     $setupDeadline = [DateTime]::UtcNow.AddSeconds($SetupTimeoutSeconds)
@@ -87,37 +128,7 @@ $logPath = Join-Path ([IO.Path]::GetTempPath()) "excelmcp-olap-cube-$port.log"
 $process = Start-Process -FilePath $python -ArgumentList @('-u', "`"$cubeScript`"", $port) `
     -Environment @{ ATOTI_HIDE_EULA_MESSAGE = 'True' } `
     -RedirectStandardOutput $logPath -RedirectStandardError "$logPath.err" -NoNewWindow -PassThru
-$null = $process.Handle
-$ready = $false
-$failures = [Collections.Generic.List[Exception]]::new()
-$deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
-try {
-    while (-not $ready) {
-        if ($process.HasExited -or [DateTime]::UtcNow -gt $deadline) {
-            $errorText = Get-Content -LiteralPath "$logPath.err" -Tail 20 | Out-String
-            throw "The OLAP test cube did not start on port $port. Diagnostics: $logPath. $errorText"
-        }
-        $ready = (Test-Path -LiteralPath $logPath) -and
-            (Select-String -LiteralPath $logPath -Pattern '^READY$' -Quiet)
-        if (-not $ready) { Start-Sleep -Seconds 2 }
-    }
-}
-catch { $failures.Add($_.Exception) }
-finally {
-    if (-not $ready) {
-        try {
-            if (-not $process.HasExited) {
-                $process.Kill($true)
-                if (-not $process.WaitForExit(10000)) {
-                    throw "OLAP test cube cleanup timed out for PID $($process.Id)."
-                }
-            }
-        }
-        catch { $failures.Add($_.Exception) }
-        finally { $process.Dispose() }
-    }
-}
-if ($failures.Count) { throw [AggregateException]::new('OLAP test cube startup failed.', $failures) }
+Wait-OlapCubeStartup -Process $process -LogPath $logPath -Port $port -StartupTimeoutSeconds $StartupTimeoutSeconds
 
 [pscustomobject]@{
     Process = $process

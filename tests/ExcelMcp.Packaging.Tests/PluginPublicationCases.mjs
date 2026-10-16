@@ -900,7 +900,6 @@ export function registerWorkflowPolicyTests() {
         const plans = JSON.parse(command('pwsh', ['-NoProfile', '-Command', script], repoRoot));
         for (const result of plans) {
             assert.equal(result.Build, true);
-            assert.equal(result.Plugins, true);
             assert.equal(result.PackagingTests, true);
             assert.equal(result.Excel, false);
         }

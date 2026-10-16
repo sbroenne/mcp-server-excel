@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
 Configures protected, password-free GitHub control of the dedicated Excel VM.

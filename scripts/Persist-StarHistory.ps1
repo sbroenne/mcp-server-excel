@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Creates or updates the durable aggregate star-history file through the GitHub Contents API.

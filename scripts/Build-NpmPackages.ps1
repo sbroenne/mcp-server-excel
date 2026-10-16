@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 [CmdletBinding()]
 param(
     [ValidateSet('McpServer', 'Cli')][string]$Component = 'McpServer',

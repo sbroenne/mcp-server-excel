@@ -28,8 +28,7 @@ DOCS_DIR = GH_PAGES / "docs"
 # includes in the wrapper pages resolve here unchanged.
 GEN_DIR = GH_PAGES / "_generated"
 
-# The single generated count file every count consumer reads; see
-# scripts/check-doc-counts.ps1.
+# Reviewed count metadata, checked against compiled contracts by EXL030.
 DOC_COUNTS = "doc-counts.json"
 
 

@@ -35,6 +35,8 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         public bool StopOnError { get; init; }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "CLI batch boundary writes explicit failed NDJSON items or input errors and exits nonzero; communication/validation exceptions are surfaced with their original messages, not converted into successful operations.")]
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
     {
         // Read commands from file or stdin
@@ -284,7 +286,7 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         }
         catch (JsonException)
         {
-            // Not valid JSON — ignore
+            return null;
         }
 
         return null;

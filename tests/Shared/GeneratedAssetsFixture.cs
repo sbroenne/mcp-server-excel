@@ -39,6 +39,7 @@ public sealed class GeneratedAssetsFixture : IDisposable
         {
             WorkingDirectory = root,
             UseShellExecute = false,
+            CreateNoWindow = true,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
         };
@@ -52,7 +53,7 @@ public sealed class GeneratedAssetsFixture : IDisposable
         if (!process.WaitForExit(120000))
         {
             process.Kill(entireProcessTree: true);
-            process.WaitForExit();
+            if (!process.WaitForExit(10_000)) { throw new TimeoutException($"{script} exceeded two minutes and its owned process did not stop."); }
             throw new TimeoutException($"{script} exceeded two minutes.");
         }
         if (process.ExitCode != 0)

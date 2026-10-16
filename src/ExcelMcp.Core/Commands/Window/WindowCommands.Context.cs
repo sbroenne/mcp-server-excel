@@ -10,7 +10,11 @@ public partial class WindowCommands
     /// <inheritdoc />
     public WindowContextResult GetContext(IExcelBatch batch)
     {
-        return batch.Execute((context, ct) =>
+        return batch.Execute(ReadContext);
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+            Justification = "The window-context read reports a contextual native selection failure as unavailable with its original message and HRESULT; other failures propagate.")]
+        WindowContextResult ReadContext(ExcelContext context, CancellationToken ct)
         {
             Excel.Windows? windows = null;
             try
@@ -87,7 +91,7 @@ public partial class WindowCommands
                             item.SelectedRangeAddress = null;
                             item.ActiveCellAddress = null;
                             item.ActiveChartName = null;
-                            item.SelectionDiagnostic = $"Native window selection is unavailable: {exception.Message}";
+                            item.SelectionDiagnostic = $"Native window selection is unavailable: {exception.Message} (HRESULT 0x{exception.HResult:X8}).";
                         }
                         result.Windows.Add(item);
                     }
@@ -107,6 +111,6 @@ public partial class WindowCommands
             {
                 ComUtilities.Release(ref windows);
             }
-        });
+        }
     }
 }

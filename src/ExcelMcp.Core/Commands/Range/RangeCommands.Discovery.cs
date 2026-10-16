@@ -121,8 +121,7 @@ public partial class RangeCommands
                 }
 
                 result.Address = range.Address;
-                result.RowCount = range.Rows.Count;
-                result.ColumnCount = range.Columns.Count;
+                (result.RowCount, result.ColumnCount) = RangeHelpers.GetDimensions((Excel.Range)range);
                 result.NumberFormat = ((Excel.Range)range).NumberFormat?.ToString();
 
                 // Cell geometry properties (position and dimensions in points)
@@ -141,4 +140,3 @@ public partial class RangeCommands
         });
     }
 }
-

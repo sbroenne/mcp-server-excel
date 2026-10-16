@@ -47,6 +47,8 @@ internal sealed class Program
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Top-level CLI boundary writes the exact exception as JSON or stderr diagnostics and returns nonzero; it must not let a fatal command failure appear successful.")]
     internal static async Task<int> RunAsync(
         string[] args,
         CliCommandRuntime? runtime = null)
@@ -307,6 +309,8 @@ internal sealed class Program
     /// The service listens on the CLI pipe name (shared across CLI invocations).
     /// Auto-exits after 10 minutes of inactivity with no active sessions.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Daemon process entry boundary observes the service task failure, writes its original message to stderr, returns exit code 1, and still disposes owned resources.")]
     private static int RunServiceDaemon(string? pipeNameOverride = null)
     {
         Application.EnableVisualStyles();

@@ -1,5 +1,52 @@
 # Development Workflow
 
+## Build and check ownership
+
+Use PowerShell 7.4+ and the SDK selected by `global.json`. Start with the
+[setup guide](agents/development.md) and install the normal
+[commit hook](PRE-COMMIT-SETUP.md). The working loop is editor/compiler feedback,
+selected Release build, quick commit checks, CI, and independent review.
+
+For affected checks:
+
+```powershell
+& .\build.ps1 plan --base-ref origin/main --output artifacts\validation-plan.json
+& .\build.ps1 validate --plan artifacts\validation-plan.json
+```
+
+Inspect the plan first. The validation command runs the selected full local
+plan, not the reduced commit checks. CI owns supported process, tooling, npm
+and distribution checks; local process runs are appropriate when their boundary
+changes, not as a blanket pre-push requirement. Run selected real-Excel checks
+locally because ordinary hosted runners do not have desktop Excel. Commands
+and explicit test groups are in [tests/README](../tests/README.md).
+
+`tools/ExcelMcp.Build/ValidationPolicy.cs` selects checks, not rebuild decisions.
+`Get-ValidationPlan.ps1` forwards to it; `build.ps1` bootstraps the internal tool
+into isolated execution output. MSBuild evaluates projects/imports and owns
+restore, dependency builds and incremental compilation.
+
+The commit hook builds selected inputs and uses the `Commit` projection of
+`Fast`: CLI, MCP Server, Core and Service only. CI retains `Fast`, `Process` and
+`Tooling`. A shared input can require a complete solution build even though the
+hook executes only quick product tests. In CI, the first selected group in
+Fast/Process/Tooling order owns that complete build; other groups build their
+selected projects and dependencies. `Build-CiInputs.ps1` performs those builds.
+
+The MCP compilation checks documentation counts through EXL030 using the
+compiled Core manifest. There is no separate source scanner or count updater.
+Package preparation, built test inventories, execution and completion reporting
+are typed build-tool operations, with PowerShell wrappers translating arguments.
+PR CI runs normal npm checks and complete package preparation. Explicit manual
+`Build-ReleasePackages.ps1 -Components ...` runs may narrow components.
+
+For the constraints behind this workflow, including completion checks, output
+isolation and owned-process cleanup, follow [build rules](../scripts/AGENTS.md).
+
+Release/publication procedures: [release strategy](RELEASE-STRATEGY.md),
+[extension development](../vscode-extension/DEVELOPMENT.md), and
+[plugin publication](../.github/workflows/docs/publish-plugins-setup.md#maintenance-and-updates).
+
 ## 🚨 **IMPORTANT: All Changes Must Use Pull Requests**
 
 **Direct commits to `main` are not allowed.** All changes must go through the Pull Request (PR) process to ensure:

@@ -199,15 +199,7 @@ internal static class ChartPositionHelpers
             double urWidth = Convert.ToDouble(usedRange.Width);
             double urHeight = Convert.ToDouble(usedRange.Height);
 
-            string? urAddress = null;
-            try
-            {
-                urAddress = usedRange.Address?.ToString();
-            }
-            catch
-            {
-                urAddress = "(unknown)";
-            }
+            string? urAddress = usedRange.Address?.ToString();
 
             if (RectsOverlap(left, top, width, height, urLeft, urTop, urWidth, urHeight))
             {

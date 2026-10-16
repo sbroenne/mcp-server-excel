@@ -42,7 +42,7 @@ public partial class VbaCommands : IVbaCommands
                 }
                 catch (System.Security.SecurityException)
                 {
-                    // Registry access denied for this path, try next Office version
+                    return false;
                 }
             }
 

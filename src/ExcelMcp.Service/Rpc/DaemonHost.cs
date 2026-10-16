@@ -40,6 +40,8 @@ internal sealed class DaemonHost : IDisposable
         _lastActivityTime = _timeProvider.GetUtcNow();
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "The pipe accept-loop retries listener failures with bounded backoff so the daemon remains available; this boundary never converts a workbook operation failure into success.")]
     internal async Task RunAsync(string pipeName, TimeSpan? idleTimeout = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(pipeName);
@@ -77,8 +79,9 @@ internal sealed class DaemonHost : IDisposable
             {
                 break;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                System.Diagnostics.Trace.TraceWarning("Pipe accept failed: {0}", ex.Message);
                 try
                 {
                     await _delay(currentBackoff, _shutdownCts.Token);
@@ -102,9 +105,9 @@ internal sealed class DaemonHost : IDisposable
                             server.Disconnect();
                         }
                     }
-                    catch (Exception)
+                    catch (IOException ex)
                     {
-                        // The peer may already have disconnected.
+                        System.Diagnostics.Trace.TraceWarning("Pipe disconnect cleanup failed: {0}", ex.Message);
                     }
 
                     await server.DisposeAsync();
@@ -130,6 +133,8 @@ internal sealed class DaemonHost : IDisposable
 
     internal Task WaitForAcceptLoopStoppedAsync() => _acceptLoopStopped.Task;
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "A disconnected or faulted RPC connection is diagnosed and its pipe disposed without taking down unrelated clients. Request errors are transported by StreamJsonRpc before this connection boundary.")]
     private async Task RunConnectionAsync(
         NamedPipeServerStream clientServer,
         SemaphoreSlim connectionLimit)
@@ -199,6 +204,7 @@ internal sealed class DaemonHost : IDisposable
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
+            return;
         }
     }
 
@@ -211,9 +217,12 @@ internal sealed class DaemonHost : IDisposable
         }
         catch (OperationCanceledException) when (_shutdownCts.IsCancellationRequested)
         {
+            return;
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Shutdown observes and diagnoses already-faulted connection tasks while allowing the remaining connections to drain; no operation result is changed.")]
     private static async Task ObserveConnectionTaskAsync(Task connectionTask)
     {
         try

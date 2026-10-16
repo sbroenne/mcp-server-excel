@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
 Installs development prerequisites without registering a coding runner.
@@ -87,7 +88,6 @@ function Get-RunnerPythonRelease {
 
 function Get-RunnerPythonArchitecture {
     param([string]$Path)
-    # Windows PowerShell removes embedded quotes from native command arguments.
     $architecture = (& $Path -c 'import sys; print(64 if sys.maxsize > 2**32 else 32)') -join ''
     if ($LASTEXITCODE -ne 0 -or $architecture -ne '64') { throw 'The runner requires 64-bit Python.' }
     return $architecture
@@ -209,7 +209,8 @@ function Get-RunnerToolchainState {
     $gitVersion = (& $git --version) -join ''
     if ($LASTEXITCODE -ne 0) { throw 'Git verification failed.' }
     $powershellVersion = (& $pwsh -NoProfile -Command '$PSVersionTable.PSVersion.ToString()') -join ''
-    if ($LASTEXITCODE -ne 0 -or $powershellVersion -notmatch '^7\.') { throw 'PowerShell 7 verification failed.' }
+    if ($LASTEXITCODE -ne 0 -or $powershellVersion -notmatch '^\d+\.\d+\.\d+$' -or
+        [version]$powershellVersion -lt [version]'7.4') { throw 'PowerShell 7.4 or later verification failed.' }
     $nodeVersion = (& $node --version) -join ''
     if ($LASTEXITCODE -ne 0 -or $nodeVersion -notmatch '^v24\.\d+\.\d+$' -or
         [version]$nodeVersion.Substring(1) -lt [version]'24.11.0') {
@@ -267,7 +268,7 @@ switch ($Action) {
             throw 'Provisioning requires an unregistered, stopped coding runner.'
         }
         Write-ToolchainState @{ state = 'running'; sdk = $SdkVersion }
-        $taskAction = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument (
+        $taskAction = New-ScheduledTaskAction -Execute (Join-Path $env:ProgramFiles 'PowerShell\7\pwsh.exe') -Argument (
             "-NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$PSCommandPath`" -Action Worker -SdkVersion $SdkVersion -RollForward $RollForward"
         )
         $principal = New-ScheduledTaskPrincipal -UserId SYSTEM -LogonType ServiceAccount -RunLevel Highest
@@ -306,12 +307,6 @@ switch ($Action) {
                 $assets = @($release.assets | Where-Object name -Match '^Git-.*-64-bit\.exe$')
                 if ($assets.Count -ne 1) { throw 'Expected exactly one official Git x64 installer.' }
                 Install-RunnerPrerequisite $assets[0].browser_download_url 'git.exe' Git '/VERYSILENT /NORESTART /NOCANCEL /SP- /ALLUSERS'
-            }
-            if (-not (Test-Path -LiteralPath (Join-Path $env:ProgramFiles 'PowerShell\7\pwsh.exe'))) {
-                $release = Invoke-RestMethod 'https://api.github.com/repos/PowerShell/PowerShell/releases/latest' -Headers $headers -TimeoutSec 60
-                $assets = @($release.assets | Where-Object name -Match '^PowerShell-.*-win-x64\.msi$')
-                if ($assets.Count -ne 1) { throw 'Expected exactly one official PowerShell x64 installer.' }
-                Install-RunnerPrerequisite $assets[0].browser_download_url 'powershell.msi' Microsoft 'ADD_PATH=1' -Msi
             }
             $node = Join-Path $env:ProgramFiles 'nodejs\node.exe'
             $nodeMatches = $false

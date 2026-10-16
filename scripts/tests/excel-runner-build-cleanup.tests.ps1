@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $properties = [xml](Get-Content (Join-Path $root 'Directory.Build.props') -Raw)

@@ -1,4 +1,3 @@
-using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -152,40 +151,42 @@ public partial class PowerQueryCommands
                         {
                             dynamic? table = null;
                             dynamic? queryTable = null;
+                            dynamic? workbookConnection = null;
                             dynamic? oleDbConnection = null;
 
                             try
                             {
                                 table = listObjects.Item(j);
+                                int sourceType = Convert.ToInt32((object)table.SourceType, System.Globalization.CultureInfo.InvariantCulture);
+                                if (sourceType is not (0 or 3))
+                                    continue;
 
                                 // Check if this table has a QueryTable with our query
-                                try
+                                queryTable = table.QueryTable;
+                                if (queryTable != null)
                                 {
-                                    queryTable = table.QueryTable;
-                                    if (queryTable != null)
+                                    workbookConnection = queryTable.WorkbookConnection;
+                                    if (workbookConnection is null ||
+                                        Convert.ToInt32((object)workbookConnection.Type, System.Globalization.CultureInfo.InvariantCulture) != 1)
+                                        continue;
+                                    oleDbConnection = workbookConnection.OLEDBConnection;
+                                    if (oleDbConnection != null)
                                     {
-                                        oleDbConnection = queryTable.WorkbookConnection?.OLEDBConnection;
-                                        if (oleDbConnection != null)
+                                        string? connString = oleDbConnection.Connection?.ToString() ?? "";
+                                        if (PowerQuery.PowerQueryHelpers.MatchesMashupLocation(
+                                            connString,
+                                            queryName))
                                         {
-                                            string? connString = oleDbConnection.Connection?.ToString() ?? "";
-                                            if (PowerQuery.PowerQueryHelpers.MatchesMashupLocation(
-                                                connString,
-                                                queryName))
-                                            {
-                                                // This table is associated with our query - delete it
-                                                table.Delete();
-                                            }
+                                            // This table is associated with our query - delete it
+                                            table.Delete();
                                         }
                                     }
-                                }
-                                catch (Exception ex) when (ex is COMException or System.Reflection.TargetInvocationException)
-                                {
-                                    // Table doesn't have QueryTable property - skip
                                 }
                             }
                             finally
                             {
                                 ComUtilities.Release(ref oleDbConnection);
+                                ComUtilities.Release(ref workbookConnection);
                                 ComUtilities.Release(ref queryTable);
                                 ComUtilities.Release(ref table);
                             }
@@ -291,40 +292,42 @@ public partial class PowerQueryCommands
                     {
                         dynamic? table = null;
                         dynamic? queryTable = null;
+                        dynamic? workbookConnection = null;
                         dynamic? oleDbConnection = null;
 
                         try
                         {
                             table = listObjects.Item(j);
+                            int sourceType = Convert.ToInt32((object)table.SourceType, System.Globalization.CultureInfo.InvariantCulture);
+                            if (sourceType is not (0 or 3))
+                                continue;
 
                             // Check if this table has a QueryTable with our query
-                            try
+                            queryTable = table.QueryTable;
+                            if (queryTable != null)
                             {
-                                queryTable = table.QueryTable;
-                                if (queryTable != null)
+                                workbookConnection = queryTable.WorkbookConnection;
+                                if (workbookConnection is null ||
+                                    Convert.ToInt32((object)workbookConnection.Type, System.Globalization.CultureInfo.InvariantCulture) != 1)
+                                    continue;
+                                oleDbConnection = workbookConnection.OLEDBConnection;
+                                if (oleDbConnection != null)
                                 {
-                                    oleDbConnection = queryTable.WorkbookConnection?.OLEDBConnection;
-                                    if (oleDbConnection != null)
+                                    string? connString = oleDbConnection.Connection?.ToString() ?? "";
+                                    if (PowerQuery.PowerQueryHelpers.MatchesMashupLocation(
+                                        connString,
+                                        queryName))
                                     {
-                                        string? connString = oleDbConnection.Connection?.ToString() ?? "";
-                                        if (PowerQuery.PowerQueryHelpers.MatchesMashupLocation(
-                                            connString,
-                                            queryName))
-                                        {
-                                            // This table is associated with our query - delete it
-                                            table.Delete();
-                                        }
+                                        // This table is associated with our query - delete it
+                                        table.Delete();
                                     }
                                 }
-                            }
-                            catch (Exception ex) when (ex is COMException or System.Reflection.TargetInvocationException)
-                            {
-                                // Table doesn't have QueryTable property - skip
                             }
                         }
                         finally
                         {
                             ComUtilities.Release(ref oleDbConnection);
+                            ComUtilities.Release(ref workbookConnection);
                             ComUtilities.Release(ref queryTable);
                             ComUtilities.Release(ref table);
                         }

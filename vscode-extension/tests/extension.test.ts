@@ -105,8 +105,10 @@ describe('MCP registration and launch', () => {
 		expect(server?.label).toBe('excel-mcp');
 		expect(probes.access).toHaveBeenCalledOnce();
 		expect(probes.query).toHaveBeenCalledOnce();
-		const [_command, args, options] = probes.query.mock.calls[0];
+		const [command, args, options] = probes.query.mock.calls[0];
+		expect(command).toBe('pwsh');
 		expect(args).toContain('-NonInteractive');
+		expect(args.join(' ')).toContain("$PSVersionTable.PSVersion -lt [version]'7.4'");
 		expect(args.join(' ')).not.toContain('New-Object -ComObject');
 		expect(options.timeout).toBe(10000);
 		expect(options.windowsHide).toBe(true);
@@ -133,6 +135,21 @@ describe('MCP registration and launch', () => {
 		const { provider } = await registeredProvider();
 		await expect(resolveServer(provider)).rejects.toThrow(/could not check/i);
 		expect(JSON.stringify(output.appendLine.mock.calls)).not.toContain('private-fixture');
+	});
+
+	it('explains how to fix a missing PowerShell 7 installation', async () => {
+		probes.query.mockImplementation((_file, _args, _options, callback) =>
+			callback(Object.assign(new Error('private-fixture'), { code: 'ENOENT' }), '', ''));
+		const { provider } = await registeredProvider();
+		await expect(resolveServer(provider)).rejects.toThrow(/install PowerShell 7\.4 or later.*PATH/i);
+		expect(JSON.stringify(output.appendLine.mock.calls)).not.toContain('private-fixture');
+	});
+
+	it('rejects an older PowerShell without calling it missing Excel', async () => {
+		probes.query.mockImplementation((_file, _args, _options, callback) =>
+			callback(Object.assign(new Error('private-fixture'), { code: 3 }), '', ''));
+		const { provider } = await registeredProvider();
+		await expect(resolveServer(provider)).rejects.toThrow(/PowerShell 7\.4 or later/i);
 	});
 
 	it('reports a timed-out prerequisite query', async () => {

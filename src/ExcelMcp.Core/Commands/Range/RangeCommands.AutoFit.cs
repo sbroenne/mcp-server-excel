@@ -24,9 +24,7 @@ public partial class RangeCommands
             try
             {
                 // Get sheet
-                sheet = string.IsNullOrEmpty(sheetName)
-                    ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                sheet = Utilities.WorksheetLookup.Get(ctx.Book, sheetName);
 
                 // Get range
                 range = sheet.Range[rangeAddress];
@@ -61,9 +59,7 @@ public partial class RangeCommands
             try
             {
                 // Get sheet
-                sheet = string.IsNullOrEmpty(sheetName)
-                    ? ctx.Book.ActiveSheet
-                    : ctx.Book.Worksheets[sheetName];
+                sheet = Utilities.WorksheetLookup.Get(ctx.Book, sheetName);
 
                 // Get range
                 range = sheet.Range[rangeAddress];
@@ -83,6 +79,5 @@ public partial class RangeCommands
         });
     }
 }
-
 
 

@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 $ErrorActionPreference = 'Stop'
 $npm = 'npm'
 if ($env:RUNNER_ENVIRONMENT -eq 'self-hosted') {

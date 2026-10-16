@@ -57,6 +57,16 @@ for workbook-specific information. Custom properties can be removed; built-in
 ones are maintained by Excel. Avoid putting private paths, credentials, or
 connection strings in published properties.
 
+MCP `workbook_read` actions `list-document-properties` / `get-document-property`
+and `excelcli workbook list-document-properties` / `get-document-property`
+return `valueAvailable` and `valueError` for each property. Excel raises an error
+for some undefined built-in values, but does not distinguish those from a failed
+`Value` getter. Such a property retains its name, scope, and type, with
+`valueAvailable: false`, a null value, and the native error in `valueError`.
+This is uncertainty, not proof of absence. Successfully read values, including
+empty strings, have `valueAvailable: true` and no value error. Other unexpected
+native errors still fail the operation.
+
 Use MCP `workbook_read` action `inspect` or `excelcli workbook inspect` for a
 bounded workbook overview. It returns worksheet visibility and used-range
 geometry, table locations, and visible user-defined names, with per-section

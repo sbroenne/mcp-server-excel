@@ -18,6 +18,8 @@ public class Program
     private static int _globalExceptionHandlersRegistered;
     public static Task<int> Main(string[] args) => RunAsync(args);
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Top-level MCP host failure boundary records the unhandled transport/SDK exception and returns process exit code 1, without writing non-JSON-RPC output to stdout.")]
     internal static async Task<int> RunAsync(
         string[] args,
         Pipe? testInputPipe = null,
@@ -216,6 +218,8 @@ public class Program
     /// <summary>
     /// Shows help information.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("MicrosoftCodeAnalysisCorrectness", "RS0030",
+        Justification = "Explicit --help mode writes its requested command output and exits before the stdio transport starts; this method is never called by server startup.")]
     private static void ShowHelp() => Console.WriteLine(BuildHelpText());
 
     /// <summary>
@@ -262,6 +266,8 @@ public class Program
     /// <summary>
     /// Shows version information and checks for updates.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("MicrosoftCodeAnalysisCorrectness", "RS0030",
+        Justification = "Explicit --version mode writes its requested command output and exits before the stdio transport starts; this method is never called by server startup.")]
     private static async Task ShowVersionAsync()
     {
         var currentVersion = Infrastructure.McpServerVersionChecker.GetCurrentVersion();

@@ -30,4 +30,4 @@ updating tool definitions.
 - [Registration and host filters](../src/ExcelMcp.McpServer/Program.cs)
 - [Result conversion](../src/ExcelMcp.McpServer/Tools/ExcelToolsBase.cs)
 - [Result contract tests](../tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpResultContractTests.cs)
-- [MCP implementation instructions](agents/rules/mcp-server-guide.md)
+- [MCP implementation instructions](../src/ExcelMcp.McpServer/AGENTS.md)

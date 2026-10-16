@@ -8,7 +8,8 @@
 Refresh Power Query, calculate formulas, build PivotTables and charts, work with
 DAX measures, or run VBA directly from Copilot Chat.
 
-**Requires Windows, desktop Excel 2016 or later, VS Code 1.125 or later, and
+**Requires Windows, desktop Excel 2016 or later, PowerShell 7.4 or later,
+VS Code 1.125 or later, and
 GitHub Copilot chat with tool support.**
 
 The server and Excel guidance are included: **no separate .NET, Node.js, CLI,
@@ -84,6 +85,9 @@ Skills menu if you want to inspect available skills.
 - **Microsoft Excel 2016 or later**, installed and able to open normally.
   Some features, such as Python in Excel, require a supported Excel edition.
 - **VS Code 1.125 or later** and GitHub Copilot chat with tool support.
+- **PowerShell 7.4 or later**, with `pwsh` available on PATH.
+  Install it with `winget install --id Microsoft.PowerShell --source winget`,
+  then restart VS Code. Windows PowerShell 5.1 is not supported.
 
 This extension is not for macOS, Linux, browser-only VS Code, Windows services,
 or unattended server-side processing. It bundles the MCP server, not `excelcli`.
@@ -96,7 +100,8 @@ or unattended server-side processing. It bundles the MCP server, not `excelcli`.
 | "VBA access denied" | In Excel, open **File > Options > Trust Center > Trust Center Settings > Macro Settings** and enable **Trust access to the VBA project object model**. This one-time setup is required for VBA operations. |
 | Copilot cannot see Excel tools | Run **MCP: List Servers**, choose **excel-mcp**, and start it. Enable Excel tools in chat and accept the server trust prompt. After an update, refresh tools when prompted. |
 | "Bundled server is missing or unreadable" | Check security software and file permissions, or reinstall the extension. |
-| "Could not check Excel registration" or a registration timeout | Check that Windows PowerShell and desktop Excel open normally. Retry; repair Microsoft Office if the installation is damaged. |
+| "Install PowerShell 7.4 or later" | Install PowerShell 7.4 or later, check that `pwsh` runs from a terminal, then restart VS Code. |
+| "Could not check Excel registration" or a registration timeout | Check that `pwsh` and desktop Excel open normally. Retry; repair Microsoft Office if the installation is damaged. |
 
 - **Server logs:** run **MCP: List Servers**, choose **excel-mcp**, then
   **Show Output**.

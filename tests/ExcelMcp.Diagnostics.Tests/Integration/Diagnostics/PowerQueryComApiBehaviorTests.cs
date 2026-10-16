@@ -62,7 +62,9 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
         // Create Excel instance directly via COM
         var excelType = Type.GetTypeFromProgID("Excel.Application");
-        _excel = Activator.CreateInstance(excelType!);
+        Assert.NotNull(excelType);
+        _excel = Activator.CreateInstance(excelType);
+        Assert.NotNull((object?)_excel);
         _excel.Visible = false;
         _excel.DisplayAlerts = false;
 
@@ -104,6 +106,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario1_CreateQuery_LoadToTable()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 1: Create Query → Load to Table ===");
 
         // Step 1: Add query to Queries collection
@@ -193,6 +196,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario2_UpdateQuery_AddColumn()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 2: Update Query → Add Column ===");
 
         dynamic? queries = null;
@@ -247,6 +251,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario3_UpdateQuery_RemoveColumn()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 3: Update Query → Remove Column ===");
 
         dynamic? queries = null;
@@ -290,6 +295,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario4_DeleteQuery_TableBehavior()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 4: Delete Query → What Happens to Table? ===");
 
         dynamic? queries = null;
@@ -371,6 +377,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario5_RecreateQueryAfterDelete()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 5: Re-create Query After Delete ===");
 
         dynamic? queries = null;
@@ -420,6 +427,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario6_ChangeToConnectionOnly()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 6: Change Query to Connection Only ===");
 
         dynamic? queries = null;
@@ -494,6 +502,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario7_QueryWithError()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 7: Query With Error ===");
 
         const string errorQuery = """
@@ -547,6 +556,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario8_RefreshBehavior()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 8: Refresh Behavior ===");
 
         dynamic? queries = null;
@@ -623,6 +633,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario9_MultipleQueries()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 9: Multiple Queries ===");
 
         dynamic? queries = null;
@@ -679,6 +690,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario10_SpecialCharactersInName()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 10: Special Characters in Query Name ===");
 
         dynamic? queries = null;
@@ -729,6 +741,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario11_LoadToDataModel()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 11: Load to Data Model ===");
 
         dynamic? queries = null;
@@ -819,6 +832,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario12_UnloadDataModelQuery_ConnectionNotRemoved()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 12: Unload Query Loaded to Data Model Only ===");
         _output.WriteLine("PURPOSE: Verify if Unload (removing worksheet tables) handles Data Model connections\n");
 
@@ -941,6 +955,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario13_UnloadBothDestinations_OnlyTableRemoved()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 13: Unload Query Loaded to BOTH Worksheet AND Data Model ===");
         _output.WriteLine("PURPOSE: Verify Unload behavior when query is loaded to both destinations\n");
 
@@ -1075,6 +1090,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario14_ProperConnectionOnlyImplementation()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 14: How to Properly Make a Query Connection-Only ===");
         _output.WriteLine("PURPOSE: Document the CORRECT way to make a query connection-only\n");
 
@@ -1245,6 +1261,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario15_UpdateDataModelOnlyQuery()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 15: Update Query Loaded ONLY to Data Model ===");
         _output.WriteLine("PURPOSE: Test if Update works for Data Model-only queries (no worksheet table)\n");
 
@@ -1447,6 +1464,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario16_RenameQuery()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 12: Rename Query ===");
 
         dynamic? queries = null;
@@ -1526,6 +1544,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
     private void LoadQueryToTable(string queryName, string startCell)
     {
+        Assert.NotNull((object?)_workbook);
         dynamic? sheet = null;
         dynamic? range = null;
         dynamic? listObjects = null;
@@ -1571,6 +1590,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     /// </summary>
     private void RefreshFirstTable()
     {
+        Assert.NotNull((object?)_workbook);
         dynamic? sheet = null;
         dynamic? listObjects = null;
         dynamic? listObject = null;
@@ -1608,6 +1628,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario17_UseAdd2ForWorksheetLoading()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 17: Use Add2 for Worksheet Loading ===");
         _output.WriteLine("PURPOSE: Test if we can use Connections.Add2 with CreateModelConnection=false");
         _output.WriteLine("         and then create a ListObject that uses that named connection\n");
@@ -1753,6 +1774,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario18_ListVsView_ConnectionOnlyQuery()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 18: List vs View on Connection-Only Query ===");
         _output.WriteLine("PURPOSE: Investigate why List works but View fails with 0x800A03EC\n");
 
@@ -2041,6 +2063,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario19_QueryWithDependencies()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 19: Query with Dependencies ===");
         _output.WriteLine("PURPOSE: Test View/Update on queries that reference other queries\n");
 
@@ -2144,6 +2167,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario20_ListObjectQueryTableAccess_OnRegularTable()
     {
+        Assert.NotNull((object?)_workbook);
         _output.WriteLine("=== SCENARIO 20: ListObject.QueryTable Access on Regular Tables ===");
         _output.WriteLine("PURPOSE: Determine if accessing QueryTable on a non-query ListObject throws\n");
 
@@ -2229,6 +2253,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     /// </summary>
     private int GetFirstTableColumnCount()
     {
+        Assert.NotNull((object?)_workbook);
         dynamic? sheet = null;
         dynamic? listObjects = null;
         dynamic? listObject = null;
@@ -2257,7 +2282,6 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
         }
     }
 }
-
 
 
 

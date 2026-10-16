@@ -872,7 +872,7 @@ public abstract class CliDaemonTestBase(ITestOutputHelper output) : IAsyncLifeti
         {
             StartInfo = new ProcessStartInfo
             {
-                FileName = "powershell",
+                FileName = "pwsh",
                 Arguments = $"-NoLogo -NoProfile -NonInteractive -Command \"$created = $false; $m = New-Object System.Threading.Mutex($true, '{mutexName}', [ref]$created); if (-not $created) {{ exit 99 }}; try {{ Write-Output 'ready'; Start-Sleep -Seconds 60 }} finally {{ $m.ReleaseMutex(); $m.Dispose() }}\"",
                 UseShellExecute = false,
                 RedirectStandardOutput = true,

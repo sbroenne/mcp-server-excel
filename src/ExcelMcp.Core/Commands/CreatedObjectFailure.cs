@@ -15,13 +15,12 @@ internal static class CreatedObjectFailure
     /// </summary>
     internal static bool CanReport(Exception exception)
     {
-        if (exception is OperationCanceledException)
-        {
-            return false;
-        }
-
         for (Exception? current = exception; current != null; current = current.InnerException)
         {
+            if (current is OperationCanceledException)
+                return false;
+            if (current is AggregateException aggregate)
+                return aggregate.InnerExceptions.All(CanReport);
             if (current is COMException com
                 && com.HResult is ResiliencePipelines.RPC_E_CALL_FAILED
                     or ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE

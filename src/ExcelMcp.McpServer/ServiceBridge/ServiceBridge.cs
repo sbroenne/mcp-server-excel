@@ -72,6 +72,8 @@ public sealed class ServiceBridge : IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Service startup failures are logged and transported as Success=false ServiceStartup responses; caller cancellation and disposal are explicitly excluded from this boundary.")]
     public async Task<ServiceResponse> SendAsync(
         string command,
         string? sessionId = null,
@@ -142,6 +144,8 @@ public sealed class ServiceBridge : IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Observes late completion after the caller has already received cancellation/timeout; exact failures are logged while reclaiming only the cancelled request's eventual session.")]
     private async Task ObserveCancelledRequestAsync(
         ServiceInstance instance, Task<ServiceResponse> task, string command)
     {
@@ -169,6 +173,8 @@ public sealed class ServiceBridge : IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Cancellation cleanup logs the original forced-close failure and retires only the affected service instance; it does not turn the cancelled operation into success.")]
     private void CloseCancelledSession(ServiceInstance instance, string sessionId)
     {
         try

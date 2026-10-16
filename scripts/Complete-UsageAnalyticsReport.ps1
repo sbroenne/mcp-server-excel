@@ -1,3 +1,4 @@
+#Requires -Version 7.4
 <#
 .SYNOPSIS
     Validates Copilot interpretation and adds it to a sanitized analytics report.
