@@ -40,12 +40,21 @@ but avoids silently losing unsaved changes.
 CLI idle polling preserves the same session records as status reporting.
 A failed opening remains discoverable until explicitly closed, even when its
 Excel process has already exited; idle polling must not erase its late error.
+During a shutdown attempt, polling defers completed Save As path reconciliation
+without releasing its reservation. If shutdown is refused, later polling
+reconciles the path normally.
 
 Status checks have a short wait budget and may report unknown while their owned
 readiness scan finishes. Normal save and close verify workbook readiness on the
 Excel thread within the operation's budget; a slow scan is not itself a failed
 operation. An expired operation still requires a completed recovery scan before
 new work is accepted. Status visibility reflects any reveal applied by that scan.
+Save and Save As check for native dialogs before batch execution, because its
+write guard already accesses Excel COM. They check again inside the callback
+for races.
+Validation that opens a workbook but refuses close before shutdown commits
+retains a usable session, not a failed-teardown quarantine. After readiness
+returns, the caller can inspect and explicitly close that session.
 
 Automatic CLI startup also preserves Excel instances left alive after their
 previous service exits: it refuses to replace their recorded ownership while they

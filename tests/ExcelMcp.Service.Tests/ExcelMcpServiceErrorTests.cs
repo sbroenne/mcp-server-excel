@@ -28,6 +28,62 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed class ExcelMcpServiceErrorTests
 {
     [Fact]
+    public void DaemonIdlePolling_DefersLateSaveAsPathReconciliationDuringShutdown()
+    {
+        using var service = new ExcelMcpService();
+        var manager = service.SessionManager;
+        var batch = (ExcelBatch)RuntimeHelpers.GetUninitializedObject(typeof(ExcelBatch));
+        var original = Path.GetFullPath("idle-save-original.xlsx");
+        var target = Path.GetFullPath("idle-save-target.xlsx");
+        foreach (var (name, value) in new (string, object)[]
+        {
+            ("_workbookPath", original),
+            ("_startupCompletion", Task.CompletedTask),
+            ("_statusLock", new object()),
+            ("_operationState", "completed"),
+            ("_waitExpired", true)
+        })
+        {
+            var field = typeof(ExcelBatch).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.NotNull(field);
+            field.SetValue(batch, value);
+        }
+        const string session = "late-save-as";
+        RegisterSession(service, session, batch);
+        manager.ReserveSessionFilePath(session, target);
+        manager.RetainPendingSaveAs(session);
+        typeof(ExcelBatch).GetField("_workbookPath", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(batch, target);
+        var disposed = typeof(SessionManager).GetField("_disposed", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var count = GetPrivateField<Func<int>>(GetPrivateField<object>(service, "_daemonHost"), "_sessionCount");
+        try
+        {
+            disposed.SetValue(manager, true);
+            Assert.Equal(1, count());
+            Assert.Equal(1, count());
+            Assert.Equal(original, GetPrivateField<ConcurrentDictionary<string, string>>(
+                manager, "_sessionFilePaths")[session]);
+            Assert.Equal(target, GetPrivateField<ConcurrentDictionary<string, string>>(
+                manager, "_sessionFilePathReservations")[session]);
+
+            disposed.SetValue(manager, false);
+            Assert.Equal(1, count());
+            Assert.True(manager.TryGetFilePath(session, out var reconciled));
+            Assert.Equal(target, reconciled);
+            Assert.Empty(GetPrivateField<ConcurrentDictionary<string, string>>(manager, "_sessionFilePathReservations"));
+            var claims = GetPrivateField<ConcurrentDictionary<string, string>>(manager, "_activeFilePaths");
+            Assert.False(claims.ContainsKey(original));
+            Assert.Equal(session, claims[target]);
+        }
+        finally
+        {
+            disposed.SetValue(manager, false);
+            GetPrivateField<ConcurrentDictionary<string, IExcelBatch>>(manager, "_activeSessions")
+                .TryRemove(session, out _);
+        }
+    }
+
+    [Fact]
     public void DaemonIdlePolling_PreservesCompletedLateStartupFailure()
     {
         using var service = new ExcelMcpService();

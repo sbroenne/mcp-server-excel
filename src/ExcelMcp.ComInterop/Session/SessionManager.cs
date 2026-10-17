@@ -489,7 +489,8 @@ public sealed class SessionManager : IDisposable
             if (batch is not null && !TryConfirmFailedTeardown(batch))
             {
                 retained = true;
-                _teardownFailures[reservationId] = ExceptionDispatchInfo.Capture(ex);
+                if (batch is not IExcelBatchCloseState { ShutdownCommitted: false })
+                    _teardownFailures[reservationId] = ExceptionDispatchInfo.Capture(ex);
                 RevealForRecovery(reservationId);
                 throw new SessionRetainedException(reservationId,
                     $"Workbook access validation did not complete teardown. Session '{reservationId}' remains owned: {ex.Message}", ex);
@@ -852,7 +853,7 @@ public sealed class SessionManager : IDisposable
         {
             lock (_filePathReservationLock)
             {
-                if (_pendingSaveAs.ContainsKey(sessionId) &&
+                if (!_disposed && _pendingSaveAs.ContainsKey(sessionId) &&
                     _sessionFilePathReservations.TryGetValue(sessionId, out var reserved))
                 {
                     if (string.Equals(batch.WorkbookPath, reserved, StringComparison.OrdinalIgnoreCase))

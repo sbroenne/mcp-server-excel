@@ -13,6 +13,54 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class ServiceWorkbookLifecycleTests
 {
     [Fact]
+    public async Task Test_UncommittedCloseRefusal_AllowsExplicitCloseAfterReadinessReturns()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var path = Path.Join(directory, "validation-readiness.xlsx");
+            var initial = await CreateSessionAsync(service, path);
+            await WriteMarkerAsync(service, initial, "Validation retained contents");
+            await CloseSessionAsync(service, initial, save: true);
+            ExcelBatch? batch = null;
+            string? session = null;
+            ExcelBatch.AfterWorkbookOpenHookForTests = (_, _) =>
+            {
+                session = Assert.Single(service.SessionManager.GetActiveSessions()).SessionId;
+                sessions[session] = 0;
+                batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(session));
+                batch.BeforeRefreshStateReadHookForTests = () =>
+                    ExcelBusyException.ThrowIfNotReady(WorkbookRefreshState.Refreshing, "validation-close");
+            };
+            try
+            {
+                var response = await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = "session.test",
+                    Args = JsonSerializer.Serialize(new { filePath = path }, ServiceProtocol.JsonOptions)
+                });
+                Assert.False(response.Success);
+                Assert.Equal("Busy", response.ErrorCategory);
+                Assert.Equal(session, response.SessionId);
+                Assert.NotNull(batch);
+                Assert.False(((IExcelBatchCloseState)batch).ShutdownCommitted);
+            }
+            finally
+            {
+                ExcelBatch.AfterWorkbookOpenHookForTests = null;
+                if (batch is not null) batch.BeforeRefreshStateReadHookForTests = null;
+            }
+            Assert.NotNull(session);
+            Assert.Equal("Validation retained contents", await ReadMarkerAsync(service, session));
+            await CloseSessionAsync(service, session, save: false);
+            sessions.TryRemove(session, out _);
+            Assert.False(service.SessionManager.TryGetFilePath(session, out _));
+            var reopened = await OpenSessionAsync(service, path);
+            sessions[reopened] = 0;
+            Assert.Equal("Validation retained contents", await ReadMarkerAsync(service, reopened));
+        });
+    }
+
+    [Fact]
     public async Task Close_CancelledBeforeExecution_OrdinaryShutdownStillSavesUnsavedChanges()
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>

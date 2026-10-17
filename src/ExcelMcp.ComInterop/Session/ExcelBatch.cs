@@ -1175,8 +1175,10 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     public void Save(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
         if (OperationStatus.ExecutionPending)
             throw new ExcelBusyException("Cannot save: Excel work is still pending. The workbook remains open.");
+        ExcelBusyException.ThrowIfNotReady(GetExecutionPreflightState(), "save");
         Execute((ctx, ct) =>
         {
             ExcelBusyException.ThrowIfNotReady(
@@ -1190,7 +1192,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         }, cancellationToken);
     }
 
-    internal WorkbookRefreshState GetExecutionPreflightState()
+    /// <summary>Checks native dialogs and owned execution state without calling Excel COM.</summary>
+    public WorkbookRefreshState GetExecutionPreflightState()
     {
         if (_disposed != 0)
         {

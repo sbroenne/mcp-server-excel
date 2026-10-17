@@ -20,6 +20,9 @@ public partial class WorkbookCommands
         var resolvedFormat = ResolveSaveFormat(normalizedPath, format);
         ValidateSaveExtension(normalizedPath, resolvedFormat);
 
+        if (batch is ExcelBatch owned)
+            ExcelBusyException.ThrowIfNotReady(owned.GetExecutionPreflightState(), "save-as");
+
         return batch.Execute((context, _) =>
         {
             ExcelBusyException.ThrowIfNotReady(
