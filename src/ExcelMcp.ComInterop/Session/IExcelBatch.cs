@@ -165,5 +165,6 @@ internal interface IExcelBatchTeardownState
 
 internal interface IExcelBatchCloseState
 {
+    bool ShutdownCommitted { get; }
     void Close();
 }

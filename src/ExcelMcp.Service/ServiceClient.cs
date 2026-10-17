@@ -111,7 +111,7 @@ public sealed class ServiceClient : IDisposable
                     requestTimeoutCts.Token);
                 using var disconnectMonitorCts = CancellationTokenSource.CreateLinkedTokenSource(requestCts.Token);
 
-                var callTask = proxy.ProcessCommandAsync(request);
+                var callTask = proxy.ProcessCommandAsync(request, requestCts.Token);
                 var disconnectTask = WaitForPipeDisconnectAsync(
                     pipe,
                     _timeProvider,

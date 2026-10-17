@@ -102,45 +102,60 @@ public sealed class ServiceBridge : IDisposable
             };
         }
 
-        var request = new ServiceRequest
-        {
-            Command = command,
-            SessionId = sessionId,
-            Args = args is null ? null : JsonSerializer.Serialize(args, ServiceProtocol.JsonOptions)
-        };
-
-        // Service dispatch includes synchronous COM waits. Keep those off the SDK's request loop.
-        var processTask = Task.Run(() => instance.ProcessAsync(request), CancellationToken.None);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         if (timeoutSeconds.HasValue && command is not ("session.open" or "session.create" or "session.test"))
             deadline.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds.Value));
 
+        var request = new ServiceRequest
+        {
+            Command = command,
+            SessionId = sessionId,
+            Args = args is null ? null : JsonSerializer.Serialize(args, ServiceProtocol.JsonOptions),
+            CallerCancellation = deadline.Token
+        };
+
+        // Service dispatch includes synchronous COM waits. Keep those off the SDK's request loop.
+        var processTask = Task.Run(() => instance.ProcessAsync(request), CancellationToken.None);
+
+        ServiceResponse? completedCancellation = null;
         try
         {
             var response = await processTask.WaitAsync(deadline.Token);
             cancellationToken.ThrowIfCancellationRequested();
-            return response;
+            if (!deadline.IsCancellationRequested || response.ErrorCategory != "Cancelled")
+                return response;
+            completedCancellation = response;
         }
         catch (OperationCanceledException) when (deadline.IsCancellationRequested)
         {
             if (!cancellationToken.IsCancellationRequested && processTask.IsCompleted)
-                return await processTask;
-
-            if (!string.IsNullOrWhiteSpace(sessionId))
-                RevealSession(instance, sessionId);
-
-            _ = ObserveCancelledRequestAsync(instance, processTask, command);
-            cancellationToken.ThrowIfCancellationRequested();
-            return new ServiceResponse
             {
-                Success = false,
-                Command = command,
-                SessionId = sessionId,
-                ErrorCategory = "Timeout",
-                ErrorMessage = $"The wait expired after {timeoutSeconds} seconds. Excel work may still be running; no session was closed. Inspect session status for its outcome.",
-                ExceptionType = nameof(TimeoutException)
-            };
+                var response = await processTask;
+                if (response.ErrorCategory != "Cancelled")
+                    return response;
+                completedCancellation = response;
+            }
         }
+
+        if (!string.IsNullOrWhiteSpace(sessionId))
+            RevealSession(instance, sessionId);
+        if (completedCancellation is null)
+            _ = ObserveCancelledRequestAsync(instance, processTask, command);
+        cancellationToken.ThrowIfCancellationRequested();
+        return new ServiceResponse
+        {
+            Success = false,
+            Command = command,
+            SessionId = sessionId,
+            ErrorCategory = "Timeout",
+            ErrorMessage = $"The wait expired after {timeoutSeconds} seconds. Excel work may still be running; timeout recovery did not close a session. Inspect session status for its outcome.",
+            ExceptionType = nameof(TimeoutException),
+            HResult = completedCancellation?.HResult,
+            InnerError = completedCancellation is null
+                ? null
+                : $"{completedCancellation.ErrorMessage} {completedCancellation.InnerError}".Trim(),
+            PartialState = completedCancellation?.PartialState
+        };
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",

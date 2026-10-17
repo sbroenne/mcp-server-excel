@@ -17,6 +17,79 @@ public sealed class SessionManagerTeardownFailureTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void Close_UncommittedFailure_OrdinaryShutdownStillSaves(bool cancelled)
+    {
+        using var manager = new SessionManager();
+        Exception failure = cancelled
+            ? new OperationCanceledException("Cancelled before close.")
+            : new InvalidOperationException("Readiness failed before close.");
+        var batch = new ConfigurableFailingBatch(false, false) { BeforeCloseFailure = failure };
+        RegisterSession(manager, "uncommitted", Path.GetFullPath("uncommitted-close.xlsx"), batch);
+        Assert.Same(failure, Record.Exception(() => manager.CloseSession("uncommitted")));
+        Assert.False(batch.ShutdownCommitted);
+        Assert.Equal(0, batch.DisposeCallCount);
+        Assert.Same(batch, manager.GetSession("uncommitted"));
+        batch.BeforeCloseFailure = null;
+        manager.Dispose();
+        Assert.Equal(1, batch.SaveCallCount);
+        Assert.Equal(2, batch.CloseCallCount);
+        Assert.Equal(1, batch.DisposeCallCount);
+        Assert.Equal(0, manager.ActiveSessionCount);
+    }
+
+    [Fact]
+    public void Dispose_UncommittedCloseFailure_AllowsEditsAndSavesAgainOnRetry()
+    {
+        using var manager = new SessionManager();
+        var batch = new ConfigurableFailingBatch(false, false)
+        {
+            BeforeCloseFailure = new InvalidOperationException("Readiness failed before close.")
+        };
+        RegisterSession(manager, "shutdown-uncommitted", Path.GetFullPath("uncommitted-shutdown.xlsx"), batch);
+        Assert.Throws<AggregateException>(manager.Dispose);
+        Assert.False(batch.ShutdownCommitted);
+        Assert.Equal(1, batch.SaveCallCount);
+        Assert.True(manager.TryBeginOperation("shutdown-uncommitted", out var retained, out _));
+        Assert.Same(batch, retained);
+        manager.EndOperation("shutdown-uncommitted");
+        batch.BeforeCloseFailure = null;
+        manager.Dispose();
+        Assert.Equal(2, batch.SaveCallCount);
+        Assert.Equal(1, batch.DisposeCallCount);
+        Assert.Equal(0, manager.ActiveSessionCount);
+    }
+
+    [Fact]
+    public void Dispose_PreviousTeardownFailure_ResumesDisposalWithoutClosingWorkbookAgain()
+    {
+        using var manager = new SessionManager();
+        var batch = new ConfigurableFailingBatch(false, true);
+        var path = Path.GetFullPath("pending-teardown.xlsx");
+        RegisterSession(manager, "pending-teardown", path, batch);
+        Assert.Throws<InvalidOperationException>(() => manager.CloseSession("pending-teardown"));
+        Assert.Equal(1, batch.CloseCallCount);
+        Assert.Equal(1, batch.DisposeCallCount);
+        batch.DisposeFails = false;
+        batch.CloseBusy = true;
+        try
+        {
+            manager.Dispose();
+            Assert.Equal(1, batch.CloseCallCount);
+            Assert.Equal(2, batch.DisposeCallCount);
+            Assert.Equal(0, batch.SaveCallCount);
+            Assert.Equal(0, manager.ActiveSessionCount);
+            Assert.Empty(GetField<ConcurrentDictionary<string, string>>(manager, "_activeFilePaths"));
+            Assert.Empty(GetField<ConcurrentDictionary<string, string>>(manager, "_sessionFilePaths"));
+        }
+        finally
+        {
+            batch.CloseBusy = false;
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void Close_LateBusyRefusal_RetainsPathAndAllowsRetry(bool save)
     {
         using var manager = new SessionManager();
@@ -321,6 +394,8 @@ public sealed class SessionManagerTeardownFailureTests
         public bool DisposeFails { get; set; } = disposeFails;
         public bool SaveBusy { get; set; }
         public bool CloseBusy { get; set; }
+        public Exception? BeforeCloseFailure { get; set; }
+        public bool ShutdownCommitted { get; private set; }
         public int CloseCallCount { get; private set; }
         public WorkbookRefreshState GetRefreshState() => WorkbookRefreshState.Ready;
         internal InvalidOperationException SaveException { get; } =
@@ -350,11 +425,14 @@ public sealed class SessionManagerTeardownFailureTests
             CloseCallCount++;
             if (CloseBusy)
                 ExcelBusyException.ThrowIfNotReady(WorkbookRefreshState.Refreshing, "close");
+            if (BeforeCloseFailure is { } failure)
+                throw failure;
             Dispose();
         }
 
         public void Dispose()
         {
+            ShutdownCommitted = true;
             DisposeCallCount++;
             if (DisposeFails)
             {

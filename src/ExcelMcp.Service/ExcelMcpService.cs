@@ -87,7 +87,36 @@ public sealed class ExcelMcpService : IDisposable
             request => trackDaemonRequest == null
                 ? ProcessAsync(request)
                 : trackDaemonRequest(request, () => ProcessAsync(request)),
-            () => _sessionManager.ActiveSessionIds.Count(_sessionManager.IsSessionAlive));
+            () => _sessionManager.ActiveSessionIds.Count(_sessionManager.IsSessionAlive),
+            requestAbandoned: RevealAbandonedRequest);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "A caller-abandonment notification only reveals retained ownership. Failures are diagnosed without replacing cancellation or closing a workbook whose execution is still owned.")]
+    private void RevealAbandonedRequest(ServiceRequest request, ServiceResponse? response)
+    {
+        try
+        {
+            var sessionId = response?.SessionId ?? request.SessionId;
+            if (string.IsNullOrWhiteSpace(sessionId)
+                && request.Command is "session.open" or "session.create"
+                && response is { Success: true })
+            {
+                using var result = JsonDocument.Parse(response.Result
+                    ?? throw new InvalidOperationException("Session creation returned no result."));
+                sessionId = result.RootElement.GetProperty("sessionId").GetString();
+                if (string.IsNullOrWhiteSpace(sessionId))
+                    throw new InvalidOperationException("Session creation returned no session ID.");
+            }
+            if (!string.IsNullOrWhiteSpace(sessionId))
+                _sessionManager.RevealForRecovery(sessionId, waitExpired: true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceError(
+                "Could not reveal retained Excel ownership after the caller abandoned {0}: {1}",
+                request.Command, ex);
+        }
     }
 
     public DateTime StartTime => _startTime;
@@ -122,6 +151,7 @@ public sealed class ExcelMcpService : IDisposable
     {
         try
         {
+            request.CallerCancellation.ThrowIfCancellationRequested();
             // Route command
             var parts = request.Command.Split('.', 2);
             var category = parts[0];
@@ -447,6 +477,7 @@ public sealed class ExcelMcpService : IDisposable
         bool closed;
         try
         {
+            _sessionManager.SetOperationContext(request.SessionId, request.Command, request.CallerCancellation);
             closed = _sessionManager.CloseSession(request.SessionId, save: shouldSave);
         }
         catch (Exception ex) when (IsFatalExcelDisconnect(ex))
@@ -904,7 +935,7 @@ public sealed class ExcelMcpService : IDisposable
 
         try
         {
-            _sessionManager.SetOperationCommand(sessionId, request.Command);
+            _sessionManager.SetOperationContext(sessionId, request.Command, request.CallerCancellation);
             if (string.Equals(request.Command, ServiceRegistry.Connection.GetRefreshStatusCommand, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(request.Command, ServiceRegistry.Connection.CancelRefreshCommand, StringComparison.OrdinalIgnoreCase))
             {

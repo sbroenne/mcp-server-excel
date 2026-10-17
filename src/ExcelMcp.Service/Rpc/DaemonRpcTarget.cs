@@ -2,27 +2,36 @@ namespace Sbroenne.ExcelMcp.Service.Rpc;
 
 /// <summary>
 /// Server-side RPC target that delegates incoming JSON-RPC calls to <see cref="ExcelMcpService.ProcessAsync"/>.
-/// One instance is attached per pipe connection via <c>JsonRpc.Attach(stream, target)</c>.
+/// One instance is attached per pipe connection.
 /// </summary>
 internal sealed class DaemonRpcTarget : IExcelDaemonRpc
 {
     private readonly Func<ServiceRequest, Task<ServiceResponse>> _requestHandler;
     private readonly Action _recordActivity;
+    private readonly Action<ServiceRequest, ServiceResponse?>? _requestAbandoned;
 
     internal DaemonRpcTarget(
         Func<ServiceRequest, Task<ServiceResponse>> requestHandler,
-        Action recordActivity)
+        Action recordActivity,
+        Action<ServiceRequest, ServiceResponse?>? requestAbandoned = null)
     {
         ArgumentNullException.ThrowIfNull(requestHandler);
         ArgumentNullException.ThrowIfNull(recordActivity);
         _requestHandler = requestHandler;
         _recordActivity = recordActivity;
+        _requestAbandoned = requestAbandoned;
     }
 
     /// <inheritdoc />
-    public async Task<ServiceResponse> ProcessCommandAsync(ServiceRequest request)
+    public async Task<ServiceResponse> ProcessCommandAsync(ServiceRequest request, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        request.CallerCancellation = cancellationToken;
         _recordActivity();
-        return await _requestHandler(request);
+        using var registration = cancellationToken.Register(() => _requestAbandoned?.Invoke(request, null));
+        var response = await _requestHandler(request);
+        if (cancellationToken.IsCancellationRequested && string.IsNullOrWhiteSpace(request.SessionId))
+            _requestAbandoned?.Invoke(request, response);
+        return response;
     }
 }

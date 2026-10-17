@@ -23,6 +23,39 @@ public sealed class ServiceBridgeCancellationTests
         Assert.Equal("Timeout", response.ErrorCategory);
         Assert.Equal(["session-1"], backend.RevealedSessions);
         Assert.False(backend.Disposed);
+        Assert.True(Assert.IsType<ServiceRequest>(backend.Request).CallerCancellation.IsCancellationRequested);
+        Assert.False(backend.Response.Task.IsCompleted);
+    }
+
+    [Fact]
+    public async Task SendAsync_QueuedDeadline_PreservesCancelledPartialStateAsTimeout()
+    {
+        var backend = new Backend { Response = new TaskCompletionSource<ServiceResponse>() };
+        using var bridge = new Bridge(() => backend);
+        var pending = bridge.SendAsync("powerquery.create", "session-1", timeoutSeconds: 2);
+        await backend.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        // Register last and complete inline so the Service response wins the deadline race.
+        using var queuedCancellation = Assert.IsType<ServiceRequest>(backend.Request).CallerCancellation.Register(() =>
+            backend.Response.TrySetResult(new ServiceResponse
+            {
+                Success = false,
+                Command = "powerquery.create",
+                SessionId = "session-1",
+                ErrorCategory = "Cancelled",
+                ErrorMessage = "Queued operation was not executed.",
+                InnerError = "Earlier edits remain.",
+                PartialState = """{"queryCreated":true}"""
+            }));
+        var response = await pending;
+        Assert.False(response.Success);
+        Assert.Equal("Timeout", response.ErrorCategory);
+        Assert.Equal(nameof(TimeoutException), response.ExceptionType);
+        Assert.Equal("session-1", response.SessionId);
+        Assert.Equal("""{"queryCreated":true}""", response.PartialState);
+        Assert.Contains("Queued operation was not executed.", response.InnerError, StringComparison.Ordinal);
+        Assert.Contains("Earlier edits remain.", response.InnerError, StringComparison.Ordinal);
+        Assert.Equal(["session-1"], backend.RevealedSessions);
+        Assert.False(backend.Disposed);
     }
 
     [Fact]
@@ -37,6 +70,8 @@ public sealed class ServiceBridgeCancellationTests
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => request);
         Assert.Equal(["session-1"], backend.RevealedSessions);
         Assert.False(backend.Disposed);
+        Assert.True(Assert.IsType<ServiceRequest>(backend.Request).CallerCancellation.IsCancellationRequested);
+        Assert.False(backend.Response.Task.IsCompleted);
     }
 
     [Theory]
@@ -163,14 +198,16 @@ public sealed class ServiceBridgeCancellationTests
     private sealed class Backend : IServiceBridgeBackend
     {
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        internal TaskCompletionSource<ServiceResponse> Response { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource<ServiceResponse> Response { get; init; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal List<string> RevealedSessions { get; } = [];
         internal bool Disposed { get; private set; }
         internal bool ThrowOnReveal { get; init; }
         internal bool ThrowOnDispose { get; set; }
+        internal ServiceRequest? Request { get; private set; }
 
         public Task<ServiceResponse> ProcessAsync(ServiceRequest request)
         {
+            Request = request;
             Started.TrySetResult();
             return Response.Task;
         }

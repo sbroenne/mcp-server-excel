@@ -12,6 +12,278 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 
 public sealed partial class ServiceWorkbookLifecycleTests
 {
+    [Fact]
+    public async Task Close_CancelledBeforeExecution_OrdinaryShutdownStillSavesUnsavedChanges()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var path = Path.Join(directory, "cancelled-close.xlsx");
+            var session = await CreateSessionAsync(service, path);
+            sessions[session] = 0;
+            await WriteMarkerAsync(service, session, "Saved baseline");
+            RequireSuccess(await service.ProcessAsync(
+                new ServiceRequest { Command = "session.save", SessionId = session }));
+            await WriteMarkerAsync(service, session, "Latest unsaved changes");
+            var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(session));
+            var identity = Assert.Single(SessionManager.GetTrackedExcelProcesses(),
+                candidate => candidate.ProcessId == batch.ExcelProcessId);
+            using var cancellation = new CancellationTokenSource();
+            service.SessionManager.BeforeCloseSessionHookForTests = cancellation.Cancel;
+            ServiceResponse response;
+            try
+            {
+                response = await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = "session.close",
+                    SessionId = session,
+                    CallerCancellation = cancellation.Token
+                });
+            }
+            finally
+            {
+                service.SessionManager.BeforeCloseSessionHookForTests = null;
+            }
+            Assert.False(response.Success);
+            Assert.Equal("Cancelled", response.ErrorCategory);
+            Assert.False(((IExcelBatchCloseState)batch).ShutdownCommitted);
+            Assert.Same(batch, service.SessionManager.GetSession(session));
+            Assert.True(OwnedProcessGuard.MatchesLiveProcess(identity));
+            Assert.True(service.SessionManager.TryGetFilePath(session, out var retainedPath));
+            Assert.Equal(path, retainedPath);
+            Assert.False(batch.Execute((context, _) => (bool)context.Book.Saved));
+
+            service.Dispose();
+            sessions.TryRemove(session, out _);
+            Assert.True(OwnedProcessGuard.TryConfirmExited(identity));
+            await RunWithCleanupAsync(async (verification, _, reopenedSessions) =>
+            {
+                var reopened = await OpenSessionAsync(verification, path);
+                reopenedSessions[reopened] = 0;
+                Assert.Equal("Latest unsaved changes", await ReadMarkerAsync(verification, reopened));
+            });
+        });
+    }
+
+    [Fact]
+    public async Task Pipe_CancelledSave_RevealsOwnedExcelAndRejectsFollowUpUntilCompletion()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var path = Path.Join(directory, "pipe-cancelled-save.xlsx");
+            var session = await CreateSessionAsync(service, path);
+            sessions[session] = 0;
+            await WriteMarkerAsync(service, session, "Preserved after pipe cancellation");
+            var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(session));
+            var identity = Assert.Single(SessionManager.GetTrackedExcelProcesses(),
+                candidate => candidate.ProcessId == batch.ExcelProcessId);
+            using var release = new ManualResetEventSlim();
+            using var releaseSave = new ManualResetEventSlim();
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var saving = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            batch.BeforeRefreshStateReadHookForTests = () =>
+            {
+                entered.TrySetResult();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(90)));
+            };
+            ExcelShutdownService.BeforeSaveHookForTests = () =>
+            {
+                saving.TrySetResult();
+                Assert.True(releaseSave.Wait(TimeSpan.FromSeconds(90)));
+            };
+            var pipe = $"excelmcp-cancelled-save-{Guid.NewGuid():N}";
+            var host = service.RunAsync(pipe);
+            using var client = new ServiceClient(pipe);
+            using var cancellation = new CancellationTokenSource();
+            var save = client.SendAsync(new ServiceRequest
+            {
+                Command = "session.save",
+                SessionId = session
+            }, cancellation.Token);
+            var failure = await Record.ExceptionAsync(async () =>
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                cancellation.Cancel();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                    () => save.WaitAsync(TimeSpan.FromSeconds(5)));
+                Assert.True(SpinWait.SpinUntil(() => batch.OperationStatus.WaitExpired
+                    && batch.OperationStatus.WindowReveal is "shown" or "showRequested" or "alreadyVisible",
+                    TimeSpan.FromSeconds(5)));
+                Assert.True(batch.OperationStatus.ExecutionPending);
+                Assert.True(OwnedProcessGuard.MatchesLiveProcess(identity));
+                Assert.Same(batch, service.SessionManager.GetSession(session));
+                var followUpRequest = new ServiceRequest
+                {
+                    Command = "range.set-values",
+                    SessionId = session,
+                    Args = """{"sheetName":"Sheet1","rangeAddress":"A1","overwritePolicy":"allow","values":[["Must not execute"]]}"""
+                };
+                Assert.False((await client.SendAsync(followUpRequest)
+                    .WaitAsync(TimeSpan.FromSeconds(5))).Success);
+                batch.BeforeRefreshStateReadHookForTests = null;
+                release.Set();
+                await saving.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                Assert.True(batch.OperationStatus.ExecutionPending);
+                Assert.True(batch.HasTimedOutOperation);
+                Assert.False((await client.SendAsync(followUpRequest)
+                    .WaitAsync(TimeSpan.FromSeconds(5))).Success);
+            });
+            batch.BeforeRefreshStateReadHookForTests = null;
+            ExcelShutdownService.BeforeSaveHookForTests = null;
+            release.Set();
+            releaseSave.Set();
+            var completion = await Record.ExceptionAsync(async () =>
+            {
+                Assert.True(SpinWait.SpinUntil(() => !batch.OperationStatus.ExecutionPending,
+                    TimeSpan.FromSeconds(15)));
+                Assert.Same(batch, service.SessionManager.GetSession(session));
+                Assert.Equal("Preserved after pipe cancellation", await ReadMarkerAsync(service, session));
+                Assert.True(batch.IsExcelVisible);
+                await CloseSessionAsync(service, session, save: false);
+                sessions.TryRemove(session, out _);
+                var reopened = await OpenSessionAsync(service, path);
+                sessions[reopened] = 0;
+                Assert.Equal("Preserved after pipe cancellation", await ReadMarkerAsync(service, reopened));
+                await CloseSessionAsync(service, reopened, save: false);
+                sessions.TryRemove(reopened, out _);
+            });
+            var shutdown = await Record.ExceptionAsync(async () =>
+            {
+                service.RequestShutdown();
+                await host.WaitAsync(TimeSpan.FromSeconds(10));
+            });
+            var failures = new[] { failure, completion, shutdown }.OfType<Exception>().ToArray();
+            if (failures.Length > 0)
+                throw new AggregateException("Pipe cancellation, retained execution, or shutdown failed.", failures);
+        });
+    }
+
+    [Fact]
+    public async Task Pipe_CancelledQueuedMutation_DoesNotExecuteAfterReadinessScan()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var session = await CreateSessionAsync(service, Path.Join(directory, "cancelled-queue.xlsx"));
+            sessions[session] = 0;
+            await WriteMarkerAsync(service, session, "Original contents");
+            var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(session));
+            using var release = new ManualResetEventSlim();
+            var scanning = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var queued = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            batch.BeforeRefreshStateReadHookForTests = () =>
+            {
+                scanning.TrySetResult();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(90)));
+            };
+            var inspection = Task.Run(() => service.SessionManager.ValidateClose(session));
+            var pipe = $"excelmcp-cancelled-queue-{Guid.NewGuid():N}";
+            var host = service.RunAsync(pipe);
+            using var client = new ServiceClient(pipe);
+            using var cancellation = new CancellationTokenSource();
+            var failure = await Record.ExceptionAsync(async () =>
+            {
+                await scanning.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                Assert.False((await inspection.WaitAsync(TimeSpan.FromSeconds(5))).CanClose);
+                Assert.Equal("completed", batch.OperationStatus.State);
+                ExcelBatch.WorkItemQueuedHookForTests = () => queued.TrySetResult();
+                var mutation = client.SendAsync(new ServiceRequest
+                {
+                    Command = "range.set-values",
+                    SessionId = session,
+                    Args = """{"sheetName":"Sheet1","rangeAddress":"A1","overwritePolicy":"allow","values":[["Must not execute"]]}"""
+                }, cancellation.Token);
+                await queued.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                cancellation.Cancel();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(
+                    () => mutation.WaitAsync(TimeSpan.FromSeconds(5)));
+                Assert.True(SpinWait.SpinUntil(() =>
+                    batch.OperationStatus.WindowReveal is "shown" or "showRequested" or "alreadyVisible",
+                    TimeSpan.FromSeconds(5)));
+            });
+            ExcelBatch.WorkItemQueuedHookForTests = null;
+            batch.BeforeRefreshStateReadHookForTests = null;
+            release.Set();
+            var completion = await Record.ExceptionAsync(async () =>
+            {
+                Assert.True(SpinWait.SpinUntil(
+                    () => service.SessionManager.GetActiveOperationCount(session) == 0,
+                    TimeSpan.FromSeconds(15)));
+                Assert.Equal("Original contents", await ReadMarkerAsync(service, session));
+                Assert.Same(batch, service.SessionManager.GetSession(session));
+                Assert.True(batch.IsExcelProcessAlive());
+                await CloseSessionAsync(service, session, save: false);
+                sessions.TryRemove(session, out _);
+            });
+            var shutdown = await Record.ExceptionAsync(async () =>
+            {
+                service.RequestShutdown();
+                await host.WaitAsync(TimeSpan.FromSeconds(10));
+            });
+            var failures = new[] { failure, completion, shutdown }.OfType<Exception>().ToArray();
+            if (failures.Length > 0)
+                throw new AggregateException("Queued cancellation, original workbook state, or shutdown failed.", failures);
+        });
+    }
+
+    [Fact]
+    public async Task Test_InvalidWorkbook_PendingQuitRetainsOwnershipDuringServiceShutdown()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var path = Path.Join(directory, "invalid-pending-quit.xlsx");
+            await File.WriteAllTextAsync(path, "not an Excel workbook");
+            using var release = new ManualResetEventSlim();
+            var quitting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            ExcelShutdownService.BeforeQuitHookForTests = () =>
+            {
+                quitting.TrySetResult();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(90)));
+            };
+            var validation = Task.Run(() => service.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.test",
+                Args = JsonSerializer.Serialize(new { filePath = path }, ServiceProtocol.JsonOptions)
+            }));
+            ExcelBatch? batch = null;
+            ExcelProcessIdentity? identity = null;
+            var failure = await Record.ExceptionAsync(async () =>
+            {
+                await quitting.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                var response = await validation.WaitAsync(TimeSpan.FromSeconds(30));
+                Assert.False(response.Success);
+                var session = Assert.IsType<string>(response.SessionId);
+                sessions[session] = 0;
+                batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(session));
+                identity = Assert.Single(SessionManager.GetTrackedExcelProcesses(),
+                    candidate => candidate.ProcessId == batch.ExcelProcessId);
+                Assert.Contains("cannot open", response.InnerError, StringComparison.OrdinalIgnoreCase);
+
+                var shutdown = Assert.Throws<AggregateException>(service.Dispose);
+                Assert.Contains(shutdown.InnerExceptions, ex => ex.InnerException is ExcelBusyException);
+                Assert.Same(batch, service.SessionManager.GetSession(session));
+                Assert.True(batch.OperationStatus.ExecutionPending);
+                Assert.True(OwnedProcessGuard.MatchesLiveProcess(identity.Value));
+                Assert.True(service.SessionManager.TryGetFilePath(session, out var retainedPath));
+                Assert.Equal(path, retainedPath);
+                Assert.Equal("not an Excel workbook", await File.ReadAllTextAsync(path));
+            });
+            ExcelShutdownService.BeforeQuitHookForTests = null;
+            release.Set();
+            var cleanup = await Record.ExceptionAsync(async () =>
+            {
+                await validation.WaitAsync(TimeSpan.FromSeconds(30));
+                if (batch is not null)
+                    Assert.True(SpinWait.SpinUntil(() => !batch.OperationStatus.ExecutionPending,
+                        TimeSpan.FromSeconds(15)));
+                if (identity is { } owned)
+                    Assert.True(SpinWait.SpinUntil(() => OwnedProcessGuard.TryConfirmExited(owned),
+                        TimeSpan.FromSeconds(15)));
+            });
+            var failures = new[] { failure, cleanup }.OfType<Exception>().ToArray();
+            if (failures.Length > 0)
+                throw new AggregateException("Failed-startup shutdown ownership or completion failed.", failures);
+        });
+    }
+
     [Theory]
     [InlineData(ResiliencePipelines.RPC_E_SERVERCALL_RETRYLATER)]
     [InlineData(ResiliencePipelines.RPC_E_CALL_REJECTED)]

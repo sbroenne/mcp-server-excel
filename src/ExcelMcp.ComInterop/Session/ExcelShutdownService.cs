@@ -16,6 +16,7 @@ public static class ExcelShutdownService
     private static readonly ResiliencePipeline _quitPipeline = ResiliencePipelines.CreateExcelQuitPipeline();
 
     internal static Action? BeforeQuitHookForTests { get; set; }
+    internal static Action? BeforeSaveHookForTests { get; set; }
 
     /// <summary>
     /// Closes an internally owned, unsaved calculation workbook on the calling STA.
@@ -92,6 +93,7 @@ public static class ExcelShutdownService
                     {
                         ComUtilities.Release(ref application);
                     }
+                    BeforeSaveHookForTests?.Invoke();
                     // PIA gap: Save adds an LCID that rewrites locale-specific table formats; IDispatch preserves them.
                     ((dynamic)(object)workbook).Save();
                     if (!workbook.Saved)

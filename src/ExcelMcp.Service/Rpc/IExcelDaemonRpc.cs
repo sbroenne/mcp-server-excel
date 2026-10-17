@@ -23,6 +23,7 @@ public partial interface IExcelDaemonRpc
     /// Wraps <see cref="ExcelMcpService.ProcessAsync"/> over the pipe transport.
     /// </summary>
     /// <param name="request">The service request with command, sessionId, and args.</param>
+    /// <param name="cancellationToken">Notifies the owner that the caller stopped waiting; does not abort Excel execution.</param>
     /// <returns>The service response indicating success/failure with optional result data.</returns>
-    Task<ServiceResponse> ProcessCommandAsync(ServiceRequest request);
+    Task<ServiceResponse> ProcessCommandAsync(ServiceRequest request, CancellationToken cancellationToken = default);
 }

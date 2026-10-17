@@ -28,7 +28,6 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
         using var release = new ManualResetEventSlim();
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var backend = new ObservedBackend { ObserveCreation = true };
-        backend.ContinueCreation.SetResult();
         var bridge = new ServiceBridge.ServiceBridge(() => backend);
         ExcelBatch.AfterWorkbookOpenHookForTests = (_, workbook) =>
         {
@@ -121,6 +120,8 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
         var secondPath = Path.Combine(Path.GetTempPath(), $"mcp-cancelled-{Guid.NewGuid():N}.xlsx");
         using var shutdown = new CancellationTokenSource();
         using var cancellation = new CancellationTokenSource();
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var input = new Pipe();
         var outputPipe = new Pipe();
         var backend = new ObservedBackend();
@@ -139,6 +140,11 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
                 ["values"] = new object[][] { ["keep"] }
             });
             backend.ObserveCreation = true;
+            ExcelBatch.AfterWorkbookOpenHookForTests = (_, _) =>
+            {
+                entered.SetResult();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(30)));
+            };
             var request = new JsonRpcRequest
             {
                 Id = new RequestId("cancelled-creation"),
@@ -150,7 +156,7 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
                 })
             };
             var creation = host.Client.SendRequestAsync(request, cancellation.Token);
-            await backend.Started.Task.WaitAsync(TimeSpan.FromSeconds(30));
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(30));
             cancellation.Cancel();
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => creation);
             // Cancelling a client's local wait does not prove it sent the protocol notification.
@@ -160,7 +166,7 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
                 Params = JsonSerializer.SerializeToNode(new { requestId = "cancelled-creation" })
             });
             await host.Client.ListToolsAsync();
-            backend.ContinueCreation.TrySetResult();
+            release.Set();
             var completed = await backend.Finished.Task.WaitAsync(TimeSpan.FromSeconds(150));
             Assert.True(completed.Success, completed.ErrorMessage);
             var retainedId = await backend.Revealed.Task.WaitAsync(TimeSpan.FromSeconds(30));
@@ -184,7 +190,8 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
         }
         finally
         {
-            backend.ContinueCreation.TrySetResult();
+            release.Set();
+            ExcelBatch.AfterWorkbookOpenHookForTests = null;
             await ProgramTransportTestHost.StopAsync(host.Client, input, outputPipe, host.ServerTask, output, shutdown);
             File.Delete(firstPath);
             File.Delete(secondPath);
@@ -269,19 +276,12 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
         private readonly ExcelMcpService _service = new();
         internal SessionManager SessionManager => _service.SessionManager;
         internal bool ObserveCreation { get; set; }
-        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        internal TaskCompletionSource ContinueCreation { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource<ServiceResponse> Finished { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource<string> Revealed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public async Task<ServiceResponse> ProcessAsync(ServiceRequest request)
         {
             var observe = ObserveCreation && request.Command == "session.create";
-            if (observe)
-            {
-                Started.TrySetResult();
-                await ContinueCreation.Task.WaitAsync(TimeSpan.FromSeconds(30));
-            }
             var response = await _service.ProcessAsync(request);
             if (observe)
                 Finished.TrySetResult(response);

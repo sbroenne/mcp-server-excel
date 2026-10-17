@@ -835,11 +835,11 @@ public sealed class SessionManager : IDisposable
         return _activeOperationCounts.TryGetValue(sessionId, out var count) ? count : 0;
     }
 
-    /// <summary>Records the command name without retaining its arguments or data.</summary>
-    public void SetOperationCommand(string sessionId, string command)
+    /// <summary>Records the command and caller's queue cancellation without retaining arguments or data.</summary>
+    public void SetOperationContext(string sessionId, string command, CancellationToken callerCancellation = default)
     {
         if (_activeSessions.TryGetValue(sessionId, out var batch) && batch is ExcelBatch owned)
-            owned.SetOperationCommand(command);
+            owned.SetOperationContext(command, callerCancellation);
     }
 
     /// <summary>Returns bounded execution metadata without calling Excel.</summary>
@@ -1098,7 +1098,8 @@ public sealed class SessionManager : IDisposable
         {
             CloseBatch(batch, force);
         }
-        catch (ExcelBusyException)
+        catch (Exception ex) when (ex is ExcelBusyException
+            || batch is IExcelBatchCloseState { ShutdownCommitted: false })
         {
             throw;
         }
@@ -1415,7 +1416,10 @@ public sealed class SessionManager : IDisposable
             {
                 // Dispose sequentially - ExcelBatch.Dispose() handles its own Excel cleanup
                 // via ExcelShutdownService with proper timeouts and retry logic
-                CloseBatch(session);
+                if (teardownFailed)
+                    session.Dispose();
+                else
+                    CloseBatch(session);
             }
             catch (ExcelBusyException ex)
             {
@@ -1431,7 +1435,8 @@ public sealed class SessionManager : IDisposable
                 var failure = new InvalidOperationException(
                     $"Failed to dispose session '{sessionId}': {ex.Message}", ex);
                 failures.Add(failure);
-                _teardownFailures[sessionId] = ExceptionDispatchInfo.Capture(failure);
+                if (session is not IExcelBatchCloseState { ShutdownCommitted: false })
+                    _teardownFailures[sessionId] = ExceptionDispatchInfo.Capture(failure);
                 RevealForRecovery(sessionId);
                 _logger.LogError(ex, "Failed to dispose session {SessionId}", sessionId);
                 continue;

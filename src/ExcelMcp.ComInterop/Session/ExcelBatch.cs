@@ -55,7 +55,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     private readonly Lock _readinessLock = new();
     private bool _teardownConfirmed;
     private bool _staCleanupPending;
-    private readonly AsyncLocal<string?> _commandContext = new();
+    private readonly AsyncLocal<(string? Command, CancellationToken CallerCancellation)> _commandContext = new();
     private string? _operationCommand;
     private long _operationStartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
     private double? _completedElapsedSeconds;
@@ -826,6 +826,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
     public bool HasTimedOutOperation => _operationTimedOut;
 
+    bool IExcelBatchCloseState.ShutdownCommitted => Volatile.Read(ref _disposed) != 0;
+
     internal bool HasFailedStartup => _startupCompletion.IsFaulted;
 
     internal ExcelOperationStatus OperationStatus
@@ -867,7 +869,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             _isExcelVisible = true;
     }
 
-    internal void SetOperationCommand(string command) => _commandContext.Value = command;
+    internal void SetOperationContext(string command, CancellationToken callerCancellation) =>
+        _commandContext.Value = (command, callerCancellation);
 
     private void FinishOperation(Exception? error)
     {
@@ -959,6 +962,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
         cancellationToken.ThrowIfCancellationRequested();
+        var (command, callerCancellation) = _commandContext.Value;
+        callerCancellation.ThrowIfCancellationRequested();
 
         // Fail fast if a previous operation timed out or was cancelled while the STA thread
         // was stuck in IDispatch.Invoke. The STA thread cannot process new work items until
@@ -985,7 +990,6 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         }
 
         var completion = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var command = _commandContext.Value;
         var started = false;
         var workItem = new ExcelWorkItem<T>(() =>
         {
@@ -1025,6 +1029,11 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 FinishOperation(error);
         });
 
+        using var queuedCancellation = callerCancellation.Register(() =>
+        {
+            if (workItem.TryDiscard(new OperationCanceledException(callerCancellation)))
+                RevealForRecovery();
+        });
         if (!_workQueue.Writer.TryWrite(workItem))
         {
             throw new ObjectDisposedException(nameof(ExcelBatch),
@@ -1193,12 +1202,20 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             if (_readinessTask is { IsCompleted: true } previous)
             {
                 _readinessTask = null;
-                return previous.GetAwaiter().GetResult();
+                var state = previous.GetAwaiter().GetResult();
+                if (state != WorkbookRefreshState.Ready || !_operationTimedOut)
+                    return state;
             }
             var completion = new TaskCompletionSource<WorkbookRefreshState>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
             var work = new ExcelWorkItem<WorkbookRefreshState>(
-                ReadRefreshState, completion);
+                () =>
+                {
+                    var state = ReadRefreshState();
+                    if (state == WorkbookRefreshState.Ready)
+                        _operationTimedOut = false;
+                    return state;
+                }, completion);
             if (!_workQueue.Writer.TryWrite(work))
                 return WorkbookRefreshState.Unknown;
             _readinessTask = completion.Task;
@@ -1233,7 +1250,6 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         }
         if (_revealRequested)
             UpdateVisibilitySnapshot(null);
-        _operationTimedOut = false;
         return WorkbookRefreshState.Ready;
     }
 

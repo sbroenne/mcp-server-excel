@@ -289,8 +289,9 @@ public sealed class TestRunLifetimeTests(ITestOutputHelper output)
                 // turn this into a failing runner exit, not just a warning beside green TRX.
                 return;
             }
+            var disposeStarted = Stopwatch.GetTimestamp();
             batch.Dispose();
-            await AssertBoundedCleanupAsync(logger, 0, record.Excel.Value,
+            await AssertBoundedCleanupAsync(logger, 0, record.Excel.Value, Stopwatch.GetElapsedTime(disposeStarted),
                 Path.Join(directory, "initial-cleanup.json"), requireSave: mode == "workflow");
             if (mode == "workflow")
             {
@@ -302,8 +303,9 @@ public sealed class TestRunLifetimeTests(ITestOutputHelper output)
                 Assert.NotNull(reopenedRecord?.Excel);
                 var reopenedIdentity = reopenedRecord.Excel.Value;
                 Assert.NotEqual(record.Excel.Value, reopenedIdentity);
+                disposeStarted = Stopwatch.GetTimestamp();
                 reopened.Dispose();
-                await AssertBoundedCleanupAsync(logger, messageCount, reopenedIdentity,
+                await AssertBoundedCleanupAsync(logger, messageCount, reopenedIdentity, Stopwatch.GetElapsedTime(disposeStarted),
                     Path.Join(directory, "reopen-cleanup.json"), requireSave: true);
             }
             await File.WriteAllTextAsync(Path.Join(directory, "disposed"), "normal cleanup confirmed");
@@ -315,7 +317,7 @@ public sealed class TestRunLifetimeTests(ITestOutputHelper output)
     }
 
     private static async Task AssertBoundedCleanupAsync(
-        ShutdownLogger logger, int messageStart, ExcelProcessIdentity identity,
+        ShutdownLogger logger, int messageStart, ExcelProcessIdentity identity, TimeSpan disposeElapsed,
         string evidencePath, bool requireSave)
     {
         var messages = logger.Messages.Skip(messageStart).ToArray();
@@ -327,6 +329,7 @@ public sealed class TestRunLifetimeTests(ITestOutputHelper output)
             message.Contains("[DIAG-DISPOSE-STA-JOIN-TIMEOUT]", StringComparison.Ordinal)
             || message.Contains("[DIAG-DISPOSE-FORCE-KILL", StringComparison.Ordinal)
             || message.Contains("[DIAG-DISPOSE-TIMEOUT-PREKILL", StringComparison.Ordinal)
+            || message.Contains("[DIAG-DISPOSE-PROCESS-LINGER-KILLED]", StringComparison.Ordinal)
             || (message.Contains("[DIAG-QUIT-", StringComparison.Ordinal)
                 && !message.Contains("[DIAG-QUIT-SUCCESS]", StringComparison.Ordinal))
             || message.Contains("Failed to close workbook", StringComparison.Ordinal)
@@ -334,22 +337,13 @@ public sealed class TestRunLifetimeTests(ITestOutputHelper output)
         Assert.NotNull(ModuleInit.Lifetime);
         Assert.True(ModuleInit.Lifetime.HasExited(identity),
             "The captured Excel process must exit before the testhost job is disposed.");
-        Assert.NotNull(logger.LastProcessWaitElapsed);
-        Assert.InRange(logger.LastProcessWaitElapsed.Value,
-            TimeSpan.Zero, ProcessTerminationPolicy.NormalShutdownBudget);
-        var fallback = messages
-            .Where(message => message.Contains("[DIAG-DISPOSE-PROCESS-LINGER-KILLED]", StringComparison.Ordinal))
-            .ToArray();
-        if (fallback.Length > 0)
-        {
-            Assert.Contains($"Excel process {identity.ProcessId} ", Assert.Single(fallback), StringComparison.Ordinal);
-        }
+        var disposeBudget = ComInteropConstants.StaThreadJoinTimeout + ProcessTerminationPolicy.NormalGraceTimeout;
+        Assert.InRange(disposeElapsed, TimeSpan.Zero, disposeBudget);
         await File.WriteAllTextAsync(evidencePath, JsonSerializer.Serialize(new
         {
             identity,
-            usedPostQuitProcessFallback = fallback.Length > 0,
-            postQuitProcessWaitSeconds = logger.LastProcessWaitElapsed.Value.TotalSeconds,
-            processWaitBudgetSeconds = ProcessTerminationPolicy.NormalShutdownBudget.TotalSeconds,
+            disposeElapsedSeconds = disposeElapsed.TotalSeconds,
+            disposeBudgetSeconds = disposeBudget.TotalSeconds,
             exitedBeforeJobDisposal = true
         }));
     }
@@ -466,10 +460,6 @@ public sealed class TestRunLifetimeTests(ITestOutputHelper output)
     {
         private readonly object _gate = new();
         private readonly List<string> _messages = [];
-        private long _processWaitStarted;
-
-        internal TimeSpan? LastProcessWaitElapsed { get; private set; }
-
         internal string[] Messages
         {
             get { lock (_gate) { return _messages.ToArray(); } }
@@ -485,15 +475,6 @@ public sealed class TestRunLifetimeTests(ITestOutputHelper output)
             var message = formatter(state, exception);
             lock (_gate)
             {
-                if (message.Contains("[DIAG-DISPOSE-PROCESS-WAIT]", StringComparison.Ordinal))
-                {
-                    _processWaitStarted = Stopwatch.GetTimestamp();
-                }
-                else if (message.Contains("Dispose COMPLETED", StringComparison.Ordinal) && _processWaitStarted != 0)
-                {
-                    LastProcessWaitElapsed = Stopwatch.GetElapsedTime(_processWaitStarted);
-                    _processWaitStarted = 0;
-                }
                 _messages.Add(message);
                 File.AppendAllText(path,
                     $"{DateTime.UtcNow:o} thread={Environment.CurrentManagedThreadId} {message}{Environment.NewLine}");

@@ -718,23 +718,47 @@ public class SessionManagerTests : IDisposable
     }
 
     [Fact]
-    public void CreateSession_OverlongFilePath_RejectsAndReleasesResources()
+    public void CreateSession_OverlongFilePath_RejectsAndRetainsOwnershipUntilExitConfirmed()
     {
         // Some Excel versions open paths beyond 218 characters; exceed the legacy Windows limit too.
         var path = CreateTestFileWithPathLength(300);
+        var originalBytes = File.ReadAllBytes(path);
         using var owned = new OwnedExcelProcessScope();
         var manager = new SessionManager();
         var operationFailure = Record.Exception(() =>
         {
-            // Retry the same path to prove failed startup released its reservation.
             for (var attempt = 0; attempt < 2; attempt++)
             {
-                var failure = Assert.Throws<InvalidOperationException>(() => manager.CreateSession(path));
-                var excelFailure = Assert.IsType<COMException>(failure.InnerException);
+                var previous = owned.Identities;
+                var failure = Assert.ThrowsAny<InvalidOperationException>(() => manager.CreateSession(path));
+                var identity = Assert.Single(owned.Identities.Except(previous));
+                COMException excelFailure;
+                if (failure is SessionRetainedException retained)
+                {
+                    excelFailure = Assert.Single(
+                        Assert.IsType<AggregateException>(retained.InnerException).Flatten()
+                            .InnerExceptions.OfType<COMException>());
+                    Assert.Equal(retained.SessionId, Assert.Single(manager.ActiveSessionIds));
+                    Assert.True(manager.TryGetFilePath(retained.SessionId, out var claimedPath));
+                    Assert.Equal(path, claimedPath);
+                    var duplicate = Assert.Throws<InvalidOperationException>(() => manager.CreateSession(path));
+                    Assert.Contains("already open", duplicate.Message, StringComparison.Ordinal);
+                    Assert.Equal(originalBytes, File.ReadAllBytes(path));
+                    _output.WriteLine("Failed startup retained its session and path; the fixture will release only its exact owned process.");
+                    Assert.True(OwnedProcessGuard.TryTerminate(identity,
+                        TimeSpan.Zero, TimeSpan.FromSeconds(5), out _));
+                    Assert.True(manager.CloseSession(retained.SessionId, save: false));
+                }
+                else
+                {
+                    excelFailure = Assert.IsType<COMException>(failure.InnerException);
+                }
                 Assert.Equal(unchecked((int)0x800A03EC), excelFailure.HResult);
                 Assert.False(string.IsNullOrWhiteSpace(excelFailure.Message));
+                Assert.True(OwnedProcessGuard.TryConfirmExited(identity));
                 Assert.Equal(0, manager.ActiveSessionCount);
                 Assert.Empty(manager.ActiveSessionIds);
+                Assert.Equal(originalBytes, File.ReadAllBytes(path));
 
                 using var file = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
                 Assert.True(file.Length > 0);
