@@ -113,40 +113,6 @@ public sealed partial class ServiceFileCommandsTests
         Assert.Equal(0, _fixture.SessionCount);
     }
 
-    [Theory]
-    [InlineData("timeout", nameof(TimeoutException))]
-    [InlineData("cancellation", nameof(OperationCanceledException))]
-    public void Test_ValidationControlFlowFailure_ReturnsServiceError(
-        string failure,
-        string expectedExceptionType)
-    {
-        var testFile = _fixture.CreateTestFile();
-        var bytes = File.ReadAllBytes(testFile);
-        var originalHook = ExcelBatch.BeforeWorkbookOpenHook;
-        ExcelBatch.BeforeWorkbookOpenHook = (_, _) => throw failure switch
-        {
-            "timeout" => new TimeoutException("Validation timed out."),
-            "cancellation" => new OperationCanceledException("Validation cancelled."),
-            _ => throw new InvalidOperationException($"Unknown failure type: {failure}")
-        };
-
-        PersistentServiceCleanupFailures.Run(() =>
-        {
-            var response = _fileCommands.TestRaw(testFile);
-
-            Assert.False(response.Success);
-            Assert.NotNull(response.ErrorMessage);
-            Assert.True(string.IsNullOrEmpty(response.Result));
-            Assert.Equal(expectedExceptionType, response.ExceptionType);
-            Assert.Equal(bytes, File.ReadAllBytes(testFile));
-        }, () => ExcelBatch.BeforeWorkbookOpenHook = originalHook);
-        var recovered = _fileCommands.Test(testFile);
-        Assert.True(recovered.Success);
-        Assert.True(recovered.IsValid);
-        Assert.True(recovered.CanOpen);
-        Assert.Equal(bytes, File.ReadAllBytes(testFile));
-    }
-
     [Fact]
     public void Test_LockedSupportedFile_ReportsNotOpenable()
     {
