@@ -24,6 +24,8 @@ public static partial class ExcelFileTool
     /// Remote AutoSave is disabled so explicit save/close semantics apply.
     /// Inspect workbook_read get-info readOnly before editing. Workbook changes reject read-only access.
     /// Failed saves retain the open session and unsaved changes.
+    /// Save persists the current workbook without closing it. Timeouts preserve the owned session,
+    /// request that its Excel window be shown, and report the result to the caller.
     /// canClose is false while Excel has a modal dialog open, is busy, refreshing, or its state cannot be confirmed,
     /// even with activeOperations:0. nativeQueryApproval means Excel is waiting for manual approval and operationPending is true.
     /// Close with either save value is blocked until Excel is ready.
@@ -31,7 +33,7 @@ public static partial class ExcelFileTool
     /// </summary>
     /// <param name="action">The file operation to perform. close with save:false discards all unsaved edits, including earlier work; there is no tool-level undo.</param>
     /// <param name="file_path">Full Windows workbook path, or a direct SharePoint/OneDrive for Business HTTPS workbook URL for open. URLs support .xlsx/.xlsm/.xlsb/.xls and optional ?web=1 or ?web=0. Create requires a Windows path and supports .xlsx/.xlsm. Use a supplied location or discover the matching session; ask if the intended file is unclear.</param>
-    /// <param name="workbook_session_id">Session ID returned by open/create or listed by this server. Required for close.</param>
+    /// <param name="workbook_session_id">Session ID returned by open/create or listed by this server. Required for close/save.</param>
     /// <param name="save">Save before close; otherwise discard unsaved changes. Only valid for close.</param>
     /// <param name="show">Show Excel. Only valid for open/create; protected files may force visible authentication.</param>
     /// <param name="timeout_seconds">Timeout for open/create, in seconds (10-3600). Also sets the session operation timeout.</param>
@@ -44,7 +46,7 @@ public static partial class ExcelFileTool
         ServiceBridge.ServiceBridge bridge,
         [McpActionParameter("open", Required = true), McpActionParameter("create", Required = true)]
         [DefaultValue(null)] string? file_path,
-        [McpActionParameter("close", Required = true)]
+        [McpActionParameter("close", Required = true), McpActionParameter("save", Required = true)]
         [DefaultValue(null)] string? workbook_session_id,
         [McpActionParameter("close"), DefaultValue(false)] bool save,
         [McpActionParameter("open"), McpActionParameter("create"), DefaultValue(false)] bool show,
@@ -57,6 +59,7 @@ public static partial class ExcelFileTool
                 FileWriteAction.Open => FileAction.Open,
                 FileWriteAction.Create => FileAction.Create,
                 FileWriteAction.Close => FileAction.Close,
+                FileWriteAction.Save => FileAction.Save,
                 _ => throw new ArgumentOutOfRangeException(nameof(action))
             },
             bridge, file_path, workbook_session_id, save, show, timeout_seconds, cancellationToken);
@@ -113,8 +116,8 @@ public static partial class ExcelFileTool
 
             if (action is FileAction.Open or FileAction.Create or FileAction.Test && string.IsNullOrWhiteSpace(file_path))
                 throw new ArgumentException($"file_path is required for '{action.ToActionString()}' action.");
-            if (action == FileAction.Close && string.IsNullOrWhiteSpace(workbook_session_id))
-                throw new ArgumentException("workbook_session_id is required for file 'close'.");
+            if (action is FileAction.Close or FileAction.Save && string.IsNullOrWhiteSpace(workbook_session_id))
+                throw new ArgumentException($"workbook_session_id is required for file '{action.ToActionString()}'.");
 
             var isRemoteOpen = action == FileAction.Open
                 && FilePathValidation.IsRemoteWorkbook(file_path!);
@@ -140,6 +143,7 @@ public static partial class ExcelFileTool
             {
                 FileAction.List => await bridge.SendAsync("session.list", cancellationToken: cancellationToken),
                 FileAction.Close => await bridge.SendAsync("session.close", workbook_session_id, new { save }, cancellationToken: cancellationToken),
+                FileAction.Save => await bridge.SendAsync("session.save", workbook_session_id, cancellationToken: cancellationToken),
                 FileAction.Open or FileAction.Create => await bridge.SendAsync(
                     $"session.{action.ToActionString()}", args: new
                     {
@@ -159,6 +163,8 @@ public static partial class ExcelFileTool
             // session.close is a void Service command; its successful acknowledgement is authoritative.
             if (action == FileAction.Close)
                 return JsonSerializer.Serialize(new { success = true, workbook_session_id, saved = save }, ExcelToolsBase.JsonOptions);
+            if (action == FileAction.Save)
+                return JsonSerializer.Serialize(new { success = true, workbook_session_id, saved = true }, ExcelToolsBase.JsonOptions);
 
             var result = response.Result
                 ?? throw new InvalidOperationException("File operation returned no result.");

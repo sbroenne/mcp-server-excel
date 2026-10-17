@@ -6,17 +6,7 @@ using Xunit.Abstractions;
 namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 
 /// <summary>
-/// Tests for SessionManager behavior when operations timeout.
-///
-/// These tests validate the integration between ExcelBatch timeout detection
-/// and SessionManager session cleanup — the complete recovery path that was
-/// missing before Bug 8 (Feb 2026).
-///
-/// LAYER RESPONSIBILITY:
-/// - ✅ Test that SessionManager.CloseSession(force:true) works after timeout
-/// - ✅ Test that session is removed after timeout + force close
-/// - ✅ Test that subsequent GetSession returns null after timeout cleanup
-/// - ✅ Test that Excel process is cleaned up end-to-end through SessionManager
+/// Expired waits retain the session and exact process until execution completes.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Slow")]
@@ -59,15 +49,13 @@ public class SessionManagerTimeoutTests : IDisposable
     }
 
     /// <summary>
-    /// REGRESSION TEST: After a timeout, CloseSession(force:true) must succeed and remove the session.
-    /// This simulates what WithSessionAsync does when it catches TimeoutException.
-    /// Before Bug 8 fix, there was no TimeoutException handler — the session leaked.
+    /// Even force-close must refuse while an expired operation is still running.
     /// </summary>
     [Fact]
-    public void CloseSession_AfterTimeout_RemovesSessionAndCleansUp()
+    public void CloseSession_AfterTimeout_RefusesUntilExecutionCompletes()
     {
         // Arrange
-        var testFile = CreateTestFile(nameof(CloseSession_AfterTimeout_RemovesSessionAndCleansUp));
+        var testFile = CreateTestFile(nameof(CloseSession_AfterTimeout_RefusesUntilExecutionCompletes));
         using var manager = new SessionManager();
 
         // Create session with very short timeout
@@ -83,13 +71,14 @@ public class SessionManagerTimeoutTests : IDisposable
 
         // Warm up
         SessionWorkbookAssertions.AssertIdentity(batch, testFile);
+        SessionWorkbookAssertions.WriteMarker(batch, "Retained unsaved contents");
 
         // Trigger timeout
         var ex = Assert.Throws<TimeoutException>(() =>
         {
             batch.Execute((ctx, ct) =>
             {
-                Thread.Sleep(TimeSpan.FromSeconds(30));
+                Thread.Sleep(TimeSpan.FromSeconds(5));
                 return 0;
             });
         });
@@ -97,7 +86,12 @@ public class SessionManagerTimeoutTests : IDisposable
         Assert.Contains("timed out", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.True(batch.HasTimedOutOperation);
 
-        // Act — simulate what WithSessionAsync does: force-close the session
+        Assert.Throws<ExcelBusyException>(() => manager.CloseSession(sessionId, save: false, force: true));
+        Assert.Same(batch, manager.GetSession(sessionId));
+        Assert.True(batch.IsExcelProcessAlive());
+        WaitUntilReady(batch);
+        Assert.False(batch.HasTimedOutOperation);
+        Assert.Equal("Retained unsaved contents", SessionWorkbookAssertions.ReadMarker(batch));
         var closed = manager.CloseSession(sessionId, save: false, force: true);
 
         // Assert
@@ -111,15 +105,13 @@ public class SessionManagerTimeoutTests : IDisposable
     }
 
     /// <summary>
-    /// REGRESSION TEST: After timeout + force close, the Excel process must be terminated.
-    /// This is the end-to-end test for the complete Bug 8 recovery chain:
-    /// timeout → force close → pre-emptive kill → process cleanup.
+    /// The exact process survives expiry and exits only after a later explicit close.
     /// </summary>
     [Fact]
-    public void CloseSession_AfterTimeout_ExcelProcessIsTerminated()
+    public void CloseSession_AfterTimeout_PreservesExactProcessUntilExplicitClose()
     {
         // Arrange
-        var testFile = CreateTestFile(nameof(CloseSession_AfterTimeout_ExcelProcessIsTerminated));
+        var testFile = CreateTestFile(nameof(CloseSession_AfterTimeout_PreservesExactProcessUntilExplicitClose));
         using var manager = new SessionManager();
 
         var sessionId = manager.CreateSessionWithTimeouts(
@@ -140,12 +132,16 @@ public class SessionManagerTimeoutTests : IDisposable
         {
             batch.Execute((ctx, ct) =>
             {
-                Thread.Sleep(TimeSpan.FromSeconds(30));
+                Thread.Sleep(TimeSpan.FromSeconds(5));
                 return 0;
             });
         });
 
-        // Act — force close (this triggers Dispose → pre-emptive kill)
+        Assert.Throws<ExcelBusyException>(() => manager.CloseSession(sessionId, save: false, force: true));
+        Assert.Equal(excelPid, batch.ExcelProcessId);
+        Assert.True(batch.IsExcelProcessAlive());
+        Assert.Equal(sessionId, Assert.Single(manager.ActiveSessionIds));
+        WaitUntilReady(batch);
         var sw = Stopwatch.StartNew();
         Assert.True(manager.CloseSession(sessionId, save: false, force: true));
         sw.Stop();
@@ -155,6 +151,14 @@ public class SessionManagerTimeoutTests : IDisposable
         Assert.Empty(manager.ActiveSessionIds);
         Assert.Null(manager.GetSession(sessionId));
         _owned.AssertAllExited();
+    }
+
+    private static void WaitUntilReady(IExcelBatch batch)
+    {
+        var state = Assert.IsAssignableFrom<IExcelBatchRefreshState>(batch);
+        Assert.True(SpinWait.SpinUntil(
+            () => state.GetRefreshState() == WorkbookRefreshState.Ready,
+            TimeSpan.FromSeconds(20)), "Excel did not become ready after execution completed.");
     }
 
     /// <summary>

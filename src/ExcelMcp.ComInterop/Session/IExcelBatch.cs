@@ -133,8 +133,8 @@ public interface IExcelBatch : IDisposable
     bool IsExcelProcessAlive();
 
     /// <summary>
-    /// Gets whether a previous operation timed out or was cancelled while Excel was unresponsive.
-    /// When true, the session is poisoned and callers must fail fast instead of queueing more work.
+    /// Gets whether an executing operation outlived its caller's wait.
+    /// New work is refused until the original execution returns and Excel readiness is confirmed.
     /// </summary>
     bool HasTimedOutOperation { get; }
 

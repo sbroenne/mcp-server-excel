@@ -37,12 +37,11 @@ public partial class PowerQueryCommands
         timeout = NormalizeRefreshTimeout(timeout);
         DateTime traceStartUtc = DateTime.UtcNow;
 
-        using var timeoutCts = new CancellationTokenSource(timeout);
         string? queryFormula = null;
 
         try
         {
-            var refreshResult = batch.Execute((ctx, ct) =>
+            var refreshResult = ExcelBatchWait.Execute(batch, timeout, (ctx, ct) =>
             {
                 Excel.WorkbookQuery? query = null;
                 try
@@ -64,7 +63,7 @@ public partial class PowerQueryCommands
                     bool refreshed;
                     try
                     {
-                        refreshed = RefreshConnectionByQueryName(ctx.Book, queryName, timeoutCts.Token);
+                        refreshed = RefreshConnectionByQueryName(ctx.Book, queryName, ct);
                     }
                     catch (Exception ex) when (TryWrapPowerQueryException(ex, out var pqEx))
                     {
@@ -91,7 +90,7 @@ public partial class PowerQueryCommands
                 {
                     ComUtilities.Release(ref query);
                 }
-            }, timeoutCts.Token);
+            });
             if (trace)
             {
                 AddRefreshTrace(refreshResult, batch.ExcelProcessId, traceStartUtc, DateTime.UtcNow, failed: false);
@@ -99,7 +98,8 @@ public partial class PowerQueryCommands
 
             return refreshResult;
         }
-        catch (TimeoutException ex) when (IsLikelyPrivacyFirewallRisk(queryFormula))
+        catch (TimeoutException ex) when (
+            ex.InnerException is not OperationCanceledException && IsLikelyPrivacyFirewallRisk(queryFormula))
         {
             const string category = "PrivacyFirewall";
             throw new PowerQueryCommandException(
@@ -130,30 +130,27 @@ public partial class PowerQueryCommands
         timeout = NormalizeRefreshTimeout(timeout);
         DateTime traceStartUtc = DateTime.UtcNow;
 
-        using var timeoutCts = new CancellationTokenSource(timeout);
-
-        var result = batch.Execute((ctx, ct) =>
+        var result = ExcelBatchWait.Execute(batch, timeout, (ctx, ct) =>
         {
-            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token);
-            var queryNames = ReadQueryNames(ctx.Book, linkedCts.Token);
+            var queryNames = ReadQueryNames(ctx.Book, ct);
 
             // Use the same robust strategy as single-query Refresh:
             // 1) QueryTable.Refresh(false) for worksheet-loaded queries
             // 2) Connection.Refresh() for Data Model queries
             var result = RefreshQueries(
                 queryNames,
-                queryName => RefreshConnectionByQueryName(ctx.Book, queryName, linkedCts.Token),
-                linkedCts.Token,
+                queryName => RefreshConnectionByQueryName(ctx.Book, queryName, ct),
+                ct,
                 progress);
             if (refreshPivotTables && result.RefreshedQueries.Count > 0)
             {
-                RefreshDependentPivotTables(ctx.Book, result, linkedCts.Token, progress);
+                RefreshDependentPivotTables(ctx.Book, result, ct, progress);
             }
 
             FinalizeRefreshAllResult(result);
             result.FilePath = batch.WorkbookPath;
             return result;
-        }, timeoutCts.Token);
+        });
         if (trace)
         {
             AddRefreshTrace(result, batch.ExcelProcessId, traceStartUtc, DateTime.UtcNow, failed: !result.Success);

@@ -10,7 +10,7 @@ current command details, and the linked guidance for workflow decisions.
 
 ---
 
-## File Operations (5 operations)
+## File Operations (6 operations)
 
 - **Start work:** Open an existing workbook or create a new one and retain its Excel session.
 - **Discover sessions:** Find the intended open workbook and reuse its session.

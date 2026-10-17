@@ -14,14 +14,14 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 public sealed class ServiceBridgeCancellationTests
 {
     [Fact]
-    public async Task SendAsync_WithSessionTimeout_ForceClosesSession()
+    public async Task SendAsync_WithSessionTimeout_PreservesSession()
     {
         var backend = new Backend();
         using var bridge = new Bridge(() => backend);
         var response = await bridge.SendAsync("sheet.list", "session-1", timeoutSeconds: 1);
         Assert.False(response.Success);
         Assert.Equal("Timeout", response.ErrorCategory);
-        Assert.Equal(["session-1"], backend.ClosedSessions);
+        Assert.Equal(["session-1"], backend.RevealedSessions);
         Assert.False(backend.Disposed);
     }
 
@@ -35,79 +35,46 @@ public sealed class ServiceBridgeCancellationTests
         await backend.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         cancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => request);
-        Assert.Equal(["session-1"], backend.ClosedSessions);
+        Assert.Equal(["session-1"], backend.RevealedSessions);
         Assert.False(backend.Disposed);
     }
 
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task FailedForcedClose_RetiresCapturedBackendAndAllowsRecovery(bool throws)
+    public async Task RevealFailure_PreservesBackendAndAllowsOtherRequests(bool throws)
     {
-        var first = new Backend { FailClose = true, ThrowOnClose = throws };
-        var second = new Backend();
-        second.Response.SetResult(new ServiceResponse { Success = true });
+        var first = new Backend { ThrowOnReveal = throws };
         var calls = 0;
-        using var bridge = new Bridge(() => ++calls == 1 ? first : second);
+        using var bridge = new Bridge(() => { calls++; return first; });
         using var cancellation = new CancellationTokenSource();
         var request = bridge.SendAsync("sheet.list", "broken-session", cancellationToken: cancellation.Token);
         await first.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
         cancellation.Cancel();
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => request);
-        Assert.True(first.Disposed);
-        Assert.Equal(["broken-session"], first.ClosedSessions);
+        Assert.False(first.Disposed);
+        Assert.Equal(["broken-session"], first.RevealedSessions);
+        first.Response.TrySetResult(new ServiceResponse { Success = true });
         Assert.True((await bridge.SendAsync("session.list")).Success);
-        Assert.False(second.Disposed);
+        Assert.Equal(1, calls);
+        Assert.False(first.Disposed);
     }
 
     [Fact]
-    public async Task LateFailedCleanup_DoesNotRetireReplacementBackend()
+    public async Task LateCompletion_DoesNotDisposeOrReplaceBackend()
     {
-        using var release = new ManualResetEventSlim();
-        var closing = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var first = new Backend
-        {
-            CloseOverride = id =>
-            {
-                if (id == "old-session")
-                {
-                    closing.TrySetResult();
-                    if (!release.Wait(TimeSpan.FromSeconds(10)))
-                        throw new TimeoutException("Old cleanup was not released.");
-                }
-                return false;
-            }
-        };
-        var replacement = new Backend();
-        replacement.Response.SetResult(new ServiceResponse { Success = true });
+        var first = new Backend();
         var factories = 0;
-        using var bridge = new Bridge(() => ++factories == 1 ? first : replacement);
+        using var bridge = new Bridge(() => { factories++; return first; });
         using var oldCancellation = new CancellationTokenSource();
-        using var otherCancellation = new CancellationTokenSource();
         var oldRequest = bridge.SendAsync("sheet.list", "old-session", cancellationToken: oldCancellation.Token);
         await first.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        var cancelling = Task.Run(oldCancellation.Cancel);
-        try
-        {
-            await closing.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            var otherRequest = bridge.SendAsync("sheet.list", "other-session", cancellationToken: otherCancellation.Token);
-            otherCancellation.Cancel();
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => otherRequest);
-            Assert.True(first.Disposed);
-            Assert.True((await bridge.SendAsync("session.list")).Success);
-
-            release.Set();
-            await cancelling;
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => oldRequest);
-            Assert.True((await bridge.SendAsync("session.list")).Success);
-            Assert.Equal(2, factories);
-            Assert.False(replacement.Disposed);
-        }
-        finally
-        {
-            release.Set();
-            await cancelling;
-        }
+        oldCancellation.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => oldRequest);
+        first.Response.TrySetResult(new ServiceResponse { Success = true });
+        Assert.True((await bridge.SendAsync("session.list")).Success);
+        Assert.Equal(1, factories);
+        Assert.False(first.Disposed);
     }
 
     [Fact]
@@ -121,7 +88,7 @@ public sealed class ServiceBridgeCancellationTests
         cancellation.Cancel();
         backend.Response.TrySetResult(new ServiceResponse { Success = true });
         await Assert.ThrowsAnyAsync<OperationCanceledException>(() => request);
-        Assert.Equal(["session-race"], backend.ClosedSessions);
+        Assert.Equal(["session-race"], backend.RevealedSessions);
     }
 
     [Fact]
@@ -188,18 +155,19 @@ public sealed class ServiceBridgeCancellationTests
         Assert.True((await bridge.SendAsync("session.list")).Success);
         Assert.Throws<InvalidOperationException>(bridge.Dispose);
         await Assert.ThrowsAsync<ObjectDisposedException>(() => bridge.SendAsync("session.list"));
+        backend.ThrowOnDispose = false;
+        bridge.Dispose();
+        Assert.True(backend.Disposed);
     }
 
     private sealed class Backend : IServiceBridgeBackend
     {
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource<ServiceResponse> Response { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
-        internal List<string> ClosedSessions { get; } = [];
+        internal List<string> RevealedSessions { get; } = [];
         internal bool Disposed { get; private set; }
-        internal bool FailClose { get; init; }
-        internal bool ThrowOnClose { get; init; }
-        internal bool ThrowOnDispose { get; init; }
-        internal Func<string, bool>? CloseOverride { get; init; }
+        internal bool ThrowOnReveal { get; init; }
+        internal bool ThrowOnDispose { get; set; }
 
         public Task<ServiceResponse> ProcessAsync(ServiceRequest request)
         {
@@ -207,17 +175,11 @@ public sealed class ServiceBridgeCancellationTests
             return Response.Task;
         }
 
-        public bool ForceCloseSession(string sessionId)
+        public void RevealSession(string sessionId)
         {
-            if (CloseOverride is not null)
-                return CloseOverride(sessionId);
-            ClosedSessions.Add(sessionId);
-            if (ThrowOnClose)
-                throw new InvalidOperationException("Synthetic close failure.");
-            if (FailClose)
-                return false;
-            Response.TrySetResult(new ServiceResponse { Success = false, ErrorMessage = "closed" });
-            return true;
+            RevealedSessions.Add(sessionId);
+            if (ThrowOnReveal)
+                throw new InvalidOperationException("Synthetic reveal failure.");
         }
 
         public void Dispose()

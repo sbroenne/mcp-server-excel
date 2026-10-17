@@ -56,7 +56,7 @@ public partial class PowerQueryCommands
         // Resolve target cell address (default to A1)
         targetCellAddress ??= "A1";
 
-        return batch.Execute((ctx, ct) =>
+        return ExcelBatchWait.Execute(batch, ComInteropConstants.DataOperationTimeout, (ctx, ct) =>
         {
             Excel.Queries? queries = null;
             Excel.WorkbookQuery? query = null;
@@ -128,7 +128,7 @@ public partial class PowerQueryCommands
                 ComUtilities.Release(ref query);
                 ComUtilities.Release(ref queries);
             }
-        }, cancellationToken: default);
+        });
     }
 
     /// <summary>

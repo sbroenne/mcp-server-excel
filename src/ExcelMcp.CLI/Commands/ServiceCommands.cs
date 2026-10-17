@@ -55,7 +55,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
-        Justification = "Explicit service-stop command uses retained tracked process identities for requested fallback cleanup; if cleanup fails it reports the original error and returns exit code 1.")]
+        Justification = "CLI shutdown boundary reports unconfirmed shutdown or cleanup errors as success=false JSON and returns exit code 1 without terminating a running service.")]
     private static async Task<int> ExecuteWithStartupLockAsync(
         string pipeName,
         CancellationToken cancellationToken)
@@ -63,6 +63,15 @@ internal sealed class ServiceStopCommand : AsyncCommand
         var preShutdownSnapshot = OwnedProcessCleanup.CaptureTrackedProcesses(pipeName);
         try
         {
+            if (!DaemonAutoStart.IsDaemonMutexHeld(pipeName))
+            {
+                return await WriteCleanupResultAsync(
+                    pipeName,
+                    preShutdownSnapshot,
+                    cancellationToken,
+                    "Service not running.");
+            }
+
             using var client = new ServiceClient(pipeName, connectTimeout: CommandTimeout, requestTimeout: ShutdownRequestTimeout);
             var request = new ServiceRequest { Command = "service.shutdown" };
             var response = await CliTelemetry.TrackCommandAsync(
@@ -79,80 +88,41 @@ internal sealed class ServiceStopCommand : AsyncCommand
                         "Service stopped.");
                 }
 
-                if (await TryForceStopTrackedDaemonAsync(
-                    pipeName,
-                    preShutdownSnapshot,
-                    cancellationToken))
-                {
-                    CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped.", forced = true }, ServiceProtocol.JsonOptions));
-                    return 0;
-                }
-
                 CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
-                    new { success = false, errorMessage = $"Service acknowledged shutdown but did not exit within {ShutdownWaitTimeout.TotalSeconds:0} seconds." },
+                    new
+                    {
+                        success = false,
+                        errorCategory = "Timeout",
+                        errorMessage = $"Service acknowledged shutdown but did not exit within {ShutdownWaitTimeout.TotalSeconds:0} seconds. " +
+                            "The service and its workbooks have not been terminated."
+                    },
                     ServiceProtocol.JsonOptions));
                 return 1;
             }
 
-            if (response.ErrorCategory == "Busy" ||
-                (response.ErrorCategory == "Timeout" && response.ErrorMessage == "Service request timed out"))
-            {
-                CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(response, ServiceProtocol.JsonOptions));
-                return 1;
-            }
-
-            if (!DaemonAutoStart.IsDaemonMutexHeld(pipeName))
-            {
-                return await WriteCleanupResultAsync(
-                    pipeName,
-                    preShutdownSnapshot,
-                    cancellationToken,
-                    "Service not running.");
-            }
-
-            if (await TryForceStopTrackedDaemonAsync(
-                pipeName,
-                preShutdownSnapshot,
-                cancellationToken))
-            {
-                CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped.", forced = true }, ServiceProtocol.JsonOptions));
-                return 0;
-            }
-
+            CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(response, ServiceProtocol.JsonOptions));
+            return 1;
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or TimeoutException)
+        {
             CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
                 new
                 {
                     success = false,
-                    errorMessage = response.ErrorMessage ?? "Daemon is running but not responding, and the tracked daemon process could not be stopped."
-                },
-                ServiceProtocol.JsonOptions));
+                    errorCategory = ex is TimeoutException ? "Timeout" : "Cancelled",
+                    errorMessage = "The shutdown wait ended without confirmation. The service and its workbooks have not been terminated.",
+                    cause = ex.Message
+                }, ServiceProtocol.JsonOptions));
             return 1;
         }
         catch (Exception ex)
         {
-            if (!DaemonAutoStart.IsDaemonMutexHeld(pipeName))
-            {
-                return await WriteCleanupResultAsync(
-                    pipeName,
-                    preShutdownSnapshot,
-                    cancellationToken,
-                    "Service not running.");
-            }
-
-            if (await TryForceStopTrackedDaemonAsync(
-                pipeName,
-                preShutdownSnapshot,
-                cancellationToken))
-            {
-                CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new { success = true, message = "Service stopped.", forced = true }, ServiceProtocol.JsonOptions));
-                return 0;
-            }
-
             CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
                 new
                 {
                     success = false,
-                    errorMessage = $"Daemon is running but not responding, and the tracked daemon process could not be stopped. {ex.GetType().Name}: {ex.Message}"
+                    errorMessage = "The shutdown response could not be confirmed. The service and its workbooks have not been terminated. " +
+                        $"{ex.GetType().Name}: {ex.Message}"
                 },
                 ServiceProtocol.JsonOptions));
             return 1;
@@ -173,20 +143,6 @@ internal sealed class ServiceStopCommand : AsyncCommand
         }
 
         return !DaemonAutoStart.IsDaemonMutexHeld(pipeName);
-    }
-
-    private static async Task<bool> TryForceStopTrackedDaemonAsync(
-        string pipeName,
-        OwnedProcessCleanup.ProcessSnapshot preShutdownSnapshot,
-        CancellationToken cancellationToken)
-    {
-        var cleanupResult = await OwnedProcessCleanup.CleanupAsync(
-            pipeName,
-            preShutdownSnapshot,
-            cancellationToken);
-        return cleanupResult.Success
-            && cleanupResult.DaemonMatched
-            && await WaitForDaemonExitAsync(pipeName, cancellationToken);
     }
 
     private static async Task<int> WriteCleanupResultAsync(

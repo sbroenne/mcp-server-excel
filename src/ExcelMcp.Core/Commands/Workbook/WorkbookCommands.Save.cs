@@ -1,11 +1,14 @@
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Workbook;
 
 public partial class WorkbookCommands
 {
+    internal static Action<string>? BeforeOutputCommitHookForTests { get; set; }
+
     /// <inheritdoc />
     public OperationResult SaveAs(
         IExcelBatch batch,
@@ -17,36 +20,39 @@ public partial class WorkbookCommands
         var resolvedFormat = ResolveSaveFormat(normalizedPath, format);
         ValidateSaveExtension(normalizedPath, resolvedFormat);
 
-        ExcelBusyException.ThrowIfNotReady(
-            batch is IExcelBatchRefreshState state ? state.GetRefreshState() : WorkbookRefreshState.Unknown,
-            "save-as");
-        var targetAccepted = false;
-        try
+        return batch.Execute((context, _) =>
         {
-            return batch.Execute((context, _) =>
+            ExcelBusyException.ThrowIfNotReady(
+                WorkbookRefreshProbe.Read(context.App, context.Book), "save-as");
+            var originalFullName = context.Book.FullName;
+            var displayAlerts = context.App.DisplayAlerts;
+            var targetAccepted = false;
+            Exception? operationFailure = null;
+            try
             {
-                ExcelBusyException.ThrowIfNotReady(
-                    WorkbookRefreshProbe.Read(context.App, context.Book), "save-as");
-                var originalFullName = context.Book.FullName;
-                var displayAlerts = context.App.DisplayAlerts;
-                try
-                {
-                    context.App.DisplayAlerts = false;
-                    context.Book.SaveAs(
-                        normalizedPath,
-                        ToExcelFileFormat(resolvedFormat),
-                        Type.Missing,
-                        Type.Missing,
-                        false,
-                        false,
-                        Excel.XlSaveAsAccessMode.xlNoChange,
-                        Excel.XlSaveConflictResolution.xlLocalSessionChanges,
-                        false,
-                        Type.Missing,
-                        Type.Missing,
-                        Type.Missing);
-                }
-                finally
+                context.App.DisplayAlerts = false;
+                context.Book.SaveAs(
+                    normalizedPath,
+                    ToExcelFileFormat(resolvedFormat),
+                    Type.Missing,
+                    Type.Missing,
+                    false,
+                    false,
+                    Excel.XlSaveAsAccessMode.xlNoChange,
+                    Excel.XlSaveConflictResolution.xlLocalSessionChanges,
+                    false,
+                    Type.Missing,
+                    Type.Missing,
+                    Type.Missing);
+            }
+            catch (Exception ex)
+            {
+                operationFailure = ex;
+                throw;
+            }
+            finally
+            {
+                OperationCleanup.Run(() =>
                 {
                     context.App.DisplayAlerts = displayAlerts;
                     // OneDrive can resolve a local target to a SharePoint URL.
@@ -54,31 +60,26 @@ public partial class WorkbookCommands
                         string.Equals(context.Book.Name, Path.GetFileName(normalizedPath), StringComparison.OrdinalIgnoreCase) &&
                         (string.Equals(batch.WorkbookPath, normalizedPath, StringComparison.OrdinalIgnoreCase) ||
                          !string.Equals(context.Book.FullName, originalFullName, StringComparison.OrdinalIgnoreCase));
-                }
-
-                if (!context.Book.Saved || !targetAccepted)
-                {
-                    throw new InvalidOperationException(
-                        "Workbook was not saved to the requested path. Excel cancelled Save As or left unsaved changes. " +
-                        "The workbook remains open; inspect its saved state and fullName before continuing.");
-                }
-
-                return new OperationResult
-                {
-                    Success = true,
-                    Action = "save-as",
-                    FilePath = normalizedPath,
-                    Message = $"Workbook saved as '{normalizedPath}'"
-                };
-            });
-        }
-        finally
-        {
-            if (targetAccepted)
-            {
-                batch.UpdateWorkbookPath(normalizedPath);
+                    if (targetAccepted)
+                        batch.UpdateWorkbookPath(normalizedPath);
+                }, operationFailure);
             }
-        }
+
+            if (!context.Book.Saved || !targetAccepted)
+            {
+                throw new InvalidOperationException(
+                    "Workbook was not saved to the requested path. Excel cancelled Save As or left unsaved changes. " +
+                    "The workbook remains open; inspect its saved state and fullName before continuing.");
+            }
+
+            return new OperationResult
+            {
+                Success = true,
+                Action = "save-as",
+                FilePath = normalizedPath,
+                Message = $"Workbook saved as '{normalizedPath}'"
+            };
+        });
     }
 
     /// <inheritdoc />
@@ -95,11 +96,14 @@ public partial class WorkbookCommands
         }
 
         var writePath = GetWritePath(normalizedPath, overwrite);
-        try
+        return batch.Execute((context, _) =>
         {
-            var result = batch.Execute((context, _) =>
+            Exception? operationFailure = null;
+            try
             {
                 context.Book.SaveCopyAs(writePath);
+                BeforeOutputCommitHookForTests?.Invoke(writePath);
+                CommitOutput(writePath, normalizedPath);
                 return new OperationResult
                 {
                     Success = true,
@@ -107,15 +111,17 @@ public partial class WorkbookCommands
                     FilePath = normalizedPath,
                     Message = $"Workbook copy saved to '{normalizedPath}'"
                 };
-            });
-
-            CommitOutput(writePath, normalizedPath);
-            return result;
-        }
-        finally
-        {
-            DeleteTemporaryOutput(writePath, normalizedPath);
-        }
+            }
+            catch (Exception ex)
+            {
+                operationFailure = ex;
+                throw;
+            }
+            finally
+            {
+                OperationCleanup.Run(() => DeleteTemporaryOutput(writePath, normalizedPath), operationFailure);
+            }
+        });
     }
 
     /// <inheritdoc />
@@ -145,9 +151,10 @@ public partial class WorkbookCommands
         var openAfterCommit =
             openAfterPublish &&
             !string.Equals(writePath, normalizedPath, StringComparison.OrdinalIgnoreCase);
-        try
+        return batch.Execute((context, _) =>
         {
-            var result = batch.Execute((context, _) =>
+            Exception? operationFailure = null;
+            try
             {
                 context.Book.ExportAsFixedFormat(
                     formatType == FixedFormatType.Pdf
@@ -164,6 +171,17 @@ public partial class WorkbookCommands
                     openAfterPublish && !openAfterCommit,
                     Type.Missing);
 
+                BeforeOutputCommitHookForTests?.Invoke(writePath);
+                CommitOutput(writePath, normalizedPath);
+                if (openAfterCommit)
+                {
+                    using var process = System.Diagnostics.Process.Start(
+                        new System.Diagnostics.ProcessStartInfo(normalizedPath)
+                        {
+                            UseShellExecute = true
+                        });
+                }
+
                 return new OperationResult
                 {
                     Success = true,
@@ -171,24 +189,17 @@ public partial class WorkbookCommands
                     FilePath = normalizedPath,
                     Message = $"Workbook exported to '{normalizedPath}'"
                 };
-            });
-
-            CommitOutput(writePath, normalizedPath);
-            if (openAfterCommit)
-            {
-                using var process = System.Diagnostics.Process.Start(
-                    new System.Diagnostics.ProcessStartInfo(normalizedPath)
-                    {
-                        UseShellExecute = true
-                    });
             }
-
-            return result;
-        }
-        finally
-        {
-            DeleteTemporaryOutput(writePath, normalizedPath);
-        }
+            catch (Exception ex)
+            {
+                operationFailure = ex;
+                throw;
+            }
+            finally
+            {
+                OperationCleanup.Run(() => DeleteTemporaryOutput(writePath, normalizedPath), operationFailure);
+            }
+        });
     }
 
     internal static string ValidateOutputPath(string outputPath, bool overwrite)

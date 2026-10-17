@@ -17,6 +17,68 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 [Trait("Speed", "Medium")]
 public sealed class SessionCloseRegressionTests
 {
+    [Fact]
+    public async Task Shutdown_PreviousCloseFailed_DoesNotSavePartiallyClosedSession()
+    {
+        using var service = new ExcelMcpService();
+        var saveCalls = 0;
+        var batch = new FakeBatch
+        {
+            WorkbookPath = CreateFakeWorkbookPath(),
+            BeforeSave = () => saveCalls++,
+            DisposeException = new InvalidOperationException("Unconfirmed native teardown.")
+        };
+        RegisterSession(service, "partial-close", batch, addKnownSessionId: true);
+        try
+        {
+            var close = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.close",
+                SessionId = "partial-close",
+                Args = """{"save":false}"""
+            });
+            Assert.False(close.Success);
+            var shutdown = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
+            Assert.False(shutdown.Success);
+            Assert.Contains("Unconfirmed native teardown", shutdown.ErrorMessage, StringComparison.Ordinal);
+            Assert.Equal(0, saveCalls);
+            Assert.Same(batch, service.SessionManager.GetSession("partial-close"));
+            Assert.True(service.SessionManager.TryGetFilePath("partial-close", out var retainedPath));
+            Assert.Equal(batch.WorkbookPath, retainedPath);
+        }
+        finally
+        {
+            batch.DisposeException = null;
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Shutdown_SaveFails_PreservesWorkbook(bool timedOut)
+    {
+        using var service = new ExcelMcpService();
+        var batch = new FakeBatch
+        {
+            WorkbookPath = CreateFakeWorkbookPath(),
+            SaveException = timedOut
+                ? new TimeoutException("Save is still pending.")
+                : new InvalidOperationException("Save failed.")
+        };
+        RegisterSession(service, "save-failed", batch, addKnownSessionId: true);
+        try
+        {
+            var response = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
+            Assert.False(response.Success);
+            Assert.Equal(0, batch.DisposeCalls);
+            Assert.Same(batch, service.SessionManager.GetSession("save-failed"));
+        }
+        finally
+        {
+            batch.SaveException = null;
+        }
+    }
+
     [Theory]
     [InlineData("rpc")]
     [InlineData("direct")]
@@ -555,11 +617,19 @@ public sealed class SessionCloseRegressionTests
         var secondCloseText = (secondClose.ErrorMessage ?? string.Empty) + (secondClose.Result ?? string.Empty);
         Assert.DoesNotContain("already closed", secondCloseText, StringComparison.OrdinalIgnoreCase);
 
-        var shutdownFailure = Assert.Throws<AggregateException>(service.Dispose);
-        var sessionFailure = Assert.Single(shutdownFailure.InnerExceptions);
-        Assert.Contains(sessionId, sessionFailure.Message, StringComparison.Ordinal);
-        Assert.Same(batch.DisposeException, sessionFailure.InnerException);
-        Assert.Throws<ObjectDisposedException>(service.RequestShutdown);
+        try
+        {
+            var shutdownFailure = Assert.Throws<AggregateException>(service.Dispose);
+            var sessionFailure = Assert.Single(shutdownFailure.InnerExceptions);
+            Assert.Contains(sessionId, sessionFailure.Message, StringComparison.Ordinal);
+            Assert.Same(batch.DisposeException, sessionFailure.InnerException);
+            Assert.Same(batch, service.SessionManager.GetSession(sessionId));
+            Assert.Throws<AggregateException>(service.RequestShutdown);
+        }
+        finally
+        {
+            batch.DisposeException = null;
+        }
     }
 
     [Fact(Timeout = 60000)]
@@ -702,7 +772,7 @@ public sealed class SessionCloseRegressionTests
         public int? ExcelProcessId => 1234;
         public TimeSpan OperationTimeout => TimeSpan.FromSeconds(5);
         public bool IsExcelVisible => false;
-        public Exception? DisposeException { get; init; }
+        public Exception? DisposeException { get; set; }
         public Exception? ExecuteException { get; init; }
         public Action? BeforeSave { get; set; }
         public Exception? SaveException { get; set; }

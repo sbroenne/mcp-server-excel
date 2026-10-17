@@ -72,8 +72,8 @@ internal sealed class McpOwnedExcelProcesses : IDisposable
             }
         }
 
-        public bool ForceCloseSession(string sessionId) =>
-            service.SessionManager.CloseSession(sessionId, save: false, force: true);
+        public void RevealSession(string sessionId) =>
+            service.SessionManager.RevealForRecovery(sessionId, waitExpired: true);
 
         public void Dispose() => service.Dispose();
     }

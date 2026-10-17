@@ -16,6 +16,26 @@ public sealed class FileToolRecordingContractTests(
     private readonly RecordingProgramTransportFixture _fixture = fixture;
 
     [Fact]
+    public async Task Save_DispatchesExistingSessionAndReturnsSavedWithoutClosing()
+    {
+        var call = await _fixture.CallToolAsync(
+            "file",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "save",
+                ["workbook_session_id"] = "save-session"
+            },
+            new ServiceResponse { Success = true, Result = """{"success":true,"saved":true}""" },
+            "session.save",
+            expectedSessionId: "save-session",
+            expectedArgsJson: null);
+        using var result = JsonDocument.Parse(call.JsonResult);
+        Assert.True(result.RootElement.GetProperty("success").GetBoolean());
+        Assert.True(result.RootElement.GetProperty("saved").GetBoolean());
+        Assert.Equal("save-session", result.RootElement.GetProperty("workbook_session_id").GetString());
+    }
+
+    [Fact]
     public async Task Open_SharePointUrl_DispatchesWithoutLocalFileExistenceCheck()
     {
         const string url = "https://contoso.sharepoint.com/sites/Test/Shared%20Documents/Test.xlsx?web=1";

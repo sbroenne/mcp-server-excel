@@ -43,19 +43,27 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     private readonly CancellationTokenSource _shutdownCts;
     private readonly Lock _disposeLock = new();
     private int _disposed; // 0 = not disposed, 1 = disposed (using int for Interlocked.CompareExchange)
-    private int _executingWorkItem;
-    private int? _excelProcessId; // Excel.exe process ID for force-kill if needed
+    private int? _excelProcessId;
     private ExcelProcessIdentity? _excelProcessIdentity;
     private volatile bool _isExcelVisible;
-    private bool _operationTimedOut; // Track if an operation timed out for aggressive cleanup
+    private volatile bool _operationTimedOut;
+    private volatile bool _revealRequested;
+    private string? _windowReveal;
+    private Task _startupCompletion = Task.CompletedTask;
+    private readonly TaskCompletionSource _teardownCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly object _statusLock = new();
+    private readonly Lock _readinessLock = new();
+    private bool _teardownConfirmed;
+    private bool _staCleanupPending;
+    private readonly AsyncLocal<string?> _commandContext = new();
+    private string? _operationCommand;
+    private long _operationStartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+    private double? _completedElapsedSeconds;
+    private string _operationState = "starting";
+    private string? _operationError;
+    private bool _waitExpired;
+    private Task<WorkbookRefreshState>? _readinessTask;
     private bool _startupDetectedIrmProtectedWorkbook;
-
-    /// <summary>
-    /// When true, suppresses the "start visible during open" behavior.
-    /// Used by test infrastructure to avoid flashing Excel windows during automated test runs.
-    /// Production code should never set this.
-    /// </summary>
-    internal static bool SuppressVisibleDuringOpen { get; set; }
 
     /// <summary>
     /// Test-only seam for simulating a blocked workbook open path during startup.
@@ -65,12 +73,11 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     internal static Action<object, object>? AfterWorkbookOpenHookForTests { get; set; }
     internal static Func<int, ExcelProcessIdentity?>? TrackProcessIdentityHookForTests { get; set; }
 
-    internal static Func<ExcelProcessIdentity, bool>? FailedStartupTerminationHook { get; set; }
-
     internal static Func<ExcelProcessIdentity, bool>? FailedStartupExitConfirmationHook { get; set; }
 
     internal static Action? WorkItemQueuedHookForTests { get; set; }
     internal Action? BeforeRefreshStateReadHookForTests { get; set; }
+    internal Action? BeforeStaCleanupHookForTests { get; set; }
 
     // COM state (STA thread only)
     private Excel.Application? _excel;
@@ -80,8 +87,6 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
     private interface IExcelWorkItem
     {
-        bool IsExecuting { get; }
-
         bool TryExecute();
 
         bool TryDiscard(Exception? exception = null);
@@ -89,15 +94,14 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
     private sealed class ExcelWorkItem<T>(
         Func<T> operation,
-        TaskCompletionSource<T> completion) : IExcelWorkItem
+        TaskCompletionSource<T> completion,
+        Action<Exception?>? finished = null) : IExcelWorkItem
     {
         private const int Queued = 0;
         private const int Executing = 1;
         private const int Completed = 2;
         private const int Discarded = 3;
         private int _state;
-
-        public bool IsExecuting => Volatile.Read(ref _state) == Executing;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
             Justification = "STA work-item boundary transfers the exact operation exception to the waiting caller through TaskCompletionSource.TrySetException; throwing on this thread would break failure transport.")]
@@ -112,11 +116,13 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             {
                 var result = operation();
                 Volatile.Write(ref _state, Completed);
+                finished?.Invoke(null);
                 completion.TrySetResult(result);
             }
             catch (Exception ex)
             {
                 Volatile.Write(ref _state, Completed);
+                finished?.Invoke(ex);
                 // Preserve operation-originated cancellation and its inner failures.
                 // Execute handles cancellation of the caller's wait separately.
                 completion.TrySetException(ex);
@@ -157,7 +163,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         bool show = false,
         TimeSpan? operationTimeout = null,
         bool openReadOnly = false,
-        TimeSpan? startupTimeout = null)
+        TimeSpan? startupTimeout = null,
+        bool deferStartup = false)
         : this(
             workbookPaths,
             logger,
@@ -166,7 +173,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             createNewFile: false,
             isMacroEnabled: false,
             operationTimeout: operationTimeout,
-            startupTimeout: startupTimeout)
+            startupTimeout: startupTimeout,
+            deferStartup: deferStartup)
     {
     }
 
@@ -180,7 +188,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     /// <param name="show">Whether to show the Excel window.</param>
     /// <param name="operationTimeout">Timeout for startup and individual operations. Default: 120 seconds.</param>
     /// <returns>ExcelBatch instance with the new workbook open.</returns>
-    internal static ExcelBatch CreateNewWorkbook(string filePath, bool isMacroEnabled, ILogger<ExcelBatch>? logger = null, bool show = false, TimeSpan? operationTimeout = null)
+    internal static ExcelBatch CreateNewWorkbook(string filePath, bool isMacroEnabled, ILogger<ExcelBatch>? logger = null, bool show = false, TimeSpan? operationTimeout = null, bool deferStartup = false)
     {
         return new ExcelBatch(
             [filePath],
@@ -189,7 +197,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             openReadOnly: false,
             createNewFile: true,
             isMacroEnabled: isMacroEnabled,
-            operationTimeout: operationTimeout);
+            operationTimeout: operationTimeout,
+            deferStartup: deferStartup);
     }
 
     /// <summary>
@@ -203,7 +212,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         bool createNewFile,
         bool isMacroEnabled,
         TimeSpan? operationTimeout = null,
-        TimeSpan? startupTimeout = null)
+        TimeSpan? startupTimeout = null,
+        bool deferStartup = false)
     {
         if (workbookPaths == null || workbookPaths.Length == 0)
             throw new ArgumentException("At least one workbook path is required", nameof(workbookPaths));
@@ -214,6 +224,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         _openReadOnly = openReadOnly;
         _createNewFile = createNewFile;
         _isMacroEnabled = isMacroEnabled;
+        _operationCommand = createNewFile ? "session.create" : openReadOnly ? "session.test" : "session.open";
         _operationTimeout = operationTimeout ?? ComInteropConstants.DefaultOperationTimeout;
         _startupTimeout = startupTimeout ?? _operationTimeout;
         _logger = logger ?? NullLogger<ExcelBatch>.Instance;
@@ -228,6 +239,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
         // Start STA thread with message pump
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _startupCompletion = started.Task;
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
             Justification = "The startup STA reports the original failure through started.TrySetException to the constructor caller. Its final cleanup logs OLE-filter revocation failure without replacing the startup exception.")]
@@ -236,6 +248,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             Excel.Application? startupExcel = null;
             Excel.Workbook? startupPrimaryWorkbook = null;
             Dictionary<string, Excel.Workbook>? startupWorkbooks = null;
+            Exception? executionFailure = null;
             try
             {
                 // CRITICAL: Register OLE message filter on STA thread for Excel busy handling
@@ -251,7 +264,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 Excel.Application tempExcel;
                 try
                 {
-                    tempExcel = (Excel.Application)Activator.CreateInstance(excelType)!;
+                    tempExcel = ResiliencePipelines.CreateSessionCreationPipeline().Execute(
+                        () => (Excel.Application)Activator.CreateInstance(excelType)!);
                 }
                 catch (InvalidCastException ex)
                 {
@@ -266,12 +280,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 // Start Excel visible during workbook open so enterprise auth/sign-in
                 // dialogs are interactable. Hide after all workbooks open successfully.
                 // This also covers IRM-protected files which already needed Visible=true.
-                // SuppressVisibleDuringOpen: test infrastructure disables this to avoid
-                // flashing windows during automated runs.
-                if (!SuppressVisibleDuringOpen)
-                {
-                    tempExcel.Visible = true;
-                }
+                tempExcel.Visible = true;
                 tempExcel.DisplayAlerts = false;
 
                 // Readiness probes and teardown require both PID and start time.
@@ -297,6 +306,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                                         : SessionManager.TrackExcelProcessIdentity(_excelProcessId.Value);
                                 if (_excelProcessIdentity.HasValue)
                                 {
+                                    if (_revealRequested)
+                                        SessionManager.PreserveExcelProcess(_excelProcessIdentity.Value);
                                     _logger.LogDebug("Captured Excel process identity via Hwnd: {ProcessId} (attempt {Attempt})",
                                         _excelProcessId, attempt);
                                     break;
@@ -422,21 +433,12 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                         {
                             BeforeWorkbookOpenHook?.Invoke(normalizedPath, _shutdownCts.Token);
                             _shutdownCts.Token.ThrowIfCancellationRequested();
-                            // The Excel PIA adds an LCID to Open, which makes Excel rewrite
-                            // locale-specific table column format definitions during a later save.
-                            // IDispatch preserves the workbook's native definitions.
                             workbooks = tempExcel.Workbooks;
-                            // PIA gap: Workbooks.Open adds an LCID that can rewrite locale-specific table formats.
-                            dynamic workbooksDispatch = (dynamic)(object)workbooks;
-                            // Protection does not imply read-only rights. Excel enforces the
-                            // signed-in user's permissions; only validation forces read-only.
-                            wb = (Excel.Workbook)workbooksDispatch.Open(
-                                normalizedPath,
-                                UpdateLinks: 0,
-                                ReadOnly: _openReadOnly,
-                                IgnoreReadOnlyRecommended: true,
-                                Notify: false,
-                                AddToMru: false);
+                            // PIA gap: Open adds an LCID that can rewrite locale-specific table formats.
+                            dynamic dispatch = (dynamic)(object)workbooks;
+                            wb = (Excel.Workbook)dispatch.Open(
+                                normalizedPath, UpdateLinks: 0, ReadOnly: _openReadOnly,
+                                IgnoreReadOnlyRecommended: true, Notify: false, AddToMru: false);
                         }
                         finally
                         {
@@ -462,7 +464,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
                 // All workbooks opened successfully — safe to apply user's visibility preference.
                 // Enterprise auth/sign-in dialogs (if any) have already been dismissed.
-                tempExcel.Visible = _showExcel;
+                tempExcel.Visible = _showExcel || _revealRequested;
                 _isExcelVisible = (bool)tempExcel.Visible;
 
                 _excel = tempExcel;
@@ -470,6 +472,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 _workbooks = tempWorkbooks;
                 _context = new ExcelContext(_workbookPath, _excel, _workbook!);
 
+                FinishOperation(null);
                 started.SetResult();
 
                 // Message pump - process work queue until completion or cancellation.
@@ -510,15 +513,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                                 continue;
                             }
 
-                            Interlocked.Exchange(ref _executingWorkItem, 1);
-                            try
-                            {
-                                work.TryExecute();
-                            }
-                            finally
-                            {
-                                Interlocked.Exchange(ref _executingWorkItem, 0);
-                            }
+                            work.TryExecute();
                         }
                     }
                     catch (OperationCanceledException)
@@ -539,6 +534,10 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             }
             catch (Exception ex)
             {
+                executionFailure = ex;
+                lock (_statusLock)
+                    _staCleanupPending = true;
+                FinishOperation(ex);
                 started.TrySetException(ex);
             }
             finally
@@ -551,87 +550,105 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 // or second workbook failure in a multi-workbook batch). In that case, the instance
                 // fields remain null and cleanup must fall back to the startup locals to avoid leaking
                 // a hidden Excel.exe process.
-                var cleanupExcel = _excel ?? startupExcel;
-                var cleanupWorkbook = _workbook ?? startupPrimaryWorkbook;
-                var cleanupWorkbooks = _workbooks ?? startupWorkbooks;
-
-                // INSTRUMENTATION: Check if Excel process is alive BEFORE entering shutdown
-                if (_excelProcessId.HasValue)
+                try
                 {
-                    try
-                    {
-                        using var beforeProc = System.Diagnostics.Process.GetProcessById(_excelProcessId.Value);
-                        bool beforeAlive = !beforeProc.HasExited;
-                        SessionDiagnostics.WriteStdErr(
-                            $"[DIAG-SHUTDOWN-ENTER-PROCESS-CHECK] Excel PID {_excelProcessId.Value} alive={beforeAlive} file={Path.GetFileName(_workbookPath)}");
-                        _logger.LogDebug(
-                            "[DIAG-SHUTDOWN-ENTER-PROCESS-CHECK] Excel PID {ProcessId} alive={Alive} file={FileName}",
-                            _excelProcessId.Value, beforeAlive, Path.GetFileName(_workbookPath));
-                    }
-                    catch (ArgumentException)
-                    {
-                        SessionDiagnostics.WriteStdErr(
-                            $"[DIAG-SHUTDOWN-ENTER-PROCESS-DEAD] Excel PID {_excelProcessId.Value} already dead BEFORE shutdown file={Path.GetFileName(_workbookPath)}");
-                        _logger.LogWarning(
-                            "[DIAG-SHUTDOWN-ENTER-PROCESS-DEAD] Excel PID {ProcessId} already dead BEFORE shutdown for {FileName}",
-                            _excelProcessId.Value, Path.GetFileName(_workbookPath));
-                    }
-                    catch (System.ComponentModel.Win32Exception ex)
-                    {
-                        SessionDiagnostics.WriteStdErr(
-                            $"[DIAG-SHUTDOWN-ENTER-PROCESS-INACCESSIBLE] Excel PID {_excelProcessId.Value} could not be queried before shutdown: {ex.Message}");
-                        _logger.LogWarning(
-                            ex,
-                            "[DIAG-SHUTDOWN-ENTER-PROCESS-INACCESSIBLE] Excel PID {ProcessId} could not be queried before shutdown for {FileName}",
-                            _excelProcessId.Value,
-                            Path.GetFileName(_workbookPath));
-                    }
-                    catch (InvalidOperationException ex)
-                    {
-                        SessionDiagnostics.WriteStdErr(
-                            $"[DIAG-SHUTDOWN-ENTER-PROCESS-INACCESSIBLE] Excel PID {_excelProcessId.Value} state was unavailable before shutdown: {ex.Message}");
-                        _logger.LogWarning(
-                            ex,
-                            "[DIAG-SHUTDOWN-ENTER-PROCESS-INACCESSIBLE] Excel PID {ProcessId} state was unavailable before shutdown for {FileName}",
-                            _excelProcessId.Value,
-                            Path.GetFileName(_workbookPath));
-                    }
-                }
+                    BeforeStaCleanupHookForTests?.Invoke();
+                    var cleanupExcel = _excel ?? startupExcel;
+                    var cleanupWorkbook = _workbook ?? startupPrimaryWorkbook;
+                    var cleanupWorkbooks = _workbooks ?? startupWorkbooks;
 
-                // Unified shutdown: use ExcelShutdownService for ALL workbook close/quit operations.
-                // Previously multi-workbook batches used bare COM calls without resilience,
-                // while single-workbook batches used ExcelShutdownService. Now both paths
-                // get the same exponential backoff retry for COM busy conditions.
-                if (cleanupWorkbooks != null && cleanupWorkbooks.Count > 1)
-                {
-                    _logger.LogDebug("Closing {Count} workbooks via ExcelShutdownService", cleanupWorkbooks.Count);
-
-                    // Close all non-primary workbooks first (without quitting Excel)
-                    foreach (var kvp in cleanupWorkbooks.ToList())
+                    // INSTRUMENTATION: Check if Excel process is alive BEFORE entering shutdown
+                    if (_excelProcessId.HasValue)
                     {
-                        if (kvp.Value == cleanupWorkbook)
+                        try
                         {
-                            continue; // Primary workbook closed last (with Quit)
+                            using var beforeProc = System.Diagnostics.Process.GetProcessById(_excelProcessId.Value);
+                            bool beforeAlive = !beforeProc.HasExited;
+                            SessionDiagnostics.WriteStdErr(
+                                $"[DIAG-SHUTDOWN-ENTER-PROCESS-CHECK] Excel PID {_excelProcessId.Value} alive={beforeAlive} file={Path.GetFileName(_workbookPath)}");
+                            _logger.LogDebug(
+                                "[DIAG-SHUTDOWN-ENTER-PROCESS-CHECK] Excel PID {ProcessId} alive={Alive} file={FileName}",
+                                _excelProcessId.Value, beforeAlive, Path.GetFileName(_workbookPath));
                         }
-
-                        // CloseAndQuit with excel=null closes workbook only, doesn't quit
-                        ExcelShutdownService.CloseAndQuit(kvp.Value, null, false, kvp.Key, _logger);
+                        catch (ArgumentException)
+                        {
+                            SessionDiagnostics.WriteStdErr(
+                                $"[DIAG-SHUTDOWN-ENTER-PROCESS-DEAD] Excel PID {_excelProcessId.Value} already dead BEFORE shutdown file={Path.GetFileName(_workbookPath)}");
+                            _logger.LogWarning(
+                                "[DIAG-SHUTDOWN-ENTER-PROCESS-DEAD] Excel PID {ProcessId} already dead BEFORE shutdown for {FileName}",
+                                _excelProcessId.Value, Path.GetFileName(_workbookPath));
+                        }
+                        catch (System.ComponentModel.Win32Exception ex)
+                        {
+                            SessionDiagnostics.WriteStdErr(
+                                $"[DIAG-SHUTDOWN-ENTER-PROCESS-INACCESSIBLE] Excel PID {_excelProcessId.Value} could not be queried before shutdown: {ex.Message}");
+                            _logger.LogWarning(
+                                ex,
+                                "[DIAG-SHUTDOWN-ENTER-PROCESS-INACCESSIBLE] Excel PID {ProcessId} could not be queried before shutdown for {FileName}",
+                                _excelProcessId.Value,
+                                Path.GetFileName(_workbookPath));
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                            SessionDiagnostics.WriteStdErr(
+                                $"[DIAG-SHUTDOWN-ENTER-PROCESS-INACCESSIBLE] Excel PID {_excelProcessId.Value} state was unavailable before shutdown: {ex.Message}");
+                            _logger.LogWarning(
+                                ex,
+                                "[DIAG-SHUTDOWN-ENTER-PROCESS-INACCESSIBLE] Excel PID {ProcessId} state was unavailable before shutdown for {FileName}",
+                                _excelProcessId.Value,
+                                Path.GetFileName(_workbookPath));
+                        }
                     }
-                    cleanupWorkbooks.Clear();
 
-                    // Close primary workbook AND quit Excel (with resilient retry)
-                    ExcelShutdownService.CloseAndQuit(cleanupWorkbook, cleanupExcel, false, _workbookPath, _logger);
+                    // Unified shutdown: use ExcelShutdownService for ALL workbook close/quit operations.
+                    // Previously multi-workbook batches used bare COM calls without resilience,
+                    // while single-workbook batches used ExcelShutdownService. Now both paths
+                    // get the same exponential backoff retry for COM busy conditions.
+                    if (cleanupWorkbooks != null && cleanupWorkbooks.Count > 1)
+                    {
+                        _logger.LogDebug("Closing {Count} workbooks via ExcelShutdownService", cleanupWorkbooks.Count);
+
+                        // Close all non-primary workbooks first (without quitting Excel)
+                        foreach (var kvp in cleanupWorkbooks.ToList())
+                        {
+                            if (kvp.Value == cleanupWorkbook)
+                            {
+                                continue; // Primary workbook closed last (with Quit)
+                            }
+
+                            // CloseAndQuit with excel=null closes workbook only, doesn't quit
+                            ExcelShutdownService.CloseAndQuit(kvp.Value, null, false, kvp.Key, _logger);
+                        }
+                        cleanupWorkbooks.Clear();
+
+                        // Close primary workbook AND quit Excel (with resilient retry)
+                        ExcelShutdownService.CloseAndQuit(cleanupWorkbook, cleanupExcel, false, _workbookPath, _logger);
+                    }
+                    else
+                    {
+                        // Single workbook: same ExcelShutdownService path
+                        ExcelShutdownService.CloseAndQuit(cleanupWorkbook, cleanupExcel, false, _workbookPath, _logger);
+                    }
+
+                    _workbook = null;
+                    _excel = null;
+                    _workbooks = null;
+                    _context = null;
+                    _teardownCompletion.TrySetResult();
+                    if (_disposed != 0)
+                        FinishOperation(executionFailure);
                 }
-                else
+                catch (Exception teardownFailure)
                 {
-                    // Single workbook: same ExcelShutdownService path
-                    ExcelShutdownService.CloseAndQuit(cleanupWorkbook, cleanupExcel, false, _workbookPath, _logger);
+                    RevealForRecovery();
+                    FinishOperation(executionFailure is null
+                        ? teardownFailure
+                        : new AggregateException("Excel execution and its cleanup both failed.",
+                            executionFailure, teardownFailure));
+                    _teardownCompletion.TrySetException(teardownFailure);
+                    _logger.LogError(teardownFailure,
+                        "Excel close/quit failed; its process remains owned and may be partially closed");
                 }
-
-                _workbook = null;
-                _excel = null;
-                _workbooks = null;
-                _context = null;
 
                 try
                 {
@@ -644,6 +661,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 }
 
                 _logger.LogDebug("STA thread cleanup completed for {FileName}", Path.GetFileName(_workbookPath));
+                lock (_statusLock)
+                    _staCleanupPending = false;
             }
         }
 
@@ -656,7 +675,12 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         // CRITICAL: Set STA apartment state before starting thread
         _staThread.SetApartmentState(ApartmentState.STA);
         _staThread.Start();
+        if (!deferStartup)
+            WaitForStartup();
+    }
 
+    internal void WaitForStartup()
+    {
         // Wait for STA thread to initialize. If startup fails, the STA thread may still be in
         // its finally-block cleanup path (closing a hidden Excel instance created before the
         // failure). Wait for that cleanup before rethrowing so callers do not immediately race
@@ -666,7 +690,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             bool completedInTime;
             try
             {
-                completedInTime = started.Task.Wait(_startupTimeout);
+                completedInTime = _startupCompletion.Wait(_startupTimeout);
             }
             catch (AggregateException)
             {
@@ -679,15 +703,13 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             if (!completedInTime)
             {
                 _operationTimedOut = true;
-                _workQueue.Writer.TryComplete();
-                _shutdownCts.Cancel();
-
-                throw new TimeoutException(CreateStartupTimeoutMessage());
+                RevealForRecovery(waitExpired: true);
+                throw new ExcelStartupPendingException(CreateStartupTimeoutMessage());
             }
 
-            started.Task.GetAwaiter().GetResult();
+            _startupCompletion.GetAwaiter().GetResult();
         }
-        catch (Exception startupFailure)
+        catch (Exception startupFailure) when (startupFailure is not ExcelStartupPendingException)
         {
             if (_staThread.IsAlive)
             {
@@ -698,23 +720,19 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             {
                 try
                 {
-                    FinalizeFailedStartupOwnedProcess(
+                    FinalizeOwnedProcessTeardown(
                         failedStartupIdentity,
-                        FailedStartupTerminationHook
-                        ?? (identity => TryTerminateOwnedProcess(
-                            identity,
-                            TimeSpan.FromSeconds(5),
-                            TimeSpan.FromSeconds(3))),
                         FailedStartupExitConfirmationHook
-                        ?? OwnedProcessGuard.TryConfirmExited);
+                        ?? WaitForOwnedProcessExit);
                 }
                 catch (Exception teardownFailure)
                 {
-                    throw new InvalidOperationException(
+                    RevealForRecovery();
+                    throw new AggregateException(
                         $"Excel startup failed and exact process teardown could not be confirmed for " +
                         $"process {failedStartupIdentity.ProcessId}. The process identity remains tracked " +
-                        "for ProcessExit cleanup.",
-                        new AggregateException(startupFailure, teardownFailure));
+                        "and has not been terminated.",
+                        startupFailure, teardownFailure);
                 }
 
                 if (_staThread.IsAlive)
@@ -736,8 +754,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         return
             $"Excel startup timed out after {_startupTimeout.TotalSeconds} seconds while opening '{Path.GetFileName(_workbookPath)}'. " +
             "The workbook may be blocked on an interactive dialog, enterprise authentication, IRM/AIP prompt, external-link prompt, or an unresponsive open. " +
-            "Corrective action: retry the file open/create with a larger timeout_seconds value (CLI: --timeout-seconds <seconds>) if the workbook is just slow, " +
-            $"or retry with show=true (CLI: --show) so Excel is visible for prompts.{protectedWorkbookHint}";
+            $"The original startup remains owned and may still complete. Do not repeat the open/create to determine its outcome. " +
+            $"Excel window: {_windowReveal}. Inspect session status for the eventual result.{protectedWorkbookHint}";
     }
 
     internal static int SelectAutomationSecurity(
@@ -773,7 +791,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
         var normalizedPath = WorkbookLocation.Normalize(workbookPath);
 
-        Execute((_, _) =>
+        void UpdatePath()
         {
             if (_workbooks == null || _excel == null || _workbook == null)
             {
@@ -790,7 +808,12 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             _workbookPath = normalizedPath;
             _allWorkbookPaths[0] = normalizedPath;
             _context = new ExcelContext(normalizedPath, _excel, _workbook, _context!.Capabilities);
-        });
+        }
+
+        if (Thread.CurrentThread == _staThread)
+            UpdatePath();
+        else
+            Execute((_, _) => UpdatePath());
     }
 
     public ILogger Logger => _logger;
@@ -803,16 +826,68 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
     public bool HasTimedOutOperation => _operationTimedOut;
 
+    internal bool HasFailedStartup => _startupCompletion.IsFaulted;
+
+    internal ExcelOperationStatus OperationStatus
+    {
+        get
+        {
+            lock (_statusLock)
+                return new ExcelOperationStatus(
+                    _operationState,
+                    _completedElapsedSeconds ?? System.Diagnostics.Stopwatch.GetElapsedTime(_operationStartedAt).TotalSeconds,
+                    _waitExpired,
+                    _staCleanupPending || _operationState is "starting" or "running" or "closing",
+                    _operationError,
+                    _windowReveal)
+                {
+                    Command = _operationCommand
+                };
+        }
+    }
+
+    internal void RevealForRecovery(bool waitExpired = false)
+    {
+        _revealRequested = true;
+        if (_excelProcessIdentity is { } identity)
+            SessionManager.PreserveExcelProcess(identity);
+        lock (_statusLock)
+        {
+            if (waitExpired)
+            {
+                _waitExpired = true;
+                if (_operationState is "starting" or "running" or "closing")
+                    _operationTimedOut = true;
+            }
+        }
+        var outcome = ExcelDialogProbe.Reveal(_excelProcessIdentity, _logger);
+        lock (_statusLock)
+            _windowReveal = outcome;
+        if (outcome is "shown" or "alreadyVisible")
+            _isExcelVisible = true;
+    }
+
+    internal void SetOperationCommand(string command) => _commandContext.Value = command;
+
+    private void FinishOperation(Exception? error)
+    {
+        lock (_statusLock)
+        {
+            _operationState = error is null ? "completed" : "failed";
+            _operationError = error?.Message;
+            _completedElapsedSeconds = System.Diagnostics.Stopwatch.GetElapsedTime(_operationStartedAt).TotalSeconds;
+        }
+    }
+
     public bool IsExcelProcessAlive()
     {
-        if (_disposed != 0) return false;
         if (!_excelProcessId.HasValue)
         {
             // PID capture is best-effort during startup. Under load, Excel can still be healthy
             // even when Hwnd-based PID discovery misses the short retry window. Treat this as
             // "unknown but assumed alive" so callers do not tear down a live session before the
             // first COM command runs; real COM failures still surface on the actual operation.
-            return true;
+            return _disposed == 0 || _staThread.IsAlive;
         }
 
         if (_excelProcessIdentity is { } identity)
@@ -892,9 +967,12 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         if (_operationTimedOut)
         {
             throw new TimeoutException(
-                $"A previous operation timed out or was cancelled for '{Path.GetFileName(_workbookPath)}'. " +
-                "The Excel COM thread may be unresponsive. Please close this session and create a new one.");
+                $"A previous wait expired for '{Path.GetFileName(_workbookPath)}'. " +
+                "The workbook remains open; the original operation or readiness verification is still pending.");
         }
+        if (!_startupCompletion.IsCompleted)
+            throw new ExcelBusyException("Excel startup is still pending. The workbook remains owned.");
+        _startupCompletion.GetAwaiter().GetResult();
 
         // Check if Excel process is still alive before attempting operation
         if (!IsExcelProcessAlive())
@@ -907,16 +985,30 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         }
 
         var completion = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var command = _commandContext.Value;
+        var started = false;
         var workItem = new ExcelWorkItem<T>(() =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            if (_operationTimedOut)
+                throw new ExcelBusyException("An earlier operation exceeded its wait. This queued operation was not executed.");
+            lock (_statusLock)
+            {
+                started = true;
+                _operationStartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+                _completedElapsedSeconds = null;
+                _operationState = "running";
+                _operationCommand = command;
+                _operationError = null;
+                _waitExpired = false;
+                _windowReveal = null;
+            }
 
             using var writeGuard = new ExcelWriteGuard((Excel.Application)_context!.App, _logger);
 
             Exception? operationFailure = null;
             try
             {
-                return operation(_context!, cancellationToken);
+                return operation(_context!, CancellationToken.None);
             }
             catch (Exception ex)
             {
@@ -927,7 +1019,11 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             {
                 UpdateVisibilitySnapshot(operationFailure);
             }
-        }, completion);
+        }, completion, error =>
+        {
+            if (started)
+                FinishOperation(error);
+        });
 
         if (!_workQueue.Writer.TryWrite(workItem))
         {
@@ -951,15 +1047,20 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         catch (OperationCanceledException ex) when (
             timeoutCts is { IsCancellationRequested: true } && ex.CancellationToken == timeoutCts.Token)
         {
+            if (completion.Task.IsCompleted)
+                return completion.Task.GetAwaiter().GetResult();
             // Only cancellation of this wait's actual deadline is a session timeout.
             var expiredWhileQueued = workItem.TryDiscard();
-            if (!expiredWhileQueued && workItem.IsExecuting)
+            if (!expiredWhileQueued && !completion.Task.IsCompleted)
             {
                 _operationTimedOut = true;
+                RevealForRecovery(waitExpired: true);
             }
 
             if (expiredWhileQueued)
             {
+                if (completion.Task.IsCompleted)
+                    return completion.Task.GetAwaiter().GetResult();
                 _logger.LogError(
                     "Queued operation expired after {Timeout} before execution for {FileName}",
                     _operationTimeout,
@@ -978,9 +1079,10 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         {
             var cancelledWhileQueued = workItem.TryDiscard();
             _logger.LogDebug("Operation cancelled or timed out for {FileName}", Path.GetFileName(_workbookPath));
-            if (!cancelledWhileQueued && workItem.IsExecuting)
+            if (!cancelledWhileQueued && !completion.Task.IsCompleted)
             {
                 _operationTimedOut = true;
+                RevealForRecovery(waitExpired: true);
             }
 
             throw;
@@ -1000,21 +1102,27 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         var dialogOpen = dialogState is WorkbookRefreshState.DialogOpen or WorkbookRefreshState.NativeQueryApproval;
         return new TimeoutException(
             $"Excel operation timed out after {_operationTimeout.TotalSeconds} seconds for '{Path.GetFileName(_workbookPath)}'. " +
+            $"The workbook remains open and the operation may still change it. No changes were saved or discarded by timeout recovery. Excel window: {_windowReveal}. " +
             (dialogOpen
                 ? (dialogState == WorkbookRefreshState.NativeQueryApproval
                     ? "Excel was waiting for approval to run a native database query. "
                     : "Excel had a dialog open when the operation timed out and may have been waiting for input. ") +
                   "This timeout does not itself cancel the operation or undo workbook changes. " +
-                  "The session's timeout recovery may close Excel; the captured dialog text is included below. " +
+                  "The captured dialog text is included below. " +
                   $"Dialog text: {dialogText}"
                 : "Excel may be unresponsive or the operation is taking longer than expected. " +
-                  "Consider increasing timeoutSeconds when opening the session."));
+                  "Inspect session status for the eventual outcome; do not automatically repeat the operation."));
     }
 
     private void UpdateVisibilitySnapshot(Exception? operationFailure)
     {
         try
         {
+            if (_revealRequested && _excel != null)
+            {
+                _excel.Visible = true;
+                _revealRequested = false;
+            }
             _isExcelVisible = _excel != null && (bool)_excel.Visible;
         }
         catch (COMException ex) when (ex.HResult == ResiliencePipelines.RPC_E_DISCONNECTED)
@@ -1042,7 +1150,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     public void Save(CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        ExcelBusyException.ThrowIfNotReady(GetRefreshState(), "save");
+        if (OperationStatus.ExecutionPending)
+            throw new ExcelBusyException("Cannot save: Excel work is still pending. The workbook remains open.");
         Execute((ctx, ct) =>
         {
             ExcelBusyException.ThrowIfNotReady(
@@ -1058,7 +1167,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
     public WorkbookRefreshState GetRefreshState()
     {
-        if (_disposed != 0 || _operationTimedOut)
+        if (_disposed != 0)
         {
             return WorkbookRefreshState.Unknown;
         }
@@ -1068,41 +1177,45 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         {
             return dialogState;
         }
-        if (Volatile.Read(ref _executingWorkItem) != 0)
+        if (!_startupCompletion.IsCompleted)
+            return WorkbookRefreshState.Busy;
+        if (_startupCompletion.IsFaulted)
+            return WorkbookRefreshState.Unknown;
+        if (OperationStatus.ExecutionPending)
         {
             return WorkbookRefreshState.Busy;
         }
 
-        var completion = new TaskCompletionSource<WorkbookRefreshState>(
-            TaskCreationOptions.RunContinuationsAsynchronously);
-        var work = new ExcelWorkItem<WorkbookRefreshState>(
-            ReadRefreshState, completion);
-        if (!_workQueue.Writer.TryWrite(work))
+        lock (_readinessLock)
         {
-            return WorkbookRefreshState.Unknown;
-        }
-        try
-        {
-            // Keep queued probes short without imposing the same deadline on a started COM scan.
-            return completion.Task.WaitAsync(TimeSpan.FromSeconds(1)).GetAwaiter().GetResult();
-        }
-        catch (TimeoutException)
-        {
-            if (work.TryDiscard())
-            {
-                completion.TrySetResult(WorkbookRefreshState.Unknown);
-                _logger.LogWarning("Excel refresh-state inspection expired in the queue; save and close remain blocked");
+            if (_readinessTask is { IsCompleted: false })
                 return WorkbookRefreshState.Unknown;
+            if (_readinessTask is { IsCompleted: true } previous)
+            {
+                _readinessTask = null;
+                return previous.GetAwaiter().GetResult();
             }
+            var completion = new TaskCompletionSource<WorkbookRefreshState>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var work = new ExcelWorkItem<WorkbookRefreshState>(
+                ReadRefreshState, completion);
+            if (!_workQueue.Writer.TryWrite(work))
+                return WorkbookRefreshState.Unknown;
+            _readinessTask = completion.Task;
             try
             {
-                return completion.Task.WaitAsync(_operationTimeout).GetAwaiter().GetResult();
+                // A started COM scan stays owned, but never holds a status request open.
+                var state = completion.Task.WaitAsync(TimeSpan.FromMilliseconds(200)).GetAwaiter().GetResult();
+                _readinessTask = null;
+                return state;
             }
             catch (TimeoutException)
             {
-                _logger.LogWarning(
-                    "Started Excel refresh-state inspection did not complete within {Timeout}; save and close remain blocked",
-                    _operationTimeout);
+                if (work.TryDiscard())
+                {
+                    completion.TrySetResult(WorkbookRefreshState.Unknown);
+                    _logger.LogWarning("Excel refresh-state inspection expired in the queue; save and close remain blocked");
+                }
                 return WorkbookRefreshState.Unknown;
             }
         }
@@ -1118,6 +1231,9 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             var state = WorkbookRefreshProbe.Read(_excel!, workbook);
             if (state != WorkbookRefreshState.Ready) return state;
         }
+        if (_revealRequested)
+            UpdateVisibilitySnapshot(null);
+        _operationTimedOut = false;
         return WorkbookRefreshState.Ready;
     }
 
@@ -1125,7 +1241,12 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     {
         lock (_disposeLock)
         {
-            if (_disposed != 0) return;
+            if (_disposed != 0)
+            {
+                if (!_teardownConfirmed)
+                    CompleteDispose();
+                return;
+            }
             Execute((_, _) =>
             {
                 ExcelBusyException.ThrowIfNotReady(ReadRefreshState(), "close");
@@ -1142,10 +1263,22 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     {
         lock (_disposeLock)
         {
+            if (_disposed == 0 && IsExcelProcessAlive() &&
+                (_operationTimedOut || !_startupCompletion.IsCompleted ||
+                 OperationStatus.ExecutionPending || _readinessTask is { IsCompleted: false }))
+            {
+                RevealForRecovery();
+                throw new ExcelBusyException("Cannot dispose: Excel work is still pending. The workbook remains open.");
+            }
+            if (_disposed == 0 && _startupCompletion.IsCompletedSuccessfully && IsExcelProcessAlive())
+            {
+                Close();
+                return;
+            }
             if (Interlocked.CompareExchange(ref _disposed, 1, 0) != 0)
             {
-                _logger.LogDebug("[Thread {CallingThread}] Dispose skipped - already disposed for {FileName}",
-                    Environment.CurrentManagedThreadId, Path.GetFileName(_workbookPath));
+                if (!_teardownConfirmed)
+                    CompleteDispose();
                 return;
             }
             CompleteDispose();
@@ -1154,220 +1287,48 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
     private void CompleteDispose()
     {
-        var callingThread = Environment.CurrentManagedThreadId;
-
-        _logger.LogDebug("[Thread {CallingThread}] Dispose starting for {FileName}", callingThread, Path.GetFileName(_workbookPath));
-
-        // Cancel the shutdown token FIRST to wake up the message pump
-        _logger.LogDebug("[Thread {CallingThread}] Cancelling shutdown token for {FileName}", callingThread, Path.GetFileName(_workbookPath));
+        lock (_statusLock)
+        {
+            _operationState = "closing";
+            _operationStartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+            _completedElapsedSeconds = null;
+        }
         _shutdownCts.Cancel();
-
-        // Then complete the work queue
-        _logger.LogDebug("[Thread {CallingThread}] Completing work queue for {FileName}", callingThread, Path.GetFileName(_workbookPath));
         _workQueue.Writer.TryComplete();
-
-        _logger.LogDebug("[Thread {CallingThread}] Waiting for STA thread (Id={STAThread}) to exit for {FileName}", callingThread, _staThread?.ManagedThreadId ?? -1, Path.GetFileName(_workbookPath));
-
-        // When operation timed out, the STA thread is stuck in IDispatch.Invoke (unmanaged COM call
-        // that cannot be cancelled). Kill the Excel process FIRST to unblock the STA thread, then wait.
-        if (_operationTimedOut
-            && _excelProcessIdentity is { } timedOutIdentity
-            && _staThread != null
-            && _staThread.IsAlive)
+        if (_staThread.IsAlive && !_staThread.Join(ComInteropConstants.StaThreadJoinTimeout))
         {
-            // INSTRUMENTATION: Track pre-emptive kill path entry
-            _logger.LogWarning(
-                "[DIAG-DISPOSE-TIMEOUT-PREKILL] [Thread {CallingThread}] Operation timed out — force-killing Excel process {ProcessId} BEFORE waiting for STA thread to unblock IDispatch.Invoke for {FileName}",
-                callingThread, timedOutIdentity.ProcessId, Path.GetFileName(_workbookPath));
-            SessionDiagnostics.WriteStdErr(
-                $"[DIAG-DISPOSE-TIMEOUT-PREKILL] [Thread {callingThread}] Operation timed out — force-killing Excel process {timedOutIdentity.ProcessId} BEFORE waiting for STA thread to unblock IDispatch.Invoke for {Path.GetFileName(_workbookPath)}");
-            if (OwnedProcessGuard.TryTerminate(
-                    timedOutIdentity,
-                    TimeSpan.Zero,
-                    TimeSpan.FromSeconds(5),
-                    out var preemptivelyTerminated))
+            RevealForRecovery(waitExpired: true);
+            throw new TimeoutException(
+                "The wait for Excel close/quit expired. The original close may still finish. " +
+                $"The owned process has not been terminated. Excel window: {_windowReveal}.");
+        }
+        _teardownCompletion.Task.GetAwaiter().GetResult();
+
+        if (_excelProcessIdentity is { } identity)
+        {
+            if (!WaitForOwnedProcessExit(identity))
             {
-                if (preemptivelyTerminated)
-                {
-                    // INSTRUMENTATION: Track successful pre-emptive kill
-                    _logger.LogInformation(
-                        "[DIAG-DISPOSE-TIMEOUT-PREKILL-SUCCESS] [Thread {CallingThread}] Force-killed Excel process {ProcessId} (pre-emptive, before STA join)",
-                        callingThread, timedOutIdentity.ProcessId);
-                    SessionDiagnostics.WriteStdErr(
-                        $"[DIAG-DISPOSE-TIMEOUT-PREKILL-SUCCESS] [Thread {callingThread}] Force-killed Excel process {timedOutIdentity.ProcessId} (pre-emptive, before STA join)");
-                }
-                else
-                {
-                    _logger.LogDebug(
-                        "[DIAG-DISPOSE-TIMEOUT-PREKILL-ALREADY-GONE] [Thread {CallingThread}] Excel process {ProcessId} already exited or its PID was reused",
-                        callingThread, timedOutIdentity.ProcessId);
-                    SessionDiagnostics.WriteStdErr(
-                        $"[DIAG-DISPOSE-TIMEOUT-PREKILL-ALREADY-GONE] [Thread {callingThread}] Excel process {timedOutIdentity.ProcessId} already exited or its PID was reused");
-                }
+                RevealForRecovery(waitExpired: true);
+                throw new TimeoutException(
+                    "Excel has not confirmed process exit after close/quit. " +
+                    $"Its exact identity remains owned; it has not been terminated. Excel window: {_windowReveal}.");
             }
-            else
-            {
-                _logger.LogWarning("[DIAG-DISPOSE-TIMEOUT-PREKILL-FAILED] [Thread {CallingThread}] Failed to force-kill Excel process {ProcessId}", callingThread, timedOutIdentity.ProcessId);
-                SessionDiagnostics.WriteStdErr(
-                    $"[DIAG-DISPOSE-TIMEOUT-PREKILL-FAILED] [Thread {callingThread}] Failed to force-kill Excel process {timedOutIdentity.ProcessId}");
-            }
+            SessionManager.UntrackExcelProcess(identity);
         }
+        FinishOperation(null);
+        _teardownConfirmed = true;
+        _shutdownCts.Dispose();
+    }
 
-        // Wait for STA thread to finish cleanup (with timeout)
-        var staExitedWithoutForce = false;
-        if (_staThread != null && _staThread.IsAlive)
+    private static bool WaitForOwnedProcessExit(ExcelProcessIdentity identity)
+    {
+        var wait = System.Diagnostics.Stopwatch.StartNew();
+        while (!OwnedProcessGuard.TryConfirmExited(identity) &&
+               wait.Elapsed < ProcessTerminationPolicy.NormalGraceTimeout)
         {
-            // Use shorter timeout if operation timed out (Excel is likely hung / already killed above)
-            var joinTimeout = _operationTimedOut
-                ? TimeSpan.FromSeconds(10)  // Aggressive: 10 seconds when operation timed out
-                : ComInteropConstants.StaThreadJoinTimeout;  // Normal: 45 seconds
-
-            var reasonSuffix = _operationTimedOut ? " (operation timed out - aggressive cleanup)" : "";
-            _logger.LogDebug(
-                "[Thread {CallingThread}] Calling Join() with {Timeout} timeout on STA={STAThread}, file={FileName}{Reason}",
-                callingThread, joinTimeout, _staThread.ManagedThreadId, Path.GetFileName(_workbookPath), reasonSuffix);
-
-            // CRITICAL: StaThreadJoinTimeout >= ExcelQuitTimeout + margin (currently 45 seconds total).
-            // The join must wait at least as long as CloseAndQuit() can take, otherwise Dispose() returns
-            // before Excel has finished closing, causing "file still open" issues in subsequent operations.
-            if (!_staThread.Join(joinTimeout))
-            {
-                // STA thread didn't exit - Excel cleanup is severely stuck
-                var reasonForError = _operationTimedOut ? " (operation previously timed out)" : "";
-                // INSTRUMENTATION: Track STA join timeout (the key failure mode)
-                _logger.LogError(
-                    "[DIAG-DISPOSE-STA-JOIN-TIMEOUT] [Thread {CallingThread}] STA thread (Id={STAThread}) did NOT exit within {Timeout} for {FileName}. " +
-                    "Excel cleanup is severely stuck{Reason}. Attempting force-kill.",
-                    callingThread, _staThread.ManagedThreadId, joinTimeout, Path.GetFileName(_workbookPath), reasonForError);
-                SessionDiagnostics.WriteStdErr(
-                    $"[DIAG-DISPOSE-STA-JOIN-TIMEOUT] [Thread {callingThread}] STA thread (Id={_staThread.ManagedThreadId}) did NOT exit within {joinTimeout} for {Path.GetFileName(_workbookPath)}. Excel cleanup is severely stuck{reasonForError}. Attempting force-kill.");
-
-                // Force-kill only the exact Excel identity captured for this batch.
-                if (_excelProcessIdentity is { } stuckIdentity)
-                {
-                    _logger.LogWarning(
-                        "[DIAG-DISPOSE-FORCE-KILL-ATTEMPT] [Thread {CallingThread}] Force-killing Excel process {ProcessId} for {FileName}",
-                        callingThread, stuckIdentity.ProcessId, Path.GetFileName(_workbookPath));
-                    SessionDiagnostics.WriteStdErr(
-                        $"[DIAG-DISPOSE-FORCE-KILL-ATTEMPT] [Thread {callingThread}] Force-killing Excel process {stuckIdentity.ProcessId} for {Path.GetFileName(_workbookPath)}");
-
-                    if (OwnedProcessGuard.TryTerminate(
-                            stuckIdentity,
-                            TimeSpan.Zero,
-                            TimeSpan.FromSeconds(5),
-                            out var forceTerminated))
-                    {
-                        var outcome = forceTerminated
-                            ? "force-killed"
-                            : "already exited or PID was reused";
-                        _logger.LogInformation(
-                            "[DIAG-DISPOSE-FORCE-KILL-SUCCESS] [Thread {CallingThread}] Excel process {ProcessId} was {Outcome}",
-                            callingThread, stuckIdentity.ProcessId, outcome);
-                        SessionDiagnostics.WriteStdErr(
-                            $"[DIAG-DISPOSE-FORCE-KILL-SUCCESS] [Thread {callingThread}] Excel process {stuckIdentity.ProcessId} was {outcome}");
-
-                        if (_staThread.Join(TimeSpan.FromSeconds(5)))
-                        {
-                            _logger.LogDebug("[DIAG-DISPOSE-STA-EXIT-AFTER-KILL] [Thread {CallingThread}] STA thread exited after force-kill", callingThread);
-                            SessionDiagnostics.WriteStdErr(
-                                $"[DIAG-DISPOSE-STA-EXIT-AFTER-KILL] [Thread {callingThread}] STA thread exited after force-kill");
-                        }
-                        else
-                        {
-                            _logger.LogWarning(
-                                "[DIAG-DISPOSE-STA-LEAK] [Thread {CallingThread}] STA thread still stuck even after force-kill. Thread leak.",
-                                callingThread);
-                            SessionDiagnostics.WriteStdErr(
-                                $"[DIAG-DISPOSE-STA-LEAK] [Thread {callingThread}] STA thread still stuck even after force-kill. Thread leak.");
-                        }
-                    }
-                    else
-                    {
-                        _logger.LogError(
-                            "[Thread {CallingThread}] Failed to force-kill Excel process {ProcessId}",
-                            callingThread, stuckIdentity.ProcessId);
-                    }
-                }
-                else
-                {
-                    _logger.LogError(
-                        "[Thread {CallingThread}] No Excel process identity captured - cannot force-kill. Process will leak.",
-                        callingThread);
-                }
-            }
-            else
-            {
-                staExitedWithoutForce = true;
-            }
+            Thread.Sleep(50);
         }
-        else
-        {
-            staExitedWithoutForce = true;
-            _logger.LogDebug("[Thread {CallingThread}] STA thread was null or not alive for {FileName}", callingThread, Path.GetFileName(_workbookPath));
-        }
-
-        try
-        {
-            // Wait for Excel process to fully terminate to prevent CO_E_SERVER_EXEC_FAILURE
-            // on subsequent Activator.CreateInstance calls. excel.Quit() + COM release doesn't
-            // guarantee the EXCEL.EXE process has exited — rapid create/destroy cycles can fail.
-            if (_excelProcessIdentity is { } lingeringIdentity)
-            {
-                _logger.LogDebug(
-                    "[DIAG-DISPOSE-PROCESS-WAIT] [Thread {CallingThread}] Waiting for Excel process {ProcessId} to exit for {FileName}",
-                    callingThread, lingeringIdentity.ProcessId, Path.GetFileName(_workbookPath));
-                SessionDiagnostics.WriteStdErr(
-                    $"[DIAG-DISPOSE-PROCESS-WAIT] [Thread {callingThread}] Waiting for Excel process {lingeringIdentity.ProcessId} to exit for {Path.GetFileName(_workbookPath)}");
-
-                var lingeringProcessTerminated = false;
-                var normalShutdown = staExitedWithoutForce && !_operationTimedOut;
-                FinalizeOwnedProcessTeardown(
-                    lingeringIdentity,
-                    identity => OwnedProcessGuard.TryTerminate(
-                        identity,
-                        normalShutdown ? ProcessTerminationPolicy.NormalGraceTimeout : TimeSpan.FromSeconds(5),
-                        normalShutdown ? ProcessTerminationPolicy.NormalForcedExitTimeout : ProcessTerminationPolicy.ProcessExitTimeout,
-                        out lingeringProcessTerminated,
-                        overallTimeout: normalShutdown ? ProcessTerminationPolicy.NormalShutdownBudget : null));
-
-                if (lingeringProcessTerminated)
-                {
-                    _logger.LogInformation(
-                        "[DIAG-DISPOSE-PROCESS-LINGER-KILLED] [Thread {CallingThread}] Force-killed lingering Excel process {ProcessId} for {FileName}",
-                        callingThread, lingeringIdentity.ProcessId, Path.GetFileName(_workbookPath));
-                    SessionDiagnostics.WriteStdErr(
-                        $"[DIAG-DISPOSE-PROCESS-LINGER-KILLED] [Thread {callingThread}] Force-killed lingering Excel process {lingeringIdentity.ProcessId} for {Path.GetFileName(_workbookPath)}");
-                }
-                else
-                {
-                    _logger.LogDebug(
-                        "[DIAG-DISPOSE-PROCESS-EXITED] [Thread {CallingThread}] Excel process {ProcessId} exited normally or its PID was reused for {FileName}",
-                        callingThread, lingeringIdentity.ProcessId, Path.GetFileName(_workbookPath));
-                    SessionDiagnostics.WriteStdErr(
-                        $"[DIAG-DISPOSE-PROCESS-EXITED] [Thread {callingThread}] Excel process {lingeringIdentity.ProcessId} exited normally or its PID was reused for {Path.GetFileName(_workbookPath)}");
-                }
-            }
-
-            _logger.LogDebug("[Thread {CallingThread}] Dispose COMPLETED for {FileName}", callingThread, Path.GetFileName(_workbookPath));
-        }
-        catch (InvalidOperationException ex) when (_excelProcessIdentity is { })
-        {
-            _logger.LogError(
-                ex,
-                "[DIAG-DISPOSE-PROCESS-LINGER-KILL-FAILED] [Thread {CallingThread}] Excel teardown failed for {FileName}; the exact process identity remains tracked",
-                callingThread,
-                Path.GetFileName(_workbookPath));
-            SessionDiagnostics.WriteStdErr(
-                $"[DIAG-DISPOSE-PROCESS-LINGER-KILL-FAILED] [Thread {callingThread}] {ex.Message}");
-            throw;
-        }
-        finally
-        {
-            // COM cleanup runs on the STA thread; this local resource must also be
-            // released even when final process termination cannot be confirmed.
-            _logger.LogDebug("[Thread {CallingThread}] Disposing CancellationTokenSource for {FileName}", callingThread, Path.GetFileName(_workbookPath));
-            _shutdownCts.Dispose();
-        }
+        return OwnedProcessGuard.TryConfirmExited(identity);
     }
 
     internal static void FinalizeOwnedProcessTeardown(
@@ -1394,23 +1355,6 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             waitBeforeTermination,
             waitAfterTermination,
             out _);
-
-    internal static void FinalizeFailedStartupOwnedProcess(
-        ExcelProcessIdentity identity,
-        Func<ExcelProcessIdentity, bool> attemptTermination,
-        Func<ExcelProcessIdentity, bool> confirmExit)
-    {
-        ArgumentNullException.ThrowIfNull(attemptTermination);
-        ArgumentNullException.ThrowIfNull(confirmExit);
-        if (!attemptTermination(identity) && !confirmExit(identity))
-        {
-            throw new InvalidOperationException(
-                $"Excel process {identity.ProcessId} remained live or inaccessible after startup " +
-                "cleanup. Its exact PID/start-time identity remains tracked for ProcessExit cleanup.");
-        }
-
-        SessionManager.UntrackExcelProcess(identity);
-    }
 
     bool IExcelBatchTeardownState.TryConfirmOwnedProcessTeardown()
     {

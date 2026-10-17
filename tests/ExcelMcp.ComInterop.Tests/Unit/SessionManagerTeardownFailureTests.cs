@@ -138,44 +138,37 @@ public sealed class SessionManagerTeardownFailureTests
             exception => exception.Message.Contains("second-session", StringComparison.Ordinal));
     }
 
-    [Fact]
-    public void Dispose_AutoSaveFailure_IsReportedAfterTeardownCompletes()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Dispose_AutoSaveFailure_RetainsSessionWithoutAttemptingTeardown(bool disposeFails)
     {
         using var manager = new SessionManager();
-        var batch = new ConfigurableFailingBatch(saveFails: true, disposeFails: false);
-        RegisterSession(manager, "save-failure", Path.GetFullPath("save-failure.xlsx"), batch);
+        var batch = new ConfigurableFailingBatch(saveFails: true, disposeFails);
+        var path = Path.GetFullPath("save-failure.xlsx");
+        RegisterSession(manager, "save-failure", path, batch);
+        try
+        {
+            var failure = Assert.Throws<AggregateException>(manager.Dispose);
 
-        var failure = Assert.Throws<AggregateException>(() => manager.Dispose());
-
-        Assert.Equal(1, batch.SaveCallCount);
+            Assert.Equal(1, batch.SaveCallCount);
+            Assert.Equal(0, batch.DisposeCallCount);
+            var inner = Assert.Single(failure.InnerExceptions);
+            Assert.Same(batch.SaveException, inner.InnerException);
+            Assert.Contains("save-failure", inner.Message, StringComparison.Ordinal);
+            Assert.Equal(1, manager.ActiveSessionCount);
+            Assert.Same(batch, manager.GetSession("save-failure"));
+            Assert.True(manager.TryGetFilePath("save-failure", out var retainedPath));
+            Assert.Equal(path, retainedPath);
+        }
+        finally
+        {
+            batch.SaveFails = false;
+            batch.DisposeFails = false;
+        }
+        manager.Dispose();
+        Assert.Equal(2, batch.SaveCallCount);
         Assert.Equal(1, batch.DisposeCallCount);
-        var inner = Assert.Single(failure.InnerExceptions);
-        Assert.Contains("save-failure", inner.Message, StringComparison.Ordinal);
-        Assert.Contains("synthetic save failure", inner.Message, StringComparison.Ordinal);
-        Assert.Equal(0, manager.ActiveSessionCount);
-    }
-
-    [Fact]
-    public void Dispose_AutoSaveAndTeardownFailures_AreBothReported()
-    {
-        using var manager = new SessionManager();
-        var batch = new ConfigurableFailingBatch(saveFails: true, disposeFails: true);
-        RegisterSession(manager, "combined-failure", Path.GetFullPath("combined-failure.xlsx"), batch);
-
-        var failure = Assert.Throws<AggregateException>(() => manager.Dispose());
-
-        Assert.Equal(1, batch.SaveCallCount);
-        Assert.Equal(1, batch.DisposeCallCount);
-        Assert.Equal(2, failure.InnerExceptions.Count);
-        Assert.Contains(
-            failure.InnerExceptions,
-            exception => exception.Message.Contains("synthetic save failure", StringComparison.Ordinal));
-        Assert.Contains(
-            failure.InnerExceptions,
-            exception => exception.Message.Contains("synthetic teardown failure", StringComparison.Ordinal));
-        Assert.All(
-            failure.InnerExceptions,
-            exception => Assert.Contains("combined-failure", exception.Message, StringComparison.Ordinal));
         Assert.Equal(0, manager.ActiveSessionCount);
     }
 
@@ -188,14 +181,26 @@ public sealed class SessionManagerTeardownFailureTests
         RegisterSession(manager, "failing-save", Path.GetFullPath("failing-save.xlsx"), failingBatch);
         RegisterSession(manager, "healthy-save", Path.GetFullPath("healthy-save.xlsx"), healthyBatch);
 
-        var failure = Assert.Throws<AggregateException>(() => manager.Dispose());
+        try
+        {
+            var failure = Assert.Throws<AggregateException>(manager.Dispose);
 
-        Assert.Equal(1, failingBatch.SaveCallCount);
+            Assert.Equal(1, failingBatch.SaveCallCount);
+            Assert.Equal(0, failingBatch.DisposeCallCount);
+            Assert.Equal(1, healthyBatch.SaveCallCount);
+            Assert.Equal(1, healthyBatch.DisposeCallCount);
+            var inner = Assert.Single(failure.InnerExceptions);
+            Assert.Same(failingBatch.SaveException, inner.InnerException);
+            Assert.Equal(1, manager.ActiveSessionCount);
+            Assert.Same(failingBatch, manager.GetSession("failing-save"));
+        }
+        finally
+        {
+            failingBatch.SaveFails = false;
+        }
+        manager.Dispose();
         Assert.Equal(1, failingBatch.DisposeCallCount);
-        Assert.Equal(1, healthyBatch.SaveCallCount);
         Assert.Equal(1, healthyBatch.DisposeCallCount);
-        var inner = Assert.Single(failure.InnerExceptions);
-        Assert.Same(failingBatch.SaveException, inner.InnerException);
         Assert.Equal(0, manager.ActiveSessionCount);
     }
 
@@ -312,6 +317,8 @@ public sealed class SessionManagerTeardownFailureTests
     private sealed class ConfigurableFailingBatch(bool saveFails, bool disposeFails)
         : IExcelBatch, IExcelBatchRefreshState, IExcelBatchCloseState
     {
+        public bool SaveFails { get; set; } = saveFails;
+        public bool DisposeFails { get; set; } = disposeFails;
         public bool SaveBusy { get; set; }
         public bool CloseBusy { get; set; }
         public int CloseCallCount { get; private set; }
@@ -349,7 +356,7 @@ public sealed class SessionManagerTeardownFailureTests
         public void Dispose()
         {
             DisposeCallCount++;
-            if (disposeFails)
+            if (DisposeFails)
             {
                 throw new InvalidOperationException("synthetic teardown failure");
             }
@@ -362,7 +369,7 @@ public sealed class SessionManagerTeardownFailureTests
             SaveCallCount++;
             if (SaveBusy)
                 ExcelBusyException.ThrowIfNotReady(WorkbookRefreshState.Refreshing, "save");
-            if (saveFails)
+            if (SaveFails)
             {
                 throw SaveException;
             }

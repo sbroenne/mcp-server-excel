@@ -25,7 +25,10 @@ public enum FileAction
     Create,
 
     [System.Text.Json.Serialization.JsonStringEnumMemberName("test")]
-    Test
+    Test,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("save")]
+    Save
 }
 
 // NOTE: PowerQueryAction is now generated from IPowerQueryCommands interface

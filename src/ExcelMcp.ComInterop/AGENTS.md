@@ -22,5 +22,7 @@ Follow [repository review checks](../../AGENTS.md#code-review-rules) and
   `COMException` or binder failures. Preserve unexpected errors and partial state.
 - Close/quit through `ExcelShutdownService`. Preserve PID/start-time ownership
   and layered shutdown timeouts; never kill Excel by process name.
-- Propagate cancellation and check it in loops. A timed-out batch must reject
-  further work, not remain apparently healthy.
+- Separate caller wait cancellation from Excel execution. An expired wait retains
+  and reveals the owned workbook; reject new work until the original callback
+  and cleanup return and readiness is confirmed. Do not terminate Excel or
+  discard edits merely because a wait expired.

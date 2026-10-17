@@ -223,8 +223,9 @@ error message and category) and keeps refreshing the rest. The result then has
 same category, the result's top-level `errorCategory` repeats it. This is not a
 transaction:
 queries listed in `refreshedQueries` keep their new data. Engine errors are
-reported, not hidden or converted into success. A timeout, cancellation (by the
-caller or by Excel), or lost Excel connection stops the whole run instead.
+reported, not hidden or converted into success. An Excel execution cancellation
+or lost connection stops the run. A caller deadline or cancellation ends only
+the caller's wait: the outstanding run can continue, and its session is retained.
 
 The separate `workbook refresh-all` action matches Excel's workbook-wide
 refresh behavior: it refreshes Power Query loads, other workbook data
@@ -264,6 +265,12 @@ M references; see [M identifiers and query chaining](m-code-syntax.md).
 Remote formatting sends M code to an external service and needs consent.
 It is not a workaround for query-engine errors.
 
-Session and refresh waits serve different purposes. Use current CLI/MCP help
-for the operation's limits, then inspect surviving objects after timeout.
+Create, load, refresh, and update-with-refresh use a 30-minute data-operation
+wait by default. Definition-only updates retain the ordinary session wait.
+An expired wait does not stop Excel or undo partially applied changes. The
+session and its workbook remain owned, Excel is revealed when possible, and
+session listings report pending work and late completion or failure. Further
+work is refused until the original callback and cleanup return and Excel is
+ready. Use current CLI/MCP help for overrides and inspect surviving objects
+after timeout.
 Extending a wait is not a fix for a query with no refreshable destination.

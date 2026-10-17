@@ -29,6 +29,44 @@ internal static class ExcelDialogProbe
     internal static WorkbookRefreshState Read(ExcelProcessIdentity? identity, ILogger logger) =>
         Read(identity, logger, includeText: false, out _);
 
+    internal static string Reveal(ExcelProcessIdentity? identity, ILogger logger)
+    {
+        if (identity is not { } owned || !OwnedProcessGuard.MatchesLiveProcess(owned))
+        {
+            logger.LogWarning("Cannot reveal Excel without a live owned process identity");
+            return "unavailable";
+        }
+
+        var outcome = "unavailable";
+        var enumerated = EnumWindows((window, _) =>
+        {
+            if (GetWindowThreadProcessId(window, out var processId) == 0 ||
+                processId != owned.ProcessId)
+                return true;
+            var buffer = new char[256];
+            var length = GetClassName(window, buffer, buffer.Length);
+            if (new string(buffer, 0, length) != "XLMAIN")
+                return true;
+            if (IsWindowVisible(window))
+            {
+                outcome = "alreadyVisible";
+                return false;
+            }
+            if (!OwnedProcessGuard.MatchesLiveProcess(owned))
+                return false;
+            if (ShowWindowAsync(window, 5))
+                outcome = IsWindowVisible(window) ? "shown" : "showRequested";
+            return false;
+        }, nint.Zero);
+        if (!enumerated && outcome == "unavailable")
+            logger.LogWarning("Excel window could not be revealed; workbook ownership is retained");
+        return outcome;
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool ShowWindowAsync(nint window, int command);
+
     internal static WorkbookRefreshState ReadWithText(
         ExcelProcessIdentity? identity, ILogger logger, out string? dialogText) =>
         Read(identity, logger, includeText: true, out dialogText);

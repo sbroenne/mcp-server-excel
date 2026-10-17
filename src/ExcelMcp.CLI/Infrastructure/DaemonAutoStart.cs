@@ -165,7 +165,7 @@ internal static class DaemonAutoStart
 
                 throw new TimeoutException(
                     $"Daemon is running but not responding after {FormatDuration(BusyDaemonWaitTimeout)}. " +
-                    "Stop it with 'excelcli service stop' or terminate the stuck excelcli process, then retry.");
+                    "Its Excel workbooks remain owned; inspect their state before deciding how to proceed.");
             }
         }
 
@@ -381,15 +381,22 @@ internal static class DaemonAutoStart
                         $"Could not acquire the daemon starting marker for CLI pipe '{pipeName}'.");
                 }
 
+                var previousProcesses = OwnedProcessCleanup.CaptureTrackedProcesses(pipeName);
+                if (previousProcesses.ExcelProcesses.Count > 0)
+                {
+                    throw new InvalidOperationException(
+                        "Excel instances from the previous CLI service remain open. " +
+                        "Automatic startup has not terminated them or replaced their ownership record. " +
+                        "Inspect the retained Excel workbooks before deciding how to proceed.");
+                }
                 var cleanupResult = OwnedProcessCleanup
-                    .CleanupAsync(pipeName, cancellationToken)
+                    .CleanupAsync(pipeName, previousProcesses, cancellationToken)
                     .GetAwaiter()
                     .GetResult();
                 if (!cleanupResult.Success)
                 {
                     throw new InvalidOperationException(
-                        $"{cleanupResult.ErrorMessage ?? $"Tracked processes for CLI pipe '{pipeName}' could not be stopped."} " +
-                        "Run 'excelcli service stop' and retry.");
+                        cleanupResult.ErrorMessage ?? $"Tracked processes for CLI pipe '{pipeName}' could not be stopped.");
                 }
 
                 // No daemon running — start it.

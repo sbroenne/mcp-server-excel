@@ -8,13 +8,13 @@ namespace Sbroenne.ExcelMcp.McpServer.ServiceBridge;
 internal interface IServiceBridgeBackend : IDisposable
 {
     Task<ServiceResponse> ProcessAsync(ServiceRequest request);
-    bool ForceCloseSession(string sessionId);
+    void RevealSession(string sessionId);
 }
 
 internal sealed class ExcelMcpServiceBackend(Service.ExcelMcpService service) : IServiceBridgeBackend
 {
     public Task<ServiceResponse> ProcessAsync(ServiceRequest request) => service.ProcessAsync(request);
-    public bool ForceCloseSession(string sessionId) => service.SessionManager.CloseSession(sessionId, save: false, force: true);
+    public void RevealSession(string sessionId) => service.SessionManager.RevealForRecovery(sessionId, waitExpired: true);
     public void Dispose() => service.Dispose();
 }
 
@@ -23,9 +23,10 @@ public sealed class ServiceBridge : IDisposable
 {
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private readonly object _stateLock = new();
+    private readonly object _disposeLock = new();
     private readonly Func<IServiceBridgeBackend> _serviceFactory;
     private readonly ILogger<ServiceBridge> _logger;
-    private ServiceInstance? _current;
+    private IServiceBridgeBackend? _current;
     private bool _disposed;
 
     internal ServiceBridge(Func<IServiceBridgeBackend> serviceFactory, ILogger<ServiceBridge>? logger = null)
@@ -34,7 +35,7 @@ public sealed class ServiceBridge : IDisposable
         _logger = logger ?? NullLogger<ServiceBridge>.Instance;
     }
 
-    private async Task<ServiceInstance> AcquireServiceAsync(CancellationToken cancellationToken)
+    private async Task<IServiceBridgeBackend> AcquireServiceAsync(CancellationToken cancellationToken)
     {
         lock (_stateLock)
         {
@@ -56,14 +57,14 @@ public sealed class ServiceBridge : IDisposable
             var backend = _serviceFactory();
             lock (_stateLock)
             {
+                _current = backend;
                 if (!_disposed)
                 {
-                    _current = new ServiceInstance(backend);
                     return _current;
                 }
             }
 
-            backend.Dispose();
+            Dispose();
             throw new ObjectDisposedException(nameof(ServiceBridge));
         }
         finally
@@ -82,7 +83,7 @@ public sealed class ServiceBridge : IDisposable
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        ServiceInstance instance;
+        IServiceBridgeBackend instance;
         try
         {
             instance = await AcquireServiceAsync(cancellationToken);
@@ -109,9 +110,9 @@ public sealed class ServiceBridge : IDisposable
         };
 
         // Service dispatch includes synchronous COM waits. Keep those off the SDK's request loop.
-        var processTask = Task.Run(() => instance.Backend.ProcessAsync(request), CancellationToken.None);
+        var processTask = Task.Run(() => instance.ProcessAsync(request), CancellationToken.None);
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        if (timeoutSeconds.HasValue)
+        if (timeoutSeconds.HasValue && command is not ("session.open" or "session.create" or "session.test"))
             deadline.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds.Value));
 
         try
@@ -126,10 +127,8 @@ public sealed class ServiceBridge : IDisposable
                 return await processTask;
 
             if (!string.IsNullOrWhiteSpace(sessionId))
-                CloseCancelledSession(instance, sessionId);
+                RevealSession(instance, sessionId);
 
-            // Open/create has no session ID until Excel finishes. Reclaim only its eventual session,
-            // not the whole service and unrelated workbooks. Also observe all late task failures.
             _ = ObserveCancelledRequestAsync(instance, processTask, command);
             cancellationToken.ThrowIfCancellationRequested();
             return new ServiceResponse
@@ -138,16 +137,16 @@ public sealed class ServiceBridge : IDisposable
                 Command = command,
                 SessionId = sessionId,
                 ErrorCategory = "Timeout",
-                ErrorMessage = $"Operation timed out after {timeoutSeconds} seconds.",
+                ErrorMessage = $"The wait expired after {timeoutSeconds} seconds. Excel work may still be running; no session was closed. Inspect session status for its outcome.",
                 ExceptionType = nameof(TimeoutException)
             };
         }
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
-        Justification = "Observes late completion after the caller has already received cancellation/timeout; exact failures are logged while reclaiming only the cancelled request's eventual session.")]
+        Justification = "Observes late completion after the caller stopped waiting; errors are logged and a late opened session is revealed, never closed.")]
     private async Task ObserveCancelledRequestAsync(
-        ServiceInstance instance, Task<ServiceResponse> task, string command)
+        IServiceBridgeBackend instance, Task<ServiceResponse> task, string command)
     {
         try
         {
@@ -159,66 +158,52 @@ public sealed class ServiceBridge : IDisposable
                 var sessionId = result.RootElement.GetProperty("sessionId").GetString();
                 if (string.IsNullOrWhiteSpace(sessionId))
                     throw new InvalidOperationException("Session creation returned no session ID.");
-                CloseCancelledSession(instance, sessionId);
+                RevealSession(instance, sessionId);
             }
             else if (!response.Success)
             {
+                if (response.SessionId is { } pendingSession)
+                    RevealSession(instance, pendingSession);
                 _logger.LogWarning("Cancelled {Command} finished with error category {ErrorCategory}.",
                     command, response.ErrorCategory);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Cleanup of cancelled {Command} failed.", command);
+            _logger.LogError(ex, "Late observation of cancelled {Command} failed; workbook ownership is retained.", command);
         }
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
-        Justification = "Cancellation cleanup logs the original forced-close failure and retires only the affected service instance; it does not turn the cancelled operation into success.")]
-    private void CloseCancelledSession(ServiceInstance instance, string sessionId)
+        Justification = "Failure to reveal Excel is diagnosed without replacing the caller's cancellation or disposing the Service that owns pending work.")]
+    private void RevealSession(IServiceBridgeBackend instance, string sessionId)
     {
         try
         {
-            if (instance.Backend.ForceCloseSession(sessionId))
-                return;
-            _logger.LogWarning("Forced session cleanup failed; retiring the affected service instance.");
+            instance.RevealSession(sessionId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Forced session cleanup failed; retiring the affected service instance.");
+            _logger.LogError(ex, "Could not reveal session {SessionId}; workbook ownership is retained.", sessionId);
         }
-
-        lock (_stateLock)
-        {
-            if (ReferenceEquals(_current, instance))
-                _current = null;
-        }
-        instance.Dispose();
     }
 
     public void Dispose()
     {
-        ServiceInstance? instance;
-        lock (_stateLock)
+        lock (_disposeLock)
         {
-            if (_disposed)
-                return;
-            _disposed = true;
-            instance = _current;
-            _current = null;
-        }
-        instance?.Dispose();
-    }
-
-    private sealed class ServiceInstance(IServiceBridgeBackend backend) : IDisposable
-    {
-        private int _disposed;
-        internal IServiceBridgeBackend Backend { get; } = backend;
-
-        public void Dispose()
-        {
-            if (Interlocked.Exchange(ref _disposed, 1) == 0)
-                Backend.Dispose();
+            IServiceBridgeBackend? instance;
+            lock (_stateLock)
+            {
+                _disposed = true;
+                instance = _current;
+            }
+            instance?.Dispose();
+            lock (_stateLock)
+            {
+                if (ReferenceEquals(_current, instance))
+                    _current = null;
+            }
         }
     }
 }

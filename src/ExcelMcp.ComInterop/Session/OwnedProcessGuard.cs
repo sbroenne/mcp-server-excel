@@ -31,6 +31,16 @@ internal static class OwnedProcessGuard
     internal static bool IsAlive(ProcessIdentityProbe probe) =>
         probe != ProcessIdentityProbe.ConfirmedExited;
 
+    internal static bool MatchesLiveProcess(ExcelProcessIdentity identity)
+    {
+        var probe = ProbeMatchingProcess(
+            identity, ProcessQueryLimitedInformation | Synchronize, out var handle);
+        using (handle)
+        {
+            return probe == ProcessIdentityProbe.Alive;
+        }
+    }
+
     internal static bool TryConfirmExited(ExcelProcessIdentity identity)
     {
         var probe = ProbeMatchingProcess(

@@ -144,6 +144,32 @@ internal sealed class SessionOpenCommand : AsyncCommand<SessionOpenCommand.Setti
     }
 }
 
+internal sealed class SessionSaveCommand : AsyncCommand<SessionSaveCommand.Settings>
+{
+    public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(settings.SessionId))
+            return CliErrorOutput.WriteError("Session ID is required.");
+
+        using var client = await CliCommandRuntime.Current.ClientFactory.ConnectAsync(cancellationToken);
+        var request = new ServiceRequest { Command = "session.save", SessionId = settings.SessionId };
+        var response = await CliTelemetry.TrackCommandAsync(
+            request, () => client.SendAsync(request, cancellationToken));
+        if (!response.Success)
+            return CliErrorOutput.WriteServiceError(response);
+
+        CliCommandRuntime.Current.Output.WriteLine(response.Result);
+        return 0;
+    }
+
+    internal sealed class Settings : CommandSettings
+    {
+        [CommandOption("-s|--session <SESSION>")]
+        [Description("Session ID to save without closing")]
+        public string SessionId { get; init; } = string.Empty;
+    }
+}
+
 internal sealed class SessionCloseCommand : AsyncCommand<SessionCloseCommand.Settings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)

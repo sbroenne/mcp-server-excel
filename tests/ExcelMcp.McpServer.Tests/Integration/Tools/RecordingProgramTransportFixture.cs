@@ -269,7 +269,8 @@ public sealed class RecordingProgramTransportFixture :
                     "No recording response was configured."));
         }
 
-        public bool ForceCloseSession(string sessionId) => false;
+        public void RevealSession(string sessionId) =>
+            throw new InvalidOperationException("Unexpected reveal in a recording-only fixture.");
 
         public void Dispose()
         {

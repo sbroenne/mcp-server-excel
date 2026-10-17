@@ -15,6 +15,8 @@ public static class ExcelShutdownService
 {
     private static readonly ResiliencePipeline _quitPipeline = ResiliencePipelines.CreateExcelQuitPipeline();
 
+    internal static Action? BeforeQuitHookForTests { get; set; }
+
     /// <summary>
     /// Closes an internally owned, unsaved calculation workbook on the calling STA.
     /// Unlike application shutdown, failure to close is an operation failure.
@@ -30,7 +32,7 @@ public static class ExcelShutdownService
     /// Saves an Excel workbook on the calling STA thread.
     /// Must be called from within <c>ExcelBatch.Execute()</c> so the Save() COM call
     /// runs on the correct STA thread. Timeout protection is provided by the surrounding
-    /// <c>ExcelBatch.Execute()</c> operation timeout and the Dispose() force-kill chain.
+    /// <c>ExcelBatch.Execute()</c> wait deadline, which preserves outstanding Excel work.
     /// </summary>
     /// <param name="workbook">Excel workbook COM object to save</param>
     /// <param name="fileName">File name for diagnostic messages (optional)</param>
@@ -142,7 +144,7 @@ public static class ExcelShutdownService
                 "Inspect the open workbook, wait for Excel to finish, then retry saving.",
             ResiliencePipelines.RPC_E_DISCONNECTED =>
                 $"Cannot save '{fileName}'. Excel disconnected from automation before the save completed. " +
-                "The session is no longer usable; reopen the workbook and verify whether changes were saved.",
+                "Saving has not been confirmed. Inspect the retained session and verify whether changes were saved.",
             _ => $"Failed to save workbook '{fileName}': {detail}"
         };
 
@@ -169,7 +171,7 @@ public static class ExcelShutdownService
     /// <para><b>Timeout:</b> No overall timeout - relies on retry exhaustion. Non-retriable errors bubble immediately.</para>
     /// </remarks>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
-        Justification = "Shutdown cleanup logs each original close/quit COM failure and continues releasing owned references; the owning batch subsequently verifies exact process exit and reports teardown failure. Save errors still propagate.")]
+        Justification = "Shutdown retains the original close/quit failure as the transported cause, does not continue to Quit after a failed workbook close, and retains application ownership when Quit fails.")]
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0030",
         Justification = "Collect unreachable dynamic-binder ITypeInfo RCWs while Excel can answer releases, without waiting for finalizers on the STA. This is supplementary to explicit release of all acquired references.")]
     public static void CloseAndQuit(
@@ -192,10 +194,8 @@ public static class ExcelShutdownService
                 SaveWorkbookWithTimeout(workbook, fileName, logger);
             }
 
-            // The dynamic COM binder creates ITypeInfo wrappers that callers never receive.
-            // Drain unreachable metadata while both workbook and application can still
-            // answer RemoteRelease calls. This does not replace explicit COM releases.
-            // Never wait for finalizers on the STA: their releases may need this apartment.
+            // Drain unreachable interop metadata while Excel can still service releases.
+            // Acquired workbook/application references are released explicitly below.
             GC.Collect();
             Marshal.CleanupUnusedObjectsInCurrentContext();
 
@@ -228,24 +228,26 @@ public static class ExcelShutdownService
                         if (ex.HResult == ResiliencePipelines.RPC_E_DISCONNECTED)
                         {
                             logger.LogWarning(ex,
-                                "Workbook COM proxy disconnected while closing {FileName} (HResult: 0x{HResult:X8}) - continuing with cleanup",
+                                "Workbook COM proxy disconnected while closing {FileName} (HResult: 0x{HResult:X8}); close outcome is unknown",
                                 fileName, ex.HResult);
                         }
                         else
                         {
                             logger.LogWarning(ex,
-                                "Failed to close workbook {FileName} (HResult: 0x{HResult:X8}) - continuing with cleanup",
+                                "Failed to close workbook {FileName} (HResult: 0x{HResult:X8}); Excel will not be asked to quit",
                                 fileName, ex.HResult);
                         }
 
-                        break; // Non-transient error, move on
+                        throw new InvalidOperationException(
+                            $"Workbook close failed for '{fileName}'. Excel has not been asked to quit; the workbook may remain open.", ex);
                     }
                     catch (MissingMemberException ex)
                     {
                         logger.LogWarning(ex,
-                            "Workbook COM proxy was disconnected while calling Close for {FileName} - continuing with cleanup",
+                            "Workbook Close could not be confirmed for {FileName}; Excel will not be asked to quit",
                             fileName);
-                        break; // COM proxy dead, move on
+                        throw new InvalidOperationException(
+                            $"Workbook close could not be confirmed for '{fileName}'. Excel has not been asked to quit.", ex);
                     }
                 }
 
@@ -259,8 +261,7 @@ public static class ExcelShutdownService
                 int attemptNumber = 0;
                 Exception? lastException = null;
 
-                // Outer timeout catches truly hung Excel (modal dialogs, deadlocks)
-                // Excel can take a long time to quit after saving large files or when antivirus is scanning
+                // This bounds retry waits, not an outstanding synchronous Quit call.
                 using var quitTimeout = new CancellationTokenSource(ComInteropConstants.ExcelQuitTimeout);
 
                 try
@@ -274,12 +275,12 @@ public static class ExcelShutdownService
                         try
                         {
                             logger.LogDebug("Quit attempt {Attempt} for {FileName}", attemptNumber, fileName);
+                            BeforeQuitHookForTests?.Invoke();
                             excel.Quit();
                             logger.LogDebug("Quit attempt {Attempt} succeeded for {FileName}", attemptNumber, fileName);
                         }
                         catch (COMException ex)
                         {
-                            lastException = ex;
                             logger.LogWarning(ex,
                                 "Quit attempt {Attempt} failed for {FileName} (HResult: 0x{HResult:X8})",
                                 attemptNumber, fileName, ex.HResult);
@@ -294,36 +295,30 @@ public static class ExcelShutdownService
                     SessionDiagnostics.WriteStdErr(
                         $"[DIAG-QUIT-SUCCESS] Excel quit succeeded for {fileName} after {attemptNumber} attempt(s) in {stopwatch.ElapsedMilliseconds}ms");
                 }
-                catch (OperationCanceledException) when (quitTimeout.Token.IsCancellationRequested)
+                catch (OperationCanceledException ex) when (quitTimeout.Token.IsCancellationRequested)
                 {
-                    // Overall timeout reached - Excel is truly hung
-                    // INSTRUMENTATION: Track timeout path
                     logger.LogError(
                         "[DIAG-QUIT-TIMEOUT] Excel quit TIMED OUT after {Timeout} for {FileName} (Attempts: {Attempts}). " +
-                        "Excel is likely hung (modal dialog or deadlock). Proceeding with forced COM cleanup.",
+                        "The quit outcome is unconfirmed; process ownership is retained.",
                         ComInteropConstants.ExcelQuitTimeout, fileName, attemptNumber);
                     SessionDiagnostics.WriteStdErr(
-                        $"[DIAG-QUIT-TIMEOUT] Excel quit TIMED OUT after {ComInteropConstants.ExcelQuitTimeout} for {fileName} (Attempts: {attemptNumber}). Excel is likely hung (modal dialog or deadlock). Proceeding with forced COM cleanup.");
-                    lastException = new TimeoutException($"Excel.Quit() timed out after {ComInteropConstants.ExcelQuitTimeout} for {fileName}");
+                        $"[DIAG-QUIT-TIMEOUT] Excel quit wait expired after {ComInteropConstants.ExcelQuitTimeout} for {fileName}; process ownership is retained.");
+                    lastException = new TimeoutException($"Excel.Quit() wait expired after {ComInteropConstants.ExcelQuitTimeout} for {fileName}", ex);
                 }
                 catch (COMException ex) when (ex.HResult == ResiliencePipelines.RPC_E_CALL_FAILED)
                 {
-                    // Fatal RPC connection failure - Excel is unreachable
-                    // INSTRUMENTATION: Track RPC failure path
                     logger.LogError(ex,
                         "[DIAG-QUIT-RPC-FAILED] Excel RPC connection FAILED (0x800706BE) for {FileName}. " +
-                        "Excel is unreachable - this is a FATAL error that cannot be retried. " +
-                        "Proceeding with forced COM cleanup. Excel process should be force-killed by caller.",
+                        "The quit outcome is unknown; process ownership is retained.",
                         fileName);
                     SessionDiagnostics.WriteStdErr(
-                        $"[DIAG-QUIT-RPC-FAILED] Excel RPC connection FAILED (0x800706BE) for {fileName}. Excel is unreachable - this is a FATAL error that cannot be retried. Proceeding with forced COM cleanup. Excel process should be force-killed by caller.");
+                        $"[DIAG-QUIT-RPC-FAILED] Excel RPC connection failed for {fileName}; process ownership is retained.");
                     lastException = ex;
-                    // Don't retry - RPC connection is dead, Excel is gone
                 }
                 catch (COMException ex) when (ex.HResult == ResiliencePipelines.RPC_E_DISCONNECTED)
                 {
                     logger.LogWarning(ex,
-                        "Excel COM proxy was disconnected while calling Quit for {FileName} - proceeding with COM cleanup",
+                        "Excel COM proxy disconnected while calling Quit for {FileName}; process ownership is retained",
                         fileName);
                     lastException = ex;
                 }
@@ -332,25 +327,26 @@ public static class ExcelShutdownService
                     // All retry attempts exhausted or non-retriable error
                     // INSTRUMENTATION: Track retry exhaustion path
                     logger.LogError(ex,
-                        "[DIAG-QUIT-RETRY-EXHAUSTED] Excel quit failed for {FileName} after {Attempts} attempt(s) (HResult: 0x{HResult:X8}, Elapsed: {Elapsed}ms) - proceeding with COM cleanup",
+                        "[DIAG-QUIT-RETRY-EXHAUSTED] Excel quit failed for {FileName} after {Attempts} attempt(s) (HResult: 0x{HResult:X8}, Elapsed: {Elapsed}ms); process ownership is retained",
                         fileName, attemptNumber, ex.HResult, stopwatch.ElapsedMilliseconds);
                     SessionDiagnostics.WriteStdErr(
-                        $"[DIAG-QUIT-RETRY-EXHAUSTED] Excel quit failed for {fileName} after {attemptNumber} attempt(s) (HResult: 0x{ex.HResult:X8}, Elapsed: {stopwatch.ElapsedMilliseconds}ms) - proceeding with COM cleanup");
+                        $"[DIAG-QUIT-RETRY-EXHAUSTED] Excel quit failed for {fileName} after {attemptNumber} attempt(s) (HResult: 0x{ex.HResult:X8}); process ownership is retained.");
                     lastException = ex;
                 }
                 catch (MissingMemberException ex)
                 {
                     logger.LogWarning(ex,
-                        "Excel COM proxy was disconnected while calling Quit for {FileName} - proceeding with COM cleanup",
+                        "Excel Quit could not be confirmed for {FileName}; process ownership is retained",
                         fileName);
                     lastException = ex;
                 }
                 finally
                 {
-                    // Step 5: Release Excel COM reference (even if Quit failed/timed out)
-                    logger.LogDebug("Releasing Excel application COM reference for {FileName}", fileName);
-                    ComUtilities.Release(ref excel);
-                    logger.LogDebug("Released Excel application COM reference for {FileName}", fileName);
+                    if (lastException is null)
+                    {
+                        ComUtilities.Release(ref excel);
+                        logger.LogDebug("Released Excel application COM reference for {FileName}", fileName);
+                    }
                 }
 
                 // Additional diagnostic if quit failed
@@ -359,12 +355,16 @@ public static class ExcelShutdownService
                     // INSTRUMENTATION: Track cleanup after failed quit
                     logger.LogWarning(
                         "[DIAG-QUIT-CLEANUP-AFTER-FAILURE] Excel quit unsuccessful for {FileName} (Elapsed: {Elapsed}s, Type: {ExceptionType}). " +
-                        "COM cleanup completed. Process may leak if Excel remains hung.",
+                        "Application and process ownership are retained.",
                         fileName, stopwatch.Elapsed.TotalSeconds, lastException.GetType().Name);
                     SessionDiagnostics.WriteStdErr(
-                        $"[DIAG-QUIT-CLEANUP-AFTER-FAILURE] Excel quit unsuccessful for {fileName} (Elapsed: {stopwatch.Elapsed.TotalSeconds:F3}s, Type: {lastException.GetType().Name}). COM cleanup completed. Process may leak if Excel remains hung.");
+                        $"[DIAG-QUIT-CLEANUP-AFTER-FAILURE] Excel quit unsuccessful for {fileName}; application and process ownership are retained.");
+                    throw new InvalidOperationException(
+                        $"The workbook close finished, but Excel quit failed for '{fileName}'. Its process may remain open.",
+                        lastException);
                 }
             }
+
         }
         finally
         {

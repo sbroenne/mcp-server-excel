@@ -394,7 +394,7 @@ public class SessionManagerOperationTrackingTests : IDisposable
     }
 
     [Fact]
-    public void FinalizeFailedStartupOwnedProcess_ConfirmedExitUntracksExactIdentity()
+    public void StartupTeardown_ConfirmedExitUntracksExactIdentity()
     {
         using var currentProcess = Process.GetCurrentProcess();
         var identity = new ExcelProcessIdentity(
@@ -409,9 +409,8 @@ public class SessionManagerOperationTrackingTests : IDisposable
 
         try
         {
-            ExcelBatch.FinalizeFailedStartupOwnedProcess(
+            ExcelBatch.FinalizeOwnedProcessTeardown(
                 identity,
-                _ => false,
                 candidate => candidate == identity);
 
             Assert.DoesNotContain(identity, SessionManager.GetTrackedExcelProcesses());
@@ -426,33 +425,26 @@ public class SessionManagerOperationTrackingTests : IDisposable
     }
 
     [Fact]
-    public void FinalizeFailedStartupOwnedProcess_LiveUnkillableIdentityRemainsTracked()
+    public void StartupTeardown_UnconfirmedExitRetainsIdentityWithoutTermination()
     {
         using var currentProcess = Process.GetCurrentProcess();
         var identity = new ExcelProcessIdentity(
             currentProcess.Id,
             currentProcess.StartTime.ToUniversalTime().ToFileTimeUtc());
         SessionManager.TrackExcelProcess(identity);
-        ExcelProcessIdentity? terminationCandidate = null;
         ExcelProcessIdentity? confirmationCandidate = null;
 
         try
         {
             var exception = Assert.Throws<InvalidOperationException>(() =>
-                ExcelBatch.FinalizeFailedStartupOwnedProcess(
+                ExcelBatch.FinalizeOwnedProcessTeardown(
                     identity,
-                    candidate =>
-                    {
-                        terminationCandidate = candidate;
-                        return false;
-                    },
                     candidate =>
                     {
                         confirmationCandidate = candidate;
                         return false;
                     }));
 
-            Assert.Equal(identity, terminationCandidate);
             Assert.Equal(identity, confirmationCandidate);
             Assert.Contains(identity, SessionManager.GetTrackedExcelProcesses());
             Assert.Contains("remains tracked", exception.Message, StringComparison.OrdinalIgnoreCase);
