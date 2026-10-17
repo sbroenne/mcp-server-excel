@@ -61,6 +61,8 @@ public sealed class PowerQueryEvaluateCancellationTests
 
         public bool CancelDuringExecution { get; init; }
 
+        public Exception? ExecutionFailure { get; init; }
+
         public void Dispose()
         {
         }
@@ -75,6 +77,8 @@ public sealed class PowerQueryEvaluateCancellationTests
             CancellationToken cancellationToken = default)
         {
             CapturedToken = cancellationToken;
+            if (ExecutionFailure is not null)
+                throw ExecutionFailure;
             if (CancelDuringExecution)
             {
                 Assert.True(
@@ -100,4 +104,25 @@ public sealed class PowerQueryEvaluateCancellationTests
     }
 
     private sealed class ProbeException : Exception;
+
+    [Fact]
+    public void DataOperationWait_DeadlineExpires_ReportsTimeoutWithOriginalCause()
+    {
+        using var batch = new CapturingBatch { CancelDuringExecution = true };
+        var failure = Assert.Throws<TimeoutException>(() =>
+            ExcelBatchWait.Execute(batch, TimeSpan.FromMilliseconds(10), (_, _) => 1));
+        var cause = Assert.IsType<OperationCanceledException>(failure.InnerException);
+        Assert.Equal(batch.CapturedToken, cause.CancellationToken);
+        Assert.Contains("wait expired", failure.Message, StringComparison.Ordinal);
+        Assert.Contains("execution may still be pending", failure.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void DataOperationWait_ExcelCancels_PreservesExecutionFailure()
+    {
+        var cause = new OperationCanceledException("Excel cancelled execution.");
+        using var batch = new CapturingBatch { ExecutionFailure = cause };
+        Assert.Same(cause, Assert.Throws<OperationCanceledException>(() =>
+            ExcelBatchWait.Execute(batch, TimeSpan.FromSeconds(5), (_, _) => 1)));
+    }
 }

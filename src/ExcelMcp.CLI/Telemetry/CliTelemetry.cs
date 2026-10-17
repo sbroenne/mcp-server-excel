@@ -20,7 +20,7 @@ internal static class CliTelemetry
     private static readonly Dictionary<string, string[]> BuiltInActions = new(StringComparer.OrdinalIgnoreCase)
     {
         ["service"] = ["start", "stop", "status", "shutdown", "ping"],
-        ["session"] = ["create", "open", "close", "list", "test"],
+        ["session"] = ["create", "open", "save", "close", "list", "test"],
         ["batch"] = ["run"]
     };
 

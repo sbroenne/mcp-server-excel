@@ -245,6 +245,7 @@
         "create": "medium",
         "list": "light",
         "open": "light",
+        "save": "light",
         "test": "light"
       }
     },

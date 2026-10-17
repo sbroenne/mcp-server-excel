@@ -2,12 +2,117 @@ using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Core.Commands.Workbook;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
 public sealed partial class ServiceWorkbookLifecycleTests
 {
+    [Theory]
+    [InlineData("workbook.save-as")]
+    [InlineData("session.save")]
+    [InlineData("service.shutdown")]
+    public async Task NativeModalPrompt_RefusesPersistenceBeforeQueuingComWork(string command)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var path = Path.Join(directory, "native-prompt.xlsx");
+            var target = Path.Join(directory, "blocked-native-prompt.xlsx");
+            var session = await CreateSessionAsync(service, path, show: true);
+            sessions[session] = 0;
+            await WriteMarkerAsync(service, session, "Unsaved native prompt marker");
+            var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(session));
+            var identity = Assert.Single(SessionManager.GetTrackedExcelProcesses(),
+                item => item.ProcessId == batch.ExcelProcessId);
+            var app = batch.Execute((context, _) => context.App);
+            var title = $"ExcelMcp save preflight {Guid.NewGuid():N}";
+            // Another apartment opens the real Excel prompt while the batch thread remains free.
+            var prompt = Task.Run(() => app.GetSaveAsFilename(InitialFilename: target, Title: title));
+            nint window = 0;
+            var dismiss = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var dismissal = Task.Run(async () =>
+            {
+                if (await Task.WhenAny(prompt, dismiss.Task) == prompt) return;
+                if (await dismiss.Task) await Task.Delay(TimeSpan.FromSeconds(2));
+                var timer = System.Diagnostics.Stopwatch.StartNew();
+                while (!prompt.IsCompleted && timer.Elapsed < TimeSpan.FromSeconds(10))
+                {
+                    var ownedWindow = FindWindow(null, title);
+                    if (ownedWindow != 0 && GetWindowThreadProcessId(ownedWindow, out var pid) != 0
+                        && pid == identity.ProcessId && OwnedProcessGuard.MatchesLiveProcess(identity))
+                    {
+                        Assert.True(PostMessage(ownedWindow, 0x0010, 0, 0), "Could not dismiss the owned prompt.");
+                        return;
+                    }
+                    await Task.Delay(50);
+                }
+                Assert.True(prompt.IsCompleted, "The owned native prompt could not be found for cleanup.");
+            });
+            var queued = 0;
+            var failure = await Record.ExceptionAsync(async () =>
+            {
+                Assert.True(SpinWait.SpinUntil(() =>
+                {
+                    window = FindWindow(null, title);
+                    return window != 0 && GetWindowThreadProcessId(window, out var pid) != 0
+                        && pid == identity.ProcessId && IsWindowVisible(window) && IsWindowEnabled(window)
+                        && batch.GetExecutionPreflightState() == WorkbookRefreshState.DialogOpen;
+                }, TimeSpan.FromSeconds(10)), "The owned native Excel prompt did not open.");
+                dismiss.TrySetResult(true);
+                var rejected = Assert.Throws<COMException>(() => app.ScreenUpdating = false);
+                Assert.Contains(rejected.HResult, new[]
+                {
+                    unchecked((int)0x80010001), unchecked((int)0x800AC472)
+                });
+                Assert.Equal(WorkbookRefreshState.DialogOpen, batch.GetExecutionPreflightState());
+                ExcelBatch.WorkItemQueuedHookForTests = () => Interlocked.Increment(ref queued);
+                if (command == "workbook.save-as")
+                {
+                    var busy = Assert.Throws<ExcelBusyException>(() => new WorkbookCommands().SaveAs(batch, target));
+                    Assert.Contains("dialog", busy.Message, StringComparison.OrdinalIgnoreCase);
+                }
+                else
+                {
+                    var response = await service.ProcessAsync(new ServiceRequest { Command = command, SessionId = session });
+                    Assert.False(response.Success);
+                    Assert.Equal("Busy", response.ErrorCategory);
+                }
+                Assert.Equal(0, queued);
+                Assert.False(File.Exists(target));
+                Assert.Equal(path, batch.WorkbookPath);
+                Assert.False(batch.HasTimedOutOperation);
+            });
+            ExcelBatch.WorkItemQueuedHookForTests = null;
+            dismiss.TrySetResult(false);
+            var dismissalFailure = await Record.ExceptionAsync(() => dismissal);
+            var promptFailure = await Record.ExceptionAsync(async () => await prompt.WaitAsync(TimeSpan.FromSeconds(10)));
+            var failures = new[] { failure, dismissalFailure, promptFailure }.OfType<Exception>().ToArray();
+            if (failures.Length > 0)
+                throw new AggregateException("Native persistence preflight or prompt cleanup failed.", failures);
+            Assert.Equal("Unsaved native prompt marker", await ReadMarkerAsync(service, session));
+            Assert.False(batch.Execute((context, _) => context.Book.Saved));
+        });
+    }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern nint FindWindow(string? className, string title);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(nint window, out uint processId);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsWindowVisible(nint window);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsWindowEnabled(nint window);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool PostMessage(nint window, uint message, nint wParam, nint lParam);
+
     [Fact]
     public async Task Shutdown_WithOwnedDialog_RetainsUnsavedWorkbookUntilSafeRetry()
     {

@@ -20,6 +20,7 @@ using Sbroenne.ExcelMcp.Core.Commands.Settings;
 using Sbroenne.ExcelMcp.Core.Commands.Window;
 using Sbroenne.ExcelMcp.Core.Commands.Workbook;
 using Sbroenne.ExcelMcp.Core.Commands.XmlMap;
+using Sbroenne.ExcelMcp.Core.Models;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Sbroenne.ExcelMcp.Generated;
 
@@ -86,7 +87,36 @@ public sealed class ExcelMcpService : IDisposable
             request => trackDaemonRequest == null
                 ? ProcessAsync(request)
                 : trackDaemonRequest(request, () => ProcessAsync(request)),
-            () => _sessionManager.ActiveSessionIds.Count(_sessionManager.IsSessionAlive));
+            () => _sessionManager.ActiveSessionIds.Count(_sessionManager.IsSessionRetained),
+            requestAbandoned: RevealAbandonedRequest);
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "A caller-abandonment notification only reveals retained ownership. Failures are diagnosed without replacing cancellation or closing a workbook whose execution is still owned.")]
+    private void RevealAbandonedRequest(ServiceRequest request, ServiceResponse? response)
+    {
+        try
+        {
+            var sessionId = response?.SessionId ?? request.SessionId;
+            if (string.IsNullOrWhiteSpace(sessionId)
+                && request.Command is "session.open" or "session.create"
+                && response is { Success: true })
+            {
+                using var result = JsonDocument.Parse(response.Result
+                    ?? throw new InvalidOperationException("Session creation returned no result."));
+                sessionId = result.RootElement.GetProperty("sessionId").GetString();
+                if (string.IsNullOrWhiteSpace(sessionId))
+                    throw new InvalidOperationException("Session creation returned no session ID.");
+            }
+            if (!string.IsNullOrWhiteSpace(sessionId))
+                _sessionManager.RevealForRecovery(sessionId, waitExpired: true);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceError(
+                "Could not reveal retained Excel ownership after the caller abandoned {0}: {1}",
+                request.Command, ex);
+        }
     }
 
     public DateTime StartTime => _startTime;
@@ -121,6 +151,7 @@ public sealed class ExcelMcpService : IDisposable
     {
         try
         {
+            request.CallerCancellation.ThrowIfCancellationRequested();
             // Route command
             var parts = request.Command.Split('.', 2);
             var category = parts[0];
@@ -262,13 +293,13 @@ public sealed class ExcelMcpService : IDisposable
 
     private ServiceResponse HandleSessionCommand(string action, ServiceRequest request)
     {
-        if (action is not ("create" or "open" or "close" or "list" or "test"))
+        if (action is not ("create" or "open" or "close" or "save" or "list" or "test"))
         {
             return new ServiceResponse
             {
                 Success = false,
                 ErrorCategory = "InvalidInput",
-                ErrorMessage = $"Unknown action '{action}' for command group 'session'. Valid actions: create, open, close, list, test."
+                ErrorMessage = $"Unknown action '{action}' for command group 'session'. Valid actions: create, open, close, save, list, test."
             };
         }
 
@@ -278,11 +309,24 @@ public sealed class ExcelMcpService : IDisposable
             "create" => HandleSessionCreate(request),
             "open" => HandleSessionOpen(request),
             "close" => HandleSessionClose(request),
+            "save" => HandleSessionSave(request),
             "list" => HandleSessionList(),
             "test" => HandleSessionTest(request),
             _ => throw new InvalidOperationException($"Unhandled session action: {action}")
         };
     }
+
+    private ServiceResponse HandleSessionSave(ServiceRequest request) =>
+        WithSessionAsync(request, batch =>
+        {
+            batch.Save();
+            return new ServiceResponse
+            {
+                Success = true,
+                Result = JsonSerializer.Serialize(new { success = true, sessionId = request.SessionId, saved = true },
+                    ServiceProtocol.JsonOptions)
+            };
+        }).GetAwaiter().GetResult();
 
     private static readonly Dictionary<string, string> SessionParameterDescriptions = new(StringComparer.Ordinal)
     {
@@ -433,14 +477,12 @@ public sealed class ExcelMcpService : IDisposable
         bool closed;
         try
         {
+            _sessionManager.SetOperationContext(request.SessionId, request.Command, request.CallerCancellation);
             closed = _sessionManager.CloseSession(request.SessionId, save: shouldSave);
         }
         catch (Exception ex) when (IsFatalExcelDisconnect(ex))
         {
-            CleanupDeadSession(request.SessionId);
-            return CreateExcelDisconnectedResponse(request.SessionId, ex, shouldSave
-                ? "Excel disconnected while saving before close. Session has been cleaned up; reopen the workbook and verify whether the save completed."
-                : "Excel disconnected while closing. Session has been cleaned up; reopen the workbook with a new session.");
+            return HandleExcelDisconnect(request.SessionId, ex);
         }
 
         if (closed)
@@ -501,7 +543,7 @@ public sealed class ExcelMcpService : IDisposable
                     result.IsValid = true;
                     result.CanOpen = true;
                 }
-                catch (Exception ex) when (ex is TimeoutException or OperationCanceledException)
+                catch (Exception ex) when (ex is TimeoutException or OperationCanceledException or SessionRetainedException)
                 {
                     throw;
                 }
@@ -520,7 +562,7 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (Exception ex)
         {
-            return CreateErrorResponse(ex);
+            return CreateErrorResponse(ex, request.Command, request.SessionId);
         }
     }
 
@@ -530,17 +572,19 @@ public sealed class ExcelMcpService : IDisposable
             .Select(s =>
             {
                 var validation = _sessionManager.ValidateClose(s.SessionId);
+                var operation = _sessionManager.GetOperationStatus(s.SessionId);
                 return new
                 {
                     sessionId = s.SessionId,
                     filePath = s.FilePath,
                     isExcelVisible = validation.IsExcelVisible,
                     activeOperations = validation.ActiveOperationCount,
-                    operationPending = validation.OperationPending,
+                    operationPending = validation.OperationPending || operation?.ExecutionPending == true,
                     canClose = validation.CanClose,
                     excelState = validation.ExcelState,
                     blockingReason = validation.BlockingReason,
-                    blockingMessage = validation.BlockingMessage
+                    blockingMessage = validation.BlockingMessage,
+                    operation
                 };
             })
             .ToList();
@@ -811,6 +855,16 @@ public sealed class ExcelMcpService : IDisposable
             if (workbookAction == WorkbookAction.SaveAs &&
                 !string.IsNullOrWhiteSpace(request.SessionId))
             {
+                if (_sessionManager.GetOperationStatus(request.SessionId)?.ExecutionPending == true)
+                {
+                    return new ServiceResponse
+                    {
+                        Success = false,
+                        SessionId = request.SessionId,
+                        ErrorCategory = "Busy",
+                        ErrorMessage = "Cannot save-as: Excel work is still pending. The workbook remains open."
+                    };
+                }
                 reservedPath = _sessionManager.ReserveSessionFilePath(
                     request.SessionId,
                     GetRequiredStringArgument(request.Args, "targetPath"));
@@ -825,9 +879,11 @@ public sealed class ExcelMcpService : IDisposable
             }
             catch (Exception ex) when (ex is TimeoutException or OperationCanceledException)
             {
-                // The COM call may still be mutating the target. WithSessionAsync force-closes
-                // the session, whose cleanup releases every path claim after Excel terminates.
-                releaseReservation = false;
+                if (reservedPath is not null && batch.HasTimedOutOperation)
+                {
+                    _sessionManager.RetainPendingSaveAs(request.SessionId!);
+                    releaseReservation = false;
+                }
                 throw;
             }
             finally
@@ -889,6 +945,7 @@ public sealed class ExcelMcpService : IDisposable
 
         try
         {
+            _sessionManager.SetOperationContext(sessionId, request.Command, request.CallerCancellation);
             if (string.Equals(request.Command, ServiceRegistry.Connection.GetRefreshStatusCommand, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(request.Command, ServiceRegistry.Connection.CancelRefreshCommand, StringComparison.OrdinalIgnoreCase))
             {
@@ -906,77 +963,18 @@ public sealed class ExcelMcpService : IDisposable
         }
         catch (TimeoutException ex) when (!IsFatalExcelDisconnect(ex))
         {
-            if (batch!.HasTimedOutOperation)
-            {
-                CleanupDeadSession(sessionId);
-                return Task.FromResult(new ServiceResponse
-                {
-                    Success = false,
-                    ErrorCategory = "Timeout",
-                    ErrorMessage = $"Excel operation timed out after execution started and the session has been closed: {ex.Message} " +
-                                   "Please reopen the file with a new session.",
-                    ExceptionType = ex.GetType().Name
-                });
-            }
-
-            return Task.FromResult(new ServiceResponse
-            {
-                Success = false,
-                ErrorCategory = "Timeout",
-                ErrorMessage = ex.Message,
-                ExceptionType = ex.GetType().Name
-            });
+            return Task.FromResult(CreateErrorResponse(ex, request.Command, sessionId));
         }
         catch (OperationCanceledException ex) when (!IsFatalExcelDisconnect(ex))
         {
-            if (batch!.HasTimedOutOperation)
-            {
-                CleanupDeadSession(sessionId);
-                return Task.FromResult(new ServiceResponse
-                {
-                    Success = false,
-                    ErrorCategory = "Cancelled",
-                    ErrorMessage = "Operation was cancelled after execution started and the session has been closed. " +
-                                   "The Excel COM thread may have been unresponsive. " +
-                                   "Please reopen the file with a new session.",
-                    ExceptionType = ex.GetType().Name
-                });
-            }
-
-            return Task.FromResult(new ServiceResponse
-            {
-                Success = false,
-                ErrorCategory = "Cancelled",
-                ErrorMessage = ex.Message,
-                ExceptionType = ex.GetType().Name
-            });
+            return Task.FromResult(CreateErrorResponse(ex, request.Command, sessionId));
         }
-        catch (COMException ex) when (
-            ex.HResult == ResiliencePipelines.RPC_S_SERVER_UNAVAILABLE ||
-            ex.HResult == ResiliencePipelines.RPC_E_CALL_FAILED ||
-            ex.HResult == ResiliencePipelines.RPC_E_DISCONNECTED)
+        catch (Exception ex) when (IsFatalExcelDisconnect(ex))
         {
-            // Excel process died during the operation — clean up the dead session
-            CleanupDeadSession(sessionId);
-            return Task.FromResult(new ServiceResponse
-            {
-                Success = false,
-                ErrorCategory = "ExcelProcessDied",
-                ErrorMessage = $"Excel process for session '{sessionId}' has died (the application may have been closed or crashed). " +
-                               "Session has been cleaned up. Please reopen the file with a new session.",
-                ExceptionType = ex.GetType().Name,
-                HResult = $"0x{ex.HResult:X8}"
-            });
+            return Task.FromResult(HandleExcelDisconnect(sessionId, ex));
         }
         catch (Exception ex)
         {
-            if (IsFatalExcelDisconnect(ex))
-            {
-                CleanupDeadSession(sessionId);
-                return Task.FromResult(CreateExcelDisconnectedResponse(sessionId, ex,
-                    $"Excel process for session '{sessionId}' disconnected during the operation. Session has been cleaned up. Please reopen the file with a new session."));
-            }
-
             // Check if Excel died with a non-COM exception — clean up dead session
             if (batch != null && !batch.IsExcelProcessAlive())
             {
@@ -985,12 +983,35 @@ public sealed class ExcelMcpService : IDisposable
                     $"Excel process for session '{sessionId}' is no longer running. Session has been cleaned up. Please reopen the file with a new session."));
             }
 
-            return Task.FromResult(CreateErrorResponse(ex));
+            return Task.FromResult(CreateErrorResponse(ex, request.Command, sessionId));
         }
         finally
         {
             _sessionManager.EndOperation(sessionId);
         }
+    }
+
+    private ServiceResponse HandleExcelDisconnect(string sessionId, Exception exception)
+    {
+        if (_sessionManager.GetSession(sessionId) is { } batch && batch.IsExcelProcessAlive())
+        {
+            _sessionManager.RevealForRecovery(sessionId);
+            return new ServiceResponse
+            {
+                Success = false,
+                SessionId = sessionId,
+                ErrorCategory = "ExcelDisconnected",
+                ErrorMessage = "Excel disconnected from automation, but its process is still live. " +
+                    "The session and workbook remain owned; the operation's outcome is not confirmed. " +
+                    exception.Message,
+                ExceptionType = exception.GetType().Name,
+                HResult = TryGetFatalComHResult(exception) is { } hresult ? $"0x{hresult:X8}" : null,
+                InnerError = exception.InnerException?.Message
+            };
+        }
+        CleanupDeadSession(sessionId);
+        return CreateExcelDisconnectedResponse(sessionId, exception,
+            "Excel disconnected and is no longer running. Dead-session tracking has been removed; reopen the workbook and verify whether changes were saved.");
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
@@ -1106,8 +1127,18 @@ public sealed class ExcelMcpService : IDisposable
         };
     }
 
-    private static ServiceResponse CreateErrorResponse(Exception ex, string? command = null, string? sessionId = null)
+    private ServiceResponse CreateErrorResponse(Exception ex, string? command = null, string? sessionId = null)
     {
+        if (ex is SessionStartupPendingException pending)
+        {
+            sessionId = pending.SessionId;
+            _knownSessionIds.TryAdd(sessionId, 0);
+        }
+        else if (ex is SessionRetainedException retained)
+        {
+            sessionId = retained.SessionId;
+            _knownSessionIds.TryAdd(sessionId, 0);
+        }
         var exceptionType = ex.GetType().Name;
         string? hresult = OperationFailureClassifier.GetComHResult(ex);
         string? innerError = null;
@@ -1134,9 +1165,8 @@ public sealed class ExcelMcpService : IDisposable
                 ExceptionType = exceptionType,
                 HResult = hresult,
                 InnerError = innerError,
-                PartialState = pqEx.PartialState is null
-                    ? null
-                    : JsonSerializer.Serialize(pqEx.PartialState, ServiceProtocol.JsonOptions)
+                PartialState = SerializePartialState(pqEx.PartialState,
+                    sessionId is not null ? _sessionManager.GetOperationStatus(sessionId) : null)
             },
             _ => new ServiceResponse
             {
@@ -1147,9 +1177,24 @@ public sealed class ExcelMcpService : IDisposable
                 ErrorMessage = $"{exceptionType}: {ex.Message}",
                 ExceptionType = exceptionType,
                 HResult = hresult,
-                InnerError = innerError
+                InnerError = innerError,
+                PartialState = SerializePartialState(null,
+                    sessionId is not null ? _sessionManager.GetOperationStatus(sessionId) : null)
             }
         };
+    }
+
+    private static string? SerializePartialState(PowerQueryPartialState? query, ExcelOperationStatus? operation)
+    {
+        var state = query is null
+            ? null
+            : JsonSerializer.SerializeToNode(query, ServiceProtocol.JsonOptions)!.AsObject();
+        if (operation is { WaitExpired: true })
+        {
+            state ??= new System.Text.Json.Nodes.JsonObject();
+            state["operation"] = JsonSerializer.SerializeToNode(operation, ServiceProtocol.JsonOptions);
+        }
+        return state?.ToJsonString(ServiceProtocol.JsonOptions);
     }
 
     private ServiceResponse? TryBeginUsableSession(string sessionId, out IExcelBatch? batch)
@@ -1169,7 +1214,7 @@ public sealed class ExcelMcpService : IDisposable
                     SessionOperationError.NotFound => "SessionNotFound",
                     SessionOperationError.Closing
                         or SessionOperationError.Quarantined => "SessionUnavailable",
-                    SessionOperationError.TimedOutOrCancelled => "SessionInvalidated",
+                    SessionOperationError.TimedOutOrCancelled => "SessionUnavailable",
                     SessionOperationError.ExcelProcessDied => "ExcelProcessDied",
                     _ => null
                 },

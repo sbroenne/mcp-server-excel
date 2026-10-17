@@ -21,6 +21,9 @@ public sealed class ServiceClient : IDisposable
     public static readonly TimeSpan DefaultRequestTimeout =
         TimeSpan.FromSeconds(ParameterTransforms.MaximumTimeoutSeconds + 60);
 
+    /// <summary>Whether this client has established a connection to the service.</summary>
+    public bool HasConnected { get; private set; }
+
     public ServiceClient(string pipeName, TimeSpan? connectTimeout = null, TimeSpan? requestTimeout = null)
         : this(
             pipeName,
@@ -93,6 +96,7 @@ public sealed class ServiceClient : IDisposable
             }
 
             connected = true;
+            HasConnected = true;
 
             // Use StreamJsonRpc typed proxy for the RPC call
             var proxy = JsonRpc.Attach<IExcelDaemonRpc>(pipe);
@@ -111,7 +115,7 @@ public sealed class ServiceClient : IDisposable
                     requestTimeoutCts.Token);
                 using var disconnectMonitorCts = CancellationTokenSource.CreateLinkedTokenSource(requestCts.Token);
 
-                var callTask = proxy.ProcessCommandAsync(request);
+                var callTask = proxy.ProcessCommandAsync(request, requestCts.Token);
                 var disconnectTask = WaitForPipeDisconnectAsync(
                     pipe,
                     _timeProvider,
@@ -145,6 +149,18 @@ public sealed class ServiceClient : IDisposable
         catch (ConnectionLostException)
         {
             return CreateConnectionLostResponse(request);
+        }
+        catch (DirectoryNotFoundException ex) when (!connected)
+        {
+            return new ServiceResponse
+            {
+                Success = false,
+                Command = request.Command,
+                SessionId = request.SessionId,
+                ErrorCategory = "ServiceUnavailable",
+                ErrorMessage = $"Cannot connect to service: {ex.Message}",
+                ExceptionType = nameof(DirectoryNotFoundException)
+            };
         }
         catch (IOException ex) when (ex.Message.Contains("pipe"))
         {

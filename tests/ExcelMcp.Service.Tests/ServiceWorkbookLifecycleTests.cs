@@ -143,7 +143,6 @@ public sealed partial class ServiceWorkbookLifecycleTests
             var path = Path.Join(directory, "background-refresh.xlsx");
             var session = await CreateSessionAsync(service, path);
             sessions[session] = 0;
-            await WriteMarkerAsync(service, session, "Unsaved edit");
             var created = await service.ProcessAsync(new ServiceRequest
             {
                 Command = "powerquery.create",
@@ -158,7 +157,9 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 Args = """{"queryName":"DelayedLoad","mCode":"Function.InvokeAfter(() => #table({\"Marker\"}, {{\"After\"}}), #duration(0,0,0,12))","refresh":false}"""
             });
             RequireSuccess(updated);
+            await WriteMarkerAsync(service, session, "Unsaved edit");
             var batch = Assert.IsAssignableFrom<IExcelBatch>(service.SessionManager.GetSession(session));
+            Assert.False(batch.Execute((context, _) => context.Book.Saved));
             using var refreshEntered = new ManualResetEventSlim();
             string? refreshConnectionName = null;
             var refreshTask = Task.Run(() => batch.Execute((context, _) =>
@@ -228,7 +229,8 @@ public sealed partial class ServiceWorkbookLifecycleTests
                     Assert.Same(batch, service.SessionManager.GetSession(session));
                 }
                 var saveFailure = Assert.Throws<ExcelBusyException>(() => batch.Save());
-                Assert.Contains("refresh", saveFailure.Message, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains(backgroundQuery ? "refresh" : "pending", saveFailure.Message,
+                    StringComparison.OrdinalIgnoreCase);
                 Assert.False(batch.HasTimedOutOperation);
                 Assert.True(guardTimer.Elapsed < TimeSpan.FromSeconds(5),
                     "Status, rejected close, and rejected save must not wait behind the long refresh.");
@@ -504,8 +506,11 @@ public sealed partial class ServiceWorkbookLifecycleTests
             };
             try
             {
-                Assert.Equal(WorkbookRefreshState.Ready, batch.GetRefreshState());
-                Assert.True(service.SessionManager.ValidateClose(session).CanClose);
+                Assert.Equal(WorkbookRefreshState.Unknown, batch.GetRefreshState());
+                Assert.False(service.SessionManager.ValidateClose(session).CanClose);
+                Assert.True(SpinWait.SpinUntil(
+                    () => service.SessionManager.ValidateClose(session).CanClose,
+                    TimeSpan.FromSeconds(10)));
                 if (saveAs)
                 {
                     var response = await service.ProcessAsync(new ServiceRequest
@@ -518,9 +523,10 @@ public sealed partial class ServiceWorkbookLifecycleTests
                     Assert.Equal(targetPath, batch.WorkbookPath, ignoreCase: true);
                     Assert.True(batch.Execute((context, _) => context.Book.Saved));
                 }
+                var inspectionsBeforeClose = Volatile.Read(ref inspections);
                 await CloseSessionAsync(service, session, save: !saveAs);
                 sessions.TryRemove(session, out _);
-                Assert.True(inspections >= 3, "Save and close must inspect actual Excel readiness.");
+                Assert.True(inspections > inspectionsBeforeClose, "Close must inspect actual Excel readiness.");
                 Assert.False(batch.HasTimedOutOperation);
             }
             finally

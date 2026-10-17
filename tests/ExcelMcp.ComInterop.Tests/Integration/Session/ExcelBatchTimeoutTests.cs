@@ -1,139 +1,274 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Tests.Helpers;
 using Xunit;
-using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 
-/// <summary>
-/// Tests for the operation timeout → force-kill → cleanup chain in ExcelBatch.
-///
-/// These tests validate the fix for Bug 8 (Feb 2026) where a stuck IDispatch.Invoke
-/// caused the MCP server to hang permanently because:
-/// 1. No timeout recovery existed — ExcelBatch.Dispose() waited forever on STA thread join
-/// 2. No pre-emptive kill — Excel process was never killed when operations timed out
-/// 3. No session cleanup — WithSessionAsync didn't handle TimeoutException
-///
-/// LAYER RESPONSIBILITY:
-/// - ✅ Test that Execute() throws TimeoutException when operation exceeds timeout
-/// - ✅ Test that _operationTimedOut triggers pre-emptive Process.Kill() in Dispose()
-/// - ✅ Test that Dispose() completes (doesn't hang) after timeout
-/// - ✅ Test that Excel process is cleaned up after timeout + dispose
-/// - ✅ Test that cancelled operations also trigger cleanup
-/// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Slow")]
 [Trait("Layer", "ComInterop")]
 [Trait("Feature", "ExcelBatch")]
 [Trait("RunType", "OnDemand")]
-[Collection("Sequential")]
 [Trait("RequiresExcel", "true")]
-public class ExcelBatchTimeoutTests : IAsyncLifetime
+[Collection("Sequential")]
+public sealed class ExcelBatchTimeoutTests : IAsyncLifetime
 {
-    private readonly ITestOutputHelper _output;
-    private static string? _staticTestFile;
-    private string? _testFileCopy;
-
-    public ExcelBatchTimeoutTests(ITestOutputHelper output)
-    {
-        _output = output;
-    }
+    private readonly string _path = Path.Join(Path.GetTempPath(), $"batch-timeout-{Guid.NewGuid():N}.xlsx");
 
     public Task InitializeAsync()
     {
-        if (_staticTestFile == null)
-        {
-            var testFolder = Path.Join(AppContext.BaseDirectory, "Integration", "Session", "TestFiles");
-            _staticTestFile = Path.Join(testFolder, "batch-test-static.xlsx");
-
-            if (!File.Exists(_staticTestFile))
-            {
-                throw new FileNotFoundException($"Static test file not found at {_staticTestFile}.");
-            }
-        }
-
-        _testFileCopy = Path.Join(Path.GetTempPath(), $"batch-timeout-test-{Guid.NewGuid():N}.xlsx");
-        File.Copy(_staticTestFile, _testFileCopy, overwrite: true);
-
-        return Task.Delay(500);
+        var template = Path.Join(AppContext.BaseDirectory, "Integration", "Session", "TestFiles", "batch-test-static.xlsx");
+        File.Copy(template, _path);
+        return Task.CompletedTask;
     }
 
     public Task DisposeAsync()
     {
-        if (_testFileCopy != null && File.Exists(_testFileCopy))
-        {
-            File.Delete(_testFileCopy);
-        }
+        File.Delete(_path);
         return Task.CompletedTask;
     }
 
-    [Fact]
-    public void BeginBatch_DefaultOpenTimeout_Is120Seconds()
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Execute_WaitExpires_PreservesUnsavedWorkAndRecoversAfterCompletion(bool cancelled, bool lateFailure)
     {
-        using var batch = ExcelSession.BeginBatch(_testFileCopy!);
+        using var owned = new OwnedExcelProcessScope();
+        using var release = new ManualResetEventSlim();
+        using var cancellation = new CancellationTokenSource();
+        var batch = Open();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var originalPid = batch.ExcelProcessId;
+        var failure = await Record.ExceptionAsync(async () =>
+        {
+            var execution = Task.Run(() => batch.Execute((ctx, token) =>
+            {
+                Assert.False(token.CanBeCanceled);
+                WriteCell(ctx, "unsaved-checkpoint");
+                started.SetResult();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(20)));
+                if (lateFailure)
+                    throw new InvalidOperationException("Late operation failure.");
+                return 1;
+            }, cancelled ? cancellation.Token : default));
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            if (cancelled)
+            {
+                cancellation.Cancel();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => execution);
+            }
+            else
+            {
+                var error = await Assert.ThrowsAsync<TimeoutException>(() => execution);
+                Assert.Contains("remains open", error.Message, StringComparison.Ordinal);
+            }
+            Assert.True(batch.IsExcelProcessAlive());
+            Assert.Equal(originalPid, batch.ExcelProcessId);
+            Assert.True(batch.HasTimedOutOperation);
+            var pending = batch.OperationStatus;
+            Assert.Equal("running", pending.State);
+            Assert.True(pending.ExecutionPending);
+            Assert.True(pending.WaitExpired);
+            Assert.True(pending.ElapsedSeconds > 0);
+            Assert.True(pending.WindowReveal is "shown" or "showRequested" or "alreadyVisible");
 
-        Assert.Equal(TimeSpan.FromSeconds(120), batch.OperationTimeout);
+            var rejected = false;
+            var timer = Stopwatch.StartNew();
+            Assert.Throws<TimeoutException>(() => batch.Execute((_, _) => { rejected = true; }));
+            Assert.False(rejected);
+            Assert.True(timer.Elapsed < TimeSpan.FromSeconds(1));
+            Assert.Throws<ExcelBusyException>(batch.Dispose);
+            Assert.True(batch.IsExcelProcessAlive());
+
+            release.Set();
+            await WaitForReadyAsync(batch);
+            var completed = batch.OperationStatus;
+            Assert.Equal(lateFailure ? "failed" : "completed", completed.State);
+            Assert.False(completed.ExecutionPending);
+            Assert.True(completed.WaitExpired);
+            Assert.Equal(lateFailure ? "Late operation failure." : null, completed.ErrorMessage);
+            Assert.True(batch.IsExcelVisible);
+            Assert.False(batch.HasTimedOutOperation);
+            Assert.Equal("unsaved-checkpoint", batch.Execute((ctx, _) => ReadCell(ctx)));
+        });
+        release.Set();
+        await FinishAsync(batch, owned, failure);
     }
 
     [Fact]
-    public void GetRefreshState_StartedInspectionExceedsDeadline_RemainsUnknownWithoutPoisoningBatch()
+    public async Task Execute_QueuedWaitExpires_DoesNotExecuteOrInvalidateRunningWork()
     {
         using var owned = new OwnedExcelProcessScope();
-        using var batch = ExcelSession.BeginBatchWithTimeouts(
-            show: false,
-            operationTimeout: TimeSpan.FromSeconds(2),
-            startupTimeout: ComInteropConstants.DefaultOperationTimeout,
-            _testFileCopy!);
-        var implementation = Assert.IsType<ExcelBatch>(batch);
-        implementation.BeforeRefreshStateReadHookForTests = () => Thread.Sleep(TimeSpan.FromSeconds(4));
+        using var release = new ManualResetEventSlim();
+        using var lifetime = new CancellationTokenSource();
+        var batch = Open();
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var first = Task.Run(() => batch.Execute((_, _) =>
+        {
+            started.SetResult();
+            Assert.True(release.Wait(TimeSpan.FromSeconds(20)));
+            return 1;
+        }, lifetime.Token));
+        var failure = await Record.ExceptionAsync(async () =>
+        {
+            await started.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            var ran = false;
+            var error = Assert.Throws<TimeoutException>(() => batch.Execute((_, _) => { ran = true; }));
+            Assert.Contains("session queue", error.Message, StringComparison.Ordinal);
+            Assert.False(batch.HasTimedOutOperation);
+            Assert.False(batch.OperationStatus.WaitExpired);
+            Assert.Equal("running", batch.OperationStatus.State);
+            release.Set();
+            Assert.Equal(1, await first.WaitAsync(TimeSpan.FromSeconds(10)));
+            Assert.Equal(3, batch.Execute((_, _) => 3));
+            Assert.False(ran);
+        });
+        release.Set();
+        var joinFailure = await Record.ExceptionAsync(async () => await first.WaitAsync(TimeSpan.FromSeconds(10)));
+        await FinishAsync(batch, owned, failure, joinFailure);
+    }
+
+    [Fact]
+    public async Task GetRefreshState_StartedScan_IsBoundedWithoutCancellingScan()
+    {
+        using var owned = new OwnedExcelProcessScope();
+        using var release = new ManualResetEventSlim();
+        var batch = Open();
+        batch.BeforeRefreshStateReadHookForTests = () => Assert.True(release.Wait(TimeSpan.FromSeconds(10)));
         var failure = Record.Exception(() =>
         {
-            var elapsed = Stopwatch.StartNew();
-            Assert.Equal(WorkbookRefreshState.Unknown, implementation.GetRefreshState());
-            Assert.InRange(elapsed.Elapsed, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(6));
+            var timer = Stopwatch.StartNew();
+            Assert.Equal(WorkbookRefreshState.Unknown, batch.GetRefreshState());
+            Assert.True(timer.Elapsed < TimeSpan.FromSeconds(1));
             Assert.False(batch.HasTimedOutOperation);
+            Assert.Equal(WorkbookRefreshState.Unknown, batch.GetRefreshState());
+            Assert.Throws<ExcelBusyException>(batch.Dispose);
         });
-        implementation.BeforeRefreshStateReadHookForTests = null;
-        using var recoveryLifetime = new CancellationTokenSource();
-        var recoveryFailure = Record.Exception(() =>
+        batch.BeforeRefreshStateReadHookForTests = null;
+        release.Set();
+        await FinishAsync(batch, owned, failure);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Startup_ExpiredWait_RetainsSessionPathAndOriginalOpen(bool readOnlyValidation)
+    {
+        using var owned = new OwnedExcelProcessScope();
+        using var release = new ManualResetEventSlim();
+        using var manager = new SessionManager();
+        ExcelBatch.BeforeWorkbookOpenHook = (_, _) => Assert.True(release.Wait(TimeSpan.FromSeconds(20)));
+        ExcelBatch? batch = null;
+        var failure = await Record.ExceptionAsync(async () =>
         {
-            Assert.Equal(1, batch.Execute((_, _) => 1, recoveryLifetime.Token));
-            Assert.Equal(WorkbookRefreshState.Ready, implementation.GetRefreshState());
+            var error = Assert.Throws<SessionStartupPendingException>(() =>
+            {
+                if (readOnlyValidation)
+                    manager.ValidateWorkbookOpen(_path, TimeSpan.FromSeconds(2));
+                else
+                    manager.CreateSessionWithTimeouts(_path, false, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+            });
+            batch = Assert.IsType<ExcelBatch>(manager.GetSession(error.SessionId));
+            Assert.True(batch.IsExcelProcessAlive());
+            Assert.Equal(error.SessionId, Assert.Single(manager.GetActiveSessions()).SessionId);
+            Assert.False(manager.ValidateClose(error.SessionId).CanClose);
+            var status = manager.GetOperationStatus(error.SessionId)!;
+            Assert.Equal("starting", status.State);
+            Assert.True(status.ExecutionPending);
+            Assert.True(status.WaitExpired);
+            Assert.Throws<InvalidOperationException>(() => manager.CreateSession(_path));
+            release.Set();
+            await WaitForReadyAsync(batch);
+            Assert.Equal("completed", manager.GetOperationStatus(error.SessionId)!.State);
+            Assert.True(manager.GetOperationStatus(error.SessionId)!.WaitExpired);
+            Assert.Equal(_path, batch.Execute((ctx, _) => ctx.Book.FullName));
+            Assert.Equal(readOnlyValidation, batch.Execute((ctx, _) => ctx.Book.ReadOnly));
+            Assert.True(manager.CloseSession(error.SessionId));
+            Assert.Empty(manager.GetActiveSessions());
         });
-        var disposalFailure = Record.Exception(batch.Dispose);
-        var processFailure = Record.Exception(() => owned.AssertAllExited());
-        var failures = new[] { failure, recoveryFailure, disposalFailure, processFailure }
-            .OfType<Exception>().ToArray();
-        if (failures.Length > 0)
-            throw new AggregateException("Readiness deadline regression or cleanup failed.", failures);
+        ExcelBatch.BeforeWorkbookOpenHook = null;
+        release.Set();
+        if (batch is not null)
+            await FinishAsync(batch, owned, failure);
+        else if (failure is not null)
+            throw failure;
+    }
+
+    [Fact]
+    public async Task Execute_ExcelPromptTimesOut_ReportsPromptAndPreservesWorkbook()
+    {
+        using var owned = new OwnedExcelProcessScope();
+        var batch = Open();
+        var identity = Assert.Single(SessionManager.GetTrackedExcelProcesses(),
+            item => item.ProcessId == batch.ExcelProcessId);
+        var failure = Record.Exception(() =>
+        {
+            var timeout = Assert.Throws<TimeoutException>(() =>
+                batch.Execute((ctx, _) => ctx.App.InputBox(
+                    "The test database is unavailable.", "SSAS connection test", Type: 2)));
+            Assert.Contains("dialog open", timeout.Message, StringComparison.Ordinal);
+            Assert.Contains("SSAS connection test", timeout.Message, StringComparison.Ordinal);
+            Assert.Contains("did not expose readable message text", timeout.Message, StringComparison.Ordinal);
+            Assert.Contains("does not itself cancel", timeout.Message, StringComparison.Ordinal);
+            Assert.True(batch.IsExcelProcessAlive());
+            Assert.True(batch.HasTimedOutOperation);
+        });
+        var dismissFailure = Record.Exception(() =>
+        {
+            Assert.True(OwnedProcessGuard.IsAlive(identity));
+            var posted = false;
+            EnumWindows((window, _) =>
+            {
+                if (GetWindowThreadProcessId(window, out var pid) == 0)
+                    return true;
+                var title = new char[256];
+                var length = GetWindowText(window, title, title.Length);
+                if (pid == identity.ProcessId && new string(title, 0, length) == "SSAS connection test")
+                {
+                    posted = PostMessage(window, 0x0010, nint.Zero, nint.Zero);
+                    return false;
+                }
+                return true;
+            }, nint.Zero);
+            Assert.True(posted, "The test-owned prompt could not be dismissed.");
+        });
+        await FinishAsync(batch, owned, failure, dismissFailure);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void BeginBatch_DefaultOpenTimeout_Is120Seconds(bool show)
+    {
+        using var batch = ExcelSession.BeginBatch(show, operationTimeout: null, _path);
+        Assert.Equal(TimeSpan.FromSeconds(120), batch.OperationTimeout);
+        Assert.NotNull(batch.ExcelProcessId);
+        Assert.True(batch.IsExcelProcessAlive());
+        Assert.Equal(show, batch.IsExcelVisible);
+        Assert.Equal(_path, batch.Execute((context, _) => context.Book.FullName), ignoreCase: true);
     }
 
     [Fact]
     public void BeginBatch_OpenTimeoutOverride_IsHonored()
     {
-        using var batch = ExcelSession.BeginBatch(
-            show: false,
-            operationTimeout: TimeSpan.FromSeconds(45),
-            _testFileCopy!);
-
+        using var batch = ExcelSession.BeginBatch(false, TimeSpan.FromSeconds(45), _path);
         Assert.Equal(TimeSpan.FromSeconds(45), batch.OperationTimeout);
+        Assert.Equal(_path, batch.Execute((context, _) => context.Book.FullName), ignoreCase: true);
     }
 
     [Fact]
     public void BeginBatch_SeparateStartupTimeout_AllowsStartupLongerThanOperationTimeout()
     {
         ExcelBatch.BeforeWorkbookOpenHook = (_, _) => Thread.Sleep(TimeSpan.FromSeconds(2));
-
         try
         {
-            using var batch = ExcelSession.BeginBatchWithTimeouts(
-                show: false,
-                operationTimeout: TimeSpan.FromSeconds(1),
-                startupTimeout: ComInteropConstants.DefaultOperationTimeout,
-                _testFileCopy!);
-
+            using var batch = ExcelSession.BeginBatchWithTimeouts(false, TimeSpan.FromSeconds(1),
+                ComInteropConstants.DefaultOperationTimeout, _path);
             Assert.Equal(TimeSpan.FromSeconds(1), batch.OperationTimeout);
+            Assert.Equal(_path, batch.Execute((context, _) => context.Book.FullName), ignoreCase: true);
         }
         finally
         {
@@ -141,507 +276,76 @@ public class ExcelBatchTimeoutTests : IAsyncLifetime
         }
     }
 
-    [Fact]
-    public void BeginBatch_StartupOpenBlocks_ThrowsTimeoutExceptionInsteadOfHanging()
+    private ExcelBatch Open() => Assert.IsType<ExcelBatch>(ExcelSession.BeginBatchWithTimeouts(
+        false, TimeSpan.FromSeconds(2), ComInteropConstants.DefaultOperationTimeout, _path));
+
+    private static async Task WaitForReadyAsync(ExcelBatch batch)
     {
-        using var startupBlocked = new ManualResetEventSlim(false);
-        ExcelBatch.BeforeWorkbookOpenHook = (_, cancellationToken) =>
+        var timer = Stopwatch.StartNew();
+        while (batch.GetRefreshState() != WorkbookRefreshState.Ready)
         {
-            startupBlocked.Set();
-            cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(30));
-        };
-
-        try
-        {
-            var sw = Stopwatch.StartNew();
-
-            var ex = Assert.Throws<TimeoutException>(() =>
-                ExcelSession.BeginBatch(
-                    show: false,
-                    operationTimeout: TimeSpan.FromSeconds(8),
-                    _testFileCopy!));
-
-            sw.Stop();
-
-            Assert.True(startupBlocked.Wait(TimeSpan.FromSeconds(10)),
-                "Startup hook was not reached before the timeout assertion.");
-            Assert.Contains("startup timed out", ex.Message, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains(Path.GetFileName(_testFileCopy!), ex.Message, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("timeout_seconds", ex.Message, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("show=true", ex.Message, StringComparison.OrdinalIgnoreCase);
-            Assert.True(sw.Elapsed < TimeSpan.FromSeconds(30),
-                $"Startup timeout regression: BeginBatch took {sw.Elapsed.TotalSeconds:F1}s. Expected a bounded timeout, not a hang.");
-        }
-        finally
-        {
-            ExcelBatch.BeforeWorkbookOpenHook = null;
+            Assert.True(timer.Elapsed < TimeSpan.FromSeconds(15), "Excel did not become ready after work returned.");
+            await Task.Delay(100);
         }
     }
 
-    [Fact]
-    public void BeginBatch_IrmStartupOpenBlocks_TimeoutMessageIncludesInteractiveGuidance()
+    private static async Task FinishAsync(ExcelBatch batch, OwnedExcelProcessScope owned, params Exception?[] failures)
     {
-        string fakeIrmFile = Path.Join(Path.GetTempPath(), $"batch-timeout-irm-{Guid.NewGuid():N}.xlsx");
-        OleDataSpaceTestFile.Write(fakeIrmFile, "\tDRMDataSpace");
-
-        ExcelBatch.BeforeWorkbookOpenHook = (_, cancellationToken) =>
+        var cleanupFailure = await Record.ExceptionAsync(async () =>
         {
-            cancellationToken.WaitHandle.WaitOne(TimeSpan.FromSeconds(30));
-        };
-
-        try
-        {
-            var ex = Assert.Throws<TimeoutException>(() =>
-                ExcelSession.BeginBatch(
-                    show: true,
-                    operationTimeout: TimeSpan.FromSeconds(8),
-                    fakeIrmFile));
-
-            Assert.Contains("IRM/AIP-protected", ex.Message, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("show=true", ex.Message, StringComparison.OrdinalIgnoreCase);
-        }
-        finally
-        {
-            ExcelBatch.BeforeWorkbookOpenHook = null;
-
-            File.Delete(fakeIrmFile);
-        }
-    }
-
-    [Fact]
-    public async Task Execute_QueuedOperationExpiresWithoutExecutingOrPoisoningBatch()
-    {
-        using var owned = new OwnedExcelProcessScope();
-        using var releaseFirst = new ManualResetEventSlim();
-        using var firstStarted = new ManualResetEventSlim();
-        using var callerLifetime = new CancellationTokenSource();
-        using var batch = ExcelSession.BeginBatch(
-            show: false,
-            operationTimeout: TimeSpan.FromSeconds(15),
-            _testFileCopy!);
-
-        var first = Task.Run(() => batch.Execute((_, _) =>
-        {
-            firstStarted.Set();
-            Assert.True(releaseFirst.Wait(TimeSpan.FromSeconds(30)));
-            return 1;
-        }, callerLifetime.Token));
-        var primaryFailure = await Record.ExceptionAsync(async () =>
-        {
-            Assert.True(firstStarted.Wait(TimeSpan.FromSeconds(5)));
-            var expiredCallbackRan = false;
-            var timeout = Assert.Throws<TimeoutException>(() => batch.Execute((_, _) =>
-            {
-                expiredCallbackRan = true;
-                return 2;
-            }));
-
-            Assert.Contains("session queue", timeout.Message, StringComparison.OrdinalIgnoreCase);
-            Assert.False(batch.HasTimedOutOperation);
-            releaseFirst.Set();
-            Assert.Equal(1, await first.WaitAsync(TimeSpan.FromSeconds(5)));
-            Assert.False(expiredCallbackRan);
-            Assert.Equal(3, batch.Execute((_, _) => 3));
-        });
-        releaseFirst.Set();
-        var joinFailure = await Record.ExceptionAsync(async () => await first.WaitAsync(TimeSpan.FromSeconds(5)));
-        var disposalFailure = Record.Exception(batch.Dispose);
-        var processFailure = Record.Exception(() => owned.AssertAllExited());
-        var failures = new[] { primaryFailure, joinFailure, disposalFailure, processFailure }
-            .OfType<Exception>().ToArray();
-        if (failures.Length > 0)
-        {
-            throw new AggregateException("Queued-operation test and cleanup failed.", failures);
-        }
-    }
-
-    [Fact]
-    public async Task Dispose_DiscardsQueuedOperationWithoutExecutingCallback()
-    {
-        using var owned = new OwnedExcelProcessScope();
-        using var releaseFirst = new ManualResetEventSlim();
-        using var firstStarted = new ManualResetEventSlim();
-        using var secondQueued = new ManualResetEventSlim();
-        using var callerLifetime = new CancellationTokenSource();
-        using var batch = ExcelSession.BeginBatch(
-            show: false,
-            operationTimeout: TimeSpan.FromSeconds(30),
-            _testFileCopy!);
-
-        var first = Task.Run(() => batch.Execute((_, _) =>
-        {
-            firstStarted.Set();
-            Assert.True(releaseFirst.Wait(TimeSpan.FromSeconds(10)));
-            return 1;
-        }, callerLifetime.Token));
-        Task<int>? queued = null;
-        Task? release = null;
-        var primaryFailure = await Record.ExceptionAsync(async () =>
-        {
-            Assert.True(firstStarted.Wait(TimeSpan.FromSeconds(5)));
-            ExcelBatch.WorkItemQueuedHookForTests = secondQueued.Set;
-            var queuedCallbackRan = false;
-            queued = Task.Run(() => batch.Execute((_, _) =>
-            {
-                queuedCallbackRan = true;
-                return 2;
-            }));
-            Assert.True(secondQueued.Wait(TimeSpan.FromSeconds(5)));
-
-            release = Task.Run(async () =>
-            {
-                await Task.Delay(100);
-                releaseFirst.Set();
-            });
-
+            if (batch.IsExcelProcessAlive())
+                await WaitForReadyAsync(batch);
             batch.Dispose();
-            Assert.Equal(1, await first.WaitAsync(TimeSpan.FromSeconds(5)));
-            await release.WaitAsync(TimeSpan.FromSeconds(5));
-            await Assert.ThrowsAsync<ObjectDisposedException>(
-                async () => await queued.WaitAsync(TimeSpan.FromSeconds(5)));
-            Assert.False(queuedCallbackRan);
-        });
-        ExcelBatch.WorkItemQueuedHookForTests = null;
-        releaseFirst.Set();
-        var disposalFailure = Record.Exception(batch.Dispose);
-        var joinFailure = await Record.ExceptionAsync(async () =>
-        {
-            await first.WaitAsync(TimeSpan.FromSeconds(5));
-            if (release is not null)
-            {
-                await release.WaitAsync(TimeSpan.FromSeconds(5));
-            }
-            if (queued is not null)
-            {
-                await Assert.ThrowsAsync<ObjectDisposedException>(
-                    async () => await queued.WaitAsync(TimeSpan.FromSeconds(5)));
-            }
         });
         var processFailure = Record.Exception(() => owned.AssertAllExited());
-        var failures = new[] { primaryFailure, disposalFailure, joinFailure, processFailure }
-            .OfType<Exception>().ToArray();
-        if (failures.Length > 0)
+        var all = failures.Append(cleanupFailure).Append(processFailure).OfType<Exception>().ToArray();
+        if (all.Length > 0)
+            throw new AggregateException("Timeout preservation or cleanup failed.", all);
+    }
+
+    private static void WriteCell(ExcelContext context, string value)
+    {
+        dynamic? sheet = null;
+        dynamic? cell = null;
+        try
         {
-            throw new AggregateException("Queued-disposal test and cleanup failed.", failures);
+            sheet = context.Book.Worksheets[1];
+            cell = sheet.Range["A1"];
+            cell.Value2 = value;
+        }
+        finally
+        {
+            ComUtilities.Release(ref cell);
+            ComUtilities.Release(ref sheet);
         }
     }
 
-    [Fact]
-    public void Execute_ExcelPromptTimesOut_ReturnsTitleAndExplainsUnavailableMessageText()
+    private static string ReadCell(ExcelContext context)
     {
-        using var owned = new OwnedExcelProcessScope();
-        using var batch = ExcelSession.BeginBatchWithTimeouts(
-            show: true,
-            operationTimeout: TimeSpan.FromSeconds(3),
-            startupTimeout: ComInteropConstants.DefaultOperationTimeout,
-            _testFileCopy!);
-        var failure = Record.Exception(() =>
+        dynamic? sheet = null;
+        dynamic? cell = null;
+        try
         {
-            var timeout = Assert.Throws<TimeoutException>(() =>
-                batch.Execute((context, _) => context.App.InputBox(
-                    "The test database is unavailable.", "SSAS connection test", Type: 2)));
-            _output.WriteLine(timeout.Message);
-            Assert.Contains("dialog open", timeout.Message, StringComparison.Ordinal);
-            Assert.Contains("SSAS connection test", timeout.Message, StringComparison.Ordinal);
-            Assert.Contains("did not expose readable message text", timeout.Message, StringComparison.Ordinal);
-            Assert.Contains("timeout recovery may close Excel", timeout.Message, StringComparison.Ordinal);
-            Assert.True(batch.HasTimedOutOperation);
-            Assert.Throws<TimeoutException>(() => batch.Execute((_, _) => 1));
-        });
-        var disposalFailure = Record.Exception(batch.Dispose);
-        var processFailure = Record.Exception(() => owned.AssertAllExited());
-        var failures = new[] { failure, disposalFailure, processFailure }.OfType<Exception>().ToArray();
-        if (failures.Length > 0)
-            throw new AggregateException("Excel dialog timeout regression or cleanup failed.", failures);
+            sheet = context.Book.Worksheets[1];
+            cell = sheet.Range["A1"];
+            return (string)cell.Value2;
+        }
+        finally
+        {
+            ComUtilities.Release(ref cell);
+            ComUtilities.Release(ref sheet);
+        }
     }
 
-    /// <summary>
-    /// REGRESSION TEST: Execute() must throw TimeoutException when operation exceeds the configured timeout.
-    /// Before Bug 8 fix, timeout existed but had no recovery — the caller got the exception but
-    /// Dispose() would then hang forever waiting for the STA thread.
-    /// </summary>
-    [Fact]
-    public void Execute_OperationExceedsTimeout_ThrowsTimeoutException()
-    {
-        // Arrange — use a very short timeout (3 seconds) to trigger timeout quickly
-        using var owned = new OwnedExcelProcessScope();
-        using var batch = ExcelSession.BeginBatchWithTimeouts(
-            show: false,
-            operationTimeout: TimeSpan.FromSeconds(3),
-            startupTimeout: ComInteropConstants.DefaultOperationTimeout,
-            _testFileCopy!);
-
-        // Warm up — ensure Excel is ready
-        Assert.Equal(_testFileCopy, batch.Execute((ctx, _) => ctx.Book.FullName));
-
-        _output.WriteLine("Excel initialized, starting long-running operation...");
-
-        // Act & Assert — operation that exceeds timeout must throw TimeoutException
-        var sw = Stopwatch.StartNew();
-        var ex = Assert.Throws<TimeoutException>(() =>
-        {
-            batch.Execute((ctx, ct) =>
-            {
-                // Simulate a hung operation — sleep longer than the timeout
-                Thread.Sleep(TimeSpan.FromSeconds(30));
-                return 0;
-            });
-        });
-        sw.Stop();
-
-        _output.WriteLine($"TimeoutException thrown after {sw.Elapsed.TotalSeconds:F1}s: {ex.Message}");
-        Assert.Contains("timed out", ex.Message, StringComparison.OrdinalIgnoreCase);
-
-        // Dispose must complete and not hang — this is the key regression test
-        var disposeSw = Stopwatch.StartNew();
-        batch.Dispose();
-        disposeSw.Stop();
-
-        _output.WriteLine($"Dispose completed in {disposeSw.Elapsed.TotalSeconds:F1}s");
-
-        // Dispose should complete within a reasonable time (pre-emptive kill + join + wait)
-        // Before the fix, Dispose() would hang forever here
-        Assert.True(disposeSw.Elapsed < TimeSpan.FromSeconds(30),
-            $"REGRESSION: Dispose() took {disposeSw.Elapsed.TotalSeconds:F1}s after timeout — " +
-            "pre-emptive kill may not be working. Expected < 30s.");
-        owned.AssertAllExited();
-    }
-
-    /// <summary>
-    /// REGRESSION TEST: After timeout, the Excel process must be killed and cleaned up.
-    /// Before Bug 8 fix, the hung Excel process would remain alive permanently.
-    /// </summary>
-    [Fact]
-    public void Execute_AfterTimeout_ExcelProcessIsCleaned()
-    {
-        // Arrange
-        using var owned = new OwnedExcelProcessScope();
-
-        using var batch = ExcelSession.BeginBatchWithTimeouts(
-            show: false,
-            operationTimeout: TimeSpan.FromSeconds(3),
-            startupTimeout: ComInteropConstants.DefaultOperationTimeout,
-            _testFileCopy!);
-
-        // Get the Excel process ID before timeout
-        int? excelPid = batch.ExcelProcessId;
-        Assert.NotNull(excelPid);
-        _output.WriteLine($"Excel PID for this session: {excelPid}");
-
-        // Warm up
-        Assert.Equal(_testFileCopy, batch.Execute((ctx, _) => ctx.Book.FullName));
-
-        // Act — trigger timeout
-        Assert.Throws<TimeoutException>(() =>
-        {
-            batch.Execute((ctx, ct) =>
-            {
-                Thread.Sleep(TimeSpan.FromSeconds(30));
-                return 0;
-            });
-        });
-
-        // Dispose triggers pre-emptive kill
-        batch.Dispose();
-
-        owned.AssertAllExited();
-    }
-
-    /// <summary>
-    /// REGRESSION TEST: Dispose after timeout must use shorter join timeout (aggressive cleanup).
-    /// Before Bug 8 fix, Dispose() used the same 45-second join timeout even when the operation
-    /// had already timed out, causing unnecessary delays.
-    /// </summary>
-    [Fact]
-    public void Dispose_AfterTimeout_CompletesWithinAggressiveTimeout()
-    {
-        // Arrange
-        using var owned = new OwnedExcelProcessScope();
-        using var batch = ExcelSession.BeginBatchWithTimeouts(
-            show: false,
-            operationTimeout: TimeSpan.FromSeconds(3),
-            startupTimeout: ComInteropConstants.DefaultOperationTimeout,
-            _testFileCopy!);
-
-        Assert.Equal(_testFileCopy, batch.Execute((ctx, _) => ctx.Book.FullName));
-
-        // Trigger timeout
-        Assert.Throws<TimeoutException>(() =>
-        {
-            batch.Execute((ctx, ct) =>
-            {
-                Thread.Sleep(TimeSpan.FromSeconds(30));
-                return 0;
-            });
-        });
-
-        // Act — measure Dispose time
-        var sw = Stopwatch.StartNew();
-        batch.Dispose();
-        sw.Stop();
-
-        _output.WriteLine($"Dispose after timeout completed in {sw.Elapsed.TotalSeconds:F1}s");
-
-        // Assert — with pre-emptive kill + 10s join timeout, Dispose should be fast
-        // Before the fix, this could take 45+ seconds or hang forever
-        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(25),
-            $"REGRESSION: Dispose() took {sw.Elapsed.TotalSeconds:F1}s after timeout. " +
-            "Expected < 25s with pre-emptive kill and aggressive 10s join timeout. " +
-            "Before Bug 8 fix, this would hang forever.");
-        owned.AssertAllExited();
-
-        _output.WriteLine("✓ Dispose completed with aggressive timeout (pre-emptive kill working)");
-    }
-
-    /// <summary>
-    /// REGRESSION TEST: Caller cancellation also triggers aggressive cleanup.
-    /// The second catch(OperationCanceledException) in Execute also sets _operationTimedOut.
-    /// </summary>
-    [Fact]
-    public void Execute_CallerCancellation_DisposeCleansUpQuickly()
-    {
-        // Arrange
-        using var owned = new OwnedExcelProcessScope();
-        using var batch = ExcelSession.BeginBatch(
-            show: false,
-            operationTimeout: TimeSpan.FromMinutes(5), // Normal timeout — not the trigger
-            _testFileCopy!);
-
-        Assert.Equal(_testFileCopy, batch.Execute((ctx, _) => ctx.Book.FullName));
-
-        using var cts = new CancellationTokenSource();
-
-        // Start a long operation and cancel it after 2 seconds
-        using var operationStarted = new ManualResetEventSlim(false);
-        Exception? caughtException = null;
-
-        var thread = new Thread(() =>
-        {
-            try
-            {
-                batch.Execute((ctx, ct) =>
-                {
-                    operationStarted.Set();
-                    // Simulate work that respects cancellation poorly (simulates stuck COM call)
-                    Thread.Sleep(TimeSpan.FromSeconds(30));
-                    return 0;
-                }, cts.Token);
-            }
-            catch (Exception ex)
-            {
-                caughtException = ex;
-            }
-        });
-
-        thread.Start();
-        Assert.True(operationStarted.Wait(TimeSpan.FromSeconds(10)));
-
-        // Cancel from caller side
-        cts.Cancel();
-        Assert.True(thread.Join(TimeSpan.FromSeconds(15)));
-        Assert.IsAssignableFrom<OperationCanceledException>(caughtException);
-        Assert.True(batch.HasTimedOutOperation);
-        var rejectedCallbackRan = false;
-        var rejected = Assert.Throws<TimeoutException>(() => batch.Execute((_, _) =>
-        {
-            rejectedCallbackRan = true;
-            return 42;
-        }));
-        Assert.Contains("previous operation", rejected.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.False(rejectedCallbackRan);
-
-        _output.WriteLine($"Operation exception: {caughtException?.GetType().Name}: {caughtException?.Message}");
-
-        // Act — Dispose should use aggressive cleanup since _operationTimedOut is set
-        var sw = Stopwatch.StartNew();
-        batch.Dispose();
-        sw.Stop();
-
-        _output.WriteLine($"Dispose after cancellation completed in {sw.Elapsed.TotalSeconds:F1}s");
-
-        // Assert — Dispose should not hang
-        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(30),
-            $"Dispose took {sw.Elapsed.TotalSeconds:F1}s after cancellation — expected < 30s");
-        owned.AssertAllExited();
-
-        _output.WriteLine("✓ Dispose completed after caller cancellation");
-    }
-
-    /// <summary>
-    /// REGRESSION TEST: After timeout, subsequent Execute calls must throw TimeoutException
-    /// immediately instead of queueing work on the stuck STA thread.
-    /// Before this fix, the second caller would queue work and block until its own timeout
-    /// expired — causing the entire server to appear hung for up to timeoutSeconds.
-    /// </summary>
-    [Fact]
-    public void Execute_AfterPreviousTimeout_FailsFastWithTimeoutException()
-    {
-        // Arrange — short timeout to trigger the first timeout quickly
-        using var owned = new OwnedExcelProcessScope();
-        using var batch = ExcelSession.BeginBatchWithTimeouts(
-            show: false,
-            operationTimeout: TimeSpan.FromSeconds(3),
-            startupTimeout: ComInteropConstants.DefaultOperationTimeout,
-            _testFileCopy!);
-
-        // Warm up
-        Assert.Equal(_testFileCopy, batch.Execute((ctx, _) => ctx.Book.FullName));
-
-        // Trigger timeout on first operation
-        Assert.Throws<TimeoutException>(() =>
-        {
-            batch.Execute((ctx, ct) =>
-            {
-                Thread.Sleep(TimeSpan.FromSeconds(30));
-                return 0;
-            });
-        });
-
-        _output.WriteLine("First timeout triggered, now calling Execute again...");
-
-        // Act — second Execute should fail FAST (not wait for its own timeout)
-        var sw = Stopwatch.StartNew();
-        var rejectedCallbackRan = false;
-        var ex = Assert.Throws<TimeoutException>(() =>
-        {
-            batch.Execute((ctx, ct) => { rejectedCallbackRan = true; return 42; });
-        });
-        sw.Stop();
-
-        _output.WriteLine($"Second Execute threw in {sw.Elapsed.TotalMilliseconds:F0}ms: {ex.Message}");
-
-        // Assert — must be near-instant, not another 3+ second timeout wait
-        Assert.True(sw.Elapsed < TimeSpan.FromSeconds(1),
-            $"REGRESSION: Second Execute took {sw.Elapsed.TotalSeconds:F1}s — expected < 1s. " +
-            "The fail-fast pre-check for _operationTimedOut may not be working.");
-        Assert.Contains("previous operation", ex.Message, StringComparison.OrdinalIgnoreCase);
-        Assert.False(rejectedCallbackRan);
-
-        // Cleanup
-        batch.Dispose();
-        owned.AssertAllExited();
-        _output.WriteLine("✓ Subsequent Execute after timeout fails fast");
-    }
-
-    /// <summary>
-    /// Verify that ExcelProcessId is captured during session creation.
-    /// This is a prerequisite for the pre-emptive kill to work.
-    /// </summary>
-    [Fact]
-    public void BeginBatch_CapturesExcelProcessId()
-    {
-        // Arrange & Act
-        using var batch = ExcelSession.BeginBatch(_testFileCopy!);
-
-        // Assert
-        Assert.NotNull(batch.ExcelProcessId);
-        Assert.True(batch.ExcelProcessId > 0, "ExcelProcessId should be a valid PID");
-
-        // Verify the process actually exists
-        using var process = Process.GetProcessById(batch.ExcelProcessId.Value);
-        Assert.False(process.HasExited, "Excel process should be running");
-        Assert.Equal("EXCEL", process.ProcessName, ignoreCase: true);
-
-        _output.WriteLine($"✓ ExcelProcessId captured: {batch.ExcelProcessId}");
-    }
+    private delegate bool WindowCallback(nint window, nint parameter);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool EnumWindows(WindowCallback callback, nint parameter);
+    [DllImport("user32.dll")]
+    private static extern uint GetWindowThreadProcessId(nint window, out uint processId);
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetWindowText(nint window, [Out] char[] text, int count);
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool PostMessage(nint window, uint message, nint wParam, nint lParam);
 }

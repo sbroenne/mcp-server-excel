@@ -87,6 +87,7 @@ public class DisposalVerificationTest : IAsyncLifetime
         _output.WriteLine("=== First DisposeAsync call ===");
         batch.Dispose();
         _output.WriteLine("=== First DisposeAsync completed ===");
+        var messageCount = messages.Count;
 
         // Second disposal - should be no-op (return immediately)
         _output.WriteLine("=== Second DisposeAsync call ===");
@@ -98,9 +99,11 @@ public class DisposalVerificationTest : IAsyncLifetime
         batch.Dispose();
         _output.WriteLine("=== Third DisposeAsync completed ===");
 
-        Assert.Single(messages, message => message.Contains("Dispose starting for", StringComparison.Ordinal));
-        Assert.Equal(2, messages.Count(message => message.Contains("Dispose skipped - already disposed", StringComparison.Ordinal)));
+        Assert.Equal(messageCount, messages.Count);
+        Assert.Single(messages, message => message.Contains("Closing workbook", StringComparison.Ordinal));
+        Assert.Single(messages, message => message.Contains("[DIAG-QUIT-SUCCESS]", StringComparison.Ordinal));
         Assert.Single(messages, message => message.Contains("STA thread cleanup completed for", StringComparison.Ordinal));
+        Assert.Throws<ObjectDisposedException>(() => batch.Execute((_, _) => { }));
         owned.AssertAllExited();
     }
 
@@ -200,5 +203,4 @@ internal sealed class TestLogger : ILogger
         _output.WriteLine($"[{logLevel}] {_categoryName}: {message}");
     }
 }
-
 

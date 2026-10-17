@@ -528,7 +528,6 @@ public class ExcelBatchTests : IAsyncLifetime, IDisposable
         SessionManager.ExcelProcessIdentityTracked += CaptureIdentity;
         ExcelBatch.BeforeWorkbookOpenHook = (_, _) =>
             throw new InvalidOperationException("synthetic startup failure");
-        ExcelBatch.FailedStartupTerminationHook = _ => false;
         ExcelBatch.FailedStartupExitConfirmationHook = _ => true;
         try
         {
@@ -543,7 +542,6 @@ public class ExcelBatchTests : IAsyncLifetime, IDisposable
         {
             SessionManager.ExcelProcessIdentityTracked -= CaptureIdentity;
             ExcelBatch.BeforeWorkbookOpenHook = null;
-            ExcelBatch.FailedStartupTerminationHook = null;
             ExcelBatch.FailedStartupExitConfirmationHook = null;
         }
     }
@@ -588,26 +586,23 @@ public class ExcelBatchTests : IAsyncLifetime, IDisposable
         SessionManager.ExcelProcessIdentityTracked += CaptureIdentity;
         ExcelBatch.BeforeWorkbookOpenHook = (_, _) =>
             throw new InvalidOperationException("synthetic startup failure");
-        ExcelBatch.FailedStartupTerminationHook = _ => false;
         ExcelBatch.FailedStartupExitConfirmationHook = _ => false;
         try
         {
-            var exception = Assert.Throws<InvalidOperationException>(
+            var exception = Assert.Throws<AggregateException>(
                 () => ExcelSession.BeginBatch(_testFileCopy!));
 
             var identity = Assert.IsType<ExcelProcessIdentity>(capturedIdentity);
             Assert.Contains(identity, SessionManager.GetTrackedExcelProcesses());
             Assert.Contains("remains tracked", exception.Message, StringComparison.OrdinalIgnoreCase);
-            var failures = Assert.IsType<AggregateException>(exception.InnerException);
             Assert.Contains(
-                failures.InnerExceptions,
+                exception.InnerExceptions,
                 failure => failure.Message == "synthetic startup failure");
         }
         finally
         {
             SessionManager.ExcelProcessIdentityTracked -= CaptureIdentity;
             ExcelBatch.BeforeWorkbookOpenHook = null;
-            ExcelBatch.FailedStartupTerminationHook = null;
             ExcelBatch.FailedStartupExitConfirmationHook = null;
         }
     }
@@ -820,6 +815,7 @@ public class ExcelBatchTests : IAsyncLifetime, IDisposable
 
             Assert.Contains("already open", ex.Message, StringComparison.OrdinalIgnoreCase);
 
+            Assert.Empty(owned.Identities);
             owned.AssertAllExited(expectProcess: false);
         }
         Assert.Equal(originalBytes, File.ReadAllBytes(lockedTestFile));

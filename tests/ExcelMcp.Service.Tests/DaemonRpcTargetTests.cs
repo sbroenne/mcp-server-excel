@@ -13,6 +13,34 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed class DaemonRpcTargetTests
 {
     [Fact]
+    public async Task ProcessCommandAsync_CancelledStartup_ObservesOriginalLateResponse()
+    {
+        var original = new TaskCompletionSource<ServiceResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var abandoned = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var late = new TaskCompletionSource<ServiceResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var request = new ServiceRequest { Command = "session.open", Args = """{"filePath":"retained.xlsx"}""" };
+        var target = new DaemonRpcTarget(_ => original.Task, static () => { }, (received, response) =>
+        {
+            Assert.Same(request, received);
+            if (response is null)
+                abandoned.TrySetResult();
+            else
+                late.TrySetResult(response);
+        });
+        using var cancellation = new CancellationTokenSource();
+        var execution = target.ProcessCommandAsync(request, cancellation.Token);
+        cancellation.Cancel();
+        await abandoned.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.False(execution.IsCompleted);
+        Assert.False(original.Task.IsCompleted);
+
+        var expected = new ServiceResponse { Success = true, Result = """{"sessionId":"retained-session"}""" };
+        original.SetResult(expected);
+        Assert.Same(expected, await execution.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Same(expected, await late.Task.WaitAsync(TimeSpan.FromSeconds(5)));
+    }
+
+    [Fact]
     public async Task ProcessCommandAsync_DelegatesExactRequestAndRecordsActivity()
     {
         ServiceRequest? capturedRequest = null;

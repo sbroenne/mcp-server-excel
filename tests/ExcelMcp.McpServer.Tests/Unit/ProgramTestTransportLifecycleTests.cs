@@ -94,7 +94,7 @@ public sealed class ProgramTestTransportLifecycleTests(ITestOutputHelper output)
                 return Task.FromResult(new ServiceResponse { Success = true, Result = FailureMode == "invalid-json" ? "synthetic-private-detail" : null });
             return Task.FromResult(new ServiceResponse { Success = true, Result = """{"success":true,"sessions":[],"count":0}""" });
         }
-        public bool ForceCloseSession(string sessionId) => throw new InvalidOperationException("Unexpected close.");
+        public void RevealSession(string sessionId) => throw new InvalidOperationException("Unexpected reveal.");
         public void Dispose() => Disposed = true;
     }
 }

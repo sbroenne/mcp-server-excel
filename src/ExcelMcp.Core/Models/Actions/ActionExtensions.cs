@@ -13,6 +13,7 @@ public static class ActionExtensions
         FileAction.Close => "close",
         FileAction.Create => "create",
         FileAction.Test => "test",
+        FileAction.Save => "save",
         _ => throw new ArgumentException($"Unknown FileAction: {action}")
     };
 

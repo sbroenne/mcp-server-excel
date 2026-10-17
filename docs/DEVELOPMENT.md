@@ -400,13 +400,15 @@ the SDK still owns binding and injected parameters.
 
 Each host owns its bridge through dependency injection. Ordinary shutdown attempts
 to save remaining sessions. Explicit `file close` defaults to `save:false` and
-discards edits. A cancelled open/create reclaims its eventual workbook without
-resetting unrelated sessions. Cancellation is not a transaction or undo.
+discards edits. A cancelled or expired open/create retains its original execution,
+eventual workbook, session identity, and path claim without resetting unrelated
+sessions. The affected Excel window is revealed when possible. Cancellation is
+not a transaction, undo, or permission to close the workbook.
 
 Protocol cancellation tests send `notifications/cancelled` explicitly and verify
-the server's cleanup. Cancelling an SDK client's local wait alone does not prove
+the server's retained ownership and eventual outcome. Cancelling an SDK client's local wait alone does not prove
 that it sent this notification: the 2.2.0 client was observed to stop waiting
-without sending it. Keep this client-side limitation separate from server cleanup
+without sending it. Keep this client-side limitation separate from server cancellation handling
 and do not replace the SDK's server cancellation handling with a custom protocol.
 
 Tool and parameter descriptions should explain server-specific behavior,

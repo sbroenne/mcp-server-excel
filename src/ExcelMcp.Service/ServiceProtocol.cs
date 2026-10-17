@@ -41,6 +41,9 @@ public sealed class ServiceRequest
     /// <summary>Source of the request.</summary>
     public string? Source { get; init; }
 
+    // Host-only cancellation of this request's unstarted Excel work; never serialized.
+    internal CancellationToken CallerCancellation { get; set; }
+
     /// <summary>
     /// Converts to shared request type for serialization.
     /// </summary>

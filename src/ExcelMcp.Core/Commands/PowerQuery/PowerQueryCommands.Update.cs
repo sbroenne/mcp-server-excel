@@ -40,7 +40,8 @@ public partial class PowerQueryCommands
             ? MCodeFormatter.FormatAsync(mCode).GetAwaiter().GetResult()
             : mCode;
 
-        return batch.Execute((ctx, ct) =>
+        var timeout = refresh ? ComInteropConstants.DataOperationTimeout : batch.OperationTimeout;
+        return ExcelBatchWait.Execute(batch, timeout, (ctx, ct) =>
         {
             Excel.Queries? queries = null;
             Excel.WorkbookQuery? query = null;

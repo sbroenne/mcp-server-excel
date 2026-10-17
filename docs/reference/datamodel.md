@@ -57,8 +57,11 @@ not reload source data. A changed external rate/lookup table still needs a sourc
 refresh. Put stored transformations and computed columns in Power Query; use
 measures for calculations over current model data.
 
-Refresh and querying have different completion limits; use their current help
-rather than applying one blanket timeout to every operation. Excel exposes
+Model refresh defaults to a 30-minute wait. Refresh and querying have different
+limits; use their current help rather than applying one blanket timeout to
+every operation. An expired wait preserves the open workbook and reveals its
+Excel window when possible; it does not prove that refresh stopped or failed.
+Inspect session status before further work. Excel exposes
 no reliable live model-refresh status or per-table refresh timestamp here.
 Refresh failures preserve Excel's error details rather than assuming that
 model-level refresh is unsupported. Check the reported source or engine error

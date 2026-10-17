@@ -18,7 +18,7 @@ public partial class DataModelCommands
     {
         var effectiveTimeout = timeout.HasValue && timeout.Value > TimeSpan.Zero
             ? timeout.Value
-            : TimeSpan.FromMinutes(2);
+            : ComInteropConstants.DataOperationTimeout;
         using var timeoutCts = new CancellationTokenSource(effectiveTimeout);
 
         try
@@ -104,4 +104,3 @@ public partial class DataModelCommands
         }
     }
 }
-

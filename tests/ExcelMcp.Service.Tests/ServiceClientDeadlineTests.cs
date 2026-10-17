@@ -117,13 +117,16 @@ public sealed class ServiceClientDeadlineTests
             TaskCreationOptions.RunContinuationsAsynchronously);
         var responseSource = new TaskCompletionSource<ServiceResponse>(
             TaskCreationOptions.RunContinuationsAsynchronously);
+        var abandoned = new TaskCompletionSource<ServiceRequest>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
         using var host = new DaemonHost(
             _ =>
             {
                 requestStarted.TrySetResult(true);
                 return responseSource.Task;
             },
-            static () => 0);
+            static () => 0,
+            requestAbandoned: (request, _) => abandoned.TrySetResult(request));
         var hostTask = host.RunAsync(pipeName);
         var clock = new ManualTimerTimeProvider();
         using var client = new ServiceClient(
@@ -141,6 +144,9 @@ public sealed class ServiceClientDeadlineTests
         Assert.False(response.Success);
         Assert.Equal("Timeout", response.ErrorCategory);
         Assert.Equal("Service request timed out", response.ErrorMessage);
+        Assert.Equal("sheet.list",
+            (await abandoned.Task.WaitAsync(TimeSpan.FromSeconds(5))).Command);
+        Assert.False(responseSource.Task.IsCompleted);
 
         responseSource.TrySetResult(new ServiceResponse { Success = true });
         host.RequestShutdown();
@@ -155,13 +161,16 @@ public sealed class ServiceClientDeadlineTests
             TaskCreationOptions.RunContinuationsAsynchronously);
         var responseSource = new TaskCompletionSource<ServiceResponse>(
             TaskCreationOptions.RunContinuationsAsynchronously);
+        var abandoned = new TaskCompletionSource<ServiceRequest>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
         using var host = new DaemonHost(
             _ =>
             {
                 requestStarted.TrySetResult(true);
                 return responseSource.Task;
             },
-            static () => 0);
+            static () => 0,
+            requestAbandoned: (request, _) => abandoned.TrySetResult(request));
         var hostTask = host.RunAsync(pipeName);
         var clock = new ManualTimerTimeProvider();
         using var client = new ServiceClient(
@@ -180,6 +189,9 @@ public sealed class ServiceClientDeadlineTests
 
         await Assert.ThrowsAnyAsync<OperationCanceledException>(
             () => sendTask.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.Equal("sheet.list",
+            (await abandoned.Task.WaitAsync(TimeSpan.FromSeconds(5))).Command);
+        Assert.False(responseSource.Task.IsCompleted);
         responseSource.TrySetResult(new ServiceResponse { Success = true });
         host.RequestShutdown();
         await hostTask.WaitAsync(TimeSpan.FromSeconds(5));

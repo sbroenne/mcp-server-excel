@@ -16,8 +16,8 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 /// - Dead session cleanup doesn't happen fast enough
 ///
 /// These tests validate SessionManager-level recovery paths that the ExcelBatch tests don't cover:
-/// - Does GetSession return the poisoned session or clean it up?
-/// - Does CreateSession work immediately after a timeout on the same file?
+/// - Does GetSession retain the running session after its caller stops waiting?
+/// - Can the same file reopen after execution completes and an explicit close?
 /// - Does ActiveSessionCount reflect reality after timeout cleanup?
 /// - Does stale session metadata block new session creation?
 ///
@@ -27,7 +27,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 /// - Focus: Session lifecycle, reopen, metadata cleanup
 ///
 /// A timed-out batch remains registered while its process is alive. It rejects
-/// further work until force-close removes it and permits reopening the file.
+/// further work until execution completes and readiness is confirmed.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Slow")]
@@ -70,13 +70,13 @@ public class SessionManagerSerialWorkflowTests : IDisposable
     }
 
     /// <summary>
-    /// A live but poisoned batch stays registered and rejects follow-up callbacks.
+    /// A running batch stays registered and rejects follow-up callbacks.
     /// </summary>
     [Fact]
-    public void SerialWorkflow_GetSessionAfterTimeout_RetainsPoisonedBatchAndRejectsFollowUp()
+    public void SerialWorkflow_GetSessionAfterTimeout_RetainsRunningBatchAndRejectsFollowUp()
     {
         // Arrange
-        var testFile = CreateTestFile(nameof(SerialWorkflow_GetSessionAfterTimeout_RetainsPoisonedBatchAndRejectsFollowUp));
+        var testFile = CreateTestFile(nameof(SerialWorkflow_GetSessionAfterTimeout_RetainsRunningBatchAndRejectsFollowUp));
         using var manager = new SessionManager();
 
         var sessionId = manager.CreateSessionWithTimeouts(
@@ -118,11 +118,14 @@ public class SessionManagerSerialWorkflowTests : IDisposable
             return 42;
         }));
         sw.Stop();
-        Assert.Contains("previous operation", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("previous wait expired", ex.Message, StringComparison.OrdinalIgnoreCase);
         Assert.False(callbackRan);
         Assert.True(sw.Elapsed < TimeSpan.FromSeconds(1),
             $"Follow-up rejection took {sw.Elapsed.TotalSeconds:F1}s; expected < 1s.");
 
+        Assert.Throws<ExcelBusyException>(() => manager.CloseSession(sessionId, save: false, force: true));
+        WaitUntilReady(batch);
+        SessionWorkbookAssertions.AssertIdentity(batch, testFile);
         Assert.True(manager.CloseSession(sessionId, save: false, force: true));
         Assert.Empty(manager.ActiveSessionIds);
         Assert.Null(manager.GetSession(sessionId));
@@ -131,10 +134,10 @@ public class SessionManagerSerialWorkflowTests : IDisposable
     }
 
     /// <summary>
-    /// REGRESSION TEST: After timeout + CloseSession, can we immediately CreateSession on same file?
+    /// Reopen the same file only after original execution and explicit close finish.
     ///
     /// WORKFLOW:
-    /// 1. Session A: CreateSession(file) → timeout → CloseSession(force:true)
+    /// 1. Session A: CreateSession(file) → timeout → finish execution → CloseSession
     /// 2. Session B: CreateSession(SAME file) immediately
     /// 3. Verify Session B works
     ///
@@ -155,7 +158,7 @@ public class SessionManagerSerialWorkflowTests : IDisposable
         var testFile = CreateTestFile(nameof(SerialWorkflow_CreateSessionAfterTimeoutCleanup_SucceedsOnSameFile));
         using var manager = new SessionManager();
 
-        // Session A: Timeout and force close
+        // Session A: stop waiting, then wait for its actual execution before closing.
         _output.WriteLine("Session A: Creating and timing out...");
         var sessionAId = manager.CreateSessionWithTimeouts(
             testFile,
@@ -175,7 +178,11 @@ public class SessionManagerSerialWorkflowTests : IDisposable
             });
         });
 
-        _output.WriteLine("  Force closing Session A...");
+        Assert.Throws<ExcelBusyException>(() => manager.CloseSession(sessionAId, save: false, force: true));
+        Assert.Throws<InvalidOperationException>(() => manager.CreateSession(testFile));
+        Assert.Same(sessionA, manager.GetSession(sessionAId));
+        WaitUntilReady(sessionA);
+        _output.WriteLine("  Closing Session A after execution...");
         var closeResult = manager.CloseSession(sessionAId, save: false, force: true);
         Assert.True(closeResult, "CloseSession should succeed");
         Assert.Equal(0, manager.ActiveSessionCount);
@@ -223,7 +230,7 @@ public class SessionManagerSerialWorkflowTests : IDisposable
     /// WORKFLOW:
     /// 1. CreateSession → ActiveSessionCount = 1
     /// 2. Timeout
-    /// 3. CloseSession(force:true) → ActiveSessionCount should be 0
+    /// 3. Wait for execution, then CloseSession → ActiveSessionCount should be 0
     /// 4. GetSession should return null
     ///
     /// EXPECTED (if bug exists): Test FAILS because:
@@ -232,7 +239,7 @@ public class SessionManagerSerialWorkflowTests : IDisposable
     ///
     /// EXPECTED (if bug fixed): Test PASSES because:
     /// - ActiveSessionCount reflects reality at each step
-    /// - Session is truly removed after force close
+    /// - Session is removed only after execution and explicit close
     /// </summary>
     [Fact]
     public void SerialWorkflow_ActiveSessionCount_RemainsAccurateThroughTimeout()
@@ -273,8 +280,10 @@ public class SessionManagerSerialWorkflowTests : IDisposable
         // This is expected — timeout doesn't auto-close the session
         Assert.Equal(1, manager.ActiveSessionCount);
 
-        // Force close
-        _output.WriteLine("Force closing session...");
+        Assert.Throws<ExcelBusyException>(() => manager.CloseSession(sessionId, save: false, force: true));
+        Assert.Equal(1, manager.ActiveSessionCount);
+        WaitUntilReady(batch);
+        _output.WriteLine("Closing session after execution...");
         var closed = manager.CloseSession(sessionId, save: false, force: true);
         Assert.True(closed);
 
@@ -296,15 +305,15 @@ public class SessionManagerSerialWorkflowTests : IDisposable
     /// 1. Session A (file1) → success
     /// 2. Session B (file2) → timeout
     /// 3. Session C (file3) → success
-    /// 4. Session A again → should still work (not poisoned by B's timeout)
+    /// 4. Session A again → should still work (unaffected by B's expired wait)
     ///
     /// EXPECTED (if bug exists): Test FAILS because:
-    /// - Session B timeout poisons SessionManager state
+    /// - Session B timeout blocks unrelated SessionManager work
     /// - Sessions A and C fail after B times out
     ///
     /// EXPECTED (if bug fixed): Test PASSES because:
     /// - Session isolation works
-    /// - Only Session B is poisoned
+    /// - Only Session B refuses work while its execution is pending
     /// - Sessions A and C continue working
     /// </summary>
     [Fact]
@@ -367,6 +376,9 @@ public class SessionManagerSerialWorkflowTests : IDisposable
         Assert.False(rejectedCallbackRan);
         Assert.Equal(3, manager.ActiveSessionCount);
 
+        Assert.Throws<ExcelBusyException>(() => manager.CloseSession(sessionBId, save: false, force: true));
+        WaitUntilReady(sessionB);
+        SessionWorkbookAssertions.AssertIdentity(sessionB, fileB);
         // Cleanup
         Assert.True(manager.CloseSession(sessionAId, save: false, force: false));
         Assert.True(manager.CloseSession(sessionBId, save: false, force: true));
@@ -375,5 +387,14 @@ public class SessionManagerSerialWorkflowTests : IDisposable
         _owned.AssertAllExited();
 
         _output.WriteLine("✓ Multiple sessions test passed: Session B timeout didn't affect A or C");
+    }
+
+    private static void WaitUntilReady(IExcelBatch batch)
+    {
+        var state = Assert.IsAssignableFrom<IExcelBatchRefreshState>(batch);
+        Assert.True(SpinWait.SpinUntil(
+            () => state.GetRefreshState() == WorkbookRefreshState.Ready,
+            TimeSpan.FromSeconds(40)), "Excel did not become ready after execution completed.");
+        Assert.False(batch.HasTimedOutOperation);
     }
 }

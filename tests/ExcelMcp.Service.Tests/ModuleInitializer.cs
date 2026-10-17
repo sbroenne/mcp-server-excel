@@ -1,5 +1,4 @@
 using System.Runtime.CompilerServices;
-using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Tests.Shared;
 
 [assembly: Xunit.TestFramework(
@@ -14,6 +13,5 @@ internal static class ModuleInitializer
     internal static void Initialize()
     {
         TestRunExcelLifetime.StartForTestHost();
-        ExcelBatch.SuppressVisibleDuringOpen = true;
     }
 }

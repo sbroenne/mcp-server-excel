@@ -23,13 +23,13 @@ public static class ResiliencePipelines
 
     /// <summary>
     /// RPC_E_CALL_FAILED - RPC connection failed. Excel is unreachable.
-    /// FATAL ERROR - Do not retry, Excel process must be force-killed.
+    /// Do not retry the operation automatically; retain a live process for inspection.
     /// </summary>
     public const int RPC_E_CALL_FAILED = unchecked((int)0x800706BE);            // -2147023170
 
     /// <summary>
-    /// RPC_S_SERVER_UNAVAILABLE - The RPC server is unavailable. Excel process has died.
-    /// FATAL ERROR - Do not retry, session must be cleaned up.
+    /// RPC_S_SERVER_UNAVAILABLE - The RPC server is unavailable.
+    /// Confirm exact process exit before removing session ownership.
     /// </summary>
     public const int RPC_S_SERVER_UNAVAILABLE = unchecked((int)0x800706BA);     // -2147023174
 
@@ -183,5 +183,4 @@ public static class ResiliencePipelines
 
     #endregion
 }
-
 
