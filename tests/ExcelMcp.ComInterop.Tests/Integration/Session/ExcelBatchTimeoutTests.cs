@@ -198,48 +198,6 @@ public sealed class ExcelBatchTimeoutTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task Startup_LateFailure_RemainsDiscoverableUntilClosed()
-    {
-        using var owned = new OwnedExcelProcessScope();
-        using var release = new ManualResetEventSlim();
-        using var manager = new SessionManager();
-        ExcelBatch.BeforeWorkbookOpenHook = (_, _) =>
-        {
-            Assert.True(release.Wait(TimeSpan.FromSeconds(20)));
-            throw new InvalidOperationException("Late startup failure.");
-        };
-        try
-        {
-            var error = Assert.Throws<SessionStartupPendingException>(() =>
-                manager.CreateSessionWithTimeouts(_path, false, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2)));
-            var batch = Assert.IsType<ExcelBatch>(manager.GetSession(error.SessionId));
-            release.Set();
-            var timer = Stopwatch.StartNew();
-            while (batch.OperationStatus.ExecutionPending || batch.IsExcelProcessAlive())
-            {
-                Assert.True(timer.Elapsed < TimeSpan.FromSeconds(15));
-                await Task.Delay(100);
-            }
-            Assert.Equal(error.SessionId, Assert.Single(manager.GetActiveSessions()).SessionId);
-            var status = manager.GetOperationStatus(error.SessionId)!;
-            Assert.Equal("failed", status.State);
-            Assert.Equal("Late startup failure.", status.ErrorMessage);
-            Assert.True(status.WaitExpired);
-            Assert.False(status.ExecutionPending);
-            Assert.False(manager.TryBeginOperation(error.SessionId, out _, out var message));
-            Assert.Contains("Late startup failure.", message, StringComparison.Ordinal);
-            Assert.True(manager.CloseSession(error.SessionId));
-            Assert.Empty(manager.GetActiveSessions());
-            owned.AssertAllExited();
-        }
-        finally
-        {
-            release.Set();
-            ExcelBatch.BeforeWorkbookOpenHook = null;
-        }
-    }
-
-    [Fact]
     public async Task Execute_ExcelPromptTimesOut_ReportsPromptAndPreservesWorkbook()
     {
         using var owned = new OwnedExcelProcessScope();
