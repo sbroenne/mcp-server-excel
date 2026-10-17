@@ -63,7 +63,15 @@ internal sealed class ServiceStopCommand : AsyncCommand
         var preShutdownSnapshot = OwnedProcessCleanup.CaptureTrackedProcesses(pipeName);
         try
         {
-            if (!DaemonAutoStart.IsDaemonMutexHeld(pipeName))
+            using var client = new ServiceClient(pipeName, connectTimeout: CommandTimeout, requestTimeout: ShutdownRequestTimeout);
+            var request = new ServiceRequest { Command = "service.shutdown" };
+            var response = await CliTelemetry.TrackCommandAsync(
+                request,
+                () => client.SendAsync(request, cancellationToken));
+            if (!response.Success
+                && !client.HasConnected
+                && DaemonConnectionPolicy.IsTransportFailure(response)
+                && !DaemonAutoStart.IsDaemonMutexHeld(pipeName))
             {
                 return await WriteCleanupResultAsync(
                     pipeName,
@@ -72,11 +80,6 @@ internal sealed class ServiceStopCommand : AsyncCommand
                     "Service not running.");
             }
 
-            using var client = new ServiceClient(pipeName, connectTimeout: CommandTimeout, requestTimeout: ShutdownRequestTimeout);
-            var request = new ServiceRequest { Command = "service.shutdown" };
-            var response = await CliTelemetry.TrackCommandAsync(
-                request,
-                () => client.SendAsync(request, cancellationToken));
             if (response.Success)
             {
                 if (await WaitForDaemonExitAsync(pipeName, cancellationToken))

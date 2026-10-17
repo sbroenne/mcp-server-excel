@@ -60,6 +60,9 @@ Automatic CLI startup also preserves Excel instances left alive after their
 previous service exits: it refuses to replace their recorded ownership while they
 remain live. An expired shutdown wait or an unconfirmed shutdown response does
 not authorize forced termination of a running service or its workbooks.
+Explicit service stop attempts bounded pipe shutdown even without a daemon mutex.
+Offline cleanup requires both a failed connection and no held daemon mutex.
+A connected host's failure or expired response wait does not authorize cleanup.
 
 Central ownership also makes targeted cleanup possible without terminating
 unrelated user workbooks. This carries explicit lifetime and recovery complexity

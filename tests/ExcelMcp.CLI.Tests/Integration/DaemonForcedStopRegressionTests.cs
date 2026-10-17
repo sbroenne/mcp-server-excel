@@ -19,6 +19,54 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Collection("Sequential")]
 public sealed class DaemonForcedStopRegressionTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ServiceStop_WithoutDaemonMutex_SendsShutdownAndPreservesResponse(bool succeeds)
+    {
+        var pipeName = $"excelmcp-mutexless-stop-{Guid.NewGuid():N}";
+        using var server = ServiceSecurity.CreateSecureServer(pipeName);
+        var target = new MutexlessShutdownRpcTarget(succeeds);
+        var connection = server.WaitForConnectionAsync();
+        var stop = RunServiceStopAsync(pipeName);
+        JsonRpc? rpc = null;
+        try
+        {
+            await Task.WhenAny(connection, stop).WaitAsync(TimeSpan.FromSeconds(10));
+            if (connection.IsCompletedSuccessfully)
+                rpc = JsonRpc.Attach(server, target);
+
+            var result = await stop.WaitAsync(TimeSpan.FromSeconds(20));
+            Assert.True(target.ShutdownRequested, "The responsive host did not receive service.shutdown.");
+            Assert.Equal(succeeds ? 0 : 1, result.ExitCode);
+            using var response = JsonDocument.Parse(result.Stdout);
+            Assert.Equal(succeeds, response.RootElement.GetProperty("success").GetBoolean());
+            if (!succeeds)
+                Assert.Equal("Timeout", response.RootElement.GetProperty("errorCategory").GetString());
+        }
+        finally
+        {
+            rpc?.Dispose();
+        }
+    }
+
+    private sealed class MutexlessShutdownRpcTarget(bool succeeds)
+    {
+        public bool ShutdownRequested { get; private set; }
+
+        public Task<ServiceResponse> ProcessCommandAsync(ServiceRequest request)
+        {
+            Assert.Equal("service.shutdown", request.Command);
+            ShutdownRequested = true;
+            return Task.FromResult(new ServiceResponse
+            {
+                Success = succeeds,
+                ErrorCategory = succeeds ? null : "Timeout",
+                ErrorMessage = succeeds ? null : "Shutdown could not finish; the workbook remains open."
+            });
+        }
+    }
+
     [Fact]
     public async Task AutomaticStartup_RetainsLiveExcelAfterItsDaemonExited()
     {
