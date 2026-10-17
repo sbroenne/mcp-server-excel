@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
 using Xunit.Abstractions;
@@ -20,14 +21,32 @@ public sealed class FixtureProcessOwnershipTests(ITestOutputHelper output)
         {
             using var independent = ExcelBatch.CreateNewWorkbook(Path.Join(directory, "independent.xlsx"), isMacroEnabled: false);
             using var ownership = new OwnedExcelProcessScope();
-            using var owned = ExcelBatch.CreateNewWorkbook(Path.Join(directory, "owned.xlsx"), isMacroEnabled: false);
+            var owned = ExcelBatch.CreateNewWorkbook(Path.Join(directory, "owned.xlsx"), isMacroEnabled: false);
 
-            var error = Assert.Throws<Xunit.Sdk.TrueException>(() => ownership.AssertAllExited());
+            var operation = Record.Exception(() =>
+            {
+                var error = Assert.Throws<Xunit.Sdk.TrueException>(() => ownership.AssertAllExited());
 
-            Assert.Contains("survived shutdown", error.Message, StringComparison.Ordinal);
-            Assert.False(owned.IsExcelProcessAlive());
-            Assert.True(independent.IsExcelProcessAlive());
-            independent.Execute((context, _) => Assert.Equal("independent.xlsx", context.Book.Name));
+                Assert.Contains("survived shutdown", error.Message, StringComparison.Ordinal);
+                Assert.False(owned.IsExcelProcessAlive());
+                Assert.True(independent.IsExcelProcessAlive());
+                independent.Execute((context, _) => Assert.Equal("independent.xlsx", context.Book.Name));
+            });
+            var cleanup = Record.Exception(() =>
+            {
+                if (owned.IsExcelProcessAlive())
+                {
+                    owned.Dispose();
+                    return;
+                }
+
+                var failure = Assert.Throws<InvalidOperationException>(owned.Dispose);
+                var comFailure = Assert.IsType<COMException>(failure.InnerException);
+                Assert.Contains(comFailure.HResult,
+                    new[] { unchecked((int)0x800706BA), unchecked((int)0x80010108), unchecked((int)0x800706BE) });
+                Assert.True(((IExcelBatchTeardownState)owned).TryConfirmOwnedProcessTeardown());
+            });
+            Assert.All(new[] { operation, cleanup }, failure => Assert.Null(failure));
         }
         finally
         {

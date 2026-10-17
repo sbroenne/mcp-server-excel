@@ -184,10 +184,9 @@ Excel to finish, check `canClose` through MCP `file_read` action `list` or
 `excelcli session list`, inspect the refreshed values, then retry. A zero
 `activeOperations` count alone is not proof that Excel is idle.
 
-Readiness inspection waits at most one second for queued work. If inspection
-has already started, it can use the session's operation timeout to finish
-checking a large workbook. A scan that exceeds that additional deadline reports
-an unconfirmed state without saving or closing the workbook.
+Readiness inspection waits at most 200 milliseconds, even when its Excel scan
+has started. An unfinished scan remains owned and reports an unconfirmed state;
+later listings reuse its result. This does not save or close the workbook.
 
 Service shutdown also refuses to discard edits when readiness blocks saving.
 Normal close checks readiness again on Excel's STA at the shutdown transition.
@@ -200,7 +199,7 @@ can respond to Excel's prompt or wait for the refresh, then retry
 `excelcli service stop`. Other ready sessions may already have been saved and
 closed before a refusal. Product `excelcli service stop` waits up to 60 seconds for
 the shutdown reply while ready workbooks save and close. It does not force-stop Excel
-after a `Busy` response or a timeout waiting for a shutdown reply after connecting.
+after any failed shutdown response or an expired shutdown wait.
 Simultaneous shutdown requests cannot bypass a refusal: saving and the decision
 to stop the service are serialized across all service shutdown entry points.
 This does not protect against externally killing the service or Excel.
@@ -221,14 +220,27 @@ check readiness and refreshed data before saving.
 If an executing operation reaches the session's operation timeout while a dialog
 is detected, its error reports the captured dialog instead of only suggesting a
 longer timeout. The timeout error includes the dialog's title and readable message labels, not editable input values.
-Reading the text does not dismiss the prompt, but existing timeout recovery
-closes the failed session and may terminate its Excel process. Text reads
+Reading the text does not dismiss the prompt. Timeout recovery retains the
+session and unsaved workbook and requests visibility for its owned Excel window.
+It does not save, close, terminate, or roll back the operation. Text reads
 are bounded so an unresponsive dialog cannot block reporting indefinitely;
 unavailable or truncated text is noted explicitly. Session listing still checks
 window ownership without reading dialog contents. Some custom-drawn Office
 dialogs expose only their title, not their message text.
-The operation may still be running; timeout does not undo workbook changes, and
-the existing timed-out session recovery rules still apply.
+The operation may still be running. CLI `session list` and MCP `file_read`
+action `list` include `operation` with `state`, `command`, `elapsedSeconds`,
+`waitExpired`, `executionPending`, `errorMessage`, and `windowReveal`.
+Reveal outcomes distinguish `alreadyVisible`, `shown`, `showRequested`, and
+`unavailable`; a request is not confirmation that Excel became visible.
+Late completion or failure remains visible until new work starts. New work,
+saving, and closing are refused while execution or readiness remains unresolved.
+Once the original callback and cleanup have returned and Excel is ready, the
+same session can be reused. These rules also apply to startup waits; an expired
+open, create, or test wait reports the retained session ID.
+
+Save the current workbook in place with `excelcli session save -s <sessionId>`
+or MCP `file(action: 'save', workbook_session_id: sessionId)`. Saving after an
+expired wait remains a caller decision, not automatic recovery.
 
 Power BI/MSOLAP (OLAP) connections always refresh synchronously. Their unsupported
 background setting is reported as false; enabling it is rejected before changing

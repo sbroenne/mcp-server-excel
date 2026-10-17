@@ -12,7 +12,7 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed class ServiceSessionContractTests
 {
     [Fact]
-    public async Task Save_IsRejectedAsUnknownSessionAction()
+    public async Task Save_MissingSession_ReturnsSessionNotFound()
     {
         using var service = new ExcelMcpService();
 
@@ -23,10 +23,9 @@ public sealed class ServiceSessionContractTests
         });
 
         Assert.False(response.Success);
-        Assert.Equal("InvalidInput", response.ErrorCategory);
-        Assert.Equal(
-            "Unknown action 'save' for command group 'session'. Valid actions: create, open, close, list, test.",
-            response.ErrorMessage);
+        Assert.Equal("SessionNotFound", response.ErrorCategory);
+        Assert.Contains("missing-session", response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal(0, service.SessionCount);
     }
 
     [Fact]

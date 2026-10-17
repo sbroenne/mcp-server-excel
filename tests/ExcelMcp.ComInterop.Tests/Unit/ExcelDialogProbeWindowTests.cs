@@ -113,16 +113,19 @@ public sealed class ExcelDialogProbeWindowTests
             var batch = (ExcelBatch)RuntimeHelpers.GetUninitializedObject(typeof(ExcelBatch));
             SetField(batch, "_excelProcessIdentity", identity);
             SetField(batch, "_logger", NullLogger<ExcelBatch>.Instance);
-            SetField(batch, "_executingWorkItem", 1);
             SetField(batch, "_operationTimeout", TimeSpan.FromSeconds(3));
             SetField(batch, "_workbookPath", "dialog-test.xlsx");
             var started = Stopwatch.GetTimestamp();
+            SetField(batch, "_startupCompletion", Task.CompletedTask);
+            SetField(batch, "_statusLock", new Lock());
+            SetField(batch, "_operationState", "running");
             Assert.Equal(WorkbookRefreshState.DialogOpen, batch.GetRefreshState());
             Assert.True(Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(2));
 
             var timeout = batch.CreateOperationTimeoutException(expiredWhileQueued: false);
             Assert.Contains("had a dialog open", timeout.Message, StringComparison.Ordinal);
-            Assert.Contains("timeout recovery may close Excel", timeout.Message, StringComparison.Ordinal);
+            Assert.Contains("workbook remains open", timeout.Message, StringComparison.Ordinal);
+            Assert.Contains("No changes were saved or discarded by timeout recovery", timeout.Message, StringComparison.Ordinal);
             Assert.Contains("does not itself cancel", timeout.Message, StringComparison.Ordinal);
             Assert.Contains("private connection details", timeout.Message, StringComparison.Ordinal);
             Assert.Contains("The database is unavailable.", timeout.Message, StringComparison.Ordinal);
@@ -154,13 +157,13 @@ public sealed class ExcelDialogProbeWindowTests
             EnableWindow(root, true);
             Assert.Equal(WorkbookRefreshState.Ready, ExcelDialogProbe.Read(identity, NullLogger.Instance));
             Assert.Equal(WorkbookRefreshState.Busy, batch.GetRefreshState());
-            Assert.Contains("increasing timeoutSeconds",
+            Assert.Contains("Inspect session status",
                 batch.CreateOperationTimeoutException(expiredWhileQueued: false).Message, StringComparison.Ordinal);
             SetField(batch, "_excelProcessIdentity",
                 new ExcelProcessIdentity(process.Id, identity.StartedAtUtcFileTime - 1));
             var unknown = batch.CreateOperationTimeoutException(expiredWhileQueued: false);
             Assert.DoesNotContain("dialog open", unknown.Message, StringComparison.Ordinal);
-            Assert.Contains("increasing timeoutSeconds", unknown.Message, StringComparison.Ordinal);
+            Assert.Contains("Inspect session status", unknown.Message, StringComparison.Ordinal);
         }
         catch (Exception ex)
         {
@@ -183,7 +186,7 @@ public sealed class ExcelDialogProbeWindowTests
         if (failures.Count > 1) throw new AggregateException("Dialog test or cleanup failed.", failures);
     }
 
-    private static void SetField(ExcelBatch batch, string name, object value)
+    private static void SetField<T>(ExcelBatch batch, string name, T value)
     {
         var field = typeof(ExcelBatch).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
         Assert.NotNull(field);

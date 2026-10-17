@@ -80,7 +80,7 @@ Examples of meaningful checks:
 | Settings | Requested setting on the target and preserved untargeted state |
 | Save/reopen | One changed marker survives reopening; a filename alone does not prove saving |
 | Rejected input | Intended error and unchanged state where validation promises no mutation |
-| Real timeout | Reached the blocked operation, rejected poisoned session, safe recovery |
+| Real timeout | Reached the blocked operation, preserved unsaved work, refused overlapping work, reused the same session after completion and readiness |
 
 Select negatives by risk: missing objects, bad dimensions/addresses, bounds,
 name conflicts, merged/protected destinations, invalid options, cancellation,

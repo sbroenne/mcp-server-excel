@@ -136,7 +136,6 @@ public sealed partial class ServiceWorkbookLifecycleTests
     [Theory]
     [InlineData(true, "User ID")]
     [InlineData(true, "UID")]
-    [InlineData(true, "uSeR iD")]
     [InlineData(false, "User ID")]
     public async Task ConnectionAccountSettings_ClearOnlySelectedHint_AndPersist(bool hasHint, string hintKey)
     {
@@ -194,6 +193,10 @@ public sealed partial class ServiceWorkbookLifecycleTests
             Assert.Equal(neighbor, ReadAccountSettingsFixture(batch, "Selected neighbor"));
         });
     }
+
+    [Fact]
+    public Task ConnectionAccountSettings_ClearCaseInsensitiveHint_AndPersist() =>
+        ConnectionAccountSettings_ClearOnlySelectedHint_AndPersist(true, "uSeR iD");
 
     [Theory]
     [InlineData(null, null, null)]

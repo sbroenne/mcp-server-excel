@@ -10,6 +10,8 @@ internal sealed class OwnedExcelProcessScope : IDisposable
     private readonly OwnedExcelProcessScope? _previous = Current.Value;
     private readonly ConcurrentDictionary<ExcelProcessIdentity, byte> _owned = new();
 
+    internal ExcelProcessIdentity[] Identities => _owned.Keys.ToArray();
+
     internal OwnedExcelProcessScope()
     {
         Current.Value = this;

@@ -51,6 +51,9 @@ internal sealed class FileSessionOutputSchema
     public string ExcelState { get; set; } = string.Empty;
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public Sbroenne.ExcelMcp.ComInterop.Session.ExcelOperationStatus? Operation { get; set; }
+
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? BlockingReason { get; set; }
 
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

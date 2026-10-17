@@ -49,9 +49,9 @@ public partial class PowerQueryCommands
 
         targetCellAddress ??= "A1"; // Default cell address
 
-        using var timeoutCts = new CancellationTokenSource(ComInteropConstants.DataOperationTimeout);
+        var timeout = ComInteropConstants.DataOperationTimeout;
 
-        return batch.Execute((ctx, ct) =>
+        return ExcelBatchWait.Execute(batch, timeout, (ctx, ct) =>
         {
             Excel.Queries? queries = null;
             Excel.WorkbookQuery? query = null;
@@ -144,7 +144,7 @@ public partial class PowerQueryCommands
                 ComUtilities.Release(ref query!);
                 ComUtilities.Release(ref queries!);
             }
-        }, timeoutCts.Token);
+        });
     }
 
     /// <summary>

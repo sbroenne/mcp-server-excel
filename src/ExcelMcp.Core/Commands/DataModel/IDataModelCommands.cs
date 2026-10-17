@@ -143,7 +143,7 @@ public interface IDataModelCommands
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Optional: Specific table to refresh (if null, refreshes entire model)</param>
-    /// <param name="timeout">Optional public timeout in whole seconds from 1 through 2147483; converted to TimeSpan at shared dispatch</param>
+    /// <param name="timeout">Maximum caller wait in whole seconds from 1 through 2147483; defaults to 1800 seconds. Expiry preserves the session and does not stop Excel.</param>
     /// <exception cref="InvalidOperationException">Thrown when refresh operation fails</exception>
     [ServiceAction("refresh")]
     OperationResult Refresh(IExcelBatch batch, string? tableName = null, TimeSpan? timeout = null);

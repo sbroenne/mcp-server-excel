@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -27,8 +28,161 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed class ExcelMcpServiceErrorTests
 {
     [Fact]
+    public void DaemonIdlePolling_DefersLateSaveAsPathReconciliationDuringShutdown()
+    {
+        using var service = new ExcelMcpService();
+        var manager = service.SessionManager;
+        var batch = (ExcelBatch)RuntimeHelpers.GetUninitializedObject(typeof(ExcelBatch));
+        var original = Path.GetFullPath("idle-save-original.xlsx");
+        var target = Path.GetFullPath("idle-save-target.xlsx");
+        foreach (var (name, value) in new (string, object)[]
+        {
+            ("_workbookPath", original),
+            ("_startupCompletion", Task.CompletedTask),
+            ("_statusLock", new object()),
+            ("_operationState", "completed"),
+            ("_waitExpired", true)
+        })
+        {
+            var field = typeof(ExcelBatch).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.NotNull(field);
+            field.SetValue(batch, value);
+        }
+        const string session = "late-save-as";
+        RegisterSession(service, session, batch);
+        manager.ReserveSessionFilePath(session, target);
+        manager.RetainPendingSaveAs(session);
+        typeof(ExcelBatch).GetField("_workbookPath", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .SetValue(batch, target);
+        var disposed = typeof(SessionManager).GetField("_disposed", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var count = GetPrivateField<Func<int>>(GetPrivateField<object>(service, "_daemonHost"), "_sessionCount");
+        try
+        {
+            disposed.SetValue(manager, true);
+            Assert.Equal(1, count());
+            Assert.Equal(1, count());
+            Assert.Equal(original, GetPrivateField<ConcurrentDictionary<string, string>>(
+                manager, "_sessionFilePaths")[session]);
+            Assert.Equal(target, GetPrivateField<ConcurrentDictionary<string, string>>(
+                manager, "_sessionFilePathReservations")[session]);
+
+            disposed.SetValue(manager, false);
+            Assert.Equal(1, count());
+            Assert.True(manager.TryGetFilePath(session, out var reconciled));
+            Assert.Equal(target, reconciled);
+            Assert.Empty(GetPrivateField<ConcurrentDictionary<string, string>>(manager, "_sessionFilePathReservations"));
+            var claims = GetPrivateField<ConcurrentDictionary<string, string>>(manager, "_activeFilePaths");
+            Assert.False(claims.ContainsKey(original));
+            Assert.Equal(session, claims[target]);
+        }
+        finally
+        {
+            disposed.SetValue(manager, false);
+            GetPrivateField<ConcurrentDictionary<string, IExcelBatch>>(manager, "_activeSessions")
+                .TryRemove(session, out _);
+        }
+    }
+
+    [Fact]
+    public void DaemonIdlePolling_PreservesCompletedLateStartupFailure()
+    {
+        using var service = new ExcelMcpService();
+        var batch = (ExcelBatch)RuntimeHelpers.GetUninitializedObject(typeof(ExcelBatch));
+        const string message = "Opening failed after the caller stopped waiting.";
+        foreach (var (name, value) in new (string, object)[]
+        {
+            ("_workbookPath", Path.GetFullPath("late-startup-failure.xlsx")),
+            ("_excelProcessId", int.MaxValue),
+            ("_startupCompletion", Task.FromException(new InvalidOperationException(message))),
+            ("_statusLock", new object()),
+            ("_operationState", "failed"),
+            ("_operationError", message),
+            ("_waitExpired", true)
+        })
+        {
+            var field = typeof(ExcelBatch).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.NotNull(field);
+            field.SetValue(batch, value);
+        }
+        const string sessionId = "late-startup-failure";
+        RegisterSession(service, sessionId, batch);
+        try
+        {
+            Assert.False(batch.IsExcelProcessAlive());
+            var host = GetPrivateField<object>(service, "_daemonHost");
+            var sessionCount = GetPrivateField<Func<int>>(host, "_sessionCount");
+            Assert.Equal(1, sessionCount());
+            Assert.Equal(1, sessionCount());
+            Assert.False(service.SessionManager.TryBeginOperation(sessionId, out _, out var error));
+            Assert.Contains(message, error, StringComparison.Ordinal);
+            var status = Assert.IsType<ExcelOperationStatus>(service.SessionManager.GetOperationStatus(sessionId));
+            Assert.Equal("failed", status.State);
+            Assert.Equal(message, status.ErrorMessage);
+            Assert.True(status.WaitExpired);
+            Assert.False(status.ExecutionPending);
+            Assert.Equal(sessionId, Assert.Single(service.SessionManager.GetActiveSessions()).SessionId);
+        }
+        finally
+        {
+            GetPrivateField<ConcurrentDictionary<string, IExcelBatch>>(
+                service.SessionManager, "_activeSessions").TryRemove(sessionId, out _);
+        }
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void SerializePartialState_PreservesQueryFieldsAndExpiredOperation(bool hasQuery, bool waitExpired)
+    {
+        var query = hasQuery ? new PowerQueryPartialState
+        {
+            QueryName = "Retained query",
+            QueryCreated = true,
+            QueryExists = true,
+            LoadMode = PowerQueryLoadMode.LoadToTable,
+            TargetSheet = "Actual"
+        } : null;
+        var operation = new ExcelOperationStatus("running", 3.5, waitExpired, true, null, "shown")
+        {
+            Command = "powerquery.create"
+        };
+        var method = typeof(ExcelMcpService).GetMethod("SerializePartialState",
+            BindingFlags.Static | BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        var result = method.Invoke(null, [query, operation]);
+        if (!hasQuery && !waitExpired)
+        {
+            Assert.Null(result);
+            return;
+        }
+        using var json = JsonDocument.Parse(Assert.IsType<string>(result));
+        Assert.Equal(hasQuery, json.RootElement.TryGetProperty("queryName", out var name));
+        if (hasQuery)
+        {
+            Assert.Equal("Retained query", name.GetString());
+            Assert.True(json.RootElement.GetProperty("queryCreated").GetBoolean());
+            Assert.True(json.RootElement.GetProperty("queryExists").GetBoolean());
+            Assert.Equal("load-to-table", json.RootElement.GetProperty("loadMode").GetString());
+            Assert.Equal("Actual", json.RootElement.GetProperty("targetSheet").GetString());
+        }
+        Assert.Equal(waitExpired, json.RootElement.TryGetProperty("operation", out var status));
+        if (waitExpired)
+        {
+            Assert.Equal("running", status.GetProperty("state").GetString());
+            Assert.Equal(3.5, status.GetProperty("elapsedSeconds").GetDouble());
+            Assert.True(status.GetProperty("waitExpired").GetBoolean());
+            Assert.True(status.GetProperty("executionPending").GetBoolean());
+            Assert.Equal("shown", status.GetProperty("windowReveal").GetString());
+            Assert.Equal("powerquery.create", status.GetProperty("command").GetString());
+        }
+    }
+
+    [Fact]
     public void CreateErrorResponse_PartialState_SurvivesContextAndSharedProtocolRoundTrip()
     {
+        using var service = new ExcelMcpService();
         var state = new PowerQueryPartialState
         {
             QueryName = "Query",
@@ -41,8 +195,8 @@ public sealed class ExcelMcpServiceErrorTests
         var error = new PowerQueryCommandException("Privacy failure with retained query", "Privacy",
             new InvalidOperationException("Original error"), state);
         var create = typeof(ExcelMcpService).GetMethod("CreateErrorResponse",
-            BindingFlags.Static | BindingFlags.NonPublic)!;
-        var response = Assert.IsType<ServiceResponse>(create.Invoke(null, [error, null, null]));
+            BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var response = Assert.IsType<ServiceResponse>(create.Invoke(service, [error, null, null]));
         var attach = typeof(ExcelMcpService).GetMethod("AttachRequestContext",
             BindingFlags.Static | BindingFlags.NonPublic)!;
         response = Assert.IsType<ServiceResponse>(attach.Invoke(null,
@@ -78,6 +232,7 @@ public sealed class ExcelMcpServiceErrorTests
     [InlineData("permissions", "Permissions")]
     public void CreateErrorResponse_PreservesKnownNestedCategory(string scenario, string? category)
     {
+        using var service = new ExcelMcpService();
 #pragma warning disable CA2201 // Synthetic exceptions exercise serialization, not COM behavior.
         Exception error = scenario switch
         {
@@ -91,8 +246,8 @@ public sealed class ExcelMcpServiceErrorTests
         };
 #pragma warning restore CA2201
         var method = typeof(ExcelMcpService).GetMethod("CreateErrorResponse",
-            BindingFlags.Static | BindingFlags.NonPublic)!;
-        var response = Assert.IsType<ServiceResponse>(method.Invoke(null, [error, "vba.run", "session"]));
+            BindingFlags.Instance | BindingFlags.NonPublic)!;
+        var response = Assert.IsType<ServiceResponse>(method.Invoke(service, [error, "vba.run", "session"]));
 
         Assert.False(response.Success);
         Assert.Equal(category, response.ErrorCategory);
@@ -382,10 +537,10 @@ public sealed class ExcelMcpServiceErrorTests
         });
 
         Assert.False(response.Success);
-        Assert.Equal("SessionInvalidated", response.ErrorCategory);
+        Assert.Equal("SessionUnavailable", response.ErrorCategory);
         Assert.NotNull(response.ErrorMessage);
-        Assert.Contains("timed out or was cancelled", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("reopen", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("expired", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("remains open", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(0, batch.ExecuteCalls);
     }
 
@@ -446,7 +601,7 @@ public sealed class ExcelMcpServiceErrorTests
     [InlineData(unchecked((int)0x80010108), "nested")]
     [InlineData(unchecked((int)0x80010108), "cancelled")]
     [InlineData(unchecked((int)0x80010108), "timeout")]
-    public async Task ProcessAsync_SecondaryAggregateDisconnect_RetiresSession(int hresult, string wrapper)
+    public async Task ProcessAsync_SecondaryAggregateDisconnect_PreservesLiveSession(int hresult, string wrapper)
     {
         using var service = new ExcelMcpService();
         var mutationError = new InvalidOperationException("Workbook mutation failed.");
@@ -477,23 +632,23 @@ public sealed class ExcelMcpServiceErrorTests
         });
 
         Assert.False(response.Success);
-        Assert.Equal("ExcelProcessDied", response.ErrorCategory);
+        Assert.Equal("ExcelDisconnected", response.ErrorCategory);
         Assert.Equal($"0x{hresult:X8}", response.HResult);
         Assert.Equal(error.GetType().Name, response.ExceptionType);
         Assert.Equal("sheet.list", response.Command);
         Assert.Equal(sessionId, response.SessionId);
-        Assert.Contains("reopen", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("still live", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(error.InnerException!.Message, response.InnerError);
         Assert.False(batch.HasTimedOutOperation);
         Assert.True(batch.IsAlive);
         Assert.Equal(1, batch.ExecuteCalls);
-        Assert.Equal(1, batch.DisposeCalls);
+        Assert.Equal(0, batch.DisposeCalls);
         Assert.Equal(0, batch.SaveCalls);
 
         var listResponse = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
         Assert.True(listResponse.Success);
         Assert.NotNull(listResponse.Result);
-        Assert.DoesNotContain(sessionId, listResponse.Result, StringComparison.Ordinal);
+        Assert.Contains(sessionId, listResponse.Result, StringComparison.Ordinal);
 
         var retryResponse = await service.ProcessAsync(new ServiceRequest
         {
@@ -501,8 +656,8 @@ public sealed class ExcelMcpServiceErrorTests
             SessionId = sessionId
         });
         Assert.False(retryResponse.Success);
-        Assert.Equal("SessionNotFound", retryResponse.ErrorCategory);
-        Assert.Equal(1, batch.ExecuteCalls);
+        Assert.Equal("ExcelDisconnected", retryResponse.ErrorCategory);
+        Assert.Equal(2, batch.ExecuteCalls);
     }
 
     [Theory]
@@ -582,7 +737,7 @@ public sealed class ExcelMcpServiceErrorTests
 
         Assert.False(response.Success);
         Assert.NotNull(response.ErrorMessage);
-        Assert.Contains("timed out or was cancelled", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("busy", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(0, batch.SaveCalls);
     }
 
@@ -636,7 +791,7 @@ public sealed class ExcelMcpServiceErrorTests
             $"Expected ExcelProcessDied but got '{response.ErrorCategory}'. Message: {response.ErrorMessage}");
         Assert.NotNull(response.ErrorMessage);
         Assert.Contains("disconnected", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("Session has been cleaned up", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Dead-session tracking has been removed", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(1, batch.SaveCalls);
         Assert.Equal(1, batch.DisposeCalls);
 
@@ -646,7 +801,7 @@ public sealed class ExcelMcpServiceErrorTests
         Assert.DoesNotContain(sessionId, listResponse.Result, StringComparison.Ordinal);
     }
 
-    private static void RegisterSession(ExcelMcpService service, string sessionId, FakeBatch batch)
+    private static void RegisterSession(ExcelMcpService service, string sessionId, IExcelBatch batch)
     {
         var sessionManager = GetPrivateField<SessionManager>(service, "_sessionManager");
         var activeSessions = GetPrivateField<ConcurrentDictionary<string, IExcelBatch>>(sessionManager, "_activeSessions");
@@ -676,7 +831,8 @@ public sealed class ExcelMcpServiceErrorTests
 
     private sealed class FakeBatch : IExcelBatch, IExcelBatchRefreshState
     {
-        public WorkbookRefreshState GetRefreshState() => WorkbookRefreshState.Ready;
+        public WorkbookRefreshState GetRefreshState() =>
+            HasTimedOutOperation ? WorkbookRefreshState.Busy : WorkbookRefreshState.Ready;
         public string WorkbookPath { get; init; } = Path.Combine(Path.GetTempPath(), $"fake-batch-{Guid.NewGuid():N}.xlsx");
         public Microsoft.Extensions.Logging.ILogger Logger { get; } = NullLogger.Instance;
         public IReadOnlyDictionary<string, Excel.Workbook> Workbooks { get; } = new Dictionary<string, Excel.Workbook>();
@@ -704,7 +860,7 @@ public sealed class ExcelMcpServiceErrorTests
                 throw ExecuteException;
             }
 
-            throw new InvalidOperationException("Execute should not be called for a poisoned fake batch.");
+            throw new InvalidOperationException("Execute should not be called for this unavailable fake batch.");
         }
 
         public T Execute<T>(Func<ExcelContext, CancellationToken, T> operation, CancellationToken cancellationToken = default)
@@ -715,7 +871,7 @@ public sealed class ExcelMcpServiceErrorTests
                 throw ExecuteException;
             }
 
-            throw new InvalidOperationException("Execute should not be called for a poisoned fake batch.");
+            throw new InvalidOperationException("Execute should not be called for this unavailable fake batch.");
         }
 
         public void Save(CancellationToken cancellationToken = default)

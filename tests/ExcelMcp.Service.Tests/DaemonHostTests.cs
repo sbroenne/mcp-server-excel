@@ -13,6 +13,46 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed class DaemonHostTests
 {
     [Fact(Timeout = 15000)]
+    public async Task Disconnect_NotifiesAbandonmentWithoutCancellingOriginalHandler()
+    {
+        var pipeName = $"excelmcp-daemon-disconnect-{Guid.NewGuid():N}";
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var original = new TaskCompletionSource<ServiceResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var abandoned = new TaskCompletionSource<ServiceRequest>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var host = new DaemonHost(async _ =>
+        {
+            entered.TrySetResult();
+            var response = await original.Task;
+            completed.TrySetResult();
+            return response;
+        }, static () => 0, requestAbandoned: (request, _) => abandoned.TrySetResult(request));
+        var run = host.RunAsync(pipeName);
+        var check = await Record.ExceptionAsync(async () =>
+        {
+            using var pipe = ServiceSecurity.CreateClient(pipeName);
+            await pipe.ConnectAsync(5000);
+            var proxy = JsonRpc.Attach<IExcelDaemonRpc>(pipe);
+            using var connection = (IDisposable)proxy;
+            var invocation = proxy.ProcessCommandAsync(
+                new ServiceRequest { Command = "session.save", SessionId = "retained-session" });
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            connection.Dispose();
+            await Assert.ThrowsAsync<ConnectionLostException>(() => invocation);
+            Assert.Equal("retained-session",
+                (await abandoned.Task.WaitAsync(TimeSpan.FromSeconds(5))).SessionId);
+            Assert.False(original.Task.IsCompleted);
+            Assert.False(completed.Task.IsCompleted);
+            original.SetResult(new ServiceResponse { Success = true });
+            await completed.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        });
+        original.TrySetResult(new ServiceResponse { Success = true });
+        host.RequestShutdown();
+        var shutdown = await Record.ExceptionAsync(() => run.WaitAsync(TimeSpan.FromSeconds(5)));
+        Assert.All(new[] { check, shutdown }, failure => Assert.Null(failure));
+    }
+
+    [Fact(Timeout = 15000)]
     public async Task MutationFailure_PartialStateSurvivesDaemonTransport()
     {
         var pipeName = $"excelmcp-daemon-state-{Guid.NewGuid():N}";

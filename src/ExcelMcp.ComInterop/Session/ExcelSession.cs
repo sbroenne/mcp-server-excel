@@ -69,6 +69,15 @@ public static class ExcelSession
         TimeSpan? operationTimeout,
         TimeSpan? startupTimeout,
         params string[] filePaths)
+        => CreateBatch(show, operationTimeout, startupTimeout, false, filePaths);
+
+    internal static ExcelBatch BeginOwnedBatch(
+        bool show, TimeSpan? operationTimeout, TimeSpan? startupTimeout, string filePath)
+        => CreateBatch(show, operationTimeout, startupTimeout, true, filePath);
+
+    private static ExcelBatch CreateBatch(
+        bool show, TimeSpan? operationTimeout, TimeSpan? startupTimeout,
+        bool deferStartup, params string[] filePaths)
     {
         if (filePaths == null || filePaths.Length == 0)
             throw new ArgumentException("At least one file path is required", nameof(filePaths));
@@ -100,15 +109,17 @@ public static class ExcelSession
             logger: null,
             show: show,
             operationTimeout: operationTimeout,
-            startupTimeout: startupTimeout);
+            startupTimeout: startupTimeout,
+            deferStartup: deferStartup);
     }
 
     /// <summary>
     /// Opens one workbook read-only for validation and returns a disposable batch.
     /// </summary>
-    internal static IExcelBatch BeginReadOnlyValidation(
+    internal static ExcelBatch BeginReadOnlyValidation(
         string filePath,
-        TimeSpan? operationTimeout)
+        TimeSpan? operationTimeout,
+        bool deferStartup = false)
     {
         var fullPath = WorkbookLocation.Normalize(filePath);
         if (!WorkbookLocation.IsRemote(fullPath) && !File.Exists(fullPath))
@@ -131,7 +142,8 @@ public static class ExcelSession
             logger: null,
             show: WorkbookLocation.IsRemote(fullPath),
             operationTimeout: operationTimeout,
-            openReadOnly: true);
+            openReadOnly: true,
+            deferStartup: deferStartup);
     }
 
 }

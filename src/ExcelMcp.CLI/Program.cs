@@ -151,6 +151,8 @@ internal sealed class Program
                     .WithDescription("Open an Excel file and create a session. Add --show for visible Excel.");
                 branch.AddCommand<SessionCloseCommand>("close")
                     .WithDescription("Close a session. Use --save to persist changes.");
+                branch.AddCommand<SessionSaveCommand>("save")
+                    .WithDescription("Save the current workbook without closing its session. Excel must be ready.");
                 branch.AddCommand<SessionListCommand>("list")
                     .WithDescription("List active sessions with canClose, excelState, operationPending and blocker details. For nativeQueryApproval, show Excel and approve the query manually; the operation remains pending.");
                 branch.AddCommand<SessionTestCommand>("test")

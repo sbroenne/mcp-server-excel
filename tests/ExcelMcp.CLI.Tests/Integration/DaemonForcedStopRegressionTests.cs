@@ -1,7 +1,5 @@
 using System.Diagnostics;
-using System.Reflection;
 using System.Text.Json;
-using Sbroenne.ExcelMcp.CLI.Commands;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
 using Sbroenne.ExcelMcp.Service;
@@ -21,12 +19,44 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Collection("Sequential")]
 public sealed class DaemonForcedStopRegressionTests
 {
+    [Fact]
+    public async Task AutomaticStartup_RetainsLiveExcelAfterItsDaemonExited()
+    {
+        var pipeName = $"excelmcp-retained-startup-{Guid.NewGuid():N}";
+        using var daemon = StartSleepingProcess();
+        using var excel = StartSleepingProcess();
+        try
+        {
+            RegisterTrackedProcesses(pipeName, daemon, excel);
+            StopIfRunning(daemon);
+            var result = await CliProcessHelper.RunAsync(
+                "service start",
+                timeoutMs: 35000,
+                environmentVariables: new() { ["EXCELMCP_CLI_PIPE"] = pipeName });
+            Assert.Equal(1, result.ExitCode);
+            using var json = JsonDocument.Parse(result.Stdout);
+            Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+            Assert.Contains("remain open", json.RootElement.GetProperty("errorMessage").GetString(),
+                StringComparison.OrdinalIgnoreCase);
+            Assert.False(excel.HasExited);
+            Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
+            Assert.Equal(daemon.Id, DaemonProcessTracker.ReadProcessSnapshot(pipeName).Snapshot!.DaemonProcess.ProcessId);
+        }
+        finally
+        {
+            await RunServiceStopAsync(pipeName);
+            StopIfRunning(daemon);
+            StopIfRunning(excel);
+            DaemonProcessTracker.Clear(pipeName);
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task ShutdownRefusal_DoesNotForceTrackedProcesses(bool requestTimedOut)
+    public async Task UnconfirmedShutdown_DoesNotTerminateLiveDaemonOrExcel(bool responseFails)
     {
-        var pipeName = $"excelmcp-shutdown-refused-{Guid.NewGuid():N}";
+        var pipeName = $"excelmcp-unconfirmed-stop-{Guid.NewGuid():N}";
         using var daemon = StartSleepingProcess();
         using var excel = StartSleepingProcess();
         using var server = ServiceSecurity.CreateSecureServer(pipeName);
@@ -34,14 +64,13 @@ public sealed class DaemonForcedStopRegressionTests
         {
             RegisterTrackedProcesses(pipeName, daemon, excel);
             var connection = server.WaitForConnectionAsync();
-            var stop = RunServiceStopAsync(pipeName);
+            var stop = RunServiceStopWithDaemonMutexAsync(pipeName);
             await connection.WaitAsync(TimeSpan.FromSeconds(10));
-            using var rpc = JsonRpc.Attach(server, new RefusedShutdownRpcTarget(requestTimedOut));
-            var result = await stop.WaitAsync(TimeSpan.FromSeconds(20));
+            using var rpc = JsonRpc.Attach(server, new UnconfirmedShutdownRpcTarget(responseFails));
+            var result = await stop.WaitAsync(TimeSpan.FromSeconds(25));
             Assert.Equal(1, result.ExitCode);
             using var json = JsonDocument.Parse(result.Stdout);
             Assert.False(json.RootElement.GetProperty("success").GetBoolean());
-            Assert.Equal(requestTimedOut ? "Timeout" : "Busy", json.RootElement.GetProperty("errorCategory").GetString());
             Assert.False(daemon.HasExited);
             Assert.False(excel.HasExited);
             Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
@@ -54,7 +83,54 @@ public sealed class DaemonForcedStopRegressionTests
         }
     }
 
-    private sealed class RefusedShutdownRpcTarget(bool requestTimedOut)
+    private sealed class UnconfirmedShutdownRpcTarget(bool responseFails)
+    {
+        public Task<ServiceResponse> ProcessCommandAsync(ServiceRequest request)
+        {
+            Assert.Equal("service.shutdown", request.Command);
+            return responseFails
+                ? Task.FromException<ServiceResponse>(new IOException("Shutdown response unavailable."))
+                : Task.FromResult(new ServiceResponse { Success = true });
+        }
+    }
+
+    [Theory]
+    [InlineData("Busy")]
+    [InlineData("Timeout")]
+    [InlineData("SaveFailed")]
+    [InlineData("InternalError")]
+    [InlineData("Cancelled")]
+    public async Task ShutdownRefusal_DoesNotForceTrackedProcesses(string category)
+    {
+        var pipeName = $"excelmcp-shutdown-refused-{Guid.NewGuid():N}";
+        using var daemon = StartSleepingProcess();
+        using var excel = StartSleepingProcess();
+        using var server = ServiceSecurity.CreateSecureServer(pipeName);
+        try
+        {
+            RegisterTrackedProcesses(pipeName, daemon, excel);
+            var connection = server.WaitForConnectionAsync();
+            var stop = RunServiceStopWithDaemonMutexAsync(pipeName);
+            await connection.WaitAsync(TimeSpan.FromSeconds(10));
+            using var rpc = JsonRpc.Attach(server, new RefusedShutdownRpcTarget(category));
+            var result = await stop.WaitAsync(TimeSpan.FromSeconds(20));
+            Assert.Equal(1, result.ExitCode);
+            using var json = JsonDocument.Parse(result.Stdout);
+            Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal(category, json.RootElement.GetProperty("errorCategory").GetString());
+            Assert.False(daemon.HasExited);
+            Assert.False(excel.HasExited);
+            Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
+        }
+        finally
+        {
+            StopIfRunning(daemon);
+            StopIfRunning(excel);
+            DaemonProcessTracker.Clear(pipeName);
+        }
+    }
+
+    private sealed class RefusedShutdownRpcTarget(string category)
     {
         public Task<ServiceResponse> ProcessCommandAsync(ServiceRequest request)
         {
@@ -62,8 +138,8 @@ public sealed class DaemonForcedStopRegressionTests
             return Task.FromResult(new ServiceResponse
             {
                 Success = false,
-                ErrorCategory = requestTimedOut ? "Timeout" : "Busy",
-                ErrorMessage = requestTimedOut ? "Service request timed out" : "Excel remains open until saving is safe."
+                ErrorCategory = category,
+                ErrorMessage = "Shutdown did not complete; the workbook remains open."
             });
         }
     }
@@ -725,7 +801,7 @@ public sealed class DaemonForcedStopRegressionTests
     }
 
     [Fact]
-    public async Task ForceStopTrackedDaemon_AlsoStopsTrackedExcelProcess()
+    public async Task Cleanup_ExplicitTrackedCleanupStopsOwnedProcesses()
     {
         var pipeName = $"excelmcp-force-stop-test-{Guid.NewGuid():N}";
         using var daemon = StartSleepingProcess();
@@ -740,15 +816,10 @@ public sealed class DaemonForcedStopRegressionTests
             DaemonProcessTracker.UpdateExcelProcesses(pipeName, daemonIdentity, [excel.Id]);
             var preShutdownSnapshot = OwnedProcessCleanup.CaptureTrackedProcesses(pipeName);
 
-            var method = typeof(ServiceStopCommand).GetMethod(
-                "TryForceStopTrackedDaemonAsync",
-                BindingFlags.Static | BindingFlags.NonPublic);
-            Assert.NotNull(method);
-
-            var stopTask = (Task<bool>)method!.Invoke(
-                null,
-                [pipeName, preShutdownSnapshot, CancellationToken.None])!;
-            Assert.True(await stopTask);
+            var cleanup = await OwnedProcessCleanup.CleanupAsync(
+                pipeName, preShutdownSnapshot, CancellationToken.None);
+            Assert.True(cleanup.Success, cleanup.ErrorMessage);
+            Assert.True(cleanup.DaemonMatched);
 
             await daemon.WaitForExitAsync();
             await excel.WaitForExitAsync();
@@ -1148,6 +1219,15 @@ public sealed class DaemonForcedStopRegressionTests
         DaemonProcessTracker.UpdateExcelProcesses(pipeName, daemonIdentity, [excel.Id]);
         return daemonIdentity;
     }
+
+    private static Task<CliResult> RunServiceStopWithDaemonMutexAsync(string pipeName) =>
+        Task.Run(() =>
+        {
+            using var mutex = new Mutex(true, DaemonAutoStart.GetDaemonMutexName(pipeName), out var created);
+            Assert.True(created);
+            try { return RunServiceStopAsync(pipeName).GetAwaiter().GetResult(); }
+            finally { mutex.ReleaseMutex(); }
+        });
 
     private static async Task<CliResult> RunServiceStopAsync(string pipeName)
     {

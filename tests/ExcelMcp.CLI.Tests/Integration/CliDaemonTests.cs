@@ -74,7 +74,8 @@ public sealed class CliDaemonTests(ITestOutputHelper output) : CliDaemonTestBase
         var error = json.RootElement.GetProperty("errorMessage").GetString();
         Assert.NotNull(error);
         Assert.Contains("not responding", error, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("service stop", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("workbooks remain owned", error, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("service stop", error, StringComparison.OrdinalIgnoreCase);
         Assert.False(json.RootElement.TryGetProperty("error", out _));
     }
 
@@ -97,7 +98,8 @@ public sealed class CliDaemonTests(ITestOutputHelper output) : CliDaemonTestBase
         var error = json.RootElement.GetProperty("errorMessage").GetString();
         Assert.NotNull(error);
         Assert.Contains("not responding", error, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("service stop", error, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("workbooks remain owned", error, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("service stop", error, StringComparison.OrdinalIgnoreCase);
     }
 
 }
@@ -706,31 +708,41 @@ public sealed class CliDaemonLifecycleTests(ITestOutputHelper output) : CliDaemo
     }
 
     [Fact]
-    public async Task ServiceStop_WhenDaemonIsUnresponsiveButTracked_ForceStopsTrackedProcess()
+    public async Task ServiceStop_WhenDaemonIsUnresponsiveButTracked_PreservesTrackedProcess()
     {
         var mutexName = DaemonAutoStart.GetDaemonMutexName(_testPipeName);
         using var sleeper = StartMutexHoldingProcess(mutexName);
-        var ready = await sleeper.StandardOutput.ReadLineAsync()
-            .WaitAsync(TimeSpan.FromSeconds(30));
-        Assert.Equal("ready", ready);
+        try
+        {
+            var ready = await sleeper.StandardOutput.ReadLineAsync()
+                .WaitAsync(TimeSpan.FromSeconds(30));
+            Assert.Equal("ready", ready);
 
-        DaemonProcessTracker.RegisterProcess(
-            _testPipeName,
-            sleeper.Id,
-            sleeper.StartTime.ToUniversalTime().ToFileTimeUtc());
+            DaemonProcessTracker.RegisterProcess(
+                _testPipeName,
+                sleeper.Id,
+                sleeper.StartTime.ToUniversalTime().ToFileTimeUtc());
 
-        var result = await CliProcessHelper.RunAsync("service stop", timeoutMs: 15000, environmentVariables: TestEnv);
-        _output.WriteLine($"Forced stop response: {result.Stdout}");
-        _output.WriteLine($"Forced stop stderr: {result.Stderr}");
+            var result = await CliProcessHelper.RunAsync("service stop", timeoutMs: 15000, environmentVariables: TestEnv);
+            _output.WriteLine($"Unconfirmed stop response: {result.Stdout}");
+            _output.WriteLine($"Unconfirmed stop stderr: {result.Stderr}");
 
-        using var json = JsonDocument.Parse(result.Stdout);
-        Assert.Equal(0, result.ExitCode);
-        Assert.True(json.RootElement.GetProperty("success").GetBoolean());
-        Assert.True(json.RootElement.GetProperty("forced").GetBoolean());
-
-        var exited = sleeper.WaitForExit(5000);
-        Assert.True(exited, "Tracked daemon process should be force-stopped when shutdown RPC cannot get through");
-        Assert.False(File.Exists(DaemonProcessTracker.GetTrackingFilePath(_testPipeName)));
+            using var json = JsonDocument.Parse(result.Stdout);
+            Assert.Equal(1, result.ExitCode);
+            Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+            Assert.Equal("Timeout", json.RootElement.GetProperty("errorCategory").GetString());
+            Assert.False(sleeper.HasExited);
+            Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(_testPipeName)));
+        }
+        finally
+        {
+            if (!sleeper.HasExited)
+            {
+                sleeper.Kill();
+                await sleeper.WaitForExitAsync();
+            }
+            DaemonProcessTracker.Clear(_testPipeName);
+        }
     }
 
     [Fact]

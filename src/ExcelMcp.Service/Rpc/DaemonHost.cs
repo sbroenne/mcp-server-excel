@@ -12,6 +12,7 @@ internal sealed class DaemonHost : IDisposable
     private readonly ConcurrentDictionary<Task, byte> _activeConnectionTasks = new();
     private readonly CancellationTokenSource _shutdownCts = new();
     private readonly Func<ServiceRequest, Task<ServiceResponse>> _requestHandler;
+    private readonly Action<ServiceRequest, ServiceResponse?>? _requestAbandoned;
     private readonly Func<int> _sessionCount;
     private readonly TimeProvider _timeProvider;
     private readonly Func<TimeSpan, CancellationToken, Task> _delay;
@@ -26,11 +27,13 @@ internal sealed class DaemonHost : IDisposable
         Func<int> sessionCount,
         TimeProvider? timeProvider = null,
         Func<TimeSpan, CancellationToken, Task>? delay = null,
-        Func<string, NamedPipeServerStream>? serverFactory = null)
+        Func<string, NamedPipeServerStream>? serverFactory = null,
+        Action<ServiceRequest, ServiceResponse?>? requestAbandoned = null)
     {
         ArgumentNullException.ThrowIfNull(requestHandler);
         ArgumentNullException.ThrowIfNull(sessionCount);
         _requestHandler = requestHandler;
+        _requestAbandoned = requestAbandoned;
         _sessionCount = sessionCount;
         _timeProvider = timeProvider ?? TimeProvider.System;
         _delay = delay
@@ -142,8 +145,12 @@ internal sealed class DaemonHost : IDisposable
         await connectionLimit.WaitAsync();
         try
         {
-            var rpcTarget = new DaemonRpcTarget(_requestHandler, RecordActivity);
-            using var rpc = JsonRpc.Attach(clientServer, rpcTarget);
+            var rpcTarget = new DaemonRpcTarget(_requestHandler, RecordActivity, _requestAbandoned);
+            using var rpc = new JsonRpc(clientServer, clientServer, rpcTarget)
+            {
+                CancelLocallyInvokedMethodsWhenConnectionIsClosed = true
+            };
+            rpc.StartListening();
             await rpc.Completion;
         }
         catch (Exception ex) when (ex is not OperationCanceledException)

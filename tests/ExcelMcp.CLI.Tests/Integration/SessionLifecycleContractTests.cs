@@ -36,8 +36,7 @@ public sealed class SessionLifecycleContractTests : IDisposable
         Assert.Contains("close", output, StringComparison.Ordinal);
         Assert.Contains("list", output, StringComparison.Ordinal);
         Assert.Contains("test", output, StringComparison.Ordinal);
-        Assert.DoesNotContain("save a session", output, StringComparison.OrdinalIgnoreCase);
-        Assert.DoesNotContain("session save", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("save", output, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
@@ -59,7 +58,7 @@ public sealed class SessionLifecycleContractTests : IDisposable
     }
 
     [Fact]
-    public async Task SessionSave_IsRejectedAsAnUnknownCommand()
+    public async Task SessionSave_MissingSession_ReturnsSessionNotFound()
     {
         var result = await CliProcessHelper.RunAsync(
             ["session", "save", "--session", "missing-session"],
@@ -67,8 +66,8 @@ public sealed class SessionLifecycleContractTests : IDisposable
         var output = result.Stdout + result.Stderr;
 
         Assert.NotEqual(0, result.ExitCode);
-        Assert.Contains("Unknown command", output, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("save", output, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("SessionNotFound", output, StringComparison.Ordinal);
+        Assert.Contains("missing-session", output, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -47,9 +47,9 @@ telemetry. `ExcelMcpService` is not a standalone process. See
 - One session owns one Excel application process and may contain one or more open workbooks.
 - Operations inside one session run in order on one Excel thread.
 - Different sessions can run independently, but the same workbook cannot be opened in multiple sessions.
-- A timeout can leave Excel busy after the caller stops waiting. Such a session is no longer safe for additional work and must be closed.
-- Ordinary operations change the in-memory workbook. Explicit close defaults to discarding unsaved changes; request saving to keep them. Normal Service shutdown attempts to save remaining sessions before disposal. Bare batch disposal, crashes, and forced cancellation cleanup do not guarantee saving.
-- MCP uses the official SDK for registration, transport, argument binding, and protocol errors. The host owns its injected Service bridge; cancelled startup reclaims only the eventual session. Session publication is coordinated with shutdown.
+- An expired wait can leave Excel working. Retain the session and workbook, reveal the affected Excel window when possible, and report status to the calling agent. New work is refused until the original callback has returned and Excel readiness is confirmed; then the same session can be reused.
+- Ordinary operations change the in-memory workbook. Explicit close defaults to discarding unsaved changes; request saving to keep them. Normal Service shutdown attempts to save remaining sessions, but leaves sessions open when saving or closing fails. An expired wait or caller cancellation does not authorize saving, discarding, rollback, or termination.
+- MCP uses the official SDK for registration, transport, argument binding, and protocol errors. The host owns its injected Service bridge; cancelled startup retains its eventual session. Session publication is coordinated with shutdown.
 
 ## Sources of truth
 

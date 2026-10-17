@@ -46,6 +46,8 @@ public sealed class ExcelContext
     /// </summary>
     public Excel.Workbook Book { get; }
 
+    internal ExcelProcessIdentity? ProcessIdentity { get; init; }
+
     /// <summary>
     /// Gets the session's cached Excel capabilities. Access on the session's STA thread.
     /// </summary>

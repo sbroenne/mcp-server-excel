@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
@@ -25,7 +26,7 @@ public sealed class VbaCommandsTimeoutTests :
     [Fact(Timeout = 60000)]
     [Trait("RunType", "OnDemand")]
     [Trait("Speed", "Slow")]
-    public async Task ScriptCommands_Run_WhenMacroExceedsCallerTimeout_ReportsTimeoutAndPoisonsBatch()
+    public async Task ScriptCommands_Run_WhenMacroExceedsCallerTimeout_PreservesExecutionAndLateChanges()
     {
         await Task.Yield();
 
@@ -33,6 +34,7 @@ public sealed class VbaCommandsTimeoutTests :
         const string vbaCode = """
             Sub WaitForTimeout()
                 Application.Wait Now + TimeSerial(0, 0, 15)
+                ThisWorkbook.Worksheets(1).Range("A1").Value = "Macro finished"
             End Sub
             """;
 
@@ -42,8 +44,9 @@ public sealed class VbaCommandsTimeoutTests :
             testFile);
         var commands = new VbaCommands();
 
-        try
+        var failure = await Record.ExceptionAsync(async () =>
         {
+            await Task.Yield();
             _ = commands.Import(batch, "TimeoutModule", vbaCode);
 
             var runStopwatch = Stopwatch.StartNew();
@@ -68,14 +71,39 @@ public sealed class VbaCommandsTimeoutTests :
 
             Assert.True(
                 retryStopwatch.Elapsed < TimeSpan.FromSeconds(1),
-                $"A poisoned batch should fail immediately, but took {retryStopwatch.Elapsed}.");
+                $"Pending execution should reject new work immediately, but took {retryStopwatch.Elapsed}.");
             Assert.Contains(
-                "previous operation",
+                "previous wait expired",
                 retryException.Message,
                 StringComparison.OrdinalIgnoreCase);
-        }
-        finally
+            Assert.Throws<ExcelBusyException>(batch.Dispose);
+            Assert.True(batch.IsExcelProcessAlive());
+            await WaitUntilReadyAsync(batch);
+            Assert.False(batch.HasTimedOutOperation);
+            Assert.Equal("Macro finished", batch.Execute((context, _) =>
+            {
+                Microsoft.Office.Interop.Excel.Sheets? sheets = null;
+                Microsoft.Office.Interop.Excel.Worksheet? sheet = null;
+                Microsoft.Office.Interop.Excel.Range? cell = null;
+                try
+                {
+                    sheets = context.Book.Worksheets;
+                    sheet = (Microsoft.Office.Interop.Excel.Worksheet)sheets[1];
+                    cell = sheet.Range["A1"];
+                    return cell.Value2 as string;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref cell);
+                    ComUtilities.Release(ref sheet);
+                    ComUtilities.Release(ref sheets);
+                }
+            }));
+        });
+        var cleanupFailure = await Record.ExceptionAsync(async () =>
         {
+            if (batch.IsExcelProcessAlive())
+                await WaitUntilReadyAsync(batch);
             var disposeStopwatch = Stopwatch.StartNew();
             batch.Dispose();
             disposeStopwatch.Stop();
@@ -83,6 +111,20 @@ public sealed class VbaCommandsTimeoutTests :
             Assert.True(
                 disposeStopwatch.Elapsed < TimeSpan.FromSeconds(30),
                 $"Timed-out VBA cleanup took {disposeStopwatch.Elapsed}.");
+        });
+        var failures = new[] { failure, cleanupFailure }.OfType<Exception>().ToArray();
+        if (failures.Length > 0)
+            throw new AggregateException("VBA timeout preservation or cleanup failed.", failures);
+    }
+
+    private static async Task WaitUntilReadyAsync(IExcelBatch batch)
+    {
+        var state = Assert.IsAssignableFrom<IExcelBatchRefreshState>(batch);
+        var timer = Stopwatch.StartNew();
+        while (state.GetRefreshState() != WorkbookRefreshState.Ready)
+        {
+            Assert.True(timer.Elapsed < TimeSpan.FromSeconds(30), "VBA execution did not finish.");
+            await Task.Delay(100);
         }
     }
 }

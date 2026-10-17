@@ -10,7 +10,9 @@ public enum FileWriteAction
     [JsonStringEnumMemberName("close")]
     Close,
     [JsonStringEnumMemberName("create")]
-    Create
+    Create,
+    [JsonStringEnumMemberName("save")]
+    Save
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<FileReadAction>))]

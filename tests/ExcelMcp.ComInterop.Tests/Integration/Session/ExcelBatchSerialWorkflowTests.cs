@@ -23,10 +23,10 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 /// - Operation A (success) → Operation B (timeout) → Operation C (attempt)
 /// - Verify C's behavior: does it fail fast? does it hang? is error message useful?
 /// - Verify cleanup: does session close cleanly? can we reopen the same file?
-/// - Verify process cleanup: does Excel process get killed? any leaks?
+/// - Verify process ownership survives until execution finishes and explicit close succeeds.
 ///
-/// Follow-up callbacks must not execute after timeout. Disposal must release
-/// the owned process, and reopening must return the same usable workbook.
+/// Follow-up callbacks must not execute while timed-out work remains pending.
+/// The same batch must recover without discarding unsaved workbook changes.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Slow")]
@@ -87,15 +87,8 @@ public class ExcelBatchSerialWorkflowTests : IAsyncLifetime, IDisposable
     /// 2. Operation B: Long operation that times out
     /// 3. Operation C: Another quick read (should fail fast with useful message)
     /// 
-    /// EXPECTED (if bug exists): Test FAILS because:
-    /// - Operation C hangs or takes too long (session poisoning)
-    /// - Error message is not helpful for recovery
-    /// - Dispose hangs or leaks Excel process
-    /// 
-    /// EXPECTED (if bug fixed): Test PASSES because:
-    /// - Operation C fails FAST (under 1s) with "previous operation timed out" message
-    /// - Dispose completes quickly (under 30s)
-    /// - Excel process is killed
+    /// Follow-up work and disposal refuse promptly until the original callback completes.
+    /// Unsaved workbook contents must survive recovery on the same batch.
     /// </summary>
     [Fact]
     public void SerialWorkflow_TimeoutInMiddle_LaterOperationsFailFast()
@@ -114,6 +107,7 @@ public class ExcelBatchSerialWorkflowTests : IAsyncLifetime, IDisposable
         _output.WriteLine("Operation A: Quick read (should succeed)");
         var operationASw = Stopwatch.StartNew();
         SessionWorkbookAssertions.AssertIdentity(batch, _testFileCopy!);
+        SessionWorkbookAssertions.WriteMarker(batch, "preserved-middle-timeout");
         operationASw.Stop();
         _output.WriteLine($"Operation A verified the workbook in {operationASw.Elapsed.TotalMilliseconds:F0}ms.");
 
@@ -154,11 +148,16 @@ public class ExcelBatchSerialWorkflowTests : IAsyncLifetime, IDisposable
             "Expected < 1s fail-fast. This indicates session poisoning — later operations are not failing fast.");
 
         // Error message should guide recovery
-        Assert.Contains("previous operation", operationCException.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("previous wait", operationCException.Message, StringComparison.OrdinalIgnoreCase);
         Assert.False(rejectedCallbackRan);
         Assert.True(batch.HasTimedOutOperation);
 
-        // Dispose should complete quickly
+        Assert.Throws<ExcelBusyException>(batch.Dispose);
+        Assert.True(batch.IsExcelProcessAlive());
+        Assert.Equal(excelPid, batch.ExcelProcessId);
+        WaitUntilReady(batch);
+        Assert.Equal("preserved-middle-timeout", SessionWorkbookAssertions.ReadMarker(batch));
+
         _output.WriteLine("Disposing batch...");
         var disposeSw = Stopwatch.StartNew();
         batch.Dispose();
@@ -175,11 +174,11 @@ public class ExcelBatchSerialWorkflowTests : IAsyncLifetime, IDisposable
     }
 
     /// <summary>
-    /// REGRESSION TEST: After timeout, can we immediately reopen the same workbook in a new session?
+    /// Reopen the same workbook after the original execution, save, and explicit close complete.
     ///
     /// WORKFLOW:
     /// 1. Session A: Open workbook → timeout
-    /// 2. Dispose Session A
+    /// 2. Wait for original execution, save, then dispose Session A
     /// 3. Session B: Reopen SAME workbook immediately
     /// 4. Verify Session B works
     ///
@@ -214,6 +213,7 @@ public class ExcelBatchSerialWorkflowTests : IAsyncLifetime, IDisposable
 
             // Quick warmup
             SessionWorkbookAssertions.AssertIdentity(sessionA, _testFileCopy!);
+            SessionWorkbookAssertions.WriteMarker(sessionA, "preserved-reopen-timeout");
 
             // Trigger timeout
             _output.WriteLine("  Triggering timeout in Session A...");
@@ -226,7 +226,13 @@ public class ExcelBatchSerialWorkflowTests : IAsyncLifetime, IDisposable
                 });
             });
 
-            // Dispose Session A
+            Assert.Throws<ExcelBusyException>(sessionA.Dispose);
+            Assert.True(sessionA.IsExcelProcessAlive());
+            Assert.Equal(sessionAPid, sessionA.ExcelProcessId);
+            WaitUntilReady(sessionA);
+            Assert.Equal("preserved-reopen-timeout", SessionWorkbookAssertions.ReadMarker(sessionA));
+            sessionA.Save();
+
             _output.WriteLine("  Disposing Session A...");
             var disposeASw = Stopwatch.StartNew();
             sessionA.Dispose();
@@ -255,6 +261,7 @@ public class ExcelBatchSerialWorkflowTests : IAsyncLifetime, IDisposable
             // Verify Session B actually works
             _output.WriteLine("  Verifying Session B operations work...");
             SessionWorkbookAssertions.AssertIdentity(sessionB, _testFileCopy!);
+            Assert.Equal("preserved-reopen-timeout", SessionWorkbookAssertions.ReadMarker(sessionB));
             SessionWorkbookAssertions.WriteMarker(sessionB, "reopened-batch");
             Assert.Equal("reopened-batch", SessionWorkbookAssertions.ReadMarker(sessionB));
 
@@ -278,13 +285,8 @@ public class ExcelBatchSerialWorkflowTests : IAsyncLifetime, IDisposable
     /// 2. Operation B: Timeout (again on same session)
     /// 3. Operation C: Quick read (should still fail fast)
     ///
-    /// EXPECTED (if bug exists): Test FAILS because:
-    /// - Multiple timeouts poison session worse
-    /// - Operation C hangs or shows degraded behavior
-    ///
-    /// EXPECTED (if bug fixed): Test PASSES because:
-    /// - All operations after first timeout fail fast
-    /// - Error messages stay consistent
+    /// Repeated follow-ups refuse promptly without replacing or disposing the original work.
+    /// The original batch must become usable again once execution returns.
     /// </summary>
     [Fact]
     public void SerialWorkflow_MultipleTimeouts_AllFollowUpOperationsFailFast()
@@ -298,6 +300,7 @@ public class ExcelBatchSerialWorkflowTests : IAsyncLifetime, IDisposable
 
         _output.WriteLine("Warming up session...");
         SessionWorkbookAssertions.AssertIdentity(batch, _testFileCopy!);
+        SessionWorkbookAssertions.WriteMarker(batch, "preserved-repeated-timeout");
 
         // Operation A: First timeout
         _output.WriteLine("Operation A: First timeout");
@@ -328,7 +331,7 @@ public class ExcelBatchSerialWorkflowTests : IAsyncLifetime, IDisposable
         Assert.True(operationBSw.Elapsed < TimeSpan.FromSeconds(1),
             $"Operation B (second timeout) took {operationBSw.Elapsed.TotalSeconds:F1}s — expected < 1s");
         Assert.False(rejectedB);
-        Assert.Contains("previous operation", exceptionB.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("previous wait", exceptionB.Message, StringComparison.OrdinalIgnoreCase);
 
         // Operation C: Quick read (should also fail fast)
         _output.WriteLine("Operation C: Quick read (should fail fast)");
@@ -350,9 +353,13 @@ public class ExcelBatchSerialWorkflowTests : IAsyncLifetime, IDisposable
             $"REGRESSION: Operation C after multiple timeouts took {operationCSw.Elapsed.TotalSeconds:F1}s. " +
             "Expected < 1s. Session poisoning may be cumulative.");
         Assert.False(rejectedC);
-        Assert.Contains("previous operation", exceptionC.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("previous wait", exceptionC.Message, StringComparison.OrdinalIgnoreCase);
 
-        // Dispose should still work
+        Assert.Throws<ExcelBusyException>(batch.Dispose);
+        Assert.True(batch.IsExcelProcessAlive());
+        WaitUntilReady(batch);
+        Assert.Equal("preserved-repeated-timeout", SessionWorkbookAssertions.ReadMarker(batch));
+
         var disposeSw = Stopwatch.StartNew();
         batch.Dispose();
         disposeSw.Stop();
@@ -363,5 +370,14 @@ public class ExcelBatchSerialWorkflowTests : IAsyncLifetime, IDisposable
         _owned.AssertAllExited();
 
         _output.WriteLine("✓ Multiple timeouts test passed: all follow-ups failed fast");
+    }
+
+    private static void WaitUntilReady(IExcelBatch batch)
+    {
+        var state = Assert.IsAssignableFrom<IExcelBatchRefreshState>(batch);
+        Assert.True(SpinWait.SpinUntil(
+            () => state.GetRefreshState() == WorkbookRefreshState.Ready,
+            TimeSpan.FromSeconds(40)), "Excel did not become ready after execution completed.");
+        Assert.False(batch.HasTimedOutOperation);
     }
 }

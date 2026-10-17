@@ -13,6 +13,22 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Trait("RequiresExcel", "false")]
 public sealed class CliTelemetryTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void CreateCommandInvocationTelemetry_SessionSaveUsesCanonicalLabels(bool succeeded)
+    {
+        var (eventTelemetry, requestTelemetry) = CliTelemetry.CreateCommandInvocationTelemetry(
+            "session.save", 25, succeeded, succeeded ? null : "Busy");
+
+        Assert.Equal("session/save", eventTelemetry.Name);
+        Assert.Equal("session", eventTelemetry.Properties["Tool"]);
+        Assert.Equal("save", eventTelemetry.Properties["Action"]);
+        Assert.Equal("session", requestTelemetry.Properties["Tool"]);
+        Assert.Equal("save", requestTelemetry.Properties["Action"]);
+        Assert.Equal(succeeded, requestTelemetry.Success);
+    }
+
     [Fact]
     public async Task TrackCommandAsync_TracksTheExecutedCliCommand()
     {
