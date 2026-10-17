@@ -218,6 +218,16 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         if (workbookPaths == null || workbookPaths.Length == 0)
             throw new ArgumentException("At least one workbook path is required", nameof(workbookPaths));
 
+        // Reject known access failures before activating Excel; recheck at open for races.
+        if (!createNewFile)
+        {
+            foreach (var path in workbookPaths)
+            {
+                if (!WorkbookLocation.IsRemote(path) && !FileAccessValidator.IsIrmProtected(path))
+                    FileAccessValidator.ValidateFileNotLocked(path);
+            }
+        }
+
         _allWorkbookPaths = workbookPaths;
         _workbookPath = workbookPaths[0]; // Primary workbook
         _showExcel = show;
@@ -470,7 +480,10 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 _excel = tempExcel;
                 _workbook = primaryWorkbook;
                 _workbooks = tempWorkbooks;
-                _context = new ExcelContext(_workbookPath, _excel, _workbook!);
+                _context = new ExcelContext(_workbookPath, _excel, _workbook!)
+                {
+                    ProcessIdentity = _excelProcessIdentity
+                };
 
                 FinishOperation(null);
                 started.SetResult();
@@ -807,7 +820,10 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             _workbooks[normalizedPath] = workbook;
             _workbookPath = normalizedPath;
             _allWorkbookPaths[0] = normalizedPath;
-            _context = new ExcelContext(normalizedPath, _excel, _workbook, _context!.Capabilities);
+            _context = new ExcelContext(normalizedPath, _excel, _workbook, _context!.Capabilities)
+            {
+                ProcessIdentity = _excelProcessIdentity
+            };
         }
 
         if (Thread.CurrentThread == _staThread)
@@ -1174,7 +1190,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         }, cancellationToken);
     }
 
-    public WorkbookRefreshState GetRefreshState()
+    internal WorkbookRefreshState GetExecutionPreflightState()
     {
         if (_disposed != 0)
         {
@@ -1194,6 +1210,14 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         {
             return WorkbookRefreshState.Busy;
         }
+        return WorkbookRefreshState.Ready;
+    }
+
+    public WorkbookRefreshState GetRefreshState()
+    {
+        var preflight = GetExecutionPreflightState();
+        if (preflight != WorkbookRefreshState.Ready)
+            return preflight;
 
         lock (_readinessLock)
         {

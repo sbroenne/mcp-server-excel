@@ -815,6 +815,7 @@ public class ExcelBatchTests : IAsyncLifetime, IDisposable
 
             Assert.Contains("already open", ex.Message, StringComparison.OrdinalIgnoreCase);
 
+            Assert.Empty(owned.Identities);
             owned.AssertAllExited(expectProcess: false);
         }
         Assert.Equal(originalBytes, File.ReadAllBytes(lockedTestFile));

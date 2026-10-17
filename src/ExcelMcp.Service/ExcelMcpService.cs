@@ -855,6 +855,16 @@ public sealed class ExcelMcpService : IDisposable
             if (workbookAction == WorkbookAction.SaveAs &&
                 !string.IsNullOrWhiteSpace(request.SessionId))
             {
+                if (_sessionManager.GetOperationStatus(request.SessionId)?.ExecutionPending == true)
+                {
+                    return new ServiceResponse
+                    {
+                        Success = false,
+                        SessionId = request.SessionId,
+                        ErrorCategory = "Busy",
+                        ErrorMessage = "Cannot save-as: Excel work is still pending. The workbook remains open."
+                    };
+                }
                 reservedPath = _sessionManager.ReserveSessionFilePath(
                     request.SessionId,
                     GetRequiredStringArgument(request.Args, "targetPath"));

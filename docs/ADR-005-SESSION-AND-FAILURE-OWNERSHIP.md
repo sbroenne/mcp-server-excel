@@ -37,6 +37,12 @@ establishes the original operation's result. Cancellation is not a transaction
 rollback. Preserving uncertain work can keep Excel and its owner alive longer,
 but avoids silently losing unsaved changes.
 
+Status checks have a short wait budget and may report unknown while their owned
+readiness scan finishes. Normal save and close verify workbook readiness on the
+Excel thread within the operation's budget; a slow scan is not itself a failed
+operation. An expired operation still requires a completed recovery scan before
+new work is accepted. Status visibility reflects any reveal applied by that scan.
+
 Automatic CLI startup also preserves Excel instances left alive after their
 previous service exits: it refuses to replace their recorded ownership while they
 remain live. An expired shutdown wait or an unconfirmed shutdown response does

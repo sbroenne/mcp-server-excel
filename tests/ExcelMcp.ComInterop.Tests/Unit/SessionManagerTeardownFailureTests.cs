@@ -14,6 +14,20 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 [Trait("Speed", "Fast")]
 public sealed class SessionManagerTeardownFailureTests
 {
+    [Fact]
+    public void ValidateClose_ReadinessRevealsExcel_ReportsUpdatedVisibility()
+    {
+        using var manager = new SessionManager();
+        var batch = new ConfigurableFailingBatch(false, false) { RevealOnRefreshRead = true };
+        RegisterSession(manager, "revealed", Path.GetFullPath("revealed.xlsx"), batch);
+        Assert.False(batch.IsExcelVisible);
+        var validation = manager.ValidateClose("revealed");
+        Assert.True(batch.IsExcelVisible);
+        Assert.True(validation.CanClose);
+        Assert.Equal(WorkbookRefreshState.Ready, validation.RefreshState);
+        Assert.True(validation.IsExcelVisible);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -395,9 +409,15 @@ public sealed class SessionManagerTeardownFailureTests
         public bool SaveBusy { get; set; }
         public bool CloseBusy { get; set; }
         public Exception? BeforeCloseFailure { get; set; }
+        public bool RevealOnRefreshRead { get; set; }
         public bool ShutdownCommitted { get; private set; }
         public int CloseCallCount { get; private set; }
-        public WorkbookRefreshState GetRefreshState() => WorkbookRefreshState.Ready;
+        public WorkbookRefreshState GetRefreshState()
+        {
+            if (RevealOnRefreshRead)
+                IsExcelVisible = true;
+            return WorkbookRefreshState.Ready;
+        }
         internal InvalidOperationException SaveException { get; } =
             new("synthetic save failure");
 
@@ -418,7 +438,7 @@ public sealed class SessionManagerTeardownFailureTests
 
         public TimeSpan OperationTimeout => TimeSpan.FromSeconds(1);
 
-        public bool IsExcelVisible => false;
+        public bool IsExcelVisible { get; private set; }
 
         public void Close()
         {

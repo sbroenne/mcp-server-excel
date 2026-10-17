@@ -931,8 +931,8 @@ public sealed class SessionManager : IDisposable
         }
 
         var activeOps = GetActiveOperationCount(sessionId);
-        var isVisible = IsExcelVisible(sessionId);
         var refreshState = GetRefreshState(batch);
+        var isVisible = IsExcelVisible(sessionId);
 
         if (refreshState == WorkbookRefreshState.NativeQueryApproval)
         {
@@ -967,6 +967,12 @@ public sealed class SessionManager : IDisposable
         batch is IExcelBatchRefreshState refreshState
             ? refreshState.GetRefreshState()
             : WorkbookRefreshState.Unknown;
+
+    // Normal close verifies workbook readiness on its STA; recovery still requires the bounded scan.
+    private static WorkbookRefreshState GetClosePreflightState(IExcelBatch batch) =>
+        batch is ExcelBatch { HasTimedOutOperation: false } owned
+            ? owned.GetExecutionPreflightState()
+            : GetRefreshState(batch);
 
     /// <summary>
     /// Closes the specified session with optional save.
@@ -1019,7 +1025,7 @@ public sealed class SessionManager : IDisposable
             }
 
             var refreshState = !resolvedFailedTeardown && !force
-                ? GetRefreshState(batch)
+                ? GetClosePreflightState(batch)
                 : WorkbookRefreshState.Ready;
             if (refreshState is WorkbookRefreshState.DialogOpen or WorkbookRefreshState.NativeQueryApproval)
             {
