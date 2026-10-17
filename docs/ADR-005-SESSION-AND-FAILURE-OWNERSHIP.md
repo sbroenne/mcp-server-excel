@@ -37,6 +37,10 @@ establishes the original operation's result. Cancellation is not a transaction
 rollback. Preserving uncertain work can keep Excel and its owner alive longer,
 but avoids silently losing unsaved changes.
 
+CLI idle polling preserves the same session records as status reporting.
+A failed opening remains discoverable until explicitly closed, even when its
+Excel process has already exited; idle polling must not erase its late error.
+
 Status checks have a short wait budget and may report unknown while their owned
 readiness scan finishes. Normal save and close verify workbook readiness on the
 Excel thread within the operation's budget; a slow scan is not itself a failed

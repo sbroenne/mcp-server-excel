@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text.Json;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -26,6 +27,52 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 [Trait("RequiresExcel", "false")]
 public sealed class ExcelMcpServiceErrorTests
 {
+    [Fact]
+    public void DaemonIdlePolling_PreservesCompletedLateStartupFailure()
+    {
+        using var service = new ExcelMcpService();
+        var batch = (ExcelBatch)RuntimeHelpers.GetUninitializedObject(typeof(ExcelBatch));
+        const string message = "Opening failed after the caller stopped waiting.";
+        foreach (var (name, value) in new (string, object)[]
+        {
+            ("_workbookPath", Path.GetFullPath("late-startup-failure.xlsx")),
+            ("_excelProcessId", int.MaxValue),
+            ("_startupCompletion", Task.FromException(new InvalidOperationException(message))),
+            ("_statusLock", new object()),
+            ("_operationState", "failed"),
+            ("_operationError", message),
+            ("_waitExpired", true)
+        })
+        {
+            var field = typeof(ExcelBatch).GetField(name, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.NotNull(field);
+            field.SetValue(batch, value);
+        }
+        const string sessionId = "late-startup-failure";
+        RegisterSession(service, sessionId, batch);
+        try
+        {
+            Assert.False(batch.IsExcelProcessAlive());
+            var host = GetPrivateField<object>(service, "_daemonHost");
+            var sessionCount = GetPrivateField<Func<int>>(host, "_sessionCount");
+            Assert.Equal(1, sessionCount());
+            Assert.Equal(1, sessionCount());
+            Assert.False(service.SessionManager.TryBeginOperation(sessionId, out _, out var error));
+            Assert.Contains(message, error, StringComparison.Ordinal);
+            var status = Assert.IsType<ExcelOperationStatus>(service.SessionManager.GetOperationStatus(sessionId));
+            Assert.Equal("failed", status.State);
+            Assert.Equal(message, status.ErrorMessage);
+            Assert.True(status.WaitExpired);
+            Assert.False(status.ExecutionPending);
+            Assert.Equal(sessionId, Assert.Single(service.SessionManager.GetActiveSessions()).SessionId);
+        }
+        finally
+        {
+            GetPrivateField<ConcurrentDictionary<string, IExcelBatch>>(
+                service.SessionManager, "_activeSessions").TryRemove(sessionId, out _);
+        }
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(false, true)]
@@ -698,7 +745,7 @@ public sealed class ExcelMcpServiceErrorTests
         Assert.DoesNotContain(sessionId, listResponse.Result, StringComparison.Ordinal);
     }
 
-    private static void RegisterSession(ExcelMcpService service, string sessionId, FakeBatch batch)
+    private static void RegisterSession(ExcelMcpService service, string sessionId, IExcelBatch batch)
     {
         var sessionManager = GetPrivateField<SessionManager>(service, "_sessionManager");
         var activeSessions = GetPrivateField<ConcurrentDictionary<string, IExcelBatch>>(sessionManager, "_activeSessions");

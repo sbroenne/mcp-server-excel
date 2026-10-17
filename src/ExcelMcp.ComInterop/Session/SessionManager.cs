@@ -1147,12 +1147,12 @@ public sealed class SessionManager : IDisposable
     public int ActiveSessionCount => _activeSessions.Count;
 
     /// <summary>
-    /// Checks if the Excel process for a session is still alive.
-    /// If the session exists but Excel has died, it is automatically cleaned up.
+    /// Checks whether a session has live Excel or a retained startup failure.
+    /// Other dead sessions are automatically cleaned up.
     /// </summary>
     /// <param name="sessionId">Session ID</param>
-    /// <returns>True if session exists and Excel process is alive, false otherwise</returns>
-    public bool IsSessionAlive(string sessionId)
+    /// <returns>True if the session must remain discoverable, false otherwise</returns>
+    public bool IsSessionRetained(string sessionId)
     {
         if (string.IsNullOrWhiteSpace(sessionId)) return false;
         var sessionLock = GetSessionLock(sessionId);
@@ -1160,14 +1160,14 @@ public sealed class SessionManager : IDisposable
         {
             if (!_activeSessions.TryGetValue(sessionId, out var batch)) return false;
 
-            if (batch.IsExcelProcessAlive())
+            if (batch.IsExcelProcessAlive() || batch is ExcelBatch { HasFailedStartup: true })
             {
                 _ = GetOperationStatus(sessionId);
                 return true;
             }
 
             // Auto-cleanup dead session
-            _logger?.LogWarning("Session {SessionId} has dead Excel process, auto-cleaning up during IsSessionAlive check", sessionId);
+            _logger?.LogWarning("Session {SessionId} has dead Excel process, auto-cleaning up during retention check", sessionId);
             CleanupDeadSession(sessionId, batch);
             return false;
         }

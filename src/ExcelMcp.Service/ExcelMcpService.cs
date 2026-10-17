@@ -87,7 +87,7 @@ public sealed class ExcelMcpService : IDisposable
             request => trackDaemonRequest == null
                 ? ProcessAsync(request)
                 : trackDaemonRequest(request, () => ProcessAsync(request)),
-            () => _sessionManager.ActiveSessionIds.Count(_sessionManager.IsSessionAlive),
+            () => _sessionManager.ActiveSessionIds.Count(_sessionManager.IsSessionRetained),
             requestAbandoned: RevealAbandonedRequest);
     }
 
