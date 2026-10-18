@@ -144,13 +144,14 @@ public sealed class ExternalOlapMemberSearchResult : ResultBase
     public int ReturnedCount { get; set; }
 
     /// <summary>
-    /// Provider-reported total level members when available and no text filter is used.
+    /// Provider-reported total level members when available, not smaller than the observed
+    /// member list, and no text filter is used.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? TotalCount { get; set; }
 
     /// <summary>
-    /// Number of level members not included in this page, when the provider reports a total.
+    /// Number of level members not included in this page, when TotalCount is available.
     /// </summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public long? OmittedCount { get; set; }

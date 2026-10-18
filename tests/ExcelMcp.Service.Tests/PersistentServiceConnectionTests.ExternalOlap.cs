@@ -102,7 +102,13 @@ public sealed partial class PersistentServiceConnectionTests
         Assert.InRange(secondPage.ScannedCount, 1, 10000);
         if (firstPage.TotalCount.HasValue)
         {
+            Assert.True(firstPage.TotalCount.Value >= firstPage.ScannedCount,
+                "A provider total cannot be smaller than the member list actually read.");
             Assert.Equal(firstPage.TotalCount - firstPage.ReturnedCount, firstPage.OmittedCount);
+        }
+        else
+        {
+            Assert.Null(firstPage.OmittedCount);
         }
         var wrongQuery = Assert.Throws<ArgumentException>(() =>
             _connections.SearchOlapMembers(_fixture.BatchToken, connectionName, hierarchyUniqueName,

@@ -176,6 +176,14 @@ public partial class ConnectionCommands
                     ExternalOlapSchemaMapper.MaximumMemberRows + 1,
                     batch.Logger);
                 List<ExternalOlapMemberInfo> mappedMembers = ExternalOlapSchemaMapper.MapMembers(memberRows);
+                if (totalCount.HasValue && totalCount.Value < mappedMembers.Count)
+                {
+                    batch.Logger.LogWarning(
+                        "Provider-reported OLAP member total {TotalCount} is smaller than the observed member count {ObservedCount}; the total is unknown.",
+                        totalCount.Value,
+                        mappedMembers.Count);
+                    totalCount = null;
+                }
                 List<ExternalOlapMemberInfo> orderedMembers = ExternalOlapSchemaMapper.OrderMembersForPaging(mappedMembers, position);
                 string memberListDigest = ExternalOlapSchemaMapper.GetMemberListDigest(orderedMembers);
                 OlapMemberPage page = ExternalOlapSchemaMapper.SelectMemberPage(

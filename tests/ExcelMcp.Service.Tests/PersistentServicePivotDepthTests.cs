@@ -234,21 +234,21 @@ public sealed class PersistentServicePivotDepthTests(PersistentServiceWorkbookFi
     }
 
     [Theory]
-    [InlineData("""{"type":"CaptionEquals"}""")]
-    [InlineData("""{"type":"CaptionEquals","text1":"North","number1":1}""")]
-    [InlineData("""{"type":"CaptionEquals","text1":"North","text2":"South"}""")]
-    [InlineData("""{"type":"CaptionIsBetween","text1":"North"}""")]
-    [InlineData("""{"type":"ValueEquals","number1":100}""")]
-    [InlineData("""{"type":"ValueEquals","number1":100,"dataFieldName":"Sales"}""")]
-    [InlineData("""{"type":"ValueIsBetween","number1":300,"number2":100,"dataFieldName":"Total Sales"}""")]
-    [InlineData("""{"type":"TopCount","number1":1.5,"dataFieldName":"Total Sales"}""")]
-    [InlineData("""{"type":"TopCount","number1":0,"dataFieldName":"Total Sales"}""")]
-    [InlineData("""{"type":"TopPercent","number1":101,"dataFieldName":"Total Sales"}""")]
-    [InlineData("""{"type":"SpecificDate","date1":"2024-02-10"}""")]
-    [InlineData("""{"type":"DateBetween","date1":"2024-02-10"}""")]
-    [InlineData("""{"type":"Invalid"}""")]
-    [InlineData("""{"type":"CaptionEquals","text1":"North","unknown":true}""")]
-    public async Task InvalidFilter_PreservesExistingFilterAndValues(string options)
+    [InlineData("missing caption", """{"type":"CaptionEquals"}""")]
+    [InlineData("number in caption filter", """{"type":"CaptionEquals","text1":"North","number1":1}""")]
+    [InlineData("unexpected second caption", """{"type":"CaptionEquals","text1":"North","text2":"South"}""")]
+    [InlineData("missing second caption", """{"type":"CaptionIsBetween","text1":"North"}""")]
+    [InlineData("missing data field", """{"type":"ValueEquals","number1":100}""")]
+    [InlineData("unknown data field", """{"type":"ValueEquals","number1":100,"dataFieldName":"Sales"}""")]
+    [InlineData("reversed value interval", """{"type":"ValueIsBetween","number1":300,"number2":100,"dataFieldName":"Total Sales"}""")]
+    [InlineData("fractional top count", """{"type":"TopCount","number1":1.5,"dataFieldName":"Total Sales"}""")]
+    [InlineData("zero top count", """{"type":"TopCount","number1":0,"dataFieldName":"Total Sales"}""")]
+    [InlineData("percentage above range", """{"type":"TopPercent","number1":101,"dataFieldName":"Total Sales"}""")]
+    [InlineData("date filter on text field", """{"type":"SpecificDate","date1":"2024-02-10"}""")]
+    [InlineData("missing second date", """{"type":"DateBetween","date1":"2024-02-10"}""")]
+    [InlineData("unknown filter type", """{"type":"Invalid"}""")]
+    [InlineData("unknown filter option", """{"type":"CaptionEquals","text1":"North","unknown":true}""")]
+    public async Task InvalidFilter_PreservesExistingFilterAndValues(string caseName, string options)
     {
         var (_, name) = CreatePivot();
         using (Send("pivottablefield.add-field-filter", new
@@ -264,7 +264,7 @@ public sealed class PersistentServicePivotDepthTests(PersistentServiceWorkbookFi
             fieldName = "Region",
             filterOptions = request.RootElement
         });
-        Assert.False(failure.Success);
+        Assert.False(failure.Success, caseName);
         using var state = Send("pivottablefield.get-field-filters", new { pivotTableName = name, fieldName = "Region" });
         Assert.Equal("ValueIsGreaterThan", Assert.Single(state.RootElement.GetProperty("filters").EnumerateArray()).GetProperty("type").GetString());
         AssertTotal(name, 300d);

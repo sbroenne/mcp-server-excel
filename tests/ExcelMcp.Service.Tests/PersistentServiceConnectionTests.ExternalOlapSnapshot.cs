@@ -7,9 +7,6 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 
 public sealed partial class PersistentServiceConnectionTests
 {
-    private const string ExternalYear2025 = "[Sales].[Calendar].[ALL].[AllMember].[2025]";
-    private const string ExternalMonth202511 = "[Sales].[Calendar].[ALL].[AllMember].[2025].[2025-11]";
-
     [ConfiguredExternalOlapFact]
     [Trait("RunType", "OnDemand")]
     public void ExternalOlapPivotTable_ReadReturnsCaptionAndSelectionsFromEveryLevel()
@@ -33,7 +30,18 @@ public sealed partial class PersistentServiceConnectionTests
         Assert.Empty(calendar.SelectedMemberUniqueNames);
         Assert.Null(calendar.SelectedMemberCount);
 
-        SelectExternalYearAndMonth(sheet, pivot);
+        ExpandExternalCalendar(sheet, pivot);
+        string selectedYear = ReadExternalPivotMembers(sheet, pivot, ExternalCalendar)["2025"];
+        string selectedMonth = ReadExternalPivotMembers(sheet, pivot, ExternalCalendar, 2)["2025-11"];
+        if (string.Equals(Environment.GetEnvironmentVariable(
+            "EXCELMCP_TEST_OLAP_SYNTHETIC_FIXTURE"), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            Assert.Equal("[Sales].[Calendar].[ALL].[AllMember].[2025]", selectedYear);
+            Assert.Equal("[Sales].[Calendar].[ALL].[AllMember].[2025].[2025-11]", selectedMonth);
+        }
+        string[] selectedMembers = new[] { selectedYear, selectedMonth }
+            .Order(StringComparer.Ordinal).ToArray();
+        SelectExternalYearAndMonth(sheet, pivot, selectedYear, selectedMonth);
         var filtered = RequireSuccess(pivots.Read(batch, pivot, sheet));
 
         Assert.True(filtered.SnapshotComplete);
@@ -41,7 +49,7 @@ public sealed partial class PersistentServiceConnectionTests
         Assert.Equal("Calendar", calendar.Caption);
         Assert.True(calendar.SelectionStateAvailable);
         Assert.False(calendar.ShowAll);
-        Assert.Equal([ExternalYear2025, ExternalMonth202511], calendar.SelectedMemberUniqueNames);
+        Assert.Equal(selectedMembers, calendar.SelectedMemberUniqueNames);
         Assert.Equal(2, calendar.SelectedMemberCount);
         Assert.False(calendar.MembersTruncated);
         Assert.True(calendar.FiltersAvailable);
@@ -51,7 +59,7 @@ public sealed partial class PersistentServiceConnectionTests
 
         Assert.False(bounded.SnapshotComplete);
         calendar = Assert.Single(bounded.FieldSelections);
-        Assert.Equal([ExternalYear2025], calendar.SelectedMemberUniqueNames);
+        Assert.Equal(selectedMembers.Take(1), calendar.SelectedMemberUniqueNames);
         Assert.Equal(2, calendar.SelectedMemberCount);
         Assert.True(calendar.MembersTruncated);
     }
@@ -125,7 +133,8 @@ public sealed partial class PersistentServiceConnectionTests
         });
     }
 
-    private void SelectExternalYearAndMonth(string sheetName, string pivotName)
+    private void SelectExternalYearAndMonth(
+        string sheetName, string pivotName, string selectedYear, string selectedMonth)
     {
         _fixture.ExecuteRawVerification((context, _) =>
         {
@@ -148,9 +157,8 @@ public sealed partial class PersistentServiceConnectionTests
                 levels = calendar.PivotFields;
                 year = levels.Item(1);
                 month = levels.Item(2);
-                year.DrilledDown = true;
-                month.VisibleItemsList = new object[] { ExternalMonth202511 };
-                year.VisibleItemsList = new object[] { ExternalYear2025 };
+                month.VisibleItemsList = new object[] { selectedMonth };
+                year.VisibleItemsList = new object[] { selectedYear };
             }
             finally
             {

@@ -142,6 +142,9 @@ Member paging reads up to 10,000 entries at the selected level and orders them b
 their provider unique names. Larger levels return an explicit error; choose a
 smaller level. A changed list invalidates its paging token rather than silently
 skipping or repeating entries.
+If a provider reports a total smaller than the member list actually read,
+`TotalCount` and `OmittedCount` are omitted rather than reporting contradictory
+counts. The returned members and continuation token remain available.
 
 [Choosing an import workflow](../reference/querytable.md) |
 [Safe access and error handling](../reference/behavioral-rules.md)

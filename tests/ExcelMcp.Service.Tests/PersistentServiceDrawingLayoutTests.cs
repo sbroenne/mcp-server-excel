@@ -257,20 +257,20 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
     }
 
     [Theory]
-    [InlineData("group-objects", """{"objectNames":["First","Missing"]}""")]
-    [InlineData("group-objects", """{"objectNames":["First","first"]}""")]
-    [InlineData("group-objects", """{"objectNames":["First","Second"],"groupName":"Third"}""")]
-    [InlineData("group-objects", """{"objectNames":["First","Second"],"groupName":""}""")]
-    [InlineData("group-objects", """{"objectNames":[]}""")]
-    [InlineData("group-objects", """{"objectNames":["First"]}""")]
-    [InlineData("align-objects", """{"objectNames":["First","Missing"],"alignment":"Left"}""")]
-    [InlineData("align-objects", """{"objectNames":["First","Second"],"alignment":"Unknown"}""")]
-    [InlineData("distribute-objects", """{"objectNames":["First","Second"],"distribution":"Horizontal"}""")]
-    [InlineData("distribute-objects", """{"objectNames":["First","Second","Third"],"distribution":"Unknown"}""")]
-    [InlineData("duplicate-object", """{"objectName":"First","newName":"Second"}""")]
-    [InlineData("set-z-order", """{"objectName":"First","zOrder":"Unknown"}""")]
-    [InlineData("ungroup-object", """{"objectName":"First"}""")]
-    public async Task InvalidLayout_PreservesAllOriginalObjects(string action, string args)
+    [InlineData("missing group member", "group-objects", """{"objectNames":["First","Missing"]}""")]
+    [InlineData("duplicate group member", "group-objects", """{"objectNames":["First","first"]}""")]
+    [InlineData("existing group name", "group-objects", """{"objectNames":["First","Second"],"groupName":"Third"}""")]
+    [InlineData("empty group name", "group-objects", """{"objectNames":["First","Second"],"groupName":""}""")]
+    [InlineData("empty group selection", "group-objects", """{"objectNames":[]}""")]
+    [InlineData("single group member", "group-objects", """{"objectNames":["First"]}""")]
+    [InlineData("missing alignment target", "align-objects", """{"objectNames":["First","Missing"],"alignment":"Left"}""")]
+    [InlineData("unknown alignment", "align-objects", """{"objectNames":["First","Second"],"alignment":"Unknown"}""")]
+    [InlineData("insufficient distribution targets", "distribute-objects", """{"objectNames":["First","Second"],"distribution":"Horizontal"}""")]
+    [InlineData("unknown distribution", "distribute-objects", """{"objectNames":["First","Second","Third"],"distribution":"Unknown"}""")]
+    [InlineData("existing duplicate name", "duplicate-object", """{"objectName":"First","newName":"Second"}""")]
+    [InlineData("unknown z-order", "set-z-order", """{"objectName":"First","zOrder":"Unknown"}""")]
+    [InlineData("ungrouping a single object", "ungroup-object", """{"objectName":"First"}""")]
+    public async Task InvalidLayout_PreservesAllOriginalObjects(string caseName, string action, string args)
     {
         var sheet = CreateObjects();
         var before = _fixture.Send("drawing.list-objects", new { sheetName = sheet }).Result;
@@ -278,7 +278,7 @@ public sealed class PersistentServiceDrawingLayoutTests(PersistentServiceWorkboo
         var values = input.RootElement.EnumerateObject().ToDictionary(property => property.Name, property => (object?)property.Value);
         values["sheetName"] = sheet;
         var response = await _fixture.SendForFailureAsync($"drawing.{action}", values);
-        Assert.False(response.Success);
+        Assert.False(response.Success, caseName);
         Assert.False(string.IsNullOrEmpty(response.ErrorMessage));
         Assert.Equal(before, _fixture.Send("drawing.list-objects", new { sheetName = sheet }).Result);
     }
