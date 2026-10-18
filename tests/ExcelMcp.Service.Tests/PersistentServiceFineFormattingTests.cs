@@ -221,31 +221,31 @@ public sealed class PersistentServiceFineFormattingTests(PersistentServiceWorkbo
     }
 
     [Theory]
-    [InlineData("""{"fontColor":"#123456","fontThemeColor":5}""")]
-    [InlineData("""{"fillColor":"#123456","fillThemeColor":5}""")]
-    [InlineData("""{"fontThemeColor":0}""")]
-    [InlineData("""{"fillThemeColor":13}""")]
-    [InlineData("""{"fontTintAndShade":1.1}""")]
-    [InlineData("""{"fillTintAndShade":-1.1}""")]
-    [InlineData("""{"themeFont":3}""")]
-    [InlineData("""{"fontName":"Arial","themeFont":1}""")]
-    [InlineData("""{"fontSize":0}""")]
-    [InlineData("""{"fontSize":410}""")]
-    [InlineData("""{"indentLevel":-1}""")]
-    [InlineData("""{"indentLevel":16}""")]
-    [InlineData("""{"orientation":91}""")]
-    [InlineData("""{"subscript":true,"superscript":true}""")]
-    [InlineData("""{"underline":"bad"}""")]
-    [InlineData("""{"readingOrder":"bad"}""")]
-    [InlineData("""{"unknown":true}""")]
-    [InlineData("""{"borders":[{"lineStyle":"dash"}]}""")]
-    [InlineData("""{"borders":[{"position":"bad","lineStyle":"dash"}]}""")]
-    [InlineData("""{"borders":[{"position":"Left"}]}""")]
-    [InlineData("""{"borders":[{"position":"Left","lineStyle":"none","weight":"thin"}]}""")]
-    [InlineData("""{"borders":[{"position":"Left","lineStyle":"bad"}]}""")]
-    [InlineData("""{"borders":[{"position":"Left","color":"#123456","themeColor":5}]}""")]
-    [InlineData("""{"borders":[{"position":"Left","lineStyle":"dash"},{"position":"Left","lineStyle":"double"}]}""")]
-    public async Task Format_InvalidOptionsPreserveAllTargets(string json)
+    [InlineData("conflicting font colors", """{"fontColor":"#123456","fontThemeColor":5}""")]
+    [InlineData("conflicting fill colors", """{"fillColor":"#123456","fillThemeColor":5}""")]
+    [InlineData("font theme below range", """{"fontThemeColor":0}""")]
+    [InlineData("fill theme above range", """{"fillThemeColor":13}""")]
+    [InlineData("font tint above range", """{"fontTintAndShade":1.1}""")]
+    [InlineData("fill tint below range", """{"fillTintAndShade":-1.1}""")]
+    [InlineData("unknown theme font", """{"themeFont":3}""")]
+    [InlineData("conflicting font selection", """{"fontName":"Arial","themeFont":1}""")]
+    [InlineData("font size below range", """{"fontSize":0}""")]
+    [InlineData("font size above range", """{"fontSize":410}""")]
+    [InlineData("indent below range", """{"indentLevel":-1}""")]
+    [InlineData("indent above range", """{"indentLevel":16}""")]
+    [InlineData("orientation above range", """{"orientation":91}""")]
+    [InlineData("conflicting scripts", """{"subscript":true,"superscript":true}""")]
+    [InlineData("unknown underline", """{"underline":"bad"}""")]
+    [InlineData("unknown reading order", """{"readingOrder":"bad"}""")]
+    [InlineData("unknown option", """{"unknown":true}""")]
+    [InlineData("missing border position", """{"borders":[{"lineStyle":"dash"}]}""")]
+    [InlineData("unknown border position", """{"borders":[{"position":"bad","lineStyle":"dash"}]}""")]
+    [InlineData("missing border style", """{"borders":[{"position":"Left"}]}""")]
+    [InlineData("weight without border", """{"borders":[{"position":"Left","lineStyle":"none","weight":"thin"}]}""")]
+    [InlineData("unknown border style", """{"borders":[{"position":"Left","lineStyle":"bad"}]}""")]
+    [InlineData("conflicting border colors", """{"borders":[{"position":"Left","color":"#123456","themeColor":5}]}""")]
+    [InlineData("duplicate border position", """{"borders":[{"position":"Left","lineStyle":"dash"},{"position":"Left","lineStyle":"double"}]}""")]
+    public async Task Format_InvalidOptionsPreserveAllTargets(string caseName, string json)
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
         string before = Read(sheetName, "A1");
@@ -256,7 +256,7 @@ public sealed class PersistentServiceFineFormattingTests(PersistentServiceWorkbo
             rangeAddresses = (string[])["A1", "C1"],
             formatOptions = options.RootElement
         });
-        Assert.False(response.Success);
+        Assert.False(response.Success, caseName);
         Assert.False(string.IsNullOrWhiteSpace(response.ErrorMessage));
         Assert.Equal(before, Read(sheetName, "A1"));
         Assert.Equal(before, Read(sheetName, "C1"));

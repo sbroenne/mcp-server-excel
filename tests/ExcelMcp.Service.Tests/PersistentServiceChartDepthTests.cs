@@ -224,22 +224,22 @@ public sealed class PersistentServiceChartDepthTests(PersistentServiceWorkbookFi
     }
 
     [Theory]
-    [InlineData("get-series-settings", """{"seriesIndex":0}""")]
-    [InlineData("set-series-axis-group", """{"seriesIndex":99,"axisGroup":"Secondary"}""")]
-    [InlineData("set-series-axis-group", """{"seriesIndex":1,"axisGroup":"Unknown"}""")]
-    [InlineData("set-series-chart-type", """{"seriesIndex":1,"chartType":"Unknown"}""")]
-    [InlineData("set-error-bars", """{"seriesIndex":1,"errorBarOptions":{"kind":"Fixed","amount":-1}}""")]
-    [InlineData("set-error-bars", """{"seriesIndex":1,"errorBarOptions":{"kind":"StandardError","amount":1}}""")]
-    [InlineData("set-error-bars", """{"seriesIndex":1,"errorBarOptions":{"kind":"Custom","plusRange":"A2:A3","minusRange":"B2:B4"}}""")]
-    [InlineData("set-error-bars", """{"seriesIndex":1,"errorBarOptions":{"kind":"Fixed","amount":2,"direction":"X"}}""")]
-    [InlineData("set-error-bars", """{"seriesIndex":1,"errorBarOptions":{"kind":"Fixed","amount":2,"plusRange":"A2:A4"}}""")]
-    [InlineData("set-error-bars", """{"seriesIndex":1,"errorBarOptions":{"kind":"Unknown","amount":2}}""")]
-    [InlineData("set-point-format", """{"seriesIndex":1,"pointIndex":0,"pointOptions":{"fillColor":"#FF0000"}}""")]
-    [InlineData("set-point-format", """{"seriesIndex":1,"pointIndex":99,"pointOptions":{"fillColor":"#FF0000"}}""")]
-    [InlineData("set-point-format", """{"seriesIndex":1,"pointIndex":1,"pointOptions":{"fillColor":"#FF0000","lineColor":"invalid"}}""")]
-    [InlineData("set-point-format", """{"seriesIndex":1,"pointIndex":1,"pointOptions":{"fillColor":"#FF0000","markerStyle":"Diamond"}}""")]
-    [InlineData("set-point-format", """{"seriesIndex":1,"pointIndex":1,"pointOptions":{"fillTransparency":2}}""")]
-    public async Task InvalidChartChanges_PreserveExistingSeriesAndPointState(string action, string args)
+    [InlineData("zero series index", "get-series-settings", """{"seriesIndex":0}""")]
+    [InlineData("missing series", "set-series-axis-group", """{"seriesIndex":99,"axisGroup":"Secondary"}""")]
+    [InlineData("unknown axis group", "set-series-axis-group", """{"seriesIndex":1,"axisGroup":"Unknown"}""")]
+    [InlineData("unknown chart type", "set-series-chart-type", """{"seriesIndex":1,"chartType":"Unknown"}""")]
+    [InlineData("negative error amount", "set-error-bars", """{"seriesIndex":1,"errorBarOptions":{"kind":"Fixed","amount":-1}}""")]
+    [InlineData("unexpected standard error amount", "set-error-bars", """{"seriesIndex":1,"errorBarOptions":{"kind":"StandardError","amount":1}}""")]
+    [InlineData("mismatched custom error ranges", "set-error-bars", """{"seriesIndex":1,"errorBarOptions":{"kind":"Custom","plusRange":"A2:A3","minusRange":"B2:B4"}}""")]
+    [InlineData("unsupported error direction", "set-error-bars", """{"seriesIndex":1,"errorBarOptions":{"kind":"Fixed","amount":2,"direction":"X"}}""")]
+    [InlineData("unexpected fixed error range", "set-error-bars", """{"seriesIndex":1,"errorBarOptions":{"kind":"Fixed","amount":2,"plusRange":"A2:A4"}}""")]
+    [InlineData("unknown error kind", "set-error-bars", """{"seriesIndex":1,"errorBarOptions":{"kind":"Unknown","amount":2}}""")]
+    [InlineData("zero point index", "set-point-format", """{"seriesIndex":1,"pointIndex":0,"pointOptions":{"fillColor":"#FF0000"}}""")]
+    [InlineData("missing point", "set-point-format", """{"seriesIndex":1,"pointIndex":99,"pointOptions":{"fillColor":"#FF0000"}}""")]
+    [InlineData("invalid point line color", "set-point-format", """{"seriesIndex":1,"pointIndex":1,"pointOptions":{"fillColor":"#FF0000","lineColor":"invalid"}}""")]
+    [InlineData("unsupported point marker", "set-point-format", """{"seriesIndex":1,"pointIndex":1,"pointOptions":{"fillColor":"#FF0000","markerStyle":"Diamond"}}""")]
+    [InlineData("invalid point transparency", "set-point-format", """{"seriesIndex":1,"pointIndex":1,"pointOptions":{"fillTransparency":2}}""")]
+    public async Task InvalidChartChanges_PreserveExistingSeriesAndPointState(string caseName, string action, string args)
     {
         var (_, chartName) = CreateChart();
         var before = _fixture.Send("chartconfig.get-series-settings", new { chartName, seriesIndex = 1 }).Result;
@@ -248,7 +248,7 @@ public sealed class PersistentServiceChartDepthTests(PersistentServiceWorkbookFi
         var values = input.RootElement.EnumerateObject().ToDictionary(property => property.Name, property => (object?)property.Value);
         values["chartName"] = chartName;
         var response = await _fixture.SendForFailureAsync($"chartconfig.{action}", values);
-        Assert.False(response.Success);
+        Assert.False(response.Success, caseName);
         Assert.False(string.IsNullOrEmpty(response.ErrorMessage));
         Assert.Equal(before, _fixture.Send("chartconfig.get-series-settings", new { chartName, seriesIndex = 1 }).Result);
         Assert.Equal(point, _fixture.Send("chartconfig.get-point-format", new { chartName, seriesIndex = 1, pointIndex = 1 }).Result);

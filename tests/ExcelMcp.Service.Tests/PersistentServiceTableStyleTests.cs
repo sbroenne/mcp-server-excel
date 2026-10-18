@@ -214,23 +214,23 @@ public sealed class PersistentServiceTableStyleTests(PersistentServiceWorkbookFi
     }
 
     [Theory]
-    [InlineData("""{"elements":[{"elementType":"xlHeaderRow","bold":false},{"elementType":"xlRowStripe1","stripeSize":0}]}""")]
-    [InlineData("""{"elements":[{"elementType":"xlHeaderRow","bold":false},{"elementType":"xlRowStripe2","stripeSize":3}]}""")]
-    [InlineData("""{"elements":[{"elementType":"xlHeaderRow","bold":false},{"elementType":"xlHeaderRow","italic":true}]}""")]
-    [InlineData("""{"elements":[{"elementType":"xlHeaderRow","clear":true,"bold":false}]}""")]
-    [InlineData("""{"elements":[{"elementType":"xlHeaderRow","stripeSize":2}]}""")]
-    [InlineData("""{"elements":[{"elementType":"xlHeaderRow","fontName":"Arial"}]}""")]
-    [InlineData("""{"elements":[{"elementType":"xlHeaderRow","fontSize":20}]}""")]
-    [InlineData("""{"elements":[{"elementType":"xlHeaderRow","borders":[{"position":"DiagonalUp","lineStyle":"dash"}]}]}""")]
-    [InlineData("""{"elements":[{"elementType":"99","bold":true}]}""")]
-    [InlineData("""{"elements":[null]}""")]
-    public async Task TableStyle_InvalidOptionsPreserveEntireDefinition(string options)
+    [InlineData("zero stripe size", """{"elements":[{"elementType":"xlHeaderRow","bold":false},{"elementType":"xlRowStripe1","stripeSize":0}]}""")]
+    [InlineData("unsupported secondary stripe", """{"elements":[{"elementType":"xlHeaderRow","bold":false},{"elementType":"xlRowStripe2","stripeSize":3}]}""")]
+    [InlineData("duplicate element type", """{"elements":[{"elementType":"xlHeaderRow","bold":false},{"elementType":"xlHeaderRow","italic":true}]}""")]
+    [InlineData("formatting a cleared element", """{"elements":[{"elementType":"xlHeaderRow","clear":true,"bold":false}]}""")]
+    [InlineData("stripe size on header", """{"elements":[{"elementType":"xlHeaderRow","stripeSize":2}]}""")]
+    [InlineData("unsupported font name", """{"elements":[{"elementType":"xlHeaderRow","fontName":"Arial"}]}""")]
+    [InlineData("unsupported font size", """{"elements":[{"elementType":"xlHeaderRow","fontSize":20}]}""")]
+    [InlineData("unsupported diagonal border", """{"elements":[{"elementType":"xlHeaderRow","borders":[{"position":"DiagonalUp","lineStyle":"dash"}]}]}""")]
+    [InlineData("unknown element type", """{"elements":[{"elementType":"99","bold":true}]}""")]
+    [InlineData("null element", """{"elements":[null]}""")]
+    public async Task TableStyle_InvalidOptionsPreserveEntireDefinition(string caseName, string options)
     {
         string styleName = CreateStyle();
         var before = _fixture.Send("workbook.get-table-style", new { styleName });
         using var parsed = JsonDocument.Parse(options);
         var rejected = await _fixture.SendForFailureAsync("workbook.update-table-style", new { styleName, tableStyleOptions = parsed.RootElement });
-        Assert.False(rejected.Success);
+        Assert.False(rejected.Success, caseName);
         Assert.Equal(before.Result, _fixture.Send("workbook.get-table-style", new { styleName }).Result);
     }
 

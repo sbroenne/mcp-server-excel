@@ -217,11 +217,11 @@ public sealed partial class PersistentServiceTablePreflightTests
     }
 
     [Theory]
-    [InlineData("Sales", true)]
-    [InlineData("Sales", false)]
-    [InlineData("sales", true)]
-    [InlineData("sales", false)]
-    public void Create_WithExistingDefinedName_CreatesTableAndPreservesName(string tableName, bool hasHeaders)
+    [InlineData("matching case with headers", "Sales", true)]
+    [InlineData("matching case without headers", "Sales", false)]
+    [InlineData("different case with headers", "sales", true)]
+    [InlineData("different case without headers", "sales", false)]
+    public void Create_WithExistingDefinedName_CreatesTableAndPreservesName(string _, string tableName, bool hasHeaders)
     {
         var batch = _fixture.BatchToken;
         SetUpSourceState(hasHeaders);

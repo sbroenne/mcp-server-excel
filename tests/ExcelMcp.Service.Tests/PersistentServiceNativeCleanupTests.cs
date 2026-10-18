@@ -417,16 +417,16 @@ public sealed class PersistentServiceNativeCleanupTests(PersistentServiceWorkboo
     }
 
     [Theory]
-    [InlineData("""{"comma":true,"misspelled":true}""")]
-    [InlineData("""{"comma":true,"qualifier":"unknown"}""")]
-    [InlineData("""{"mode":"FixedWidth","comma":true,"fields":[{"position":0}]}""")]
-    [InlineData("""{"mode":"FixedWidth","fields":[{"position":1}]}""")]
-    [InlineData("""{"mode":"FixedWidth","fields":[{"position":0,"dataType":"Skip"}]}""")]
-    [InlineData("""{"comma":true,"fields":[{"position":0}]}""")]
-    [InlineData("""{"comma":true,"fields":[{"position":1},{"position":1}]}""")]
-    [InlineData("""{"comma":true,"otherDelimiter":"too long"}""")]
-    [InlineData("""{"comma":true,"decimalSeparator":".","thousandsSeparator":"."}""")]
-    public async Task TextToColumns_InvalidOptionsDoNotWrite(string json)
+    [InlineData("unknown option", """{"comma":true,"misspelled":true}""")]
+    [InlineData("unknown qualifier", """{"comma":true,"qualifier":"unknown"}""")]
+    [InlineData("delimiter in fixed-width mode", """{"mode":"FixedWidth","comma":true,"fields":[{"position":0}]}""")]
+    [InlineData("missing initial fixed-width field", """{"mode":"FixedWidth","fields":[{"position":1}]}""")]
+    [InlineData("skipped initial fixed-width field", """{"mode":"FixedWidth","fields":[{"position":0,"dataType":"Skip"}]}""")]
+    [InlineData("zero delimited field index", """{"comma":true,"fields":[{"position":0}]}""")]
+    [InlineData("duplicate field index", """{"comma":true,"fields":[{"position":1},{"position":1}]}""")]
+    [InlineData("long delimiter", """{"comma":true,"otherDelimiter":"too long"}""")]
+    [InlineData("conflicting numeric separators", """{"comma":true,"decimalSeparator":".","thousandsSeparator":"."}""")]
+    public async Task TextToColumns_InvalidOptionsDoNotWrite(string caseName, string json)
     {
         var sheet = _fixture.CreateTestSheet(_fixture.BatchToken);
         Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "A1", [["x,y"]]).Success);
@@ -439,7 +439,7 @@ public sealed class PersistentServiceNativeCleanupTests(PersistentServiceWorkboo
             destinationCell = "A1",
             options = options.RootElement
         });
-        Assert.False(response.Success);
+        Assert.False(response.Success, caseName);
         Assert.Equal(before, ReadNativeView());
         var read = _commands.GetValues(_fixture.BatchToken, sheet, "A1");
         Assert.True(read.Success, read.ErrorMessage);

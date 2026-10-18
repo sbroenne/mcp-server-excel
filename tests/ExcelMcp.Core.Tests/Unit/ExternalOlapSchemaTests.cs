@@ -111,6 +111,13 @@ public sealed class ExternalOlapSchemaTests
     }
 
     [Fact]
+    public void MemberSearchResult_ExposesProviderTotalWithoutDerivedOmittedCount()
+    {
+        Assert.NotNull(typeof(ExternalOlapMemberSearchResult).GetProperty("TotalCount"));
+        Assert.Null(typeof(ExternalOlapMemberSearchResult).GetProperty("OmittedCount"));
+    }
+
+    [Fact]
     public void MapSchema_FiltersHierarchyAndItsLevels()
     {
         var dimensions = new[]
