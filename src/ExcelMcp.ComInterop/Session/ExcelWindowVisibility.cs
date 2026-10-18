@@ -16,6 +16,8 @@ internal interface IExcelBatchWindowControl
 
 internal static class ExcelWindowVisibility
 {
+    internal static Action? BeforeVisibilityConfirmationHookForTests { get; set; }
+
     internal static ExcelVisibilityResult Set(
         ExcelProcessIdentity identity, bool visible, ILogger logger)
     {
@@ -39,6 +41,7 @@ internal static class ExcelWindowVisibility
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "Could not request Excel window visibility.");
         }
 
+        BeforeVisibilityConfirmationHookForTests?.Invoke();
         if (!SpinWait.SpinUntil(() =>
             {
                 inspection = ExcelDialogProbe.Inspect(identity, logger);
@@ -49,7 +52,7 @@ internal static class ExcelWindowVisibility
                     currentRoots.Any(current => !roots.Any(original => original.Handle == current.Handle)))
                     throw new InvalidOperationException(
                         "Excel window ownership changed during the visibility request. Inspect Excel and retry.");
-                return currentRoots.All(window => window.Visible == visible);
+                return currentRoots.All(window => window.Visible == visible && (!visible || !IsIconic(window.Handle)));
             }, TimeSpan.FromSeconds(1)))
             throw new InvalidOperationException("Excel did not confirm the requested window visibility within 1 second.");
         if (process.HasExited)
