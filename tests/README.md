@@ -597,6 +597,12 @@ Configure all four `EXCELMCP_TEST_OLAP_CONNECTION_STRING`,
 `EXCELMCP_TEST_OLAP_CUBE`, `EXCELMCP_TEST_OLAP_HIERARCHY`, and
 `EXCELMCP_TEST_OLAP_LEVEL` settings to use a compatible external fixture.
 Partial settings fail rather than silently testing a different cube.
+Configured fixtures must provide the same synthetic rows, hierarchy captions,
+relative periods, and measures described below. Member identities and the
+All-member identity are read independently from Excel, so a compatible SSAS
+fixture need not use Atoti's member names. Selection snapshots still require
+the documented ordinal ordering of those identities. Exact Atoti identity
+assertions remain enabled for the runner-owned synthetic provider.
 With none set, `scripts\Start-OlapTestCube.ps1` starts the synthetic cube in
 `scripts\olap_test_cube.py` on a free localhost port and the runner stops its
 owned Python/Java process tree afterwards. The first run needs Python 3.12 or
@@ -636,6 +642,14 @@ The focused SSAS Service regression passed on the Excel Runner; this does not
 mean the complete external suite was run against SSAS. Azure Analysis Services
 and Power BI XMLA have not been tested. SSAS tabular date-filter coverage is
 documented separately below; it does not cover this All-member regression.
+
+The 20 configured external OLAP acceptance cases have also passed individually
+against SSAS 17.0.25.218 in tabular mode, using a separate synthetic fixture with
+the 24 rows described above. This covers schema paging, provider-specific member
+identities, report-filter All/selected/cleared states, multi-level snapshots,
+and the existing external PivotTable operations and persistence checks. It does
+not establish coverage of AdventureWorks, other SSAS configurations, Azure
+Analysis Services, or Power BI XMLA.
 
 The focused SSAS regression is separate from the Atoti fixture. Configure
 `EXCELMCP_TEST_SSAS_CONNECTION_STRING` in the test process for the sample database;

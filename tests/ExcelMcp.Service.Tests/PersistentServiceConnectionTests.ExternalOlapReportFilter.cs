@@ -10,20 +10,25 @@ public sealed partial class PersistentServiceConnectionTests
 {
     [ConfiguredExternalOlapFact]
     [Trait("RunType", "OnDemand")]
-    public async Task ExternalOlapPivotTable_ReportFilter_NonstandardAllPreservesSingleSelection()
+    public async Task ExternalOlapPivotTable_ReportFilter_ProviderAllPreservesSingleSelection()
     {
         var (sheet, pivot, _) = CreateConfiguredExternalPivot("ExternalNonstandardAll");
         var batch = _fixture.BatchToken;
         var pivots = _fixture.CreateCommands<IPersistentPivotTableCommands>();
         RequireSuccess(pivots.AddRowField(batch, pivot, ExternalRelativePeriod));
         RequireSuccess(pivots.AddValueField(batch, pivot, ExternalAmountMeasure));
-        const string selectedMember = "[Sales].[RelativePeriod].[ALL].[AllMember].[Current Month]";
-        const string allMember = "[Sales].[RelativePeriod].[ALL].[AllMember]";
         AssertExternalGrandTotal(pivot, 300);
-        var members = ReadExternalReportFilterMembers(sheet, pivot);
-        Assert.Equal(selectedMember, members["Current Month"]);
+        var members = ReadExternalPivotMembers(sheet, pivot, ExternalRelativePeriod);
+        string selectedMember = members["Current Month"];
         RequireSuccess(pivots.RemoveField(batch, pivot, ExternalRelativePeriod));
         RequireSuccess(pivots.AddFilterField(batch, pivot, ExternalRelativePeriod));
+        string allMember = AssertNativeSelection(true, null);
+        if (string.Equals(Environment.GetEnvironmentVariable(
+            "EXCELMCP_TEST_OLAP_SYNTHETIC_FIXTURE"), "true", StringComparison.OrdinalIgnoreCase))
+        {
+            Assert.Equal("[Sales].[RelativePeriod].[ALL].[AllMember]", allMember);
+            Assert.Equal("[Sales].[RelativePeriod].[ALL].[AllMember].[Current Month]", selectedMember);
+        }
 
         SetExternalReportFilterSingleSelection(sheet, pivot, selectedMember);
         AssertNativeSelection(false, selectedMember);
@@ -117,7 +122,7 @@ public sealed partial class PersistentServiceConnectionTests
                 CultureInfo.InvariantCulture));
         }
 
-        void AssertNativeSelection(bool showAll, string currentPage) =>
+        string AssertNativeSelection(bool showAll, string? currentPage) =>
             _fixture.ExecuteRawVerification((context, _) =>
             {
                 Excel.Worksheet? worksheet = null;
@@ -143,19 +148,20 @@ public sealed partial class PersistentServiceConnectionTests
                     fields = cube.PivotFields;
                     field = fields.Item(1);
                     Assert.False(cube.EnableMultiplePageItems);
-                    Assert.Equal(currentPage, field.CurrentPageName);
+                    if (currentPage is not null)
+                        Assert.Equal(currentPage, field.CurrentPageName);
                     cache = table.PivotCache();
                     // ADO schema rowsets have no referenced PIA.
                     ado = cache.ADOConnection;
                     rows = ado.OpenSchema(34, new object?[]
-                        { null, null, "SalesCube", null, null, ExternalRelativePeriod });
+                        { null, null, Environment.GetEnvironmentVariable("EXCELMCP_TEST_OLAP_CUBE")!, null, null, ExternalRelativePeriod });
                     Assert.False(Convert.ToBoolean(rows.EOF, CultureInfo.InvariantCulture));
                     columns = rows.Fields;
                     all = columns.Item("ALL_MEMBER");
-                    Assert.Equal(allMember, Convert.ToString(all.Value, CultureInfo.InvariantCulture));
-                    Assert.Equal(showAll, string.Equals(currentPage,
-                        Convert.ToString(all.Value, CultureInfo.InvariantCulture), StringComparison.Ordinal));
-                    return true;
+                    string nativeAll = Convert.ToString(all.Value, CultureInfo.InvariantCulture)!;
+                    Assert.False(string.IsNullOrWhiteSpace(nativeAll));
+                    Assert.Equal(showAll, string.Equals(field.CurrentPageName, nativeAll, StringComparison.Ordinal));
+                    return nativeAll;
                 }
                 finally
                 {
@@ -202,7 +208,7 @@ public sealed partial class PersistentServiceConnectionTests
         AssertExternalGrandTotal(pivot, 300);
         AssertExternalGrandTotal(otherPivot, 300);
         var otherBefore = ReadExternalPivotState(otherSheet, otherPivot);
-        var members = ReadExternalReportFilterMembers(sheet, pivot);
+        var members = ReadExternalPivotMembers(sheet, pivot, ExternalRelativePeriod);
         Assert.Equal(["Current Month", "Earlier Months", "Next Month", "Prior Month"],
             members.Keys.Order(StringComparer.Ordinal));
         RequireSuccess(pivots.RemoveField(batch, pivot, ExternalRelativePeriod));
@@ -349,7 +355,8 @@ public sealed partial class PersistentServiceConnectionTests
         });
     }
 
-    private Dictionary<string, string> ReadExternalReportFilterMembers(string sheetName, string pivotName) =>
+    private Dictionary<string, string> ReadExternalPivotMembers(
+        string sheetName, string pivotName, string hierarchy, int level = 1) =>
         _fixture.ExecuteRawVerification((context, _) =>
         {
             Excel.Worksheet? sheet = null;
@@ -368,9 +375,9 @@ public sealed partial class PersistentServiceConnectionTests
                 pivots = sheet.PivotTables();
                 pivot = pivots.Item(pivotName);
                 cubes = pivot.CubeFields;
-                cube = cubes[ExternalRelativePeriod];
+                cube = cubes[hierarchy];
                 fields = cube.PivotFields;
-                field = fields.Item(1);
+                field = fields.Item(level);
                 items = field.PivotItems();
                 var members = new Dictionary<string, string>(StringComparer.Ordinal);
                 for (int index = 1; index <= items.Count; index++)

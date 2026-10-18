@@ -188,9 +188,6 @@ public partial class ConnectionCommands
                 result.ReturnedCount = page.Members.Count;
                 result.ScannedCount = memberRows.Count;
                 result.TotalCount = totalCount;
-                result.OmittedCount = totalCount.HasValue
-                    ? Math.Max(0, totalCount.Value - page.Members.Count)
-                    : null;
                 result.ContinuationToken = page.HasMore && page.LastConsumedUniqueName is not null
                     ? ExternalOlapSchemaMapper.CreateContinuationToken(
                         scope,
