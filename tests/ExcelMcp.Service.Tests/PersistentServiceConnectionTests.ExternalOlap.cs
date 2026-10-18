@@ -100,16 +100,6 @@ public sealed partial class PersistentServiceConnectionTests
         Assert.True(string.CompareOrdinal(firstMember.UniqueName, secondMember.UniqueName) < 0);
         Assert.InRange(firstPage.ScannedCount, 1, 10000);
         Assert.InRange(secondPage.ScannedCount, 1, 10000);
-        if (firstPage.TotalCount.HasValue)
-        {
-            Assert.True(firstPage.TotalCount.Value >= firstPage.ScannedCount,
-                "A provider total cannot be smaller than the member list actually read.");
-            Assert.Equal(firstPage.TotalCount - firstPage.ReturnedCount, firstPage.OmittedCount);
-        }
-        else
-        {
-            Assert.Null(firstPage.OmittedCount);
-        }
         var wrongQuery = Assert.Throws<ArgumentException>(() =>
             _connections.SearchOlapMembers(_fixture.BatchToken, connectionName, hierarchyUniqueName,
                 levelUniqueName, searchText: "changed query", continuationToken: firstPage.ContinuationToken, pageSize: 1));
@@ -154,6 +144,5 @@ public sealed partial class PersistentServiceConnectionTests
             _fixture.BatchToken, connectionName, hierarchy, level, searchText: "current"));
         Assert.Equal($"{hierarchy}.[ALL].[AllMember].[Current Month]", Assert.Single(current.Members).UniqueName);
         Assert.Null(current.TotalCount);
-        Assert.Null(current.OmittedCount);
     }
 }
