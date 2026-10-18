@@ -23,8 +23,8 @@ Listing or editing the VBA project requires Excel's manually configured trust
 setting. Running an existing macro does not require project-inspection trust,
 but Excel's macro security still applies. Macro-enabled workbooks open under
 your own Excel macro settings: an untrusted `.xlsm` opens with its macros
-blocked, its `Workbook_Open` code does not run, and `run` reports that Excel
-blocked macros. Code can still be listed, viewed, and edited. To run macros in a
+blocked, its `Workbook_Open` code does not run, and `run` fails with Excel's
+"macros disabled" message plus guidance. Code can still be listed, viewed, and edited. To run macros in a
 saved file, store it in a trusted location or sign its VBA project with a
 certificate you trust, then open it again. ExcelMcp does not enable trust, lower
 macro security, or answer Excel's security prompts automatically.

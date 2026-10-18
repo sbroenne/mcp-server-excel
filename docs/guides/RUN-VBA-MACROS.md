@@ -42,8 +42,8 @@ Excel's security prompts.
 - **A saved `.xlsm` you open later** is treated like any other file. With
   Excel's default settings, macros in a file outside a trusted location are
   blocked: `Workbook_Open` and other automatic macros do not run, and `run`
-  fails with a message that Excel blocked macros. Listing, viewing, and editing
-  code still work.
+  fails with Excel's "macros disabled" message plus guidance. Listing, viewing,
+  and editing code still work.
 - **To run macros in a saved file**, store it in a
   [trusted location](https://support.microsoft.com/office/add-remove-or-change-a-trusted-location-in-microsoft-office-7ee1cdc2-483e-4cbb-bcb3-4e7c67147fb4)
   or sign its VBA project with a certificate you trust. Then close the session
