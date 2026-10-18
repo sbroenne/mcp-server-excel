@@ -11,12 +11,14 @@ internal static class ExcelDialogProbe
     internal readonly record struct WindowSnapshot(
         nint Handle, nint Owner, int ProcessId, bool Visible, bool Enabled, string ClassName, string Title = "");
 
-    internal static WorkbookRefreshState Read(ExcelProcessIdentity? identity, ILogger logger) =>
-        Inspect(identity, logger).State;
+    internal static WorkbookRefreshState Read(
+        ExcelProcessIdentity? identity, ILogger logger, bool includeEnabledOwnerOfficeDialog = false) =>
+        Inspect(identity, logger, includeEnabledOwnerOfficeDialog).State;
 
-    internal static string ReadDetails(ExcelProcessIdentity? identity, ILogger logger)
+    internal static string ReadDetails(
+        ExcelProcessIdentity? identity, ILogger logger, bool includeEnabledOwnerOfficeDialog = false)
     {
-        var inspection = Inspect(identity, logger);
+        var inspection = Inspect(identity, logger, includeEnabledOwnerOfficeDialog);
         if (inspection.State != WorkbookRefreshState.DialogOpen ||
             GetWindowThreadProcessId(inspection.Dialog, out var dialogProcessId) == 0)
             return "Dialog text could not be read because the owned blocking window is no longer confirmed.";
@@ -75,11 +77,13 @@ internal static class ExcelDialogProbe
                 return true;
             }
             var name = new string(className, 0, length);
-            return (!name.Equals("Static", StringComparison.OrdinalIgnoreCase) &&
-                    !name.Equals("Button", StringComparison.OrdinalIgnoreCase)) || ReadWindow(window);
+            if (!name.Equals("Static", StringComparison.OrdinalIgnoreCase) &&
+                !name.Equals("Button", StringComparison.OrdinalIgnoreCase))
+                return true;
+            return ReadWindow(window);
         }, nint.Zero);
 
-        var confirmed = Inspect(identity, logger);
+        var confirmed = Inspect(identity, logger, includeEnabledOwnerOfficeDialog);
         if (confirmed.State != WorkbookRefreshState.DialogOpen || confirmed.Dialog != inspection.Dialog)
             return "Dialog text could not be read because the owned blocking window changed during inspection.";
         if (text.Length == 0)
@@ -132,7 +136,8 @@ internal static class ExcelDialogProbe
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "Win32 readiness probe handles only process/window inspection failures, logs the original exception, and returns Unknown so save and close remain blocked rather than reporting readiness.")]
-    internal static Inspection Inspect(ExcelProcessIdentity? identity, ILogger logger)
+    internal static Inspection Inspect(
+        ExcelProcessIdentity? identity, ILogger logger, bool includeEnabledOwnerOfficeDialog = false)
     {
         if (identity is not { } ownedProcess)
         {
@@ -176,7 +181,7 @@ internal static class ExcelDialogProbe
                 logger.LogWarning("Excel dialog window inspection failed; readiness remains unknown");
                 return new(WorkbookRefreshState.Unknown, [], 0);
             }
-            var state = Classify(ownedProcess.ProcessId, windows, out var dialog);
+            var state = Classify(ownedProcess.ProcessId, windows, out var dialog, includeEnabledOwnerOfficeDialog);
             if (state == WorkbookRefreshState.Unknown)
             {
                 logger.LogWarning("Excel's main window could not be found; dialog readiness remains unknown");
@@ -194,7 +199,10 @@ internal static class ExcelDialogProbe
         => Classify(processId, windows, out _);
 
     internal static WorkbookRefreshState Classify(
-        int processId, IReadOnlyList<WindowSnapshot> windows, out nint dialog)
+        int processId,
+        IReadOnlyList<WindowSnapshot> windows,
+        out nint dialog,
+        bool includeEnabledOwnerOfficeDialog = false)
     {
         dialog = nint.Zero;
         var roots = windows.Where(window => window.ProcessId == processId && window.ClassName == "XLMAIN").ToArray();
@@ -205,7 +213,10 @@ internal static class ExcelDialogProbe
             foreach (var window in windows)
             {
                 if (!window.Visible || !window.Enabled || window.Handle == root.Handle) continue;
-                if (root.Enabled) continue;
+                if (root.Enabled &&
+                    (!includeEnabledOwnerOfficeDialog || window.ProcessId != processId ||
+                     window.ClassName != "bosa_sdm_XL9"))
+                    continue;
                 var owner = window.Owner;
                 for (var depth = 0; owner != nint.Zero && depth < windows.Count; depth++)
                 {

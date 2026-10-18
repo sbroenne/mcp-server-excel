@@ -211,95 +211,71 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// RACE CONDITION TEST: Work items posted just before shutdown must be drained.
+    /// RACE CONDITION TEST: Dispose with queued work must not drop or hang it.
     ///
-    /// When Dispose() cancels the shutdown token, WaitToReadAsync throws
-    /// OperationCanceledException. If work items were written to the channel between
-    /// the last TryRead and the cancellation, they must still be processed — otherwise
-    /// the caller's TaskCompletionSource never completes and they hang until the operation timeout.
-    ///
-    /// This test posts work and immediately disposes, verifying the work completes
-    /// promptly (not after the operation timeout).
+    /// While one callback runs and another waits in the queue, Dispose() is refused
+    /// and keeps Excel open. Both callers then receive their actual results, and a
+    /// later Dispose() shuts Excel down.
     /// </summary>
     [Fact]
-    public void Dispose_WithPendingWork_DrainsBeforeExiting()
+    public void Dispose_WithQueuedWork_RefusesAndCompletesQueuedWork()
     {
-        // Arrange
         using var batch = ExcelSession.BeginBatch(_testFileCopy!);
-
-        // Initialize
         Assert.Equal(_testFileCopy, batch.Execute((ctx, _) => ctx.Book.FullName));
 
-        // Post an operation from another thread, then immediately Dispose.
-        // The operation should complete (via drain) rather than timing out.
-        using var completed = new ManualResetEventSlim(false);
+        using var running = new ManualResetEventSlim(false);
+        using var releaseRunning = new ManualResetEventSlim(false);
         using var queued = new ManualResetEventSlim(false);
-        Exception? executionError = null;
-        int result = -1;
+        Exception? runningError = null, queuedError = null;
+        int runningResult = -1, queuedResult = -1;
 
-        var executeThread = new Thread(() =>
+        var runningThread = new Thread(() =>
         {
             try
             {
-                // This Execute posts work to the channel.
-                // Dispose may happen while we're waiting for the result.
-                result = batch.Execute((ctx, ct) =>
+                runningResult = batch.Execute((ctx, ct) =>
                 {
-                    // Simulate a quick operation
-                    return 42;
+                    running.Set();
+                    Assert.True(releaseRunning.Wait(TimeSpan.FromSeconds(30)));
+                    return 7;
                 });
             }
-            catch (Exception ex)
-            {
-                executionError = ex;
-            }
-            finally
-            {
-                completed.Set();
-            }
+            catch (Exception ex) { runningError = ex; }
+        });
+        var queuedThread = new Thread(() =>
+        {
+            try { queuedResult = batch.Execute((ctx, ct) => 42); }
+            catch (Exception ex) { queuedError = ex; }
         });
 
-        var disposeSw = new Stopwatch();
         try
         {
+            runningThread.Start();
+            Assert.True(running.Wait(TimeSpan.FromSeconds(10)), "The first operation never started.");
             ExcelBatch.WorkItemQueuedHookForTests = queued.Set;
-            executeThread.Start();
-            Assert.True(queued.Wait(TimeSpan.FromSeconds(10)), "The caller never queued its operation.");
-            disposeSw.Start();
-            batch.Dispose();
-            disposeSw.Stop();
+            queuedThread.Start();
+            Assert.True(queued.Wait(TimeSpan.FromSeconds(10)), "The second operation was never queued.");
+
+            var refused = Assert.Throws<ExcelBusyException>(batch.Dispose);
+            Assert.Contains("still pending", refused.Message, StringComparison.Ordinal);
+            Assert.True(batch.IsExcelProcessAlive(), "Refused dispose must keep Excel running.");
         }
         finally
         {
             ExcelBatch.WorkItemQueuedHookForTests = null;
-            batch.Dispose();
-            Assert.True(executeThread.Join(TimeSpan.FromSeconds(30)));
+            releaseRunning.Set();
+            Assert.True(runningThread.Join(TimeSpan.FromSeconds(30)));
+            Assert.True(queuedThread.Join(TimeSpan.FromSeconds(30)));
         }
 
-        // Wait for the execute thread to finish — should be quick
-        var waitResult = completed.Wait(TimeSpan.FromSeconds(30));
+        Assert.Null(runningError);
+        Assert.Null(queuedError);
+        Assert.Equal(7, runningResult);
+        Assert.Equal(42, queuedResult);
 
-        _output.WriteLine($"Dispose took: {disposeSw.Elapsed.TotalMilliseconds:F0}ms");
-        _output.WriteLine($"Execute thread finished: {waitResult}");
-        _output.WriteLine($"Execute result: {result}");
-        _output.WriteLine($"Execute error: {executionError?.GetType().Name ?? "none"}");
-
-        // Assert — the execute thread must finish within 30s, not hang until the operation timeout.
-        // If the drain logic is broken, the TCS would never complete and we'd time out.
-        Assert.True(waitResult,
-            "REGRESSION: Execute thread hung after Dispose! The message pump shutdown " +
-            "did not drain pending work items. Without drain, callers wait for the " +
-            "operation timeout.");
-
-        if (executionError is null)
-        {
-            Assert.Equal(42, result);
-        }
-        else
-        {
-            Assert.IsType<ObjectDisposedException>(executionError);
-            Assert.Equal(-1, result);
-        }
+        batch.Dispose();
+        Assert.True(SpinWait.SpinUntil(() => !batch.IsExcelProcessAlive(), TimeSpan.FromSeconds(30)),
+            "Excel must exit after queued work completes and dispose succeeds.");
     }
 
     /// <summary>
@@ -334,16 +310,14 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// RACE CONDITION TEST: Concurrent Dispose during Execute gives a clean error.
+    /// RACE CONDITION TEST: Dispose during a running Execute is refused cleanly.
     ///
-    /// Simulates the race where Dispose() is called on one thread while Execute() is
-    /// actively waiting for its result. A proven-running callback is allowed
-    /// to finish while disposal waits; it must return its actual result.
-    ///
-    /// It must NOT get a ChannelClosedException or hang indefinitely.
+    /// Dispose() must not tear down Excel while a callback is running. It reports
+    /// that work is pending, keeps Excel and the workbook open, lets the callback
+    /// return its actual result, and succeeds once the work has finished.
     /// </summary>
     [Fact]
-    public void Dispose_DuringActiveExecute_GivesCleanError()
+    public void Dispose_DuringActiveExecute_RefusesUntilWorkCompletes()
     {
         // Arrange
         using var batch = ExcelSession.BeginBatch(_testFileCopy!);
@@ -384,35 +358,28 @@ public class ExcelBatchMessagePumpTests : IAsyncLifetime
         _output.WriteLine("Operation started on STA thread, now calling Dispose...");
 
         // Call Dispose while the operation is mid-flight
-        var releaseThread = new Thread(() =>
-        {
-            if (SpinWait.SpinUntil(() => !batch.IsExcelProcessAlive(), TimeSpan.FromSeconds(10)))
-                releaseOperation.Set();
-        });
-        var sw = Stopwatch.StartNew();
         try
         {
-            releaseThread.Start();
-            batch.Dispose();
+            var refused = Assert.Throws<ExcelBusyException>(batch.Dispose);
+            Assert.Contains("still pending", refused.Message, StringComparison.Ordinal);
+            Assert.True(batch.IsExcelProcessAlive(), "Refused dispose must keep Excel running.");
+            Assert.False(executeThread.Join(0), "Refused dispose must not end the running callback.");
         }
         finally
         {
             releaseOperation.Set();
-            batch.Dispose();
-            Assert.True(releaseThread.Join(TimeSpan.FromSeconds(15)));
             Assert.True(executeThread.Join(TimeSpan.FromSeconds(30)));
         }
-        sw.Stop();
 
-        // Wait for the execute thread to finish
-        Assert.True(executeThread.Join(TimeSpan.FromSeconds(30)));
-
-        _output.WriteLine($"Dispose took: {sw.Elapsed.TotalMilliseconds:F0}ms");
         _output.WriteLine($"Execute result: {executeResult}");
         _output.WriteLine($"Execute error: {executeError?.GetType().Name}: {executeError?.Message}");
 
         Assert.Null(executeError);
         Assert.Equal(99, executeResult);
-        Assert.True(releaseOperation.IsSet);
+        Assert.Equal(_testFileCopy, batch.Execute((ctx, _) => ctx.Book.FullName));
+
+        batch.Dispose();
+        Assert.True(SpinWait.SpinUntil(() => !batch.IsExcelProcessAlive(), TimeSpan.FromSeconds(30)),
+            "Excel must exit after the work completes and dispose succeeds.");
     }
 }

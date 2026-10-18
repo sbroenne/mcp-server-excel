@@ -21,6 +21,57 @@ public sealed class ExcelDialogProbeWindowTests
     private static readonly WindowProcedure Procedure = DefWindowProc;
 
     [Fact]
+    public async Task Show_FromHiddenWindow_ConfirmsRequestedVisibility()
+    {
+        var windowClass = new WindowClass
+        {
+            WindowProcedure = Marshal.GetFunctionPointerForDelegate(Procedure),
+            ClassName = "XLMAIN"
+        };
+        Assert.NotEqual(0, RegisterClass(ref windowClass));
+        nint root = 0;
+        var failures = new List<Exception>();
+        try
+        {
+            root = CreateWindowEx(0x08000000, "XLMAIN", "", 0x80000000,
+                -10000, -10000, 1, 1, 0, 0, 0, 0);
+            Assert.NotEqual(nint.Zero, root);
+            Assert.False(IsWindowVisible(root));
+            using var process = Process.GetCurrentProcess();
+            var identity = new ExcelProcessIdentity(
+                process.Id, process.StartTime.ToUniversalTime().ToFileTimeUtc());
+
+            var visibility = Task.Run(() =>
+                ExcelWindowVisibility.Set(identity, true, NullLogger.Instance));
+            var timer = Stopwatch.StartNew();
+            while (!visibility.IsCompleted && timer.Elapsed < TimeSpan.FromSeconds(5))
+            {
+                if (PeekMessage(out var message, 0, 0, 0, 1))
+                    _ = DispatchMessage(ref message);
+                else
+                    Thread.Sleep(1);
+            }
+
+            var result = await visibility.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(result.IsVisible);
+            Assert.True(IsWindowVisible(root));
+        }
+        catch (Exception ex)
+        {
+            failures.Add(ex);
+        }
+        finally
+        {
+            if (root != 0 && !DestroyWindow(root))
+                failures.Add(new Win32Exception("Could not destroy the test root window."));
+            if (!UnregisterClass("XLMAIN", 0))
+                failures.Add(new Win32Exception("Could not unregister the test window class."));
+        }
+        if (failures.Count == 1) ExceptionDispatchInfo.Capture(failures[0]).Throw();
+        if (failures.Count > 1) throw new AggregateException("Visibility test or cleanup failed.", failures);
+    }
+
+    [Fact]
     public void Show_WhenMinimizedWindowCannotProcessRestore_ReportsUnconfirmedVisibility()
     {
         var windowClass = new WindowClass

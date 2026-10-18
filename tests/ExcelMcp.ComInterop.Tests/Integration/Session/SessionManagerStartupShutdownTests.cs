@@ -114,7 +114,7 @@ public sealed class SessionManagerStartupShutdownTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Dispose_DuringStartup_RejectsLateSessionAndReleasesOwnership(bool createNew)
+    public async Task Dispose_DuringStartup_RefusesShutdownUntilStartupCompletes(bool createNew)
     {
         var path = Path.Combine(Path.GetTempPath(), $"startup-shutdown-{Guid.NewGuid():N}.xlsx");
         if (!createNew)
@@ -140,19 +140,28 @@ public sealed class SessionManagerStartupShutdownTests
         {
             Assert.True(startupReached.Wait(TimeSpan.FromSeconds(30)), "Excel startup never reached ownership tracking.");
             Assert.True(paths.ContainsKey(path), "Startup must hold its file-path reservation.");
-            Assert.False(creation.IsCompleted, "Session creation must remain blocked before publication.");
-            Assert.Empty(sessions);
-            manager.Dispose();
+            Assert.False(creation.IsCompleted, "Session creation must remain blocked during startup.");
+            var (sessionId, pending) = Assert.Single(sessions);
+
+            var refused = Assert.Throws<AggregateException>(manager.Dispose);
+            var refusal = Assert.IsType<InvalidOperationException>(Assert.Single(refused.InnerExceptions));
+            Assert.IsType<ExcelBusyException>(refusal.InnerException);
+            Assert.Contains(sessionId, refusal.Message, StringComparison.Ordinal);
+            Assert.Same(pending, Assert.Single(sessions).Value);
+            Assert.True(paths.ContainsKey(path), "Refused shutdown must keep the file-path reservation.");
+            Assert.True(pending.IsExcelProcessAlive(), "Refused shutdown must keep Excel running.");
+
             releaseStartup.Set();
-            var failure = await Record.ExceptionAsync(
-                async () => await creation.WaitAsync(TimeSpan.FromSeconds(150)));
+            Assert.Equal(sessionId, await creation.WaitAsync(TimeSpan.FromSeconds(150)));
             creationObserved = true;
-            Assert.IsType<ObjectDisposedException>(Assert.IsType<InvalidOperationException>(failure).InnerException);
+
+            manager.Dispose();
             Assert.Equal(0, manager.ActiveSessionCount);
             Assert.Empty(paths);
             foreach (var field in new[] { "_sessionFilePaths", "_activeOperationCounts", "_showExcelFlags", "_sessionOrigins", "_sessionCreatedAt" })
                 Assert.Empty(GetField<System.Collections.IDictionary>(manager, field));
             owned.AssertAllExited();
+            Assert.True(File.Exists(path), "Shutdown after startup must save the workbook.");
         }
         catch (Exception ex)
         {

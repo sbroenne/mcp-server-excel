@@ -79,6 +79,21 @@ public sealed class ExcelDialogProbeTests
     }
 
     [Fact]
+    public void InputBoxWithEnabledExcelOwner_IsDetectedOnlyForTimeoutDiagnostics()
+    {
+        ExcelDialogProbe.WindowSnapshot[] windows =
+        [
+            new(1, 0, 42, true, true, "XLMAIN"),
+            new(2, 1, 42, true, true, "bosa_sdm_XL9", "Input")
+        ];
+
+        Assert.Equal(WorkbookRefreshState.Ready, ExcelDialogProbe.Classify(42, windows));
+        Assert.Equal(
+            WorkbookRefreshState.DialogOpen,
+            ExcelDialogProbe.Classify(42, windows, out _, includeEnabledOwnerOfficeDialog: true));
+    }
+
+    [Fact]
     public void DialogOwnerChain_CanIncludeAnotherProcessAndHiddenOwner()
     {
         ExcelDialogProbe.WindowSnapshot[] windows =

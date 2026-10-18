@@ -833,7 +833,7 @@ public sealed class ExcelMcpService : IDisposable
             }
 
             return result;
-        });
+        }, allowTimedOutOperation: windowAction is WindowAction.Show or WindowAction.Hide);
     }
 
     private async Task<ServiceResponse> DispatchWorkbookAsync(string actionString, ServiceRequest request)
@@ -924,7 +924,10 @@ public sealed class ExcelMcpService : IDisposable
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "Session operation failure-transport boundary returns explicit failed responses with the original exception and session context; confirmed fatal disconnects additionally remove dead-session tracking.")]
-    private Task<ServiceResponse> WithSessionAsync(ServiceRequest request, Func<IExcelBatch, ServiceResponse> action)
+    private Task<ServiceResponse> WithSessionAsync(
+        ServiceRequest request,
+        Func<IExcelBatch, ServiceResponse> action,
+        bool allowTimedOutOperation = false)
     {
         var sessionId = request.SessionId;
         if (string.IsNullOrWhiteSpace(sessionId))
@@ -937,7 +940,7 @@ public sealed class ExcelMcpService : IDisposable
             });
         }
 
-        var sessionError = TryBeginUsableSession(sessionId, out var batch);
+        var sessionError = TryBeginUsableSession(sessionId, out var batch, allowTimedOutOperation);
         if (sessionError != null)
         {
             return Task.FromResult(sessionError);
@@ -1197,13 +1200,15 @@ public sealed class ExcelMcpService : IDisposable
         return state?.ToJsonString(ServiceProtocol.JsonOptions);
     }
 
-    private ServiceResponse? TryBeginUsableSession(string sessionId, out IExcelBatch? batch)
+    private ServiceResponse? TryBeginUsableSession(
+        string sessionId, out IExcelBatch? batch, bool allowTimedOutOperation = false)
     {
         if (!_sessionManager.TryBeginOperation(
             sessionId,
             out batch,
             out var errorMessage,
-            out var sessionError))
+            out var sessionError,
+            allowTimedOutOperation))
         {
             return new ServiceResponse
             {

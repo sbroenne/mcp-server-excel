@@ -173,6 +173,72 @@ public sealed partial class ServiceWorkbookLifecycleTests
     }
 
     [Fact]
+    public async Task TimedOutOperation_WithOwnedDialog_AllowsOnlyNativeShowHide()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var session = service.SessionManager.CreateSessionForNewFile(
+                Path.Join(directory, "timed-out-dialog.xlsx"),
+                operationTimeout: TimeSpan.FromSeconds(15));
+            sessions[session] = 0;
+            var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(session));
+            var owner = batch.Execute((context, _) => new nint(context.App.Hwnd));
+            using var dialog = new OwnedTestDialog(owner);
+            using var entered = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var pending = Task.Run(() => batch.Execute((_, _) =>
+            {
+                entered.Set();
+                try
+                {
+                    Assert.True(release.Wait(TimeSpan.FromSeconds(30)));
+                    return 17;
+                }
+                finally
+                {
+                    finished.TrySetResult();
+                }
+            }));
+
+            try
+            {
+                Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+                Assert.Throws<TimeoutException>(() => pending.GetAwaiter().GetResult());
+                Assert.True(batch.HasTimedOutOperation);
+            }
+            finally
+            {
+                release.Set();
+            }
+            await finished.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+            var rejectedWorkbookCommand = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "range.get-values",
+                SessionId = session,
+                Args = """{"sheetName":"Sheet1","rangeAddress":"A1"}"""
+            });
+            Assert.False(rejectedWorkbookCommand.Success);
+            Assert.Equal("SessionUnavailable", rejectedWorkbookCommand.ErrorCategory);
+
+            foreach (var action in DialogVisibilityActions)
+            {
+                var response = await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = "window." + action,
+                    SessionId = session
+                });
+                RequireSuccess(response);
+                using var json = JsonDocument.Parse(response.Result!);
+                var expectedVisible = action == "show";
+                Assert.Equal(expectedVisible, json.RootElement.GetProperty("isVisible").GetBoolean());
+                Assert.Equal(expectedVisible, IsWindowVisible(owner));
+            }
+        });
+    }
+
+    [Fact]
     public async Task Shutdown_WithOwnedDialog_RetainsUnsavedWorkbookUntilSafeRetry()
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>

@@ -725,11 +725,19 @@ public sealed class SessionManager : IDisposable
     /// Atomically validates a session, reports a typed failure state, and marks
     /// one operation as active.
     /// </summary>
+    /// <param name="sessionId">Session to validate.</param>
+    /// <param name="batch">The validated session batch.</param>
+    /// <param name="errorMessage">The validation failure, if any.</param>
+    /// <param name="error">The typed validation failure, if any.</param>
+    /// <param name="allowTimedOutOperation">
+    /// Set only for native Excel show/hide actions, which do not enter Excel's operation queue.
+    /// </param>
     public bool TryBeginOperation(
         string sessionId,
         [NotNullWhen(true)] out IExcelBatch? batch,
         [NotNullWhen(false)] out string? errorMessage,
-        out SessionOperationError error)
+        out SessionOperationError error,
+        bool allowTimedOutOperation = false)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -776,7 +784,8 @@ public sealed class SessionManager : IDisposable
                 return false;
             }
 
-            if (batch.HasTimedOutOperation && GetRefreshState(batch) != WorkbookRefreshState.Ready)
+            if (!allowTimedOutOperation && batch.HasTimedOutOperation &&
+                GetRefreshState(batch) != WorkbookRefreshState.Ready)
             {
                 errorMessage = $"A previous wait on session '{sessionId}' expired. " +
                                "The workbook remains open; execution or readiness verification is still pending.";

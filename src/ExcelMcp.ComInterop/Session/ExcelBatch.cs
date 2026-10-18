@@ -1127,7 +1127,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         }
 
         // Inspect native windows directly; the Excel thread may be blocked by the prompt.
-        var dialogState = ExcelDialogProbe.Read(_excelProcessIdentity, _logger);
+        var dialogState = ExcelDialogProbe.Read(
+            _excelProcessIdentity, _logger, includeEnabledOwnerOfficeDialog: true);
         var dialogOpen = dialogState == WorkbookRefreshState.DialogOpen;
         return new TimeoutException(
             $"Excel operation timed out after {_operationTimeout.TotalSeconds} seconds for '{Path.GetFileName(_workbookPath)}'. " +
@@ -1135,7 +1136,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             (dialogOpen
                 ? "Excel had a dialog open when the operation timed out and may have been waiting for input. " +
                   "This timeout does not itself cancel the operation or undo workbook changes. " +
-                  ExcelDialogProbe.ReadDetails(_excelProcessIdentity, _logger)
+                  ExcelDialogProbe.ReadDetails(
+                      _excelProcessIdentity, _logger, includeEnabledOwnerOfficeDialog: true)
                 : "Excel may be unresponsive or the operation is taking longer than expected. " +
                   "Inspect session status for the eventual outcome; do not automatically repeat the operation."));
     }
