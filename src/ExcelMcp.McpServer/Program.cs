@@ -102,7 +102,7 @@ public class Program
                     Use worksheet_read list to inspect sheets. Close only after active operations finish (canClose:true). Set save:true to keep changes;
                     close defaults to save:false and discards edits. Confirm before closing a visible window unless authorized.
                     Confirmed blocking dialogs automatically reveal Excel. If file_read list reports excelState:dialogOpen, ask the user to check Excel and respond there.
-                    Dialog types and contents are never inspected or answered. A pending operation is not a completed or failed operation.
+                    Readable dialog text is included automatically in session blockingMessage and timeout errors; partial or unavailable reads are reported. Input values are not read, and dialogs are not classified, answered, or dismissed. A pending operation is not a completed or failed operation.
                     The server does not request confirmation through MCP elicitation; the client must obtain any needed consent.
                     Normal shutdown attempts to save remaining sessions. Crashes, timeouts, and forced cleanup may lose edits.
                     Cancellation is not undo: inspect file_read list before continuing, and do not blindly retry a change.

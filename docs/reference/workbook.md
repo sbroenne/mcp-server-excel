@@ -212,16 +212,18 @@ terminate Excel, MCP, foreground CLI commands, or other worktrees' services.
 The same session listing exposes `excelState`, `operationPending`, and
 `blockingReason`. A confirmed blocking dialog reports `dialogOpen` and
 automatically reveals the session's Excel window. Ask the user to check the
-window and respond there. The operation remains pending; the server never
-identifies, reads, answers, or dismisses the dialog. After responding,
+window and respond there. Readable dialog titles and message labels are included
+automatically in `blockingMessage`; unreadable or partial text is marked.
+The operation remains pending; the server never identifies the dialog type,
+reads input values, answers, or dismisses the dialog. After responding,
 check readiness and refreshed data before saving.
 
 If an executing operation reaches the session's operation timeout while a dialog
 is detected, its error reports that a dialog was open instead of only suggesting
-a longer timeout. Dialog titles and contents are never included. Timeout recovery retains the
+a longer timeout. Readable dialog text is included automatically. Timeout recovery retains the
 session and unsaved workbook and requests visibility for its owned Excel window.
 It does not save, close, terminate, or roll back the operation. Session listing
-checks window ownership without reading dialog contents.
+checks window ownership and reads available dialog labels without queuing Excel COM work.
 The operation may still be running. CLI `session list` and MCP `file_read`
 action `list` include `operation` with `state`, `command`, `elapsedSeconds`,
 `waitExpired`, `executionPending`, `errorMessage`, and `windowReveal`.

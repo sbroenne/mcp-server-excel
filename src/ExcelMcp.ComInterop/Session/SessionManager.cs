@@ -941,6 +941,7 @@ public sealed class SessionManager : IDisposable
             {
                 RefreshState = refreshState,
                 BlockingMessage = ExcelBusyException.DialogGuidance +
+                    (batch is IExcelBatchWindowControl { DialogDetails: { } details } ? $" {details}" : "") +
                     (batch is IExcelBatchWindowControl { DialogVisibilityError: { } error } ? $" {error}" : "")
             };
         }

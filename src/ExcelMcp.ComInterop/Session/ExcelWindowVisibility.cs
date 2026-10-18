@@ -11,6 +11,7 @@ internal interface IExcelBatchWindowControl
 {
     ExcelVisibilityResult SetVisibility(bool visible);
     string? DialogVisibilityError { get; }
+    string? DialogDetails { get; }
 }
 
 internal static class ExcelWindowVisibility

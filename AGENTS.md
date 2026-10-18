@@ -110,6 +110,9 @@ that passing compilation proves runtime correctness.
   external consumers when neither entry point uses them.
 - Keep customer/workbook data, credentials, connection strings, and private
   paths out of public artifacts. Keep temporary notes outside the repository.
+- Returning an owned Excel dialog's visible text to its user for troubleshooting
+  is allowed; this is not public disclosure. Do not copy it into public artifacts
+  or telemetry, read password/input values, or answer the dialog automatically.
 
 ## Errors
 

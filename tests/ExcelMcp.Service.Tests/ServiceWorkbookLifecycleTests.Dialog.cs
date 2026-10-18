@@ -212,7 +212,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
     }
 
     [Fact]
-    public async Task ExcelOwnedDialog_ReportsPromptWithoutReadingContents_AndPreservesEdits()
+    public async Task ExcelOwnedDialog_ReportsReadableTextAutomatically_AndPreservesEdits()
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
@@ -237,7 +237,9 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 Assert.True(IsWindowVisible(owner));
                 Assert.False(listed.GetProperty("canClose").GetBoolean());
                 Assert.Equal(0, listed.GetProperty("activeOperations").GetInt32());
-                Assert.DoesNotContain("private dialog contents", response.Result, StringComparison.Ordinal);
+                Assert.Contains("Connection test message", listed.GetProperty("blockingMessage").GetString(), StringComparison.Ordinal);
+                Assert.Contains("The database is unavailable.", listed.GetProperty("blockingMessage").GetString(), StringComparison.Ordinal);
+                Assert.DoesNotContain("test-entered-password", response.Result, StringComparison.Ordinal);
                 Assert.DoesNotContain("sign-in required", response.Result, StringComparison.OrdinalIgnoreCase);
                 var saveFailure = Assert.Throws<ExcelBusyException>(() => batch.Save());
                 Assert.Contains("dialog", saveFailure.Message, StringComparison.Ordinal);
@@ -268,11 +270,19 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 Assert.True(timer.Elapsed < TimeSpan.FromSeconds(5), "Dialog inspection must not wait for Excel COM.");
             }
 
-            var ready = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
-            RequireSuccess(ready);
-            using var readyJson = JsonDocument.Parse(ready.Result!);
-            var readySession = Assert.Single(readyJson.RootElement.GetProperty("sessions").EnumerateArray());
+            JsonElement readySession;
+            var readyTimer = System.Diagnostics.Stopwatch.StartNew();
+            do
+            {
+                var ready = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+                RequireSuccess(ready);
+                using var readyJson = JsonDocument.Parse(ready.Result!);
+                readySession = Assert.Single(readyJson.RootElement.GetProperty("sessions").EnumerateArray()).Clone();
+                if (readySession.GetProperty("excelState").GetString() == "ready") break;
+                await Task.Delay(50);
+            } while (readyTimer.Elapsed < TimeSpan.FromSeconds(10));
             Assert.Equal("ready", readySession.GetProperty("excelState").GetString());
+            Assert.False(readySession.TryGetProperty("blockingMessage", out _));
             Assert.True(readySession.GetProperty("canClose").GetBoolean());
             Assert.Equal("Preserved after dialog", await ReadMarkerAsync(service, session));
             Assert.False(batch.Execute((context, _) => context.Book.Saved));
@@ -315,9 +325,14 @@ public sealed partial class ServiceWorkbookLifecycleTests
             var failures = new List<Exception>();
             try
             {
-                window = CreateWindowEx(0x08000000, "STATIC", "private dialog contents", 0x90000000,
+                window = CreateWindowEx(0x08000000, "STATIC", "Connection test message", 0x90000000,
                     -10000, -10000, 1, 1, owner, 0, 0, 0);
                 if (window == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
+                if (CreateWindowEx(0, "STATIC", "The database is unavailable.", 0x50000000,
+                    0, 0, 1, 1, window, 0, 0, 0) == 0 ||
+                    CreateWindowEx(0, "EDIT", "test-entered-password", 0x50000000,
+                    0, 0, 1, 1, window, 0, 0, 0) == 0)
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
                 EnableWindow(owner, false);
                 _opened.SetResult();
                 // Owned windows share input processing with Excel; keep the dialog responsive.

@@ -66,6 +66,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     private readonly Lock _windowControlLock = new();
     private nint _revealedDialog;
     public string? DialogVisibilityError { get; private set; }
+    public string? DialogDetails => ExcelDialogProbe.ReadDetails(_excelProcessIdentity, _logger);
     private bool _startupDetectedIrmProtectedWorkbook;
 
     /// <summary>
@@ -1134,7 +1135,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             (dialogOpen
                 ? "Excel had a dialog open when the operation timed out and may have been waiting for input. " +
                   "This timeout does not itself cancel the operation or undo workbook changes. " +
-                  "Dialog contents were not read."
+                  ExcelDialogProbe.ReadDetails(_excelProcessIdentity, _logger)
                 : "Excel may be unresponsive or the operation is taking longer than expected. " +
                   "Inspect session status for the eventual outcome; do not automatically repeat the operation."));
     }

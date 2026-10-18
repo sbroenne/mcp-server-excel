@@ -19,7 +19,8 @@ internal sealed class ExcelBusyException(string message, Exception? innerExcepti
 {
     internal const string DialogGuidance =
         "Excel is waiting for input in a dialog. Check the Excel window and respond there. " +
-        "Ask the user to verify the dialog; ExcelMcp does not read, identify, answer, or dismiss it.";
+        "Ask the user to respond; readable dialog text is included in session status when available. " +
+        "ExcelMcp does not identify the dialog type, answer, or dismiss it.";
 
     internal static void ThrowIfNotReady(WorkbookRefreshState state, string operation)
     {

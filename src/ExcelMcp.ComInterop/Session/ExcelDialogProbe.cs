@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 using Microsoft.Extensions.Logging;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Session;
@@ -12,6 +13,81 @@ internal static class ExcelDialogProbe
 
     internal static WorkbookRefreshState Read(ExcelProcessIdentity? identity, ILogger logger) =>
         Inspect(identity, logger).State;
+
+    internal static string ReadDetails(ExcelProcessIdentity? identity, ILogger logger)
+    {
+        var inspection = Inspect(identity, logger);
+        if (inspection.State != WorkbookRefreshState.DialogOpen ||
+            GetWindowThreadProcessId(inspection.Dialog, out var dialogProcessId) == 0)
+            return "Dialog text could not be read because the owned blocking window is no longer confirmed.";
+
+        var text = new StringBuilder();
+        var started = Stopwatch.GetTimestamp();
+        var incomplete = false;
+        var labels = 0;
+        var controls = 0;
+
+        bool ReadWindow(nint window)
+        {
+            var remainingMilliseconds = 500 - (int)Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+            if (remainingMilliseconds <= 0 || text.Length >= 8192)
+            {
+                incomplete = true;
+                return false;
+            }
+            if (GetWindowThreadProcessId(window, out var processId) == 0 || processId != dialogProcessId ||
+                (window != inspection.Dialog && !IsChild(inspection.Dialog, window)))
+            {
+                incomplete = true;
+                return true;
+            }
+            var buffer = new char[2048];
+            if (SendMessageTimeout(window, 0x000D, (nuint)buffer.Length, buffer,
+                    0x0023, (uint)Math.Min(50, remainingMilliseconds), out var length) == nint.Zero)
+            {
+                incomplete = true;
+                return true;
+            }
+            var value = new string(buffer, 0, (int)Math.Min(length, (nuint)(buffer.Length - 1))).Trim();
+            if (value.Length == 0) return true;
+            if (window != inspection.Dialog) labels++;
+            if (text.Length > 0 && text.Length < 8192) text.Append('\n');
+            var remaining = 8192 - text.Length;
+            text.Append(value.AsSpan(0, Math.Min(value.Length, remaining)));
+            incomplete |= value.Length > remaining || length >= (nuint)(buffer.Length - 1);
+            return true;
+        }
+
+        ReadWindow(inspection.Dialog);
+        EnumChildWindows(inspection.Dialog, (window, _) =>
+        {
+            if (++controls > 64 || Stopwatch.GetElapsedTime(started) >= TimeSpan.FromMilliseconds(500))
+            {
+                incomplete = true;
+                return false;
+            }
+            if (!IsWindowVisible(window)) return true;
+            var className = new char[256];
+            var length = GetClassName(window, className, className.Length);
+            if (length == 0)
+            {
+                incomplete = true;
+                return true;
+            }
+            var name = new string(className, 0, length);
+            return (!name.Equals("Static", StringComparison.OrdinalIgnoreCase) &&
+                    !name.Equals("Button", StringComparison.OrdinalIgnoreCase)) || ReadWindow(window);
+        }, nint.Zero);
+
+        var confirmed = Inspect(identity, logger);
+        if (confirmed.State != WorkbookRefreshState.DialogOpen || confirmed.Dialog != inspection.Dialog)
+            return "Dialog text could not be read because the owned blocking window changed during inspection.";
+        if (text.Length == 0)
+            return "Dialog text could not be read: Windows exposed no readable title or message labels within the bounded read.";
+        return "Dialog text: " + text +
+            (incomplete ? "\n[Some dialog text could not be read or was truncated.]" :
+                labels == 0 ? "\n[No readable message labels were exposed.]" : "");
+    }
 
     internal static string Reveal(ExcelProcessIdentity? identity, ILogger logger)
     {
@@ -147,6 +223,18 @@ internal static class ExcelDialogProbe
     }
 
     private delegate bool WindowCallback(nint window, nint data);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool EnumChildWindows(nint parent, WindowCallback callback, nint data);
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsChild(nint parent, nint window);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern nint SendMessageTimeout(nint window, uint message, nuint wParam,
+        [Out] char[] text, uint flags, uint timeoutMilliseconds, out nuint result);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

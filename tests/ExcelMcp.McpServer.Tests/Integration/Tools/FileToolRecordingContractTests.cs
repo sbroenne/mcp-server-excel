@@ -289,7 +289,7 @@ public sealed class FileToolRecordingContractTests(
                         canClose = false,
                         excelState = "dialogOpen",
                         blockingReason = "dialogOpen",
-                        blockingMessage = "Check the Excel window and respond there."
+                        blockingMessage = "Check the Excel window and respond there.\nDialog text: The database is unavailable."
                     }
                 }
             }, ServiceProtocol.JsonOptions)
@@ -308,7 +308,7 @@ public sealed class FileToolRecordingContractTests(
         Assert.Equal("pending-native-query", session.GetProperty("workbook_session_id").GetString());
         Assert.Equal("dialogOpen", session.GetProperty("excelState").GetString());
         Assert.Equal("dialogOpen", session.GetProperty("blockingReason").GetString());
-        Assert.Equal("Check the Excel window and respond there.", session.GetProperty("blockingMessage").GetString());
+        Assert.Equal("Check the Excel window and respond there.\nDialog text: The database is unavailable.", session.GetProperty("blockingMessage").GetString());
         Assert.True(session.GetProperty("operationPending").GetBoolean());
         Assert.Equal(1, session.GetProperty("activeOperations").GetInt32());
         Assert.False(session.GetProperty("canClose").GetBoolean());

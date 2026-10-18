@@ -28,7 +28,6 @@ public sealed class ExcelDialogProbeWindowTests
         var failures = new List<Exception>();
         WindowProcedure replacingProcedure = (window, message, wParam, lParam) =>
         {
-            var result = DefWindowProc(window, message, wParam, lParam);
             if (message == 0x46 && window == root && !replaced &&
                 (Marshal.ReadInt32(lParam, 2 * IntPtr.Size + 4 * sizeof(int)) & 0x80) != 0)
             {
@@ -37,8 +36,9 @@ public sealed class ExcelDialogProbeWindowTests
                     failures.Add(new Win32Exception("Could not replace the test root window."));
                 root = CreateWindowEx(0x08000000, "XLMAIN", "", 0x90000000,
                     -10000, -10000, 1, 1, 0, 0, 0, 0);
+                return 0;
             }
-            return result;
+            return DefWindowProc(window, message, wParam, lParam);
         };
         var windowClass = new WindowClass
         {
@@ -89,7 +89,7 @@ public sealed class ExcelDialogProbeWindowTests
     [InlineData("Native Database Query - Do you approve running this native query?")]
     [InlineData("Native Datenbankabfrage")]
     [InlineData("Requête de base de données native")]
-    public void DialogWindow_IsGenericAndPrivateWithinOneSecond(string title)
+    public void DialogWindow_ReportsReadableTitleWithoutClassifyingItsType(string title)
     {
         var windowClass = new WindowClass
         {
@@ -122,7 +122,13 @@ public sealed class ExcelDialogProbeWindowTests
             SetField(batch, "_workbookPath", "dialog-test.xlsx");
             var timeout = batch.CreateOperationTimeoutException(expiredWhileQueued: false);
             Assert.Contains("had a dialog open", timeout.Message, StringComparison.Ordinal);
-            Assert.DoesNotContain(title, timeout.Message, StringComparison.Ordinal);
+            Assert.Contains(title, timeout.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("waiting for approval", timeout.Message, StringComparison.Ordinal);
+            TimeoutException? blockedTimeout = null;
+            var blockedRead = new Thread(() => blockedTimeout = batch.CreateOperationTimeoutException(expiredWhileQueued: false));
+            blockedRead.Start();
+            Assert.True(blockedRead.Join(TimeSpan.FromSeconds(2)));
+            Assert.Contains("could not be read", Assert.IsType<TimeoutException>(blockedTimeout).Message, StringComparison.Ordinal);
         }
         catch (Exception ex)
         {
@@ -193,14 +199,22 @@ public sealed class ExcelDialogProbeWindowTests
             Assert.Contains("workbook remains open", timeout.Message, StringComparison.Ordinal);
             Assert.Contains("No changes were saved or discarded by timeout recovery", timeout.Message, StringComparison.Ordinal);
             Assert.Contains("does not itself cancel", timeout.Message, StringComparison.Ordinal);
-            Assert.DoesNotContain("private connection details", timeout.Message, StringComparison.Ordinal);
-            Assert.DoesNotContain("The database is unavailable.", timeout.Message, StringComparison.Ordinal);
+            Assert.Contains("private connection details", timeout.Message, StringComparison.Ordinal);
+            Assert.Contains("The database is unavailable.", timeout.Message, StringComparison.Ordinal);
             Assert.DoesNotContain("test-entered-password", timeout.Message, StringComparison.Ordinal);
             Assert.DoesNotContain("increasing timeoutSeconds", timeout.Message, StringComparison.Ordinal);
             Assert.Equal(WorkbookRefreshState.DialogOpen, ExcelDialogProbe.Read(identity, NullLogger.Instance));
             var queued = batch.CreateOperationTimeoutException(expiredWhileQueued: true);
             Assert.Contains("was not executed", queued.Message, StringComparison.Ordinal);
             Assert.DoesNotContain("dialog open", queued.Message, StringComparison.Ordinal);
+
+            for (int i = 0; i < 5; i++)
+                Assert.NotEqual(nint.Zero, CreateWindowEx(0, "STATIC", new string('x', 2000), 0x50000000,
+                    0, 0, 1, 1, dialog, 0, 0, 0));
+            var truncated = ExcelDialogProbe.ReadDetails(identity, NullLogger.Instance);
+            Assert.Contains("truncated", truncated, StringComparison.Ordinal);
+            var captured = truncated["Dialog text: ".Length..].Split("\n[Some dialog text", 2)[0];
+            Assert.Equal(8192, captured.Length);
 
             var blockedRead = Stopwatch.StartNew();
             var blockedState = WorkbookRefreshState.Unknown;
