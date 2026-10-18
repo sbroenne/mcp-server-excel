@@ -9,45 +9,52 @@ public sealed class TypedValidationPolicyTests
 {
     internal static readonly string Root = FindRoot();
 
-    [Theory]
-    [InlineData("Range", "RangeCommands.Values.cs", "Core")]
-    [InlineData("PowerQuery", "PowerQueryCommands.Read.cs", "Core,Service")]
-    public async Task FeatureEdits_SelectBehaviorWithoutUnchangedAdapters(string area, string file, string owners)
+    [Fact]
+    public async Task FeatureEdits_SelectBehaviorWithoutUnchangedAdapters()
     {
-        var run = await ValidationSelectionTests.RunAsync($$"""
-            $plan = Get-ValidationPlan -Paths 'src/ExcelMcp.Core/Commands/{{area}}/{{file}}'
-            if (($plan.FastProjects -join ',') -cne '{{owners}}' -or $plan.ProcessProjects.Count -or $plan.ToolingProjects.Count) {
+        var run = await ValidationSelectionTests.RunCasesAsync(
+        [
+            ["Range", "RangeCommands.Values.cs", "Core"],
+            ["PowerQuery", "PowerQueryCommands.Read.cs", "Core,Service"]
+        ], """
+            $area, $file, $owners = $case
+            $plan = Get-ValidationPlan -Paths "src/ExcelMcp.Core/Commands/$area/$file"
+            if (($plan.FastProjects -join ',') -cne $owners -or $plan.ProcessProjects.Count -or $plan.ToolingProjects.Count) {
                 throw 'Unchanged adapters or tooling selected.'
             }
-            if (-not @($plan.ExcelSelections | Where-Object { $_.Area -eq '{{area}}' }).Count -or $plan.FullE2E) {
+            if (-not @($plan.ExcelSelections | Where-Object { $_.Area -eq $area }).Count -or $plan.FullE2E) {
                 throw 'Owning workbook selection missing or acceptance broadened.'
             }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
     }
 
-    [Theory]
-    [InlineData("src/ExcelMcp.Analyzers/SafetyAnalyzer.cs")]
-    [InlineData("BannedSymbols.txt")]
-    [InlineData("BannedSymbols.Mcp.txt")]
-    public async Task CompilerRuleChanges_BuildEveryConsumerWithoutWorkbookTests(string path)
+    [Fact]
+    public async Task CompilerRuleChanges_BuildEveryConsumerWithoutWorkbookTests()
     {
-        var run = await ValidationSelectionTests.RunAsync($$"""
-            $plan = Get-ValidationPlan -Paths '{{path}}'
+        var run = await ValidationSelectionTests.RunCasesAsync(
+        [
+            ["src/ExcelMcp.Analyzers/SafetyAnalyzer.cs"],
+            ["BannedSymbols.txt"],
+            ["BannedSymbols.Mcp.txt"]
+        ], """
+            $plan = Get-ValidationPlan -Paths $case[0]
             if (-not $plan.FullSolutionBuild -or $plan.Excel -or $plan.DocumentationCounts -or
                 $plan.ToolingFilters.ScriptSafety -notmatch 'AnalyzerTests') { throw 'Compiler-rule consumers missing.' }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
     }
 
-    [Theory]
-    [InlineData("src/Shared/TelemetryUserIdentity.cs")]
-    [InlineData("src/Shared/UsageTelemetry.cs")]
-    [InlineData("src/Shared/UsageRecord.cs")]
-    public async Task SharedTelemetry_SelectsBothEntryPointsButNoWorkbookTests(string path)
+    [Fact]
+    public async Task SharedTelemetry_SelectsBothEntryPointsButNoWorkbookTests()
     {
-        var run = await ValidationSelectionTests.RunAsync($$"""
-            $plan = Get-ValidationPlan -Paths '{{path}}'
+        var run = await ValidationSelectionTests.RunCasesAsync(
+        [
+            ["src/Shared/TelemetryUserIdentity.cs"],
+            ["src/Shared/UsageTelemetry.cs"],
+            ["src/Shared/UsageRecord.cs"]
+        ], """
+            $plan = Get-ValidationPlan -Paths $case[0]
             if (($plan.FastProjects -join ',') -cne 'CLI,McpServer' -or $plan.Excel -or $plan.FullE2E) {
                 throw 'Wrong shared telemetry consumers.'
             }
@@ -57,15 +64,18 @@ public sealed class TypedValidationPolicyTests
         Assert.True(run.ExitCode == 0, run.Output);
     }
 
-    [Theory]
-    [InlineData("src/ExcelMcp.CLI/Infrastructure/CliServiceTray.cs", "Process", "CliDaemonLifecycleTests")]
-    [InlineData("src/ExcelMcp.CLI/Commands/BatchCommand.cs", "Fast", "Feature=Batch")]
-    public async Task SpecialAdapterBoundaries_KeepTheirOwningCases(string path, string kind, string filter)
+    [Fact]
+    public async Task SpecialAdapterBoundaries_KeepTheirOwningCases()
     {
-        var run = await ValidationSelectionTests.RunAsync($$"""
-            $plan = Get-ValidationPlan -Paths '{{path}}'
-            if (($plan.CiTestGroups -join ',') -cne '{{kind}}' -or
-                $plan['{{kind}}Filters'].CLI -notmatch '{{filter}}' -or $plan.Excel) { throw 'Adapter boundary lost.' }
+        var run = await ValidationSelectionTests.RunCasesAsync(
+        [
+            ["src/ExcelMcp.CLI/Infrastructure/CliServiceTray.cs", "Process", "CliDaemonLifecycleTests"],
+            ["src/ExcelMcp.CLI/Commands/BatchCommand.cs", "Fast", "Feature=Batch"]
+        ], """
+            $path, $kind, $filter = $case
+            $plan = Get-ValidationPlan -Paths $path
+            if (($plan.CiTestGroups -join ',') -cne $kind -or
+                $plan["${kind}Filters"].CLI -notmatch $filter -or $plan.Excel) { throw 'Adapter boundary lost.' }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
     }
@@ -111,14 +121,16 @@ public sealed class TypedValidationPolicyTests
         Assert.Matches("No validation mapping|repository-relative|cannot be empty", run.Output);
     }
 
-    [Theory]
-    [InlineData("scripts/Test-E2E.ps1")]
-    [InlineData("scripts/Test-CliWorkflow.ps1")]
-    [InlineData("scripts/Stop-ExcelCliService.ps1")]
-    public async Task AcceptanceBoundaryChanges_KeepBothRequiredEntryPoints(string path)
+    [Fact]
+    public async Task AcceptanceBoundaryChanges_KeepBothRequiredEntryPoints()
     {
-        var run = await ValidationSelectionTests.RunAsync($$"""
-            $plan = Get-ValidationPlan -Paths '{{path}}'
+        var run = await ValidationSelectionTests.RunCasesAsync(
+        [
+            ["scripts/Test-E2E.ps1"],
+            ["scripts/Test-CliWorkflow.ps1"],
+            ["scripts/Stop-ExcelCliService.ps1"]
+        ], """
+            $plan = Get-ValidationPlan -Paths $case[0]
             if (-not $plan.FullE2E -or -not $plan.Excel -or -not $plan.Build -or $plan.FullSolutionBuild) {
                 throw 'Required acceptance boundary changed.'
             }

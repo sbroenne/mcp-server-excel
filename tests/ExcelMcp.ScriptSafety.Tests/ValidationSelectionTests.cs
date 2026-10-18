@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
@@ -7,75 +8,83 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 [Trait("Feature", "PreCommit")]
 public sealed class ValidationSelectionTests
 {
-    [Theory]
-    [InlineData(".github/dependabot.yml", "", "")]
-    [InlineData("README.md", "Tooling", "")]
-    [InlineData("tests/README.md", "", "")]
-    [InlineData("scripts/Install-ExcelAgentToolchain.ps1", "", "")]
-    [InlineData("scripts/Invoke-CopilotSetupNpm.ps1", "", "")]
-    [InlineData("scripts/Install-CopilotPonytailReview.ps1", "", "")]
-    [InlineData(".github/workflows/copilot-setup-steps.yml", "", "")]
-    [InlineData("scripts/Register-ExcelAgentRunner.ps1", "", "")]
-    [InlineData("infrastructure/azure/update-excel-runner.ps1", "", "")]
-    [InlineData(".github/workflows/excel-runner-control.yml", "", "")]
-    [InlineData("scripts/ExcelRunnerPolicy.ps1", "", "")]
-    [InlineData("scripts/Invoke-ExcelRunnerMaintenance.ps1", "", "")]
-    [InlineData("infrastructure/azure/excel-runner.bicep", "", "")]
-    [InlineData("infrastructure/azure/configure-analytics-oidc.ps1", "Tooling", "")]
-    [InlineData("infrastructure/azure/deploy-appinsights.ps1", "Tooling", "")]
-    [InlineData("scripts/tests/excel-runner-build-cleanup.tests.ps1", "Tooling", "")]
-    [InlineData("scripts/tests/excel-runner-control.tests.ps1", "Tooling", "")]
-    [InlineData("src/ExcelMcp.Analyzers/SafetyAnalyzer.cs", "Tooling", "")]
-    [InlineData("doc-counts.json", "Tooling", "")]
-    [InlineData("scripts/check-doc-counts.ps1", "Tooling", "")]
-    [InlineData("mcpb/README.md", "Tooling", "")]
-    [InlineData("vscode-extension/package-lock.json", "", "")]
-    [InlineData("src/ExcelMcp.CLI/Program.cs", "Fast,Process", "All")]
-    [InlineData("src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", "Fast", "Range")]
-    [InlineData("src/ExcelMcp.Core/Commands/PowerQuery/PowerQueryCommands.cs", "Fast", "PowerQuery")]
-    [InlineData("src/ExcelMcp.Core/Commands/PythonInExcel/PythonInExcelCommands.cs", "Fast", "PythonInExcel")]
-    [InlineData("src/ExcelMcp.Core/Commands/Calculation/CalculationModeCommands.cs", "Fast", "Calculation")]
-    [InlineData("src/ExcelMcp.Core/Commands/Table/TableCommands.cs", "Fast", "Table")]
-    [InlineData("src/ExcelMcp.Core/Commands/PivotTable/PivotTableCommands.cs", "Fast", "PivotTable")]
-    [InlineData("src/ExcelMcp.Core/Commands/DataModel/DataModelCommands.cs", "Fast", "DataModel,DataModel dependencies")]
-    [InlineData("scripts/PluginContent.mjs", "Tooling", "")]
-    [InlineData("tests/ExcelMcp.Packaging.Tests/PluginPublicationStaging.test.mjs", "Tooling", "")]
-    [InlineData("tests/ExcelMcp.CLI.Tests/Unit/ActionValidatorTests.cs", "Fast,Process", "")]
-    public async Task Paths_SelectExactGroups(string path, string ciGroups, string excelGroups)
+    [Fact]
+    public async Task Paths_SelectExactGroups()
     {
-        var run = await RunAsync($$"""
-            $plan = Get-ValidationPlan -Paths '{{path}}'
-            if (($plan.CiTestGroups -join ',') -cne '{{ciGroups}}') { throw "Wrong CI groups: $($plan.CiTestGroups)" }
-            if (($plan.ExcelGroups -join ',') -cne '{{excelGroups}}') { throw "Wrong Excel groups: $($plan.ExcelGroups)" }
+        var run = await RunCasesAsync(
+        [
+            [".github/dependabot.yml", "", ""],
+            ["README.md", "Tooling", ""],
+            ["tests/README.md", "", ""],
+            ["scripts/Install-ExcelAgentToolchain.ps1", "", ""],
+            ["scripts/Invoke-CopilotSetupNpm.ps1", "", ""],
+            ["scripts/Install-CopilotPonytailReview.ps1", "", ""],
+            [".github/workflows/copilot-setup-steps.yml", "", ""],
+            ["scripts/Register-ExcelAgentRunner.ps1", "", ""],
+            ["infrastructure/azure/update-excel-runner.ps1", "", ""],
+            [".github/workflows/excel-runner-control.yml", "", ""],
+            ["scripts/ExcelRunnerPolicy.ps1", "", ""],
+            ["scripts/Invoke-ExcelRunnerMaintenance.ps1", "", ""],
+            ["infrastructure/azure/excel-runner.bicep", "", ""],
+            ["infrastructure/azure/configure-analytics-oidc.ps1", "Tooling", ""],
+            ["infrastructure/azure/deploy-appinsights.ps1", "Tooling", ""],
+            ["scripts/tests/excel-runner-build-cleanup.tests.ps1", "Tooling", ""],
+            ["scripts/tests/excel-runner-control.tests.ps1", "Tooling", ""],
+            ["src/ExcelMcp.Analyzers/SafetyAnalyzer.cs", "Tooling", ""],
+            ["doc-counts.json", "Tooling", ""],
+            ["scripts/check-doc-counts.ps1", "Tooling", ""],
+            ["mcpb/README.md", "Tooling", ""],
+            ["vscode-extension/package-lock.json", "", ""],
+            ["src/ExcelMcp.CLI/Program.cs", "Fast,Process", "All"],
+            ["src/ExcelMcp.Core/Commands/Range/RangeCommands.cs", "Fast", "Range"],
+            ["src/ExcelMcp.Core/Commands/PowerQuery/PowerQueryCommands.cs", "Fast", "PowerQuery"],
+            ["src/ExcelMcp.Core/Commands/PythonInExcel/PythonInExcelCommands.cs", "Fast", "PythonInExcel"],
+            ["src/ExcelMcp.Core/Commands/Calculation/CalculationModeCommands.cs", "Fast", "Calculation"],
+            ["src/ExcelMcp.Core/Commands/Table/TableCommands.cs", "Fast", "Table"],
+            ["src/ExcelMcp.Core/Commands/PivotTable/PivotTableCommands.cs", "Fast", "PivotTable"],
+            ["src/ExcelMcp.Core/Commands/DataModel/DataModelCommands.cs", "Fast", "DataModel,DataModel dependencies"],
+            ["scripts/PluginContent.mjs", "Tooling", ""],
+            ["tests/ExcelMcp.Packaging.Tests/PluginPublicationStaging.test.mjs", "Tooling", ""],
+            ["tests/ExcelMcp.CLI.Tests/Unit/ActionValidatorTests.cs", "Fast,Process", ""]
+        ], """
+            $path, $ciGroups, $excelGroups = $case
+            $plan = Get-ValidationPlan -Paths $path
+            if (($plan.CiTestGroups -join ',') -cne $ciGroups) { throw "Wrong CI groups: $($plan.CiTestGroups)" }
+            if (($plan.ExcelGroups -join ',') -cne $excelGroups) { throw "Wrong Excel groups: $($plan.ExcelGroups)" }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
     }
 
-    [Theory]
-    [InlineData("doc-counts.json", "Tooling")]
-    [InlineData("scripts/check-doc-counts.ps1", "Tooling")]
-    [InlineData("src/ExcelMcp.Core/Commands/Range/RangeCommands.Values.cs", "")]
-    [InlineData("src/ExcelMcp.CLI/Program.cs", "")]
-    [InlineData("tests/ExcelMcp.CLI.Tests/Unit/ActionValidatorTests.cs", "")]
-    [InlineData("README.md", "")]
-    public async Task DocumentationChecks_RunInExactlyOneSelectedGroup(string path, string group)
+    [Fact]
+    public async Task DocumentationChecks_RunInExactlyOneSelectedGroup()
     {
-        var run = await RunAsync($$"""
-            $plan = Get-ValidationPlan -Paths '{{path}}'
-            if ($plan.DocumentationChecksGroup -cne '{{group}}') { throw 'Wrong documentation check group.' }
-            if ('{{group}}' -and '{{group}}' -notin $plan.CiTestGroups) { throw 'Missing documentation owner.' }
+        var run = await RunCasesAsync(
+        [
+            ["doc-counts.json", "Tooling"],
+            ["scripts/check-doc-counts.ps1", "Tooling"],
+            ["src/ExcelMcp.Core/Commands/Range/RangeCommands.Values.cs", ""],
+            ["src/ExcelMcp.CLI/Program.cs", ""],
+            ["tests/ExcelMcp.CLI.Tests/Unit/ActionValidatorTests.cs", ""],
+            ["README.md", ""]
+        ], """
+            $path, $group = $case
+            $plan = Get-ValidationPlan -Paths $path
+            if ($plan.DocumentationChecksGroup -cne $group) { throw 'Wrong documentation check group.' }
+            if ($group -and $group -notin $plan.CiTestGroups) { throw 'Missing documentation owner.' }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
     }
 
-    [Theory]
-    [InlineData("scripts\\Invoke-CopilotSetupNpm.ps1")]
-    [InlineData("scripts\\Install-CopilotPonytailReview.ps1")]
-    [InlineData(".github\\workflows\\copilot-setup-steps.yml")]
-    public async Task CopilotSetup_DoesNotSelectAutomatedValidation(string path)
+    [Fact]
+    public async Task CopilotSetup_DoesNotSelectAutomatedValidation()
     {
-        var run = await RunAsync($$"""
-            $plan = Get-ValidationPlan -Paths '{{path}}'
+        var run = await RunCasesAsync(
+        [
+            ["scripts\\Invoke-CopilotSetupNpm.ps1"],
+            ["scripts\\Install-CopilotPonytailReview.ps1"],
+            [".github\\workflows\\copilot-setup-steps.yml"]
+        ], """
+            $plan = Get-ValidationPlan -Paths $case[0]
             if ($plan.Build -or $plan.Excel -or $plan.HookTests -or $plan.CiTestGroups.Count) { throw 'Operational setup selected automated tests.' }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
@@ -128,6 +137,43 @@ public sealed class ValidationSelectionTests
             if ($plan.ToolingFilters.Packaging -notmatch 'PluginPublication') { throw 'Publication regressions missing.' }
             """);
         Assert.True(result.ExitCode == 0, result.Output);
+    }
+
+    [Fact]
+    public async Task CaseMatrix_VisitsEveryRowInItsOwnScopeAndReportsTheFailingInput()
+    {
+        var success = await RunCasesAsync([["first", "1"], ["second'\\path", "2"]], """
+            if (Test-Path Variable:matrixLocal) { throw 'Case scope leaked.' }
+            $matrixLocal = $true
+            Write-Output "visited=$($case[0]):$($case[1])"
+            """);
+        Assert.True(success.ExitCode == 0, success.Output);
+        Assert.Contains("visited=first:1", success.Output, StringComparison.Ordinal);
+        Assert.Contains("visited=second'\\path:2", success.Output, StringComparison.Ordinal);
+
+        var failure = await RunCasesAsync([["first"], ["broken"], ["not-reached"]], """
+            if ($case[0] -eq 'broken') { throw 'matrix-root-cause' }
+            """);
+        Assert.NotEqual(0, failure.ExitCode);
+        Assert.Contains("Checking case: [\"first\"]", failure.Output, StringComparison.Ordinal);
+        Assert.Contains("Checking case: [\"broken\"]", failure.Output, StringComparison.Ordinal);
+        Assert.Contains("matrix-root-cause", failure.Output, StringComparison.Ordinal);
+        Assert.DoesNotContain("not-reached", failure.Output, StringComparison.Ordinal);
+    }
+
+    internal static Task<(int ExitCode, string Output)> RunCasesAsync(string[][] cases, string command)
+    {
+        Assert.NotEmpty(cases);
+        var json = JsonSerializer.Serialize(cases).Replace("'", "''", StringComparison.Ordinal);
+        return RunAsync($$"""
+            $cases = ConvertFrom-Json -InputObject '{{json}}' -NoEnumerate
+            foreach ($case in $cases) {
+                Write-Output "Checking case: $(ConvertTo-Json -InputObject $case -Compress)"
+                & {
+                    {{command}}
+                }
+            }
+            """);
     }
 
     internal static async Task<(int ExitCode, string Output)> RunAsync(

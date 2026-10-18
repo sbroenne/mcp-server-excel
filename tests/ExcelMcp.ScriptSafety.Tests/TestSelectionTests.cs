@@ -29,25 +29,28 @@ public sealed class TestSelectionTests
         Assert.True(run.ExitCode == 0, run.Output);
     }
 
-    [Theory]
-    [InlineData("scripts/Build-AgentSkills.ps1", "SkillGeneration")]
-    [InlineData("docs/reference/report-formatting.md", "SkillGeneration")]
-    [InlineData("scripts/Build-Plugins.ps1", "Packaging")]
-    [InlineData("scripts/Update-ReleaseVersionMetadata.ps1", "Packaging")]
-    [InlineData(".github/workflows/publish-mcp-registry.yml", "Packaging")]
-    [InlineData("mcpb/README.md", "Packaging")]
-    [InlineData("src/ExcelMcp.Analyzers/ComAccessAnalyzer.cs", "ScriptSafety")]
-    [InlineData("tests/Shared/GeneratedAssetsFixture.cs", "Packaging,SkillGeneration")]
-    [InlineData("tests/Shared/PackagingScriptTestHelper.cs", "Packaging,SkillGeneration")]
-    [InlineData("infrastructure/azure/deploy-appinsights.ps1", "ScriptSafety")]
-    [InlineData("videos/excel-mcp-intro/Capture-Evidence.ps1", "ScriptSafety")]
-    public async Task ToolingChanges_SelectTheirOwnersWithoutWorkbookTests(string path, string owners)
+    [Fact]
+    public async Task ToolingChanges_SelectTheirOwnersWithoutWorkbookTests()
     {
-        var run = await ValidationSelectionTests.RunAsync($$"""
+        var run = await ValidationSelectionTests.RunCasesAsync(
+        [
+            ["scripts/Build-AgentSkills.ps1", "SkillGeneration"],
+            ["docs/reference/report-formatting.md", "SkillGeneration"],
+            ["scripts/Build-Plugins.ps1", "Packaging"],
+            ["scripts/Update-ReleaseVersionMetadata.ps1", "Packaging"],
+            [".github/workflows/publish-mcp-registry.yml", "Packaging"],
+            ["mcpb/README.md", "Packaging"],
+            ["src/ExcelMcp.Analyzers/ComAccessAnalyzer.cs", "ScriptSafety"],
+            ["tests/Shared/GeneratedAssetsFixture.cs", "Packaging,SkillGeneration"],
+            ["tests/Shared/PackagingScriptTestHelper.cs", "Packaging,SkillGeneration"],
+            ["infrastructure/azure/deploy-appinsights.ps1", "ScriptSafety"],
+            ["videos/excel-mcp-intro/Capture-Evidence.ps1", "ScriptSafety"]
+        ], """
+            $path, $owners = $case
             . .\scripts\ValidationExecution.ps1
-            $plan = Get-ValidationPlan -Paths '{{path}}'
+            $plan = Get-ValidationPlan -Paths $path
             $selected = @(Get-FreeTestSelection -Plan $plan -Group Tooling)
-            if (($selected.Owner -join ',') -cne '{{owners}}' -or $plan.Excel -or
+            if (($selected.Owner -join ',') -cne $owners -or $plan.Excel -or
                 $plan.FastProjects.Count -or $plan.ProcessProjects.Count) { throw 'Wrong tooling consumers.' }
             """);
         Assert.True(run.ExitCode == 0, run.Output);

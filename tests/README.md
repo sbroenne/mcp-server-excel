@@ -110,6 +110,14 @@ and cleanup responsibilities. Similar-looking bodies or shared helpers alone
 do not establish duplication; inspect their data and actual call targets.
 Check theory rows and acceptance selections as well as test definitions.
 
+Pure validation-selection matrices run their input rows in one PowerShell
+process per behavior, rather than paying for process startup for every path.
+Keep each row's exact expectations and print its input before checking it;
+run the row in its own script scope so local variables cannot leak to the next
+row. Tests whose subject is process isolation, exit/failure behavior, Git state,
+or environment changes still use separate processes. A lower runner case count
+after this consolidation does not mean fewer input scenarios were checked.
+
 For Power Query, check complete records in every requested destination, not
 just agreement between `list`, `view`, and `get-load-config`. Loading to both
 a worksheet and the Data Model creates separate connections; identify them

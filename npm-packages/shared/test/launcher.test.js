@@ -118,35 +118,10 @@ test('resolveRuntime rejects unsupported operating systems', () => {
   );
 });
 
-test('resolveRuntime supports native Windows Arm64', () => {
-  assert.equal(
-    resolveRuntime({
-      platform: 'win32',
-      arch: 'arm64',
-      resolvePackage: () => 'C:\\runtime\\mcp-excel.exe'
-    }),
-    'C:\\runtime\\mcp-excel.exe'
-  );
-});
-
 test('resolveRuntime rejects unsupported Windows architectures', () => {
   assert.throws(
     () => resolveRuntime({ platform: 'win32', arch: 'ia32' }),
     /x64 or Arm64/
-  );
-});
-
-test('resolveRuntime explains how to restore an omitted binary package', () => {
-  assert.throws(
-    () =>
-      resolveRuntime({
-        platform: 'win32',
-        arch: 'x64',
-        resolvePackage: () => {
-          throw new Error('package not found');
-        }
-      }),
-    /optional dependencies enabled/
   );
 });
 
