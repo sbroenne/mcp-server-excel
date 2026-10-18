@@ -206,12 +206,19 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
                 Assert.Throws<TimeoutException>(() => pending.GetAwaiter().GetResult());
                 Assert.True(batch.HasTimedOutOperation);
+                Assert.True(IsWindowVisible(owner), "Timeout recovery must reveal Excel.");
+                RequireSuccess(await service.ProcessAsync(new ServiceRequest { Command = "window.hide", SessionId = session })
+                    .WaitAsync(TimeSpan.FromSeconds(3)));
+                Assert.False(IsWindowVisible(owner));
             }
             finally
             {
                 release.Set();
             }
             await finished.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(SpinWait.SpinUntil(() => batch.OperationStatus.State is "completed" or "failed", TimeSpan.FromSeconds(5)));
+            Assert.Equal("completed", batch.OperationStatus.State);
+            Assert.False(IsWindowVisible(owner), "Finishing the timed-out operation must not undo an explicit hide.");
 
             var rejectedWorkbookCommand = await service.ProcessAsync(new ServiceRequest
             {

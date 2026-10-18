@@ -1163,6 +1163,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 ?? throw new InvalidOperationException("Excel process identity is unavailable.");
             var result = ExcelWindowVisibility.Set(identity, visible, _logger);
             _isExcelVisible = result.IsVisible;
+            _revealRequested = false;
             DialogVisibilityError = null;
             return result;
         }
@@ -1199,6 +1200,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         return inspection.State;
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Restoring an explicit hide after a deferred recovery reveal is cosmetic; failures are logged with cause and the following Visible read reports the window as shown, so the operation result is never misrepresented.")]
     private void UpdateVisibilitySnapshot(Exception? operationFailure)
     {
         try
@@ -1206,7 +1209,27 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             if (_revealRequested && _excel != null)
             {
                 _excel.Visible = true;
-                _revealRequested = false;
+                // An explicit show/hide clears _revealRequested under the window lock. If one ran
+                // while this deferred reveal was applied, restore that choice instead of undoing it.
+                // The COM call stays outside the lock so native show/hide never waits on Excel.
+                lock (_windowControlLock)
+                {
+                    if (_revealRequested)
+                        _revealRequested = false;
+                    else if (!_isExcelVisible && _excelProcessIdentity is { } identity)
+                    {
+                        try
+                        {
+                            _ = ExcelWindowVisibility.Set(identity, visible: false, _logger);
+                        }
+                        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or ArgumentException)
+                        {
+                            // The operation's own result must stand; the visibility read below reports
+                            // the window as still shown so the caller can hide it again.
+                            _logger.LogWarning(ex, "Restoring the requested hidden Excel window failed");
+                        }
+                    }
+                }
             }
             _isExcelVisible = _excel != null && (bool)_excel.Visible;
         }
