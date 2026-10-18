@@ -23,7 +23,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// </list>
 /// <para><b>Resource Cost:</b> Each ExcelBatch = one Excel.Application process (~50-100MB+ memory)</para>
 /// </remarks>
-internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcelBatchRefreshState, IExcelBatchCloseState
+internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcelBatchRefreshState, IExcelBatchCloseState, IExcelBatchWindowControl
 {
     // P/Invoke for getting process ID from window handle
     [DllImport("user32.dll")]
@@ -63,6 +63,9 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     private string? _operationError;
     private bool _waitExpired;
     private Task<WorkbookRefreshState>? _readinessTask;
+    private readonly Lock _windowControlLock = new();
+    private nint _revealedDialog;
+    public string? DialogVisibilityError { get; private set; }
     private bool _startupDetectedIrmProtectedWorkbook;
 
     /// <summary>
@@ -1067,7 +1070,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             : new CancellationTokenSource(_operationTimeout);
         try
         {
-            return completion.Task.WaitAsync(timeoutCts?.Token ?? cancellationToken).GetAwaiter().GetResult();
+            return WaitWithDialogMonitoringAsync(completion.Task, timeoutCts?.Token ?? cancellationToken).GetAwaiter().GetResult();
         }
         catch (OperationCanceledException ex) when (
             timeoutCts is { IsCancellationRequested: true } && ex.CancellationToken == timeoutCts.Token)
@@ -1123,20 +1126,74 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         }
 
         // Inspect native windows directly; the Excel thread may be blocked by the prompt.
-        var dialogState = ExcelDialogProbe.ReadWithText(_excelProcessIdentity, _logger, out var dialogText);
-        var dialogOpen = dialogState is WorkbookRefreshState.DialogOpen or WorkbookRefreshState.NativeQueryApproval;
+        var dialogState = ExcelDialogProbe.Read(_excelProcessIdentity, _logger);
+        var dialogOpen = dialogState == WorkbookRefreshState.DialogOpen;
         return new TimeoutException(
             $"Excel operation timed out after {_operationTimeout.TotalSeconds} seconds for '{Path.GetFileName(_workbookPath)}'. " +
             $"The workbook remains open and the operation may still change it. No changes were saved or discarded by timeout recovery. Excel window: {_windowReveal}. " +
             (dialogOpen
-                ? (dialogState == WorkbookRefreshState.NativeQueryApproval
-                    ? "Excel was waiting for approval to run a native database query. "
-                    : "Excel had a dialog open when the operation timed out and may have been waiting for input. ") +
+                ? "Excel had a dialog open when the operation timed out and may have been waiting for input. " +
                   "This timeout does not itself cancel the operation or undo workbook changes. " +
-                  "The captured dialog text is included below. " +
-                  $"Dialog text: {dialogText}"
+                  "Dialog contents were not read."
                 : "Excel may be unresponsive or the operation is taking longer than expected. " +
                   "Inspect session status for the eventual outcome; do not automatically repeat the operation."));
+    }
+
+    private async Task<T> WaitWithDialogMonitoringAsync<T>(Task<T> completion, CancellationToken token)
+    {
+        while (!completion.IsCompleted)
+        {
+            await Task.WhenAny(completion, Task.Delay(TimeSpan.FromMilliseconds(500), token)).ConfigureAwait(false);
+            if (completion.IsCompleted) break;
+            token.ThrowIfCancellationRequested();
+            _ = ReadDialogState();
+        }
+        return await completion.ConfigureAwait(false);
+    }
+
+    public ExcelVisibilityResult SetVisibility(bool visible)
+    {
+        ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
+        lock (_windowControlLock)
+        {
+            var identity = _excelProcessIdentity
+                ?? throw new InvalidOperationException("Excel process identity is unavailable.");
+            var result = ExcelWindowVisibility.Set(identity, visible, _logger);
+            _isExcelVisible = result.IsVisible;
+            DialogVisibilityError = null;
+            return result;
+        }
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Optional dialog reveal preserves the pending operation; failures are logged with cause and exposed in session blockingMessage, never reported as a successful reveal.")]
+    private WorkbookRefreshState ReadDialogState()
+    {
+        var inspection = ExcelDialogProbe.Inspect(_excelProcessIdentity, _logger);
+        lock (_windowControlLock)
+        {
+            if (inspection.State == WorkbookRefreshState.Ready)
+            {
+                _revealedDialog = 0;
+                DialogVisibilityError = null;
+            }
+            else if (inspection.State == WorkbookRefreshState.DialogOpen &&
+                _revealedDialog != inspection.Dialog && _disposed == 0 && !_operationTimedOut)
+            {
+                _revealedDialog = inspection.Dialog;
+                try
+                {
+                    _ = SetVisibility(true);
+                    _logger.LogWarning("{DialogGuidance}", ExcelBusyException.DialogGuidance);
+                }
+                catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or ArgumentException)
+                {
+                    DialogVisibilityError = $"Excel's dialog was detected, but showing its window failed: {ex.Message}";
+                    _logger.LogWarning(ex, "{DialogVisibilityError}", DialogVisibilityError);
+                }
+            }
+        }
+        return inspection.State;
     }
 
     private void UpdateVisibilitySnapshot(Exception? operationFailure)
@@ -1200,7 +1257,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             return WorkbookRefreshState.Unknown;
         }
         // Window inspection must not queue behind COM work blocked by a modal prompt.
-        var dialogState = ExcelDialogProbe.Read(_excelProcessIdentity, _logger);
+        var dialogState = ReadDialogState();
         if (dialogState != WorkbookRefreshState.Ready)
         {
             return dialogState;
@@ -1268,7 +1325,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     private WorkbookRefreshState ReadRefreshState()
     {
         BeforeRefreshStateReadHookForTests?.Invoke();
-        var dialogState = ExcelDialogProbe.Read(_excelProcessIdentity, _logger);
+        var dialogState = ReadDialogState();
         if (dialogState != WorkbookRefreshState.Ready) return dialogState;
         foreach (var workbook in _workbooks!.Values)
         {

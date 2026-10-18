@@ -15,6 +15,72 @@ public sealed class PersistentServicePowerQueryReadContractTests(
     PersistentServiceWorkbookTestBase(fixture),
     IClassFixture<PersistentServiceWorkbookFixture>
 {
+    [Theory]
+    [InlineData(PowerQueryLoadMode.LoadToTable)]
+    [InlineData(PowerQueryLoadMode.LoadToDataModel)]
+    [InlineData(PowerQueryLoadMode.LoadToBoth)]
+    public void EmptyLoad_ReportsVerifiedZeroCounts(PowerQueryLoadMode mode)
+    {
+        var name = $"Empty_{Guid.NewGuid():N}"[..24];
+        const string code = "#table(type table [Value = Int64.Type], {})";
+        _fixture.RegisterPowerQueryForCleanup(name);
+        var created = RequireSuccess(_queries.Create(_fixture.BatchToken, name, code, mode, name));
+        Assert.Equal(0, created.RowsLoaded);
+        Assert.Equal(mode is PowerQueryLoadMode.LoadToTable or PowerQueryLoadMode.LoadToBoth ? 0L : null,
+            created.WorksheetRowsLoaded);
+        Assert.Equal(mode is PowerQueryLoadMode.LoadToDataModel or PowerQueryLoadMode.LoadToBoth ? 0L : null,
+            created.ModelRowsLoaded);
+        PowerQueryStateAssertions.AssertStored(_fixture, name, code, mode,
+            mode is PowerQueryLoadMode.LoadToTable or PowerQueryLoadMode.LoadToBoth ? name : null,
+            ["Value"], []);
+    }
+
+    [Theory]
+    [InlineData(PowerQueryLoadMode.ConnectionOnly, 0)]
+    [InlineData(PowerQueryLoadMode.LoadToTable, 3)]
+    [InlineData(PowerQueryLoadMode.LoadToDataModel, 3)]
+    [InlineData(PowerQueryLoadMode.LoadToBoth, 3)]
+    public void LoadMetrics_MatchActualDestinations(PowerQueryLoadMode mode, int expectedRows)
+    {
+        var name = $"Metrics_{Guid.NewGuid():N}"[..24];
+        const string code = "#table(type table [Value = Int64.Type], {{11},{12},{13}})";
+        _fixture.RegisterPowerQueryForCleanup(name);
+        var created = RequireSuccess(_queries.Create(_fixture.BatchToken, name, code, mode, name));
+        var json = JsonSerializer.SerializeToElement(created, created.GetType(), JsonSerializerOptions.Web);
+        Assert.True(json.GetProperty("durationMs").GetDouble() > 0);
+        Assert.Equal(expectedRows, json.GetProperty("rowsLoaded").GetInt64());
+        Assert.Equal(mode is PowerQueryLoadMode.LoadToTable or PowerQueryLoadMode.LoadToBoth ? 3L : null,
+            created.WorksheetRowsLoaded);
+        Assert.Equal(mode is PowerQueryLoadMode.LoadToDataModel or PowerQueryLoadMode.LoadToBoth ? 3L : null,
+            created.ModelRowsLoaded);
+        PowerQueryStateAssertions.AssertStored(_fixture, name, code, mode,
+            mode is PowerQueryLoadMode.LoadToTable or PowerQueryLoadMode.LoadToBoth ? name : null,
+            ["Value"], [[11], [12], [13]]);
+        if (mode == PowerQueryLoadMode.ConnectionOnly) return;
+
+        const string changed = "#table(type table [Value = Int64.Type], {{21},{22}})";
+        RequireSuccess(_queries.Update(_fixture.BatchToken, name, changed, refresh: false));
+        var refreshed = RequireSuccess(_queries.Refresh(_fixture.BatchToken, name, default));
+        var refreshJson = JsonSerializer.SerializeToElement(refreshed, JsonSerializerOptions.Web);
+        Assert.True(refreshJson.GetProperty("durationMs").GetDouble() > 0);
+        Assert.Equal(2, refreshJson.GetProperty("rowsLoaded").GetInt64());
+        PowerQueryStateAssertions.AssertStored(_fixture, name, changed, mode,
+            mode is PowerQueryLoadMode.LoadToTable or PowerQueryLoadMode.LoadToBoth ? name : null,
+            ["Value"], [[21], [22]]);
+
+        var all = RequireSuccess(_queries.RefreshAll(_fixture.BatchToken, refreshPivotTables: false));
+        var metrics = Assert.Single(all.QueryMetrics, metric => metric.QueryName == name);
+        Assert.Equal(2, metrics.RowsLoaded);
+        Assert.True(metrics.DurationMs > 0);
+
+        var loaded = RequireSuccess(_queries.LoadTo(_fixture.BatchToken, name, PowerQueryLoadMode.LoadToTable, name));
+        var loadJson = JsonSerializer.SerializeToElement(loaded, loaded.GetType(), JsonSerializerOptions.Web);
+        Assert.True(loadJson.GetProperty("durationMs").GetDouble() > 0);
+        Assert.Equal(2, loadJson.GetProperty("rowsLoaded").GetInt64());
+        PowerQueryStateAssertions.AssertStored(_fixture, name, changed,
+            PowerQueryLoadMode.LoadToTable, name, ["Value"], [[21], [22]]);
+    }
+
     private readonly IPowerQueryCommands _queries =
         ServiceCommandProxy.Create<IPowerQueryCommands>(fixture);
 

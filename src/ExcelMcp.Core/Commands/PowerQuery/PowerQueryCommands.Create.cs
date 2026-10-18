@@ -23,7 +23,7 @@ public partial class PowerQueryCommands
     /// <param name="targetCellAddress">Target cell address (e.g., "A1", "B5")</param>
     /// <exception cref="ArgumentException">Thrown when inputs are invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when query already exists or creation fails</exception>
-    public OperationResult Create(
+    public PowerQueryCreateResult Create(
         IExcelBatch batch,
         string queryName,
         string mCode,
@@ -56,6 +56,7 @@ public partial class PowerQueryCommands
         // Resolve target cell address (default to A1)
         targetCellAddress ??= "A1";
 
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
         return ExcelBatchWait.Execute(batch, ComInteropConstants.DataOperationTimeout, (ctx, ct) =>
         {
             Excel.Queries? queries = null;
@@ -84,8 +85,8 @@ public partial class PowerQueryCommands
                     FilePath = batch.WorkbookPath,
                     QueryName = queryName,
                     LoadDestination = loadMode,
-                    WorksheetName = targetSheet,
-                    TargetCellAddress = targetCellAddress,
+                    WorksheetName = loadMode is PowerQueryLoadMode.LoadToTable or PowerQueryLoadMode.LoadToBoth ? targetSheet : null,
+                    TargetCellAddress = loadMode is PowerQueryLoadMode.LoadToTable or PowerQueryLoadMode.LoadToBoth ? targetCellAddress : null,
                     QueryCreated = true
                 };
 
@@ -116,7 +117,13 @@ public partial class PowerQueryCommands
                         break;
                 }
 
-                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+                if (loadMode != PowerQueryLoadMode.ConnectionOnly)
+                {
+                    ReadLoadMetrics(ctx.Book, queryName, result, ct);
+                    result.DataLoaded = true;
+                }
+                result.DurationMs = System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+                return result;
             }
             catch (Exception ex) when (queryCreated && !ct.IsCancellationRequested && CanReportMutationFailure(ex))
             {

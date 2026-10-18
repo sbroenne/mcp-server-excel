@@ -55,18 +55,18 @@ public sealed class NativeQueryApprovalIntegrationTests(
                 Assert.True(response.Success, response.ErrorMessage);
                 using var document = JsonDocument.Parse(response.Result!);
                 session = Assert.Single(document.RootElement.GetProperty("sessions").EnumerateArray()).Clone();
-                if (session.GetProperty("excelState").GetString() == "nativeQueryApproval")
+                if (session.GetProperty("excelState").GetString() == "dialogOpen")
                 {
                     break;
                 }
                 await Task.Delay(100);
             }
 
-            Assert.Equal("nativeQueryApproval", session.GetProperty("excelState").GetString());
-            Assert.Equal("nativeQueryApproval", session.GetProperty("blockingReason").GetString());
+            Assert.Equal("dialogOpen", session.GetProperty("excelState").GetString());
+            Assert.Equal("dialogOpen", session.GetProperty("blockingReason").GetString());
             Assert.True(session.GetProperty("operationPending").GetBoolean());
             Assert.False(session.GetProperty("canClose").GetBoolean());
-            Assert.Contains("approve the query manually",
+            Assert.Contains("Check the Excel window",
                 session.GetProperty("blockingMessage").GetString(),
                 StringComparison.Ordinal);
             Assert.DoesNotContain(sql,

@@ -935,12 +935,13 @@ public sealed class SessionManager : IDisposable
         var refreshState = GetRefreshState(batch);
         var isVisible = IsExcelVisible(sessionId);
 
-        if (refreshState == WorkbookRefreshState.NativeQueryApproval)
+        if (refreshState == WorkbookRefreshState.DialogOpen)
         {
-            return new CloseValidationResult(true, isVisible, activeOps, "nativeQueryApproval")
+            return new CloseValidationResult(true, isVisible, activeOps, "dialogOpen")
             {
                 RefreshState = refreshState,
-                BlockingMessage = ExcelBusyException.NativeQueryApprovalGuidance
+                BlockingMessage = ExcelBusyException.DialogGuidance +
+                    (batch is IExcelBatchWindowControl { DialogVisibilityError: { } error } ? $" {error}" : "")
             };
         }
 
@@ -1028,7 +1029,7 @@ public sealed class SessionManager : IDisposable
             var refreshState = !resolvedFailedTeardown && !force
                 ? GetClosePreflightState(batch)
                 : WorkbookRefreshState.Ready;
-            if (refreshState is WorkbookRefreshState.DialogOpen or WorkbookRefreshState.NativeQueryApproval)
+            if (refreshState == WorkbookRefreshState.DialogOpen)
             {
                 ExcelBusyException.ThrowIfNotReady(refreshState, "close");
             }
@@ -1524,16 +1525,15 @@ public sealed record CloseValidationResult(
         WorkbookRefreshState.Refreshing => "refreshing",
         WorkbookRefreshState.Busy => "busy",
         WorkbookRefreshState.DialogOpen => "dialogOpen",
-        WorkbookRefreshState.NativeQueryApproval => "nativeQueryApproval",
         _ => "unknown"
     };
 
     /// <summary>
-    /// Whether a server-tracked operation or an Excel refresh/native-query approval is still pending.
+    /// Whether a server-tracked operation, data refresh, or blocking dialog is still pending.
     /// </summary>
     public bool OperationPending =>
         ActiveOperationCount > 0
-        || RefreshState is WorkbookRefreshState.Refreshing or WorkbookRefreshState.NativeQueryApproval;
+        || RefreshState is WorkbookRefreshState.Refreshing or WorkbookRefreshState.DialogOpen;
 
     /// <summary>
     /// Whether the session can be closed (no blocking conditions).

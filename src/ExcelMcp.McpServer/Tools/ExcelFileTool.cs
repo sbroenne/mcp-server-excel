@@ -27,7 +27,7 @@ public static partial class ExcelFileTool
     /// Save persists the current workbook without closing it. Timeouts preserve the owned session,
     /// request that its Excel window be shown, and report the result to the caller.
     /// canClose is false while Excel has a modal dialog open, is busy, refreshing, or its state cannot be confirmed,
-    /// even with activeOperations:0. nativeQueryApproval means Excel is waiting for manual approval and operationPending is true.
+    /// even with activeOperations:0. Confirmed blocking dialogs reveal Excel and report generic dialogOpen with operationPending true.
     /// Close with either save value is blocked until Excel is ready.
     /// Open/create default to 120 seconds. Cancellation is not undo; inspect the session state before continuing.
     /// </summary>
@@ -64,7 +64,7 @@ public static partial class ExcelFileTool
             },
             bridge, file_path, workbook_session_id, save, show, timeout_seconds, cancellationToken);
 
-    /// <summary>List workbook sessions with live canClose, excelState, operationPending and blocker details, and validate a workbook path without opening an editable session. nativeQueryApproval means Excel is waiting for manual approval; operationPending remains true until the user responds. Show Excel and approve the query manually. Other dialogOpen prompts remain generic. activeOperations:0 does not prove a background refresh has finished.</summary>
+    /// <summary>List workbook sessions with live canClose, excelState, operationPending and blocker details, and validate a workbook path without opening an editable session. Confirmed blocking dialogs automatically reveal Excel and report dialogOpen; ask the user to check its window and respond there. Dialog types and contents are not inspected. activeOperations:0 does not prove a background refresh has finished.</summary>
     /// <remarks>
     /// Test defaults to 120 seconds and validates ordinary files through a temporary read-only Excel open.
     /// IRM/AIP files require visible authentication; Excel determines editing rights, not protection detection.

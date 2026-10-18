@@ -20,11 +20,76 @@ public sealed class ExcelDialogProbeWindowTests
 {
     private static readonly WindowProcedure Procedure = DefWindowProc;
 
+    [Fact]
+    public void Hide_WhenExcelReplacesItsWindow_ReportsChangedOwnershipInsteadOfSuccess()
+    {
+        nint root = 0;
+        var replaced = false;
+        var failures = new List<Exception>();
+        WindowProcedure replacingProcedure = (window, message, wParam, lParam) =>
+        {
+            var result = DefWindowProc(window, message, wParam, lParam);
+            if (message == 0x46 && window == root && !replaced &&
+                (Marshal.ReadInt32(lParam, 2 * IntPtr.Size + 4 * sizeof(int)) & 0x80) != 0)
+            {
+                replaced = true;
+                if (!DestroyWindow(root))
+                    failures.Add(new Win32Exception("Could not replace the test root window."));
+                root = CreateWindowEx(0x08000000, "XLMAIN", "", 0x90000000,
+                    -10000, -10000, 1, 1, 0, 0, 0, 0);
+            }
+            return result;
+        };
+        var windowClass = new WindowClass
+        {
+            WindowProcedure = Marshal.GetFunctionPointerForDelegate(replacingProcedure),
+            ClassName = "XLMAIN"
+        };
+        Assert.NotEqual(0, RegisterClass(ref windowClass));
+        try
+        {
+            root = CreateWindowEx(0x08000000, "XLMAIN", "", 0x90000000,
+                -10000, -10000, 1, 1, 0, 0, 0, 0);
+            Assert.NotEqual(nint.Zero, root);
+            using var process = Process.GetCurrentProcess();
+            var identity = new ExcelProcessIdentity(
+                process.Id, process.StartTime.ToUniversalTime().ToFileTimeUtc());
+            var visibility = Task.Run(() => ExcelWindowVisibility.Set(identity, false, NullLogger.Instance));
+            var timer = Stopwatch.StartNew();
+            while (!visibility.IsCompleted && timer.Elapsed < TimeSpan.FromSeconds(5))
+            {
+                if (PeekMessage(out var message, 0, 0, 0, 1))
+                    _ = DispatchMessage(ref message);
+                else
+                    Thread.Sleep(1);
+            }
+            var failure = Record.Exception(() => visibility.WaitAsync(TimeSpan.FromSeconds(5)).GetAwaiter().GetResult());
+            Assert.True(replaced);
+            Assert.NotEqual(nint.Zero, root);
+            Assert.True(IsWindowVisible(root));
+            Assert.Contains("changed", Assert.IsType<InvalidOperationException>(failure).Message, StringComparison.Ordinal);
+        }
+        catch (Exception ex)
+        {
+            failures.Add(ex);
+        }
+        finally
+        {
+            if (root != 0 && !DestroyWindow(root))
+                failures.Add(new Win32Exception("Could not destroy the test root window."));
+            if (!UnregisterClass("XLMAIN", 0))
+                failures.Add(new Win32Exception("Could not unregister the test window class."));
+            GC.KeepAlive(replacingProcedure);
+        }
+        if (failures.Count == 1) ExceptionDispatchInfo.Capture(failures[0]).Throw();
+        if (failures.Count > 1) throw new AggregateException("Visibility test or cleanup failed.", failures);
+    }
+
     [Theory]
     [InlineData("Native Database Query - Do you approve running this native query?")]
     [InlineData("Native Datenbankabfrage")]
     [InlineData("Requête de base de données native")]
-    public void NativeQueryApprovalWindow_IsDetectedWithinOneSecond(string title)
+    public void DialogWindow_IsGenericAndPrivateWithinOneSecond(string title)
     {
         var windowClass = new WindowClass
         {
@@ -48,7 +113,7 @@ public sealed class ExcelDialogProbeWindowTests
             EnableWindow(root, false);
 
             var started = Stopwatch.GetTimestamp();
-            Assert.Equal(WorkbookRefreshState.NativeQueryApproval, ExcelDialogProbe.Read(identity, NullLogger.Instance));
+            Assert.Equal(WorkbookRefreshState.DialogOpen, ExcelDialogProbe.Read(identity, NullLogger.Instance));
             Assert.True(Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(1));
             var batch = (ExcelBatch)RuntimeHelpers.GetUninitializedObject(typeof(ExcelBatch));
             SetField(batch, "_excelProcessIdentity", identity);
@@ -56,8 +121,8 @@ public sealed class ExcelDialogProbeWindowTests
             SetField(batch, "_operationTimeout", TimeSpan.FromSeconds(3));
             SetField(batch, "_workbookPath", "dialog-test.xlsx");
             var timeout = batch.CreateOperationTimeoutException(expiredWhileQueued: false);
-            Assert.Contains("waiting for approval to run a native database query", timeout.Message, StringComparison.Ordinal);
-            Assert.Contains(title, timeout.Message, StringComparison.Ordinal);
+            Assert.Contains("had a dialog open", timeout.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain(title, timeout.Message, StringComparison.Ordinal);
         }
         catch (Exception ex)
         {
@@ -115,6 +180,7 @@ public sealed class ExcelDialogProbeWindowTests
             SetField(batch, "_logger", NullLogger<ExcelBatch>.Instance);
             SetField(batch, "_operationTimeout", TimeSpan.FromSeconds(3));
             SetField(batch, "_workbookPath", "dialog-test.xlsx");
+            SetField(batch, "_windowControlLock", new Lock());
             var started = Stopwatch.GetTimestamp();
             SetField(batch, "_startupCompletion", Task.CompletedTask);
             SetField(batch, "_statusLock", new Lock());
@@ -127,8 +193,8 @@ public sealed class ExcelDialogProbeWindowTests
             Assert.Contains("workbook remains open", timeout.Message, StringComparison.Ordinal);
             Assert.Contains("No changes were saved or discarded by timeout recovery", timeout.Message, StringComparison.Ordinal);
             Assert.Contains("does not itself cancel", timeout.Message, StringComparison.Ordinal);
-            Assert.Contains("private connection details", timeout.Message, StringComparison.Ordinal);
-            Assert.Contains("The database is unavailable.", timeout.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("private connection details", timeout.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("The database is unavailable.", timeout.Message, StringComparison.Ordinal);
             Assert.DoesNotContain("test-entered-password", timeout.Message, StringComparison.Ordinal);
             Assert.DoesNotContain("increasing timeoutSeconds", timeout.Message, StringComparison.Ordinal);
             Assert.Equal(WorkbookRefreshState.DialogOpen, ExcelDialogProbe.Read(identity, NullLogger.Instance));
@@ -136,22 +202,13 @@ public sealed class ExcelDialogProbeWindowTests
             Assert.Contains("was not executed", queued.Message, StringComparison.Ordinal);
             Assert.DoesNotContain("dialog open", queued.Message, StringComparison.Ordinal);
 
-            Assert.True(SetWindowText(message, new string('x', 3000)));
-            Assert.Equal(WorkbookRefreshState.DialogOpen,
-                ExcelDialogProbe.ReadWithText(identity, NullLogger.Instance, out var truncated));
-            Assert.Contains(new string('x', 2047), truncated, StringComparison.Ordinal);
-            Assert.DoesNotContain(new string('x', 2048), truncated, StringComparison.Ordinal);
-            Assert.Contains("was truncated", truncated, StringComparison.Ordinal);
-
             var blockedRead = Stopwatch.StartNew();
-            string? blockedText = null;
             var blockedState = WorkbookRefreshState.Unknown;
             var reader = new Thread(() =>
-                blockedState = ExcelDialogProbe.ReadWithText(identity, NullLogger.Instance, out blockedText));
+                blockedState = ExcelDialogProbe.Read(identity, NullLogger.Instance));
             reader.Start();
             Assert.True(reader.Join(TimeSpan.FromSeconds(2)));
             Assert.Equal(WorkbookRefreshState.DialogOpen, blockedState);
-            Assert.Contains("Some dialog text could not be read", blockedText, StringComparison.Ordinal);
             Assert.True(blockedRead.Elapsed < TimeSpan.FromSeconds(2));
 
             EnableWindow(root, true);
@@ -210,6 +267,26 @@ public sealed class ExcelDialogProbeWindowTests
 
     private delegate nint WindowProcedure(nint window, uint message, nint wParam, nint lParam);
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct NativeMessage
+    {
+        public nint Window;
+        public uint Message;
+        public nint WParam;
+        public nint LParam;
+        public uint Time;
+        public int X;
+        public int Y;
+        public uint Private;
+    }
+
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool PeekMessage(out NativeMessage message, nint window, uint min, uint max, uint remove);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern nint DispatchMessage(ref NativeMessage message);
+
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern ushort RegisterClass(ref WindowClass windowClass);
 
@@ -229,9 +306,9 @@ public sealed class ExcelDialogProbeWindowTests
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool EnableWindow(nint window, [MarshalAs(UnmanagedType.Bool)] bool enable);
 
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetWindowText(nint window, string text);
+    private static extern bool IsWindowVisible(nint window);
 
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     private static extern nint DefWindowProc(nint window, uint message, nint wParam, nint lParam);

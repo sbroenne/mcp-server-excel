@@ -407,7 +407,8 @@ public sealed class SessionCloseRegressionTests
             using var json = JsonDocument.Parse(list.Result!);
             var session = Assert.Single(json.RootElement.GetProperty("sessions").EnumerateArray());
             Assert.Equal("dialogOpen", session.GetProperty("excelState").GetString());
-            Assert.Contains("Check the Excel window", session.GetProperty("blockingReason").GetString(), StringComparison.Ordinal);
+            Assert.Equal("dialogOpen", session.GetProperty("blockingReason").GetString());
+            Assert.Contains("Check the Excel window", session.GetProperty("blockingMessage").GetString(), StringComparison.Ordinal);
             Assert.Equal(activeOperations, session.GetProperty("activeOperations").GetInt32());
             Assert.False(session.GetProperty("canClose").GetBoolean());
 
@@ -442,13 +443,13 @@ public sealed class SessionCloseRegressionTests
     }
 
     [Fact]
-    public async Task NativeQueryApproval_ReportsPendingStateAndManualGuidance()
+    public async Task Dialog_ReportsPendingStateAndManualGuidance()
     {
         using var service = new ExcelMcpService();
         var batch = new FakeBatch
         {
             WorkbookPath = CreateFakeWorkbookPath(),
-            RefreshState = WorkbookRefreshState.NativeQueryApproval
+            RefreshState = WorkbookRefreshState.DialogOpen
         };
         const string sessionId = "native-query-approval";
         RegisterSession(service, sessionId, batch, addKnownSessionId: true);
@@ -458,10 +459,10 @@ public sealed class SessionCloseRegressionTests
         using (var json = JsonDocument.Parse(list.Result!))
         {
             var session = Assert.Single(json.RootElement.GetProperty("sessions").EnumerateArray());
-            Assert.Equal("nativeQueryApproval", session.GetProperty("excelState").GetString());
-            Assert.Equal("nativeQueryApproval", session.GetProperty("blockingReason").GetString());
-            Assert.Contains("Show the Excel window", session.GetProperty("blockingMessage").GetString(), StringComparison.Ordinal);
-            Assert.Contains("approve the query manually", session.GetProperty("blockingMessage").GetString(), StringComparison.Ordinal);
+            Assert.Equal("dialogOpen", session.GetProperty("excelState").GetString());
+            Assert.Equal("dialogOpen", session.GetProperty("blockingReason").GetString());
+            Assert.Contains("Check the Excel window", session.GetProperty("blockingMessage").GetString(), StringComparison.Ordinal);
+            Assert.Contains("respond there", session.GetProperty("blockingMessage").GetString(), StringComparison.Ordinal);
             Assert.True(session.GetProperty("operationPending").GetBoolean());
             Assert.Equal(0, session.GetProperty("activeOperations").GetInt32());
             Assert.False(session.GetProperty("canClose").GetBoolean());
@@ -470,7 +471,7 @@ public sealed class SessionCloseRegressionTests
         var close = await CloseSessionAsync(service, sessionId);
         Assert.False(close.Success);
         Assert.Equal("Busy", close.ErrorCategory);
-        Assert.Contains("operation is still pending", close.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains("Check the Excel window", close.ErrorMessage, StringComparison.Ordinal);
         Assert.Equal(0, batch.DisposeCalls);
         Assert.Same(batch, GetSessionManager(service).GetSession(sessionId));
 
@@ -490,13 +491,13 @@ public sealed class SessionCloseRegressionTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task NativeQueryApproval_WithActiveOperation_BlocksCloseWithManualGuidance(bool save)
+    public async Task Dialog_WithActiveOperation_BlocksCloseWithManualGuidance(bool save)
     {
         using var service = new ExcelMcpService();
         var batch = new FakeBatch
         {
             WorkbookPath = CreateFakeWorkbookPath(),
-            RefreshState = WorkbookRefreshState.NativeQueryApproval
+            RefreshState = WorkbookRefreshState.DialogOpen
         };
         const string sessionId = "native-query-approval-active";
         RegisterSession(service, sessionId, batch, addKnownSessionId: true);
@@ -510,7 +511,7 @@ public sealed class SessionCloseRegressionTests
 
             Assert.False(close.Success);
             Assert.Equal("Busy", close.ErrorCategory);
-            Assert.Contains("approve the query manually", close.ErrorMessage, StringComparison.Ordinal);
+            Assert.Contains("Check the Excel window", close.ErrorMessage, StringComparison.Ordinal);
             Assert.Equal(0, batch.DisposeCalls);
             Assert.Same(batch, GetSessionManager(service).GetSession(sessionId));
         }

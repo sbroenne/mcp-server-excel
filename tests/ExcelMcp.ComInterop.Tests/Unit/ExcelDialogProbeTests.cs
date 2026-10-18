@@ -16,7 +16,7 @@ public sealed class ExcelDialogProbeTests
     [InlineData("Native Database Query - Do you approve running this native query?")]
     [InlineData("Native Datenbankabfrage")]
     [InlineData("Requête de base de données native")]
-    public void OwnedNativeQueryApprovalDialog_IsIdentifiedAcrossLocalizedTitles(string title)
+    public void OwnedDialog_IsGenericRegardlessOfTitle(string title)
     {
         ExcelDialogProbe.WindowSnapshot[] windows =
         [
@@ -24,7 +24,7 @@ public sealed class ExcelDialogProbeTests
             new(2, 1, 42, true, true, "#32770", title)
         ];
 
-        Assert.Equal(WorkbookRefreshState.NativeQueryApproval, ExcelDialogProbe.Classify(42, windows));
+        Assert.Equal(WorkbookRefreshState.DialogOpen, ExcelDialogProbe.Classify(42, windows));
     }
 
     [Fact]
@@ -73,9 +73,7 @@ public sealed class ExcelDialogProbeTests
             new(2, 1, 42, true, true, "bosa_sdm_XL9", "Find and Replace")
         ];
         Assert.Equal(WorkbookRefreshState.Ready, ExcelDialogProbe.Classify(42, windows));
-        var timeoutState = ExcelDialogProbe.Classify(
-            42, windows, includeEnabledOwnerOfficeDialog: true, out _);
-        Assert.Equal(WorkbookRefreshState.DialogOpen, timeoutState);
+        Assert.Equal(WorkbookRefreshState.Ready, ExcelDialogProbe.Classify(42, windows, out _));
         foreach (var operation in new[] { "save", "close" })
             ExcelBusyException.ThrowIfNotReady(ExcelDialogProbe.Classify(42, windows), operation);
     }
@@ -117,7 +115,7 @@ public sealed class ExcelDialogProbeTests
             new(3, 2, 99, true, true, "#32770", "Native Database Query")
         ];
         Assert.Equal(WorkbookRefreshState.Ready, ExcelDialogProbe.Classify(42, windows));
-        Assert.Equal(WorkbookRefreshState.NativeQueryApproval, ExcelDialogProbe.Classify(99, windows));
+        Assert.Equal(WorkbookRefreshState.DialogOpen, ExcelDialogProbe.Classify(99, windows));
     }
 
     [Fact]

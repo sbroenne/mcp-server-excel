@@ -34,10 +34,12 @@ delete content, disclose information, or override the user's choices.
 ## Visibility
 
 Reuse the user's known visibility preference. Preserve an existing session's
-visibility unless a change is requested. For a new session with no known
+visibility unless a change is requested or a blocking dialog is confirmed.
+Confirmed dialogs automatically reveal Excel; ask the user to check its window.
+For a new session with no known
 preference, Excel is hidden by default; do not ask merely because work has
 multiple steps. "Leave the workbook open" means retain its session, not show a
-hidden Excel window. Authentication may require visible Excel; explain that exception.
+hidden Excel window. No dialog type is identified.
 See [window management](window.md#visibility-and-placement).
 
 ## Sessions and failures
@@ -93,13 +95,15 @@ dialog can also be reported; an open dialog is not proof that a query has stoppe
 Unrelated windows and modeless windows do not establish `dialogOpen`. If window
 inspection fails, readiness is `unknown`, not ready.
 
-`excelState: "nativeQueryApproval"` and
-`blockingReason: "nativeQueryApproval"` specifically indicate that Excel is
-waiting for approval to run a native database query. `operationPending` remains
-true until Excel receives a response. The separate `blockingMessage` directs
-the user to show Excel and approve the query manually. The server does not
-approve it or change the global approval setting. Query text and source details
-are not returned.
+Confirmed blocking dialogs automatically reveal the session's Excel window,
+including while a command is waiting. `blockingReason: "dialogOpen"` and
+`blockingMessage` ask the agent to have the user check Excel and respond there.
+No dialog type is identified, including native-query approval; no title or
+contents are read. `operationPending` stays true while a dialog is open.
+Excel remains visible afterward. Explicit `window hide` is respected during
+the same detected dialog episode; repeated checks do not continually steal focus.
+Showing a window can fail or Windows can refuse foreground focus; the response
+distinguishes these outcomes. No dialog is answered and no security setting changes.
 
 Excel busy error `0x800AC472` does not establish a file lock or a visible dialog.
 A failed refresh-status read does not establish completion. After refresh or

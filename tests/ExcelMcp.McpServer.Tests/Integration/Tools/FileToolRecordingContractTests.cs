@@ -268,7 +268,7 @@ public sealed class FileToolRecordingContractTests(
     }
 
     [Fact]
-    public async Task List_PreservesNativeQueryApprovalAndPendingGuidance()
+    public async Task List_PreservesGenericDialogAndPendingGuidance()
     {
         var response = new ServiceResponse
         {
@@ -287,9 +287,9 @@ public sealed class FileToolRecordingContractTests(
                         activeOperations = 1,
                         operationPending = true,
                         canClose = false,
-                        excelState = "nativeQueryApproval",
-                        blockingReason = "nativeQueryApproval",
-                        blockingMessage = "Show Excel and approve the query manually."
+                        excelState = "dialogOpen",
+                        blockingReason = "dialogOpen",
+                        blockingMessage = "Check the Excel window and respond there."
                     }
                 }
             }, ServiceProtocol.JsonOptions)
@@ -306,9 +306,9 @@ public sealed class FileToolRecordingContractTests(
         using var result = JsonDocument.Parse(call.JsonResult);
         var session = Assert.Single(result.RootElement.GetProperty("sessions").EnumerateArray());
         Assert.Equal("pending-native-query", session.GetProperty("workbook_session_id").GetString());
-        Assert.Equal("nativeQueryApproval", session.GetProperty("excelState").GetString());
-        Assert.Equal("nativeQueryApproval", session.GetProperty("blockingReason").GetString());
-        Assert.Equal("Show Excel and approve the query manually.", session.GetProperty("blockingMessage").GetString());
+        Assert.Equal("dialogOpen", session.GetProperty("excelState").GetString());
+        Assert.Equal("dialogOpen", session.GetProperty("blockingReason").GetString());
+        Assert.Equal("Check the Excel window and respond there.", session.GetProperty("blockingMessage").GetString());
         Assert.True(session.GetProperty("operationPending").GetBoolean());
         Assert.Equal(1, session.GetProperty("activeOperations").GetInt32());
         Assert.False(session.GetProperty("canClose").GetBoolean());

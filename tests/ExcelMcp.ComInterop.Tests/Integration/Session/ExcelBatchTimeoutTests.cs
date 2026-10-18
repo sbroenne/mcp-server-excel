@@ -207,11 +207,10 @@ public sealed class ExcelBatchTimeoutTests : IAsyncLifetime
         var failure = Record.Exception(() =>
         {
             var timeout = Assert.Throws<TimeoutException>(() =>
-                batch.Execute((ctx, _) => ctx.App.InputBox(
-                    "The test database is unavailable.", "SSAS connection test", Type: 2)));
+                batch.Execute((ctx, _) => ctx.App.GetSaveAsFilename(Title: "SSAS connection test")));
             Assert.Contains("dialog open", timeout.Message, StringComparison.Ordinal);
-            Assert.Contains("SSAS connection test", timeout.Message, StringComparison.Ordinal);
-            Assert.Contains("did not expose readable message text", timeout.Message, StringComparison.Ordinal);
+            Assert.DoesNotContain("SSAS connection test", timeout.Message, StringComparison.Ordinal);
+            Assert.Contains("Dialog contents were not read", timeout.Message, StringComparison.Ordinal);
             Assert.Contains("does not itself cancel", timeout.Message, StringComparison.Ordinal);
             Assert.True(batch.IsExcelProcessAlive());
             Assert.True(batch.HasTimedOutOperation);

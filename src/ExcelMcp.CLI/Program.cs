@@ -154,7 +154,7 @@ internal sealed class Program
                 branch.AddCommand<SessionSaveCommand>("save")
                     .WithDescription("Save the current workbook without closing its session. Excel must be ready.");
                 branch.AddCommand<SessionListCommand>("list")
-                    .WithDescription("List active sessions with canClose, excelState, operationPending and blocker details. For nativeQueryApproval, show Excel and approve the query manually; the operation remains pending.");
+                    .WithDescription("List active sessions with canClose, excelState, operationPending and blocker details. Confirmed blocking dialogs automatically reveal Excel; ask the user to check its window. Dialog types and contents are not inspected.");
                 branch.AddCommand<SessionTestCommand>("test")
                     .WithDescription("Test file existence, validity, openability, and IRM/AIP read-only requirements.");
             });

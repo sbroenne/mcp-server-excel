@@ -16,15 +16,22 @@ split when exact pane counts matter, then inspect the resulting view.
 
 ## Visibility and placement
 
-Preserve existing visibility unless a change is requested. Keeping a workbook
+Preserve existing visibility unless a change is requested or a blocking dialog
+is confirmed. Such dialogs automatically reveal Excel so the user can respond.
+Keeping a workbook
 open means retaining its session, not showing a hidden window. See the shared
 [visibility policy](behavioral-rules.md#visibility).
 
 `show` and `bring-to-front` restore a minimized window to its previous normal
 or maximized state before bringing it forward. `bring-to-front` leaves a hidden
 session hidden and returns guidance to use `show` first. If Windows refuses
-foreground activation, the operation reports an error; any visibility or
-window restoration already applied remains in effect.
+foreground activation, `show` still reports the verified visibility and
+`isForeground: false`, with guidance to select Excel. `bring-to-front` reports
+an error; any visibility or window restoration already applied remains in effect.
+Standalone `show` and `hide` also work while Excel is waiting on a dialog,
+without waiting behind the blocked command. Neither answers nor dismisses it.
+Use `window(action: 'hide', workbook_session_id: sessionId)` or
+`excelcli window hide --session $sessionId` to hide explicitly.
 An unsupported arrange `preset` (MCP) / `--preset` (CLI) is rejected before
 changing visibility, window state, or bounds. This does not promise rollback
 if Excel itself fails while applying a supported preset.

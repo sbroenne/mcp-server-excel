@@ -31,6 +31,12 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// TIMEOUT: Create, load-to, and update-with-refresh use a 30-minute wait; refresh accepts an override. Expiry ends the caller wait, not Excel execution.
 /// READS: list returns compact metadata, exact load state, and an M preview of at
 /// most 80 characters. Use view for one query's full M code.
+/// DIAGNOSTICS: Loads/refreshes report durationMs and verified rowsLoaded,
+/// worksheetRowsLoaded and modelRowsLoaded where available. Null/omitted counts
+/// are unknown, not zero; both destinations are not double-counted.
+/// These are loaded-row counts, not cell-error or warning counts.
+/// Wrong credential errors include Authentication guidance; unsupported Analysis
+/// Services cultures include a Culture hint without rewriting M code.
 /// </summary>
 [ServiceCategory("PowerQuery")]
 [McpTool("powerquery", Title = "Power Query Operations", Destructive = true, Category = "query",
@@ -118,7 +124,7 @@ public interface IPowerQueryCommands
     /// <param name="targetCellAddress">Optional target cell address for worksheet loads (e.g., "B5"). Required when loading to an existing worksheet with other data.</param>
     /// <param name="formatMCode">Whether to send M code to the remote powerqueryformatter.com service before saving. Defaults to false to preserve privacy.</param>
     /// <exception cref="InvalidOperationException">Thrown when query cannot be created, M code is invalid, or load operation fails</exception>
-    OperationResult Create(
+    PowerQueryCreateResult Create(
         IExcelBatch batch,
         [RequiredParameter] string queryName,
         [RequiredParameter][FileOrValue] string mCode,
@@ -137,7 +143,7 @@ public interface IPowerQueryCommands
     /// <param name="refresh">Whether to refresh data after update (default: true)</param>
     /// <param name="formatMCode">Whether to send M code to the remote powerqueryformatter.com service before saving. Defaults to false to preserve privacy.</param>
     /// <exception cref="InvalidOperationException">Thrown when the query is not found, M code is invalid, or refresh fails</exception>
-    OperationResult Update(IExcelBatch batch, [RequiredParameter] string queryName, [RequiredParameter][FileOrValue] string mCode, bool refresh = true, bool formatMCode = false);
+    PowerQueryOperationResult Update(IExcelBatch batch, [RequiredParameter] string queryName, [RequiredParameter][FileOrValue] string mCode, bool refresh = true, bool formatMCode = false);
 
     /// <summary>
     /// Atomically sets load destination and refreshes data
@@ -149,7 +155,7 @@ public interface IPowerQueryCommands
     /// <param name="targetSheet">Target worksheet name (required for LoadToTable and LoadToBoth)</param>
     /// <param name="targetCellAddress">Optional target cell address (e.g., "B5"). Required when loading to an existing worksheet to avoid clearing other content.</param>
     /// <exception cref="InvalidOperationException">Thrown when the query is not found, load destination is invalid, or refresh fails</exception>
-    OperationResult LoadTo(
+    PowerQueryLoadResult LoadTo(
         IExcelBatch batch,
         [RequiredParameter] string queryName,
         [FromString("loadDestination")] PowerQueryLoadMode loadMode,

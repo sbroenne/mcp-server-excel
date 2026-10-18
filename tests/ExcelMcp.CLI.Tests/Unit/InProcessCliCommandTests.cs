@@ -133,12 +133,12 @@ public sealed class InProcessCliCommandTests
     }
 
     [Fact]
-    public async Task SessionList_PreservesNativeQueryApprovalAndPendingState()
+    public async Task SessionList_PreservesGenericDialogAndPendingState()
     {
         var daemonConnection = new RecordingDaemonConnection(new ServiceResponse
         {
             Success = true,
-            Result = """{"success":true,"sessions":[{"sessionId":"pending-native-query","activeOperations":1,"operationPending":true,"canClose":false,"excelState":"nativeQueryApproval","blockingReason":"nativeQueryApproval","blockingMessage":"Show Excel and approve the query manually."}]}"""
+            Result = """{"success":true,"sessions":[{"sessionId":"pending-dialog","activeOperations":1,"operationPending":true,"canClose":false,"excelState":"dialogOpen","blockingReason":"dialogOpen","blockingMessage":"Check the Excel window and respond there."}]}"""
         }, new DaemonConnectionPolicy.DaemonFailureState(DaemonConnectionPolicy.RunningState, true));
         var output = new StringWriter();
         var error = new StringWriter();
@@ -149,9 +149,9 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(0, exitCode);
         using var result = JsonDocument.Parse(output.ToString());
         var session = Assert.Single(result.RootElement.GetProperty("sessions").EnumerateArray());
-        Assert.Equal("nativeQueryApproval", session.GetProperty("excelState").GetString());
-        Assert.Equal("nativeQueryApproval", session.GetProperty("blockingReason").GetString());
-        Assert.Equal("Show Excel and approve the query manually.", session.GetProperty("blockingMessage").GetString());
+        Assert.Equal("dialogOpen", session.GetProperty("excelState").GetString());
+        Assert.Equal("dialogOpen", session.GetProperty("blockingReason").GetString());
+        Assert.Equal("Check the Excel window and respond there.", session.GetProperty("blockingMessage").GetString());
         Assert.True(session.GetProperty("operationPending").GetBoolean());
         Assert.Equal(1, session.GetProperty("activeOperations").GetInt32());
         Assert.False(session.GetProperty("canClose").GetBoolean());

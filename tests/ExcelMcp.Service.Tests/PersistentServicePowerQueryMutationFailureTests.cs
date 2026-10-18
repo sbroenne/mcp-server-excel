@@ -23,6 +23,32 @@ public sealed class PersistentServicePowerQueryMutationFailureTests : IAsyncLife
     public void Dispose() => _fixture.Dispose();
 
     [Theory]
+    [InlineData("DataSource.Error", "This server does not support Windows credentials.", "Authentication", "Organizational account")]
+    [InlineData("DataSource.Error", "Analysis Services does not support the 'en-DE' culture", "Culture", "Culture = \"en-US\"")]
+    public async Task LoadTo_RecognizedFailure_PreservesDefinitionAndReportsActualPartialLoad(
+        string reason, string message, string category, string hint)
+    {
+        const string queryName = "FailedLoad";
+        var code = FirewallMCode(reason, message);
+        await _fixture.SendAsync("powerquery.create",
+            new { queryName, mCode = code, loadDestination = "connection-only" });
+
+        var response = await _fixture.SendForFailureAsync("powerquery.load-to",
+            new { queryName, loadDestination = "worksheet", targetSheet = queryName });
+        Assert.Equal(category, response.ErrorCategory);
+        Assert.Contains(message, response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Contains(hint, response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal("0x800A03EC", response.HResult);
+        var state = ReadPartialState(response);
+        Assert.False(state.TryGetProperty("mCodeUpdated", out _));
+        Assert.False(state.TryGetProperty("queryCreated", out _));
+        AssertState(state, queryName, "load-to-table", queryName);
+        AssertStoredDefinition(queryName, code, PowerQueryLoadMode.LoadToTable, queryName);
+        await _fixture.SendAsync("powerquery.update", new { queryName, mCode = ValidMCode });
+        AssertWorksheetValue(queryName, 1);
+    }
+
+    [Theory]
     [InlineData("Formula.Firewall", "Query references other queries or steps, so it may not directly access a data source.")]
     [InlineData("Privacy", "Information is needed in order to combine data. Please specify a privacy level for each data source.")]
     public async Task Create_PrivacyLoadFailure_ReportsSurvivingWorksheetNotRequestedBoth(
@@ -52,10 +78,11 @@ public sealed class PersistentServicePowerQueryMutationFailureTests : IAsyncLife
     }
 
     [Theory]
-    [InlineData("Formula.Firewall", "Query references other queries or steps, so it may not directly access a data source.")]
-    [InlineData("Privacy", "Information is needed in order to combine data. Please specify a privacy level for each data source.")]
-    public async Task Update_PrivacyRefreshFailure_ReportsSavedCodeAndPreservesOldRows(
-        string reason, string message)
+    [InlineData("Formula.Firewall", "Query references other queries or steps, so it may not directly access a data source.", "PrivacyFirewall")]
+    [InlineData("Privacy", "Information is needed in order to combine data. Please specify a privacy level for each data source.", "Privacy")]
+    [InlineData("DataSource.Error", "Analysis Services does not support the 'en-DE' culture", "Culture")]
+    public async Task Update_RecognizedRefreshFailure_ReportsSavedCodeAndPreservesOldRows(
+        string reason, string message, string category)
     {
         const string queryName = "FailedUpdate";
         await _fixture.SendAsync("powerquery.create", new { queryName, mCode = ValidMCode });
@@ -66,13 +93,14 @@ public sealed class PersistentServicePowerQueryMutationFailureTests : IAsyncLife
 
         AssertStoredDefinition(queryName, mCode, PowerQueryLoadMode.LoadToTable, queryName);
         AssertWorksheetValue(queryName, 1);
-        Assert.Equal(reason == "Formula.Firewall" ? "PrivacyFirewall" : "Privacy", response.ErrorCategory);
+        Assert.Equal(category, response.ErrorCategory);
         Assert.Equal("PowerQueryCommandException", response.ExceptionType);
         Assert.Equal("powerquery.update", response.Command);
         Assert.Equal("0x800A03EC", response.HResult);
         Assert.Contains(message, response.ErrorMessage, StringComparison.Ordinal);
         Assert.Contains(queryName, response.ErrorMessage, StringComparison.Ordinal);
         Assert.False(string.IsNullOrWhiteSpace(response.InnerError));
+        Assert.DoesNotContain("M code was not changed", response.ErrorMessage, StringComparison.Ordinal);
         var state = ReadPartialState(response);
         Assert.True(state.GetProperty("mCodeUpdated").GetBoolean());
         Assert.False(state.TryGetProperty("queryCreated", out _));

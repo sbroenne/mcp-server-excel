@@ -37,6 +37,25 @@ See [Data Model](datamodel.md).
 
 ## Power Query tracing
 
+Create, load-to, update, and refresh results include `durationMs`, measured from
+submission to destination inspection (excluding optional remote M formatting).
+`rowsLoaded` reports verified rows without counting a worksheet/model load twice.
+`worksheetRowsLoaded` excludes headers and totals; `modelRowsLoaded` comes from
+Excel's model record count. Unavailable counts are omitted/null, not zero.
+If both destination counts disagree, inspect the separate counts; the combined
+count is unavailable. An explicit connection-only create/load-to reports zero
+loaded rows. Definition-only update does not claim a new row count.
+Refresh-all includes `queryMetrics` for successfully refreshed queries.
+These counts describe loaded rows, not a guarantee that every cell is error-free.
+
+Recognized wrong-credential errors use `Authentication` with guidance to check
+Excel Data Source Settings. Power BI/XMLA sources commonly need Organizational
+account rather than Windows credentials. Unsupported Analysis Services culture
+errors use `Culture` and suggest an explicit `Culture = "en-US"` option in
+`AnalysisServices.Database`. M code and saved credentials are never changed
+automatically. Saved credential types and per-source privacy levels are not
+listed: Excel's published automation interface does not expose them.
+
 Tracing is controlled by a setting for the current Windows user and does not
 belong to a workbook or session. Enable it with:
 

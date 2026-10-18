@@ -36,6 +36,7 @@ public partial class PowerQueryCommands
 
         timeout = NormalizeRefreshTimeout(timeout);
         DateTime traceStartUtc = DateTime.UtcNow;
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
 
         string? queryFormula = null;
 
@@ -82,6 +83,8 @@ public partial class PowerQueryCommands
                     var loadState = DetectLoadState(ctx.Book, queryName, ct);
                     result.LoadedToSheet = loadState.TargetSheet;
                     result.IsConnectionOnly = loadState.IsConnectionOnly;
+                    ReadLoadMetrics(ctx.Book, queryName, result, ct);
+                    result.DurationMs = System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
 
                     progress?.Report(new ProgressInfo { Current = 1, Total = 1, Message = $"Refreshed '{queryName}'" });
                     return result;
@@ -103,7 +106,7 @@ public partial class PowerQueryCommands
         {
             const string category = "PrivacyFirewall";
             throw new PowerQueryCommandException(
-                AddPrivacyFirewallRemediation(
+                AddPowerQueryRemediation(
                     $"Likely Formula.Firewall/privacy-blocked refresh for query '{queryName}'. The query combines Excel.CurrentWorkbook with an external data source and Excel may have shown a privacy/modal prompt instead of returning a normal refresh error.",
                     category),
                 category,
@@ -133,13 +136,24 @@ public partial class PowerQueryCommands
         var result = ExcelBatchWait.Execute(batch, timeout, (ctx, ct) =>
         {
             var queryNames = ReadQueryNames(ctx.Book, ct);
+            var queryMetrics = new List<PowerQueryOperationResult>();
 
             // Use the same robust strategy as single-query Refresh:
             // 1) QueryTable.Refresh(false) for worksheet-loaded queries
             // 2) Connection.Refresh() for Data Model queries
             var result = RefreshQueries(
                 queryNames,
-                queryName => RefreshConnectionByQueryName(ctx.Book, queryName, ct),
+                queryName =>
+                {
+                    var started = System.Diagnostics.Stopwatch.GetTimestamp();
+                    if (!RefreshConnectionByQueryName(ctx.Book, queryName, ct))
+                        return false;
+                    var metrics = new PowerQueryOperationResult { Success = true, QueryName = queryName };
+                    ReadLoadMetrics(ctx.Book, queryName, metrics, ct);
+                    metrics.DurationMs = System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+                    queryMetrics.Add(metrics);
+                    return true;
+                },
                 ct,
                 progress);
             if (refreshPivotTables && result.RefreshedQueries.Count > 0)
@@ -148,6 +162,7 @@ public partial class PowerQueryCommands
             }
 
             FinalizeRefreshAllResult(result);
+            result.QueryMetrics = queryMetrics;
             result.FilePath = batch.WorkbookPath;
             return result;
         });
@@ -393,7 +408,7 @@ public partial class PowerQueryCommands
         {
             QueryName = queryName,
             ErrorCategory = category,
-            ErrorMessage = AddPrivacyFirewallRemediation(exception.Message, category),
+            ErrorMessage = AddPowerQueryRemediation(exception.Message, category),
             ExceptionType = exception.GetType().Name,
             HResult = origin != null ? $"0x{origin.HResult:X8}" : null
         };

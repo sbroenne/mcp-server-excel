@@ -20,6 +20,33 @@ public sealed class PowerQueryContractCliTests
     [Theory]
     [InlineData("create")]
     [InlineData("update")]
+    [InlineData("load-to")]
+    [InlineData("refresh")]
+    public async Task LoadMetrics_ArePreservedByCli(string action)
+    {
+        string[] args = action switch
+        {
+            "create" or "update" => ["--m-code", "#table({\"Value\"}, {{1}})"],
+            "load-to" => ["--load-destination", "worksheet"],
+            _ => []
+        };
+        var result = await InProcessCliHelper.RunAsync(
+            ["powerquery", action, "--session", "session-1", "--query-name", "Query", .. args],
+            _ => new ServiceResponse
+            {
+                Success = true,
+                Result = """{"success":true,"queryName":"Query","durationMs":12.5,"rowsLoaded":1,"worksheetRowsLoaded":1}"""
+            });
+        Assert.Equal(0, result.ExitCode);
+        using var document = JsonDocument.Parse(result.Stdout);
+        Assert.Equal(12.5, document.RootElement.GetProperty("durationMs").GetDouble());
+        Assert.Equal(1, document.RootElement.GetProperty("rowsLoaded").GetInt64());
+        Assert.Equal(1, document.RootElement.GetProperty("worksheetRowsLoaded").GetInt64());
+    }
+
+    [Theory]
+    [InlineData("create")]
+    [InlineData("update")]
     public async Task Mutation_PrivacyFailure_ReportsCategoryAndPartialState(string action)
     {
         var partialState = JsonSerializer.SerializeToElement(new

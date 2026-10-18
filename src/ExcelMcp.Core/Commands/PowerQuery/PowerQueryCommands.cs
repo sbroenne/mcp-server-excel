@@ -63,8 +63,13 @@ public partial class PowerQueryCommands : IPowerQueryCommands
             message.Contains("may not directly access a data source", StringComparison.OrdinalIgnoreCase))
             return "Privacy";
 
-        if (message.Contains("authentication", StringComparison.OrdinalIgnoreCase))
+        if (message.Contains("authentication", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("does not support Windows credentials", StringComparison.OrdinalIgnoreCase))
             return "Authentication";
+
+        if (message.Contains("Analysis Services does not support", StringComparison.OrdinalIgnoreCase) &&
+            message.Contains("culture", StringComparison.OrdinalIgnoreCase))
+            return "Culture";
 
         if (message.Contains("could not reach", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("unable to connect", StringComparison.OrdinalIgnoreCase) ||
@@ -89,8 +94,19 @@ public partial class PowerQueryCommands : IPowerQueryCommands
         return null;
     }
 
-    private static string AddPrivacyFirewallRemediation(string message, string? category)
+    private static string AddPowerQueryRemediation(string message, string? category)
     {
+        if (category == "Authentication" &&
+            message.Contains("does not support Windows credentials", StringComparison.OrdinalIgnoreCase))
+        {
+            return message + " Check the source's authentication choice in Excel Data Source Settings. " +
+                "For Power BI/XMLA sources, sign in with Organizational account rather than Windows credentials.";
+        }
+        if (category == "Culture")
+        {
+            return message + " Set Culture = \"en-US\" in the options record passed to " +
+                "AnalysisServices.Database, or use another culture supported by the server.";
+        }
         if (category != "PrivacyFirewall" ||
             message.Contains("powerquery set-privacy-settings", StringComparison.OrdinalIgnoreCase))
         {
@@ -106,7 +122,7 @@ public partial class PowerQueryCommands : IPowerQueryCommands
         if (category != null)
         {
             powerQueryException = new PowerQueryCommandException(
-                AddPrivacyFirewallRemediation(exception.Message, category),
+                AddPowerQueryRemediation(exception.Message, category),
                 category,
                 exception);
             return true;

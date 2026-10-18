@@ -31,40 +31,39 @@ public partial class WindowCommands : IWindowCommands
     /// <summary>
     /// Makes the Excel window visible and brings it to the foreground.
     /// </summary>
-    public OperationResult Show(IExcelBatch batch)
+    public WindowVisibilityResult Show(IExcelBatch batch)
     {
-        return batch.Execute((ctx, ct) =>
+        var result = GetWindowControl(batch).SetVisibility(true);
+        return new WindowVisibilityResult
         {
-            ctx.App.Visible = true;
-
-            BringWindowToFront(ctx.App);
-
-            return new OperationResult
-            {
-                Success = true,
-                Action = "show",
-                Message = "Excel window is now visible and in the foreground"
-            };
-        });
+            Success = true,
+            Action = "show",
+            IsVisible = result.IsVisible,
+            IsForeground = result.IsForeground,
+            Message = result.IsForeground ? "Excel is visible and in the foreground." :
+                "Excel is visible, but Windows did not grant foreground focus. Select its window or taskbar entry."
+        };
     }
 
     /// <summary>
     /// Hides the Excel window.
     /// </summary>
-    public OperationResult Hide(IExcelBatch batch)
+    public WindowVisibilityResult Hide(IExcelBatch batch)
     {
-        return batch.Execute((ctx, ct) =>
+        var result = GetWindowControl(batch).SetVisibility(false);
+        return new WindowVisibilityResult
         {
-            ctx.App.Visible = false;
-
-            return new OperationResult
-            {
-                Success = true,
-                Action = "hide",
-                Message = "Excel window is now hidden"
-            };
-        });
+            Success = true,
+            Action = "hide",
+            IsVisible = result.IsVisible,
+            IsForeground = result.IsForeground,
+            Message = "Excel window is now hidden."
+        };
     }
+
+    private static IExcelBatchWindowControl GetWindowControl(IExcelBatch batch) =>
+        batch as IExcelBatchWindowControl ??
+        throw new NotSupportedException("This Excel session does not support native window visibility control.");
 
     /// <summary>
     /// Brings the Excel window to the foreground without changing visibility.

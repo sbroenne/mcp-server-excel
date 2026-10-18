@@ -67,11 +67,13 @@ public sealed class PowerQueryPrivacyAndLoadProtocolTests(
                 ["query_name"] = "CsvData",
                 ["load_destination"] = "load-to-data-model"
             },
-            RecordingToolTest.Success("""{"success":true,"queryName":"CsvData","isLoadedToDataModel":true}"""),
+            RecordingToolTest.Success("""{"success":true,"queryName":"CsvData","durationMs":18.5,"rowsLoaded":7,"modelRowsLoaded":7}"""),
             "powerquery.load-to",
             """{"queryName":"CsvData","loadDestination":"load-to-data-model"}""");
 
         using var document = JsonDocument.Parse(call.JsonResult);
-        Assert.True(document.RootElement.GetProperty("isLoadedToDataModel").GetBoolean());
+        Assert.Equal(18.5, document.RootElement.GetProperty("durationMs").GetDouble());
+        Assert.Equal(7, document.RootElement.GetProperty("rowsLoaded").GetInt64());
+        Assert.Equal(7, document.RootElement.GetProperty("modelRowsLoaded").GetInt64());
     }
 }
