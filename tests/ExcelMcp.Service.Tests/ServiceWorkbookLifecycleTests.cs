@@ -442,17 +442,21 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 ? await CreateSessionAsync(service, workbookPath, show)
                 : await OpenSessionAsync(service, workbookPath, show);
             sessions[sessionId] = 0;
-
-            var list = await service.ProcessAsync(new ServiceRequest
+            var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(sessionId));
+            var firstInspection = 1;
+            batch.BeforeRefreshStateReadHookForTests = () =>
             {
-                Command = "session.list"
-            });
+                if (Interlocked.Exchange(ref firstInspection, 0) == 1)
+                    Thread.Sleep(TimeSpan.FromSeconds(1));
+            };
 
-            RequireSuccess(list);
-            using var result = JsonDocument.Parse(list.Result!);
+            var list = await WaitForSettledSessionListAsync(service, sessionId);
+            using var result = JsonDocument.Parse(list);
             var session = Assert.Single(
                 result.RootElement.GetProperty("sessions").EnumerateArray(),
                 item => item.GetProperty("sessionId").GetString() == sessionId);
+            batch.BeforeRefreshStateReadHookForTests = null;
+            Assert.Equal("ready", session.GetProperty("excelState").GetString());
             Assert.Equal(show, session.GetProperty("isExcelVisible").GetBoolean());
             Assert.Equal(0, session.GetProperty("activeOperations").GetInt32());
             Assert.True(session.GetProperty("canClose").GetBoolean());
@@ -946,6 +950,31 @@ public sealed partial class ServiceWorkbookLifecycleTests
         });
     }
 
+    // Status reads wait only briefly for Excel, so a freshly started Excel can
+    // report "unknown" at first. Poll like an agent would until it settles.
+    private static async Task<string> WaitForSettledSessionListAsync(
+        ExcelMcpService service,
+        string sessionId)
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromSeconds(10);
+        while (true)
+        {
+            var list = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+            RequireSuccess(list);
+            using (var document = JsonDocument.Parse(list.Result!))
+            {
+                var state = document.RootElement.GetProperty("sessions").EnumerateArray()
+                    .Where(item => item.GetProperty("sessionId").GetString() == sessionId)
+                    .Select(item => item.GetProperty("excelState").GetString())
+                    .FirstOrDefault();
+                if (state != "unknown" || DateTime.UtcNow >= deadline)
+                    return list.Result!;
+            }
+
+            await Task.Delay(TimeSpan.FromMilliseconds(100));
+        }
+    }
+
     private static async Task RunWithCleanupAsync(
         Func<ExcelMcpService, string, ConcurrentDictionary<string, byte>, Task> test)
     {
@@ -954,6 +983,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
             $"ServiceWorkbookLifecycleTests_{Guid.NewGuid():N}");
         Directory.CreateDirectory(directory);
         var sessions = new ConcurrentDictionary<string, byte>();
+        using var excelProcesses = new TestExcelProcessScope();
         var service = new ExcelMcpService();
         Exception? failure = null;
 
@@ -986,6 +1016,11 @@ public sealed partial class ServiceWorkbookLifecycleTests
             catch (Exception ex)
             {
                 failure = PersistentServiceCleanupFailures.Combine(failure, ex);
+            }
+
+            if (excelProcesses.StopLeftovers() is { } leftover)
+            {
+                failure = PersistentServiceCleanupFailures.Combine(failure, leftover);
             }
 
             try

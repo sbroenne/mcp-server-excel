@@ -165,6 +165,11 @@ public class PersistentServiceWorkbookFixture : IAsyncLifetime, IDisposable
                     $"{string.Join(", ", SessionManager.GetTrackedExcelProcesses())}"));
         }
 
+        if (TestExcelProcessScope.StopLeftovers(_launchedIdentities.Keys.ToArray()) is { } leftover)
+        {
+            failure = PersistentServiceCleanupFailures.Combine(failure, leftover);
+        }
+
         try
         {
             if (Directory.Exists(_tempDirectory))

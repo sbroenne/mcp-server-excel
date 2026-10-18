@@ -94,6 +94,7 @@ public sealed partial class PersistentServiceWorkbookTests
         FixedFormatType formatType,
         string extension)
     {
+        FixedFormatExportPrerequisite.RequireUsableDefaultPrinter();
         var outputPath = CreateOutputPath("WorkbookExport", extension);
         WriteCurrentWorkbookCell("Printable workbook content");
 
@@ -278,6 +279,7 @@ public sealed partial class PersistentServiceWorkbookTests
     [Fact]
     public void ExportFixedFormat_WithOverwrite_ReplacesExistingDestination()
     {
+        FixedFormatExportPrerequisite.RequireUsableDefaultPrinter();
         var outputPath = CreateOutputPath("OverwriteExport", "pdf");
         File.WriteAllText(outputPath, "existing export destination");
         WriteCurrentWorkbookCell("Printable workbook content");

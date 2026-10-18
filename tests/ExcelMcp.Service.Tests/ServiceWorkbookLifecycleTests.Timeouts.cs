@@ -573,6 +573,8 @@ public sealed partial class ServiceWorkbookLifecycleTests
     public async Task Output_WaitExpires_CompletesCommitAndTemporaryCleanupOnOriginalCallback(
         string command, string extension)
     {
+        if (extension != "xlsx")
+            FixedFormatExportPrerequisite.RequireUsableDefaultPrinter();
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
             var path = Path.Join(directory, "late-output-source.xlsx");

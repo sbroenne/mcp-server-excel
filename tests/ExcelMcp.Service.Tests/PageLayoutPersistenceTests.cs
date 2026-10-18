@@ -16,9 +16,11 @@ public sealed class PageLayoutPersistenceTests
     [Fact]
     public async Task SaveReopen_PreservesReportLayoutAndExportsExactlyTwoPdfPages()
     {
+        FixedFormatExportPrerequisite.RequireUsableDefaultPrinter();
         var path = Path.Combine(Path.GetTempPath(), $"page-layout-{Guid.NewGuid():N}.xlsx");
         var pdf = Path.ChangeExtension(path, ".pdf");
         var service = new ExcelMcpService();
+        using var excelProcesses = new TestExcelProcessScope();
         string? session = null;
         Exception? failure = null;
         try
@@ -92,6 +94,8 @@ public sealed class PageLayoutPersistenceTests
             }
             try { service.Dispose(); }
             catch (Exception exception) { failure = PersistentServiceCleanupFailures.Combine(failure, exception); }
+            if (excelProcesses.StopLeftovers() is { } leftover)
+                failure = PersistentServiceCleanupFailures.Combine(failure, leftover);
             try { File.Delete(pdf); File.Delete(path); }
             catch (Exception exception) { failure = PersistentServiceCleanupFailures.Combine(failure, exception); }
         }
