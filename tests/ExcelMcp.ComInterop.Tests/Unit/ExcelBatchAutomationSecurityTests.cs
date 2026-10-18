@@ -19,13 +19,35 @@ public sealed class ExcelBatchAutomationSecurityTests
     }
 
     [Fact]
-    public void SelectAutomationSecurity_RegularMacroWorkbook_PreservesMacroOperations()
+    public void SelectAutomationSecurity_RegularMacroWorkbook_FollowsUserMacroSettings()
     {
         var security = ExcelBatch.SelectAutomationSecurity(
             createsMacroEnabledWorkbook: false,
             openReadOnly: false,
-            workbookPaths: [@"C:\Workbooks\Trusted.xlsm"]);
+            workbookPaths: [@"C:\Workbooks\Untrusted.xlsm"]);
 
-        Assert.Equal(1, security);
+        Assert.Equal(2, security);
+    }
+
+    [Fact]
+    public void SelectAutomationSecurity_CreatedMacroWorkbook_FollowsUserMacroSettings()
+    {
+        var security = ExcelBatch.SelectAutomationSecurity(
+            createsMacroEnabledWorkbook: true,
+            openReadOnly: false,
+            workbookPaths: [@"C:\Workbooks\New.xlsm"]);
+
+        Assert.Equal(2, security);
+    }
+
+    [Fact]
+    public void SelectAutomationSecurity_RegularWorkbook_ForcesMacrosDisabled()
+    {
+        var security = ExcelBatch.SelectAutomationSecurity(
+            createsMacroEnabledWorkbook: false,
+            openReadOnly: false,
+            workbookPaths: [@"C:\Workbooks\Data.xlsx"]);
+
+        Assert.Equal(3, security);
     }
 }

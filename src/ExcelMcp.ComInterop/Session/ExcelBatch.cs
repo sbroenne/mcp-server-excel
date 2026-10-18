@@ -351,11 +351,11 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                         "and no session was published. Retry opening the workbook.");
                 }
 
-                // Workbook macro execution must remain available for explicit VBA operations on
-                // reopened .xlsm sessions. Force-disabling macros at open makes vba.run impossible
-                // later in the same batch. Validation opens are different: they inspect untrusted
-                // workbooks and must always disable macros, even for .xlsm files.
-                // msoAutomationSecurityLow = 1
+                // Macro workbooks open under the user's own Excel macro settings (ByUI), so trusted
+                // files keep their macros and untrusted files open with macros blocked. ExcelMcp never
+                // lowers macro security. Read-only/validation opens and non-macro workbooks always
+                // force-disable macros. After startup the session switches to ForceDisable (below).
+                // msoAutomationSecurityByUI = 2
                 // msoAutomationSecurityForceDisable = 3
                 // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity
                 // AutomationSecurity is typed as Office.MsoAutomationSecurity, an enum that lives in
@@ -470,6 +470,17 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                         primaryWorkbook = wb;
                         startupPrimaryWorkbook = wb;
                     }
+                }
+
+                // Each workbook keeps the macro state Excel decided at open. Under ByUI, later VBProject
+                // access on a macro-blocked workbook raises Excel's modal security notice, which would
+                // freeze automation. ForceDisable suppresses that notice without enabling any macros.
+                if (automationSecurity != 3)
+                {
+                    tempExcel.GetType().InvokeMember(
+                        "AutomationSecurity", BindingFlags.SetProperty | BindingFlags.DoNotWrapExceptions, binder: null,
+                        target: tempExcel, args: [3],
+                        culture: CultureInfo.InvariantCulture);
                 }
 
                 // All workbooks opened successfully — safe to apply user's visibility preference.
@@ -787,7 +798,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     Path.GetExtension(path),
                     ".xlsm",
                     StringComparison.OrdinalIgnoreCase));
-        return opensMacroEnabledWorkbook ? 1 : 3;
+        return opensMacroEnabledWorkbook ? 2 : 3;
     }
 
     private static string CreateIrmRequiresVisibleSessionMessage(string workbookPath)

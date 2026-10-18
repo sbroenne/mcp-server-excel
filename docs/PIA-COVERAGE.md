@@ -92,11 +92,11 @@ ExcelMcp is PIA-first. Any `dynamic` usage is technical debt unless a compile pr
 - **Workaround**: `((dynamic)ctx.Book).VBProject` — COM late binding to the VBE object model
 - **Affected files**: `VbaCommands.Lifecycle.cs`, `VbaCommands.Operations.cs`
 
-### MsoAutomationSecurity (= 3)
+### MsoAutomationSecurity (= 2 or 3)
 
 - **Location in COM**: `Microsoft.Office.Core` (office.dll), a shared Office type library separate from the Excel PIA.
 - **Why not typed**: `MsoAutomationSecurity` is an enum in `Microsoft.Office.Core`. We do not reference or embed the Office.Core PIA, so the typed enum constant is not available in our build.
-- **Workaround**: Use the literal integer values (`1` = `msoAutomationSecurityLow`, `3` = `msoAutomationSecurityForceDisable`) via `((dynamic)(object)tempExcel).AutomationSecurity = ...;` — late-bound IDispatch access that exchanges a plain `int` with Excel and never touches an Office.Core type.
+- **Workaround**: Use the literal integer values (`2` = `msoAutomationSecurityByUI`, `3` = `msoAutomationSecurityForceDisable`) through late-bound IDispatch access that exchanges a plain `int` with Excel and never touches an Office.Core type. `ExcelBatch` opens macro-enabled workbooks with `2` (the user's own macro settings) and switches the session to `3` after startup; read-only and non-macro opens use `3` throughout. ExcelMcp never sets `1` (`msoAutomationSecurityLow`).
 - **The `(object)` cast keeps the call late-bound**: Casting a typed `Excel.Application` directly to `dynamic` would let the DLR resolve `AutomationSecurity` against the typed `MsoAutomationSecurity` signature, which would require an Office.Core reference. Casting to `(object)` first erases the static type and forces pure IDispatch binding, so no Office.Core type is needed.
 - **office.dll is NOT a runtime dependency**: The Excel PIA is embedded (`EmbedInteropTypes` via the repo-root `Directory.Build.targets`; the PackageReference is compile-only via `<ExcludeAssets>runtime</ExcludeAssets>`). Embedding bakes only the Excel interop types we actually use into our assemblies — none of which are Office.Core types — so the built assemblies carry **no** reference to `office.dll`. This is why no assembly resolver is required. (Previously the PIA was referenced but not embedded, so it dragged in a transitive `office v16.0.0.0` dependency that forced a runtime `office.dll` load; that is now gone.)
 - **Do NOT add a `<Reference>` to office.dll or a hand-rolled assembly resolver**: A GAC hint path is version- and machine-specific (15.0 vs 16.0 mismatch). Proper PIA embedding removes the office.dll dependency entirely, so neither is needed.

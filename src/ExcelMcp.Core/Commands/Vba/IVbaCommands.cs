@@ -19,7 +19,9 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 ///
 /// RUN: procedureName format is 'Module.Procedure' (e.g., 'Module1.MySub').
 /// Running an existing macro does not require VBA project access.
-/// ExcelMcp does not configure VBA trust settings for you.
+/// Macro-enabled workbooks follow the user's own Excel macro settings: a saved .xlsm outside a
+/// trusted location opens with macros blocked, so run fails until the file is trusted and reopened.
+/// ExcelMcp does not configure VBA trust or macro settings for you.
 /// </summary>
 [ServiceCategory("Vba")]
 [McpTool("vba", Title = "VBA Operations", Destructive = true, Category = "automation",
@@ -120,7 +122,8 @@ public interface IVbaCommands
         [RequiredParameter][FileOrValue] string vbaCode);
 
     /// <summary>
-    /// Runs a VBA procedure with optional parameters
+    /// Runs a VBA procedure with optional parameters. Excel's macro settings decide whether it can run;
+    /// blocked macros fail with guidance to trust the file and reopen it.
     /// </summary>
     /// <param name="procedureName">Name of the procedure to run (for example "Module1.MySub")</param>
     /// <param name="timeout">Optional public timeout in whole seconds from 1 through 2147483; converted to TimeSpan at shared dispatch</param>

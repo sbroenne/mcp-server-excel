@@ -202,7 +202,8 @@ We follow responsible disclosure practices:
 - **Local Only**: ExcelMcp only supports local Excel automation
 - **Windows Only**: Requires Windows with Excel installed
 - **Excel Process**: Creates Excel.Application COM objects
-- **Macro Security**: VBA operations require the user to manually enable "Trust access to the VBA project object model" in Excel Trust Center settings
+- **Macro Security**: VBA project inspection and editing require the user to manually enable "Trust access to the VBA project object model" in Excel Trust Center settings
+- **Macro Settings Respected**: Macro-enabled workbooks open under the user's own Excel macro settings. ExcelMcp never lowers macro security, so untrusted `.xlsm` files open with macros blocked and their automatic macros (such as `Workbook_Open`) do not run. Read-only opens always disable macros.
 
 ### File System Access
 

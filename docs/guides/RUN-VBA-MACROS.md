@@ -31,6 +31,27 @@ manage VBA modules need it too.
     code in workbooks you open. Enable it only if you actually need VBA
     automation, and only on machines you control.
 
+## Your Excel macro settings decide whether macros run
+
+ExcelMcp opens macro-enabled workbooks under your own Excel macro settings
+(**File → Options → Trust Center → Trust Center Settings → Macro Settings**).
+It never lowers macro security, changes Trust Center settings, or answers
+Excel's security prompts.
+
+- **New workbooks** created in a session can run code you add in that session.
+- **A saved `.xlsm` you open later** is treated like any other file. With
+  Excel's default settings, macros in a file outside a trusted location are
+  blocked: `Workbook_Open` and other automatic macros do not run, and `run`
+  fails with a message that Excel blocked macros. Listing, viewing, and editing
+  code still work.
+- **To run macros in a saved file**, store it in a
+  [trusted location](https://support.microsoft.com/office/add-remove-or-change-a-trusted-location-in-microsoft-office-7ee1cdc2-483e-4cbb-bcb3-4e7c67147fb4)
+  or sign its VBA project with a certificate you trust. Then close the session
+  and open the workbook again; Excel decides macro access only when the file
+  opens. Clicking **Enable Content** in Excel lasts only until the file is
+  closed and is not a lasting fix.
+- Read-only opens always keep macros disabled.
+
 ## What you ask for
 
 > List the macros in `report.xlsm` and show me what `Module1` does.
@@ -164,6 +185,12 @@ excelcli -q screenshot capture-sheet --session $session --sheet Summary
 trust or a password-locked project. Use `vba status` to distinguish them.
 This is separate from a failure returned by `run`, which comes from Excel
 while locating or executing the requested macro.
+
+**`run` says macros are disabled.** Excel blocked macros in this workbook
+because of your macro settings. Excel uses the same error for a misspelled
+procedure name, so check the name first. Then trust the file as described in
+[Your Excel macro settings decide whether macros run](#your-excel-macro-settings-decide-whether-macros-run)
+and open it again.
 
 **Macros can display dialogs.** A `MsgBox` inside a macro blocks execution until
 someone dismisses it. Prefer macros that write results to cells over ones that

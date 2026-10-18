@@ -127,9 +127,11 @@ remain open and lock workbooks.
 
 Read the actual error. VBA project inspection/editing requires trusted project
 access configured manually by the user. Running an existing macro does not
-itself require that project access, though Excel's macro security still applies.
-Do not change Trust Center settings automatically or assume every VBA error is
-a trust failure.
+itself require that project access, though Excel's macro settings still apply:
+a reopened `.xlsm` outside a trusted location has its macros blocked, and `run`
+says so. Store the file in a trusted location or sign its VBA project, then
+open it again. Do not change Trust Center settings automatically or assume every
+VBA error is a trust failure.
 
 See the current
 [MCP Server installation guide](https://excelmcpserver.dev/installation-mcp-server/)

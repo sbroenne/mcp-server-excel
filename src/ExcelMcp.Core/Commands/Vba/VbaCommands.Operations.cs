@@ -1,11 +1,9 @@
 using System.Globalization;
 using System.Reflection;
-using System.Runtime.ExceptionServices;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Core.Utilities;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -30,26 +28,17 @@ public partial class VbaCommands
         {
             var originalCulture = CultureInfo.CurrentCulture;
             var originalUiCulture = CultureInfo.CurrentUICulture;
-            object? originalAutomationSecurity = null;
-            Exception? operationFailure = null;
             try
             {
                 var excelCulture = CultureInfo.GetCultureInfo("en-US");
                 CultureInfo.CurrentCulture = excelCulture;
                 CultureInfo.CurrentUICulture = excelCulture;
 
-                // Explicit macro execution is an opt-in operation. Temporarily switch automation
-                // security to low so Application.Run can execute on workbooks reopened by the
-                // automation host, then restore the previous setting after the call.
-                // PIA gap: AutomationSecurity is an Office.Core enum unavailable in the supported Excel-only references.
-                dynamic app = (dynamic)(object)ctx.App;
-                originalAutomationSecurity = app.AutomationSecurity;
-                app.AutomationSecurity = 1;
-
                 // Use late-bound COM dispatch via Type.InvokeMember to avoid dependency on
                 // Microsoft.Vbe.Interop.dll, which is not available on Click-to-Run Office
                 // installations. The early-bound PIA call ctx.App.Run() triggers assembly
                 // resolution of VBE types through the embedded Application interface metadata.
+                // Run follows the user's Excel macro settings; it never lowers AutomationSecurity.
                 var args = new object[1 + parameters.Length];
                 args[0] = procedureName;
                 for (int i = 0; i < parameters.Length; i++)
@@ -62,7 +51,7 @@ public partial class VbaCommands
 
                 excelApplicationType.InvokeMember(
                     "Run",
-                    BindingFlags.InvokeMethod,
+                    BindingFlags.InvokeMethod | BindingFlags.DoNotWrapExceptions,
                     null,
                     ctx.App,
                     args,
@@ -70,40 +59,33 @@ public partial class VbaCommands
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
-            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            catch (COMException comEx) when (comEx.ErrorCode == GenericOfficeAutomationError)
             {
-                operationFailure = ex.InnerException;
-                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
-                throw;
-            }
-            catch (Exception ex)
-            {
-                operationFailure = ex;
-                throw;
+                // Excel reports a missing procedure and macros blocked by the user's macro
+                // settings with the same HRESULT, so keep Excel's own text and add guidance
+                // without claiming which cause applies.
+                throw new InvalidOperationException(BuildRunFailureMessage(procedureName, comEx), comEx);
             }
             finally
             {
-                try
-                {
-                    if (originalAutomationSecurity != null)
-                    {
-                        OperationCleanup.Run(() =>
-                        {
-                            // PIA gap: AutomationSecurity lives in office.dll (Microsoft.Office.Core),
-                            // so restoring it must stay late-bound to avoid loading a missing Office core assembly.
-                            ((dynamic)(object)ctx.App).AutomationSecurity = originalAutomationSecurity;
-                        }, operationFailure);
-                    }
-                }
-                finally
-                {
-                    CultureInfo.CurrentCulture = originalCulture;
-                    CultureInfo.CurrentUICulture = originalUiCulture;
-                }
+                CultureInfo.CurrentCulture = originalCulture;
+                CultureInfo.CurrentUICulture = originalUiCulture;
             }
         }, timeoutCts?.Token ?? default);
 
         return ExecuteWithTimeout(execute, timeoutCts);
+    }
+
+    internal static string BuildRunFailureMessage(string procedureName, COMException comEx)
+    {
+        string detail = string.IsNullOrWhiteSpace(comEx.Message) ? "(no description)" : comEx.Message.Trim();
+        return
+            $"Excel could not run '{procedureName}' (HRESULT 0x{unchecked((uint)comEx.ErrorCode):X8}): {detail} " +
+            "If the procedure name is correct and Excel says macros are disabled, Excel blocked macros in this " +
+            "workbook because of your Excel macro settings. ExcelMcp follows those settings and never changes them. " +
+            "To allow macros for this file, store it in a trusted location or sign its VBA project with a " +
+            "certificate you trust, then close this session and open the workbook again. " +
+            "VBA code can still be listed, viewed, and edited while macros are blocked.";
     }
 
     private static OperationResult ExecuteWithTimeout(
