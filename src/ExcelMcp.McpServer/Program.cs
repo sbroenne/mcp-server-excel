@@ -101,8 +101,8 @@ public class Program
                     Do not set show:true just to leave a workbook open without a separate visibility request or known preference.
                     Use worksheet_read list to inspect sheets. Close only after active operations finish (canClose:true). Set save:true to keep changes;
                     close defaults to save:false and discards edits. Confirm before closing a visible window unless authorized.
-                    If file_read list reports excelState:nativeQueryApproval, the operation is still pending; ask the user to show Excel and approve the query manually.
-                    Other excelState:dialogOpen entries identify an owned modal prompt but not its type; ask the user to check Excel.
+                    Confirmed blocking dialogs automatically reveal Excel. If file_read list reports excelState:dialogOpen, ask the user to check Excel and respond there.
+                    Readable dialog text is included automatically in session blockingMessage and timeout errors; partial or unavailable reads are reported. Input values are not read, and dialogs are not classified, answered, or dismissed. A pending operation is not a completed or failed operation.
                     The server does not request confirmation through MCP elicitation; the client must obtain any needed consent.
                     Normal shutdown attempts to save remaining sessions. Crashes, timeouts, and forced cleanup may lose edits.
                     Cancellation is not undo: inspect file_read list before continuing, and do not blindly retry a change.

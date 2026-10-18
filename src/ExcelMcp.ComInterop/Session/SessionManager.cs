@@ -725,11 +725,19 @@ public sealed class SessionManager : IDisposable
     /// Atomically validates a session, reports a typed failure state, and marks
     /// one operation as active.
     /// </summary>
+    /// <param name="sessionId">Session to validate.</param>
+    /// <param name="batch">The validated session batch.</param>
+    /// <param name="errorMessage">The validation failure, if any.</param>
+    /// <param name="error">The typed validation failure, if any.</param>
+    /// <param name="allowTimedOutOperation">
+    /// Set only for native Excel show/hide actions, which do not enter Excel's operation queue.
+    /// </param>
     public bool TryBeginOperation(
         string sessionId,
         [NotNullWhen(true)] out IExcelBatch? batch,
         [NotNullWhen(false)] out string? errorMessage,
-        out SessionOperationError error)
+        out SessionOperationError error,
+        bool allowTimedOutOperation = false)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -776,7 +784,8 @@ public sealed class SessionManager : IDisposable
                 return false;
             }
 
-            if (batch.HasTimedOutOperation && GetRefreshState(batch) != WorkbookRefreshState.Ready)
+            if (!allowTimedOutOperation && batch.HasTimedOutOperation &&
+                GetRefreshState(batch) != WorkbookRefreshState.Ready)
             {
                 errorMessage = $"A previous wait on session '{sessionId}' expired. " +
                                "The workbook remains open; execution or readiness verification is still pending.";
@@ -935,12 +944,14 @@ public sealed class SessionManager : IDisposable
         var refreshState = GetRefreshState(batch);
         var isVisible = IsExcelVisible(sessionId);
 
-        if (refreshState == WorkbookRefreshState.NativeQueryApproval)
+        if (refreshState == WorkbookRefreshState.DialogOpen)
         {
-            return new CloseValidationResult(true, isVisible, activeOps, "nativeQueryApproval")
+            return new CloseValidationResult(true, isVisible, activeOps, "dialogOpen")
             {
                 RefreshState = refreshState,
-                BlockingMessage = ExcelBusyException.NativeQueryApprovalGuidance
+                BlockingMessage = ExcelBusyException.DialogGuidance +
+                    (batch is IExcelBatchWindowControl { DialogDetails: { } details } ? $" {details}" : "") +
+                    (batch is IExcelBatchWindowControl { DialogVisibilityError: { } error } ? $" {error}" : "")
             };
         }
 
@@ -1028,7 +1039,7 @@ public sealed class SessionManager : IDisposable
             var refreshState = !resolvedFailedTeardown && !force
                 ? GetClosePreflightState(batch)
                 : WorkbookRefreshState.Ready;
-            if (refreshState is WorkbookRefreshState.DialogOpen or WorkbookRefreshState.NativeQueryApproval)
+            if (refreshState == WorkbookRefreshState.DialogOpen)
             {
                 ExcelBusyException.ThrowIfNotReady(refreshState, "close");
             }
@@ -1524,16 +1535,15 @@ public sealed record CloseValidationResult(
         WorkbookRefreshState.Refreshing => "refreshing",
         WorkbookRefreshState.Busy => "busy",
         WorkbookRefreshState.DialogOpen => "dialogOpen",
-        WorkbookRefreshState.NativeQueryApproval => "nativeQueryApproval",
         _ => "unknown"
     };
 
     /// <summary>
-    /// Whether a server-tracked operation or an Excel refresh/native-query approval is still pending.
+    /// Whether a server-tracked operation, data refresh, or blocking dialog is still pending.
     /// </summary>
     public bool OperationPending =>
         ActiveOperationCount > 0
-        || RefreshState is WorkbookRefreshState.Refreshing or WorkbookRefreshState.NativeQueryApproval;
+        || RefreshState is WorkbookRefreshState.Refreshing or WorkbookRefreshState.DialogOpen;
 
     /// <summary>
     /// Whether the session can be closed (no blocking conditions).

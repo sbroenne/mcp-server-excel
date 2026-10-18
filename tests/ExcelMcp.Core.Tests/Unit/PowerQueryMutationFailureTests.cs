@@ -14,6 +14,41 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 [Trait("Speed", "Fast")]
 public sealed class PowerQueryMutationFailureTests
 {
+    [Theory]
+    [InlineData("[DataSource.Error] This server does not support Windows credentials. Please try Microsoft account authentication.", "Authentication", "Organizational account")]
+    [InlineData("Analysis Services does not support the 'en-DE' culture", "Culture", "Culture = \"en-US\"")]
+    public void RecognizedEngineFailure_AddsActionableHintWithoutChangingCause(
+        string message, string category, string hint)
+    {
+#pragma warning disable CA2201 // Synthetic engine error for pure diagnostic mapping.
+        var cause = new COMException(message, unchecked((int)0x800A03EC));
+#pragma warning restore CA2201
+        var error = PowerQueryCommands.CreateMutationFailure(
+            cause, "Query", true, state => state.QueryExists = true);
+        Assert.Same(cause, error.InnerException);
+        Assert.Equal(category, error.ErrorCategory);
+        Assert.Contains(message, error.Message, StringComparison.Ordinal);
+        Assert.Contains(hint, error.Message, StringComparison.Ordinal);
+        var refresh = PowerQueryCommands.CreateRefreshFailure("Query", cause);
+        Assert.Equal(category, refresh.ErrorCategory);
+        Assert.Contains(hint, refresh.ErrorMessage, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void CultureUpdateFailure_DoesNotClaimMCodeWasUnchanged()
+    {
+#pragma warning disable CA2201 // Synthetic engine error for pure diagnostic mapping.
+        var cause = new COMException("Analysis Services does not support the 'en-DE' culture", unchecked((int)0x800A03EC));
+#pragma warning restore CA2201
+        var error = PowerQueryCommands.CreateMutationFailure(
+            cause, "Query", false, state => state.QueryExists = true);
+
+        Assert.True(error.PartialState!.MCodeUpdated);
+        Assert.Contains("was updated", error.Message, StringComparison.Ordinal);
+        Assert.Contains("Culture = \"en-US\"", error.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("M code was not changed", error.Message, StringComparison.Ordinal);
+    }
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,

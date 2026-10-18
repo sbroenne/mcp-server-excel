@@ -210,23 +210,20 @@ saving workbooks. Unsaved development-session work may be lost. They do not
 terminate Excel, MCP, foreground CLI commands, or other worktrees' services.
 
 The same session listing exposes `excelState`, `operationPending`, and
-`blockingReason`. When `excelState` is `nativeQueryApproval`, Excel is waiting
-for a manual decision: show its window and approve the query there. The operation
-is still pending; the server does not cancel it, approve automatically, change
-the global setting, or return query/source details. For other `dialogOpen`
-states, check Excel for a prompt; its type is not identified. After responding,
+`blockingReason`. A confirmed blocking dialog reports `dialogOpen` and
+automatically reveals the session's Excel window. Ask the user to check the
+window and respond there. Readable dialog titles and message labels are included
+automatically in `blockingMessage`; unreadable or partial text is marked.
+The operation remains pending; the server never identifies the dialog type,
+reads input values, answers, or dismisses the dialog. After responding,
 check readiness and refreshed data before saving.
 
 If an executing operation reaches the session's operation timeout while a dialog
-is detected, its error reports the captured dialog instead of only suggesting a
-longer timeout. The timeout error includes the dialog's title and readable message labels, not editable input values.
-Reading the text does not dismiss the prompt. Timeout recovery retains the
+is detected, its error reports that a dialog was open instead of only suggesting
+a longer timeout. Readable dialog text is included automatically. Timeout recovery retains the
 session and unsaved workbook and requests visibility for its owned Excel window.
-It does not save, close, terminate, or roll back the operation. Text reads
-are bounded so an unresponsive dialog cannot block reporting indefinitely;
-unavailable or truncated text is noted explicitly. Session listing still checks
-window ownership without reading dialog contents. Some custom-drawn Office
-dialogs expose only their title, not their message text.
+It does not save, close, terminate, or roll back the operation. Session listing
+checks window ownership and reads available dialog labels without queuing Excel COM work.
 The operation may still be running. CLI `session list` and MCP `file_read`
 action `list` include `operation` with `state`, `command`, `elapsedSeconds`,
 `waitExpired`, `executionPending`, `errorMessage`, and `windowReveal`.

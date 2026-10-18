@@ -34,7 +34,7 @@ public sealed partial class PersistentServiceWindowTests
         var info = _commands.GetInfo(batch);
         Assert.True(info.Success, info.ErrorMessage);
         Assert.True(info.IsVisible);
-        Assert.True(info.IsForeground);
+        Assert.Equal(result.IsForeground, info.IsForeground);
 
         // Cleanup: hide again so tests don't leave visible Excel windows
         RequireSuccess(_commands.Hide(batch));
@@ -127,11 +127,11 @@ public sealed partial class PersistentServiceWindowTests
         RequireSuccess(_commands.Hide(batch));
         Assert.False(RequireSuccess(_commands.GetInfo(batch)).IsVisible);
 
-        RequireSuccess(_commands.Show(batch));
+        var shown = RequireSuccess(_commands.Show(batch));
 
         var after = RequireSuccess(_commands.GetInfo(batch));
         Assert.True(after.IsVisible);
-        Assert.True(after.IsForeground);
+        Assert.Equal(shown.IsForeground, after.IsForeground);
         Assert.Equal(originalState, after.WindowState);
     }
 

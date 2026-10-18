@@ -4,6 +4,15 @@ using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Window;
 
+/// <summary>Observed result of an explicit Excel window visibility change.</summary>
+public sealed class WindowVisibilityResult : OperationResult
+{
+    /// <summary>Whether Excel's native window is visible.</summary>
+    public bool IsVisible { get; set; }
+    /// <summary>Whether the revealed Excel window or its blocking dialog is in the foreground.</summary>
+    public bool IsForeground { get; set; }
+}
+
 /// <summary>
 /// Result containing Excel window state information.
 /// </summary>
@@ -37,7 +46,8 @@ public class WindowInfoResult : OperationResult
 /// split panes, set zoom, and control gridlines, headings, outline symbols, and formula display.
 /// Set status bar text to give users real-time feedback during operations.
 ///
-/// VISIBILITY: 'show' makes Excel visible AND brings to front. 'hide' hides Excel.
+/// VISIBILITY: 'show' reveals/restores Excel and reports whether Windows granted foreground focus. 'hide' hides Excel.
+/// Both work while Excel is waiting on a blocking dialog. Confirmed blocking dialogs automatically use the same show behavior.
 /// Visibility changes are reflected in session metadata (session list shows updated state).
 ///
 /// WINDOW STATE values: 'normal', 'minimized', 'maximized'.
@@ -53,7 +63,7 @@ public class WindowInfoResult : OperationResult
 /// </summary>
 [ServiceCategory("Window")]
 [McpTool("window", Title = "Window Management", Destructive = false, Category = "settings",
-    Description = "Control Excel window visibility, position, state, status bar, and worksheet-specific views. VIEW: get-view, freeze-panes, unfreeze-panes, set-split, set-zoom, and set-display-options for gridlines, headings, outline symbols, and formulas. get-view activates the workbook window and requested worksheet without restoring the prior active view; it is not inspection-only. freeze-panes uses row/column counts above and left of the pane boundary. set-split creates movable panes and disables frozen panes. Zoom range: 10-400. VISIBILITY: show makes Excel visible and brings it to front; hide hides it. WINDOW STATE: normal, minimized, maximized. ARRANGE presets: left-half, right-half, top-half, bottom-half, center, full-screen.")]
+    Description = "Control Excel window visibility, position, state, status bar, and worksheet-specific views. VIEW: get-view, freeze-panes, unfreeze-panes, set-split, set-zoom, and set-display-options for gridlines, headings, outline symbols, and formulas. get-view activates the workbook window and requested worksheet without restoring the prior active view; it is not inspection-only. freeze-panes uses row/column counts above and left of the pane boundary. set-split creates movable panes and disables frozen panes. Zoom range: 10-400. VISIBILITY: show reveals/restores Excel and reports isVisible and isForeground; Windows may refuse foreground focus. hide hides it. Both work while Excel is waiting on a dialog. Confirmed blocking dialogs automatically show Excel; ask the user to check it. Readable dialog titles and message labels are included automatically in session status and timeout errors; unavailable or partial reads are reported. Input values are not read. Dialog types are not identified, and dialogs are never answered or dismissed. WINDOW STATE: normal, minimized, maximized. ARRANGE presets: left-half, right-half, top-half, bottom-half, center, full-screen.")]
 [McpReadOnlyActions("get-context", "get-info")]
 public interface IWindowCommands
 {
@@ -68,19 +78,19 @@ public interface IWindowCommands
     WindowContextResult GetContext(IExcelBatch batch);
 
     /// <summary>
-    /// Makes the Excel window visible and brings it to the foreground.
+    /// Makes Excel visible and reports whether Windows granted foreground focus.
     /// Restores a minimized window to its previous normal or maximized state.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     [ServiceAction("show")]
-    OperationResult Show(IExcelBatch batch);
+    WindowVisibilityResult Show(IExcelBatch batch);
 
     /// <summary>
     /// Hides the Excel window.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     [ServiceAction("hide")]
-    OperationResult Hide(IExcelBatch batch);
+    WindowVisibilityResult Hide(IExcelBatch batch);
 
     /// <summary>
     /// Brings the Excel window to the foreground without changing visibility.

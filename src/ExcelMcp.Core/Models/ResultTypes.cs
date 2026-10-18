@@ -722,13 +722,8 @@ public class PowerQueryLoadToBothResult : OperationResult
 /// Result for Power Query create operations
 /// Atomic operation: Import M code + Load data to destination in ONE call
 /// </summary>
-public class PowerQueryCreateResult : OperationResult
+public class PowerQueryCreateResult : PowerQueryOperationResult
 {
-    /// <summary>
-    /// Name of the created query
-    /// </summary>
-    public string QueryName { get; set; } = string.Empty;
-
     /// <summary>
     /// Load destination applied
     /// </summary>
@@ -756,23 +751,14 @@ public class PowerQueryCreateResult : OperationResult
     /// </summary>
     public bool DataLoaded { get; set; }
 
-    /// <summary>
-    /// Number of rows loaded (0 if ConnectionOnly)
-    /// </summary>
-    public int RowsLoaded { get; set; }
 }
 
 /// <summary>
 /// Result for Power Query load operations
 /// Atomic operation: Set destination + Refresh data in ONE call
 /// </summary>
-public class PowerQueryLoadResult : OperationResult
+public class PowerQueryLoadResult : PowerQueryOperationResult
 {
-    /// <summary>
-    /// Name of the query
-    /// </summary>
-    public string QueryName { get; set; } = string.Empty;
-
     /// <summary>
     /// Load destination applied
     /// </summary>
@@ -800,10 +786,6 @@ public class PowerQueryLoadResult : OperationResult
     /// </summary>
     public bool DataRefreshed { get; set; }
 
-    /// <summary>
-    /// Number of rows loaded
-    /// </summary>
-    public int RowsLoaded { get; set; }
 }
 
 /// <summary>
@@ -1740,13 +1722,8 @@ public enum PowerQueryPrivacyLevel
 /// <summary>
 /// Result for Power Query refresh operations with error detection
 /// </summary>
-public class PowerQueryRefreshResult : ResultBase
+public class PowerQueryRefreshResult : PowerQueryOperationResult
 {
-    /// <summary>
-    /// Name of the query that was refreshed
-    /// </summary>
-    public string QueryName { get; set; } = string.Empty;
-
     /// <summary>
     /// Whether query has errors after refresh attempt
     /// </summary>
@@ -1789,6 +1766,9 @@ public class PowerQueryRefreshResult : ResultBase
 /// </summary>
 public class PowerQueryRefreshAllResult : OperationResult
 {
+    /// <summary>Verified metrics for successfully refreshed queries, excluding skipped or failed queries.</summary>
+    public List<PowerQueryOperationResult> QueryMetrics { get; set; } = [];
+
     /// <summary>
     /// Queries whose worksheet, Data Model, or workbook connection loads were refreshed.
     /// </summary>

@@ -11,23 +11,87 @@ internal static class ExcelDialogProbe
     internal readonly record struct WindowSnapshot(
         nint Handle, nint Owner, int ProcessId, bool Visible, bool Enabled, string ClassName, string Title = "");
 
-    private static readonly string[] NativeQueryApprovalTitleFragments =
-    [
-        "Native Database Query",
-        "Native Datenbankabfrage",
-        "Requête de base de données native",
-        "Consulta de base de datos nativa",
-        "Consulta de base de dados nativa",
-        "Consulta de banco de dados nativa",
-        "Query di database nativa",
-        "ネイティブ データベース クエリ",
-        "네이티브 데이터베이스 쿼리",
-        "本机数据库查询",
-        "原生資料庫查詢"
-    ];
+    internal static WorkbookRefreshState Read(
+        ExcelProcessIdentity? identity, ILogger logger, bool includeEnabledOwnerOfficeDialog = false) =>
+        Inspect(identity, logger, includeEnabledOwnerOfficeDialog).State;
 
-    internal static WorkbookRefreshState Read(ExcelProcessIdentity? identity, ILogger logger) =>
-        Read(identity, logger, includeText: false, out _);
+    internal static string ReadDetails(
+        ExcelProcessIdentity? identity, ILogger logger, bool includeEnabledOwnerOfficeDialog = false)
+    {
+        var inspection = Inspect(identity, logger, includeEnabledOwnerOfficeDialog);
+        if (inspection.State != WorkbookRefreshState.DialogOpen ||
+            GetWindowThreadProcessId(inspection.Dialog, out var dialogProcessId) == 0)
+            return "Dialog text could not be read because the owned blocking window is no longer confirmed.";
+
+        var text = new StringBuilder();
+        var started = Stopwatch.GetTimestamp();
+        var incomplete = false;
+        var labels = 0;
+        var controls = 0;
+
+        bool ReadWindow(nint window)
+        {
+            var remainingMilliseconds = 500 - (int)Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+            if (remainingMilliseconds <= 0 || text.Length >= 8192)
+            {
+                incomplete = true;
+                return false;
+            }
+            if (GetWindowThreadProcessId(window, out var processId) == 0 || processId != dialogProcessId ||
+                (window != inspection.Dialog && !IsChild(inspection.Dialog, window)))
+            {
+                incomplete = true;
+                return true;
+            }
+            var buffer = new char[2048];
+            if (SendMessageTimeout(window, 0x000D, (nuint)buffer.Length, buffer,
+                    0x0023, (uint)Math.Min(50, remainingMilliseconds), out var length) == nint.Zero)
+            {
+                incomplete = true;
+                return true;
+            }
+            var value = new string(buffer, 0, (int)Math.Min(length, (nuint)(buffer.Length - 1))).Trim();
+            if (value.Length == 0) return true;
+            if (window != inspection.Dialog) labels++;
+            if (text.Length > 0 && text.Length < 8192) text.Append('\n');
+            var remaining = 8192 - text.Length;
+            text.Append(value.AsSpan(0, Math.Min(value.Length, remaining)));
+            incomplete |= value.Length > remaining || length >= (nuint)(buffer.Length - 1);
+            return true;
+        }
+
+        ReadWindow(inspection.Dialog);
+        EnumChildWindows(inspection.Dialog, (window, _) =>
+        {
+            if (++controls > 64 || Stopwatch.GetElapsedTime(started) >= TimeSpan.FromMilliseconds(500))
+            {
+                incomplete = true;
+                return false;
+            }
+            if (!IsWindowVisible(window)) return true;
+            var className = new char[256];
+            var length = GetClassName(window, className, className.Length);
+            if (length == 0)
+            {
+                incomplete = true;
+                return true;
+            }
+            var name = new string(className, 0, length);
+            if (!name.Equals("Static", StringComparison.OrdinalIgnoreCase) &&
+                !name.Equals("Button", StringComparison.OrdinalIgnoreCase))
+                return true;
+            return ReadWindow(window);
+        }, nint.Zero);
+
+        var confirmed = Inspect(identity, logger, includeEnabledOwnerOfficeDialog);
+        if (confirmed.State != WorkbookRefreshState.DialogOpen || confirmed.Dialog != inspection.Dialog)
+            return "Dialog text could not be read because the owned blocking window changed during inspection.";
+        if (text.Length == 0)
+            return "Dialog text could not be read: Windows exposed no readable title or message labels within the bounded read.";
+        return "Dialog text: " + text +
+            (incomplete ? "\n[Some dialog text could not be read or was truncated.]" :
+                labels == 0 ? "\n[No readable message labels were exposed.]" : "");
+    }
 
     internal static string Reveal(ExcelProcessIdentity? identity, ILogger logger)
     {
@@ -67,20 +131,18 @@ internal static class ExcelDialogProbe
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool ShowWindowAsync(nint window, int command);
 
-    internal static WorkbookRefreshState ReadWithText(
-        ExcelProcessIdentity? identity, ILogger logger, out string? dialogText) =>
-        Read(identity, logger, includeText: true, out dialogText);
+    internal readonly record struct Inspection(
+        WorkbookRefreshState State, IReadOnlyList<WindowSnapshot> Windows, nint Dialog);
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "Win32 readiness probe handles only process/window inspection failures, logs the original exception, and returns Unknown so save and close remain blocked rather than reporting readiness.")]
-    private static WorkbookRefreshState Read(
-        ExcelProcessIdentity? identity, ILogger logger, bool includeText, out string? dialogText)
+    internal static Inspection Inspect(
+        ExcelProcessIdentity? identity, ILogger logger, bool includeEnabledOwnerOfficeDialog = false)
     {
-        dialogText = null;
         if (identity is not { } ownedProcess)
         {
             logger.LogWarning("Cannot inspect Excel dialogs without an owned process identity");
-            return WorkbookRefreshState.Unknown;
+            return new(WorkbookRefreshState.Unknown, [], 0);
         }
 
         try
@@ -89,7 +151,7 @@ internal static class ExcelDialogProbe
             if (process.HasExited || process.StartTime.ToUniversalTime().ToFileTimeUtc() != ownedProcess.StartedAtUtcFileTime)
             {
                 logger.LogWarning("Excel dialog inspection could not confirm the owned process identity");
-                return WorkbookRefreshState.Unknown;
+                return new(WorkbookRefreshState.Unknown, [], 0);
             }
 
             var windows = new List<WindowSnapshot>();
@@ -98,7 +160,6 @@ internal static class ExcelDialogProbe
             {
                 if (GetWindowThreadProcessId(window, out var processId) == 0) return true;
                 var className = string.Empty;
-                var title = string.Empty;
                 if (processId == ownedProcess.ProcessId)
                 {
                     var buffer = new char[256];
@@ -109,41 +170,39 @@ internal static class ExcelDialogProbe
                         return true;
                     }
                     className = new string(buffer, 0, length);
-                    title = ReadWindowTitle(window);
                 }
                 windows.Add(new WindowSnapshot(window, GetWindow(window, 4),
-                    checked((int)processId), IsWindowVisible(window), IsWindowEnabled(window), className, title));
+                    checked((int)processId), IsWindowVisible(window), IsWindowEnabled(window), className));
                 return true;
             }, nint.Zero);
 
             if (!success || classReadFailed || process.HasExited)
             {
                 logger.LogWarning("Excel dialog window inspection failed; readiness remains unknown");
-                return WorkbookRefreshState.Unknown;
+                return new(WorkbookRefreshState.Unknown, [], 0);
             }
-            var state = Classify(ownedProcess.ProcessId, windows, includeEnabledOwnerOfficeDialog: includeText, out var dialog);
-            if (includeText && dialog != nint.Zero)
-            {
-                dialogText = ReadDialogText(dialog);
-            }
+            var state = Classify(ownedProcess.ProcessId, windows, out var dialog, includeEnabledOwnerOfficeDialog);
             if (state == WorkbookRefreshState.Unknown)
             {
                 logger.LogWarning("Excel's main window could not be found; dialog readiness remains unknown");
             }
-            return state;
+            return new(state, windows, dialog);
         }
         catch (Exception ex) when (ex is Win32Exception or ArgumentException or InvalidOperationException)
         {
             logger.LogWarning(ex, "Could not inspect Excel dialogs; readiness remains unknown");
-            return WorkbookRefreshState.Unknown;
+            return new(WorkbookRefreshState.Unknown, [], 0);
         }
     }
 
     internal static WorkbookRefreshState Classify(int processId, IReadOnlyList<WindowSnapshot> windows)
-        => Classify(processId, windows, includeEnabledOwnerOfficeDialog: false, out _);
+        => Classify(processId, windows, out _);
 
     internal static WorkbookRefreshState Classify(
-        int processId, IReadOnlyList<WindowSnapshot> windows, bool includeEnabledOwnerOfficeDialog, out nint dialog)
+        int processId,
+        IReadOnlyList<WindowSnapshot> windows,
+        out nint dialog,
+        bool includeEnabledOwnerOfficeDialog = false)
     {
         dialog = nint.Zero;
         var roots = windows.Where(window => window.ProcessId == processId && window.ClassName == "XLMAIN").ToArray();
@@ -154,9 +213,9 @@ internal static class ExcelDialogProbe
             foreach (var window in windows)
             {
                 if (!window.Visible || !window.Enabled || window.Handle == root.Handle) continue;
-                // Excel's InputBox uses an Office dialog without disabling its XLMAIN owner.
-                if (root.Enabled && (!includeEnabledOwnerOfficeDialog ||
-                    window.ProcessId != processId || window.ClassName != "bosa_sdm_XL9"))
+                if (root.Enabled &&
+                    (!includeEnabledOwnerOfficeDialog || window.ProcessId != processId ||
+                     window.ClassName != "bosa_sdm_XL9"))
                     continue;
                 var owner = window.Owner;
                 for (var depth = 0; owner != nint.Zero && depth < windows.Count; depth++)
@@ -164,9 +223,7 @@ internal static class ExcelDialogProbe
                     if (owner == root.Handle)
                     {
                         dialog = window.Handle;
-                        return IsNativeQueryApprovalTitle(window.Title)
-                            ? WorkbookRefreshState.NativeQueryApproval
-                            : WorkbookRefreshState.DialogOpen;
+                        return WorkbookRefreshState.DialogOpen;
                     }
                     if (!byHandle.TryGetValue(owner, out var parent)) break;
                     owner = parent.Owner;
@@ -176,93 +233,19 @@ internal static class ExcelDialogProbe
         return WorkbookRefreshState.Ready;
     }
 
-    private static string ReadDialogText(nint dialog)
-    {
-        var text = new StringBuilder();
-        var started = Stopwatch.GetTimestamp();
-        var incomplete = false;
-        var controls = 0;
-
-        bool ReadWindow(nint window)
-        {
-            if (Stopwatch.GetElapsedTime(started) >= TimeSpan.FromSeconds(1) ||
-                text.Length >= 8192 || ++controls > 64)
-            {
-                incomplete = true;
-                return false;
-            }
-            var buffer = new char[2048];
-            // Unlike an ordinary SendMessage, this cannot wait indefinitely for a hung dialog.
-            if (SendMessageTimeout(window, 0x000D, (nuint)buffer.Length, buffer,
-                    0x0003, 100, out var length) == nint.Zero)
-            {
-                incomplete = true;
-                return true;
-            }
-            var value = new string(buffer, 0, (int)Math.Min(length, (nuint)(buffer.Length - 1))).Trim();
-            if (value.Length > 0)
-            {
-                if (text.Length > 0)
-                {
-                    if (text.Length + Environment.NewLine.Length >= 8192)
-                    {
-                        incomplete = true;
-                        return false;
-                    }
-                    text.AppendLine();
-                }
-                var remaining = 8192 - text.Length;
-                text.Append(value.AsSpan(0, Math.Min(value.Length, remaining)));
-                incomplete |= value.Length > remaining || length >= (nuint)(buffer.Length - 1);
-            }
-            return true;
-        }
-
-        ReadWindow(dialog);
-        var titleLength = text.Length;
-        EnumChildWindows(dialog, (window, _) =>
-        {
-            if (!IsWindowVisible(window)) return true;
-            var classBuffer = new char[256];
-            var classLength = GetClassName(window, classBuffer, classBuffer.Length);
-            if (classLength == 0)
-            {
-                incomplete = true;
-                return true;
-            }
-            // Read labels and messages, not editable values such as sign-in credentials.
-            var className = new string(classBuffer, 0, classLength);
-            return (!className.Equals("Static", StringComparison.OrdinalIgnoreCase) &&
-                    !className.Equals("Button", StringComparison.OrdinalIgnoreCase)) || ReadWindow(window);
-        }, nint.Zero);
-        if (incomplete) text.AppendLine().Append("[Some dialog text could not be read or was truncated.]");
-        else if (text.Length == titleLength)
-            text.AppendLine().Append("[The dialog did not expose readable message text.]");
-        return text.ToString();
-    }
-
-    private static bool IsNativeQueryApprovalTitle(string title) =>
-        NativeQueryApprovalTitleFragments.Any(fragment =>
-            title.Contains(fragment, StringComparison.OrdinalIgnoreCase));
-
-    private static string ReadWindowTitle(nint window)
-    {
-        var buffer = new char[512];
-        if (SendMessageTimeout(window, 0x000D, (nuint)buffer.Length, buffer,
-                0x0003, 100, out var length) == nint.Zero)
-            return string.Empty;
-        return new string(buffer, 0, (int)Math.Min(length, (nuint)(buffer.Length - 1)));
-    }
-
     private delegate bool WindowCallback(nint window, nint data);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool EnumChildWindows(nint parent, WindowCallback callback, nint data);
 
+    [DllImport("user32.dll")]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool IsChild(nint parent, nint window);
+
     [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern nint SendMessageTimeout(nint window, uint message, nuint wParam,
-        [Out] char[] lParam, uint flags, uint timeoutMilliseconds, out nuint result);
+        [Out] char[] text, uint flags, uint timeoutMilliseconds, out nuint result);
 
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]

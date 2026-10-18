@@ -75,6 +75,17 @@ Commands and prerequisites: [tests/README.md](README.md#quick-start).
 Fixture, template, raw-COM/OOXML, and parallel-safety procedures:
 [tests/README.md](README.md#saved-workbook-templates).
 
+## Diagnosing stalled Excel tests
+
+When an Excel test hangs, times out, or leaves Excel running, inspect Excel's
+windows yourself with the available computer-use tools before guessing at the
+cause or asking the user for screenshots. Read the window list and
+accessibility text first; capture an image only when the text is not
+available. Look for modal prompts such as Printer Setup or a security notice.
+Do not click, close, or answer them: report the dialog text to the user, then
+stop only test-owned Excel processes as described above. Keep dialog text out
+of public artifacts.
+
 ## Entry-point and migration coverage
 
 CLI and MCP tests cover adapter responsibilities, not a second full workbook

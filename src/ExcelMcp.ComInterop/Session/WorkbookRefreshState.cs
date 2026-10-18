@@ -6,8 +6,7 @@ internal enum WorkbookRefreshState
     Refreshing,
     Busy,
     Unknown,
-    DialogOpen,
-    NativeQueryApproval
+    DialogOpen
 }
 
 internal interface IExcelBatchRefreshState
@@ -18,8 +17,10 @@ internal interface IExcelBatchRefreshState
 internal sealed class ExcelBusyException(string message, Exception? innerException = null)
     : InvalidOperationException(message, innerException)
 {
-    internal const string NativeQueryApprovalGuidance =
-        "Excel is waiting for approval to run a native database query. Show the Excel window and approve the query manually; the operation is still pending.";
+    internal const string DialogGuidance =
+        "Excel is waiting for input in a dialog. Check the Excel window and respond there. " +
+        "Ask the user to respond; readable dialog text is included in session status when available. " +
+        "ExcelMcp does not identify the dialog type, answer, or dismiss it.";
 
     internal static void ThrowIfNotReady(WorkbookRefreshState state, string operation)
     {
@@ -32,8 +33,7 @@ internal sealed class ExcelBusyException(string message, Exception? innerExcepti
         {
             WorkbookRefreshState.Refreshing => "An Excel data refresh is still running.",
             WorkbookRefreshState.Busy => "Excel is busy. A refresh or another Excel operation may still be running.",
-            WorkbookRefreshState.DialogOpen => "Excel has a dialog open. Check the Excel window for a prompt; it may require sign-in or other user input.",
-            WorkbookRefreshState.NativeQueryApproval => NativeQueryApprovalGuidance,
+            WorkbookRefreshState.DialogOpen => DialogGuidance,
             _ => "Excel's refresh state could not be confirmed."
         };
         throw new ExcelBusyException(

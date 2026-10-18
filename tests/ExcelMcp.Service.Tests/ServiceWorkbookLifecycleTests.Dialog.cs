@@ -101,6 +101,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
     [DllImport("user32.dll")]
     private static extern uint GetWindowThreadProcessId(nint window, out uint processId);
 
+    private static readonly string[] DialogVisibilityActions = ["hide", "show", "hide"];
     [DllImport("user32.dll")]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsWindowVisible(nint window);
@@ -112,6 +113,137 @@ public sealed partial class ServiceWorkbookLifecycleTests
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool PostMessage(nint window, uint message, nint wParam, nint lParam);
+
+    [Fact]
+    public async Task PendingOperation_RevealsDialogWithoutPolling_AndSharesStandaloneShowHide()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var session = await CreateSessionAsync(service, Path.Join(directory, "pending-dialog.xlsx"));
+            sessions[session] = 0;
+            await WriteMarkerAsync(service, session, "Still retained");
+            var batch = Assert.IsAssignableFrom<IExcelBatch>(service.SessionManager.GetSession(session));
+            var owner = batch.Execute((context, _) => new nint(context.App.Hwnd));
+            Assert.False(IsWindowVisible(owner));
+            using var entered = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            using var dialog = new OwnedTestDialog(owner);
+            var pending = Task.Run(() => batch.Execute((_, _) =>
+            {
+                entered.Set();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(15)));
+                return 17;
+            }));
+            try
+            {
+                Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+                Assert.True(SpinWait.SpinUntil(() => IsWindowVisible(owner), TimeSpan.FromSeconds(3)),
+                    "The operation's own wait must reveal Excel without a session-list request.");
+                Assert.False(pending.IsCompleted);
+                foreach (var action in DialogVisibilityActions)
+                {
+                    var response = await service.ProcessAsync(new ServiceRequest
+                    {
+                        Command = "window." + action,
+                        SessionId = session
+                    }).WaitAsync(TimeSpan.FromSeconds(3));
+                    RequireSuccess(response);
+                    using var json = JsonDocument.Parse(response.Result!);
+                    Assert.Equal(action == "show", json.RootElement.GetProperty("isVisible").GetBoolean());
+                    Assert.Equal(action == "show", IsWindowVisible(owner));
+                }
+                await Task.Delay(1100);
+                Assert.False(IsWindowVisible(owner));
+                Assert.False(pending.IsCompleted);
+                Assert.False(batch.HasTimedOutOperation);
+            }
+            finally
+            {
+                release.Set();
+                Assert.Equal(17, await pending.WaitAsync(TimeSpan.FromSeconds(5)));
+            }
+            dialog.Dispose();
+            Assert.Equal("Still retained", await ReadMarkerAsync(service, session));
+            Assert.False(batch.Execute((context, _) => context.Book.Saved));
+            Assert.False(batch.Execute((context, _) => context.App.Visible));
+            RequireSuccess(await service.ProcessAsync(new ServiceRequest { Command = "window.show", SessionId = session }));
+            Assert.True(batch.Execute((context, _) => context.App.Visible));
+            RequireSuccess(await service.ProcessAsync(new ServiceRequest { Command = "window.hide", SessionId = session }));
+        });
+    }
+
+    [Fact]
+    public async Task TimedOutOperation_WithOwnedDialog_AllowsOnlyNativeShowHide()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var session = service.SessionManager.CreateSessionForNewFile(
+                Path.Join(directory, "timed-out-dialog.xlsx"),
+                operationTimeout: TimeSpan.FromSeconds(15));
+            sessions[session] = 0;
+            var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(session));
+            var owner = batch.Execute((context, _) => new nint(context.App.Hwnd));
+            using var dialog = new OwnedTestDialog(owner);
+            using var entered = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var pending = Task.Run(() => batch.Execute((_, _) =>
+            {
+                entered.Set();
+                try
+                {
+                    Assert.True(release.Wait(TimeSpan.FromSeconds(30)));
+                    return 17;
+                }
+                finally
+                {
+                    finished.TrySetResult();
+                }
+            }));
+
+            try
+            {
+                Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+                Assert.Throws<TimeoutException>(() => pending.GetAwaiter().GetResult());
+                Assert.True(batch.HasTimedOutOperation);
+                Assert.True(IsWindowVisible(owner), "Timeout recovery must reveal Excel.");
+                RequireSuccess(await service.ProcessAsync(new ServiceRequest { Command = "window.hide", SessionId = session })
+                    .WaitAsync(TimeSpan.FromSeconds(3)));
+                Assert.False(IsWindowVisible(owner));
+            }
+            finally
+            {
+                release.Set();
+            }
+            await finished.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.True(SpinWait.SpinUntil(() => batch.OperationStatus.State is "completed" or "failed", TimeSpan.FromSeconds(5)));
+            Assert.Equal("completed", batch.OperationStatus.State);
+            Assert.False(IsWindowVisible(owner), "Finishing the timed-out operation must not undo an explicit hide.");
+
+            var rejectedWorkbookCommand = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "range.get-values",
+                SessionId = session,
+                Args = """{"sheetName":"Sheet1","rangeAddress":"A1"}"""
+            });
+            Assert.False(rejectedWorkbookCommand.Success);
+            Assert.Equal("SessionUnavailable", rejectedWorkbookCommand.ErrorCategory);
+
+            foreach (var action in DialogVisibilityActions)
+            {
+                var response = await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = "window." + action,
+                    SessionId = session
+                });
+                RequireSuccess(response);
+                using var json = JsonDocument.Parse(response.Result!);
+                var expectedVisible = action == "show";
+                Assert.Equal(expectedVisible, json.RootElement.GetProperty("isVisible").GetBoolean());
+                Assert.Equal(expectedVisible, IsWindowVisible(owner));
+            }
+        });
+    }
 
     [Fact]
     public async Task Shutdown_WithOwnedDialog_RetainsUnsavedWorkbookUntilSafeRetry()
@@ -153,7 +285,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
     }
 
     [Fact]
-    public async Task ExcelOwnedDialog_ReportsPromptWithoutReadingContents_AndPreservesEdits()
+    public async Task ExcelOwnedDialog_ReportsReadableTextAutomatically_AndPreservesEdits()
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
@@ -171,10 +303,16 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 using var json = JsonDocument.Parse(response.Result!);
                 var listed = Assert.Single(json.RootElement.GetProperty("sessions").EnumerateArray());
                 Assert.Equal("dialogOpen", listed.GetProperty("excelState").GetString());
-                Assert.Contains("Check the Excel window", listed.GetProperty("blockingReason").GetString(), StringComparison.Ordinal);
+                Assert.Equal("dialogOpen", listed.GetProperty("blockingReason").GetString());
+                Assert.Contains("Check the Excel window", listed.GetProperty("blockingMessage").GetString(), StringComparison.Ordinal);
+                Assert.True(listed.GetProperty("isExcelVisible").GetBoolean(),
+                    listed.GetProperty("blockingMessage").GetString());
+                Assert.True(IsWindowVisible(owner));
                 Assert.False(listed.GetProperty("canClose").GetBoolean());
                 Assert.Equal(0, listed.GetProperty("activeOperations").GetInt32());
-                Assert.DoesNotContain("private dialog contents", response.Result, StringComparison.Ordinal);
+                Assert.Contains("Connection test message", listed.GetProperty("blockingMessage").GetString(), StringComparison.Ordinal);
+                Assert.Contains("The database is unavailable.", listed.GetProperty("blockingMessage").GetString(), StringComparison.Ordinal);
+                Assert.DoesNotContain("test-entered-password", response.Result, StringComparison.Ordinal);
                 Assert.DoesNotContain("sign-in required", response.Result, StringComparison.OrdinalIgnoreCase);
                 var saveFailure = Assert.Throws<ExcelBusyException>(() => batch.Save());
                 Assert.Contains("dialog", saveFailure.Message, StringComparison.Ordinal);
@@ -205,11 +343,19 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 Assert.True(timer.Elapsed < TimeSpan.FromSeconds(5), "Dialog inspection must not wait for Excel COM.");
             }
 
-            var ready = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
-            RequireSuccess(ready);
-            using var readyJson = JsonDocument.Parse(ready.Result!);
-            var readySession = Assert.Single(readyJson.RootElement.GetProperty("sessions").EnumerateArray());
+            JsonElement readySession;
+            var readyTimer = System.Diagnostics.Stopwatch.StartNew();
+            do
+            {
+                var ready = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+                RequireSuccess(ready);
+                using var readyJson = JsonDocument.Parse(ready.Result!);
+                readySession = Assert.Single(readyJson.RootElement.GetProperty("sessions").EnumerateArray()).Clone();
+                if (readySession.GetProperty("excelState").GetString() == "ready") break;
+                await Task.Delay(50);
+            } while (readyTimer.Elapsed < TimeSpan.FromSeconds(10));
             Assert.Equal("ready", readySession.GetProperty("excelState").GetString());
+            Assert.False(readySession.TryGetProperty("blockingMessage", out _));
             Assert.True(readySession.GetProperty("canClose").GetBoolean());
             Assert.Equal("Preserved after dialog", await ReadMarkerAsync(service, session));
             Assert.False(batch.Execute((context, _) => context.Book.Saved));
@@ -223,6 +369,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
 
     private sealed class OwnedTestDialog : IDisposable
     {
+        private int _disposed;
         private readonly ManualResetEventSlim _release = new();
         private readonly Thread _thread;
         private readonly TaskCompletionSource _opened = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -251,12 +398,22 @@ public sealed partial class ServiceWorkbookLifecycleTests
             var failures = new List<Exception>();
             try
             {
-                window = CreateWindowEx(0x08000000, "STATIC", "private dialog contents", 0x90000000,
+                window = CreateWindowEx(0x08000000, "STATIC", "Connection test message", 0x90000000,
                     -10000, -10000, 1, 1, owner, 0, 0, 0);
                 if (window == 0) throw new Win32Exception(Marshal.GetLastWin32Error());
+                if (CreateWindowEx(0, "STATIC", "The database is unavailable.", 0x50000000,
+                    0, 0, 1, 1, window, 0, 0, 0) == 0 ||
+                    CreateWindowEx(0, "EDIT", "test-entered-password", 0x50000000,
+                    0, 0, 1, 1, window, 0, 0, 0) == 0)
+                    throw new Win32Exception(Marshal.GetLastWin32Error());
                 EnableWindow(owner, false);
                 _opened.SetResult();
-                _release.Wait();
+                // Owned windows share input processing with Excel; keep the dialog responsive.
+                while (!_release.Wait(10))
+                {
+                    while (PeekMessage(out var message, 0, 0, 0, 1))
+                        _ = DispatchMessage(ref message);
+                }
             }
             catch (Exception ex)
             {
@@ -275,6 +432,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
 
         public void Dispose()
         {
+            if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
             _release.Set();
             if (!_thread.Join(TimeSpan.FromSeconds(10)))
                 throw new TimeoutException("Owned dialog thread did not finish cleanup.");
@@ -293,5 +451,25 @@ public sealed partial class ServiceWorkbookLifecycleTests
         [DllImport("user32.dll")]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool DestroyWindow(nint window);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct NativeMessage
+        {
+            public nint Window;
+            public uint Message;
+            public nint WParam;
+            public nint LParam;
+            public uint Time;
+            public int X;
+            public int Y;
+            public uint Private;
+        }
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool PeekMessage(out NativeMessage message, nint window, uint min, uint max, uint remove);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern nint DispatchMessage(ref NativeMessage message);
     }
 }

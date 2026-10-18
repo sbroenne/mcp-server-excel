@@ -24,7 +24,7 @@ public partial class PowerQueryCommands
     /// <param name="refresh">Whether to refresh data after update (default: true)</param>
     /// <exception cref="ArgumentException">Thrown when queryName or mCode is invalid</exception>
     /// <exception cref="InvalidOperationException">Thrown when query not found or update fails</exception>
-    public OperationResult Update(IExcelBatch batch, string queryName, string mCode, bool refresh = true, bool formatMCode = false)
+    public PowerQueryOperationResult Update(IExcelBatch batch, string queryName, string mCode, bool refresh = true, bool formatMCode = false)
     {
         if (!ValidateQueryName(queryName, out string? validationError))
         {
@@ -41,6 +41,7 @@ public partial class PowerQueryCommands
             : mCode;
 
         var timeout = refresh ? ComInteropConstants.DataOperationTimeout : batch.OperationTimeout;
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
         return ExcelBatchWait.Execute(batch, timeout, (ctx, ct) =>
         {
             Excel.Queries? queries = null;
@@ -86,12 +87,17 @@ public partial class PowerQueryCommands
                 // STEP 3: Refresh if requested using the same COM-safe helper as Refresh().
                 // This keeps Update aligned with the message-filter and cancellation behavior
                 // already hardened for synchronous worksheet and data model refresh paths.
+                var result = new PowerQueryOperationResult { Success = true, FilePath = batch.WorkbookPath, QueryName = queryName };
                 if (refresh)
                 {
-                    _ = RefreshConnectionByQueryName(ctx.Book, queryName, ct);
+                    if (RefreshConnectionByQueryName(ctx.Book, queryName, ct))
+                        ReadLoadMetrics(ctx.Book, queryName, result, ct);
+                    else
+                        result.RowsLoaded = 0;
                 }
 
-                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+                result.DurationMs = System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+                return result;
             }
             catch (Exception ex) when (mCodeUpdated && !ct.IsCancellationRequested && CanReportMutationFailure(ex))
             {

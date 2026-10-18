@@ -27,7 +27,7 @@ public partial class PowerQueryCommands
     /// IMPORTANT: Uses ListObjects.Add() (not QueryTables.Add()) for worksheet loading.
     /// This is the CORRECT approach per Microsoft docs and matches Create() behavior.
     /// </remarks>
-    public OperationResult LoadTo(
+    public PowerQueryLoadResult LoadTo(
         IExcelBatch batch,
         string queryName,
         PowerQueryLoadMode loadMode,
@@ -51,17 +51,19 @@ public partial class PowerQueryCommands
 
         var timeout = ComInteropConstants.DataOperationTimeout;
 
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
         return ExcelBatchWait.Execute(batch, timeout, (ctx, ct) =>
         {
             Excel.Queries? queries = null;
             Excel.WorkbookQuery? query = null;
+            bool destinationsChanging = false;
             var result = new PowerQueryLoadResult
             {
                 FilePath = batch.WorkbookPath,
                 QueryName = queryName,
                 LoadDestination = loadMode,
-                WorksheetName = targetSheet,
-                TargetCellAddress = targetCellAddress
+                WorksheetName = requiresWorksheet ? targetSheet : null,
+                TargetCellAddress = requiresWorksheet ? targetCellAddress : null
             };
 
             try
@@ -100,6 +102,7 @@ public partial class PowerQueryCommands
                 // DataModel → LoadToTable (removes old Data Model connection)
                 // LoadToBoth → ConnectionOnly (removes both destinations)
                 // etc.
+                destinationsChanging = true;
                 UnloadFromDestinations(ctx.Book, queryName);
 
                 // STEP 3: Apply load destination based on mode
@@ -137,7 +140,15 @@ public partial class PowerQueryCommands
                     result.DataRefreshed = (loadMode != PowerQueryLoadMode.ConnectionOnly);
                 }
 
-                return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
+                if (loadMode != PowerQueryLoadMode.ConnectionOnly)
+                    ReadLoadMetrics(ctx.Book, queryName, result, ct);
+                result.DurationMs = System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds;
+                return result;
+            }
+            catch (Exception ex) when (destinationsChanging && !ct.IsCancellationRequested && CanReportMutationFailure(ex))
+            {
+                throw CreateMutationFailure(ex, queryName, queryCreated: false,
+                    state => InspectMutationState(ctx.Book, state, ct), loadDestinationChanged: true);
             }
             finally
             {
@@ -421,8 +432,6 @@ public partial class PowerQueryCommands
                 OleMessageFilter.ClearPendingCancellationToken();
             }
 
-            result.RowsLoaded = -1; // Data Model doesn't expose row count
-            result.TargetCellAddress = null;
             result.Success = true;
             return true;
         }

@@ -201,7 +201,8 @@ public sealed class ExcelBatchTimeoutTests : IAsyncLifetime
     public async Task Execute_ExcelPromptTimesOut_ReportsPromptAndPreservesWorkbook()
     {
         using var owned = new OwnedExcelProcessScope();
-        var batch = Open();
+        var batch = Assert.IsType<ExcelBatch>(ExcelSession.BeginBatchWithTimeouts(
+            false, TimeSpan.FromSeconds(10), ComInteropConstants.DefaultOperationTimeout, _path));
         var identity = Assert.Single(SessionManager.GetTrackedExcelProcesses(),
             item => item.ProcessId == batch.ExcelProcessId);
         var failure = Record.Exception(() =>
@@ -211,7 +212,7 @@ public sealed class ExcelBatchTimeoutTests : IAsyncLifetime
                     "The test database is unavailable.", "SSAS connection test", Type: 2)));
             Assert.Contains("dialog open", timeout.Message, StringComparison.Ordinal);
             Assert.Contains("SSAS connection test", timeout.Message, StringComparison.Ordinal);
-            Assert.Contains("did not expose readable message text", timeout.Message, StringComparison.Ordinal);
+            Assert.Contains("Dialog text", timeout.Message, StringComparison.Ordinal);
             Assert.Contains("does not itself cancel", timeout.Message, StringComparison.Ordinal);
             Assert.True(batch.IsExcelProcessAlive());
             Assert.True(batch.HasTimedOutOperation);
