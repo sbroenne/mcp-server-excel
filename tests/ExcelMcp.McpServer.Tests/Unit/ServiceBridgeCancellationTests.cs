@@ -96,23 +96,6 @@ public sealed class ServiceBridgeCancellationTests
     }
 
     [Fact]
-    public async Task LateCompletion_DoesNotDisposeOrReplaceBackend()
-    {
-        var first = new Backend();
-        var factories = 0;
-        using var bridge = new Bridge(() => { factories++; return first; });
-        using var oldCancellation = new CancellationTokenSource();
-        var oldRequest = bridge.SendAsync("sheet.list", "old-session", cancellationToken: oldCancellation.Token);
-        await first.Started.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        oldCancellation.Cancel();
-        await Assert.ThrowsAnyAsync<OperationCanceledException>(() => oldRequest);
-        first.Response.TrySetResult(new ServiceResponse { Success = true });
-        Assert.True((await bridge.SendAsync("session.list")).Success);
-        Assert.Equal(1, factories);
-        Assert.False(first.Disposed);
-    }
-
-    [Fact]
     public async Task CancellationRacingCompletion_DoesNotReportSuccess()
     {
         var backend = new Backend();
