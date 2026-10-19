@@ -17,6 +17,72 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class ServiceWorkbookLifecycleTests
 {
     private static readonly bool[] CloseSaveModes = [true, false];
+
+    [Fact]
+    public async Task PersistentFixture_TracksProcessWhileReopenBlocked()
+    {
+        var fixture = new PersistentServiceWorkbookFixture();
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        Task? reopening = null;
+        Exception? failure = null;
+        try
+        {
+            await fixture.InitializeAsync();
+            Assert.Equal(1, fixture.ExcelLaunchCount);
+            ExcelBatch.BeforeWorkbookOpenHook = (path, _) =>
+            {
+                if (!string.Equals(path, fixture.WorkbookPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    return;
+                }
+
+                entered.Set();
+                if (!release.Wait(TimeSpan.FromSeconds(10)))
+                {
+                    throw new TimeoutException("Test did not release the blocked reopen.");
+                }
+            };
+
+            reopening = Task.Run(fixture.SaveAndReopenAsync);
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(15)), "Reopen did not reach Excel.");
+            Assert.Equal(2, fixture.ExcelLaunchCount);
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
+        }
+        finally
+        {
+            release.Set();
+            ExcelBatch.BeforeWorkbookOpenHook = null;
+            try
+            {
+                if (reopening is not null)
+                {
+                    await reopening;
+                }
+            }
+            catch (Exception ex)
+            {
+                failure = PersistentServiceCleanupFailures.Combine(failure, ex);
+            }
+            finally
+            {
+                var cleanup = await Record.ExceptionAsync(fixture.DisposeAsync);
+                if (cleanup is not null)
+                {
+                    failure = PersistentServiceCleanupFailures.Combine(failure, cleanup);
+                }
+            }
+        }
+
+        if (failure is not null)
+        {
+            ExceptionDispatchInfo.Capture(failure).Throw();
+        }
+    }
+
     [Theory]
     [InlineData("connection.list")]
     [InlineData("connection.get-properties")]

@@ -68,6 +68,7 @@ public class PersistentServiceWorkbookFixture : IAsyncLifetime, IDisposable
         }
 
         Directory.CreateDirectory(_tempDirectory);
+        SessionManager.ExcelProcessIdentityTracked += OnExcelProcessTracked;
         var workbookPath = Path.Combine(_tempDirectory, _workbookFileName);
         WorkbookPath = workbookPath;
         _service = new ExcelMcpService();
@@ -93,11 +94,6 @@ public class PersistentServiceWorkbookFixture : IAsyncLifetime, IDisposable
         if (string.IsNullOrWhiteSpace(_sessionId))
         {
             throw new InvalidOperationException("session.create returned no session ID.");
-        }
-
-        foreach (var identity in SessionManager.GetTrackedExcelProcesses())
-        {
-            _launchedIdentities.TryAdd(identity, 0);
         }
 
         if (_service.SessionCount != 1 || _launchedIdentities.Count != 1)
@@ -165,9 +161,16 @@ public class PersistentServiceWorkbookFixture : IAsyncLifetime, IDisposable
                     $"{string.Join(", ", SessionManager.GetTrackedExcelProcesses())}"));
         }
 
-        if (TestExcelProcessScope.StopLeftovers(_launchedIdentities.Keys.ToArray()) is { } leftover)
+        try
         {
-            failure = PersistentServiceCleanupFailures.Combine(failure, leftover);
+            if (TestExcelProcessScope.StopLeftovers(_launchedIdentities.Keys.ToArray()) is { } leftover)
+            {
+                failure = PersistentServiceCleanupFailures.Combine(failure, leftover);
+            }
+        }
+        finally
+        {
+            SessionManager.ExcelProcessIdentityTracked -= OnExcelProcessTracked;
         }
 
         try
@@ -203,6 +206,7 @@ public class PersistentServiceWorkbookFixture : IAsyncLifetime, IDisposable
         {
             _service = null;
             _sessionId = null;
+            SessionManager.ExcelProcessIdentityTracked -= OnExcelProcessTracked;
             GC.SuppressFinalize(this);
         }
     }
@@ -247,17 +251,15 @@ public class PersistentServiceWorkbookFixture : IAsyncLifetime, IDisposable
             throw new InvalidOperationException("session.open returned no session ID.");
         }
 
-        foreach (var identity in SessionManager.GetTrackedExcelProcesses())
-        {
-            _launchedIdentities.TryAdd(identity, 0);
-        }
-
         if (_service.SessionCount != 1)
         {
             throw new InvalidOperationException(
                 $"Fixture reopen expected one session, but found {_service.SessionCount}.");
         }
     }
+
+    private void OnExcelProcessTracked(ExcelProcessIdentity identity) =>
+        _launchedIdentities.TryAdd(identity, 0);
 
     internal void ExecuteRawVerification(
         Action<ExcelContext, CancellationToken> operation)
