@@ -25,6 +25,12 @@ then includes `_generated/features.md`. Edit the root file to change categories,
 capability navigation, task links, or headline counts. The site audit rejects
 duplicate overview prose in the wrapper and checks the published Markdown copy.
 
+The usage analytics wrapper owns its page title too. The renderer turns any
+top-level `# ` headings in the generated report summary into section headings,
+preserving the text without adding a second page title. Tests render populated
+synthetic reports, with and without a summary title, through the wrapper and
+snippet hook; they do not fetch live usage data.
+
 ## Publishing canonical documentation
 
 Write operational content once in its repository source. Pages under

@@ -8,11 +8,16 @@ from __future__ import annotations
 import copy
 import json
 import re
+import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
+import markdown
+
+import hooks
 import sitegen.analytics as analytics
+from sitegen import sources
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -35,6 +40,43 @@ def _section(page: str, heading: str) -> str:
 
 def _widths(html: str) -> list[str]:
     return re.findall(r'style="width: ([\d.]+)%"', html)
+
+
+class AnalyticsPageTests(unittest.TestCase):
+    def test_populated_reports_keep_the_wrapper_as_the_only_page_heading(self):
+        page = next(page for page in sources.PAGES if page.header == "rendered")
+        wrapper = (sources.DOCS_DIR / page.output).read_text(encoding="utf-8")
+        for fixture in ("usage-analytics-v2.json", "usage-analytics-v3.json"):
+            for title in ("", "# How people used the Excel tools\n\n"):
+                with self.subTest(fixture=fixture, title=title):
+                    report = _load(fixture)
+                    report["interpretation"] = title + str(report["interpretation"])
+                    with tempfile.TemporaryDirectory() as directory:
+                        generated = Path(directory) / "_generated"
+                        with (
+                            mock.patch.object(analytics, "read", return_value=json.dumps(report)),
+                            mock.patch.object(hooks, "PAGES", (page,)),
+                            mock.patch.object(sources, "GEN_DIR", generated),
+                        ):
+                            hooks.on_pre_build({"repo_url": "https://github.com/sbroenne/mcp-server-excel"})
+                        html = markdown.markdown(
+                            wrapper,
+                            extensions=["meta", "pymdownx.snippets", "md_in_html", "tables", "admonition"],
+                            extension_configs={
+                                "pymdownx.snippets": {
+                                    "base_path": [directory],
+                                    "check_paths": True,
+                                },
+                            },
+                        )
+                        self.assertEqual(
+                            re.findall(r"<h1[^>]*>(.*?)</h1>", html),
+                            ["Excel MCP Server usage statistics"],
+                        )
+                        self.assertIn("<h2>What changed</h2>", html)
+                        self.assertIn("Users each week", html)
+                        if title:
+                            self.assertIn("<h2>How people used the Excel tools</h2>", html)
 
 
 class WeightedReportTests(unittest.TestCase):

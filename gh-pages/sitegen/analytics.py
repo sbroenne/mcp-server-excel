@@ -7,6 +7,7 @@ page needs no JavaScript and every bar carries an accessible label.
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime, timedelta
 from html import escape
 
@@ -1015,6 +1016,8 @@ def render_usage_analytics() -> str:
     interpretation = report.get("interpretation")
     if not isinstance(interpretation, str) or not interpretation.strip():
         raise ValueError("usage analytics is missing its validated interpretation")
+    # The wrapper owns the page title; a generated report may include its own.
+    interpretation = re.sub(r"(?m)^# ", "## ", interpretation.strip())
 
     summary = report["summary"]
     comparison = report["comparison"]
@@ -1171,7 +1174,7 @@ def render_usage_analytics() -> str:
         "summary is checked automatically so it cannot add private details or "
         "numbers that are not in the report.",
         "",
-        interpretation.strip(),
+        interpretation,
         "",
         "## What people use most",
         "",
