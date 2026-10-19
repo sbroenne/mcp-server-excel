@@ -153,8 +153,10 @@ public sealed class ServiceClientDeadlineTests
         await hostTask.WaitAsync(TimeSpan.FromSeconds(5));
     }
 
-    [Fact]
-    public async Task SendAsync_ExternalCancellationIsNotReportedAsTimeout()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SendAsync_ExternalCancellationIsNotReportedAsTimeout(bool waitWithoutDeadline)
     {
         var pipeName = $"excelmcp-client-cancel-{Guid.NewGuid():N}";
         var requestStarted = new TaskCompletionSource<bool>(
@@ -176,7 +178,7 @@ public sealed class ServiceClientDeadlineTests
         using var client = new ServiceClient(
             pipeName,
             connectTimeout: TimeSpan.FromSeconds(5),
-            requestTimeout: TimeSpan.FromSeconds(10),
+            requestTimeout: waitWithoutDeadline ? Timeout.InfiniteTimeSpan : TimeSpan.FromSeconds(10),
             clock);
         using var cancellation = new CancellationTokenSource();
 
@@ -184,6 +186,12 @@ public sealed class ServiceClientDeadlineTests
             new ServiceRequest { Command = "sheet.list" },
             cancellation.Token);
         await requestStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        if (waitWithoutDeadline)
+        {
+            clock.Advance(TimeSpan.FromSeconds(65));
+            Assert.False(sendTask.IsCompleted);
+        }
 
         cancellation.Cancel();
 

@@ -68,9 +68,20 @@ public class PersistentServiceWorkbookFixture : IAsyncLifetime, IDisposable
         }
 
         Directory.CreateDirectory(_tempDirectory);
-        SessionManager.ExcelProcessIdentityTracked += OnExcelProcessTracked;
         var workbookPath = Path.Combine(_tempDirectory, _workbookFileName);
         WorkbookPath = workbookPath;
+        if (_createWorkbook is not null)
+        {
+            _createWorkbook(workbookPath);
+            if (SessionManager.GetTrackedExcelProcesses().Count != 0)
+            {
+                throw new InvalidOperationException(
+                    "Workbook fixture creation left tracked Excel identities: " +
+                    $"{string.Join(", ", SessionManager.GetTrackedExcelProcesses())}");
+            }
+        }
+
+        SessionManager.ExcelProcessIdentityTracked += OnExcelProcessTracked;
         _service = new ExcelMcpService();
         ServiceResponse response;
         if (_createWorkbook is null)
@@ -82,7 +93,6 @@ public class PersistentServiceWorkbookFixture : IAsyncLifetime, IDisposable
         }
         else
         {
-            _createWorkbook(workbookPath);
             response = await SendAsync(
                 "session.open",
                 new { filePath = workbookPath, show = _show },

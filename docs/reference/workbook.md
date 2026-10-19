@@ -197,8 +197,9 @@ that save is not rolled back.
 The blocked workbook stays in its session and the service stays running so you
 can respond to Excel's prompt or wait for the refresh, then retry
 `excelcli service stop`. Other ready sessions may already have been saved and
-closed before a refusal. Product `excelcli service stop` waits up to 60 seconds for
-the shutdown reply while ready workbooks save and close. It does not force-stop Excel
+closed before a refusal. Product `excelcli service stop` waits for the shutdown
+reply while ready workbooks save and close one at a time. You can cancel this
+wait; Excel's own save and shutdown time limits still apply. It does not force-stop Excel
 after any failed shutdown response or an expired shutdown wait.
 Simultaneous shutdown requests cannot bypass a refusal: saving and the decision
 to stop the service are serialized across all service shutdown entry points.

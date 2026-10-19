@@ -56,6 +56,14 @@ public partial class PersistentServicePivotTableOlapFieldTests
     public void AddValueField_EscapedColumnPreservesFormulaThroughAggregationChange()
     {
         var batch = _fixture.BatchToken;
+        // Preserve the earlier OLAP field setup that reproduced the shutdown hang.
+        var (previousSheet, previousPivot) = CreateIsolatedPivot();
+        RequireSuccess(_pivotCommands.AddRowField(
+            batch, previousPivot, "[RegionalSalesTable].[Region]"));
+        _fixture.Send("worksheetstyle.show", new { sheetName = previousSheet });
+        _fixture.Send("sheet.delete", new { sheetName = previousSheet });
+        _fixture.ForgetSheet(previousSheet);
+
         var query = "O'Brien" + Guid.NewGuid().ToString("N")[..8];
         var table = query.Replace("'", " ", StringComparison.Ordinal);
         var destination = _fixture.CreateTestSheet(batch);

@@ -12,8 +12,10 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 
 public sealed partial class ServiceWorkbookLifecycleTests
 {
-    [Fact]
-    public async Task Test_UncommittedCloseRefusal_AllowsExplicitCloseAfterReadinessReturns()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Test_UncommittedCloseRefusal_AllowsExplicitCloseAfterReadinessReturns(bool disposeService)
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
@@ -21,6 +23,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
             var initial = await CreateSessionAsync(service, path);
             await WriteMarkerAsync(service, initial, "Validation retained contents");
             await CloseSessionAsync(service, initial, save: true);
+            var savedBytes = await File.ReadAllBytesAsync(path);
             ExcelBatch? batch = null;
             string? session = null;
             ExcelBatch.AfterWorkbookOpenHookForTests = (_, _) =>
@@ -51,6 +54,26 @@ public sealed partial class ServiceWorkbookLifecycleTests
             }
             Assert.NotNull(session);
             Assert.Equal("Validation retained contents", await ReadMarkerAsync(service, session));
+            if (disposeService)
+            {
+                var identity = Assert.Single(SessionManager.GetTrackedExcelProcesses(),
+                    candidate => candidate.ProcessId == batch!.ExcelProcessId);
+                Assert.True(batch!.Execute((context, _) => context.Book.ReadOnly));
+                service.Dispose();
+                sessions.TryRemove(session, out _);
+                Assert.Equal(0, service.SessionManager.ActiveSessionCount);
+                Assert.Empty(service.SessionManager.ActiveSessionIds);
+                var paths = Assert.IsAssignableFrom<System.Collections.IDictionary>(
+                    typeof(SessionManager).GetField("_sessionFilePaths",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                        .GetValue(service.SessionManager));
+                Assert.Empty(paths);
+                Assert.True(OwnedProcessGuard.TryConfirmExited(identity));
+                Assert.DoesNotContain(identity, SessionManager.GetTrackedExcelProcesses());
+                Assert.Equal(savedBytes, await File.ReadAllBytesAsync(path));
+                return;
+            }
+
             await CloseSessionAsync(service, session, save: false);
             sessions.TryRemove(session, out _);
             Assert.False(service.SessionManager.TryGetFilePath(session, out _));

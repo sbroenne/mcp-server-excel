@@ -68,6 +68,37 @@ public sealed class DaemonForcedStopRegressionTests
     }
 
     [Fact]
+    [Trait("Speed", "Slow")]
+    public async Task ServiceStop_DelayedShutdownBeyondOneMinute_ReturnsConfirmedSuccess()
+    {
+        var pipeName = $"excelmcp-delayed-stop-{Guid.NewGuid():N}";
+        using var server = ServiceSecurity.CreateSecureServer(pipeName);
+        var stop = CliProcessHelper.RunAsync(
+            "service stop",
+            timeoutMs: 90000,
+            environmentVariables: new() { ["EXCELMCP_CLI_PIPE"] = pipeName });
+        await server.WaitForConnectionAsync().WaitAsync(TimeSpan.FromSeconds(10));
+        using var rpc = JsonRpc.Attach(server, new DelayedShutdownRpcTarget(TimeSpan.FromSeconds(65)));
+
+        var result = await stop;
+
+        Assert.Equal(0, result.ExitCode);
+        using var response = JsonDocument.Parse(result.Stdout);
+        Assert.True(response.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("Service stopped.", response.RootElement.GetProperty("message").GetString());
+    }
+
+    private sealed class DelayedShutdownRpcTarget(TimeSpan delay)
+    {
+        public async Task<ServiceResponse> ProcessCommandAsync(ServiceRequest request)
+        {
+            Assert.Equal("service.shutdown", request.Command);
+            await Task.Delay(delay);
+            return new ServiceResponse { Success = true };
+        }
+    }
+
+    [Fact]
     public async Task AutomaticStartup_RetainsLiveExcelAfterItsDaemonExited()
     {
         var pipeName = $"excelmcp-retained-startup-{Guid.NewGuid():N}";

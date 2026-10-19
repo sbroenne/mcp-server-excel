@@ -432,10 +432,19 @@ public partial class DataModelCommands
                 result.MeasureCount = 0;
                 ForEachMeasure(model!, (measure, index) =>
                 {
-                    string measureTableName = ComUtilities.SafeGetString(measure.AssociatedTable, "Name");
-                    if (string.Equals(measureTableName, tableName, StringComparison.OrdinalIgnoreCase))
+                    Excel.ModelTable? associatedTable = null;
+                    try
                     {
-                        result.MeasureCount++;
+                        associatedTable = measure.AssociatedTable;
+                        string measureTableName = ComUtilities.SafeGetString(associatedTable, "Name");
+                        if (string.Equals(measureTableName, tableName, StringComparison.OrdinalIgnoreCase))
+                        {
+                            result.MeasureCount++;
+                        }
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref associatedTable);
                     }
                 });
 
