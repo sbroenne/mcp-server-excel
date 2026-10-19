@@ -53,4 +53,30 @@ public sealed class ServiceTestClassSelectionRegressionTests
             """);
         Assert.True(run.ExitCode == 0, run.Output);
     }
+
+    [Fact]
+    public async Task MixedWindowAndToolingChanges_BuildUncoveredServiceProject()
+    {
+        var run = await ValidationSelectionTests.RunAsync("""
+            . .\scripts\ValidationExecution.ps1
+            $plan = Get-ValidationPlan -Paths @(
+                'tests/ExcelMcp.Service.Tests/PersistentServiceWindowTests.Arrange.cs',
+                'tests/ExcelMcp.ScriptSafety.Tests/ServiceTestClassSelectionRegressionTests.cs')
+            if (-not $plan.BuildOnly -or ($plan.CiTestGroups -join ',') -cne 'Tooling') {
+                throw 'The mixed plan did not select build-only validation alongside Tooling tests.'
+            }
+            $toolingProjects = @(Get-SelectedBuildProjects $plan 'Tooling')
+            if ($toolingProjects.Count -ne 1 -or
+                [IO.Path]::GetFileName($toolingProjects[0]) -cne 'ExcelMcp.ScriptSafety.Tests.csproj') {
+                throw 'Tooling build ownership changed.'
+            }
+            $buildOnlyProjects = @(Get-SelectedBuildProjects $plan '')
+            foreach ($project in @('ExcelMcp.Service.Tests.csproj', 'ExcelMcp.ScriptSafety.Tests.csproj')) {
+                if (-not @($buildOnlyProjects | Where-Object { [IO.Path]::GetFileName($_) -ceq $project }).Count) {
+                    throw "Build-only validation omitted $project."
+                }
+            }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
+    }
 }

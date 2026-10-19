@@ -247,7 +247,17 @@ function Get-ValidationPlan {
     $plan.CiTestGroups = @('Fast', 'Process', 'Tooling' | Where-Object { $plan["${_}Filters"].Count })
     $plan.FullSolutionBuildGroup = if ($plan.FullSolutionBuild -and $plan.CiTestGroups.Count) { $plan.CiTestGroups[0] } else { '' }
     $plan.DocumentationChecksGroup = if ($plan.DocumentationCounts) { $plan.FullSolutionBuildGroup } else { '' }
-    $plan.BuildOnly = $plan.Build -and -not $plan.CiTestGroups.Count
+    $coveredTestProjects = @($plan.CiTestGroups | ForEach-Object {
+        $plan["${_}Projects"] | ForEach-Object { "tests/ExcelMcp.$_.Tests/ExcelMcp.$_.Tests.csproj" }
+    })
+    $uncoveredTestProjects = @($plan.BuildProjects | Where-Object {
+        $_ -match '^tests/ExcelMcp\.[^/]+\.Tests/ExcelMcp\.[^/]+\.Tests\.csproj$' -and
+        $_ -notin $coveredTestProjects
+    })
+    $plan.BuildOnly = $plan.Build -and (
+        -not $plan.CiTestGroups.Count -or
+        (-not $plan.FullSolutionBuild -and $uncoveredTestProjects.Count -gt 0)
+    )
     return $plan
 }
 
