@@ -2,6 +2,7 @@
 // Copyright (c) Stephan Brenner. All rights reserved.
 // </copyright>
 
+using Sbroenne.ExcelMcp.Core.Commands.Window;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -114,6 +115,29 @@ public sealed partial class PersistentServiceWindowTests
 
         // Cleanup
         RequireSuccess(_commands.Hide(batch));
+    }
+
+    [Fact]
+    public void BringToFront_WhenForegroundIsRefused_Throws()
+    {
+        var batch = _fixture.BatchToken;
+        RequireSuccess(_commands.Show(batch));
+        var previousForegroundRequest = WindowCommands.ForegroundActivationForTests;
+
+        try
+        {
+            WindowCommands.ForegroundActivationForTests = _ => false;
+
+            var exception = Assert.Throws<InvalidOperationException>(
+                () => _commands.BringToFront(batch));
+
+            Assert.Contains("Windows could not bring the Excel window to the foreground", exception.Message, StringComparison.Ordinal);
+            Assert.True(RequireSuccess(_commands.GetInfo(batch)).IsVisible);
+        }
+        finally
+        {
+            WindowCommands.ForegroundActivationForTests = previousForegroundRequest;
+        }
     }
 
     [Theory]

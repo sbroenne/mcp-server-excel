@@ -27,6 +27,9 @@ public partial class WindowCommands : IWindowCommands
     private const int XlMinimized = -4140;  // xlMinimized
     private const int XlNormal = -4143;     // xlNormal
     private const int SwRestore = 9;
+    private const double WindowPlacementTolerance = 8;
+
+    internal static Func<IntPtr, bool>? ForegroundActivationForTests { get; set; }
 
     /// <summary>
     /// Makes the Excel window visible and brings it to the foreground.
@@ -82,7 +85,10 @@ public partial class WindowCommands : IWindowCommands
                 };
             }
 
-            BringWindowToFront(ctx.App);
+            if (!TryBringWindowToFront(ctx.App))
+            {
+                throw new InvalidOperationException("Windows could not bring the Excel window to the foreground.");
+            }
 
             return new OperationResult
             {
@@ -207,7 +213,7 @@ public partial class WindowCommands : IWindowCommands
     /// <summary>
     /// Arranges the Excel window using a named preset position.
     /// </summary>
-    public OperationResult Arrange(IExcelBatch batch, string preset)
+    public WindowArrangeResult Arrange(IExcelBatch batch, string preset)
     {
         var normalizedPreset = preset.ToLowerInvariant();
         if (normalizedPreset is not ("left-half" or "right-half" or "top-half" or
@@ -238,48 +244,52 @@ public partial class WindowCommands : IWindowCommands
                 }
             }
 
+            WindowBounds? expectedBounds = null;
             switch (normalizedPreset)
             {
                 case "left-half":
-                    SetWindowBounds(
-                        ctx.App,
-                        new WindowBounds(workArea.Left, workArea.Top, workArea.Width / 2, workArea.Height));
+                    expectedBounds = new WindowBounds(
+                        workArea.Left,
+                        workArea.Top,
+                        workArea.Width / 2,
+                        workArea.Height);
+                    SetWindowBounds(ctx.App, expectedBounds.Value);
                     break;
 
                 case "right-half":
-                    SetWindowBounds(
-                        ctx.App,
-                        new WindowBounds(
-                            workArea.Left + (workArea.Width / 2),
-                            workArea.Top,
-                            workArea.Width / 2,
-                            workArea.Height));
+                    expectedBounds = new WindowBounds(
+                        workArea.Left + (workArea.Width / 2),
+                        workArea.Top,
+                        workArea.Width / 2,
+                        workArea.Height);
+                    SetWindowBounds(ctx.App, expectedBounds.Value);
                     break;
 
                 case "top-half":
-                    SetWindowBounds(
-                        ctx.App,
-                        new WindowBounds(workArea.Left, workArea.Top, workArea.Width, workArea.Height / 2));
+                    expectedBounds = new WindowBounds(
+                        workArea.Left,
+                        workArea.Top,
+                        workArea.Width,
+                        workArea.Height / 2);
+                    SetWindowBounds(ctx.App, expectedBounds.Value);
                     break;
 
                 case "bottom-half":
-                    SetWindowBounds(
-                        ctx.App,
-                        new WindowBounds(
-                            workArea.Left,
-                            workArea.Top + (workArea.Height / 2),
-                            workArea.Width,
-                            workArea.Height / 2));
+                    expectedBounds = new WindowBounds(
+                        workArea.Left,
+                        workArea.Top + (workArea.Height / 2),
+                        workArea.Width,
+                        workArea.Height / 2);
+                    SetWindowBounds(ctx.App, expectedBounds.Value);
                     break;
 
                 case "center":
-                    SetWindowBounds(
-                        ctx.App,
-                        new WindowBounds(
-                            workArea.Left + (workArea.Width * 0.2),
-                            workArea.Top + (workArea.Height * 0.2),
-                            workArea.Width * 0.6,
-                            workArea.Height * 0.6));
+                    expectedBounds = new WindowBounds(
+                        workArea.Left + (workArea.Width * 0.2),
+                        workArea.Top + (workArea.Height * 0.2),
+                        workArea.Width * 0.6,
+                        workArea.Height * 0.6);
+                    SetWindowBounds(ctx.App, expectedBounds.Value);
                     break;
 
                 case "full-screen":
@@ -288,16 +298,61 @@ public partial class WindowCommands : IWindowCommands
 
             }
 
-            BringWindowToFront(ctx.App);
+            VerifyWindowPlacement(ctx.App, normalizedPreset, expectedBounds);
+            var isForeground = TryBringWindowToFront(ctx.App);
 
-            return new OperationResult
+            return new WindowArrangeResult
             {
                 Success = true,
                 Action = "arrange",
-                Message = $"Excel window arranged to '{preset}'"
+                IsForeground = isForeground,
+                Message = isForeground
+                    ? $"Excel window arranged to '{preset}' and brought to the foreground."
+                    : $"Excel window arranged to '{preset}'. Windows did not grant foreground focus. Select its window or taskbar entry."
             };
         });
     }
+
+    private static void VerifyWindowPlacement(
+        Excel.Application app,
+        string preset,
+        WindowBounds? expectedBounds)
+    {
+        if (expectedBounds is null)
+        {
+            var actualState = (int)app.WindowState;
+            if (actualState != XlMaximized)
+            {
+                throw new InvalidOperationException(
+                    $"Excel did not apply the requested '{preset}' placement. " +
+                    $"Expected a maximized window, actual state '{actualState}'.");
+            }
+            return;
+        }
+
+        var actualWindowState = (int)app.WindowState;
+        var actual = new WindowBounds(
+            Convert.ToDouble(app.Left),
+            Convert.ToDouble(app.Top),
+            Convert.ToDouble(app.Width),
+            Convert.ToDouble(app.Height));
+        var expected = expectedBounds.Value;
+        if (actualWindowState != XlNormal ||
+            !IsWithinTolerance(expected.Left, actual.Left) ||
+            !IsWithinTolerance(expected.Top, actual.Top) ||
+            !IsWithinTolerance(expected.Width, actual.Width) ||
+            !IsWithinTolerance(expected.Height, actual.Height))
+        {
+            throw new InvalidOperationException(
+                $"Excel did not apply the requested '{preset}' placement. " +
+                $"Expected bounds ({expected.Left}, {expected.Top}, {expected.Width}, {expected.Height}); " +
+                $"actual bounds ({actual.Left}, {actual.Top}, {actual.Width}, {actual.Height}) " +
+                $"and state '{actualWindowState}'.");
+        }
+    }
+
+    private static bool IsWithinTolerance(double expected, double actual) =>
+        Math.Abs(expected - actual) <= WindowPlacementTolerance;
 
     private static void SetWindowBounds(Excel.Application app, WindowBounds bounds)
     {
@@ -362,7 +417,7 @@ public partial class WindowCommands : IWindowCommands
     /// <summary>
     /// Brings the Excel window to the foreground using Win32 SetForegroundWindow.
     /// </summary>
-    private static void BringWindowToFront(Excel.Application app)
+    private static bool TryBringWindowToFront(Excel.Application app)
     {
         var hwnd = new IntPtr(app.Hwnd);
         if (hwnd == IntPtr.Zero)
@@ -374,9 +429,10 @@ public partial class WindowCommands : IWindowCommands
             // SW_RESTORE retains the pre-minimize normal or maximized state.
             ShowWindow(hwnd, SwRestore);
         }
-        if (!SetForegroundWindow(hwnd) && GetForegroundWindow() != hwnd)
-        {
-            throw new InvalidOperationException("Windows could not bring the Excel window to the foreground.");
-        }
+        if (ForegroundActivationForTests is { } activationForTests)
+            return activationForTests(hwnd);
+
+        _ = SetForegroundWindow(hwnd);
+        return GetForegroundWindow() == hwnd;
     }
 }

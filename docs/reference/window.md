@@ -28,6 +28,11 @@ session hidden and returns guidance to use `show` first. If Windows refuses
 foreground activation, `show` still reports the verified visibility and
 `isForeground: false`, with guidance to select Excel. `bring-to-front` reports
 an error; any visibility or window restoration already applied remains in effect.
+`arrange` verifies that Excel applied the requested preset and returns
+`isForeground`. If Windows refuses foreground activation, the verified
+placement still succeeds and the result explains how to select Excel. If Excel
+does not apply the requested placement, the operation reports an error; any
+window changes already applied remain in effect.
 Standalone `show` and `hide` also work while Excel is waiting on a dialog,
 without waiting behind the blocked command. Neither answers nor dismisses it.
 Use `window(action: 'hide', workbook_session_id: sessionId)` or

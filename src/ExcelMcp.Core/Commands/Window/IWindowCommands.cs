@@ -13,6 +13,13 @@ public sealed class WindowVisibilityResult : OperationResult
     public bool IsForeground { get; set; }
 }
 
+/// <summary>Observed result of arranging the Excel window.</summary>
+public sealed class WindowArrangeResult : OperationResult
+{
+    /// <summary>Whether Windows granted foreground focus after the placement was confirmed.</summary>
+    public bool IsForeground { get; set; }
+}
+
 /// <summary>
 /// Result containing Excel window state information.
 /// </summary>
@@ -53,6 +60,8 @@ public class WindowInfoResult : OperationResult
 /// WINDOW STATE values: 'normal', 'minimized', 'maximized'.
 ///
 /// ARRANGE presets: 'left-half', 'right-half', 'top-half', 'bottom-half', 'center', 'full-screen'.
+/// Arrange verifies the requested placement and reports whether Windows granted foreground focus.
+/// A focus refusal does not fail a verified placement; an incorrect placement is an error.
 ///
 /// STATUS BAR: 'set-status-bar' displays text in Excel's status bar. 'clear-status-bar' restores default.
 ///
@@ -63,7 +72,7 @@ public class WindowInfoResult : OperationResult
 /// </summary>
 [ServiceCategory("Window")]
 [McpTool("window", Title = "Window Management", Destructive = false, Category = "settings",
-    Description = "Control Excel window visibility, position, state, status bar, and worksheet-specific views. VIEW: get-view, freeze-panes, unfreeze-panes, set-split, set-zoom, and set-display-options for gridlines, headings, outline symbols, and formulas. get-view activates the workbook window and requested worksheet without restoring the prior active view; it is not inspection-only. freeze-panes uses row/column counts above and left of the pane boundary. set-split creates movable panes and disables frozen panes. Zoom range: 10-400. VISIBILITY: show reveals/restores Excel and reports isVisible and isForeground; Windows may refuse foreground focus. hide hides it. Both work while Excel is waiting on a dialog. Confirmed blocking dialogs automatically show Excel; ask the user to check it. Readable dialog titles and message labels are included automatically in session status and timeout errors; unavailable or partial reads are reported. Input values are not read. Dialog types are not identified, and dialogs are never answered or dismissed. WINDOW STATE: normal, minimized, maximized. ARRANGE presets: left-half, right-half, top-half, bottom-half, center, full-screen.")]
+    Description = "Control Excel window visibility, position, state, status bar, and worksheet-specific views. VIEW: get-view, freeze-panes, unfreeze-panes, set-split, set-zoom, and set-display-options for gridlines, headings, outline symbols, and formulas. get-view activates the workbook window and requested worksheet without restoring the prior active view; it is not inspection-only. freeze-panes uses row/column counts above and left of the pane boundary. set-split creates movable panes and disables frozen panes. Zoom range: 10-400. VISIBILITY: show reveals/restores Excel and reports isVisible and isForeground; Windows may refuse foreground focus. hide hides it. Both work while Excel is waiting on a dialog. Confirmed blocking dialogs automatically show Excel; ask the user to check it. Readable dialog titles and message labels are included automatically in session status and timeout errors; unavailable or partial reads are reported. Input values are not read. Dialog types are not identified, and dialogs are never answered or dismissed. WINDOW STATE: normal, minimized, maximized. ARRANGE presets: left-half, right-half, top-half, bottom-half, center, full-screen. Arrange verifies the requested placement and returns isForeground; Windows refusing focus does not fail a verified placement.")]
 [McpReadOnlyActions("get-context", "get-info")]
 public interface IWindowCommands
 {
@@ -128,13 +137,14 @@ public interface IWindowCommands
     OperationResult SetPosition(IExcelBatch batch, double? left = null, double? top = null, double? width = null, double? height = null);
 
     /// <summary>
-    /// Arranges the Excel window using a named preset position.
-    /// Makes Excel visible if hidden.
+    /// Arranges the Excel window using a named preset position and verifies the resulting placement.
+    /// Makes Excel visible if hidden. Returns whether Windows granted foreground focus; focus refusal
+    /// does not fail a verified placement.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="preset">Preset name: 'left-half', 'right-half', 'top-half', 'bottom-half', 'center', 'full-screen'</param>
     [ServiceAction("arrange")]
-    OperationResult Arrange(IExcelBatch batch, [RequiredParameter] string preset);
+    WindowArrangeResult Arrange(IExcelBatch batch, [RequiredParameter] string preset);
 
     /// <summary>
     /// Sets the Excel status bar text. The text is visible at the bottom of the Excel window.
