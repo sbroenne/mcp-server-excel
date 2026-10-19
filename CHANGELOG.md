@@ -11,6 +11,60 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.5.0] - 2026-10-19
+
+### Minor Changes
+
+- [#1188](https://github.com/sbroenne/mcp-server-excel/pull/1188) [`2f584fc`](https://github.com/sbroenne/mcp-server-excel/commit/2f584fcb126c01eb037b9ac7aa1490cecdd8c971) Thanks [@sbroenne](https://github.com/sbroenne)! - Slicer connections can now include Data Model PivotTables with separate caches when they use the same workbook Data Model connection. Regular PivotTables still need to share a PivotCache.
+
+- [#1192](https://github.com/sbroenne/mcp-server-excel/pull/1192) [`70c4ded`](https://github.com/sbroenne/mcp-server-excel/commit/70c4ded99c8a35d8bf13d47661162c8b7d11312d) Thanks [@sbroenne](https://github.com/sbroenne)! - Power Query loads and refreshes now return elapsed time and verified worksheet/model row counts, with clearer guidance for unsupported authentication and Analysis Services cultures. Confirmed blocking dialogs automatically show Excel and include readable dialog text in session status and timeout errors; dialog types are not identified and dialogs are not answered. Standalone window show/hide uses the same responsive visibility control.
+
+- [#1155](https://github.com/sbroenne/mcp-server-excel/pull/1155) [`3633718`](https://github.com/sbroenne/mcp-server-excel/commit/3633718f4078af982ae7b758a0351e5079dc3154) Thanks [@sbroenne](https://github.com/sbroenne)! - Expose the workbook-level Power Query privacy setting through CLI and MCP, and include guidance for recovering from Formula.Firewall errors.
+
+### Patch Changes
+
+- [#1178](https://github.com/sbroenne/mcp-server-excel/pull/1178) [`6d47af1`](https://github.com/sbroenne/mcp-server-excel/commit/6d47af1ec57296663957ebc9ad15db28f5eda38a) Thanks [@sbroenne](https://github.com/sbroenne)! - The GitHub release now includes native ARM64 standalone ZIP downloads for both the MCP Server and CLI.
+
+- [#1174](https://github.com/sbroenne/mcp-server-excel/pull/1174) [`5bad8d7`](https://github.com/sbroenne/mcp-server-excel/commit/5bad8d794b00ce212552ccb31d559688339d1521) Thanks [@sbroenne](https://github.com/sbroenne)! - PivotTable filters now work on OLAP/Data Model row and column fields, including caption, value, and top/bottom filters. Date filters are also supported when Excel and the provider recognize the source date level. Value filters and sorting accept either the displayed measure caption or its `[Measures]` name. Filter commands accept placed hierarchy and level names, including the level names returned by filter reads. Semantic snapshots report member-property filter criteria as unavailable instead of claiming complete filter state.
+
+- [#1186](https://github.com/sbroenne/mcp-server-excel/pull/1186) [`4fb6d8c`](https://github.com/sbroenne/mcp-server-excel/commit/4fb6d8ce24ac68a87205e2f23eed1d60f3907297) Thanks [@sbroenne](https://github.com/sbroenne)! - Add general settings actions to inspect and explicitly change the current Windows user's global native-query approval requirement.
+
+- [#1198](https://github.com/sbroenne/mcp-server-excel/pull/1198) [`f5a1c03`](https://github.com/sbroenne/mcp-server-excel/commit/f5a1c03ba0a765a889ab432956780c77115a7dce) Thanks [@sbroenne](https://github.com/sbroenne)! - Improve Excel cleanup after reading Data Model tables or creating or updating measures, including failed changes. Read-only workbook checks no longer try to save during shutdown; after Save As creates a writable workbook, later edits are saved normally. Excel has more time to finish closing naturally.
+
+  `excelcli service stop` now waits for the shutdown reply until cancelled instead of giving up after one minute. Excel's own save and shutdown time limits still apply.
+
+- [#1187](https://github.com/sbroenne/mcp-server-excel/pull/1187) [`c73c877`](https://github.com/sbroenne/mcp-server-excel/commit/c73c8775bf21c71bc115c3afa5e0a25fbca76f0f) Thanks [@sbroenne](https://github.com/sbroenne)! - Session listings now identify a pending native database query approval and explain that the refresh remains pending until the user responds in Excel.
+
+- [#1158](https://github.com/sbroenne/mcp-server-excel/pull/1158) [`9b6e5bb`](https://github.com/sbroenne/mcp-server-excel/commit/9b6e5bbd3d212f85dfd55cfb4c8e9dc727a04999) Thanks [@sbroenne](https://github.com/sbroenne)! - Clarify that Excel's global privacy option may override the workbook's Power Query privacy setting.
+
+- [#1170](https://github.com/sbroenne/mcp-server-excel/pull/1170) [`4540f1c`](https://github.com/sbroenne/mcp-server-excel/commit/4540f1ca73c220a64bf8fbaca816241b552514da) Thanks [@sbroenne](https://github.com/sbroenne)! - Correct Data Model column-type labels in `datamodel list-columns` and `datamodel read-table` for both the CLI and MCP. Numeric columns are no longer mislabeled as small integers, and text, date, and Boolean columns receive accurate labels. Values and loading behavior are unchanged.
+
+- [#1191](https://github.com/sbroenne/mcp-server-excel/pull/1191) [`b7086a1`](https://github.com/sbroenne/mcp-server-excel/commit/b7086a11bcc46a843c014ff4168ff8adee35789b) Thanks [@sbroenne](https://github.com/sbroenne)! - External OLAP member searches now pass the provider's level count through as `totalCount` and no longer return a calculated `omittedCount`, which could be wrong when the provider's count is approximate. Use the continuation token to know whether more members remain, in both MCP and the CLI.
+
+- [#1175](https://github.com/sbroenne/mcp-server-excel/pull/1175) [`5bdaa75`](https://github.com/sbroenne/mcp-server-excel/commit/5bdaa753baa0c29cc2c35d57692be9b711f65650) Thanks [@sbroenne](https://github.com/sbroenne)! - `pivottablefield set-field-format` now applies numeric and custom currency
+  formats correctly on non-US locales without changing the shared Data Model
+  measure. It returns the selected value field's displayed text, including in
+  PivotTables with multiple measures. OLAP measures can also be selected by their
+  exact caption.
+
+- [#1160](https://github.com/sbroenne/mcp-server-excel/pull/1160) [`555fa32`](https://github.com/sbroenne/mcp-server-excel/commit/555fa325bbf8f1b30f21afb40e98ca663082f067) Thanks [@sbroenne](https://github.com/sbroenne)! - Keep usage reporting off the critical path for CLI commands and MCP startup, requests, and shutdown. The existing CLI background service sends operation telemetry after short-lived clients exit, without client-side setup or exit waits. CLI reports measure service execution; commands that never reach the service are not reported. Pending reports may still be lost when the service or MCP Server exits.
+
+- [#1190](https://github.com/sbroenne/mcp-server-excel/pull/1190) [`582354b`](https://github.com/sbroenne/mcp-server-excel/commit/582354b07536d7e2ea061834777f4f3116da3a01) Thanks [@sbroenne](https://github.com/sbroenne)! - Keep Excel workbooks and unsaved changes open when a wait expires or the caller cancels. Reveal the affected Excel window when possible, report pending work and late outcomes, and allow the same session to be reused once Excel is ready. Add save-in-place through CLI `session save` and MCP `file` action `save`, and give data loads and model refreshes a 30-minute default wait.
+
+- [#1177](https://github.com/sbroenne/mcp-server-excel/pull/1177) [`70eadd1`](https://github.com/sbroenne/mcp-server-excel/commit/70eadd19fdcdb72c0881135166c27e0aa771bb4c) Thanks [@sbroenne](https://github.com/sbroenne)! - Report unexpected Excel errors during optional property reads instead of silently returning missing data. Failed results now remain failures even if success was set earlier, consistently through the MCP Server and `excelcli`.
+
+- [#1161](https://github.com/sbroenne/mcp-server-excel/pull/1161) [`75b1fe2`](https://github.com/sbroenne/mcp-server-excel/commit/75b1fe29c8c8544b866606199ed6d00d3dbab507) Thanks [@sbroenne](https://github.com/sbroenne)! - `excelcli service status` and `excelcli session list` now report a stopped service promptly instead of waiting two seconds, while continuing to wait for a service that is starting.
+
+- [#1199](https://github.com/sbroenne/mcp-server-excel/pull/1199) [`b97d57c`](https://github.com/sbroenne/mcp-server-excel/commit/b97d57cb9c85df3471709bd1a200df125b22e53b) Thanks [@sbroenne](https://github.com/sbroenne)! - Window arrangement now verifies the requested layout and reports whether Windows brought Excel to the foreground. A focus refusal no longer turns a successful placement into an error.
+
+- [#1177](https://github.com/sbroenne/mcp-server-excel/pull/1177) [`70eadd1`](https://github.com/sbroenne/mcp-server-excel/commit/70eadd19fdcdb72c0881135166c27e0aa771bb4c) Thanks [@sbroenne](https://github.com/sbroenne)! - Document-property reads now report unreadable built-in values through `valueAvailable` and `valueError` instead of failing the entire listing. Property names, types, and scopes remain available, and a failed value read is not mistaken for proof that the value is undefined. Other unexpected native failures still fail the command.
+
+- [#1188](https://github.com/sbroenne/mcp-server-excel/pull/1188) [`2f584fc`](https://github.com/sbroenne/mcp-server-excel/commit/2f584fcb126c01eb037b9ac7aa1490cecdd8c971) Thanks [@sbroenne](https://github.com/sbroenne)! - When an Excel operation times out with a confirmed blocking dialog, report that Excel was waiting for input and include its readable title and message labels automatically for troubleshooting. Unavailable or partial text is marked; input values are not read and the dialog is not answered. Timeout recovery retains the session and unsaved workbook without saving, closing, or rolling back the operation.
+
+- [#1177](https://github.com/sbroenne/mcp-server-excel/pull/1177) [`70eadd1`](https://github.com/sbroenne/mcp-server-excel/commit/70eadd19fdcdb72c0881135166c27e0aa771bb4c) Thanks [@sbroenne](https://github.com/sbroenne)! - The VS Code extension, CLI plugin PowerShell wrapper, and repository scripts now require PowerShell 7.4 or later instead of Windows PowerShell 5.1. The extension explains how to install or upgrade PowerShell when needed, and the CLI wrapper preserves quoted JSON and other arguments using native argument handling.
+
+- [#1180](https://github.com/sbroenne/mcp-server-excel/pull/1180) [`4d0de2b`](https://github.com/sbroenne/mcp-server-excel/commit/4d0de2b2533cd7cf917b608b0cb57837eb225e51) Thanks [@sbroenne](https://github.com/sbroenne)! - Add Power Query tracing controls, trace-file summaries, and refresh trace output for Excel CLI and MCP.
+
 ## [2.4.1] - 2026-10-13
 
 ### Patch Changes
