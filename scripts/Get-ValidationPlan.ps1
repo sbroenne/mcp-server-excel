@@ -64,7 +64,11 @@ function Get-ValidationPlan {
         $plan.BuildProjects += "tests/ExcelMcp.$Owner.Tests/ExcelMcp.$Owner.Tests.csproj"
     }
     function Add-Excel([string]$Owner, [string]$Filter, [string]$Area) {
-        $plan.ExcelSelections += @{ Project = $Owner; Filter = $Filter; Area = $Area }
+        if (-not @($plan.ExcelSelections | Where-Object {
+            $_.Project -eq $Owner -and $_.Filter -eq $Filter -and $_.Area -eq $Area
+        }).Count) {
+            $plan.ExcelSelections += @{ Project = $Owner; Filter = $Filter; Area = $Area }
+        }
         $plan.ExcelGroups += $Area
         $plan.BuildProjects += "tests/ExcelMcp.$Owner.Tests/ExcelMcp.$Owner.Tests.csproj"
     }
@@ -151,11 +155,18 @@ function Get-ValidationPlan {
                 if ($owner -notin $allOwners) { throw "No validation mapping for $path." }
                 $excelTransport = $owner -eq 'McpServer' -and
                     $file -match '^Integration/Tools/(ExcelFileToolProtocolRegressionTests|McpProcessOwnershipTests|McpServerSmokeTests|McpSessionLifetimeTests|SharePointWorkbookTests|McpIntegrationTestBase|McpOwnedExcelProcesses|McpProgramTransportFixture|McpResponseAssertions|ProgramTransportTestHost)(?:\.[^/]+)?\.cs$'
-                # Shared helpers and partial classes are deliberately covered by the whole owning project.
-                if ($file -match '^(Unit/|Integration/Tools/)' -and -not $excelTransport) {
+                if ($owner -eq 'Service' -and
+                    $file -match '^PersistentServiceWindowTests(?:\.[A-Za-z0-9]+)*\.cs$') {
+                    $class = 'PersistentServiceWindowTests'
+                    $filter = "FullyQualifiedName~Sbroenne.ExcelMcp.Service.Tests.$class"
+                    Add-Excel Service $filter $class
+                } elseif ($file -match '^(Unit/|Integration/Tools/)' -and -not $excelTransport) {
                     Add-Filter Fast $owner 'FullyQualifiedName~Sbroenne.ExcelMcp.'
                     if ($owner -eq 'CLI') { Add-Filter Process CLI 'FullyQualifiedName~Sbroenne.ExcelMcp.' }
-                } else { Add-Owner $owner }
+                } else {
+                    # Shared helpers and other partial classes remain covered by the whole owning project.
+                    Add-Owner $owner
+                }
                 break
             }
             '^tests/Shared/(GeneratedAssetsFixture|PackagingScriptTestHelper)\.cs$' {
@@ -236,7 +247,17 @@ function Get-ValidationPlan {
     $plan.CiTestGroups = @('Fast', 'Process', 'Tooling' | Where-Object { $plan["${_}Filters"].Count })
     $plan.FullSolutionBuildGroup = if ($plan.FullSolutionBuild -and $plan.CiTestGroups.Count) { $plan.CiTestGroups[0] } else { '' }
     $plan.DocumentationChecksGroup = if ($plan.DocumentationCounts) { $plan.FullSolutionBuildGroup } else { '' }
-    $plan.BuildOnly = $plan.FullSolutionBuild -and -not $plan.CiTestGroups.Count
+    $coveredTestProjects = @($plan.CiTestGroups | ForEach-Object {
+        $plan["${_}Projects"] | ForEach-Object { "tests/ExcelMcp.$_.Tests/ExcelMcp.$_.Tests.csproj" }
+    })
+    $uncoveredTestProjects = @($plan.BuildProjects | Where-Object {
+        $_ -match '^tests/ExcelMcp\.[^/]+\.Tests/ExcelMcp\.[^/]+\.Tests\.csproj$' -and
+        $_ -notin $coveredTestProjects
+    })
+    $plan.BuildOnly = $plan.Build -and (
+        -not $plan.CiTestGroups.Count -or
+        (-not $plan.FullSolutionBuild -and $uncoveredTestProjects.Count -gt 0)
+    )
     return $plan
 }
 

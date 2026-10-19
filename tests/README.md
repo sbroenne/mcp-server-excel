@@ -322,6 +322,9 @@ shared helpers select Excel coverage. Shared runtime helpers select broader cove
 instead of rebuilding a source-reference catalogue. Pull requests compare
 their head with the base branch's merge base. The hook uses staged inputs and
 retains merge-parent and unstaged-input safeguards.
+Edits to partial `PersistentServiceWindowTests` files select the complete
+owning test class, keeping its fixture together without selecting unrelated
+Service Excel classes.
 
 MSBuild owns .NET project evaluation, imports, dependencies, restore, compilation,
 and incremental build decisions. The wrappers call the normal SDK commands;
@@ -342,7 +345,8 @@ commit. CI owns supported slower checks; run local process checks when changing
 their boundary, not on every push. Selected Excel checks still require desktop
 Excel locally. CI uses its
 selected base, head, and `MergeBase`/`Direct` comparison mode for changed paths.
-When no test group owns that build, CI runs a separate build-only job.
+When no selected test group builds an explicitly selected test project, CI also
+runs a separate build-only job for the saved inputs.
 The required CI gate checks its exact result, without presenting an empty
 test selection as passed tests.
 
