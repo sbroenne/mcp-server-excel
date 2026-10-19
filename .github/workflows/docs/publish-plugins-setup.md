@@ -185,15 +185,27 @@ credentials or line-ending problem, reset the source, or disable the guard.
 The guard now reports an unexpected checkout commit separately from Git's
 changed-path list, without printing file contents or credentials.
 
-After separately approving and merging the guard diagnostics, obtain publication
-authorization before running this plugin-only repair from updated `main`:
+An authorized manual repair on unchanged `main`, run `39310269423`, repeated
+the original rejection. A subsequent authorized exact-release repair using the
+diagnostic branch, run `39310607520`, succeeded with the split checks unchanged
+in strictness. It published output commit
+`974bd11c9c3d87263cc5887078bbcbf94ab05f09` and immutable tag `v2.5.0`, with
+both marketplace plugin versions set to `2.5.0`. The reason the original
+combined expression rejected the hosted checkout remains unproven; no
+source-changing cause was established.
+
+The v2.5.0 plugin repair is complete. Do not repeat it or the other release
+jobs just to test these diagnostics. If a future repair is necessary, obtain
+separate publication authorization and use the plugin-only workflow with an
+existing release tag. For example, the exact-v2.5.0 command is:
 
 ```powershell
 gh workflow run publish-plugins.yml --ref main -f release_tag=v2.5.0
 ```
 
-This is a new manual run, not a rerun of the original release jobs. It uses
-the updated publication guard, resolves the existing `v2.5.0` source tag, and
+This starts a new manual run, not a rerun of the original release jobs. After
+the diagnostic change is merged, it uses the updated publication guard from
+`main`, resolves the existing `v2.5.0` source tag, and
 downloads only that release's `excel-plugins-v2.5.0.zip` and `SHA256SUMS`.
 The recorded payload checksum is
 `7efd2a67892e5467adfa20e2f33f6a06674be3136e183eaf557d7c32b7a09bb6`;
