@@ -25,6 +25,7 @@ public sealed class ServiceTestClassSelectionRegressionTests
             if ($plan.FastProjects.Count -or $plan.ProcessProjects.Count -or $plan.ToolingProjects.Count) {
                 throw 'A Service class change selected unrelated test projects.'
             }
+            if (-not $plan.BuildOnly) { throw 'The selected Service build was not assigned to the build-only CI job.' }
             if (($plan.ExcelGroups -join ',') -cne 'PersistentServiceWindowTests') {
                 throw "Wrong Excel groups: $($plan.ExcelGroups -join ',')"
             }
