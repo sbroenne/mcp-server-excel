@@ -169,6 +169,46 @@ Restoring `main` to content already distributed by the retained tag does not
 trigger a plugin listing update. Invalid immutable baseline content fails
 visibly rather than allowing a false no-change result.
 
+### v2.5.0 checkout failure
+
+Release run `39304106786`, plugin job `118243153092`, checked out source commit
+`655d82dc2f43b492de9e32bb6ffca3af28a97860` for `v2.5.0`. The logged
+`d4fa6e9fce2acbb66c67b411ce21370f73ccb8b5` was the output repository's existing
+commit, not the source release commit. Publication stopped at the source
+checkout guard, before changing the output repository.
+
+The old error combined an unexpected source commit and uncommitted source
+changes without reporting either value. The job log therefore does not establish
+what caused the rejection. Fresh local checkouts of this exact release passed
+the guard, including with the job's Git `2.56.0.windows.2`. Do not assume a
+credentials or line-ending problem, reset the source, or disable the guard.
+The guard now reports an unexpected checkout commit separately from Git's
+changed-path list, without printing file contents or credentials.
+
+After separately approving and merging the guard diagnostics, obtain publication
+authorization before running this plugin-only repair from updated `main`:
+
+```powershell
+gh workflow run publish-plugins.yml --ref main -f release_tag=v2.5.0
+```
+
+This is a new manual run, not a rerun of the original release jobs. It uses
+the updated publication guard, resolves the existing `v2.5.0` source tag, and
+downloads only that release's `excel-plugins-v2.5.0.zip` and `SHA256SUMS`.
+The recorded payload checksum is
+`7efd2a67892e5467adfa20e2f33f6a06674be3136e183eaf557d7c32b7a09bb6`;
+the workflow must still verify the downloaded checksum entry itself.
+It does not republish GitHub release assets, npm, NuGet, VS Code or the MCP
+registry, and does not rewrite existing tags. No new product release is needed
+for this plugin repair.
+
+Inspect the new job's source commit and result. If it rejects the checkout,
+retain the reported commit/changed paths and stop: fix the identified cause in
+the source repository before another authorized attempt. If it succeeds, verify
+the reported output tag/commit and plugin contents in the output repository.
+An Awesome Copilot listing update remains a separate, explicitly authorized
+operation.
+
 ## Maintenance and updates
 
 Unsynchronized hand edits in the published repository are prohibited and may be

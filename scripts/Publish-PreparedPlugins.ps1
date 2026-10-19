@@ -19,8 +19,13 @@ $source = (Resolve-Path -LiteralPath $SourceDirectory).Path
 $published = (Resolve-Path -LiteralPath $PublishedRepoDirectory).Path
 $built = (Resolve-Path -LiteralPath $BuiltPluginsDirectory).Path
 if ((git -C $source rev-parse "refs/tags/$tag^{commit}") -ne $SourceCommit) { throw 'Source release tag/commit mismatch.' }
-if ((git -C $source rev-parse HEAD) -ne $SourceCommit -or @(git -C $source status --porcelain).Count) {
-    throw 'Source checkout must be clean and match the exact release commit.'
+$sourceHead = git -C $source rev-parse HEAD
+if ($sourceHead -ne $SourceCommit) {
+    throw "Source checkout HEAD: $sourceHead`nExpected release commit: $SourceCommit"
+}
+$sourceChanges = @(git -C $source status --porcelain)
+if ($sourceChanges.Count) {
+    throw "Source checkout must be clean.`nRelease commit: $SourceCommit`nGit status:`n$($sourceChanges -join "`n")"
 }
 if (@(git -C $published status --porcelain).Count) { throw 'Published checkout must be clean.' }
 $baselineCommit = git -C $published rev-parse HEAD
