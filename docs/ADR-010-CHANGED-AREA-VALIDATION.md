@@ -38,7 +38,9 @@ The source-derived catalogue is removed, not translated into PowerShell.
 Command implementations select explicit native feature labels and known
 dependencies. Test edits select their owning project group; unit and recording-only
 protocol tests remain Excel-free. Real-Excel MCP transport fixtures, their shared
-helpers and other test folders can select that owner's Excel cases.
+helpers and other test folders can select that owner's Excel cases. Edits to
+partial `PersistentServiceWindowTests` files select the complete owning test
+class, preserving its fixture without selecting unrelated Service Excel classes.
 Shared runtime/helper changes intentionally select broader runtime,
 acceptance and infrastructure checks. This trades some precision for rules that
 are smaller and easier to review. New areas and changed label ownership need

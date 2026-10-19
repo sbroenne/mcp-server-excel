@@ -322,6 +322,9 @@ shared helpers select Excel coverage. Shared runtime helpers select broader cove
 instead of rebuilding a source-reference catalogue. Pull requests compare
 their head with the base branch's merge base. The hook uses staged inputs and
 retains merge-parent and unstaged-input safeguards.
+Edits to partial `PersistentServiceWindowTests` files select the complete
+owning test class, keeping its fixture together without selecting unrelated
+Service Excel classes.
 
 MSBuild owns .NET project evaluation, imports, dependencies, restore, compilation,
 and incremental build decisions. The wrappers call the normal SDK commands;
