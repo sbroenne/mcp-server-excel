@@ -1,3 +1,4 @@
+using Sbroenne.ExcelMcp.Core.Commands.Window;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -26,6 +27,7 @@ public sealed partial class PersistentServiceWindowTests
         Assert.True(actual.Success, actual.ErrorMessage);
         Assert.True(actual.IsVisible);
         Assert.Equal(preset == "full-screen" ? "maximized" : "normal", actual.WindowState);
+        Assert.Equal(actual.IsForeground, result.IsForeground);
         if (preset != "full-screen")
         {
             var expected = GetExpectedBounds(preset, workArea);
@@ -96,5 +98,36 @@ public sealed partial class PersistentServiceWindowTests
         Assert.True(
             after.IsVisible,
             "Arrange should auto-show hidden Excel");
+    }
+
+    [Fact]
+    public void Arrange_WhenForegroundIsRefused_ReturnsVerifiedPlacement()
+    {
+        var batch = _fixture.BatchToken;
+        RequireSuccess(_commands.Hide(batch));
+        var workArea = GetExcelMonitorWorkArea();
+        var previousForegroundRequest = WindowCommands.ForegroundActivationForTests;
+
+        try
+        {
+            WindowCommands.ForegroundActivationForTests = _ => false;
+
+            var result = RequireSuccess(_commands.Arrange(batch, "center"));
+
+            Assert.False(result.IsForeground);
+            Assert.Contains("Windows did not grant foreground focus", result.Message, StringComparison.Ordinal);
+            var actual = RequireSuccess(_commands.GetInfo(batch));
+            Assert.True(actual.IsVisible);
+            Assert.Equal("normal", actual.WindowState);
+            var expected = GetExpectedBounds("center", workArea);
+            AssertClose(expected.Left, actual.Left);
+            AssertClose(expected.Top, actual.Top);
+            AssertClose(expected.Width, actual.Width);
+            AssertClose(expected.Height, actual.Height);
+        }
+        finally
+        {
+            WindowCommands.ForegroundActivationForTests = previousForegroundRequest;
+        }
     }
 }
