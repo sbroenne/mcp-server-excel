@@ -41,7 +41,7 @@ internal sealed class ServiceStartCommand : AsyncCommand
 internal sealed class ServiceStopCommand : AsyncCommand
 {
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(2);
-    private static readonly TimeSpan ShutdownRequestTimeout = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan ShutdownRequestTimeout = Timeout.InfiniteTimeSpan;
     private static readonly TimeSpan ShutdownWaitTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan ShutdownPollInterval = TimeSpan.FromMilliseconds(250);
 

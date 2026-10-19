@@ -12,8 +12,12 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 
 public sealed partial class ServiceWorkbookLifecycleTests
 {
-    [Fact]
-    public async Task Test_UncommittedCloseRefusal_AllowsExplicitCloseAfterReadinessReturns()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    [InlineData(true, true)]
+    public async Task Test_UncommittedCloseRefusal_AllowsExplicitCloseAfterReadinessReturns(
+        bool disposeService, bool saveAs = false)
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
@@ -21,6 +25,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
             var initial = await CreateSessionAsync(service, path);
             await WriteMarkerAsync(service, initial, "Validation retained contents");
             await CloseSessionAsync(service, initial, save: true);
+            var savedBytes = await File.ReadAllBytesAsync(path);
             ExcelBatch? batch = null;
             string? session = null;
             ExcelBatch.AfterWorkbookOpenHookForTests = (_, _) =>
@@ -51,6 +56,50 @@ public sealed partial class ServiceWorkbookLifecycleTests
             }
             Assert.NotNull(session);
             Assert.Equal("Validation retained contents", await ReadMarkerAsync(service, session));
+            if (disposeService)
+            {
+                var identity = Assert.Single(SessionManager.GetTrackedExcelProcesses(),
+                    candidate => candidate.ProcessId == batch!.ExcelProcessId);
+                Assert.True(batch!.Execute((context, _) => context.Book.ReadOnly));
+                var target = Path.Join(directory, "validation-writable.xlsx");
+                if (saveAs)
+                {
+                    RequireSuccess(await service.ProcessAsync(new ServiceRequest
+                    {
+                        Command = "workbook.save-as",
+                        SessionId = session,
+                        Args = JsonSerializer.Serialize(new { targetPath = target }, ServiceProtocol.JsonOptions)
+                    }));
+                    Assert.False(batch.Execute((context, _) => context.Book.ReadOnly));
+                    Assert.True(service.SessionManager.TryGetFilePath(session, out var trackedPath));
+                    Assert.Equal(target, trackedPath);
+                    await WriteMarkerAsync(service, session, "Edits after validation Save As");
+                    Assert.False(batch.Execute((context, _) => context.Book.Saved));
+                }
+                service.Dispose();
+                sessions.TryRemove(session, out _);
+                Assert.Equal(0, service.SessionManager.ActiveSessionCount);
+                Assert.Empty(service.SessionManager.ActiveSessionIds);
+                var paths = Assert.IsAssignableFrom<System.Collections.IDictionary>(
+                    typeof(SessionManager).GetField("_sessionFilePaths",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                        .GetValue(service.SessionManager));
+                Assert.Empty(paths);
+                Assert.True(OwnedProcessGuard.TryConfirmExited(identity));
+                Assert.DoesNotContain(identity, SessionManager.GetTrackedExcelProcesses());
+                Assert.Equal(savedBytes, await File.ReadAllBytesAsync(path));
+                if (saveAs)
+                {
+                    await RunWithCleanupAsync(async (verification, _, reopenedSessions) =>
+                    {
+                        var reopened = await OpenSessionAsync(verification, target);
+                        reopenedSessions[reopened] = 0;
+                        Assert.Equal("Edits after validation Save As", await ReadMarkerAsync(verification, reopened));
+                    });
+                }
+                return;
+            }
+
             await CloseSessionAsync(service, session, save: false);
             sessions.TryRemove(session, out _);
             Assert.False(service.SessionManager.TryGetFilePath(session, out _));
@@ -281,6 +330,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
             await File.WriteAllTextAsync(path, "not an Excel workbook");
             using var release = new ManualResetEventSlim();
             var quitting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var shutdownWait = ProcessTerminationPolicy.NormalGraceTimeout + TimeSpan.FromSeconds(15);
             ExcelShutdownService.BeforeQuitHookForTests = () =>
             {
                 quitting.TrySetResult();
@@ -296,7 +346,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
             var failure = await Record.ExceptionAsync(async () =>
             {
                 await quitting.Task.WaitAsync(TimeSpan.FromSeconds(15));
-                var response = await validation.WaitAsync(TimeSpan.FromSeconds(30));
+                var response = await validation.WaitAsync(shutdownWait);
                 Assert.False(response.Success);
                 var session = Assert.IsType<string>(response.SessionId);
                 sessions[session] = 0;
@@ -318,13 +368,13 @@ public sealed partial class ServiceWorkbookLifecycleTests
             release.Set();
             var cleanup = await Record.ExceptionAsync(async () =>
             {
-                await validation.WaitAsync(TimeSpan.FromSeconds(30));
+                await validation.WaitAsync(shutdownWait);
                 if (batch is not null)
                     Assert.True(SpinWait.SpinUntil(() => !batch.OperationStatus.ExecutionPending,
-                        TimeSpan.FromSeconds(15)));
+                        shutdownWait));
                 if (identity is { } owned)
                     Assert.True(SpinWait.SpinUntil(() => OwnedProcessGuard.TryConfirmExited(owned),
-                        TimeSpan.FromSeconds(15)));
+                        shutdownWait));
             });
             var failures = new[] { failure, cleanup }.OfType<Exception>().ToArray();
             if (failures.Length > 0)

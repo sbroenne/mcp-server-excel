@@ -18,6 +18,51 @@ public sealed partial class ServiceWorkbookLifecycleTests
 {
     private static readonly bool[] CloseSaveModes = [true, false];
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PersistentFixture_TemplateFailure_CleansTrackedProcessAndPreservesFailures(bool creationThrows)
+    {
+        using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("pwsh")
+        {
+            ArgumentList = { "-NoProfile", "-Command", "Start-Sleep -Seconds 120" },
+            UseShellExecute = false,
+            CreateNoWindow = true
+        })!;
+        var original = new InvalidOperationException("Template creation failed.");
+        ExcelProcessIdentity? identity = null;
+        var fixture = new FailingTemplateFixture(_ =>
+        {
+            identity = SessionManager.TrackExcelProcessIdentity(process.Id);
+            Assert.NotNull(identity);
+            if (creationThrows)
+                throw original;
+        });
+        try
+        {
+            var failure = await Assert.ThrowsAnyAsync<Exception>(fixture.InitializeAsync);
+            Assert.Equal(0, fixture.ExcelLaunchCount);
+            var ownedIdentity = Assert.IsType<ExcelProcessIdentity>(identity);
+            Assert.True(OwnedProcessGuard.TryConfirmExited(ownedIdentity));
+            Assert.DoesNotContain(ownedIdentity, SessionManager.GetTrackedExcelProcesses());
+            if (creationThrows)
+                Assert.Contains(original, Assert.IsType<AggregateException>(failure).Flatten().InnerExceptions);
+            Assert.Contains("Test cleanup found Excel still running", failure.ToString());
+        }
+        finally
+        {
+            if (identity is { } owned)
+            {
+                Assert.True(OwnedProcessGuard.TryTerminate(owned, TimeSpan.Zero, TimeSpan.FromSeconds(5), out _));
+                SessionManager.UntrackExcelProcess(owned);
+            }
+            await fixture.DisposeAsync();
+        }
+    }
+
+    private sealed class FailingTemplateFixture(Action<string> createWorkbook) :
+        PersistentServiceWorkbookFixture(createWorkbook);
+
     [Fact]
     public async Task PersistentFixture_TracksProcessWhileReopenBlocked()
     {

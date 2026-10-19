@@ -19,6 +19,8 @@ public partial class DataModelCommands
     // See GitHub Issue #315: https://github.com/sbroenne/mcp-server-excel/issues/315
     private static readonly ResiliencePipeline _dataModelPipeline = ResiliencePipelines.CreateDataModelPipeline();
 
+    internal static Action<object>? MeasureFormatAcquiredForTests { get; set; }
+
     /// <inheritdoc />
     public OperationResult DeleteMeasure(IExcelBatch batch, string measureName)
     {
@@ -253,6 +255,7 @@ public partial class DataModelCommands
                     // Get format object - ALWAYS returns a valid format object (never null)
                     // Fixed: Always provide format object to avoid failures on reopened Data Model files
                     formatObject = GetFormatObject(model!, formatType);
+                    MeasureFormatAcquiredForTests?.Invoke(formatObject);
 
                     // Create the measure using Excel COM API (Office 2016+)
                     // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.modelmeasures.add
@@ -264,9 +267,8 @@ public partial class DataModelCommands
                 }
                 finally
                 {
-                    // Note: formatObject is a property reference from the model (not a new object)
-                    // Do NOT release formatObject - it's owned by the model
                     ComUtilities.Release(ref newMeasure);
+                    ComUtilities.Release(ref formatObject);
                     ComUtilities.Release(ref measures);
                     ComUtilities.Release(ref table);
                     ComUtilities.Release(ref model);
@@ -323,6 +325,7 @@ public partial class DataModelCommands
                     if (!string.IsNullOrEmpty(formatType))
                     {
                         formatObject = GetFormatObject(model!, formatType);
+                        MeasureFormatAcquiredForTests?.Invoke(formatObject);
                     }
 
                     // Update formula if provided
@@ -355,8 +358,7 @@ public partial class DataModelCommands
                 }
                 finally
                 {
-                    // Note: formatObject is a property reference from the model (not a new object)
-                    // Do NOT release formatObject - it's owned by the model
+                    ComUtilities.Release(ref formatObject);
                     ComUtilities.Release(ref measure);
                     ComUtilities.Release(ref model);
                 }

@@ -83,9 +83,9 @@ public sealed class OwnedProcessGuardTests
     {
         var clock = new ControlledClock();
         var waits = new List<TimeSpan>();
-        Assert.Equal(TimeSpan.FromSeconds(10), ProcessTerminationPolicy.NormalGraceTimeout);
+        Assert.Equal(TimeSpan.FromSeconds(75), ProcessTerminationPolicy.NormalGraceTimeout);
         Assert.Equal(TimeSpan.FromSeconds(5), ProcessTerminationPolicy.NormalForcedExitTimeout);
-        Assert.Equal(TimeSpan.FromSeconds(15), ProcessTerminationPolicy.NormalShutdownBudget);
+        Assert.Equal(TimeSpan.FromSeconds(80), ProcessTerminationPolicy.NormalShutdownBudget);
         Assert.Equal(ProcessTerminationPolicy.NormalShutdownBudget,
             ProcessTerminationPolicy.NormalGraceTimeout + ProcessTerminationPolicy.NormalForcedExitTimeout);
 
@@ -109,9 +109,9 @@ public sealed class OwnedProcessGuardTests
             timeProvider: clock);
 
         Assert.False(result);
-        Assert.Equal(TimeSpan.FromSeconds(10), waits[0]);
+        Assert.Equal(TimeSpan.FromSeconds(75), waits[0]);
         Assert.Equal(TimeSpan.FromSeconds(expectedFinalWaitSeconds), waits[1]);
-        Assert.Equal(TimeSpan.FromSeconds(Math.Max(15, 10 + requestSeconds)), clock.Elapsed);
+        Assert.Equal(TimeSpan.FromSeconds(Math.Max(80, 75 + requestSeconds)), clock.Elapsed);
     }
 
     private sealed class ControlledClock : TimeProvider

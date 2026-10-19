@@ -3,9 +3,11 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 internal static class ProcessTerminationPolicy
 {
     internal static readonly TimeSpan ProcessExitTimeout = TimeSpan.FromSeconds(10);
-    internal static readonly TimeSpan NormalGraceTimeout = TimeSpan.FromSeconds(10);
+    // Excel may take over a minute to exit naturally after Quit returns.
+    internal static readonly TimeSpan NormalGraceTimeout = TimeSpan.FromSeconds(75);
     internal static readonly TimeSpan NormalForcedExitTimeout = TimeSpan.FromSeconds(5);
-    internal static readonly TimeSpan NormalShutdownBudget = TimeSpan.FromSeconds(15);
+    internal static readonly TimeSpan NormalShutdownBudget =
+        NormalGraceTimeout + NormalForcedExitTimeout;
 
     internal static async Task<bool> TryCompleteAsync(
         TimeSpan waitBeforeTermination,

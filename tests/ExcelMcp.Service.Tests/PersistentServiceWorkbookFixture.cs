@@ -68,9 +68,41 @@ public class PersistentServiceWorkbookFixture : IAsyncLifetime, IDisposable
         }
 
         Directory.CreateDirectory(_tempDirectory);
-        SessionManager.ExcelProcessIdentityTracked += OnExcelProcessTracked;
         var workbookPath = Path.Combine(_tempDirectory, _workbookFileName);
         WorkbookPath = workbookPath;
+        if (_createWorkbook is not null)
+        {
+            using var templateProcesses = new TestExcelProcessScope();
+            Exception? failure = null;
+            try
+            {
+                _createWorkbook(workbookPath);
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+            try
+            {
+                if (templateProcesses.StopLeftovers() is { } leftover)
+                    failure = PersistentServiceCleanupFailures.Combine(failure, leftover);
+            }
+            catch (Exception ex)
+            {
+                failure = PersistentServiceCleanupFailures.Combine(failure, ex);
+            }
+            if (failure is not null)
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+
+            if (SessionManager.GetTrackedExcelProcesses().Count != 0)
+            {
+                throw new InvalidOperationException(
+                    "Workbook fixture creation left tracked Excel identities: " +
+                    $"{string.Join(", ", SessionManager.GetTrackedExcelProcesses())}");
+            }
+        }
+
+        SessionManager.ExcelProcessIdentityTracked += OnExcelProcessTracked;
         _service = new ExcelMcpService();
         ServiceResponse response;
         if (_createWorkbook is null)
@@ -82,7 +114,6 @@ public class PersistentServiceWorkbookFixture : IAsyncLifetime, IDisposable
         }
         else
         {
-            _createWorkbook(workbookPath);
             response = await SendAsync(
                 "session.open",
                 new { filePath = workbookPath, show = _show },
