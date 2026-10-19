@@ -1132,6 +1132,71 @@ function publishFixture(fixture, flags = []) {
 }
 
 export function registerDeliveryTests() {
+    test('source guard accepts clean exact source and retains the existing no-change publication', () => {
+        const fixture = publicationFixture();
+        try {
+            const result = JSON.parse(publishFixture(fixture, ['-Preview']));
+            assert.equal(result.status, 'preview');
+            assert.equal(result.decision, 'skipped');
+            assert.equal(result.published_tag, 'v2.0.1');
+            assert.equal(result.published_commit, fixture.original);
+            assert.equal(result.handoff, false);
+            assert.deepEqual(result.changed_paths, []);
+            assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.source).trim(), fixture.sourceCommit);
+            assert.equal(command('git', ['status', '--porcelain'], fixture.source).trim(), '');
+            assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), fixture.original);
+            assert.equal(command('git', ['status', '--porcelain'], fixture.output).trim(), '');
+            assert.equal(command('git', ['tag', '--list', 'v2.3.0'], fixture.output).trim(), '');
+        } finally { fs.rmSync(fixture.root, { recursive: true }); }
+    });
+
+    test('source guard identifies a wrong checkout without changing either repository', () => {
+        const fixture = publicationFixture();
+        try {
+            command('git', ['checkout', '--quiet', '--detach', 'v2.0.1'], fixture.source);
+            const actualCommit = command('git', ['rev-parse', 'HEAD'], fixture.source).trim();
+            assert.throws(() => publishFixture(fixture, ['-Preview']), error => {
+                const diagnostic = error.stderr.toString();
+                assert.match(diagnostic, /Source checkout HEAD/);
+                assert.ok(diagnostic.includes(actualCommit));
+                assert.ok(diagnostic.includes(fixture.sourceCommit));
+                return true;
+            });
+            assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.source).trim(), actualCommit);
+            assert.equal(command('git', ['status', '--porcelain'], fixture.source).trim(), '');
+            assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), fixture.original);
+            assert.equal(command('git', ['status', '--porcelain'], fixture.output).trim(), '');
+            assert.equal(command('git', ['tag', '--list', 'v2.3.0'], fixture.output).trim(), '');
+        } finally { fs.rmSync(fixture.root, { recursive: true }); }
+    });
+
+    for (const state of ['unstaged', 'staged', 'untracked']) {
+        test(`source guard identifies ${state} changes without cleaning or publishing`, () => {
+            const fixture = publicationFixture();
+            try {
+                const file = state === 'untracked' ? 'unexpected.txt' : 'release.txt';
+                fs.writeFileSync(path.join(fixture.source, file), 'Keep this evidence');
+                if (state === 'staged') command('git', ['add', file], fixture.source);
+                const before = command('git', ['status', '--porcelain'], fixture.source);
+                assert.ok(before.includes(file));
+                assert.throws(() => publishFixture(fixture, ['-Preview']), error => {
+                    const diagnostic = error.stderr.toString();
+                    assert.match(diagnostic, /Source checkout must be clean/);
+                    assert.ok(diagnostic.includes(fixture.sourceCommit));
+                    assert.match(diagnostic, /Git status:/);
+                    assert.ok(diagnostic.includes(file));
+                    return true;
+                });
+                assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.source).trim(), fixture.sourceCommit);
+                assert.equal(command('git', ['status', '--porcelain'], fixture.source), before);
+                assert.equal(fs.readFileSync(path.join(fixture.source, file), 'utf8'), 'Keep this evidence');
+                assert.equal(command('git', ['rev-parse', 'HEAD'], fixture.output).trim(), fixture.original);
+                assert.equal(command('git', ['status', '--porcelain'], fixture.output).trim(), '');
+                assert.equal(command('git', ['tag', '--list', 'v2.3.0'], fixture.output).trim(), '');
+            } finally { fs.rmSync(fixture.root, { recursive: true }); }
+        });
+    }
+
     test('real publication pushes a committed repair and file/folder swaps to a disposable local remote', () => {
         const fixture = publicationFixture();
         try {
