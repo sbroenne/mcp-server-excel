@@ -1376,6 +1376,7 @@ public sealed class SessionManager : IDisposable
             }
 
             _sessionFilePaths[sessionId] = normalizedPath;
+            _readOnlyValidationSessions.TryRemove(sessionId, out _);
         }
     }
 

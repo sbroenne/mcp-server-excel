@@ -72,7 +72,28 @@ public class PersistentServiceWorkbookFixture : IAsyncLifetime, IDisposable
         WorkbookPath = workbookPath;
         if (_createWorkbook is not null)
         {
-            _createWorkbook(workbookPath);
+            using var templateProcesses = new TestExcelProcessScope();
+            Exception? failure = null;
+            try
+            {
+                _createWorkbook(workbookPath);
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+            try
+            {
+                if (templateProcesses.StopLeftovers() is { } leftover)
+                    failure = PersistentServiceCleanupFailures.Combine(failure, leftover);
+            }
+            catch (Exception ex)
+            {
+                failure = PersistentServiceCleanupFailures.Combine(failure, ex);
+            }
+            if (failure is not null)
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+
             if (SessionManager.GetTrackedExcelProcesses().Count != 0)
             {
                 throw new InvalidOperationException(

@@ -15,7 +15,9 @@ public sealed partial class ServiceWorkbookLifecycleTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Test_UncommittedCloseRefusal_AllowsExplicitCloseAfterReadinessReturns(bool disposeService)
+    [InlineData(true, true)]
+    public async Task Test_UncommittedCloseRefusal_AllowsExplicitCloseAfterReadinessReturns(
+        bool disposeService, bool saveAs = false)
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
@@ -59,6 +61,21 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 var identity = Assert.Single(SessionManager.GetTrackedExcelProcesses(),
                     candidate => candidate.ProcessId == batch!.ExcelProcessId);
                 Assert.True(batch!.Execute((context, _) => context.Book.ReadOnly));
+                var target = Path.Join(directory, "validation-writable.xlsx");
+                if (saveAs)
+                {
+                    RequireSuccess(await service.ProcessAsync(new ServiceRequest
+                    {
+                        Command = "workbook.save-as",
+                        SessionId = session,
+                        Args = JsonSerializer.Serialize(new { targetPath = target }, ServiceProtocol.JsonOptions)
+                    }));
+                    Assert.False(batch.Execute((context, _) => context.Book.ReadOnly));
+                    Assert.True(service.SessionManager.TryGetFilePath(session, out var trackedPath));
+                    Assert.Equal(target, trackedPath);
+                    await WriteMarkerAsync(service, session, "Edits after validation Save As");
+                    Assert.False(batch.Execute((context, _) => context.Book.Saved));
+                }
                 service.Dispose();
                 sessions.TryRemove(session, out _);
                 Assert.Equal(0, service.SessionManager.ActiveSessionCount);
@@ -71,6 +88,15 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 Assert.True(OwnedProcessGuard.TryConfirmExited(identity));
                 Assert.DoesNotContain(identity, SessionManager.GetTrackedExcelProcesses());
                 Assert.Equal(savedBytes, await File.ReadAllBytesAsync(path));
+                if (saveAs)
+                {
+                    await RunWithCleanupAsync(async (verification, _, reopenedSessions) =>
+                    {
+                        var reopened = await OpenSessionAsync(verification, target);
+                        reopenedSessions[reopened] = 0;
+                        Assert.Equal("Edits after validation Save As", await ReadMarkerAsync(verification, reopened));
+                    });
+                }
                 return;
             }
 
