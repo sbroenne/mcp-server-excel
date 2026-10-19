@@ -86,6 +86,11 @@ Do not click, close, or answer them: report the dialog text to the user, then
 stop only test-owned Excel processes as described above. Keep dialog text out
 of public artifacts.
 
+PDF/XPS export tests first check that Windows can open the default printer and
+fail with a plain message if it cannot, because Excel would otherwise show
+Printer Setup during export. Fix that by repairing the printer or choosing a
+working default printer; do not change the tests to skip export.
+
 ## Entry-point and migration coverage
 
 CLI and MCP tests cover adapter responsibilities, not a second full workbook
