@@ -651,6 +651,14 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     _excel = null;
                     _workbooks = null;
                     _context = null;
+                    cleanupWorkbooks?.Clear();
+                    cleanupWorkbook = null;
+                    cleanupExcel = null;
+                    startupWorkbooks?.Clear();
+                    startupWorkbooks = null;
+                    startupPrimaryWorkbook = null;
+                    startupExcel = null;
+                    Marshal.CleanupUnusedObjectsInCurrentContext();
                     _teardownCompletion.TrySetResult();
                     if (_disposed != 0)
                         FinishOperation(executionFailure);

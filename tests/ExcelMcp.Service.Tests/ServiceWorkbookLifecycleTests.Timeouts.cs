@@ -281,6 +281,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
             await File.WriteAllTextAsync(path, "not an Excel workbook");
             using var release = new ManualResetEventSlim();
             var quitting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var shutdownWait = ProcessTerminationPolicy.NormalGraceTimeout + TimeSpan.FromSeconds(15);
             ExcelShutdownService.BeforeQuitHookForTests = () =>
             {
                 quitting.TrySetResult();
@@ -296,7 +297,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
             var failure = await Record.ExceptionAsync(async () =>
             {
                 await quitting.Task.WaitAsync(TimeSpan.FromSeconds(15));
-                var response = await validation.WaitAsync(TimeSpan.FromSeconds(30));
+                var response = await validation.WaitAsync(shutdownWait);
                 Assert.False(response.Success);
                 var session = Assert.IsType<string>(response.SessionId);
                 sessions[session] = 0;
@@ -318,13 +319,13 @@ public sealed partial class ServiceWorkbookLifecycleTests
             release.Set();
             var cleanup = await Record.ExceptionAsync(async () =>
             {
-                await validation.WaitAsync(TimeSpan.FromSeconds(30));
+                await validation.WaitAsync(shutdownWait);
                 if (batch is not null)
                     Assert.True(SpinWait.SpinUntil(() => !batch.OperationStatus.ExecutionPending,
-                        TimeSpan.FromSeconds(15)));
+                        shutdownWait));
                 if (identity is { } owned)
                     Assert.True(SpinWait.SpinUntil(() => OwnedProcessGuard.TryConfirmExited(owned),
-                        TimeSpan.FromSeconds(15)));
+                        shutdownWait));
             });
             var failures = new[] { failure, cleanup }.OfType<Exception>().ToArray();
             if (failures.Length > 0)

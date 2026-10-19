@@ -297,6 +297,7 @@ public sealed class SessionManager : IDisposable
     private readonly ConcurrentDictionary<string, object> _sessionLocks = new();
     private readonly ConcurrentDictionary<string, byte> _closingSessions = new();
     private readonly ConcurrentDictionary<string, ExceptionDispatchInfo> _teardownFailures = new();
+    private readonly ConcurrentDictionary<string, byte> _readOnlyValidationSessions = new();
     private readonly ConcurrentDictionary<string, bool> _showExcelFlags = new();
     private readonly ConcurrentDictionary<string, SessionOrigin> _sessionOrigins = new();
     private readonly ConcurrentDictionary<string, DateTime> _sessionCreatedAt = new();
@@ -330,7 +331,13 @@ public sealed class SessionManager : IDisposable
         }
     }
 
-    private void PublishSession(string sessionId, string normalizedPath, IExcelBatch batch, bool show, SessionOrigin origin)
+    private void PublishSession(
+        string sessionId,
+        string normalizedPath,
+        IExcelBatch batch,
+        bool show,
+        SessionOrigin origin,
+        bool readOnlyValidation = false)
     {
         // Publication and shutdown share a short lock; Excel startup and teardown stay outside it.
         lock (_filePathReservationLock)
@@ -344,6 +351,8 @@ public sealed class SessionManager : IDisposable
             _showExcelFlags[sessionId] = show;
             _sessionOrigins[sessionId] = origin;
             _sessionCreatedAt[sessionId] = DateTime.UtcNow;
+            if (readOnlyValidation)
+                _readOnlyValidationSessions[sessionId] = 0;
         }
     }
 
@@ -474,7 +483,9 @@ public sealed class SessionManager : IDisposable
                 ObjectDisposedException.ThrowIf(_disposed, this);
                 batch = ExcelSession.BeginReadOnlyValidation(normalizedPath, operationTimeout, deferStartup: true);
                 PublishSession(reservationId, normalizedPath, batch,
-                    show: WorkbookLocation.IsRemote(normalizedPath), SessionOrigin.Unknown);
+                    show: WorkbookLocation.IsRemote(normalizedPath),
+                    SessionOrigin.Unknown,
+                    readOnlyValidation: true);
             }
             batch.WaitForStartup();
             batch.Close();
@@ -691,6 +702,7 @@ public sealed class SessionManager : IDisposable
         _showExcelFlags.TryRemove(sessionId, out _);
         _sessionOrigins.TryRemove(sessionId, out _);
         _sessionCreatedAt.TryRemove(sessionId, out _);
+        _readOnlyValidationSessions.TryRemove(sessionId, out _);
         _teardownFailures.TryRemove(sessionId, out _);
 
         if (removeSessionLock)
@@ -1394,6 +1406,7 @@ public sealed class SessionManager : IDisposable
         foreach (var (sessionId, session) in sessions)
         {
             var teardownFailed = _teardownFailures.ContainsKey(sessionId);
+            var readOnlyValidation = _readOnlyValidationSessions.ContainsKey(sessionId);
             if (teardownFailed && TryConfirmFailedTeardown(session))
             {
                 RemoveSessionTracking(sessionId, removeSessionLock: true);
@@ -1402,7 +1415,7 @@ public sealed class SessionManager : IDisposable
             // Auto-save before disposal to prevent silent data loss.
             // This protects against the common scenario where the MCP client disconnects
             // or the service process exits, which would otherwise discard all unsaved work.
-            if (!teardownFailed && session.IsExcelProcessAlive())
+            if (!teardownFailed && !readOnlyValidation && session.IsExcelProcessAlive())
             {
                 try
                 {
@@ -1434,7 +1447,7 @@ public sealed class SessionManager : IDisposable
             {
                 // Dispose sequentially - ExcelBatch.Dispose() handles its own Excel cleanup
                 // via ExcelShutdownService with proper timeouts and retry logic
-                if (teardownFailed)
+                if (teardownFailed || readOnlyValidation)
                     session.Dispose();
                 else
                     CloseBatch(session);
