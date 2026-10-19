@@ -432,7 +432,16 @@ public partial class WindowCommands : IWindowCommands
         if (ForegroundActivationForTests is { } activationForTests)
             return activationForTests(hwnd);
 
-        _ = SetForegroundWindow(hwnd);
-        return GetForegroundWindow() == hwnd;
+        return TryActivateWindow(hwnd, SetForegroundWindow, GetForegroundWindow);
+    }
+
+    internal static bool TryActivateWindow(
+        IntPtr hwnd,
+        Func<IntPtr, bool> requestForeground,
+        Func<IntPtr> getForegroundWindow)
+    {
+        _ = requestForeground(hwnd);
+        // Cross-process activation can finish after SetForegroundWindow returns.
+        return SpinWait.SpinUntil(() => getForegroundWindow() == hwnd, TimeSpan.FromSeconds(1));
     }
 }
