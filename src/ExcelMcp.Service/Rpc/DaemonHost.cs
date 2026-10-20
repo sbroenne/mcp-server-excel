@@ -176,7 +176,11 @@ internal sealed class DaemonHost : IDisposable
         var sessionId = request.SessionId;
         var control = request.Command is "service.ping" or "service.status" or "session.list"
             or "window.show" or "window.hide";
-        var claimSession = !control && !string.IsNullOrWhiteSpace(sessionId);
+        var category = request.Command.Split('.', 2)[0];
+        var sessionless = category is "service" or "diag" or "settings" or "powerquerytrace"
+            || request.Command is "session.open" or "session.create" or "session.test"
+                or "sheet.copy-to-file" or "sheet.move-to-file";
+        var claimSession = !control && !sessionless && !string.IsNullOrWhiteSpace(sessionId);
         if (claimSession && !_busySessions.TryAdd(sessionId!, 0))
         {
             return BusyResponse(request, "Another request is still running for this session. " +

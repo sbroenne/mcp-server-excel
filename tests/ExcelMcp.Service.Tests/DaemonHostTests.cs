@@ -15,8 +15,88 @@ public sealed class DaemonHostTests
     private static readonly string[] PressureProbeCommands =
         ["service.ping", "service.status", "session.list", "window.show", "window.hide", "range.get-values"];
 
-    [Fact(Timeout = 15000)]
-    public async Task RequestsAtCapacity_ControlRequestsRemainAvailable()
+    public static TheoryData<string> SessionlessWorkCommands => new()
+    {
+        "session.open", "session.create", "session.test", "service.shutdown",
+        "diag.validate-params", "settings.get-pq-tracing", "settings.set-pq-tracing",
+        "settings.get-native-query-approval", "settings.set-native-query-approval",
+        "powerquerytrace.list", "powerquerytrace.summarize",
+        "sheet.copy-to-file", "sheet.move-to-file"
+    };
+
+    [Theory(Timeout = 15000)]
+    [MemberData(nameof(SessionlessWorkCommands))]
+    public async Task SessionlessWork_WithInheritedSession_DoesNotBlockEitherDirection(string command)
+    {
+        var pipeName = $"excelmcp-daemon-sessionless-{Guid.NewGuid():N}";
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<ServiceResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+        string blockedCommand = "session.save";
+        using var host = new DaemonHost(request =>
+        {
+            if (request.Command == blockedCommand)
+            {
+                entered.TrySetResult();
+                return release.Task;
+            }
+            return Task.FromResult(new ServiceResponse { Success = true, Result = request.Command });
+        });
+        var run = host.RunAsync(pipeName);
+        using var blockedClient = new ServiceClient(pipeName);
+        using var independentClient = new ServiceClient(pipeName);
+        try
+        {
+            foreach (var sessionlessFirst in new[] { false, true })
+            {
+                blockedCommand = sessionlessFirst ? command : "session.save";
+                entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                release = new TaskCompletionSource<ServiceResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+                var pending = blockedClient.SendAsync(new ServiceRequest
+                {
+                    Command = blockedCommand,
+                    SessionId = "inherited"
+                });
+                try
+                {
+                    await entered.Task.WaitAsync(TimeSpan.FromSeconds(3));
+                    var independentCommand = sessionlessFirst ? "session.save" : command;
+                    var response = await independentClient.SendAsync(new ServiceRequest
+                    {
+                        Command = independentCommand,
+                        SessionId = "inherited"
+                    }, TimeSpan.FromSeconds(2));
+                    Assert.True(response.Success, response.ErrorMessage);
+                    Assert.Equal(independentCommand, response.Result);
+                    if (!sessionlessFirst)
+                    {
+                        var repeat = await independentClient.SendAsync(new ServiceRequest
+                        {
+                            Command = "session.save",
+                            SessionId = "inherited"
+                        }, TimeSpan.FromSeconds(2));
+                        Assert.False(repeat.Success);
+                        Assert.Equal("Busy", repeat.ErrorCategory);
+                    }
+                }
+                finally
+                {
+                    release.TrySetResult(new ServiceResponse { Success = true });
+                    Assert.True((await pending.WaitAsync(TimeSpan.FromSeconds(3))).Success);
+                }
+            }
+        }
+        finally
+        {
+            release.TrySetResult(new ServiceResponse { Success = true });
+            host.RequestShutdown();
+            await run.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+    }
+
+    [Theory(Timeout = 15000)]
+    [InlineData("session.save")]
+    [MemberData(nameof(SessionlessWorkCommands))]
+    public async Task RequestsAtCapacity_ControlRequestsRemainAvailable(string workCommand)
     {
         var pipeName = $"excelmcp-daemon-control-{Guid.NewGuid():N}";
         var entered = new SemaphoreSlim(0);
@@ -36,7 +116,7 @@ public sealed class DaemonHostTests
             using var client = new ServiceClient(pipeName);
             return await client.SendAsync(new ServiceRequest
             {
-                Command = "session.save",
+                Command = workCommand,
                 SessionId = $"session-{index}"
             });
         }).ToArray();
@@ -53,7 +133,7 @@ public sealed class DaemonHostTests
             using var overflow = new ServiceClient(pipeName);
             var rejected = await overflow.SendAsync(new ServiceRequest
             {
-                Command = "session.save",
+                Command = workCommand,
                 SessionId = "not-started"
             }, TimeSpan.FromSeconds(2));
             Assert.False(rejected.Success);
@@ -65,7 +145,7 @@ public sealed class DaemonHostTests
         using var retry = new ServiceClient(pipeName);
         Assert.True((await retry.SendAsync(new ServiceRequest
         {
-            Command = "session.save",
+            Command = workCommand,
             SessionId = "not-started"
         }, TimeSpan.FromSeconds(2))).Success);
         host.RequestShutdown();
