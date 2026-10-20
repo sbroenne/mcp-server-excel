@@ -55,16 +55,15 @@ public sealed class TypedTestReportTests
         Assert.NotEqual(0, run.ExitCode);
     }
 
-    [Fact]
-    public async Task Reports_RequireFailureCountersAndRejectCleanupErrors()
+    [Theory]
+    [InlineData("total=\"1\" passed=\"1\" executed=\"1\"", "")]
+    [InlineData("total=\"1\" passed=\"1\" executed=\"1\" failed=\"0\" notExecuted=\"0\"", "<RunInfos><RunInfo outcome=\"Error\"/></RunInfos>")]
+    public async Task Reports_RejectMissingFailureCountersAndCleanupErrorsIndependently(string counters, string runInfos)
     {
-        foreach (var counters in new[] { "total=\"1\" passed=\"1\" executed=\"1\"", "total=\"1\" passed=\"1\" executed=\"1\" failed=\"0\" notExecuted=\"0\"" })
-        {
-            var run = await CheckAsync($"""
-                <TestRun><Results><UnitTestResult testName="case" outcome="Passed"/></Results><ResultSummary outcome="Completed"><Counters {counters}/><RunInfos><RunInfo outcome="Error"/></RunInfos></ResultSummary></TestRun>
-                """);
-            Assert.NotEqual(0, run.ExitCode);
-        }
+        var run = await CheckAsync($"""
+            <TestRun><Results><UnitTestResult testName="case" outcome="Passed"/></Results><ResultSummary outcome="Completed"><Counters {counters}/>{runInfos}</ResultSummary></TestRun>
+            """);
+        Assert.NotEqual(0, run.ExitCode);
     }
 
     [Theory]

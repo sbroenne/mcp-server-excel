@@ -207,7 +207,6 @@ PRs record the root cause, affected contracts, and validation.
 - Plugin publication changes must follow
   `.github/workflows/docs/publish-plugins-setup.md#maintenance-and-updates`;
   the published repository is output-only.
-- Unchanged plugin output must not create publication commits/tags. Marketplace
-  updates are opt-in and maintain one owned PR; follow
-  `.github/workflows/docs/awesome-copilot-update-setup.md` for comparison,
-  guarded writes, catch-up, and pinned workflow compilation.
+- Unchanged plugin output must not create publication commits/tags. Awesome
+  Copilot listings are edited manually using the actual published output commit;
+  follow `.github/workflows/docs/publish-plugins-setup.md#awesome-copilot-listings-are-manual`.

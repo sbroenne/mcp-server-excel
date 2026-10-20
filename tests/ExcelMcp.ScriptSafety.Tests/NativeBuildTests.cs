@@ -103,7 +103,7 @@ public sealed class NativeBuildTests
     }
 
     [Fact]
-    public async Task StrictSettings_RejectEmptyAndSkippedSelectionsWithoutAReportParser()
+    public async Task StrictSettings_EnableEmptySkippedAndWarningFailures()
     {
         var result = await ValidationSelectionTests.RunAsync("""
             $settings = [xml](Get-Content .\tests\strict.runsettings -Raw)

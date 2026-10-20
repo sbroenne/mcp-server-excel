@@ -12,9 +12,8 @@ complete skills, not bundled runtimes. They use the public npm packages through
 
 Keep the existing `PLUGINS_REPO_TOKEN` repository secret. It needs contents-write
 access to `sbroenne/mcp-server-excel-plugins`; a suitably scoped PAT or GitHub App
-token is sufficient for publication. Awesome Copilot listing updates are a
-separate manual workflow with their own credentials; publication never calls it
-or forwards those credentials.
+token is sufficient for publication. Awesome Copilot listings are edited manually;
+publication does not update them.
 Create the credential outside the workflow and store it with:
 
 ```powershell
@@ -120,9 +119,19 @@ downgrades are failures, not a no-change outcome.
 
 Neither `release.yml` nor `publish-plugins.yml` updates Awesome Copilot
 listings. A listing problem can therefore never change the release or plugin
-publication result. When `handoff` is true, the step summary names the
-`published_tag` to use; a maintainer then runs `update-awesome-copilot.lock.yml`
-manually (preview first). See [Awesome Copilot setup](awesome-copilot-update-setup.md).
+publication result. When `handoff` is true, the step summary names the actual
+`published_tag` and `published_commit` in `sbroenne/mcp-server-excel-plugins`.
+
+1. Inspect that immutable output commit and the changed plugin directories.
+2. Edit the corresponding plugin listings in `github/awesome-copilot` manually.
+   Keep their source paths and pin them to the actual output commit, not a
+   source-repository commit or an unpublished product tag.
+3. Review the listing diff and open a normal upstream pull request. Check for an
+   existing listing PR before creating another.
+
+The automatic listing updater has been removed. Maintainers may separately
+retire its unused credential and configuration; this source change does not
+modify repository secrets, variables or permissions.
 
 ## Manual repair
 
@@ -159,7 +168,7 @@ An existing immutable tag is never rewritten. A repair can update publication
 `main`, but `published_commit` still describes the old immutable tag. Repairs of
 existing tags do not automatically hand off a different `main` commit as that
 tag. Repairing publication and catching up a listing are distinct tasks:
-the updater accepts an **existing published tag**, not every product tag.
+manual listing updates must use an **existing published tag**, not every product tag.
 The next automatic release also compares its candidate with that retained tag,
 not only repaired `main`. If a content-changing repair is already present on
 `main`, a later otherwise-version-only release creates a new immutable plugin

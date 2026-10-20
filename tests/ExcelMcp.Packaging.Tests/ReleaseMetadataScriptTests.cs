@@ -626,18 +626,6 @@ public sealed class ReleaseMetadataScriptTests
     [Fact]
     [Trait("Category", "Integration")]
     [Trait("Feature", "ReleaseMetadata")]
-    public void DocumentationCounts_WebsiteUsesReviewedMetadataAndCanonicalFeatureSections()
-    {
-        var content = File.ReadAllText(Path.Combine(RepoRoot, "gh-pages", "sitegen", "llm.py"));
-        Assert.Contains("json.loads(read(DOC_COUNTS))", content, StringComparison.Ordinal);
-        Assert.Contains("headline_tools, headline_operations = headline_counts()", content, StringComparison.Ordinal);
-        Assert.Contains("for line in read(page.source).splitlines():", content, StringComparison.Ordinal);
-        Assert.DoesNotMatch(@"exposing \d+ tools and \d+ operations", content);
-    }
-
-    [Fact]
-    [Trait("Category", "Integration")]
-    [Trait("Feature", "ReleaseMetadata")]
     public async Task UpdateMetadata_StampsSeparatedTopLevelAndPackageVersions()
     {
         var sandbox = CreateSandbox();

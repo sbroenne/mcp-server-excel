@@ -11,9 +11,8 @@ public sealed class PluginPublicationScriptTests
 {
     [Theory]
     [InlineData("PluginPublication.test.mjs")]
-    [InlineData("PluginPublicationMarketplace.test.mjs")]
     [InlineData("PluginPublicationStaging.test.mjs")]
-    public async Task PublicationAndMarketplaceScripts_PassDisposableNoWriteRegressions(string testFile)
+    public async Task PublicationScripts_PassDisposableLocalRegressions(string testFile)
     {
         var root = new DirectoryInfo(AppContext.BaseDirectory);
         while (root != null && !File.Exists(Path.Combine(root.FullName, "Sbroenne.ExcelMcp.sln")))

@@ -24,7 +24,8 @@ function Get-ValidationPlan {
     $tooling = @('Packaging', 'ScriptSafety', 'SkillGeneration')
     $allOwners = @($runtime + $tooling + 'Diagnostics')
     $plan = [ordered]@{
-        SchemaVersion = 1; Build = $false; Excel = $false; FullE2E = $false
+        SchemaVersion = 2; Build = $false; Excel = $false; FullE2E = $false
+        PackageComponents = @(); NpmTests = $false
         DocumentationCounts = $false; FullSolutionBuild = $false
         HookTests = $false; SkillTests = $false; PackagingTests = $false
         Docs = $false; InfrastructureDiagnostics = $false
@@ -101,6 +102,8 @@ function Get-ValidationPlan {
         $plan.Docs = $true
         $plan.CodeQlLanguages = @('actions', 'csharp', 'javascript-typescript', 'python')
         $plan.Reasons += 'Complete validation explicitly selected.'
+        $plan.PackageComponents = @('Cli', 'Extension', 'Mcp', 'Mcpb', 'Plugins')
+        $plan.NpmTests = $true
     }
     foreach ($inputPath in $(if ($Full) { @() } else { $Paths | Sort-Object -Unique })) {
         if ([string]::IsNullOrWhiteSpace($inputPath)) { throw 'Validation paths cannot be empty.' }
@@ -108,12 +111,50 @@ function Get-ValidationPlan {
         if ($path -match '^/|^[A-Za-z]:|(^|/)\.\.?(/|$)') { throw "Validation inputs must be repository-relative paths: $path." }
         $plan.ChangedPaths += $path
         $plan.CodeQlLanguages += Get-ValidationLanguages $path
+        switch -Regex -CaseSensitive ($path) {
+            '^(Directory\.|global\.json$|NuGet\.Config$|Sbroenne\.ExcelMcp\.sln$|package(-lock)?\.json$|\.npmrc$|scripts/(PackageHelpers|Build-ReleasePackages|Get-ValidationPlan|Get-CiValidationPlan|ValidationExecution)\.ps1$|\.github/workflows/(ci|release)\.yml$|README\.md$|LICENSE$|CHANGELOG\.md$)' {
+                $plan.PackageComponents += @('Cli', 'Extension', 'Mcp', 'Mcpb', 'Plugins')
+                $plan.NpmTests = $true; break
+            }
+            '^src/ExcelMcp\.CLI/(.*\.(csproj|props|targets)$|README\.md$)' {
+                $plan.PackageComponents += 'Cli'; break
+            }
+            '^src/ExcelMcp\.McpServer/(.*\.(csproj|props|targets)$|README\.md$)' {
+                $plan.PackageComponents += @('Extension', 'Mcp'); break
+            }
+            '^src/.*\.(csproj|props|targets)$' {
+                $plan.PackageComponents += @('Cli', 'Extension', 'Mcp'); break
+            }
+            '^vscode-extension/|^scripts/ExtensionPackaging\.ps1$' {
+                $plan.PackageComponents += 'Extension'; break
+            }
+            '^skills/excel-cli(?:-report-formatting)?/' {
+                $plan.PackageComponents += 'Plugins'; break
+            }
+            '^skills/excel-mcp-report-formatting/|^scripts/Build-AgentSkills\.ps1$|^docs/reference/report-formatting\.md$' {
+                $plan.PackageComponents += @('Extension', 'Plugins'); break
+            }
+            '^\.github/plugins/|^scripts/Build-Plugins\.ps1$' {
+                $plan.PackageComponents += 'Plugins'; break
+            }
+            '^mcpb/' { $plan.PackageComponents += 'Mcpb'; break }
+            '^npm-packages/shared/test/' { $plan.NpmTests = $true; break }
+            '^npm-packages/shared/|^scripts/(Build|Test)-NpmPackages\.ps1$' {
+                $plan.PackageComponents += @('Cli', 'Mcp'); $plan.NpmTests = $true; break
+            }
+            '^npm-packages/excelcli(?:-win32-(?:x64|arm64))?/' {
+                $plan.PackageComponents += 'Cli'; $plan.NpmTests = $true; break
+            }
+            '^npm-packages/mcp-server-excel(?:-win32-(?:x64|arm64))?/' {
+                $plan.PackageComponents += 'Mcp'; $plan.NpmTests = $true; break
+            }
+        }
         if ($path -match '^(docs/(?!agents/)|gh-pages/|samples/world-bank-dashboard/|README\.md$|FEATURES\.md$|CHANGELOG\.md$|LICENSE$|doc-counts\.json$)') { $plan.Docs = $true }
         switch -Regex -CaseSensitive ($path) {
             '^(skills/|scripts/Build-AgentSkills\.ps1$|docs/(AGENT-SKILLS\.md|reference/report-formatting\.md)$)' {
                 Add-Filter Tooling SkillGeneration 'Feature=SkillGeneration'; break
             }
-            '^(\.github/plugins/|scripts/(Build-Plugins|Sync-PublishedPluginRepo|Publish-PreparedPlugins)\.ps1$|scripts/(PluginContent|AwesomeCopilotPolicy|Update-AwesomeCopilot)\.mjs$|\.github/workflows/(publish-plugins\.yml|update-awesome-copilot\.(md|lock\.yml))$)' {
+            '^(\.github/plugins/|scripts/(Build-Plugins|Sync-PublishedPluginRepo|Publish-PreparedPlugins)\.ps1$|\.github/workflows/publish-plugins\.yml$)' {
                 Add-Filter Tooling Packaging 'Feature=PluginPublication|Feature=PluginBootstrap|Feature=PluginSkillVersion'; break
             }
             '^mcpb/' { Add-Filter Tooling Packaging 'Feature=McpbPackaging'; break }
@@ -121,7 +162,7 @@ function Get-ValidationPlan {
                 Add-Owner Packaging; Add-Owner SkillGeneration; Add-Filter Tooling ScriptSafety 'Feature=PreCommit'; break
             }
             '^(doc-counts\.json$|scripts/check-doc-counts\.ps1$)' {
-                Add-Filter Tooling Packaging 'FullyQualifiedName~DocumentationCounts'
+                Add-Filter Tooling ScriptSafety 'FullyQualifiedName~DocumentationAnalyzerTests'
                 $plan.DocumentationCounts = $true; $plan.FullSolutionBuild = $true; break
             }
             '^scripts/Publish-GitHubRelease\.ps1$' {
@@ -176,7 +217,7 @@ function Get-ValidationPlan {
                 Add-Filter Fast CLI 'Feature=Telemetry'; Add-Filter Fast McpServer 'Feature=Telemetry'; break
             }
             '^tests/Shared/' { Add-Shared $allOwners; break }
-            '^(tools/ExcelMcp\.Build/|build\.ps1$|tests/strict\.runsettings$|scripts/(Get-ValidationPlan|Get-CiValidationPlan|Build-CiInputs|Invoke-BuildTool|Invoke-NativeCommand|ValidationExecution|Invoke-ExcelFreeTests|Invoke-ExcelTests|Get-ExcelTestGroups|Invoke-TestStage|Test-CiCompletion|pre-commit|Test-CliApiCoverage)\.ps1$|\.github/workflows/ci\.yml$)' {
+            '^(tools/ExcelMcp\.Build/|build\.ps1$|tests/strict\.runsettings$|scripts/(Get-ValidationPlan|Get-CiValidationPlan|Build-CiInputs|Invoke-BuildTool|Invoke-NativeCommand|ValidationExecution|Invoke-ExcelFreeTests|Invoke-ExcelTests|Get-ExcelTestGroups|Invoke-TestStage|Test-CiCompletion|pre-commit)\.ps1$|\.github/workflows/ci\.yml$)' {
                 Add-Filter Tooling ScriptSafety 'Feature=PreCommit'; break
             }
             '^\.editorconfig$' {
@@ -210,6 +251,9 @@ function Get-ValidationPlan {
             '^scripts/IssueTriage\.mjs$|^\.github/workflows/issue-triage\.(md|lock\.yml)$' {
                 Add-Filter Tooling ScriptSafety 'FullyQualifiedName~IssueTriageScriptTests'; break
             }
+            '^scripts/[^/]+\.mjs$' {
+                Add-Filter Tooling Packaging 'Feature=PluginPublication'; break
+            }
             '^scripts/(Invoke-CopilotSetupNpm|Install-CopilotPonytailReview)\.ps1$|^\.github/workflows/copilot-setup-steps\.yml$|^scripts/(AzureRunnerHost|ExcelRunner(Host|Policy)|Invoke-ExcelRunner(Control|Maintenance))\.ps1$|^scripts/(Deploy|Initialize|Install|Open|Register)-ExcelAgent(Runner|Desktop|Office|Toolchain|Activation)\.ps1$|^infrastructure/azure/[^/]*excel[^/]*\.(ps1|bicep)$|^\.github/workflows/excel-runner[^/]*\.yml$' { break }
             '^infrastructure/azure/(configure-analytics-oidc|deploy-appinsights)\.ps1$' {
                 Add-Filter Tooling ScriptSafety 'Feature=AutomationSafety'
@@ -237,7 +281,7 @@ function Get-ValidationPlan {
     $plan.HookTests = $plan.ToolingFilters.ContainsKey('ScriptSafety')
     $plan.SkillTests = $plan.ToolingFilters.ContainsKey('SkillGeneration')
     $plan.PackagingTests = $plan.ToolingFilters.ContainsKey('Packaging')
-    foreach ($name in @('ChangedPaths', 'BuildProjects', 'CodeQlLanguages', 'ExcelGroups')) {
+    foreach ($name in @('ChangedPaths', 'BuildProjects', 'CodeQlLanguages', 'ExcelGroups', 'PackageComponents')) {
         $plan[$name] = @($plan[$name] | Sort-Object -Unique)
     }
     $plan.Build = $plan.BuildProjects.Count -gt 0 -or $plan.FullSolutionBuild

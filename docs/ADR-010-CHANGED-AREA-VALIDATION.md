@@ -23,8 +23,8 @@ Owned builds disable reusable MSBuild nodes and the persistent compiler server,
 while retaining normal incremental compilation.
 Shared dependency inputs select a complete solution build. The first selected CI group in
 Fast/Process/Tooling order owns that build; other groups build their own projects.
-PR CI always runs normal npm checks and complete package checks. Changed paths
-do not select package components; explicit manual commands may do so.
+PR CI selects package components and npm checks from explicit input rules in the
+same saved plan. Main and manual CI runs and release preparation remain complete.
 
 ## Reasons and tradeoffs
 
@@ -78,6 +78,19 @@ CLI service cleanup continues to use its existing pipe/identity boundary.
 Primary and cleanup failures must both remain visible.
 
 ### Packaging ownership
+
+Website-only, test-only and runtime-source-only PR changes no longer prepare
+every distribution. Package source, project/build configuration, launcher and
+shared skill inputs select their dependent output formats. Test-only npm changes
+run npm checks without preparing real runtime packages. Missing or invalid plan
+fields fail, and CI completion requires selected jobs to succeed and unselected
+jobs to be skipped. Skills, Python validation and the .NET SDK are prepared only
+for the components that need them; synthetic npm tests do not need .NET.
+
+This deliberately trades some pre-merge coverage for less repeated work.
+A runtime edit can introduce a distribution-only defect that is first detected
+by complete main checks. Normal product checks still run on that PR; complete
+release checks remain required before publication.
 
 `Build-ReleasePackages.ps1` coordinates the existing named PowerShell package
 commands directly. Shared helpers cover safe filesystem/archive handling,

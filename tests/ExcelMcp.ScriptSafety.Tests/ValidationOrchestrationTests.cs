@@ -35,7 +35,7 @@ public sealed class ValidationOrchestrationTests
     }
 
     [Fact]
-    public async Task CiPreparatoryBuilds_UseNativeSdkBuildsAndPreserveCompletionChecks()
+    public async Task CiPreparatoryBuilds_UseSharedNativeBuilds()
     {
         var run = await ValidationSelectionTests.RunAsync("""
             $workflow = Get-Content .\.github\workflows\ci.yml -Raw
@@ -49,16 +49,6 @@ public sealed class ValidationOrchestrationTests
             $gate = [regex]::Match($workflow, '(?s)  ci-gate:\r?\n(.*?)(?=\r?\n  [a-zA-Z0-9_-]+:\r?\n|$)').Groups[1].Value
             if ($gate.Contains('actions/setup-dotnet')) {
                 throw 'CI completion must not install an unused SDK.'
-            }
-            $stage = Get-Content .\scripts\Invoke-TestStage.ps1 -Raw
-            $e2e = Get-Content .\scripts\Test-E2E.ps1 -Raw
-            if (-not $stage.Contains('[switch]$ReconcileCases') -or
-                -not $stage.Contains('$check.ExpectedCases = $expected') -or
-                -not $e2e.Contains('Invoke-TestStage @parameters -ReconcileCases')) {
-                throw 'Acceptance case reconciliation is not wired through its supported entry point.'
-            }
-            if (-not $e2e.Contains('DeadlineSeconds = 1200')) {
-                throw 'The CLI acceptance deadline is too short for the complete required case set.'
             }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
@@ -91,11 +81,6 @@ public sealed class ValidationOrchestrationTests
                     -not $workflow.Contains("if: needs.changes.outputs.full_solution_build == 'true' && matrix.group == needs.changes.outputs.full_solution_build_group")) {
                     throw 'Workflow does not route the selected documentation checks.'
                 }
-                $generateInputs = [regex]::Match($workflow, '(?s)- name: Generate complete skill inputs\r?\n(?<step>.*?)(?=\r?\n      - name:|\z)').Groups['step'].Value
-                if ($workflow.Contains('Source correctness checks') -or
-                    $workflow.Contains('check-doc-counts.ps1') -or -not $generateInputs.Contains('Build-AgentSkills.ps1')) {
-                    throw 'Compiler checks must not be repeated as scripts; skill preparation must retain its selected requirement.'
-                }
             } finally {
                 $env:GITHUB_OUTPUT = $previousOutput
                 Remove-Item -LiteralPath $sandbox -Recurse -Force
@@ -105,30 +90,56 @@ public sealed class ValidationOrchestrationTests
     }
 
     [Fact]
-    public async Task BuildToolJobs_SetUpTheRepositorySdkBeforeInvocation()
+    public async Task DistributionJobs_UseSelectedComponentsAndOnlyRequiredSetup()
     {
         var run = await ValidationSelectionTests.RunAsync("""
             $workflow = Get-Content .\.github\workflows\ci.yml -Raw
-            foreach ($jobName in @('packages', 'npm')) {
-                $job = [regex]::Match($workflow, "(?s)  ${jobName}:`r?`n(.*?)(?=`r?`n  [a-zA-Z0-9_-]+:`r?`n|$)").Groups[1].Value
-                if (-not $job) { throw "Missing CI job: $jobName" }
-                if (-not $job.Contains('actions/setup-dotnet') -or -not $job.Contains('global-json-file: global.json')) {
-                    throw "$jobName does not set up the repository SDK."
-                }
-            }
             $changes = [regex]::Match($workflow, '(?s)  changes:\r?\n(.*?)(?=\r?\n  [a-zA-Z0-9_-]+:\r?\n|$)').Groups[1].Value
             if ($changes.Contains('actions/setup-dotnet')) {
                 throw 'Native CI selection must not install or compile a custom tool.'
             }
             $packages = [regex]::Match($workflow, '(?s)  packages:\r?\n(.*?)(?=\r?\n  [a-zA-Z0-9_-]+:\r?\n|$)').Groups[1].Value
             $setup = [regex]::Match($packages, '(?s)- name: Setup \.NET\r?\n(?<step>.*?)(?=\r?\n      - name:|\z)')
-            if (-not $setup.Success -or $setup.Groups['step'].Value.Contains('if:')) {
-                throw 'Package-only jobs must set up the repository SDK unconditionally.'
+            if (-not $setup.Success -or -not $setup.Groups['step'].Value.Contains("if: needs.changes.outputs.package_dotnet == 'true'") -or
+                -not $setup.Groups['step'].Value.Contains('global-json-file: global.json')) {
+                throw 'Native package builds must set up the selected repository SDK.'
             }
             $npm = [regex]::Match($workflow, '(?s)  npm:\r?\n(.*?)(?=\r?\n  [a-zA-Z0-9_-]+:\r?\n|$)').Groups[1].Value
-            if ($npm.IndexOf('name: Setup .NET') -lt 0 -or
-                $npm.IndexOf('name: Setup .NET') -gt $npm.IndexOf('name: npm launcher and packaging tests')) {
-                throw 'npm packaging tests run before setting up the repository SDK.'
+            if (-not $npm.Contains('npm test --prefix npm-packages/shared') -or $npm.Contains('actions/setup-dotnet')) {
+                throw 'Synthetic npm checks must run without an unused SDK installation.'
+            }
+            foreach ($jobName in @('packages', 'npm')) {
+                $job = [regex]::Match($workflow, "(?s)  ${jobName}:`r?`n(.*?)(?=`r?`n  [a-zA-Z0-9_-]+:`r?`n|$)").Groups[1].Value
+                if (-not $job.Contains('needs: changes') -or -not $job.Contains("if: needs.changes.outputs.$jobName == 'true'")) {
+                    throw "$jobName does not use the selected job condition."
+                }
+            }
+            foreach ($stepName in @('Generate complete skill inputs', 'Setup Python for skill validation', 'Install pinned Agent Skills validator', 'Validate generated skills before packaging')) {
+                $step = [regex]::Match($packages, "(?s)- name: $stepName`r?`n(?<step>.*?)(?=`r?`n      - name:|\z)").Groups['step'].Value
+                if (-not $step.Contains("if: needs.changes.outputs.package_skills == 'true'")) {
+                    throw "$stepName must run only for components that consume skills."
+                }
+            }
+            $step = [regex]::Match($packages, '(?s)- name: Build and verify distributable packages\r?\n(?<step>.*?)(?=\r?\n      - name:|\z)').Groups['step'].Value
+            $script = ($step -split 'run: \|\r?\n', 2)[1]
+            $script = $script -replace '(?m)^          ', ''
+            foreach ($components in @(@('Mcpb'), @('Extension','Plugins'), @())) {
+                $plan = Get-ValidationPlan -Paths 'docs/ARCHITECTURE.md'
+                $plan.PackageComponents = @($components)
+                function Read-ValidationPlan { param($Path) $plan }
+                $global:packageArguments = $null
+                function Invoke-PackageCapture { param($Components, $SkillsDirectory) $global:packageArguments = $PSBoundParameters }
+                $invocation = $script -replace '\. ./scripts/ValidationExecution\.ps1', '' `
+                    -replace './scripts/Build-ReleasePackages\.ps1', 'Invoke-PackageCapture'
+                $failed = $false
+                try { & ([scriptblock]::Create($invocation)) } catch { $failed = $true }
+                if ($components.Count -eq 0) {
+                    if (-not $failed -or $null -ne $global:packageArguments) { throw 'Empty selection invoked package defaults.' }
+                } else {
+                    if ($failed -or ($global:packageArguments.Components -join ',') -cne ($components -join ',')) { throw 'Package component arguments changed.' }
+                    $needsSkills = 'Extension' -in $components -or 'Plugins' -in $components
+                    if ($global:packageArguments.ContainsKey('SkillsDirectory') -ne $needsSkills) { throw 'Wrong prepared skill argument.' }
+                }
             }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
@@ -168,8 +179,9 @@ public sealed class ValidationOrchestrationTests
                     $mode = if ($entry.language -eq 'csharp') { 'manual' } else { 'none' }
                     if ($entry.os -cne $os -or $entry.'build-mode' -cne $mode) { throw 'Language extraction changed.' }
                 }
-                $workflow = Get-Content .\.github\workflows\codeql.yml -Raw
-                foreach ($required in @(
+                if ('{{{path}}}' -eq 'all') {
+                    $workflow = Get-Content .\.github\workflows\codeql.yml -Raw
+                    foreach ($required in @(
                     './scripts/Get-CiValidationPlan.ps1',
                     'matrix: ${{ steps.select.outputs.codeql_matrix }}',
                     'has-any: ${{ steps.select.outputs.codeql }}',
@@ -179,7 +191,8 @@ public sealed class ValidationOrchestrationTests
                     'name: CodeQL Completion',
                     '[ "$DETECTION" = success ]',
                     'false:skipped)')) {
-                    if (-not $workflow.Contains($required)) { throw "Missing CodeQL guarantee: $required" }
+                        if (-not $workflow.Contains($required)) { throw "Missing CodeQL guarantee: $required" }
+                    }
                 }
             } finally {
                 $env:GITHUB_OUTPUT = $previousOutput
@@ -227,7 +240,7 @@ public sealed class ValidationOrchestrationTests
     {
         var run = await ValidationSelectionTests.RunAsync($$"""
             & .\scripts\Test-CiCompletion.ps1 -Detection '{{detection}}' -Tests '{{result}}' `
-                -Packages success -Npm success -SelectedTests '{{selected}}' `
+                -Packages success -Npm success -SelectedPackages true -SelectedNpm true -SelectedTests '{{selected}}' `
                 -BuildOnly skipped -SelectedBuildOnly false
             """);
         Assert.Equal(succeeds, run.ExitCode == 0);

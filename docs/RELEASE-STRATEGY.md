@@ -207,10 +207,10 @@ The `publish-plugins.yml` workflow consumes prepared release plugins:
    commit/push/tag entirely, retaining the actual earlier plugin version/tag.
    Root-overlay changes are included; root-only publication does not update
    Awesome Copilot listings.
-6. **Listing updates are manual** — the guarded
-   [Awesome Copilot updater](../.github/workflows/docs/awesome-copilot-update-setup.md)
-   is never run by a release; maintainers run it after real changed-plugin
-   publication, so listing problems never affect release status.
+6. **Listing updates are manual** — maintainers
+   [edit Awesome Copilot listings](../.github/workflows/docs/publish-plugins-setup.md#awesome-copilot-listings-are-manual)
+   using actual published output commits after changed-plugin publication.
+   Listing problems never affect release status.
 
 Maintainers can also replay plugin publication for an existing release tag without cutting a new release:
 

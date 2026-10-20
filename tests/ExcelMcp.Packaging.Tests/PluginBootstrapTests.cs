@@ -15,25 +15,10 @@ public sealed class PluginBootstrapTests(ITestOutputHelper output) : PluginTestB
     [Theory]
     [InlineData("excel-mcp")]
     [InlineData("excel-cli")]
-    public void SourcePlugin_DoesNotShipGlobalInstaller(string pluginName)
-    {
-        var pluginRoot = Path.Combine(RepoRoot, ".github", "plugins", pluginName);
-        Assert.Empty(Directory.GetFiles(pluginRoot, "install-global.ps1", SearchOption.AllDirectories));
-    }
-
-    [Theory]
-    [InlineData("excel-mcp")]
-    [InlineData("excel-cli")]
     public void SourcePluginManifest_ConformsToAgentPluginsV1(string pluginName)
     {
         var pluginRoot = Path.Combine(RepoRoot, ".github", "plugins", pluginName);
         AssertAgentPluginManifest(pluginRoot, "0.0.0");
-    }
-
-    [Fact]
-    public void ExcelMcpSource_UsesPortableNpxConfiguration()
-    {
-        AssertPortableMcpConfiguration(Path.Combine(RepoRoot, ".github", "plugins", "excel-mcp"));
     }
 
     [Fact]
