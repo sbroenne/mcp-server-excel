@@ -209,7 +209,7 @@ dotnet test tests\ExcelMcp.ComInterop.Tests\ExcelMcp.ComInterop.Tests.csproj --f
 Before submitting a PR:
 
 1. Tests pass for the feature(s) you changed
-2. Test-owned Excel processes clean up; do not terminate unrelated user sessions
+2. Excel started by tests exits after the product closes its sessions; tests never stop Excel themselves
 3. Error conditions tested (missing files, invalid arguments, etc.)
 4. Build has zero warnings
 5. Pre-commit passes the selected Release build and quick unit tests. Before PR delivery, also run the changed-area plan's affected process, tooling, and Excel checks; shared lifecycle changes require acceptance and infrastructure diagnostics. Passing the hook alone is not complete PR validation.

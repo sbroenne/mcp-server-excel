@@ -434,8 +434,6 @@ public class ExcelWriteGuardTests : IAsyncLifetime
                     {
                         var exited = SpinWait.SpinUntil(() => OwnedProcessGuard.TryConfirmExited(owned),
                             TimeSpan.FromSeconds(30));
-                        if (!exited)
-                            OwnedProcessGuard.TryTerminate(owned, TimeSpan.Zero, TimeSpan.FromSeconds(5), out _);
                         Assert.True(exited, "The guard control's owned Excel process survived cleanup.");
                         SessionManager.UntrackExcelProcess(owned);
                     });

@@ -600,17 +600,12 @@ public sealed partial class ServiceWorkbookLifecycleTests
                         TimeSpan.FromSeconds(15)));
                 }
             });
-            var processCleanup = Record.Exception(() =>
-            {
-                if (cleanupFails && identity is { } owned)
-                    Assert.True(OwnedProcessGuard.TryTerminate(owned, TimeSpan.Zero, TimeSpan.FromSeconds(5), out _));
-            });
             if (session is not null)
             {
                 await CloseSessionAsync(service, session, save: false);
                 sessions.TryRemove(session, out _);
             }
-            var failures = new[] { failure, cleanupFailure, processCleanup }.OfType<Exception>().ToArray();
+            var failures = new[] { failure, cleanupFailure }.OfType<Exception>().ToArray();
             if (failures.Length > 0)
                 throw new AggregateException("Late startup failure or retained cleanup failed.", failures);
         });
@@ -726,8 +721,9 @@ public sealed partial class ServiceWorkbookLifecycleTests
             await CloseSessionAsync(service, initial, save: true);
             ExcelProcessIdentity? identity = null;
             string? retainedSession = null;
+            var blockClose = true;
             Excel.AppEvents_WorkbookBeforeCloseEventHandler preventClose =
-                (Excel.Workbook _, ref bool cancel) => cancel = true;
+                (Excel.Workbook _, ref bool cancel) => cancel = Volatile.Read(ref blockClose);
             ExcelBatch.AfterWorkbookOpenHookForTests = (application, _) =>
             {
                 var app = (Excel.Application)application;
@@ -763,10 +759,10 @@ public sealed partial class ServiceWorkbookLifecycleTests
             finally
             {
                 ExcelBatch.AfterWorkbookOpenHookForTests = null;
-                // This fixture intentionally cancels native close; only its exact process is disposable.
+                // Let Excel close normally again; the test never stops Excel itself.
+                Volatile.Write(ref blockClose, false);
                 if (identity is { } owned)
                 {
-                    Assert.True(OwnedProcessGuard.TryTerminate(owned, TimeSpan.Zero, TimeSpan.FromSeconds(5), out _));
                     if (retainedSession is not null)
                     {
                         await CloseSessionAsync(service, retainedSession, save: false);

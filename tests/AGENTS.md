@@ -68,8 +68,13 @@ Commands and prerequisites: [tests/README.md](README.md#quick-start).
 - Do not assume failed operations automatically roll back or clean up workbook
   changes. Assert the actual partial state and error; leave cleanup decisions
   to the caller unless rollback is an explicit operation contract.
-- Cleanup may terminate only exact owned identities using PID plus start time
-  and retained handles. Never kill unrelated Excel processes. Fixture COM
+- Tests never stop Excel or Power Query processes, including ones they started.
+  Close test sessions through the product (`CloseSession`, `close`, dispose).
+  If Excel is still running afterwards, the test or run fails and names the
+  process; do not add code that stops it. Never close every listed session to
+  establish a "clean" starting state. The compiler bans machine-wide process
+  search and the product's process-stop functions in test code; do not bypass it.
+  Fixture COM
   access follows [COM safety](../src/ExcelMcp.ComInterop/AGENTS.md).
 
 Fixture, template, raw-COM/OOXML, and parallel-safety procedures:
@@ -82,8 +87,8 @@ windows yourself with the available computer-use tools before guessing at the
 cause or asking the user for screenshots. Read the window list and
 accessibility text first; capture an image only when the text is not
 available. Look for modal prompts such as Printer Setup or a security notice.
-Do not click, close, or answer them: report the dialog text to the user, then
-stop only test-owned Excel processes as described above. Keep dialog text out
+Do not click, close, or answer them, and do not stop Excel: report the dialog
+text to the user. Keep dialog text out
 of public artifacts.
 
 PDF/XPS export tests first check that Windows can open the default printer and

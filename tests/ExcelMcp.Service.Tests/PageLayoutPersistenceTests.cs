@@ -94,7 +94,7 @@ public sealed class PageLayoutPersistenceTests
             }
             try { service.Dispose(); }
             catch (Exception exception) { failure = PersistentServiceCleanupFailures.Combine(failure, exception); }
-            if (excelProcesses.StopLeftovers() is { } leftover)
+            if (excelProcesses.FindLeftovers() is { } leftover)
                 failure = PersistentServiceCleanupFailures.Combine(failure, leftover);
             try { File.Delete(pdf); File.Delete(path); }
             catch (Exception exception) { failure = PersistentServiceCleanupFailures.Combine(failure, exception); }

@@ -40,8 +40,8 @@ deadline, which also covers child processes and output drain.
 For explicit Excel group runs, build Release first and use
 `scripts\Invoke-ExcelTests.ps1`. It keeps class fixtures together and runs groups
 and projects sequentially. `scripts\Test-E2E.ps1` runs complete CLI/MCP acceptance.
-These runners retain stdout/stderr logs, TRX reports, discovery output, and
-ownership journals in a fresh results directory. They enforce hard deadlines
+These runners retain stdout/stderr logs, TRX reports, and discovery output in a
+fresh results directory. They enforce hard deadlines
 and reject empty, skipped, failed, or contradictory reports. Excel selections
 compare discovered and executed test names as multisets, including theory rows;
 missing, extra, or duplicated cases fail the run.
@@ -50,6 +50,13 @@ Windows/Azure runner setup and administration scripts are not part of the
 automated test suite. Product checks remain, including COM-reference safety,
 owned pre-build cleanup, test-result reporting, and real Excel acceptance.
 The retained PowerShell script tests run with PowerShell 7.4 or later (`pwsh`).
+
+Tests must leave pre-existing Excel instances, workbooks, sessions, and Power
+Query workers untouched. Tests never stop Excel processes, including ones they
+started: they close their own sessions through the product, and Excel still
+running afterwards fails the test or run. Test compilation rejects machine-wide
+process search and the product's process-stop functions. A timeout or failed
+test is not permission to stop Excel.
 
 Use `-ListTests` with `scripts\Invoke-ExcelTests.ps1` or `--list-tests` with
 `build.ps1 test --plan <path> --no-build` to discover without executing tests.
@@ -781,7 +788,7 @@ pipe so it cannot stop another local fixture's CLI service.
 MCP native formatting/style and report-depth assertions
 remain part of their independently reported acceptance scenarios.
 
-Reports and ownership journals go into a new `TestResults` directory by default.
+Reports go into a new `TestResults` directory by default.
 `-ResultsDirectory` can select another new directory. Reusing an existing
 stage report is rejected so stale evidence cannot turn a failed run green.
 `-ListTests` discovers cases without starting workbook operations.
@@ -807,43 +814,19 @@ Set a per-test hang deadline (for example `--blame-hang-timeout 3m`) and a hard
 deadline for each complete stage. A shell wait limit alone is not an execution
 deadline. Preserve intentional concurrent-workbook tests when ordering stages.
 
-Excel cleanup must use identities captured from the owning session or request,
-including both process ID and start time. Never infer ownership from all Excel
-processes started since a test began, or close existing Excel instances to
-prepare a fixture. An independently opened workbook must survive successful and
-failed teardown. Leak assertions must still fail if a confirmed owned process
-survives shutdown.
+Tests never stop Excel. Each test closes the sessions it created through the
+product; per-test checks then wait for those exact Excel processes (process ID
+plus start time) to exit and fail the test if any are still running. Never
+infer ownership from all Excel processes started since a test began, or close
+existing Excel instances to prepare a fixture. An independently opened workbook
+must survive successful and failed teardown.
 
-Lifecycle probes announce readiness only after the owned Excel process has been
-protected against testhost termination. Their cleanup reads every complete,
-verified Excel identity in the child journals, including failed job assignments
-and reopened sessions. Malformed records and read failures must be reported
-without preventing cleanup of valid records elsewhere in those journals.
-
-Core, ComInterop, and in-process MCP test hosts initialize this protection at
-module startup. Set `EXCELMCP_TEST_OWNERSHIP_DIRECTORY` to retain their journals
-with the run's other evidence; otherwise they are written beneath
-`%TEMP%\ExcelMcpTestOwnership`. The shared xUnit framework reports surviving owned
-Excel processes as assembly cleanup failures before announcing completed results;
-`ProcessExit` remains a fallback. Both paths check before closing the job, and
-disposal is idempotent. Exit checks use the original verified process handle,
-retained until after job disposal, rather than reopening historical PIDs.
-This prevents a later inaccessible process reusing a PID from being reported
-as an Excel leak. This does not protect a separate
-CLI daemon merely because its client test is running in a protected host.
-Reused test hosts rearm protection at each execution start after the previous
-execution disposed it, with a distinct journal for each execution.
-
-The lifecycle probes require successful workbook Close, Quit, and STA completion,
-plus Save where requested. Reopening also checks persisted data and a localized
-table name. Each normal phase allows only the existing exact-owned post-Quit
-fallback within the original 15-second process-cleanup budget, and confirms exit
-through its retained handle before job disposal. Office can intermittently wait
-on its own background services after our STA exits, even for simple creation.
-This fallback is recorded explicitly; join-timeout, operation-timeout, quit
-errors, disconnected proxies, and other forced paths are not accepted.
-An intentionally undisposed child proves that cleanup failure makes the direct
-test runner fail, even when its individual test result was successful.
+Core, ComInterop, Service, and in-process MCP test hosts also run a run-level
+check (`TestRunExcelLeftoverCheck`). It records every Excel process the product
+starts during the run and, before results are reported, waits up to 15 seconds
+for each to exit. Any that remain fail the run and are named in the error; they
+are left running for inspection. This does not cover a separate CLI background
+service started by a client test.
 
 Only change current-user VBA project access with explicit permission. Capture
 the original registry value's presence, value, and type outside the repository

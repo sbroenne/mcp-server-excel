@@ -11,8 +11,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\Shared\TestRunExcelLifetime.cs" Link="Infrastructure\TestRunExcelLifetime.cs" />
-    <Compile Include="..\Shared\ExcelLifetimeTestFramework.cs" Link="Infrastructure\ExcelLifetimeTestFramework.cs" />
+    <Compile Include="..\Shared\TestRunExcelLeftoverCheck.cs" Link="Infrastructure\TestRunExcelLeftoverCheck.cs" />
+    <Compile Include="..\Shared\ExcelLeftoverTestFramework.cs" Link="Infrastructure\ExcelLeftoverTestFramework.cs" />
     <Compile Include="..\Shared\SavedWorkbookTemplate.cs" Link="Infrastructure\SavedWorkbookTemplate.cs" />
     <Compile Include="..\Shared\OleDataSpaceTestFile.cs" Link="Infrastructure\OleDataSpaceTestFile.cs" />
     <Compile Include="..\Shared\ConfiguredIrmFactAttribute.cs" Link="Infrastructure\ConfiguredIrmFactAttribute.cs" />

@@ -84,7 +84,7 @@ public class PersistentServiceWorkbookFixture : IAsyncLifetime, IDisposable
             }
             try
             {
-                if (templateProcesses.StopLeftovers() is { } leftover)
+                if (templateProcesses.FindLeftovers() is { } leftover)
                     failure = PersistentServiceCleanupFailures.Combine(failure, leftover);
             }
             catch (Exception ex)
@@ -194,7 +194,7 @@ public class PersistentServiceWorkbookFixture : IAsyncLifetime, IDisposable
 
         try
         {
-            if (TestExcelProcessScope.StopLeftovers(_launchedIdentities.Keys.ToArray()) is { } leftover)
+            if (TestExcelProcessScope.FindLeftovers(_launchedIdentities.Keys.ToArray()) is { } leftover)
             {
                 failure = PersistentServiceCleanupFailures.Combine(failure, leftover);
             }

@@ -93,9 +93,8 @@ public class ExcelBatchTests : IAsyncLifetime, IDisposable
         {
             var failure = Record.Exception(() =>
             {
-                Assert.True(ExcelBatch.TryTerminateOwnedProcess(identity,
-                    TimeSpan.Zero, TimeSpan.FromSeconds(5)));
-                Assert.True(OwnedProcessGuard.TryConfirmExited(identity));
+                Assert.True(SpinWait.SpinUntil(() => OwnedProcessGuard.TryConfirmExited(identity),
+                    TimeSpan.FromSeconds(15)), $"Excel {identity} is still running after failed startup.");
                 SessionManager.UntrackExcelProcess(identity);
             });
             if (failure is not null) { failures.Add(failure); }

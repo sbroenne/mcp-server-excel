@@ -5,12 +5,12 @@ using Xunit.Sdk;
 
 namespace Sbroenne.ExcelMcp.Tests.Infrastructure;
 
-public sealed class ExcelLifetimeTestFramework(IMessageSink messageSink) : XunitTestFramework(messageSink)
+public sealed class ExcelLeftoverTestFramework(IMessageSink messageSink) : XunitTestFramework(messageSink)
 {
     protected override ITestFrameworkExecutor CreateExecutor(AssemblyName assemblyName) =>
-        new LifetimeExecutor(assemblyName, SourceInformationProvider, DiagnosticMessageSink);
+        new LeftoverExecutor(assemblyName, SourceInformationProvider, DiagnosticMessageSink);
 
-    private sealed class LifetimeExecutor(
+    private sealed class LeftoverExecutor(
         AssemblyName assemblyName,
         ISourceInformationProvider sourceInformationProvider,
         IMessageSink diagnosticMessageSink)
@@ -21,13 +21,13 @@ public sealed class ExcelLifetimeTestFramework(IMessageSink messageSink) : Xunit
             IMessageSink executionMessageSink,
             ITestFrameworkExecutionOptions executionOptions)
         {
-            using var runner = new LifetimeAssemblyRunner(
+            using var runner = new LeftoverAssemblyRunner(
                 TestAssembly, testCases, DiagnosticMessageSink, executionMessageSink, executionOptions);
             await runner.RunAsync();
         }
     }
 
-    private sealed class LifetimeAssemblyRunner(
+    private sealed class LeftoverAssemblyRunner(
         ITestAssembly testAssembly,
         IEnumerable<IXunitTestCase> testCases,
         IMessageSink diagnosticMessageSink,
@@ -38,20 +38,14 @@ public sealed class ExcelLifetimeTestFramework(IMessageSink messageSink) : Xunit
         protected override async Task AfterTestAssemblyStartingAsync()
         {
             await base.AfterTestAssemblyStartingAsync();
-            Aggregator.Run(() => TestRunExcelLifetime.StartForTestHost());
+            Aggregator.Run(TestRunExcelLeftoverCheck.Start);
         }
 
         protected override async Task BeforeTestAssemblyFinishedAsync()
         {
             await base.BeforeTestAssemblyFinishedAsync();
-            // VSTest can ignore ProcessExit failures after receiving completed results.
-            // Report normal cleanup through xUnit before it announces assembly completion.
-            Aggregator.Run(() =>
-            {
-                var lifetime = TestRunExcelLifetime.CurrentHost
-                    ?? throw new InvalidOperationException("Test-host Excel lifetime protection was not initialized.");
-                lifetime.Dispose();
-            });
+            // Report leftovers through xUnit before it announces assembly completion.
+            Aggregator.Run(TestRunExcelLeftoverCheck.Finish);
         }
     }
 }

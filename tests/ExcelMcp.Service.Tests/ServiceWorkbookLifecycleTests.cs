@@ -21,11 +21,12 @@ public sealed partial class ServiceWorkbookLifecycleTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task PersistentFixture_TemplateFailure_CleansTrackedProcessAndPreservesFailures(bool creationThrows)
+    public async Task PersistentFixture_TemplateFailure_ReportsRunningProcessWithoutStoppingIt(bool creationThrows)
     {
+        // A short-lived stand-in for Excel: it outlives the fixture's 15-second exit wait, then ends by itself.
         using var process = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("pwsh")
         {
-            ArgumentList = { "-NoProfile", "-Command", "Start-Sleep -Seconds 120" },
+            ArgumentList = { "-NoProfile", "-Command", "Start-Sleep -Seconds 25" },
             UseShellExecute = false,
             CreateNoWindow = true
         })!;
@@ -43,19 +44,15 @@ public sealed partial class ServiceWorkbookLifecycleTests
             var failure = await Assert.ThrowsAnyAsync<Exception>(fixture.InitializeAsync);
             Assert.Equal(0, fixture.ExcelLaunchCount);
             var ownedIdentity = Assert.IsType<ExcelProcessIdentity>(identity);
-            Assert.True(OwnedProcessGuard.TryConfirmExited(ownedIdentity));
-            Assert.DoesNotContain(ownedIdentity, SessionManager.GetTrackedExcelProcesses());
+            Assert.True(OwnedProcessGuard.MatchesLiveProcess(ownedIdentity));
             if (creationThrows)
                 Assert.Contains(original, Assert.IsType<AggregateException>(failure).Flatten().InnerExceptions);
-            Assert.Contains("Test cleanup found Excel still running", failure.ToString());
+            Assert.Contains("Excel is still running after shutdown", failure.ToString());
         }
         finally
         {
             if (identity is { } owned)
-            {
-                Assert.True(OwnedProcessGuard.TryTerminate(owned, TimeSpan.Zero, TimeSpan.FromSeconds(5), out _));
                 SessionManager.UntrackExcelProcess(owned);
-            }
             await fixture.DisposeAsync();
         }
     }
@@ -1129,7 +1126,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 failure = PersistentServiceCleanupFailures.Combine(failure, ex);
             }
 
-            if (excelProcesses.StopLeftovers() is { } leftover)
+            if (excelProcesses.FindLeftovers() is { } leftover)
             {
                 failure = PersistentServiceCleanupFailures.Combine(failure, leftover);
             }

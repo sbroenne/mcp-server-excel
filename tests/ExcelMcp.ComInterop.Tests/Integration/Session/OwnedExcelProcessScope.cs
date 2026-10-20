@@ -37,11 +37,6 @@ internal sealed class OwnedExcelProcessScope : IDisposable
             () => _owned.Keys.All(OwnedProcessGuard.TryConfirmExited),
             TimeSpan.FromSeconds(15));
         var remaining = _owned.Keys.Where(identity => !OwnedProcessGuard.TryConfirmExited(identity)).ToArray();
-        foreach (var identity in remaining)
-        {
-            OwnedProcessGuard.TryTerminate(identity, TimeSpan.Zero, TimeSpan.FromSeconds(5), out _);
-        }
-
         Assert.True(exited, $"Owned Excel processes survived shutdown: {string.Join(", ", remaining)}");
     }
 
