@@ -47,6 +47,8 @@ The CLI daemon accepts up to 64 simultaneous connections and up to ten work
 requests. It rejects another work request for a session whose request is still
 running, rather than letting repeated requests occupy the service. Health,
 session-list, and window show/hide requests do not consume the work limit.
+Commands that do not use an existing workbook session still consume the work
+limit, but do not reserve a workbook session even if batch supplies its ID.
 These limits apply to the CLI pipe, not the MCP Server's in-process calls.
 The daemon remains running when idle until explicitly stopped or its process
 exits. An expired caller wait does not stop Excel or undo workbook changes.
