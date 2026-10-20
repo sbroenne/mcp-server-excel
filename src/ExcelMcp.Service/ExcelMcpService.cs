@@ -87,7 +87,6 @@ public sealed class ExcelMcpService : IDisposable
             request => trackDaemonRequest == null
                 ? ProcessAsync(request)
                 : trackDaemonRequest(request, () => ProcessAsync(request)),
-            () => _sessionManager.ActiveSessionIds.Count(_sessionManager.IsSessionRetained),
             requestAbandoned: RevealAbandonedRequest);
     }
 
@@ -128,9 +127,8 @@ public sealed class ExcelMcpService : IDisposable
     /// This method blocks until shutdown is requested via <see cref="RequestShutdown"/>.
     /// </summary>
     /// <param name="pipeName">The named pipe to listen on.</param>
-    /// <param name="idleTimeout">Optional idle timeout. Service shuts down after this duration with no active sessions. Null = no timeout.</param>
-    public Task RunAsync(string pipeName, TimeSpan? idleTimeout = null) =>
-        _daemonHost.RunAsync(pipeName, idleTimeout);
+    public Task RunAsync(string pipeName) =>
+        _daemonHost.RunAsync(pipeName);
 
     public void RequestShutdown()
     {

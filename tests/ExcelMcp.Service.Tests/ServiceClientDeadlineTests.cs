@@ -125,7 +125,6 @@ public sealed class ServiceClientDeadlineTests
                 requestStarted.TrySetResult(true);
                 return responseSource.Task;
             },
-            static () => 0,
             requestAbandoned: (request, _) => abandoned.TrySetResult(request));
         var hostTask = host.RunAsync(pipeName);
         var clock = new ManualTimerTimeProvider();
@@ -171,7 +170,6 @@ public sealed class ServiceClientDeadlineTests
                 requestStarted.TrySetResult(true);
                 return responseSource.Task;
             },
-            static () => 0,
             requestAbandoned: (request, _) => abandoned.TrySetResult(request));
         var hostTask = host.RunAsync(pipeName);
         var clock = new ManualTimerTimeProvider();

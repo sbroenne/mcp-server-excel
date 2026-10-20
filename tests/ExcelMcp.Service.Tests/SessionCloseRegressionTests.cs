@@ -96,8 +96,7 @@ public sealed class SessionCloseRegressionTests
         RegisterSession(service, session, batch, addKnownSessionId: true);
         var host = GetPrivateField<Sbroenne.ExcelMcp.Service.Rpc.DaemonHost>(service, "_daemonHost");
         var shutdown = GetPrivateField<CancellationTokenSource>(host, "_shutdownCts");
-        var idleCount = GetPrivateField<Func<int>>(host, "_sessionCount");
-        batch.BeforeSave = () => Assert.Equal(1, idleCount());
+        batch.BeforeSave = () => Assert.True(service.SessionManager.IsSessionRetained(session));
         try
         {
             if (caller == "rpc")
@@ -130,7 +129,7 @@ public sealed class SessionCloseRegressionTests
     }
 
     [Fact]
-    public void DaemonIdleCount_RemovesDeadSessionsWithoutProbingLiveExcelReadiness()
+    public void SessionRetention_RemovesDeadSessionsWithoutProbingLiveExcelReadiness()
     {
         using var service = new ExcelMcpService();
         var dead = new FakeBatch { WorkbookPath = CreateFakeWorkbookPath() };
@@ -139,21 +138,20 @@ public sealed class SessionCloseRegressionTests
             WorkbookPath = CreateFakeWorkbookPath(),
             RefreshState = WorkbookRefreshState.Unknown
         };
-        RegisterSession(service, "dead-for-idle", dead, addKnownSessionId: true);
-        RegisterSession(service, "live-for-idle", live, addKnownSessionId: true);
-        var host = GetPrivateField<Sbroenne.ExcelMcp.Service.Rpc.DaemonHost>(service, "_daemonHost");
-        var count = GetPrivateField<Func<int>>(host, "_sessionCount");
+        RegisterSession(service, "dead-retained", dead, addKnownSessionId: true);
+        RegisterSession(service, "live-retained", live, addKnownSessionId: true);
         try
         {
-            Assert.Equal(2, count());
+            Assert.True(service.SessionManager.IsSessionRetained("dead-retained"));
+            Assert.True(service.SessionManager.IsSessionRetained("live-retained"));
             dead.IsAlive = false;
-            Assert.Equal(1, count());
+            Assert.False(service.SessionManager.IsSessionRetained("dead-retained"));
             Assert.Equal(1, dead.DisposeCalls);
-            Assert.False(service.SessionManager.TryGetFilePath("dead-for-idle", out _));
-            Assert.Same(live, service.SessionManager.GetSession("live-for-idle"));
+            Assert.False(service.SessionManager.TryGetFilePath("dead-retained", out _));
+            Assert.Same(live, service.SessionManager.GetSession("live-retained"));
             Assert.Equal(0, live.RefreshProbeCalls);
             live.IsAlive = false;
-            Assert.Equal(0, count());
+            Assert.False(service.SessionManager.IsSessionRetained("live-retained"));
             Assert.Equal(1, live.DisposeCalls);
             Assert.Equal(0, service.SessionManager.ActiveSessionCount);
         }

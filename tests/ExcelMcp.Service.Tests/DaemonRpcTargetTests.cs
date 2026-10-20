@@ -19,7 +19,7 @@ public sealed class DaemonRpcTargetTests
         var abandoned = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var late = new TaskCompletionSource<ServiceResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
         var request = new ServiceRequest { Command = "session.open", Args = """{"filePath":"retained.xlsx"}""" };
-        var target = new DaemonRpcTarget(_ => original.Task, static () => { }, (received, response) =>
+        var target = new DaemonRpcTarget(_ => original.Task, (received, response) =>
         {
             Assert.Same(request, received);
             if (response is null)
@@ -41,10 +41,9 @@ public sealed class DaemonRpcTargetTests
     }
 
     [Fact]
-    public async Task ProcessCommandAsync_DelegatesExactRequestAndRecordsActivity()
+    public async Task ProcessCommandAsync_DelegatesExactRequest()
     {
         ServiceRequest? capturedRequest = null;
-        var activityCount = 0;
         var expectedResponse = new ServiceResponse
         {
             Success = true,
@@ -55,8 +54,7 @@ public sealed class DaemonRpcTargetTests
             {
                 capturedRequest = request;
                 return Task.FromResult(expectedResponse);
-            },
-            () => activityCount++);
+            });
         var request = new ServiceRequest
         {
             Command = "diag.echo",
@@ -70,7 +68,6 @@ public sealed class DaemonRpcTargetTests
         Assert.Equal(request.Command, capturedRequest.Command);
         Assert.Equal(request.SessionId, capturedRequest.SessionId);
         Assert.Equal(request.Args, capturedRequest.Args);
-        Assert.Equal(1, activityCount);
         Assert.True(response.Success);
         Assert.Equal(expectedResponse.Result, response.Result);
     }
@@ -84,8 +81,7 @@ public sealed class DaemonRpcTargetTests
                 Success = false,
                 ErrorCategory = "InvalidInput",
                 ErrorMessage = "Controlled failure"
-            }),
-            static () => { });
+            }));
 
         var response = await RoundTripAsync(
             target,
@@ -101,8 +97,7 @@ public sealed class DaemonRpcTargetTests
     {
         var (serverStream, clientStream) = FullDuplexStream.CreatePair();
         var target = new DaemonRpcTarget(
-            _ => Task.FromResult(new ServiceResponse { Success = true }),
-            static () => { });
+            _ => Task.FromResult(new ServiceResponse { Success = true }));
         using var serverRpc = JsonRpc.Attach(serverStream, target);
         var clientProxy = JsonRpc.Attach<IExcelDaemonRpc>(clientStream);
 

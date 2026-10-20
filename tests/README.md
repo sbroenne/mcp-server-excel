@@ -167,10 +167,11 @@ not answer that question. Do not require screenshots for ordinary verification.
 
 Set a hard execution timeout for every Excel-dependent run. Run only the
 relevant project and filter, not the full integration suite during iteration.
-Returning control while tests keep running is not a timeout. Session/batch
-infrastructure changes require relevant ComInterop OnDemand tests; narrow by
-test name where appropriate. Core OnDemand tests are optional diagnostics,
-not mandatory CI gates.
+Returning control while tests keep running is not a timeout. Follow the
+[local validation scope rule](../AGENTS.md#build-and-validation) when choosing
+coverage. Use ComInterop OnDemand diagnostics for a specific changed ownership,
+threading, or cleanup risk not already covered by focused tests; narrow by test
+name. Core OnDemand tests are optional diagnostics, not mandatory CI gates.
 
 ### Saved workbook templates
 
@@ -990,7 +991,7 @@ dotnet test tests\ExcelMcp.Service.Tests\ExcelMcp.Service.Tests.csproj --filter 
 |----------|---------|
 | **Daily development** | Run the smallest project and feature/name filter covering the change. |
 | **Before commit** | Rerun affected tests and applicable checks; follow the [runtime E2E requirements](../AGENTS.md#build-and-validation). |
-| **Modified session/batch code** | Run relevant OnDemand tests in `ExcelMcp.ComInterop.Tests`; see [Testing Strategy](AGENTS.md#commands). |
+| **Modified session/batch code** | Cover the changed lifetime and failure paths; add targeted ComInterop OnDemand diagnostics where focused tests leave a specific risk uncovered. See [Testing Strategy](AGENTS.md#commands). |
 | **VBA development** | `dotnet test --filter "(Feature=VBA\|Feature=VBATrust)&RunType!=OnDemand"` |
 | **LLM behavior validation** | See [LLM Tests](#llm-tests) section below |
 
@@ -1149,5 +1150,5 @@ assertion merely to make it pass.
 
 - **Test failures**: Check test output for detailed error messages
 - **Excel issues**: Ensure Excel 2016+ installed and activated
-- **Session/batch issues**: Run OnDemand tests to verify cleanup
+- **Session/batch issues**: Start with focused lifetime and failure tests; add a targeted OnDemand diagnostic for a cleanup risk those tests do not cover.
 - **Writing tests**: See [Testing Strategy](AGENTS.md)

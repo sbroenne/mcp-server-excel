@@ -37,9 +37,8 @@ establishes the original operation's result. Cancellation is not a transaction
 rollback. Preserving uncertain work can keep Excel and its owner alive longer,
 but avoids silently losing unsaved changes.
 
-CLI idle polling preserves the same session records as status reporting.
 A failed opening remains discoverable until explicitly closed, even when its
-Excel process has already exited; idle polling must not erase its late error.
+Excel process has already exited; status polling must not erase its late error.
 During a shutdown attempt, polling defers completed Save As path reconciliation
 without releasing its reservation. If shutdown is refused, later polling
 reconciles the path normally.

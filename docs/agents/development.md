@@ -88,9 +88,12 @@ Use the smallest applicable checks in [AGENTS.md](../../AGENTS.md#build-and-vali
 Builds and Excel-free checks do not prove Excel COM behavior.
 Desktop Excel is required for the local tests described in
 [tests/README.md](../../tests/README.md). Run Excel-dependent test commands
-sequentially. Run the changed-area plan's selected Excel cases locally,
-including acceptance and infrastructure diagnostics when selected; report
-unavailable validation rather than claiming the hosted runner covered it.
+sequentially. Review the changed-area plan against the actual behavior change
+using the [local validation scope rule](../../AGENTS.md#build-and-validation).
+Run relevant Excel cases locally, adding acceptance or diagnostics for specific
+uncovered risks rather than automatically running every selected feature.
+Report unavailable or unrun validation rather than claiming the hosted runner
+covered it.
 LLM evaluations also require external model access and may incur costs.
 Do not run them as an incidental setup check.
 
