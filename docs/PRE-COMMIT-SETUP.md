@@ -112,7 +112,7 @@ not in generated enum or adapter files.
 
 `CI Gate` remains present on every PR. It builds Release, runs normal
 `RequiresExcel=false` selections sequentially with deadlines, validates applicable
-documentation counts, and runs the normal npm launcher and complete package checks.
+documentation counts, and runs npm and package checks selected by their inputs.
 `Docs Site` builds and audits the website separately.
 
 GitHub-hosted runners do not have Excel. Record local E2E and feature-specific
@@ -127,8 +127,9 @@ Explicit manual package validation uses the same command as PR CI:
 
 The command writes a new directory under `artifacts\packages`, checks installed
 npm launchers and archive contents, and never publishes packages or creates
-tags. PR CI uses all components; only explicit manual commands narrow the list.
-There is no changed-path package selector. The extension reuses prepared MCP executables. The Claude bundle copies
+tags. PR CI selects affected components; main/manual CI and release preparation
+use all components. Runtime-source-only PRs retain product checks but can defer
+distribution-only defects to main. The extension reuses prepared MCP executables. The Claude bundle copies
 metadata only and configures npx to resolve the npm server at launch; MCPB-only
 packaging does not publish a runtime.
 

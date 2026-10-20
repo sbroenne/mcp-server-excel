@@ -11,7 +11,13 @@ function Get-TestProject([string]$Owner) {
 
 function Read-ValidationPlan([string]$Path) {
     $plan = Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json -AsHashtable
-    if ($plan.SchemaVersion -ne 1) { throw 'Unsupported validation plan schema.' }
+    if ($plan.SchemaVersion -ne 2) { throw 'Unsupported validation plan schema.' }
+    if ($plan.PackageComponents -isnot [array] -or
+        @($plan.PackageComponents | Where-Object { $_ -cnotin @('Cli', 'Extension', 'Mcp', 'Mcpb', 'Plugins') }).Count -or
+        @($plan.PackageComponents | Sort-Object -Unique).Count -ne $plan.PackageComponents.Count -or
+        $plan.NpmTests -isnot [bool]) {
+        throw 'Invalid or missing saved distribution selection.'
+    }
     if ($plan.Excel -and -not $plan.ExcelSelections.Count -and -not $plan.FullE2E) {
         throw 'Excel was selected but the plan contains no test filters.'
     }

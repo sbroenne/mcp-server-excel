@@ -88,6 +88,10 @@ jobs:
       documentation_counts: ${{ steps.select.outputs.documentation_counts }}
       full_solution_build: ${{ steps.select.outputs.full_solution_build }}
       full_solution_build_group: ${{ steps.select.outputs.full_solution_build_group }}
+      packages: ${{ steps.select.outputs.packages }}
+      npm: ${{ steps.select.outputs.npm }}
+      package_skills: ${{ steps.select.outputs.package_skills }}
+      package_dotnet: ${{ steps.select.outputs.package_dotnet }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -197,16 +201,20 @@ jobs:
 
   packages:
     name: Package checks
+    needs: changes
+    if: needs.changes.outputs.packages == 'true'
     runs-on: windows-latest
     timeout-minutes: 40
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Setup .NET
+        if: needs.changes.outputs.package_dotnet == 'true'
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
       - name: Cache NuGet downloads
+        if: needs.changes.outputs.package_dotnet == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.nuget/packages
@@ -220,16 +228,25 @@ jobs:
             vscode-extension/package-lock.json
             npm-packages/shared/package-lock.json
 
+      - name: Read selection
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: ci-validation-plan
+          path: artifacts
       - name: Generate complete skill inputs
+        if: needs.changes.outputs.package_skills == 'true'
         shell: pwsh
         run: ./scripts/Build-AgentSkills.ps1 -GenerateOnly
       - name: Setup Python for skill validation
+        if: needs.changes.outputs.package_skills == 'true'
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: '3.13'
       - name: Install pinned Agent Skills validator
+        if: needs.changes.outputs.package_skills == 'true'
         run: python -m pip install "git+https://github.com/agentskills/agentskills.git@69ef37e9424c0a7ea9dd2293b559e43ec8176379#subdirectory=skills-ref"
       - name: Validate generated skills before packaging
+        if: needs.changes.outputs.package_skills == 'true'
         shell: pwsh
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
@@ -238,10 +255,20 @@ jobs:
           }
       - name: Build and verify distributable packages
         shell: pwsh
-        run: ./scripts/Build-ReleasePackages.ps1 -SkillsDirectory artifacts/generated-skills
+        run: |
+          . ./scripts/ValidationExecution.ps1
+          $plan = Read-ValidationPlan artifacts/ci-plan.json
+          if (-not $plan.PackageComponents.Count) { throw 'Package job has no selected components.' }
+          $arguments = @{ Components = [string[]]$plan.PackageComponents }
+          if (@($plan.PackageComponents | Where-Object { $_ -in @('Extension', 'Plugins') }).Count) {
+            $arguments.SkillsDirectory = 'artifacts/generated-skills'
+          }
+          ./scripts/Build-ReleasePackages.ps1 @arguments
 
   npm:
     name: npm launchers
+    needs: changes
+    if: needs.changes.outputs.npm == 'true'
     runs-on: windows-latest
     steps:
       - name: Checkout
@@ -252,10 +279,6 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: npm-packages/shared/package-lock.json
-      - name: Setup .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
-        with:
-          global-json-file: global.json
       - name: npm launcher and packaging tests (MCP + CLI)
         shell: pwsh
         run: |
@@ -282,7 +305,10 @@ jobs:
           NPM: ${{ needs.npm.result }}
           SELECTED_TESTS: ${{ needs.changes.outputs.tests }}
           SELECTED_BUILD_ONLY: ${{ needs.changes.outputs.build_only }}
+          SELECTED_PACKAGES: ${{ needs.changes.outputs.packages }}
+          SELECTED_NPM: ${{ needs.changes.outputs.npm }}
         run: |
           ./scripts/Test-CiCompletion.ps1 -Detection $env:DETECTION -Tests $env:TESTS `
             -Packages $env:PACKAGES -Npm $env:NPM -BuildOnly $env:BUILD_ONLY `
-            -SelectedTests $env:SELECTED_TESTS -SelectedBuildOnly $env:SELECTED_BUILD_ONLY
+            -SelectedTests $env:SELECTED_TESTS -SelectedBuildOnly $env:SELECTED_BUILD_ONLY `
+            -SelectedPackages $env:SELECTED_PACKAGES -SelectedNpm $env:SELECTED_NPM

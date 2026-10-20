@@ -7,14 +7,16 @@ param(
     [Parameter(Mandatory)][string]$Npm,
     [Parameter(Mandatory)][string]$BuildOnly,
     [Parameter(Mandatory)][string]$SelectedTests,
-    [Parameter(Mandatory)][string]$SelectedBuildOnly
+    [Parameter(Mandatory)][string]$SelectedBuildOnly,
+    [Parameter(Mandatory)][string]$SelectedPackages,
+    [Parameter(Mandatory)][string]$SelectedNpm
 )
 $ErrorActionPreference = 'Stop'
 if ($Detection -cne 'success') { throw "Change detection did not succeed: $Detection." }
 foreach ($check in @(
     @{ Name = 'tests'; Selected = $SelectedTests; Result = $Tests },
-    @{ Name = 'packages'; Selected = 'true'; Result = $Packages },
-    @{ Name = 'npm'; Selected = 'true'; Result = $Npm },
+    @{ Name = 'packages'; Selected = $SelectedPackages; Result = $Packages },
+    @{ Name = 'npm'; Selected = $SelectedNpm; Result = $Npm },
     @{ Name = 'build-only'; Selected = $SelectedBuildOnly; Result = $BuildOnly }
 )) {
     if ($check.Selected -cnotin @('true', 'false')) { throw "Invalid selection flag for $($check.Name)." }

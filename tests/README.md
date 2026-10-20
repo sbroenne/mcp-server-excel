@@ -388,11 +388,14 @@ change cannot broaden a documentation-count or publication selection in another
 project. Runtime source changes select owning behavior and necessary boundaries,
 but do not automatically select publication tests, metadata-only MCPB/plugins,
 or standalone skill ZIPs (which are no longer published).
-PR CI independently runs the normal npm launcher checks and prepares and verifies
-all package components, including the extension source suite. Package preparation
-does not inspect changed paths or evaluate project dependencies. Explicit manual
-runs may select `-Components` or opt out of extension tests with
-`-SkipExtensionTests`; CI does neither.
+PR CI uses `PackageComponents` and `NpmTests` from the saved plan to run affected
+distribution checks, including the extension source suite when Extension is
+selected. Shared packaging inputs select all dependent components; test-only
+npm changes run npm checks without real runtime packages. Main/manual CI and
+release preparation remain complete. Runtime-only PR changes retain product
+checks but can defer distribution-only defects to main.
+Explicit local runs may select `-Components` or opt out of extension tests with
+`-SkipExtensionTests`; CI never skips selected extension tests.
 Standalone tooling test-project changes select their owning project, not every
 runtime project.
 The full partitions cover the complete normal Excel-free selection without overlap.
@@ -401,7 +404,6 @@ Changes to `infrastructure\azure\configure-analytics-oidc.ps1` or
 subscription-restoration checks in `ToolingOnDemandFilters`. Both local and
 saved-plan Tooling runs include these selected `RunType=OnDemand` cases alongside
 the normal safety checks; unrelated OnDemand diagnostics remain excluded.
-Package and npm launcher jobs run without changed-path selection.
 EXL030 validates count inputs during MCP compilation using the compiled Core
 manifest; there is no standalone count scanner or updater. Use the diagnostic's
 exact expected values to update affected source counts, review the changes,

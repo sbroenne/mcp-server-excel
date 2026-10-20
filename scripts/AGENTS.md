@@ -20,8 +20,8 @@ the root task map requires them outside this directory.
   checks when their boundary changes, not on every push. Desktop Excel checks
   still need local Excel when affected; hosted runners cannot replace them.
 - Preserve merge-parent selection, per-owner test filters and runtime/package
-  separation. Normal CI checks every package; only explicit manual runs narrow
-  components. Keep complete main/manual CI and configured CodeQL coverage.
+  separation. PR CI checks affected package components and npm inputs. Keep
+  complete main/manual/release checks and configured CodeQL coverage.
 - Cache downloads, not writable build outputs. Isolate hosted test partitions
   so rebuilding tests cannot race packaging.
 - Local CLI builds stop only this worktree's background CLI service, once,

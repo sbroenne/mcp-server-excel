@@ -58,9 +58,9 @@ public sealed class TestSelectionTests
     {
         var run = await ValidationSelectionTests.RunAsync("""
             . .\scripts\ValidationExecution.ps1
-            $plan = Get-ValidationPlan -Paths @('doc-counts.json','scripts/pre-commit.ps1')
+            $plan = Get-ValidationPlan -Paths @('scripts/Build-Plugins.ps1','scripts/pre-commit.ps1')
             $selected = @(Get-FreeTestSelection -Plan $plan -Group Tooling)
-            if ($selected[0].Filter -cne 'RequiresExcel=false&RunType!=OnDemand&(FullyQualifiedName~DocumentationCounts)' -or
+            if ($selected[0].Filter -cne 'RequiresExcel=false&RunType!=OnDemand&(Feature=PluginBootstrap|Feature=PluginPublication|Feature=PluginSkillVersion)' -or
                 $selected[1].Filter -cne 'RequiresExcel=false&RunType!=OnDemand&(Feature=PreCommit)') {
                 throw 'Mixed filters broadened each other.'
             }

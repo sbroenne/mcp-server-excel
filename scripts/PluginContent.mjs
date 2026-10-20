@@ -1,11 +1,10 @@
-// Shared deterministic rules for publication and marketplace listings. No network or writes.
+// Deterministic plugin publication rules. No network or writes.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 export const pluginNames = ['excel-cli', 'excel-mcp'];
-export const publishedRepo = 'sbroenne/mcp-server-excel-plugins';
 const schema = 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json';
 const decoder = new TextDecoder('utf-8', { fatal: true });
 
@@ -79,15 +78,9 @@ export function compareVersions(left, right) {
     return 0;
 }
 
-export function assertTag(tag) {
-    if (typeof tag !== 'string' || !tag.startsWith('v')) throw new Error('An existing published vX.Y.Z tag is required.');
-    assertVersion(tag.slice(1));
-    return tag;
-}
-
 export function externalCommandEnvironment(env = process.env) {
     const credentials = new Set([
-        'AWESOME_COPILOT_PR_TOKEN', 'GH_TOKEN', 'GITHUB_TOKEN', 'COPILOT_GITHUB_TOKEN',
+        'GH_TOKEN', 'GITHUB_TOKEN', 'COPILOT_GITHUB_TOKEN',
         'GH_AW_GITHUB_TOKEN', 'GH_AW_GITHUB_MCP_SERVER_TOKEN', 'PLUGINS_REPO_TOKEN', 'RELEASE_PAT',
         'GIT_ASKPASS', 'SSH_ASKPASS', 'GIT_SSH', 'GIT_SSH_COMMAND', 'SSH_AUTH_SOCK',
     ]);

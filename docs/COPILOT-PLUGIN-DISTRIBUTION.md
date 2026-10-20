@@ -129,14 +129,13 @@ maintenance is manual:
 2. **Plugin templates** → Update the canonical `.github/plugins/excel-{mcp,cli}/` sources
 3. **Sync to marketplace** → Next release compares complete prepared output,
    including generated references and source-owned root overlays
-4. **Awesome Copilot listing** → A manual, separately run updater maintains
-   one upstream PR for actually changed plugin content, using published output
-   commits. Releases never run it. Root-overlay-only updates do not need a
-   listing PR. Catch-up accepts an existing published tag without republishing.
+4. **Awesome Copilot listing** → Edit listings manually for changed plugin
+   content, using actual immutable published output commits. Root-overlay-only
+   updates do not need a listing PR. Use an existing published tag for catch-up;
+   do not republish plugins just to update a listing.
 
 The published marketplace and the pinned Awesome Copilot listings are separate.
-See [Awesome Copilot update setup](../.github/workflows/docs/awesome-copilot-update-setup.md)
-for permissions, no-write preview and catch-up.
+See [manual listing updates](../.github/workflows/docs/publish-plugins-setup.md#awesome-copilot-listings-are-manual).
 
 ## Related Documentation
 

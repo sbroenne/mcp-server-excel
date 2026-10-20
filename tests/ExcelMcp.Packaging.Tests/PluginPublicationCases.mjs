@@ -6,13 +6,8 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
-    compareTrees, publicationDecision, validatePublication, canonicalJson, hash, git as readOnlyGit, externalCommandEnvironment,
+    compareTrees, publicationDecision, validatePublication, canonicalJson, git as readOnlyGit,
 } from '../../scripts/PluginContent.mjs';
-import {
-    planListings, parseState, stateMarker, assertListingPatch, assertAllowedPaths,
-} from '../../scripts/AwesomeCopilotPolicy.mjs';
-import { validateRequest, writesEnabled, submit, assertTemplate } from '../../scripts/Update-AwesomeCopilot.mjs';
-import * as updater from '../../scripts/Update-AwesomeCopilot.mjs';
 
 function test(name, body) {
     return nodeTest(name, async t => {
@@ -27,36 +22,6 @@ function test(name, body) {
     });
 }
 
-const sha1 = '1'.repeat(40), sha2 = '2'.repeat(40), sha3 = '3'.repeat(40), sha4 = '4'.repeat(40);
-function listings() {
-    return ['excel-cli', 'excel-mcp'].map(name => ({
-        name, description: 'Curated description', version: '2.0.1',
-        author: { name: 'Author' }, repository: 'https://github.com/sbroenne/mcp-server-excel-plugins',
-        license: 'MIT', keywords: ['excel'],
-        source: { source: 'github', repo: 'sbroenne/mcp-server-excel-plugins', path: `plugins/${name}`, ref: 'v2.0.1', sha: sha1 },
-    }));
-}
-
-function plan(candidate = payload('2.3.0'), extras = {}) {
-    const snapshots = new Map([[sha1, payload()], [sha2, candidate]]);
-    return planListings({
-        listings: listings(), tag: 'v2.3.0', commit: sha2,
-        getTree: sha => { assert.ok(snapshots.has(sha), 'Missing published commit'); return snapshots.get(sha); },
-        resolveTag: tag => ({ 'v2.0.1': sha1, 'v2.3.0': sha2 })[tag],
-        pulls: [], ...extras,
-    });
-}
-
-function pending(result, extras = {}) {
-    const state = { ...result.state, head: sha3, base: sha1, bodyFingerprint: hash('') };
-    return {
-        number: 42, state: 'open', merged_at: null, body: stateMarker(state),
-        user: { login: 'sbroenne' },
-        head: { ref: 'excel-plugin-updates-123456abcdef', sha: sha3, repo: { full_name: 'sbroenne/awesome-copilot' } },
-        base: { ref: 'main', repo: { full_name: 'github/awesome-copilot' } }, ...extras,
-    };
-}
-
 function payload(version = '2.0.1') {
     const files = new Map();
     for (const name of ['excel-cli', 'excel-mcp']) {
@@ -68,15 +33,15 @@ function payload(version = '2.0.1') {
             repository: 'https://github.com/sbroenne/mcp-server-excel-plugins',
             license: 'MIT', keywords: ['excel'],
         };
-        for (const [path, text] of Object.entries({
+        for (const [name, text] of Object.entries({
             'plugin.json': JSON.stringify(manifest), 'version.txt': version,
-            [`skills/${name}/VERSION`]: version,
-            [`skills/${name}/SKILL.md`]: 'Use Excel 1.2.3',
-            [`skills/${name}/references/range.md`]: 'range guide',
+            [`skills/${manifest.name}/VERSION`]: version,
+            [`skills/${manifest.name}/SKILL.md`]: 'Use Excel 1.2.3',
+            [`skills/${manifest.name}/references/range.md`]: 'range guide',
             'README.md': 'Install using npx @latest',
-            [name === 'excel-cli' ? 'bin/start-cli.ps1' : 'mcp.json']:
-                name === 'excel-cli' ? 'npx @latest' : '{"args":["npx","@latest"]}',
-        })) files.set(prefix + path, { bytes: Buffer.from(text), mode: '100644' });
+            [manifest.name === 'excel-cli' ? 'bin/start-cli.ps1' : 'mcp.json']:
+                manifest.name === 'excel-cli' ? 'npx @latest' : '{"args":["npx","@latest"]}',
+        })) files.set(prefix + name, { bytes: Buffer.from(text), mode: '100644' });
     }
     files.set('.github/plugin/marketplace.json', {
         bytes: Buffer.from(JSON.stringify({
@@ -88,7 +53,7 @@ function payload(version = '2.0.1') {
     return files;
 }
 
-function edit(files, path, text) { files.set(path, { bytes: Buffer.from(text), mode: '100644' }); }
+function edit(files, name, text) { files.set(name, { bytes: Buffer.from(text), mode: '100644' }); }
 
 function scopedPayload(version) {
     const files = payload(version);
@@ -117,7 +82,6 @@ export function registerPolicyTests() {
         validatePublication(files);
         assert.deepEqual(compareTrees(payload(), files).changedPlugins, ['excel-cli', 'excel-mcp']);
         assert.deepEqual(compareTrees(files, discoveryPayload('2.4.0')).changedPaths, []);
-        assert.equal(plan(files).action, 'create');
         for (const skill of ['excel-cli', 'excel-cli-report-formatting']) {
             const stamp = `plugins/excel-cli/skills/${skill}/VERSION`;
             const invalid = discoveryPayload('2.3.0');
@@ -147,7 +111,6 @@ export function registerPolicyTests() {
         const body = section.split('        run: |')[1]
             .replace(/          python -m pip install[^\n]*\n[^\n]*\n/, '')
             .replace(/^          /gm, '');
-        assert.ok(body.includes('pluginSkillNames'), 'The workflow must use the shared layout rules.');
         for (const files of [payload('2.3.0'), scopedPayload('2.3.0'), discoveryPayload('2.3.0')]) {
             const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-workflow-skills-'));
             try {
@@ -172,8 +135,7 @@ export function registerPolicyTests() {
                     .map(name => name.split('/').at(-2)).sort();
                 assert.deepEqual(run().sort(), expected);
                 if (expected.includes('excel-cli-report-formatting') && expected.includes('excel-cli')) {
-                    const stamp = path.join(fixture, 'built-plugins', 'excel-cli', 'skills', 'excel-cli', 'VERSION');
-                    fs.writeFileSync(stamp, '2.0.1');
+                    fs.writeFileSync(path.join(fixture, 'built-plugins', 'excel-cli', 'skills', 'excel-cli', 'VERSION'), '2.0.1');
                     assert.throws(run, /missing or mismatched skill version/);
                 }
             } finally { fs.rmSync(fixture, { recursive: true }); }
@@ -200,10 +162,9 @@ export function registerPolicyTests() {
     });
 
     test('formatting migration changes content and preserves version-only skip behavior', () => {
-        const baseline = payload();
         const candidate = scopedPayload('2.3.0');
         validatePublication(candidate);
-        assert.deepEqual(compareTrees(baseline, candidate).changedPlugins, ['excel-cli', 'excel-mcp']);
+        assert.deepEqual(compareTrees(payload(), candidate).changedPlugins, ['excel-cli', 'excel-mcp']);
         assert.deepEqual(compareTrees(candidate, scopedPayload('2.4.0')).changedPaths, []);
         edit(candidate, 'plugins/excel-mcp/skills/excel-mcp/SKILL.md', 'Old broad skill');
         assert.throws(() => validatePublication(candidate), /Mixed/);
@@ -232,23 +193,19 @@ export function registerPolicyTests() {
     });
 
     test('identical and release-bookkeeping-only payloads skip every publication write and handoff', () => {
-        const baseline = payload(), candidate = payload('2.3.0');
-        const comparison = compareTrees(baseline, candidate);
+        const comparison = compareTrees(payload(), payload('2.3.0'));
         assert.deepEqual(comparison.changedPlugins, []);
         assert.deepEqual(comparison.changedPaths, []);
         assert.equal(comparison.baselineFingerprint, comparison.candidateFingerprint);
-        const decision = publicationDecision(comparison, {
+        assert.deepEqual(publicationDecision(comparison, {
             currentVersion: '2.0.1', version: '2.3.0', tagExists: false, manualRepair: false,
-        });
-        assert.equal(decision.status, 'skipped');
-        assert.equal(decision.write, false);
-        assert.equal(decision.handoff, false);
+        }), { status: 'skipped', write: false, handoff: false });
     });
 
-    test('root-only changes publish but do not invoke an agent or listing PR', () => {
-        const baseline = payload(), candidate = payload('2.3.0');
+    test('root-only changes publish without a plugin listing handoff', () => {
+        const candidate = payload('2.3.0');
         edit(candidate, 'README.md', 'New marketplace instructions');
-        const comparison = compareTrees(baseline, candidate);
+        const comparison = compareTrees(payload(), candidate);
         assert.deepEqual(comparison.changedPlugins, []);
         assert.deepEqual(comparison.changedPaths, ['README.md']);
         assert.deepEqual(publicationDecision(comparison, {
@@ -257,26 +214,26 @@ export function registerPolicyTests() {
     });
 
     test('each real distributed surface, added/removed files and launch versions are meaningful', () => {
-        for (const path of [
+        for (const name of [
             'README.md', 'plugin.json', 'mcp.json', 'bin/helper.ps1',
             'skills/excel-mcp/SKILL.md', 'skills/excel-mcp/references/range.md', 'assets/icon.png',
         ]) {
             const baseline = payload(), candidate = payload('2.3.0');
-            const fullPath = `plugins/excel-mcp/${path}`;
-            if (path === 'plugin.json') {
+            const fullPath = `plugins/excel-mcp/${name}`;
+            if (name === 'plugin.json') {
                 const manifest = JSON.parse(candidate.get(fullPath).bytes);
                 manifest.description = 'New description 9.9.9';
                 edit(candidate, fullPath, JSON.stringify(manifest));
-            } else if (path === 'mcp.json') edit(candidate, fullPath, '{"args":["npx","@2.3.0"]}');
+            } else if (name === 'mcp.json') edit(candidate, fullPath, '{"args":["npx","@2.3.0"]}');
             else edit(candidate, fullPath, 'Changed functional text 9.9.9');
             const comparison = compareTrees(baseline, candidate);
-            assert.deepEqual(comparison.changedPlugins, ['excel-mcp'], path);
-            assert.ok(comparison.changedPaths.includes(fullPath), path);
+            assert.deepEqual(comparison.changedPlugins, ['excel-mcp'], name);
+            assert.ok(comparison.changedPaths.includes(fullPath), name);
             assert.equal(publicationDecision(comparison, {
                 currentVersion: '2.0.1', version: '2.3.0', tagExists: false,
             }).handoff, true);
             candidate.delete(fullPath);
-            if (path.includes('helper') || path.includes('assets')) {
+            if (name.includes('helper') || name.includes('assets')) {
                 edit(baseline, fullPath, 'removed');
                 assert.ok(compareTrees(baseline, candidate).changedPaths.includes(fullPath));
             }
@@ -287,8 +244,8 @@ export function registerPolicyTests() {
         assert.equal(canonicalJson('{"b":2,"a":{"z":1,"y":true}}'), canonicalJson(' { "a": { "y":true, "z":1 }, "b":2 } '));
         assert.notEqual(canonicalJson('{"args":["a","b"]}'), canonicalJson('{"args":["b","a"]}'));
         const baseline = payload(), candidate = payload('2.3.0');
-        const path = 'plugins/excel-mcp/plugin.json';
-        edit(candidate, path, JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(candidate.get(path).bytes)).reverse()), null, 4));
+        const name = 'plugins/excel-mcp/plugin.json';
+        edit(candidate, name, JSON.stringify(Object.fromEntries(Object.entries(JSON.parse(candidate.get(name).bytes)).reverse()), null, 4));
         assert.deepEqual(compareTrees(baseline, candidate).changedPaths, []);
         const market = JSON.parse(candidate.get('.github/plugin/marketplace.json').bytes);
         market.metadata.version = '2.0.0';
@@ -304,17 +261,14 @@ export function registerPolicyTests() {
     });
 
     test('invalid identity, JSON, stamps, missing required files and unsupported plugin layouts fail visibly', () => {
-        for (const [path, value] of [
-            ['plugins/excel-mcp/plugin.json', '{}'],
-            ['plugins/excel-mcp/plugin.json', '{invalid'],
-            ['plugins/excel-mcp/version.txt', '2.0.2'],
-            ['plugins/excel-mcp/skills/excel-mcp/VERSION', null],
-            ['plugins/excel-mcp/mcp.json', null],
-            ['plugins/unknown/plugin.json', '{}'],
+        for (const [name, value] of [
+            ['plugins/excel-mcp/plugin.json', '{}'], ['plugins/excel-mcp/plugin.json', '{invalid'],
+            ['plugins/excel-mcp/version.txt', '2.0.2'], ['plugins/excel-mcp/skills/excel-mcp/VERSION', null],
+            ['plugins/excel-mcp/mcp.json', null], ['plugins/unknown/plugin.json', '{}'],
             ['plugins/excel-mcp/binary.dll', 'runtime'],
         ]) {
             const candidate = payload();
-            if (value === null) candidate.delete(path); else edit(candidate, path, value);
+            if (value === null) candidate.delete(name); else edit(candidate, name, value);
             assert.throws(() => validatePublication(candidate));
         }
     });
@@ -353,491 +307,9 @@ export function registerPolicyTests() {
             currentVersion: '2.0.1', version: '2.0.1', manualRepair: true, tagExists: true, rawChanged: false,
         }).write, false);
     });
-
-    test('manual catch-up compares actually listed content, not the previous release or newest product tag', () => {
-        assert.equal(plan().action, 'noop');
-        const candidate = payload('2.3.0');
-        edit(candidate, 'plugins/excel-cli/README.md', 'Accumulated old change');
-        const result = plan(candidate);
-        assert.equal(result.action, 'create');
-        assert.deepEqual(result.changedPlugins, ['excel-cli']);
-        assert.equal(result.state.entries['excel-cli'].entry.source.sha, sha2);
-        assert.equal(result.state.entries['excel-cli'].entry.source.ref, 'v2.3.0');
-        assert.equal(result.state.entries['excel-cli'].entry.description, 'Curated description');
-    });
-
-    test('both changed plugins produce one combined proposal; relevant manifest metadata is reflected', () => {
-        const candidate = payload('2.3.0');
-        for (const name of ['excel-cli', 'excel-mcp']) {
-            edit(candidate, `plugins/${name}/README.md`, 'Changed');
-            const manifest = JSON.parse(candidate.get(`plugins/${name}/plugin.json`).bytes);
-            manifest.description = `${name} new metadata`;
-            edit(candidate, `plugins/${name}/plugin.json`, JSON.stringify(manifest));
-        }
-        const result = plan(candidate);
-        assert.equal(result.action, 'create');
-        assert.deepEqual(result.changedPlugins, ['excel-cli', 'excel-mcp']);
-        assert.equal(result.state.entries['excel-mcp'].entry.description, 'excel-mcp new metadata');
-        assert.equal(parseState(pending(result).body).proposalFingerprint, result.state.proposalFingerprint);
-    });
-
-    test('pending equivalent proposals do not write, even when candidate stamps differ', () => {
-        const candidate = payload('2.3.0');
-        edit(candidate, 'plugins/excel-cli/README.md', 'Changed');
-        const prior = pending(plan(candidate));
-        const next = payload('2.4.0');
-        edit(next, 'plugins/excel-cli/README.md', 'Changed');
-        const result = plan(next, { pulls: [prior], tag: 'v2.4.0', commit: sha4,
-            getTree: sha => ({ [sha1]: payload(), [sha2]: candidate, [sha4]: next })[sha],
-            resolveTag: tag => ({ 'v2.0.1': sha1, 'v2.3.0': sha2, 'v2.4.0': sha4 })[tag] });
-        assert.equal(result.action, 'noop');
-        assert.equal(result.reason, 'Pending proposal already contains equivalent content.');
-    });
-
-    test('new content refreshes the same PR and preserves an existing proposal for the other plugin', () => {
-        const first = payload('2.3.0');
-        edit(first, 'plugins/excel-cli/README.md', 'CLI proposal');
-        const prior = pending(plan(first));
-        const second = payload('2.4.0');
-        edit(second, 'plugins/excel-cli/README.md', 'CLI proposal');
-        edit(second, 'plugins/excel-mcp/README.md', 'MCP proposal');
-        const result = plan(second, { pulls: [prior], tag: 'v2.4.0', commit: sha4,
-            getTree: sha => ({ [sha1]: payload(), [sha2]: first, [sha4]: second })[sha],
-            resolveTag: tag => ({ 'v2.0.1': sha1, 'v2.3.0': sha2, 'v2.4.0': sha4 })[tag] });
-        assert.equal(result.action, 'update');
-        assert.equal(result.pullNumber, 42);
-        assert.equal(result.expectedHead, sha3);
-        assert.equal(result.state.entries['excel-cli'].entry.source.sha, sha2);
-        assert.deepEqual(Object.keys(result.state.entries).sort(), ['excel-cli', 'excel-mcp']);
-    });
-
-    test('a reverted pending plugin blocks both no-op and other-plugin refreshes without writes', () => {
-        for (const name of ['excel-cli', 'excel-mcp']) {
-            const first = payload('2.3.0');
-            edit(first, `plugins/${name}/README.md`, 'Pending proposal');
-            const prior = pending(plan(first));
-            for (const changeOther of [false, true]) {
-                const second = payload('2.4.0');
-                if (changeOther) {
-                    const other = name === 'excel-cli' ? 'excel-mcp' : 'excel-cli';
-                    edit(second, `plugins/${other}/README.md`, 'Other plugin changed');
-                }
-                const body = prior.body;
-                assert.throws(() => plan(second, { pulls: [prior], tag: 'v2.4.0', commit: sha4,
-                    getTree: sha => ({ [sha1]: payload(), [sha2]: first, [sha4]: second })[sha],
-                    resolveTag: tag => ({ 'v2.0.1': sha1, 'v2.3.0': sha2, 'v2.4.0': sha4 })[tag] }),
-                /Pending plugin proposal was reverted.*manual resolution/);
-                assert.equal(prior.body, body);
-                assert.equal(prior.head.sha, sha3);
-            }
-        }
-    });
-
-    test('every token-free upstream npm command receives a sanitized environment without changing parent settings', () => {
-        const env = { PATH: 'preserved-path', NODE_OPTIONS: '--max-old-space-size=4096',
-            GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
-            GIT_CONFIG_VALUE_0: 'AUTHORIZATION: dummy-header', GIT_CONFIG_PARAMETERS: "'http.extraheader=dummy-header'",
-            GIT_ASKPASS: 'dummy-helper', SSH_ASKPASS: 'dummy-helper', GIT_SSH_COMMAND: 'dummy-helper',
-            GIT_CONFIG_GLOBAL: 'dummy-config', GIT_CONFIG_SYSTEM: 'dummy-config' };
-        const probe = `
-        import assert from 'node:assert/strict';
-        import { execFileSync } from 'node:child_process';
-        import * as updater from ${JSON.stringify(new URL('../../scripts/Update-AwesomeCopilot.mjs', import.meta.url).href)};
-        const env = ${JSON.stringify(env)};
-        const calls = [];
-        updater.validateUpstreamBuild('disposable-upstream', { env, execute: (command, args, cwd, childEnv) => {
-            calls.push(args);
-            assert.equal(command, 'npm');
-            assert.equal(cwd, 'disposable-upstream');
-            assert.deepEqual(childEnv, { PATH: env.PATH, NODE_OPTIONS: env.NODE_OPTIONS });
-            const probe = execFileSync(process.execPath, ['-e',
-                "console.log(JSON.stringify(Object.keys(process.env).filter(name => /(?:TOKEN|_PAT)$|^GIT_CONFIG(?:$|_)|^(?:GIT|SSH)_ASKPASS$|^GIT_SSH(?:$|_)/i.test(name))))"],
-            { env: childEnv, encoding: 'utf8', windowsHide: true });
-            assert.deepEqual(JSON.parse(probe), []);
-        } });
-        assert.deepEqual(calls, [['ci', '--ignore-scripts', '--no-audit', '--no-fund'],
-            ['run', 'plugin:validate'], ['run', 'build']]);
-        assert.equal(env.PATH, 'preserved-path');
-        `;
-        // The suite may itself be launched by a credentialed test host; build probes start independently.
-        command(process.execPath, ['--input-type=module', '-e', probe], repoRoot, externalCommandEnvironment());
-    });
-
-    test('upstream build failure remains visible and stops remaining commands', () => {
-        const probe = `
-        import assert from 'node:assert/strict';
-        import * as updater from ${JSON.stringify(new URL('../../scripts/Update-AwesomeCopilot.mjs', import.meta.url).href)};
-        let calls = 0;
-        const failure = new Error('Upstream validation failed');
-        assert.throws(() => updater.validateUpstreamBuild('disposable-upstream', {
-            env: {}, execute: () => { calls++; throw failure; },
-        }), error => error === failure);
-        assert.equal(calls, 1);
-        `;
-        command(process.execPath, ['--input-type=module', '-e', probe], repoRoot, externalCommandEnvironment());
-    });
-
-    test('upstream builds reject a write-token-bearing parent before executing any child', () => {
-        const probe = `
-            import { validateUpstreamBuild } from ${JSON.stringify(new URL('../../scripts/Update-AwesomeCopilot.mjs', import.meta.url).href)};
-            let calls = 0;
-            try {
-                validateUpstreamBuild('unused', { env: {}, execute: () => { calls++; } });
-                process.exitCode = 1;
-            } catch (error) {
-                if (!/write credential.*parent/i.test(error.message) || calls !== 0) throw error;
-                console.log('blocked before upstream execution');
-            }
-        `;
-        assert.equal(command(process.execPath, ['--input-type=module', '-e', probe], repoRoot,
-            { ...process.env, AWESOME_COPILOT_PR_TOKEN: 'fake-initial-parent-token' }).trim(),
-        'blocked before upstream execution');
-    });
-
-    test('upstream builds and local prepare reject initial GitHub and inference credentials before any execution', () => {
-        for (const name of ['GH_TOKEN', 'GITHUB_TOKEN', 'COPILOT_GITHUB_TOKEN', 'GH_AW_GITHUB_TOKEN',
-            'GH_AW_GITHUB_MCP_SERVER_TOKEN', 'gh_token']) {
-            const probe = `
-                import assert from 'node:assert/strict';
-                import { execFileSync } from 'node:child_process';
-                import { validateUpstreamBuild, prepare } from ${JSON.stringify(new URL('../../scripts/Update-AwesomeCopilot.mjs', import.meta.url).href)};
-                if (process.platform === 'linux') {
-                    const inherited = execFileSync(process.execPath, ['-e',
-                        'process.stdout.write(require("node:fs").readFileSync("/proc/" + process.ppid + "/environ"))']);
-                    assert.ok(inherited.includes(Buffer.from('fake-initial-api-canary')));
-                }
-                delete process.env[${JSON.stringify(name)}];
-                let calls = 0;
-                assert.throws(() => validateUpstreamBuild('unused', { env: {}, execute: () => { calls++; } }), /credential.*parent/i);
-                assert.equal(calls, 0);
-                assert.throws(() => prepare({tag:'v2.1.0',workDirectory:'must-not-be-created'}), /credential.*parent/i);
-                console.log('blocked');
-            `;
-            assert.equal(command(process.execPath, ['--input-type=module', '-e', probe], repoRoot,
-                { ...process.env, [name]: 'fake-initial-api-canary' }).trim(), 'blocked');
-        }
-    });
-
-    test('human changes, duplicate owned PRs, wrong ownership and declined identical proposals block', () => {
-        const candidate = payload('2.3.0');
-        edit(candidate, 'plugins/excel-cli/README.md', 'Changed');
-        const prior = pending(plan(candidate));
-        assert.throws(() => plan(candidate, { pulls: [{ ...prior, head: { ...prior.head, sha: sha2 } }] }), /head/);
-        assert.throws(() => plan(candidate, { pulls: [prior, { ...prior, number: 43 }] }), /one open/);
-        assert.throws(() => plan(candidate, { pulls: [{ ...prior, user: { login: 'human' } }] }), /ownership/);
-        assert.throws(() => plan(candidate, { pulls: [{ ...prior, head: { ...prior.head, repo: null } }] }), /ownership/);
-        assert.throws(() => plan(candidate, { pulls: [{ ...prior, state: 'closed' }] }), /declined/);
-        const bodyState = parseState(prior.body);
-        bodyState.bodyFingerprint = '0'.repeat(64);
-        assert.throws(() => parseState('Human changes\n' + stateMarker(bodyState)), /body changed/);
-    });
-
-    test('owned bodies cannot bypass protection by removing or corrupting their fingerprint', () => {
-        const candidate = payload('2.3.0');
-        edit(candidate, 'plugins/excel-cli/README.md', 'Changed');
-        const prior = pending(plan(candidate));
-        for (const value of [undefined, null, 'invalid']) {
-            const state = parseState(prior.body);
-            if (value === undefined) delete state.bodyFingerprint;
-            else state.bodyFingerprint = value;
-            assert.throws(() => plan(candidate, { pulls: [{ ...prior, body: 'Human edits\n' + stateMarker(state) }] }), /fingerprint/);
-        }
-    });
-
-    test('owned state safely round-trips HTML delimiters and preserves exact visible body protection', () => {
-        const candidate = payload('2.3.0');
-        edit(candidate, 'plugins/excel-cli/README.md', 'Changed');
-        const prior = pending(plan(candidate));
-        const state = parseState(prior.body);
-        state.entries['excel-cli'].entry.description = 'Text --> <!-- nested --> and \u00e9';
-        state.listed['excel-cli'].description = 'Listed --> text';
-        const visible = 'Reviewed context containing --> without a machine marker.';
-        state.bodyFingerprint = hash(visible);
-        const encoded = stateMarker(state);
-        assert.equal((encoded.match(/-->/g) ?? []).length, 1);
-        assert.match(encoded, /^<!-- excel-plugin-update-state:b64url:[A-Za-z0-9_-]+ -->$/);
-        assert.deepEqual(parseState(`${visible}\n\n${encoded}`), state);
-        assert.throws(() => parseState(`Human edit\n${visible}\n\n${encoded}`), /body changed/);
-        const receipt = updater.createSubmissionReceipt({ action: 'update', state,
-            branch: prior.head.ref, pullNumber: prior.number, expectedHead: sha3,
-            expectedBody: hash(prior.body), files: {} }, sha4, `${visible}\n\n${encoded}`);
-        assert.deepEqual(parseState(receipt.body), state);
-    });
-
-    test('state encoding rejects malformed, noncanonical and unsafe legacy markers visibly', () => {
-        const candidate = payload('2.3.0');
-        edit(candidate, 'plugins/excel-cli/README.md', 'Changed');
-        const state = parseState(pending(plan(candidate)).body);
-        for (const value of ['', 'abc=', 'not+url', 'A', '_w',
-            Buffer.from('{invalid').toString('base64url'),
-            Buffer.from(JSON.stringify(state, null, 2)).toString('base64url')]) {
-            assert.throws(() => parseState(`<!-- excel-plugin-update-state:b64url:${value} -->`));
-        }
-        // Original markers used canonical object ordering, including nested objects.
-        const canonicalState = JSON.parse(Buffer.from(stateMarker(state).split('b64url:')[1].split(' -->')[0], 'base64url'));
-        const canonicalText = canonicalJson(JSON.stringify(canonicalState));
-        assert.deepEqual(parseState(`<!-- excel-plugin-update-state:${canonicalText} -->`), state);
-        assert.throws(() => parseState(`Human edit\n<!-- excel-plugin-update-state:${canonicalText} -->`), /body changed/);
-        state.entries['excel-cli'].entry.description = 'unsafe -- legacy';
-        assert.throws(() => parseState(`<!-- excel-plugin-update-state:${canonicalJson(JSON.stringify(state))} -->`), /legacy|unsafe/i);
-        assert.throws(() => parseState(`${stateMarker(state)}\n${stateMarker(state)}`), /exactly one/);
-    });
-
-    test('an orphan from an older proposal blocks a different create branch but associated closed heads do not', () => {
-        const candidate = payload('2.3.0');
-        edit(candidate, 'plugins/excel-cli/README.md', 'Changed');
-        const proposed = plan(candidate);
-        const oldBranch = 'excel-plugin-updates-123456abcdef';
-        const heads = `${sha3}\trefs/heads/${oldBranch}\n`;
-        assert.throws(() => updater.assertForkHeads(proposed, heads, []), /orphan/);
-        assert.doesNotThrow(() => updater.assertForkHeads(proposed, heads, [pending(proposed, { state: 'closed' })]));
-        assert.throws(() => updater.assertForkHeads(proposed, 'invalid API data', []), /Invalid fork/);
-    });
-
-    test('orphan association includes paginated open and historical closed PR data', () => {
-        const candidate = payload('2.3.0');
-        edit(candidate, 'plugins/excel-cli/README.md', 'Changed');
-        const proposed = plan(candidate);
-        const visited = [];
-        const pulls = updater.allPulls(endpoint => {
-            visited.push(endpoint);
-            if (endpoint.includes('state=open')) {
-                if (endpoint.endsWith('page=2')) return [];
-                return Array.from({ length: 100 }, (_, i) => ({
-                    number: i + 1, state: 'open', body: null, user: { login: 'another-user' },
-                }));
-            }
-            if (endpoint.includes('state=closed')) return [];
-            if (endpoint.startsWith('search/issues?')) {
-                const last = endpoint.endsWith('page=2');
-                return { incomplete_results: false, total_count: 101,
-                    items: Array.from({ length: last ? 1 : 100 }, (_, i) => ({ number: 1001 + i + (last ? 100 : 0) })) };
-            }
-            const number = Number(endpoint.split('/').at(-1));
-            return pending(proposed, { number, state: 'closed', merged_at: '2026-01-01T00:00:00Z' });
-        });
-        assert.equal(pulls.length, 201);
-        assert.ok(visited.some(endpoint => endpoint.includes('state=open') && endpoint.endsWith('page=2')));
-        assert.ok(visited.some(endpoint => endpoint.startsWith('search/issues?') && endpoint.endsWith('page=2')));
-        assert.ok(pulls.some(pr => pr.number === 1101));
-        assert.doesNotThrow(() => updater.assertForkHeads(proposed, `${sha3}\trefs/heads/excel-plugin-updates-123456abcdef\n`, pulls));
-    });
-
-    test('missing search pages or invalid counts cannot silently omit historical owned PRs', () => {
-        for (const response of [
-            { incomplete_results: false, total_count: -1, items: [] },
-            { incomplete_results: false, total_count: 1, items: [] },
-            { incomplete_results: false, total_count: 101, items: [] },
-        ]) {
-            assert.throws(() => updater.allPulls(endpoint =>
-                endpoint.startsWith('search/issues?') ? response : []), /API data|Truncated/);
-        }
-    });
-
-    test('same-PR refresh tolerates head propagation and reconciles a body write whose response was lost', () => {
-        const before = 'Original protected body';
-        const after = 'New protected body';
-        const proposed = { expectedHead: sha1, expectedBody: hash(before), pullNumber: 42 };
-        const observations = [
-            { state: 'open', head: { sha: sha1 }, body: before },
-            { state: 'open', head: { sha: sha2 }, body: before },
-            { state: 'open', head: { sha: sha2 }, body: after, html_url: 'https://github.com/github/awesome-copilot/pull/42' },
-        ];
-        let writes = 0, waits = 0;
-        const result = updater.refreshPullAfterPush(proposed, sha2, after, {
-            readPull: () => observations.shift(), readHead: () => sha2,
-            writeBody: () => { writes++; throw new Error('Lost response'); }, wait: () => { waits++; },
-        });
-        assert.equal(result.body, after);
-        assert.equal(writes, 1);
-        assert.equal(waits, 2);
-    });
-
-    test('post-push refresh rejects unrelated edits and stops after bounded propagation retries', () => {
-        const before = 'Protected body';
-        const proposed = { expectedHead: sha1, expectedBody: hash(before), pullNumber: 42 };
-        for (const live of [
-            { state: 'closed', head: { sha: sha2 }, body: before },
-            { state: 'open', head: { sha: sha4 }, body: before },
-            { state: 'open', head: { sha: sha2 }, body: 'Human edit' },
-        ]) {
-            assert.throws(() => updater.refreshPullAfterPush(proposed, sha2, 'New body', {
-                readPull: () => live, readHead: () => sha2, writeBody: () => assert.fail('No write allowed'), wait: () => {},
-            }), /changed after push/);
-        }
-        let reads = 0;
-        assert.throws(() => updater.refreshPullAfterPush(proposed, sha2, 'New body', {
-            readPull: () => { reads++; return { state: 'open', head: { sha: sha1 }, body: before }; },
-            readHead: () => sha2, writeBody: () => assert.fail('No premature write'), wait: () => {},
-        }), /reconciliation/);
-        assert.equal(reads, 8);
-        assert.throws(() => updater.refreshPullAfterPush(proposed, sha2, 'New body', {
-            readPull: () => assert.fail('No API write/read after foreign push'), readHead: () => sha4,
-            writeBody: () => assert.fail('No overwrite'), wait: () => {},
-        }), /Fork head changed/);
-    });
-
-    test('a partial body-write failure retries only the same protected transition', () => {
-        const before = 'Original protected body', after = 'Verified new body';
-        const proposed = { expectedHead: sha1, expectedBody: hash(before), pullNumber: 42 };
-        let writes = 0;
-        const result = updater.refreshPullAfterPush(proposed, sha2, after, {
-            readPull: () => ({ state: 'open', head: { sha: sha2 }, body: before }),
-            readHead: () => sha2, wait: () => {},
-            writeBody: () => {
-                if (++writes === 1) throw new Error('Transient API failure');
-                return { state: 'open', head: { sha: sha2 }, body: after };
-            },
-        });
-        assert.equal(result.body, after);
-        assert.equal(writes, 2);
-    });
-
-    test('refresh cannot report success after the fork changes during a body write', () => {
-        const before = 'Protected body', after = 'New body';
-        const proposed = { expectedHead: sha1, expectedBody: hash(before), pullNumber: 42 };
-        let head = sha2;
-        assert.throws(() => updater.refreshPullAfterPush(proposed, sha2, after, {
-            readPull: () => ({ state: 'open', head: { sha: sha2 }, body: before }),
-            readHead: () => head, wait: () => {},
-            writeBody: () => {
-                head = sha4;
-                return { state: 'open', head: { sha: sha2 }, body: after };
-            },
-        }), /Fork head changed/);
-    });
-
-    test('submission receipt records only the exact transition and public proposal, never credentials', () => {
-        const files = { 'plugins/external.json': '[]\n' };
-        const proposed = { action: 'update', state: { base: sha1 }, branch: 'excel-plugin-updates-123456abcdef',
-            pullNumber: 42, expectedHead: sha2, expectedBody: hash('Original body'), files,
-            token: 'must-not-be-copied', env: { AWESOME_COPILOT_PR_TOKEN: 'must-not-be-copied' } };
-        const receipt = updater.createSubmissionReceipt(proposed, sha3, 'Exact new body');
-        assert.deepEqual(receipt, { schema: 1, status: 'prepared', action: 'update',
-            upstream: 'github/awesome-copilot', fork: 'sbroenne/awesome-copilot', base: sha1,
-            branch: proposed.branch, pullNumber: 42, previousHead: sha2,
-            expectedBody: proposed.expectedBody, head: sha3, body: 'Exact new body', files });
-        assert.ok(!JSON.stringify(receipt).includes('must-not-be-copied'));
-    });
-
-    test('invalid API/listing/tag data and listing/pending downgrades fail instead of no-change', () => {
-        assert.throws(() => plan(undefined, { pulls: null }), /API/);
-        assert.throws(() => plan(undefined, { tag: 'main' }), /tag/);
-        assert.throws(() => plan(undefined, { resolveTag: () => null }), /tag/);
-        const bad = listings();
-        bad[0].source.sha = sha3;
-        assert.throws(() => plan(undefined, { listings: bad }), /ref\/SHA/);
-        const newer = listings();
-        newer[0].version = '2.4.0';
-        assert.throws(() => plan(undefined, { listings: newer }), /Downgrade/);
-        assert.throws(() => plan(undefined, { listings: [] }), /exactly/);
-        const candidate = payload('2.3.0');
-        edit(candidate, 'plugins/excel-cli/README.md', 'Changed');
-        const prior = pending(plan(candidate));
-        const state = parseState(prior.body);
-        const badLocator = structuredClone(state);
-        badLocator.entries['excel-cli'].entry.source.sha = sha3;
-        assert.throws(() => plan(candidate, { pulls: [{ ...prior, body: stateMarker(badLocator) }] }), /locator/);
-        state.entries['excel-cli'].entry.version = '2.4.0';
-        state.entries['excel-cli'].entry.source.ref = 'v2.4.0';
-        prior.body = stateMarker(state);
-        assert.throws(() => plan(candidate, { pulls: [prior] }), /Downgrade/);
-    });
-
-    test('patch is limited to exactly affected entries and the two approved files', () => {
-        const before = [...listings(), { name: 'unrelated', source: 'keep' }];
-        const after = structuredClone(before);
-        after[0].version = '2.3.0';
-        assert.doesNotThrow(() => assertListingPatch(before, after, ['excel-cli']));
-        after[1].description = 'not allowed';
-        assert.throws(() => assertListingPatch(before, after, ['excel-cli']), /unaffected/);
-        after.pop();
-        assert.throws(() => assertListingPatch(before, after, ['excel-cli']), /entries/);
-        assert.doesNotThrow(() => assertAllowedPaths(['plugins/external.json', '.github/plugin/marketplace.json']));
-        assert.throws(() => assertAllowedPaths(['.github/workflows/evil.yml']), /allowed/);
-        assert.throws(() => assertAllowedPaths([]), /empty/);
-    });
-
-    test('privileged writer rejects multiple/extra/schema-invalid outputs and honors trusted opt-in/preview/staged gates', () => {
-        const trusted = { guardFingerprint: 'verified' };
-        const item = { type: 'submit_marketplace_update', proposal_fingerprint: 'verified', body: 'A reviewed proposal body with at least forty characters.' };
-        assert.doesNotThrow(() => validateRequest({ items: [item] }, trusted));
-        for (const items of [[], [item, item], [{ ...item, repo: 'evil/repo' }], [{ ...item, proposal_fingerprint: 'wrong' }]]) {
-            assert.throws(() => validateRequest({ items }, trusted));
-        }
-        for (const env of [
-            {}, { PREVIEW: 'true', AWESOME_COPILOT_UPDATES_ENABLED: 'true' },
-            { PREVIEW: 'false', AWESOME_COPILOT_UPDATES_ENABLED: 'false' },
-            { PREVIEW: 'false', AWESOME_COPILOT_UPDATES_ENABLED: 'true', GH_AW_SAFE_OUTPUTS_STAGED: 'true' },
-        ]) {
-            assert.equal(writesEnabled(env), false);
-            assert.equal(submit({ trustedPlan: trusted, output: { items: [item] }, env }).status, 'preview');
-        }
-        assert.equal(writesEnabled({ PREVIEW: 'false', AWESOME_COPILOT_UPDATES_ENABLED: 'true' }), true);
-    });
-
-    test('PR bodies preserve upstream headings, comments, checklist items and ordering', () => {
-        const template = '## Checklist\n- [ ] Follow guidelines.\n<!-- Keep context -->\n## Description\n';
-        assert.doesNotThrow(() => assertTemplate(template, template.replace('[ ]', '[x]') + 'Actual changes.'));
-        for (const body of [
-            template.replace('<!-- Keep context -->', ''),
-            template.replace('- [ ] Follow guidelines.\n', ''),
-            template.replace('## Checklist', '## Changed heading'),
-            '## Description\n## Checklist\n- [ ] Follow guidelines.\n<!-- Keep context -->',
-        ]) assert.throws(() => assertTemplate(template, body), /preserve upstream template/);
-    });
-
-    test('writer restores only trusted template comments stripped by safe-output sanitization', () => {
-        const template = '<!-- Intro -->\n## Checklist\n- [ ] Follow guidelines.\n' +
-            '<!-- Keep context -->\n<!-- Keep more context -->\n## Description\n<!-- Describe changes -->\n';
-        const authored = template.replace('[ ]', '[x]') + 'Actual changes.\n<!-- Agent-only comment -->\n';
-        const sanitized = authored.replace(/<!--[\s\S]*?-->/g, '');
-        assert.throws(() => assertTemplate(template, sanitized), /preserve upstream template/);
-        for (const newline of ['\n', '\r\n']) {
-            const restored = updater.restoreTemplateComments(
-                template.replaceAll('\n', newline), sanitized.replaceAll('\n', newline));
-            assert.doesNotThrow(() => assertTemplate(template, restored));
-            assert.match(restored, /- \[x\] Follow guidelines\./);
-            assert.match(restored, /Actual changes\./);
-            assert.equal(restored.includes('Agent-only comment'), false);
-            for (const comment of template.match(/<!--[\s\S]*?-->/g)) {
-                assert.equal(restored.split(comment).length, 2);
-            }
-            assert.equal(updater.restoreTemplateComments(template, restored), restored);
-        }
-        assert.equal(updater.restoreTemplateComments(template, authored), authored);
-        assert.doesNotThrow(() => assertTemplate(template, updater.restoreTemplateComments(template,
-            authored.replace('<!-- Keep context -->', '').replace('<!-- Describe changes -->', ''))));
-        for (const body of [
-            sanitized.replace('- [x] Follow guidelines.\n', ''),
-            sanitized.replace('## Checklist', '## Changed heading'),
-            '## Description\n## Checklist\n- [x] Follow guidelines.\n',
-            authored.replace('<!-- Keep context -->\n<!-- Keep more context -->',
-                '<!-- Keep more context -->\n<!-- Keep context -->'),
-        ]) assert.throws(() => updater.restoreTemplateComments(template, body), /preserve upstream template/);
-    });
-
 }
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-
-export function registerWorkflowPolicyTests() {
-    test('public build rejects malformed discovery snapshots before clone or upstream execution', () => {
-        for (const discovery of [null, {}, { pulls: [], tag: 'v2.1.0', discoveryFingerprint: '0'.repeat(64) }]) {
-            assert.throws(() => updater.buildDiscoveredPlan({ discovery, workDirectory: 'must-not-be-created' }), /artifact\/digest/);
-        }
-        assert.equal(fs.existsSync(path.join(repoRoot, 'must-not-be-created')), false);
-    });
-
-    test('writer rejects modified built-file fingerprints before any remote preparation', () => {
-        assert.throws(() => updater.recheckPreparedPlan({
-            trustedPlan: { files: { 'plugins/external.json': '[]' }, patchFingerprint: '0'.repeat(64) },
-            workDirectory: 'must-not-be-created',
-        }), /fingerprint mismatch/);
-        assert.equal(fs.existsSync(path.join(repoRoot, 'must-not-be-created')), false);
-    });
-}
-
+const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const gitLocalVariables = execFileSync('git', ['rev-parse', '--local-env-vars'], {
     cwd: repoRoot, encoding: 'utf8', windowsHide: true,
 }).trim().split(/\r?\n/);
@@ -849,8 +321,7 @@ function command(executable, args, cwd, inherited = process.env) {
     for (const name of Object.keys(env)) {
         if (/^GIT_CONFIG_(KEY|VALUE)_\d+$/.test(name)) delete env[name];
     }
-    return execFileSync(executable, args, { cwd, encoding: 'utf8', windowsHide: true,
-        env });
+    return execFileSync(executable, args, { cwd, encoding: 'utf8', windowsHide: true, env });
 }
 
 export function registerGitIsolationTests() {
@@ -877,196 +348,15 @@ export function registerGitIsolationTests() {
             fs.writeFileSync(path.join(root, 'probe.mjs'),
                 'console.log(JSON.stringify(Object.entries(process.env).filter(([name,value]) => /(?:TOKEN|_PAT)$|^GIT_CONFIG(?:$|_)|^(?:GIT|SSH)_ASKPASS$|^GIT_SSH(?:$|_)/i.test(name) && value.includes("dummy")).map(([name]) => name)));');
             const env = { PATH: process.env.PATH, SystemRoot: process.env.SystemRoot,
-                AWESOME_COPILOT_PR_TOKEN: 'dummy-write-token', GH_TOKEN: 'dummy-read-token',
+                PLUGINS_REPO_TOKEN: 'dummy-write-token', GH_TOKEN: 'dummy-read-token',
                 GIT_CONFIG_COUNT: '1', GIT_CONFIG_KEY_0: 'http.https://github.com/.extraheader',
                 GIT_CONFIG_VALUE_0: 'AUTHORIZATION: dummy-header',
                 GIT_CONFIG_PARAMETERS: "'http.extraheader=dummy-parameter'" };
             const probe = readOnlyGit(root, ['-c', `alias.probe=!"${process.execPath}" probe.mjs`, 'probe'], { env });
             assert.deepEqual(JSON.parse(probe), []);
-            assert.equal(env.AWESOME_COPILOT_PR_TOKEN, 'dummy-write-token');
+            assert.equal(env.PLUGINS_REPO_TOKEN, 'dummy-write-token');
         } finally { fs.rmSync(root, { recursive: true }); }
     });
-
-}
-
-export function registerMarketplaceTests() {
-    test('allowed marketplace paths reject root, ancestor and leaf links before any mutation', () => {
-        const cases = process.platform === 'win32'
-            ? ['root', '.github/plugin']
-            : ['root', '.github/plugin', 'external-leaf'];
-        for (const kind of cases) {
-            const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-listing-link-'));
-            const root = path.join(fixture, 'checkout'), outside = path.join(fixture, 'outside');
-            try {
-                init(root);
-                const before = listings(), after = structuredClone(before);
-                after[0].version = '2.3.0';
-                const market = entries => JSON.stringify({ plugins: entries });
-                const files = { 'plugins/external.json': JSON.stringify(after), '.github/plugin/marketplace.json': market(after) };
-                writeTree(root, new Map([
-                    ['plugins/external.json', { bytes: Buffer.from(JSON.stringify(before)) }],
-                    ['.github/plugin/marketplace.json', { bytes: Buffer.from(market(before)) }],
-                ]));
-                commit(root, 'Safe baseline');
-                fs.mkdirSync(outside);
-                const canary = path.join(outside, 'canary.json');
-                fs.writeFileSync(canary, JSON.stringify(before));
-                let directory = root;
-                if (kind === 'root') {
-                    directory = path.join(fixture, 'linked-checkout');
-                    fs.symlinkSync(root, directory, process.platform === 'win32' ? 'junction' : 'dir');
-                } else if (kind === 'external-leaf') {
-                    const leaf = path.join(root, 'plugins/external.json');
-                    fs.rmSync(leaf);
-                    fs.symlinkSync(canary, leaf);
-                } else {
-                    const destination = path.join(root, kind);
-                    fs.rmSync(destination, { recursive: true });
-                    fs.symlinkSync(outside, destination, process.platform === 'win32' ? 'junction' : 'dir');
-                }
-                assert.throws(() => updater.patch(directory, {
-                    changedPlugins: ['excel-cli'], state: { entries: { 'excel-cli': { entry: after[0] } } },
-                }, files), /unsafe|link|reparse/i);
-                assert.equal(fs.readFileSync(canary, 'utf8'), JSON.stringify(before));
-                assert.deepEqual(fs.readdirSync(outside), ['canary.json']);
-                const external = path.join(root, 'plugins/external.json');
-                if (fs.existsSync(external)) assert.equal(fs.readFileSync(external, 'utf8'), JSON.stringify(before));
-            } finally { fs.rmSync(fixture, { recursive: true }); }
-        }
-    });
-
-    test('tracked link modes are rejected even when Windows materializes a regular link-text file', () => {
-        for (const name of ['plugins/external.json', 'plugins']) {
-            const root = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-listing-mode-'));
-            try {
-                init(root);
-                const before = listings();
-                writeTree(root, new Map([
-                    ['plugins/external.json', { bytes: Buffer.from(JSON.stringify(before)) }],
-                    ['.github/plugin/marketplace.json', { bytes: Buffer.from(JSON.stringify({ plugins: before })) }],
-                ]));
-                const blob = command('git', ['hash-object', '-w', 'plugins/external.json'], root).trim();
-                command('git', ['add', '-A'], root);
-                if (!name.endsWith('.json')) {
-                    for (const leaf of ['plugins/external.json', '.github/plugin/marketplace.json'].filter(leaf => leaf.startsWith(`${name}/`))) {
-                        command('git', ['update-index', '--force-remove', leaf], root);
-                    }
-                }
-                command('git', ['update-index', '--add', '--cacheinfo', `120000,${blob},${name}`], root);
-                command('git', ['commit', '--quiet', '-m', 'Tracked link mode with ordinary checkout bytes'], root);
-                assert.throws(() => updater.patch(root, {
-                    changedPlugins: [], state: { entries: {} },
-                }, {}), /mode|link/i);
-            } finally { fs.rmSync(root, { recursive: true }); }
-        }
-    });
-
-    test('artifact guards reject missing-leaf link ancestors and regular-file ancestors', () => {
-        const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-artifact-path-'));
-        try {
-            const outside = path.join(fixture, 'outside'), link = path.join(fixture, 'link');
-            fs.mkdirSync(outside);
-            fs.symlinkSync(outside, link, process.platform === 'win32' ? 'junction' : 'dir');
-            assert.throws(() => updater.safeUpdaterPath(path.join(link, 'missing-plan.json'), { allowMissing: true }), /unsafe|link/i);
-            const file = path.join(fixture, 'file');
-            fs.writeFileSync(file, 'canary');
-            assert.throws(() => updater.safeUpdaterPath(path.join(file, 'missing.json'), { allowMissing: true }), /type/i);
-            assert.deepEqual(fs.readdirSync(outside), []);
-            assert.equal(fs.readFileSync(file, 'utf8'), 'canary');
-        } finally { fs.rmSync(fixture, { recursive: true }); }
-    });
-
-    test('Windows canonical aliases accept long, short and case paths without weakening link or source guards', t => {
-        if (process.platform !== 'win32') { t.skip('Windows path-name APIs only'); return; }
-        const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-long-path-alias-'));
-        const names = target => JSON.parse(command('pwsh', ['-NoProfile', '-NonInteractive', '-Command', `
-            $ErrorActionPreference="Stop"
-            Add-Type 'using System; using System.Text; using System.Runtime.InteropServices; public static class PathNames {
-                [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] public static extern uint GetLongPathName(string p, StringBuilder b, uint n);
-                [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] public static extern uint GetShortPathName(string p, StringBuilder b, uint n);
-            }'
-            $long=[Text.StringBuilder]::new(32768); $short=[Text.StringBuilder]::new(32768)
-            if ([PathNames]::GetLongPathName($env:ALIAS_TARGET,$long,32768) -eq 0 -or [PathNames]::GetShortPathName($env:ALIAS_TARGET,$short,32768) -eq 0) {
-                throw [ComponentModel.Win32Exception]::new([Runtime.InteropServices.Marshal]::GetLastWin32Error())
-            }
-            @{long=$long.ToString();short=$short.ToString()} | ConvertTo-Json -Compress
-        `], repoRoot, { ...externalCommandEnvironment(), ALIAS_TARGET: target }));
-        try {
-            const { long, short } = names(fixture);
-            const canonical = fs.realpathSync.native(fixture);
-            for (const spelling of [long, short, long.toUpperCase()]) {
-                assert.equal(updater.safeUpdaterPath(spelling, { directory: true }), canonical);
-                assert.equal(updater.safeUpdaterPath(path.join(spelling, 'new', 'plan.json'), { allowMissing: true }),
-                    path.join(canonical, 'new', 'plan.json'));
-            }
-            if (short.toLowerCase() === long.toLowerCase()) {
-                assert.notEqual(process.env.GITHUB_ACTIONS, 'true', 'Hosted Windows CI must exercise an actual short-name alias.');
-                t.diagnostic('Local volume did not supply a distinct 8.3 alias; real long/case API paths and junction/source checks passed. Hosted Windows CI requires an actual alias.');
-            }
-            const outside = path.join(fixture, 'outside'), link = path.join(fixture, 'junction');
-            fs.mkdirSync(outside);
-            fs.symlinkSync(outside, link, 'junction');
-            for (const spelling of [long, short, long.toUpperCase()]) {
-                assert.throws(() => updater.safeUpdaterPath(path.join(spelling, 'junction', 'missing.json'), { allowMissing: true }), /unsafe|link|reparse/i);
-            }
-            for (const spelling of Object.values(names(repoRoot))) {
-                assert.throws(() => updater.discover({ tag: 'v2.1.0', workDirectory: spelling }), /overlap trusted source/i);
-            }
-            assert.deepEqual(fs.readdirSync(outside), []);
-        } finally { fs.rmSync(fixture, { recursive: true }); }
-    });
-
-    test('token-bearing writer validates exact prebuilt files without running any upstream npm script', () => {
-        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'excel-prebuilt-writer-'));
-        try {
-            init(root);
-            const before = listings();
-            const after = structuredClone(before);
-            after[0].version = '2.3.0';
-            after[0].source = { ...after[0].source, ref: 'v2.3.0', sha: sha2 };
-            const marketplace = entries => ({ metadata: { version: '1.0.0' }, plugins: entries });
-            writeTree(root, new Map([
-                ['plugins/external.json', { bytes: Buffer.from(JSON.stringify(before)) }],
-                ['.github/plugin/marketplace.json', { bytes: Buffer.from(JSON.stringify(marketplace(before))) }],
-            ]));
-            fs.writeFileSync(path.join(root, 'package.json'), JSON.stringify({
-                scripts: { 'plugin:validate': 'node -e "require(\'fs\').writeFileSync(\'upstream-executed\', \'unsafe\')"',
-                    build: 'node -e "require(\'fs\').writeFileSync(\'upstream-executed\', \'unsafe\')"' },
-            }));
-            commit(root, 'Upstream fixture');
-            const proposal = { changedPlugins: ['excel-cli'], state: { entries: { 'excel-cli': { entry: after[0] } } } };
-            const files = {
-                'plugins/external.json': JSON.stringify(after),
-                '.github/plugin/marketplace.json': JSON.stringify(marketplace(after)),
-            };
-            const probe = `
-                import assert from 'node:assert/strict';
-                import { patch } from ${JSON.stringify(new URL('../../scripts/Update-AwesomeCopilot.mjs', import.meta.url).href)};
-                const directory = ${JSON.stringify(root)}, proposal = ${JSON.stringify(proposal)}, files = ${JSON.stringify(files)};
-                const result = patch(directory, proposal, files);
-                if (JSON.stringify(result) !== JSON.stringify(${JSON.stringify(Object.fromEntries(Object.entries(files).sort()))})) {
-                    throw new Error('Unexpected patch');
-                }
-                assert.throws(() => patch(directory, proposal, { ...files, 'evil.mjs': 'not allowed' }), /allowed/);
-                const tampered = JSON.parse(files['plugins/external.json']);
-                tampered[1].description = 'Unrelated human entry';
-                assert.throws(() => patch(directory, proposal, {
-                    ...files, 'plugins/external.json': JSON.stringify(tampered),
-                }), /freshly verified/);
-                const market = JSON.parse(files['.github/plugin/marketplace.json']);
-                assert.throws(() => patch(directory, proposal, {
-                    ...files, '.github/plugin/marketplace.json': JSON.stringify({ ...market, evil: true }),
-                }), /root metadata/);
-                console.log('prebuilt patch verified without upstream execution');
-            `;
-            assert.equal(command(process.execPath, ['--input-type=module', '-e', probe], repoRoot,
-                { ...process.env, AWESOME_COPILOT_PR_TOKEN: 'fake-initial-parent-token' }).trim(),
-            'prebuilt patch verified without upstream execution');
-            assert.equal(fs.existsSync(path.join(root, 'upstream-executed')), false);
-            assert.equal(fs.readFileSync(path.join(root, 'plugins', 'external.json'), 'utf8'), files['plugins/external.json']);
-        } finally { fs.rmSync(root, { recursive: true }); }
-    });
-
 }
 
 function commit(directory, message) {
@@ -1119,8 +409,7 @@ Copy-Item -LiteralPath (Join-Path $PSScriptRoot '../.github/plugins/marketplace-
     const sourceCommit = commit(source, 'Candidate source');
     command('git', ['tag', `v${candidateVersion}`], source);
     command('git', ['checkout', '--quiet', '--detach', sourceCommit], source);
-    const candidate = payload(candidateVersion);
-    for (const [name, file] of candidate) if (name.startsWith('plugins/')) {
+    for (const [name, file] of payload(candidateVersion)) if (name.startsWith('plugins/')) {
         writeTree(built, new Map([[name.slice('plugins/'.length), file]]));
     }
     return { root, source, output, built, original, sourceCommit };

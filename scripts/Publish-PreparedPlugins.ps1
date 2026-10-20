@@ -148,7 +148,7 @@ try {
         $message = if ($status -eq 'skipped') { 'Plugin publication skipped: no content changes.' } else { 'Plugin publication prepared/published.' }
         "$message Actual published tag: ``$actualTag``; commit: ``$actualCommit``. Changed plugins: $($result.changed_plugins -join ', ')." >> $env:GITHUB_STEP_SUMMARY
         if ($result.handoff) {
-            "Awesome Copilot listings are updated manually: run ``update-awesome-copilot.lock.yml`` with ``published_tag=$actualTag`` (preview first)." >> $env:GITHUB_STEP_SUMMARY
+            "Review the changed plugin listings in github/awesome-copilot manually. Use output tag ``$actualTag`` and output commit ``$actualCommit``; product release tags are not interchangeable." >> $env:GITHUB_STEP_SUMMARY
         }
     }
 }

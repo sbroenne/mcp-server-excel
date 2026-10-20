@@ -48,8 +48,10 @@ protocol tests do not select Excel. Real-Excel MCP transport fixtures and their
 shared helpers select Excel coverage. Shared runtime helpers intentionally select broader
 runtime and acceptance coverage rather than maintaining a second source analyser.
 Package preparation belongs to the existing PowerShell commands.
-PR CI runs normal npm checks and complete package preparation. Explicit manual
-`Build-ReleasePackages.ps1 -Components ...` runs may narrow components.
+PR CI runs npm checks and prepares only distributions affected by package inputs.
+Main/manual CI and release preparation remain complete. Runtime-source-only PRs
+retain product checks but defer distribution-only defects to complete main checks.
+Explicit `Build-ReleasePackages.ps1 -Components ...` runs may narrow components.
 The same packaging commands are available for local troubleshooting; a complete
 local package run is not required for every edit or commit. Actions runs cheap
 skill/extension source checks before expensive packaging and retains checks of

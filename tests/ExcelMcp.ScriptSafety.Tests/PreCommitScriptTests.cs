@@ -57,8 +57,6 @@ public sealed class PreCommitScriptTests
             (".github/plugins/excel-cli/bin/start-cli.ps1", true, false, false),
             ("scripts/Publish-PreparedPlugins.ps1", true, false, false),
             ("scripts/PluginContent.mjs", true, false, false),
-            ("scripts/Update-AwesomeCopilot.mjs", true, false, false),
-            (".github/workflows/update-awesome-copilot.md", true, false, false),
             (".github/workflows/publish-plugins.yml", true, false, false),
             ("scripts/Build-AgentSkills.ps1", true, false, true),
             ("tests/ExcelMcp.Core.Tests/Unit/GeneratedActionContractTests.cs", true, false, false),

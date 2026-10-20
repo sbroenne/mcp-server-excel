@@ -47,25 +47,31 @@ public sealed class McpbPackagingScriptTests
     }
 
     [Theory]
-    [InlineData("wrong-version")]
-    [InlineData("")]
-    public async Task AggregatePackaging_RejectsMismatchedPreparedSkillsBeforeCreatingOutput(string stamp)
+    [InlineData("excel-cli", "wrong-version")]
+    [InlineData("excel-cli", "")]
+    [InlineData("excel-cli-report-formatting", "wrong-version")]
+    [InlineData("excel-cli-report-formatting", "")]
+    [InlineData("excel-mcp-report-formatting", "wrong-version")]
+    [InlineData("excel-mcp-report-formatting", "")]
+    public async Task AggregatePackaging_RejectsMismatchedPreparedSkillsBeforeCreatingOutput(string invalidSkill, string stamp)
     {
         var sandbox = CreateSandbox("prepared-skill-version");
         try
         {
             StageMcpbInputs(sandbox);
             var skills = Path.Combine(sandbox, "prepared");
-            foreach (var name in new[] { "excel-cli", "excel-mcp" })
+            foreach (var name in new[] { "excel-cli", "excel-cli-report-formatting", "excel-mcp-report-formatting" })
             {
                 var directory = Directory.CreateDirectory(Path.Combine(skills, name)).FullName;
-                if (stamp.Length > 0) { File.WriteAllText(Path.Combine(directory, "VERSION"), stamp); }
+                var version = name == invalidSkill ? stamp : "1.2.3";
+                if (version.Length > 0) { File.WriteAllText(Path.Combine(directory, "VERSION"), version); }
             }
             var output = Path.Combine(sandbox, "artifacts", "packages");
             var result = await RunPowerShellFileAsync(Path.Combine(sandbox, "scripts", "Build-ReleasePackages.ps1"),
                 ["-Components", "Plugins", "-Version", "1.2.3", "-SkillsDirectory", skills, "-OutputDirectory", output]);
             Assert.NotEqual(0, result.ExitCode);
             Assert.Contains("skill must match package version", result.CombinedOutput, StringComparison.Ordinal);
+            Assert.Contains($"Prepared {invalidSkill} skill", result.CombinedOutput, StringComparison.Ordinal);
             Assert.False(Directory.Exists(output));
         }
         finally { DeleteDirectoryIfExists(sandbox); }
