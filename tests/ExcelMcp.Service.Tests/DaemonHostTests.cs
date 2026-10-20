@@ -13,7 +13,7 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed class DaemonHostTests
 {
     private static readonly string[] PressureProbeCommands =
-        ["service.ping", "service.status", "session.list", "range.get-values"];
+        ["service.ping", "service.status", "session.list", "window.show", "window.hide", "range.get-values"];
 
     [Fact(Timeout = 15000)]
     public async Task RequestsAtCapacity_ControlRequestsRemainAvailable()
@@ -197,8 +197,10 @@ public sealed class DaemonHostTests
         }
     }
 
-    [Fact(Timeout = 30000)]
-    public async Task BlockedSession_RepeatedRequestsLeaveOtherSessionsAndHealthAvailable()
+    [Theory(Timeout = 30000)]
+    [InlineData(null)]
+    [InlineData("blocked")]
+    public async Task BlockedSession_RepeatedRequestsLeaveOtherSessionsAndHealthAvailable(string? controlSessionId)
     {
         var pipeName = $"excelmcp-daemon-pressure-{Guid.NewGuid():N}";
         using var release = new ManualResetEventSlim();
@@ -206,7 +208,7 @@ public sealed class DaemonHostTests
         var executions = 0;
         using var host = new DaemonHost(request =>
         {
-            if (request.SessionId == "blocked")
+            if (request.SessionId == "blocked" && request.Command == "session.save")
             {
                 Interlocked.Increment(ref executions);
                 entered.TrySetResult();
@@ -242,12 +244,20 @@ public sealed class DaemonHostTests
                 var response = await client.SendAsync(new ServiceRequest
                 {
                     Command = command,
-                    SessionId = command.StartsWith("range.", StringComparison.Ordinal) ? "healthy" : null,
+                    SessionId = command.StartsWith("range.", StringComparison.Ordinal) ? "healthy" : controlSessionId,
                     Args = """{"marker":"unchanged"}"""
                 }, TimeSpan.FromSeconds(2));
                 Assert.True(response.Success, response.ErrorMessage);
                 Assert.Equal("""{"marker":"unchanged"}""", response.Result);
             }
+            using var repeatClient = new ServiceClient(pipeName);
+            var repeatAfterControls = await repeatClient.SendAsync(new ServiceRequest
+            {
+                Command = "session.save",
+                SessionId = "blocked"
+            }, TimeSpan.FromSeconds(2));
+            Assert.False(repeatAfterControls.Success);
+            Assert.Equal("Busy", repeatAfterControls.ErrorCategory);
             Assert.Equal(1, Volatile.Read(ref executions));
         });
         release.Set();

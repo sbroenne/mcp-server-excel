@@ -174,15 +174,14 @@ internal sealed class DaemonHost : IDisposable
     private async Task<ServiceResponse> DispatchRequestAsync(ServiceRequest request)
     {
         var sessionId = request.SessionId;
-        var claimSession = !string.IsNullOrWhiteSpace(sessionId)
-            && request.Command is not ("window.show" or "window.hide");
+        var control = request.Command is "service.ping" or "service.status" or "session.list"
+            or "window.show" or "window.hide";
+        var claimSession = !control && !string.IsNullOrWhiteSpace(sessionId);
         if (claimSession && !_busySessions.TryAdd(sessionId!, 0))
         {
             return BusyResponse(request, "Another request is still running for this session. " +
                 "Inspect session list for its state before submitting more work.");
         }
-        var control = request.Command is "service.ping" or "service.status" or "session.list"
-            or "window.show" or "window.hide";
         var admitted = false;
         try
         {
