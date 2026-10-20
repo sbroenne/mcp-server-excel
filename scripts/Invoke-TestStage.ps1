@@ -97,7 +97,6 @@ function Invoke-TestStage {
         '--results-directory', $resultsPath, '--logger', "trx;LogFileName=$Name.trx")
     if ($ListTests) { $arguments += '--list-tests' } else { $arguments += @('--diag', (Join-Path $resultsPath "$Name.vstest.log")) }
     $stageEnvironment = @{
-        EXCELMCP_TEST_OWNERSHIP_DIRECTORY = Join-Path $resultsPath "$Name-ownership"
         DOTNET_CLI_UI_LANGUAGE = 'en'
         DOTNET_CLI_USE_MSBUILD_SERVER = '0'
         MSBUILDDISABLENODEREUSE = '1'

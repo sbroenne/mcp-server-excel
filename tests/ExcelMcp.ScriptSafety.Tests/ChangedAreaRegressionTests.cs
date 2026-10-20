@@ -7,25 +7,28 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 [Trait("Feature", "PreCommit")]
 public sealed class ChangedAreaRegressionTests
 {
-    [Theory]
-    [InlineData("tests/ExcelMcp.Core.Tests/Unit/GeneratedActionContractTests.cs", "Core", false)]
-    [InlineData("tests/ExcelMcp.Core.Tests/Unit/DeletedTests.More.cs", "Core", false)]
-    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/CalculationGuidanceContractTests.cs", "McpServer", false)]
-    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpProcessOwnershipTests.cs", "McpServer", true)]
-    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpSessionLifetimeTests.cs", "McpServer", true)]
-    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpOwnedExcelProcesses.cs", "McpServer", true)]
-    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpIntegrationTestBase.cs", "McpServer", true)]
-    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpProgramTransportFixture.cs", "McpServer", true)]
-    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpResponseAssertions.cs", "McpServer", true)]
-    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/ProgramTransportTestHost.cs", "McpServer", true)]
-    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpProcessOwnershipTests.Deleted.cs", "McpServer", true)]
-    [InlineData("tests/ExcelMcp.Service.Tests/DeletedFixture.cs", "Service", true)]
-    public async Task TestChanges_SelectTheOwningGroupIncludingDeletedFiles(string path, string owner, bool excel)
+    [Fact]
+    public async Task TestChanges_SelectTheOwningGroupIncludingDeletedFiles()
     {
-        var run = await ValidationSelectionTests.RunAsync($$"""
-            $plan = Get-ValidationPlan -Paths '{{path}}'
-            if (($plan.FastProjects -join ',') -cne '{{owner}}' -or
-                $plan.Excel -ne {{(excel ? "$true" : "$false")}} -or $plan.FullE2E) { throw 'Wrong owning test group.' }
+        var run = await ValidationSelectionTests.RunCasesAsync(
+        [
+            ["tests/ExcelMcp.Core.Tests/Unit/GeneratedActionContractTests.cs", "Core", "false"],
+            ["tests/ExcelMcp.Core.Tests/Unit/DeletedTests.More.cs", "Core", "false"],
+            ["tests/ExcelMcp.McpServer.Tests/Integration/Tools/CalculationGuidanceContractTests.cs", "McpServer", "false"],
+            ["tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpProcessOwnershipTests.cs", "McpServer", "true"],
+            ["tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpSessionLifetimeTests.cs", "McpServer", "true"],
+            ["tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpOwnedExcelProcesses.cs", "McpServer", "true"],
+            ["tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpIntegrationTestBase.cs", "McpServer", "true"],
+            ["tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpProgramTransportFixture.cs", "McpServer", "true"],
+            ["tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpResponseAssertions.cs", "McpServer", "true"],
+            ["tests/ExcelMcp.McpServer.Tests/Integration/Tools/ProgramTransportTestHost.cs", "McpServer", "true"],
+            ["tests/ExcelMcp.McpServer.Tests/Integration/Tools/McpProcessOwnershipTests.Deleted.cs", "McpServer", "true"],
+            ["tests/ExcelMcp.Service.Tests/DeletedFixture.cs", "Service", "true"]
+        ], """
+            $path, $owner, $excel = $case
+            $plan = Get-ValidationPlan -Paths $path
+            if (($plan.FastProjects -join ',') -cne $owner -or
+                $plan.Excel -ne [bool]::Parse($excel) -or $plan.FullE2E) { throw 'Wrong owning test group.' }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
     }
@@ -49,18 +52,21 @@ public sealed class ChangedAreaRegressionTests
         Assert.True(run.ExitCode == 0, run.Output);
     }
 
-    [Theory]
-    [InlineData("Range", "IRangeCommands.cs")]
-    [InlineData("Chart", "IChartConfigCommands.cs")]
-    public async Task Contracts_SelectBothGeneratedAdaptersAndAreaLabels(string area, string contract)
+    [Fact]
+    public async Task Contracts_SelectBothGeneratedAdaptersAndAreaLabels()
     {
-        var run = await ValidationSelectionTests.RunAsync($$"""
-            $plan = Get-ValidationPlan -Paths 'src/ExcelMcp.Core/Commands/{{area}}/{{contract}}'
+        var run = await ValidationSelectionTests.RunCasesAsync(
+        [
+            ["Range", "IRangeCommands.cs"],
+            ["Chart", "IChartConfigCommands.cs"]
+        ], """
+            $area, $contract = $case
+            $plan = Get-ValidationPlan -Paths "src/ExcelMcp.Core/Commands/$area/$contract"
             foreach ($owner in @('Core','CLI','McpServer')) {
                 if ($plan.FastFilters[$owner] -notmatch 'Feature=GeneratedContracts') { throw "Generated consumer lost: $owner" }
             }
             foreach ($owner in @('CLI','McpServer')) {
-                if ($plan.FastFilters[$owner] -notmatch 'Feature={{area}}') { throw "Argument mapping lost: $owner" }
+                if ($plan.FastFilters[$owner] -notmatch "Feature=$area") { throw "Argument mapping lost: $owner" }
             }
             if (-not $plan.FullSolutionBuild -or -not $plan.DocumentationCounts -or $plan.FullE2E) {
                 throw 'Contract build ownership changed.'

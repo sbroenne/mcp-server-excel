@@ -744,10 +744,9 @@ public class SessionManagerTests : IDisposable
                     var duplicate = Assert.Throws<InvalidOperationException>(() => manager.CreateSession(path));
                     Assert.Contains("already open", duplicate.Message, StringComparison.Ordinal);
                     Assert.Equal(originalBytes, File.ReadAllBytes(path));
-                    _output.WriteLine("Failed startup retained its session and path; the fixture will release only its exact owned process.");
-                    Assert.True(OwnedProcessGuard.TryTerminate(identity,
-                        TimeSpan.Zero, TimeSpan.FromSeconds(5), out _));
                     Assert.True(manager.CloseSession(retained.SessionId, save: false));
+                    Assert.True(SpinWait.SpinUntil(() => OwnedProcessGuard.TryConfirmExited(identity),
+                        TimeSpan.FromSeconds(15)), $"Excel {identity} is still running after closing the retained session.");
                 }
                 else
                 {

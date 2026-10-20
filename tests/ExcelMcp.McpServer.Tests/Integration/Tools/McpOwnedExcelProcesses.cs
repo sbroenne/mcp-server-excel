@@ -44,12 +44,7 @@ internal sealed class McpOwnedExcelProcesses : IDisposable
         }
         while (DateTime.UtcNow < deadline);
 
-        foreach (var identity in remaining)
-        {
-            var exited = OwnedProcessGuard.TryTerminate(identity, TimeSpan.Zero, TimeSpan.FromSeconds(5), out var terminated);
-            output.WriteLine($"Owned Excel cleanup: PID {identity.ProcessId}, start {identity.StartedAtUtcFileTime}, terminated={terminated}, exited={exited}.");
-        }
-
+        output.WriteLine($"Owned Excel still running after MCP shutdown: {string.Join(", ", remaining)}.");
         throw new XunitException($"Owned Excel processes did not exit after MCP shutdown: {string.Join(", ", remaining)}.");
     }
 

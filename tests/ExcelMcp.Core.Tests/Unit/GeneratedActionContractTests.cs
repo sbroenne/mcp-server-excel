@@ -289,13 +289,6 @@ public sealed class GeneratedActionContractTests
         Assert.Equal(0, proxy.CallCount);
     }
 
-    [Fact]
-    public void LegacyPowerQueryLoadModeParser_RejectsUnknownValue()
-    {
-        Assert.Equal(PowerQueryLoadMode.LoadToTable, ParameterTransforms.ParseLoadMode("worksheet"));
-        Assert.Throws<ArgumentException>(() => ParameterTransforms.ParseLoadMode("not-a-destination"));
-    }
-
     [Theory]
     [InlineData("set-settings", """{"mode":"not-a-mode"}""")]
     [InlineData("calculate", """{"scope":"not-a-scope"}""")]

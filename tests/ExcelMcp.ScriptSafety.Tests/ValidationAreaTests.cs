@@ -7,27 +7,30 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 [Trait("Feature", "PreCommit")]
 public sealed class ValidationAreaTests
 {
-    [Theory]
-    [InlineData("tests/AGENTS.md", "")]
-    [InlineData("vscode-extension/AGENTS.md", "")]
-    [InlineData("src/ExcelMcp.CLI/README.md", "")]
-    [InlineData("Directory.Build.targets", "csharp")]
-    [InlineData("NuGet.Config", "csharp")]
-    [InlineData("global.json", "csharp")]
-    [InlineData("scripts/PluginContent.mjs", "javascript-typescript")]
-    [InlineData("vscode-extension/vitest.config.mts", "javascript-typescript")]
-    [InlineData("npm-packages/shared/package-lock.json", "javascript-typescript")]
-    [InlineData("gh-pages/hooks.py", "python")]
-    [InlineData("llm-tests/requirements.txt", "python")]
-    [InlineData(".github/workflows/link-check.yml", "actions")]
-    [InlineData(".github/actions/example/action.yaml", "actions")]
-    [InlineData(".github/workflows/codeql.yml", "actions,csharp,javascript-typescript,python")]
-    [InlineData(".github/codeql/codeql-config.yml", "actions,csharp,javascript-typescript,python")]
-    [InlineData("scripts/Get-ValidationPlan.ps1", "actions,csharp,javascript-typescript,python")]
-    public async Task CodeQl_SelectsActualLanguageInputs(string path, string languages)
+    [Fact]
+    public async Task CodeQl_SelectsActualLanguageInputs()
     {
-        var run = await ValidationSelectionTests.RunAsync($$"""
-            if (((Get-ValidationLanguages '{{path}}') -join ',') -cne '{{languages}}') { throw 'Wrong language inputs.' }
+        var run = await ValidationSelectionTests.RunCasesAsync(
+        [
+            ["tests/AGENTS.md", ""],
+            ["vscode-extension/AGENTS.md", ""],
+            ["src/ExcelMcp.CLI/README.md", ""],
+            ["Directory.Build.targets", "csharp"],
+            ["NuGet.Config", "csharp"],
+            ["global.json", "csharp"],
+            ["scripts/PluginContent.mjs", "javascript-typescript"],
+            ["vscode-extension/vitest.config.mts", "javascript-typescript"],
+            ["npm-packages/shared/package-lock.json", "javascript-typescript"],
+            ["gh-pages/hooks.py", "python"],
+            ["llm-tests/requirements.txt", "python"],
+            [".github/workflows/link-check.yml", "actions"],
+            [".github/actions/example/action.yaml", "actions"],
+            [".github/workflows/codeql.yml", "actions,csharp,javascript-typescript,python"],
+            [".github/codeql/codeql-config.yml", "actions,csharp,javascript-typescript,python"],
+            ["scripts/Get-ValidationPlan.ps1", "actions,csharp,javascript-typescript,python"]
+        ], """
+            $path, $languages = $case
+            if (((Get-ValidationLanguages $path) -join ',') -cne $languages) { throw 'Wrong language inputs.' }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
     }
@@ -52,16 +55,19 @@ public sealed class ValidationAreaTests
         Assert.True(run.ExitCode == 0, run.Output);
     }
 
-    [Theory]
-    [InlineData("tests/ExcelMcp.McpServer.Tests/Integration/Tools/CalculationGuidanceContractTests.cs", "Fast", "tests\\ExcelMcp.McpServer.Tests\\ExcelMcp.McpServer.Tests.csproj")]
-    [InlineData("scripts/Publish-PreparedPlugins.ps1", "Tooling", "tests\\ExcelMcp.Packaging.Tests\\ExcelMcp.Packaging.Tests.csproj")]
-    [InlineData("doc-counts.json", "Tooling", "Sbroenne.ExcelMcp.sln")]
-    public async Task PreparatoryBuilds_SelectOnlyOwningProjects(string path, string group, string projects)
+    [Fact]
+    public async Task PreparatoryBuilds_SelectOnlyOwningProjects()
     {
-        var run = await ValidationSelectionTests.RunAsync($$"""
+        var run = await ValidationSelectionTests.RunCasesAsync(
+        [
+            ["tests/ExcelMcp.McpServer.Tests/Integration/Tools/CalculationGuidanceContractTests.cs", "Fast", "tests\\ExcelMcp.McpServer.Tests\\ExcelMcp.McpServer.Tests.csproj"],
+            ["scripts/Publish-PreparedPlugins.ps1", "Tooling", "tests\\ExcelMcp.Packaging.Tests\\ExcelMcp.Packaging.Tests.csproj"],
+            ["doc-counts.json", "Tooling", "Sbroenne.ExcelMcp.sln"]
+        ], """
+            $path, $group, $projects = $case
             . .\scripts\ValidationExecution.ps1
-            $plan = Get-ValidationPlan -Paths '{{path}}'
-            if (((Get-SelectedBuildProjects $plan '{{group}}') -join ',') -cne '{{projects}}') { throw 'Wrong preparatory projects.' }
+            $plan = Get-ValidationPlan -Paths $path
+            if (((Get-SelectedBuildProjects $plan $group) -join ',') -cne $projects) { throw 'Wrong preparatory projects.' }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
     }

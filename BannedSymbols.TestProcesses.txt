@@ -1,0 +1,6 @@
+M:System.Diagnostics.Process.GetProcessesByName(System.String); Tests must never stop pre-existing Excel or Power Query processes. Record the exact identity of processes the test starts.
+M:System.Diagnostics.Process.GetProcessesByName(System.String,System.String); Tests must never stop pre-existing Excel or Power Query processes. Record the exact identity of processes the test starts.
+M:System.Diagnostics.Process.GetProcesses; Tests must not search the whole machine for processes. Record the exact identity of processes the test starts.
+M:System.Diagnostics.Process.GetProcesses(System.String); Tests must not search the whole machine for processes. Record the exact identity of processes the test starts.
+M:Sbroenne.ExcelMcp.ComInterop.Session.OwnedProcessGuard.TryTerminate(Sbroenne.ExcelMcp.ComInterop.Session.ExcelProcessIdentity,System.TimeSpan,System.TimeSpan,System.Boolean@,System.Nullable{System.TimeSpan}); Tests never stop Excel. Fail and report Excel that is still running instead.
+M:Sbroenne.ExcelMcp.ComInterop.Session.ExcelBatch.TryTerminateOwnedProcess(Sbroenne.ExcelMcp.ComInterop.Session.ExcelProcessIdentity,System.TimeSpan,System.TimeSpan); Tests never stop Excel. Fail and report Excel that is still running instead.

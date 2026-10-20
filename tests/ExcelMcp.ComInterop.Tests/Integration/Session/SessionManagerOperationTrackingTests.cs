@@ -314,10 +314,12 @@ public class SessionManagerOperationTrackingTests : IDisposable
             currentProcess.Id,
             currentProcess.StartTime.ToUniversalTime().ToFileTimeUtc() + 1);
 
+#pragma warning disable RS0030 // Checks the product refuses a wrong identity; the target is this test host, never Excel.
         var terminated = ExcelBatch.TryTerminateOwnedProcess(
             staleIdentity,
             waitBeforeTermination: TimeSpan.Zero,
             waitAfterTermination: TimeSpan.FromSeconds(1));
+#pragma warning restore RS0030
 
         Assert.True(terminated);
         Assert.False(currentProcess.HasExited);

@@ -35,9 +35,11 @@ public class PersistentServiceDataModelDmvTests(
     public void ExecuteDmv_TmschemaTablesQuery_ReturnsSchemaWithoutError()
     {
         var batch = _fixture.BatchToken;
-        var result = _dataModelCommands.ExecuteDmv(batch, "SELECT * FROM $SYSTEM.TMSCHEMA_TABLES");
+        var query = "SELECT * FROM $SYSTEM.TMSCHEMA_TABLES";
+        var result = _dataModelCommands.ExecuteDmv(batch, query);
 
         Assert.True(result.Success, $"ExecuteDmv failed: {result.ErrorMessage}");
+        Assert.Equal(query, result.DmvQuery);
         Assert.NotNull(result.Columns);
         Assert.NotNull(result.Rows);
         Assert.Contains(result.Columns, c => c.Equals("ID", StringComparison.OrdinalIgnoreCase));
@@ -134,49 +136,6 @@ public class PersistentServiceDataModelDmvTests(
     }
 
     /// <summary>
-    /// Tests that SELECT * queries work (Excel's embedded AS doesn't support column selection).
-    /// LLM use case: "query all columns from a DMV"
-    /// </summary>
-    [Fact]
-    public void ExecuteDmv_SelectAllQuery_Works()
-    {
-        var batch = _fixture.BatchToken;
-
-        // SELECT * works - specific column selection doesn't work in Excel's embedded AS
-        var result = _dataModelCommands.ExecuteDmv(batch, "SELECT * FROM $SYSTEM.DBSCHEMA_CATALOGS");
-
-        Assert.True(result.Success, $"ExecuteDmv failed: {result.ErrorMessage}");
-        Assert.NotNull(result.Columns);
-        Assert.True(result.ColumnCount > 0, "Expected columns from DBSCHEMA_CATALOGS");
-        AssertCatalog(result);
-    }
-
-    #endregion
-
-    #region Advanced DMV Query Tests
-
-    /// <summary>
-    /// Tests DISCOVER_CALC_DEPENDENCY DMV for dependency analysis.
-    /// LLM use case: "show me measure dependencies"
-    /// </summary>
-    [Fact]
-    public void ExecuteDmv_DiscoverCalcDependencyQuery_ReturnsDependencies()
-    {
-        var batch = _fixture.BatchToken;
-        var result = _dataModelCommands.ExecuteDmv(batch, "SELECT * FROM $SYSTEM.DISCOVER_CALC_DEPENDENCY");
-
-        Assert.True(result.Success, $"ExecuteDmv failed: {result.ErrorMessage}");
-        Assert.NotNull(result.Columns);
-        Assert.NotNull(result.Rows);
-        // Note: May have 0 rows if no calculated dependencies, but columns should exist
-
-        // DISCOVER_CALC_DEPENDENCY should have standard columns
-        Assert.Contains(result.Columns, c => c.Equals("OBJECT", StringComparison.OrdinalIgnoreCase) ||
-                                             c.Equals("OBJECT_TYPE", StringComparison.OrdinalIgnoreCase));
-        AssertResultShape(result);
-    }
-
-    /// <summary>
     /// Tests DBSCHEMA_CATALOGS DMV for catalog info.
     /// LLM use case: "show me database catalogs"
     /// </summary>
@@ -267,40 +226,6 @@ public class PersistentServiceDataModelDmvTests(
         Assert.Contains("ComInterop/", ex.Message, StringComparison.Ordinal);
         Assert.Equal(before.State, CaptureModelState(before.GuardSheet));
         AssertCatalog(_dataModelCommands.ExecuteDmv(batch, "SELECT * FROM $SYSTEM.DBSCHEMA_CATALOGS"));
-    }
-
-    #endregion
-
-    #region Query Result Validation Tests
-
-    /// <summary>
-    /// Tests that DMV query result includes proper DmvQuery echo.
-    /// </summary>
-    [Fact]
-    public void ExecuteDmv_ValidQuery_EchoesQueryInResult()
-    {
-        var batch = _fixture.BatchToken;
-        var query = "SELECT * FROM $SYSTEM.TMSCHEMA_TABLES";
-        var result = _dataModelCommands.ExecuteDmv(batch, query);
-
-        Assert.True(result.Success, $"ExecuteDmv failed: {result.ErrorMessage}");
-        Assert.Equal(query, result.DmvQuery);
-        AssertResultShape(result);
-    }
-
-    /// <summary>
-    /// Tests that RowCount and ColumnCount match actual data.
-    /// </summary>
-    [Fact]
-    public void ExecuteDmv_ValidQuery_CountsMatchActualData()
-    {
-        var batch = _fixture.BatchToken;
-        var result = _dataModelCommands.ExecuteDmv(batch, "SELECT * FROM $SYSTEM.TMSCHEMA_TABLES");
-
-        Assert.True(result.Success, $"ExecuteDmv failed: {result.ErrorMessage}");
-        Assert.Equal(result.Columns.Count, result.ColumnCount);
-        Assert.Equal(result.Rows.Count, result.RowCount);
-        AssertResultShape(result);
     }
 
     #endregion

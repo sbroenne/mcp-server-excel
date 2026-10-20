@@ -523,10 +523,8 @@ public sealed partial class ServiceWorkbookLifecycleTests
         });
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Open_LateFailure_TracksPendingCleanupAndPreservesBothErrors(bool cleanupFails)
+    [Fact]
+    public async Task Open_LateFailure_TracksPendingCleanupAndPreservesError()
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
@@ -562,8 +560,6 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 {
                     cleaning.TrySetResult();
                     Assert.True(finishCleanup.Wait(TimeSpan.FromSeconds(30)));
-                    if (cleanupFails)
-                        throw new InvalidOperationException("Original late cleanup failure.");
                 };
                 finishOpen.Set();
                 await cleaning.Task.WaitAsync(TimeSpan.FromSeconds(10));
@@ -587,32 +583,18 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 var completed = batch.OperationStatus;
                 Assert.Equal("failed", completed.State);
                 Assert.Contains("Original late startup failure.", completed.ErrorMessage, StringComparison.Ordinal);
-                if (cleanupFails)
-                {
-                    Assert.Contains("Original late cleanup failure.", completed.ErrorMessage, StringComparison.Ordinal);
-                    Assert.True(OwnedProcessGuard.MatchesLiveProcess(identity!.Value));
-                    Assert.Throws<InvalidOperationException>(() => service.SessionManager.CreateSession(path));
-                }
-                else
-                {
-                    Assert.True(SpinWait.SpinUntil(
-                        () => OwnedProcessGuard.TryConfirmExited(identity!.Value),
-                        TimeSpan.FromSeconds(15)));
-                }
-            });
-            var processCleanup = Record.Exception(() =>
-            {
-                if (cleanupFails && identity is { } owned)
-                    Assert.True(OwnedProcessGuard.TryTerminate(owned, TimeSpan.Zero, TimeSpan.FromSeconds(5), out _));
+                Assert.True(SpinWait.SpinUntil(
+                    () => OwnedProcessGuard.TryConfirmExited(identity!.Value),
+                    TimeSpan.FromSeconds(15)));
             });
             if (session is not null)
             {
                 await CloseSessionAsync(service, session, save: false);
                 sessions.TryRemove(session, out _);
             }
-            var failures = new[] { failure, cleanupFailure, processCleanup }.OfType<Exception>().ToArray();
+            var failures = new[] { failure, cleanupFailure }.OfType<Exception>().ToArray();
             if (failures.Length > 0)
-                throw new AggregateException("Late startup failure or retained cleanup failed.", failures);
+                throw new AggregateException("Late startup failure or pending cleanup failed.", failures);
         });
     }
 
@@ -712,69 +694,6 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 Assert.Contains("Late output contents", xml.ToString(), StringComparison.Ordinal);
             }
             Assert.Empty(Directory.GetFiles(directory, "*.tmp.*"));
-        });
-    }
-
-    [Fact]
-    public async Task Open_StartupAndTeardownFail_RetainsSessionAndBothFailures()
-    {
-        await RunWithCleanupAsync(async (service, directory, sessions) =>
-        {
-            var path = Path.Join(directory, "failed-startup.xlsx");
-            var initial = await CreateSessionAsync(service, path);
-            await WriteMarkerAsync(service, initial, "Original workbook");
-            await CloseSessionAsync(service, initial, save: true);
-            ExcelProcessIdentity? identity = null;
-            string? retainedSession = null;
-            Excel.AppEvents_WorkbookBeforeCloseEventHandler preventClose =
-                (Excel.Workbook _, ref bool cancel) => cancel = true;
-            ExcelBatch.AfterWorkbookOpenHookForTests = (application, _) =>
-            {
-                var app = (Excel.Application)application;
-                app.WorkbookBeforeClose += preventClose;
-                identity = Assert.Single(SessionManager.GetTrackedExcelProcesses());
-                throw new InvalidOperationException("Failure after opening the workbook.");
-            };
-            try
-            {
-                var response = await service.ProcessAsync(new ServiceRequest
-                {
-                    Command = "session.open",
-                    Args = JsonSerializer.Serialize(new { filePath = path }, ServiceProtocol.JsonOptions)
-                });
-                Assert.False(response.Success);
-                Assert.False(string.IsNullOrWhiteSpace(response.SessionId));
-                retainedSession = response.SessionId;
-                sessions[response.SessionId!] = 0;
-                Assert.Contains("Failure after opening the workbook", response.InnerError, StringComparison.Ordinal);
-                Assert.Contains("close/quit", response.InnerError, StringComparison.Ordinal);
-                Assert.NotNull(identity);
-                Assert.True(OwnedProcessGuard.MatchesLiveProcess(identity.Value));
-                Assert.NotNull(service.SessionManager.GetSession(response.SessionId!));
-                Assert.Equal(response.SessionId, Assert.Single(service.SessionManager.GetActiveSessions()).SessionId);
-                var repeated = await service.ProcessAsync(new ServiceRequest
-                {
-                    Command = "session.open",
-                    Args = JsonSerializer.Serialize(new { filePath = path }, ServiceProtocol.JsonOptions)
-                });
-                Assert.False(repeated.Success);
-                Assert.Contains("already open", repeated.ErrorMessage, StringComparison.Ordinal);
-            }
-            finally
-            {
-                ExcelBatch.AfterWorkbookOpenHookForTests = null;
-                // This fixture intentionally cancels native close; only its exact process is disposable.
-                if (identity is { } owned)
-                {
-                    Assert.True(OwnedProcessGuard.TryTerminate(owned, TimeSpan.Zero, TimeSpan.FromSeconds(5), out _));
-                    if (retainedSession is not null)
-                    {
-                        await CloseSessionAsync(service, retainedSession, save: false);
-                        sessions.TryRemove(retainedSession, out _);
-                    }
-                    Assert.DoesNotContain(owned, SessionManager.GetTrackedExcelProcesses());
-                }
-            }
         });
     }
 
