@@ -7,18 +7,14 @@ namespace Sbroenne.ExcelMcp.Service.Rpc;
 internal sealed class DaemonRpcTarget : IExcelDaemonRpc
 {
     private readonly Func<ServiceRequest, Task<ServiceResponse>> _requestHandler;
-    private readonly Action _recordActivity;
     private readonly Action<ServiceRequest, ServiceResponse?>? _requestAbandoned;
 
     internal DaemonRpcTarget(
         Func<ServiceRequest, Task<ServiceResponse>> requestHandler,
-        Action recordActivity,
         Action<ServiceRequest, ServiceResponse?>? requestAbandoned = null)
     {
         ArgumentNullException.ThrowIfNull(requestHandler);
-        ArgumentNullException.ThrowIfNull(recordActivity);
         _requestHandler = requestHandler;
-        _recordActivity = recordActivity;
         _requestAbandoned = requestAbandoned;
     }
 
@@ -27,7 +23,6 @@ internal sealed class DaemonRpcTarget : IExcelDaemonRpc
     {
         cancellationToken.ThrowIfCancellationRequested();
         request.CallerCancellation = cancellationToken;
-        _recordActivity();
         using var registration = cancellationToken.Register(() => _requestAbandoned?.Invoke(request, null));
         var response = await _requestHandler(request);
         if (cancellationToken.IsCancellationRequested && string.IsNullOrWhiteSpace(request.SessionId))

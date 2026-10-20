@@ -5,8 +5,12 @@ instructions; review tasks use the root [Code Review Rules](../AGENTS.md#code-re
 
 ## Commands
 
-Use `build.ps1 plan` and `build.ps1 validate --plan <path>` for affected
-behavior and dependencies, and retain the selected results. Use
+Follow the [local validation scope rule](../AGENTS.md#build-and-validation):
+use `build.ps1 plan` to identify candidate checks, not as an instruction to run
+every selected feature. Use focused existing filters or runner groups for the
+changed behavior and its affected callers; use `build.ps1 validate --plan <path>`
+when the complete selection is relevant. Retain results and explain any narrower
+selection in the PR. Use
 `scripts\Invoke-ExcelTests.ps1` for explicit Excel group runs after a Release
 build; `scripts\Test-E2E.ps1` runs complete CLI/MCP acceptance. These runners
 set hard execution deadlines; returning control while a test keeps running
@@ -15,14 +19,15 @@ PR and commit checks share the PowerShell changed-area policy. The commit hook r
 the selected Release build and deterministic CLI/MCP/Core/Service tests
 (`Commit` projection of `Fast`), excluding `AdapterTestKind=System` and
 `Speed=Slow`. CI retains those system and slow tests; run local process checks
-when changing their boundary, not on every push. Run selected Excel
+when changing their boundary, not on every push. Run relevant Excel
 checks locally because hosted runners lack Excel. Test-only changes select their
 owning project group; unit and recording-only protocol tests remain Excel-free.
 Real-Excel MCP transport fixtures and their shared helpers select Excel coverage.
-Shared changes include affected
-dependencies. Empty or unknown selections must not be presented as passed tests.
-Session/batch infrastructure changes also require relevant ComInterop OnDemand
-tests. Core OnDemand tests are optional diagnostics, not mandatory CI gates.
+Shared changes include affected dependencies, not every unrelated Excel feature.
+Empty or unknown selections must not be presented as passed tests.
+Run ComInterop OnDemand diagnostics only when they cover a specific changed
+ownership, threading, or cleanup behavior not already established by focused tests.
+Core OnDemand tests are optional diagnostics, not mandatory CI gates.
 VBA needs Trust Center access; run screenshots separately because they use
 desktop/clipboard resources.
 

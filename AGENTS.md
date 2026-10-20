@@ -7,6 +7,12 @@ for COM tests; GitHub-hosted runners do not have Excel.
 MCP Server and `excelcli` are equal entry points: behavior, defaults, validation,
 results, and documentation must agree.
 
+ExcelMcp always operates in the current user's Windows session and security
+context. Discover and reconnect only to Excel instances accessible in that
+context; do not seek access to other users' sessions or elevate permissions.
+Workbook location does not change this scope. Running in the user's context
+does not authorize changes to unrelated workbooks.
+
 ## Code Review Rules
 
 Report high-confidence defects introduced by the change, not style or unrelated
@@ -151,13 +157,24 @@ CLI, MCP Server, Core, and Service (`Commit` group), excluding
 package, Excel, and acceptance checks do not run on
 every commit. CI owns hosted checks; run local process checks when changing
 their boundary, not on every push. A passing hook is not complete PR validation.
-Use the changed-area plan from `scripts\Get-ValidationPlan.ps1` for
-PR and local validation. Include affected dependencies, not unrelated features.
-Run its selected Excel cases locally; shared lifecycle changes also select
-acceptance and ComInterop diagnostics. `scripts\Test-E2E.ps1` remains an explicit
-complete acceptance command and the cloud runner's compatible entry point.
-Report selected Excel work as not run when Excel is unavailable; build-only
-checks do not cover COM. Unknown inputs must fail selection, not select everything.
+Local validation must follow the changed behavior, not merely the directory
+containing a changed file. Start with a focused regression and the existing
+tests for affected callers and failure paths. Run relevant Excel tests locally
+when workbook behavior or Excel ownership changes; build-only checks do not
+cover COM. Shared service, routing, or lifecycle files do not by themselves
+require all feature tests, complete acceptance, or all ComInterop diagnostics.
+Expand coverage when the change affects a shared contract or lifetime,
+focused tests reveal wider failures, or a specific risk is not covered.
+Run the full suite only when that wider scope is justified or explicitly requested.
+
+Use `scripts\Get-ValidationPlan.ps1` to identify candidate checks, then review
+the selection against the actual change. If it selects unrelated features,
+run narrower existing test filters or runner groups and record the commands,
+results, and reason for the narrower scope in the PR. Do not describe an
+unrun broad selection as passed. This local scope decision does not waive
+Git hooks or required CI checks. Unknown inputs must fail selection, not select
+everything. `scripts\Test-E2E.ps1` remains the explicit complete acceptance
+command and the cloud runner's compatible entry point.
 
 The Python evaluation suite under `llm-tests/` is on-demand only, not part of the
 normal development lifecycle. This includes offline checks, Excel fixture checks,
@@ -166,7 +183,8 @@ only when the user explicitly requests evaluation work. Unrun evaluations or
 unavailable Python/SDK dependencies are not implementation, commit, PR, or merge blockers.
 This does not waive required .NET/COM/E2E validation or normal Git hooks.
 
-Run applicable existing checks, not replacement audits:
+Generate a candidate plan, review its scope, and run applicable existing checks,
+not replacement audits. Run the complete plan only when its selection is relevant:
 
 ```powershell
 & .\build.ps1 plan --base-ref origin/main --output artifacts\validation-plan.json

@@ -309,7 +309,7 @@ internal sealed class Program
     /// <summary>
     /// Runs the CLI as a daemon process with system tray icon.
     /// The service listens on the CLI pipe name (shared across CLI invocations).
-    /// Auto-exits after 10 minutes of inactivity with no active sessions.
+    /// Remains running until explicitly stopped or its process exits.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "Daemon process entry boundary observes the service task failure, writes its original message to stderr, returns exit code 1, and still disposes owned resources.")]
@@ -423,9 +423,9 @@ internal sealed class Program
             // Start accepting RPC only after daemon host initialization succeeds.
             // Otherwise auto-start clients can observe a successful ping from a pipe
             // server whose owning WinForms/tray host is still able to fail and exit.
-            var serviceTask = Task.Run(() => service.RunAsync(pipeName, idleTimeout: TimeSpan.FromMinutes(10)));
+            var serviceTask = Task.Run(() => service.RunAsync(pipeName));
 
-            // When service shuts down (idle timeout or remote shutdown), exit the WinForms loop
+            // When service shuts down, exit the WinForms loop.
             serviceTask.ContinueWith(_ =>
             {
                 if (uiContext != null)

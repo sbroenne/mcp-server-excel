@@ -38,10 +38,18 @@ fourth product process. The CLI daemon and MCP Server own separate workbook
 sessions and their Excel processes; they do not share live sessions.
 
 The Service owns command routing and workbook sessions. A separate Service
-daemon host owns named-pipe acceptance, connection limits, idle shutdown, and
+daemon host owns named-pipe acceptance, connection limits, and
 connection draining inside the CLI daemon process. The MCP Server does not use this pipe:
 its bridge owns an in-process Service generation and prevents cancellation from
 an older generation from resetting a newer one.
+
+The CLI daemon accepts up to 64 simultaneous connections and up to ten work
+requests. It rejects another work request for a session whose request is still
+running, rather than letting repeated requests occupy the service. Health,
+session-list, and window show/hide requests do not consume the work limit.
+These limits apply to the CLI pipe, not the MCP Server's in-process calls.
+The daemon remains running when idle until explicitly stopped or its process
+exits. An expired caller wait does not stop Excel or undo workbook changes.
 
 Telemetry ownership and delivery tradeoffs are described in
 [ADR-007](ADR-007-LOCAL-ACCESS-AND-TELEMETRY.md). A short-lived client's background

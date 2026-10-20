@@ -29,7 +29,8 @@ telemetry. `ExcelMcpService` is not a standalone process. See
 - **Core command:** Transport-independent Excel behavior implemented under `src/ExcelMcp.Core`.
 - **Service:** The shared command router and session owner used by both entry points.
 - **Daemon host:** The CLI daemon component that owns named-pipe acceptance,
-  connection limits, idle shutdown, and connection draining around the Service.
+  connection limits and connection draining around the Service. It stays running
+  until explicitly stopped or its process exits.
 - **Service bridge:** The MCP host component that owns one in-process Service
   generation and prevents stale requests from disposing a newer generation.
 - **COM reference:** A live Excel object such as a workbook, worksheet, range, chart, or model object. It belongs to the Excel process and requires controlled cleanup.
