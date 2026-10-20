@@ -822,11 +822,12 @@ existing Excel instances to prepare a fixture. An independently opened workbook
 must survive successful and failed teardown.
 
 Core, ComInterop, Service, and in-process MCP test hosts also run a run-level
-check (`TestRunExcelLeftoverCheck`). It records every Excel process the product
-starts during the run and, before results are reported, waits up to 15 seconds
-for each to exit. Any that remain fail the run and are named in the error; they
-are left running for inspection. This does not cover a separate CLI background
-service started by a client test.
+check (`TestRunExcelLeftoverCheck`). It keeps the original process handle of every
+Excel process the product starts during the run and, before results are
+reported, waits up to 15 seconds for each to exit. Any that remain fail the run
+and are named in the error; they are marked so the product's own exit handling
+also leaves them running for inspection. This does not cover a separate CLI
+background service started by a client test.
 
 Only change current-user VBA project access with explicit permission. Capture
 the original registry value's presence, value, and type outside the repository

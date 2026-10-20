@@ -111,6 +111,9 @@ public sealed class SessionManager : IDisposable
     internal static void PreserveExcelProcess(ExcelProcessIdentity identity) =>
         _preservedExcelProcesses[identity] = 0;
 
+    internal static bool IsExcelProcessPreserved(ExcelProcessIdentity identity) =>
+        _preservedExcelProcesses.ContainsKey(identity);
+
     /// <summary>
     /// Returns a snapshot of Excel process identities currently owned by this process.
     /// </summary>
