@@ -46,6 +46,18 @@ public sealed class TestRunExcelLeftoverCheckTests
     }
 
     [Fact]
+    public void HostExitReporting_DoesNotTerminateTrackedProcess()
+    {
+        using var standIn = StartStandIn(seconds: 3);
+        var identity = IdentityOf(standIn);
+
+        SessionManager.ReportExcelProcessesLeftOnHostExitForTests([identity]);
+
+        Assert.False(standIn.HasExited);
+        Assert.True(standIn.WaitForExit(TimeSpan.FromSeconds(10)));
+    }
+
+    [Fact]
     public void Record_StartTimeDoesNotMatch_IsNotReported()
     {
         using var standIn = StartStandIn(seconds: 30);

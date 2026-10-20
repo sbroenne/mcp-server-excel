@@ -16,7 +16,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// <para><b>Concurrency Model:</b></para>
 /// <list type="bullet">
 /// <item><b>Within-session operations are SERIAL:</b> Each session queues operations on one STA thread</item>
-/// <item><b>Between-session operations CAN be parallel:</b> Different sessions = different Excel processes</item>
+/// <item><b>Between-session operations CAN be parallel:</b> Excel serializes calls from sessions sharing one process</item>
 /// <item><b>Same-file prevention:</b> Cannot open the same file in multiple sessions (matches Excel UI behavior)</item>
 /// </list>
 /// <para><b>Resource Limits:</b></para>
@@ -114,6 +114,9 @@ public sealed class SessionManager : IDisposable
     internal static bool IsExcelProcessPreserved(ExcelProcessIdentity identity) =>
         _preservedExcelProcesses.ContainsKey(identity);
 
+    internal static bool IsExcelProcessTracked(ExcelProcessIdentity identity) =>
+        _trackedExcelProcesses.ContainsKey(identity);
+
     /// <summary>
     /// Returns a snapshot of Excel process identities currently owned by this process.
     /// </summary>
@@ -199,62 +202,23 @@ public sealed class SessionManager : IDisposable
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
-        Justification = "ProcessExit must continue cleanup of other exact owned process identities during runtime teardown; every failure is counted and written to stderr.")]
+        Justification = "ProcessExit only reports exact tracked Excel identities; it must not terminate Excel because user workbooks may share a process started by this host.")]
     private static void OnProcessExit(object? sender, EventArgs e)
     {
-        // INSTRUMENTATION: Track ProcessExit handler execution
-        int killedCount = 0;
-        int alreadyExitedCount = 0;
-        int failedCount = 0;
+        ReportExcelProcessesLeftOnHostExit(_trackedExcelProcesses.Keys);
+    }
 
-        foreach (var identity in _trackedExcelProcesses.Keys)
-        {
-            if (_preservedExcelProcesses.ContainsKey(identity))
-            {
-                SessionDiagnostics.WriteStdErr(
-                    $"Excel process {identity.ProcessId} remains open after an unresolved or failed operation; automatic exit cleanup is not authorized.");
-                continue;
-            }
-            try
-            {
-                var stopped = OwnedProcessGuard.TryTerminate(
-                        identity,
-                        TimeSpan.Zero,
-                        TimeSpan.FromSeconds(5),
-                        out var terminated);
-                if (stopped && terminated)
-                {
-                    killedCount++;
-                    // Note: Cannot use ILogger here - ProcessExit handler runs during AppDomain teardown
-                    SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-KILLED] Force-killed Excel process {identity.ProcessId}");
-                }
-                else if (stopped)
-                {
-                    alreadyExitedCount++;
-                }
-                else
-                {
-                    failedCount++;
-                    SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-FAILED] Failed to kill Excel process {identity.ProcessId}");
-                }
-            }
-            catch (ArgumentException)
-            {
-                // Process already exited
-                alreadyExitedCount++;
-            }
-            catch (Exception ex)
-            {
-                // Process inaccessible
-                failedCount++;
-                SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-FAILED] Failed to kill Excel process {identity.ProcessId}: {ex.Message}");
-            }
-        }
+    internal static void ReportExcelProcessesLeftOnHostExitForTests(
+        IReadOnlyCollection<ExcelProcessIdentity> identities) =>
+        ReportExcelProcessesLeftOnHostExit(identities);
 
-        // Summary log
-        if (killedCount > 0 || failedCount > 0)
+    private static void ReportExcelProcessesLeftOnHostExit(
+        IEnumerable<ExcelProcessIdentity> identities)
+    {
+        foreach (var identity in identities)
         {
-            SessionDiagnostics.WriteStdErr($"[DIAG-PROCESSEXIT-SUMMARY] Killed={killedCount}, AlreadyExited={alreadyExitedCount}, Failed={failedCount}, Total={_trackedExcelProcesses.Count}");
+            SessionDiagnostics.WriteStdErr(
+                $"Excel process {identity.ProcessId} remains open after the host exits; automatic termination is disabled to preserve workbook state.");
         }
     }
 
@@ -306,6 +270,9 @@ public sealed class SessionManager : IDisposable
     private readonly ConcurrentDictionary<string, DateTime> _sessionCreatedAt = new();
     private readonly ConcurrentDictionary<string, string> _sessionFilePathReservations = new();
     private readonly ConcurrentDictionary<string, byte> _pendingSaveAs = new();
+    private readonly Dictionary<ExcelProcessIdentity, ExcelBatch> _attachedApplications = new();
+    private readonly HashSet<ExcelProcessIdentity> _detachingApplications = [];
+    private readonly ConcurrentDictionary<string, (ExcelBatch Owner, OpenWorkbookInfo Workbook)> _openWorkbookSelections = new();
     private readonly object _filePathReservationLock = new();
     private readonly ILogger<SessionManager> _logger;
     private volatile bool _disposed;
@@ -367,6 +334,308 @@ public sealed class SessionManager : IDisposable
     {
         _logger = logger ?? NullLogger<SessionManager>.Instance;
     }
+
+    /// <summary>Discovers already-open workbooks in the current user's Windows session.</summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Discovery returns partial results and the exact per-application inspection errors instead of treating failed reads as missing workbooks.")]
+    public async Task<WorkbookDiscoveryResult> DiscoverOpenWorkbooksAsync()
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        var nativeDiscovery = RunningExcelWindows.Find();
+        var workbooks = new ConcurrentBag<OpenWorkbookInfo>();
+        var errors = new ConcurrentBag<WorkbookDiscoveryError>(nativeDiscovery.Errors);
+
+        await Task.WhenAll(nativeDiscovery.Windows
+            .GroupBy(window => window.Process)
+            .Select(group => group.First())
+            .Select(window => Task.Run(() =>
+            {
+                ExcelBatch? application = null;
+                try
+                {
+                    lock (_filePathReservationLock)
+                    {
+                        ObjectDisposedException.ThrowIf(_disposed, this);
+                        if (_detachingApplications.Contains(window.Process))
+                        {
+                            throw new InvalidOperationException(
+                                "The Excel application connection is being released for an owned-session close. Discover again after it completes.");
+                        }
+                        if (!_attachedApplications.TryGetValue(window.Process, out application!))
+                        {
+                            application = ExcelBatch.ConnectApplication(window);
+                            _attachedApplications.Add(window.Process, application);
+                        }
+                    }
+
+                    var discovery = application.DiscoverAttachedWorkbooks();
+                    foreach (var workbook in discovery.Workbooks)
+                    {
+                        var existingSessionId = FindExistingWorkbookSession(application, workbook);
+                        var selection = workbook with
+                        {
+                            SessionId = existingSessionId
+                        };
+                        if (existingSessionId is not null
+                            && _activeSessions.TryGetValue(existingSessionId, out var existingSession)
+                            && existingSession is AttachedWorkbookBatch attached)
+                        {
+                            if (UpdateAttachedWorkbookLocation(existingSessionId, attached, workbook) is { } error)
+                                errors.Add(error);
+                        }
+                        workbooks.Add(selection);
+                        _openWorkbookSelections[workbook.WorkbookId] = (application, selection);
+                    }
+                    foreach (var error in discovery.Errors)
+                        errors.Add(error);
+
+                    if (discovery.Errors.Count == 0)
+                    {
+                        var liveIds = discovery.Workbooks
+                            .Select(workbook => workbook.WorkbookId)
+                            .ToHashSet(StringComparer.Ordinal);
+                        lock (_filePathReservationLock)
+                        {
+                            var staleSessions = _activeSessions
+                                .Where(entry => entry.Value is AttachedWorkbookBatch attached
+                                    && ReferenceEquals(attached.Owner, application)
+                                    && !liveIds.Contains(attached.WorkbookId))
+                                .ToArray();
+                            foreach (var (sessionId, session) in staleSessions)
+                            {
+                                if (session is AttachedWorkbookBatch attached)
+                                {
+                                    attached.Dispose();
+                                    RemoveSessionTracking(sessionId, removeSessionLock: true);
+                                }
+                            }
+
+                            foreach (var selection in _openWorkbookSelections)
+                            {
+                                if (ReferenceEquals(selection.Value.Owner, application)
+                                    && !liveIds.Contains(selection.Key))
+                                {
+                                    _openWorkbookSelections.TryRemove(selection.Key, out _);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Exception failure = ex;
+                    if (application is { HasFailedStartup: true })
+                    {
+                        try
+                        {
+                            ReleaseFailedDiscoveryConnection(window.Process, application);
+                        }
+                        catch (Exception cleanupFailure)
+                        {
+                            failure = new AggregateException(
+                                "Excel application connection and its release both failed.", ex, cleanupFailure);
+                        }
+                    }
+                    errors.Add(new WorkbookDiscoveryError(
+                        window.Process.ProcessId,
+                        $"Excel application inspection failed: {failure.GetType().Name}: {failure.Message}"));
+                }
+            })));
+
+        return new WorkbookDiscoveryResult(
+            workbooks.OrderBy(workbook => workbook.ProcessId)
+                .ThenBy(workbook => workbook.Name, StringComparer.OrdinalIgnoreCase)
+                .ToArray(),
+            errors.OrderBy(error => error.ProcessId).ToArray());
+    }
+
+    private void ReleaseFailedDiscoveryConnection(ExcelProcessIdentity identity, ExcelBatch application)
+    {
+        lock (_filePathReservationLock)
+        {
+            if (!_attachedApplications.TryGetValue(identity, out var current)
+                || !ReferenceEquals(current, application)
+                || !_detachingApplications.Add(identity))
+            {
+                return;
+            }
+        }
+
+        try
+        {
+            application.DetachApplication();
+            lock (_filePathReservationLock)
+            {
+                if (_attachedApplications.TryGetValue(identity, out var current)
+                    && ReferenceEquals(current, application))
+                {
+                    _attachedApplications.Remove(identity);
+                }
+            }
+        }
+        finally
+        {
+            lock (_filePathReservationLock)
+                _detachingApplications.Remove(identity);
+        }
+    }
+
+    private string? FindExistingWorkbookSession(ExcelBatch owner, OpenWorkbookInfo workbook)
+    {
+        var attachedSession = _activeSessions.FirstOrDefault(entry =>
+            entry.Value is AttachedWorkbookBatch attached
+            && ReferenceEquals(attached.Owner, owner)
+            && string.Equals(attached.WorkbookId, workbook.WorkbookId, StringComparison.Ordinal)).Key;
+        if (attachedSession is not null)
+            return attachedSession;
+
+        if (workbook.Location is { } location
+            && _activeFilePaths.TryGetValue(location, out var sessionId)
+            && _activeSessions.TryGetValue(sessionId, out var session)
+            && session is not AttachedWorkbookBatch
+            && session.ExcelProcessId == workbook.ProcessId)
+        {
+            if (session is not ExcelBatch ownedSession
+                || ownedSession.IsOwnedWorkbookInstanceOpenAt(location))
+            {
+                return sessionId;
+            }
+
+            var sessionLock = GetSessionLock(sessionId);
+            lock (sessionLock)
+            {
+                if (_activeSessions.TryGetValue(sessionId, out var currentSession)
+                    && ReferenceEquals(currentSession, ownedSession)
+                    && ownedSession.DetachClosedOwnedWorkbook(location))
+                {
+                    RemoveSessionTracking(sessionId, removeSessionLock: false);
+                    _sessionLocks.TryRemove(sessionId, out _);
+                    return null;
+                }
+            }
+
+            throw new InvalidOperationException(
+                $"The workbook at '{location}' was closed and reopened, but its previous session could not be safely detached. " +
+                "The workbook remains open; discovery is incomplete for this Excel process.");
+        }
+
+        return null;
+    }
+
+    private WorkbookDiscoveryError? UpdateAttachedWorkbookLocation(
+        string sessionId,
+        AttachedWorkbookBatch attached,
+        OpenWorkbookInfo workbook)
+    {
+        var path = workbook.Location ?? workbook.Name;
+        lock (_filePathReservationLock)
+        {
+            if (!_activeSessions.TryGetValue(sessionId, out var session)
+                || !ReferenceEquals(session, attached))
+            {
+                return null;
+            }
+
+            var previousPath = _sessionFilePaths.TryGetValue(sessionId, out var trackedPath)
+                ? trackedPath
+                : attached.FilePath;
+            if (previousPath is not null
+                && _activeFilePaths.TryGetValue(previousPath, out var previousOwner)
+                && string.Equals(previousOwner, sessionId, StringComparison.Ordinal))
+            {
+                _activeFilePaths.TryRemove(previousPath, out _);
+            }
+
+            attached.UpdateDiscoveredWorkbookLocation(workbook.Location, workbook.Name);
+            _sessionFilePaths[sessionId] = path;
+
+            if (workbook.Location is null)
+                return null;
+
+            if (_activeFilePaths.TryGetValue(workbook.Location, out var currentOwner)
+                && !string.Equals(currentOwner, sessionId, StringComparison.Ordinal))
+            {
+                return new WorkbookDiscoveryError(
+                    workbook.ProcessId,
+                    $"Workbook '{workbook.Name}' is already reserved by session '{currentOwner}'. " +
+                    "The existing attached session remains connected by workbook identity.");
+            }
+
+            _activeFilePaths[workbook.Location] = sessionId;
+            return null;
+        }
+    }
+
+    /// <summary>Connects to a previously discovered open workbook without reopening it.</summary>
+    public AttachedWorkbookSession AttachWorkbook(string workbookId)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        ArgumentException.ThrowIfNullOrWhiteSpace(workbookId);
+        if (!_openWorkbookSelections.TryGetValue(workbookId, out var selection))
+            throw new ArgumentException(
+                "Unknown open-workbook selection. Discover open workbooks first.", nameof(workbookId));
+
+        var current = selection.Owner.RefreshAttachedWorkbook(workbookId)
+            ?? throw new InvalidOperationException(
+                "The selected workbook is no longer confirmed open. Discover open workbooks again.");
+        var path = current.Location ?? current.Name;
+        lock (_filePathReservationLock)
+        {
+            ObjectDisposedException.ThrowIf(_disposed, this);
+            if (selection.Owner.ProcessIdentity is { } process
+                && _detachingApplications.Contains(process))
+            {
+                throw new InvalidOperationException(
+                    "The Excel application connection is being released. Discover the workbook again after it completes.");
+            }
+            if (!_openWorkbookSelections.TryGetValue(workbookId, out var liveSelection)
+                || !ReferenceEquals(liveSelection.Owner, selection.Owner))
+            {
+                throw new InvalidOperationException(
+                    "The open-workbook selection changed during attachment. Discover open workbooks again.");
+            }
+
+            var existingSessionId = FindExistingWorkbookSession(selection.Owner, current);
+            if (existingSessionId is not null)
+            {
+                return new AttachedWorkbookSession(
+                    existingSessionId, current.Name, current.Location, current.AutoSaveOn);
+            }
+
+            var sessionId = Guid.NewGuid().ToString("N");
+            var claimedPath = current.Location is not null;
+            if (claimedPath && !_activeFilePaths.TryAdd(path, sessionId))
+            {
+                throw new InvalidOperationException(
+                    $"Workbook '{path}' is already managed by another session.");
+            }
+
+            try
+            {
+                var batch = new AttachedWorkbookBatch(selection.Owner, current);
+                PublishSession(sessionId, path, batch, selection.Owner.IsExcelVisible, SessionOrigin.Unknown);
+                return new AttachedWorkbookSession(
+                    sessionId, current.Name, current.Location, current.AutoSaveOn);
+            }
+            catch
+            {
+                if (claimedPath
+                    && _activeFilePaths.TryGetValue(path, out var owner)
+                    && string.Equals(owner, sessionId, StringComparison.Ordinal))
+                {
+                    _activeFilePaths.TryRemove(path, out _);
+                }
+                throw;
+            }
+        }
+    }
+
+    private static ExcelBatch? GetExecutionOwner(IExcelBatch batch) => batch switch
+    {
+        ExcelBatch owned => owned,
+        AttachedWorkbookBatch attached => attached.Owner,
+        _ => null
+    };
 
     /// <summary>
     /// Creates a new session for the specified Excel file.
@@ -863,14 +1132,15 @@ public sealed class SessionManager : IDisposable
     /// <summary>Records the command and caller's queue cancellation without retaining arguments or data.</summary>
     public void SetOperationContext(string sessionId, string command, CancellationToken callerCancellation = default)
     {
-        if (_activeSessions.TryGetValue(sessionId, out var batch) && batch is ExcelBatch owned)
+        if (_activeSessions.TryGetValue(sessionId, out var batch) && GetExecutionOwner(batch) is { } owned)
             owned.SetOperationContext(command, callerCancellation);
     }
 
     /// <summary>Returns bounded execution metadata without calling Excel.</summary>
     public ExcelOperationStatus? GetOperationStatus(string sessionId)
     {
-        if (!_activeSessions.TryGetValue(sessionId, out var batch) || batch is not ExcelBatch owned)
+        if (!_activeSessions.TryGetValue(sessionId, out var batch)
+            || GetExecutionOwner(batch) is not { } owned)
             return null;
         var status = owned.OperationStatus;
         if (!status.ExecutionPending)
@@ -895,7 +1165,7 @@ public sealed class SessionManager : IDisposable
     /// <summary>Reveals only this session's owned Excel window, without a COM wait.</summary>
     public void RevealForRecovery(string sessionId, bool waitExpired = false)
     {
-        if (_activeSessions.TryGetValue(sessionId, out var batch) && batch is ExcelBatch owned)
+        if (_activeSessions.TryGetValue(sessionId, out var batch) && GetExecutionOwner(batch) is { } owned)
             owned.RevealForRecovery(waitExpired);
     }
 
@@ -1091,6 +1361,8 @@ public sealed class SessionManager : IDisposable
         var closeSucceeded = false;
         try
         {
+            ReleaseDiscoveryConnectionBeforeOwnedClose(sessionId, batch);
+
             // Save first if requested (blocks until complete)
             if (save)
             {
@@ -1120,6 +1392,123 @@ public sealed class SessionManager : IDisposable
 
     internal Action? BeforeCloseSessionHookForTests { get; set; }
 
+    private void ReleaseDiscoveryConnectionBeforeOwnedClose(string sessionId, IExcelBatch batch)
+    {
+        if (batch is not ExcelBatch owned || owned.ProcessIdentity is not { } identity)
+            return;
+
+        ExcelBatch application;
+        AttachedWorkbookBatch[] attachedSessions;
+        lock (_filePathReservationLock)
+        {
+            if (!_attachedApplications.TryGetValue(identity, out application!))
+                return;
+            if (_detachingApplications.Contains(identity))
+            {
+                throw new InvalidOperationException(
+                    $"Excel process {identity.ProcessId} is already releasing its discovery connection.");
+            }
+
+            attachedSessions = _activeSessions
+                .Where(entry => entry.Key != sessionId
+                    && entry.Value is AttachedWorkbookBatch attached
+                    && ReferenceEquals(attached.Owner, application))
+                .Select(entry => (AttachedWorkbookBatch)entry.Value)
+                .ToArray();
+        }
+
+        if (attachedSessions.Length > 0)
+        {
+            var discovery = application.DiscoverAttachedWorkbooks();
+            if (discovery.Errors.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot close owned session '{sessionId}' safely because discovery of Excel process {identity.ProcessId} was incomplete: " +
+                    string.Join("; ", discovery.Errors.Select(error => error.Message)));
+            }
+
+            var currentWorkbooks = discovery.Workbooks.ToDictionary(
+                workbook => workbook.WorkbookId, StringComparer.Ordinal);
+            var pathErrors = new List<WorkbookDiscoveryError>();
+            foreach (var entry in _activeSessions.ToArray())
+            {
+                if (entry.Value is not AttachedWorkbookBatch attached
+                    || !ReferenceEquals(attached.Owner, application))
+                {
+                    continue;
+                }
+
+                if (currentWorkbooks.TryGetValue(attached.WorkbookId, out var workbook))
+                {
+                    if (UpdateAttachedWorkbookLocation(entry.Key, attached, workbook) is { } error)
+                        pathErrors.Add(error);
+                    continue;
+                }
+
+                lock (_filePathReservationLock)
+                {
+                    if (_activeSessions.TryGetValue(entry.Key, out var current)
+                        && ReferenceEquals(current, attached))
+                    {
+                        attached.Dispose();
+                        RemoveSessionTracking(entry.Key, removeSessionLock: true);
+                    }
+                    _openWorkbookSelections.TryRemove(attached.WorkbookId, out _);
+                }
+            }
+
+            if (pathErrors.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Cannot close owned session '{sessionId}' safely because attached workbook locations conflict with other sessions: " +
+                    string.Join("; ", pathErrors.Select(error => error.Message)));
+            }
+        }
+
+        lock (_filePathReservationLock)
+        {
+            if (!_attachedApplications.TryGetValue(identity, out var currentApplication)
+                || !ReferenceEquals(currentApplication, application))
+            {
+                return;
+            }
+            if (_activeSessions.Values.Any(session =>
+                    session is AttachedWorkbookBatch attached
+                    && ReferenceEquals(attached.Owner, application)))
+            {
+                return;
+            }
+
+            _detachingApplications.Add(identity);
+        }
+
+        try
+        {
+            application.DetachApplication();
+        }
+        catch
+        {
+            lock (_filePathReservationLock)
+                _detachingApplications.Remove(identity);
+            throw;
+        }
+
+        lock (_filePathReservationLock)
+        {
+            if (_attachedApplications.TryGetValue(identity, out var currentApplication)
+                && ReferenceEquals(currentApplication, application))
+            {
+                _attachedApplications.Remove(identity);
+            }
+            foreach (var selection in _openWorkbookSelections)
+            {
+                if (ReferenceEquals(selection.Value.Owner, application))
+                    _openWorkbookSelections.TryRemove(selection.Key, out _);
+            }
+            _detachingApplications.Remove(identity);
+        }
+    }
+
     private void CloseSessionSync(string sessionId, IExcelBatch batch, bool force)
     {
         if (string.IsNullOrWhiteSpace(sessionId))
@@ -1134,6 +1523,8 @@ public sealed class SessionManager : IDisposable
         catch (Exception ex) when (ex is ExcelBusyException
             || batch is IExcelBatchCloseState { ShutdownCommitted: false })
         {
+            if (batch is ExcelBatch ownedBatch)
+                ReleaseClosedWorkbookReservations(sessionId, ownedBatch);
             throw;
         }
         catch (Exception ex)
@@ -1154,8 +1545,37 @@ public sealed class SessionManager : IDisposable
         _sessionLocks.TryRemove(sessionId, out _);
     }
 
+    private void ReleaseClosedWorkbookReservations(string sessionId, ExcelBatch batch)
+    {
+        var closedPaths = batch.TakeClosedWorkbookPathsDuringShutdown();
+        if (closedPaths.Count == 0)
+            return;
+
+        lock (_filePathReservationLock)
+        {
+            foreach (var path in closedPaths)
+            {
+                var normalizedPath = WorkbookLocation.Normalize(path);
+                if (_activeFilePaths.TryGetValue(normalizedPath, out var owner)
+                    && string.Equals(owner, sessionId, StringComparison.Ordinal))
+                {
+                    _activeFilePaths.TryRemove(normalizedPath, out _);
+                }
+            }
+
+            if (_sessionFilePaths.ContainsKey(sessionId))
+                _sessionFilePaths[sessionId] = WorkbookLocation.Normalize(batch.WorkbookPath);
+        }
+    }
+
     private static void CloseBatch(IExcelBatch batch, bool force = false)
     {
+        if (batch is AttachedWorkbookBatch attached)
+        {
+            attached.Close(force);
+            return;
+        }
+
         if (!force && !batch.HasTimedOutOperation && batch.IsExcelProcessAlive()
             && batch is IExcelBatchCloseState closeState)
             closeState.Close();
@@ -1232,7 +1652,18 @@ public sealed class SessionManager : IDisposable
                     _sessionCreatedAt.TryGetValue(sessionId, out var createdAt);
 
                     var path = _sessionFilePaths.TryGetValue(sessionId, out var currentPath) ? currentPath : kvp.Value;
-                    snapshot.Add(new SessionDescriptor(sessionId, path, origin, createdAt == default ? null : createdAt));
+                    if (batch is AttachedWorkbookBatch attached)
+                    {
+                        snapshot.Add(new SessionDescriptor(
+                            sessionId, attached.FilePath, origin,
+                            createdAt == default ? null : createdAt,
+                            attached.WorkbookName, IsAttached: true));
+                    }
+                    else
+                    {
+                        snapshot.Add(new SessionDescriptor(
+                            sessionId, path, origin, createdAt == default ? null : createdAt));
+                    }
                 }
                 else
                 {
@@ -1387,8 +1818,8 @@ public sealed class SessionManager : IDisposable
     /// Disposes all active sessions, auto-saving each one first to prevent data loss.
     /// </summary>
     /// <remarks>
-    /// <para><b>CRITICAL:</b> Sessions are auto-saved before disposal to prevent silent data loss
-    /// when the service shuts down (e.g., MCP client disconnect, process exit).</para>
+    /// <para>Owned sessions are auto-saved before disposal. Explicitly attached
+    /// workbooks are detached without saving or closing their workbook.</para>
     /// <para><b>CRITICAL:</b> Sessions are disposed SEQUENTIALLY to avoid COM threading issues.</para>
     /// <para>Excel COM objects must be disposed on their STA threads. Parallel disposal causes deadlocks.</para>
     /// </remarks>
@@ -1398,17 +1829,53 @@ public sealed class SessionManager : IDisposable
     public void Dispose()
     {
         KeyValuePair<string, IExcelBatch>[] sessions;
+        ExcelBatch[] attachedApplications;
         lock (_filePathReservationLock)
         {
             if (_disposed)
                 return;
             _disposed = true;
             sessions = _activeSessions.ToArray();
+            attachedApplications = _attachedApplications.Values.ToArray();
         }
 
         var failures = new List<Exception>();
+        foreach (var application in attachedApplications)
+        {
+            try
+            {
+                if (!application.QuitOwnedApplicationIfEmpty())
+                    application.DetachApplication();
+                lock (_filePathReservationLock)
+                {
+                    var identity = _attachedApplications.FirstOrDefault(
+                        entry => ReferenceEquals(entry.Value, application)).Key;
+                    if (identity != default)
+                        _attachedApplications.Remove(identity);
+                    foreach (var selection in _openWorkbookSelections)
+                    {
+                        if (ReferenceEquals(selection.Value.Owner, application))
+                            _openWorkbookSelections.TryRemove(selection.Key, out _);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                failures.Add(new InvalidOperationException(
+                    $"Could not release the connection to Excel process {application.ExcelProcessId}; its workbooks were not closed.",
+                    ex));
+            }
+        }
+
         foreach (var (sessionId, session) in sessions)
         {
+            if (session is AttachedWorkbookBatch attached)
+            {
+                attached.Dispose();
+                RemoveSessionTracking(sessionId, removeSessionLock: true);
+                continue;
+            }
+
             var teardownFailed = _teardownFailures.ContainsKey(sessionId);
             var readOnlyValidation = _readOnlyValidationSessions.ContainsKey(sessionId);
             if (teardownFailed && TryConfirmFailedTeardown(session))
@@ -1482,7 +1949,7 @@ public sealed class SessionManager : IDisposable
 
         lock (_filePathReservationLock)
         {
-            if (_activeSessions.IsEmpty)
+            if (_activeSessions.IsEmpty && _attachedApplications.Count == 0)
                 _activeFilePaths.Clear();
             else
                 _disposed = false;
@@ -1499,14 +1966,18 @@ public sealed class SessionManager : IDisposable
 /// Represents a snapshot of an active Excel session managed by <see cref="SessionManager"/>.
 /// </summary>
 /// <param name="SessionId">Public session identifier shared with clients.</param>
-/// <param name="FilePath">Normalized workbook path associated with the session.</param>
+/// <param name="FilePath">Workbook location, or null for an attached workbook that has never been saved.</param>
 /// <param name="Origin">Which client created this session (CLI or MCP).</param>
 /// <param name="CreatedAt">When the session was created.</param>
+/// <param name="WorkbookName">Current name for an attached workbook.</param>
+/// <param name="IsAttached">Whether the session is attached to a workbook that was already open.</param>
 public sealed record SessionDescriptor(
     string SessionId,
-    string FilePath,
+    string? FilePath,
     SessionOrigin Origin = SessionOrigin.Unknown,
-    DateTime? CreatedAt = null);
+    DateTime? CreatedAt = null,
+    string? WorkbookName = null,
+    bool IsAttached = false);
 
 /// <summary>
 /// Indicates which client created a session.

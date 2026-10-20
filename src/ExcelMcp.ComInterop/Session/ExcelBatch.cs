@@ -19,7 +19,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// <item>Operations are queued via Channel and executed SERIALLY (never in parallel)</item>
 /// <item>Multiple simultaneous Execute() calls are processed one at a time</item>
 /// <item>This is a COM interop requirement, not an implementation choice</item>
-/// <item>For parallel processing, create multiple sessions for DIFFERENT files</item>
+/// <item>Attached sessions may share an Excel process; Excel serializes their COM calls on its UI thread</item>
 /// </list>
 /// <para><b>Resource Cost:</b> Each ExcelBatch = one Excel.Application process (~50-100MB+ memory)</para>
 /// </remarks>
@@ -35,6 +35,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     private readonly bool _openReadOnly; // Whether existing workbooks are opened read-only
     private readonly bool _createNewFile; // Whether to create a new file instead of opening existing
     private readonly bool _isMacroEnabled; // For new files: whether to create .xlsm (macro-enabled)
+    private readonly RunningExcelWindows.ApplicationWindow? _attachedApplication;
+    private ExcelApplicationLease? _applicationLease;
     private readonly TimeSpan _startupTimeout;
     private readonly TimeSpan _operationTimeout; // Timeout for individual operations
     private readonly ILogger<ExcelBatch> _logger;
@@ -55,6 +57,10 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     private readonly Lock _readinessLock = new();
     private bool _teardownConfirmed;
     private bool _staCleanupPending;
+    private bool _ownedProcessLeftOpen;
+    private bool _quitEmptyOwnedApplication;
+    private bool _leaveOwnedApplicationOpen;
+    private readonly List<string> _closedWorkbookPathsDuringShutdown = [];
     private readonly AsyncLocal<(string? Command, CancellationToken CallerCancellation)> _commandContext = new();
     private string? _operationCommand;
     private long _operationStartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
@@ -63,6 +69,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     private string? _operationError;
     private bool _waitExpired;
     private Task<WorkbookRefreshState>? _readinessTask;
+    private string? _readinessSelectionId;
     private readonly Lock _windowControlLock = new();
     private nint _revealedDialog;
     public string? DialogVisibilityError { get; private set; }
@@ -205,6 +212,265 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             deferStartup: deferStartup);
     }
 
+    internal static ExcelBatch ConnectApplication(RunningExcelWindows.ApplicationWindow window) =>
+        new([$"Excel-{window.Process.ProcessId}"], null, false, false, false, false,
+            startupTimeout: TimeSpan.FromSeconds(2), deferStartup: true, attachedApplication: window);
+
+    internal AttachedWorkbookDiscovery DiscoverAttachedWorkbooks()
+    {
+        try
+        {
+            _startupCompletion.WaitAsync(TimeSpan.FromSeconds(2)).GetAwaiter().GetResult();
+        }
+        catch (TimeoutException ex)
+        {
+            throw new TimeoutException(
+                $"Connecting to Excel process {_excelProcessId} did not finish within two seconds.", ex);
+        }
+        _startupCompletion.GetAwaiter().GetResult();
+        RecoverTimedOutOperation();
+        return ExcelBatchWait.Execute(this, TimeSpan.FromSeconds(2), (_, _) => RefreshAttachedWorkbooks());
+    }
+
+    internal OpenWorkbookInfo? RefreshAttachedWorkbook(string workbookId)
+    {
+        RecoverTimedOutOperation();
+        var discovery = ExcelBatchWait.Execute(this, TimeSpan.FromSeconds(2), (_, _) =>
+            RefreshAttachedWorkbooks());
+        var selection = discovery.Workbooks.FirstOrDefault(workbook =>
+            string.Equals(workbook.WorkbookId, workbookId, StringComparison.Ordinal));
+        if (selection is not null)
+            return selection;
+        if (discovery.Errors.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "The selected workbook could not be confirmed because discovery was incomplete: " +
+                string.Join("; ", discovery.Errors.Select(error => error.Message)));
+        }
+        return null;
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Workbook COM read failures are returned as explicit per-process discovery errors while successful workbook reads remain available.")]
+    private AttachedWorkbookDiscovery RefreshAttachedWorkbooks()
+    {
+        var retainedWorkbooks = _workbooks
+            ?? throw new InvalidOperationException("Attached application workbook ownership is not initialized.");
+        var found = new HashSet<string>(StringComparer.Ordinal);
+        var result = new List<OpenWorkbookInfo>();
+        var errors = new List<WorkbookDiscoveryError>();
+        Excel.Workbooks? workbooks = null;
+        var enumerationComplete = false;
+        try
+        {
+            workbooks = _excel!.Workbooks;
+            var count = workbooks.Count;
+            enumerationComplete = true;
+            for (var index = 1; index <= count; index++)
+            {
+                Excel.Workbook? workbook = null;
+                try
+                {
+                    workbook = workbooks[index];
+                    var key = retainedWorkbooks.FirstOrDefault(entry =>
+                        ReferenceEquals(entry.Value, workbook)).Key;
+                    if (key is null)
+                    {
+                        key = Guid.NewGuid().ToString("N");
+                        retainedWorkbooks.Add(key, workbook);
+                        workbook = null;
+                    }
+
+                    var retained = retainedWorkbooks[key];
+                    found.Add(key);
+                    var name = retained.Name;
+                    var location = GetWorkbookLocation(retained.FullName);
+                    var saved = retained.Saved;
+                    var autoSaveOn = ExcelCapabilities.ReadAutoSaveStatus(() => retained.AutoSaveOn);
+                    result.Add(new OpenWorkbookInfo(
+                        key, name, location, _excelProcessId!.Value, saved, autoSaveOn));
+                }
+                catch (Exception ex)
+                {
+                    enumerationComplete = false;
+                    errors.Add(new WorkbookDiscoveryError(
+                        _excelProcessId,
+                        $"Could not inspect workbook {index}: {ex.GetType().Name}: {ex.Message}"));
+                }
+                finally
+                {
+                    ComUtilities.Release(ref workbook);
+                }
+            }
+
+            if (enumerationComplete)
+            {
+                foreach (var key in retainedWorkbooks.Keys.Except(found).ToArray())
+                {
+                    var removed = retainedWorkbooks[key];
+                    retainedWorkbooks.Remove(key);
+                    ComUtilities.Release(ref removed);
+                }
+            }
+
+            UpdateAttachedPrimaryWorkbook();
+        }
+        catch (Exception ex)
+        {
+            errors.Add(new WorkbookDiscoveryError(
+                _excelProcessId,
+                $"Could not enumerate workbooks: {ex.GetType().Name}: {ex.Message}"));
+        }
+        finally
+        {
+            ComUtilities.Release(ref workbooks);
+        }
+
+        return new AttachedWorkbookDiscovery(result, errors);
+    }
+
+    private static string? GetWorkbookLocation(string fullName)
+    {
+        if (WorkbookLocation.IsRemote(fullName))
+            return WorkbookLocation.SanitizeExistingRemoteWorkbookLocation(fullName);
+        return Path.IsPathFullyQualified(fullName) ? WorkbookLocation.Normalize(fullName) : null;
+    }
+
+    private void UpdateAttachedPrimaryWorkbook()
+    {
+        if (_workbooks is null)
+            return;
+        _workbook = _workbooks.Values.FirstOrDefault();
+        _workbookPath = _workbook is null
+            ? $"Excel-{_excelProcessId}"
+            : GetWorkbookLocation(_workbook.FullName) ?? _workbook.Name;
+        _context = _workbook is null
+            ? null
+            : new ExcelContext(_workbookPath, _excel!, _workbook)
+            {
+                ProcessIdentity = _excelProcessIdentity
+            };
+    }
+
+    internal ExcelContext GetAttachedWorkbookContext(string workbookId)
+    {
+        if (_workbooks is null || !_workbooks.TryGetValue(workbookId, out var workbook))
+            throw new InvalidOperationException("The selected workbook is no longer open. Discover open workbooks again.");
+        var workbookPath = GetWorkbookLocation(workbook.FullName) ?? workbook.Name;
+        return new ExcelContext(workbookPath, _excel!, workbook)
+        {
+            ProcessIdentity = _excelProcessIdentity
+        };
+    }
+
+    internal Excel.Workbook GetAttachedWorkbook(string workbookId)
+    {
+        Excel.Workbook GetSelected()
+        {
+            if (_workbooks is not null && _workbooks.TryGetValue(workbookId, out var selected))
+                return selected;
+            throw new InvalidOperationException(
+                "The selected workbook is no longer open. Discover open workbooks again.");
+        }
+
+        return Thread.CurrentThread == _staThread
+            ? GetSelected()
+            : Execute((_, _) => GetSelected());
+    }
+
+    internal WorkbookRefreshState GetAttachedWorkbookRefreshState(string workbookId) =>
+        GetRefreshState(() => ReadAttachedWorkbookRefreshState(workbookId), workbookId);
+
+    private void RecoverTimedOutOperation()
+    {
+        if (_operationTimedOut && GetRefreshState() != WorkbookRefreshState.Ready)
+            throw new ExcelBusyException(
+                "A previous Excel operation is still pending or its readiness is unknown. " +
+                "The selected workbook remains open; retry discovery after Excel becomes ready.");
+    }
+
+    internal void CloseAttachedWorkbook(string workbookId, bool force = false)
+    {
+        var discovery = RefreshAttachedWorkbooks();
+        if (!discovery.Workbooks.Any(workbook =>
+                string.Equals(workbook.WorkbookId, workbookId, StringComparison.Ordinal)))
+        {
+            if (discovery.Errors.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    "The selected workbook could not be confirmed closed because discovery was incomplete: " +
+                    string.Join("; ", discovery.Errors.Select(error => error.Message)));
+            }
+            return;
+        }
+
+        var context = GetAttachedWorkbookContext(workbookId);
+        if (!force)
+            ExcelBusyException.ThrowIfNotReady(WorkbookRefreshProbe.Read(context.App, context.Book), "close");
+        ExcelShutdownService.CloseAndQuit(
+            context.Book, null, false, context.WorkbookPath, _logger, releaseWorkbook: false);
+        var closeDiscovery = RefreshAttachedWorkbooks();
+        if (closeDiscovery.Workbooks.Any(workbook =>
+                string.Equals(workbook.WorkbookId, workbookId, StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException(
+                "Excel did not close the selected workbook. It remains open and its session is still attached.");
+        }
+        if (closeDiscovery.Errors.Count > 0)
+        {
+            throw new InvalidOperationException(
+                "Excel did not confirm that the selected workbook closed. It remains attached to its session: " +
+                string.Join("; ", closeDiscovery.Errors.Select(error => error.Message)));
+        }
+
+    }
+
+    internal void DetachApplication()
+    {
+        if (_attachedApplication is null)
+            throw new InvalidOperationException("Only an attached application can be detached.");
+        lock (_disposeLock)
+        {
+            if (_disposed == 0)
+            {
+                Interlocked.Exchange(ref _disposed, 1);
+                _shutdownCts.Cancel();
+                _workQueue.Writer.TryComplete();
+            }
+            CompleteDispose();
+        }
+    }
+
+    internal bool QuitOwnedApplicationIfEmpty()
+    {
+        if (_attachedApplication is null
+            || _excelProcessIdentity is not { } identity
+            || !SessionManager.IsExcelProcessTracked(identity))
+        {
+            return false;
+        }
+
+        var empty = Execute((_, _) =>
+        {
+            Excel.Workbooks? workbooks = null;
+            try
+            {
+                workbooks = _excel!.Workbooks;
+                return workbooks.Count == 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref workbooks);
+            }
+        });
+        if (!empty)
+            return false;
+
+        _quitEmptyOwnedApplication = true;
+        Dispose();
+        return !_ownedProcessLeftOpen;
+    }
+
     /// <summary>
     /// Private constructor that handles both opening existing files and creating new ones.
     /// </summary>
@@ -217,13 +483,15 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         bool isMacroEnabled,
         TimeSpan? operationTimeout = null,
         TimeSpan? startupTimeout = null,
-        bool deferStartup = false)
+        bool deferStartup = false,
+        RunningExcelWindows.ApplicationWindow? attachedApplication = null)
     {
         if (workbookPaths == null || workbookPaths.Length == 0)
             throw new ArgumentException("At least one workbook path is required", nameof(workbookPaths));
 
         // Reject known access failures before activating Excel; recheck at open for races.
-        if (!createNewFile)
+        _attachedApplication = attachedApplication;
+        if (!createNewFile && attachedApplication is null)
         {
             foreach (var path in workbookPaths)
             {
@@ -268,229 +536,251 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 // CRITICAL: Register OLE message filter on STA thread for Excel busy handling
                 OleMessageFilter.Register();
 
-                // Create Excel and workbook ON THIS STA THREAD
-                Type? excelType = Type.GetTypeFromProgID("Excel.Application");
-                if (excelType == null)
+                if (_attachedApplication is { } attached)
                 {
-                    throw new InvalidOperationException("Microsoft Excel is not installed on this system.");
+                    _excelProcessIdentity = attached.Process;
+                    _excelProcessId = attached.Process.ProcessId;
+                    _applicationLease = new ExcelApplicationLease(attached.Process);
+                    startupExcel = RunningExcelWindows.Connect(attached);
+                    _excel = startupExcel;
+                    _workbooks = new Dictionary<string, Excel.Workbook>(StringComparer.Ordinal);
+                    startupWorkbooks = _workbooks;
+                    _operationCommand = "session.discover";
+                    var discovery = RefreshAttachedWorkbooks();
+                    if (discovery.Errors.Count > 0)
+                        _logger.LogWarning(
+                            "Initial workbook discovery for attached Excel process {ProcessId} was incomplete: {Errors}",
+                            _excelProcessId, string.Join("; ", discovery.Errors.Select(error => error.Message)));
+                    _isExcelVisible = (bool)startupExcel.Visible;
+                    FinishOperation(null);
+                    started.SetResult();
                 }
-
-                Excel.Application tempExcel;
-                try
+                else
                 {
-                    tempExcel = ResiliencePipelines.CreateSessionCreationPipeline().Execute(
-                        () => (Excel.Application)Activator.CreateInstance(excelType)!);
-                }
-                catch (InvalidCastException ex)
-                {
-                    // Enrich with COM environment diagnostics for remote debugging (Issue #559)
-                    var diagnostics = ComDiagnostics.FormatForErrorMessage(ComDiagnostics.Collect());
-                    throw new InvalidOperationException(
-                        $"Failed to cast Excel COM object to PIA interface. " +
-                        $"This typically indicates a COM registration mismatch (architecture, version, or corruption).\n{diagnostics}",
-                        ex);
-                }
-                startupExcel = tempExcel;
-                // Start Excel visible during workbook open so enterprise auth/sign-in
-                // dialogs are interactable. Hide after all workbooks open successfully.
-                // This also covers IRM-protected files which already needed Visible=true.
-                tempExcel.Visible = true;
-                tempExcel.DisplayAlerts = false;
-
-                // Readiness probes and teardown require both PID and start time.
-                // Retry when Excel's window or process identity is not available yet.
-                try
-                {
-                    const int maxRetries = 3;
-                    const int retryDelayMs = 500;
-
-                    for (int attempt = 1; attempt <= maxRetries; attempt++)
+                    // Create Excel and workbook ON THIS STA THREAD
+                    Type? excelType = Type.GetTypeFromProgID("Excel.Application");
+                    if (excelType == null)
                     {
-                        int hwnd = tempExcel.Hwnd;
-                        if (hwnd != 0)
+                        throw new InvalidOperationException("Microsoft Excel is not installed on this system.");
+                    }
+
+                    Excel.Application tempExcel;
+                    try
+                    {
+                        tempExcel = ResiliencePipelines.CreateSessionCreationPipeline().Execute(
+                            () => (Excel.Application)Activator.CreateInstance(excelType)!);
+                    }
+                    catch (InvalidCastException ex)
+                    {
+                        // Enrich with COM environment diagnostics for remote debugging (Issue #559)
+                        var diagnostics = ComDiagnostics.FormatForErrorMessage(ComDiagnostics.Collect());
+                        throw new InvalidOperationException(
+                            $"Failed to cast Excel COM object to PIA interface. " +
+                            $"This typically indicates a COM registration mismatch (architecture, version, or corruption).\n{diagnostics}",
+                            ex);
+                    }
+                    startupExcel = tempExcel;
+                    // Start Excel visible during workbook open so enterprise auth/sign-in
+                    // dialogs are interactable. Hide after all workbooks open successfully.
+                    // This also covers IRM-protected files which already needed Visible=true.
+                    tempExcel.Visible = true;
+                    tempExcel.DisplayAlerts = false;
+
+                    // Readiness probes and teardown require both PID and start time.
+                    // Retry when Excel's window or process identity is not available yet.
+                    try
+                    {
+                        const int maxRetries = 3;
+                        const int retryDelayMs = 500;
+
+                        for (int attempt = 1; attempt <= maxRetries; attempt++)
                         {
-                            uint processId = 0;
-                            _ = GetWindowThreadProcessId(new IntPtr(hwnd), out processId);
-                            if (processId != 0)
+                            int hwnd = tempExcel.Hwnd;
+                            if (hwnd != 0)
                             {
-                                _excelProcessId = (int)processId;
-                                _excelProcessIdentity =
-                                    TrackProcessIdentityHookForTests is { } trackIdentity
-                                        ? trackIdentity(_excelProcessId.Value)
-                                        : SessionManager.TrackExcelProcessIdentity(_excelProcessId.Value);
-                                if (_excelProcessIdentity.HasValue)
+                                uint processId = 0;
+                                _ = GetWindowThreadProcessId(new IntPtr(hwnd), out processId);
+                                if (processId != 0)
                                 {
-                                    if (_revealRequested)
-                                        SessionManager.PreserveExcelProcess(_excelProcessIdentity.Value);
-                                    _logger.LogDebug("Captured Excel process identity via Hwnd: {ProcessId} (attempt {Attempt})",
-                                        _excelProcessId, attempt);
-                                    break;
+                                    _excelProcessId = (int)processId;
+                                    _excelProcessIdentity =
+                                        TrackProcessIdentityHookForTests is { } trackIdentity
+                                            ? trackIdentity(_excelProcessId.Value)
+                                            : SessionManager.TrackExcelProcessIdentity(_excelProcessId.Value);
+                                    if (_excelProcessIdentity.HasValue)
+                                    {
+                                        if (_revealRequested)
+                                            SessionManager.PreserveExcelProcess(_excelProcessIdentity.Value);
+                                        _logger.LogDebug("Captured Excel process identity via Hwnd: {ProcessId} (attempt {Attempt})",
+                                            _excelProcessId, attempt);
+                                        break;
+                                    }
                                 }
+                            }
+
+                            if (attempt < maxRetries)
+                            {
+                                _logger.LogDebug("Excel process identity not available yet (attempt {Attempt}/{Max}), retrying in {Delay}ms",
+                                    attempt, maxRetries, retryDelayMs);
+                                Thread.Sleep(retryDelayMs);
                             }
                         }
 
-                        if (attempt < maxRetries)
-                        {
-                            _logger.LogDebug("Excel process identity not available yet (attempt {Attempt}/{Max}), retrying in {Delay}ms",
-                                attempt, maxRetries, retryDelayMs);
-                            Thread.Sleep(retryDelayMs);
-                        }
+                    }
+                    catch (ExcelProcessPersistenceException ex)
+                    {
+                        _excelProcessIdentity = ex.Identity;
+                        throw;
+                    }
+                    catch (Exception ex)
+                    {
+                        throw new InvalidOperationException("Failed to capture Excel process identity during startup.", ex);
+                    }
+                    if (!_excelProcessIdentity.HasValue)
+                    {
+                        _logger.LogError("Excel startup cannot continue without a confirmed process identity.");
+                        throw new InvalidOperationException(
+                            "Could not capture Excel process identity. No workbook has been opened or created, " +
+                            "and no session was published. Retry opening the workbook.");
                     }
 
-                }
-                catch (ExcelProcessPersistenceException ex)
-                {
-                    _excelProcessIdentity = ex.Identity;
-                    throw;
-                }
-                catch (Exception ex)
-                {
-                    throw new InvalidOperationException("Failed to capture Excel process identity during startup.", ex);
-                }
-                if (!_excelProcessIdentity.HasValue)
-                {
-                    _logger.LogError("Excel startup cannot continue without a confirmed process identity.");
-                    throw new InvalidOperationException(
-                        "Could not capture Excel process identity. No workbook has been opened or created, " +
-                        "and no session was published. Retry opening the workbook.");
-                }
+                    // Workbook macro execution must remain available for explicit VBA operations on
+                    // reopened .xlsm sessions. Force-disabling macros at open makes vba.run impossible
+                    // later in the same batch. Validation opens are different: they inspect untrusted
+                    // workbooks and must always disable macros, even for .xlsm files.
+                    // msoAutomationSecurityLow = 1
+                    // msoAutomationSecurityForceDisable = 3
+                    // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity
+                    // AutomationSecurity is typed as Office.MsoAutomationSecurity, an enum that lives in
+                    // office.dll (Microsoft.Office.Core). We do NOT reference or embed the Office.Core PIA,
+                    // so dispatch a plain integer without loading an Office.Core type.
+                    int automationSecurity = SelectAutomationSecurity(
+                        _isMacroEnabled,
+                        _openReadOnly,
+                        _allWorkbookPaths);
+                    // Reflection dispatch avoids the dynamic binder's retained ITypeInfo RCW,
+                    // which can block STA termination after Excel.Quit has already returned.
+                    tempExcel.GetType().InvokeMember(
+                        "AutomationSecurity", BindingFlags.SetProperty | BindingFlags.DoNotWrapExceptions, binder: null,
+                        target: tempExcel, args: [automationSecurity],
+                        culture: CultureInfo.InvariantCulture);
 
-                // Workbook macro execution must remain available for explicit VBA operations on
-                // reopened .xlsm sessions. Force-disabling macros at open makes vba.run impossible
-                // later in the same batch. Validation opens are different: they inspect untrusted
-                // workbooks and must always disable macros, even for .xlsm files.
-                // msoAutomationSecurityLow = 1
-                // msoAutomationSecurityForceDisable = 3
-                // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity
-                // AutomationSecurity is typed as Office.MsoAutomationSecurity, an enum that lives in
-                // office.dll (Microsoft.Office.Core). We do NOT reference or embed the Office.Core PIA,
-                // so dispatch a plain integer without loading an Office.Core type.
-                int automationSecurity = SelectAutomationSecurity(
-                    _isMacroEnabled,
-                    _openReadOnly,
-                    _allWorkbookPaths);
-                // Reflection dispatch avoids the dynamic binder's retained ITypeInfo RCW,
-                // which can block STA termination after Excel.Quit has already returned.
-                tempExcel.GetType().InvokeMember(
-                    "AutomationSecurity", BindingFlags.SetProperty | BindingFlags.DoNotWrapExceptions, binder: null,
-                    target: tempExcel, args: [automationSecurity],
-                    culture: CultureInfo.InvariantCulture);
+                    // Open or create workbooks in the same Excel instance
+                    var tempWorkbooks = new Dictionary<string, Excel.Workbook>(StringComparer.OrdinalIgnoreCase);
+                    startupWorkbooks = tempWorkbooks;
+                    Excel.Workbook? primaryWorkbook = null;
 
-                // Open or create workbooks in the same Excel instance
-                var tempWorkbooks = new Dictionary<string, Excel.Workbook>(StringComparer.OrdinalIgnoreCase);
-                startupWorkbooks = tempWorkbooks;
-                Excel.Workbook? primaryWorkbook = null;
-
-                foreach (var path in _allWorkbookPaths)
-                {
-                    Excel.Workbook wb;
-                    string normalizedPath = WorkbookLocation.Normalize(path);
-                    bool isRemote = WorkbookLocation.IsRemote(normalizedPath);
-
-                    if (_createNewFile)
+                    foreach (var path in _allWorkbookPaths)
                     {
-                        // CREATE NEW FILE: Use Add() + SaveAs() instead of Open()
-                        // Validate directory exists (do not create automatically)
-                        string? directory = Path.GetDirectoryName(normalizedPath);
-                        if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
-                        {
-                            throw new DirectoryNotFoundException($"Directory does not exist: '{directory}'. Create the directory first before creating Excel files.");
-                        }
+                        Excel.Workbook wb;
+                        string normalizedPath = WorkbookLocation.Normalize(path);
+                        bool isRemote = WorkbookLocation.IsRemote(normalizedPath);
 
-                        Excel.Workbooks? workbooks = null;
-                        try
+                        if (_createNewFile)
                         {
-                            workbooks = tempExcel.Workbooks;
-                            wb = workbooks.Add();
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref workbooks);
-                        }
+                            // CREATE NEW FILE: Use Add() + SaveAs() instead of Open()
+                            // Validate directory exists (do not create automatically)
+                            string? directory = Path.GetDirectoryName(normalizedPath);
+                            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory))
+                            {
+                                throw new DirectoryNotFoundException($"Directory does not exist: '{directory}'. Create the directory first before creating Excel files.");
+                            }
 
-                        // SaveAs with appropriate format
-                        if (_isMacroEnabled)
-                        {
-                            wb.SaveAs(normalizedPath, ComInteropConstants.XlOpenXmlWorkbookMacroEnabled);
+                            Excel.Workbooks? workbooks = null;
+                            try
+                            {
+                                workbooks = tempExcel.Workbooks;
+                                wb = workbooks.Add();
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref workbooks);
+                            }
+
+                            // SaveAs with appropriate format
+                            if (_isMacroEnabled)
+                            {
+                                wb.SaveAs(normalizedPath, ComInteropConstants.XlOpenXmlWorkbookMacroEnabled);
+                            }
+                            else
+                            {
+                                wb.SaveAs(normalizedPath, ComInteropConstants.XlOpenXmlWorkbook);
+                            }
                         }
                         else
                         {
-                            wb.SaveAs(normalizedPath, ComInteropConstants.XlOpenXmlWorkbook);
-                        }
-                    }
-                    else
-                    {
-                        // OPEN EXISTING FILE: Validate and open
-                        bool isIrm = !isRemote && FileAccessValidator.IsIrmProtected(normalizedPath);
+                            // OPEN EXISTING FILE: Validate and open
+                            bool isIrm = !isRemote && FileAccessValidator.IsIrmProtected(normalizedPath);
 
-                        if (isIrm)
-                        {
-                            _startupDetectedIrmProtectedWorkbook = true;
-                            if (!_showExcel)
+                            if (isIrm)
                             {
-                                throw new InvalidOperationException(CreateIrmRequiresVisibleSessionMessage(normalizedPath));
+                                _startupDetectedIrmProtectedWorkbook = true;
+                                if (!_showExcel)
+                                {
+                                    throw new InvalidOperationException(CreateIrmRequiresVisibleSessionMessage(normalizedPath));
+                                }
+
+                                _logger.LogDebug(
+                                    "IRM-protected file detected: {FileName}. Excel determines editing permissions.",
+                                    Path.GetFileName(normalizedPath));
+                            }
+                            else if (!isRemote)
+                            {
+                                // CRITICAL: Check if file is locked at OS level BEFORE attempting Excel COM open
+                                FileAccessValidator.ValidateFileNotLocked(path);
                             }
 
-                            _logger.LogDebug(
-                                "IRM-protected file detected: {FileName}. Excel determines editing permissions.",
-                                Path.GetFileName(normalizedPath));
-                        }
-                        else if (!isRemote)
-                        {
-                            // CRITICAL: Check if file is locked at OS level BEFORE attempting Excel COM open
-                            FileAccessValidator.ValidateFileNotLocked(path);
+                            // Open workbook with Excel COM
+                            Excel.Workbooks? workbooks = null;
+                            try
+                            {
+                                BeforeWorkbookOpenHook?.Invoke(normalizedPath, _shutdownCts.Token);
+                                _shutdownCts.Token.ThrowIfCancellationRequested();
+                                workbooks = tempExcel.Workbooks;
+                                // PIA gap: Open adds an LCID that can rewrite locale-specific table formats.
+                                dynamic dispatch = (dynamic)(object)workbooks;
+                                wb = (Excel.Workbook)dispatch.Open(
+                                    normalizedPath, UpdateLinks: 0, ReadOnly: _openReadOnly,
+                                    IgnoreReadOnlyRecommended: true, Notify: false, AddToMru: false);
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref workbooks);
+                            }
                         }
 
-                        // Open workbook with Excel COM
-                        Excel.Workbooks? workbooks = null;
-                        try
+                        tempWorkbooks[normalizedPath] = wb;
+                        AfterWorkbookOpenHookForTests?.Invoke(tempExcel, wb);
+                        WorkbookLocation.ValidateOpenedWorkbookFormat(normalizedPath, wb.FileFormat);
+                        if (isRemote && !wb.ReadOnly)
                         {
-                            BeforeWorkbookOpenHook?.Invoke(normalizedPath, _shutdownCts.Token);
-                            _shutdownCts.Token.ThrowIfCancellationRequested();
-                            workbooks = tempExcel.Workbooks;
-                            // PIA gap: Open adds an LCID that can rewrite locale-specific table formats.
-                            dynamic dispatch = (dynamic)(object)workbooks;
-                            wb = (Excel.Workbook)dispatch.Open(
-                                normalizedPath, UpdateLinks: 0, ReadOnly: _openReadOnly,
-                                IgnoreReadOnlyRecommended: true, Notify: false, AddToMru: false);
+                            // Cloud AutoSave would otherwise persist edits before an explicit save
+                            // and defeat close(save:false).
+                            ExcelCapabilities.DisableAutoSave(() => wb.AutoSaveOn = false);
                         }
-                        finally
+                        if (path == _workbookPath)
                         {
-                            ComUtilities.Release(ref workbooks);
+                            primaryWorkbook = wb;
+                            startupPrimaryWorkbook = wb;
                         }
                     }
 
-                    tempWorkbooks[normalizedPath] = wb;
-                    AfterWorkbookOpenHookForTests?.Invoke(tempExcel, wb);
-                    WorkbookLocation.ValidateOpenedWorkbookFormat(normalizedPath, wb.FileFormat);
-                    if (isRemote && !wb.ReadOnly)
+                    // All workbooks opened successfully — safe to apply user's visibility preference.
+                    // Enterprise auth/sign-in dialogs (if any) have already been dismissed.
+                    tempExcel.Visible = _showExcel || _revealRequested;
+                    _isExcelVisible = (bool)tempExcel.Visible;
+
+                    _excel = tempExcel;
+                    _workbook = primaryWorkbook;
+                    _workbooks = tempWorkbooks;
+                    _context = new ExcelContext(_workbookPath, _excel, _workbook!)
                     {
-                        // Cloud AutoSave would otherwise persist edits before an explicit save
-                        // and defeat close(save:false).
-                        ExcelCapabilities.DisableAutoSave(() => wb.AutoSaveOn = false);
-                    }
-                    if (path == _workbookPath)
-                    {
-                        primaryWorkbook = wb;
-                        startupPrimaryWorkbook = wb;
-                    }
+                        ProcessIdentity = _excelProcessIdentity
+                    };
+
+                    FinishOperation(null);
+                    started.SetResult();
                 }
-
-                // All workbooks opened successfully — safe to apply user's visibility preference.
-                // Enterprise auth/sign-in dialogs (if any) have already been dismissed.
-                tempExcel.Visible = _showExcel || _revealRequested;
-                _isExcelVisible = (bool)tempExcel.Visible;
-
-                _excel = tempExcel;
-                _workbook = primaryWorkbook;
-                _workbooks = tempWorkbooks;
-                _context = new ExcelContext(_workbookPath, _excel, _workbook!)
-                {
-                    ProcessIdentity = _excelProcessIdentity
-                };
-
-                FinishOperation(null);
-                started.SetResult();
 
                 // Message pump - process work queue until completion or cancellation.
                 // CRITICAL: Uses WaitToReadAsync() instead of polling with Thread.Sleep(10).
@@ -571,8 +861,10 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 {
                     BeforeStaCleanupHookForTests?.Invoke();
                     var cleanupExcel = _excel ?? startupExcel;
-                    var cleanupWorkbook = _workbook ?? startupPrimaryWorkbook;
                     var cleanupWorkbooks = _workbooks ?? startupWorkbooks;
+                    var cleanupWorkbook = _workbook
+                        ?? cleanupWorkbooks?.Values.FirstOrDefault()
+                        ?? (_workbooks is null ? startupPrimaryWorkbook : null);
 
                     // INSTRUMENTATION: Check if Excel process is alive BEFORE entering shutdown
                     if (_excelProcessId.HasValue)
@@ -617,34 +909,54 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                         }
                     }
 
-                    // Unified shutdown: use ExcelShutdownService for ALL workbook close/quit operations.
-                    // Previously multi-workbook batches used bare COM calls without resilience,
-                    // while single-workbook batches used ExcelShutdownService. Now both paths
-                    // get the same exponential backoff retry for COM busy conditions.
-                    if (cleanupWorkbooks != null && cleanupWorkbooks.Count > 1)
+                    if (_attachedApplication is null && !_leaveOwnedApplicationOpen)
                     {
-                        _logger.LogDebug("Closing {Count} workbooks via ExcelShutdownService", cleanupWorkbooks.Count);
-
-                        // Close all non-primary workbooks first (without quitting Excel)
-                        foreach (var kvp in cleanupWorkbooks.ToList())
+                        // Owned applications are closed through the normal shutdown policy.
+                        bool quitConfirmed;
+                        if (cleanupWorkbooks != null && cleanupWorkbooks.Count > 1)
                         {
-                            if (kvp.Value == cleanupWorkbook)
+                            _logger.LogDebug("Closing {Count} workbooks via ExcelShutdownService", cleanupWorkbooks.Count);
+
+                            foreach (var kvp in cleanupWorkbooks.ToList())
                             {
-                                continue; // Primary workbook closed last (with Quit)
+                                if (kvp.Value == cleanupWorkbook)
+                                    continue;
+                                ExcelShutdownService.CloseAndQuit(kvp.Value, null, false, kvp.Key, _logger);
                             }
-
-                            // CloseAndQuit with excel=null closes workbook only, doesn't quit
-                            ExcelShutdownService.CloseAndQuit(kvp.Value, null, false, kvp.Key, _logger);
+                            cleanupWorkbooks.Clear();
+                            quitConfirmed = ExcelShutdownService.CloseAndQuitAndReport(
+                                cleanupWorkbook, cleanupExcel, false, _workbookPath, _logger);
                         }
-                        cleanupWorkbooks.Clear();
-
-                        // Close primary workbook AND quit Excel (with resilient retry)
-                        ExcelShutdownService.CloseAndQuit(cleanupWorkbook, cleanupExcel, false, _workbookPath, _logger);
+                        else
+                        {
+                            quitConfirmed = ExcelShutdownService.CloseAndQuitAndReport(
+                                cleanupWorkbook, cleanupExcel, false, _workbookPath, _logger);
+                        }
+                        _ownedProcessLeftOpen = cleanupExcel is not null && !quitConfirmed;
                     }
                     else
                     {
-                        // Single workbook: same ExcelShutdownService path
-                        ExcelShutdownService.CloseAndQuit(cleanupWorkbook, cleanupExcel, false, _workbookPath, _logger);
+                        if (cleanupWorkbooks is not null)
+                        {
+                            foreach (var workbook in cleanupWorkbooks.Values)
+                            {
+                                var retained = workbook;
+                                ComUtilities.Release(ref retained);
+                            }
+                            cleanupWorkbooks.Clear();
+                        }
+                        if (_attachedApplication is not null && _quitEmptyOwnedApplication)
+                        {
+                            _ownedProcessLeftOpen = cleanupExcel is not null
+                                && !ExcelShutdownService.CloseAndQuitAndReport(
+                                    null, cleanupExcel, false, _workbookPath, _logger);
+                        }
+                        else
+                        {
+                            ComUtilities.Release(ref cleanupExcel);
+                        }
+                        _applicationLease?.Dispose();
+                        _applicationLease = null;
                     }
 
                     _workbook = null;
@@ -741,7 +1053,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 _ = _staThread.Join(TimeSpan.FromSeconds(10));
             }
 
-            if (_excelProcessIdentity is { } failedStartupIdentity)
+            if (_attachedApplication is null && _excelProcessIdentity is { } failedStartupIdentity)
             {
                 try
                 {
@@ -847,6 +1159,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     public ILogger Logger => _logger;
 
     public int? ExcelProcessId => _excelProcessId;
+
+    internal ExcelProcessIdentity? ProcessIdentity => _excelProcessIdentity;
 
     public TimeSpan OperationTimeout => _operationTimeout;
 
@@ -1035,7 +1349,9 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 _windowReveal = null;
             }
 
-            using var writeGuard = new ExcelWriteGuard((Excel.Application)_context!.App, _logger);
+            var application = _excel
+                ?? throw new InvalidOperationException("Excel application not initialized.");
+            using var writeGuard = new ExcelWriteGuard(application, _logger);
 
             Exception? operationFailure = null;
             try
@@ -1307,7 +1623,12 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         return WorkbookRefreshState.Ready;
     }
 
-    public WorkbookRefreshState GetRefreshState()
+    public WorkbookRefreshState GetRefreshState() =>
+        GetRefreshState(ReadRefreshState, selectionId: null);
+
+    private WorkbookRefreshState GetRefreshState(
+        Func<WorkbookRefreshState> readRefreshState,
+        string? selectionId = null)
     {
         var preflight = GetExecutionPreflightState();
         if (preflight != WorkbookRefreshState.Ready)
@@ -1321,7 +1642,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             {
                 _readinessTask = null;
                 var state = previous.GetAwaiter().GetResult();
-                if (state != WorkbookRefreshState.Ready || !_operationTimedOut)
+                if (string.Equals(_readinessSelectionId, selectionId, StringComparison.Ordinal))
                     return state;
             }
             var completion = new TaskCompletionSource<WorkbookRefreshState>(
@@ -1329,7 +1650,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             var work = new ExcelWorkItem<WorkbookRefreshState>(
                 () =>
                 {
-                    var state = ReadRefreshState();
+                    var state = readRefreshState();
                     if (state == WorkbookRefreshState.Ready)
                         _operationTimedOut = false;
                     return state;
@@ -1337,6 +1658,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             if (!_workQueue.Writer.TryWrite(work))
                 return WorkbookRefreshState.Unknown;
             _readinessTask = completion.Task;
+            _readinessSelectionId = selectionId;
             try
             {
                 // A started COM scan stays owned, but never holds a status request open.
@@ -1361,6 +1683,12 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         BeforeRefreshStateReadHookForTests?.Invoke();
         var dialogState = ReadDialogState();
         if (dialogState != WorkbookRefreshState.Ready) return dialogState;
+        if (_attachedApplication is not null)
+        {
+            var discovery = RefreshAttachedWorkbooks();
+            if (discovery.Errors.Count > 0)
+                return WorkbookRefreshState.Unknown;
+        }
         foreach (var workbook in _workbooks!.Values)
         {
             var state = WorkbookRefreshProbe.Read(_excel!, workbook);
@@ -1369,6 +1697,23 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         if (_revealRequested)
             UpdateVisibilitySnapshot(null);
         return WorkbookRefreshState.Ready;
+    }
+
+    private WorkbookRefreshState ReadAttachedWorkbookRefreshState(string workbookId)
+    {
+        BeforeRefreshStateReadHookForTests?.Invoke();
+        var dialogState = ReadDialogState();
+        if (dialogState != WorkbookRefreshState.Ready)
+            return dialogState;
+
+        var discovery = RefreshAttachedWorkbooks();
+        var selected = discovery.Workbooks.FirstOrDefault(workbook =>
+            string.Equals(workbook.WorkbookId, workbookId, StringComparison.Ordinal));
+        if (selected is null)
+            return discovery.Errors.Count == 0
+                ? WorkbookRefreshState.Ready
+                : WorkbookRefreshState.Unknown;
+        return WorkbookRefreshProbe.Read(_excel!, _workbooks![workbookId]);
     }
 
     public void Close()
@@ -1384,13 +1729,172 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             Execute((_, _) =>
             {
                 ExcelBusyException.ThrowIfNotReady(ReadRefreshState(), "close");
-                // Commit shutdown on the STA only after readiness is confirmed.
+                CloseOwnedWorkbooksBeforeShutdown();
                 Interlocked.Exchange(ref _disposed, 1);
                 _shutdownCts.Cancel();
                 _workQueue.Writer.TryComplete();
             });
             CompleteDispose();
         }
+    }
+
+    internal bool IsOwnedWorkbookInstanceOpenAt(string workbookPath)
+    {
+        var normalizedPath = WorkbookLocation.Normalize(workbookPath);
+        return Execute((_, _) =>
+        {
+            if (_workbooks is null || _excel is null)
+            {
+                return false;
+            }
+            var tracked = _workbooks.FirstOrDefault(entry =>
+                string.Equals(WorkbookLocation.Normalize(entry.Key), normalizedPath,
+                    StringComparison.OrdinalIgnoreCase));
+            if (tracked.Key is null)
+                return false;
+
+            Excel.Workbooks? workbooks = null;
+            try
+            {
+                workbooks = _excel.Workbooks;
+                var count = workbooks.Count;
+                for (var index = 1; index <= count; index++)
+                {
+                    Excel.Workbook? current = null;
+                    try
+                    {
+                        current = workbooks[index];
+                        if (ReferenceEquals(current, tracked.Value))
+                            return true;
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref current);
+                    }
+                }
+                return false;
+            }
+            finally
+            {
+                ComUtilities.Release(ref workbooks);
+            }
+        });
+    }
+
+    internal bool DetachClosedOwnedWorkbook(string workbookPath)
+    {
+        var normalizedPath = WorkbookLocation.Normalize(workbookPath);
+        lock (_disposeLock)
+        {
+            if (_disposed != 0 || _attachedApplication is not null)
+                return false;
+
+            var detached = Execute((_, _) =>
+            {
+                if (_workbooks is null || _excel is null || _workbooks.Count != 1)
+                {
+                    return false;
+                }
+                var tracked = _workbooks.FirstOrDefault(entry =>
+                    string.Equals(WorkbookLocation.Normalize(entry.Key), normalizedPath,
+                        StringComparison.OrdinalIgnoreCase));
+                if (tracked.Key is null)
+                    return false;
+
+                Excel.Workbooks? workbooks = null;
+                try
+                {
+                    workbooks = _excel.Workbooks;
+                    var count = workbooks.Count;
+                    for (var index = 1; index <= count; index++)
+                    {
+                        Excel.Workbook? current = null;
+                        try
+                        {
+                            current = workbooks[index];
+                            if (ReferenceEquals(current, tracked.Value))
+                                return false;
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref current);
+                        }
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref workbooks);
+                }
+
+                _leaveOwnedApplicationOpen = true;
+                _ownedProcessLeftOpen = true;
+                Interlocked.Exchange(ref _disposed, 1);
+                _shutdownCts.Cancel();
+                _workQueue.Writer.TryComplete();
+                return true;
+            });
+
+            if (detached)
+                CompleteDispose();
+            return detached;
+        }
+    }
+
+    private void CloseOwnedWorkbooksBeforeShutdown()
+    {
+        if (_excel is null || _workbooks is null)
+            throw new InvalidOperationException("Owned Excel workbooks are not initialized.");
+
+        var capabilities = _context?.Capabilities;
+        foreach (var entry in _workbooks.ToArray())
+        {
+            try
+            {
+                ExcelShutdownService.CloseWorkbookAndConfirm(
+                    entry.Value, _excel, false, entry.Key, _logger);
+            }
+            catch (Exception ex) when (_closedWorkbookPathsDuringShutdown.Count > 0)
+            {
+                var closedNames = _closedWorkbookPathsDuringShutdown
+                    .Select(Path.GetFileName)
+                    .ToArray();
+                throw new InvalidOperationException(
+                    $"Failed to close '{Path.GetFileName(entry.Key)}'. {ex.Message} " +
+                    $"Earlier session workbooks already closed: {string.Join(", ", closedNames)}.",
+                    ex);
+            }
+
+            _workbooks.Remove(entry.Key);
+            _closedWorkbookPathsDuringShutdown.Add(entry.Key);
+
+            if (ReferenceEquals(_workbook, entry.Value))
+            {
+                _workbook = null;
+                _context = null;
+            }
+
+            var closedWorkbook = entry.Value;
+            ComUtilities.Release(ref closedWorkbook);
+
+            if (_workbook is null && _workbooks.Count > 0)
+            {
+                var next = _workbooks.First();
+                _workbookPath = next.Key;
+                _allWorkbookPaths[0] = next.Key;
+                _workbook = next.Value;
+                _context = new ExcelContext(next.Key, _excel, next.Value, capabilities)
+                {
+                    ProcessIdentity = _excelProcessIdentity
+                };
+            }
+        }
+    }
+
+    internal IReadOnlyList<string> TakeClosedWorkbookPathsDuringShutdown()
+    {
+        var paths = _closedWorkbookPathsDuringShutdown.ToArray();
+        _closedWorkbookPathsDuringShutdown.Clear();
+        return paths;
     }
 
     public void Dispose()
@@ -1438,16 +1942,24 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         }
         _teardownCompletion.Task.GetAwaiter().GetResult();
 
-        if (_excelProcessIdentity is { } identity)
+        if (_excelProcessIdentity is { } identity
+            && (_attachedApplication is null || _quitEmptyOwnedApplication))
         {
-            if (!WaitForOwnedProcessExit(identity))
+            if (_ownedProcessLeftOpen)
+            {
+                SessionManager.PreserveExcelProcess(identity);
+            }
+            else if (!WaitForOwnedProcessExit(identity))
             {
                 RevealForRecovery(waitExpired: true);
                 throw new TimeoutException(
                     "Excel has not confirmed process exit after close/quit. " +
                     $"Its exact identity remains owned; it has not been terminated. Excel window: {_windowReveal}.");
             }
-            SessionManager.UntrackExcelProcess(identity);
+            else
+            {
+                SessionManager.UntrackExcelProcess(identity);
+            }
         }
         FinishOperation(null);
         _teardownConfirmed = true;

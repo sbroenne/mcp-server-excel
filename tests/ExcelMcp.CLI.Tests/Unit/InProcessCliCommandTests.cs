@@ -45,6 +45,52 @@ public sealed class InProcessCliCommandTests
         Assert.Empty(error.ToString());
     }
 
+    [Fact]
+    public async Task SessionDiscoverAndAttach_MapCommandsAndWorkbookIdentifier()
+    {
+        const string discoverResult = """{"success":true,"complete":false,"workbooks":[],"errors":[{"processId":1234,"message":"Window callback failed."}]}""";
+        var discoverFactory = new RecordingClientFactory(new ServiceResponse
+        {
+            Success = true,
+            Result = discoverResult
+        });
+        var discoverOutput = new StringWriter();
+        var discoverError = new StringWriter();
+        var discoverExitCode = await Program.RunAsync(
+            ["--quiet", "session", "discover"],
+            CreateRuntime(discoverFactory, discoverOutput, discoverError));
+
+        Assert.Equal(0, discoverExitCode);
+        var discoverRequest = Assert.Single(discoverFactory.Requests);
+        Assert.Equal("session.discover", discoverRequest.Command);
+        Assert.Null(discoverRequest.SessionId);
+        Assert.Null(discoverRequest.Args);
+        Assert.Equal(discoverResult, discoverOutput.ToString().Trim());
+        Assert.Empty(discoverError.ToString());
+
+        const string attachResult = """{"success":true,"sessionId":"attached-session","name":"Book1","warning":"Excel AutoSave is off."}""";
+        var attachFactory = new RecordingClientFactory(new ServiceResponse
+        {
+            Success = true,
+            SessionId = "attached-session",
+            Result = attachResult
+        });
+        var attachOutput = new StringWriter();
+        var attachError = new StringWriter();
+        var attachExitCode = await Program.RunAsync(
+            ["--quiet", "session", "attach", "--workbook-id", "open-workbook-123"],
+            CreateRuntime(attachFactory, attachOutput, attachError));
+
+        Assert.Equal(0, attachExitCode);
+        var attachRequest = Assert.Single(attachFactory.Requests);
+        Assert.Equal("session.attach", attachRequest.Command);
+        Assert.Null(attachRequest.SessionId);
+        using var args = JsonDocument.Parse(attachRequest.Args!);
+        Assert.Equal("open-workbook-123", args.RootElement.GetProperty("workbookId").GetString());
+        Assert.Equal(attachResult, attachOutput.ToString().Trim());
+        Assert.Empty(attachError.ToString());
+    }
+
     [Theory]
     [InlineData("get-account-settings", """{"success":true,"accountHintPresent":true,"passwordPresent":false,"impersonationPresent":false,"identityMode":"Connection"}""")]
     [InlineData("clear-account-hint", """{"success":true,"changed":true,"accountHintPresent":false}""")]

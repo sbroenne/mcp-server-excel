@@ -1,0 +1,114 @@
+using Microsoft.Extensions.Logging;
+using Excel = Microsoft.Office.Interop.Excel;
+
+namespace Sbroenne.ExcelMcp.ComInterop.Session;
+
+internal sealed class AttachedWorkbookBatch(ExcelBatch owner, OpenWorkbookInfo workbook)
+    : IExcelBatch, IExcelBatchRefreshState, IExcelBatchCloseState, IExcelBatchWindowControl
+{
+    private string _path = workbook.Location ?? workbook.Name;
+    private string _workbookName = workbook.Name;
+    private bool _detached;
+
+    internal ExcelBatch Owner => owner;
+    internal string WorkbookId => workbook.WorkbookId;
+    internal bool? AutoSaveOn => workbook.AutoSaveOn;
+    internal string WorkbookName => _workbookName;
+    internal string? FilePath => WorkbookLocation.IsRemote(_path) || Path.IsPathFullyQualified(_path)
+        ? _path
+        : null;
+    public string WorkbookPath => _path;
+    public ILogger Logger => owner.Logger;
+    public int? ExcelProcessId => owner.ExcelProcessId;
+    public TimeSpan OperationTimeout => owner.OperationTimeout;
+    public bool IsExcelVisible => owner.IsExcelVisible;
+    public bool HasTimedOutOperation => owner.HasTimedOutOperation;
+    public bool ShutdownCommitted => _detached;
+    public string? DialogDetails => owner.DialogDetails;
+    public string? DialogVisibilityError => owner.DialogVisibilityError;
+    public IReadOnlyDictionary<string, Excel.Workbook> Workbooks =>
+        new Dictionary<string, Excel.Workbook>(StringComparer.OrdinalIgnoreCase)
+        {
+            [_path] = GetSelectedWorkbook()
+        };
+
+    public Excel.Workbook GetWorkbook(string filePath) =>
+        string.Equals(filePath, _path, StringComparison.OrdinalIgnoreCase)
+            ? GetSelectedWorkbook()
+            : throw new KeyNotFoundException("The requested workbook is not the selected attached workbook.");
+
+    public void UpdateWorkbookPath(string workbookPath) =>
+        _path = WorkbookLocation.IsRemote(workbookPath)
+            ? WorkbookLocation.SanitizeExistingRemoteWorkbookLocation(workbookPath)
+            : WorkbookLocation.Normalize(workbookPath);
+
+    internal void UpdateDiscoveredWorkbookLocation(string? location, string name)
+    {
+        _path = location is null
+            ? name
+            : WorkbookLocation.IsRemote(location)
+                ? WorkbookLocation.SanitizeExistingRemoteWorkbookLocation(location)
+                : WorkbookLocation.Normalize(location);
+        _workbookName = name;
+    }
+
+    public bool IsExcelProcessAlive() => !_detached && owner.IsExcelProcessAlive();
+    public ExcelVisibilityResult SetVisibility(bool visible) => owner.SetVisibility(visible);
+    public WorkbookRefreshState GetRefreshState() =>
+        owner.GetAttachedWorkbookRefreshState(workbook.WorkbookId);
+
+    public T Execute<T>(
+        Func<ExcelContext, CancellationToken, T> operation,
+        CancellationToken cancellationToken = default)
+    {
+        ObjectDisposedException.ThrowIf(_detached, this);
+        return owner.Execute((_, token) =>
+        {
+            var context = owner.GetAttachedWorkbookContext(workbook.WorkbookId);
+            _path = context.WorkbookPath;
+            _workbookName = context.Book.Name;
+            return operation(context, token);
+        }, cancellationToken);
+    }
+
+    public void Execute(
+        Action<ExcelContext, CancellationToken> operation,
+        CancellationToken cancellationToken = default) =>
+        Execute((context, token) =>
+        {
+            operation(context, token);
+            return 0;
+        }, cancellationToken);
+
+    public void Save(CancellationToken cancellationToken = default)
+    {
+        ExcelBusyException.ThrowIfNotReady(GetRefreshState(), "save");
+        Execute((context, token) =>
+        {
+            ExcelBusyException.ThrowIfNotReady(
+                WorkbookRefreshProbe.Read(context.App, context.Book), "save");
+            ExcelShutdownService.SaveWorkbookWithTimeout(
+                context.Book, context.Book.Name, Logger, token);
+        }, cancellationToken);
+    }
+
+    public void Close()
+        => Close(force: false);
+
+    internal void Close(bool force)
+    {
+        ObjectDisposedException.ThrowIf(_detached, this);
+        if (!force)
+            ExcelBusyException.ThrowIfNotReady(GetRefreshState(), "close");
+        owner.Execute((_, _) => owner.CloseAttachedWorkbook(workbook.WorkbookId, force));
+        _detached = true;
+    }
+
+    public void Dispose() => _detached = true;
+
+    private Excel.Workbook GetSelectedWorkbook()
+    {
+        ObjectDisposedException.ThrowIf(_detached, this);
+        return owner.GetAttachedWorkbook(workbook.WorkbookId);
+    }
+}

@@ -46,12 +46,20 @@ See [window management](window.md#visibility-and-placement).
 
 - Use the returned session ID on every follow-up. CLI and MCP sessions are
   separate; their IDs cannot be transferred.
+- Before opening a workbook, use MCP `file_read` action `discover` or CLI
+  `excelcli session discover` to find any already-open copy. Select the intended
+  `workbookId` and attach with MCP `file` action `attach` and
+  `open_workbook_id`, or CLI `excelcli session attach --workbook-id <ID>`.
+  Discovery reports `complete` and `errors`; do not treat an incomplete result
+  as proof that a workbook is absent. Attach does not reopen a workbook or
+  change its unsaved state.
 - Close only when authorized, operations have finished, and the session listing
   reports `canClose: true`. Confirm before closing a visible window unless
   already authorized. Keep the workbook open when requested.
 - Explicit close discards unsaved edits unless saving is requested. Normal
-  service shutdown attempts to save remaining sessions; leaving a failed job
-  open is not a rollback. Crashes and forced cleanup can lose changes.
+  service shutdown attempts to save workbooks opened by this service; attached
+  workbooks are left open and are not saved or closed by shutdown. Leaving a
+  failed job open is not a rollback. Crashes and forced cleanup can lose changes.
 - Closing without saving discards all edits since the last save, including
   earlier work. There is no tool-level undo for discarded edits.
 - Cancellation is not undo. After failure, inspect the surviving session and

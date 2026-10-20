@@ -144,7 +144,11 @@ internal sealed class Program
             // Session commands
             config.AddBranch("session", branch =>
             {
-                branch.SetDescription("Session management. WORKFLOW: open -> use sessionId -> close (--save to persist). Use --show for IRM/auth prompts.");
+                branch.SetDescription("Session management. Use discover to find an already-open workbook, then attach --workbook-id without reopening it. WORKFLOW: open or attach -> use sessionId -> close (--save to persist). Use --show for IRM/auth prompts.");
+                branch.AddCommand<SessionDiscoverCommand>("discover")
+                    .WithDescription("Find already-open workbooks without reopening them. Results include saved state and AutoSave setting.");
+                branch.AddCommand<SessionAttachCommand>("attach")
+                    .WithDescription("Attach to a workbook returned by session discover. Does not reopen the workbook; existing AutoSave remains unchanged.");
                 branch.AddCommand<SessionCreateCommand>("create")
                     .WithDescription("Create a new Excel file, open it, and create a session. Add --show for visible Excel.");
                 branch.AddCommand<SessionOpenCommand>("open")

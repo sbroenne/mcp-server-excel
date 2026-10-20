@@ -21,7 +21,8 @@ public static partial class ExcelFileTool
     /// Protected files require show:true for authentication; Excel determines editing rights.
     /// Open accepts direct SharePoint/OneDrive for Business HTTPS workbook URLs, including ?web=1.
     /// URL opening requires show:true; browser pages, sharing links and arbitrary web URLs are not supported.
-    /// Remote AutoSave is disabled so explicit save/close semantics apply.
+    /// For opened remote workbooks this service turns off AutoSave where Excel supports it; an attached remote workbook keeps its existing setting.
+    /// Attach reports whether AutoSave is enabled. If enabled, Excel may save later edits automatically.
     /// Inspect workbook_read get-info readOnly before editing. Workbook changes reject read-only access.
     /// Failed saves retain the open session and unsaved changes.
     /// Save persists the current workbook without closing it. Timeouts preserve the owned session,
@@ -37,6 +38,7 @@ public static partial class ExcelFileTool
     /// <param name="save">Save before close; otherwise discard unsaved changes. Only valid for close.</param>
     /// <param name="show">Show Excel. Only valid for open/create; protected files may force visible authentication.</param>
     /// <param name="timeout_seconds">Timeout for open/create, in seconds (10-3600). Also sets the session operation timeout.</param>
+    /// <param name="open_workbook_id">Identifier returned by file_read discover. Required for attach.</param>
     [McpServerTool(Name = "file", Title = "File Operations", Destructive = true,
         UseStructuredContent = true, OutputSchemaType = typeof(FileToolOutputSchema))]
     [McpMeta("category", "session")]
@@ -51,6 +53,7 @@ public static partial class ExcelFileTool
         [McpActionParameter("close"), DefaultValue(false)] bool save,
         [McpActionParameter("open"), McpActionParameter("create"), DefaultValue(false)] bool show,
         [McpActionParameter("open"), McpActionParameter("create"), DefaultValue(120)] int timeout_seconds,
+        [McpActionParameter("attach", Required = true), DefaultValue(null)] string? open_workbook_id = null,
         CancellationToken cancellationToken = default) =>
         ExecuteFileToolActionAsync(
             "file",
@@ -60,11 +63,12 @@ public static partial class ExcelFileTool
                 FileWriteAction.Create => FileAction.Create,
                 FileWriteAction.Close => FileAction.Close,
                 FileWriteAction.Save => FileAction.Save,
+                FileWriteAction.Attach => FileAction.Attach,
                 _ => throw new ArgumentOutOfRangeException(nameof(action))
             },
-            bridge, file_path, workbook_session_id, save, show, timeout_seconds, cancellationToken);
+            bridge, file_path, workbook_session_id, save, show, timeout_seconds, cancellationToken, open_workbook_id);
 
-    /// <summary>List workbook sessions with live canClose, excelState, operationPending and blocker details, and validate a workbook path without opening an editable session. Confirmed blocking dialogs automatically reveal Excel, report dialogOpen, and include readable dialog text in blockingMessage; partial or unavailable reads are reported. Ask the user to respond in Excel. Dialog types are not identified and input values are not read. activeOperations:0 does not prove a background refresh has finished.</summary>
+    /// <summary>Discover already-open workbooks in the current user's Windows session without reopening them, list managed sessions, or test a workbook path. Discover returns workbookId values for file attach, sessionId for workbooks already connected to this host, and complete:false with errors when any application or workbook could not be inspected. List includes canClose, excelState, operationPending and blockers. Confirmed blocking dialogs reveal Excel and report readable dialog text in blockingMessage. Ask the user to respond in Excel; input values are not read. activeOperations:0 does not prove refresh has finished.</summary>
     /// <remarks>
     /// Test defaults to 120 seconds and validates ordinary files through a temporary read-only Excel open.
     /// IRM/AIP files require visible authentication; Excel determines editing rights, not protection detection.
@@ -75,7 +79,7 @@ public static partial class ExcelFileTool
     /// Remote existence, size and IRM protection cannot be established by local preflight;
     /// false exists/isIrmProtected values do not prove absence or lack of protection.
     /// </remarks>
-    /// <param name="action">List sessions or test whether a workbook can be opened.</param>
+    /// <param name="action">Discover already-open workbooks, list sessions, or test whether a workbook can be opened.</param>
     /// <param name="file_path">Full Windows workbook path or direct SharePoint/OneDrive for Business HTTPS workbook URL. Required for test.</param>
     /// <param name="timeout_seconds">Timeout for test, in seconds (10-3600).</param>
     [McpServerTool(Name = "file_read", Title = "Read-Only File Operations", ReadOnly = true,
@@ -94,6 +98,7 @@ public static partial class ExcelFileTool
             {
                 FileReadAction.List => FileAction.List,
                 FileReadAction.Test => FileAction.Test,
+                FileReadAction.Discover => FileAction.Discover,
                 _ => throw new ArgumentOutOfRangeException(nameof(action))
             },
             bridge, file_path, null, save: false, show: false,
@@ -108,7 +113,8 @@ public static partial class ExcelFileTool
         bool save,
         bool show,
         int timeout_seconds,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken,
+        string? open_workbook_id = null) =>
         ExcelToolsBase.ExecuteToolActionAsync(toolName, action.ToActionString(), async () =>
         {
             if (timeout_seconds is < 10 or > 3600)
@@ -118,6 +124,8 @@ public static partial class ExcelFileTool
                 throw new ArgumentException($"file_path is required for '{action.ToActionString()}' action.");
             if (action is FileAction.Close or FileAction.Save && string.IsNullOrWhiteSpace(workbook_session_id))
                 throw new ArgumentException($"workbook_session_id is required for file '{action.ToActionString()}'.");
+            if (action == FileAction.Attach && string.IsNullOrWhiteSpace(open_workbook_id))
+                throw new ArgumentException("open_workbook_id from file_read discover is required for attach.");
 
             var isRemoteOpen = action == FileAction.Open
                 && FilePathValidation.IsRemoteWorkbook(file_path!);
@@ -142,6 +150,10 @@ public static partial class ExcelFileTool
             var response = action switch
             {
                 FileAction.List => await bridge.SendAsync("session.list", cancellationToken: cancellationToken),
+                FileAction.Discover => await bridge.SendAsync("session.discover", cancellationToken: cancellationToken),
+                FileAction.Attach => await bridge.SendAsync(
+                    "session.attach", args: new { workbookId = open_workbook_id },
+                    cancellationToken: cancellationToken),
                 FileAction.Close => await bridge.SendAsync("session.close", workbook_session_id, new { save }, cancellationToken: cancellationToken),
                 FileAction.Save => await bridge.SendAsync("session.save", workbook_session_id, cancellationToken: cancellationToken),
                 FileAction.Open or FileAction.Create => await bridge.SendAsync(
@@ -184,6 +196,28 @@ public static partial class ExcelFileTool
                     session["workbook_session_id"] = sessionId;
                 }
                 return list.ToJsonString(ExcelToolsBase.JsonOptions);
+            }
+            if (action == FileAction.Discover)
+                return result;
+            if (action == FileAction.Attach)
+            {
+                using var attachDocument = JsonDocument.Parse(result);
+                var attach = attachDocument.RootElement;
+                return JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    workbook_session_id = attach.GetProperty("sessionId").GetString(),
+                    filePath = attach.TryGetProperty("filePath", out var filePath)
+                        && filePath.ValueKind != JsonValueKind.Null
+                        ? filePath.GetString()
+                        : null,
+                    name = attach.GetProperty("name").GetString(),
+                    autoSaveOn = attach.TryGetProperty("autoSaveOn", out var autoSaveOn)
+                        && autoSaveOn.ValueKind != JsonValueKind.Null
+                        ? autoSaveOn.GetBoolean()
+                        : (bool?)null,
+                    warning = attach.GetProperty("warning").GetString()
+                }, ExcelToolsBase.JsonOptions);
             }
             if (action is not (FileAction.Open or FileAction.Create))
                 return result;

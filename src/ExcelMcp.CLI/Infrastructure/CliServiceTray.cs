@@ -152,11 +152,12 @@ internal sealed class CliServiceTray : IDisposable
             {
                 foreach (var session in sessions)
                 {
-                    var fileName = Path.GetFileName(session.FilePath);
+                    var fileName = session.WorkbookName ?? Path.GetFileName(session.FilePath ?? string.Empty);
+                    var location = session.FilePath ?? "No saved location";
                     var sessionMenu = new ToolStripMenuItem(fileName);
                     sessionMenu.AccessibleName = $"Session: {fileName}";
-                    sessionMenu.AccessibleDescription = $"Excel session for {session.FilePath}";
-                    sessionMenu.ToolTipText = $"Session: {session.SessionId}\nPath: {session.FilePath}";
+                    sessionMenu.AccessibleDescription = $"Excel session for {location}";
+                    sessionMenu.ToolTipText = $"Session: {session.SessionId}\nPath: {location}";
 
                     // Close session with save prompt
                     var closeItem = new ToolStripMenuItem("&Close Session...");
@@ -249,7 +250,8 @@ internal sealed class CliServiceTray : IDisposable
         }
         else
         {
-            var message = string.Join("\n", sessions.Select(s => $"• {Path.GetFileName(s.FilePath)}"));
+            var message = string.Join("\n", sessions.Select(s =>
+                $"• {s.WorkbookName ?? Path.GetFileName(s.FilePath ?? string.Empty)}"));
             ShowBalloon($"Active Sessions ({sessions.Count})", message);
         }
     }

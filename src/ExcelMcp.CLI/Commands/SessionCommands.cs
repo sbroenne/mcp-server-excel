@@ -14,6 +14,52 @@ namespace Sbroenne.ExcelMcp.CLI.Commands;
 // SESSION COMMANDS
 // ============================================================================
 
+internal sealed class SessionDiscoverCommand : AsyncCommand
+{
+    public override async Task<int> ExecuteAsync(CommandContext context, CancellationToken cancellationToken)
+    {
+        using var client = await CliCommandRuntime.Current.ClientFactory.ConnectAsync(cancellationToken);
+        var request = new ServiceRequest { Command = "session.discover" };
+        var response = await CliTelemetry.TrackCommandAsync(
+            request, () => client.SendAsync(request, cancellationToken));
+        if (!response.Success)
+            return CliErrorOutput.WriteServiceError(response);
+        CliCommandRuntime.Current.Output.WriteLine(response.Result);
+        return 0;
+    }
+}
+
+internal sealed class SessionAttachCommand : AsyncCommand<SessionAttachCommand.Settings>
+{
+    public override async Task<int> ExecuteAsync(
+        CommandContext context, Settings settings, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(settings.WorkbookId))
+            return CliErrorOutput.WriteError("Open-workbook identifier is required.");
+
+        using var client = await CliCommandRuntime.Current.ClientFactory.ConnectAsync(cancellationToken);
+        var request = new ServiceRequest
+        {
+            Command = "session.attach",
+            Args = JsonSerializer.Serialize(
+                new { workbookId = settings.WorkbookId }, ServiceProtocol.JsonOptions)
+        };
+        var response = await CliTelemetry.TrackCommandAsync(
+            request, () => client.SendAsync(request, cancellationToken));
+        if (!response.Success)
+            return CliErrorOutput.WriteServiceError(response);
+        CliCommandRuntime.Current.Output.WriteLine(response.Result);
+        return 0;
+    }
+
+    internal sealed class Settings : CommandSettings
+    {
+        [CommandOption("--workbook-id <ID>")]
+        [Description("Open-workbook identifier returned by session discover")]
+        public string WorkbookId { get; init; } = string.Empty;
+    }
+}
+
 internal sealed class SessionCreateCommand : AsyncCommand<SessionCreateCommand.Settings>
 {
     public override async Task<int> ExecuteAsync(CommandContext context, Settings settings, CancellationToken cancellationToken)

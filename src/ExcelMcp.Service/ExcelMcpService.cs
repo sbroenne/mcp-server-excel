@@ -160,7 +160,7 @@ public sealed class ExcelMcpService : IDisposable
             ServiceResponse response = category switch
             {
                 "service" => HandleServiceCommand(action),
-                "session" => HandleSessionCommand(action, request),
+                "session" => await HandleSessionCommandAsync(action, request),
                 "sheet" => await DispatchSheetAsync(action, request),
                 "worksheetstyle" => await DispatchSimpleAsync<WorksheetStyleAction>(action, request,
                     ServiceRegistry.WorksheetStyle.TryParseAction,
@@ -289,15 +289,15 @@ public sealed class ExcelMcpService : IDisposable
 
     // === SESSION COMMANDS ===
 
-    private ServiceResponse HandleSessionCommand(string action, ServiceRequest request)
+    private async Task<ServiceResponse> HandleSessionCommandAsync(string action, ServiceRequest request)
     {
-        if (action is not ("create" or "open" or "close" or "save" or "list" or "test"))
+        if (action is not ("create" or "open" or "close" or "save" or "list" or "test" or "discover" or "attach"))
         {
             return new ServiceResponse
             {
                 Success = false,
                 ErrorCategory = "InvalidInput",
-                ErrorMessage = $"Unknown action '{action}' for command group 'session'. Valid actions: create, open, close, save, list, test."
+                ErrorMessage = $"Unknown action '{action}' for command group 'session'. Valid actions: create, open, close, save, list, test, discover, attach."
             };
         }
 
@@ -310,7 +310,59 @@ public sealed class ExcelMcpService : IDisposable
             "save" => HandleSessionSave(request),
             "list" => HandleSessionList(),
             "test" => HandleSessionTest(request),
+            "discover" => await HandleSessionDiscoverAsync(),
+            "attach" => HandleSessionAttach(request),
             _ => throw new InvalidOperationException($"Unhandled session action: {action}")
+        };
+    }
+
+    private async Task<ServiceResponse> HandleSessionDiscoverAsync()
+    {
+        var discovery = await _sessionManager.DiscoverOpenWorkbooksAsync();
+        return new ServiceResponse
+        {
+            Success = true,
+            Result = JsonSerializer.Serialize(new
+            {
+                success = true,
+                discovery.Workbooks,
+                discovery.Errors,
+                discovery.Complete
+            }, ServiceProtocol.JsonOptions)
+        };
+    }
+
+    private ServiceResponse HandleSessionAttach(ServiceRequest request)
+    {
+        using var args = JsonDocument.Parse(request.Args ?? "{}");
+        if (!args.RootElement.TryGetProperty("workbookId", out var selection)
+            || selection.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(selection.GetString()))
+        {
+            throw new ArgumentException("workbookId from session discover is required.");
+        }
+
+        var attached = _sessionManager.AttachWorkbook(selection.GetString()!);
+        _knownSessionIds.TryAdd(attached.SessionId, 0);
+        var warning = attached.AutoSaveOn switch
+        {
+            true => "Excel AutoSave is enabled. Excel may save later edits automatically, even without an explicit save.",
+            false => "Excel AutoSave is off.",
+            null => "Excel AutoSave status is unavailable. Excel may save later edits automatically if AutoSave is enabled."
+        };
+        return new ServiceResponse
+        {
+            Success = true,
+            SessionId = attached.SessionId,
+            Result = JsonSerializer.Serialize(new
+            {
+                success = true,
+                attached.SessionId,
+                attached.FilePath,
+                attached.Name,
+                attached.AutoSaveOn,
+                warning
+            }, ServiceProtocol.JsonOptions)
         };
     }
 
@@ -332,6 +384,7 @@ public sealed class ExcelMcpService : IDisposable
         ["show"] = "true to show the Excel window",
         ["timeoutSeconds"] = "whole seconds from 10 through 3600 (default 120)",
         ["save"] = "true to save the workbook before closing",
+        ["workbookId"] = "an open-workbook identifier returned by session discover",
     };
 
     private static void ValidateSessionActionArguments(string action, string? argsJson)
@@ -341,6 +394,7 @@ public sealed class ExcelMcpService : IDisposable
             "create" or "open" => ["filePath", "show", "timeoutSeconds"],
             "close" => ["save"],
             "test" => ["filePath", "timeoutSeconds"],
+            "attach" => ["workbookId"],
             _ => []
         };
         var unknownParameters = ServiceRegistry.GetJsonPropertyNames(argsJson, includeNullValues: true)
@@ -575,6 +629,8 @@ public sealed class ExcelMcpService : IDisposable
                 {
                     sessionId = s.SessionId,
                     filePath = s.FilePath,
+                    workbookName = s.WorkbookName,
+                    isAttached = s.IsAttached,
                     isExcelVisible = validation.IsExcelVisible,
                     activeOperations = validation.ActiveOperationCount,
                     operationPending = validation.OperationPending || operation?.ExecutionPending == true,

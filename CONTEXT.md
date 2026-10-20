@@ -23,8 +23,8 @@ telemetry. `ExcelMcpService` is not a standalone process. See
 ## Glossary
 
 - **Entry point:** The MCP Server or `excelcli`, through which a user or agent requests Excel work.
-- **Session:** A managed connection to an open workbook and its Excel process. A session stays open across operations until it is closed.
-- **Session ID:** The identifier returned when a workbook is opened or created. Later operations use it to select the session.
+- **Session:** A managed connection to a workbook and its Excel process. It either owns an Excel process it opened or attaches to an already-open workbook without reopening it. A session stays open across operations until it is closed.
+- **Session ID:** The identifier returned when a workbook is opened, created, or attached. Later operations use it to select the session.
 - **Batch (`IExcelBatch`):** The internal object that keeps Excel and its workbook open and runs COM work on Excel's required thread.
 - **Core command:** Transport-independent Excel behavior implemented under `src/ExcelMcp.Core`.
 - **Service:** The shared command router and session owner used by both entry points.
@@ -45,11 +45,11 @@ telemetry. `ExcelMcpService` is not a standalone process. See
 
 ## Runtime relationships
 
-- One session owns one Excel application process and may contain one or more open workbooks.
+- One session operates on one workbook in an Excel application process. An owned session starts that process; an attached session leaves the user's application and neighboring workbooks open when detached.
 - Operations inside one session run in order on one Excel thread.
 - Different sessions can run independently, but the same workbook cannot be opened in multiple sessions.
 - An expired wait can leave Excel working. Retain the session and workbook, reveal the affected Excel window when possible, and report status to the calling agent. New work is refused until the original callback has returned and Excel readiness is confirmed; then the same session can be reused.
-- Ordinary operations change the in-memory workbook. Explicit close defaults to discarding unsaved changes; request saving to keep them. Normal Service shutdown attempts to save remaining sessions, but leaves sessions open when saving or closing fails. An expired wait or caller cancellation does not authorize saving, discarding, rollback, or termination.
+- Ordinary operations change the in-memory workbook. Explicit close defaults to discarding unsaved changes; request saving to keep them. Normal Service shutdown attempts to save sessions opened by the service and detaches from attached workbooks without saving or closing them. An expired wait or caller cancellation does not authorize saving, discarding, rollback, or termination.
 - MCP uses the official SDK for registration, transport, argument binding, and protocol errors. The host owns its injected Service bridge; cancelled startup retains its eventual session. Session publication is coordinated with shutdown.
 
 ## Sources of truth

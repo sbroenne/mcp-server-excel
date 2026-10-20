@@ -36,6 +36,66 @@ public sealed class FileToolRecordingContractTests(
     }
 
     [Fact]
+    public async Task Attach_DispatchesWorkbookIdAndPreservesOptionalLocationAndAutoSave()
+    {
+        const string workbookId = "open-workbook-123";
+        var response = new ServiceResponse
+        {
+            Success = true,
+            SessionId = "attached-session",
+            Result = JsonSerializer.Serialize(new
+            {
+                success = true,
+                sessionId = "attached-session",
+                name = "Book1",
+                warning = "Excel AutoSave is off."
+            }, ServiceProtocol.JsonOptions)
+        };
+
+        var call = await _fixture.CallToolAsync(
+            "file",
+            new Dictionary<string, object?>
+            {
+                ["action"] = "attach",
+                ["open_workbook_id"] = workbookId
+            },
+            response,
+            "session.attach",
+            expectedSessionId: null,
+            expectedArgsJson: JsonSerializer.Serialize(
+                new { workbookId }, ServiceProtocol.JsonOptions));
+
+        using var result = JsonDocument.Parse(call.JsonResult);
+        var root = result.RootElement;
+        Assert.True(root.GetProperty("success").GetBoolean());
+        Assert.Equal("attached-session", root.GetProperty("workbook_session_id").GetString());
+        Assert.Equal("Book1", root.GetProperty("name").GetString());
+        Assert.Equal("Excel AutoSave is off.", root.GetProperty("warning").GetString());
+        Assert.False(root.TryGetProperty("filePath", out _));
+        Assert.False(root.TryGetProperty("autoSaveOn", out _));
+    }
+
+    [Fact]
+    public async Task Discover_DispatchesWithoutHidingIncompleteResults()
+    {
+        const string resultJson = """{"success":true,"complete":false,"workbooks":[],"errors":[{"processId":1234,"message":"Window callback failed."}]}""";
+        var call = await _fixture.CallToolAsync(
+            "file_read",
+            new Dictionary<string, object?> { ["action"] = "discover" },
+            new ServiceResponse { Success = true, Result = resultJson },
+            "session.discover",
+            expectedSessionId: null,
+            expectedArgsJson: null);
+
+        using var result = JsonDocument.Parse(call.JsonResult);
+        Assert.False(result.RootElement.GetProperty("complete").GetBoolean());
+        Assert.Equal(
+            "Window callback failed.",
+            Assert.Single(result.RootElement.GetProperty("errors").EnumerateArray())
+                .GetProperty("message").GetString());
+    }
+
+    [Fact]
     public async Task Open_SharePointUrl_DispatchesWithoutLocalFileExistenceCheck()
     {
         const string url = "https://contoso.sharepoint.com/sites/Test/Shared%20Documents/Test.xlsx?web=1";

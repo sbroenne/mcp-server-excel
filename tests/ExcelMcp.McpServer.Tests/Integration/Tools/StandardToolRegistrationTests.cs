@@ -44,8 +44,8 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         Assert.All(readTools, tool => Assert.True(
             tool.ProtocolTool.Annotations?.ReadOnlyHint == true,
             $"{tool.Name} must advertise readOnlyHint=true."));
-        Assert.Equal("close,create,open,save", ActionNames("file"));
-        Assert.Equal("list,test", ActionNames("file_read"));
+        Assert.Equal("attach,close,create,open,save", ActionNames("file"));
+        Assert.Equal("discover,list,test", ActionNames("file_read"));
         Assert.Equal("list", ActionNames("worksheet_read"));
         Assert.Equal("get-settings", ActionNames("calculation_mode_read"));
         Assert.DoesNotContain(
@@ -423,6 +423,10 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     [InlineData("table_read", "tables")]
     [InlineData("worksheet", "worksheets")]
     [InlineData("file_read", "workbook_session_id")]
+    [InlineData("file_read", "complete")]
+    [InlineData("file_read", "workbooks")]
+    [InlineData("file", "autoSaveOn")]
+    [InlineData("file", "warning")]
     [InlineData("screenshot", "mimeType")]
     public async Task OutputSchemas_DescribeActionSpecificFields(string toolName, string propertyName)
     {
@@ -435,6 +439,24 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     }
 
     [Fact]
+    public async Task FileDiscoveryOutputSchema_DescribesWorkbookIdentityAndGaps()
+    {
+        var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
+        var schema = Assert.IsType<JsonElement>(tools.Single(t => t.Name == "file_read").ReturnJsonSchema);
+        var properties = schema.GetProperty("properties");
+        var workbooks = properties.GetProperty("workbooks").GetProperty("items").GetProperty("properties");
+        var errors = properties.GetProperty("errors").GetProperty("items").GetProperty("properties");
+
+        foreach (var name in new[] { "workbookId", "name", "location", "processId", "saved", "autoSaveOn" })
+        {
+            Assert.True(workbooks.TryGetProperty(name, out _),
+                $"Open-workbook output schema does not describe {name}.");
+        }
+        Assert.True(errors.TryGetProperty("processId", out _));
+        Assert.True(errors.TryGetProperty("message", out _));
+    }
+
+    [Fact]
     public async Task FileListOutputSchema_DescribesSessionEntries()
     {
         var tools = await Client!.ListToolsAsync(cancellationToken: TestCancellationToken);
@@ -442,7 +464,7 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         var sessions = schema.GetProperty("properties").GetProperty("sessions");
 
         var properties = sessions.GetProperty("items").GetProperty("properties");
-        foreach (var name in new[] { "workbook_session_id", "filePath", "isExcelVisible", "activeOperations", "operationPending", "canClose", "excelState", "blockingReason", "blockingMessage" })
+        foreach (var name in new[] { "workbook_session_id", "filePath", "workbookName", "isAttached", "isExcelVisible", "activeOperations", "operationPending", "canClose", "excelState", "blockingReason", "blockingMessage" })
         {
             Assert.True(properties.TryGetProperty(name, out _),
                 $"File session output schema does not describe {name}.");

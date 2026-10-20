@@ -34,20 +34,49 @@ IRM/AIP restrictions. Inspect `workbook_read` action `get-info` or
 editing. When `autoSaveOn` is true, Excel can persist changes without an explicit
 save.
 
-Excel versions without the AutoSave property report `autoSaveOn: false`; there
-is no AutoSave feature to disable on those versions. Only known unavailable-member
-errors are treated this way. Other AutoSave read or write failures remain errors.
+For `workbook_read get-info`, Excel versions without the AutoSave property
+report `autoSaveOn: false`; there is no AutoSave feature to disable on those
+versions. Discovery and attachment report AutoSave as unavailable instead.
+Only known unavailable-member errors are treated this way. Other AutoSave read
+or write failures remain errors.
 
 `file_read` action `test` and `excelcli session test` report that URL validation
 requires interactive opening. They do not download the workbook or probe a local
 file. Returned `exists: false`, zero size, and `isIrmProtected: false` are unknown
 remote metadata, not evidence of a missing or unprotected workbook.
 
-Cloud AutoSave is disabled in editable remote sessions. Explicit save/close
-behavior therefore matches local workbooks: close without saving discards
-unsaved session edits; close with saving writes through Excel to the original
-SharePoint location. Normal Service shutdown still attempts to save. A successful
-save confirms Excel's saved state, not independent server-side upload completion.
+Cloud AutoSave is disabled in editable remote sessions opened by ExcelMcp.
+Explicit save/close behavior therefore matches local workbooks: close without
+saving discards unsaved session edits; close with saving writes through Excel to
+the original SharePoint location. Normal Service shutdown still attempts to save
+workbooks it opened.
+
+If the remote workbook is already open, use MCP `file_read` action `discover`
+or CLI `excelcli session discover`, then attach using MCP `file` action `attach`
+with `open_workbook_id` or CLI `excelcli session attach --workbook-id <ID>`.
+Discovery does not reopen workbooks and reports `complete` plus any errors.
+Newly attached workbooks remain open on service shutdown. If a workbook is
+already connected to a session, attachment returns that existing session and
+its established shutdown behavior applies. Attachment preserves the existing
+AutoSave setting and reports it; when AutoSave is enabled, Excel may save later
+edits automatically, even without an explicit save.
+For already-open remote workbooks, discovery reports the HTTPS location without
+URL credentials, query parameters, or fragments. This does not change which URLs
+are allowed when opening a workbook through ExcelMcp.
+Discovery also lists workbooks in Excel processes already used by this host.
+`sessionId` is included for workbooks already connected to a session; attaching
+one returns that existing session. Other workbooks in the same process can be
+attached separately. Workbook IDs identify an open Excel workbook instance; a
+closed and reopened workbook receives a new ID, and a complete discovery retires
+any stale attached session for the closed instance.
+
+On shutdown, ExcelMcp closes only workbooks it opened. If another workbook
+remains in that Excel process, ExcelMcp leaves the process running. ExcelMcp
+does not automatically terminate Excel when its host exits unexpectedly, so
+Excel can preserve user workbook state.
+
+A successful explicit save confirms Excel's saved state, not independent
+server-side upload completion.
 Save As, Save Copy As, export, and create continue to require Windows output paths.
 
 ## Metadata and document properties
