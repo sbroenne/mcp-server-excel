@@ -111,19 +111,22 @@ public sealed class DaemonHostTests
             return Task.FromResult(new ServiceResponse { Success = true });
         });
         var run = host.RunAsync(pipeName);
-        var requests = Enumerable.Range(0, 10).Select(async index =>
-        {
-            using var client = new ServiceClient(pipeName);
-            return await client.SendAsync(new ServiceRequest
-            {
-                Command = workCommand,
-                SessionId = $"session-{index}"
-            });
-        }).ToArray();
+        var clients = new List<ServiceClient>();
+        var requests = new List<Task<ServiceResponse>>();
         var check = await Record.ExceptionAsync(async () =>
         {
             for (var index = 0; index < 10; index++)
-                Assert.True(await entered.WaitAsync(TimeSpan.FromSeconds(2)));
+            {
+                var client = new ServiceClient(pipeName);
+                clients.Add(client);
+                requests.Add(client.SendAsync(new ServiceRequest
+                {
+                    Command = workCommand,
+                    SessionId = $"session-{index}"
+                }));
+                Assert.True(await entered.WaitAsync(TimeSpan.FromSeconds(5)),
+                    $"Work request {index} did not reach the handler.");
+            }
             foreach (var command in PressureProbeCommands.Take(3))
             {
                 using var client = new ServiceClient(pipeName);
@@ -141,17 +144,22 @@ public sealed class DaemonHostTests
             Assert.Equal("not-started", rejected.SessionId);
         });
         release.SetResult(new ServiceResponse { Success = true });
-        await Task.WhenAll(requests);
-        using var retry = new ServiceClient(pipeName);
-        Assert.True((await retry.SendAsync(new ServiceRequest
+        var completion = await Record.ExceptionAsync(async () =>
         {
-            Command = workCommand,
-            SessionId = "not-started"
-        }, TimeSpan.FromSeconds(2))).Success);
+            Assert.All(await Task.WhenAll(requests), response => Assert.True(response.Success, response.ErrorMessage));
+            using var retry = new ServiceClient(pipeName);
+            Assert.True((await retry.SendAsync(new ServiceRequest
+            {
+                Command = workCommand,
+                SessionId = "not-started"
+            }, TimeSpan.FromSeconds(2))).Success);
+        });
+        foreach (var client in clients)
+            client.Dispose();
         host.RequestShutdown();
-        await run.WaitAsync(TimeSpan.FromSeconds(5));
+        var shutdown = await Record.ExceptionAsync(() => run.WaitAsync(TimeSpan.FromSeconds(5)));
         entered.Dispose();
-        Assert.Null(check);
+        Assert.All(new[] { check, completion, shutdown }, failure => Assert.Null(failure));
     }
 
     [Fact(Timeout = 15000)]
@@ -278,9 +286,11 @@ public sealed class DaemonHostTests
     }
 
     [Theory(Timeout = 30000)]
-    [InlineData(null)]
-    [InlineData("blocked")]
-    public async Task BlockedSession_RepeatedRequestsLeaveOtherSessionsAndHealthAvailable(string? controlSessionId)
+    [InlineData(null, 0)]
+    [InlineData("blocked", 0)]
+    [InlineData("blocked", 150)]
+    public async Task BlockedSession_RepeatedRequestsLeaveOtherSessionsAndHealthAvailable(
+        string? controlSessionId, int connectionSetupDelayMilliseconds)
     {
         var pipeName = $"excelmcp-daemon-pressure-{Guid.NewGuid():N}";
         using var release = new ManualResetEventSlim();
@@ -295,8 +305,13 @@ public sealed class DaemonHostTests
                 Assert.True(release.Wait(TimeSpan.FromSeconds(20)));
             }
             return Task.FromResult(new ServiceResponse { Success = true, Result = request.Args });
+        }, serverFactory: name =>
+        {
+            Thread.Sleep(connectionSetupDelayMilliseconds);
+            return ServiceSecurity.CreateSecureServer(name);
         });
         var run = host.RunAsync(pipeName);
+        var connections = new List<IDisposable>();
         using var originalClient = new ServiceClient(pipeName);
         var original = originalClient.SendAsync(new ServiceRequest
         {
@@ -306,14 +321,26 @@ public sealed class DaemonHostTests
         var check = await Record.ExceptionAsync(async () =>
         {
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(5));
-            var repeated = Enumerable.Range(0, 20).Select(async _ =>
+            var proxies = new List<IExcelDaemonRpc>();
+            // Establish the clients before timing dispatch; connection setup shares this test host's worker pool.
+            for (var index = 0; index < 20; index++)
             {
-                using var client = new ServiceClient(pipeName);
-                var response = await client.SendAsync(new ServiceRequest
+                var pipe = ServiceSecurity.CreateClient(pipeName);
+                connections.Add(pipe);
+                await pipe.ConnectAsync(5000);
+                var proxy = JsonRpc.Attach<IExcelDaemonRpc>(pipe);
+                connections.Add((IDisposable)proxy);
+                Assert.True((await proxy.ProcessCommandAsync(new ServiceRequest { Command = "service.ping" })
+                    .WaitAsync(TimeSpan.FromSeconds(5))).Success);
+                proxies.Add(proxy);
+            }
+            var repeated = proxies.Select(async proxy =>
+            {
+                var response = await proxy.ProcessCommandAsync(new ServiceRequest
                 {
                     Command = "session.save",
                     SessionId = "blocked"
-                }, TimeSpan.FromSeconds(2));
+                }).WaitAsync(TimeSpan.FromSeconds(2));
                 Assert.False(response.Success);
                 Assert.Equal("Busy", response.ErrorCategory);
             }).ToArray();
@@ -343,6 +370,8 @@ public sealed class DaemonHostTests
         release.Set();
         var completion = await Record.ExceptionAsync(async () =>
             Assert.True((await original.WaitAsync(TimeSpan.FromSeconds(5))).Success));
+        foreach (var connection in connections)
+            connection.Dispose();
         host.RequestShutdown();
         var shutdown = await Record.ExceptionAsync(() => run.WaitAsync(TimeSpan.FromSeconds(5)));
         Assert.All(new[] { check, completion, shutdown }, failure => Assert.Null(failure));

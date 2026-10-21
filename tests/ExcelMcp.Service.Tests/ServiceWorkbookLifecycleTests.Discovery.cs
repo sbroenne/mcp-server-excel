@@ -11,6 +11,50 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class ServiceWorkbookLifecycleTests
 {
     [Fact]
+    public async Task DiscoveryCleanup_IncompleteScan_ClosesKnownWorkbookAndReportsError()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var ownedId = await CreateSessionAsync(service, Path.Join(directory, "cleanup-owner.xlsx"));
+            sessions[ownedId] = 0;
+            var owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(ownedId));
+            var name = owned.Execute((context, _) => AddReviewWorkbook(context.App, "cleanup selected edits"));
+            var attachedId = await AttachReviewWorkbookAsync(service,
+                await DiscoverReviewWorkbookAsync(service, name));
+            sessions[attachedId] = 0;
+            await WriteMarkerAsync(service, ownedId, "keep neighboring edits");
+            var discovery = await service.ProcessAsync(new ServiceRequest { Command = "session.discover" });
+            RequireSuccess(discovery);
+            var result = System.Text.Json.Nodes.JsonNode.Parse(discovery.Result!)!;
+            result["complete"] = false;
+            result["errors"] = System.Text.Json.Nodes.JsonNode.Parse(
+                """[{"processId":-1,"message":"Synthetic unrelated inspection failure"}]""");
+            var incompleteDiscovery = new ServiceResponse { Success = true, Result = result.ToJsonString() };
+            var failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                CloseDiscoveredWorkbooksAsync(service, sessions, () => Task.FromResult(incompleteDiscovery),
+                    owned.ExcelProcessId!.Value, (null, name)));
+            Assert.Contains("Synthetic unrelated inspection failure", failure.Message, StringComparison.Ordinal);
+            Assert.Null(service.SessionManager.GetSession(attachedId));
+            Assert.False(sessions.ContainsKey(attachedId));
+            owned.Execute((context, _) =>
+            {
+                Excel.Workbooks? books = null;
+                try
+                {
+                    books = context.App.Workbooks;
+                    Assert.Equal(1, books.Count);
+                    Assert.False(context.Book.Saved);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref books);
+                }
+            });
+            Assert.Equal("keep neighboring edits", await ReadMarkerAsync(service, ownedId));
+        });
+    }
+
+    [Fact]
     public async Task CloseOwnedSession_WhenExcelCancelsClose_RetainsSessionAndUnsavedWorkbook()
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
@@ -1251,9 +1295,19 @@ public sealed partial class ServiceWorkbookLifecycleTests
         });
     }
 
+    private static Task CloseDiscoveredWorkbooksAsync(
+        ExcelMcpService service,
+        ConcurrentDictionary<string, byte> sessions,
+        int processId,
+        params (string? Location, string? Name)[] identities) =>
+        CloseDiscoveredWorkbooksAsync(service, sessions,
+            () => service.ProcessAsync(new ServiceRequest { Command = "session.discover" }),
+            processId, identities);
+
     private static async Task CloseDiscoveredWorkbooksAsync(
         ExcelMcpService service,
         ConcurrentDictionary<string, byte> sessions,
+        Func<Task<ServiceResponse>> discover,
         int processId,
         params (string? Location, string? Name)[] identities)
     {
@@ -1268,17 +1322,14 @@ public sealed partial class ServiceWorkbookLifecycleTests
 
             try
             {
-                var discovery = await service.ProcessAsync(new ServiceRequest
-                {
-                    Command = "session.discover"
-                });
+                var discovery = await discover();
                 RequireSuccess(discovery);
                 using var result = JsonDocument.Parse(discovery.Result!);
                 if (!result.RootElement.GetProperty("complete").GetBoolean())
                 {
-                    throw new InvalidOperationException(
+                    failure = PersistentServiceCleanupFailures.Combine(failure, new InvalidOperationException(
                         $"Cannot confirm cleanup of test-owned workbooks in Excel process {processId}: " +
-                        $"discovery was incomplete. Errors: {result.RootElement.GetProperty("errors").GetRawText()}");
+                        $"discovery was incomplete. Errors: {result.RootElement.GetProperty("errors").GetRawText()}"));
                 }
 
                 var matches = result.RootElement.GetProperty("workbooks").EnumerateArray()
