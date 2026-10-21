@@ -50,6 +50,9 @@ internal static class ActionHelp
                 ?? throw new InvalidOperationException(
                     $"Generated CLI option '{parameterName}' has no command-line name.");
             var description = property.GetCustomAttribute<DescriptionAttribute>()?.Description ?? string.Empty;
+            description = description
+                .Replace("[[", "[", StringComparison.Ordinal)
+                .Replace("]]", "]", StringComparison.Ordinal);
             output.AppendLine(CultureInfo.InvariantCulture, $"  {option,-42} {description}");
         }
         output.AppendLine(CultureInfo.InvariantCulture, $"  {"-h|--help",-42} Show this action-specific help.");

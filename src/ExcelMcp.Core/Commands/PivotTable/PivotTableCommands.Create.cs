@@ -312,9 +312,7 @@ public partial class PivotTableCommands
         string destinationSheet, string destinationCell,
         string pivotTableName)
     {
-        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
-
-        return batch.Execute((ctx, ct) =>
+        return ExcelBatchWait.Execute(batch, TimeSpan.FromMinutes(5), (ctx, ct) =>
         {
             dynamic? model = null;
             dynamic? modelTable = null;
@@ -465,7 +463,7 @@ public partial class PivotTableCommands
                 ComUtilities.Release(ref modelTable);
                 ComUtilities.Release(ref model);
             }
-        }, timeoutCts.Token);
+        });
     }
 
     private static void EnsurePivotTableNameAvailable(

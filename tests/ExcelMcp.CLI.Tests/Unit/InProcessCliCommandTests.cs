@@ -404,6 +404,24 @@ public sealed class InProcessCliCommandTests
         Assert.DoesNotContain("--selected-items", help, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task ActionHelp_PreservesJsonArrayExamples()
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "range", "set-values", "--help"],
+            CreateRuntime(factory, output, error));
+
+        Assert.Equal(0, exitCode);
+        Assert.Empty(factory.Requests);
+        Assert.Empty(error.ToString());
+        Assert.Contains("[[1,2,3],[4,5,6]]", output.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("[[[[1,2,3]]", output.ToString(), StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("session", "open", "--show")]
     [InlineData("session", "attach", "--workbook-id")]

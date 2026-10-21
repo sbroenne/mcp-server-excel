@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Utilities;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -113,6 +114,7 @@ public sealed class PowerQueryEvaluateCancellationTests
             ExcelBatchWait.Execute(batch, TimeSpan.FromMilliseconds(10), (_, _) => 1));
         var cause = Assert.IsType<OperationCanceledException>(failure.InnerException);
         Assert.Equal(batch.CapturedToken, cause.CancellationToken);
+        Assert.Equal("Timeout", OperationFailureClassifier.Classify(failure));
         Assert.Contains("wait expired", failure.Message, StringComparison.Ordinal);
         Assert.Contains("execution may still be pending", failure.Message, StringComparison.Ordinal);
     }
