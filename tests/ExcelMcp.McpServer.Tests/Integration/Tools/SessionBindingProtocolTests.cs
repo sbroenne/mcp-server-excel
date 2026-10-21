@@ -256,6 +256,7 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
 
     [Theory]
     [InlineData("open")]
+    [InlineData("attach")]
     [InlineData("create")]
     [InlineData("list")]
     [InlineData("test")]

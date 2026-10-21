@@ -89,6 +89,7 @@ public partial class PivotTableCommands
                 }
 
                 destWorksheet = Utilities.WorksheetLookup.Get(ctx.Book, destinationSheet);
+                EnsurePivotTableNameAvailable(destWorksheet, pivotTableName, destinationSheet);
                 destRangeObj = destWorksheet.Range[destinationCell];
 
                 string sourceDataRef = $"'{sourceSheet.Replace("'", "''", StringComparison.Ordinal)}'!{sourceRange}";
@@ -250,6 +251,7 @@ public partial class PivotTableCommands
 
                 // Resolve the destination before Excel creates anything.
                 destWorksheet = Utilities.WorksheetLookup.Get(ctx.Book, destinationSheet);
+                EnsurePivotTableNameAvailable(destWorksheet, pivotTableName, destinationSheet);
                 destRangeObj = destWorksheet.Range[destinationCell];
 
                 // Create PivotCache from table
@@ -310,6 +312,8 @@ public partial class PivotTableCommands
         string destinationSheet, string destinationCell,
         string pivotTableName)
     {
+        using var timeoutCts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+
         return batch.Execute((ctx, ct) =>
         {
             dynamic? model = null;
@@ -419,6 +423,7 @@ public partial class PivotTableCommands
 
                 // STEP 2: Resolve the destination before Excel creates anything.
                 destWorksheet = Utilities.WorksheetLookup.Get(ctx.Book, destinationSheet);
+                EnsurePivotTableNameAvailable(destWorksheet, pivotTableName, destinationSheet);
                 destRangeObj = destWorksheet.Range[destinationCell];
 
                 // STEP 3: Create PivotCache from Data Model
@@ -460,7 +465,39 @@ public partial class PivotTableCommands
                 ComUtilities.Release(ref modelTable);
                 ComUtilities.Release(ref model);
             }
-        });
+        }, timeoutCts.Token);
+    }
+
+    private static void EnsurePivotTableNameAvailable(
+        dynamic worksheet,
+        string pivotTableName,
+        string destinationSheet)
+    {
+        dynamic? pivotTables = null;
+        dynamic? existing = null;
+        try
+        {
+            pivotTables = worksheet.PivotTables();
+            int pivotTableCount = Convert.ToInt32(pivotTables.Count);
+            for (int index = 1; index <= pivotTableCount; index++)
+            {
+                existing = pivotTables.Item(index);
+                string existingName = existing.Name?.ToString() ?? string.Empty;
+                if (existingName.Equals(pivotTableName, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        $"PivotTable '{pivotTableName}' already exists on sheet '{destinationSheet}'. " +
+                        "Choose a different PivotTable name.");
+                }
+
+                ComUtilities.Release(ref existing);
+            }
+        }
+        finally
+        {
+            ComUtilities.Release(ref existing);
+            ComUtilities.Release(ref pivotTables);
+        }
     }
 
     /// <summary>

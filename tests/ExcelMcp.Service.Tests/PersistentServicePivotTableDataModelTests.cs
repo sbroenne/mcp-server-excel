@@ -126,6 +126,59 @@ public class PersistentServicePivotTableDataModelTests(
         AssertNativeData(sheet, result.PivotTableName, 2455);
     }
 
+    [Fact]
+    public void CreateFromDataModel_DuplicateNameReportsExistingPivotAndPreservesIt()
+    {
+        var batch = _fixture.BatchToken;
+        var sheet = _fixture.CreateTestSheet(batch);
+        var pivotName = $"DuplicatePivot{Guid.NewGuid():N}";
+        RequireSuccess(_pivotCommands.CreateFromDataModel(batch, "SalesTable", sheet, "H1", pivotName));
+        var before = RequireSuccess(_pivotCommands.List(batch)).PivotTables
+            .Select(pivot => (pivot.SheetName, pivot.Name, pivot.CacheIndex))
+            .ToArray();
+        var original = Assert.Single(before, pivot => pivot.Name == pivotName);
+
+        var exception = Assert.Throws<InvalidOperationException>(() =>
+            _pivotCommands.CreateFromDataModel(batch, "SalesTable", sheet, "P1", pivotName));
+
+        Assert.Contains($"PivotTable '{pivotName}' already exists", exception.Message, StringComparison.Ordinal);
+        Assert.Contains($"sheet '{sheet}'", exception.Message, StringComparison.Ordinal);
+        var after = RequireSuccess(_pivotCommands.List(batch)).PivotTables
+            .Select(pivot => (pivot.SheetName, pivot.Name, pivot.CacheIndex))
+            .ToArray();
+        Assert.Equal(before, after);
+        var retained = Assert.Single(after, pivot => pivot.Name == pivotName);
+        Assert.Equal(sheet, retained.SheetName);
+        Assert.Equal(original.CacheIndex, retained.CacheIndex);
+        var retainedRead = RequireSuccess(_pivotCommands.Read(batch, pivotName, sheet));
+        Assert.Equal(original.CacheIndex, retainedRead.PivotTable.CacheIndex);
+    }
+
+    [Fact]
+    public void CreateFromDataModel_AllowsSameNameOnDifferentWorksheets()
+    {
+        var batch = _fixture.BatchToken;
+        var firstSheet = _fixture.CreateTestSheet(batch);
+        var secondSheet = _fixture.CreateTestSheet(batch);
+        var pivotName = $"RepeatedPivot{Guid.NewGuid():N}";
+
+        RequireSuccess(_pivotCommands.CreateFromDataModel(
+            batch, "SalesTable", firstSheet, "H1", pivotName));
+        var secondResult = _pivotCommands.CreateFromDataModel(
+            batch, "SalesTable", secondSheet, "H1", pivotName);
+
+        RequireSuccess(secondResult);
+        Assert.Equal(pivotName, secondResult.PivotTableName);
+        var matchingPivots = RequireSuccess(_pivotCommands.List(batch)).PivotTables
+            .Where(pivot => pivot.Name == pivotName)
+            .ToArray();
+        Assert.Equal(2, matchingPivots.Length);
+        Assert.Contains(matchingPivots, pivot => pivot.SheetName == firstSheet);
+        Assert.Contains(matchingPivots, pivot => pivot.SheetName == secondSheet);
+        Assert.True(RequireSuccess(_pivotCommands.Read(batch, pivotName, firstSheet)).Success);
+        Assert.True(RequireSuccess(_pivotCommands.Read(batch, pivotName, secondSheet)).Success);
+    }
+
     /// <summary>
     /// Tests error handling for non-existent Data Model table.
     /// </summary>

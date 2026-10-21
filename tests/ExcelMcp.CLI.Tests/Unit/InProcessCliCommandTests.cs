@@ -383,8 +383,30 @@ public sealed class InProcessCliCommandTests
         }
     }
 
+    [Fact]
+    public async Task ActionHelp_ListsOnlyOptionsForSelectedAction()
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "slicer", "create-slicer", "--help"],
+            CreateRuntime(factory, output, error));
+
+        Assert.Equal(0, exitCode);
+        Assert.Empty(factory.Requests);
+        Assert.Empty(error.ToString());
+        var help = output.ToString();
+        Assert.Contains("Usage: excelcli slicer create-slicer", help, StringComparison.Ordinal);
+        Assert.Contains("--pivot-table-name", help, StringComparison.Ordinal);
+        Assert.Contains("--field-name", help, StringComparison.Ordinal);
+        Assert.DoesNotContain("--selected-items", help, StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("session", "open", "--show")]
+    [InlineData("session", "attach", "--workbook-id")]
     [InlineData("session", "close", "--save")]
     [InlineData("service", null, "stop")]
     [InlineData("range", null, "--sheet")]

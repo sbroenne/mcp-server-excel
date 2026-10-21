@@ -108,6 +108,7 @@ public interface IRangeCommands
     /// Prefix an ISO-looking value with an apostrophe to preserve it as text.
     /// Strings starting with "=" are written as formulas; all other cells in the same write keep their values.
     /// Prefix with an apostrophe ("'=") to store such a string as text.
+    /// Write failures are returned as command errors and cause the CLI to exit nonzero.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Name of the worksheet containing the range - REQUIRED for cell addresses, use empty string for named ranges only</param>

@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using System.Diagnostics.CodeAnalysis;
 
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -91,8 +92,9 @@ public partial class DataModelCommands
                 }
                 catch (COMException ex)
                 {
+                    string failureMessage = GetDaxEvaluationFailureMessage(adoConnection, ex);
                     throw new InvalidOperationException(
-                        $"DAX evaluation failed: {ex.Message}", ex);
+                        failureMessage, ex);
                 }
 
                 ct.ThrowIfCancellationRequested();
@@ -183,6 +185,69 @@ public partial class DataModelCommands
 
             return result;
         }, timeoutCts.Token);
+    }
+
+    [SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Provider diagnostics are secondary to the original DAX COM failure; any diagnostic-read exception is included in the returned message while the original COM exception remains the inner exception.")]
+    private static string GetDaxEvaluationFailureMessage(dynamic adoConnection, COMException failure)
+    {
+        dynamic? errors = null;
+        var details = new List<string>();
+        int? errorCount = null;
+        try
+        {
+            errors = adoConnection.Errors;
+            errorCount = Convert.ToInt32(errors.Count);
+            for (int index = 0; index < errorCount; index++)
+            {
+                dynamic? error = null;
+                try
+                {
+                    error = errors.Item(index);
+                    string description = error.Description?.ToString() ?? string.Empty;
+                    string source = error.Source?.ToString() ?? string.Empty;
+                    string number = Convert.ToInt32(error.Number).ToString("X8",
+                        System.Globalization.CultureInfo.InvariantCulture);
+                    if (!string.IsNullOrWhiteSpace(description) ||
+                        !string.IsNullOrWhiteSpace(source) ||
+                        number != "00000000")
+                    {
+                        var identity = string.IsNullOrWhiteSpace(source)
+                            ? $"0x{number}"
+                            : $"0x{number} from {source}";
+                        details.Add(string.IsNullOrWhiteSpace(description)
+                            ? identity
+                            : $"{identity}: {description}");
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref error);
+                }
+            }
+        }
+        catch (Exception diagnosticsFailure)
+        {
+            details.Add(
+                $"The provider error collection could not be read " +
+                $"({diagnosticsFailure.GetType().Name}): {diagnosticsFailure.Message}");
+        }
+        finally
+        {
+            ComUtilities.Release(ref errors);
+        }
+
+        if (details.Count == 0)
+        {
+            details.Add(errorCount == 0
+                ? "The ADO provider returned no error records."
+                : $"The ADO provider returned {errorCount?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "an unreadable number of"} error records without details.");
+        }
+
+        string hresult = unchecked((uint)failure.HResult).ToString("X8",
+            System.Globalization.CultureInfo.InvariantCulture);
+        var message = $"DAX evaluation failed (HRESULT 0x{hresult}): {failure.Message}";
+        return $"{message} Engine details: {string.Join(" | ", details)}";
     }
 
     /// <summary>

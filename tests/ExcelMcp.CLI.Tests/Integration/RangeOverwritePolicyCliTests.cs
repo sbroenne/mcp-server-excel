@@ -75,6 +75,28 @@ public sealed class RangeOverwritePolicyCliTests
     }
 
     [Fact]
+    public async Task OperationFailure_PreservesErrorAndExitCode()
+    {
+        const string message = "Cannot write to occupied cells on sheet 'Sheet1'.";
+        var result = await InProcessCliHelper.RunAsync(Arguments("set-values"), _ => new ServiceResponse
+        {
+            Success = true,
+            Result = JsonSerializer.Serialize(new
+            {
+                success = false,
+                errorCategory = "Conflict",
+                errorMessage = message
+            }, ServiceProtocol.JsonOptions)
+        });
+
+        Assert.Equal(1, result.ExitCode);
+        using var json = JsonDocument.Parse(result.Stdout);
+        Assert.False(json.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("Conflict", json.RootElement.GetProperty("errorCategory").GetString());
+        Assert.Equal(message, json.RootElement.GetProperty("errorMessage").GetString());
+    }
+
+    [Fact]
     public async Task ReadAction_RejectsInapplicablePolicy()
     {
         var result = await InProcessCliHelper.RunAsync(
