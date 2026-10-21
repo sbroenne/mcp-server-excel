@@ -85,6 +85,10 @@ results; a later scan cannot restore the old name or release the newer path.
 Saving an owned workbook under a new name in Excel does not create a second
 session: discovery reconciles its saved location and attachment returns its
 original session.
+Overlapping Save As protection also covers workbooks opened by ExcelMcp:
+older discovery or reconnect results cannot replace the new location or
+create another session for that workbook. Discovery rechecks the live workbook
+before applying an Excel-side rename.
 Reattaching an already-connected workbook also updates its tracked name and
 location after Excel Save As, without requiring another discovery first.
 Save As through ExcelMcp updates the attached workbook's listed name and path
@@ -104,6 +108,9 @@ setting. ExcelMcp does not automatically terminate Excel when its host exits une
 Excel can preserve user workbook state.
 If an attached workbook still has work running, shutdown refuses to disconnect
 it and keeps its session and operation status available until that work ends.
+After a wait expires, inspecting a healthy attached workbook cannot clear
+recovery protection while another workbook in the same connection is refreshing.
+Readiness must be confirmed across that connection before ordinary commands resume.
 
 A successful explicit save confirms Excel's saved state, not independent
 server-side upload completion.

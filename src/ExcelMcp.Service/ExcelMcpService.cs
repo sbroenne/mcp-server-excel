@@ -891,6 +891,7 @@ public sealed class ExcelMcpService : IDisposable
     }
 
     internal Action? BeforeSaveAsPublicationHookForTests { get; set; }
+    internal Action? BeforeSaveAsReservationHookForTests { get; set; }
 
     private async Task<ServiceResponse> DispatchWorkbookAsync(string actionString, ServiceRequest request)
     {
@@ -921,6 +922,7 @@ public sealed class ExcelMcpService : IDisposable
                         ErrorMessage = "Cannot save-as: Excel work is still pending. The workbook remains open."
                     };
                 }
+                BeforeSaveAsReservationHookForTests?.Invoke();
                 reservedPath = _sessionManager.ReserveSessionFilePath(
                     request.SessionId,
                     GetRequiredStringArgument(request.Args, "targetPath"));

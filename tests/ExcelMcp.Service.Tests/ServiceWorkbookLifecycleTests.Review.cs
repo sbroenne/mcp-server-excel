@@ -13,6 +13,354 @@ public sealed partial class ServiceWorkbookLifecycleTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task Recovery_AttachedSnapshotThenExcelRename_DoesNotApplyOldLocation(bool reattach)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var ownedId = await CreateSessionAsync(service, Path.Join(directory, "live-attached-owner.xlsx"));
+            sessions[ownedId] = 0;
+            var owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(ownedId));
+            var name = owned.Execute((context, _) => AddReviewWorkbook(context.App, "live attached edits"));
+            var id = await AttachReviewWorkbookAsync(service, await DiscoverReviewWorkbookAsync(service, name));
+            sessions[id] = 0;
+            var attached = Assert.IsType<AttachedWorkbookBatch>(service.SessionManager.GetSession(id));
+            var original = Path.Join(directory, "live-attached-original.xlsx");
+            var target = Path.Join(directory, "live-attached-newer.xlsx");
+            attached.Execute((context, _) => context.Book.SaveAs(original));
+            var selection = await DiscoverReviewWorkbookAsync(service, Path.GetFileName(original));
+            Action rename = () => attached.Owner.Execute((_, _) =>
+                attached.Owner.GetAttachedWorkbook(attached.WorkbookId).SaveAs(target));
+            if (reattach)
+                service.SessionManager.AfterAttachmentRefreshHookForTests = rename;
+            else
+                service.SessionManager.AfterApplicationDiscoveryHookForTests = _ => rename();
+            ServiceResponse response;
+            try
+            {
+                response = await service.ProcessAsync(reattach
+                    ? new ServiceRequest
+                    {
+                        Command = "session.attach",
+                        Args = JsonSerializer.Serialize(new
+                        {
+                            workbookId = selection.GetProperty("workbookId").GetString()
+                        }, ServiceProtocol.JsonOptions)
+                    }
+                    : new ServiceRequest { Command = "session.discover" });
+            }
+            finally
+            {
+                service.SessionManager.AfterAttachmentRefreshHookForTests = null;
+                service.SessionManager.AfterApplicationDiscoveryHookForTests = null;
+            }
+            if (reattach)
+            {
+                Assert.False(response.Success);
+                Assert.Contains("location changed", response.ErrorMessage, StringComparison.Ordinal);
+            }
+            else
+            {
+                RequireSuccess(response);
+                using var result = JsonDocument.Parse(response.Result!);
+                Assert.False(result.RootElement.GetProperty("complete").GetBoolean());
+                Assert.Contains(result.RootElement.GetProperty("errors").EnumerateArray(),
+                    error => error.GetProperty("message").GetString()!.Contains(
+                        "location changed", StringComparison.Ordinal));
+            }
+            Assert.Equal(original, attached.WorkbookPath, ignoreCase: true);
+            var fresh = await DiscoverReviewWorkbookAsync(service, Path.GetFileName(target));
+            Assert.Equal(id, fresh.GetProperty("sessionId").GetString());
+            Assert.Equal(selection.GetProperty("workbookId").GetString(), fresh.GetProperty("workbookId").GetString());
+            Assert.Equal(id, await AttachReviewWorkbookAsync(service, fresh));
+            Assert.Equal(target, attached.WorkbookPath, ignoreCase: true);
+            Assert.Throws<InvalidOperationException>(() =>
+                service.SessionManager.ReserveSessionFilePath(ownedId, target));
+            attached.Execute((context, _) => Assert.Equal(target, context.Book.FullName, ignoreCase: true));
+            Assert.Equal("live attached edits", await ReadMarkerAsync(service, id));
+            Assert.Equal(2, service.SessionManager.ActiveSessionCount);
+        });
+    }
+
+    [Fact]
+    public async Task Discovery_OwnedMatchThenExcelRename_DoesNotApplyOldLocation()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var original = Path.Join(directory, "live-owned-original.xlsx");
+            var intermediate = Path.Join(directory, "live-owned-intermediate.xlsx");
+            var target = Path.Join(directory, "live-owned-newer.xlsx");
+            var sessionId = await CreateSessionAsync(service, original);
+            sessions[sessionId] = 0;
+            var owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(sessionId));
+            var selection = await DiscoverReviewWorkbookAsync(service, Path.GetFileName(original));
+            await WriteMarkerAsync(service, sessionId, "live rename edits");
+            owned.Execute((context, _) => context.Book.SaveAs(intermediate));
+            service.SessionManager.AfterOwnedWorkbookMatchHookForTests = () =>
+            {
+                service.SessionManager.AfterOwnedWorkbookMatchHookForTests = null;
+                owned.Execute((context, _) => context.Book.SaveAs(target));
+            };
+            ServiceResponse discovery;
+            try
+            {
+                discovery = await service.ProcessAsync(new ServiceRequest { Command = "session.discover" });
+            }
+            finally
+            {
+                service.SessionManager.AfterOwnedWorkbookMatchHookForTests = null;
+            }
+            RequireSuccess(discovery);
+            using var result = JsonDocument.Parse(discovery.Result!);
+            Assert.False(result.RootElement.GetProperty("complete").GetBoolean());
+            Assert.Contains(result.RootElement.GetProperty("errors").EnumerateArray(),
+                error => error.GetProperty("message").GetString()!.Contains(
+                    "location changed", StringComparison.Ordinal));
+            Assert.Equal(original, owned.WorkbookPath, ignoreCase: true);
+            Assert.True(service.SessionManager.TryGetFilePath(sessionId, out var tracked));
+            Assert.Equal(original, tracked, ignoreCase: true);
+            owned.Execute((context, _) => Assert.Equal(target, context.Book.FullName, ignoreCase: true));
+            Assert.Equal("live rename edits", await ReadMarkerAsync(service, sessionId));
+            var fresh = await DiscoverReviewWorkbookAsync(service, Path.GetFileName(target));
+            Assert.Equal(sessionId, fresh.GetProperty("sessionId").GetString());
+            Assert.Equal(selection.GetProperty("workbookId").GetString(), fresh.GetProperty("workbookId").GetString());
+            Assert.Equal(sessionId, await AttachReviewWorkbookAsync(service, fresh));
+            Assert.Single(service.SessionManager.GetActiveSessions());
+            Assert.Equal(target, owned.WorkbookPath, ignoreCase: true);
+        });
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Recovery_OwnedSnapshotBeforeSaveAs_DoesNotPublishStaleLocation(
+        bool reattach, bool duringPublication)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var original = Path.Join(directory, "owned-snapshot-original.xlsx");
+            var target = Path.Join(directory, "owned-snapshot-newer.xlsx");
+            var sessionId = await CreateSessionAsync(service, original);
+            sessions[sessionId] = 0;
+            await WriteMarkerAsync(service, sessionId, "owned snapshot edits");
+            var owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(sessionId));
+            var selection = await DiscoverReviewWorkbookAsync(service, Path.GetFileName(original));
+            if (!reattach)
+                owned.Execute((context, _) => context.Book.SaveAs(
+                    Path.Join(directory, "owned-snapshot-intermediate.xlsx")));
+            using var snapshotReady = new ManualResetEventSlim();
+            using var releaseSnapshot = new ManualResetEventSlim();
+            using var publicationReady = new ManualResetEventSlim();
+            using var releasePublication = new ManualResetEventSlim();
+            using var admitted = new ManualResetEventSlim();
+            using var releaseAdmission = new ManualResetEventSlim();
+            Action pause = () =>
+            {
+                snapshotReady.Set();
+                Assert.True(releaseSnapshot.Wait(TimeSpan.FromSeconds(30)));
+            };
+            if (reattach)
+                service.SessionManager.AfterAttachmentRefreshHookForTests = pause;
+            else
+                service.SessionManager.AfterOwnedWorkbookMatchHookForTests = pause;
+            Task<ServiceResponse> StartSaveAs() => Task.Run(() => service.ProcessAsync(new ServiceRequest
+            {
+                Command = "workbook.save-as",
+                SessionId = sessionId,
+                Args = JsonSerializer.Serialize(new { targetPath = target }, ServiceProtocol.JsonOptions)
+            }));
+            Task<ServiceResponse>? saving = null;
+            if (!reattach)
+            {
+                service.BeforeSaveAsReservationHookForTests = () =>
+                {
+                    admitted.Set();
+                    Assert.True(releaseAdmission.Wait(TimeSpan.FromSeconds(30)));
+                };
+                saving = StartSaveAs();
+                Assert.True(admitted.Wait(TimeSpan.FromSeconds(10)));
+            }
+            var older = Task.Run(() => service.ProcessAsync(reattach
+                ? new ServiceRequest
+                {
+                    Command = "session.attach",
+                    Args = JsonSerializer.Serialize(new
+                    {
+                        workbookId = selection.GetProperty("workbookId").GetString()
+                    }, ServiceProtocol.JsonOptions)
+                }
+                : new ServiceRequest { Command = "session.discover" }));
+            ServiceResponse? recovery = null;
+            try
+            {
+                Assert.True(snapshotReady.Wait(TimeSpan.FromSeconds(10)));
+                if (duringPublication)
+                    service.BeforeSaveAsPublicationHookForTests = () =>
+                    {
+                        publicationReady.Set();
+                        Assert.True(releasePublication.Wait(TimeSpan.FromSeconds(30)));
+                    };
+                saving ??= StartSaveAs();
+                releaseAdmission.Set();
+                if (duringPublication)
+                    Assert.True(publicationReady.Wait(TimeSpan.FromSeconds(10)));
+                else if (!reattach)
+                    Assert.True(SpinWait.SpinUntil(
+                        () => service.SessionManager.TryGetFilePath(sessionId, out var path)
+                            && string.Equals(path, target, StringComparison.OrdinalIgnoreCase),
+                        TimeSpan.FromSeconds(10)));
+                else
+                    RequireSuccess(await saving);
+                releaseSnapshot.Set();
+                recovery = await older;
+            }
+            finally
+            {
+                releaseSnapshot.Set();
+                releasePublication.Set();
+                releaseAdmission.Set();
+                service.SessionManager.AfterAttachmentRefreshHookForTests = null;
+                service.SessionManager.AfterOwnedWorkbookMatchHookForTests = null;
+                service.BeforeSaveAsPublicationHookForTests = null;
+                service.BeforeSaveAsReservationHookForTests = null;
+                await older;
+                if (saving is not null)
+                    RequireSuccess(await saving);
+                // Track any incorrectly published connection so a failing regression still cleans up.
+                foreach (var session in service.SessionManager.GetActiveSessions())
+                    sessions[session.SessionId] = 0;
+            }
+            if (reattach)
+            {
+                Assert.False(recovery!.Success);
+                Assert.Contains("changed", recovery.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            }
+            else
+            {
+                RequireSuccess(recovery!);
+                using var result = JsonDocument.Parse(recovery!.Result!);
+                Assert.False(result.RootElement.GetProperty("complete").GetBoolean());
+                Assert.Contains(result.RootElement.GetProperty("errors").EnumerateArray(),
+                    error => error.GetProperty("message").GetString()!.Contains(
+                        "changed", StringComparison.OrdinalIgnoreCase));
+            }
+            Assert.Equal(sessionId, Assert.Single(service.SessionManager.GetActiveSessions()).SessionId);
+            Assert.Equal(target, owned.WorkbookPath, ignoreCase: true);
+            Assert.True(service.SessionManager.TryGetFilePath(sessionId, out var tracked));
+            Assert.Equal(target, tracked, ignoreCase: true);
+            owned.Execute((context, _) => Assert.Equal(target, context.Book.FullName, ignoreCase: true));
+            Assert.Equal("owned snapshot edits", await ReadMarkerAsync(service, sessionId));
+            var fresh = await DiscoverReviewWorkbookAsync(service, Path.GetFileName(target));
+            Assert.Equal(sessionId, fresh.GetProperty("sessionId").GetString());
+            Assert.Equal(selection.GetProperty("workbookId").GetString(), fresh.GetProperty("workbookId").GetString());
+            Assert.Equal(sessionId, await AttachReviewWorkbookAsync(service, fresh));
+            var neighborId = await CreateSessionAsync(service, Path.Join(directory, "owned-snapshot-neighbor.xlsx"));
+            sessions[neighborId] = 0;
+            Assert.Throws<InvalidOperationException>(() =>
+                service.SessionManager.ReserveSessionFilePath(neighborId, target));
+        });
+    }
+
+    [Fact]
+    public async Task Recovery_HealthyAttachmentCannotClearRefreshingNeighborsTimeout()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var ownedId = await CreateSessionAsync(service, Path.Join(directory, "timeout-neighbors.xlsx"));
+            sessions[ownedId] = 0;
+            var owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(ownedId));
+            var nameA = owned.Execute((context, _) => AddReviewWorkbook(context.App, "refreshing edits"));
+            var nameB = owned.Execute((context, _) => AddReviewWorkbook(context.App, "healthy edits"));
+            var idA = await AttachReviewWorkbookAsync(service, await DiscoverReviewWorkbookAsync(service, nameA));
+            sessions[idA] = 0;
+            var idB = await AttachReviewWorkbookAsync(service, await DiscoverReviewWorkbookAsync(service, nameB));
+            sessions[idB] = 0;
+            var a = Assert.IsType<AttachedWorkbookBatch>(service.SessionManager.GetSession(idA));
+            var b = Assert.IsType<AttachedWorkbookBatch>(service.SessionManager.GetSession(idB));
+            Assert.Same(a.Owner, b.Owner);
+            RequireSuccess(await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "powerquery.create",
+                SessionId = idA,
+                Args = """{"queryName":"SharedRecovery","mCode":"#table({\"Marker\"}, {{\"Before\"}})","loadDestination":"worksheet","targetSheet":"SharedRecovery"}"""
+            }));
+            RequireSuccess(await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "powerquery.update",
+                SessionId = idA,
+                Args = """{"queryName":"SharedRecovery","mCode":"Function.InvokeAfter(() => #table({\"Marker\"}, {{\"After\"}}), #duration(0,0,0,12))","refresh":false}"""
+            }));
+            using var started = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            using var wait = new CancellationTokenSource();
+            var operation = Task.Run(() => a.Execute((context, _) =>
+            {
+                Excel.Sheets? sheets = null;
+                Excel.Worksheet? sheet = null;
+                Excel.ListObjects? tables = null;
+                Excel.ListObject? table = null;
+                Excel.QueryTable? query = null;
+                try
+                {
+                    sheets = context.Book.Worksheets;
+                    sheet = (Excel.Worksheet)sheets["SharedRecovery"];
+                    tables = sheet.ListObjects;
+                    table = tables[1];
+                    query = table.QueryTable;
+                    Assert.True(query.Refresh(true));
+                    Assert.True(query.Refreshing);
+                    started.Set();
+                    Assert.True(release.Wait(TimeSpan.FromSeconds(15)));
+                }
+                finally
+                {
+                    ComUtilities.Release(ref query);
+                    ComUtilities.Release(ref table);
+                    ComUtilities.Release(ref tables);
+                    ComUtilities.Release(ref sheet);
+                    ComUtilities.Release(ref sheets);
+                }
+            }, wait.Token));
+            var called = false;
+            try
+            {
+                Assert.True(started.Wait(TimeSpan.FromSeconds(10)));
+                wait.Cancel();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => operation);
+                release.Set();
+                Assert.True(SpinWait.SpinUntil(
+                    () => !a.Owner.OperationStatus.ExecutionPending, TimeSpan.FromSeconds(10)));
+                Assert.True(a.HasTimedOutOperation);
+                var state = b.GetRefreshState();
+                var deadline = DateTime.UtcNow.AddSeconds(3);
+                while (state == WorkbookRefreshState.Unknown && DateTime.UtcNow < deadline)
+                {
+                    await Task.Delay(50);
+                    state = b.GetRefreshState();
+                }
+                Assert.Equal(WorkbookRefreshState.Refreshing, state);
+                Assert.True(a.HasTimedOutOperation);
+                Assert.Throws<TimeoutException>(() => a.Execute((_, _) => called = true));
+                Assert.False(called);
+            }
+            finally
+            {
+                release.Set();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => operation);
+                Assert.True(SpinWait.SpinUntil(
+                    () => a.Owner.GetRefreshState() == WorkbookRefreshState.Ready,
+                    TimeSpan.FromSeconds(45)));
+            }
+            Assert.False(a.HasTimedOutOperation);
+            Assert.Equal("After", await ReadMarkerAsync(service, idA, "SharedRecovery", "A2"));
+            Assert.Equal("refreshing edits", await ReadMarkerAsync(service, idA));
+            Assert.Equal("healthy edits", await ReadMarkerAsync(service, idB));
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task Discovery_OrdinaryCommandAfterExcelSaveAs_PreservesNewerLocation(bool rediscover)
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>

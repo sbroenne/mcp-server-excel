@@ -339,6 +339,7 @@ public sealed class SessionManager : IDisposable
     internal Action<ExcelBatch>? AfterApplicationDiscoveryHookForTests { get; set; }
     internal Action<ExcelBatch>? AfterOwnedCloseDiscoveryHookForTests { get; set; }
     internal Action? AfterAttachmentRefreshHookForTests { get; set; }
+    internal Action? AfterOwnedWorkbookMatchHookForTests { get; set; }
 
     /// <summary>Discovers already-open workbooks in the current user's Windows session.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
@@ -377,6 +378,7 @@ public sealed class SessionManager : IDisposable
                 try
                 {
                     (string SessionId, AttachedWorkbookBatch Session, long Revision)[] retirementCandidates;
+                    List<(string SessionId, ExcelBatch Session, long Revision)> ownedCandidates;
                     KeyValuePair<string, (ExcelBatch Owner, OpenWorkbookInfo Workbook)>[] selectionCandidates;
                     lock (_filePathReservationLock)
                     {
@@ -400,13 +402,15 @@ public sealed class SessionManager : IDisposable
                         selectionCandidates = _openWorkbookSelections
                             .Where(entry => ReferenceEquals(entry.Value.Owner, application))
                             .ToArray();
+                        ownedCandidates = CaptureOwnedWorkbookLocations(window.Process.ProcessId);
                     }
 
                     var discovery = application.DiscoverAttachedWorkbooks();
                     AfterApplicationDiscoveryHookForTests?.Invoke(application);
                     foreach (var workbook in discovery.Workbooks)
                     {
-                        var existingSessionId = FindExistingWorkbookSession(application, workbook);
+                        var existingSessionId = FindExistingWorkbookSession(application, workbook, ownedCandidates);
+                        ValidateLiveWorkbookLocation(application, workbook);
                         var selection = workbook with
                         {
                             SessionId = existingSessionId
@@ -414,6 +418,7 @@ public sealed class SessionManager : IDisposable
                         lock (_filePathReservationLock)
                         {
                             ObjectDisposedException.ThrowIf(_disposed, this);
+                            ValidateOwnedWorkbookLocations(ownedCandidates);
                             if (_detachingApplications.Contains(window.Process)
                                 || !_attachedApplications.TryGetValue(window.Process, out var current)
                                 || !ReferenceEquals(current, application))
@@ -576,7 +581,45 @@ public sealed class SessionManager : IDisposable
         }
     }
 
-    private string? FindExistingWorkbookSession(ExcelBatch owner, OpenWorkbookInfo workbook)
+    private List<(string SessionId, ExcelBatch Session, long Revision)> CaptureOwnedWorkbookLocations(int processId) =>
+        _activeSessions
+            .Where(entry => entry.Value is ExcelBatch owned && owned.ExcelProcessId == processId)
+            .Select(entry => (entry.Key, (ExcelBatch)entry.Value, ((ExcelBatch)entry.Value).LocationRevision))
+            .ToList();
+
+    private static void ValidateLiveWorkbookLocation(ExcelBatch owner, OpenWorkbookInfo workbook)
+    {
+        var live = owner.RefreshAttachedWorkbook(workbook.WorkbookId);
+        if (live is null
+            || !string.Equals(live.Name, workbook.Name, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(live.Location, workbook.Location, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "The workbook connection or location changed during discovery or attachment, or Save As is still pending. " +
+                "Discover open workbooks again.");
+        }
+    }
+
+    private void ValidateOwnedWorkbookLocations(
+        List<(string SessionId, ExcelBatch Session, long Revision)> candidates)
+    {
+        foreach (var (sessionId, owned, revision) in candidates)
+        {
+            if (!_activeSessions.TryGetValue(sessionId, out var current)
+                || !ReferenceEquals(current, owned)
+                || owned.LocationRevision != revision
+                || _sessionFilePathReservations.ContainsKey(sessionId))
+            {
+                throw new InvalidOperationException(
+                    "An owned workbook connection or location changed during discovery or attachment, or Save As is still pending. " +
+                    "Discover open workbooks again.");
+            }
+        }
+    }
+
+    private string? FindExistingWorkbookSession(
+        ExcelBatch owner, OpenWorkbookInfo workbook,
+        List<(string SessionId, ExcelBatch Session, long Revision)> ownedCandidates)
     {
         var attachedSession = _activeSessions.FirstOrDefault(entry =>
             entry.Value is AttachedWorkbookBatch attached
@@ -585,35 +628,47 @@ public sealed class SessionManager : IDisposable
         if (attachedSession is not null)
             return attachedSession;
 
-        foreach (var (ownedSessionId, candidate) in _activeSessions.ToArray())
+        for (var index = 0; index < ownedCandidates.Count; index++)
         {
-            if (candidate is not ExcelBatch owned || owned.ExcelProcessId != workbook.ProcessId)
-                continue;
+            var (ownedSessionId, owned, _) = ownedCandidates[index];
 
             lock (GetSessionLock(ownedSessionId))
             {
-                if (!_activeSessions.TryGetValue(ownedSessionId, out var current)
-                    || !ReferenceEquals(current, owned))
-                    continue;
+                lock (_filePathReservationLock)
+                    ValidateOwnedWorkbookLocations(ownedCandidates);
                 var previousPath = owned.FindOwnedWorkbookPath(workbook);
+                lock (_filePathReservationLock)
+                    ValidateOwnedWorkbookLocations(ownedCandidates);
                 if (previousPath is null)
                     continue;
+                AfterOwnedWorkbookMatchHookForTests?.Invoke();
 
                 if (workbook.Location is { } currentPath
                     && (!string.Equals(previousPath, currentPath, StringComparison.OrdinalIgnoreCase)
                         || !_sessionFilePaths.TryGetValue(ownedSessionId, out var trackedPath)
                         || !string.Equals(trackedPath, currentPath, StringComparison.OrdinalIgnoreCase)))
                 {
-                    var reserved = ReserveSessionFilePath(ownedSessionId, currentPath);
+                    string reserved;
+                    lock (_filePathReservationLock)
+                    {
+                        ValidateOwnedWorkbookLocations(ownedCandidates);
+                        reserved = ReserveSessionFilePath(ownedSessionId, currentPath);
+                    }
                     try
                     {
                         ExcelBatchWait.Execute(owned, TimeSpan.FromSeconds(2),
                             (_, _) =>
                             {
+                                if (owned.FindOwnedWorkbookPathOnExcelThread(workbook) is null)
+                                {
+                                    throw new InvalidOperationException(
+                                        "The owned workbook location changed during discovery. Discover open workbooks again.");
+                                }
                                 owned.UpdateWorkbookPath(currentPath);
                                 return 0;
                             });
                         UpdateSessionFilePath(ownedSessionId, currentPath);
+                        ownedCandidates[index] = (ownedSessionId, owned, owned.LocationRevision);
                     }
                     finally
                     {
@@ -644,6 +699,7 @@ public sealed class SessionManager : IDisposable
                 {
                     RemoveSessionTracking(sessionId, removeSessionLock: false);
                     _sessionLocks.TryRemove(sessionId, out _);
+                    ownedCandidates.RemoveAll(entry => entry.SessionId == sessionId);
                     return null;
                 }
             }
@@ -720,22 +776,26 @@ public sealed class SessionManager : IDisposable
 
         AttachedWorkbookBatch? observedSession;
         long observedRevision;
+        List<(string SessionId, ExcelBatch Session, long Revision)> ownedCandidates;
         lock (_filePathReservationLock)
         {
             observedSession = _activeSessions.Values.OfType<AttachedWorkbookBatch>()
                 .FirstOrDefault(attached => ReferenceEquals(attached.Owner, selection.Owner)
                     && string.Equals(attached.WorkbookId, workbookId, StringComparison.Ordinal));
             observedRevision = observedSession?.LocationRevision ?? 0;
+            ownedCandidates = CaptureOwnedWorkbookLocations(selection.Workbook.ProcessId);
         }
         var current = selection.Owner.RefreshAttachedWorkbook(workbookId)
             ?? throw new InvalidOperationException(
                 "The selected workbook is no longer confirmed open. Discover open workbooks again.");
         AfterAttachmentRefreshHookForTests?.Invoke();
-        var existingSessionId = FindExistingWorkbookSession(selection.Owner, current);
+        var existingSessionId = FindExistingWorkbookSession(selection.Owner, current, ownedCandidates);
+        ValidateLiveWorkbookLocation(selection.Owner, current);
         var path = current.Location ?? current.Name;
         lock (_filePathReservationLock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
+            ValidateOwnedWorkbookLocations(ownedCandidates);
             if (selection.Owner.ProcessIdentity is { } process
                 && _detachingApplications.Contains(process))
             {
@@ -1977,6 +2037,8 @@ public sealed class SessionManager : IDisposable
             _sessionFilePathReservations[sessionId] = normalizedPath;
             if (session is AttachedWorkbookBatch attached)
                 attached.InvalidateLocationSnapshot();
+            else if (session is ExcelBatch owned)
+                owned.InvalidateLocationSnapshot();
         }
 
         return normalizedPath;

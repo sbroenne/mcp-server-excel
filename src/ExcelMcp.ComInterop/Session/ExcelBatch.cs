@@ -30,6 +30,9 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 
     private string _workbookPath; // Primary workbook path
+    private long _locationRevision;
+    internal long LocationRevision => Interlocked.Read(ref _locationRevision);
+    internal void InvalidateLocationSnapshot() => Interlocked.Increment(ref _locationRevision);
     private readonly string[] _allWorkbookPaths; // All workbook paths (includes primary)
     private readonly bool _showExcel; // Whether to show Excel window
     private readonly bool _openReadOnly; // Whether existing workbooks are opened read-only
@@ -1184,6 +1187,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             {
                 ProcessIdentity = _excelProcessIdentity
             };
+            InvalidateLocationSnapshot();
         }
 
         if (Thread.CurrentThread == _staThread)
@@ -1667,6 +1671,11 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         Func<WorkbookRefreshState> readRefreshState,
         string? selectionId = null)
     {
+        if (_operationTimedOut)
+        {
+            readRefreshState = ReadRefreshState;
+            selectionId = null;
+        }
         var preflight = GetExecutionPreflightState();
         if (preflight != WorkbookRefreshState.Ready)
             return preflight;
@@ -1689,7 +1698,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 {
                     lock (_statusLock)
                         ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
-                    var state = readRefreshState();
+                    var state = _operationTimedOut ? ReadRefreshState() : readRefreshState();
                     if (state == WorkbookRefreshState.Ready)
                         _operationTimedOut = false;
                     return state;
@@ -1777,48 +1786,49 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         }
     }
 
-    internal string? FindOwnedWorkbookPath(OpenWorkbookInfo selected)
-    {
-        return ExcelBatchWait.Execute(this, TimeSpan.FromSeconds(2), (_, _) =>
-        {
-            if (_workbooks is null || _excel is null)
-            {
-                return null;
-            }
+    internal string? FindOwnedWorkbookPath(OpenWorkbookInfo selected) =>
+        ExcelBatchWait.Execute(this, TimeSpan.FromSeconds(2),
+            (_, _) => FindOwnedWorkbookPathOnExcelThread(selected));
 
-            Excel.Workbooks? workbooks = null;
-            try
+    internal string? FindOwnedWorkbookPathOnExcelThread(OpenWorkbookInfo selected)
+    {
+        if (_workbooks is null || _excel is null)
+        {
+            return null;
+        }
+
+        Excel.Workbooks? workbooks = null;
+        try
+        {
+            workbooks = _excel.Workbooks;
+            var count = workbooks.Count;
+            for (var index = 1; index <= count; index++)
             {
-                workbooks = _excel.Workbooks;
-                var count = workbooks.Count;
-                for (var index = 1; index <= count; index++)
+                Excel.Workbook? current = null;
+                try
                 {
-                    Excel.Workbook? current = null;
-                    try
+                    current = workbooks[index];
+                    var tracked = _workbooks.FirstOrDefault(entry =>
+                        ReferenceEquals(current, entry.Value));
+                    if (tracked.Key is not null
+                        && string.Equals(current.Name, selected.Name, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(GetWorkbookLocation(current.FullName), selected.Location,
+                            StringComparison.OrdinalIgnoreCase))
                     {
-                        current = workbooks[index];
-                        var tracked = _workbooks.FirstOrDefault(entry =>
-                            ReferenceEquals(current, entry.Value));
-                        if (tracked.Key is not null
-                            && string.Equals(current.Name, selected.Name, StringComparison.OrdinalIgnoreCase)
-                            && string.Equals(GetWorkbookLocation(current.FullName), selected.Location,
-                                StringComparison.OrdinalIgnoreCase))
-                        {
-                            return tracked.Key;
-                        }
-                    }
-                    finally
-                    {
-                        ComUtilities.Release(ref current);
+                        return tracked.Key;
                     }
                 }
-                return null;
+                finally
+                {
+                    ComUtilities.Release(ref current);
+                }
             }
-            finally
-            {
-                ComUtilities.Release(ref workbooks);
-            }
-        });
+            return null;
+        }
+        finally
+        {
+            ComUtilities.Release(ref workbooks);
+        }
     }
 
     internal bool DetachClosedOwnedWorkbook(string workbookPath)
