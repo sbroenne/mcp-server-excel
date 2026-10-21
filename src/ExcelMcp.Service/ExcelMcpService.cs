@@ -890,6 +890,8 @@ public sealed class ExcelMcpService : IDisposable
         }, allowTimedOutOperation: windowAction is WindowAction.Show or WindowAction.Hide);
     }
 
+    internal Action? BeforeSaveAsPublicationHookForTests { get; set; }
+
     private async Task<ServiceResponse> DispatchWorkbookAsync(string actionString, ServiceRequest request)
     {
         if (!ServiceRegistry.Workbook.TryParseAction(actionString, out var workbookAction))
@@ -929,6 +931,8 @@ public sealed class ExcelMcpService : IDisposable
                 var result = WrapResult(
                     ServiceRegistry.Workbook.DispatchToCore(_workbookCommands, workbookAction, batch, request.Args));
 
+                if (reservedPath is not null)
+                    BeforeSaveAsPublicationHookForTests?.Invoke();
                 return result;
             }
             catch (Exception ex) when (ex is TimeoutException or OperationCanceledException)

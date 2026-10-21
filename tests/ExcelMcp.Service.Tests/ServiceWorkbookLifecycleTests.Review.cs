@@ -10,6 +10,342 @@ public sealed partial class ServiceWorkbookLifecycleTests
 {
     private static readonly string[] ReviewTraceCommands = ["powerquerytrace.list", "powerquerytrace.summarize"];
 
+    [Fact]
+    public async Task Close_AttachedWorkbookWithSlowReadiness_VerifiesStateOnExcelThread()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var ownedId = await CreateSessionAsync(service, Path.Join(directory, "slow-attached-owner.xlsx"));
+            sessions[ownedId] = 0;
+            await WriteMarkerAsync(service, ownedId, "neighbor unsaved");
+            var owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(ownedId));
+            var name = owned.Execute((context, _) => AddReviewWorkbook(context.App, "selected unsaved"));
+            var attachedId = await AttachReviewWorkbookAsync(service,
+                await DiscoverReviewWorkbookAsync(service, name));
+            sessions[attachedId] = 0;
+            var attached = Assert.IsType<AttachedWorkbookBatch>(service.SessionManager.GetSession(attachedId));
+            attached.Owner.BeforeRefreshStateReadHookForTests = () => Thread.Sleep(TimeSpan.FromSeconds(1.5));
+            try
+            {
+                Assert.Equal(WorkbookRefreshState.Unknown, attached.GetRefreshState());
+                Assert.True(SpinWait.SpinUntil(
+                    () => service.SessionManager.ValidateClose(attachedId).CanClose,
+                    TimeSpan.FromSeconds(10)));
+                await CloseSessionAsync(service, attachedId, save: false);
+                sessions.TryRemove(attachedId, out _);
+            }
+            finally
+            {
+                attached.Owner.BeforeRefreshStateReadHookForTests = null;
+                attached.Owner.Execute((_, _) => 0);
+            }
+            Assert.Equal(ownedId, Assert.Single(service.SessionManager.GetActiveSessions()).SessionId);
+            Assert.Equal("neighbor unsaved", await ReadMarkerAsync(service, ownedId));
+            owned.Execute((context, _) =>
+            {
+                Excel.Workbooks? workbooks = null;
+                try
+                {
+                    workbooks = context.App.Workbooks;
+                    Assert.Equal(1, workbooks.Count);
+                    Assert.False(context.Book.Saved);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref workbooks);
+                }
+            });
+        });
+    }
+
+    [Theory]
+    [InlineData(false, true, false)]
+    [InlineData(true, true, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, false, true)]
+    public async Task Recovery_OlderSnapshot_PreservesSaveAsPublication(
+        bool reattach, bool duringPublication, bool returnToOriginal)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var ownedId = await CreateSessionAsync(service, Path.Join(directory, "publication-owner.xlsx"));
+            sessions[ownedId] = 0;
+            var owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(ownedId));
+            var name = owned.Execute((context, _) => AddReviewWorkbook(context.App, "preserve publication edits"));
+            var selection = await DiscoverReviewWorkbookAsync(service, name);
+            var attachedId = await AttachReviewWorkbookAsync(service, selection);
+            sessions[attachedId] = 0;
+            var attached = Assert.IsType<AttachedWorkbookBatch>(service.SessionManager.GetSession(attachedId));
+            var targetPath = Path.Join(directory, "publication-target.xlsx");
+            if (returnToOriginal)
+                RequireSuccess(await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = "workbook.save-as",
+                    SessionId = attachedId,
+                    Args = JsonSerializer.Serialize(new { targetPath }, ServiceProtocol.JsonOptions)
+                }));
+            using var snapshotReady = new ManualResetEventSlim();
+            using var releaseSnapshot = new ManualResetEventSlim();
+            using var publicationReady = new ManualResetEventSlim();
+            using var releasePublication = new ManualResetEventSlim();
+            Action pauseSnapshot = () =>
+            {
+                snapshotReady.Set();
+                Assert.True(releaseSnapshot.Wait(TimeSpan.FromSeconds(30)));
+            };
+            if (reattach)
+                service.SessionManager.AfterAttachmentRefreshHookForTests = pauseSnapshot;
+            else
+                service.SessionManager.AfterApplicationDiscoveryHookForTests = application =>
+                {
+                    if (ReferenceEquals(application, attached.Owner))
+                        pauseSnapshot();
+                };
+            var older = Task.Run(() => service.ProcessAsync(reattach
+                ? new ServiceRequest
+                {
+                    Command = "session.attach",
+                    Args = JsonSerializer.Serialize(new
+                    {
+                        workbookId = selection.GetProperty("workbookId").GetString()
+                    }, ServiceProtocol.JsonOptions)
+                }
+                : new ServiceRequest { Command = "session.discover" }));
+            Task<ServiceResponse>? saving = null;
+            ServiceResponse? recovery = null;
+            try
+            {
+                Assert.True(snapshotReady.Wait(TimeSpan.FromSeconds(10)));
+                if (returnToOriginal)
+                    RequireSuccess(await service.ProcessAsync(new ServiceRequest
+                    {
+                        Command = "workbook.save-as",
+                        SessionId = attachedId,
+                        Args = JsonSerializer.Serialize(new
+                        {
+                            targetPath = Path.Join(directory, "intermediate-target.xlsx")
+                        }, ServiceProtocol.JsonOptions)
+                    }));
+                if (duringPublication)
+                    service.BeforeSaveAsPublicationHookForTests = () =>
+                    {
+                        publicationReady.Set();
+                        Assert.True(releasePublication.Wait(TimeSpan.FromSeconds(30)));
+                    };
+                saving = Task.Run(() => service.ProcessAsync(new ServiceRequest
+                {
+                    Command = "workbook.save-as",
+                    SessionId = attachedId,
+                    Args = JsonSerializer.Serialize(new
+                    {
+                        targetPath,
+                        overwrite = returnToOriginal
+                    }, ServiceProtocol.JsonOptions)
+                }));
+                if (duringPublication)
+                    Assert.True(publicationReady.Wait(TimeSpan.FromSeconds(10)));
+                else
+                    RequireSuccess(await saving);
+                releaseSnapshot.Set();
+                recovery = await older;
+                Assert.Equal(targetPath, attached.WorkbookPath, ignoreCase: true);
+            }
+            finally
+            {
+                releaseSnapshot.Set();
+                releasePublication.Set();
+                service.BeforeSaveAsPublicationHookForTests = null;
+                service.SessionManager.AfterAttachmentRefreshHookForTests = null;
+                service.SessionManager.AfterApplicationDiscoveryHookForTests = null;
+                await older;
+                if (saving is not null)
+                    RequireSuccess(await saving);
+            }
+            if (reattach)
+            {
+                Assert.False(recovery!.Success);
+                Assert.Contains("changed", recovery.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            }
+            else
+            {
+                RequireSuccess(recovery!);
+                using var result = JsonDocument.Parse(recovery!.Result!);
+                Assert.False(result.RootElement.GetProperty("complete").GetBoolean());
+                Assert.Contains(result.RootElement.GetProperty("errors").EnumerateArray(),
+                    error => error.GetProperty("message").GetString()!.Contains(
+                        "Save As", StringComparison.Ordinal));
+            }
+            var listed = Assert.Single(service.SessionManager.GetActiveSessions(),
+                session => session.SessionId == attachedId);
+            Assert.Equal(targetPath, listed.FilePath, ignoreCase: true);
+            Assert.Equal("publication-target.xlsx", listed.WorkbookName);
+            Assert.Equal("preserve publication edits", await ReadMarkerAsync(service, attachedId));
+            attached.Execute((context, _) => Assert.Equal(targetPath, context.Book.FullName, ignoreCase: true));
+            Assert.Equal(attachedId, await AttachReviewWorkbookAsync(service, selection));
+            Assert.Throws<InvalidOperationException>(() =>
+                service.SessionManager.ReserveSessionFilePath(ownedId, targetPath));
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Attach_WorkbookClosesAfterRefresh_DoesNotPublishStaleSession(bool initiallyAttached)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var ownedId = await CreateSessionAsync(service, Path.Join(directory, "attach-close-owner.xlsx"));
+            sessions[ownedId] = 0;
+            var owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(ownedId));
+            var name = owned.Execute((context, _) => AddReviewWorkbook(context.App, "close selected only"));
+            var selection = await DiscoverReviewWorkbookAsync(service, name);
+            string? attachedId = null;
+            if (initiallyAttached)
+            {
+                attachedId = await AttachReviewWorkbookAsync(service, selection);
+                sessions[attachedId] = 0;
+            }
+            using var refreshed = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            var refreshes = 0;
+            service.SessionManager.AfterAttachmentRefreshHookForTests = () =>
+            {
+                if (Interlocked.Increment(ref refreshes) != 1)
+                    return;
+                refreshed.Set();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(30)));
+            };
+            var older = Task.Run(() => service.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.attach",
+                Args = JsonSerializer.Serialize(new
+                {
+                    workbookId = selection.GetProperty("workbookId").GetString()
+                }, ServiceProtocol.JsonOptions)
+            }));
+            ServiceResponse? response = null;
+            try
+            {
+                Assert.True(refreshed.Wait(TimeSpan.FromSeconds(10)));
+                if (attachedId is null)
+                {
+                    attachedId = await AttachReviewWorkbookAsync(service, selection);
+                    sessions[attachedId] = 0;
+                }
+                RequireSuccess(await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = "session.close",
+                    SessionId = attachedId,
+                    Args = """{"save":false}"""
+                }));
+                sessions.TryRemove(attachedId, out _);
+            }
+            finally
+            {
+                release.Set();
+                service.SessionManager.AfterAttachmentRefreshHookForTests = null;
+                response = await older;
+                if (response.Success)
+                {
+                    using var result = JsonDocument.Parse(response.Result!);
+                    sessions[result.RootElement.GetProperty("sessionId").GetString()!] = 0;
+                }
+            }
+            Assert.False(response.Success);
+            Assert.Contains("changed", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(ownedId, Assert.Single(service.SessionManager.GetActiveSessions()).SessionId);
+            owned.Execute((context, _) =>
+            {
+                Excel.Workbooks? workbooks = null;
+                try
+                {
+                    workbooks = context.App.Workbooks;
+                    Assert.Equal(1, workbooks.Count);
+                    Assert.NotEqual(name, context.Book.Name);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref workbooks);
+                }
+            });
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Attach_OverlappingFirstConnection_PreservesNewerSession(bool saveAs)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var ownedId = await CreateSessionAsync(service, Path.Join(directory, "first-attach-owner.xlsx"));
+            sessions[ownedId] = 0;
+            var owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(ownedId));
+            var name = owned.Execute((context, _) => AddReviewWorkbook(context.App, "first attachment edits"));
+            var selection = await DiscoverReviewWorkbookAsync(service, name);
+            using var refreshed = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            var refreshes = 0;
+            service.SessionManager.AfterAttachmentRefreshHookForTests = () =>
+            {
+                if (Interlocked.Increment(ref refreshes) != 1)
+                    return;
+                refreshed.Set();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(30)));
+            };
+            var older = Task.Run(() => service.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.attach",
+                Args = JsonSerializer.Serialize(new
+                {
+                    workbookId = selection.GetProperty("workbookId").GetString()
+                }, ServiceProtocol.JsonOptions)
+            }));
+            ServiceResponse? response = null;
+            string? attachedId = null;
+            var targetPath = Path.Join(directory, "newly-attached.xlsx");
+            try
+            {
+                Assert.True(refreshed.Wait(TimeSpan.FromSeconds(10)));
+                attachedId = await AttachReviewWorkbookAsync(service, selection);
+                sessions[attachedId] = 0;
+                if (saveAs)
+                    RequireSuccess(await service.ProcessAsync(new ServiceRequest
+                    {
+                        Command = "workbook.save-as",
+                        SessionId = attachedId,
+                        Args = JsonSerializer.Serialize(new { targetPath }, ServiceProtocol.JsonOptions)
+                    }));
+            }
+            finally
+            {
+                release.Set();
+                service.SessionManager.AfterAttachmentRefreshHookForTests = null;
+                response = await older;
+            }
+            if (saveAs)
+            {
+                Assert.False(response.Success);
+                Assert.Contains("changed", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            }
+            else
+            {
+                RequireSuccess(response);
+                using var result = JsonDocument.Parse(response.Result!);
+                Assert.Equal(attachedId, result.RootElement.GetProperty("sessionId").GetString());
+            }
+            var attached = Assert.IsType<AttachedWorkbookBatch>(service.SessionManager.GetSession(attachedId!));
+            Assert.Equal(saveAs ? targetPath : name, attached.WorkbookPath, ignoreCase: true);
+            Assert.Equal("first attachment edits", await ReadMarkerAsync(service, attachedId!));
+            attached.Execute((context, _) =>
+            {
+                Assert.Equal(saveAs ? targetPath : name, context.Book.FullName, ignoreCase: true);
+                Assert.Equal(saveAs, context.Book.Saved);
+            });
+            Assert.Equal(2, service.SessionManager.GetActiveSessions().Count);
+        });
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(false, true)]

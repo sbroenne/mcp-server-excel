@@ -76,6 +76,10 @@ A scan can retire only connections that existed before it began; it cannot
 remove a workbook connected by a newer scan or undo a newer Save As location.
 If a connection or tracked location changes during a scan, its results can be
 incomplete with a request to discover again.
+Discovery cannot replace a tracked location while Save As is still pending.
+An overlapping reconnect request fails with a request to discover again if
+Save As is pending or has changed the connection since that request began.
+This also applies if Save As changes the path and then changes it back.
 Saving an owned workbook under a new name in Excel does not create a second
 session: discovery reconciles its saved location and attachment returns its
 original session.

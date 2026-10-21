@@ -338,6 +338,7 @@ public sealed class SessionManager : IDisposable
 
     internal Action<ExcelBatch>? AfterApplicationDiscoveryHookForTests { get; set; }
     internal Action<ExcelBatch>? AfterOwnedCloseDiscoveryHookForTests { get; set; }
+    internal Action? AfterAttachmentRefreshHookForTests { get; set; }
 
     /// <summary>Discovers already-open workbooks in the current user's Windows session.</summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
@@ -375,7 +376,7 @@ public sealed class SessionManager : IDisposable
                 ExcelBatch? application = null;
                 try
                 {
-                    (string SessionId, AttachedWorkbookBatch Session, string Path)[] retirementCandidates;
+                    (string SessionId, AttachedWorkbookBatch Session, long Revision)[] retirementCandidates;
                     KeyValuePair<string, (ExcelBatch Owner, OpenWorkbookInfo Workbook)>[] selectionCandidates;
                     lock (_filePathReservationLock)
                     {
@@ -394,7 +395,7 @@ public sealed class SessionManager : IDisposable
                             .Where(entry => entry.Value is AttachedWorkbookBatch attached
                                 && ReferenceEquals(attached.Owner, application))
                             .Select(entry => (entry.Key, (AttachedWorkbookBatch)entry.Value,
-                                _sessionFilePaths[entry.Key]))
+                                ((AttachedWorkbookBatch)entry.Value).LocationRevision))
                             .ToArray();
                         selectionCandidates = _openWorkbookSelections
                             .Where(entry => ReferenceEquals(entry.Value.Owner, application))
@@ -427,15 +428,18 @@ public sealed class SessionManager : IDisposable
                                 var candidate = retirementCandidates.FirstOrDefault(
                                     entry => entry.SessionId == existingSessionId);
                                 if (!ReferenceEquals(candidate.Session, attached)
-                                    || !_sessionFilePaths.TryGetValue(existingSessionId, out var currentPath)
-                                    || !string.Equals(currentPath, candidate.Path, StringComparison.OrdinalIgnoreCase))
+                                    || attached.LocationRevision != candidate.Revision
+                                    || _sessionFilePathReservations.ContainsKey(existingSessionId))
                                 {
                                     errors.Add(new WorkbookDiscoveryError(window.Process.ProcessId,
-                                        "A workbook connection or location changed during discovery. Discover open workbooks again."));
+                                        "A workbook connection or location changed during discovery, or Save As is still pending. Discover open workbooks again."));
                                     continue;
                                 }
-                                if (UpdateAttachedWorkbookLocation(existingSessionId, attached, workbook) is { } error)
+                                if (UpdateAttachedWorkbookLocation(existingSessionId, attached, workbook,
+                                    candidate.Revision) is { } error)
+                                {
                                     errors.Add(error);
+                                }
                             }
                             var previousSelection = selectionCandidates.FirstOrDefault(
                                 entry => entry.Key == workbook.WorkbookId);
@@ -651,7 +655,8 @@ public sealed class SessionManager : IDisposable
     private WorkbookDiscoveryError? UpdateAttachedWorkbookLocation(
         string sessionId,
         AttachedWorkbookBatch attached,
-        OpenWorkbookInfo workbook)
+        OpenWorkbookInfo workbook,
+        long expectedRevision)
     {
         var path = workbook.Location ?? workbook.Name;
         lock (_filePathReservationLock)
@@ -660,6 +665,13 @@ public sealed class SessionManager : IDisposable
                 || !ReferenceEquals(session, attached))
             {
                 return null;
+            }
+
+            if (attached.LocationRevision != expectedRevision
+                || _sessionFilePathReservations.ContainsKey(sessionId))
+            {
+                return new WorkbookDiscoveryError(workbook.ProcessId,
+                    "The workbook connection changed during discovery or attachment, or Save As is still pending. Discover open workbooks again.");
             }
 
             var previousPath = _sessionFilePaths.TryGetValue(sessionId, out var trackedPath)
@@ -701,9 +713,19 @@ public sealed class SessionManager : IDisposable
             throw new ArgumentException(
                 "Unknown open-workbook selection. Discover open workbooks first.", nameof(workbookId));
 
+        AttachedWorkbookBatch? observedSession;
+        long observedRevision;
+        lock (_filePathReservationLock)
+        {
+            observedSession = _activeSessions.Values.OfType<AttachedWorkbookBatch>()
+                .FirstOrDefault(attached => ReferenceEquals(attached.Owner, selection.Owner)
+                    && string.Equals(attached.WorkbookId, workbookId, StringComparison.Ordinal));
+            observedRevision = observedSession?.LocationRevision ?? 0;
+        }
         var current = selection.Owner.RefreshAttachedWorkbook(workbookId)
             ?? throw new InvalidOperationException(
                 "The selected workbook is no longer confirmed open. Discover open workbooks again.");
+        AfterAttachmentRefreshHookForTests?.Invoke();
         var existingSessionId = FindExistingWorkbookSession(selection.Owner, current);
         var path = current.Location ?? current.Name;
         lock (_filePathReservationLock)
@@ -716,7 +738,8 @@ public sealed class SessionManager : IDisposable
                     "The Excel application connection is being released. Discover the workbook again after it completes.");
             }
             if (!_openWorkbookSelections.TryGetValue(workbookId, out var liveSelection)
-                || !ReferenceEquals(liveSelection.Owner, selection.Owner))
+                || !ReferenceEquals(liveSelection.Owner, selection.Owner)
+                || !ReferenceEquals(liveSelection.Workbook, selection.Workbook))
             {
                 throw new InvalidOperationException(
                     "The open-workbook selection changed during attachment. Discover open workbooks again.");
@@ -731,12 +754,26 @@ public sealed class SessionManager : IDisposable
                 entry.Value is AttachedWorkbookBatch attached
                 && ReferenceEquals(attached.Owner, selection.Owner)
                 && string.Equals(attached.WorkbookId, workbookId, StringComparison.Ordinal)).Key;
+            if (observedSession is not null && existingSessionId is null)
+                throw new InvalidOperationException(
+                    "The workbook connection changed during attachment. Discover open workbooks again.");
             if (existingSessionId is not null)
             {
-                if (_activeSessions[existingSessionId] is AttachedWorkbookBatch attached
-                    && UpdateAttachedWorkbookLocation(existingSessionId, attached, current) is { } error)
+                if (_activeSessions[existingSessionId] is AttachedWorkbookBatch attached)
                 {
-                    throw new InvalidOperationException(error.Message);
+                    if (observedSession is null && attached.LocationRevision == 0)
+                    {
+                        return new AttachedWorkbookSession(
+                            existingSessionId, attached.WorkbookName, attached.FilePath, attached.AutoSaveOn);
+                    }
+                    if (!ReferenceEquals(observedSession, attached))
+                        throw new InvalidOperationException(
+                            "The workbook connection changed during attachment. Discover open workbooks again.");
+                    if (UpdateAttachedWorkbookLocation(existingSessionId, attached, current,
+                        observedRevision) is { } error)
+                    {
+                        throw new InvalidOperationException(error.Message);
+                    }
                 }
                 return new AttachedWorkbookSession(
                     existingSessionId, current.Name, current.Location, current.AutoSaveOn);
@@ -1423,10 +1460,12 @@ public sealed class SessionManager : IDisposable
             : WorkbookRefreshState.Unknown;
 
     // Normal close verifies workbook readiness on its STA; recovery still requires the bounded scan.
-    private static WorkbookRefreshState GetClosePreflightState(IExcelBatch batch) =>
-        batch is ExcelBatch { HasTimedOutOperation: false } owned
-            ? owned.GetExecutionPreflightState()
-            : GetRefreshState(batch);
+    private static WorkbookRefreshState GetClosePreflightState(IExcelBatch batch) => batch switch
+    {
+        ExcelBatch { HasTimedOutOperation: false } owned => owned.GetExecutionPreflightState(),
+        AttachedWorkbookBatch { HasTimedOutOperation: false } attached => attached.Owner.GetExecutionPreflightState(),
+        _ => GetRefreshState(batch)
+    };
 
     /// <summary>
     /// Closes the specified session with optional save.
@@ -1555,7 +1594,7 @@ public sealed class SessionManager : IDisposable
             return;
 
         ExcelBatch application;
-        (string SessionId, AttachedWorkbookBatch Session, string Path)[] attachedSessions;
+        (string SessionId, AttachedWorkbookBatch Session, long Revision)[] attachedSessions;
         KeyValuePair<string, (ExcelBatch Owner, OpenWorkbookInfo Workbook)>[] selectionCandidates;
         lock (_filePathReservationLock)
         {
@@ -1572,7 +1611,7 @@ public sealed class SessionManager : IDisposable
                     && entry.Value is AttachedWorkbookBatch attached
                     && ReferenceEquals(attached.Owner, application))
                 .Select(entry => (entry.Key, (AttachedWorkbookBatch)entry.Value,
-                    _sessionFilePaths[entry.Key]))
+                    ((AttachedWorkbookBatch)entry.Value).LocationRevision))
                 .ToArray();
             selectionCandidates = _openWorkbookSelections
                 .Where(entry => ReferenceEquals(entry.Value.Owner, application))
@@ -1593,7 +1632,7 @@ public sealed class SessionManager : IDisposable
             var currentWorkbooks = discovery.Workbooks.ToDictionary(
                 workbook => workbook.WorkbookId, StringComparer.Ordinal);
             var pathErrors = new List<WorkbookDiscoveryError>();
-            foreach (var (attachedSessionId, attached, previousPath) in attachedSessions)
+            foreach (var (attachedSessionId, attached, previousRevision) in attachedSessions)
             {
                 if (currentWorkbooks.TryGetValue(attached.WorkbookId, out var workbook))
                 {
@@ -1601,9 +1640,9 @@ public sealed class SessionManager : IDisposable
                     {
                         if (_activeSessions.TryGetValue(attachedSessionId, out var current)
                             && ReferenceEquals(current, attached)
-                            && _sessionFilePaths.TryGetValue(attachedSessionId, out var currentPath)
-                            && string.Equals(currentPath, previousPath, StringComparison.OrdinalIgnoreCase)
-                            && UpdateAttachedWorkbookLocation(attachedSessionId, attached, workbook) is { } error)
+                            && attached.LocationRevision == previousRevision
+                            && UpdateAttachedWorkbookLocation(attachedSessionId, attached, workbook,
+                                previousRevision) is { } error)
                         {
                             pathErrors.Add(error);
                         }
@@ -1718,7 +1757,16 @@ public sealed class SessionManager : IDisposable
         var sessionLock = GetSessionLock(sessionId);
         lock (sessionLock)
         {
-            RemoveSessionTracking(sessionId, removeSessionLock: false);
+            lock (_filePathReservationLock)
+            {
+                if (batch is AttachedWorkbookBatch attached
+                    && _openWorkbookSelections.TryGetValue(attached.WorkbookId, out var selection)
+                    && ReferenceEquals(selection.Owner, attached.Owner))
+                {
+                    _openWorkbookSelections.TryRemove(attached.WorkbookId, out _);
+                }
+                RemoveSessionTracking(sessionId, removeSessionLock: false);
+            }
         }
 
         _sessionLocks.TryRemove(sessionId, out _);
@@ -1902,7 +1950,7 @@ public sealed class SessionManager : IDisposable
 
         lock (_filePathReservationLock)
         {
-            if (!_activeSessions.ContainsKey(sessionId))
+            if (!_activeSessions.TryGetValue(sessionId, out var session))
             {
                 throw new KeyNotFoundException($"Session not found: {sessionId}");
             }
@@ -1922,6 +1970,8 @@ public sealed class SessionManager : IDisposable
             }
 
             _sessionFilePathReservations[sessionId] = normalizedPath;
+            if (session is AttachedWorkbookBatch attached)
+                attached.InvalidateLocationSnapshot();
         }
 
         return normalizedPath;

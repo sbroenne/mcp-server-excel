@@ -9,11 +9,14 @@ internal sealed class AttachedWorkbookBatch(ExcelBatch owner, OpenWorkbookInfo w
     private string _path = workbook.Location ?? workbook.Name;
     private string _workbookName = workbook.Name;
     private bool _detached;
+    private long _locationRevision;
 
     internal ExcelBatch Owner => owner;
     internal string WorkbookId => workbook.WorkbookId;
     internal bool? AutoSaveOn => workbook.AutoSaveOn;
     internal string WorkbookName => _workbookName;
+    internal long LocationRevision => Interlocked.Read(ref _locationRevision);
+    internal void InvalidateLocationSnapshot() => Interlocked.Increment(ref _locationRevision);
     internal string? FilePath => WorkbookLocation.IsRemote(_path) || Path.IsPathFullyQualified(_path)
         ? _path
         : null;
@@ -42,11 +45,17 @@ internal sealed class AttachedWorkbookBatch(ExcelBatch owner, OpenWorkbookInfo w
 
     internal void UpdateDiscoveredWorkbookLocation(string? location, string name)
     {
-        _path = location is null
+        var path = location is null
             ? name
             : WorkbookLocation.IsRemote(location)
                 ? WorkbookLocation.SanitizeExistingRemoteWorkbookLocation(location)
                 : WorkbookLocation.Normalize(location);
+        if (!string.Equals(_path, path, StringComparison.Ordinal)
+            || !string.Equals(_workbookName, name, StringComparison.Ordinal))
+        {
+            InvalidateLocationSnapshot();
+        }
+        _path = path;
         _workbookName = name;
     }
 
@@ -96,8 +105,6 @@ internal sealed class AttachedWorkbookBatch(ExcelBatch owner, OpenWorkbookInfo w
     internal void Close(bool force)
     {
         ObjectDisposedException.ThrowIf(_detached, this);
-        if (!force)
-            ExcelBusyException.ThrowIfNotReady(GetRefreshState(), "close");
         owner.Execute((_, _) => owner.CloseAttachedWorkbook(workbook.WorkbookId, force));
         _detached = true;
     }

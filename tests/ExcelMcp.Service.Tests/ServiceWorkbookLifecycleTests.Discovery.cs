@@ -1,3 +1,4 @@
+using System.Runtime.ExceptionServices;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -591,6 +592,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
             string? ownerSession = null;
             string? attachedSession = null;
             string? shutdownWorkbookName = null;
+            Exception? failure = null;
             try
             {
                 ownerSession = await CreateSessionAsync(
@@ -942,6 +944,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 Assert.Equal(2, openAfterDetach);
 
                 var cleanupService = new ExcelMcpService();
+                Exception? cleanupFailure = null;
                 try
                 {
                     discovery = await cleanupService.ProcessAsync(new ServiceRequest
@@ -965,13 +968,30 @@ public sealed partial class ServiceWorkbookLifecycleTests
                     var cleanupSession = GetSessionId(cleanupAttach);
                     await CloseSessionAsync(cleanupService, cleanupSession, save: false);
                 }
+                catch (Exception ex)
+                {
+                    cleanupFailure = ex;
+                }
                 finally
                 {
-                    cleanupService.Dispose();
+                    try
+                    {
+                        cleanupService.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        cleanupFailure = PersistentServiceCleanupFailures.Combine(cleanupFailure, ex);
+                    }
                 }
+                if (cleanupFailure is not null)
+                    ExceptionDispatchInfo.Capture(cleanupFailure).Throw();
 
                 await CloseSessionAsync(owner, ownerSession, save: false);
                 ownerSession = null;
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
             }
             finally
             {
@@ -979,23 +999,34 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 {
                     service.SessionManager.Dispose();
                 }
-                finally
+                catch (Exception ex)
                 {
-                    try
+                    failure = PersistentServiceCleanupFailures.Combine(failure, ex);
+                }
+                try
+                {
+                    if (ownerSession is not null
+                        && owner.SessionManager.GetActiveSessions().Any(
+                            session => session.SessionId == ownerSession))
                     {
-                        if (ownerSession is not null
-                            && owner.SessionManager.GetActiveSessions().Any(
-                                session => session.SessionId == ownerSession))
-                        {
-                            await CloseSessionAsync(owner, ownerSession, save: false);
-                        }
-                    }
-                    finally
-                    {
-                        owner.Dispose();
+                        await CloseSessionAsync(owner, ownerSession, save: false);
                     }
                 }
+                catch (Exception ex)
+                {
+                    failure = PersistentServiceCleanupFailures.Combine(failure, ex);
+                }
+                try
+                {
+                    owner.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    failure = PersistentServiceCleanupFailures.Combine(failure, ex);
+                }
             }
+            if (failure is not null)
+                ExceptionDispatchInfo.Capture(failure).Throw();
         });
     }
 }
