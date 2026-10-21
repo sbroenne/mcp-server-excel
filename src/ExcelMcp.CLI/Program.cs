@@ -84,6 +84,11 @@ internal sealed class Program
             return await HandleVersionAsync();
         }
 
+        if (ActionHelp.TryWrite(filteredArgs))
+        {
+            return 0;
+        }
+
         // Handle "service run" — runs the CLI daemon with tray icon (no banner)
         // Optional: --pipe-name <name> to override the default CLI pipe (used by tests)
         if (filteredArgs.Length >= 2

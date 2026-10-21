@@ -89,10 +89,11 @@ public sealed class DataModelEvaluateComErrorTests(
             "DAX evaluation failed",
             exception.Message,
             StringComparison.Ordinal);
-        Assert.DoesNotContain(
-            "INVALID_FUNCTION",
-            exception.Message,
-            StringComparison.Ordinal);
+        var detailsIndex = exception.Message.IndexOf("Engine details:", StringComparison.Ordinal);
+        Assert.True(detailsIndex >= 0, exception.Message);
+        Assert.False(
+            string.IsNullOrWhiteSpace(exception.Message[(detailsIndex + "Engine details:".Length)..]),
+            exception.Message);
         var cause =
             Assert.IsType<System.Runtime.InteropServices.COMException>(
                 exception.InnerException);

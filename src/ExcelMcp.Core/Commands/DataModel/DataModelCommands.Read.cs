@@ -80,6 +80,7 @@ public partial class DataModelCommands
 
                 model = ctx.Book.Model;
                 var engineFormulas = TryReadStoredMeasureFormulas(model!);
+                var measureTables = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
                 // Iterate through all measures (they're at model level)
                 ForEachMeasure(model!, (measure, index) =>
@@ -96,6 +97,9 @@ public partial class DataModelCommands
                     {
                         ComUtilities.Release(ref associatedTable);
                     }
+
+                    if (!string.IsNullOrWhiteSpace(measureTableName))
+                        measureTables.Add(measureTableName);
 
                     // Skip if filtering by table and this measure isn't in that table
                     if (tableName != null && !measureTableName.Equals(tableName, StringComparison.OrdinalIgnoreCase))
@@ -122,7 +126,24 @@ public partial class DataModelCommands
                 // Check if table filter was specified but not found
                 if (tableName != null && result.Measures.Count == 0)
                 {
-                    throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(tableName));
+                    Excel.ModelTable? requestedTable = null;
+                    try
+                    {
+                        requestedTable = FindModelTable(model!, tableName);
+                        if (requestedTable is null)
+                            throw new InvalidOperationException(DataModelErrorMessages.TableNotFound(tableName));
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref requestedTable);
+                    }
+
+                    var otherTables = measureTables
+                        .OrderBy(name => name, StringComparer.OrdinalIgnoreCase)
+                        .ToArray();
+                    result.Message = otherTables.Length == 0
+                        ? $"Table '{tableName}' has no measures. The Data Model contains no measures."
+                        : $"Table '{tableName}' has no measures. Measures are stored on: {string.Join(", ", otherTables)}.";
                 }
 
                 result.Success = true;

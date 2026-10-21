@@ -75,7 +75,7 @@ ExcelMcp.CLI provides **423 operations** across 31 feature command categories in
 
 Drives the **actual Excel application** via COM — not a file-format parser — so live operations (Power Query refresh, recalculation, DAX evaluation, VBA execution) run for real and existing workbooks stay intact.
 
-📚 **[Feature Overview →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)** - Capabilities grouped by goal. Use `excelcli --help` and `excelcli <command> --help` for current actions and inputs.
+📚 **[Feature Overview →](https://github.com/sbroenne/mcp-server-excel/blob/main/FEATURES.md)** - Capabilities grouped by goal. Use `excelcli --help` for commands, `excelcli <command> --help` for actions, and `excelcli <command> <action> --help` for only that action's inputs.
 
 ---
 

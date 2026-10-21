@@ -121,7 +121,7 @@ public interface IRangeFormatCommands
     /// fixed RGB remains fixed. A native failure does not promise rollback.
     /// </summary>
     /// <param name="sheetName">Name of the worksheet containing the range</param>
-    /// <param name="rangeAddresses">One or more target range addresses; all are validated before writing</param>
+    /// <param name="rangeAddresses">One or more target range addresses; all are validated before writing. CLI: pass each address as a separate --range-addresses value (not JSON text), for example --range-addresses A1 --range-addresses C1. MCP: pass a JSON string array such as ["A1","C1"].</param>
     /// <param name="formatOptions">Typed JSON object: fontName, fontSize, bold, italic, underline (none/single/double/singleAccounting/doubleAccounting), strikethrough, subscript, superscript, themeFont (0 none/1 major/2 minor), fontColor/fontThemeColor/fontTintAndShade, fillColor/fillThemeColor/fillTintAndShade, borders (position, lineStyle, weight, color/themeColor/tintAndShade), horizontalAlignment, verticalAlignment, wrapText, shrinkToFit, indentLevel (0-15), readingOrder (context/leftToRight/rightToLeft), orientation, numberFormat. Theme-color indices 1-12; tints -1 to 1. Border positions Left/Top/Bottom/Right/InsideHorizontal/InsideVertical/DiagonalUp/DiagonalDown. Nested keys remain camelCase.</param>
     [ServiceAction("format")]
     OperationResult Format(

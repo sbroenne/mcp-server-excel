@@ -247,10 +247,10 @@ public interface IRangeEditCommands
     /// <param name="sheetName">Name of the worksheet containing the range</param>
     /// <param name="rangeAddress">Cell range address to search within (e.g., 'A1:D100')</param>
     /// <param name="searchValue">Text or value to search for</param>
-    /// <param name="findOptions">Search options: matchCase (default: false), matchEntireCell (default: false), searchFormulas (default: true)</param>
+    /// <param name="findOptions">Optional search options: matchCase (default: false), matchEntireCell (default: false), searchFormulas (default: true)</param>
     /// <param name="maxMatches">Maximum matching cells to return (default: 10). Positive whole number from 1 through 2147483647. All matches are still counted.</param>
     [ServiceAction("find")]
-    RangeFindResult Find(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] string searchValue, FindOptions findOptions, int maxMatches = 10);
+    RangeFindResult Find(IExcelBatch batch, string sheetName, [RequiredParameter] string rangeAddress, [RequiredParameter] string searchValue, FindOptions? findOptions = null, int maxMatches = 10);
 
     /// <summary>
     /// Replaces text/values in range.

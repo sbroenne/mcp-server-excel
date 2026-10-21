@@ -34,6 +34,24 @@ public sealed partial class PersistentServiceRangeSearchTests
         AssertReturnedAppleCells(result, 25);
     }
 
+    [Fact]
+    public void Find_OmittedOptionsUsesDefaultSearchSettings()
+    {
+        var batch = _fixture.BatchToken;
+        var sheetName = _fixture.CreateTestSheet(batch);
+        Assert.True(_commands.SetFormulas(batch, sheetName, "A1:A2",
+            [["=1+1"], ["=3"]]).Success);
+
+        var result = _commands.Find(batch, sheetName, "A1:A2", "2");
+
+        AssertFindCoverage(result, totalCount: 1, returnedCount: 1);
+        var match = Assert.Single(result.MatchingCells);
+        Assert.Equal("$A$1", match.Address);
+        Assert.Equal(1, match.Row);
+        Assert.Equal(1, match.Column);
+        Assert.Equal(2, match.Value);
+    }
+
     [Theory]
     [InlineData(0)]
     [InlineData(1)]

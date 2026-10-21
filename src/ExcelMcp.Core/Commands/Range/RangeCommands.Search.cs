@@ -14,9 +14,10 @@ public partial class RangeCommands
     // === FIND/REPLACE OPERATIONS ===
 
     /// <inheritdoc />
-    public RangeFindResult Find(IExcelBatch batch, string sheetName, string rangeAddress, string searchValue, FindOptions findOptions, int maxMatches = 10)
+    public RangeFindResult Find(IExcelBatch batch, string sheetName, string rangeAddress, string searchValue, FindOptions? findOptions = null, int maxMatches = 10)
     {
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxMatches);
+        findOptions ??= new FindOptions();
 
         var result = new RangeFindResult
         {
@@ -201,4 +202,3 @@ public partial class RangeCommands
     // === NATIVE EXCEL COM OPERATIONS ===
 
 }
-

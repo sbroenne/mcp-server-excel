@@ -80,6 +80,37 @@ public sealed class RangeFindContractCliTests
         Assert.Equal(returnedCount, root.GetProperty("matchingCells").GetArrayLength());
     }
 
+    [Fact]
+    public async Task Find_AllowsOmittingOptions()
+    {
+        ServiceRequest? captured = null;
+        var result = await InProcessCliHelper.RunAsync(
+        [
+            "rangeedit", "find", "--session", "session-1",
+            "--sheet-name", "Sheet1", "--range-address", "A1",
+            "--search-value", "Apple"
+        ], request =>
+        {
+            captured = request;
+            return new ServiceResponse
+            {
+                Success = true,
+                Result = JsonSerializer.Serialize(new RangeFindResult
+                {
+                    Success = true
+                }, ServiceProtocol.JsonOptions)
+            };
+        });
+
+        Assert.Equal(0, result.ExitCode);
+        Assert.NotNull(captured);
+        Assert.Equal("rangeedit.find", captured.Command);
+        using var args = JsonDocument.Parse(captured.Args!);
+        Assert.True(
+            !args.RootElement.TryGetProperty("findOptions", out var options) ||
+            options.ValueKind == JsonValueKind.Null);
+    }
+
     [Theory]
     [InlineData("1.5")]
     [InlineData("2147483648")]
