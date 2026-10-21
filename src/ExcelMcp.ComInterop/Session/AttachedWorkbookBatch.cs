@@ -15,8 +15,13 @@ internal sealed class AttachedWorkbookBatch(ExcelBatch owner, OpenWorkbookInfo w
     internal string WorkbookId => workbook.WorkbookId;
     internal bool? AutoSaveOn => workbook.AutoSaveOn;
     internal string WorkbookName => _workbookName;
+    internal object LocationSyncRoot { get; } = new();
     internal long LocationRevision => Interlocked.Read(ref _locationRevision);
-    internal void InvalidateLocationSnapshot() => Interlocked.Increment(ref _locationRevision);
+    internal void InvalidateLocationSnapshot()
+    {
+        lock (LocationSyncRoot)
+            Interlocked.Increment(ref _locationRevision);
+    }
     internal string? FilePath => WorkbookLocation.IsRemote(_path) || Path.IsPathFullyQualified(_path)
         ? _path
         : null;
@@ -50,13 +55,16 @@ internal sealed class AttachedWorkbookBatch(ExcelBatch owner, OpenWorkbookInfo w
             : WorkbookLocation.IsRemote(location)
                 ? WorkbookLocation.SanitizeExistingRemoteWorkbookLocation(location)
                 : WorkbookLocation.Normalize(location);
-        if (!string.Equals(_path, path, StringComparison.Ordinal)
-            || !string.Equals(_workbookName, name, StringComparison.Ordinal))
+        lock (LocationSyncRoot)
         {
-            InvalidateLocationSnapshot();
+            if (!string.Equals(_path, path, StringComparison.Ordinal)
+                || !string.Equals(_workbookName, name, StringComparison.Ordinal))
+            {
+                InvalidateLocationSnapshot();
+            }
+            _path = path;
+            _workbookName = name;
         }
-        _path = path;
-        _workbookName = name;
     }
 
     public bool IsExcelProcessAlive() => !_detached && owner.IsExcelProcessAlive();
@@ -72,8 +80,10 @@ internal sealed class AttachedWorkbookBatch(ExcelBatch owner, OpenWorkbookInfo w
         return owner.Execute((_, token) =>
         {
             var context = owner.GetAttachedWorkbookContext(workbook.WorkbookId);
-            _path = context.WorkbookPath;
-            _workbookName = context.Book.Name;
+            var name = context.Book.Name;
+            UpdateDiscoveredWorkbookLocation(
+                string.Equals(context.WorkbookPath, name, StringComparison.Ordinal) ? null : context.WorkbookPath,
+                name);
             return operation(context, token);
         }, cancellationToken);
     }

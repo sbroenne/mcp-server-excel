@@ -10,6 +10,166 @@ public sealed partial class ServiceWorkbookLifecycleTests
 {
     private static readonly string[] ReviewTraceCommands = ["powerquerytrace.list", "powerquerytrace.summarize"];
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Discovery_OrdinaryCommandAfterExcelSaveAs_PreservesNewerLocation(bool rediscover)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var ownedId = await CreateSessionAsync(service, Path.Join(directory, "context-owner.xlsx"));
+            sessions[ownedId] = 0;
+            var owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(ownedId));
+            var name = owned.Execute((context, _) => AddReviewWorkbook(context.App, "context rename edits"));
+            var attachedId = await AttachReviewWorkbookAsync(service,
+                await DiscoverReviewWorkbookAsync(service, name));
+            sessions[attachedId] = 0;
+            var attached = Assert.IsType<AttachedWorkbookBatch>(service.SessionManager.GetSession(attachedId));
+            var original = Path.Join(directory, "context-original.xlsx");
+            var target = Path.Join(directory, "context-newer.xlsx");
+            attached.Execute((context, _) => context.Book.SaveAs(original));
+            await DiscoverReviewWorkbookAsync(service, "context-original.xlsx");
+            using var scanned = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            var scans = 0;
+            service.SessionManager.AfterApplicationDiscoveryHookForTests = application =>
+            {
+                if (!ReferenceEquals(application, attached.Owner) || Interlocked.Increment(ref scans) != 1)
+                    return;
+                scanned.Set();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(30)));
+            };
+            var older = Task.Run(() => service.ProcessAsync(new ServiceRequest { Command = "session.discover" }));
+            ServiceResponse? response = null;
+            try
+            {
+                Assert.True(scanned.Wait(TimeSpan.FromSeconds(10)));
+                attached.Owner.Execute((_, _) => attached.Owner.GetAttachedWorkbook(attached.WorkbookId).SaveAs(target));
+                Assert.Equal("context rename edits", await ReadMarkerAsync(service, attachedId));
+                if (rediscover)
+                    await DiscoverReviewWorkbookAsync(service, "context-newer.xlsx");
+            }
+            finally
+            {
+                release.Set();
+                service.SessionManager.AfterApplicationDiscoveryHookForTests = null;
+                response = await older;
+            }
+            RequireSuccess(response);
+            using var result = JsonDocument.Parse(response.Result!);
+            Assert.Equal(target, attached.WorkbookPath, ignoreCase: true);
+            Assert.False(result.RootElement.GetProperty("complete").GetBoolean());
+            Assert.Contains(result.RootElement.GetProperty("errors").EnumerateArray(),
+                error => error.GetProperty("message").GetString()!.Contains(
+                    "changed during discovery", StringComparison.Ordinal));
+            await DiscoverReviewWorkbookAsync(service, "context-newer.xlsx");
+            var listed = Assert.Single(service.SessionManager.GetActiveSessions(), item => item.SessionId == attachedId);
+            Assert.Equal(target, listed.FilePath, ignoreCase: true);
+            Assert.Equal("context-newer.xlsx", listed.WorkbookName);
+            Assert.Throws<InvalidOperationException>(() => service.SessionManager.ReserveSessionFilePath(ownedId, target));
+            attached.Execute((context, _) => Assert.Equal(target, context.Book.FullName, ignoreCase: true));
+            Assert.Equal("context rename edits", await ReadMarkerAsync(service, attachedId));
+        });
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task Discovery_CleanupFailsThenProcessExits_ReleasesConnection(bool rediscover, bool retainOtherLease)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var ownedId = await CreateSessionAsync(service, Path.Join(directory, "discovery-cleanup.xlsx"));
+            sessions[ownedId] = 0;
+            var owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(ownedId));
+            var identity = Assert.IsType<ExcelProcessIdentity>(owned.ProcessIdentity);
+            var name = owned.Execute((context, _) => AddReviewWorkbook(context.App, "cleanup neighbor"));
+            var attachedId = await AttachReviewWorkbookAsync(service,
+                await DiscoverReviewWorkbookAsync(service, name));
+            sessions[attachedId] = 0;
+            var attached = Assert.IsType<AttachedWorkbookBatch>(service.SessionManager.GetSession(attachedId));
+            await CloseSessionAsync(service, ownedId, save: false);
+            sessions.TryRemove(ownedId, out _);
+            await CloseSessionAsync(service, attachedId, save: false);
+            sessions.TryRemove(attachedId, out _);
+            using var process = System.Diagnostics.Process.GetProcessById(identity.ProcessId);
+            using var otherLease = retainOtherLease ? new ExcelApplicationLease(identity) : null;
+            attached.Owner.BeforeApplicationLeaseReleaseHookForTests = () =>
+                throw new InvalidOperationException("Test-only discovery connection cleanup failure.");
+            var failure = Assert.Throws<AggregateException>(() => service.SessionManager.Dispose());
+            Assert.Contains("Test-only discovery connection cleanup failure.", failure.ToString(), StringComparison.Ordinal);
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
+            Assert.True(OwnedProcessGuard.TryConfirmExited(identity));
+            Assert.True(service.SessionManager.HasActiveConnections);
+            if (rediscover)
+            {
+                var discovery = await service.SessionManager.DiscoverOpenWorkbooksAsync();
+                Assert.DoesNotContain(discovery.Errors, error => error.ProcessId == identity.ProcessId);
+            }
+            else
+                service.SessionManager.Dispose();
+            Assert.False(service.SessionManager.HasActiveConnections);
+            Assert.Equal(!retainOtherLease, await CanOtherHostAcquireReviewLeaseAsync(identity));
+            otherLease?.Dispose();
+            Assert.True(await CanOtherHostAcquireReviewLeaseAsync(identity));
+        });
+    }
+
+    [Theory]
+    [InlineData(".xlsx", true)]
+    [InlineData(".xlsm", false)]
+    public async Task SaveCopyAs_NeverSavedAttachment_PreservesSource(string extension, bool expectedSuccess)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var ownedId = await CreateSessionAsync(service, Path.Join(directory, "copy-owner.xlsx"));
+            sessions[ownedId] = 0;
+            var owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(ownedId));
+            var name = owned.Execute((context, _) => AddReviewWorkbook(context.App, "never-saved copy"));
+            var selection = await DiscoverReviewWorkbookAsync(service, name);
+            var attachedId = await AttachReviewWorkbookAsync(service, selection);
+            sessions[attachedId] = 0;
+            var attached = Assert.IsType<AttachedWorkbookBatch>(service.SessionManager.GetSession(attachedId));
+            var targetPath = Path.Join(directory, "copy" + extension);
+            var response = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "workbook.save-copy-as",
+                SessionId = attachedId,
+                Args = JsonSerializer.Serialize(new { targetPath }, ServiceProtocol.JsonOptions)
+            });
+            Assert.Equal(expectedSuccess, response.Success);
+            if (expectedSuccess)
+            {
+                RequireSuccess(response);
+                using var result = JsonDocument.Parse(response.Result!);
+                Assert.Equal(targetPath, result.RootElement.GetProperty("filePath").GetString(), ignoreCase: true);
+                var copyId = await OpenSessionAsync(service, targetPath);
+                sessions[copyId] = 0;
+                Assert.Equal("never-saved copy", await ReadMarkerAsync(service, copyId));
+                await CloseSessionAsync(service, copyId, save: false);
+                sessions.TryRemove(copyId, out _);
+            }
+            else
+            {
+                Assert.Contains("'.xlsx'", response.ErrorMessage, StringComparison.Ordinal);
+                Assert.False(File.Exists(targetPath));
+            }
+            attached.Execute((context, _) =>
+            {
+                Assert.Equal(name, context.Book.Name);
+                Assert.Equal(name, context.Book.FullName);
+                Assert.Equal(string.Empty, context.Book.Path);
+                Assert.False(context.Book.Saved);
+            });
+            var listed = Assert.Single(service.SessionManager.GetActiveSessions(), item => item.SessionId == attachedId);
+            Assert.Null(listed.FilePath);
+            Assert.Equal(name, listed.WorkbookName);
+            Assert.Equal("never-saved copy", await ReadMarkerAsync(service, attachedId));
+        });
+    }
+
     [Fact]
     public async Task Close_AttachedWorkbookWithSlowReadiness_VerifiesStateOnExcelThread()
     {

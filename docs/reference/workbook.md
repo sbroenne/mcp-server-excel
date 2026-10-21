@@ -80,6 +80,8 @@ Discovery cannot replace a tracked location while Save As is still pending.
 An overlapping reconnect request fails with a request to discover again if
 Save As is pending or has changed the connection since that request began.
 This also applies if Save As changes the path and then changes it back.
+Ordinary commands that observe a rename in Excel also invalidate older location
+results; a later scan cannot restore the old name or release the newer path.
 Saving an owned workbook under a new name in Excel does not create a second
 session: discovery reconciles its saved location and attachment returns its
 original session.
@@ -90,6 +92,8 @@ immediately; resolving a location conflict does not release another session's
 path reservation.
 Discovery releases cached connections and selections only when the exact Excel
 process is confirmed to have exited, not merely because its window is missing.
+After connection cleanup fails, discovery or shutdown can release that connection
+once both its exact Excel process exit and its execution thread's exit are confirmed.
 
 On shutdown, ExcelMcp closes only workbooks it opened. If another workbook
 remains in that Excel process, ExcelMcp leaves the process running. ExcelMcp
@@ -104,6 +108,9 @@ it and keeps its session and operation status available until that work ends.
 A successful explicit save confirms Excel's saved state, not independent
 server-side upload completion.
 Save As, Save Copy As, export, and create continue to require Windows output paths.
+Save Copy As preserves the source format. For a never-saved workbook, Excel's
+actual workbook format determines the required output extension; copying does
+not give the source a saved path or save its pending edits.
 
 ## Metadata and document properties
 

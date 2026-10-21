@@ -425,20 +425,23 @@ public sealed class SessionManager : IDisposable
                                 && _activeSessions.TryGetValue(existingSessionId, out var existingSession)
                                 && existingSession is AttachedWorkbookBatch attached)
                             {
-                                var candidate = retirementCandidates.FirstOrDefault(
-                                    entry => entry.SessionId == existingSessionId);
-                                if (!ReferenceEquals(candidate.Session, attached)
-                                    || attached.LocationRevision != candidate.Revision
-                                    || _sessionFilePathReservations.ContainsKey(existingSessionId))
+                                lock (attached.LocationSyncRoot)
                                 {
-                                    errors.Add(new WorkbookDiscoveryError(window.Process.ProcessId,
-                                        "A workbook connection or location changed during discovery, or Save As is still pending. Discover open workbooks again."));
-                                    continue;
-                                }
-                                if (UpdateAttachedWorkbookLocation(existingSessionId, attached, workbook,
-                                    candidate.Revision) is { } error)
-                                {
-                                    errors.Add(error);
+                                    var candidate = retirementCandidates.FirstOrDefault(
+                                        entry => entry.SessionId == existingSessionId);
+                                    if (!ReferenceEquals(candidate.Session, attached)
+                                        || attached.LocationRevision != candidate.Revision
+                                        || _sessionFilePathReservations.ContainsKey(existingSessionId))
+                                    {
+                                        errors.Add(new WorkbookDiscoveryError(window.Process.ProcessId,
+                                            "A workbook connection or location changed during discovery, or Save As is still pending. Discover open workbooks again."));
+                                        continue;
+                                    }
+                                    if (UpdateAttachedWorkbookLocation(existingSessionId, attached, workbook,
+                                        candidate.Revision) is { } error)
+                                    {
+                                        errors.Add(error);
+                                    }
                                 }
                             }
                             var previousSelection = selectionCandidates.FirstOrDefault(
@@ -531,7 +534,8 @@ public sealed class SessionManager : IDisposable
 
         try
         {
-            if (!quitIfEmpty || !application.QuitOwnedApplicationIfEmpty())
+            if (!TryConfirmFailedTeardown(application)
+                && (!quitIfEmpty || !application.QuitOwnedApplicationIfEmpty()))
                 application.DetachApplication();
             if (OwnedProcessGuard.TryConfirmExited(identity))
                 UntrackExcelProcess(identity);
@@ -660,48 +664,49 @@ public sealed class SessionManager : IDisposable
     {
         var path = workbook.Location ?? workbook.Name;
         lock (_filePathReservationLock)
-        {
-            if (!_activeSessions.TryGetValue(sessionId, out var session)
-                || !ReferenceEquals(session, attached))
+            lock (attached.LocationSyncRoot)
             {
+                if (!_activeSessions.TryGetValue(sessionId, out var session)
+                    || !ReferenceEquals(session, attached))
+                {
+                    return null;
+                }
+
+                if (attached.LocationRevision != expectedRevision
+                    || _sessionFilePathReservations.ContainsKey(sessionId))
+                {
+                    return new WorkbookDiscoveryError(workbook.ProcessId,
+                        "The workbook connection changed during discovery or attachment, or Save As is still pending. Discover open workbooks again.");
+                }
+
+                var previousPath = _sessionFilePaths.TryGetValue(sessionId, out var trackedPath)
+                    ? trackedPath
+                    : attached.FilePath;
+                if (previousPath is not null
+                    && _activeFilePaths.TryGetValue(previousPath, out var previousOwner)
+                    && string.Equals(previousOwner, sessionId, StringComparison.Ordinal))
+                {
+                    _activeFilePaths.TryRemove(previousPath, out _);
+                }
+
+                attached.UpdateDiscoveredWorkbookLocation(workbook.Location, workbook.Name);
+                _sessionFilePaths[sessionId] = path;
+
+                if (workbook.Location is null)
+                    return null;
+
+                if (_activeFilePaths.TryGetValue(workbook.Location, out var currentOwner)
+                    && !string.Equals(currentOwner, sessionId, StringComparison.Ordinal))
+                {
+                    return new WorkbookDiscoveryError(
+                        workbook.ProcessId,
+                        $"Workbook '{workbook.Name}' is already reserved by session '{currentOwner}'. " +
+                        "The existing attached session remains connected by workbook identity.");
+                }
+
+                _activeFilePaths[workbook.Location] = sessionId;
                 return null;
             }
-
-            if (attached.LocationRevision != expectedRevision
-                || _sessionFilePathReservations.ContainsKey(sessionId))
-            {
-                return new WorkbookDiscoveryError(workbook.ProcessId,
-                    "The workbook connection changed during discovery or attachment, or Save As is still pending. Discover open workbooks again.");
-            }
-
-            var previousPath = _sessionFilePaths.TryGetValue(sessionId, out var trackedPath)
-                ? trackedPath
-                : attached.FilePath;
-            if (previousPath is not null
-                && _activeFilePaths.TryGetValue(previousPath, out var previousOwner)
-                && string.Equals(previousOwner, sessionId, StringComparison.Ordinal))
-            {
-                _activeFilePaths.TryRemove(previousPath, out _);
-            }
-
-            attached.UpdateDiscoveredWorkbookLocation(workbook.Location, workbook.Name);
-            _sessionFilePaths[sessionId] = path;
-
-            if (workbook.Location is null)
-                return null;
-
-            if (_activeFilePaths.TryGetValue(workbook.Location, out var currentOwner)
-                && !string.Equals(currentOwner, sessionId, StringComparison.Ordinal))
-            {
-                return new WorkbookDiscoveryError(
-                    workbook.ProcessId,
-                    $"Workbook '{workbook.Name}' is already reserved by session '{currentOwner}'. " +
-                    "The existing attached session remains connected by workbook identity.");
-            }
-
-            _activeFilePaths[workbook.Location] = sessionId;
-            return null;
-        }
     }
 
     /// <summary>Connects to a previously discovered open workbook without reopening it.</summary>
