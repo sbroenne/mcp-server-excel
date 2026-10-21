@@ -9,6 +9,205 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class ServiceWorkbookLifecycleTests
 {
     private static readonly string[] ReviewTraceCommands = ["powerquerytrace.list", "powerquerytrace.summarize"];
+    private static readonly bool[] ReviewVisibilityStates = [true, false];
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Visibility_DeferredRecoveryRevealCannotUndoSiblingHide(bool callbackOnAttachment)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var ownedId = await CreateSessionAsync(service, Path.Join(directory, "visibility-recovery.xlsx"));
+            sessions[ownedId] = 0;
+            var owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(ownedId));
+            var name = owned.Execute((context, _) => AddReviewWorkbook(context.App, "recovery visibility edits"));
+            var id = await AttachReviewWorkbookAsync(service, await DiscoverReviewWorkbookAsync(service, name));
+            sessions[id] = 0;
+            var attached = Assert.IsType<AttachedWorkbookBatch>(service.SessionManager.GetSession(id));
+            var callbackOwner = callbackOnAttachment ? attached.Owner : owned;
+            RequireSuccess(await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "window.show",
+                SessionId = ownedId
+            }));
+            using var entered = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            using var wait = new CancellationTokenSource();
+            var operation = Task.Run(() => callbackOwner.Execute((_, _) =>
+            {
+                entered.Set();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(15)));
+            }, wait.Token));
+            try
+            {
+                Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
+                wait.Cancel();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => operation);
+                Assert.True(callbackOwner.OperationStatus.ExecutionPending);
+                Assert.True(owned.IsExcelVisible);
+                Assert.True(attached.IsExcelVisible);
+                RequireSuccess(await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = "window.hide",
+                    SessionId = callbackOnAttachment ? ownedId : id
+                }));
+            }
+            finally
+            {
+                release.Set();
+                await Assert.ThrowsAnyAsync<OperationCanceledException>(() => operation);
+                Assert.True(SpinWait.SpinUntil(
+                    () => !callbackOwner.OperationStatus.ExecutionPending, TimeSpan.FromSeconds(10)));
+                Assert.True(SpinWait.SpinUntil(
+                    () => callbackOwner.GetRefreshState() == WorkbookRefreshState.Ready, TimeSpan.FromSeconds(10)));
+            }
+            var response = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+            RequireSuccess(response);
+            using var result = JsonDocument.Parse(response.Result!);
+            Assert.All(result.RootElement.GetProperty("sessions").EnumerateArray(),
+                session => Assert.False(session.GetProperty("isExcelVisible").GetBoolean()));
+            var identity = Assert.IsType<ExcelProcessIdentity>(owned.ProcessIdentity);
+            var inspection = ExcelDialogProbe.Inspect(identity, owned.Logger);
+            Assert.NotEqual(WorkbookRefreshState.Unknown, inspection.State);
+            Assert.DoesNotContain(inspection.Windows,
+                window => window.ProcessId == identity.ProcessId && window.ClassName == "XLMAIN" && window.Visible);
+            Assert.Equal("recovery visibility edits", await ReadMarkerAsync(service, id));
+            Assert.False(attached.Execute((context, _) => context.Book.Saved));
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Visibility_OlderCallbackSnapshotCannotUndoOtherConnectionsHide(bool callbackOnAttachment)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var ownedId = await CreateSessionAsync(service, Path.Join(directory, "visibility-overlap.xlsx"));
+            sessions[ownedId] = 0;
+            var owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(ownedId));
+            var name = owned.Execute((context, _) => AddReviewWorkbook(context.App, "visibility overlap edits"));
+            var id = await AttachReviewWorkbookAsync(service, await DiscoverReviewWorkbookAsync(service, name));
+            sessions[id] = 0;
+            var attached = Assert.IsType<AttachedWorkbookBatch>(service.SessionManager.GetSession(id));
+            RequireSuccess(await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "window.show",
+                SessionId = ownedId
+            }));
+            using var read = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            var callbackOwner = callbackOnAttachment ? attached.Owner : owned;
+            callbackOwner.BeforeVisibilitySnapshotPublicationHookForTests = () =>
+            {
+                read.Set();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(15)));
+            };
+            var operation = Task.Run(() => callbackOwner.Execute((_, _) => 0));
+            try
+            {
+                Assert.True(read.Wait(TimeSpan.FromSeconds(10)));
+                RequireSuccess(await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = "window.hide",
+                    SessionId = callbackOnAttachment ? ownedId : id
+                }));
+            }
+            finally
+            {
+                release.Set();
+                await operation;
+                callbackOwner.BeforeVisibilitySnapshotPublicationHookForTests = null;
+            }
+            var response = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+            RequireSuccess(response);
+            using var result = JsonDocument.Parse(response.Result!);
+            Assert.All(result.RootElement.GetProperty("sessions").EnumerateArray(),
+                session => Assert.False(session.GetProperty("isExcelVisible").GetBoolean()));
+            Assert.False(owned.IsExcelVisible);
+            Assert.False(attached.IsExcelVisible);
+            var identity = Assert.IsType<ExcelProcessIdentity>(owned.ProcessIdentity);
+            var inspection = ExcelDialogProbe.Inspect(identity, owned.Logger);
+            Assert.NotEqual(WorkbookRefreshState.Unknown, inspection.State);
+            Assert.DoesNotContain(inspection.Windows,
+                window => window.ProcessId == identity.ProcessId && window.ClassName == "XLMAIN" && window.Visible);
+            Assert.Equal("visibility overlap edits", await ReadMarkerAsync(service, id));
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Visibility_SharedOwnedAndAttachedConnections_ReportConfirmedWindowState(bool throughAttachment)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var ownedId = await CreateSessionAsync(service, Path.Join(directory, "visibility-owner.xlsx"));
+            sessions[ownedId] = 0;
+            await WriteMarkerAsync(service, ownedId, "owned visibility edits");
+            var owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(ownedId));
+            var name = owned.Execute((context, _) => AddReviewWorkbook(context.App, "attached visibility edits"));
+            var attachedId = await AttachReviewWorkbookAsync(service,
+                await DiscoverReviewWorkbookAsync(service, name));
+            sessions[attachedId] = 0;
+            var attached = Assert.IsType<AttachedWorkbookBatch>(service.SessionManager.GetSession(attachedId));
+            var unrelatedId = await CreateSessionAsync(service, Path.Join(directory, "visibility-unrelated.xlsx"));
+            sessions[unrelatedId] = 0;
+            var identity = Assert.IsType<ExcelProcessIdentity>(owned.ProcessIdentity);
+            Assert.Equal(identity, attached.Owner.ProcessIdentity);
+            Assert.False(owned.IsExcelVisible);
+            Assert.False(attached.IsExcelVisible);
+            foreach (var visible in ReviewVisibilityStates)
+            {
+                RequireSuccess(await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = visible ? "window.show" : "window.hide",
+                    SessionId = throughAttachment ? attachedId : ownedId
+                }));
+                using var entered = new ManualResetEventSlim();
+                using var release = new ManualResetEventSlim();
+                var pending = Task.Run(() => attached.Execute((_, _) =>
+                {
+                    entered.Set();
+                    Assert.True(release.Wait(TimeSpan.FromSeconds(15)));
+                }));
+                try
+                {
+                    Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
+                    var timer = System.Diagnostics.Stopwatch.StartNew();
+                    var response = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+                    Assert.True(timer.Elapsed < TimeSpan.FromSeconds(5),
+                        "Visibility reporting must not wait for a running Excel callback.");
+                    RequireSuccess(response);
+                    using var result = JsonDocument.Parse(response.Result!);
+                    var listed = result.RootElement.GetProperty("sessions").EnumerateArray().ToArray();
+                    foreach (var id in new[] { ownedId, attachedId })
+                        Assert.Equal(visible, Assert.Single(listed,
+                            item => item.GetProperty("sessionId").GetString() == id)
+                            .GetProperty("isExcelVisible").GetBoolean());
+                    Assert.False(Assert.Single(listed,
+                        item => item.GetProperty("sessionId").GetString() == unrelatedId)
+                        .GetProperty("isExcelVisible").GetBoolean());
+                    var inspection = ExcelDialogProbe.Inspect(identity, owned.Logger);
+                    Assert.NotEqual(WorkbookRefreshState.Unknown, inspection.State);
+                    var windows = inspection.Windows.Where(window =>
+                        window.ProcessId == identity.ProcessId && window.ClassName == "XLMAIN").ToArray();
+                    Assert.NotEmpty(windows);
+                    Assert.Equal(visible, windows.Any(window => window.Visible));
+                }
+                finally
+                {
+                    release.Set();
+                    await pending;
+                }
+            }
+            Assert.Equal("owned visibility edits", await ReadMarkerAsync(service, ownedId));
+            Assert.Equal("attached visibility edits", await ReadMarkerAsync(service, attachedId));
+            Assert.False(owned.Execute((context, _) => context.Book.Saved));
+            Assert.False(attached.Execute((context, _) => context.Book.Saved));
+        });
+    }
 
     [Theory]
     [InlineData(false)]

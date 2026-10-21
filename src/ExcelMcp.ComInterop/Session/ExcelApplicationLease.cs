@@ -24,6 +24,19 @@ internal sealed class ExcelApplicationLease : IDisposable
     }
 
     internal IDisposable EnterExecution() => new ExecutionScope(_shared.SyncRoot);
+    internal bool IsExcelVisible => _shared.IsExcelVisible;
+    internal long VisibilityRevision => Interlocked.Read(ref _shared.VisibilityRevision);
+    internal void UpdateVisibility(bool visible, long? expectedRevision = null)
+    {
+        lock (_shared.WindowControlLock)
+        {
+            if (expectedRevision is not null && VisibilityRevision != expectedRevision)
+                return;
+            _shared.IsExcelVisible = visible;
+            Interlocked.Increment(ref _shared.VisibilityRevision);
+        }
+    }
+    internal Lock WindowControlLock => _shared.WindowControlLock;
 
     public void Dispose()
     {
@@ -66,6 +79,9 @@ internal sealed class ExcelApplicationLease : IDisposable
         private readonly Thread _thread;
 
         internal object SyncRoot { get; } = new();
+        internal Lock WindowControlLock { get; } = new();
+        internal volatile bool IsExcelVisible;
+        internal long VisibilityRevision;
         internal int Connections { get; set; }
 
         internal SharedLease(ExcelProcessIdentity identity)

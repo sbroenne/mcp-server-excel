@@ -53,6 +53,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     private volatile bool _isExcelVisible;
     private volatile bool _operationTimedOut;
     private volatile bool _revealRequested;
+    private long? _revealRequestRevision;
     private string? _windowReveal;
     private Task _startupCompletion = Task.CompletedTask;
     private readonly TaskCompletionSource _teardownCompletion = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -93,6 +94,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
     internal static Action? WorkItemQueuedHookForTests { get; set; }
     internal Action? BeforeRefreshStateReadHookForTests { get; set; }
+    internal Action? BeforeVisibilitySnapshotPublicationHookForTests { get; set; }
     internal Action? BeforeStaCleanupHookForTests { get; set; }
     internal Action<object>? BeforeEmptyApplicationDetachHookForTests { get; set; }
 
@@ -580,7 +582,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                         _logger.LogWarning(
                             "Initial workbook discovery for attached Excel process {ProcessId} was incomplete: {Errors}",
                             _excelProcessId, string.Join("; ", discovery.Errors.Select(error => error.Message)));
-                    _isExcelVisible = (bool)startupExcel.Visible;
+                    UpdateConfirmedVisibility((bool)startupExcel.Visible);
                     FinishOperation(null);
                     started.SetResult();
                 }
@@ -800,7 +802,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     // All workbooks opened successfully — safe to apply user's visibility preference.
                     // Enterprise auth/sign-in dialogs (if any) have already been dismissed.
                     tempExcel.Visible = _showExcel || _revealRequested;
-                    _isExcelVisible = (bool)tempExcel.Visible;
+                    UpdateConfirmedVisibility((bool)tempExcel.Visible);
 
                     _excel = tempExcel;
                     _workbook = primaryWorkbook;
@@ -1204,7 +1206,14 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
     public TimeSpan OperationTimeout => _operationTimeout;
 
-    public bool IsExcelVisible => _isExcelVisible;
+    public bool IsExcelVisible => _applicationLease?.IsExcelVisible ?? _isExcelVisible;
+
+    private void UpdateConfirmedVisibility(bool visible, long? expectedRevision = null)
+    {
+        _isExcelVisible = visible;
+        if (_applicationLease is { } lease)
+            lease.UpdateVisibility(visible, expectedRevision);
+    }
 
     public bool HasTimedOutOperation => _operationTimedOut;
 
@@ -1232,7 +1241,6 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
     internal void RevealForRecovery(bool waitExpired = false)
     {
-        _revealRequested = true;
         if (_excelProcessIdentity is { } identity)
             SessionManager.PreserveExcelProcess(identity);
         lock (_statusLock)
@@ -1244,11 +1252,17 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     _operationTimedOut = true;
             }
         }
-        var outcome = ExcelDialogProbe.Reveal(_excelProcessIdentity, _logger);
+        string outcome;
+        lock (_applicationLease?.WindowControlLock ?? _windowControlLock)
+        {
+            outcome = ExcelDialogProbe.Reveal(_excelProcessIdentity, _logger);
+            if (outcome is "shown" or "alreadyVisible")
+                UpdateConfirmedVisibility(true);
+            _revealRequestRevision = _applicationLease?.VisibilityRevision;
+            _revealRequested = true;
+        }
         lock (_statusLock)
             _windowReveal = outcome;
-        if (outcome is "shown" or "alreadyVisible")
-            _isExcelVisible = true;
     }
 
     internal void SetOperationContext(string command, CancellationToken callerCancellation) =>
@@ -1522,12 +1536,12 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     public ExcelVisibilityResult SetVisibility(bool visible)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
-        lock (_windowControlLock)
+        lock (_applicationLease?.WindowControlLock ?? _windowControlLock)
         {
             var identity = _excelProcessIdentity
                 ?? throw new InvalidOperationException("Excel process identity is unavailable.");
             var result = ExcelWindowVisibility.Set(identity, visible, _logger);
-            _isExcelVisible = result.IsVisible;
+            UpdateConfirmedVisibility(result.IsVisible);
             _revealRequested = false;
             DialogVisibilityError = null;
             return result;
@@ -1539,7 +1553,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     private WorkbookRefreshState ReadDialogState()
     {
         var inspection = ExcelDialogProbe.Inspect(_excelProcessIdentity, _logger);
-        lock (_windowControlLock)
+        lock (_applicationLease?.WindowControlLock ?? _windowControlLock)
         {
             if (inspection.State == WorkbookRefreshState.Ready)
             {
@@ -1569,42 +1583,52 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         Justification = "Restoring an explicit hide after a deferred recovery reveal is cosmetic; failures are logged with cause and the following Visible read reports the window as shown, so the operation result is never misrepresented.")]
     private void UpdateVisibilitySnapshot(Exception? operationFailure)
     {
+        var revision = _applicationLease?.VisibilityRevision;
         try
         {
+            if (_revealRequested && _revealRequestRevision != revision)
+                _revealRequested = false;
             if (_revealRequested && _excel != null)
             {
                 _excel.Visible = true;
                 // An explicit show/hide clears _revealRequested under the window lock. If one ran
                 // while this deferred reveal was applied, restore that choice instead of undoing it.
                 // The COM call stays outside the lock so native show/hide never waits on Excel.
-                lock (_windowControlLock)
+                lock (_applicationLease?.WindowControlLock ?? _windowControlLock)
                 {
-                    if (_revealRequested)
+                    if (_revealRequested && _applicationLease?.VisibilityRevision == revision)
                         _revealRequested = false;
-                    else if (!_isExcelVisible && _excelProcessIdentity is { } identity)
+                    else
                     {
-                        try
+                        _revealRequested = false;
+                        if (!IsExcelVisible && _excelProcessIdentity is { } identity)
                         {
-                            _ = ExcelWindowVisibility.Set(identity, visible: false, _logger);
-                        }
-                        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or ArgumentException)
-                        {
-                            // The operation's own result must stand; the visibility read below reports
-                            // the window as still shown so the caller can hide it again.
-                            _logger.LogWarning(ex, "Restoring the requested hidden Excel window failed");
+                            try
+                            {
+                                _ = ExcelWindowVisibility.Set(identity, visible: false, _logger);
+                            }
+                            catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException or ArgumentException)
+                            {
+                                // The operation's own result must stand; the visibility read below reports
+                                // the window as still shown so the caller can hide it again.
+                                _logger.LogWarning(ex, "Restoring the requested hidden Excel window failed");
+                            }
                         }
                     }
+                    revision = _applicationLease?.VisibilityRevision;
                 }
             }
-            _isExcelVisible = _excel != null && (bool)_excel.Visible;
+            var visible = _excel != null && (bool)_excel.Visible;
+            BeforeVisibilitySnapshotPublicationHookForTests?.Invoke();
+            UpdateConfirmedVisibility(visible, revision);
         }
         catch (COMException ex) when (ex.HResult == ResiliencePipelines.RPC_E_DISCONNECTED)
         {
-            _isExcelVisible = false;
+            UpdateConfirmedVisibility(false, revision);
         }
         catch (InvalidComObjectException)
         {
-            _isExcelVisible = false;
+            UpdateConfirmedVisibility(false, revision);
         }
         catch (Exception snapshotFailure) when (operationFailure is not null)
         {

@@ -69,6 +69,11 @@ one returns that existing session. Other workbooks in the same process can be
 attached separately. Commands sharing an Excel process run one at a time,
 including restoration of temporary Excel settings. Workbooks in separate
 processes can still be used concurrently.
+Showing or hiding an Excel process through one session updates the confirmed
+visibility reported for all its local connections, including owned and attached
+sessions. Listing that state does not wait for a running Excel command.
+Older callback observations and deferred timeout reveals cannot undo a newer
+show or hide requested through another connection to that process.
 Workbook IDs identify an open Excel workbook instance; a
 closed and reopened workbook receives a new ID, and a complete discovery retires
 any stale attached session for the closed instance.
