@@ -192,7 +192,8 @@ public static class ExcelShutdownService
         bool save,
         string? filePath = null,
         ILogger? logger = null,
-        bool releaseWorkbook = true)
+        bool releaseWorkbook = true,
+        bool? originalDisplayAlerts = null)
     {
         logger ??= NullLogger.Instance;
         string fileName = string.IsNullOrEmpty(filePath) ? "unknown" : Path.GetFileName(filePath);
@@ -233,23 +234,14 @@ public static class ExcelShutdownService
             // Step 4: Quit Excel application with resilient retry + overall timeout
             if (excel != null)
             {
-                Excel.Workbooks? openWorkbooks = null;
-                int remainingWorkbooks;
-                try
-                {
-                    openWorkbooks = excel.Workbooks;
-                    remainingWorkbooks = openWorkbooks.Count;
-                }
-                finally
-                {
-                    ComUtilities.Release(ref openWorkbooks);
-                }
-
+                var remainingWorkbooks = GetOpenWorkbookCount(excel);
                 if (remainingWorkbooks > 0)
                 {
                     logger.LogInformation(
                         "Leaving Excel open with {WorkbookCount} workbook(s) after closing {FileName}",
                         remainingWorkbooks, fileName);
+                    if (originalDisplayAlerts is { } displayAlerts)
+                        excel.DisplayAlerts = displayAlerts;
                     ComUtilities.Release(ref excel);
                     return false;
                 }
@@ -265,15 +257,26 @@ public static class ExcelShutdownService
                     logger.LogDebug("Attempting to quit Excel for {FileName} with resilient retry ({Timeout} timeout)", fileName, ComInteropConstants.ExcelQuitTimeout);
 
                     // Inner retry pipeline handles transient COM busy errors within the timeout
-                    _quitPipeline.Execute(cancellationToken =>
+                    quitConfirmed = _quitPipeline.Execute(cancellationToken =>
                     {
                         attemptNumber++;
                         try
                         {
                             logger.LogDebug("Quit attempt {Attempt} for {FileName}", attemptNumber, fileName);
                             BeforeQuitHookForTests?.Invoke();
+                            var workbookCount = GetOpenWorkbookCount(excel);
+                            if (workbookCount > 0)
+                            {
+                                logger.LogInformation(
+                                    "Leaving Excel open with {WorkbookCount} workbook(s) before Quit attempt {Attempt} for {FileName}",
+                                    workbookCount, attemptNumber, fileName);
+                                if (originalDisplayAlerts is { } displayAlerts)
+                                    excel.DisplayAlerts = displayAlerts;
+                                return false;
+                            }
                             excel.Quit();
                             logger.LogDebug("Quit attempt {Attempt} succeeded for {FileName}", attemptNumber, fileName);
+                            return true;
                         }
                         catch (COMException ex)
                         {
@@ -284,13 +287,14 @@ public static class ExcelShutdownService
                         }
                     }, quitTimeout.Token);
 
-                    // INSTRUMENTATION: Track successful quit path
-                    logger.LogInformation(
-                        "[DIAG-QUIT-SUCCESS] Excel quit succeeded for {FileName} after {Attempts} attempt(s) in {Elapsed}ms",
-                        fileName, attemptNumber, stopwatch.ElapsedMilliseconds);
-                    quitConfirmed = true;
-                    SessionDiagnostics.WriteStdErr(
-                        $"[DIAG-QUIT-SUCCESS] Excel quit succeeded for {fileName} after {attemptNumber} attempt(s) in {stopwatch.ElapsedMilliseconds}ms");
+                    if (quitConfirmed)
+                    {
+                        logger.LogInformation(
+                            "[DIAG-QUIT-SUCCESS] Excel quit succeeded for {FileName} after {Attempts} attempt(s) in {Elapsed}ms",
+                            fileName, attemptNumber, stopwatch.ElapsedMilliseconds);
+                        SessionDiagnostics.WriteStdErr(
+                            $"[DIAG-QUIT-SUCCESS] Excel quit succeeded for {fileName} after {attemptNumber} attempt(s) in {stopwatch.ElapsedMilliseconds}ms");
+                    }
                 }
                 catch (OperationCanceledException ex) when (quitTimeout.Token.IsCancellationRequested)
                 {
@@ -368,6 +372,20 @@ public static class ExcelShutdownService
         {
             logger.LogDebug("Excel shutdown sequence completed for {FileName} in {Elapsed}ms",
                 fileName, stopwatch.ElapsedMilliseconds);
+        }
+    }
+
+    private static int GetOpenWorkbookCount(Excel.Application excel)
+    {
+        Excel.Workbooks? workbooks = null;
+        try
+        {
+            workbooks = excel.Workbooks;
+            return workbooks.Count;
+        }
+        finally
+        {
+            ComUtilities.Release(ref workbooks);
         }
     }
 

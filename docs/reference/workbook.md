@@ -72,17 +72,27 @@ processes can still be used concurrently.
 Workbook IDs identify an open Excel workbook instance; a
 closed and reopened workbook receives a new ID, and a complete discovery retires
 any stale attached session for the closed instance.
+A scan can retire only connections that existed before it began; it cannot
+remove a workbook connected by a newer scan or undo a newer Save As location.
+If a connection or tracked location changes during a scan, its results can be
+incomplete with a request to discover again.
 Saving an owned workbook under a new name in Excel does not create a second
 session: discovery reconciles its saved location and attachment returns its
 original session.
 Reattaching an already-connected workbook also updates its tracked name and
 location after Excel Save As, without requiring another discovery first.
+Save As through ExcelMcp updates the attached workbook's listed name and path
+immediately; resolving a location conflict does not release another session's
+path reservation.
 Discovery releases cached connections and selections only when the exact Excel
 process is confirmed to have exited, not merely because its window is missing.
 
 On shutdown, ExcelMcp closes only workbooks it opened. If another workbook
 remains in that Excel process, ExcelMcp leaves the process running. ExcelMcp
-does not automatically terminate Excel when its host exits unexpectedly, so
+checks for remaining workbooks before every attempt to quit, including retries,
+and restores the alert setting it changed when leaving its Excel process open.
+Disconnecting from user-started Excel does not change that application's alert
+setting. ExcelMcp does not automatically terminate Excel when its host exits unexpectedly, so
 Excel can preserve user workbook state.
 If an attached workbook still has work running, shutdown refuses to disconnect
 it and keeps its session and operation status available until that work ends.

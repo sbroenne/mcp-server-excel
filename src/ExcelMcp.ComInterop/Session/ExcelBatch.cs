@@ -60,6 +60,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     private bool _ownedProcessLeftOpen;
     private bool _quitEmptyOwnedApplication;
     private bool _leaveOwnedApplicationOpen;
+    private bool? _originalDisplayAlerts;
+    internal Action? BeforeApplicationLeaseReleaseHookForTests { get; set; }
     private readonly List<string> _closedWorkbookPathsDuringShutdown = [];
     private readonly AsyncLocal<(string? Command, CancellationToken CallerCancellation)> _commandContext = new();
     private string? _operationCommand;
@@ -608,6 +610,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     // dialogs are interactable. Hide after all workbooks open successfully.
                     // This also covers IRM-protected files which already needed Visible=true.
                     tempExcel.Visible = true;
+                    _originalDisplayAlerts = tempExcel.DisplayAlerts;
                     tempExcel.DisplayAlerts = false;
 
                     // Readiness probes and teardown require both PID and start time.
@@ -953,12 +956,14 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                             }
                             cleanupWorkbooks.Clear();
                             quitConfirmed = ExcelShutdownService.CloseAndQuitAndReport(
-                                cleanupWorkbook, cleanupExcel, false, _workbookPath, _logger);
+                                cleanupWorkbook, cleanupExcel, false, _workbookPath, _logger,
+                                originalDisplayAlerts: _originalDisplayAlerts);
                         }
                         else
                         {
                             quitConfirmed = ExcelShutdownService.CloseAndQuitAndReport(
-                                cleanupWorkbook, cleanupExcel, false, _workbookPath, _logger);
+                                cleanupWorkbook, cleanupExcel, false, _workbookPath, _logger,
+                                originalDisplayAlerts: _originalDisplayAlerts);
                         }
                         _ownedProcessLeftOpen = cleanupExcel is not null && !quitConfirmed;
                     }
@@ -981,6 +986,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                         }
                         else
                         {
+                            if (cleanupExcel is not null && _originalDisplayAlerts is { } displayAlerts)
+                                cleanupExcel.DisplayAlerts = displayAlerts;
                             ComUtilities.Release(ref cleanupExcel);
                         }
                     }
@@ -997,6 +1004,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     startupPrimaryWorkbook = null;
                     startupExcel = null;
                     Marshal.CleanupUnusedObjectsInCurrentContext();
+                    BeforeApplicationLeaseReleaseHookForTests?.Invoke();
                     _applicationLease?.Dispose();
                     _applicationLease = null;
                     _teardownCompletion.TrySetResult();
@@ -2036,14 +2044,20 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
     bool IExcelBatchTeardownState.TryConfirmOwnedProcessTeardown()
     {
-        if (_excelProcessIdentity is not { } identity
-            || !OwnedProcessGuard.TryConfirmExited(identity))
+        lock (_disposeLock)
         {
-            return false;
-        }
+            if (_staThread.IsAlive
+                || _excelProcessIdentity is not { } identity
+                || !OwnedProcessGuard.TryConfirmExited(identity))
+            {
+                return false;
+            }
 
-        SessionManager.UntrackExcelProcess(identity);
-        return true;
+            _applicationLease?.Dispose();
+            _applicationLease = null;
+            SessionManager.UntrackExcelProcess(identity);
+            return true;
+        }
     }
 
 }

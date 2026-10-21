@@ -38,9 +38,7 @@ internal sealed class AttachedWorkbookBatch(ExcelBatch owner, OpenWorkbookInfo w
             : throw new KeyNotFoundException("The requested workbook is not the selected attached workbook.");
 
     public void UpdateWorkbookPath(string workbookPath) =>
-        _path = WorkbookLocation.IsRemote(workbookPath)
-            ? WorkbookLocation.SanitizeExistingRemoteWorkbookLocation(workbookPath)
-            : WorkbookLocation.Normalize(workbookPath);
+        UpdateDiscoveredWorkbookLocation(workbookPath, Path.GetFileName(workbookPath));
 
     internal void UpdateDiscoveredWorkbookLocation(string? location, string name)
     {
