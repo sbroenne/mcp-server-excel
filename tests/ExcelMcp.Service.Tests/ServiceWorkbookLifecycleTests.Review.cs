@@ -14,6 +14,82 @@ public sealed partial class ServiceWorkbookLifecycleTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task Visibility_DiscoveryStartupCannotUndoNewerOwnedRequest(bool visible)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var ownedId = await CreateSessionAsync(service, Path.Join(directory, "visibility-startup.xlsx"));
+            sessions[ownedId] = 0;
+            var owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(ownedId));
+            var name = owned.Execute((context, _) => AddReviewWorkbook(context.App, "startup visibility edits"));
+            RequireSuccess(await service.ProcessAsync(new ServiceRequest
+            {
+                Command = visible ? "window.hide" : "window.show",
+                SessionId = ownedId
+            }));
+            using var read = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            bool? startupVisibility = null;
+            ExcelBatch.BeforeStartupVisibilityPublicationHookForTests = batch =>
+            {
+                if (batch.ProcessIdentity != owned.ProcessIdentity)
+                    return;
+                batch.BeforeVisibilitySnapshotPublicationHookForTests = () =>
+                {
+                    startupVisibility = batch.IsExcelVisible;
+                    batch.BeforeVisibilitySnapshotPublicationHookForTests = null;
+                };
+                read.Set();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(15)));
+            };
+            var discovery = Task.Run(() => DiscoverReviewWorkbookAsync(service, name));
+            JsonElement workbook;
+            try
+            {
+                Assert.True(read.Wait(TimeSpan.FromSeconds(10)));
+                RequireSuccess(await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = visible ? "window.show" : "window.hide",
+                    SessionId = ownedId
+                }));
+            }
+            finally
+            {
+                release.Set();
+                try
+                {
+                    workbook = await discovery;
+                }
+                finally
+                {
+                    ExcelBatch.BeforeStartupVisibilityPublicationHookForTests = null;
+                }
+            }
+            var attachedId = await AttachReviewWorkbookAsync(service, workbook);
+            sessions[attachedId] = 0;
+            Assert.Equal(visible, startupVisibility);
+            Assert.Equal(visible, owned.IsExcelVisible);
+            var response = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+            RequireSuccess(response);
+            using var result = JsonDocument.Parse(response.Result!);
+            Assert.All(result.RootElement.GetProperty("sessions").EnumerateArray(),
+                session => Assert.Equal(visible, session.GetProperty("isExcelVisible").GetBoolean()));
+            var identity = Assert.IsType<ExcelProcessIdentity>(owned.ProcessIdentity);
+            var inspection = ExcelDialogProbe.Inspect(identity, owned.Logger);
+            Assert.NotEqual(WorkbookRefreshState.Unknown, inspection.State);
+            var windows = inspection.Windows.Where(window =>
+                window.ProcessId == identity.ProcessId && window.ClassName == "XLMAIN").ToArray();
+            Assert.NotEmpty(windows);
+            Assert.Equal(visible, windows.Any(window => window.Visible));
+            Assert.Equal("startup visibility edits", await ReadMarkerAsync(service, attachedId));
+            var attached = Assert.IsType<AttachedWorkbookBatch>(service.SessionManager.GetSession(attachedId));
+            Assert.False(attached.Execute((context, _) => context.Book.Saved));
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task Visibility_DeferredRecoveryRevealCannotUndoSiblingHide(bool callbackOnAttachment)
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>

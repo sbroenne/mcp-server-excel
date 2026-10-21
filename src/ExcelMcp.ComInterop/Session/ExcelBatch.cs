@@ -95,6 +95,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     internal static Action? WorkItemQueuedHookForTests { get; set; }
     internal Action? BeforeRefreshStateReadHookForTests { get; set; }
     internal Action? BeforeVisibilitySnapshotPublicationHookForTests { get; set; }
+    internal static Action<ExcelBatch>? BeforeStartupVisibilityPublicationHookForTests { get; set; }
     internal Action? BeforeStaCleanupHookForTests { get; set; }
     internal Action<object>? BeforeEmptyApplicationDetachHookForTests { get; set; }
 
@@ -582,7 +583,10 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                         _logger.LogWarning(
                             "Initial workbook discovery for attached Excel process {ProcessId} was incomplete: {Errors}",
                             _excelProcessId, string.Join("; ", discovery.Errors.Select(error => error.Message)));
-                    UpdateConfirmedVisibility((bool)startupExcel.Visible);
+                    var visibilityRevision = _applicationLease.VisibilityRevision;
+                    var visible = (bool)startupExcel.Visible;
+                    BeforeStartupVisibilityPublicationHookForTests?.Invoke(this);
+                    UpdateConfirmedVisibility(visible, visibilityRevision);
                     FinishOperation(null);
                     started.SetResult();
                 }
@@ -802,7 +806,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     // All workbooks opened successfully — safe to apply user's visibility preference.
                     // Enterprise auth/sign-in dialogs (if any) have already been dismissed.
                     tempExcel.Visible = _showExcel || _revealRequested;
-                    UpdateConfirmedVisibility((bool)tempExcel.Visible);
+                    var visibilityRevision = _applicationLease.VisibilityRevision;
+                    UpdateConfirmedVisibility((bool)tempExcel.Visible, visibilityRevision);
 
                     _excel = tempExcel;
                     _workbook = primaryWorkbook;
