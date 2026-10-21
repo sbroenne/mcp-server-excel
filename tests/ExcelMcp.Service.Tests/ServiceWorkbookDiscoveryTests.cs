@@ -23,9 +23,18 @@ public sealed class ServiceWorkbookDiscoveryTests
         var leaseReady = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var leaseTask = Task.Run(() =>
         {
-            using var lease = new ExcelApplicationLease(identity);
+            using var lease = new Mutex(false,
+                $@"Local\ExcelMcp.Application.{identity.ProcessId}.{identity.StartedAtUtcFileTime}");
+            Assert.True(lease.WaitOne(TimeSpan.Zero));
             leaseReady.SetResult();
-            Assert.True(releaseLease.Wait(TimeSpan.FromSeconds(30)));
+            try
+            {
+                Assert.True(releaseLease.Wait(TimeSpan.FromSeconds(30)));
+            }
+            finally
+            {
+                lease.ReleaseMutex();
+            }
         });
         RunningExcelWindows.FindHookForTests = () => new RunningExcelWindows.Discovery(
             [new RunningExcelWindows.ApplicationWindow(nint.Zero, identity)], []);

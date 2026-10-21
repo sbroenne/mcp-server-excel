@@ -1087,16 +1087,8 @@ public sealed class ExcelMcpService : IDisposable
 
     private (int ProcessId, DateTime StartedUtc)? ResolveSessionProcess(string sessionId)
     {
-        var batch = _sessionManager.GetSession(sessionId);
-        if (batch?.ExcelProcessId is not int processId)
-        {
-            return null;
-        }
-
-        var identity = SessionManager.GetTrackedExcelProcesses()
-            .SingleOrDefault(process => process.ProcessId == processId);
-        return identity.ProcessId == processId
-            ? (processId, DateTime.FromFileTimeUtc(identity.StartedAtUtcFileTime))
+        return _sessionManager.GetSessionProcessIdentity(sessionId) is { } identity
+            ? (identity.ProcessId, DateTime.FromFileTimeUtc(identity.StartedAtUtcFileTime))
             : null;
     }
 

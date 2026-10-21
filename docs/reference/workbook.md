@@ -66,9 +66,15 @@ are allowed when opening a workbook through ExcelMcp.
 Discovery also lists workbooks in Excel processes already used by this host.
 `sessionId` is included for workbooks already connected to a session; attaching
 one returns that existing session. Other workbooks in the same process can be
-attached separately. Workbook IDs identify an open Excel workbook instance; a
+attached separately. Commands sharing an Excel process run one at a time,
+including restoration of temporary Excel settings. Workbooks in separate
+processes can still be used concurrently.
+Workbook IDs identify an open Excel workbook instance; a
 closed and reopened workbook receives a new ID, and a complete discovery retires
 any stale attached session for the closed instance.
+Saving an owned workbook under a new name in Excel does not create a second
+session: discovery reconciles its saved location and attachment returns its
+original session.
 
 On shutdown, ExcelMcp closes only workbooks it opened. If another workbook
 remains in that Excel process, ExcelMcp leaves the process running. ExcelMcp

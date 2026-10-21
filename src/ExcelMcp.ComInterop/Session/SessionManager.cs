@@ -16,7 +16,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// <para><b>Concurrency Model:</b></para>
 /// <list type="bullet">
 /// <item><b>Within-session operations are SERIAL:</b> Each session queues operations on one STA thread</item>
-/// <item><b>Between-session operations CAN be parallel:</b> Excel serializes calls from sessions sharing one process</item>
+/// <item><b>Between-process operations CAN be parallel:</b> Sessions sharing an Excel process serialize complete callbacks</item>
 /// <item><b>Same-file prevention:</b> Cannot open the same file in multiple sessions (matches Excel UI behavior)</item>
 /// </list>
 /// <para><b>Resource Limits:</b></para>
@@ -276,6 +276,7 @@ public sealed class SessionManager : IDisposable
     private readonly object _filePathReservationLock = new();
     private readonly ILogger<SessionManager> _logger;
     private volatile bool _disposed;
+    internal Action? BeforeStaleOwnedSessionLockHookForTests { get; set; }
 
     private object GetSessionLock(string sessionId) =>
         _sessionLocks.GetOrAdd(sessionId, static _ => new object());
@@ -489,23 +490,61 @@ public sealed class SessionManager : IDisposable
         if (attachedSession is not null)
             return attachedSession;
 
+        foreach (var (ownedSessionId, candidate) in _activeSessions.ToArray())
+        {
+            if (candidate is not ExcelBatch owned || owned.ExcelProcessId != workbook.ProcessId)
+                continue;
+
+            lock (GetSessionLock(ownedSessionId))
+            {
+                if (!_activeSessions.TryGetValue(ownedSessionId, out var current)
+                    || !ReferenceEquals(current, owned))
+                    continue;
+                var previousPath = owned.FindOwnedWorkbookPath(workbook);
+                if (previousPath is null)
+                    continue;
+
+                if (workbook.Location is { } currentPath
+                    && (!string.Equals(previousPath, currentPath, StringComparison.OrdinalIgnoreCase)
+                        || !_sessionFilePaths.TryGetValue(ownedSessionId, out var trackedPath)
+                        || !string.Equals(trackedPath, currentPath, StringComparison.OrdinalIgnoreCase)))
+                {
+                    var reserved = ReserveSessionFilePath(ownedSessionId, currentPath);
+                    try
+                    {
+                        ExcelBatchWait.Execute(owned, TimeSpan.FromSeconds(2),
+                            (_, _) =>
+                            {
+                                owned.UpdateWorkbookPath(currentPath);
+                                return 0;
+                            });
+                        UpdateSessionFilePath(ownedSessionId, currentPath);
+                    }
+                    finally
+                    {
+                        ReleaseSessionFilePathReservation(ownedSessionId, reserved);
+                    }
+                }
+                return ownedSessionId;
+            }
+        }
+
         if (workbook.Location is { } location
             && _activeFilePaths.TryGetValue(location, out var sessionId)
             && _activeSessions.TryGetValue(sessionId, out var session)
             && session is not AttachedWorkbookBatch
             && session.ExcelProcessId == workbook.ProcessId)
         {
-            if (session is not ExcelBatch ownedSession
-                || ownedSession.IsOwnedWorkbookInstanceOpenAt(location))
-            {
+            if (session is not ExcelBatch ownedSession)
                 return sessionId;
-            }
 
+            BeforeStaleOwnedSessionLockHookForTests?.Invoke();
             var sessionLock = GetSessionLock(sessionId);
             lock (sessionLock)
             {
                 if (_activeSessions.TryGetValue(sessionId, out var currentSession)
                     && ReferenceEquals(currentSession, ownedSession)
+                    && GetActiveOperationCount(sessionId) == 0
                     && ownedSession.DetachClosedOwnedWorkbook(location))
                 {
                     RemoveSessionTracking(sessionId, removeSessionLock: false);
@@ -578,6 +617,7 @@ public sealed class SessionManager : IDisposable
         var current = selection.Owner.RefreshAttachedWorkbook(workbookId)
             ?? throw new InvalidOperationException(
                 "The selected workbook is no longer confirmed open. Discover open workbooks again.");
+        var existingSessionId = FindExistingWorkbookSession(selection.Owner, current);
         var path = current.Location ?? current.Name;
         lock (_filePathReservationLock)
         {
@@ -595,7 +635,15 @@ public sealed class SessionManager : IDisposable
                     "The open-workbook selection changed during attachment. Discover open workbooks again.");
             }
 
-            var existingSessionId = FindExistingWorkbookSession(selection.Owner, current);
+            if (existingSessionId is not null && !_activeSessions.ContainsKey(existingSessionId))
+            {
+                throw new InvalidOperationException(
+                    "The existing workbook session changed during attachment. Discover open workbooks again.");
+            }
+            existingSessionId ??= _activeSessions.FirstOrDefault(entry =>
+                entry.Value is AttachedWorkbookBatch attached
+                && ReferenceEquals(attached.Owner, selection.Owner)
+                && string.Equals(attached.WorkbookId, workbookId, StringComparison.Ordinal)).Key;
             if (existingSessionId is not null)
             {
                 return new AttachedWorkbookSession(
@@ -636,6 +684,12 @@ public sealed class SessionManager : IDisposable
         AttachedWorkbookBatch attached => attached.Owner,
         _ => null
     };
+
+    /// <summary>Returns the session connection's exact process identity without claiming process ownership.</summary>
+    public ExcelProcessIdentity? GetSessionProcessIdentity(string sessionId) =>
+        _activeSessions.TryGetValue(sessionId, out var batch)
+            ? GetExecutionOwner(batch)?.ProcessIdentity
+            : null;
 
     /// <summary>
     /// Creates a new session for the specified Excel file.
@@ -1709,7 +1763,7 @@ public sealed class SessionManager : IDisposable
     public string ReserveSessionFilePath(string sessionId, string filePath)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        var normalizedPath = Path.GetFullPath(filePath);
+        var normalizedPath = WorkbookLocation.Normalize(filePath);
 
         lock (_filePathReservationLock)
         {
@@ -1780,7 +1834,7 @@ public sealed class SessionManager : IDisposable
     public void UpdateSessionFilePath(string sessionId, string filePath)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
-        var normalizedPath = Path.GetFullPath(filePath);
+        var normalizedPath = WorkbookLocation.Normalize(filePath);
 
         lock (_filePathReservationLock)
         {

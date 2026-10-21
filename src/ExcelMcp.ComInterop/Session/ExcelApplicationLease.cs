@@ -2,49 +2,141 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
 internal sealed class ExcelApplicationLease : IDisposable
 {
-    private readonly Mutex _mutex;
+    private static readonly Lock RegistryLock = new();
+    private static readonly Dictionary<ExcelProcessIdentity, SharedLease> Leases = [];
+    private readonly ExcelProcessIdentity _identity;
+    private readonly SharedLease _shared;
     private bool _disposed;
 
     internal ExcelApplicationLease(ExcelProcessIdentity identity)
     {
-        _mutex = new Mutex(false,
-            $@"Local\ExcelMcp.Application.{identity.ProcessId}.{identity.StartedAtUtcFileTime}");
-        try
+        _identity = identity;
+        lock (RegistryLock)
         {
-            bool acquired;
-            try
+            if (!Leases.TryGetValue(identity, out var shared))
             {
-                acquired = _mutex.WaitOne(TimeSpan.Zero);
+                shared = new SharedLease(identity);
+                Leases.Add(identity, shared);
             }
-            catch (AbandonedMutexException)
-            {
-                acquired = true;
-            }
-
-            if (!acquired)
-                throw new InvalidOperationException(
-                    "This Excel application is already managed by another active ExcelMcp host.");
-        }
-        catch
-        {
-            _mutex.Dispose();
-            throw;
+            _shared = shared;
+            _shared.Connections++;
         }
     }
 
+    internal IDisposable EnterExecution() => new ExecutionScope(_shared.SyncRoot);
+
     public void Dispose()
     {
-        if (_disposed)
-            return;
+        lock (RegistryLock)
+        {
+            if (_disposed)
+                return;
 
-        try
-        {
-            _mutex.ReleaseMutex();
-        }
-        finally
-        {
+            if (_shared.Connections == 1)
+            {
+                _shared.Dispose();
+                Leases.Remove(_identity);
+            }
+            _shared.Connections--;
             _disposed = true;
-            _mutex.Dispose();
+        }
+    }
+
+    private sealed class ExecutionScope : IDisposable
+    {
+        private readonly object _syncRoot;
+
+        internal ExecutionScope(object syncRoot)
+        {
+            _syncRoot = syncRoot;
+            Monitor.Enter(_syncRoot);
+        }
+
+        public void Dispose() => Monitor.Exit(_syncRoot);
+    }
+
+    // A mutex belongs to a thread. Keep its owner alive until the last local
+    // connection detaches, even when the original workbook's STA has exited.
+    private sealed class SharedLease : IDisposable
+    {
+        private static readonly TimeSpan WaitTimeout = TimeSpan.FromSeconds(2);
+        private readonly ManualResetEventSlim _release = new();
+        private readonly TaskCompletionSource _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource _completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly Thread _thread;
+
+        internal object SyncRoot { get; } = new();
+        internal int Connections { get; set; }
+
+        internal SharedLease(ExcelProcessIdentity identity)
+        {
+            _thread = new Thread(() => Run(identity))
+            {
+                IsBackground = true,
+                Name = $"ExcelApplicationLease-{identity.ProcessId}"
+            };
+            _thread.Start();
+            try
+            {
+                _ready.Task.WaitAsync(WaitTimeout).GetAwaiter().GetResult();
+            }
+            catch (Exception startupFailure)
+            {
+                _release.Set();
+                if (!_thread.Join(WaitTimeout))
+                    throw new AggregateException(startupFailure,
+                        new TimeoutException("The Excel application lock thread did not finish after startup failed."));
+                _ = _completion.Task.Exception;
+                _release.Dispose();
+                throw;
+            }
+        }
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+            Justification = "The lock-owner thread transfers startup and release failures to the waiting connection through task completions; failures are never treated as a successful lease.")]
+        private void Run(ExcelProcessIdentity identity)
+        {
+            try
+            {
+                using var mutex = new Mutex(false,
+                    $@"Local\ExcelMcp.Application.{identity.ProcessId}.{identity.StartedAtUtcFileTime}");
+                bool acquired;
+                try
+                {
+                    acquired = mutex.WaitOne(TimeSpan.Zero);
+                }
+                catch (AbandonedMutexException)
+                {
+                    acquired = true;
+                }
+                if (!acquired)
+                    throw new InvalidOperationException(
+                        "This Excel application is already managed by another active ExcelMcp host.");
+                try
+                {
+                    _ready.TrySetResult();
+                    _release.Wait();
+                }
+                finally
+                {
+                    mutex.ReleaseMutex();
+                }
+                _completion.TrySetResult();
+            }
+            catch (Exception ex)
+            {
+                _ready.TrySetException(ex);
+                _completion.TrySetException(ex);
+            }
+        }
+
+        public void Dispose()
+        {
+            _release.Set();
+            _completion.Task.WaitAsync(WaitTimeout).GetAwaiter().GetResult();
+            if (!_thread.Join(WaitTimeout))
+                throw new TimeoutException("The Excel application lock thread did not finish after release.");
+            _release.Dispose();
         }
     }
 }

@@ -19,7 +19,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// <item>Operations are queued via Channel and executed SERIALLY (never in parallel)</item>
 /// <item>Multiple simultaneous Execute() calls are processed one at a time</item>
 /// <item>This is a COM interop requirement, not an implementation choice</item>
-/// <item>Attached sessions may share an Excel process; Excel serializes their COM calls on its UI thread</item>
+/// <item>Connections sharing an Excel process serialize complete callbacks, including state restoration</item>
 /// </list>
 /// <para><b>Resource Cost:</b> Each ExcelBatch = one Excel.Application process (~50-100MB+ memory)</para>
 /// </remarks>
@@ -89,6 +89,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     internal static Action? WorkItemQueuedHookForTests { get; set; }
     internal Action? BeforeRefreshStateReadHookForTests { get; set; }
     internal Action? BeforeStaCleanupHookForTests { get; set; }
+    internal Action<object>? BeforeEmptyApplicationDetachHookForTests { get; set; }
 
     // COM state (STA thread only)
     private Excel.Application? _excel;
@@ -467,8 +468,10 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             return false;
 
         _quitEmptyOwnedApplication = true;
-        Dispose();
-        return !_ownedProcessLeftOpen;
+        if (BeforeEmptyApplicationDetachHookForTests is { } beforeDetach)
+            Execute((_, _) => beforeDetach(_excel!));
+        DetachApplication();
+        return true;
     }
 
     /// <summary>
@@ -541,6 +544,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     _excelProcessIdentity = attached.Process;
                     _excelProcessId = attached.Process.ProcessId;
                     _applicationLease = new ExcelApplicationLease(attached.Process);
+                    using var startupExecution = _applicationLease.EnterExecution();
                     startupExcel = RunningExcelWindows.Connect(attached);
                     _excel = startupExcel;
                     _workbooks = new Dictionary<string, Excel.Workbook>(StringComparer.Ordinal);
@@ -643,6 +647,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                             "Could not capture Excel process identity. No workbook has been opened or created, " +
                             "and no session was published. Retry opening the workbook.");
                     }
+                    _applicationLease = new ExcelApplicationLease(_excelProcessIdentity.Value);
+                    using var startupExecution = _applicationLease.EnterExecution();
 
                     // Workbook macro execution must remain available for explicit VBA operations on
                     // reopened .xlsm sessions. Force-disabling macros at open makes vba.run impossible
@@ -820,6 +826,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                                 continue;
                             }
 
+                            using var execution = _applicationLease!.EnterExecution();
                             work.TryExecute();
                         }
                     }
@@ -860,6 +867,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 try
                 {
                     BeforeStaCleanupHookForTests?.Invoke();
+                    using var cleanupExecution = _applicationLease?.EnterExecution();
                     var cleanupExcel = _excel ?? startupExcel;
                     var cleanupWorkbooks = _workbooks ?? startupWorkbooks;
                     var cleanupWorkbook = _workbook
@@ -955,8 +963,6 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                         {
                             ComUtilities.Release(ref cleanupExcel);
                         }
-                        _applicationLease?.Dispose();
-                        _applicationLease = null;
                     }
 
                     _workbook = null;
@@ -971,6 +977,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     startupPrimaryWorkbook = null;
                     startupExcel = null;
                     Marshal.CleanupUnusedObjectsInCurrentContext();
+                    _applicationLease?.Dispose();
+                    _applicationLease = null;
                     _teardownCompletion.TrySetResult();
                     if (_disposed != 0)
                         FinishOperation(executionFailure);
@@ -1738,20 +1746,14 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         }
     }
 
-    internal bool IsOwnedWorkbookInstanceOpenAt(string workbookPath)
+    internal string? FindOwnedWorkbookPath(OpenWorkbookInfo selected)
     {
-        var normalizedPath = WorkbookLocation.Normalize(workbookPath);
-        return Execute((_, _) =>
+        return ExcelBatchWait.Execute(this, TimeSpan.FromSeconds(2), (_, _) =>
         {
             if (_workbooks is null || _excel is null)
             {
-                return false;
+                return null;
             }
-            var tracked = _workbooks.FirstOrDefault(entry =>
-                string.Equals(WorkbookLocation.Normalize(entry.Key), normalizedPath,
-                    StringComparison.OrdinalIgnoreCase));
-            if (tracked.Key is null)
-                return false;
 
             Excel.Workbooks? workbooks = null;
             try
@@ -1764,15 +1766,22 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     try
                     {
                         current = workbooks[index];
-                        if (ReferenceEquals(current, tracked.Value))
-                            return true;
+                        var tracked = _workbooks.FirstOrDefault(entry =>
+                            ReferenceEquals(current, entry.Value));
+                        if (tracked.Key is not null
+                            && string.Equals(current.Name, selected.Name, StringComparison.OrdinalIgnoreCase)
+                            && string.Equals(GetWorkbookLocation(current.FullName), selected.Location,
+                                StringComparison.OrdinalIgnoreCase))
+                        {
+                            return tracked.Key;
+                        }
                     }
                     finally
                     {
                         ComUtilities.Release(ref current);
                     }
                 }
-                return false;
+                return null;
             }
             finally
             {

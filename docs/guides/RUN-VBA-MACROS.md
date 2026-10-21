@@ -103,8 +103,11 @@ guard a later edit against changes made since the read.
 excelcli -q vba run --session $session --procedure-name "Module1.GenerateReport" --timeout-seconds 120
 ```
 
-The procedure name uses `Module.Procedure` form. Pass arguments with
-`--parameters` when the macro takes them.
+The procedure name uses `Module.Procedure` form; do not include a workbook name
+or `!` prefix. ExcelMcp selects the macro from the session's workbook even when
+another workbook is active. The macro's own code can still change other open
+workbooks, so inspect it before running. Pass arguments with `--parameters`
+when the macro takes them.
 
 Set a timeout that matches the work. A macro that waits on a dialog will otherwise
 hold the session until the default limit expires.
