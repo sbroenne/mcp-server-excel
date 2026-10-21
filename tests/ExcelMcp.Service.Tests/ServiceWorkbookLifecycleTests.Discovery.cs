@@ -10,8 +10,10 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 
 public sealed partial class ServiceWorkbookLifecycleTests
 {
-    [Fact]
-    public async Task DiscoveryCleanup_IncompleteScan_ClosesKnownWorkbookAndReportsError()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task DiscoveryCleanup_IncompleteScan_ClosesKnownWorkbookAndReportsError(bool attachFirst)
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
@@ -19,38 +21,69 @@ public sealed partial class ServiceWorkbookLifecycleTests
             sessions[ownedId] = 0;
             var owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(ownedId));
             var name = owned.Execute((context, _) => AddReviewWorkbook(context.App, "cleanup selected edits"));
-            var attachedId = await AttachReviewWorkbookAsync(service,
-                await DiscoverReviewWorkbookAsync(service, name));
-            sessions[attachedId] = 0;
-            await WriteMarkerAsync(service, ownedId, "keep neighboring edits");
-            var discovery = await service.ProcessAsync(new ServiceRequest { Command = "session.discover" });
-            RequireSuccess(discovery);
-            var result = System.Text.Json.Nodes.JsonNode.Parse(discovery.Result!)!;
-            result["complete"] = false;
-            result["errors"] = System.Text.Json.Nodes.JsonNode.Parse(
-                """[{"processId":-1,"message":"Synthetic unrelated inspection failure"}]""");
-            var incompleteDiscovery = new ServiceResponse { Success = true, Result = result.ToJsonString() };
-            var failure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-                CloseDiscoveredWorkbooksAsync(service, sessions, () => Task.FromResult(incompleteDiscovery),
-                    owned.ExcelProcessId!.Value, (null, name)));
-            Assert.Contains("Synthetic unrelated inspection failure", failure.Message, StringComparison.Ordinal);
-            Assert.Null(service.SessionManager.GetSession(attachedId));
-            Assert.False(sessions.ContainsKey(attachedId));
-            owned.Execute((context, _) =>
+            Exception? failure = null;
+            try
             {
-                Excel.Workbooks? books = null;
+                string? attachedId = null;
+                if (attachFirst)
+                {
+                    attachedId = await AttachReviewWorkbookAsync(service,
+                        await DiscoverReviewWorkbookAsync(service, name));
+                    sessions[attachedId] = 0;
+                }
+                await WriteMarkerAsync(service, ownedId, "keep neighboring edits");
+                var discovery = await service.ProcessAsync(new ServiceRequest { Command = "session.discover" });
+                RequireSuccess(discovery);
+                var result = System.Text.Json.Nodes.JsonNode.Parse(discovery.Result!)!;
+                result["complete"] = false;
+                result["errors"] = System.Text.Json.Nodes.JsonNode.Parse(
+                    """[{"processId":-1,"message":"Synthetic unrelated inspection failure"}]""");
+                var incompleteDiscovery = new ServiceResponse { Success = true, Result = result.ToJsonString() };
+                var scanFailure = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                    CloseDiscoveredWorkbooksAsync(service, sessions, () => Task.FromResult(incompleteDiscovery),
+                        owned.ExcelProcessId!.Value, (null, name)));
+                Assert.Contains("Synthetic unrelated inspection failure", scanFailure.Message, StringComparison.Ordinal);
+                if (attachedId is not null)
+                {
+                    Assert.Null(service.SessionManager.GetSession(attachedId));
+                    Assert.False(sessions.ContainsKey(attachedId));
+                }
+                Assert.Single(sessions);
+                owned.Execute((context, _) =>
+                {
+                    Excel.Workbooks? books = null;
+                    try
+                    {
+                        books = context.App.Workbooks;
+                        Assert.Equal(1, books.Count);
+                        Assert.False(context.Book.Saved);
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref books);
+                    }
+                });
+                Assert.Equal("keep neighboring edits", await ReadMarkerAsync(service, ownedId));
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+            finally
+            {
                 try
                 {
-                    books = context.App.Workbooks;
-                    Assert.Equal(1, books.Count);
-                    Assert.False(context.Book.Saved);
+                    await CloseDiscoveredWorkbooksAsync(
+                        service, sessions, owned.ExcelProcessId!.Value, (null, name));
                 }
-                finally
+                catch (Exception ex)
                 {
-                    ComUtilities.Release(ref books);
+                    failure = PersistentServiceCleanupFailures.Combine(failure, ex);
                 }
-            });
-            Assert.Equal("keep neighboring edits", await ReadMarkerAsync(service, ownedId));
+            }
+
+            if (failure is not null)
+                ExceptionDispatchInfo.Capture(failure).Throw();
         });
     }
 

@@ -286,7 +286,19 @@ public sealed class SessionManager : IDisposable
         lock (_filePathReservationLock)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
-            return _activeFilePaths.TryAdd(normalizedPath, sessionId);
+            if (_activeSessions.Any(entry =>
+                !string.Equals(entry.Key, sessionId, StringComparison.Ordinal)
+                && string.Equals(
+                    entry.Value is AttachedWorkbookBatch attached
+                        ? attached.FilePath
+                        : _sessionFilePaths.GetValueOrDefault(entry.Key),
+                    normalizedPath, StringComparison.OrdinalIgnoreCase)))
+            {
+                return false;
+            }
+            return _activeFilePaths.TryGetValue(normalizedPath, out var owner)
+                ? string.Equals(owner, sessionId, StringComparison.Ordinal)
+                : _activeFilePaths.TryAdd(normalizedPath, sessionId);
         }
     }
 
@@ -846,7 +858,7 @@ public sealed class SessionManager : IDisposable
 
             var sessionId = Guid.NewGuid().ToString("N");
             var claimedPath = current.Location is not null;
-            if (claimedPath && !_activeFilePaths.TryAdd(path, sessionId))
+            if (claimedPath && !TryClaimFilePath(path, sessionId))
             {
                 throw new InvalidOperationException(
                     $"Workbook '{path}' is already managed by another session.");
@@ -2026,9 +2038,7 @@ public sealed class SessionManager : IDisposable
                     $"Session '{sessionId}' already has a Save As operation in progress.");
             }
 
-            var alreadyClaimed = _activeFilePaths.TryGetValue(normalizedPath, out var owner)
-                && string.Equals(owner, sessionId, StringComparison.Ordinal);
-            if (!alreadyClaimed && !TryClaimFilePath(normalizedPath, sessionId))
+            if (!TryClaimFilePath(normalizedPath, sessionId))
             {
                 throw new InvalidOperationException(
                     $"File '{normalizedPath}' is already open or reserved by another session.");

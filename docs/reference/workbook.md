@@ -102,7 +102,11 @@ Reattaching an already-connected workbook also updates its tracked name and
 location after Excel Save As, without requiring another discovery first.
 Save As through ExcelMcp updates the attached workbook's listed name and path
 immediately; resolving a location conflict does not release another session's
-path reservation.
+path reservation. If an Excel-side rename conflicts with another session's
+reservation, discovery reports the conflict and keeps the live workbook's
+location protected from new opens and Save As requests even after that other
+reservation is released. Closing or moving the attached workbook releases
+that protection.
 Discovery releases cached connections and selections only when the exact Excel
 process is confirmed to have exited, not merely because its window is missing.
 After connection cleanup fails, discovery or shutdown can release that connection

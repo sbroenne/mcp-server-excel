@@ -669,6 +669,15 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 Assert.True(scanned.Wait(TimeSpan.FromSeconds(10)));
                 attached.Owner.Execute((_, _) => attached.Owner.GetAttachedWorkbook(attached.WorkbookId).SaveAs(target));
                 Assert.Equal("context rename edits", await ReadMarkerAsync(service, attachedId));
+                try
+                {
+                    Assert.Throws<InvalidOperationException>(() =>
+                        service.SessionManager.ReserveSessionFilePath(ownedId, target));
+                }
+                finally
+                {
+                    service.SessionManager.ReleaseSessionFilePathReservation(ownedId, target);
+                }
                 if (rediscover)
                     await DiscoverReviewWorkbookAsync(service, "context-newer.xlsx");
             }
@@ -1298,8 +1307,10 @@ public sealed partial class ServiceWorkbookLifecycleTests
         });
     }
 
-    [Fact]
-    public async Task SaveAs_AfterAttachedLocationConflict_PreservesOtherSessionsReservation()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SaveAs_AfterAttachedLocationConflict_PreservesOtherSessionsReservation(bool releaseCompetingReservation)
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
@@ -1312,16 +1323,49 @@ public sealed partial class ServiceWorkbookLifecycleTests
             sessions[attachedId] = 0;
             var attached = Assert.IsType<AttachedWorkbookBatch>(service.SessionManager.GetSession(attachedId));
             var conflictPath = Path.Join(directory, "reserved-target.xlsx");
-            var reservation = service.SessionManager.ReserveSessionFilePath(ownedId, conflictPath);
+            var competingName = owned.Execute((context, _) => AddReviewWorkbook(context.App, "keep competing edits"));
+            var competingId = await AttachReviewWorkbookAsync(service,
+                await DiscoverReviewWorkbookAsync(service, competingName));
+            sessions[competingId] = 0;
+            var reservation = service.SessionManager.ReserveSessionFilePath(competingId, conflictPath);
             try
             {
                 attached.Execute((context, _) => context.Book.SaveAs(conflictPath));
                 var discovery = await service.SessionManager.DiscoverOpenWorkbooksAsync();
                 Assert.False(discovery.Complete);
                 Assert.Contains(discovery.Errors, error =>
-                    error.Message.Contains($"reserved by session '{ownedId}'", StringComparison.Ordinal));
+                    error.Message.Contains($"reserved by session '{competingId}'", StringComparison.Ordinal));
                 Assert.Throws<InvalidOperationException>(() =>
                     service.SessionManager.ReserveSessionFilePath(attachedId, conflictPath));
+                if (releaseCompetingReservation)
+                {
+                    service.SessionManager.ReleaseSessionFilePathReservation(competingId, reservation);
+                    try
+                    {
+                        Assert.Throws<InvalidOperationException>(() =>
+                            service.SessionManager.ReserveSessionFilePath(competingId, conflictPath));
+                        var open = await service.ProcessAsync(new ServiceRequest
+                        {
+                            Command = "session.open",
+                            Args = JsonSerializer.Serialize(new { filePath = conflictPath }, ServiceProtocol.JsonOptions)
+                        });
+                        Assert.False(open.Success);
+                        Assert.Contains("already open", open.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+                        Assert.Equal(conflictPath, attached.WorkbookPath, ignoreCase: true);
+                        Assert.Equal("keep conflict edits", await ReadMarkerAsync(service, attachedId));
+                        Assert.Equal("keep competing edits", await ReadMarkerAsync(service, competingId));
+                        await CloseSessionAsync(service, attachedId, save: false);
+                        sessions.TryRemove(attachedId, out _);
+                        Assert.Equal(conflictPath,
+                            service.SessionManager.ReserveSessionFilePath(competingId, conflictPath),
+                            ignoreCase: true);
+                    }
+                    finally
+                    {
+                        service.SessionManager.ReleaseSessionFilePathReservation(competingId, conflictPath);
+                    }
+                    return;
+                }
                 var targetPath = Path.Join(directory, "conflict-resolved.xlsx");
                 RequireSuccess(await service.ProcessAsync(new ServiceRequest
                 {
@@ -1336,7 +1380,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
             }
             finally
             {
-                service.SessionManager.ReleaseSessionFilePathReservation(ownedId, reservation);
+                service.SessionManager.ReleaseSessionFilePathReservation(competingId, reservation);
             }
         });
     }
