@@ -243,6 +243,8 @@
       "actions": {
         "close": "light",
         "create": "medium",
+        "discover": "light",
+        "attach": "light",
         "list": "light",
         "open": "light",
         "save": "light",

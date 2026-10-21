@@ -34,21 +34,103 @@ IRM/AIP restrictions. Inspect `workbook_read` action `get-info` or
 editing. When `autoSaveOn` is true, Excel can persist changes without an explicit
 save.
 
-Excel versions without the AutoSave property report `autoSaveOn: false`; there
-is no AutoSave feature to disable on those versions. Only known unavailable-member
-errors are treated this way. Other AutoSave read or write failures remain errors.
+For `workbook_read get-info`, Excel versions without the AutoSave property
+report `autoSaveOn: false`; there is no AutoSave feature to disable on those
+versions. Discovery and attachment report AutoSave as unavailable instead.
+Only known unavailable-member errors are treated this way. Other AutoSave read
+or write failures remain errors.
 
 `file_read` action `test` and `excelcli session test` report that URL validation
 requires interactive opening. They do not download the workbook or probe a local
 file. Returned `exists: false`, zero size, and `isIrmProtected: false` are unknown
 remote metadata, not evidence of a missing or unprotected workbook.
 
-Cloud AutoSave is disabled in editable remote sessions. Explicit save/close
-behavior therefore matches local workbooks: close without saving discards
-unsaved session edits; close with saving writes through Excel to the original
-SharePoint location. Normal Service shutdown still attempts to save. A successful
-save confirms Excel's saved state, not independent server-side upload completion.
+Cloud AutoSave is disabled in editable remote sessions opened by ExcelMcp.
+Explicit save/close behavior therefore matches local workbooks: close without
+saving discards unsaved session edits; close with saving writes through Excel to
+the original SharePoint location. Normal Service shutdown still attempts to save
+workbooks it opened.
+
+If the remote workbook is already open, use MCP `file_read` action `discover`
+or CLI `excelcli session discover`, then attach using MCP `file` action `attach`
+with `open_workbook_id` or CLI `excelcli session attach --workbook-id <ID>`.
+Discovery does not reopen workbooks and reports `complete` plus any errors.
+Newly attached workbooks remain open on service shutdown. If a workbook is
+already connected to a session, attachment returns that existing session and
+its established shutdown behavior applies. The CLI tray's Exit prompt applies
+only to workbooks opened or created by ExcelMcp; either save choice leaves
+attached workbooks open without saving them. Explicit Close Session and Close
+All Sessions still close the selected sessions, including attachments.
+Attachment preserves the existing
+AutoSave setting and reports it; when AutoSave is enabled, Excel may save later
+edits automatically, even without an explicit save.
+For already-open remote workbooks, discovery reports the HTTPS location without
+URL credentials, query parameters, or fragments. This does not change which URLs
+are allowed when opening a workbook through ExcelMcp.
+Discovery also lists workbooks in Excel processes already used by this host.
+`sessionId` is included for workbooks already connected to a session; attaching
+one returns that existing session. Other workbooks in the same process can be
+attached separately. Commands sharing an Excel process run one at a time,
+including restoration of temporary Excel settings. Workbooks in separate
+processes can still be used concurrently.
+Showing or hiding an Excel process through one session updates the confirmed
+visibility reported for all its local connections, including owned and attached
+sessions. Listing that state does not wait for a running Excel command.
+Older callback observations and deferred timeout reveals cannot undo a newer
+show or hide requested through another connection to that process.
+Workbook IDs identify an open Excel workbook instance; a
+closed and reopened workbook receives a new ID, and a complete discovery retires
+any stale attached session for the closed instance.
+A scan can retire only connections that existed before it began; it cannot
+remove a workbook connected by a newer scan or undo a newer Save As location.
+If a connection or tracked location changes during a scan, its results can be
+incomplete with a request to discover again.
+Discovery cannot replace a tracked location while Save As is still pending.
+An overlapping reconnect request fails with a request to discover again if
+Save As is pending or has changed the connection since that request began.
+This also applies if Save As changes the path and then changes it back.
+Ordinary commands that observe a rename in Excel also invalidate older location
+results; a later scan cannot restore the old name or release the newer path.
+Saving an owned workbook under a new name in Excel does not create a second
+session: discovery reconciles its saved location and attachment returns its
+original session.
+Overlapping Save As protection also covers workbooks opened by ExcelMcp:
+older discovery or reconnect results cannot replace the new location or
+create another session for that workbook. Discovery rechecks the live workbook
+before applying an Excel-side rename.
+Reattaching an already-connected workbook also updates its tracked name and
+location after Excel Save As, without requiring another discovery first.
+Save As through ExcelMcp updates the attached workbook's listed name and path
+immediately; resolving a location conflict does not release another session's
+path reservation. If an Excel-side rename conflicts with another session's
+reservation, discovery reports the conflict and keeps the live workbook's
+location protected from new opens and Save As requests even after that other
+reservation is released. Closing or moving the attached workbook releases
+that protection.
+Discovery releases cached connections and selections only when the exact Excel
+process is confirmed to have exited, not merely because its window is missing.
+After connection cleanup fails, discovery or shutdown can release that connection
+once both its exact Excel process exit and its execution thread's exit are confirmed.
+
+On shutdown, ExcelMcp closes only workbooks it opened. If another workbook
+remains in that Excel process, ExcelMcp leaves the process running. ExcelMcp
+checks for remaining workbooks before every attempt to quit, including retries,
+and restores the alert setting it changed when leaving its Excel process open.
+Disconnecting from user-started Excel does not change that application's alert
+setting. ExcelMcp does not automatically terminate Excel when its host exits unexpectedly, so
+Excel can preserve user workbook state.
+If an attached workbook still has work running, shutdown refuses to disconnect
+it and keeps its session and operation status available until that work ends.
+After a wait expires, inspecting a healthy attached workbook cannot clear
+recovery protection while another workbook in the same connection is refreshing.
+Readiness must be confirmed across that connection before ordinary commands resume.
+
+A successful explicit save confirms Excel's saved state, not independent
+server-side upload completion.
 Save As, Save Copy As, export, and create continue to require Windows output paths.
+Save Copy As preserves the source format. For a never-saved workbook, Excel's
+actual workbook format determines the required output extension; copying does
+not give the source a saved path or save its pending edits.
 
 ## Metadata and document properties
 

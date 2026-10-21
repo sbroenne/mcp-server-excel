@@ -31,6 +31,7 @@ public sealed class WorkbookLocationTests
     [InlineData("https://contoso.sharepoint.com/Test.xlsx#fragment")]
     [InlineData("https://contoso.sharepoint.com/Test.xlsx?download=1")]
     [InlineData("https://contoso.sharepoint.com/Test.xlsx?web=1&token=secret")]
+    [InlineData("https://d.docs.live.net/123/Documents/Test.xlsx")]
     [InlineData("https://contoso.sharepoint.com/_layouts/15/Doc.aspx")]
     [InlineData("https://contoso.sharepoint.com/:x:/s/Test/sharing-link")]
     [InlineData("https://contoso.sharepoint.com/sites/Test/Shared%20Documents")]
@@ -41,6 +42,19 @@ public sealed class WorkbookLocationTests
     public void Normalize_UnsupportedLocations_AreRejected(string input)
     {
         Assert.Throws<ArgumentException>(() => WorkbookLocation.Normalize(input));
+    }
+
+    [Fact]
+    public void SanitizeExistingRemoteWorkbookLocation_PreservesPersonalOneDriveLocationWithoutCredentials()
+    {
+        const string existingLocation =
+            "https://user:secret@d.docs.live.net/123/Documents/Test%20File.xlsx?token=secret#fragment";
+
+        var sanitized = WorkbookLocation.SanitizeExistingRemoteWorkbookLocation(existingLocation);
+
+        Assert.Equal("https://d.docs.live.net/123/Documents/Test%20File.xlsx", sanitized);
+        Assert.DoesNotContain("secret", sanitized, StringComparison.Ordinal);
+        Assert.DoesNotContain("token", sanitized, StringComparison.Ordinal);
     }
 
     [Theory]

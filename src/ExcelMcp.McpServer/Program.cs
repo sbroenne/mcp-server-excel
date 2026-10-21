@@ -91,11 +91,11 @@ public class Program
 
                 options.ServerInstructions = """
                     Automates desktop Microsoft Excel on Windows.
-                    Use file_read list to find the intended workbook; do not guess paths or choose an unrelated session.
-                    Open/create and file_read list entries return workbook_session_id. Pass it as workbook_session_id to session-based tools, and only supply parameters for the chosen action.
+                    Use file_read discover to find an already-open workbook, then file attach with its open_workbook_id; attach connects without reopening the workbook or changing unsaved state. Discovery includes workbooks already connected to this host and returns their sessionId. Discovery can be incomplete; check its errors before concluding a workbook is absent.
+                    Open/create/attach and file_read list entries return workbook_session_id. Pass it as workbook_session_id to session-based tools, and only supply parameters for the chosen action.
                     Calls in one session execute serially, but concurrent requests and responses have no guaranteed order.
                     Await each dependent call before the next; different sessions can run independently.
-                    A workbook must not be open in another Excel instance. Reuse known visibility preferences;
+                    Do not open a workbook that is already open in Excel when it can be attached. A workbook must not be open in another Excel instance for a new open session. Reuse known visibility preferences;
                     preserve existing visibility unless a change is requested. New sessions default to hidden.
                     Leaving a workbook open means retaining its session, not showing a hidden window.
                     Do not set show:true just to leave a workbook open without a separate visibility request or known preference.
@@ -104,7 +104,8 @@ public class Program
                     Confirmed blocking dialogs automatically reveal Excel. If file_read list reports excelState:dialogOpen, ask the user to check Excel and respond there.
                     Readable dialog text is included automatically in session blockingMessage and timeout errors; partial or unavailable reads are reported. Input values are not read, and dialogs are not classified, answered, or dismissed. A pending operation is not a completed or failed operation.
                     The server does not request confirmation through MCP elicitation; the client must obtain any needed consent.
-                    Normal shutdown attempts to save remaining sessions. Crashes, timeouts, and forced cleanup may lose edits.
+                    Normal shutdown attempts to save workbooks opened by this service. Attached workbooks remain open and are not saved or closed by service shutdown. Attached remote workbooks keep their existing AutoSave setting; when enabled, Excel may save later edits automatically.
+                    Crashes, timeouts, and forced cleanup may lose edits.
                     Cancellation is not undo: inspect file_read list before continuing, and do not blindly retry a change.
                     Range content writes/copies reject occupied destinations by default. Use overwrite_policy:'allow'
                     when the request authorizes replacement; never automatically retry a rejected write with allow.

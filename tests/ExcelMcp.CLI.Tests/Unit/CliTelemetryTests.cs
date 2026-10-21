@@ -14,6 +14,20 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 public sealed class CliTelemetryTests
 {
     [Theory]
+    [InlineData("discover")]
+    [InlineData("attach")]
+    public void CreateCommandInvocationTelemetry_RecoveryUsesCanonicalLabels(string action)
+    {
+        var (invocation, request) = CliTelemetry.CreateCommandInvocationTelemetry(
+            $"session.{action}", 25, succeeded: true, errorCategory: null);
+        Assert.Equal($"session/{action}", invocation.Name);
+        Assert.Equal("session", invocation.Properties["Tool"]);
+        Assert.Equal(action, invocation.Properties["Action"]);
+        Assert.Equal("session", request.Properties["Tool"]);
+        Assert.Equal(action, request.Properties["Action"]);
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void CreateCommandInvocationTelemetry_SessionSaveUsesCanonicalLabels(bool succeeded)

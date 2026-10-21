@@ -31,6 +31,12 @@ and save/close behavior through native `--help`; do not invent syntax.
 Inspect the existing workbook state relevant to the request. Preserve unrelated
 contents and save only the authorized result. If an operation fails, inspect its
 reported partial state rather than assuming rollback or automatically cleaning up.
+Before opening, run `session discover` to find an already-open workbook. Confirm
+the intended `workbookId`, then use `session attach --workbook-id <ID>` so the
+workbook is not reopened. Check discovery `complete` and `errors`; an incomplete
+scan cannot establish that a workbook is absent. Attach preserves unsaved edits
+and leaves the workbook open when the service exits. Its response reports the
+current AutoSave setting; if enabled, Excel may save later edits automatically.
 For JSON errors, read `errorMessage` as the single error-text field; use
 `errorCategory` when present to guide recovery.
 Load `excel-cli-report-formatting` only for requested report presentation, not

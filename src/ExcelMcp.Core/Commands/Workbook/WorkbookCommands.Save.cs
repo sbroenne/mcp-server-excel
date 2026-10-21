@@ -91,18 +91,27 @@ public partial class WorkbookCommands
     public OperationResult SaveCopyAs(IExcelBatch batch, string targetPath, bool overwrite = false)
     {
         var normalizedPath = ValidateOutputPath(targetPath, overwrite);
-        var currentExtension = Path.GetExtension(batch.WorkbookPath);
         var outputExtension = Path.GetExtension(normalizedPath);
-        if (!string.Equals(currentExtension, outputExtension, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new ArgumentException(
-                $"Save Copy As preserves the current workbook format. Output extension must be '{currentExtension}'.",
-                nameof(targetPath));
-        }
-
         var writePath = GetWritePath(normalizedPath, overwrite);
         return batch.Execute((context, _) =>
         {
+            var currentExtension = string.IsNullOrEmpty(context.Book.Path)
+                ? context.Book.FileFormat switch
+                {
+                    Excel.XlFileFormat.xlOpenXMLWorkbook => ".xlsx",
+                    Excel.XlFileFormat.xlOpenXMLWorkbookMacroEnabled => ".xlsm",
+                    Excel.XlFileFormat.xlExcel12 => ".xlsb",
+                    Excel.XlFileFormat.xlExcel8 or Excel.XlFileFormat.xlWorkbookNormal => ".xls",
+                    var format => throw new InvalidOperationException(
+                        $"Save Copy As cannot determine an output extension for never-saved workbook format '{format}'.")
+                }
+                : Path.GetExtension(context.WorkbookPath);
+            if (!string.Equals(currentExtension, outputExtension, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException(
+                    $"Save Copy As preserves the current workbook format. Output extension must be '{currentExtension}'.",
+                    nameof(targetPath));
+            }
             Exception? operationFailure = null;
             try
             {

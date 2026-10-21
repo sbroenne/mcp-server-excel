@@ -21,6 +21,7 @@ public sealed class ManualToolParameterContractTests
     [InlineData("file", "show", "create", false)]
     [InlineData("file", "timeout_seconds", "open", false)]
     [InlineData("file", "timeout_seconds", "create", false)]
+    [InlineData("file", "open_workbook_id", "attach", true)]
     [InlineData("file_read", "file_path", "test", true)]
     [InlineData("file_read", "timeout_seconds", "test", false)]
     public void FileToolParameters_DeclareActionApplicabilityAndRequiredness(

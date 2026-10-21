@@ -12,7 +12,9 @@ public enum FileWriteAction
     [JsonStringEnumMemberName("create")]
     Create,
     [JsonStringEnumMemberName("save")]
-    Save
+    Save,
+    [JsonStringEnumMemberName("attach")]
+    Attach
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<FileReadAction>))]
@@ -21,7 +23,9 @@ public enum FileReadAction
     [JsonStringEnumMemberName("list")]
     List,
     [JsonStringEnumMemberName("test")]
-    Test
+    Test,
+    [JsonStringEnumMemberName("discover")]
+    Discover
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<WorksheetWriteAction>))]

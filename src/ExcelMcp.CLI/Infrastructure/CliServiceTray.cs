@@ -152,11 +152,12 @@ internal sealed class CliServiceTray : IDisposable
             {
                 foreach (var session in sessions)
                 {
-                    var fileName = Path.GetFileName(session.FilePath);
+                    var fileName = session.WorkbookName ?? Path.GetFileName(session.FilePath ?? string.Empty);
+                    var location = session.FilePath ?? "No saved location";
                     var sessionMenu = new ToolStripMenuItem(fileName);
                     sessionMenu.AccessibleName = $"Session: {fileName}";
-                    sessionMenu.AccessibleDescription = $"Excel session for {session.FilePath}";
-                    sessionMenu.ToolTipText = $"Session: {session.SessionId}\nPath: {session.FilePath}";
+                    sessionMenu.AccessibleDescription = $"Excel session for {location}";
+                    sessionMenu.ToolTipText = $"Session: {session.SessionId}\nPath: {location}";
 
                     // Close session with save prompt
                     var closeItem = new ToolStripMenuItem("&Close Session...");
@@ -249,7 +250,8 @@ internal sealed class CliServiceTray : IDisposable
         }
         else
         {
-            var message = string.Join("\n", sessions.Select(s => $"• {Path.GetFileName(s.FilePath)}"));
+            var message = string.Join("\n", sessions.Select(s =>
+                $"• {s.WorkbookName ?? Path.GetFileName(s.FilePath ?? string.Empty)}"));
             ShowBalloon($"Active Sessions ({sessions.Count})", message);
         }
     }
@@ -452,16 +454,24 @@ internal sealed class CliServiceTray : IDisposable
         return informational?.Split('+')[0] ?? assembly.GetName().Version?.ToString() ?? "0.0.0";
     }
 
+    private void ExitService() =>
+        ExitService(_sessionManager, _requestShutdown, MessageBox.Show, ShowBalloon);
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "Tray exit boundary presents exact save/close failures and asks whether to continue; Busy shutdown refusal remains visible in a warning balloon rather than being treated as successful shutdown.")]
-    private void ExitService()
+    internal static void ExitService(
+        SessionManager sessionManager,
+        Action requestShutdown,
+        Func<string, string, MessageBoxButtons, MessageBoxIcon, DialogResult> showMessage,
+        Action<string, string, ToolTipIcon> showBalloon)
     {
-        var sessions = _sessionManager.GetActiveSessions();
+        var sessions = sessionManager.GetActiveSessions().Where(session => !session.IsAttached).ToList();
         if (sessions.Count > 0)
         {
-            var result = MessageBox.Show(
-                $"There are {sessions.Count} active session(s).\n\n" +
-                "Do you want to save all sessions before exiting?",
+            var result = showMessage(
+                $"There are {sessions.Count} active session(s) opened by ExcelMCP.\n\n" +
+                "Do you want to save those sessions before exiting?\n\n" +
+                "Attached workbooks will remain open.",
                 "Exit ExcelMCP CLI",
                 MessageBoxButtons.YesNoCancel,
                 MessageBoxIcon.Question);
@@ -475,13 +485,13 @@ internal sealed class CliServiceTray : IDisposable
                 {
                     foreach (var session in sessions)
                     {
-                        _sessionManager.CloseSession(session.SessionId, save: true);
+                        sessionManager.CloseSession(session.SessionId, save: true);
                     }
-                    ShowBalloon("Sessions Saved", $"Saved and closed {sessions.Count} session(s).");
+                    showBalloon("Sessions Saved", $"Saved and closed {sessions.Count} session(s).", ToolTipIcon.Info);
                 }
                 catch (Exception ex)
                 {
-                    var continueResult = MessageBox.Show(
+                    var continueResult = showMessage(
                         $"Error saving sessions: {ex.Message}\n\nExit anyway?",
                         "Error",
                         MessageBoxButtons.YesNo,
@@ -497,23 +507,23 @@ internal sealed class CliServiceTray : IDisposable
                 {
                     foreach (var session in sessions)
                     {
-                        _sessionManager.CloseSession(session.SessionId, save: false);
+                        sessionManager.CloseSession(session.SessionId, save: false);
                     }
                 }
                 catch (Exception ex)
                 {
-                    ShowBalloon("Warning", $"Error closing sessions: {ex.Message}", ToolTipIcon.Warning);
+                    showBalloon("Warning", $"Error closing sessions: {ex.Message}", ToolTipIcon.Warning);
                 }
             }
         }
 
         try
         {
-            _requestShutdown();
+            requestShutdown();
         }
         catch (Exception ex) when (OperationFailureClassifier.Classify(ex) == "Busy")
         {
-            ShowBalloon("Shutdown Refused", ex.Message, ToolTipIcon.Warning);
+            showBalloon("Shutdown Refused", ex.Message, ToolTipIcon.Warning);
         }
     }
 

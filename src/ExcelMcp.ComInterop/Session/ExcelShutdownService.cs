@@ -151,7 +151,7 @@ public static class ExcelShutdownService
         };
 
     /// <summary>
-    /// Closes a workbook and quits the Excel application with resilient retry logic.
+    /// Closes a workbook and quits Excel only when no workbooks remain.
     /// Handles save semantics, workbook close, COM object release, and resilient Quit with backoff.
     /// </summary>
     /// <param name="workbook">Excel workbook COM object (can be null)</param>
@@ -159,34 +159,47 @@ public static class ExcelShutdownService
     /// <param name="save">True to save before closing, false to discard changes</param>
     /// <param name="filePath">File path for diagnostic logging (optional)</param>
     /// <param name="logger">Logger for diagnostic output (optional)</param>
+    /// <param name="releaseWorkbook">Whether this method owns and should release the workbook reference.</param>
     /// <remarks>
     /// <para><b>Shutdown Order:</b></para>
     /// <list type="number">
     /// <item>If save=true: Call workbook.Save()</item>
     /// <item>Drain unreachable dynamic-binder metadata while Excel can answer COM releases</item>
     /// <item>Close workbook with Close(save) - save param controls Excel's save prompt</item>
-    /// <item>Release workbook COM reference</item>
-    /// <item>Quit Excel application with exponential backoff retry (6 attempts, 200ms base delay)</item>
-    /// <item>Release Excel COM reference</item>
+    /// <item>Release the workbook COM reference when owned by this method</item>
+    /// <item>Quit Excel only when no workbooks remain; otherwise leave it open</item>
+    /// <item>Release the Excel COM reference</item>
     /// </list>
     /// <para><b>Resilience:</b> Retries Quit() on COM busy errors (RPC_E_SERVERCALL_RETRYLATER, RPC_E_CALL_REJECTED)</para>
     /// <para><b>Timeout:</b> No overall timeout - relies on retry exhaustion. Non-retriable errors bubble immediately.</para>
     /// </remarks>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
-        Justification = "Shutdown retains the original close/quit failure as the transported cause, does not continue to Quit after a failed workbook close, and retains application ownership when Quit fails.")]
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0030",
-        Justification = "Collect unreachable dynamic-binder ITypeInfo RCWs while Excel can answer releases, without waiting for finalizers on the STA. This is supplementary to explicit release of all acquired references.")]
     public static void CloseAndQuit(
         Excel.Workbook? workbook,
         Excel.Application? excel,
         bool save,
         string? filePath = null,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        bool releaseWorkbook = true) =>
+        _ = CloseAndQuitAndReport(workbook, excel, save, filePath, logger, releaseWorkbook);
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Shutdown retains the original close/quit failure as the transported cause, does not continue to Quit after a failed workbook close, and retains application ownership when Quit fails. Attached workbooks pass releaseWorkbook:false so their owner releases its retained reference exactly once.")]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ApiDesign", "RS0030",
+        Justification = "Collect unreachable dynamic-binder ITypeInfo RCWs while Excel can answer releases, without waiting for finalizers on the STA. This is supplementary to explicit release of all acquired references.")]
+    internal static bool CloseAndQuitAndReport(
+        Excel.Workbook? workbook,
+        Excel.Application? excel,
+        bool save,
+        string? filePath = null,
+        ILogger? logger = null,
+        bool releaseWorkbook = true,
+        bool? originalDisplayAlerts = null)
     {
         logger ??= NullLogger.Instance;
         string fileName = string.IsNullOrEmpty(filePath) ? "unknown" : Path.GetFileName(filePath);
 
         var stopwatch = Stopwatch.StartNew();
+        var quitConfirmed = false;
 
         try
         {
@@ -204,62 +217,35 @@ public static class ExcelShutdownService
             // Step 2: Close workbook with retry for transient COM busy errors
             if (workbook != null)
             {
-                const int maxCloseAttempts = 3;
-                const int closeRetryDelayMs = 200;
-
-                for (int attempt = 1; attempt <= maxCloseAttempts; attempt++)
+                CloseWorkbookWithRetry(workbook, save, fileName, logger);
+                if (excel is not null && IsWorkbookOpen(excel, workbook))
                 {
-                    try
-                    {
-                        logger.LogDebug("Closing workbook {FileName} (save={Save}, attempt {Attempt})", fileName, save, attempt);
-                        workbook.Close(save);
-                        logger.LogDebug("Workbook {FileName} closed successfully", fileName);
-                        break; // Success
-                    }
-                    catch (COMException ex) when (
-                        attempt < maxCloseAttempts &&
-                        (ex.HResult == ResiliencePipelines.RPC_E_SERVERCALL_RETRYLATER ||
-                         ex.HResult == ResiliencePipelines.RPC_E_CALL_REJECTED))
-                    {
-                        logger.LogDebug("Workbook close attempt {Attempt} got transient error (0x{HResult:X8}), retrying in {Delay}ms",
-                            attempt, ex.HResult, closeRetryDelayMs);
-                        Thread.Sleep(closeRetryDelayMs * attempt); // Simple linear backoff
-                    }
-                    catch (COMException ex)
-                    {
-                        if (ex.HResult == ResiliencePipelines.RPC_E_DISCONNECTED)
-                        {
-                            logger.LogWarning(ex,
-                                "Workbook COM proxy disconnected while closing {FileName} (HResult: 0x{HResult:X8}); close outcome is unknown",
-                                fileName, ex.HResult);
-                        }
-                        else
-                        {
-                            logger.LogWarning(ex,
-                                "Failed to close workbook {FileName} (HResult: 0x{HResult:X8}); Excel will not be asked to quit",
-                                fileName, ex.HResult);
-                        }
-
-                        throw new InvalidOperationException(
-                            $"Workbook close failed for '{fileName}'. Excel has not been asked to quit; the workbook may remain open.", ex);
-                    }
-                    catch (MissingMemberException ex)
-                    {
-                        logger.LogWarning(ex,
-                            "Workbook Close could not be confirmed for {FileName}; Excel will not be asked to quit",
-                            fileName);
-                        throw new InvalidOperationException(
-                            $"Workbook close could not be confirmed for '{fileName}'. Excel has not been asked to quit.", ex);
-                    }
+                    throw new InvalidOperationException(
+                        $"Excel did not close the selected workbook '{fileName}'. It remains open; Excel has not been asked to quit.");
                 }
 
-                ComUtilities.Release(ref workbook);
-                logger.LogDebug("Released workbook COM reference for {FileName}", fileName);
+                if (releaseWorkbook)
+                {
+                    ComUtilities.Release(ref workbook);
+                    logger.LogDebug("Released workbook COM reference for {FileName}", fileName);
+                }
             }
 
             // Step 4: Quit Excel application with resilient retry + overall timeout
             if (excel != null)
             {
+                var remainingWorkbooks = GetOpenWorkbookCount(excel);
+                if (remainingWorkbooks > 0)
+                {
+                    logger.LogInformation(
+                        "Leaving Excel open with {WorkbookCount} workbook(s) after closing {FileName}",
+                        remainingWorkbooks, fileName);
+                    if (originalDisplayAlerts is { } displayAlerts)
+                        excel.DisplayAlerts = displayAlerts;
+                    ComUtilities.Release(ref excel);
+                    return false;
+                }
+
                 int attemptNumber = 0;
                 Exception? lastException = null;
 
@@ -271,15 +257,26 @@ public static class ExcelShutdownService
                     logger.LogDebug("Attempting to quit Excel for {FileName} with resilient retry ({Timeout} timeout)", fileName, ComInteropConstants.ExcelQuitTimeout);
 
                     // Inner retry pipeline handles transient COM busy errors within the timeout
-                    _quitPipeline.Execute(cancellationToken =>
+                    quitConfirmed = _quitPipeline.Execute(cancellationToken =>
                     {
                         attemptNumber++;
                         try
                         {
                             logger.LogDebug("Quit attempt {Attempt} for {FileName}", attemptNumber, fileName);
                             BeforeQuitHookForTests?.Invoke();
+                            var workbookCount = GetOpenWorkbookCount(excel);
+                            if (workbookCount > 0)
+                            {
+                                logger.LogInformation(
+                                    "Leaving Excel open with {WorkbookCount} workbook(s) before Quit attempt {Attempt} for {FileName}",
+                                    workbookCount, attemptNumber, fileName);
+                                if (originalDisplayAlerts is { } displayAlerts)
+                                    excel.DisplayAlerts = displayAlerts;
+                                return false;
+                            }
                             excel.Quit();
                             logger.LogDebug("Quit attempt {Attempt} succeeded for {FileName}", attemptNumber, fileName);
+                            return true;
                         }
                         catch (COMException ex)
                         {
@@ -290,12 +287,14 @@ public static class ExcelShutdownService
                         }
                     }, quitTimeout.Token);
 
-                    // INSTRUMENTATION: Track successful quit path
-                    logger.LogInformation(
-                        "[DIAG-QUIT-SUCCESS] Excel quit succeeded for {FileName} after {Attempts} attempt(s) in {Elapsed}ms",
-                        fileName, attemptNumber, stopwatch.ElapsedMilliseconds);
-                    SessionDiagnostics.WriteStdErr(
-                        $"[DIAG-QUIT-SUCCESS] Excel quit succeeded for {fileName} after {attemptNumber} attempt(s) in {stopwatch.ElapsedMilliseconds}ms");
+                    if (quitConfirmed)
+                    {
+                        logger.LogInformation(
+                            "[DIAG-QUIT-SUCCESS] Excel quit succeeded for {FileName} after {Attempts} attempt(s) in {Elapsed}ms",
+                            fileName, attemptNumber, stopwatch.ElapsedMilliseconds);
+                        SessionDiagnostics.WriteStdErr(
+                            $"[DIAG-QUIT-SUCCESS] Excel quit succeeded for {fileName} after {attemptNumber} attempt(s) in {stopwatch.ElapsedMilliseconds}ms");
+                    }
                 }
                 catch (OperationCanceledException ex) when (quitTimeout.Token.IsCancellationRequested)
                 {
@@ -367,11 +366,134 @@ public static class ExcelShutdownService
                 }
             }
 
+            return quitConfirmed;
         }
         finally
         {
             logger.LogDebug("Excel shutdown sequence completed for {FileName} in {Elapsed}ms",
                 fileName, stopwatch.ElapsedMilliseconds);
+        }
+    }
+
+    private static int GetOpenWorkbookCount(Excel.Application excel)
+    {
+        Excel.Workbooks? workbooks = null;
+        try
+        {
+            workbooks = excel.Workbooks;
+            return workbooks.Count;
+        }
+        finally
+        {
+            ComUtilities.Release(ref workbooks);
+        }
+    }
+
+    internal static void CloseWorkbookAndConfirm(
+        Excel.Workbook workbook,
+        Excel.Application excel,
+        bool save,
+        string filePath,
+        ILogger logger)
+    {
+        ArgumentNullException.ThrowIfNull(workbook);
+        ArgumentNullException.ThrowIfNull(excel);
+        ArgumentNullException.ThrowIfNull(logger);
+
+        var fileName = Path.GetFileName(filePath);
+        if (save)
+            SaveWorkbookWithTimeout(workbook, fileName, logger);
+
+        CloseWorkbookWithRetry(workbook, save, fileName, logger);
+        if (IsWorkbookOpen(excel, workbook))
+        {
+            throw new InvalidOperationException(
+                $"Excel did not close the selected workbook '{fileName}'. It remains open.");
+        }
+    }
+
+    private static void CloseWorkbookWithRetry(
+        Excel.Workbook workbook,
+        bool save,
+        string fileName,
+        ILogger logger)
+    {
+        const int maxCloseAttempts = 3;
+        const int closeRetryDelayMs = 200;
+
+        for (int attempt = 1; attempt <= maxCloseAttempts; attempt++)
+        {
+            try
+            {
+                logger.LogDebug("Closing workbook {FileName} (save={Save}, attempt {Attempt})", fileName, save, attempt);
+                workbook.Close(save);
+                logger.LogDebug("Workbook {FileName} close call returned", fileName);
+                return;
+            }
+            catch (COMException ex) when (
+                attempt < maxCloseAttempts &&
+                (ex.HResult == ResiliencePipelines.RPC_E_SERVERCALL_RETRYLATER ||
+                 ex.HResult == ResiliencePipelines.RPC_E_CALL_REJECTED))
+            {
+                logger.LogDebug("Workbook close attempt {Attempt} got transient error (0x{HResult:X8}), retrying in {Delay}ms",
+                    attempt, ex.HResult, closeRetryDelayMs);
+                Thread.Sleep(closeRetryDelayMs * attempt);
+            }
+            catch (COMException ex)
+            {
+                if (ex.HResult == ResiliencePipelines.RPC_E_DISCONNECTED)
+                {
+                    logger.LogWarning(ex,
+                        "Workbook COM proxy disconnected while closing {FileName} (HResult: 0x{HResult:X8}); close outcome is unknown",
+                        fileName, ex.HResult);
+                }
+                else
+                {
+                    logger.LogWarning(ex,
+                        "Failed to close workbook {FileName} (HResult: 0x{HResult:X8}); Excel will not be asked to quit",
+                        fileName, ex.HResult);
+                }
+
+                throw new InvalidOperationException(
+                    $"Workbook close failed for '{fileName}'. Excel has not been asked to quit; the workbook may remain open.", ex);
+            }
+            catch (MissingMemberException ex)
+            {
+                logger.LogWarning(ex,
+                    "Workbook Close could not be confirmed for {FileName}; Excel will not be asked to quit",
+                    fileName);
+                throw new InvalidOperationException(
+                    $"Workbook close could not be confirmed for '{fileName}'. Excel has not been asked to quit.", ex);
+            }
+        }
+    }
+
+    private static bool IsWorkbookOpen(Excel.Application excel, Excel.Workbook target)
+    {
+        Excel.Workbooks? workbooks = null;
+        try
+        {
+            workbooks = excel.Workbooks;
+            var count = workbooks.Count;
+            for (var index = 1; index <= count; index++)
+            {
+                Excel.Workbook? workbook = null;
+                try
+                {
+                    workbook = workbooks[index];
+                    if (ReferenceEquals(workbook, target))
+                        return true;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref workbook);
+                }
+            }
+            return false;
+        }
+        finally
+        {
+            ComUtilities.Release(ref workbooks);
         }
     }
 }

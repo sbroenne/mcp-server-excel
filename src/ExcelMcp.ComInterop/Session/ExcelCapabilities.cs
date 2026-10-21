@@ -30,6 +30,18 @@ public sealed class ExcelCapabilities
         }
     }
 
+    internal static bool? ReadAutoSaveStatus(Func<bool> read)
+    {
+        try
+        {
+            return read();
+        }
+        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
+        {
+            return null;
+        }
+    }
+
     internal static void DisableAutoSave(Action disable)
     {
         try

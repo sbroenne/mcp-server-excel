@@ -10,16 +10,20 @@ current command details, and the linked guidance for workflow decisions.
 
 ---
 
-## File Operations (6 operations)
+## File Operations (8 operations)
 
 - **Start work:** Open an existing workbook or create a new one and retain its Excel session.
-- **Discover sessions:** Find the intended open workbook and reuse its session.
+- **Discover sessions:** List managed sessions or discover already-open workbooks in the current user's Windows session.
+- **Reconnect safely:** Discover and attach to an already-open workbook without reopening it; unsaved workbooks can have no file location.
 - **Check access:** Test whether Excel can open a file and identify protection or authentication requirements.
 - **Finish deliberately:** Save authorized changes or close without saving.
 
 CLI and MCP sessions are separate. Reuse the matching session, wait for
 dependent operations, and close only after active work finishes. Discarding
 changes loses all unsaved edits, including earlier work; it is not targeted undo.
+Attached workbooks remain open when the service exits. Remote attachments keep
+their current AutoSave setting; when AutoSave is enabled, Excel may save later
+edits automatically.
 IRM/AIP-protected files need visible Excel authentication. Excel determines the
 signed-in user's editing rights; protection alone does not force read-only access.
 

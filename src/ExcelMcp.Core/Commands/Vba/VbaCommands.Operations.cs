@@ -18,6 +18,12 @@ public partial class VbaCommands
     public OperationResult Run(IExcelBatch batch, string procedureName, TimeSpan? timeout, params string[] parameters)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(procedureName);
+        if (procedureName.Contains('!'))
+        {
+            throw new ArgumentException(
+                "Use an unqualified procedure name such as Module1.MySub. The selected session determines the workbook.",
+                nameof(procedureName));
+        }
         parameters ??= [];
 
         EnsureVbaFile(batch.WorkbookPath);
@@ -51,7 +57,7 @@ public partial class VbaCommands
                 // installations. The early-bound PIA call ctx.App.Run() triggers assembly
                 // resolution of VBE types through the embedded Application interface metadata.
                 var args = new object[1 + parameters.Length];
-                args[0] = procedureName;
+                args[0] = $"'{ctx.Book.Name.Replace("'", "''", StringComparison.Ordinal)}'!{procedureName}";
                 for (int i = 0; i < parameters.Length; i++)
                 {
                     args[i + 1] = parameters[i];

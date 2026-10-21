@@ -60,6 +60,22 @@ internal static class WorkbookLocation
         return new UriBuilder(uri) { Path = string.Join('/', segments), Query = string.Empty }.Uri.AbsoluteUri;
     }
 
+    internal static string SanitizeExistingRemoteWorkbookLocation(string location)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(location);
+        var uri = new Uri(location, UriKind.Absolute);
+        if (uri.IsFile || uri.Scheme != Uri.UriSchemeHttps)
+            throw new ArgumentException("An existing remote workbook must have an HTTPS location.", nameof(location));
+
+        return new UriBuilder(uri)
+        {
+            UserName = string.Empty,
+            Password = string.Empty,
+            Query = string.Empty,
+            Fragment = string.Empty
+        }.Uri.AbsoluteUri;
+    }
+
     internal static string GetExtension(string location) =>
         Path.GetExtension(IsRemote(location)
             ? Uri.UnescapeDataString(new Uri(location).AbsolutePath)
