@@ -99,7 +99,9 @@ internal sealed class AttachedWorkbookBatch(ExcelBatch owner, OpenWorkbookInfo w
 
     public void Save(CancellationToken cancellationToken = default)
     {
-        ExcelBusyException.ThrowIfNotReady(GetRefreshState(), "save");
+        cancellationToken.ThrowIfCancellationRequested();
+        ObjectDisposedException.ThrowIf(_detached, this);
+        ExcelBusyException.ThrowIfNotReady(owner.GetExecutionPreflightState(), "save");
         Execute((context, token) =>
         {
             ExcelBusyException.ThrowIfNotReady(

@@ -842,6 +842,64 @@ public sealed partial class ServiceWorkbookLifecycleTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Save_AttachedWorkbookWithSlowReadiness_PersistsSelectedWorkbook(bool close)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var ownedId = await CreateSessionAsync(service, Path.Join(directory, "slow-save-owner.xlsx"));
+            sessions[ownedId] = 0;
+            await WriteMarkerAsync(service, ownedId, "neighbor unsaved");
+            var owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(ownedId));
+            var name = owned.Execute((context, _) => AddReviewWorkbook(context.App, "initial selected value"));
+            var attachedId = await AttachReviewWorkbookAsync(service,
+                await DiscoverReviewWorkbookAsync(service, name));
+            sessions[attachedId] = 0;
+            var path = Path.Join(directory, "slow-save-selected.xlsx");
+            RequireSuccess(await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "workbook.save-as",
+                SessionId = attachedId,
+                Args = JsonSerializer.Serialize(new { targetPath = path }, ServiceProtocol.JsonOptions)
+            }));
+            await WriteMarkerAsync(service, attachedId, "persist selected edit");
+            var attached = Assert.IsType<AttachedWorkbookBatch>(service.SessionManager.GetSession(attachedId));
+            attached.Owner.BeforeRefreshStateReadHookForTests = () => Thread.Sleep(TimeSpan.FromSeconds(1.5));
+            try
+            {
+                Assert.Equal(WorkbookRefreshState.Unknown, attached.GetRefreshState());
+                Assert.True(SpinWait.SpinUntil(
+                    () => service.SessionManager.ValidateClose(attachedId).CanClose,
+                    TimeSpan.FromSeconds(10)));
+                RequireSuccess(await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = close ? "session.close" : "session.save",
+                    SessionId = attachedId,
+                    Args = close ? """{"save":true}""" : null
+                }));
+                if (close)
+                    sessions.TryRemove(attachedId, out _);
+            }
+            finally
+            {
+                attached.Owner.BeforeRefreshStateReadHookForTests = null;
+                attached.Owner.Execute((_, _) => 0);
+            }
+            if (!close)
+            {
+                await CloseSessionAsync(service, attachedId, save: false);
+                sessions.TryRemove(attachedId, out _);
+            }
+            var reopenedId = await OpenSessionAsync(service, path);
+            sessions[reopenedId] = 0;
+            Assert.Equal("persist selected edit", await ReadMarkerAsync(service, reopenedId));
+            Assert.Equal("neighbor unsaved", await ReadMarkerAsync(service, ownedId));
+            Assert.False(owned.Execute((context, _) => context.Book.Saved));
+        });
+    }
+
+    [Theory]
     [InlineData(false, true, false)]
     [InlineData(true, true, false)]
     [InlineData(true, false, false)]

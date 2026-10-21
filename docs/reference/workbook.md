@@ -57,7 +57,11 @@ with `open_workbook_id` or CLI `excelcli session attach --workbook-id <ID>`.
 Discovery does not reopen workbooks and reports `complete` plus any errors.
 Newly attached workbooks remain open on service shutdown. If a workbook is
 already connected to a session, attachment returns that existing session and
-its established shutdown behavior applies. Attachment preserves the existing
+its established shutdown behavior applies. The CLI tray's Exit prompt applies
+only to workbooks opened or created by ExcelMcp; either save choice leaves
+attached workbooks open without saving them. Explicit Close Session and Close
+All Sessions still close the selected sessions, including attachments.
+Attachment preserves the existing
 AutoSave setting and reports it; when AutoSave is enabled, Excel may save later
 edits automatically, even without an explicit save.
 For already-open remote workbooks, discovery reports the HTTPS location without
