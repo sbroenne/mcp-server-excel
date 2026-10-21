@@ -1287,7 +1287,7 @@ public sealed class ExcelMcpService : IDisposable
             }
             finally
             {
-                if (_sessionManager.ActiveSessionCount == 0)
+                if (!_sessionManager.HasActiveConnections)
                 {
                     _disposed = true;
                     _daemonHost.RequestShutdown();

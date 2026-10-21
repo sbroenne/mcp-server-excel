@@ -75,11 +75,17 @@ any stale attached session for the closed instance.
 Saving an owned workbook under a new name in Excel does not create a second
 session: discovery reconciles its saved location and attachment returns its
 original session.
+Reattaching an already-connected workbook also updates its tracked name and
+location after Excel Save As, without requiring another discovery first.
+Discovery releases cached connections and selections only when the exact Excel
+process is confirmed to have exited, not merely because its window is missing.
 
 On shutdown, ExcelMcp closes only workbooks it opened. If another workbook
 remains in that Excel process, ExcelMcp leaves the process running. ExcelMcp
 does not automatically terminate Excel when its host exits unexpectedly, so
 Excel can preserve user workbook state.
+If an attached workbook still has work running, shutdown refuses to disconnect
+it and keeps its session and operation status available until that work ends.
 
 A successful explicit save confirms Excel's saved state, not independent
 server-side upload completion.

@@ -21,8 +21,7 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
                 new KeyValuePair<string, IEnumerable<string>>(kv.Key, kv.Value)),
             StringComparer.OrdinalIgnoreCase)
         {
-            // Session management (REQUIRED FIRST STEP - not generated)
-            ["session"] = new[] { "create", "open", "close", "list", "save" }
+            ["session"] = new[] { "create", "open", "close", "list", "save", "discover", "attach" }
         };
 
         if (!string.IsNullOrWhiteSpace(settings.CommandName))
@@ -53,7 +52,7 @@ internal sealed class ListActionsCommand : Command<ListActionsCommand.Settings>
         var payload = new
         {
             success = true,
-            workflow = "REQUIRED: 1) session open/create <file> → get sessionId, 2) all commands need --session <id>, 3) session close --save to persist",
+            workflow = "1) session open/create <file>, or session discover then session attach --workbook-id <id>, to get sessionId; 2) workbook commands use --session <id>; 3) session save saves explicitly; session close closes the selected workbook (add --save to save changes). Service shutdown leaves newly attached workbooks open.",
             example = "session create file.xlsx → returns {sessionId:'abc'} → range set-values --session abc --range A1 --values 'Hello' → session close --save --session abc",
             commands = all
         };

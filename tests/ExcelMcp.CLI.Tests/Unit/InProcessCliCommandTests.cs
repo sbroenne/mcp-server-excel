@@ -275,6 +275,7 @@ public sealed class InProcessCliCommandTests
     [Theory]
     [InlineData(null, 0)]
     [InlineData("range", 0)]
+    [InlineData("session", 0)]
     [InlineData("unknown", 1)]
     public void ListActions_WritesJsonToInjectedOutput(string? command, int expectedExitCode)
     {
@@ -293,9 +294,21 @@ public sealed class InProcessCliCommandTests
             Assert.Equal("range", result.RootElement.GetProperty("command").GetString());
             Assert.Contains("get-values", result.RootElement.GetProperty("actions").EnumerateArray().Select(value => value.GetString()));
         }
+        else if (command == "session")
+        {
+            var actions = result.RootElement.GetProperty("actions").EnumerateArray()
+                .Select(value => value.GetString()).ToArray();
+            Assert.Contains("discover", actions);
+            Assert.Contains("attach", actions);
+        }
         else if (command == null)
         {
-            Assert.True(result.RootElement.GetProperty("commands").TryGetProperty("session", out _));
+            var actions = result.RootElement.GetProperty("commands").GetProperty("session")
+                .EnumerateArray().Select(value => value.GetString()).ToArray();
+            Assert.Contains("discover", actions);
+            Assert.Contains("attach", actions);
+            Assert.Contains("session discover", result.RootElement.GetProperty("workflow").GetString());
+            Assert.Contains("session attach", result.RootElement.GetProperty("workflow").GetString());
         }
         else
         {

@@ -346,6 +346,24 @@ public sealed class SessionManager : IDisposable
         var workbooks = new ConcurrentBag<OpenWorkbookInfo>();
         var errors = new ConcurrentBag<WorkbookDiscoveryError>(nativeDiscovery.Errors);
 
+        KeyValuePair<ExcelProcessIdentity, ExcelBatch>[] cachedApplications;
+        lock (_filePathReservationLock)
+            cachedApplications = _attachedApplications.ToArray();
+        foreach (var (identity, application) in cachedApplications)
+        {
+            if (!OwnedProcessGuard.TryConfirmExited(identity))
+                continue;
+            try
+            {
+                await Task.Run(() => ReleaseDiscoveryConnection(identity, application));
+            }
+            catch (Exception ex)
+            {
+                errors.Add(new WorkbookDiscoveryError(identity.ProcessId,
+                    $"Could not release the connection to an exited Excel process: {ex.GetType().Name}: {ex.Message}"));
+            }
+        }
+
         await Task.WhenAll(nativeDiscovery.Windows
             .GroupBy(window => window.Process)
             .Select(group => group.First())
@@ -384,8 +402,19 @@ public sealed class SessionManager : IDisposable
                             if (UpdateAttachedWorkbookLocation(existingSessionId, attached, workbook) is { } error)
                                 errors.Add(error);
                         }
-                        workbooks.Add(selection);
-                        _openWorkbookSelections[workbook.WorkbookId] = (application, selection);
+                        lock (_filePathReservationLock)
+                        {
+                            ObjectDisposedException.ThrowIf(_disposed, this);
+                            if (_detachingApplications.Contains(window.Process)
+                                || !_attachedApplications.TryGetValue(window.Process, out var current)
+                                || !ReferenceEquals(current, application))
+                            {
+                                throw new InvalidOperationException(
+                                    "The Excel connection changed during discovery. Discover open workbooks again.");
+                            }
+                            workbooks.Add(selection);
+                            _openWorkbookSelections[workbook.WorkbookId] = (application, selection);
+                        }
                     }
                     foreach (var error in discovery.Errors)
                         errors.Add(error);
@@ -429,7 +458,7 @@ public sealed class SessionManager : IDisposable
                     {
                         try
                         {
-                            ReleaseFailedDiscoveryConnection(window.Process, application);
+                            ReleaseDiscoveryConnection(window.Process, application);
                         }
                         catch (Exception cleanupFailure)
                         {
@@ -450,27 +479,53 @@ public sealed class SessionManager : IDisposable
             errors.OrderBy(error => error.ProcessId).ToArray());
     }
 
-    private void ReleaseFailedDiscoveryConnection(ExcelProcessIdentity identity, ExcelBatch application)
+    private void ReleaseDiscoveryConnection(
+        ExcelProcessIdentity identity, ExcelBatch application, bool quitIfEmpty = false)
     {
         lock (_filePathReservationLock)
         {
             if (!_attachedApplications.TryGetValue(identity, out var current)
-                || !ReferenceEquals(current, application)
-                || !_detachingApplications.Add(identity))
+                || !ReferenceEquals(current, application))
             {
                 return;
             }
+            if (!_detachingApplications.Add(identity))
+                throw new ExcelBusyException("The Excel application connection is already being released.");
         }
 
         try
         {
-            application.DetachApplication();
+            if (!quitIfEmpty || !application.QuitOwnedApplicationIfEmpty())
+                application.DetachApplication();
+            if (OwnedProcessGuard.TryConfirmExited(identity))
+                UntrackExcelProcess(identity);
+            foreach (var (sessionId, session) in _activeSessions.ToArray())
+            {
+                if (session is not AttachedWorkbookBatch attached || !ReferenceEquals(attached.Owner, application))
+                    continue;
+                lock (GetSessionLock(sessionId))
+                {
+                    lock (_filePathReservationLock)
+                    {
+                        if (_activeSessions.TryGetValue(sessionId, out var current) && ReferenceEquals(current, attached))
+                        {
+                            attached.Dispose();
+                            RemoveSessionTracking(sessionId, removeSessionLock: true);
+                        }
+                    }
+                }
+            }
             lock (_filePathReservationLock)
             {
                 if (_attachedApplications.TryGetValue(identity, out var current)
                     && ReferenceEquals(current, application))
                 {
                     _attachedApplications.Remove(identity);
+                }
+                foreach (var selection in _openWorkbookSelections)
+                {
+                    if (ReferenceEquals(selection.Value.Owner, application))
+                        _openWorkbookSelections.TryRemove(selection.Key, out _);
                 }
             }
         }
@@ -646,6 +701,11 @@ public sealed class SessionManager : IDisposable
                 && string.Equals(attached.WorkbookId, workbookId, StringComparison.Ordinal)).Key;
             if (existingSessionId is not null)
             {
+                if (_activeSessions[existingSessionId] is AttachedWorkbookBatch attached
+                    && UpdateAttachedWorkbookLocation(existingSessionId, attached, current) is { } error)
+                {
+                    throw new InvalidOperationException(error.Message);
+                }
                 return new AttachedWorkbookSession(
                     existingSessionId, current.Name, current.Location, current.AutoSaveOn);
             }
@@ -1143,7 +1203,18 @@ public sealed class SessionManager : IDisposable
             }
 
             _ = GetOperationStatus(sessionId);
-            _activeOperationCounts.AddOrUpdate(sessionId, 1, (_, count) => count + 1);
+            lock (_filePathReservationLock)
+            {
+                if (_disposed || GetExecutionOwner(batch)?.ProcessIdentity is { } identity
+                    && _detachingApplications.Contains(identity))
+                {
+                    errorMessage = $"Session '{sessionId}' is disconnecting";
+                    batch = null;
+                    error = SessionOperationError.Closing;
+                    return false;
+                }
+                _activeOperationCounts.AddOrUpdate(sessionId, 1, (_, count) => count + 1);
+            }
             errorMessage = null;
             error = SessionOperationError.None;
             return true;
@@ -1647,6 +1718,16 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     public int ActiveSessionCount => _activeSessions.Count;
 
+    /// <summary>Whether shutdown still owns a workbook session or an Excel application connection.</summary>
+    public bool HasActiveConnections
+    {
+        get
+        {
+            lock (_filePathReservationLock)
+                return !_activeSessions.IsEmpty || _attachedApplications.Count > 0;
+        }
+    }
+
     /// <summary>
     /// Checks whether a session has live Excel or a retained startup failure.
     /// Other dead sessions are automatically cleaned up.
@@ -1883,35 +1964,29 @@ public sealed class SessionManager : IDisposable
     public void Dispose()
     {
         KeyValuePair<string, IExcelBatch>[] sessions;
-        ExcelBatch[] attachedApplications;
+        KeyValuePair<ExcelProcessIdentity, ExcelBatch>[] attachedApplications;
         lock (_filePathReservationLock)
         {
             if (_disposed)
                 return;
             _disposed = true;
             sessions = _activeSessions.ToArray();
-            attachedApplications = _attachedApplications.Values.ToArray();
+            attachedApplications = _attachedApplications.ToArray();
         }
 
         var failures = new List<Exception>();
-        foreach (var application in attachedApplications)
+        foreach (var (identity, application) in attachedApplications)
         {
             try
             {
-                if (!application.QuitOwnedApplicationIfEmpty())
-                    application.DetachApplication();
-                lock (_filePathReservationLock)
+                if (sessions.Any(entry => entry.Value is AttachedWorkbookBatch attached
+                    && ReferenceEquals(attached.Owner, application)
+                    && GetActiveOperationCount(entry.Key) > 0))
                 {
-                    var identity = _attachedApplications.FirstOrDefault(
-                        entry => ReferenceEquals(entry.Value, application)).Key;
-                    if (identity != default)
-                        _attachedApplications.Remove(identity);
-                    foreach (var selection in _openWorkbookSelections)
-                    {
-                        if (ReferenceEquals(selection.Value.Owner, application))
-                            _openWorkbookSelections.TryRemove(selection.Key, out _);
-                    }
+                    throw new ExcelBusyException(
+                        "Cannot disconnect while a workbook operation is active. Its session remains connected.");
                 }
+                ReleaseDiscoveryConnection(identity, application, quitIfEmpty: true);
             }
             catch (Exception ex)
             {
@@ -1923,10 +1998,9 @@ public sealed class SessionManager : IDisposable
 
         foreach (var (sessionId, session) in sessions)
         {
-            if (session is AttachedWorkbookBatch attached)
+            if (session is AttachedWorkbookBatch)
             {
-                attached.Dispose();
-                RemoveSessionTracking(sessionId, removeSessionLock: true);
+                // Its sessions are removed only after the application connection is released.
                 continue;
             }
 

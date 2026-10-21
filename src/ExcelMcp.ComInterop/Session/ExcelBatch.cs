@@ -432,26 +432,46 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             throw new InvalidOperationException("Only an attached application can be detached.");
         lock (_disposeLock)
         {
-            if (_disposed == 0)
+            if (_teardownConfirmed)
+                return;
+            lock (_readinessLock)
             {
-                Interlocked.Exchange(ref _disposed, 1);
-                _shutdownCts.Cancel();
-                _workQueue.Writer.TryComplete();
+                lock (_statusLock)
+                {
+                    if (_disposed == 0)
+                    {
+                        ThrowIfApplicationWorkPending();
+                        Interlocked.Exchange(ref _disposed, 1);
+                    }
+                }
             }
             CompleteDispose();
         }
     }
 
+    private void ThrowIfApplicationWorkPending()
+    {
+        if (!HasFailedStartup && (!_startupCompletion.IsCompleted
+            || OperationStatus.ExecutionPending || _readinessTask is { IsCompleted: false }))
+        {
+            throw new ExcelBusyException(
+                "Cannot disconnect: Excel work is still pending. The workbook and its session remain connected.");
+        }
+    }
+
     internal bool QuitOwnedApplicationIfEmpty()
     {
-        if (_attachedApplication is null
+        if (_disposed != 0 || _attachedApplication is null
             || _excelProcessIdentity is not { } identity
-            || !SessionManager.IsExcelProcessTracked(identity))
+            || !SessionManager.IsExcelProcessTracked(identity)
+            || !IsExcelProcessAlive())
         {
             return false;
         }
 
-        var empty = Execute((_, _) =>
+        ThrowIfApplicationWorkPending();
+        RecoverTimedOutOperation();
+        var empty = ExcelBatchWait.Execute(this, TimeSpan.FromSeconds(2), (_, _) =>
         {
             Excel.Workbooks? workbooks = null;
             try
@@ -1347,6 +1367,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 throw new ExcelBusyException("An earlier operation exceeded its wait. This queued operation was not executed.");
             lock (_statusLock)
             {
+                ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
                 started = true;
                 _operationStartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
                 _completedElapsedSeconds = null;
@@ -1658,6 +1679,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             var work = new ExcelWorkItem<WorkbookRefreshState>(
                 () =>
                 {
+                    lock (_statusLock)
+                        ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
                     var state = readRefreshState();
                     if (state == WorkbookRefreshState.Ready)
                         _operationTimedOut = false;
