@@ -8,6 +8,43 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 public sealed class ValidationOrchestrationTests
 {
     [Fact]
+    public async Task AcceptanceOnly_CreatesFreshLiveLogDirectory()
+    {
+        var run = await ValidationSelectionTests.RunAsync("""
+            . .\scripts\ValidationExecution.ps1
+            $sandbox = Join-Path ([IO.Path]::GetTempPath()) "ExcelMcp.AcceptanceLogs.$([Guid]::NewGuid().ToString('N'))"
+            $script:nativeRunner = (Get-Command Invoke-NativeCommand).ScriptBlock
+            $script:acceptanceStarted = $false
+            function Invoke-NativeCommand {
+                param($Executable, $Arguments, $DeadlineSeconds, $OutputPath, $ErrorPath, $ProgressName)
+                if ($Executable -ne 'pwsh' -or $Arguments[2] -notlike '*\Test-E2E.ps1' -or
+                    $DeadlineSeconds -ne 10800 -or $ProgressName -ne 'Acceptance') {
+                    throw 'Acceptance execution contract changed.'
+                }
+                $script:acceptanceStarted = $true
+                & $script:nativeRunner -Executable pwsh -Arguments @('-NoProfile', '-Command',
+                    "[Console]::Write('acceptance-output'); [Console]::Error.Write('acceptance-error')") `
+                    -DeadlineSeconds 15 -OutputPath $OutputPath -ErrorPath $ErrorPath -ProgressName $ProgressName
+            }
+            try {
+                $plan = Get-ValidationPlan -Paths 'scripts\Test-E2E.ps1'
+                if (-not $plan.FullE2E -or @($plan.ExcelSelections | Where-Object Area -ne Acceptance).Count) {
+                    throw 'Expected an acceptance-only selection.'
+                }
+                Invoke-ExcelPlan -Plan $plan -ResultsDirectory $sandbox
+                if (-not $script:acceptanceStarted) { throw 'Acceptance command was not started.' }
+                if ((Get-Content -LiteralPath (Join-Path $sandbox Acceptance.stdout.log) -Raw) -cne 'acceptance-output' -or
+                    (Get-Content -LiteralPath (Join-Path $sandbox Acceptance.stderr.log) -Raw) -cne 'acceptance-error') {
+                    throw 'Acceptance logs were not preserved.'
+                }
+            } finally {
+                if (Test-Path -LiteralPath $sandbox) { Remove-Item -LiteralPath $sandbox -Recurse -Force }
+            }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
+    }
+
+    [Fact]
     public async Task CliAcceptance_WatchdogAllowsNativeWorkflowDeadline()
     {
         var run = await ValidationSelectionTests.RunAsync("""

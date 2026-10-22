@@ -95,7 +95,9 @@ function Invoke-TestStage {
         '-maxcpucount:1',
         '--settings', $settings, '--filter', $Filter, '--blame-hang-timeout', $HangTimeout,
         '--results-directory', $resultsPath, '--logger', "trx;LogFileName=$Name.trx")
-    if ($ListTests) { $arguments += '--list-tests' } else { $arguments += @('--diag', (Join-Path $resultsPath "$Name.vstest.log")) }
+    if ($ListTests) { $arguments += '--list-tests' } else {
+        $arguments += @('--diag', (Join-Path $resultsPath "$Name.vstest.log"), '--logger', 'console;verbosity=normal')
+    }
     $stageEnvironment = @{
         DOTNET_CLI_UI_LANGUAGE = 'en'
         DOTNET_CLI_USE_MSBUILD_SERVER = '0'
@@ -103,16 +105,17 @@ function Invoke-TestStage {
     }
     foreach ($key in $Environment.Keys) { $stageEnvironment[$key] = $Environment[$key] }
     Write-Host "$Name : $Filter"
+    $outputPath = Join-Path $resultsPath "$Name.stdout.log"
+    $errorPath = Join-Path $resultsPath "$Name.stderr.log"
+    Write-Host "Live logs: $outputPath ; $errorPath"
     try {
         $result = Invoke-NativeCommand -Executable dotnet -Arguments $arguments -DeadlineSeconds $DeadlineSeconds `
-            -Environment $stageEnvironment -AllowFailure
+            -Environment $stageEnvironment -OutputPath $outputPath -ErrorPath $errorPath -ProgressName $Name -AllowFailure
     } catch [TimeoutException] {
         $message = "$Name exceeded the $DeadlineSeconds-second hard deadline. Evidence: $resultsPath."
         Set-Content -LiteralPath (Join-Path $resultsPath "$Name.deadline.log") -Value "$message`n$_"
         throw [TimeoutException]::new($message, $_.Exception)
     }
-    Set-Content -LiteralPath (Join-Path $resultsPath "$Name.stdout.log") -Value $result.Output
-    Set-Content -LiteralPath (Join-Path $resultsPath "$Name.stderr.log") -Value $result.Error
     Write-Host $result.Output
     if ($result.Error) { [Console]::Error.WriteLine($result.Error) }
     if ($result.ExitCode -ne 0) { throw "$Name failed with exit code $($result.ExitCode). Evidence: $resultsPath.`n$($result.Output)`n$($result.Error)" }
