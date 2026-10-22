@@ -14,6 +14,47 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 [Trait("Speed", "Fast")]
 public sealed class SessionManagerTeardownFailureTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Dispose_ExitedExcel_BypassesReadinessButRequiresSuccessfulTeardown(bool disposeFails)
+    {
+        using var manager = new SessionManager();
+        var batch = new ConfigurableFailingBatch(false, disposeFails)
+        {
+            ProcessAlive = false,
+            RefreshState = WorkbookRefreshState.Unknown
+        };
+        var path = Path.GetFullPath("exited-before-shutdown.xlsx");
+        RegisterSession(manager, "exited", path, batch);
+        try
+        {
+            if (disposeFails)
+            {
+                var failure = Assert.Throws<AggregateException>(manager.Dispose);
+                Assert.Contains("synthetic teardown failure", failure.ToString());
+                Assert.Same(batch, GetField<ConcurrentDictionary<string, IExcelBatch>>(manager, "_activeSessions")["exited"]);
+                Assert.True(manager.TryGetFilePath("exited", out var retainedPath));
+                Assert.Equal(path, retainedPath);
+                Assert.Equal(1, batch.DisposeCallCount);
+                batch.DisposeFails = false;
+            }
+            manager.Dispose();
+            Assert.Equal(disposeFails ? 2 : 1, batch.DisposeCallCount);
+            Assert.Equal(0, batch.CloseCallCount);
+            Assert.Equal(0, batch.SaveCallCount);
+            Assert.Equal(0, manager.ActiveSessionCount);
+            Assert.False(manager.HasActiveConnections);
+            Assert.Empty(GetField<ConcurrentDictionary<string, string>>(manager, "_sessionFilePaths"));
+            Assert.Empty(GetField<ConcurrentDictionary<string, string>>(manager, "_activeFilePaths"));
+        }
+        finally
+        {
+            batch.DisposeFails = false;
+            batch.RefreshState = WorkbookRefreshState.Ready;
+        }
+    }
+
     [Fact]
     public void Dispose_DoesNotRequestAnImplicitSave()
     {
@@ -415,6 +456,8 @@ public sealed class SessionManagerTeardownFailureTests
         public bool DisposeFails { get; set; } = disposeFails;
         public bool SaveBusy { get; set; }
         public bool CloseBusy { get; set; }
+        public bool ProcessAlive { get; set; } = true;
+        public WorkbookRefreshState RefreshState { get; set; } = WorkbookRefreshState.Ready;
         public Exception? BeforeCloseFailure { get; set; }
         public bool RevealOnRefreshRead { get; set; }
         public bool ShutdownCommitted { get; private set; }
@@ -423,7 +466,7 @@ public sealed class SessionManagerTeardownFailureTests
         {
             if (RevealOnRefreshRead)
                 IsExcelVisible = true;
-            return WorkbookRefreshState.Ready;
+            return RefreshState;
         }
         internal InvalidOperationException SaveException { get; } =
             new("synthetic save failure");
@@ -467,7 +510,7 @@ public sealed class SessionManagerTeardownFailureTests
             }
         }
 
-        public bool IsExcelProcessAlive() => true;
+        public bool IsExcelProcessAlive() => ProcessAlive;
 
         public void Save(CancellationToken cancellationToken = default)
         {

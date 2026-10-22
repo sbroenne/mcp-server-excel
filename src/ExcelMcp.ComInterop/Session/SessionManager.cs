@@ -2197,7 +2197,9 @@ public sealed class SessionManager : IDisposable
             {
                 // Dispose sequentially - ExcelBatch.Dispose() handles its own Excel cleanup
                 // via ExcelShutdownService with proper timeouts and retry logic
-                if (teardownFailed || readOnlyValidation)
+                if (teardownFailed || readOnlyValidation
+                    || session is IExcelBatchCloseState { ShutdownCommitted: true }
+                    || !session.IsExcelProcessAlive())
                     session.Dispose();
                 else
                 {

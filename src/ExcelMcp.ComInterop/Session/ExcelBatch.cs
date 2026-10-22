@@ -1821,22 +1821,40 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             Execute((_, _) =>
             {
                 ExcelBusyException.ThrowIfNotReady(ReadRefreshState(), "shutdown");
-                // Native prompts protect edits made after the saved-state check.
-                _excel!.DisplayAlerts = true;
-                CloseOwnedWorkbooksBeforeShutdown(onlySaved: true);
-                if (_workbooks!.Count > 0)
+                var alertsBeforeShutdown = _excel!.DisplayAlerts;
+                try
                 {
-                    _excel!.Visible = true;
-                    if (!_excel.Visible)
-                        throw new InvalidOperationException("Cannot hand over unsaved workbooks: Excel visibility was not confirmed.");
-                    UpdateConfirmedVisibility(true, _applicationLease!.VisibilityRevision);
-                    if (_originalDisplayAlerts is { } displayAlerts)
-                        _excel.DisplayAlerts = displayAlerts;
-                    if (_excelProcessIdentity is not { } identity)
-                        throw new InvalidOperationException("Cannot hand over unsaved workbooks without a confirmed Excel process identity.");
-                    _leaveOwnedApplicationOpen = true;
-                    _ownedProcessLeftOpen = true;
-                    _logger.LogInformation("Leaving unsaved workbook(s) open and visible without saving or discarding changes");
+                    // Native prompts protect edits made after the saved-state check.
+                    _excel.DisplayAlerts = true;
+                    CloseOwnedWorkbooksBeforeShutdown(onlySaved: true);
+                    if (_workbooks!.Count > 0)
+                    {
+                        _excel.Visible = true;
+                        if (!_excel.Visible)
+                            throw new InvalidOperationException("Cannot hand over unsaved workbooks: Excel visibility was not confirmed.");
+                        UpdateConfirmedVisibility(true, _applicationLease!.VisibilityRevision);
+                        if (_originalDisplayAlerts is { } displayAlerts)
+                            _excel.DisplayAlerts = displayAlerts;
+                        if (_excelProcessIdentity is not { } identity)
+                            throw new InvalidOperationException("Cannot hand over unsaved workbooks without a confirmed Excel process identity.");
+                        _leaveOwnedApplicationOpen = true;
+                        _ownedProcessLeftOpen = true;
+                        _logger.LogInformation("Leaving unsaved workbook(s) open and visible without saving or discarding changes");
+                    }
+                }
+                catch (Exception shutdownFailure)
+                {
+                    try
+                    {
+                        _excel.DisplayAlerts = alertsBeforeShutdown;
+                    }
+                    catch (Exception restorationFailure)
+                    {
+                        throw new AggregateException(
+                            "Excel shutdown failed and restoring DisplayAlerts also failed. The session remains connected.",
+                            shutdownFailure, restorationFailure);
+                    }
+                    throw;
                 }
                 Interlocked.Exchange(ref _disposed, 1);
                 _shutdownCts.Cancel();

@@ -15,12 +15,21 @@ public sealed partial class ServiceWorkbookLifecycleTests
         {
             var id = await CreateSessionAsync(service, Path.Join(directory, "edit-during-shutdown.xlsx"));
             sessions[id] = 0;
+            await CreateSheetAsync(service, id, "DeleteAfterRefusal");
+            RequireSuccess(await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "range.set-values",
+                SessionId = id,
+                Args = """{"sheetName":"DeleteAfterRefusal","rangeAddress":"A1","values":[["nonempty sheet"]],"overwritePolicy":"allow"}"""
+            }));
+            RequireSuccess(await service.ProcessAsync(new ServiceRequest { Command = "session.save", SessionId = id }));
             var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(id));
             var alertsEnabled = false;
             Excel.AppEvents_WorkbookBeforeCloseEventHandler? beforeClose = null;
             batch.Execute((context, _) =>
             {
                 Assert.True(context.Book.Saved);
+                Assert.False(context.App.DisplayAlerts);
                 beforeClose = (Excel.Workbook workbook, ref bool cancel) =>
                 {
                     cancel = true;
@@ -32,7 +41,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
                     try
                     {
                         sheets = workbook.Worksheets;
-                        sheet = (Excel.Worksheet)sheets[1];
+                        sheet = (Excel.Worksheet)sheets["Sheet1"];
                         cell = sheet.Range["A1"];
                         cell.Value2 = "edit made during close";
                     }
@@ -52,9 +61,93 @@ public sealed partial class ServiceWorkbookLifecycleTests
             Assert.True(alertsEnabled);
             Assert.Same(batch, service.SessionManager.GetSession(id));
             Assert.Equal("edit made during close", await ReadMarkerAsync(service, id));
-            batch.Execute((context, _) => Assert.False(context.Book.Saved));
+            batch.Execute((context, _) =>
+            {
+                Assert.False(context.Book.Saved);
+                Assert.False(context.App.DisplayAlerts);
+            });
+            RequireSuccess(await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "sheet.delete",
+                SessionId = id,
+                Args = """{"sheetName":"DeleteAfterRefusal"}"""
+            }));
+            batch.Execute((context, _) =>
+            {
+                Excel.Sheets? sheets = null;
+                try
+                {
+                    sheets = context.Book.Worksheets;
+                    Assert.Equal(1, sheets.Count);
+                    Assert.False(context.App.DisplayAlerts);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref sheets);
+                }
+            });
             await CloseSessionAsync(service, id, save: false);
             sessions.TryRemove(id, out _);
+        });
+    }
+
+    [Fact]
+    public async Task Shutdown_CallbackCompletesAfterWaitExpires_RetryConfirmsHandover()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var path = Path.Join(directory, "late-shutdown.xlsx");
+            var id = GetSessionId(await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.create",
+                Args = JsonSerializer.Serialize(new { filePath = path, timeoutSeconds = 10 })
+            }));
+            sessions[id] = 0;
+            await WriteMarkerAsync(service, id, "unsaved after expired shutdown wait");
+            var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(id));
+            var identity = Assert.IsType<ExcelProcessIdentity>(batch.ProcessIdentity);
+            using var release = new ManualResetEventSlim();
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            batch.BeforeRefreshStateReadHookForTests = () =>
+            {
+                entered.TrySetResult();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(60)));
+            };
+            var shutdown = Task.Run(() => service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" }));
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                var expired = await shutdown.WaitAsync(TimeSpan.FromSeconds(20));
+                Assert.False(expired.Success);
+                Assert.Contains("timed out", expired.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+                Assert.False(((IExcelBatchCloseState)batch).ShutdownCommitted);
+                Assert.Same(batch, service.SessionManager.GetSession(id));
+                Assert.False(SessionManager.IsExcelProcessPreserved(identity));
+
+                batch.BeforeRefreshStateReadHookForTests = null;
+                release.Set();
+                Assert.True(SpinWait.SpinUntil(
+                    () => ((IExcelBatchCloseState)batch).ShutdownCommitted
+                        && !batch.OperationStatus.ExecutionPending,
+                    TimeSpan.FromSeconds(15)));
+                RequireSuccess(await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" }));
+                sessions.TryRemove(id, out _);
+                Assert.Equal(0, service.SessionManager.ActiveSessionCount);
+                Assert.False(service.SessionManager.HasActiveConnections);
+                Assert.True(SessionManager.IsExcelProcessPreserved(identity));
+                Assert.True(OwnedProcessGuard.MatchesLiveProcess(identity));
+            }
+            finally
+            {
+                batch.BeforeRefreshStateReadHookForTests = null;
+                release.Set();
+                await shutdown.WaitAsync(TimeSpan.FromSeconds(20));
+                batch.Dispose();
+                using var cleanup = new ExcelMcpService();
+                var attachedId = await AttachHandoverAsync(cleanup, path);
+                Assert.Equal("unsaved after expired shutdown wait", await ReadMarkerAsync(cleanup, attachedId));
+                await CloseSessionAsync(cleanup, attachedId, save: false);
+            }
         });
     }
 
@@ -70,7 +163,6 @@ public sealed partial class ServiceWorkbookLifecycleTests
             RequireSuccess(await service.ProcessAsync(new ServiceRequest { Command = "session.save", SessionId = id }));
             await WriteMarkerAsync(service, id, "unsaved handover");
             var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(id));
-            var processId = batch.ExcelProcessId;
             var savedId = await CreateSessionAsync(service, Path.Join(directory, "saved.xlsx"));
             sessions[savedId] = 0;
             var savedBatch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(savedId));
@@ -87,7 +179,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 Assert.False(savedBatch.IsExcelProcessAlive());
 
                 using var replacement = new ExcelMcpService();
-                var attachedId = await AttachHandoverAsync(replacement, path, processId);
+                var attachedId = await AttachHandoverAsync(replacement, path);
                 Assert.Equal("unsaved handover", await ReadMarkerAsync(replacement, attachedId));
                 var attached = replacement.SessionManager.GetSession(attachedId)!;
                 attached.Execute((context, _) =>
@@ -106,21 +198,25 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 if (handedOver && batch.IsExcelProcessAlive())
                 {
                     using var cleanup = new ExcelMcpService();
-                    var cleanupId = await AttachHandoverAsync(cleanup, path, processId);
+                    var cleanupId = await AttachHandoverAsync(cleanup, path);
                     await CloseSessionAsync(cleanup, cleanupId, save: false);
                 }
             }
         });
     }
 
-    private static async Task<string> AttachHandoverAsync(ExcelMcpService service, string path, int? processId)
+    private static async Task<string> AttachHandoverAsync(
+        ExcelMcpService service, string path, int? processId = null)
     {
         var discovery = await service.ProcessAsync(new ServiceRequest { Command = "session.discover" });
         RequireSuccess(discovery);
         using var json = JsonDocument.Parse(discovery.Result!);
         var workbook = Assert.Single(json.RootElement.GetProperty("workbooks").EnumerateArray(),
-            item => item.GetProperty("location").GetString() == path
-                && item.GetProperty("processId").GetInt32() == processId);
+            item => item.TryGetProperty("location", out var location)
+                && string.Equals(location.GetString(), path, StringComparison.OrdinalIgnoreCase)
+                && (!processId.HasValue
+                    || !item.TryGetProperty("processId", out var discoveredProcessId)
+                    || discoveredProcessId.GetInt32() == processId.Value));
         return GetSessionId(await service.ProcessAsync(new ServiceRequest
         {
             Command = "session.attach",
