@@ -125,7 +125,7 @@ public partial class DataModelCommands
             return batch.Execute((ctx, ct) =>
             {
                 Excel.Model? model = null;
-                Excel.ModelRelationships? modelRelationships = null;
+                Excel.ModelRelationship? relationship = null;
                 try
                 {
                     // Check if workbook has Data Model
@@ -135,65 +135,17 @@ public partial class DataModelCommands
                     }
 
                     model = ctx.Book.Model;
-                    modelRelationships = model!.ModelRelationships;
-
-                    // Find and delete the relationship
-                    bool found = false;
-                    int count = modelRelationships.Count;
-                    for (int i = 1; i <= count; i++)
-                    {
-                        Excel.ModelRelationship? currentRelationship = null;
-                        try
-                        {
-                            currentRelationship = modelRelationships.Item(i);
-
-                            Excel.ModelTableColumn? fkColumn = currentRelationship.ForeignKeyColumn;
-                            Excel.ModelTableColumn? pkColumn = currentRelationship.PrimaryKeyColumn;
-
-                            try
-                            {
-                                Excel.ModelTable? fkTable = fkColumn?.Parent as Excel.ModelTable;
-                                Excel.ModelTable? pkTable = pkColumn?.Parent as Excel.ModelTable;
-
-                                string currentFromTable = ComUtilities.SafeGetString(fkTable, "Name");
-                                string currentFromColumn = ComUtilities.SafeGetString(fkColumn, "Name");
-                                string currentToTable = ComUtilities.SafeGetString(pkTable, "Name");
-                                string currentToColumn = ComUtilities.SafeGetString(pkColumn, "Name");
-
-                                ComUtilities.Release(ref fkTable);
-                                ComUtilities.Release(ref pkTable);
-
-                                if (currentFromTable.Equals(fromTable, StringComparison.OrdinalIgnoreCase) &&
-                                    currentFromColumn.Equals(fromColumn, StringComparison.OrdinalIgnoreCase) &&
-                                    currentToTable.Equals(toTable, StringComparison.OrdinalIgnoreCase) &&
-                                    currentToColumn.Equals(toColumn, StringComparison.OrdinalIgnoreCase))
-                                {
-                                    // Delete the relationship
-                                    currentRelationship.Delete();
-                                    found = true;
-                                    break;
-                                }
-                            }
-                            finally
-                            {
-                                ComUtilities.Release(ref fkColumn);
-                                ComUtilities.Release(ref pkColumn);
-                            }
-                        }
-                        finally
-                        {
-                            ComUtilities.Release(ref currentRelationship);
-                        }
-                    }
-
-                    if (!found)
+                    relationship = FindRelationship(model!, fromTable, fromColumn, toTable, toColumn);
+                    if (relationship == null)
                     {
                         throw new InvalidOperationException(DataModelErrorMessages.RelationshipNotFound(fromTable, fromColumn, toTable, toColumn));
                     }
+
+                    relationship.Delete();
                 }
                 finally
                 {
-                    ComUtilities.Release(ref modelRelationships);
+                    ComUtilities.Release(ref relationship);
                     ComUtilities.Release(ref model);
                 }
 

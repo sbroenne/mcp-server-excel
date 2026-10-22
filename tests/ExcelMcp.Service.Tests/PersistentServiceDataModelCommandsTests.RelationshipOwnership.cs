@@ -9,11 +9,16 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public partial class PersistentServiceDataModelCommandsTests
 {
     [Theory]
-    [InlineData("update")]
-    [InlineData("duplicate")]
-    [InlineData("missing")]
-    [InlineData("inspection-failure")]
-    public void RelationshipLookup_ReleasesColumnsAndTablesOnEveryExit(string operation)
+    [InlineData("update", 0)]
+    [InlineData("duplicate", 0)]
+    [InlineData("missing", 0)]
+    [InlineData("inspection-failure", 2)]
+    [InlineData("delete", 1)]
+    [InlineData("delete", 2)]
+    [InlineData("delete", 3)]
+    [InlineData("delete", 4)]
+    [InlineData("delete-missing", 0)]
+    public void RelationshipLookup_ReleasesColumnsAndTablesOnEveryExit(string operation, int failAfter)
     {
         var batch = _fixture.BatchToken;
         var before = RequireSuccess(_dataModelCommands.ListRelationships(batch)).Relationships;
@@ -21,7 +26,7 @@ public partial class PersistentServiceDataModelCommandsTests
         DataModelCommands.RelationshipReferenceAcquiredForTests = reference =>
         {
             acquired.Add(reference);
-            if (operation == "inspection-failure" && acquired.Count == 2)
+            if (failAfter > 0 && acquired.Count == failAfter)
                 throw new InvalidOperationException("Injected relationship inspection failure.");
         };
         PersistentServiceCleanupFailures.Run(() =>
@@ -40,6 +45,12 @@ public partial class PersistentServiceDataModelCommandsTests
                         _dataModelCommands.CreateRelationship(
                             batch, "SalesTable", "CustomerID", "CustomersTable", "CustomerID");
                     }
+                    else if (operation is "delete" or "delete-missing")
+                    {
+                        _dataModelCommands.DeleteRelationship(
+                            batch, "SalesTable", operation == "delete-missing" ? "SalesID" : "CustomerID",
+                            "CustomersTable", "CustomerID");
+                    }
                     else
                     {
                         _dataModelCommands.UpdateRelationship(
@@ -51,24 +62,14 @@ public partial class PersistentServiceDataModelCommandsTests
                 {
                     "duplicate" => "already exists",
                     "inspection-failure" => "Injected relationship inspection failure.",
+                    "delete" => "Injected relationship inspection failure.",
                     _ => "not found"
                 }, failure.Message, StringComparison.OrdinalIgnoreCase);
             }
 
             Assert.NotEmpty(acquired);
-            _fixture.ExecuteRawVerification((_, _) =>
-            {
-                foreach (var reference in acquired)
-                {
-                    Assert.Throws<InvalidComObjectException>(() =>
-                    {
-                        if (reference is Excel.ModelTableColumn column)
-                            _ = column.Name;
-                        else
-                            _ = ((Excel.ModelTable)reference).Name;
-                    });
-                }
-            });
+            if (failAfter > 0)
+                Assert.Equal(failAfter, acquired.Count);
 
             DataModelCommands.RelationshipReferenceAcquiredForTests = null;
             var after = RequireSuccess(_dataModelCommands.ListRelationships(batch)).Relationships;
@@ -84,6 +85,20 @@ public partial class PersistentServiceDataModelCommandsTests
                     expected.FromColumn == "CustomerID" && expected.ToTable == "CustomersTable"
                         ? false : expected.IsActive, actual.IsActive);
             }
+
+            _fixture.ExecuteRawVerification((_, _) =>
+            {
+                foreach (var reference in acquired)
+                {
+                    Assert.Throws<InvalidComObjectException>(() =>
+                    {
+                        if (reference is Excel.ModelTableColumn column)
+                            _ = column.Name;
+                        else
+                            _ = ((Excel.ModelTable)reference).Name;
+                    });
+                }
+            });
         },
         () =>
         {
