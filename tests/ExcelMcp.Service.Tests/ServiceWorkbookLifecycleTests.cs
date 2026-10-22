@@ -87,7 +87,12 @@ public sealed partial class ServiceWorkbookLifecycleTests
             };
 
             reopening = Task.Run(fixture.SaveAndReopenAsync);
-            Assert.True(entered.Wait(TimeSpan.FromSeconds(15)), "Reopen did not reach Excel.");
+            var reopenTimeout = ComInteropConstants.DefaultOperationTimeout
+                + ProcessTerminationPolicy.NormalShutdownBudget
+                + ComInteropConstants.DefaultOperationTimeout
+                + TimeSpan.FromSeconds(15);
+            Assert.True(entered.Wait(reopenTimeout),
+                $"Reopen did not reach Excel within {reopenTimeout}.");
             Assert.Equal(2, fixture.ExcelLaunchCount);
         }
         catch (Exception ex)

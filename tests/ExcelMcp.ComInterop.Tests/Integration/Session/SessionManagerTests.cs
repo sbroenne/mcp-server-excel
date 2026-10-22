@@ -745,7 +745,8 @@ public class SessionManagerTests : IDisposable
                     Assert.Contains("already open", duplicate.Message, StringComparison.Ordinal);
                     Assert.Equal(originalBytes, File.ReadAllBytes(path));
                     Assert.True(SpinWait.SpinUntil(() => OwnedProcessGuard.TryConfirmExited(identity),
-                        TimeSpan.FromSeconds(15)), $"Excel {identity} is still running after failed startup.");
+                        ProcessTerminationPolicy.NormalGraceTimeout),
+                        $"Excel {identity} is still running after failed startup.");
                     Assert.True(manager.CloseSession(retained.SessionId, save: false));
                 }
                 else
