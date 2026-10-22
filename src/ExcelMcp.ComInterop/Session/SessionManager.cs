@@ -94,6 +94,7 @@ public sealed class SessionManager : IDisposable
                      .Where(process => process.ProcessId == processId))
         {
             _trackedExcelProcesses.TryRemove(identity, out _);
+            _preservedExcelProcesses.TryRemove(identity, out _);
         }
 
         NotifyTrackedExcelProcessesChanged();
@@ -111,7 +112,8 @@ public sealed class SessionManager : IDisposable
 
     internal static void PreserveExcelProcess(ExcelProcessIdentity identity)
     {
-        ExcelProcessIdentityPreserved?.Invoke(identity);
+        if (_trackedExcelProcesses.ContainsKey(identity))
+            ExcelProcessIdentityPreserved?.Invoke(identity);
         _preservedExcelProcesses[identity] = 0;
     }
 

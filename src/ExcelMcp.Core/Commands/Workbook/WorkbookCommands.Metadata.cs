@@ -45,13 +45,24 @@ public partial class WorkbookCommands
         {
             if (context.Book.ReadOnly)
                 throw new InvalidOperationException("Cannot change AutoSave on a read-only workbook.");
-            if (ExcelCapabilities.ReadAutoSaveStatus(() => context.Book.AutoSaveOn) is null)
-                throw new NotSupportedException("AutoSave is unavailable in this version of Excel.");
-            context.Book.AutoSaveOn = enabled;
-            if (context.Book.AutoSaveOn != enabled)
-                throw new InvalidOperationException("Excel did not apply the requested AutoSave setting. Inspect the workbook before retrying.");
+            ApplyAutoSaveSetting(
+                () => ExcelCapabilities.ReadAutoSaveStatus(() => context.Book.AutoSaveOn),
+                value => context.Book.AutoSaveOn = value,
+                enabled);
             return ReadWorkbookInfo(context);
         });
+    }
+
+    internal static void ApplyAutoSaveSetting(
+        Func<bool?> readAutoSave,
+        Action<bool> writeAutoSave,
+        bool enabled)
+    {
+        if (readAutoSave() is null)
+            throw new NotSupportedException("AutoSave is unavailable in this version of Excel.");
+        writeAutoSave(enabled);
+        if (readAutoSave() != enabled)
+            throw new InvalidOperationException("Excel did not apply the requested AutoSave setting. Inspect the workbook before retrying.");
     }
 
     /// <inheritdoc />

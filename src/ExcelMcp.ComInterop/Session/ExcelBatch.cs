@@ -645,8 +645,6 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                                             : SessionManager.TrackExcelProcessIdentity(_excelProcessId.Value);
                                     if (_excelProcessIdentity.HasValue)
                                     {
-                                        if (_revealRequested)
-                                            SessionManager.PreserveExcelProcess(_excelProcessIdentity.Value);
                                         _logger.LogDebug("Captured Excel process identity via Hwnd: {ProcessId} (attempt {Attempt})",
                                             _excelProcessId, attempt);
                                         break;
@@ -1240,8 +1238,6 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
     internal void RevealForRecovery(bool waitExpired = false)
     {
-        if (_excelProcessIdentity is { } identity)
-            SessionManager.PreserveExcelProcess(identity);
         lock (_statusLock)
         {
             if (waitExpired)
@@ -1838,7 +1834,6 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                         _excel.DisplayAlerts = displayAlerts;
                     if (_excelProcessIdentity is not { } identity)
                         throw new InvalidOperationException("Cannot hand over unsaved workbooks without a confirmed Excel process identity.");
-                    SessionManager.PreserveExcelProcess(identity);
                     _leaveOwnedApplicationOpen = true;
                     _ownedProcessLeftOpen = true;
                     _logger.LogInformation("Leaving unsaved workbook(s) open and visible without saving or discarding changes");

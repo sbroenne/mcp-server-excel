@@ -101,11 +101,6 @@ internal sealed class TestRunExcelLeftoverCheck : IDisposable
                 wait > elapsed.Elapsed ? wait - elapsed.Elapsed : TimeSpan.Zero))
             .Select(started => started.Key)
             .ToArray();
-        foreach (var identity in remaining)
-        {
-            SessionManager.PreserveExcelProcess(identity);
-        }
-
         return remaining;
     }
 

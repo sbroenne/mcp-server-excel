@@ -99,9 +99,10 @@ public sealed class DaemonForcedStopRegressionTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task AutomaticStartup_DistinguishesHandedOverExcelFromRetainedOwnership(bool handedOver)
+    [InlineData("handed-over")]
+    [InlineData("recovery-protected")]
+    public async Task AutomaticStartup_DistinguishesHandedOverExcelFromRetainedOwnership(
+        string ownershipState)
     {
         var pipeName = $"excelmcp-retained-startup-{Guid.NewGuid():N}";
         using var daemon = StartSleepingProcess();
@@ -109,18 +110,28 @@ public sealed class DaemonForcedStopRegressionTests
         try
         {
             var identity = RegisterTrackedProcesses(pipeName, daemon, excel);
-            if (handedOver)
+            if (ownershipState == "handed-over")
             {
                 var excelIdentity = Assert.Single(DaemonProcessTracker.GetTrackedExcelProcessIdentities(pipeName));
                 DaemonProcessTracker.PreserveExcelProcess(pipeName, identity, excelIdentity);
                 DaemonProcessTracker.RecordExcelProcesses(pipeName, identity, [excelIdentity]);
                 Assert.Empty(DaemonProcessTracker.GetTrackedExcelProcessIdentities(pipeName));
             }
+            else
+            {
+                // Recovery protection leaves the durable record as owned, not handed over.
+                var excelIdentity = new DaemonProcessTracker.ProcessIdentity(
+                    excel.Id,
+                    excel.StartTime.ToUniversalTime().ToFileTimeUtc());
+                // Recovery protection leaves the durable record as owned, not handed over.
+                Assert.Contains(excelIdentity, DaemonProcessTracker.GetTrackedExcelProcessIdentities(pipeName));
+            }
             StopIfRunning(daemon);
             var result = await CliProcessHelper.RunAsync(
                 "service start",
                 timeoutMs: 35000,
                 environmentVariables: new() { ["EXCELMCP_CLI_PIPE"] = pipeName });
+            var handedOver = ownershipState == "handed-over";
             Assert.Equal(handedOver ? 0 : 1, result.ExitCode);
             using var json = JsonDocument.Parse(result.Stdout);
             Assert.Equal(handedOver, json.RootElement.GetProperty("success").GetBoolean());
@@ -132,7 +143,6 @@ public sealed class DaemonForcedStopRegressionTests
             if (!handedOver)
                 Assert.Equal(daemon.Id, DaemonProcessTracker.ReadProcessSnapshot(pipeName).Snapshot!.DaemonProcess.ProcessId);
         }
-
         finally
         {
             await RunServiceStopAsync(pipeName);
