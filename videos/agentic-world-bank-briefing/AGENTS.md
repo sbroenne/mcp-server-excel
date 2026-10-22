@@ -64,9 +64,9 @@ preview. PowerShell drops the `--` in `npm run dev -- --background`, so call
 the pinned CLI directly:
 
 ```powershell
-npx --yes hyperframes@0.8.139 preview --background
-npx --yes hyperframes@0.8.139 preview --status
-npx --yes hyperframes@0.8.139 preview --stop
+npx --yes hyperframes@0.8.184 preview --background
+npx --yes hyperframes@0.8.184 preview --status
+npx --yes hyperframes@0.8.184 preview --stop
 ```
 
 ## Render and publication
