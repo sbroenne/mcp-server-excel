@@ -48,6 +48,7 @@ public sealed class SessionManager : IDisposable
     /// owners can durably persist it before session startup continues.
     /// </summary>
     internal static event Action<ExcelProcessIdentity>? ExcelProcessIdentityTracked;
+    internal static event Action<ExcelProcessIdentity>? ExcelProcessIdentityPreserved;
 
     /// <summary>
     /// Registers an Excel process ID for cleanup on unexpected process exit.
@@ -93,6 +94,7 @@ public sealed class SessionManager : IDisposable
                      .Where(process => process.ProcessId == processId))
         {
             _trackedExcelProcesses.TryRemove(identity, out _);
+            _preservedExcelProcesses.TryRemove(identity, out _);
         }
 
         NotifyTrackedExcelProcessesChanged();
@@ -108,8 +110,12 @@ public sealed class SessionManager : IDisposable
         NotifyTrackedExcelProcessesChanged();
     }
 
-    internal static void PreserveExcelProcess(ExcelProcessIdentity identity) =>
+    internal static void PreserveExcelProcess(ExcelProcessIdentity identity)
+    {
+        if (_trackedExcelProcesses.ContainsKey(identity))
+            ExcelProcessIdentityPreserved?.Invoke(identity);
         _preservedExcelProcesses[identity] = 0;
+    }
 
     internal static bool IsExcelProcessPreserved(ExcelProcessIdentity identity) =>
         _preservedExcelProcesses.ContainsKey(identity);
@@ -2126,17 +2132,17 @@ public sealed class SessionManager : IDisposable
     }
 
     /// <summary>
-    /// Disposes all active sessions, auto-saving each one first to prevent data loss.
+    /// Releases sessions without implicitly saving or discarding unsaved work.
     /// </summary>
     /// <remarks>
-    /// <para>Owned sessions are auto-saved before disposal. Explicitly attached
+    /// <para>Saved owned workbooks close; unsaved workbooks remain open and visible. Explicitly attached
     /// workbooks are detached without saving or closing their workbook.</para>
     /// <para><b>CRITICAL:</b> Sessions are disposed SEQUENTIALLY to avoid COM threading issues.</para>
     /// <para>Excel COM objects must be disposed on their STA threads. Parallel disposal causes deadlocks.</para>
     /// </remarks>
-    /// <exception cref="AggregateException">One or more sessions could not be saved or shut down.</exception>
+    /// <exception cref="AggregateException">One or more sessions could not be safely released.</exception>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
-        Justification = "All per-session save and teardown failures are collected with their original exception and thrown as AggregateException after attempting the remaining sessions.")]
+        Justification = "All per-session handover and teardown failures are collected with their original exception and thrown as AggregateException after attempting the remaining sessions.")]
     public void Dispose()
     {
         KeyValuePair<string, IExcelBatch>[] sessions;
@@ -2187,45 +2193,25 @@ public sealed class SessionManager : IDisposable
                 RemoveSessionTracking(sessionId, removeSessionLock: true);
                 continue;
             }
-            // Auto-save before disposal to prevent silent data loss.
-            // This protects against the common scenario where the MCP client disconnects
-            // or the service process exits, which would otherwise discard all unsaved work.
-            if (!teardownFailed && !readOnlyValidation && session.IsExcelProcessAlive())
-            {
-                try
-                {
-                    using var saveTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-                    session.Save(saveTimeout.Token);
-                    _logger.LogInformation("Auto-saved session for {Path} before shutdown", session.WorkbookPath);
-                }
-                catch (ExcelBusyException ex)
-                {
-                    RevealForRecovery(sessionId);
-                    failures.Add(new InvalidOperationException(
-                        $"Shutdown refused for session '{sessionId}': {ex.Message}", ex));
-                    _logger.LogWarning(ex,
-                        "Shutdown refused for session {SessionId}; workbook and session remain open", sessionId);
-                    continue;
-                }
-                catch (Exception ex)
-                {
-                    failures.Add(new InvalidOperationException(
-                        $"Failed to auto-save session '{sessionId}': {ex.Message}",
-                        ex));
-                    RevealForRecovery(sessionId);
-                    _logger.LogWarning(ex, "Failed to auto-save session for {Path} before shutdown; the workbook remains open", session.WorkbookPath);
-                    continue;
-                }
-            }
-
             try
             {
                 // Dispose sequentially - ExcelBatch.Dispose() handles its own Excel cleanup
                 // via ExcelShutdownService with proper timeouts and retry logic
-                if (teardownFailed || readOnlyValidation)
+                if (teardownFailed || readOnlyValidation
+                    || session is IExcelBatchCloseState { ShutdownCommitted: true }
+                    || !session.IsExcelProcessAlive())
                     session.Dispose();
                 else
-                    CloseBatch(session);
+                {
+                    if (GetActiveOperationCount(sessionId) > 0)
+                        throw new ExcelBusyException(
+                            "Cannot shut down while a workbook operation is active. Its session remains connected.");
+                    ExcelBusyException.ThrowIfNotReady(GetClosePreflightState(session), "shutdown");
+                    if (session is ExcelBatch owned)
+                        owned.Shutdown();
+                    else
+                        CloseBatch(session);
+                }
             }
             catch (ExcelBusyException ex)
             {

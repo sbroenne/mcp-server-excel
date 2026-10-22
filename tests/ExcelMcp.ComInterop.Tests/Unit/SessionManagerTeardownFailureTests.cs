@@ -14,6 +14,60 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 [Trait("Speed", "Fast")]
 public sealed class SessionManagerTeardownFailureTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Dispose_ExitedExcel_BypassesReadinessButRequiresSuccessfulTeardown(bool disposeFails)
+    {
+        using var manager = new SessionManager();
+        var batch = new ConfigurableFailingBatch(false, disposeFails)
+        {
+            ProcessAlive = false,
+            RefreshState = WorkbookRefreshState.Unknown
+        };
+        var path = Path.GetFullPath("exited-before-shutdown.xlsx");
+        RegisterSession(manager, "exited", path, batch);
+        try
+        {
+            if (disposeFails)
+            {
+                var failure = Assert.Throws<AggregateException>(manager.Dispose);
+                Assert.Contains("synthetic teardown failure", failure.ToString());
+                Assert.Same(batch, GetField<ConcurrentDictionary<string, IExcelBatch>>(manager, "_activeSessions")["exited"]);
+                Assert.True(manager.TryGetFilePath("exited", out var retainedPath));
+                Assert.Equal(path, retainedPath);
+                Assert.Equal(1, batch.DisposeCallCount);
+                batch.DisposeFails = false;
+            }
+            manager.Dispose();
+            Assert.Equal(disposeFails ? 2 : 1, batch.DisposeCallCount);
+            Assert.Equal(0, batch.CloseCallCount);
+            Assert.Equal(0, batch.SaveCallCount);
+            Assert.Equal(0, manager.ActiveSessionCount);
+            Assert.False(manager.HasActiveConnections);
+            Assert.Empty(GetField<ConcurrentDictionary<string, string>>(manager, "_sessionFilePaths"));
+            Assert.Empty(GetField<ConcurrentDictionary<string, string>>(manager, "_activeFilePaths"));
+        }
+        finally
+        {
+            batch.DisposeFails = false;
+            batch.RefreshState = WorkbookRefreshState.Ready;
+        }
+    }
+
+    [Fact]
+    public void Dispose_DoesNotRequestAnImplicitSave()
+    {
+        using var manager = new SessionManager();
+        var batch = new ConfigurableFailingBatch(false, false);
+        RegisterSession(manager, "no-implicit-save", Path.GetFullPath("no-implicit-save.xlsx"), batch);
+
+        manager.Dispose();
+
+        Assert.Equal(0, batch.SaveCallCount);
+        Assert.Equal(0, manager.ActiveSessionCount);
+    }
+
     [Fact]
     public void ValidateClose_ReadinessRevealsExcel_ReportsUpdatedVisibility()
     {
@@ -31,7 +85,7 @@ public sealed class SessionManagerTeardownFailureTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void Close_UncommittedFailure_OrdinaryShutdownStillSaves(bool cancelled)
+    public void Close_UncommittedFailure_OrdinaryShutdownDoesNotSave(bool cancelled)
     {
         using var manager = new SessionManager();
         Exception failure = cancelled
@@ -45,14 +99,14 @@ public sealed class SessionManagerTeardownFailureTests
         Assert.Same(batch, manager.GetSession("uncommitted"));
         batch.BeforeCloseFailure = null;
         manager.Dispose();
-        Assert.Equal(1, batch.SaveCallCount);
+        Assert.Equal(0, batch.SaveCallCount);
         Assert.Equal(2, batch.CloseCallCount);
         Assert.Equal(1, batch.DisposeCallCount);
         Assert.Equal(0, manager.ActiveSessionCount);
     }
 
     [Fact]
-    public void Dispose_UncommittedCloseFailure_AllowsEditsAndSavesAgainOnRetry()
+    public void Dispose_UncommittedCloseFailure_AllowsEditsWithoutSavingOnRetry()
     {
         using var manager = new SessionManager();
         var batch = new ConfigurableFailingBatch(false, false)
@@ -62,13 +116,13 @@ public sealed class SessionManagerTeardownFailureTests
         RegisterSession(manager, "shutdown-uncommitted", Path.GetFullPath("uncommitted-shutdown.xlsx"), batch);
         Assert.Throws<AggregateException>(manager.Dispose);
         Assert.False(batch.ShutdownCommitted);
-        Assert.Equal(1, batch.SaveCallCount);
+        Assert.Equal(0, batch.SaveCallCount);
         Assert.True(manager.TryBeginOperation("shutdown-uncommitted", out var retained, out _));
         Assert.Same(batch, retained);
         manager.EndOperation("shutdown-uncommitted");
         batch.BeforeCloseFailure = null;
         manager.Dispose();
-        Assert.Equal(2, batch.SaveCallCount);
+        Assert.Equal(0, batch.SaveCallCount);
         Assert.Equal(1, batch.DisposeCallCount);
         Assert.Equal(0, manager.ActiveSessionCount);
     }
@@ -170,7 +224,7 @@ public sealed class SessionManagerTeardownFailureTests
     }
 
     [Fact]
-    public void Dispose_SaveReadinessRace_RetainsBlockedSessionAndAllowsRetry()
+    public void Close_SaveReadinessRace_RetainsBlockedSessionAndAllowsRetry()
     {
         using var manager = new SessionManager();
         var blocked = new ConfigurableFailingBatch(saveFails: false, disposeFails: false) { SaveBusy = true };
@@ -180,21 +234,21 @@ public sealed class SessionManagerTeardownFailureTests
         RegisterSession(manager, "healthy", Path.GetFullPath("shutdown-ready.xlsx"), healthy);
         try
         {
-            var failure = Assert.Throws<AggregateException>(manager.Dispose);
-            Assert.Contains(failure.InnerExceptions, ex => ex.InnerException is ExcelBusyException);
+            var failure = Assert.Throws<InvalidOperationException>(() => manager.CloseSession("blocked", save: true));
+            Assert.IsType<ExcelBusyException>(failure.InnerException);
             Assert.Equal(0, blocked.DisposeCallCount);
             Assert.Same(blocked, manager.GetSession("blocked"));
             Assert.True(manager.TryGetFilePath("blocked", out var retainedPath));
             Assert.Equal(path, retainedPath);
-            Assert.Equal(1, manager.ActiveSessionCount);
-            Assert.Equal(1, healthy.DisposeCallCount);
+            Assert.Equal(2, manager.ActiveSessionCount);
+            Assert.Equal(0, healthy.DisposeCallCount);
         }
         finally
         {
             blocked.SaveBusy = false;
         }
         manager.Dispose();
-        Assert.Equal(2, blocked.SaveCallCount);
+        Assert.Equal(1, blocked.SaveCallCount);
         Assert.Equal(1, blocked.DisposeCallCount);
         Assert.Equal(1, healthy.DisposeCallCount);
         Assert.Equal(0, manager.ActiveSessionCount);
@@ -228,7 +282,7 @@ public sealed class SessionManagerTeardownFailureTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void Dispose_AutoSaveFailure_RetainsSessionWithoutAttemptingTeardown(bool disposeFails)
+    public void Close_SaveFailure_RetainsSessionWithoutAttemptingTeardown(bool disposeFails)
     {
         using var manager = new SessionManager();
         var batch = new ConfigurableFailingBatch(saveFails: true, disposeFails);
@@ -236,13 +290,11 @@ public sealed class SessionManagerTeardownFailureTests
         RegisterSession(manager, "save-failure", path, batch);
         try
         {
-            var failure = Assert.Throws<AggregateException>(manager.Dispose);
+            var failure = Assert.Throws<InvalidOperationException>(() => manager.CloseSession("save-failure", save: true));
 
             Assert.Equal(1, batch.SaveCallCount);
             Assert.Equal(0, batch.DisposeCallCount);
-            var inner = Assert.Single(failure.InnerExceptions);
-            Assert.Same(batch.SaveException, inner.InnerException);
-            Assert.Contains("save-failure", inner.Message, StringComparison.Ordinal);
+            Assert.Same(batch.SaveException, failure.InnerException);
             Assert.Equal(1, manager.ActiveSessionCount);
             Assert.Same(batch, manager.GetSession("save-failure"));
             Assert.True(manager.TryGetFilePath("save-failure", out var retainedPath));
@@ -254,13 +306,13 @@ public sealed class SessionManagerTeardownFailureTests
             batch.DisposeFails = false;
         }
         manager.Dispose();
-        Assert.Equal(2, batch.SaveCallCount);
+        Assert.Equal(1, batch.SaveCallCount);
         Assert.Equal(1, batch.DisposeCallCount);
         Assert.Equal(0, manager.ActiveSessionCount);
     }
 
     [Fact]
-    public void Dispose_AutoSaveFailure_DoesNotSkipOtherSessions()
+    public void Dispose_DoesNotInvokeSaveEvenWhenSaveWouldFail()
     {
         using var manager = new SessionManager();
         var failingBatch = new ConfigurableFailingBatch(saveFails: true, disposeFails: false);
@@ -270,16 +322,12 @@ public sealed class SessionManagerTeardownFailureTests
 
         try
         {
-            var failure = Assert.Throws<AggregateException>(manager.Dispose);
-
-            Assert.Equal(1, failingBatch.SaveCallCount);
-            Assert.Equal(0, failingBatch.DisposeCallCount);
-            Assert.Equal(1, healthyBatch.SaveCallCount);
+            manager.Dispose();
+            Assert.Equal(0, failingBatch.SaveCallCount);
+            Assert.Equal(1, failingBatch.DisposeCallCount);
+            Assert.Equal(0, healthyBatch.SaveCallCount);
             Assert.Equal(1, healthyBatch.DisposeCallCount);
-            var inner = Assert.Single(failure.InnerExceptions);
-            Assert.Same(failingBatch.SaveException, inner.InnerException);
-            Assert.Equal(1, manager.ActiveSessionCount);
-            Assert.Same(failingBatch, manager.GetSession("failing-save"));
+            Assert.Equal(0, manager.ActiveSessionCount);
         }
         finally
         {
@@ -408,6 +456,8 @@ public sealed class SessionManagerTeardownFailureTests
         public bool DisposeFails { get; set; } = disposeFails;
         public bool SaveBusy { get; set; }
         public bool CloseBusy { get; set; }
+        public bool ProcessAlive { get; set; } = true;
+        public WorkbookRefreshState RefreshState { get; set; } = WorkbookRefreshState.Ready;
         public Exception? BeforeCloseFailure { get; set; }
         public bool RevealOnRefreshRead { get; set; }
         public bool ShutdownCommitted { get; private set; }
@@ -416,7 +466,7 @@ public sealed class SessionManagerTeardownFailureTests
         {
             if (RevealOnRefreshRead)
                 IsExcelVisible = true;
-            return WorkbookRefreshState.Ready;
+            return RefreshState;
         }
         internal InvalidOperationException SaveException { get; } =
             new("synthetic save failure");
@@ -460,7 +510,7 @@ public sealed class SessionManagerTeardownFailureTests
             }
         }
 
-        public bool IsExcelProcessAlive() => true;
+        public bool IsExcelProcessAlive() => ProcessAlive;
 
         public void Save(CancellationToken cancellationToken = default)
         {

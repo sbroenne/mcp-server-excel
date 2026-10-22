@@ -161,6 +161,12 @@ public interface IWorkbookCommands
     [ServiceAction("get-info")]
     WorkbookInfoResult GetInfo(IExcelBatch batch);
 
+    /// <summary>Changes AutoSave only for the selected workbook and returns its confirmed status. Enabling AutoSave can immediately save pending edits. Unsupported settings and native failures are errors; no rollback is promised.</summary>
+    /// <param name="batch">Excel batch session.</param>
+    /// <param name="enabled">Whether Excel AutoSave should be enabled.</param>
+    [ServiceAction("set-auto-save")]
+    WorkbookInfoResult SetAutoSave(IExcelBatch batch, [RequiredParameter] bool enabled);
+
     /// <summary>Reads all 12 native workbook theme colors and major/minor Latin, East Asian, and complex-script font definitions. Empty script font names remain empty; no fallback font is invented.</summary>
     /// <param name="batch">Excel batch session.</param>
     [ServiceAction("get-theme")]

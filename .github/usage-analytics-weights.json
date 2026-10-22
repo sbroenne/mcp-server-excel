@@ -623,6 +623,7 @@
         "set-document-property": "medium",
         "set-protection": "medium",
         "set-view-options": "medium",
+        "set-auto-save": "light",
         "update-cell-style": "medium",
         "update-external-link": "medium",
         "update-table-style": "medium"

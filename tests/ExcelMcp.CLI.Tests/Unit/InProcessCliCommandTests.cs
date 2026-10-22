@@ -17,6 +17,29 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Collection("Sequential")]
 public sealed class InProcessCliCommandTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task WorkbookAutoSave_MapsExplicitSettingAndReturnsStatus(bool enabled)
+    {
+        var result = JsonSerializer.Serialize(new { success = true, autoSaveOn = enabled });
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = result });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "workbook", "set-auto-save", "--session", "target",
+                "--enabled", enabled ? "true" : "false"],
+            CreateRuntime(factory, output, error));
+        Assert.Equal(0, exit);
+        var request = Assert.Single(factory.Requests);
+        Assert.Equal("workbook.set-auto-save", request.Command);
+        Assert.Equal("target", request.SessionId);
+        using var args = JsonDocument.Parse(request.Args!);
+        Assert.Equal(enabled, args.RootElement.GetProperty("enabled").GetBoolean());
+        Assert.Equal(result, output.ToString().Trim());
+        Assert.Empty(error.ToString());
+    }
+
     [Fact]
     public async Task ConnectionAccountSettings_SetMapsTypedInputsWithoutEchoingAccount()
     {

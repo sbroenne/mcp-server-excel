@@ -34,9 +34,8 @@ IRM/AIP restrictions. Inspect `workbook_read` action `get-info` or
 editing. When `autoSaveOn` is true, Excel can persist changes without an explicit
 save.
 
-For `workbook_read get-info`, Excel versions without the AutoSave property
-report `autoSaveOn: false`; there is no AutoSave feature to disable on those
-versions. Discovery and attachment report AutoSave as unavailable instead.
+Excel versions without the AutoSave property report AutoSave as unavailable
+(`autoSaveOn` is null or omitted), not off, in metadata and session responses.
 Only known unavailable-member errors are treated this way. Other AutoSave read
 or write failures remain errors.
 
@@ -45,11 +44,19 @@ requires interactive opening. They do not download the workbook or probe a local
 file. Returned `exists: false`, zero size, and `isIrmProtected: false` are unknown
 remote metadata, not evidence of a missing or unprotected workbook.
 
-Cloud AutoSave is disabled in editable remote sessions opened by ExcelMcp.
-Explicit save/close behavior therefore matches local workbooks: close without
-saving discards unsaved session edits; close with saving writes through Excel to
-the original SharePoint location. Normal Service shutdown still attempts to save
-workbooks it opened.
+Opening and attaching preserve Excel's existing AutoSave setting. Responses
+report its live status and warn when it is enabled. To explicitly change it:
+
+```text
+MCP: workbook(action: 'set-auto-save', workbook_session_id: sessionId, enabled: false)
+CLI: excelcli workbook set-auto-save --session <session-id> --enabled false
+```
+
+Enabling AutoSave can immediately persist pending edits. Excel determines whether
+the workbook supports the requested setting; unsupported or rejected changes
+are errors. The result reports the confirmed `autoSaveOn` value. Turning AutoSave
+off or closing without saving cannot undo edits it already saved.
+Normal shutdown neither changes AutoSave nor saves or discards pending edits.
 
 If the remote workbook is already open, use MCP `file_read` action `discover`
 or CLI `excelcli session discover`, then attach using MCP `file` action `attach`
@@ -58,8 +65,9 @@ Discovery does not reopen workbooks and reports `complete` plus any errors.
 Newly attached workbooks remain open on service shutdown. If a workbook is
 already connected to a session, attachment returns that existing session and
 its established shutdown behavior applies. The CLI tray's Exit prompt applies
-only to workbooks opened or created by ExcelMcp; either save choice leaves
-attached workbooks open without saving them. Explicit Close Session and Close
+only to workbooks opened or created by ExcelMcp; Yes explicitly saves and closes
+them, No uses normal shutdown and leaves unsaved workbooks open and visible.
+Attached workbooks stay open without saving them. Explicit Close Session and Close
 All Sessions still close the selected sessions, including attachments.
 Attachment preserves the existing
 AutoSave setting and reports it; when AutoSave is enabled, Excel may save later
@@ -112,7 +120,14 @@ process is confirmed to have exited, not merely because its window is missing.
 After connection cleanup fails, discovery or shutdown can release that connection
 once both its exact Excel process exit and its execution thread's exit are confirmed.
 
-On shutdown, ExcelMcp closes only workbooks it opened. If another workbook
+On shutdown, ExcelMcp closes only confirmed-saved workbooks it opened. Unsaved
+workbooks remain open and visible; their automation connection is released
+without saving or discarding. Discover and attach after restarting to continue
+work. Save and close explicitly when an unattended job should leave no workbook
+open. If a user or macro changes a workbook while its close is starting, Excel's
+native prompt remains enabled; ExcelMcp does not choose Save or Don't Save.
+A pending or cancelled close keeps the session connected.
+If another workbook
 remains in that Excel process, ExcelMcp leaves the process running. ExcelMcp
 checks for remaining workbooks before every attempt to quit, including retries,
 and restores the alert setting it changed when leaving its Excel process open.
@@ -270,7 +285,7 @@ Readiness inspection waits at most 200 milliseconds, even when its Excel scan
 has started. An unfinished scan remains owned and reports an unconfirmed state;
 later listings reuse its result. This does not save or close the workbook.
 
-Service shutdown also refuses to discard edits when readiness blocks saving.
+Service shutdown refuses an unsafe handover when Excel readiness is unconfirmed.
 Normal close checks readiness again on Excel's STA at the shutdown transition.
 If a refresh starts after the initial check, close reports `Busy` without
 cancelling the work queue or retiring the session, so it can be used and retried.
@@ -278,12 +293,12 @@ When `save=true`, saving may already have completed before this late refusal;
 that save is not rolled back.
 The blocked workbook stays in its session and the service stays running so you
 can respond to Excel's prompt or wait for the refresh, then retry
-`excelcli service stop`. Other ready sessions may already have been saved and
-closed before a refusal. Product `excelcli service stop` waits for the shutdown
-reply while ready workbooks save and close one at a time. You can cancel this
+`excelcli service stop`. Other ready sessions may already have been handed over or
+closed before a refusal; shutdown does not save them. Product `excelcli service stop`
+waits for the shutdown reply while ready sessions are released one at a time. You can cancel this
 wait; Excel's own save and shutdown time limits still apply. It does not force-stop Excel
 after any failed shutdown response or an expired shutdown wait.
-Simultaneous shutdown requests cannot bypass a refusal: saving and the decision
+Simultaneous shutdown requests cannot bypass a refusal: handover and the decision
 to stop the service are serialized across all service shutdown entry points.
 This does not protect against externally killing the service or Excel.
 

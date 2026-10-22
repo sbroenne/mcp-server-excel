@@ -22,6 +22,13 @@ failure into absent data. Optional property discovery tolerates only an exact
 known unavailable-member error; unexpected errors retain their cause and
 operation context at the failure-transport boundary.
 
+Normal host shutdown does not authorize saving or discarding pending edits.
+Saved workbooks opened by the host close; unsaved workbooks are handed back open
+and visible with automation settings restored and their process protected from
+cleanup. Attached workbooks stay untouched. Opening and attaching preserve Excel
+AutoSave; an explicit per-workbook operation controls it. AutoSave can persist
+edits independently, including before shutdown.
+
 ## Reasons and tradeoffs
 
 Opening Excel per operation would avoid persistent session state but lose
@@ -66,6 +73,12 @@ A connected host's failure or expired response wait does not authorize cleanup.
 Central ownership also makes targeted cleanup possible without terminating
 unrelated user workbooks. This carries explicit lifetime and recovery complexity
 rather than hiding it in individual commands.
+
+Implicit saving at disconnect commits changes without a separate request;
+implicit discard loses the user's choices. A visible handover preserves those
+choices at the cost of leaving Excel running. Unattended callers must explicitly
+save and close their completed work. Handover must survive host exit and allow
+later discovery/attachment, not remain an orphan eligible for process cleanup.
 
 ## Implementation and guidance
 

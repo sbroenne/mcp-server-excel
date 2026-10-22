@@ -392,7 +392,7 @@ public static class ExcelShutdownService
     internal static void CloseWorkbookAndConfirm(
         Excel.Workbook workbook,
         Excel.Application excel,
-        bool save,
+        bool? save,
         string filePath,
         ILogger logger)
     {
@@ -401,7 +401,7 @@ public static class ExcelShutdownService
         ArgumentNullException.ThrowIfNull(logger);
 
         var fileName = Path.GetFileName(filePath);
-        if (save)
+        if (save == true)
             SaveWorkbookWithTimeout(workbook, fileName, logger);
 
         CloseWorkbookWithRetry(workbook, save, fileName, logger);
@@ -414,7 +414,7 @@ public static class ExcelShutdownService
 
     private static void CloseWorkbookWithRetry(
         Excel.Workbook workbook,
-        bool save,
+        bool? save,
         string fileName,
         ILogger logger)
     {
@@ -426,7 +426,7 @@ public static class ExcelShutdownService
             try
             {
                 logger.LogDebug("Closing workbook {FileName} (save={Save}, attempt {Attempt})", fileName, save, attempt);
-                workbook.Close(save);
+                workbook.Close(save.HasValue ? save.Value : Type.Missing);
                 logger.LogDebug("Workbook {FileName} close call returned", fileName);
                 return;
             }

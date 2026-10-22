@@ -57,11 +57,13 @@ See [window management](window.md#visibility-and-placement).
   reports `canClose: true`. Confirm before closing a visible window unless
   already authorized. Keep the workbook open when requested.
 - Explicit close discards unsaved edits unless saving is requested. Normal
-  service shutdown attempts to save workbooks opened by this service; attached
-  workbooks are left open and are not saved or closed by shutdown. Leaving a
+  service shutdown closes saved workbooks it opened and leaves unsaved ones open
+  and visible without saving or discarding; attached workbooks stay untouched. Leaving a
   failed job open is not a rollback. Crashes and forced cleanup can lose changes.
 - Closing without saving discards all edits since the last save, including
-  earlier work. There is no tool-level undo for discarded edits.
+  earlier work. There is no tool-level undo for discarded edits. AutoSave is
+  preserved on open/attach and can already have persisted edits; closing without
+  saving cannot undo those changes.
 - Cancellation is not undo. After failure, inspect the surviving session and
   affected objects before retrying. A failed operation can partly apply.
 - Save only the intended successful result. After failure, inspect the partial

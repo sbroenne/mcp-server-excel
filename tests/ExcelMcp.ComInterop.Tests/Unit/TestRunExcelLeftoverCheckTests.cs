@@ -35,7 +35,7 @@ public sealed class TestRunExcelLeftoverCheckTests
             check.Record(identity);
 
             Assert.Equal([identity], check.FindRemaining(TimeSpan.FromSeconds(1)));
-            Assert.True(SessionManager.IsExcelProcessPreserved(identity));
+            Assert.False(SessionManager.IsExcelProcessPreserved(identity));
             Assert.Contains(identity, SessionManager.GetTrackedExcelProcesses());
             Assert.False(standIn.HasExited);
         }

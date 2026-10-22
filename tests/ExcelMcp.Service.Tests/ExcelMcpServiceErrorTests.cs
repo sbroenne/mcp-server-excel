@@ -527,18 +527,25 @@ public sealed class ExcelMcpServiceErrorTests
 
         RegisterSession(service, sessionId, batch);
 
-        var response = await service.ProcessAsync(new ServiceRequest
+        try
         {
-            Command = "sheet.list",
-            SessionId = sessionId
-        });
+            var response = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "sheet.list",
+                SessionId = sessionId
+            });
 
-        Assert.False(response.Success);
-        Assert.Equal("SessionUnavailable", response.ErrorCategory);
-        Assert.NotNull(response.ErrorMessage);
-        Assert.Contains("expired", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("remains open", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(0, batch.ExecuteCalls);
+            Assert.False(response.Success);
+            Assert.Equal("SessionUnavailable", response.ErrorCategory);
+            Assert.NotNull(response.ErrorMessage);
+            Assert.Contains("expired", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("remains open", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(0, batch.ExecuteCalls);
+        }
+        finally
+        {
+            batch.HasTimedOutOperation = false;
+        }
     }
 
     [Fact]
@@ -725,17 +732,24 @@ public sealed class ExcelMcpServiceErrorTests
 
         RegisterSession(service, sessionId, batch);
 
-        var response = await service.ProcessAsync(new ServiceRequest
+        try
         {
-            Command = "session.close",
-            SessionId = sessionId,
-            Args = JsonSerializer.Serialize(new { save = true }, ServiceProtocol.JsonOptions)
-        });
+            var response = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.close",
+                SessionId = sessionId,
+                Args = JsonSerializer.Serialize(new { save = true }, ServiceProtocol.JsonOptions)
+            });
 
-        Assert.False(response.Success);
-        Assert.NotNull(response.ErrorMessage);
-        Assert.Contains("busy", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-        Assert.Equal(0, batch.SaveCalls);
+            Assert.False(response.Success);
+            Assert.NotNull(response.ErrorMessage);
+            Assert.Contains("busy", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(0, batch.SaveCalls);
+        }
+        finally
+        {
+            batch.HasTimedOutOperation = false;
+        }
     }
 
     [Fact]
@@ -833,7 +847,7 @@ public sealed class ExcelMcpServiceErrorTests
         public string WorkbookPath { get; init; } = Path.Combine(Path.GetTempPath(), $"fake-batch-{Guid.NewGuid():N}.xlsx");
         public Microsoft.Extensions.Logging.ILogger Logger { get; } = NullLogger.Instance;
         public IReadOnlyDictionary<string, Excel.Workbook> Workbooks { get; } = new Dictionary<string, Excel.Workbook>();
-        public bool HasTimedOutOperation { get; init; }
+        public bool HasTimedOutOperation { get; set; }
         public bool IsAlive { get; private set; } = true;
         public bool IsAliveAfterSaveException { get; init; } = true;
         public Exception? ExecuteException { get; init; }

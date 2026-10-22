@@ -63,7 +63,7 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
             cancellation.Cancel();
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => creation);
             var refusal = Assert.Throws<AggregateException>(bridge.Dispose);
-            Assert.Contains("pending", refusal.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.IsType<ExcelBusyException>(Assert.Single(refusal.InnerExceptions).InnerException);
             Assert.Same(batch, backend.SessionManager.GetSession(pending.SessionId));
             Assert.True(OwnedProcessGuard.MatchesLiveProcess(identity.Value));
             Assert.Equal(path, Assert.Single(backend.SessionManager.GetActiveSessions()).FilePath);
@@ -75,6 +75,12 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
             Assert.True(SpinWait.SpinUntil(
                 () => batch.GetRefreshState() == WorkbookRefreshState.Ready,
                 TimeSpan.FromSeconds(10)));
+            var saved = await backend.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.save",
+                SessionId = pending.SessionId
+            });
+            Assert.True(saved.Success, saved.ErrorMessage);
             bridge.Dispose();
             Assert.Equal(0, backend.SessionManager.ActiveSessionCount);
             Assert.True(OwnedProcessGuard.TryConfirmExited(identity.Value));
@@ -103,6 +109,8 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
         var cleanup = await Record.ExceptionAsync(async () =>
         {
             await backend.Finished.Task.WaitAsync(TimeSpan.FromSeconds(30));
+            foreach (var sessionId in backend.SessionManager.ActiveSessionIds)
+                backend.SessionManager.CloseSession(sessionId, save: false);
             bridge.Dispose();
             if (identity is { } owned)
                 Assert.True(OwnedProcessGuard.TryConfirmExited(owned));
@@ -192,6 +200,9 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
         {
             release.Set();
             ExcelBatch.AfterWorkbookOpenHookForTests = null;
+            foreach (var session in backend.SessionManager.GetActiveSessions()
+                .Where(session => session.FilePath == firstPath || session.FilePath == secondPath))
+                backend.SessionManager.CloseSession(session.SessionId, save: false);
             await ProgramTransportTestHost.StopAsync(host.Client, input, outputPipe, host.ServerTask, output, shutdown);
             File.Delete(firstPath);
             File.Delete(secondPath);
@@ -201,7 +212,7 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task Shutdown_AutoSavesUnlessExplicitCloseDiscardsChanges(bool discard)
+    public async Task Shutdown_HandsOverUnsavedChangesUnlessExplicitCloseDiscardsThem(bool discard)
     {
         var path = Path.Combine(Path.GetTempPath(), $"mcp-persistence-{Guid.NewGuid():N}.xlsx");
         try
@@ -244,8 +255,36 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
         var readerInput = new Pipe();
         var readerOutput = new Pipe();
         var reader = await ProgramTransportTestHost.StartAsync(readerInput, readerOutput, readerShutdown.Token, "PersistenceReader");
+        string? attachedId = null;
         try
         {
+            if (!discard)
+            {
+                var discovery = await CallAsync(reader.Client, "file_read", new() { ["action"] = "discover" });
+                var selected = Assert.Single(discovery.GetProperty("workbooks").EnumerateArray(),
+                    workbook => workbook.GetProperty("location").GetString() == path);
+                var attached = await CallAsync(reader.Client, "file", new()
+                {
+                    ["action"] = "attach",
+                    ["open_workbook_id"] = selected.GetProperty("workbookId").GetString()
+                });
+                attachedId = attached.GetProperty("workbook_session_id").GetString();
+                var retained = await CallAsync(reader.Client, "range_read", new()
+                {
+                    ["action"] = "get-values",
+                    ["workbook_session_id"] = attachedId,
+                    ["sheet_name"] = "Sheet1",
+                    ["range_address"] = "A1"
+                });
+                Assert.Equal("saved-on-shutdown", retained.GetProperty("values")[0][0].GetString());
+                await CallAsync(reader.Client, "file", new()
+                {
+                    ["action"] = "close",
+                    ["workbook_session_id"] = attachedId,
+                    ["save"] = false
+                });
+                attachedId = null;
+            }
             var opened = await CallAsync(reader.Client, "file", new() { ["action"] = "open", ["file_path"] = path });
             var values = await CallAsync(reader.Client, "range_read", new()
             {
@@ -254,10 +293,17 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
                 ["sheet_name"] = "Sheet1",
                 ["range_address"] = "A1"
             });
-            Assert.Equal(discard ? null : "saved-on-shutdown", values.GetProperty("values")[0][0].GetString());
+            Assert.Equal(JsonValueKind.Null, values.GetProperty("values")[0][0].ValueKind);
         }
         finally
         {
+            if (attachedId is not null)
+                await CallAsync(reader.Client, "file", new()
+                {
+                    ["action"] = "close",
+                    ["workbook_session_id"] = attachedId,
+                    ["save"] = false
+                });
             await ProgramTransportTestHost.StopAsync(reader.Client, readerInput, readerOutput, reader.ServerTask, output, readerShutdown);
         }
     }
