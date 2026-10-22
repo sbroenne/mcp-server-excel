@@ -242,7 +242,7 @@ internal sealed class Program
         // even when capturing with $result = excelcli ...).
         var err = CreateErrorConsole();
         err.Write(new FigletText("Excel CLI").Color(Spectre.Console.Color.Blue));
-        err.MarkupLine("[dim]Excel automation powered by ExcelMcp Core[/]");
+        err.MarkupLine("[dim]Automate Microsoft Excel from the command line[/]");
         err.MarkupLine("[yellow]Workflow:[/] [green]session open <file>[/] → run commands with [green]--session <id>[/] → [green]session close --save[/].");
         err.MarkupLine("[dim]A background service manages sessions for performance.[/]");
         err.WriteLine();
