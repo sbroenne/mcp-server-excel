@@ -19,6 +19,8 @@ public partial class DataModelCommands
     private const string PercentageMeasureFormat = "Percentage";
     private const string WholeNumberMeasureFormat = "WholeNumber";
 
+    internal static Action<object>? RelationshipReferenceAcquiredForTests { get; set; }
+
     private static readonly Dictionary<string, Func<Excel.Model, object>> MeasureFormatFactories =
         new(StringComparer.OrdinalIgnoreCase)
         {
@@ -446,17 +448,13 @@ public partial class DataModelCommands
                 {
                     relationship = relationships.Item(i);
 
-                    // Get relationship details
-                    string currentFromTable = (relationship.ForeignKeyColumn?.Parent as Excel.ModelTable)?.Name?.ToString() ?? "";
-                    string currentFromColumn = relationship.ForeignKeyColumn?.Name?.ToString() ?? "";
-                    string currentToTable = (relationship.PrimaryKeyColumn?.Parent as Excel.ModelTable)?.Name?.ToString() ?? "";
-                    string currentToColumn = relationship.PrimaryKeyColumn?.Name?.ToString() ?? "";
+                    var details = ReadRelationshipInfo(relationship);
 
                     // Match all four components (case-insensitive)
-                    if (currentFromTable.Equals(fromTable, StringComparison.OrdinalIgnoreCase) &&
-                        currentFromColumn.Equals(fromColumn, StringComparison.OrdinalIgnoreCase) &&
-                        currentToTable.Equals(toTable, StringComparison.OrdinalIgnoreCase) &&
-                        currentToColumn.Equals(toColumn, StringComparison.OrdinalIgnoreCase))
+                    if (details.FromTable.Equals(fromTable, StringComparison.OrdinalIgnoreCase) &&
+                        details.FromColumn.Equals(fromColumn, StringComparison.OrdinalIgnoreCase) &&
+                        details.ToTable.Equals(toTable, StringComparison.OrdinalIgnoreCase) &&
+                        details.ToColumn.Equals(toColumn, StringComparison.OrdinalIgnoreCase))
                     {
                         // Found match - don't release, caller will use it
                         var foundRelationship = relationship;
