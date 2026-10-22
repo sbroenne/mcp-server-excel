@@ -85,7 +85,7 @@ the workbook normally.
 
 ## MCP Server or CLI?
 
-Both entry points expose the same Core commands and behavior, so the choice is
+Both entry points expose the same Excel commands and behavior, so the choice is
 technical. Coding agents can use either one.
 
 | Interface | Works with | Why |
@@ -101,7 +101,7 @@ AI assistant or script
         │
    MCP Server / CLI
         │
- ExcelMcp Core commands
+ Shared Excel commands
         │
  Real Excel COM API
 ```

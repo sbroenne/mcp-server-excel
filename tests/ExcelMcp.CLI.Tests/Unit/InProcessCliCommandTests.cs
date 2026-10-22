@@ -753,10 +753,9 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(0, exitCode);
         Assert.Contains("Could not check for updates", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("Current version:", output.ToString(), StringComparison.Ordinal);
-        Assert.Contains(
-            "Excel automation powered by ExcelMcp Core",
-            error.ToString(),
-            StringComparison.Ordinal);
+        var banner = error.ToString();
+        Assert.False(string.IsNullOrWhiteSpace(banner));
+        Assert.DoesNotContain(banner, output.ToString(), StringComparison.Ordinal);
     }
 
     [Theory]
