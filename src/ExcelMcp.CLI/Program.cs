@@ -407,6 +407,10 @@ internal sealed class Program
                         process.StartedAtUtcFileTime)
                 ]);
         SessionManager.ExcelProcessIdentityTracked += excelProcessTracker;
+        Action<ExcelProcessIdentity> preserveExcelProcess = process =>
+            DaemonProcessTracker.PreserveExcelProcess(pipeName, daemonIdentity,
+                new DaemonProcessTracker.ProcessIdentity(process.ProcessId, process.StartedAtUtcFileTime));
+        SessionManager.ExcelProcessIdentityPreserved += preserveExcelProcess;
         foreach (var process in SessionManager.GetTrackedExcelProcesses())
         {
             excelProcessTracker(process);
@@ -475,6 +479,7 @@ internal sealed class Program
                 service.Dispose();
             }
             SessionManager.ExcelProcessIdentityTracked -= excelProcessTracker;
+            SessionManager.ExcelProcessIdentityPreserved -= preserveExcelProcess;
 
             // Release the daemon mutex so a new daemon can start if needed.
             if (ownsLegacyDaemonMutex)

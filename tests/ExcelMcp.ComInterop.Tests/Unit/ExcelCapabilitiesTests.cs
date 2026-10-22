@@ -17,18 +17,12 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 public sealed class ExcelCapabilitiesTests
 {
     [Theory]
-    [InlineData(unchecked((int)0x80020003), false)]
-    [InlineData(unchecked((int)0x80020006), false)]
-    [InlineData(unchecked((int)0x80004001), false)]
-    [InlineData(unchecked((int)0x80020003), true)]
-    [InlineData(unchecked((int)0x80020006), true)]
-    [InlineData(unchecked((int)0x80004001), true)]
-    public void AutoSave_UnavailableMember_ReadsFalseAndAllowsDisable(int hresult, bool writing)
+    [InlineData(unchecked((int)0x80020003))]
+    [InlineData(unchecked((int)0x80020006))]
+    [InlineData(unchecked((int)0x80004001))]
+    public void AutoSave_UnavailableMember_ReportsUnknown(int hresult)
     {
-        if (writing)
-            ExcelCapabilities.DisableAutoSave(() => throw new COMException("Unsupported AutoSave", hresult));
-        else
-            Assert.False(ExcelCapabilities.ReadAutoSave(() => throw new COMException("Unsupported AutoSave", hresult)));
+        Assert.Null(ExcelCapabilities.ReadAutoSaveStatus(() => throw new COMException("Unsupported AutoSave", hresult)));
     }
 
     [Theory]
@@ -36,23 +30,20 @@ public sealed class ExcelCapabilitiesTests
     [InlineData(unchecked((int)0x80010001))]
     [InlineData(unchecked((int)0x80010108))]
     [InlineData(unchecked((int)0x80070005))]
-    public void AutoSave_UnexpectedReadOrWriteFailure_Propagates(int hresult)
+    public void AutoSave_UnexpectedReadFailure_Propagates(int hresult)
     {
         var error = new COMException("AutoSave failed", hresult);
-        Assert.Same(error, Assert.Throws<COMException>(() => ExcelCapabilities.ReadAutoSave(() => throw error)));
-        Assert.Same(error, Assert.Throws<COMException>(() => ExcelCapabilities.DisableAutoSave(() => throw error)));
+        Assert.Same(error, Assert.Throws<COMException>(() => ExcelCapabilities.ReadAutoSaveStatus(() => throw error)));
     }
 
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void AutoSave_SupportedMember_ReturnsLiveValueAndDisables(bool enabled)
+    public void AutoSave_SupportedMember_ReturnsLiveValue(bool enabled)
     {
-        Assert.Equal(enabled, ExcelCapabilities.ReadAutoSave(() => enabled));
+        Assert.Equal(enabled, ExcelCapabilities.ReadAutoSaveStatus(() => enabled));
         enabled = !enabled;
-        Assert.Equal(enabled, ExcelCapabilities.ReadAutoSave(() => enabled));
-        ExcelCapabilities.DisableAutoSave(() => enabled = false);
-        Assert.False(enabled);
+        Assert.Equal(enabled, ExcelCapabilities.ReadAutoSaveStatus(() => enabled));
     }
 
     [Theory]

@@ -13,26 +13,44 @@ public partial class WorkbookCommands
     private const int BuiltInPropertyValueFailure = unchecked((int)0x80004005);
 
     /// <inheritdoc />
-    public WorkbookInfoResult GetInfo(IExcelBatch batch)
+    public WorkbookInfoResult GetInfo(IExcelBatch batch) =>
+        batch.Execute((context, _) => ReadWorkbookInfo(context));
+
+    private static WorkbookInfoResult ReadWorkbookInfo(ExcelContext context)
+    {
+        var fileFormat = context.Book.FileFormat;
+        var autoSaveOn = ExcelCapabilities.ReadAutoSaveStatus(() => context.Book.AutoSaveOn);
+        return new WorkbookInfoResult
+        {
+            Success = true,
+            FilePath = context.Book.FullName,
+            Name = context.Book.Name,
+            FullName = context.Book.FullName,
+            DirectoryPath = context.Book.Path,
+            Format = GetFormatName(fileFormat),
+            FormatCode = Convert.ToInt32(fileFormat, CultureInfo.InvariantCulture),
+            Saved = context.Book.Saved,
+            AutoSaveOn = autoSaveOn,
+            Warning = ExcelCapabilities.AutoSaveWarning(autoSaveOn),
+            ReadOnly = context.Book.ReadOnly,
+            HasPassword = context.Book.HasPassword,
+            WriteReserved = context.Book.WriteReserved
+        };
+    }
+
+    /// <inheritdoc />
+    public WorkbookInfoResult SetAutoSave(IExcelBatch batch, bool enabled)
     {
         return batch.Execute((context, _) =>
         {
-            var fileFormat = context.Book.FileFormat;
-            return new WorkbookInfoResult
-            {
-                Success = true,
-                FilePath = context.Book.FullName,
-                Name = context.Book.Name,
-                FullName = context.Book.FullName,
-                DirectoryPath = context.Book.Path,
-                Format = GetFormatName(fileFormat),
-                FormatCode = Convert.ToInt32(fileFormat, CultureInfo.InvariantCulture),
-                Saved = context.Book.Saved,
-                AutoSaveOn = ExcelCapabilities.ReadAutoSave(() => context.Book.AutoSaveOn),
-                ReadOnly = context.Book.ReadOnly,
-                HasPassword = context.Book.HasPassword,
-                WriteReserved = context.Book.WriteReserved
-            };
+            if (context.Book.ReadOnly)
+                throw new InvalidOperationException("Cannot change AutoSave on a read-only workbook.");
+            if (ExcelCapabilities.ReadAutoSaveStatus(() => context.Book.AutoSaveOn) is null)
+                throw new NotSupportedException("AutoSave is unavailable in this version of Excel.");
+            context.Book.AutoSaveOn = enabled;
+            if (context.Book.AutoSaveOn != enabled)
+                throw new InvalidOperationException("Excel did not apply the requested AutoSave setting. Inspect the workbook before retrying.");
+            return ReadWorkbookInfo(context);
         });
     }
 

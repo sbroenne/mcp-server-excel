@@ -15,7 +15,9 @@ Follow [repository review checks](../../AGENTS.md#code-review-rules) and
   content. Unexpected exceptions and cancellation propagate to the SDK.
 - Request filters validate supplied action parameters and session identity
   before SDK binding. Generate action applicability from Core contracts.
-- Ordinary shutdown saves remaining sessions. Explicit no-save close discards
+- Ordinary shutdown closes saved owned workbooks and hands unsaved ones back
+  open and visible without saving or discarding; attached workbooks stay untouched.
+  Preserve AutoSave on open/attach. Explicit no-save close discards only unsaved
   edits; cancellation is not undo and must not close unrelated workbooks.
 - Stdio stdout is JSON-RPC only, including startup/bootstrap paths; diagnostics
   go to stderr.

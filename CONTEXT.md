@@ -49,7 +49,7 @@ telemetry. `ExcelMcpService` is not a standalone process. See
 - Operations inside one session run in order on one Excel thread.
 - Different sessions can run independently, but the same workbook cannot be opened in multiple sessions.
 - An expired wait can leave Excel working. Retain the session and workbook, reveal the affected Excel window when possible, and report status to the calling agent. New work is refused until the original callback has returned and Excel readiness is confirmed; then the same session can be reused.
-- Ordinary operations change the in-memory workbook. Explicit close defaults to discarding unsaved changes; request saving to keep them. Normal Service shutdown attempts to save sessions opened by the service and detaches from attached workbooks without saving or closing them. An expired wait or caller cancellation does not authorize saving, discarding, rollback, or termination.
+- Ordinary operations change the in-memory workbook; Excel AutoSave can persist edits independently. Opening and attaching preserve that setting. Explicit close defaults to discarding unsaved changes; request saving to keep them. Normal Service shutdown closes confirmed-saved workbooks it opened and hands unsaved ones back open and visible without saving or discarding. Attached workbooks stay untouched. An expired wait or caller cancellation does not authorize saving, discarding, rollback, or termination.
 - MCP uses the official SDK for registration, transport, argument binding, and protocol errors. The host owns its injected Service bridge; cancelled startup retains its eventual session. Session publication is coordinated with shutdown.
 
 ## Sources of truth

@@ -98,32 +98,69 @@ public sealed class DaemonForcedStopRegressionTests
         }
     }
 
-    [Fact]
-    public async Task AutomaticStartup_RetainsLiveExcelAfterItsDaemonExited()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AutomaticStartup_DistinguishesHandedOverExcelFromRetainedOwnership(bool handedOver)
     {
         var pipeName = $"excelmcp-retained-startup-{Guid.NewGuid():N}";
         using var daemon = StartSleepingProcess();
         using var excel = StartSleepingProcess();
         try
         {
-            RegisterTrackedProcesses(pipeName, daemon, excel);
+            var identity = RegisterTrackedProcesses(pipeName, daemon, excel);
+            if (handedOver)
+            {
+                var excelIdentity = Assert.Single(DaemonProcessTracker.GetTrackedExcelProcessIdentities(pipeName));
+                DaemonProcessTracker.PreserveExcelProcess(pipeName, identity, excelIdentity);
+                DaemonProcessTracker.RecordExcelProcesses(pipeName, identity, [excelIdentity]);
+                Assert.Empty(DaemonProcessTracker.GetTrackedExcelProcessIdentities(pipeName));
+            }
             StopIfRunning(daemon);
             var result = await CliProcessHelper.RunAsync(
                 "service start",
                 timeoutMs: 35000,
                 environmentVariables: new() { ["EXCELMCP_CLI_PIPE"] = pipeName });
-            Assert.Equal(1, result.ExitCode);
+            Assert.Equal(handedOver ? 0 : 1, result.ExitCode);
             using var json = JsonDocument.Parse(result.Stdout);
-            Assert.False(json.RootElement.GetProperty("success").GetBoolean());
-            Assert.Contains("remain open", json.RootElement.GetProperty("errorMessage").GetString(),
-                StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(handedOver, json.RootElement.GetProperty("success").GetBoolean());
+            if (!handedOver)
+                Assert.Contains("remain open", json.RootElement.GetProperty("errorMessage").GetString(),
+                    StringComparison.OrdinalIgnoreCase);
             Assert.False(excel.HasExited);
             Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
-            Assert.Equal(daemon.Id, DaemonProcessTracker.ReadProcessSnapshot(pipeName).Snapshot!.DaemonProcess.ProcessId);
+            if (!handedOver)
+                Assert.Equal(daemon.Id, DaemonProcessTracker.ReadProcessSnapshot(pipeName).Snapshot!.DaemonProcess.ProcessId);
         }
+
         finally
         {
             await RunServiceStopAsync(pipeName);
+            StopIfRunning(daemon);
+            StopIfRunning(excel);
+            DaemonProcessTracker.Clear(pipeName);
+        }
+    }
+
+    [Fact]
+    public async Task Cleanup_DoesNotTerminateExcelHandedOverAfterSnapshot()
+    {
+        var pipeName = $"excelmcp-handover-{Guid.NewGuid():N}";
+        using var daemon = StartShortLivedProcess();
+        using var excel = StartSleepingProcess();
+        try
+        {
+            var identity = RegisterTrackedProcesses(pipeName, daemon, excel);
+            var before = OwnedProcessCleanup.CaptureTrackedProcesses(pipeName);
+            var selected = Assert.Single(before.ExcelProcesses);
+            DaemonProcessTracker.PreserveExcelProcess(pipeName, identity, selected);
+            await daemon.WaitForExitAsync();
+            var result = await OwnedProcessCleanup.CleanupAsync(pipeName, before, CancellationToken.None);
+            Assert.True(result.Success);
+            Assert.False(excel.HasExited);
+        }
+        finally
+        {
             StopIfRunning(daemon);
             StopIfRunning(excel);
             DaemonProcessTracker.Clear(pipeName);

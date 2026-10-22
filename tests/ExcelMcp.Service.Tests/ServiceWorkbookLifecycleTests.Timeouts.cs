@@ -110,7 +110,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
     }
 
     [Fact]
-    public async Task Close_CancelledBeforeExecution_OrdinaryShutdownStillSavesUnsavedChanges()
+    public async Task Close_CancelledBeforeExecution_OrdinaryShutdownHandsOverUnsavedChanges()
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
@@ -151,12 +151,17 @@ public sealed partial class ServiceWorkbookLifecycleTests
 
             service.Dispose();
             sessions.TryRemove(session, out _);
-            Assert.True(OwnedProcessGuard.TryConfirmExited(identity));
+            Assert.True(OwnedProcessGuard.MatchesLiveProcess(identity));
             await RunWithCleanupAsync(async (verification, _, reopenedSessions) =>
             {
-                var reopened = await OpenSessionAsync(verification, path);
+                var reopened = await AttachHandoverAsync(verification, path, batch.ExcelProcessId);
                 reopenedSessions[reopened] = 0;
                 Assert.Equal("Latest unsaved changes", await ReadMarkerAsync(verification, reopened));
+                await CloseSessionAsync(verification, reopened, save: false);
+                reopenedSessions.TryRemove(reopened, out var removed);
+                var disk = await OpenSessionAsync(verification, path);
+                reopenedSessions[disk] = 0;
+                Assert.Equal("Saved baseline", await ReadMarkerAsync(verification, disk));
             });
         });
     }

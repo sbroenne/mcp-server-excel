@@ -121,7 +121,8 @@ remain open and lock workbooks.
 - Check whether Excel is displaying a modal dialog.
 - Allow long-running refresh or calculation operations to finish.
 - Inspect the surviving sessions and partial changes before retrying. Restarting
-  can lose unsaved work or trigger saving during normal shutdown.
+  leaves unsaved workbooks open and visible on normal shutdown; forced
+  termination can still lose unsaved work.
 
 ### VBA operations fail
 

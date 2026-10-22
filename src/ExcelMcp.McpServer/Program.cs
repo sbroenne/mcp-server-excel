@@ -104,7 +104,7 @@ public class Program
                     Confirmed blocking dialogs automatically reveal Excel. If file_read list reports excelState:dialogOpen, ask the user to check Excel and respond there.
                     Readable dialog text is included automatically in session blockingMessage and timeout errors; partial or unavailable reads are reported. Input values are not read, and dialogs are not classified, answered, or dismissed. A pending operation is not a completed or failed operation.
                     The server does not request confirmation through MCP elicitation; the client must obtain any needed consent.
-                    Normal shutdown attempts to save workbooks opened by this service. Attached workbooks remain open and are not saved or closed by service shutdown. Attached remote workbooks keep their existing AutoSave setting; when enabled, Excel may save later edits automatically.
+                    Normal shutdown closes saved workbooks opened by this service and leaves unsaved ones open and visible without saving or discarding. Attached workbooks stay untouched. Open and attach preserve AutoSave; when enabled, Excel may save edits automatically. Use workbook set-auto-save to change it explicitly; enabling may save pending edits.
                     Crashes, timeouts, and forced cleanup may lose edits.
                     Cancellation is not undo: inspect file_read list before continuing, and do not blindly retry a change.
                     Range content writes/copies reject occupied destinations by default. Use overwrite_policy:'allow'

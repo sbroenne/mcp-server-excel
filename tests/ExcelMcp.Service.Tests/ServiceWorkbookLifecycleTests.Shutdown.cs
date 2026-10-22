@@ -1,0 +1,130 @@
+using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Session;
+using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
+
+namespace Sbroenne.ExcelMcp.Service.Tests;
+
+public sealed partial class ServiceWorkbookLifecycleTests
+{
+    [Fact]
+    public async Task Shutdown_EditDuringSavedWorkbookClose_RetainsChangesWhenCloseIsCancelled()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var id = await CreateSessionAsync(service, Path.Join(directory, "edit-during-shutdown.xlsx"));
+            sessions[id] = 0;
+            var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(id));
+            var alertsEnabled = false;
+            Excel.AppEvents_WorkbookBeforeCloseEventHandler? beforeClose = null;
+            batch.Execute((context, _) =>
+            {
+                Assert.True(context.Book.Saved);
+                beforeClose = (Excel.Workbook workbook, ref bool cancel) =>
+                {
+                    cancel = true;
+                    context.App.WorkbookBeforeClose -= beforeClose;
+                    alertsEnabled = context.App.DisplayAlerts;
+                    Excel.Sheets? sheets = null;
+                    Excel.Worksheet? sheet = null;
+                    Excel.Range? cell = null;
+                    try
+                    {
+                        sheets = workbook.Worksheets;
+                        sheet = (Excel.Worksheet)sheets[1];
+                        cell = sheet.Range["A1"];
+                        cell.Value2 = "edit made during close";
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref cell);
+                        ComUtilities.Release(ref sheet);
+                        ComUtilities.Release(ref sheets);
+                    }
+                };
+                context.App.WorkbookBeforeClose += beforeClose;
+            });
+
+            var shutdown = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
+            Assert.False(shutdown.Success);
+            Assert.Contains("did not close", shutdown.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.True(alertsEnabled);
+            Assert.Same(batch, service.SessionManager.GetSession(id));
+            Assert.Equal("edit made during close", await ReadMarkerAsync(service, id));
+            batch.Execute((context, _) => Assert.False(context.Book.Saved));
+            await CloseSessionAsync(service, id, save: false);
+            sessions.TryRemove(id, out _);
+        });
+    }
+
+    [Fact]
+    public async Task Shutdown_HandsOverUnsavedWorkbookWithoutSavingAndClosesSavedWorkbook()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var path = Path.Join(directory, "handover.xlsx");
+            var id = await CreateSessionAsync(service, path);
+            sessions[id] = 0;
+            await WriteMarkerAsync(service, id, "saved baseline");
+            RequireSuccess(await service.ProcessAsync(new ServiceRequest { Command = "session.save", SessionId = id }));
+            await WriteMarkerAsync(service, id, "unsaved handover");
+            var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(id));
+            var processId = batch.ExcelProcessId;
+            var savedId = await CreateSessionAsync(service, Path.Join(directory, "saved.xlsx"));
+            sessions[savedId] = 0;
+            var savedBatch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(savedId));
+            var handedOver = false;
+            try
+            {
+                RequireSuccess(await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" }));
+                handedOver = true;
+                sessions.TryRemove(id, out _);
+                sessions.TryRemove(savedId, out _);
+                service.Dispose();
+                service.Dispose();
+                Assert.True(batch.IsExcelProcessAlive());
+                Assert.False(savedBatch.IsExcelProcessAlive());
+
+                using var replacement = new ExcelMcpService();
+                var attachedId = await AttachHandoverAsync(replacement, path, processId);
+                Assert.Equal("unsaved handover", await ReadMarkerAsync(replacement, attachedId));
+                var attached = replacement.SessionManager.GetSession(attachedId)!;
+                attached.Execute((context, _) =>
+                {
+                    Assert.False(context.Book.Saved);
+                    Assert.True(context.App.Visible);
+                    Assert.True(context.App.DisplayAlerts);
+                });
+                await CloseSessionAsync(replacement, attachedId, save: false);
+                var reopened = await OpenSessionAsync(replacement, path);
+                Assert.Equal("saved baseline", await ReadMarkerAsync(replacement, reopened));
+                await CloseSessionAsync(replacement, reopened, save: false);
+            }
+            finally
+            {
+                if (handedOver && batch.IsExcelProcessAlive())
+                {
+                    using var cleanup = new ExcelMcpService();
+                    var cleanupId = await AttachHandoverAsync(cleanup, path, processId);
+                    await CloseSessionAsync(cleanup, cleanupId, save: false);
+                }
+            }
+        });
+    }
+
+    private static async Task<string> AttachHandoverAsync(ExcelMcpService service, string path, int? processId)
+    {
+        var discovery = await service.ProcessAsync(new ServiceRequest { Command = "session.discover" });
+        RequireSuccess(discovery);
+        using var json = JsonDocument.Parse(discovery.Result!);
+        var workbook = Assert.Single(json.RootElement.GetProperty("workbooks").EnumerateArray(),
+            item => item.GetProperty("location").GetString() == path
+                && item.GetProperty("processId").GetInt32() == processId);
+        return GetSessionId(await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "session.attach",
+            Args = JsonSerializer.Serialize(new { workbookId = workbook.GetProperty("workbookId").GetString() })
+        }));
+    }
+}

@@ -790,12 +790,6 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                         tempWorkbooks[normalizedPath] = wb;
                         AfterWorkbookOpenHookForTests?.Invoke(tempExcel, wb);
                         WorkbookLocation.ValidateOpenedWorkbookFormat(normalizedPath, wb.FileFormat);
-                        if (isRemote && !wb.ReadOnly)
-                        {
-                            // Cloud AutoSave would otherwise persist edits before an explicit save
-                            // and defeat close(save:false).
-                            ExcelCapabilities.DisableAutoSave(() => wb.AutoSaveOn = false);
-                        }
                         if (path == _workbookPath)
                         {
                             primaryWorkbook = wb;
@@ -1803,10 +1797,52 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     CompleteDispose();
                 return;
             }
+
             Execute((_, _) =>
             {
                 ExcelBusyException.ThrowIfNotReady(ReadRefreshState(), "close");
                 CloseOwnedWorkbooksBeforeShutdown();
+                Interlocked.Exchange(ref _disposed, 1);
+                _shutdownCts.Cancel();
+                _workQueue.Writer.TryComplete();
+            });
+            CompleteDispose();
+        }
+    }
+
+    internal void Shutdown()
+    {
+        lock (_disposeLock)
+        {
+            if (_disposed != 0)
+            {
+                if (!_teardownConfirmed)
+                    CompleteDispose();
+                return;
+            }
+            ExcelBusyException.ThrowIfNotReady(GetExecutionPreflightState(), "shutdown");
+            RecoverTimedOutOperation();
+            Execute((_, _) =>
+            {
+                ExcelBusyException.ThrowIfNotReady(ReadRefreshState(), "shutdown");
+                // Native prompts protect edits made after the saved-state check.
+                _excel!.DisplayAlerts = true;
+                CloseOwnedWorkbooksBeforeShutdown(onlySaved: true);
+                if (_workbooks!.Count > 0)
+                {
+                    _excel!.Visible = true;
+                    if (!_excel.Visible)
+                        throw new InvalidOperationException("Cannot hand over unsaved workbooks: Excel visibility was not confirmed.");
+                    UpdateConfirmedVisibility(true, _applicationLease!.VisibilityRevision);
+                    if (_originalDisplayAlerts is { } displayAlerts)
+                        _excel.DisplayAlerts = displayAlerts;
+                    if (_excelProcessIdentity is not { } identity)
+                        throw new InvalidOperationException("Cannot hand over unsaved workbooks without a confirmed Excel process identity.");
+                    SessionManager.PreserveExcelProcess(identity);
+                    _leaveOwnedApplicationOpen = true;
+                    _ownedProcessLeftOpen = true;
+                    _logger.LogInformation("Leaving unsaved workbook(s) open and visible without saving or discarding changes");
+                }
                 Interlocked.Exchange(ref _disposed, 1);
                 _shutdownCts.Cancel();
                 _workQueue.Writer.TryComplete();
@@ -1919,7 +1955,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         }
     }
 
-    private void CloseOwnedWorkbooksBeforeShutdown()
+    private void CloseOwnedWorkbooksBeforeShutdown(bool onlySaved = false)
     {
         if (_excel is null || _workbooks is null)
             throw new InvalidOperationException("Owned Excel workbooks are not initialized.");
@@ -1927,10 +1963,13 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         var capabilities = _context?.Capabilities;
         foreach (var entry in _workbooks.ToArray())
         {
+            var workbook = entry.Value;
+            if (onlySaved && !workbook.Saved)
+                continue;
             try
             {
                 ExcelShutdownService.CloseWorkbookAndConfirm(
-                    entry.Value, _excel, false, entry.Key, _logger);
+                    workbook, _excel, onlySaved ? null : false, entry.Key, _logger);
             }
             catch (Exception ex) when (_closedWorkbookPathsDuringShutdown.Count > 0)
             {
@@ -2026,7 +2065,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         {
             if (_ownedProcessLeftOpen)
             {
-                SessionManager.PreserveExcelProcess(identity);
+                if (!SessionManager.IsExcelProcessPreserved(identity))
+                    SessionManager.PreserveExcelProcess(identity);
             }
             else if (!WaitForOwnedProcessExit(identity))
             {

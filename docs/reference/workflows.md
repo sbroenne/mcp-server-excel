@@ -85,6 +85,7 @@ finally {
 }
 ```
 
-Normal daemon shutdown may save remaining sessions; it is not failure cleanup.
+Normal daemon shutdown leaves unsaved workbooks open and visible without saving
+or discarding; it is not failure cleanup.
 Report cleanup failures rather than killing Excel or claiming rollback.
 See [recovery](behavioral-rules.md#sessions-and-failures).

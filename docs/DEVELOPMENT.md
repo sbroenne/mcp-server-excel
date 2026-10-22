@@ -400,8 +400,9 @@ may send every advertised default. The filters also reject omitted fields listed
 input schema with a structured `InvalidInput` response naming the missing field;
 the SDK still owns binding and injected parameters.
 
-Each host owns its bridge through dependency injection. Ordinary shutdown attempts
-to save remaining sessions. Explicit `file close` defaults to `save:false` and
+Each host owns its bridge through dependency injection. Ordinary shutdown closes
+saved owned workbooks and leaves unsaved ones open and visible without saving or
+discarding. Attached workbooks stay untouched. Explicit `file close` defaults to `save:false` and
 discards edits. A cancelled or expired open/create retains its original execution,
 eventual workbook, session identity, and path claim without resetting unrelated
 sessions. The affected Excel window is revealed when possible. Cancellation is

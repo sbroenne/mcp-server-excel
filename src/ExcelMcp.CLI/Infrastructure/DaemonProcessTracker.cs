@@ -41,6 +41,7 @@ internal static class DaemonProcessTracker
     {
         public int ProcessId { get; set; }
         public long StartedAtUtcFileTime { get; set; }
+        public bool Preserved { get; set; }
     }
 
     private sealed class TrackingMutexLease(IReadOnlyList<Mutex> mutexes) : IDisposable
@@ -123,6 +124,7 @@ internal static class DaemonProcessTracker
                     readResult.ErrorMessage
                     ?? $"The daemon tracking record for pipe '{pipeName}' is unavailable.");
             }
+
             var record = readResult.Record;
 
             if (record.ProcessId != daemonIdentity.ProcessId
@@ -145,6 +147,27 @@ internal static class DaemonProcessTracker
                 .Concat(observedProcesses)
                 .DistinctBy(process => (process.ProcessId, process.StartedAtUtcFileTime))
                 .ToList();
+            WriteRecord(pipeName, record);
+        }
+    }
+
+    internal static void PreserveExcelProcess(
+        string pipeName, ProcessIdentity daemonIdentity, ProcessIdentity excelIdentity)
+    {
+        lock (TrackingFileLock)
+        {
+            using var trackingMutex = AcquireTrackingMutex(pipeName);
+            var read = ReadRecordCore(pipeName);
+            var record = read.Record;
+            if (read.Status != TrackingRecordStatus.Available || record is null
+                || record.ProcessId != daemonIdentity.ProcessId
+                || record.StartedAtUtcFileTime != daemonIdentity.StartedAtUtcFileTime)
+                throw new InvalidOperationException("Cannot preserve Excel: its daemon ownership record could not be confirmed.");
+            var process = record.ExcelProcesses.SingleOrDefault(process =>
+                process.ProcessId == excelIdentity.ProcessId
+                && process.StartedAtUtcFileTime == excelIdentity.StartedAtUtcFileTime)
+                ?? throw new InvalidOperationException("Cannot preserve Excel: its exact process identity is not recorded.");
+            process.Preserved = true;
             WriteRecord(pipeName, record);
         }
     }
@@ -287,6 +310,7 @@ internal static class DaemonProcessTracker
                             readResult.Record.ProcessId,
                             readResult.Record.StartedAtUtcFileTime),
                         readResult.Record.ExcelProcesses
+                            .Where(tracked => !tracked.Preserved)
                             .Select(tracked => new ProcessIdentity(
                                 tracked.ProcessId,
                                 tracked.StartedAtUtcFileTime))
