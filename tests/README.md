@@ -57,6 +57,9 @@ Get-Content -LiteralPath '<printed path to stage.stdout.log>' -Tail 20 -Wait
 
 Logs remain available after failure or timeout. Final TRX reports and the
 runner's exit status determine success, not the progress messages.
+MCP transport checks also allow the product's sequential auto-save, close,
+STA-thread shutdown, and natural Excel exit waits before declaring a host
+shutdown timeout; they do not stop Excel.
 For GitHub check status, query the current PR directly with
 `gh pr checks <number>`; this returns the current state without waiting for
 all checks to finish.
