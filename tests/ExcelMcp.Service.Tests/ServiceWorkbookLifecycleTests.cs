@@ -1065,7 +1065,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
 
     // Status reads wait only briefly for Excel, so a freshly started Excel can
     // report "unknown" at first. Poll like an agent would until it settles.
-    private static async Task<string> WaitForSettledSessionListAsync(
+    internal static async Task<string> WaitForSettledSessionListAsync(
         ExcelMcpService service,
         string sessionId)
     {
