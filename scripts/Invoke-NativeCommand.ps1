@@ -7,6 +7,9 @@ function Invoke-NativeCommand {
         [string[]]$Arguments = @(),
         [ValidateRange(1, 28800)][int]$DeadlineSeconds = 1200,
         [hashtable]$Environment = @{},
+        [string]$OutputPath,
+        [string]$ErrorPath,
+        [string]$ProgressName,
         [switch]$AllowFailure
     )
     if (-not $IsWindows) { throw 'Bounded build and test execution requires Windows.' }
@@ -48,6 +51,19 @@ public static extern bool TerminateProcess(System.IntPtr process, uint exitCode)
 public static extern bool GetExitCodeProcess(System.IntPtr process, out uint exitCode);
 [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError=true)]
 public static extern bool CloseHandle(System.IntPtr handle);
+public static async System.Threading.Tasks.Task<string> CaptureOutput(
+    System.IO.StreamReader reader, System.IO.StreamWriter log) {
+    var output = new System.Text.StringBuilder();
+    var buffer = new char[4096];
+    int count;
+    while ((count = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false)) != 0) {
+        output.Append(buffer, 0, count);
+        if (log != null) {
+            await log.WriteAsync(buffer, 0, count).ConfigureAwait(false);
+        }
+    }
+    return output.ToString();
+}
 '@
     }
     $timer = [Diagnostics.Stopwatch]::StartNew()
@@ -58,10 +74,18 @@ public static extern bool CloseHandle(System.IntPtr handle);
     $native = [ExcelMcpValidation.JobApi+ProcessInfo]::new()
     $pipes = [Collections.Generic.List[IO.Pipes.AnonymousPipeServerStream]]::new()
     $readers = [Collections.Generic.List[IO.StreamReader]]::new()
+    $logs = [Collections.Generic.List[IO.StreamWriter]]::new()
     $primary = $null
     $stdout = $null
     $stderr = $null
     try {
+        foreach ($path in @($OutputPath, $ErrorPath)) {
+            if ($path) {
+                $log = [IO.StreamWriter]::new($path, $false, [Text.UTF8Encoding]::new($false))
+                $logs.Add($log)
+                $log.AutoFlush = $true
+            } else { $logs.Add($null) }
+        }
         $job = [ExcelMcpValidation.JobApi]::CreateJobObject([IntPtr]::Zero, $null)
         if ($job -eq [IntPtr]::Zero) { throw [ComponentModel.Win32Exception]::new() }
         $length = if ([IntPtr]::Size -eq 8) { 144 } else { 112 }
@@ -106,12 +130,15 @@ public static extern bool CloseHandle(System.IntPtr handle);
         foreach ($pipe in $pipes) { $pipe.DisposeLocalCopyOfClientHandle() }
         $pipes[0].Dispose()
         foreach ($pipe in @($pipes[1], $pipes[2])) { $readers.Add([IO.StreamReader]::new($pipe, [Text.Encoding]::UTF8)) }
-        $stdout = $readers[0].ReadToEndAsync()
-        $stderr = $readers[1].ReadToEndAsync()
+        $stdout = [ExcelMcpValidation.JobApi]::CaptureOutput($readers[0], $logs[0])
+        $stderr = [ExcelMcpValidation.JobApi]::CaptureOutput($readers[1], $logs[1])
         if ([ExcelMcpValidation.JobApi]::ResumeThread($native.Thread) -eq [uint32]::MaxValue) {
             throw [ComponentModel.Win32Exception]::new()
         }
+        $nextProgress = 0
         do {
+            if ($stdout.IsFaulted) { $null = $stdout.GetAwaiter().GetResult() }
+            if ($stderr.IsFaulted) { $null = $stderr.GetAwaiter().GetResult() }
             if (-not [ExcelMcpValidation.JobApi]::QueryInformationJobObject($job, 1, $information, 48, [IntPtr]::Zero)) {
                 throw [ComponentModel.Win32Exception]::new()
             }
@@ -119,6 +146,10 @@ public static extern bool CloseHandle(System.IntPtr handle);
             if ($stdout.IsCompleted -and $stderr.IsCompleted -and $active -eq 0) { break }
             if ($timer.Elapsed.TotalSeconds -ge $DeadlineSeconds) {
                 throw [TimeoutException]::new("$Executable exceeded the $DeadlineSeconds-second hard deadline.")
+            }
+            if ($ProgressName -and $timer.Elapsed.TotalSeconds -ge $nextProgress) {
+                Write-Host "${ProgressName}: running; elapsed $($timer.Elapsed.ToString('hh\:mm\:ss'))."
+                $nextProgress = $timer.Elapsed.TotalSeconds + 30
             }
             Start-Sleep -Milliseconds 50
         } while ($true)
@@ -162,15 +193,22 @@ public static extern bool CloseHandle(System.IntPtr handle);
             if ($pointer -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::FreeHGlobal($pointer) }
         }
         $timeoutOutput = ''
-        if ($primary -is [TimeoutException] -and $stdout -and $stderr) {
+        if ($stdout -and $stderr) {
             $capture = [Threading.Tasks.Task]::WhenAll([Threading.Tasks.Task[]]@($stdout, $stderr))
             try {
-                if ($capture.Wait(5000)) { $timeoutOutput = "$($stdout.GetAwaiter().GetResult())`n$($stderr.GetAwaiter().GetResult())" }
+                if ($capture.Wait(5000)) {
+                    if ($primary -is [TimeoutException]) {
+                        $timeoutOutput = "$($stdout.GetAwaiter().GetResult())`n$($stderr.GetAwaiter().GetResult())"
+                    }
+                }
                 else { $cleanup.Add([TimeoutException]::new('Owned command output did not close.')) }
             } catch { $cleanup.Add($_.Exception) }
         }
         foreach ($reader in $readers) { $reader.Dispose() }
         foreach ($pipe in $pipes) { $pipe.Dispose() }
+        foreach ($log in $logs) {
+            if ($log) { try { $log.Dispose() } catch { $cleanup.Add($_.Exception) } }
+        }
         if ($cleanup.Count) {
             if ($primary) { $cleanup.Insert(0, $primary) }
             throw [AggregateException]::new('Command and owned-process cleanup failed.', $cleanup)

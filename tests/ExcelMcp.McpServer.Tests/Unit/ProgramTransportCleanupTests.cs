@@ -1,4 +1,5 @@
 using System.IO.Pipelines;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 using Xunit;
 using Xunit.Abstractions;
@@ -11,6 +12,21 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Unit;
 [Trait("RequiresExcel", "false")]
 public sealed class ProgramTransportCleanupTests(ITestOutputHelper output)
 {
+    [Fact]
+    [Trait("Speed", "Slow")]
+    public async Task StopAsync_ServerFinishesWithinExcelExitGrace_DoesNotReportTimeout()
+    {
+        var server = Task.Delay(ComInteropConstants.StaThreadJoinTimeout + TimeSpan.FromSeconds(16));
+        try
+        {
+            await ProgramTransportTestHost.StopAsync(null, new Pipe(), new Pipe(), server, output);
+        }
+        finally
+        {
+            await server;
+        }
+    }
+
     [Fact]
     public async Task StopAsync_FaultedServer_ReportsOriginalFailure()
     {

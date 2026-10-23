@@ -220,10 +220,7 @@ public class PersistentServiceWorkbookFixture : IAsyncLifetime, IDisposable
                     ex));
         }
 
-        if (failure is not null)
-        {
-            throw failure;
-        }
+        PersistentServiceCleanupFailures.ThrowIfFailed(failure);
     }
 
     public void Dispose()
@@ -505,6 +502,12 @@ public class PersistentServiceWorkbookFixture : IAsyncLifetime, IDisposable
 
 internal static class PersistentServiceCleanupFailures
 {
+    internal static void ThrowIfFailed(Exception? failure)
+    {
+        if (failure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+    }
+
     internal static void Run(Action test, params Action[] cleanup)
     {
         Exception? failure = Record.Exception(test);
@@ -514,8 +517,7 @@ internal static class PersistentServiceCleanupFailures
             if (cleanupFailure is not null)
                 failure = Combine(failure, cleanupFailure);
         }
-        if (failure is not null)
-            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+        ThrowIfFailed(failure);
     }
 
     internal static Exception Combine(

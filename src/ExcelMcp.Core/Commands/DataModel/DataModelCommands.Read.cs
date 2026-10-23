@@ -274,9 +274,13 @@ public partial class DataModelCommands
         try
         {
             foreignKey = relationship.ForeignKeyColumn;
+            RelationshipReferenceAcquiredForTests?.Invoke(foreignKey);
             primaryKey = relationship.PrimaryKeyColumn;
+            RelationshipReferenceAcquiredForTests?.Invoke(primaryKey);
             fromTable = (Excel.ModelTable)foreignKey.Parent;
+            RelationshipReferenceAcquiredForTests?.Invoke(fromTable);
             toTable = (Excel.ModelTable)primaryKey.Parent;
+            RelationshipReferenceAcquiredForTests?.Invoke(toTable);
             return new DataModelRelationshipInfo
             {
                 FromTable = fromTable.Name,

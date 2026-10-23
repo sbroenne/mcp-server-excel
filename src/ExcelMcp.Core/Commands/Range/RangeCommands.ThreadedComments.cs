@@ -7,6 +7,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
 public partial class RangeCommands
 {
+    internal static Action<object>? CommentCellAcquiredForTests { get; set; }
+
     /// <inheritdoc />
     public OperationResult AddThreadedComment(IExcelBatch batch, string sheetName, string cellAddress, string text)
     {
@@ -135,13 +137,22 @@ public partial class RangeCommands
             throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, cellAddress));
         }
 
-        if (cell.CountLarge != 1)
+        try
+        {
+            CommentCellAcquiredForTests?.Invoke(cell);
+            if (cell.CountLarge != 1)
+            {
+                throw new ArgumentException("Threaded comment operations require a single-cell address.", nameof(cellAddress));
+            }
+
+            var resolvedCell = cell;
+            cell = null;
+            return resolvedCell;
+        }
+        finally
         {
             ComUtilities.Release(ref cell);
-            throw new ArgumentException("Threaded comment operations require a single-cell address.", nameof(cellAddress));
         }
-
-        return cell;
     }
 
     private static ThreadedCommentInfo ReadThreadedComment(Excel.CommentThreaded comment, string cellAddress)

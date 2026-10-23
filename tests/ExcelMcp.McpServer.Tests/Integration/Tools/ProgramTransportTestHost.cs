@@ -2,6 +2,7 @@ using System.IO.Pipelines;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
@@ -11,8 +12,13 @@ internal static class ProgramTransportTestHost
     private static readonly TimeSpan ClientInitializationTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan ServerReadyTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan ServerReadyRetryDelay = TimeSpan.FromMilliseconds(50);
+    // Host disposal auto-saves before the close callback, STA shutdown, and natural process-exit wait.
     private static readonly TimeSpan ServerShutdownTimeout =
-        ComInteropConstants.StaThreadJoinTimeout + TimeSpan.FromSeconds(15);
+        TimeSpan.FromSeconds(30)
+        + ComInteropConstants.DefaultOperationTimeout
+        + ComInteropConstants.StaThreadJoinTimeout
+        + ProcessTerminationPolicy.NormalGraceTimeout
+        + TimeSpan.FromSeconds(15);
 
     public static async Task<(McpClient Client, Task ServerTask)> StartAsync(
         Pipe clientToServerPipe,

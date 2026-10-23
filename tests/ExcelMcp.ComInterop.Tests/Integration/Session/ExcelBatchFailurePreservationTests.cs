@@ -123,6 +123,7 @@ public sealed class ExcelBatchFailurePreservationTests : IDisposable
         Assert.NotNull(originalExcel);
         var failingExcel = DispatchProxy.Create<Excel.Application, FailingVisibilityProxy>();
         var proxy = (FailingVisibilityProxy)(object)failingExcel;
+        proxy.Application = (Excel.Application)originalExcel;
         proxy.Failure = failure;
         Assert.Same(failure, Assert.Throws<COMException>(() => _ = failingExcel.Visible));
         excelField.SetValue(batch, failingExcel);
@@ -167,15 +168,25 @@ public sealed class ExcelBatchFailurePreservationTests : IDisposable
     public class FailingVisibilityProxy : DispatchProxy
     {
         private int _reads;
+        public Excel.Application? Application { get; set; }
         public Exception? Failure { get; set; }
         public int Reads => Volatile.Read(ref _reads);
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
-            if (targetMethod?.Name != "get_Visible")
-                throw new NotSupportedException(targetMethod?.Name);
-            Interlocked.Increment(ref _reads);
-            throw Failure ?? new InvalidOperationException("The visibility failure was not configured.");
+            switch (targetMethod?.Name)
+            {
+                case "get_Visible":
+                    Interlocked.Increment(ref _reads);
+                    throw Failure ?? new InvalidOperationException("The visibility failure was not configured.");
+                case "get_ScreenUpdating":
+                    return Application!.ScreenUpdating;
+                case "set_ScreenUpdating":
+                    Application!.ScreenUpdating = (bool)args![0]!;
+                    return null;
+                default:
+                    throw new NotSupportedException(targetMethod?.Name);
+            }
         }
     }
 }

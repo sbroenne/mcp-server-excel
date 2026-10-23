@@ -21,8 +21,10 @@ public sealed class ServiceSessionRecoveryTests : IDisposable
         Directory.CreateDirectory(_tempDirectory);
     }
 
-    [Fact(Timeout = 60000)]
-    public async Task Open_LockedWorkbook_FailsWithoutSessionAndSucceedsAfterUnlock()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Open_LockedWorkbook_FailsWithoutSessionAndSucceedsAfterUnlock(bool slowStatusRead)
     {
         var workbookPath = Path.Combine(_tempDirectory, "LockedWorkbook.xlsx");
         File.Copy(
@@ -30,6 +32,8 @@ public sealed class ServiceSessionRecoveryTests : IDisposable
             workbookPath);
 
         var service = new ExcelMcpService();
+        using var statusReadFinished = new ManualResetEventSlim(true);
+        ExcelBatch? reopenedBatch = null;
         Exception? failure = null;
         string? sessionId = null;
         try
@@ -42,11 +46,12 @@ public sealed class ServiceSessionRecoveryTests : IDisposable
             {
                 var lockedResponse = await OpenAsync(service, workbookPath);
 
-                Assert.False(lockedResponse.Success);
+                Assert.False(lockedResponse.Success, "Opening the locked workbook unexpectedly succeeded.");
                 Assert.Contains("already open", lockedResponse.ErrorMessage, StringComparison.OrdinalIgnoreCase);
                 Assert.Contains("close the file", lockedResponse.ErrorMessage, StringComparison.OrdinalIgnoreCase);
                 Assert.Contains("exclusive access", lockedResponse.ErrorMessage, StringComparison.OrdinalIgnoreCase);
-                Assert.False(string.IsNullOrWhiteSpace(lockedResponse.ExceptionType));
+                Assert.False(string.IsNullOrWhiteSpace(lockedResponse.ExceptionType),
+                    "The locked-workbook error did not identify its exception type.");
 
                 using var emptyList = ParseSuccessfulResult(
                     await service.ProcessAsync(new ServiceRequest { Command = "session.list" }));
@@ -56,14 +61,36 @@ public sealed class ServiceSessionRecoveryTests : IDisposable
             var openResponse = await OpenAsync(service, workbookPath);
             using var openResult = ParseSuccessfulResult(openResponse);
             sessionId = openResult.RootElement.GetProperty("sessionId").GetString();
-            Assert.False(string.IsNullOrWhiteSpace(sessionId));
+            Assert.False(string.IsNullOrWhiteSpace(sessionId),
+                "Opening the unlocked workbook returned no session ID.");
 
-            using var listResult = ParseSuccessfulResult(
-                await service.ProcessAsync(new ServiceRequest { Command = "session.list" }));
+            if (slowStatusRead)
+            {
+                reopenedBatch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(sessionId));
+                reopenedBatch.BeforeRefreshStateReadHookForTests = () =>
+                {
+                    reopenedBatch.BeforeRefreshStateReadHookForTests = null;
+                    statusReadFinished.Reset();
+                    try
+                    {
+                        Thread.Sleep(400);
+                    }
+                    finally
+                    {
+                        statusReadFinished.Set();
+                    }
+                };
+            }
+
+            using var listResult = JsonDocument.Parse(
+                await ServiceWorkbookLifecycleTests.WaitForSettledSessionListAsync(service, sessionId));
             var session = Assert.Single(listResult.RootElement.GetProperty("sessions").EnumerateArray());
             Assert.Equal(sessionId, session.GetProperty("sessionId").GetString());
             Assert.Equal(0, session.GetProperty("activeOperations").GetInt32());
-            Assert.True(session.GetProperty("canClose").GetBoolean());
+            Assert.True(session.GetProperty("canClose").GetBoolean(),
+                $"The reopened session cannot close: excelState={session.GetProperty("excelState")}; " +
+                $"blockingReason={(session.TryGetProperty("blockingReason", out var reason) ? reason.ToString() : "none")}; " +
+                $"operationPending={session.GetProperty("operationPending")}.");
         }
         catch (Exception ex)
         {
@@ -72,6 +99,10 @@ public sealed class ServiceSessionRecoveryTests : IDisposable
 
         try
         {
+            if (reopenedBatch is not null)
+                reopenedBatch.BeforeRefreshStateReadHookForTests = null;
+            Assert.True(statusReadFinished.Wait(TimeSpan.FromSeconds(5)),
+                "The delayed status read did not finish before cleanup.");
             if (sessionId is not null)
             {
                 var closeResponse = await service.ProcessAsync(new ServiceRequest
@@ -108,10 +139,7 @@ public sealed class ServiceSessionRecoveryTests : IDisposable
             failure = PersistentServiceCleanupFailures.Combine(failure, ex);
         }
 
-        if (failure is not null)
-        {
-            throw failure;
-        }
+        PersistentServiceCleanupFailures.ThrowIfFailed(failure);
     }
 
     private static Task<ServiceResponse> OpenAsync(ExcelMcpService service, string workbookPath)
@@ -128,8 +156,9 @@ public sealed class ServiceSessionRecoveryTests : IDisposable
     private static JsonDocument ParseSuccessfulResult(ServiceResponse response)
     {
         Assert.True(response.Success, response.ErrorMessage);
-        Assert.True(string.IsNullOrWhiteSpace(response.ErrorMessage));
-        Assert.False(string.IsNullOrWhiteSpace(response.Result));
+        Assert.True(string.IsNullOrWhiteSpace(response.ErrorMessage), response.ErrorMessage);
+        Assert.False(string.IsNullOrWhiteSpace(response.Result),
+            $"Successful {response.Command} response contained no result.");
         return JsonDocument.Parse(response.Result);
     }
 
