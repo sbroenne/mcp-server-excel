@@ -121,8 +121,8 @@ development branch. The script pins both the release tag and full commit SHA,
 checks that the published tag still resolves to that SHA, downloads that exact
 archive, and records both values in the log. Only the review skill directory, including its resources,
 and the upstream license are copied, without modifying the released skill.
-GitHub CLI and runner updates are not required, including on the self-hosted
-Excel desktop. The workflows supply `GH_TOKEN` for authenticated GitHub API
+GitHub CLI and runner updates are not required.
+The workflows supply `GH_TOKEN` for authenticated GitHub API
 requests; local invocation can also download this public repository without a
 token. The output is ignored at `.github/skills/ponytail-review/` and must not be
 committed or edited. The full Ponytail plugin and coding mode are not installed.

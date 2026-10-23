@@ -13,45 +13,6 @@ public sealed partial class AutomationSafetyTests
 {
     private static readonly string RepoRoot = FindRepoRoot();
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task RunnerGuestCommands_RequirePowerShell7AndPreserveNativeFailure(bool fail)
-    {
-        var root = NewSandbox();
-        try
-        {
-            var result = await RunAsync(root, $$"""
-                . '{{Quote(Path.Combine(RepoRoot, "scripts", "AzureRunnerHost.ps1"))}}'
-                New-Item -ItemType Directory -Path '{{Quote(Path.Combine(root, "PowerShell"))}}' | Out-Null
-                New-Item -ItemType Junction -Path '{{Quote(Path.Combine(root, "PowerShell", "7"))}}' -Target $PSHOME | Out-Null
-                $env:ProgramFiles = '{{Quote(root)}}'
-                $payload = {{(fail ? "'exit 23'" : "'[Console]::Write(\"guest-version:\" + $PSVersionTable.PSVersion.Major + \":\" + ''quotes & $ preserved'')'")}}
-                $payload = ("# synthetic uploaded file content " + ('x' * 120000) + "`n") + $payload
-                $command = ConvertTo-RunnerPowerShell7Command -Script $payload
-                & ([scriptblock]::Create($command))
-                """);
-
-            Assert.Equal(!fail, result.ExitCode == 0);
-            Assert.Contains(fail ? "exit code 23" : "guest-version:7:quotes & $ preserved", result.Output, StringComparison.Ordinal);
-            if (fail)
-            {
-                Assert.DoesNotContain("EXCELMCP_PWSH_COMPLETE", result.Output, StringComparison.Ordinal);
-            }
-            else
-            {
-                Assert.Single(result.Output.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries),
-                    line => line == "EXCELMCP_PWSH_COMPLETE");
-            }
-        }
-        finally
-        {
-            var junction = Path.Combine(root, "PowerShell", "7");
-            if (Directory.Exists(junction)) { Directory.Delete(junction); }
-            Directory.Delete(root, recursive: true);
-        }
-    }
-
     [Fact]
     public void OlapCube_DiscoveryUsesExplicitSyntheticFixtureMarker()
     {

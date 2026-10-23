@@ -60,14 +60,13 @@ The hosted triage workflow uses **Actions** configuration:
 | `COPILOT_GITHUB_TOKEN` secret | Copilot inference for triage and threat detection |
 | `COPILOT_ASSIGN_TOKEN` secret | Existing owner-authenticated coding-agent assignment; available only to the restricted handoff step |
 | `ISSUE_AUTO_FIX_ENABLED` variable | Set exactly `true` to permit automatic handoffs; otherwise triage is advisory |
-| `EXCEL_RUNNER_ENABLED` variable | Existing runner control must be enabled for automatic handoff |
 
 The built-in workflow token reads issue data and publishes the advisory comment.
 It cannot start a coding-agent task. Assignment uses the separately configured
 user token, restricted to this repository. GitHub's issues assignment API requires
 metadata read and actions, contents, issues, and pull requests read/write for a
-fine-grained token. The token must belong to `sbroenne` so issue assignment uses
-the existing owner-only runner wake/control path. Authentication failures are
+fine-grained token. The token must belong to `sbroenne`, the repository owner.
+Authentication failures are
 reported, not retried with a different token or weaker assignment method.
 
 Do not put secret values in chat, command arguments, files, logs, or artifacts.
@@ -94,46 +93,23 @@ gh workflow disable issue-triage.lock.yml --repo sbroenne/mcp-server-excel
 ```
 
 Public issue triggers incur inference cost even for reports that do not qualify
-for fixing. Automatic coding tasks also incur inference and existing runner
-costs. Disabling auto-fix does not disable triage inference.
+for fixing. Automatic coding tasks also incur inference and applicable
+GitHub-hosted execution costs. Disabling auto-fix does not disable triage inference.
 
-## Existing Excel runner: two separate variable stores
+## Hosted coding and Excel checks
 
-The existing runner connection is already working. These different values are
-intentional, not stale duplicates:
+Copilot cloud coding tasks use GitHub-hosted Windows without desktop Excel.
+Triage runs separately on hosted Linux. Neither environment can establish
+Excel COM behavior.
 
-| Store | Variable | Intended value |
-| --- | --- | --- |
-| Agents | `EXCEL_COPILOT_ENABLED` | `true`: cloud coding sessions use `excel-copilot` |
-| Actions | `EXCEL_COPILOT_ENABLED` | `false`: ordinary setup workflow checks use hosted Windows |
-| Actions | `EXCEL_RUNNER_ENABLED` | `true`: existing control, maintenance, health, and validation are enabled |
-
-Copilot cloud sessions receive **Agents** variables, not ordinary **Actions**
-variables. `gh variable list` inspects Actions and cannot establish cloud-agent
-runner selection. Read the applicable store explicitly:
-
-```powershell
-gh api repos/sbroenne/mcp-server-excel/agents/variables/EXCEL_COPILOT_ENABLED `
-    -H 'X-GitHub-Api-Version: 2026-03-10' --jq '{name,value}'
-gh api repos/sbroenne/mcp-server-excel/actions/variables/EXCEL_COPILOT_ENABLED `
-    --jq '{name,value}'
-```
-
-The authoritative setup and admission explanation is
-[Excel runner enablement and acceptance](../../../infrastructure/azure/README.md#enablement-and-acceptance).
-Use dedicated Agents settings, not the legacy Actions `copilot` environment.
-No runner-selection or firewall setting changes are part of this workflow.
-The workflow has no administration permissions to inspect or change Agents
-configuration; prerequisite inspection is an operator responsibility.
-
-The actual job for issue #1118 was observed running on `azure-excel-copilot`
-and had opened draft PR #1128. That establishes runner routing, not successful
-Excel tests or this new workflow's end-to-end assignment.
-Keep the existing protected one-job admission, desktop qualification, maintenance,
-cleanup, and wake/park controls. Do not execute the triage AI on the desktop.
-Runtime fixes require focused regression evidence and sequential
-`scripts\Test-E2E.ps1` against final PR source after the last runtime change.
-Missing or failed checks must be stated in the draft PR, never reported as passed.
+Automatic handoff remains controlled by `ISSUE_AUTO_FIX_ENABLED`; it does not
+depend on a dedicated Excel runner or a runner-selection variable.
+Runtime fixes still require focused regression evidence and the relevant
+Excel checks against final PR source on a local Windows desktop with Excel.
+Run Excel-dependent commands sequentially; run the complete acceptance suite
+only when the change needs it or it is requested. Missing or failed checks must
+be stated in the draft PR, never reported as passed. A cloud task cannot claim
+that hosted checks satisfy Excel-dependent validation.
 
 ## Manual rerun and troubleshooting
 
@@ -157,8 +133,9 @@ receipt; normal reruns intentionally do not restart it. The workflow does not
 automatically clean up or cancel partial work.
 
 For stale assessments, rerun on current issue content. For assignment failures,
-check the owner token and repository's Copilot availability. For queued desktop
-work, use the existing runner control evidence; do not restart a busy runner.
+check the owner token and repository's Copilot availability. Cloud coding uses
+GitHub-hosted Windows machines without desktop Excel; checks that need Excel
+must run on a local Windows desktop instead.
 The triage workflow does not create fallback failure issues or extra status
 comments. Failure details remain in its run logs.
 
@@ -167,7 +144,7 @@ comments. Failure details remain in its run logs.
 Use the already pinned compiler release; compile only this workflow:
 
 ```powershell
-gh aw compile issue-triage --gh-aw-ref v0.89.21 --validate --no-check-update
+gh aw compile issue-triage --gh-aw-ref a68f5a9436d2a014dbd1d1d48ff86c4bdec7424a --validate --no-check-update
 node --test tests\ExcelMcp.ScriptSafety.Tests\IssueTriage.test.mjs
 dotnet test tests\ExcelMcp.ScriptSafety.Tests\ExcelMcp.ScriptSafety.Tests.csproj `
     -c Release --filter "FullyQualifiedName~IssueTriage|FullyQualifiedName~ValidationAreaTests"
@@ -190,7 +167,7 @@ paths without selecting unrelated Excel or packaging checks.
 Local tests and compilation cannot prove live inference quality, credential
 usability, coding-agent instruction adherence, or complete runtime validation.
 An authorized rollout must verify one eligible issue produces one coding session
-on the existing runner and one draft PR with actual checks, then verify a rerun
+on GitHub-hosted Windows and one draft PR with actual checks, then verify a rerun
 does not start another task. No live assignment or remote setting was changed
 while implementing this workflow.
 

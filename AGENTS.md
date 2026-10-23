@@ -174,7 +174,7 @@ results, and reason for the narrower scope in the PR. Do not describe an
 unrun broad selection as passed. This local scope decision does not waive
 Git hooks or required CI checks. Unknown inputs must fail selection, not select
 everything. `scripts\Test-E2E.ps1` remains the explicit complete acceptance
-command and the cloud runner's compatible entry point.
+command; run it on a local Windows desktop with Excel.
 
 The Python evaluation suite under `llm-tests/` is on-demand only, not part of the
 normal development lifecycle. This includes offline checks, Excel fixture checks,

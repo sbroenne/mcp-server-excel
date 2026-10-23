@@ -10,8 +10,7 @@ namespace Sbroenne.ExcelMcp.ScriptSafety.Tests;
 public sealed class AutomationScriptTests
 {
     [Theory]
-    [InlineData("excel-runner-build-cleanup.tests.ps1")]
-    [InlineData("excel-runner-control.tests.ps1")]
+    [InlineData("cli-build-cleanup.tests.ps1")]
     [InlineData("cli-service-stop.tests.ps1")]
     public async Task AutomationScripts_Pass(string scriptName)
     {

@@ -254,7 +254,13 @@ function Get-ValidationPlan {
             '^scripts/[^/]+\.mjs$' {
                 Add-Filter Tooling Packaging 'Feature=PluginPublication'; break
             }
-            '^scripts/(Invoke-CopilotSetupNpm|Install-CopilotPonytailReview)\.ps1$|^\.github/workflows/copilot-setup-steps\.yml$|^scripts/(AzureRunnerHost|ExcelRunner(Host|Policy)|Invoke-ExcelRunner(Control|Maintenance))\.ps1$|^scripts/(Deploy|Initialize|Install|Open|Register)-ExcelAgent(Runner|Desktop|Office|Toolchain|Activation)\.ps1$|^infrastructure/azure/[^/]*excel[^/]*\.(ps1|bicep)$|^\.github/workflows/excel-runner[^/]*\.yml$' { break }
+            '^scripts/Install-CopilotPonytailReview\.ps1$|^\.github/workflows/copilot-setup-steps\.yml$' { break }
+            '^scripts/(AzureRunnerHost|ExcelRunner(Host|Policy)|Invoke-(ExcelRunner(Control|Maintenance)|CopilotSetupNpm)|(Deploy|Register)-ExcelAgentRunner|Initialize-ExcelAgentDesktop|Install-ExcelAgent(Office|Toolchain)|Open-ExcelAgentActivation)\.ps1$' {
+                if (Test-Path -LiteralPath (Join-Path $PSScriptRoot "..\$path")) {
+                    throw "Retired runner file $path must not be restored without an owning validation mapping."
+                }
+                break
+            }
             '^infrastructure/azure/(configure-analytics-oidc|deploy-appinsights)\.ps1$' {
                 Add-Filter Tooling ScriptSafety 'Feature=AutomationSafety'
                 $plan.ToolingOnDemandFilters.ScriptSafety = 'FullyQualifiedName=Sbroenne.ExcelMcp.ScriptSafety.Tests.AutomationSafetyTests.AzurePreview_NeverMutatesAndRejectsFailedReads|FullyQualifiedName=Sbroenne.ExcelMcp.ScriptSafety.Tests.AutomationSafetyTests.AnalyticsOidc_SwitchesToSelectedTenantAndRestoresOriginalSubscription'

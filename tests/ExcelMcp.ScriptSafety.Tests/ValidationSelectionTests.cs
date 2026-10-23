@@ -16,20 +16,11 @@ public sealed class ValidationSelectionTests
             [".github/dependabot.yml", "", ""],
             ["README.md", "Tooling", ""],
             ["tests/README.md", "", ""],
-            ["scripts/Install-ExcelAgentToolchain.ps1", "", ""],
-            ["scripts/Invoke-CopilotSetupNpm.ps1", "", ""],
             ["scripts/Install-CopilotPonytailReview.ps1", "", ""],
             [".github/workflows/copilot-setup-steps.yml", "", ""],
-            ["scripts/Register-ExcelAgentRunner.ps1", "", ""],
-            ["infrastructure/azure/update-excel-runner.ps1", "", ""],
-            [".github/workflows/excel-runner-control.yml", "", ""],
-            ["scripts/ExcelRunnerPolicy.ps1", "", ""],
-            ["scripts/Invoke-ExcelRunnerMaintenance.ps1", "", ""],
-            ["infrastructure/azure/excel-runner.bicep", "", ""],
             ["infrastructure/azure/configure-analytics-oidc.ps1", "Tooling", ""],
             ["infrastructure/azure/deploy-appinsights.ps1", "Tooling", ""],
-            ["scripts/tests/excel-runner-build-cleanup.tests.ps1", "Tooling", ""],
-            ["scripts/tests/excel-runner-control.tests.ps1", "Tooling", ""],
+            ["scripts/tests/cli-build-cleanup.tests.ps1", "Tooling", ""],
             ["src/ExcelMcp.Analyzers/SafetyAnalyzer.cs", "Tooling", ""],
             ["doc-counts.json", "Tooling", ""],
             ["scripts/check-doc-counts.ps1", "Tooling", ""],
@@ -53,6 +44,49 @@ public sealed class ValidationSelectionTests
             if (($plan.ExcelGroups -join ',') -cne $excelGroups) { throw "Wrong Excel groups: $($plan.ExcelGroups)" }
             """);
         Assert.True(run.ExitCode == 0, run.Output);
+    }
+
+    [Fact]
+    public async Task RetiredRunnerRemovals_DoNotSelectProductChecks()
+    {
+        var run = await RunCasesAsync(
+        [
+            ["scripts/AzureRunnerHost.ps1"],
+            ["scripts/ExcelRunnerHost.ps1"],
+            ["scripts/ExcelRunnerPolicy.ps1"],
+            ["scripts/Invoke-ExcelRunnerControl.ps1"],
+            ["scripts/Invoke-ExcelRunnerMaintenance.ps1"],
+            ["scripts/Deploy-ExcelAgentRunner.ps1"],
+            ["scripts/Initialize-ExcelAgentDesktop.ps1"],
+            ["scripts/Install-ExcelAgentOffice.ps1"],
+            ["scripts/Install-ExcelAgentToolchain.ps1"],
+            ["scripts/Open-ExcelAgentActivation.ps1"],
+            ["scripts/Register-ExcelAgentRunner.ps1"],
+            ["scripts/Invoke-CopilotSetupNpm.ps1"]
+        ], """
+            $plan = Get-ValidationPlan -Paths $case[0]
+            if ($plan.Build -or $plan.Excel -or $plan.BuildProjects.Count -or $plan.CiTestGroups.Count) { throw 'Retired operational files selected product checks.' }
+            """);
+        Assert.True(run.ExitCode == 0, run.Output);
+    }
+
+    [Fact]
+    public async Task RetiredRunnerFiles_RequireAnOwningMappingIfRestored()
+    {
+        var run = await RunAsync("""
+            function Test-Path { param([string]$LiteralPath) $true }
+            Get-ValidationPlan -Paths 'scripts/AzureRunnerHost.ps1'
+            """);
+        Assert.NotEqual(0, run.ExitCode);
+        Assert.Contains("must not be restored without an owning validation mapping", run.Output, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task UnknownRunnerPaths_AreNotTreatedAsRetiredFiles()
+    {
+        var run = await RunAsync("Get-ValidationPlan -Paths 'scripts/Install-ExcelAgentRunner.ps1'");
+        Assert.NotEqual(0, run.ExitCode);
+        Assert.Contains("No validation mapping", run.Output, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -80,7 +114,6 @@ public sealed class ValidationSelectionTests
     {
         var run = await RunCasesAsync(
         [
-            ["scripts\\Invoke-CopilotSetupNpm.ps1"],
             ["scripts\\Install-CopilotPonytailReview.ps1"],
             [".github\\workflows\\copilot-setup-steps.yml"]
         ], """
