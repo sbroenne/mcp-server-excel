@@ -79,6 +79,99 @@ public sealed class CliServiceTrayExitTests
     }
 
     [Fact]
+    public void Exit_AfterWorkbookWasClosedInExcel_ShowsExcelLeftOpenWithAnotherWorkbook()
+    {
+        var directory = Path.Join(Path.GetTempPath(), $"CliServiceTrayExitTests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var manager = new SessionManager();
+        var observer = new SessionManager();
+        IExcelBatch? batch = null;
+        string? neighborName = null;
+        Exception? failure = null;
+        try
+        {
+            var sessionId = manager.CreateSessionForNewFile(Path.Join(directory, "closed-by-user.xlsx"));
+            batch = Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(sessionId));
+            neighborName = batch.Execute((context, _) =>
+            {
+                Excel.Workbooks? books = null;
+                Excel.Workbook? book = null;
+                try
+                {
+                    books = context.App.Workbooks;
+                    book = books.Add();
+                    return book.Name;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref book);
+                    ComUtilities.Release(ref books);
+                }
+            });
+            batch.Execute((context, _) => context.Book.Close(SaveChanges: false));
+            using var excel = System.Diagnostics.Process.GetProcessById(batch.ExcelProcessId!.Value);
+            Assert.Equal(IntPtr.Zero, excel.MainWindowHandle);
+
+            var errors = new List<string>();
+            CliServiceTray.ExitService(manager, () =>
+            {
+                manager.Dispose();
+                return null;
+            }, (message, _, _, _) =>
+            {
+                errors.Add(message);
+                return DialogResult.Cancel;
+            }, (_, message, icon) =>
+            {
+                if (icon != ToolTipIcon.Info)
+                    errors.Add(message);
+            });
+
+            Assert.Empty(errors);
+            Assert.True(batch.IsExcelProcessAlive());
+            Assert.True(SpinWait.SpinUntil(() =>
+            {
+                excel.Refresh();
+                return excel.MainWindowHandle != IntPtr.Zero;
+            }, TimeSpan.FromSeconds(5)), "Excel left open with another workbook must be visible.");
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
+        }
+        finally
+        {
+            Capture(manager.Dispose);
+            Capture(() =>
+            {
+                if (batch?.IsExcelProcessAlive() != true || neighborName is null)
+                    return;
+                var discovery = observer.DiscoverOpenWorkbooksAsync().GetAwaiter().GetResult();
+                var selection = Assert.Single(discovery.Workbooks, book =>
+                    book.Name == neighborName && book.ProcessId == batch.ExcelProcessId);
+                var attached = observer.AttachWorkbook(selection.WorkbookId);
+                observer.CloseSession(attached.SessionId, save: false);
+            });
+            Capture(observer.Dispose);
+            Capture(() => Directory.Delete(directory, recursive: true));
+        }
+        if (failure is not null)
+            ExceptionDispatchInfo.Capture(failure).Throw();
+
+        void Capture(Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                failure = failure is null ? ex : new AggregateException(failure, ex);
+            }
+        }
+    }
+
+    [Fact]
     public void Exit_WhileSessionCloseIsInProgress_AsksWithoutWaitingForIt()
     {
         var directory = Path.Join(Path.GetTempPath(), $"CliServiceTrayExitTests_{Guid.NewGuid():N}");

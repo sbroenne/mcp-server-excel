@@ -449,7 +449,7 @@ public class SessionManagerOperationTrackingTests : IDisposable
 
             Assert.Equal(identity, confirmationCandidate);
             Assert.Contains(identity, SessionManager.GetTrackedExcelProcesses());
-            Assert.Contains("remains tracked", exception.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("remain recorded", exception.Message, StringComparison.OrdinalIgnoreCase);
             Assert.False(currentProcess.HasExited);
         }
         finally
@@ -822,6 +822,16 @@ public class SessionManagerOperationTrackingTests : IDisposable
         manager.BeginOperation(session1);
         manager.BeginOperation(session2);
 
+        // Shutdown refuses sessions with active operations, leaves them open, and admits no new sessions.
+        var refused = Assert.Throws<AggregateException>(manager.Dispose);
+        Assert.Equal(2, refused.InnerExceptions.Count);
+        Assert.All(refused.InnerExceptions, failure => Assert.IsType<ExcelBusyException>(failure.InnerException));
+        Assert.Equal(2, manager.ActiveSessionCount);
+        Assert.Throws<ObjectDisposedException>(() =>
+            manager.CreateSession(CreateTestFile($"{nameof(Dispose_CleansUpAllTracking)}_3")));
+
+        manager.EndOperation(session1);
+        manager.EndOperation(session2);
         manager.Dispose();
 
         // All tracking should be cleared

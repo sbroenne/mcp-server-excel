@@ -62,10 +62,13 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 Assert.Equal(keepNeighbor, owned.IsExcelProcessAlive());
                 if (neighborName is null)
                     return;
+                var ownedIdentity = Assert.IsType<ExcelProcessIdentity>(owned.ProcessIdentity);
+                var visibleBeforeAttach = IsExcelWindowVisible(ownedIdentity, owned.Logger);
 
                 var neighborId = await AttachReviewWorkbookAsync(observer,
                     await DiscoverReviewWorkbookAsync(observer, neighborName));
                 observedSessions[neighborId] = 0;
+                Assert.True(visibleBeforeAttach, "Excel left open with another workbook must be visible.");
                 var neighbor = Assert.IsType<AttachedWorkbookBatch>(
                     observer.SessionManager.GetSession(neighborId));
                 Assert.Equal(owned.ExcelProcessId, neighbor.ExcelProcessId);
