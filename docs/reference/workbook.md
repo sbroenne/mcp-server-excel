@@ -354,6 +354,8 @@ not wait for workbook-location bookkeeping or remove dead sessions. A status
 read may report the last recorded path until a later workbook operation
 reconciles a completed Save As. Concurrent readiness checks can return an
 unknown state rather than waiting for each other.
+Opening or testing the same workbook can clear its old reservation once its
+recorded Excel process has exited and the existing cleanup safeguards permit it.
 
 After a waiting limit expires, check this same session instead of automatically
 repeating the command. `activeOperations` counts requests still being handled;

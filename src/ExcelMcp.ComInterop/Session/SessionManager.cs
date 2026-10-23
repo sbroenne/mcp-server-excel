@@ -287,6 +287,17 @@ public sealed class SessionManager : IDisposable
     private object GetSessionLock(string sessionId) =>
         _sessionLocks.GetOrAdd(sessionId, static _ => new object());
 
+    private void CleanupDeadFilePathOwner(string normalizedPath)
+    {
+        if (_activeFilePaths.TryGetValue(normalizedPath, out var ownerSessionId)
+            && _activeSessions.TryGetValue(ownerSessionId, out var owner)
+            && owner is not ExcelBatch { HasFailedStartup: true }
+            && !owner.IsExcelProcessAlive())
+        {
+            _ = GetSession(ownerSessionId);
+        }
+    }
+
     private bool TryClaimFilePath(string normalizedPath, string sessionId)
     {
         lock (_filePathReservationLock)
@@ -953,6 +964,7 @@ public sealed class SessionManager : IDisposable
 
         // Generate unique session ID
         string sessionId = Guid.NewGuid().ToString("N");
+        CleanupDeadFilePathOwner(normalizedPath);
         if (!TryClaimFilePath(normalizedPath, sessionId))
         {
             throw new InvalidOperationException(
@@ -1004,6 +1016,7 @@ public sealed class SessionManager : IDisposable
 
         var normalizedPath = WorkbookLocation.Normalize(filePath);
         var reservationId = Guid.NewGuid().ToString("N");
+        CleanupDeadFilePathOwner(normalizedPath);
         if (!TryClaimFilePath(normalizedPath, reservationId))
         {
             throw new InvalidOperationException(
@@ -1100,6 +1113,7 @@ public sealed class SessionManager : IDisposable
 
         // Generate unique session ID
         string sessionId = Guid.NewGuid().ToString("N");
+        CleanupDeadFilePathOwner(normalizedPath);
         if (!TryClaimFilePath(normalizedPath, sessionId))
         {
             throw new InvalidOperationException($"File '{filePath}' is already open or reserved by another session.");
