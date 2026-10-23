@@ -292,7 +292,7 @@ test('failed comment writes never lead to assignment or a success receipt', asyn
     assert.equal(ownedState(state.comments[0], 42).handoff, 'none');
 });
 
-test('workflow preserves safety boundaries and existing runner settings', () => {
+test('workflow preserves safety boundaries and uses hosted Windows', () => {
     const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'issue-triage.md'), 'utf8');
     assert.match(workflow, /types: \[opened, reopened\]/);
     assert.match(workflow, /roles: all/);
@@ -304,8 +304,10 @@ test('workflow preserves safety boundaries and existing runner settings', () => 
     assert.doesNotMatch(workflow, /add-labels:|close-issue:|create-pull-request:|issues: \[write\]/);
     assert.match(workflow, /Do not recommend the retired `squad` or `squad:\*` routing labels/);
     assert.doesNotMatch(workflow, /Squad|\.squad/);
-    assert.match(fs.readFileSync(path.join(root, '.github', 'workflows', 'copilot-setup-steps.yml'), 'utf8'),
-        /vars.EXCEL_COPILOT_ENABLED == 'true'/);
+    assert.doesNotMatch(workflow, /EXCEL_RUNNER_ENABLED/);
+    const setup = fs.readFileSync(path.join(root, '.github', 'workflows', 'copilot-setup-steps.yml'), 'utf8');
+    assert.match(setup, /runs-on: windows-latest/);
+    assert.doesNotMatch(setup, /EXCEL_COPILOT_ENABLED|self-hosted/);
 });
 
 test('generated workflow makes the validated target available to the agent and isolates assignment', () => {
@@ -349,8 +351,9 @@ test('CLI prepare, publish and dispatch use the same guards, without persisting 
         await main(['publish', snapshotPath], env, api);
         await main(['dispatch', snapshotPath], env, api);
         assert.equal(state.issue.assignees.length, 0);
-        await main(['dispatch', snapshotPath], { ...env, ISSUE_AUTO_FIX_ENABLED: 'true', EXCEL_RUNNER_ENABLED: 'false' }, api);
-        assert.match(state.comments[0].body, /runner control is disabled/);
+        await main(['dispatch', snapshotPath], { ...env, ISSUE_AUTO_FIX_ENABLED: 'true' }, api);
+        assert.equal(state.issue.assignees.length, 1);
+        assert.equal(ownedState(state.comments[0], 42).handoff, 'assigned');
         await main(['prepare', snapshotPath], { ...env, GITHUB_EVENT_NAME: 'workflow_dispatch', ISSUE_NUMBER: '42' }, api);
         fs.writeFileSync(resultPath, JSON.stringify({ items: [{ type: 'publish_triage', analysis_json: JSON.stringify(result()) }, { type: 'close_issue' }] }));
         await assert.rejects(main(['publish', snapshotPath], env, api), /exactly one/i);

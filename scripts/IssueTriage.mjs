@@ -227,7 +227,7 @@ export function assignmentBody(snapshot, value, sourceSha) {
     };
 }
 
-export async function dispatch(snapshot, value, read = api, { enabled = false, runnerEnabled = true } = {}) {
+export async function dispatch(snapshot, value, read = api, { enabled = false } = {}) {
     const { issue, comments } = await unchanged(snapshot, read);
     const comment = owned(comments, snapshot.issue_number);
     if (!comment) fail('Publish the trusted triage comment before dispatch.');
@@ -238,7 +238,6 @@ export async function dispatch(snapshot, value, read = api, { enabled = false, r
         return { status, detail };
     };
     if (!enabled) return setStatus('disabled', 'automatic handoffs are disabled');
-    if (!runnerEnabled) return setStatus('blocked', 'Excel runner control is disabled');
     await validateResult(value, read, snapshot.source_sha);
     if (state.result_hash !== hash(value)) fail('Dispatch result does not match the published assessment.');
     if (!value.easy_fix.eligible) return setStatus('blocked', 'not an eligible easy fix');
@@ -255,7 +254,7 @@ export async function dispatch(snapshot, value, read = api, { enabled = false, r
         return setStatus('blocked', 'an open PR already references this issue');
     }
     const user = await read('user');
-    if (user.login !== 'sbroenne') fail('Assignment credential must belong to the repository owner for existing Excel runner admission.');
+    if (user.login !== 'sbroenne') fail('Assignment credential must belong to the repository owner.');
     const repo = await read(prefix);
     if (repo.full_name !== repository || repo.default_branch !== snapshot.default_branch) {
         fail('Default branch changed; rerun triage.');
@@ -299,8 +298,7 @@ export async function main(args, env = process.env, read = api) {
     const snapshot = JSON.parse(fs.readFileSync(snapshotFile, 'utf8'));
     const result = readResult(env.GH_AW_AGENT_OUTPUT);
     const outcome = mode === 'publish' ? await publish(snapshot, result, read) :
-        await dispatch(snapshot, result, read, { enabled: env.ISSUE_AUTO_FIX_ENABLED === 'true',
-            runnerEnabled: env.EXCEL_RUNNER_ENABLED === 'true' });
+        await dispatch(snapshot, result, read, { enabled: env.ISSUE_AUTO_FIX_ENABLED === 'true' });
     console.log(mode === 'publish' ? 'Published the single advisory comment.' : `Automatic handoff: ${outcome.status}.`);
 }
 

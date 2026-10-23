@@ -21,7 +21,7 @@ on:
       with:
         ref: ${{ github.event.repository.default_branch }}
         persist-credentials: false
-    - uses: actions/setup-node@v7
+    - uses: actions/setup-node@v7.1.0
       with:
         node-version: '24'
     - name: Validate one issue and capture trusted input identity
@@ -30,7 +30,7 @@ on:
         GH_TOKEN: ${{ github.token }}
         ISSUE_NUMBER: ${{ inputs.issue_number }}
       run: node scripts/IssueTriage.mjs prepare "$RUNNER_TEMP/issue-triage-target.json"
-    - uses: actions/upload-artifact@v7
+    - uses: actions/upload-artifact@v7.0.2
       with:
         name: issue-triage-target
         path: ${{ runner.temp }}/issue-triage-target.json
@@ -98,10 +98,10 @@ safe-outputs:
           with:
             ref: ${{ github.event.repository.default_branch }}
             persist-credentials: false
-        - uses: actions/setup-node@v7
+        - uses: actions/setup-node@v7.1.0
           with:
             node-version: '24'
-        - uses: actions/download-artifact@v8
+        - uses: actions/download-artifact@v8.0.2
           with:
             name: issue-triage-target
             path: ${{ runner.temp }}/trusted-target
@@ -120,7 +120,6 @@ safe-outputs:
           env:
             GH_TOKEN: ${{ secrets.COPILOT_ASSIGN_TOKEN }}
             ISSUE_AUTO_FIX_ENABLED: ${{ vars.ISSUE_AUTO_FIX_ENABLED }}
-            EXCEL_RUNNER_ENABLED: ${{ vars.EXCEL_RUNNER_ENABLED }}
           run: node scripts/IssueTriage.mjs dispatch "$RUNNER_TEMP/trusted-target/issue-triage-target.json"
 ---
 
@@ -150,8 +149,10 @@ Ask for at most three genuinely missing details in the comment.
 
 An easy fix needs a clear problem, evidence in existing source, a localized
 correction to at most three existing implementation files, and a feasible
-regression check. Small Excel-related corrections are allowed: the coding agent
-uses the existing Excel runner. No likely duplicate, missing details, ambiguous
+regression check. The coding agent uses hosted Windows without desktop Excel.
+Excel-dependent checks require a separate local Windows desktop with Excel;
+unavailable checks must be reported, never claimed as passed.
+No likely duplicate, missing details, ambiguous
 intended behavior, architecture change, broad refactoring, security/access-control
 change, workflow/infrastructure/dependency change, or agent-instruction change
 qualifies. Allowed scope is existing `.cs`, `.ts`, or `.md` files under `src/`,

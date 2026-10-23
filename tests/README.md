@@ -64,9 +64,9 @@ For GitHub check status, query the current PR directly with
 `gh pr checks <number>`; this returns the current state without waiting for
 all checks to finish.
 
-Windows/Azure runner setup and administration scripts are not part of the
-automated test suite. Product checks remain, including COM-reference safety,
-owned pre-build cleanup, test-result reporting, and real Excel acceptance.
+GitHub-hosted machines do not have desktop Excel. Run Excel-dependent checks
+locally on Windows with Excel installed. Product checks include COM-reference
+safety, owned pre-build cleanup, test-result reporting, and real Excel acceptance.
 The retained PowerShell script tests run with PowerShell 7.4 or later (`pwsh`).
 
 Tests must leave pre-existing Excel instances, workbooks, sessions, and Power
@@ -665,20 +665,17 @@ runtime acceptance. `Test-CliWorkflow.ps1` is a
 compatible wrapper for the CLI stage, including `-PipeName` and `-KeepFile`.
 Use `Test-E2E.ps1 -Stages Cli` for the direct CLI acceptance command.
 
-### OLAP server coverage and the Excel Runner
+### OLAP server coverage
 
-The dedicated Excel Runner has SQL Server Analysis Services (SSAS) available.
-The installed default instance is SSAS 17.0.25.223 in multidimensional mode,
-with the `AdventureWorksDW` sample database and `Adventure Works` cube.
-This is test infrastructure, not evidence that a particular change has passed
-SSAS tests. With no `EXCELMCP_TEST_OLAP_*` configuration, the OLAP stage uses
-Atoti even on that runner; it does not discover or select the installed SSAS
-instance automatically.
+SSAS checks require a separately configured SQL Server Analysis Services
+instance and a local Windows desktop with Excel. With no
+`EXCELMCP_TEST_OLAP_*` configuration, the OLAP stage uses Atoti; it does not
+discover or select an installed SSAS instance automatically.
 
 The All-member regression introduced for issue #1135 was verified against
 Atoti Community Edition 6.2.2, Excel's built-in Data Model (Power Pivot), and
 SSAS 17.0.25.223 in multidimensional mode using the AdventureWorks sample cube.
-The focused SSAS Service regression passed on the Excel Runner; this does not
+That focused SSAS Service regression passed; this does not
 mean the complete external suite was run against SSAS. Azure Analysis Services
 and Power BI XMLA have not been tested. SSAS tabular date-filter coverage is
 documented separately below; it does not cover this All-member regression.
@@ -792,13 +789,10 @@ fixture or add focused SSAS tests that assert its actual schema and results.
 To cover this regression, the test must establish the server's actual All-member
 identity and check both All and a genuine selected member through Excel.
 
-Run against the exact feature-branch commit being reviewed, not just `main`.
-The existing `[Excel Runner] Validation` workflow admits only the default
-branch, so dispatching it does not validate an unmerged PR. Use the approved
-runner access and job-control procedures; do not remove its admission guards
-or wake/restart the runner merely to inspect it. Record the SSAS version and
-cube mode, tested commit, exact commands, and TRX outcomes in the PR before
-claiming SSAS coverage. Run Excel-dependent commands sequentially.
+Run locally against the exact feature-branch commit being reviewed, not just
+`main`. Record the SSAS version and cube mode, tested commit, exact commands,
+and TRX outcomes in the PR before claiming SSAS coverage. Run Excel-dependent
+commands sequentially.
 
 Development builds directly stop only CLI services from the current worktree
 without saving workbooks. They do not kill Excel or stop other worktrees' services.

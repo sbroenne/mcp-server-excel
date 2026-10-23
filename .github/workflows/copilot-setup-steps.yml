@@ -5,7 +5,6 @@ on:
   push:
     paths:
       - .github/workflows/copilot-setup-steps.yml
-      - scripts/Invoke-CopilotSetupNpm.ps1
       - scripts/Install-CopilotPonytailReview.ps1
       - global.json
       - Directory.Packages.props
@@ -15,7 +14,6 @@ on:
   pull_request:
     paths:
       - .github/workflows/copilot-setup-steps.yml
-      - scripts/Invoke-CopilotSetupNpm.ps1
       - scripts/Install-CopilotPonytailReview.ps1
       - global.json
       - Directory.Packages.props
@@ -25,7 +23,7 @@ on:
 
 jobs:
   copilot-setup-steps:
-    runs-on: ${{ vars.EXCEL_COPILOT_ENABLED == 'true' && 'excel-copilot' || 'windows-latest' }}
+    runs-on: windows-latest
     timeout-minutes: 59
     permissions:
       contents: read
@@ -42,13 +40,11 @@ jobs:
         run: .\scripts\Install-CopilotPonytailReview.ps1
 
       - name: Setup .NET
-        if: runner.environment != 'self-hosted'
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
 
       - name: Setup Node.js
-        if: runner.environment != 'self-hosted'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: "24"
@@ -59,7 +55,6 @@ jobs:
             npm-packages/shared/package-lock.json
 
       - name: Setup Python
-        if: runner.environment != 'self-hosted'
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.13"
@@ -71,12 +66,12 @@ jobs:
 
       - name: Install repository tooling
         shell: pwsh
-        run: .\scripts\Invoke-CopilotSetupNpm.ps1
+        run: npm ci
 
       - name: Install VS Code extension dependencies
         working-directory: vscode-extension
         shell: pwsh
-        run: ..\scripts\Invoke-CopilotSetupNpm.ps1
+        run: npm ci
 
       - name: Install documentation dependencies
         run: python -m pip install -r gh-pages/requirements.txt
@@ -84,7 +79,7 @@ jobs:
       - name: Install shared npm tooling
         working-directory: npm-packages/shared
         shell: pwsh
-        run: ..\..\scripts\Invoke-CopilotSetupNpm.ps1
+        run: npm ci
 
       - name: Verify setup tools and Excel-free boundary
         shell: pwsh
@@ -94,11 +89,4 @@ jobs:
           dotnet --version
           node --version
           python --version
-          if ($env:RUNNER_ENVIRONMENT -ne 'self-hosted') {
-            Write-Output 'Hosted setup complete. Desktop Excel is unavailable; no COM behavior was verified. LLM evaluations and their dependencies remain on demand.'
-          } else {
-            . 'C:\ProgramData\ExcelMcp\Desktop\ExcelRunnerPolicy.ps1'
-            Assert-ExcelRunnerReadiness (Get-Content 'C:\ProgramData\ExcelMcp\Desktop\ready.json' -Raw | ConvertFrom-Json) `
-              -BootTime (Get-CimInstance Win32_OperatingSystem).LastBootUpTime
-            Write-Output 'Qualified non-admin Excel desktop available. Run requested .NET/Excel tests sequentially; LLM evaluations remain on demand.'
-          }
+          Write-Output 'Hosted setup complete. Desktop Excel is unavailable; no COM behavior was verified. LLM evaluations and their dependencies remain on demand.'

@@ -145,8 +145,9 @@ public sealed partial class AutomationSafetyTests
         Assert.Contains("runs-on: ubuntu-latest", review, StringComparison.Ordinal);
         Assert.Contains("-p:EnableWindowsTargeting=true", review, StringComparison.Ordinal);
         Assert.DoesNotContain("dotnet test", review, StringComparison.Ordinal);
-        Assert.Contains("EXCEL_COPILOT_ENABLED", coding, StringComparison.Ordinal);
-        Assert.Contains("Assert-ExcelRunnerReadiness", coding, StringComparison.Ordinal);
+        Assert.Contains("runs-on: windows-latest", coding, StringComparison.Ordinal);
+        Assert.DoesNotContain("self-hosted", coding, StringComparison.Ordinal);
+        Assert.DoesNotContain("EXCEL_", coding, StringComparison.Ordinal);
         foreach (var workflow in new[] { coding, review })
         {
             Assert.Contains("contents: read", workflow, StringComparison.Ordinal);
