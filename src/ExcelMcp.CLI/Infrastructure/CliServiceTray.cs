@@ -453,25 +453,35 @@ internal sealed class CliServiceTray : IDisposable
         return informational?.Split('+')[0] ?? assembly.GetName().Version?.ToString() ?? "0.0.0";
     }
 
-    private void ExitService() =>
-        ExitService(_sessionManager, _requestShutdown, ShowMessageOnOwnThread, ShowBalloon);
-
-    // Shutdown ends the tray's message loop, which would close a box shown on this thread
-    // before the user reads the shutdown report. A separate thread has its own message queue.
-    private static DialogResult ShowMessageOnOwnThread(
-        string text, string caption, MessageBoxButtons buttons, MessageBoxIcon icon)
+    private void ExitService()
     {
-        var result = DialogResult.None;
-        var thread = new Thread(() => result = MessageBox.Show(text, caption, buttons, icon));
-        thread.SetApartmentState(ApartmentState.STA);
-        thread.Start();
-        thread.Join();
-        return result;
+        var report = ExitService(_sessionManager, _requestShutdown, MessageBox.Show, ShowBalloon);
+        if (report is not null)
+            ShowReportAfterExit(report);
     }
 
+    // Shutdown ends this thread's message loop, which would close a box shown here at once.
+    // The report gets its own thread, which the tray does not wait for: the tray can finish,
+    // so the service lock is released and a new service can start while the report is open.
+    // A foreground thread keeps this process running until the user closes the report.
+    private static void ShowReportAfterExit(string report)
+    {
+        var thread = new Thread(() =>
+            MessageBox.Show(report, "ExcelMCP CLI stopped", MessageBoxButtons.OK, MessageBoxIcon.Warning))
+        {
+            IsBackground = false
+        };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+    }
+
+    /// <summary>
+    /// Asks what to do with open sessions, then stops the service. Returns the shutdown report,
+    /// or null when nothing was left; the caller shows the report.
+    /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
-        Justification = "Tray exit boundary shows exact release/save/close failures to the user. A failed requested save leaves the service running so the user can decide again; shutdown itself always completes and its report is shown.")]
-    internal static void ExitService(
+        Justification = "Tray exit boundary shows exact release/save/close failures to the user. A failed requested save leaves the service running so the user can decide again; shutdown itself always completes and its report is returned.")]
+    internal static string? ExitService(
         SessionManager sessionManager,
         Func<string?> requestShutdown,
         Func<string, string, MessageBoxButtons, MessageBoxIcon, DialogResult> showMessage,
@@ -503,7 +513,7 @@ internal sealed class CliServiceTray : IDisposable
                 MessageBoxIcon.Question);
 
             if (result == System.Windows.Forms.DialogResult.Cancel)
-                return;
+                return null;
 
             if (result == System.Windows.Forms.DialogResult.Yes)
             {
@@ -523,14 +533,12 @@ internal sealed class CliServiceTray : IDisposable
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Error);
 
-                    return;
+                    return null;
                 }
             }
         }
 
-        var report = requestShutdown();
-        if (report is not null)
-            showMessage(report, "ExcelMCP CLI stopped", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        return requestShutdown();
     }
 
     /// <summary>

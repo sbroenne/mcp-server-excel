@@ -205,7 +205,7 @@ public sealed class SessionCloseRegressionTests
     }
 
     [Fact]
-    public async Task Shutdown_ConcurrentCaller_WaitsForFirstShutdownAndDoesNotRepeatIt()
+    public async Task Shutdown_ConcurrentCaller_WaitsForFirstShutdownAndReceivesItsReport()
     {
         using var service = new ExcelMcpService();
         using var teardownEntered = new ManualResetEventSlim();
@@ -217,7 +217,8 @@ public sealed class SessionCloseRegressionTests
             {
                 teardownEntered.Set();
                 Assert.True(releaseTeardown.Wait(TimeSpan.FromSeconds(10)));
-            }
+            },
+            DisposeException = new TimeoutException("Excel did not confirm shutdown.")
         };
         RegisterSession(service, "concurrent-shutdown", batch, addKnownSessionId: true);
         var first = Task.Run(() => service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" }));
@@ -234,9 +235,15 @@ public sealed class SessionCloseRegressionTests
             releaseTeardown.Set();
         }
 
-        Assert.True((await first.WaitAsync(TimeSpan.FromSeconds(10))).Success);
-        Assert.True((await second!.WaitAsync(TimeSpan.FromSeconds(10))).Success);
+        var firstResponse = await first.WaitAsync(TimeSpan.FromSeconds(10));
+        var secondResponse = await second!.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.True(firstResponse.Success, firstResponse.ErrorMessage);
+        Assert.True(secondResponse.Success, secondResponse.ErrorMessage);
+        Assert.Contains("Excel did not confirm shutdown.", firstResponse.PartialState, StringComparison.Ordinal);
+        Assert.Equal(firstResponse.PartialState, secondResponse.PartialState);
+        Assert.Equal(firstResponse.PartialState, service.RequestShutdown());
         Assert.Equal(1, batch.DisposeCalls);
+        batch.DisposeException = null;
     }
 
     [Theory]

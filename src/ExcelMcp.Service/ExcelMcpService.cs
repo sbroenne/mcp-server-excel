@@ -42,6 +42,7 @@ public sealed class ExcelMcpService : IDisposable
     private readonly DateTime _startTime = DateTime.UtcNow;
     private bool _disposed;
     private volatile bool _shuttingDown;
+    private string? _shutdownReport;
 
     // Core command instances - use concrete types per CA1859
     private readonly RangeCommands _rangeCommands = new();
@@ -150,7 +151,7 @@ public sealed class ExcelMcpService : IDisposable
     private string? ShutDownSessions()
     {
         if (_shuttingDown)
-            return null;
+            return _shutdownReport;
         _shuttingDown = true;
         try
         {
@@ -161,7 +162,7 @@ public sealed class ExcelMcpService : IDisposable
         {
             System.Diagnostics.Trace.TraceWarning("Excel shutdown was not confirmed: {0}", ex);
             IEnumerable<Exception> failures = ex is AggregateException aggregate ? aggregate.InnerExceptions : [ex];
-            return "The service stopped, but some Excel processes were left as they are; nothing was saved, " +
+            return _shutdownReport = "The service stopped, but some Excel processes were left as they are; nothing was saved, " +
                 "discarded, or terminated. " +
                 string.Join(" ", failures.Select(failure => failure.Message));
         }

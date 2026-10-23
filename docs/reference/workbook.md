@@ -296,10 +296,12 @@ that save is not rolled back.
 
 Service shutdown always stops the service. It closes saved workbooks that
 ExcelMcp opened and leaves unsaved ones open and visible without saving. When a
-workbook is busy, waiting for a prompt, or its state cannot be confirmed within
-the shutdown wait (the session's operation timeout, at most 30 seconds),
+workbook is busy, waiting for a prompt, or does not answer the shutdown request
+within the shutdown wait (the session's operation timeout, at most 30 seconds),
 shutdown leaves that Excel copy exactly as it is, makes it visible when
-possible, and reports it. The MCP Server writes this report to its log;
+possible, and reports it. After Excel answers, confirming that a closed Excel
+copy has fully exited can take longer than this wait. The MCP Server writes
+this report to its log;
 `excelcli service stop` returns it as `shutdownWarning`, and the CLI tray shows
 it after Exit. The report names each Excel copy by process number and start
 time and says that nothing was saved, discarded, or terminated. Once shutdown
