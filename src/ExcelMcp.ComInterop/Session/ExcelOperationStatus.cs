@@ -11,6 +11,8 @@ public sealed record ExcelOperationStatus(
 {
     /// <summary>The Service command whose Excel callback owns this status.</summary>
     public string? Command { get; init; }
+    /// <summary>When the currently reported operation started, in UTC.</summary>
+    public DateTime StartedAtUtc { get; init; }
 }
 
 /// <summary>A startup wait expired, but its session still owns the Excel instance.</summary>

@@ -46,9 +46,9 @@ but avoids silently losing unsaved changes.
 
 A failed opening remains discoverable until explicitly closed, even when its
 Excel process has already exited; status polling must not erase its late error.
-During a shutdown attempt, polling defers completed Save As path reconciliation
-without releasing its reservation. If shutdown is refused, later polling
-reconciles the path normally.
+Status polling does not wait for workbook-location bookkeeping or clean up dead
+sessions. Completed Save As paths are reconciled by subsequent workbook access,
+not by status polling, and their reservations remain held until reconciliation.
 
 Status checks have a short wait budget and may report unknown while their owned
 readiness scan finishes. Normal save and close verify workbook readiness on the
@@ -63,16 +63,23 @@ retains a usable session, not a failed-teardown quarantine. After readiness
 returns, the caller can inspect and explicitly close that session.
 
 Automatic CLI startup also preserves Excel instances left alive after their
-previous service exits: it refuses to replace their recorded ownership while they
-remain live. An expired shutdown wait or an unconfirmed shutdown response does
-not authorize forced termination of a running service or its workbooks.
+previous service exits. It carries their exact process identities forward
+separately from workbooks owned by the new service, including across repeated
+restarts. They do not block startup and are not attached automatically.
+Service status and stop report these still-running Excel copies with their
+process numbers, start times, and unknown workbook state. Discovery and explicit
+attachment let the caller inspect the intended workbook without reopening it.
+An expired shutdown wait or an unconfirmed shutdown response does not authorize
+forced termination of a running service or its workbooks.
 Explicit service stop attempts bounded pipe shutdown even without a daemon mutex.
-Offline cleanup requires both a failed connection and no held daemon mutex.
-A connected host's failure or expired response wait does not authorize cleanup.
+When no service answers and no service mutex is held, stop reports that the
+service is not running and leaves recorded Excel copies untouched. Only obsolete
+records with no confirmed live processes are removed. Damaged or unreadable
+records remain errors, not evidence that Excel has exited.
 
-Central ownership also makes targeted cleanup possible without terminating
-unrelated user workbooks. This carries explicit lifetime and recovery complexity
-rather than hiding it in individual commands.
+Central ownership makes it possible to report exactly which Excel copies remain
+without terminating unrelated user workbooks. The caller decides whether any
+further recovery action is appropriate.
 
 Implicit saving at disconnect commits changes without a separate request;
 implicit discard loses the user's choices. A visible handover preserves those

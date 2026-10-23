@@ -180,8 +180,14 @@ connection. A service that connects retains the normal response deadline.
 An expired command or shutdown wait does not authorize terminating the service
 or Excel. The affected workbook remains open and may still change. If the service
 exits for another reason while its Excel instances remain alive, automatic startup
-refuses to terminate those instances or replace their ownership record. The calling
-agent must inspect the retained work before deciding how to proceed.
+keeps their process identities separately and starts a new service without closing
+or attaching to them. `service status` and `service stop` include
+`retainedExcelProcessCount` and `retainedExcelProcesses`, with each copy's
+`processId`, UTC `startTime`, and `workbookState: "unknown"`. Stopping an
+already-stopped service leaves these Excel copies open.
+Use `session discover`, check `complete` and `errors`, then explicitly attach
+with `session attach --workbook-id <ID>` to inspect the intended workbook.
+Do not infer that an unknown workbook is empty or safe to terminate.
 
 ---
 

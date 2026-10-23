@@ -119,7 +119,7 @@ public sealed class ExcelMcpService : IDisposable
     }
 
     public DateTime StartTime => _startTime;
-    public int SessionCount => _sessionManager.GetActiveSessions().Count;
+    public int SessionCount => _sessionManager.GetActiveSessions(statusOnly: true).Count;
     public SessionManager SessionManager => _sessionManager;
 
     /// <summary>
@@ -281,7 +281,7 @@ public sealed class ExcelMcpService : IDisposable
         {
             Running = true,
             ProcessId = Environment.ProcessId,
-            SessionCount = _sessionManager.GetActiveSessions().Count,
+            SessionCount = _sessionManager.GetActiveSessions(statusOnly: true).Count,
             StartTime = _startTime
         };
         return new ServiceResponse { Success = true, Result = JsonSerializer.Serialize(status, ServiceProtocol.JsonOptions) };
@@ -626,11 +626,11 @@ public sealed class ExcelMcpService : IDisposable
 
     private ServiceResponse HandleSessionList()
     {
-        var sessions = _sessionManager.GetActiveSessions()
+        var sessions = _sessionManager.GetActiveSessions(statusOnly: true)
             .Select(s =>
             {
                 var validation = _sessionManager.ValidateClose(s.SessionId);
-                var operation = _sessionManager.GetOperationStatus(s.SessionId);
+                var operation = _sessionManager.GetOperationStatus(s.SessionId, reconcilePaths: false);
                 return new
                 {
                     sessionId = s.SessionId,

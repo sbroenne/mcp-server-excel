@@ -11,6 +11,65 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class ServiceWorkbookLifecycleTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Open_AfterStatusHidesExitedExcel_ReclaimsPath(bool validateFirst)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var path = Path.Join(directory, "reopen-after-exit.xlsx");
+            var createdId = await CreateSessionAsync(service, path);
+            sessions[createdId] = 0;
+            await WriteMarkerAsync(service, createdId, "saved before Excel exited");
+            await CloseSessionAsync(service, createdId, save: true);
+            sessions.TryRemove(createdId, out _);
+
+            var oldId = await OpenSessionAsync(service, path);
+            sessions[oldId] = 0;
+            Assert.Equal("saved before Excel exited", await ReadMarkerAsync(service, oldId));
+            var oldBatch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(oldId));
+
+            // Close through the product without informing the session manager, as with an external Excel exit.
+            oldBatch.Close();
+            Assert.False(oldBatch.IsExcelProcessAlive());
+            sessions.TryRemove(oldId, out _);
+
+            var list = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+            RequireSuccess(list);
+            using (var result = JsonDocument.Parse(list.Result!))
+                Assert.Empty(result.RootElement.GetProperty("sessions").EnumerateArray());
+            Assert.Equal(0, service.SessionCount);
+            Assert.Equal(oldId, Assert.Single(service.SessionManager.ActiveSessionIds));
+
+            if (validateFirst)
+            {
+                var validation = await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = "session.test",
+                    Args = JsonSerializer.Serialize(new { filePath = path }, ServiceProtocol.JsonOptions)
+                });
+                RequireSuccess(validation);
+                using var result = JsonDocument.Parse(validation.Result!);
+                Assert.True(result.RootElement.GetProperty("canOpen").GetBoolean(), validation.Result);
+                Assert.Empty(service.SessionManager.ActiveSessionIds);
+            }
+
+            var reopenedId = await OpenSessionAsync(service, path);
+            sessions[reopenedId] = 0;
+            Assert.NotEqual(oldId, reopenedId);
+            Assert.Equal(reopenedId, Assert.Single(service.SessionManager.ActiveSessionIds));
+            Assert.Equal("saved before Excel exited", await ReadMarkerAsync(service, reopenedId));
+
+            var reopenedList = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+            RequireSuccess(reopenedList);
+            using var reopenedResult = JsonDocument.Parse(reopenedList.Result!);
+            var reopenedSession = Assert.Single(reopenedResult.RootElement.GetProperty("sessions").EnumerateArray());
+            Assert.Equal(reopenedId, reopenedSession.GetProperty("sessionId").GetString());
+            Assert.Equal(path, reopenedSession.GetProperty("filePath").GetString(), ignoreCase: true);
+        });
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public async Task DiscoveryCleanup_IncompleteScan_ClosesKnownWorkbookAndReportsError(bool attachFirst)

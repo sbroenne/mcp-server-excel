@@ -23,7 +23,6 @@ public partial class RangeCommands
             Excel.Range? range = null;
             Excel.Worksheet? sheet = null;
             Excel.Areas? areas = null;
-            Excel.WorksheetFunction? functions = null;
             Excel.Range? usedRange = null;
             try
             {
@@ -34,10 +33,6 @@ public partial class RangeCommands
                 }
 
                 sheet = (Excel.Worksheet)range.Parent;
-                if (cellKind == SpecialCellKind.Errors)
-                {
-                    functions = ctx.App.WorksheetFunction;
-                }
                 if (cellKind == SpecialCellKind.Blanks)
                 {
                     usedRange = sheet.UsedRange;
@@ -63,7 +58,7 @@ public partial class RangeCommands
                         // SpecialCells expands a one-cell input to UsedRange.
                         if (Convert.ToInt64(area.CountLarge, CultureInfo.InvariantCulture) == 1)
                         {
-                            if (MatchesCell(area, cellKind, functions))
+                            if (MatchesCell(area, cellKind))
                             {
                                 AddSpecialCellArea(area, matches);
                             }
@@ -77,9 +72,9 @@ public partial class RangeCommands
                         else if (cellKind == SpecialCellKind.Errors)
                         {
                             CollectSpecialCells(area, Excel.XlCellType.xlCellTypeFormulas,
-                                Excel.XlSpecialCellsValue.xlErrors, cellKind, functions, matches, ct);
+                                Excel.XlSpecialCellsValue.xlErrors, cellKind, matches, ct);
                             CollectSpecialCells(area, Excel.XlCellType.xlCellTypeConstants,
-                                Excel.XlSpecialCellsValue.xlErrors, cellKind, functions, matches, ct,
+                                Excel.XlSpecialCellsValue.xlErrors, cellKind, matches, ct,
                                 formulaErrors: false);
                         }
                         else
@@ -93,7 +88,7 @@ public partial class RangeCommands
                                 _ => throw new ArgumentOutOfRangeException(nameof(cellKind))
                             };
                             CollectSpecialCells(area, nativeKind, Type.Missing,
-                                cellKind, functions, matches, ct);
+                                cellKind, matches, ct);
                         }
                     }
                     finally
@@ -113,7 +108,6 @@ public partial class RangeCommands
             finally
             {
                 ComUtilities.Release(ref usedRange);
-                ComUtilities.Release(ref functions);
                 ComUtilities.Release(ref areas);
                 ComUtilities.Release(ref sheet);
                 ComUtilities.Release(ref range);
@@ -142,7 +136,7 @@ public partial class RangeCommands
 
             if (Convert.ToInt64(inside.CountLarge, CultureInfo.InvariantCulture) == 1)
             {
-                if (MatchesCell(inside, SpecialCellKind.Blanks, null))
+                if (MatchesCell(inside, SpecialCellKind.Blanks))
                 {
                     AddSpecialCellArea(inside, matches);
                 }
@@ -150,7 +144,7 @@ public partial class RangeCommands
             else
             {
                 CollectSpecialCells(inside, Excel.XlCellType.xlCellTypeBlanks,
-                    Type.Missing, SpecialCellKind.Blanks, null, matches, ct);
+                    Type.Missing, SpecialCellKind.Blanks, matches, ct);
             }
 
             rows = scope.Rows;
@@ -213,7 +207,7 @@ public partial class RangeCommands
         Justification = "Accepts SpecialCells' ambiguous no-match sentinel only after independently proving that the scope contains no matching cells; otherwise rethrows the original native error.")]
     private static void CollectSpecialCells(
         Excel.Range scope, Excel.XlCellType nativeKind, object valueKind,
-        SpecialCellKind cellKind, Excel.WorksheetFunction? functions,
+        SpecialCellKind cellKind,
         List<SpecialCellArea> matches, CancellationToken ct, bool formulaErrors = true)
     {
         Excel.Range? selected = null;
@@ -227,8 +221,18 @@ public partial class RangeCommands
             catch (COMException ex) when (ex.HResult == unchecked((int)0x800A03EC))
             {
                 // This HRESULT is not specific to "no cells". Prove absence before accepting it.
-                if (ContainsMatchingCell(scope, cellKind, functions, ct,
-                        cellKind == SpecialCellKind.Errors ? formulaErrors : null))
+                bool hasMatches;
+                try
+                {
+                    hasMatches = ContainsMatchingCell(scope, cellKind, ct,
+                        cellKind == SpecialCellKind.Errors ? formulaErrors : null);
+                }
+                catch (Exception verificationError) when (verificationError is not OperationCanceledException)
+                {
+                    throw new AggregateException("Excel could not select cells or verify that no cells matched.",
+                        ex, verificationError);
+                }
+                if (hasMatches)
                 {
                     throw;
                 }
@@ -260,9 +264,11 @@ public partial class RangeCommands
     }
 
     private static bool ContainsMatchingCell(
-        Excel.Range scope, SpecialCellKind cellKind, Excel.WorksheetFunction? functions,
+        Excel.Range scope, SpecialCellKind cellKind,
         CancellationToken ct, bool? formulaErrors)
     {
+        if (cellKind != SpecialCellKind.Visible)
+            return ContainsMatchingCellInBulk(scope, cellKind, ct, formulaErrors);
         Excel.Range? cells = null;
         Excel.Range? rows = null;
         Excel.Range? columns = null;
@@ -287,7 +293,7 @@ public partial class RangeCommands
                         {
                             continue;
                         }
-                        if (MatchesCell(cell, cellKind, functions))
+                        if (MatchesCell(cell, cellKind))
                         {
                             return true;
                         }
@@ -308,8 +314,41 @@ public partial class RangeCommands
         }
     }
 
-    private static bool MatchesCell(
-        Excel.Range cell, SpecialCellKind cellKind, Excel.WorksheetFunction? functions)
+    private static bool ContainsMatchingCellInBulk(
+        Excel.Range scope, SpecialCellKind cellKind, CancellationToken ct, bool? formulaErrors = null)
+    {
+        ct.ThrowIfCancellationRequested();
+        Excel.Worksheet? sheet = null;
+        try
+        {
+            sheet = (Excel.Worksheet)scope.Parent;
+            var address = scope.Address;
+            var predicate = cellKind switch
+            {
+                SpecialCellKind.Errors => $"--ISERROR({address})",
+                SpecialCellKind.Formulas => $"--ISFORMULA({address})",
+                SpecialCellKind.Constants => $"--NOT(ISFORMULA({address})),--NOT(ISBLANK({address}))",
+                SpecialCellKind.Blanks => $"--ISBLANK({address})",
+                _ => throw new ArgumentOutOfRangeException(nameof(cellKind))
+            };
+            if (formulaErrors is { } formulas)
+                predicate += formulas ? $",--ISFORMULA({address})" : $",--NOT(ISFORMULA({address}))";
+            // Evaluate the cell types in Excel: numeric values can resemble COM error codes.
+            object value = sheet.Evaluate($"SUMPRODUCT({predicate})");
+            object cellCount = scope.CountLarge;
+            double maximumCount = Convert.ToDouble(cellCount, CultureInfo.InvariantCulture);
+            if (value is not double count || !double.IsFinite(count)
+                || count < 0 || count > maximumCount)
+                throw new InvalidOperationException($"Excel could not verify matching cells in '{address}'.");
+            return count > 0;
+        }
+        finally
+        {
+            ComUtilities.Release(ref sheet);
+        }
+    }
+
+    private static bool MatchesCell(Excel.Range cell, SpecialCellKind cellKind)
     {
         if (cellKind == SpecialCellKind.Visible)
         {
@@ -330,7 +369,7 @@ public partial class RangeCommands
         }
         if (cellKind == SpecialCellKind.Errors)
         {
-            return functions!.IsError(cell);
+            return ContainsMatchingCellInBulk(cell, cellKind, CancellationToken.None);
         }
 
         bool hasFormula = Convert.ToBoolean(cell.HasFormula, CultureInfo.InvariantCulture);

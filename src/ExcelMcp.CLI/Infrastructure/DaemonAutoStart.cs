@@ -382,13 +382,6 @@ internal static class DaemonAutoStart
                 }
 
                 var previousProcesses = OwnedProcessCleanup.CaptureTrackedProcesses(pipeName);
-                if (previousProcesses.ExcelProcesses.Count > 0)
-                {
-                    throw new InvalidOperationException(
-                        "Excel instances from the previous CLI service remain open. " +
-                        "Automatic startup has not terminated them or replaced their ownership record. " +
-                        "Inspect the retained Excel workbooks before deciding how to proceed.");
-                }
                 var cleanupResult = OwnedProcessCleanup
                     .CleanupAsync(pipeName, previousProcesses, cancellationToken)
                     .GetAwaiter()
@@ -396,7 +389,7 @@ internal static class DaemonAutoStart
                 if (!cleanupResult.Success)
                 {
                     throw new InvalidOperationException(
-                        cleanupResult.ErrorMessage ?? $"Tracked processes for CLI pipe '{pipeName}' could not be stopped.");
+                        cleanupResult.ErrorMessage ?? "Recorded Excel copies could not be checked. No Excel applications were closed.");
                 }
 
                 // No daemon running — start it.

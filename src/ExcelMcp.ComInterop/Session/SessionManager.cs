@@ -287,6 +287,17 @@ public sealed class SessionManager : IDisposable
     private object GetSessionLock(string sessionId) =>
         _sessionLocks.GetOrAdd(sessionId, static _ => new object());
 
+    private void CleanupDeadFilePathOwner(string normalizedPath)
+    {
+        if (_activeFilePaths.TryGetValue(normalizedPath, out var ownerSessionId)
+            && _activeSessions.TryGetValue(ownerSessionId, out var owner)
+            && owner is not ExcelBatch { HasFailedStartup: true }
+            && !owner.IsExcelProcessAlive())
+        {
+            _ = GetSession(ownerSessionId);
+        }
+    }
+
     private bool TryClaimFilePath(string normalizedPath, string sessionId)
     {
         lock (_filePathReservationLock)
@@ -953,6 +964,7 @@ public sealed class SessionManager : IDisposable
 
         // Generate unique session ID
         string sessionId = Guid.NewGuid().ToString("N");
+        CleanupDeadFilePathOwner(normalizedPath);
         if (!TryClaimFilePath(normalizedPath, sessionId))
         {
             throw new InvalidOperationException(
@@ -1004,6 +1016,7 @@ public sealed class SessionManager : IDisposable
 
         var normalizedPath = WorkbookLocation.Normalize(filePath);
         var reservationId = Guid.NewGuid().ToString("N");
+        CleanupDeadFilePathOwner(normalizedPath);
         if (!TryClaimFilePath(normalizedPath, reservationId))
         {
             throw new InvalidOperationException(
@@ -1100,6 +1113,7 @@ public sealed class SessionManager : IDisposable
 
         // Generate unique session ID
         string sessionId = Guid.NewGuid().ToString("N");
+        CleanupDeadFilePathOwner(normalizedPath);
         if (!TryClaimFilePath(normalizedPath, sessionId))
         {
             throw new InvalidOperationException($"File '{filePath}' is already open or reserved by another session.");
@@ -1414,13 +1428,13 @@ public sealed class SessionManager : IDisposable
     }
 
     /// <summary>Returns bounded execution metadata without calling Excel.</summary>
-    public ExcelOperationStatus? GetOperationStatus(string sessionId)
+    public ExcelOperationStatus? GetOperationStatus(string sessionId, bool reconcilePaths = true)
     {
         if (!_activeSessions.TryGetValue(sessionId, out var batch)
             || GetExecutionOwner(batch) is not { } owned)
             return null;
         var status = owned.OperationStatus;
-        if (!status.ExecutionPending)
+        if (reconcilePaths && !status.ExecutionPending)
         {
             lock (_filePathReservationLock)
             {
@@ -1950,7 +1964,7 @@ public sealed class SessionManager : IDisposable
     /// Returns a snapshot of active sessions with associated workbook paths.
     /// Dead sessions (where Excel process has died) are automatically cleaned up and excluded.
     /// </summary>
-    public IReadOnlyList<SessionDescriptor> GetActiveSessions()
+    public IReadOnlyList<SessionDescriptor> GetActiveSessions(bool statusOnly = false)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
 
@@ -1966,7 +1980,7 @@ public sealed class SessionManager : IDisposable
             {
                 if (batch.IsExcelProcessAlive() || batch is ExcelBatch { HasFailedStartup: true })
                 {
-                    _ = GetOperationStatus(sessionId);
+                    _ = GetOperationStatus(sessionId, reconcilePaths: !statusOnly);
                     // Get origin and createdAt metadata (defaults for legacy sessions)
                     _sessionOrigins.TryGetValue(sessionId, out var origin);
                     _sessionCreatedAt.TryGetValue(sessionId, out var createdAt);
@@ -1995,7 +2009,7 @@ public sealed class SessionManager : IDisposable
         }
 
         // Clean up dead sessions after iteration
-        foreach (var (sessionId, batch) in deadSessions)
+        foreach (var (sessionId, batch) in statusOnly ? [] : deadSessions)
         {
             _logger?.LogWarning("Session {SessionId} has dead Excel process, auto-cleaning up during GetActiveSessions", sessionId);
             CleanupDeadSession(sessionId, batch);

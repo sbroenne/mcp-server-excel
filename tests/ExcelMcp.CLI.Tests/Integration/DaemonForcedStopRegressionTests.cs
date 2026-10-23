@@ -20,6 +20,121 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 public sealed class DaemonForcedStopRegressionTests
 {
     [Theory]
+    [InlineData(false, null)]
+    [InlineData(true, null)]
+    [InlineData(false, "excelProcesses")]
+    [InlineData(true, "excelProcesses")]
+    [InlineData(false, "retainedExcelProcesses")]
+    [InlineData(true, "retainedExcelProcesses")]
+    public async Task ServiceStatus_DamagedRecordPreservesConfirmedServiceState(bool serviceRunning, string? nullEntryList)
+    {
+        var pipeName = $"excelmcp-damaged-status-{Guid.NewGuid():N}";
+        var cliPath = CliProcessHelper.GetExePath();
+        var trackingFile = DaemonProcessTracker.GetTrackingFilePath(pipeName);
+        Process? daemon = null;
+        string? validRecord = null;
+        try
+        {
+            if (serviceRunning)
+            {
+                daemon = StartDaemonProcess(cliPath, pipeName);
+                await WaitForDaemonReadyAsync(cliPath, pipeName);
+                validRecord = await File.ReadAllTextAsync(trackingFile);
+            }
+            Directory.CreateDirectory(Path.GetDirectoryName(trackingFile)!);
+            var damaged = nullEntryList is null ? """{"processId":"""
+                : $$"""{"processId":1,"startedAtUtcFileTime":1,"{{nullEntryList}}":[null]}""";
+            await File.WriteAllTextAsync(trackingFile, damaged);
+
+            var result = await GetServiceStatusAsync(cliPath, pipeName);
+
+            Assert.Equal(1, result.ExitCode);
+            using var json = JsonDocument.Parse(result.Stdout);
+            var status = json.RootElement;
+            Assert.False(status.GetProperty("success").GetBoolean());
+            Assert.Equal(serviceRunning, status.GetProperty("running").GetBoolean());
+            Assert.Equal(serviceRunning ? "running" : "stopped", status.GetProperty("daemonState").GetString());
+            Assert.Equal(daemon?.Id ?? 0, status.GetProperty("processId").GetInt32());
+            Assert.Equal(0, status.GetProperty("sessionCount").GetInt32());
+            var expectedError = nullEntryList is null ? "malformed" : "invalid process ownership";
+            Assert.Contains(expectedError, status.GetProperty("retainedExcelError").GetString());
+            Assert.Contains(expectedError, status.GetProperty("errorMessage").GetString());
+            Assert.False(status.TryGetProperty("retainedExcelProcessCount", out _));
+            Assert.False(status.TryGetProperty("retainedExcelProcesses", out _));
+        }
+        finally
+        {
+            if (daemon is not null)
+            {
+                if (validRecord is not null)
+                    await File.WriteAllTextAsync(trackingFile, validRecord);
+                await StopDaemonBestEffortAsync(cliPath, pipeName, daemon);
+                daemon.Dispose();
+            }
+            DaemonProcessTracker.Clear(pipeName);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ServiceStatus_UnresponsiveServicePreservesRecoveryInformation(bool damagedRecord)
+    {
+        var pipeName = $"excelmcp-unresponsive-recovery-{Guid.NewGuid():N}";
+        using var oldDaemon = StartSleepingProcess();
+        using var excel = StartSleepingProcess();
+        try
+        {
+            RegisterTrackedProcesses(pipeName, oldDaemon, excel);
+            StopIfRunning(oldDaemon);
+            DaemonProcessTracker.RegisterCurrentProcess(pipeName);
+            if (damagedRecord)
+                await File.WriteAllTextAsync(DaemonProcessTracker.GetTrackingFilePath(pipeName), """{"processId":""");
+
+            var result = await Task.Run(() =>
+            {
+                using var mutex = new Mutex(true, DaemonAutoStart.GetDaemonMutexName(pipeName), out var created);
+                Assert.True(created);
+                try
+                {
+                    return CliProcessHelper.RunAsync("service status", timeoutMs: 20000,
+                        environmentVariables: new() { ["EXCELMCP_CLI_PIPE"] = pipeName })
+                        .GetAwaiter().GetResult();
+                }
+                finally { mutex.ReleaseMutex(); }
+            });
+            Assert.Equal(1, result.ExitCode);
+            using var json = JsonDocument.Parse(result.Stdout);
+            var status = json.RootElement;
+            Assert.False(status.GetProperty("success").GetBoolean());
+            Assert.True(status.GetProperty("running").GetBoolean());
+            Assert.Equal("unresponsive", status.GetProperty("daemonState").GetString());
+            Assert.Equal("Timeout", status.GetProperty("errorCategory").GetString());
+            if (damagedRecord)
+            {
+                Assert.Contains("malformed", status.GetProperty("retainedExcelError").GetString());
+                Assert.False(status.TryGetProperty("retainedExcelProcessCount", out _));
+            }
+            else
+            {
+                Assert.Equal(1, status.GetProperty("retainedExcelProcessCount").GetInt32());
+                var retained = Assert.Single(status.GetProperty("retainedExcelProcesses").EnumerateArray());
+                Assert.Equal(excel.Id, retained.GetProperty("processId").GetInt32());
+                Assert.Equal(excel.StartTime.ToUniversalTime(), retained.GetProperty("startTime").GetDateTime());
+                Assert.Equal("unknown", retained.GetProperty("workbookState").GetString());
+                Assert.Contains("unsaved", status.GetProperty("recoveryMessage").GetString());
+            }
+            Assert.False(excel.HasExited);
+        }
+        finally
+        {
+            StopIfRunning(oldDaemon);
+            StopIfRunning(excel);
+            DaemonProcessTracker.Clear(pipeName);
+        }
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public async Task ServiceStop_WithoutDaemonMutex_SendsShutdownAndPreservesResponse(bool succeeds)
@@ -132,16 +247,17 @@ public sealed class DaemonForcedStopRegressionTests
                 timeoutMs: 35000,
                 environmentVariables: new() { ["EXCELMCP_CLI_PIPE"] = pipeName });
             var handedOver = ownershipState == "handed-over";
-            Assert.Equal(handedOver ? 0 : 1, result.ExitCode);
+            Assert.Equal(0, result.ExitCode);
             using var json = JsonDocument.Parse(result.Stdout);
-            Assert.Equal(handedOver, json.RootElement.GetProperty("success").GetBoolean());
-            if (!handedOver)
-                Assert.Contains("remain open", json.RootElement.GetProperty("errorMessage").GetString(),
-                    StringComparison.OrdinalIgnoreCase);
+            Assert.True(json.RootElement.GetProperty("success").GetBoolean());
             Assert.False(excel.HasExited);
             Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
-            if (!handedOver)
-                Assert.Equal(daemon.Id, DaemonProcessTracker.ReadProcessSnapshot(pipeName).Snapshot!.DaemonProcess.ProcessId);
+            var snapshot = DaemonProcessTracker.ReadProcessSnapshot(pipeName).Snapshot!;
+            Assert.NotEqual(daemon.Id, snapshot.DaemonProcess.ProcessId);
+            if (handedOver)
+                Assert.Empty(snapshot.RetainedExcelProcesses);
+            else
+                Assert.Equal(excel.Id, Assert.Single(snapshot.RetainedExcelProcesses).ProcessId);
         }
         finally
         {
@@ -428,8 +544,8 @@ public sealed class DaemonForcedStopRegressionTests
             var result = await RunServiceStopAsync(pipeName);
 
             Assert.Equal(0, result.ExitCode);
-            Assert.True(daemon.WaitForExit(5000));
-            Assert.True(excel.WaitForExit(5000));
+            Assert.False(daemon.HasExited);
+            Assert.False(excel.HasExited);
             Assert.False(controlDaemon.HasExited);
             Assert.False(controlExcel.HasExited);
             Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(controlPipeName)));
@@ -573,7 +689,7 @@ public sealed class DaemonForcedStopRegressionTests
     }
 
     [Fact]
-    public async Task Cleanup_StopsExcelTrackedAndUntrackedBetweenSnapshots()
+    public async Task Cleanup_PreservesExcelTrackedAndUntrackedBetweenSnapshots()
     {
         var pipeName = $"excelmcp-between-snapshots-{Guid.NewGuid():N}";
         using var daemon = StartSleepingProcess();
@@ -599,9 +715,9 @@ public sealed class DaemonForcedStopRegressionTests
                 CancellationToken.None);
 
             Assert.True(cleanupResult.Success);
-            Assert.True(daemon.WaitForExit(5000));
-            Assert.True(excel.WaitForExit(5000));
-            Assert.False(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
+            Assert.False(daemon.HasExited);
+            Assert.False(excel.HasExited);
+            Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
         }
         finally
         {
@@ -644,9 +760,9 @@ public sealed class DaemonForcedStopRegressionTests
                 CancellationToken.None);
 
             Assert.True(cleanupResult.Success);
-            Assert.True(daemon.WaitForExit(5000));
+            Assert.False(daemon.HasExited);
             Assert.False(replacement.HasExited);
-            Assert.False(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
+            Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
         }
         finally
         {
@@ -683,8 +799,8 @@ public sealed class DaemonForcedStopRegressionTests
 
             Assert.True(cleanupResult.Success);
             Assert.True(daemon.HasExited);
-            Assert.True(excel.WaitForExit(5000));
-            Assert.False(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
+            Assert.False(excel.HasExited);
+            Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
         }
         finally
         {
@@ -717,7 +833,7 @@ public sealed class DaemonForcedStopRegressionTests
                 CancellationToken.None);
 
             Assert.True(cleanupResult.Success);
-            Assert.True(oldExcel.WaitForExit(5000));
+            Assert.False(oldExcel.HasExited);
             Assert.False(replacementDaemon.HasExited);
             Assert.False(replacementExcel.HasExited);
             Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
@@ -775,7 +891,7 @@ public sealed class DaemonForcedStopRegressionTests
         var pipeName = $"excelmcp-tracking-retry-{Guid.NewGuid():N}";
         var trackingFile = DaemonProcessTracker.GetTrackingFilePath(pipeName);
         Directory.CreateDirectory(Path.GetDirectoryName(trackingFile)!);
-        await File.WriteAllTextAsync(trackingFile, "{}");
+        DaemonProcessTracker.RegisterCurrentProcess(pipeName);
         using var lockedFile = File.Open(trackingFile, FileMode.Open, FileAccess.ReadWrite, FileShare.None);
         var releaseLock = Task.Run(async () =>
         {
@@ -805,7 +921,7 @@ public sealed class DaemonForcedStopRegressionTests
     }
 
     [Fact]
-    public async Task ServiceStop_CleansOnlyProcessesTrackedForSelectedPipe()
+    public async Task ServiceStop_ReportsOnlyProcessesTrackedForSelectedPipe()
     {
         var pipeA = $"excelmcp-owned-cleanup-a-{Guid.NewGuid():N}";
         var pipeB = $"excelmcp-owned-cleanup-b-{Guid.NewGuid():N}";
@@ -825,12 +941,15 @@ public sealed class DaemonForcedStopRegressionTests
                 result.ExitCode == 0,
                 $"service stop failed with exit code {result.ExitCode}.{Environment.NewLine}" +
                 $"stdout: {result.Stdout}{Environment.NewLine}stderr: {result.Stderr}");
-            Assert.True(daemonA.WaitForExit(5000));
-            Assert.True(excelA.WaitForExit(5000));
+            Assert.False(daemonA.HasExited);
+            Assert.False(excelA.HasExited);
             Assert.False(daemonB.HasExited);
             Assert.False(excelB.HasExited);
-            Assert.False(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeA)));
+            Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeA)));
             Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeB)));
+            using var output = JsonDocument.Parse(result.Stdout);
+            Assert.Equal(excelA.Id, Assert.Single(output.RootElement
+                .GetProperty("retainedExcelProcesses").EnumerateArray()).GetProperty("processId").GetInt32());
         }
         finally
         {
@@ -844,7 +963,7 @@ public sealed class DaemonForcedStopRegressionTests
     }
 
     [Fact]
-    public async Task ServiceStop_CleansTrackedExcelAfterDaemonExited()
+    public async Task ServiceStop_PreservesTrackedExcelAfterDaemonExited()
     {
         var pipeName = $"excelmcp-orphan-cleanup-{Guid.NewGuid():N}";
         using var daemon = StartSleepingProcess();
@@ -858,12 +977,55 @@ public sealed class DaemonForcedStopRegressionTests
             var result = await RunServiceStopAsync(pipeName);
 
             Assert.Equal(0, result.ExitCode);
-            Assert.True(excel.WaitForExit(5000));
-            Assert.False(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
+            Assert.False(excel.HasExited);
+            Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
+            using var stopped = JsonDocument.Parse(result.Stdout);
+            var retained = Assert.Single(stopped.RootElement.GetProperty("retainedExcelProcesses").EnumerateArray());
+            Assert.Equal(excel.Id, retained.GetProperty("processId").GetInt32());
+            Assert.Equal(excel.StartTime.ToUniversalTime(),
+                retained.GetProperty("startTime").GetDateTime().ToUniversalTime());
+
+            var status = await CliProcessHelper.RunAsync("service status",
+                environmentVariables: new() { ["EXCELMCP_CLI_PIPE"] = pipeName });
+            Assert.Equal(0, status.ExitCode);
+            using var statusJson = JsonDocument.Parse(status.Stdout);
+            Assert.False(statusJson.RootElement.GetProperty("running").GetBoolean());
+            Assert.Equal(excel.Id, Assert.Single(statusJson.RootElement
+                .GetProperty("retainedExcelProcesses").EnumerateArray()).GetProperty("processId").GetInt32());
         }
         finally
         {
             StopIfRunning(daemon);
+            StopIfRunning(excel);
+            DaemonProcessTracker.Clear(pipeName);
+        }
+    }
+
+    [Fact]
+    public void RegisterProcess_PreservesOlderExcelAcrossRepeatedRestarts()
+    {
+        var pipeName = $"excelmcp-retained-record-{Guid.NewGuid():N}";
+        using var original = StartSleepingProcess();
+        using var excel = StartSleepingProcess();
+        using var replacement = StartSleepingProcess();
+        try
+        {
+            RegisterTrackedProcesses(pipeName, original, excel);
+            StopIfRunning(original);
+            var replacementIdentity = DaemonProcessTracker.RegisterProcess(pipeName,
+                replacement.Id, replacement.StartTime.ToUniversalTime().ToFileTimeUtc());
+            DaemonProcessTracker.RegisterProcess(pipeName,
+                replacementIdentity.ProcessId, replacementIdentity.StartedAtUtcFileTime);
+            using var record = JsonDocument.Parse(File.ReadAllText(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
+            var retained = Assert.Single(record.RootElement.GetProperty("retainedExcelProcesses").EnumerateArray());
+            Assert.Equal(excel.Id, retained.GetProperty("processId").GetInt32());
+            Assert.Empty(record.RootElement.GetProperty("excelProcesses").EnumerateArray());
+            Assert.False(excel.HasExited);
+        }
+        finally
+        {
+            StopIfRunning(original);
+            StopIfRunning(replacement);
             StopIfRunning(excel);
             DaemonProcessTracker.Clear(pipeName);
         }
@@ -914,9 +1076,9 @@ public sealed class DaemonForcedStopRegressionTests
 
             Assert.Equal(0, firstResult.ExitCode);
             Assert.Equal(0, secondResult.ExitCode);
-            Assert.True(daemon.WaitForExit(5000));
-            Assert.True(excel.WaitForExit(5000));
-            Assert.False(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
+            Assert.False(daemon.HasExited);
+            Assert.False(excel.HasExited);
+            Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
         }
         finally
         {
@@ -927,7 +1089,7 @@ public sealed class DaemonForcedStopRegressionTests
     }
 
     [Fact]
-    public async Task Cleanup_ExplicitTrackedCleanupStopsOwnedProcesses()
+    public async Task Cleanup_LiveTrackedProcessesPreservesOwnership()
     {
         var pipeName = $"excelmcp-force-stop-test-{Guid.NewGuid():N}";
         using var daemon = StartSleepingProcess();
@@ -947,10 +1109,9 @@ public sealed class DaemonForcedStopRegressionTests
             Assert.True(cleanup.Success, cleanup.ErrorMessage);
             Assert.True(cleanup.DaemonMatched);
 
-            await daemon.WaitForExitAsync();
-            await excel.WaitForExitAsync();
-            Assert.True(daemon.HasExited);
-            Assert.True(excel.HasExited);
+            Assert.False(daemon.HasExited);
+            Assert.False(excel.HasExited);
+            Assert.True(File.Exists(DaemonProcessTracker.GetTrackingFilePath(pipeName)));
         }
         finally
         {
@@ -1205,8 +1366,8 @@ public sealed class DaemonForcedStopRegressionTests
 
             Assert.True(result.Success);
             Assert.True(result.DaemonMatched);
-            Assert.True(daemon.WaitForExit(5000));
-            Assert.True(excel.WaitForExit(5000));
+            Assert.False(daemon.HasExited);
+            Assert.False(excel.HasExited);
             Assert.False(File.Exists(legacyTrackingFile));
         }
         finally
@@ -1241,8 +1402,8 @@ public sealed class DaemonForcedStopRegressionTests
                 CancellationToken.None);
 
             Assert.True(result.Success);
-            Assert.True(selectedDaemon.WaitForExit(5000));
-            Assert.True(selectedExcel.WaitForExit(5000));
+            Assert.False(selectedDaemon.HasExited);
+            Assert.False(selectedExcel.HasExited);
             Assert.False(unrelatedDaemon.HasExited);
             Assert.False(unrelatedExcel.HasExited);
             Assert.True(File.Exists(unrelatedTrackingFile));

@@ -8,6 +8,54 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 
 public sealed partial class PersistentServiceRangeDiscoveryTests
 {
+    [Fact]
+    public void SpecialCells_LargeErrorFreeRangeUsesBulkAbsenceCheck()
+    {
+        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        RequireSuccess(_commands.SetValues(_fixture.BatchToken, sheetName, "A1:C2",
+            [[42, "Keep", -2146826281d], [false, "Text", 7]]));
+        var timer = System.Diagnostics.Stopwatch.StartNew();
+
+        using var result = Discover(sheetName, "A1:I12863", "errors");
+
+        Assert.Equal(0, result.RootElement.GetProperty("cellCount").GetInt64());
+        Assert.Empty(ReadAreas(result));
+        Assert.True(timer.Elapsed < TimeSpan.FromSeconds(20), $"Error-free scan took {timer.Elapsed}.");
+        var retained = _commands.GetValues(_fixture.BatchToken, sheetName, "A1:B2");
+        RequireSuccess(retained);
+        Assert.Equal([42, "Keep"], retained.Values[0]);
+        Assert.Equal([false, "Text"], retained.Values[1]);
+    }
+
+    [Fact]
+    public void SpecialCells_LargePivotRangeUsesBulkErrorCheckWithoutChangingReport()
+    {
+        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
+        RequireSuccess(_commands.SetValues(_fixture.BatchToken, sheetName, "A1:B3",
+            [["Group", "Amount"], ["One", 10], ["Two", 20]]));
+        _fixture.Send("pivottable.create-from-range", new
+        {
+            sourceSheet = sheetName,
+            sourceRange = "A1:B3",
+            destinationSheet = sheetName,
+            destinationCell = "E1",
+            pivotTableName = $"Scan_{Guid.NewGuid():N}"
+        });
+        var before = _commands.GetValues(_fixture.BatchToken, sheetName, "A1:I10");
+        RequireSuccess(before);
+        var timer = System.Diagnostics.Stopwatch.StartNew();
+
+        using var result = Discover(sheetName, "A1:I12863", "errors");
+
+        Assert.Empty(ReadAreas(result));
+        Assert.Equal(0, result.RootElement.GetProperty("cellCount").GetInt64());
+        Assert.True(timer.Elapsed < TimeSpan.FromSeconds(20), $"PivotTable scan took {timer.Elapsed}.");
+        var after = _commands.GetValues(_fixture.BatchToken, sheetName, "A1:I10");
+        RequireSuccess(after);
+        for (int row = 0; row < before.Values.Count; row++)
+            Assert.Equal(before.Values[row], after.Values[row]);
+    }
+
     [Theory]
     [InlineData("formulas", 2, "$A$2", "$A$4")]
     [InlineData("constants", 2, "$A$1", "$A$3")]
@@ -278,9 +326,24 @@ public sealed partial class PersistentServiceRangeDiscoveryTests
 
         Assert.Equal(2, result.RootElement.GetProperty("cellCount").GetInt64());
         Assert.Equal(["$A$1", "$C$1"], ReadAreas(result));
+        using var formulaError = Discover(sheetName, "A1", "errors");
+        Assert.Equal(1, formulaError.RootElement.GetProperty("cellCount").GetInt64());
+        Assert.Equal(["$A$1"], ReadAreas(formulaError));
+        using var storedError = Discover(sheetName, "C1", "errors");
+        Assert.Equal(1, storedError.RootElement.GetProperty("cellCount").GetInt64());
+        Assert.Equal(["$C$1"], ReadAreas(storedError));
         using var constants = Discover(sheetName, "A1:C1", "constants");
         Assert.Equal(1, constants.RootElement.GetProperty("cellCount").GetInt64());
         Assert.Equal(["$C$1"], ReadAreas(constants));
+        RequireSuccess(_commands.SetValues(batch, sheetName, "D1:F1",
+            [[-2146826281d, "'#N/A", false]]));
+        foreach (var address in new[] { "D1", "E1", "F1" })
+        {
+            using var ordinary = Discover(sheetName, address, "errors");
+            Assert.True(ordinary.RootElement.GetProperty("cellCount").GetInt64() == 0,
+                $"An ordinary value at '{address}' was reported as an Excel error.");
+            Assert.Empty(ReadAreas(ordinary));
+        }
     }
 
     [Fact]

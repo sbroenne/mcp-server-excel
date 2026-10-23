@@ -1,334 +1,98 @@
-using System.Runtime.InteropServices;
-using Microsoft.Win32.SafeHandles;
-using Sbroenne.ExcelMcp.ComInterop.Session;
-
 namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
 
-/// <summary>
-/// Stops only the daemon and Excel processes recorded for one CLI pipe.
-/// </summary>
+/// <summary>Inspects recorded processes and removes only obsolete ownership information.</summary>
 internal static class OwnedProcessCleanup
 {
-    private const uint ProcessTerminate = 0x0001;
-    private const uint Synchronize = 0x00100000;
-    private const uint ProcessQueryLimitedInformation = 0x1000;
-    private const uint WaitObject0 = 0x00000000;
-    private const uint WaitTimeout = 0x00000102;
-    private const int ErrorInvalidParameter = 87;
-
     internal sealed record ProcessSnapshot(
         DaemonProcessTracker.ProcessIdentity? DaemonProcess,
         bool DaemonMatched,
         IReadOnlyList<DaemonProcessTracker.ProcessIdentity> ExcelProcesses,
         DaemonProcessTracker.TrackingRecordStatus TrackingStatus,
-        string? ErrorMessage);
+        string? ErrorMessage)
+    {
+        internal IReadOnlyList<DaemonProcessTracker.ProcessIdentity> RetainedExcelProcesses { get; init; } = [];
+    }
 
-    internal sealed record CleanupResult(
-        bool Success,
-        bool DaemonMatched,
-        string? ErrorMessage);
+    internal sealed record CleanupResult(bool Success, bool DaemonMatched, string? ErrorMessage);
+    internal sealed record RetainedExcelProcess(int ProcessId, DateTime StartTime, string WorkbookState = "unknown");
+
+    internal const string RecoveryMessage =
+        "Excel copies from an earlier CLI service remain open. Those older copies were not closed. " +
+        "Their workbook contents and unsaved changes are unknown. " +
+        "Use 'excelcli session discover', check complete and errors, then use " +
+        "'excelcli session attach --workbook-id <ID>' for the intended workbook when available. " +
+        "If it cannot be inspected, check the identified Excel copy before deciding what to do. " +
+        "Ending Excel can lose unsaved work.";
 
     internal static ProcessSnapshot CaptureTrackedProcesses(string pipeName)
     {
-        var readResult = DaemonProcessTracker.ReadProcessSnapshot(pipeName);
-        if (readResult.Status != DaemonProcessTracker.TrackingRecordStatus.Available
-            || readResult.Snapshot == null)
-        {
-            return new ProcessSnapshot(
-                null,
-                false,
-                [],
-                readResult.Status,
-                readResult.ErrorMessage);
-        }
-        var trackedSnapshot = readResult.Snapshot;
+        var read = DaemonProcessTracker.ReadProcessSnapshot(pipeName);
+        if (read.Snapshot is not { } tracked)
+            return new(null, false, [], read.Status, read.ErrorMessage);
 
-        var daemonValidated = DaemonProcessTracker.TryOpenMatchingProcess(
-            trackedSnapshot.DaemonProcess,
-            out var daemonProcess);
-        if (!daemonValidated)
+        if (!DaemonProcessTracker.TryOpenMatchingProcess(tracked.DaemonProcess, out var daemon))
+            return new(tracked.DaemonProcess, false, [], DaemonProcessTracker.TrackingRecordStatus.Unreadable,
+                "The recorded CLI service process could not be checked.");
+        var daemonMatched = daemon is not null;
+        daemon?.Dispose();
+        var current = new List<DaemonProcessTracker.ProcessIdentity>();
+        var retained = new List<DaemonProcessTracker.ProcessIdentity>();
+        foreach (var (source, destination) in new[]
         {
-            return new ProcessSnapshot(
-                trackedSnapshot.DaemonProcess,
-                false,
-                [],
-                DaemonProcessTracker.TrackingRecordStatus.Unreadable,
-                $"The tracked daemon process for CLI pipe '{pipeName}' could not be validated.");
-        }
-        var daemonMatched = daemonProcess != null;
-        daemonProcess?.Dispose();
-
-        var identities = new List<DaemonProcessTracker.ProcessIdentity>();
-        foreach (var identity in trackedSnapshot.ExcelProcesses)
+            (tracked.ExcelProcesses, current),
+            (tracked.RetainedExcelProcesses, retained)
+        })
         {
-            if (!DaemonProcessTracker.TryOpenMatchingProcess(identity, out var process))
+            foreach (var identity in source.Distinct())
             {
-                return new ProcessSnapshot(
-                    trackedSnapshot.DaemonProcess,
-                    daemonMatched,
-                    identities,
-                    DaemonProcessTracker.TrackingRecordStatus.Unreadable,
-                    $"Tracked Excel process {identity.ProcessId} for CLI pipe '{pipeName}' could not be validated.");
-            }
-
-            if (process != null)
-            {
-                process.Dispose();
-                identities.Add(identity);
+                if (!DaemonProcessTracker.TryOpenMatchingProcess(identity, out var process))
+                    return new(tracked.DaemonProcess, daemonMatched, current,
+                        DaemonProcessTracker.TrackingRecordStatus.Unreadable,
+                        $"Recorded Excel process {identity.ProcessId} could not be checked.")
+                    { RetainedExcelProcesses = retained };
+                if (process is not null)
+                {
+                    process.Dispose();
+                    destination.Add(identity);
+                }
             }
         }
-
-        return new ProcessSnapshot(
-            trackedSnapshot.DaemonProcess,
-            daemonMatched,
-            identities,
-            DaemonProcessTracker.TrackingRecordStatus.Available,
-            null);
+        return new(tracked.DaemonProcess, daemonMatched, current, read.Status, null)
+        { RetainedExcelProcesses = retained };
     }
 
-    internal static async Task<CleanupResult> CleanupAsync(
-        string pipeName,
-        CancellationToken cancellationToken)
+    internal static IReadOnlyList<RetainedExcelProcess> GetRetainedExcelProcesses(string pipeName, bool serviceRunning)
     {
-        return await CleanupAsync(
-            pipeName,
-            CaptureTrackedProcesses(pipeName),
-            cancellationToken);
-    }
-
-    internal static async Task<CleanupResult> CleanupAsync(
-        string pipeName,
-        ProcessSnapshot preShutdownSnapshot,
-        CancellationToken cancellationToken)
-    {
-        if (preShutdownSnapshot.TrackingStatus
-            is DaemonProcessTracker.TrackingRecordStatus.Invalid
+        var snapshot = CaptureTrackedProcesses(pipeName);
+        if (snapshot.TrackingStatus is DaemonProcessTracker.TrackingRecordStatus.Invalid
             or DaemonProcessTracker.TrackingRecordStatus.Unreadable)
-        {
-            return new CleanupResult(
-                false,
-                false,
-                preShutdownSnapshot.ErrorMessage
-                ?? $"The daemon tracking record for CLI pipe '{pipeName}' is not usable.");
-        }
-
-        if (preShutdownSnapshot.TrackingStatus
-            == DaemonProcessTracker.TrackingRecordStatus.Missing)
-        {
-            return new CleanupResult(true, false, null);
-        }
-
-        var success = true;
-
-        if (preShutdownSnapshot.DaemonMatched
-            && preShutdownSnapshot.DaemonProcess is { } daemonIdentity)
-        {
-            success &= await TryTerminateProcessAsync(daemonIdentity, cancellationToken);
-        }
-
-        IReadOnlyList<DaemonProcessTracker.ProcessIdentity> finalExcelProcesses = [];
-        var finalRead = DaemonProcessTracker.ReadProcessSnapshot(pipeName);
-        if (finalRead.Status
-            is DaemonProcessTracker.TrackingRecordStatus.Invalid
-            or DaemonProcessTracker.TrackingRecordStatus.Unreadable)
-        {
-            return new CleanupResult(
-                false,
-                preShutdownSnapshot.DaemonMatched,
-                finalRead.ErrorMessage
-                ?? $"The daemon tracking record for CLI pipe '{pipeName}' is not usable.");
-        }
-
-        if (preShutdownSnapshot.DaemonProcess is { } expectedDaemon
-            && finalRead.Snapshot is { } finalSnapshot
-            && finalSnapshot.DaemonProcess == expectedDaemon)
-        {
-            finalExcelProcesses = finalSnapshot.ExcelProcesses;
-        }
-
-        // The final record retains every owned identity, but excludes workbooks
-        // deliberately handed back during graceful shutdown.
-        var excelProcesses = (finalRead.Snapshot?.DaemonProcess == preShutdownSnapshot.DaemonProcess
-                ? finalExcelProcesses
-                : preShutdownSnapshot.ExcelProcesses)
+            throw new InvalidOperationException(snapshot.ErrorMessage);
+        return snapshot.RetainedExcelProcesses
+            .Concat(serviceRunning ? [] : snapshot.ExcelProcesses)
             .Distinct()
-            .ToList();
-        foreach (var identity in excelProcesses)
-        {
-            success &= await TryTerminateProcessAsync(identity, cancellationToken);
-        }
-
-        if (success)
-        {
-            success = preShutdownSnapshot.DaemonProcess is not { } daemonToClear
-                || DaemonProcessTracker.ClearIfDaemonMatches(pipeName, daemonToClear);
-        }
-
-        return new CleanupResult(
-            success,
-            preShutdownSnapshot.DaemonMatched,
-            success
-                ? null
-                : $"One or more processes tracked for CLI pipe '{pipeName}' could not be stopped.");
+            .Select(identity => new RetainedExcelProcess(
+                identity.ProcessId, DateTime.FromFileTimeUtc(identity.StartedAtUtcFileTime)))
+            .ToArray();
     }
 
-    private static async Task<bool> TryTerminateProcessAsync(
-        DaemonProcessTracker.ProcessIdentity identity,
-        CancellationToken cancellationToken)
+    internal static Task<CleanupResult> CleanupAsync(string pipeName, CancellationToken cancellationToken) =>
+        CleanupAsync(pipeName, CaptureTrackedProcesses(pipeName), cancellationToken);
+
+    internal static Task<CleanupResult> CleanupAsync(
+        string pipeName, ProcessSnapshot preShutdownSnapshot, CancellationToken cancellationToken)
     {
-        var probe = ProbeMatchingProcessHandle(
-            identity,
-            ProcessQueryLimitedInformation | Synchronize,
-            out var processHandle);
-        if (probe == ProcessIdentityProbe.Indeterminate)
-        {
-            return false;
-        }
-
-        if (probe == ProcessIdentityProbe.ConfirmedExited || processHandle == null)
-        {
-            return true;
-        }
-
-        using (processHandle)
-        {
-            return await ProcessTerminationPolicy.TryCompleteAsync(
-                TimeSpan.Zero,
-                ProcessTerminationPolicy.ProcessExitTimeout,
-                (timeout, token) => WaitForExitAsync(processHandle, timeout, token),
-                () => RequestTermination(identity),
-                cancellationToken,
-                _ => { });
-        }
+        cancellationToken.ThrowIfCancellationRequested();
+        var snapshot = CaptureTrackedProcesses(pipeName);
+        if (snapshot.TrackingStatus is DaemonProcessTracker.TrackingRecordStatus.Invalid
+            or DaemonProcessTracker.TrackingRecordStatus.Unreadable)
+            return Task.FromResult(new CleanupResult(false, snapshot.DaemonMatched, snapshot.ErrorMessage));
+        var success = snapshot.DaemonProcess != preShutdownSnapshot.DaemonProcess
+            || snapshot.DaemonMatched
+            || snapshot.ExcelProcesses.Count > 0
+            || snapshot.RetainedExcelProcesses.Count > 0
+            || snapshot.DaemonProcess is not { } daemon
+            || DaemonProcessTracker.ClearIfDaemonMatches(pipeName, daemon);
+        return Task.FromResult(new CleanupResult(success, snapshot.DaemonMatched,
+            success ? null : "Obsolete CLI ownership information could not be removed. Ownership checks did not close Excel."));
     }
-
-    private static ProcessTerminationPolicy.ProcessTerminationOutcome RequestTermination(
-        DaemonProcessTracker.ProcessIdentity identity)
-    {
-        var probe = ProbeMatchingProcessHandle(
-            identity,
-            ProcessTerminate | ProcessQueryLimitedInformation | Synchronize,
-            out var processHandle);
-        if (probe == ProcessIdentityProbe.ConfirmedExited)
-        {
-            return ProcessTerminationPolicy.ProcessTerminationOutcome.ConfirmedExited;
-        }
-
-        if (probe == ProcessIdentityProbe.Indeterminate || processHandle == null)
-        {
-            return ProcessTerminationPolicy.ProcessTerminationOutcome.Unavailable;
-        }
-
-        using (processHandle)
-        {
-            if (TerminateProcess(processHandle, 1))
-            {
-                return ProcessTerminationPolicy.ProcessTerminationOutcome.Requested;
-            }
-
-            return WaitForSingleObject(processHandle, 0) == WaitObject0
-                ? ProcessTerminationPolicy.ProcessTerminationOutcome.ConfirmedExited
-                : ProcessTerminationPolicy.ProcessTerminationOutcome.Unavailable;
-        }
-    }
-
-    private static async Task<ProcessTerminationPolicy.ProcessWaitOutcome> WaitForExitAsync(
-        SafeProcessHandle processHandle,
-        TimeSpan timeout,
-        CancellationToken cancellationToken)
-    {
-        var deadline = DateTime.UtcNow + timeout;
-        do
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var waitResult = WaitForSingleObject(
-                processHandle,
-                timeout <= TimeSpan.Zero ? 0u : 100u);
-            if (waitResult == WaitObject0)
-            {
-                return ProcessTerminationPolicy.ProcessWaitOutcome.Exited;
-            }
-
-            if (waitResult != WaitTimeout)
-            {
-                return ProcessTerminationPolicy.ProcessWaitOutcome.Failed;
-            }
-
-            await Task.Yield();
-        }
-        while (DateTime.UtcNow < deadline);
-
-        return ProcessTerminationPolicy.ProcessWaitOutcome.TimedOut;
-    }
-
-    private static ProcessIdentityProbe ProbeMatchingProcessHandle(
-        DaemonProcessTracker.ProcessIdentity identity,
-        uint desiredAccess,
-        out SafeProcessHandle? processHandle)
-    {
-        processHandle = OpenProcess(
-            desiredAccess,
-            inheritHandle: false,
-            identity.ProcessId);
-        if (processHandle.IsInvalid)
-        {
-            var error = Marshal.GetLastWin32Error();
-            processHandle.Dispose();
-            processHandle = null;
-            return error == ErrorInvalidParameter
-                ? ProcessIdentityProbe.ConfirmedExited
-                : ProcessIdentityProbe.Indeterminate;
-        }
-
-        if (!GetProcessTimes(
-                processHandle,
-                out var creationTime,
-                out _,
-                out _,
-                out _))
-        {
-            processHandle.Dispose();
-            processHandle = null;
-            return ProcessIdentityProbe.Indeterminate;
-        }
-
-        if (creationTime != identity.StartedAtUtcFileTime
-            || WaitForSingleObject(processHandle, 0) == WaitObject0)
-        {
-            processHandle.Dispose();
-            processHandle = null;
-            return ProcessIdentityProbe.ConfirmedExited;
-        }
-
-        return ProcessIdentityProbe.Alive;
-    }
-
-    private enum ProcessIdentityProbe
-    {
-        Alive,
-        ConfirmedExited,
-        Indeterminate
-    }
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern SafeProcessHandle OpenProcess(
-        uint desiredAccess,
-        [MarshalAs(UnmanagedType.Bool)] bool inheritHandle,
-        int processId);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool GetProcessTimes(
-        SafeProcessHandle processHandle,
-        out long creationTime,
-        out long exitTime,
-        out long kernelTime,
-        out long userTime);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool TerminateProcess(SafeProcessHandle processHandle, uint exitCode);
-
-    [DllImport("kernel32.dll", SetLastError = true)]
-    private static extern uint WaitForSingleObject(SafeProcessHandle handle, uint milliseconds);
 }

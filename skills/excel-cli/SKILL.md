@@ -39,6 +39,13 @@ and leaves the workbook open when the service exits. Its response reports the
 current AutoSave setting; open preserves it too. If enabled, Excel may save edits
 automatically. Normal service shutdown leaves unsaved owned workbooks open and
 visible without saving or discarding; save and close explicitly for completed jobs.
+If a wait expires, check `session list` for the operation's start time, pending
+work, and eventual outcome; do not automatically repeat it. Zero active requests
+does not mean Excel has finished. Inspect the workbook after completion.
+`service status` and `service stop` report recorded Excel copies from earlier
+services. Stopping an already-stopped service leaves those copies open, and
+they do not block a new service. Use discovery and explicit attachment to inspect
+them; unknown or incomplete information is not permission to end Excel.
 For JSON errors, read `errorMessage` as the single error-text field; use
 `errorCategory` when present to guide recovery.
 Load `excel-cli-report-formatting` only for requested report presentation, not
