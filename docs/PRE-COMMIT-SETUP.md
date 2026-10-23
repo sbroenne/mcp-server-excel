@@ -78,8 +78,8 @@ Runtime changes select a Release build with compiler safety checks,
 and the hook runs their selected `Fast` unit/contract checks.
 Before PR delivery, also run selected process, tooling, and local Excel cases.
 Shared lifecycle boundaries require acceptance and ComInterop diagnostics.
-`Test-E2E.ps1` remains the explicit complete acceptance command and cloud runner
-entry point, not an unconditional feature-edit requirement.
+`Test-E2E.ps1` remains the explicit complete acceptance command for a local
+Windows desktop with Excel, not an unconditional feature-edit requirement.
 Compiler diagnostics do not prove every COM lifetime or error-result path is
 correct. Local build cleanup remains pipe-scoped and must
 not stop another worktree's sessions.
