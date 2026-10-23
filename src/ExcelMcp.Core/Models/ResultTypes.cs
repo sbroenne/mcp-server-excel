@@ -2243,6 +2243,12 @@ public class DataModelMeasureListResult : ResultBase
     /// List of DAX measures in the model
     /// </summary>
     public List<DataModelMeasureInfo> Measures { get; set; } = [];
+
+    /// <summary>
+    /// Informational hint when a table filter returns no measures.
+    /// </summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? Message { get; set; }
 }
 
 /// <summary>

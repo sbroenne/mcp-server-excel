@@ -6,6 +6,45 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 [Trait("RequiresExcel", "false")]
 public sealed class PersistentServiceCleanupFailureTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ThrowIfFailed_PreservesOriginalFailureLocation(bool cleanupAlsoFails)
+    {
+        var primary = Assert.Throws<InvalidOperationException>(ThrowPrimaryFailure);
+        var failure = cleanupAlsoFails
+            ? PersistentServiceCleanupFailures.Combine(
+                primary, Assert.Throws<IOException>(ThrowCleanupFailure))
+            : primary;
+
+        var reported = Record.Exception(() => PersistentServiceCleanupFailures.ThrowIfFailed(failure));
+
+        Assert.Same(failure, reported);
+        Assert.Contains(nameof(ThrowPrimaryFailure), primary.StackTrace);
+        if (cleanupAlsoFails)
+        {
+            var failures = Assert.IsType<AggregateException>(reported).Flatten().InnerExceptions;
+            Assert.Equal(2, failures.Count);
+            Assert.Same(primary, failures[0]);
+            Assert.Contains(nameof(ThrowPrimaryFailure), failures[0].StackTrace);
+            Assert.Contains(nameof(ThrowCleanupFailure), failures[1].StackTrace);
+        }
+    }
+
+    [Fact]
+    public void ThrowIfFailed_NoFailureCompletesNormally()
+    {
+        PersistentServiceCleanupFailures.ThrowIfFailed(null);
+    }
+
+    [System.Runtime.CompilerServices.MethodImpl(
+        System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void ThrowPrimaryFailure() => throw new InvalidOperationException("test");
+
+    [System.Runtime.CompilerServices.MethodImpl(
+        System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private static void ThrowCleanupFailure() => throw new IOException("cleanup");
+
     [Fact]
     public void Run_PreservesPrimaryAndEveryCleanupFailureAndContinuesCleanup()
     {

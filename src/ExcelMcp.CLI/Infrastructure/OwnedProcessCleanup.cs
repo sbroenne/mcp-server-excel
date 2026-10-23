@@ -146,8 +146,11 @@ internal static class OwnedProcessCleanup
             finalExcelProcesses = finalSnapshot.ExcelProcesses;
         }
 
-        var excelProcesses = preShutdownSnapshot.ExcelProcesses
-            .Concat(finalExcelProcesses)
+        // The final record retains every owned identity, but excludes workbooks
+        // deliberately handed back during graceful shutdown.
+        var excelProcesses = (finalRead.Snapshot?.DaemonProcess == preShutdownSnapshot.DaemonProcess
+                ? finalExcelProcesses
+                : preShutdownSnapshot.ExcelProcesses)
             .Distinct()
             .ToList();
         foreach (var identity in excelProcesses)

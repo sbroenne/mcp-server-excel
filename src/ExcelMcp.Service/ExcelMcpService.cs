@@ -344,12 +344,7 @@ public sealed class ExcelMcpService : IDisposable
 
         var attached = _sessionManager.AttachWorkbook(selection.GetString()!);
         _knownSessionIds.TryAdd(attached.SessionId, 0);
-        var warning = attached.AutoSaveOn switch
-        {
-            true => "Excel AutoSave is enabled. Excel may save later edits automatically, even without an explicit save.",
-            false => "Excel AutoSave is off.",
-            null => "Excel AutoSave status is unavailable. Excel may save later edits automatically if AutoSave is enabled."
-        };
+        var warning = ExcelCapabilities.AutoSaveWarning(attached.AutoSaveOn);
         return new ServiceResponse
         {
             Success = true,
@@ -459,12 +454,7 @@ public sealed class ExcelMcpService : IDisposable
             // Use the combined create+open which starts Excel only once
             var sessionId = _sessionManager.CreateSessionForNewFile(fullPath, show: args.Show, operationTimeout: timeout, origin: SessionOrigin.CLI);
             _knownSessionIds.TryAdd(sessionId, 0);
-
-            return new ServiceResponse
-            {
-                Success = true,
-                Result = JsonSerializer.Serialize(new { success = true, sessionId, filePath = fullPath }, ServiceProtocol.JsonOptions)
-            };
+            return CreateSessionOpenResponse(sessionId, fullPath, request.Command);
         }
         catch (Exception ex)
         {
@@ -497,17 +487,33 @@ public sealed class ExcelMcpService : IDisposable
         {
             var sessionId = _sessionManager.CreateSession(fullPath, show: args.Show, operationTimeout: timeout, origin: SessionOrigin.CLI);
             _knownSessionIds.TryAdd(sessionId, 0);
-            return new ServiceResponse
-            {
-                Success = true,
-                Result = JsonSerializer.Serialize(new { success = true, sessionId, filePath = fullPath }, ServiceProtocol.JsonOptions)
-            };
+            return CreateSessionOpenResponse(sessionId, fullPath, request.Command);
         }
         catch (Exception ex)
         {
             return CreateErrorResponse(ex);
         }
     }
+
+    private ServiceResponse CreateSessionOpenResponse(string sessionId, string filePath, string command) =>
+        WithSessionAsync(new ServiceRequest { Command = command, SessionId = sessionId }, batch =>
+        {
+            var autoSaveOn = batch.Execute((context, _) =>
+                ExcelCapabilities.ReadAutoSaveStatus(() => context.Book.AutoSaveOn));
+            return new ServiceResponse
+            {
+                Success = true,
+                SessionId = sessionId,
+                Result = JsonSerializer.Serialize(new
+                {
+                    success = true,
+                    sessionId,
+                    filePath,
+                    autoSaveOn,
+                    warning = ExcelCapabilities.AutoSaveWarning(autoSaveOn)
+                }, ServiceProtocol.JsonOptions)
+            };
+        }).GetAwaiter().GetResult();
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "Only confirmed fatal Excel disconnections reach this handler; CreateExcelDisconnectedResponse reports failure and the original COM error after dead-session cleanup.")]

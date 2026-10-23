@@ -87,8 +87,8 @@
     "@types/node": "^26.6.5",
     "@types/vscode": "^1.125.0",
     "@vscode/vsce": "^4.0.0",
-    "oxlint": "^1.87.0",
+    "oxlint": "^1.89.0",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.5"
   }
 }

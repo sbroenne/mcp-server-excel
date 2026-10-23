@@ -161,7 +161,7 @@ public sealed class SessionManagerStartupShutdownTests
             foreach (var field in new[] { "_sessionFilePaths", "_activeOperationCounts", "_showExcelFlags", "_sessionOrigins", "_sessionCreatedAt" })
                 Assert.Empty(GetField<System.Collections.IDictionary>(manager, field));
             owned.AssertAllExited();
-            Assert.True(File.Exists(path), "Shutdown after startup must save the workbook.");
+            Assert.True(File.Exists(path), "The newly created workbook must still exist after shutdown.");
         }
         catch (Exception ex)
         {

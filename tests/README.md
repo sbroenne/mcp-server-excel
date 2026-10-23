@@ -46,6 +46,24 @@ and reject empty, skipped, failed, or contradictory reports. Excel selections
 compare discovered and executed test names as multisets, including theory rows;
 missing, extra, or duplicated cases fail the run.
 
+Each stage prints its live stdout/stderr paths and an elapsed-time message
+every 30 seconds. The stdout log includes individual test results as they
+finish; a quiet log does not mean the current test has stopped. Read progress
+from another PowerShell window without waiting for the runner to finish:
+
+```powershell
+Get-Content -LiteralPath '<printed path to stage.stdout.log>' -Tail 20 -Wait
+```
+
+Logs remain available after failure or timeout. Final TRX reports and the
+runner's exit status determine success, not the progress messages.
+MCP transport checks also allow the product's sequential auto-save, close,
+STA-thread shutdown, and natural Excel exit waits before declaring a host
+shutdown timeout; they do not stop Excel.
+For GitHub check status, query the current PR directly with
+`gh pr checks <number>`; this returns the current state without waiting for
+all checks to finish.
+
 Windows/Azure runner setup and administration scripts are not part of the
 automated test suite. Product checks remain, including COM-reference safety,
 owned pre-build cleanup, test-result reporting, and real Excel acceptance.

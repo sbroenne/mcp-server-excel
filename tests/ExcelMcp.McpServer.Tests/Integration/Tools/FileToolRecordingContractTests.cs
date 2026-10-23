@@ -15,6 +15,24 @@ public sealed class FileToolRecordingContractTests(
 {
     private readonly RecordingProgramTransportFixture _fixture = fixture;
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task WorkbookAutoSave_MapsExplicitSettingAndPreservesStatus(bool enabled)
+    {
+        var resultJson = JsonSerializer.Serialize(new { success = true, autoSaveOn = enabled });
+        var call = await _fixture.CallToolAsync("workbook", new Dictionary<string, object?>
+        {
+            ["action"] = "set-auto-save",
+            ["workbook_session_id"] = "target",
+            ["enabled"] = enabled
+        }, new ServiceResponse { Success = true, Result = resultJson },
+            "workbook.set-auto-save", expectedSessionId: "target",
+            expectedArgsJson: JsonSerializer.Serialize(new { enabled }));
+        using var result = JsonDocument.Parse(call.JsonResult);
+        Assert.Equal(enabled, result.RootElement.GetProperty("autoSaveOn").GetBoolean());
+    }
+
     [Fact]
     public async Task Save_DispatchesExistingSessionAndReturnsSavedWithoutClosing()
     {

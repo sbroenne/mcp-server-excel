@@ -95,7 +95,7 @@ function Invoke-SelectedBuild([Collections.IDictionary]$Plan, [string]$Group) {
         foreach ($arguments in @(@('restore', $target), @('build', $target, '-c', 'Release', '--no-restore',
                     '-p:UseSharedCompilation=false', '--verbosity', 'minimal'))) {
             $result = Invoke-NativeCommand -Executable dotnet -Arguments $arguments -DeadlineSeconds 1200 `
-                -Environment @{ MSBUILDDISABLENODEREUSE = '1' }
+                -Environment @{ MSBUILDDISABLENODEREUSE = '1' } -ProgressName "dotnet $($arguments[0])"
             Write-Host $result.Output
             if ($result.Error) { [Console]::Error.WriteLine($result.Error) }
         }
@@ -206,8 +206,14 @@ function Invoke-ExcelPlan {
                 -HangTimeout 10m -Environment @{ EXCELMCP_CLI_PIPE = $pipe } -ListTests:$ListTests -ReconcileCases
         }
         if ($Plan.FullE2E -and -not $ListTests) {
+            $resultsPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ResultsDirectory)
+            New-Item -ItemType Directory -Path $resultsPath -Force | Out-Null
+            $outputPath = Join-Path $resultsPath 'Acceptance.stdout.log'
+            $errorPath = Join-Path $resultsPath 'Acceptance.stderr.log'
+            Write-Host "Live acceptance logs: $outputPath ; $errorPath"
             $result = Invoke-NativeCommand -Executable pwsh -Arguments @('-NoProfile', '-File', (Join-Path $root 'scripts\Test-E2E.ps1'),
-                '-SkipBuild', '-PipeName', $pipe, '-ResultsDirectory', (Join-Path $ResultsDirectory Acceptance)) -DeadlineSeconds 10800
+                '-SkipBuild', '-PipeName', $pipe, '-ResultsDirectory', (Join-Path $ResultsDirectory Acceptance)) -DeadlineSeconds 10800 `
+                -OutputPath $outputPath -ErrorPath $errorPath -ProgressName Acceptance
             Write-Host $result.Output
             if ($result.Error) { [Console]::Error.WriteLine($result.Error) }
         }

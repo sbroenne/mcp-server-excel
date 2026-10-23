@@ -1457,6 +1457,23 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         }
 
         sb.AppendLine("    };");
+        sb.AppendLine();
+        sb.AppendLine("    /// <summary>Maps CLI commands and actions to their applicable parameters.</summary>");
+        sb.AppendLine("    public static readonly System.Collections.Generic.Dictionary<string, System.Collections.Generic.Dictionary<string, string[]>> ActionParametersByCommand = new(System.StringComparer.OrdinalIgnoreCase)");
+        sb.AppendLine("    {");
+        foreach (var cat in categories.OrderBy(c => c.CategoryPascal))
+        {
+            var cliCommandName = cat.McpToolName.Replace("_", "");
+            sb.AppendLine($"        [\"{cliCommandName}\"] = new(System.StringComparer.OrdinalIgnoreCase)");
+            sb.AppendLine("        {");
+            foreach (var method in cat.Methods)
+            {
+                var parameters = GetActionParameterNames(method, includeFileParameters: true);
+                sb.AppendLine($"            [\"{method.ActionName}\"] = {BuildStringArrayExpression(parameters)},");
+            }
+            sb.AppendLine("        },");
+        }
+        sb.AppendLine("    };");
         sb.AppendLine("}");
 
         return sb.ToString();

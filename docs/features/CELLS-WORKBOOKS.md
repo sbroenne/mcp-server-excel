@@ -21,9 +21,10 @@ current command details, and the linked guidance for workflow decisions.
 CLI and MCP sessions are separate. Reuse the matching session, wait for
 dependent operations, and close only after active work finishes. Discarding
 changes loses all unsaved edits, including earlier work; it is not targeted undo.
-Attached workbooks remain open when the service exits. Remote attachments keep
-their current AutoSave setting; when AutoSave is enabled, Excel may save later
-edits automatically.
+Normal service shutdown closes saved workbooks it opened and leaves unsaved ones
+open and visible without saving or discarding. Attached workbooks stay untouched.
+Opening and attaching preserve AutoSave; when enabled, Excel may save edits
+automatically. Explicitly change it with the workbook AutoSave control.
 IRM/AIP-protected files need visible Excel authentication. Excel determines the
 signed-in user's editing rights; protection alone does not force read-only access.
 
@@ -99,12 +100,13 @@ open a modal preview.
 
 ---
 
-## Workbook (31 operations)
+## Workbook (32 operations)
 
 - **Inspect and describe:** Get a bounded worksheet/table/name overview with optional previews, read workbook state, and manage document properties, protection, and view settings.
 - **Inspect hidden information:** Run Excel's available Document Inspector modules and explicitly remove findings from one selected category.
 - **Use themes and styles:** Inspect or apply Office themes and create, inspect, update, or delete supported custom cell and Table styles.
 - **Save and publish:** Change supported file formats, save a requested copy, or export PDF/XPS output.
+- **Control AutoSave:** Read the current setting or explicitly turn it on or off for the selected workbook.
 - **Manage external links:** Inspect or refresh linked workbook sources, or deliberately replace linked formulas with their values.
 
 Changing a theme or shared style can affect existing content throughout the

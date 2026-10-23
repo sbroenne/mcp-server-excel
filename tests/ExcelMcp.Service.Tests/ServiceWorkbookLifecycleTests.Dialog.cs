@@ -272,10 +272,11 @@ public sealed partial class ServiceWorkbookLifecycleTests
             sessions.TryRemove(session, out _);
             Assert.Equal(0, service.SessionManager.ActiveSessionCount);
             using var reopenedService = new ExcelMcpService();
-            var reopened = await OpenSessionAsync(reopenedService, path);
+            var reopened = await AttachHandoverAsync(reopenedService, path, batch.ExcelProcessId);
             try
             {
                 Assert.Equal("Retained through shutdown refusal", await ReadMarkerAsync(reopenedService, reopened));
+                Assert.False(reopenedService.SessionManager.GetSession(reopened)!.Execute((context, _) => context.Book.Saved));
             }
             finally
             {

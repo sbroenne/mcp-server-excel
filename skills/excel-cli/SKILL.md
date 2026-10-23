@@ -36,7 +36,9 @@ the intended `workbookId`, then use `session attach --workbook-id <ID>` so the
 workbook is not reopened. Check discovery `complete` and `errors`; an incomplete
 scan cannot establish that a workbook is absent. Attach preserves unsaved edits
 and leaves the workbook open when the service exits. Its response reports the
-current AutoSave setting; if enabled, Excel may save later edits automatically.
+current AutoSave setting; open preserves it too. If enabled, Excel may save edits
+automatically. Normal service shutdown leaves unsaved owned workbooks open and
+visible without saving or discarding; save and close explicitly for completed jobs.
 For JSON errors, read `errorMessage` as the single error-text field; use
 `errorCategory` when present to guide recovery.
 Load `excel-cli-report-formatting` only for requested report presentation, not

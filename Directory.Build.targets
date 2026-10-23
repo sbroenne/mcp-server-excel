@@ -1,5 +1,10 @@
 <Project>
 
+  <!-- Approved exception for StringTools 18.11.0: .NET 10 uses its netstandard2.0 asset.
+       The publisher does not claim .NET 10 support. Override only this package's
+       warning target; leave other packages' framework support warnings enabled. -->
+  <Target Name="NETStandardCompatError_Microsoft_NET_StringTools_net11_0" />
+
   <ItemGroup Condition="$([System.String]::Copy('$(MSBuildProjectDirectory)').StartsWith('$(MSBuildThisFileDirectory)src')) AND '$(MSBuildProjectName)' != 'ExcelMcp.Analyzers'">
     <ProjectReference Include="$(MSBuildThisFileDirectory)src\ExcelMcp.Analyzers\ExcelMcp.Analyzers.csproj"
                       OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />

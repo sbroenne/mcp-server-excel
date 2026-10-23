@@ -150,9 +150,10 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
                 response = new ServiceResponse { Success = false, ErrorMessage = $"Communication error: {ex.Message}" };
             }
 
-            // Auto-capture sessionId from session.open/create results
+            // Auto-capture sessionId from session.open/create/attach results
             if (response.Success && activeSession == null &&
                 (cmd.Command.Equals("session.open", StringComparison.OrdinalIgnoreCase) ||
+                 cmd.Command.Equals("session.attach", StringComparison.OrdinalIgnoreCase) ||
                  cmd.Command.Equals("session.create", StringComparison.OrdinalIgnoreCase)))
             {
                 activeSession = TryExtractSessionId(response.Result);

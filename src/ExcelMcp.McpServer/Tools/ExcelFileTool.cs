@@ -17,12 +17,12 @@ public static partial class ExcelFileTool
     /// Open/create return workbook_session_id; pass it to session-based tools. Create requires an existing directory.
     /// Close defaults to save:false (discard edits); set save:true to save. Wait for canClose before closing,
     /// and confirm before closing a visible window unless already authorized.
-    /// Normal server shutdown attempts to save open sessions; crashes and forced cleanup may lose edits.
+    /// Normal shutdown closes saved owned workbooks and leaves unsaved ones open and visible without saving or discarding. Attached workbooks stay untouched.
     /// Protected files require show:true for authentication; Excel determines editing rights.
     /// Open accepts direct SharePoint/OneDrive for Business HTTPS workbook URLs, including ?web=1.
     /// URL opening requires show:true; browser pages, sharing links and arbitrary web URLs are not supported.
-    /// For opened remote workbooks this service turns off AutoSave where Excel supports it; an attached remote workbook keeps its existing setting.
-    /// Attach reports whether AutoSave is enabled. If enabled, Excel may save later edits automatically.
+    /// Open and attach preserve and report AutoSave. If enabled, Excel may save edits automatically; close without saving cannot undo already-saved edits.
+    /// Explicitly change AutoSave with workbook set-auto-save enabled. Enabling can immediately save pending edits.
     /// Inspect workbook_read get-info readOnly before editing. Workbook changes reject read-only access.
     /// Failed saves retain the open session and unsaved changes.
     /// Save persists the current workbook without closing it. Timeouts preserve the owned session,
@@ -230,7 +230,11 @@ public static partial class ExcelFileTool
             {
                 success = true,
                 workbook_session_id = id,
-                filePath = document.RootElement.GetProperty("filePath").GetString()
+                filePath = document.RootElement.GetProperty("filePath").GetString(),
+                autoSaveOn = document.RootElement.TryGetProperty("autoSaveOn", out var startupAutoSave)
+                    && startupAutoSave.ValueKind != JsonValueKind.Null ? startupAutoSave.GetBoolean() : (bool?)null,
+                warning = document.RootElement.TryGetProperty("warning", out var startupWarning)
+                    ? startupWarning.GetString() : null
             }, ExcelToolsBase.JsonOptions);
         }, cancellationToken);
 }

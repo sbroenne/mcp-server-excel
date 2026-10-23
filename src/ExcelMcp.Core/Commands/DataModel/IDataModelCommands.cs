@@ -85,7 +85,8 @@ public interface IDataModelCommands
     DataModelConnectionResult ReadConnection(IExcelBatch batch);
 
     /// <summary>
-    /// Lists all DAX measures in the model.
+    /// Lists DAX measures in the model. When a valid table filter has no measures,
+    /// returns an empty list with a message naming tables where measures are stored.
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Optional: Filter measures by table name</param>

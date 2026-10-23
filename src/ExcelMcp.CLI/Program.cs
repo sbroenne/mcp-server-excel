@@ -84,6 +84,11 @@ internal sealed class Program
             return await HandleVersionAsync();
         }
 
+        if (ActionHelp.TryWrite(filteredArgs))
+        {
+            return 0;
+        }
+
         // Handle "service run" — runs the CLI daemon with tray icon (no banner)
         // Optional: --pipe-name <name> to override the default CLI pipe (used by tests)
         if (filteredArgs.Length >= 2
@@ -237,7 +242,7 @@ internal sealed class Program
         // even when capturing with $result = excelcli ...).
         var err = CreateErrorConsole();
         err.Write(new FigletText("Excel CLI").Color(Spectre.Console.Color.Blue));
-        err.MarkupLine("[dim]Excel automation powered by ExcelMcp Core[/]");
+        err.MarkupLine("[dim]Automate Microsoft Excel from the command line[/]");
         err.MarkupLine("[yellow]Workflow:[/] [green]session open <file>[/] → run commands with [green]--session <id>[/] → [green]session close --save[/].");
         err.MarkupLine("[dim]A background service manages sessions for performance.[/]");
         err.WriteLine();
@@ -402,6 +407,10 @@ internal sealed class Program
                         process.StartedAtUtcFileTime)
                 ]);
         SessionManager.ExcelProcessIdentityTracked += excelProcessTracker;
+        Action<ExcelProcessIdentity> preserveExcelProcess = process =>
+            DaemonProcessTracker.PreserveExcelProcess(pipeName, daemonIdentity,
+                new DaemonProcessTracker.ProcessIdentity(process.ProcessId, process.StartedAtUtcFileTime));
+        SessionManager.ExcelProcessIdentityPreserved += preserveExcelProcess;
         foreach (var process in SessionManager.GetTrackedExcelProcesses())
         {
             excelProcessTracker(process);
@@ -470,6 +479,7 @@ internal sealed class Program
                 service.Dispose();
             }
             SessionManager.ExcelProcessIdentityTracked -= excelProcessTracker;
+            SessionManager.ExcelProcessIdentityPreserved -= preserveExcelProcess;
 
             // Release the daemon mutex so a new daemon can start if needed.
             if (ownsLegacyDaemonMutex)

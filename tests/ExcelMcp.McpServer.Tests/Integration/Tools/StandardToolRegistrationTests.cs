@@ -197,9 +197,11 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     [Fact]
     public void Discovery_ServerVersionMatchesPackageInformationalVersion()
     {
+        var serverInfo = Client!.ServerInfo;
+        Assert.NotNull(serverInfo);
         Assert.Equal(
             Infrastructure.McpServerVersionChecker.GetCurrentVersion(),
-            Client!.ServerInfo.Version);
+            serverInfo.Version);
     }
 
     [Theory]

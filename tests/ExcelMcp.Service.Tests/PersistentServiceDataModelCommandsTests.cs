@@ -136,6 +136,26 @@ public partial class PersistentServiceDataModelCommandsTests(
         Assert.Equal(2455d, ReadMeasureValue("Total Sales"));
     }
 
+    [Fact]
+    public void ListMeasures_WithValidTableWithoutMeasures_ReturnsHint()
+    {
+        var batch = _fixture.BatchToken;
+        var tables = RequireSuccess(_dataModelCommands.ListTables(batch)).Tables;
+        var allMeasures = RequireSuccess(_dataModelCommands.ListMeasures(batch)).Measures;
+        var tableWithoutMeasures = tables.FirstOrDefault(table =>
+            allMeasures.All(measure =>
+                !string.Equals(measure.Table, table.Name, StringComparison.OrdinalIgnoreCase)));
+        Assert.NotNull(tableWithoutMeasures);
+
+        var result = _dataModelCommands.ListMeasures(batch, tableWithoutMeasures.Name);
+
+        Assert.True(result.Success, result.ErrorMessage);
+        Assert.Empty(result.Measures);
+        Assert.Contains($"Table '{tableWithoutMeasures.Name}' has no measures.", result.Message);
+        Assert.Contains("Measures are stored on:", result.Message);
+        Assert.Contains(allMeasures[0].Table, result.Message);
+    }
+
     /// <summary>
     /// Tests viewing a specific measure's DAX formula.
     /// LLM use case: "show me the DAX formula for this measure"

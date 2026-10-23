@@ -198,10 +198,10 @@ public interface IPivotTableFieldCommands
     /// from successfully read actual state.
     /// </summary>
     /// <param name="batch">Excel batch session.</param>
-    /// <param name="sheetName">Worksheet containing the target PivotTable.</param>
+    /// <param name="sheetName">Exact worksheet containing the target PivotTable. Required because PivotTable names may repeat on different worksheets.</param>
     /// <param name="pivotTableName">Exact PivotTable name on the worksheet.</param>
-    /// <param name="fieldName">Exact OLAP CubeField unique name.</param>
-    /// <param name="selectedItems">Member unique names to show; empty means show all.</param>
+    /// <param name="fieldName">Exact OLAP CubeField hierarchy unique name.</param>
+    /// <param name="selectedItems">JSON string array of exact OLAP/Data Model member unique names to show, not displayed captions; empty means show all. This differs from set-field-filter's selectedValues.</param>
     /// <returns>The request, actual selected member names, All state, selection mode, and failure phase.</returns>
     [ServiceAction("set-report-filter")]
     PivotReportFilterResult SetReportFilter(IExcelBatch batch, string sheetName,
@@ -213,7 +213,7 @@ public interface IPivotTableFieldCommands
     /// fields or every Values instance.
     /// </summary>
     /// <param name="batch">Excel batch session.</param>
-    /// <param name="sheetName">Worksheet containing the target PivotTable.</param>
+    /// <param name="sheetName">Exact worksheet containing the target PivotTable. Required because PivotTable names may repeat on different worksheets.</param>
     /// <param name="pivotTableName">Exact PivotTable name on the worksheet.</param>
     /// <param name="fieldName">Exact hierarchy unique name returned by list-fields, not a level name.</param>
     /// <returns>Exact selected member unique names, All state, selection mode, and placement for this hierarchy.</returns>

@@ -17,6 +17,29 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 [Collection("Sequential")]
 public sealed class InProcessCliCommandTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task WorkbookAutoSave_MapsExplicitSettingAndReturnsStatus(bool enabled)
+    {
+        var result = JsonSerializer.Serialize(new { success = true, autoSaveOn = enabled });
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = result });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "workbook", "set-auto-save", "--session", "target",
+                "--enabled", enabled ? "true" : "false"],
+            CreateRuntime(factory, output, error));
+        Assert.Equal(0, exit);
+        var request = Assert.Single(factory.Requests);
+        Assert.Equal("workbook.set-auto-save", request.Command);
+        Assert.Equal("target", request.SessionId);
+        using var args = JsonDocument.Parse(request.Args!);
+        Assert.Equal(enabled, args.RootElement.GetProperty("enabled").GetBoolean());
+        Assert.Equal(result, output.ToString().Trim());
+        Assert.Empty(error.ToString());
+    }
+
     [Fact]
     public async Task ConnectionAccountSettings_SetMapsTypedInputsWithoutEchoingAccount()
     {
@@ -383,8 +406,48 @@ public sealed class InProcessCliCommandTests
         }
     }
 
+    [Fact]
+    public async Task ActionHelp_ListsOnlyOptionsForSelectedAction()
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "slicer", "create-slicer", "--help"],
+            CreateRuntime(factory, output, error));
+
+        Assert.Equal(0, exitCode);
+        Assert.Empty(factory.Requests);
+        Assert.Empty(error.ToString());
+        var help = output.ToString();
+        Assert.Contains("Usage: excelcli slicer create-slicer", help, StringComparison.Ordinal);
+        Assert.Contains("--pivot-table-name", help, StringComparison.Ordinal);
+        Assert.Contains("--field-name", help, StringComparison.Ordinal);
+        Assert.DoesNotContain("--selected-items", help, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task ActionHelp_PreservesJsonArrayExamples()
+    {
+        var factory = new RecordingClientFactory();
+        var output = new StringWriter();
+        var error = new StringWriter();
+
+        var exitCode = await Program.RunAsync(
+            ["--quiet", "range", "set-values", "--help"],
+            CreateRuntime(factory, output, error));
+
+        Assert.Equal(0, exitCode);
+        Assert.Empty(factory.Requests);
+        Assert.Empty(error.ToString());
+        Assert.Contains("[[1,2,3],[4,5,6]]", output.ToString(), StringComparison.Ordinal);
+        Assert.DoesNotContain("[[[[1,2,3]]", output.ToString(), StringComparison.Ordinal);
+    }
+
     [Theory]
     [InlineData("session", "open", "--show")]
+    [InlineData("session", "attach", "--workbook-id")]
     [InlineData("session", "close", "--save")]
     [InlineData("service", null, "stop")]
     [InlineData("range", null, "--sheet")]
@@ -713,10 +776,9 @@ public sealed class InProcessCliCommandTests
         Assert.Equal(0, exitCode);
         Assert.Contains("Could not check for updates", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("Current version:", output.ToString(), StringComparison.Ordinal);
-        Assert.Contains(
-            "Excel automation powered by ExcelMcp Core",
-            error.ToString(),
-            StringComparison.Ordinal);
+        var banner = error.ToString();
+        Assert.False(string.IsNullOrWhiteSpace(banner));
+        Assert.DoesNotContain(banner, output.ToString(), StringComparison.Ordinal);
     }
 
     [Theory]

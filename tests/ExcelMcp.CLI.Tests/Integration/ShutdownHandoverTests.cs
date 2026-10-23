@@ -1,0 +1,148 @@
+using System.Diagnostics;
+using System.Text.Json;
+using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
+using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Service;
+using Xunit;
+
+namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
+
+[Collection("Sequential")]
+[Trait("Layer", "CLI")]
+[Trait("Category", "Integration")]
+[Trait("Feature", "ServiceDaemon")]
+[Trait("RequiresExcel", "true")]
+[Trait("Speed", "Slow")]
+public sealed class ShutdownHandoverTests
+{
+    [Fact]
+    public async Task ServiceStop_HandsOverWorkbookAcrossDaemonExitAndRestart()
+    {
+        var path = Path.Join(Path.GetTempPath(), $"shutdown-handover-{Guid.NewGuid():N}.xlsx");
+        var environment = new Dictionary<string, string>
+        {
+            ["EXCELMCP_CLI_PIPE"] = $"excelmcp-handover-{Guid.NewGuid():N}"
+        };
+        using var cleanupService = new ExcelMcpService();
+        ExcelProcessIdentity? ownedIdentity = null;
+        Process? ownedProcess = null;
+        string? sessionId = null;
+        string? cleanupSessionId = null;
+        Exception? failure = null;
+        try
+        {
+            var created = await RunAsync(["session", "create", path]);
+            sessionId = created.GetProperty("sessionId").GetString()!;
+            var initialDiscovery = await RunAsync(["session", "discover"]);
+            var ownedBook = Assert.Single(initialDiscovery.GetProperty("workbooks").EnumerateArray(),
+                book => book.GetProperty("location").GetString() == path);
+            // The test created this process in its child daemon; retain ownership for orderly cleanup.
+            ownedIdentity = SessionManager.TrackExcelProcessIdentity(ownedBook.GetProperty("processId").GetInt32());
+            Assert.NotNull(ownedIdentity);
+            ownedProcess = Process.GetProcessById(ownedIdentity.Value.ProcessId);
+            Assert.Equal(ownedIdentity.Value.StartedAtUtcFileTime, ownedProcess.StartTime.ToUniversalTime().ToFileTimeUtc());
+            _ = ownedProcess.Handle;
+            await RunAsync(["range", "set-values", "--session", sessionId, "--sheet-name", "Sheet1",
+                "--range-address", "A1", "--values", """[["left open"]]"""]);
+            await RunAsync(["service", "stop"]);
+            sessionId = null;
+
+            var discovery = await RunAsync(["session", "discover"]);
+            var book = Assert.Single(discovery.GetProperty("workbooks").EnumerateArray(),
+                book => book.GetProperty("location").GetString() == path);
+            Assert.False(book.GetProperty("saved").GetBoolean());
+            Assert.Equal(ownedIdentity.Value.ProcessId, book.GetProperty("processId").GetInt32());
+            var attached = await RunAsync(["session", "attach", "--workbook-id", book.GetProperty("workbookId").GetString()!]);
+            sessionId = attached.GetProperty("sessionId").GetString()!;
+            var info = await RunAsync(["workbook", "get-info", "--session", sessionId]);
+            Assert.False(info.GetProperty("saved").GetBoolean());
+            var values = await RunAsync(["range", "get-values", "--session", sessionId,
+                "--sheet-name", "Sheet1", "--range-address", "A1"]);
+            Assert.Equal("left open", values.GetProperty("values")[0][0].GetString());
+            await RunAsync(["service", "stop"]);
+            sessionId = null;
+            var cleanupConnection = await cleanupService.ProcessAsync(new ServiceRequest { Command = "session.discover" });
+            Assert.True(cleanupConnection.Success, cleanupConnection.ErrorMessage);
+            using (var cleanupDiscovery = JsonDocument.Parse(cleanupConnection.Result!))
+            {
+                var candidate = Assert.Single(cleanupDiscovery.RootElement.GetProperty("workbooks").EnumerateArray(),
+                    candidate => candidate.GetProperty("location").GetString() == path
+                        && candidate.GetProperty("processId").GetInt32() == ownedIdentity.Value.ProcessId);
+                var cleanupAttachment = await cleanupService.ProcessAsync(new ServiceRequest
+                {
+                    Command = "session.attach",
+                    Args = JsonSerializer.Serialize(new { workbookId = candidate.GetProperty("workbookId").GetString() })
+                });
+                Assert.True(cleanupAttachment.Success, cleanupAttachment.ErrorMessage);
+                cleanupSessionId = cleanupAttachment.SessionId!;
+            }
+            await CloseCleanupSessionAsync();
+            cleanupService.Dispose();
+            Assert.True(ownedProcess.WaitForExit(10000), $"The test-owned Excel process is still running: {ownedIdentity}.");
+            var reopened = await RunAsync(["session", "open", path]);
+            sessionId = reopened.GetProperty("sessionId").GetString()!;
+            values = await RunAsync(["range", "get-values", "--session", sessionId,
+                "--sheet-name", "Sheet1", "--range-address", "A1"]);
+            Assert.Equal(JsonValueKind.Null, values.GetProperty("values")[0][0].ValueKind);
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
+        }
+        finally
+        {
+            try
+            {
+                if (sessionId is not null)
+                    await RunAsync(["session", "close", "--session", sessionId, "--save", "false"]);
+                var discovery = await RunAsync(["session", "discover"]);
+                foreach (var book in discovery.GetProperty("workbooks").EnumerateArray()
+                    .Where(book => book.GetProperty("location").GetString() == path))
+                {
+                    var attached = await RunAsync(["session", "attach", "--workbook-id", book.GetProperty("workbookId").GetString()!]);
+                    await RunAsync(["session", "close", "--session", attached.GetProperty("sessionId").GetString()!, "--save", "false"]);
+                }
+                await RunAsync(["service", "stop"]);
+                await CloseCleanupSessionAsync();
+                cleanupService.Dispose();
+                if (ownedProcess is not null)
+                    Assert.True(ownedProcess.WaitForExit(10000),
+                        $"The test-owned Excel process is still running: {ownedIdentity}.");
+                File.Delete(path);
+            }
+            catch (Exception cleanup)
+            {
+                failure = failure is null ? cleanup : new AggregateException(failure, cleanup);
+            }
+            finally
+            {
+                ownedProcess?.Dispose();
+            }
+        }
+        if (failure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+
+        async Task CloseCleanupSessionAsync()
+        {
+            if (cleanupSessionId is null)
+                return;
+            var closed = await cleanupService.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.close",
+                SessionId = cleanupSessionId,
+                Args = """{"save":false}"""
+            });
+            Assert.True(closed.Success, closed.ErrorMessage);
+            cleanupSessionId = null;
+        }
+
+        async Task<JsonElement> RunAsync(string[] arguments)
+        {
+            var result = await CliProcessHelper.RunAsync(arguments, timeoutMs: 120000, environmentVariables: environment);
+            Assert.True(result.ExitCode == 0, $"{result.Stdout}\n{result.Stderr}");
+            using var document = JsonDocument.Parse(result.Stdout);
+            Assert.True(document.RootElement.GetProperty("success").GetBoolean(), result.Stdout);
+            return document.RootElement.Clone();
+        }
+    }
+}

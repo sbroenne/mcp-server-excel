@@ -28,7 +28,7 @@ ExcelMcp runs in an interactive desktop session.
 
 ## Features
 
-The CLI provides 33 feature command categories with 423 operations.
+The CLI provides 33 feature command categories with 424 operations.
 
 - **Workbooks and data:** create, open, save, and close workbooks; edit ranges, tables, and formulas.
 - **Analysis:** refresh Power Query, query the Data Model with DAX, and build PivotTables and slicers.

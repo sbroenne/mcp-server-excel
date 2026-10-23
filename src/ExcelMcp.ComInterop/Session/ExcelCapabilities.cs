@@ -7,6 +7,12 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// </summary>
 public sealed class ExcelCapabilities
 {
+    internal static string AutoSaveWarning(bool? enabled) => enabled switch
+    {
+        true => "Excel AutoSave is enabled. Excel may save edits automatically, even without an explicit save. Closing without saving cannot undo changes already saved.",
+        false => "Excel AutoSave is off.",
+        null => "Excel AutoSave status is unavailable. Excel may save edits automatically if AutoSave is enabled."
+    };
     private readonly Func<bool> _probeFormula2;
     private bool? _supportsFormula2;
 
@@ -18,18 +24,6 @@ public sealed class ExcelCapabilities
     /// </summary>
     public bool SupportsFormula2 => _supportsFormula2 ??= _probeFormula2();
 
-    internal static bool ReadAutoSave(Func<bool> read)
-    {
-        try
-        {
-            return read();
-        }
-        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
-        {
-            return false;
-        }
-    }
-
     internal static bool? ReadAutoSaveStatus(Func<bool> read)
     {
         try
@@ -39,18 +33,6 @@ public sealed class ExcelCapabilities
         catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             return null;
-        }
-    }
-
-    internal static void DisableAutoSave(Action disable)
-    {
-        try
-        {
-            disable();
-        }
-        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
-        {
-            // Older Excel has no AutoSave to disable.
         }
     }
 

@@ -1,7 +1,6 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Utilities;
 
 namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
 
@@ -458,7 +457,7 @@ internal sealed class CliServiceTray : IDisposable
         ExitService(_sessionManager, _requestShutdown, MessageBox.Show, ShowBalloon);
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
-        Justification = "Tray exit boundary presents exact save/close failures and asks whether to continue; Busy shutdown refusal remains visible in a warning balloon rather than being treated as successful shutdown.")]
+        Justification = "Tray exit boundary reports exact save/close failures and leaves the service running; shutdown failures remain visible in a warning balloon rather than being treated as successful shutdown.")]
     internal static void ExitService(
         SessionManager sessionManager,
         Action requestShutdown,
@@ -470,7 +469,8 @@ internal sealed class CliServiceTray : IDisposable
         {
             var result = showMessage(
                 $"There are {sessions.Count} active session(s) opened by ExcelMCP.\n\n" +
-                "Do you want to save those sessions before exiting?\n\n" +
+                "Save and close those sessions before exiting?\n\n" +
+                "Yes: save and close. No: leave unsaved workbooks open and visible without saving.\n\n" +
                 "Attached workbooks will remain open.",
                 "Exit ExcelMCP CLI",
                 MessageBoxButtons.YesNoCancel,
@@ -491,28 +491,13 @@ internal sealed class CliServiceTray : IDisposable
                 }
                 catch (Exception ex)
                 {
-                    var continueResult = showMessage(
-                        $"Error saving sessions: {ex.Message}\n\nExit anyway?",
+                    showMessage(
+                        $"Error saving sessions: {ex.Message}\n\nThe service remains running. Inspect the remaining workbooks before retrying.",
                         "Error",
-                        MessageBoxButtons.YesNo,
+                        MessageBoxButtons.OK,
                         MessageBoxIcon.Error);
 
-                    if (continueResult != System.Windows.Forms.DialogResult.Yes)
-                        return;
-                }
-            }
-            else
-            {
-                try
-                {
-                    foreach (var session in sessions)
-                    {
-                        sessionManager.CloseSession(session.SessionId, save: false);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    showBalloon("Warning", $"Error closing sessions: {ex.Message}", ToolTipIcon.Warning);
+                    return;
                 }
             }
         }
@@ -521,7 +506,7 @@ internal sealed class CliServiceTray : IDisposable
         {
             requestShutdown();
         }
-        catch (Exception ex) when (OperationFailureClassifier.Classify(ex) == "Busy")
+        catch (Exception ex)
         {
             showBalloon("Shutdown Refused", ex.Message, ToolTipIcon.Warning);
         }
