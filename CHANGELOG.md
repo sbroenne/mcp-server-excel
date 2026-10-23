@@ -11,6 +11,12 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.5.2] - 2026-10-23
+
+### Patch Changes
+
+- [#1232](https://github.com/sbroenne/mcp-server-excel/pull/1232) [`023b779`](https://github.com/sbroenne/mcp-server-excel/commit/023b77993d5e37e9363ba0aae657ae11492dcfe0) Thanks [@sbroenne](https://github.com/sbroenne)! - CLI service status and stop now report Excel copies left by an earlier service without closing them, and those copies no longer block startup. Session status avoids waiting for workbook-location bookkeeping and includes the current operation's start time. Error-cell scans use whole-range checks instead of slow cell-by-cell checks when Excel reports no matching cells.
+
 ## [2.5.1] - 2026-10-23
 
 ### Minor Changes
