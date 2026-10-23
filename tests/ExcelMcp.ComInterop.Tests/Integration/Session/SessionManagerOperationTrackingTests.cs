@@ -627,23 +627,91 @@ public class SessionManagerOperationTrackingTests : IDisposable
         Assert.Contains("required", result.BlockingReason);
     }
 
-    [Fact]
-    public void ValidateClose_IncludesVisibilityInfo()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ValidateClose_IncludesVisibilityInfo(bool slowInspection)
     {
         var testFile = CreateTestFile(nameof(ValidateClose_IncludesVisibilityInfo));
+        using var owned = new OwnedExcelProcessScope();
+        using var release = new ManualResetEventSlim();
+        using var inspectionStarted = new ManualResetEventSlim();
         using var manager = new SessionManager();
         var sessionId = manager.CreateSession(testFile, show: true);
+        var batch = Assert.IsType<ExcelBatch>(manager.GetSession(sessionId));
+        if (slowInspection)
+        {
+            batch.BeforeRefreshStateReadHookForTests = () =>
+            {
+                inspectionStarted.Set();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(10)), "Readiness inspection was not released.");
+            };
+        }
 
-        var result = manager.ValidateClose(sessionId);
+        var failure = Record.Exception(() =>
+        {
+            if (slowInspection)
+            {
+                var pending = manager.ValidateClose(sessionId);
+                var started = SpinWait.SpinUntil(() =>
+                {
+                    if (inspectionStarted.IsSet)
+                        return true;
+                    pending = manager.ValidateClose(sessionId);
+                    return inspectionStarted.IsSet;
+                }, TimeSpan.FromSeconds(5));
+                Assert.True(started, $"The readiness inspection did not start. {DescribeCloseValidation(pending)}");
+                Assert.Equal("unknown", pending.ExcelState);
+                Assert.False(pending.CanClose, DescribeCloseValidation(pending));
+                Assert.NotNull(pending.BlockingReason);
+                Assert.True(pending.IsExcelVisible, DescribeCloseValidation(pending));
+                Assert.True(pending.SessionExists, DescribeCloseValidation(pending));
+                Assert.Equal(0, pending.ActiveOperationCount);
+                batch.BeforeRefreshStateReadHookForTests = null;
+                release.Set();
+            }
 
-        Assert.True(result.IsExcelVisible);
-        Assert.True(result.SessionExists);
-        Assert.True(result.CanClose);
-        Assert.Equal(0, result.ActiveOperationCount);
-        Assert.Null(result.BlockingReason);
+            var result = WaitForCloseReady(manager, sessionId);
 
-        AssertSessionClosed(manager, sessionId);
+            Assert.True(result.IsExcelVisible, DescribeCloseValidation(result));
+            Assert.True(result.SessionExists, DescribeCloseValidation(result));
+            Assert.True(result.CanClose, DescribeCloseValidation(result));
+            Assert.Equal("ready", result.ExcelState);
+            Assert.Equal(0, result.ActiveOperationCount);
+            Assert.Null(result.BlockingReason);
+        });
+
+        batch.BeforeRefreshStateReadHookForTests = null;
+        release.Set();
+        var closeFailure = Record.Exception(() =>
+        {
+            WaitForCloseReady(manager, sessionId);
+            AssertSessionClosed(manager, sessionId);
+        });
+        var processFailure = Record.Exception(() => owned.AssertAllExited());
+        var failures = new[] { failure, closeFailure, processFailure }.OfType<Exception>().ToArray();
+        if (failures.Length > 0)
+            throw new AggregateException("Visibility validation or normal session close failed.", failures);
     }
+
+    private static CloseValidationResult WaitForCloseReady(SessionManager manager, string sessionId)
+    {
+        var result = manager.ValidateClose(sessionId);
+        var ready = SpinWait.SpinUntil(() =>
+        {
+            if (result.CanClose)
+                return true;
+            result = manager.ValidateClose(sessionId);
+            return result.CanClose;
+        }, TimeSpan.FromSeconds(10));
+        Assert.True(ready, $"Excel did not become ready to close. {DescribeCloseValidation(result)}");
+        return result;
+    }
+
+    private static string DescribeCloseValidation(CloseValidationResult result) =>
+        $"ExcelState={result.ExcelState}; BlockingReason={result.BlockingReason ?? "<null>"}; " +
+        $"IsExcelVisible={result.IsExcelVisible}; ActiveOperationCount={result.ActiveOperationCount}; " +
+        $"SessionExists={result.SessionExists}; CanClose={result.CanClose}";
 
     #endregion
 
