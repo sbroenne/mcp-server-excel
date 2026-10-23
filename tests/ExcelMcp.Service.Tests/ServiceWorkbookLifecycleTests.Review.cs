@@ -1698,7 +1698,10 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 var before = attached.Owner.OperationStatus;
                 Assert.True(before.ExecutionPending);
                 Assert.False(IsExcelWindowVisible(identity, attached.Owner.Logger));
-                service.Dispose();
+                var report = service.RequestShutdown();
+                Assert.NotNull(report);
+                Assert.Contains("its workbooks were not closed: Cannot disconnect: Excel work is still pending",
+                    report, StringComparison.Ordinal);
                 Assert.True(SpinWait.SpinUntil(() => IsExcelWindowVisible(identity, attached.Owner.Logger),
                     TimeSpan.FromSeconds(5)), "Shutdown must reveal the Excel copy it leaves as it is.");
                 if (retainSession)

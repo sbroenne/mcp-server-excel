@@ -2228,7 +2228,7 @@ public sealed class SessionManager : IDisposable
                 // Excel stays open as it is; show its window so the user can find it.
                 application.RevealForRecovery();
                 failures.Add(new InvalidOperationException(
-                    $"Could not release the connection to {DescribeExcelProcess(identity)}; its workbooks were not closed.",
+                    $"Could not release the connection to {DescribeExcelProcess(identity)}; its workbooks were not closed: {ex.Message}",
                     ex));
             }
         }
