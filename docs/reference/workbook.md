@@ -303,7 +303,9 @@ possible, and reports it. After Excel answers, confirming that a closed Excel
 copy has fully exited can take longer than this wait. The MCP Server writes
 this report to its log;
 `excelcli service stop` returns it as `shutdownWarning`, and the CLI tray shows
-it after Exit. The report names each Excel copy by process number and start
+it after Exit. The tray process keeps its claim on the reported Excel copies
+until you close that report, so close it before attaching to them from a new
+service. The report names each Excel copy by process number and start
 time and says that nothing was saved, discarded, or terminated. Once shutdown
 has started, the service accepts only `service` commands. Simultaneous shutdown
 requests wait for the first one and do not repeat it. Shutdown never force-stops

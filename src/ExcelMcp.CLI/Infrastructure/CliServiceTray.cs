@@ -463,11 +463,14 @@ internal sealed class CliServiceTray : IDisposable
     // Shutdown ends this thread's message loop, which would close a box shown here at once.
     // The report gets its own thread, which the tray does not wait for: the tray can finish,
     // so the service lock is released and a new service can start while the report is open.
-    // A foreground thread keeps this process running until the user closes the report.
+    // A foreground thread keeps this process running until the user closes the report. Until
+    // then this process still holds its claim on the reported Excel copies, so the report says
+    // to close it before attaching to them from a new service.
     private static void ShowReportAfterExit(string report)
     {
+        var text = report + "\n\nClose this message before attaching to these Excel copies from a new ExcelMCP service.";
         var thread = new Thread(() =>
-            MessageBox.Show(report, "ExcelMCP CLI stopped", MessageBoxButtons.OK, MessageBoxIcon.Warning))
+            MessageBox.Show(text, "ExcelMCP CLI stopped", MessageBoxButtons.OK, MessageBoxIcon.Warning))
         {
             IsBackground = false
         };
