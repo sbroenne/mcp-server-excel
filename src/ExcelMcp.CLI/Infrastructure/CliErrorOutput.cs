@@ -41,7 +41,9 @@ internal static class CliErrorOutput
     public static int WriteDaemonError(
         ServiceResponse response,
         string daemonState,
-        bool running)
+        bool running,
+        IReadOnlyList<OwnedProcessCleanup.RetainedExcelProcess>? retainedExcelProcesses = null,
+        string? retainedExcelError = null)
     {
         CliCommandRuntime.Current.Output.WriteLine(Serialize(
             response.ErrorMessage,
@@ -52,7 +54,10 @@ internal static class CliErrorOutput
             response.HResult,
             response.InnerError,
             daemonState,
-            running));
+            running,
+            response.PartialState,
+            retainedExcelProcesses,
+            retainedExcelError));
         return 1;
     }
 
@@ -73,7 +78,9 @@ internal static class CliErrorOutput
         string? innerError,
         string? daemonState,
         bool? running,
-        string? partialState = null)
+        string? partialState = null,
+        IReadOnlyList<OwnedProcessCleanup.RetainedExcelProcess>? retainedExcelProcesses = null,
+        string? retainedExcelError = null)
     {
         return JsonSerializer.Serialize(new ErrorEnvelope
         {
@@ -88,7 +95,11 @@ internal static class CliErrorOutput
             InnerError = innerError,
             PartialState = partialState is null ? null : JsonSerializer.Deserialize<JsonElement>(partialState),
             DaemonState = daemonState,
-            Running = running
+            Running = running,
+            RetainedExcelProcessCount = retainedExcelProcesses?.Count,
+            RetainedExcelProcesses = retainedExcelProcesses,
+            RetainedExcelError = retainedExcelError,
+            RecoveryMessage = retainedExcelProcesses?.Count > 0 ? OwnedProcessCleanup.RecoveryMessage : null
         }, ServiceProtocol.JsonOptions);
     }
 
@@ -127,5 +138,17 @@ internal static class CliErrorOutput
 
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
         public bool? Running { get; init; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public int? RetainedExcelProcessCount { get; init; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public IReadOnlyList<OwnedProcessCleanup.RetainedExcelProcess>? RetainedExcelProcesses { get; init; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? RetainedExcelError { get; init; }
+
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public string? RecoveryMessage { get; init; }
     }
 }

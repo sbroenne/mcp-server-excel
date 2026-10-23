@@ -16,7 +16,10 @@ internal static class DaemonProcessTracker
     internal readonly record struct ProcessIdentity(int ProcessId, long StartedAtUtcFileTime);
     internal sealed record ProcessSnapshot(
         ProcessIdentity DaemonProcess,
-        IReadOnlyList<ProcessIdentity> ExcelProcesses);
+        IReadOnlyList<ProcessIdentity> ExcelProcesses)
+    {
+        internal IReadOnlyList<ProcessIdentity> RetainedExcelProcesses { get; init; } = [];
+    }
     internal enum TrackingRecordStatus
     {
         Missing,
@@ -35,6 +38,7 @@ internal static class DaemonProcessTracker
         public int ProcessId { get; set; }
         public long StartedAtUtcFileTime { get; set; }
         public List<TrackedProcessRecord> ExcelProcesses { get; set; } = [];
+        public List<TrackedProcessRecord> RetainedExcelProcesses { get; set; } = [];
     }
 
     private sealed class TrackedProcessRecord
@@ -75,16 +79,56 @@ internal static class DaemonProcessTracker
         {
             using var trackingMutex = AcquireTrackingMutex(pipeName);
             Directory.CreateDirectory(GetTrackingDirectory());
+            RecordReadResult previous;
+            for (var attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    previous = ReadRecordCore(pipeName);
+                    break;
+                }
+                catch (IOException ex) when ((ex.HResult & 0xFFFF) is 32 or 33
+                    && attempt < TrackingFileMoveAttempts)
+                {
+                    Thread.Sleep(TrackingFileMoveDelay);
+                }
+            }
+            if (previous.Status is TrackingRecordStatus.Invalid or TrackingRecordStatus.Unreadable)
+                throw new InvalidOperationException(previous.ErrorMessage);
+            var sameProcess = previous.Record is { } existing
+                && existing.ProcessId == processId
+                && existing.StartedAtUtcFileTime == startedAtUtcFileTime;
             var record = new DaemonProcessRecord
             {
                 ProcessId = processId,
-                StartedAtUtcFileTime = startedAtUtcFileTime
+                StartedAtUtcFileTime = startedAtUtcFileTime,
+                ExcelProcesses = sameProcess ? previous.Record!.ExcelProcesses : [],
+                RetainedExcelProcesses = LiveProcesses(
+                    (previous.Record?.RetainedExcelProcesses ?? [])
+                    .Concat(sameProcess ? [] : previous.Record?.ExcelProcesses ?? []))
             };
 
             WriteRecord(pipeName, record);
         }
 
         return identity;
+    }
+
+    private static List<TrackedProcessRecord> LiveProcesses(IEnumerable<TrackedProcessRecord> records)
+    {
+        var live = new List<TrackedProcessRecord>();
+        foreach (var record in records.Where(record => !record.Preserved)
+            .DistinctBy(record => (record.ProcessId, record.StartedAtUtcFileTime)))
+        {
+            if (!TryOpenMatchingProcess(new ProcessIdentity(record.ProcessId, record.StartedAtUtcFileTime), out var process))
+                throw new InvalidOperationException($"Recorded Excel process {record.ProcessId} could not be checked. Its ownership information has not been replaced.");
+            if (process is not null)
+            {
+                process.Dispose();
+                live.Add(record);
+            }
+        }
+        return live;
     }
 
     /// <summary>
@@ -314,7 +358,13 @@ internal static class DaemonProcessTracker
                             .Select(tracked => new ProcessIdentity(
                                 tracked.ProcessId,
                                 tracked.StartedAtUtcFileTime))
-                            .ToList()),
+                            .ToList())
+                    {
+                        RetainedExcelProcesses = readResult.Record.RetainedExcelProcesses
+                            .Where(tracked => !tracked.Preserved)
+                            .Select(tracked => new ProcessIdentity(tracked.ProcessId, tracked.StartedAtUtcFileTime))
+                            .ToList()
+                    },
                     null);
             }
         }
@@ -356,6 +406,10 @@ internal static class DaemonProcessTracker
                 {
                     return true;
                 }
+
+                if (LiveProcesses(readResult.Record.ExcelProcesses
+                    .Concat(readResult.Record.RetainedExcelProcesses)).Count > 0)
+                    return true;
 
                 foreach (var trackingFile in GetTrackingFilePaths(pipeName))
                 {
@@ -464,6 +518,10 @@ internal static class DaemonProcessTracker
                 .Concat(parsed.ExcelProcesses)
                 .DistinctBy(process => (process.ProcessId, process.StartedAtUtcFileTime))
                 .ToList();
+            selected.RetainedExcelProcesses = selected.RetainedExcelProcesses
+                .Concat(parsed.RetainedExcelProcesses)
+                .DistinctBy(process => (process.ProcessId, process.StartedAtUtcFileTime))
+                .ToList();
             requiresMigration |= !string.Equals(
                 trackingFile,
                 canonicalPath,
@@ -488,11 +546,11 @@ internal static class DaemonProcessTracker
         {
             ProcessId: > 0,
             StartedAtUtcFileTime: > 0,
-            ExcelProcesses: not null
+            ExcelProcesses: not null,
+            RetainedExcelProcesses: not null
         }
-        && record.ExcelProcesses.All(process =>
-            process.ProcessId > 0
-            && process.StartedAtUtcFileTime > 0);
+        && record.ExcelProcesses.Concat(record.RetainedExcelProcesses).All(process =>
+            process is { ProcessId: > 0, StartedAtUtcFileTime: > 0 });
 
     private static ProcessSnapshotReadResult UnreadableRecord(
         string pipeName,

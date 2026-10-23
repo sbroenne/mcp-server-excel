@@ -36,7 +36,7 @@ internal sealed class ServiceStartCommand : AsyncCommand
 }
 
 /// <summary>
-/// Stops the ExcelMCP CLI Service daemon and Excel processes tracked for its selected pipe.
+/// Requests normal CLI service shutdown without terminating retained Excel processes.
 /// </summary>
 internal sealed class ServiceStopCommand : AsyncCommand
 {
@@ -165,14 +165,22 @@ internal sealed class ServiceStopCommand : AsyncCommand
                 {
                     success = false,
                     errorMessage = cleanupResult.ErrorMessage
-                        ?? $"One or more processes tracked for CLI pipe '{pipeName}' could not be stopped."
+                        ?? "Recorded Excel copies could not be checked. Ownership checks did not close Excel."
                 },
                 ServiceProtocol.JsonOptions));
             return 1;
         }
 
+        var retained = OwnedProcessCleanup.GetRetainedExcelProcesses(pipeName, serviceRunning: false);
         CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
-            new { success = true, message = successMessage },
+            new
+            {
+                success = true,
+                message = successMessage,
+                retainedExcelProcessCount = retained.Count,
+                retainedExcelProcesses = retained,
+                recoveryMessage = retained.Count > 0 ? OwnedProcessCleanup.RecoveryMessage : null
+            },
             ServiceProtocol.JsonOptions));
         return 0;
     }
@@ -208,17 +216,23 @@ internal sealed class ServiceStatusCommand : AsyncCommand
             }
             if (status != null)
             {
+                var (retained, retainedError) = ReadRetainedExcelProcesses(pipeName, serviceRunning: true);
                 CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new
                 {
-                    success = true,
+                    success = retainedError is null,
                     daemonState = DaemonConnectionPolicy.RunningState,
                     running = status.Running,
                     processId = status.ProcessId,
                     sessionCount = status.SessionCount,
                     startTime = status.StartTime,
-                    uptime = status.Uptime.ToString(@"d\.hh\:mm\:ss", CultureInfo.InvariantCulture)
+                    uptime = status.Uptime.ToString(@"d\.hh\:mm\:ss", CultureInfo.InvariantCulture),
+                    retainedExcelProcessCount = retained?.Count,
+                    retainedExcelProcesses = retained,
+                    recoveryMessage = retained?.Count > 0 ? OwnedProcessCleanup.RecoveryMessage : null,
+                    retainedExcelError = retainedError,
+                    errorMessage = retainedError
                 }, ServiceProtocol.JsonOptions));
-                return 0;
+                return retainedError is null ? 0 : 1;
             }
         }
 
@@ -237,24 +251,45 @@ internal sealed class ServiceStatusCommand : AsyncCommand
         var failureState = DaemonConnectionPolicy.ResolveFailureState(pipeName, response);
         if (failureState.Name == DaemonConnectionPolicy.StoppedState)
         {
-            return WriteStoppedStatus();
+            return WriteStoppedStatus(pipeName);
         }
 
-        return CliErrorOutput.WriteDaemonError(response, failureState.Name, failureState.Running);
+        var (retainedProcesses, retainedErrorMessage) = ReadRetainedExcelProcesses(pipeName, failureState.Running);
+        return CliErrorOutput.WriteDaemonError(response, failureState.Name, failureState.Running,
+            retainedProcesses, retainedErrorMessage);
     }
 
-    private static int WriteStoppedStatus()
+    private static int WriteStoppedStatus(string pipeName)
     {
+        var (retained, retainedError) = ReadRetainedExcelProcesses(pipeName, serviceRunning: false);
         CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new
         {
-            success = true,
+            success = retainedError is null,
             daemonState = DaemonConnectionPolicy.StoppedState,
             running = false,
             processId = 0,
             sessionCount = 0,
             startTime = (DateTime?)null,
-            uptime = TimeSpan.Zero.ToString(@"d\.hh\:mm\:ss", CultureInfo.InvariantCulture)
+            uptime = TimeSpan.Zero.ToString(@"d\.hh\:mm\:ss", CultureInfo.InvariantCulture),
+            retainedExcelProcessCount = retained?.Count,
+            retainedExcelProcesses = retained,
+            recoveryMessage = retained?.Count > 0 ? OwnedProcessCleanup.RecoveryMessage : null,
+            retainedExcelError = retainedError,
+            errorMessage = retainedError
         }, ServiceProtocol.JsonOptions));
-        return 0;
+        return retainedError is null ? 0 : 1;
+    }
+
+    private static (IReadOnlyList<OwnedProcessCleanup.RetainedExcelProcess>? Processes, string? Error)
+        ReadRetainedExcelProcesses(string pipeName, bool serviceRunning)
+    {
+        try
+        {
+            return (OwnedProcessCleanup.GetRetainedExcelProcesses(pipeName, serviceRunning), null);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return (null, ex.Message);
+        }
     }
 }

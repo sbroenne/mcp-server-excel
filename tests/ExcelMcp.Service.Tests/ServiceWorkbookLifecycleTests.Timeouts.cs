@@ -12,6 +12,134 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 
 public sealed partial class ServiceWorkbookLifecycleTests
 {
+    private static readonly string[] StatusCommands = ["service.ping", "service.status", "session.list"];
+
+    [Fact]
+    public async Task Status_DoesNotWaitForWorkbookLocationBookkeeping()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var session = await CreateSessionAsync(service, Path.Join(directory, "responsive-status.xlsx"));
+            sessions[session] = 0;
+            var beforeWrite = DateTime.UtcNow;
+            await WriteMarkerAsync(service, session, "Unsaved contents stay open");
+            var gate = typeof(SessionManager).GetField("_filePathReservationLock",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .GetValue(service.SessionManager)!;
+            using var entered = new ManualResetEventSlim();
+            using var release = new ManualResetEventSlim();
+            var bookkeeping = Task.Run(() =>
+            {
+                lock (gate)
+                {
+                    entered.Set();
+                    Assert.True(release.Wait(TimeSpan.FromSeconds(30)));
+                }
+            });
+            var pipe = $"excelmcp-status-bookkeeping-{Guid.NewGuid():N}";
+            var host = service.RunAsync(pipe);
+            var failure = await Record.ExceptionAsync(async () =>
+            {
+                Assert.True(entered.Wait(TimeSpan.FromSeconds(5)));
+                foreach (var command in StatusCommands)
+                {
+                    using var client = new ServiceClient(pipe);
+                    var response = await client.SendAsync(new ServiceRequest { Command = command })
+                        .WaitAsync(TimeSpan.FromSeconds(2));
+                    RequireSuccess(response);
+                    if (command == "session.list")
+                    {
+                        using var result = JsonDocument.Parse(response.Result!);
+                        var entry = Assert.Single(result.RootElement.GetProperty("sessions").EnumerateArray());
+                        Assert.Equal(session, entry.GetProperty("sessionId").GetString());
+                        var operation = entry.GetProperty("operation");
+                        Assert.Equal("range.set-values", operation.GetProperty("command").GetString());
+                        Assert.Equal("completed", operation.GetProperty("state").GetString());
+                        Assert.False(operation.GetProperty("executionPending").GetBoolean());
+                        var started = operation.GetProperty("startedAtUtc").GetDateTime();
+                        Assert.Equal(DateTimeKind.Utc, started.Kind);
+                        Assert.InRange(started, beforeWrite, DateTime.UtcNow);
+                    }
+                }
+            });
+            release.Set();
+            await bookkeeping;
+            Assert.Equal("Unsaved contents stay open", await ReadMarkerAsync(service, session));
+            await CloseSessionAsync(service, session, save: false);
+            service.RequestShutdown();
+            await host.WaitAsync(TimeSpan.FromSeconds(15));
+            sessions.TryRemove(session, out _);
+            if (failure is not null)
+                ExceptionDispatchInfo.Capture(failure).Throw();
+        });
+    }
+
+    [Fact]
+    public async Task Status_RemainsAvailableWhileExcelReadinessDoesNotAnswer()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var session = await CreateSessionAsync(service, Path.Join(directory, "blocked-excel-status.xlsx"));
+            sessions[session] = 0;
+            await WriteMarkerAsync(service, session, "Still unsaved");
+            var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(session));
+            var startedAt = batch.OperationStatus.StartedAtUtc;
+            using var release = new ManualResetEventSlim();
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            batch.BeforeRefreshStateReadHookForTests = () =>
+            {
+                entered.TrySetResult();
+                Assert.True(release.Wait(TimeSpan.FromSeconds(30)));
+            };
+            var pipe = $"excelmcp-blocked-excel-status-{Guid.NewGuid():N}";
+            var host = service.RunAsync(pipe);
+            var failure = await Record.ExceptionAsync(async () =>
+            {
+                using var initial = new ServiceClient(pipe);
+                RequireSuccess(await initial.SendAsync(new ServiceRequest { Command = "session.list" })
+                    .WaitAsync(TimeSpan.FromSeconds(2)));
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(2));
+                await Task.WhenAll(StatusCommands.Select(async command =>
+                {
+                    using var client = new ServiceClient(pipe);
+                    var response = await client.SendAsync(new ServiceRequest { Command = command })
+                        .WaitAsync(TimeSpan.FromSeconds(2));
+                    RequireSuccess(response);
+                    if (command != "session.list")
+                        return;
+                    using var result = JsonDocument.Parse(response.Result!);
+                    var entry = Assert.Single(result.RootElement.GetProperty("sessions").EnumerateArray());
+                    Assert.Equal(session, entry.GetProperty("sessionId").GetString());
+                    Assert.False(entry.GetProperty("canClose").GetBoolean());
+                    Assert.Equal("unknown", entry.GetProperty("excelState").GetString());
+                    var operation = entry.GetProperty("operation");
+                    Assert.Equal("range.set-values", operation.GetProperty("command").GetString());
+                    Assert.Equal(startedAt, operation.GetProperty("startedAtUtc").GetDateTime());
+                }));
+            });
+            batch.BeforeRefreshStateReadHookForTests = null;
+            release.Set();
+            var cleanup = await Record.ExceptionAsync(async () =>
+            {
+                var timer = Stopwatch.StartNew();
+                while (batch.GetRefreshState() != WorkbookRefreshState.Ready)
+                {
+                    Assert.True(timer.Elapsed < TimeSpan.FromSeconds(10));
+                    await Task.Delay(50);
+                }
+                Assert.Equal("Still unsaved", await ReadMarkerAsync(service, session));
+                await CloseSessionAsync(service, session, save: false);
+                sessions.TryRemove(session, out _);
+                service.RequestShutdown();
+                await host.WaitAsync(TimeSpan.FromSeconds(10));
+            });
+            if (failure is not null && cleanup is not null)
+                throw new AggregateException(failure, cleanup);
+            if (failure is not null || cleanup is not null)
+                ExceptionDispatchInfo.Capture((failure ?? cleanup)!).Throw();
+        });
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -204,6 +332,8 @@ public sealed partial class ServiceWorkbookLifecycleTests
             var failure = await Record.ExceptionAsync(async () =>
             {
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(15));
+                var startedAt = batch.OperationStatus.StartedAtUtc;
+                await AssertPipeStatusAsync(waitExpired: false, executionPending: true, startedAt);
                 cancellation.Cancel();
                 await Assert.ThrowsAnyAsync<OperationCanceledException>(
                     () => save.WaitAsync(TimeSpan.FromSeconds(5)));
@@ -211,6 +341,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
                     && batch.OperationStatus.WindowReveal is "shown" or "showRequested" or "alreadyVisible",
                     TimeSpan.FromSeconds(5)));
                 Assert.True(batch.OperationStatus.ExecutionPending);
+                await AssertPipeStatusAsync(waitExpired: true, executionPending: true, startedAt);
                 Assert.True(OwnedProcessGuard.MatchesLiveProcess(identity));
                 Assert.Same(batch, service.SessionManager.GetSession(session));
                 var followUpRequest = new ServiceRequest
@@ -237,6 +368,8 @@ public sealed partial class ServiceWorkbookLifecycleTests
             {
                 Assert.True(SpinWait.SpinUntil(() => !batch.OperationStatus.ExecutionPending,
                     TimeSpan.FromSeconds(15)));
+                await AssertPipeStatusAsync(waitExpired: true, executionPending: false,
+                    batch.OperationStatus.StartedAtUtc);
                 Assert.Same(batch, service.SessionManager.GetSession(session));
                 Assert.Equal("Preserved after pipe cancellation", await ReadMarkerAsync(service, session));
                 Assert.True(batch.IsExcelVisible);
@@ -256,6 +389,29 @@ public sealed partial class ServiceWorkbookLifecycleTests
             var failures = new[] { failure, completion, shutdown }.OfType<Exception>().ToArray();
             if (failures.Length > 0)
                 throw new AggregateException("Pipe cancellation, retained execution, or shutdown failed.", failures);
+
+            async Task AssertPipeStatusAsync(bool waitExpired, bool executionPending, DateTime startedAt)
+            {
+                foreach (var command in StatusCommands)
+                {
+                    using var statusClient = new ServiceClient(pipe);
+                    var response = await statusClient.SendAsync(new ServiceRequest { Command = command })
+                        .WaitAsync(TimeSpan.FromSeconds(2));
+                    RequireSuccess(response);
+                    if (command != "session.list")
+                        continue;
+                    using var result = JsonDocument.Parse(response.Result!);
+                    var entry = Assert.Single(result.RootElement.GetProperty("sessions").EnumerateArray());
+                    Assert.Equal(session, entry.GetProperty("sessionId").GetString());
+                    var operation = entry.GetProperty("operation");
+                    Assert.Equal("session.save", operation.GetProperty("command").GetString());
+                    Assert.Equal(startedAt, operation.GetProperty("startedAtUtc").GetDateTime());
+                    Assert.Equal(waitExpired, operation.GetProperty("waitExpired").GetBoolean());
+                    Assert.Equal(executionPending, operation.GetProperty("executionPending").GetBoolean());
+                    Assert.Equal(executionPending ? "running" : "completed",
+                        operation.GetProperty("state").GetString());
+                }
+            }
         });
     }
 

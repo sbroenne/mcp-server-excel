@@ -70,12 +70,14 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     private readonly AsyncLocal<(string? Command, CancellationToken CallerCancellation)> _commandContext = new();
     private string? _operationCommand;
     private long _operationStartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+    private DateTime _operationStartedAtUtc = DateTime.UtcNow;
     private double? _completedElapsedSeconds;
     private string _operationState = "starting";
     private string? _operationError;
     private bool _waitExpired;
     private Task<WorkbookRefreshState>? _readinessTask;
     private string? _readinessSelectionId;
+    private DateTime _readinessOperationStartedAtUtc;
     private readonly Lock _windowControlLock = new();
     private nint _revealedDialog;
     public string? DialogVisibilityError { get; private set; }
@@ -1231,7 +1233,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     _operationError,
                     _windowReveal)
                 {
-                    Command = _operationCommand
+                    Command = _operationCommand,
+                    StartedAtUtc = _operationStartedAtUtc
                 };
         }
     }
@@ -1391,6 +1394,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
                 started = true;
                 _operationStartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+                _operationStartedAtUtc = DateTime.UtcNow;
                 _completedElapsedSeconds = null;
                 _operationState = "running";
                 _operationCommand = command;
@@ -1699,7 +1703,9 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         if (preflight != WorkbookRefreshState.Ready)
             return preflight;
 
-        lock (_readinessLock)
+        if (!_readinessLock.TryEnter())
+            return WorkbookRefreshState.Unknown;
+        try
         {
             if (_readinessTask is { IsCompleted: false })
                 return WorkbookRefreshState.Unknown;
@@ -1707,11 +1713,13 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             {
                 _readinessTask = null;
                 var state = previous.GetAwaiter().GetResult();
-                if (string.Equals(_readinessSelectionId, selectionId, StringComparison.Ordinal))
+                if (string.Equals(_readinessSelectionId, selectionId, StringComparison.Ordinal)
+                    && _readinessOperationStartedAtUtc == OperationStatus.StartedAtUtc)
                     return state;
             }
             var completion = new TaskCompletionSource<WorkbookRefreshState>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
+            var inspectedOperation = OperationStatus.StartedAtUtc;
             var work = new ExcelWorkItem<WorkbookRefreshState>(
                 () =>
                 {
@@ -1726,6 +1734,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 return WorkbookRefreshState.Unknown;
             _readinessTask = completion.Task;
             _readinessSelectionId = selectionId;
+            _readinessOperationStartedAtUtc = inspectedOperation;
             try
             {
                 // A started COM scan stays owned, but never holds a status request open.
@@ -1742,6 +1751,10 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 }
                 return WorkbookRefreshState.Unknown;
             }
+        }
+        finally
+        {
+            _readinessLock.Exit();
         }
     }
 
@@ -2060,6 +2073,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         {
             _operationState = "closing";
             _operationStartedAt = System.Diagnostics.Stopwatch.GetTimestamp();
+            _operationStartedAtUtc = DateTime.UtcNow;
             _completedElapsedSeconds = null;
         }
         _shutdownCts.Cancel();
@@ -2118,7 +2132,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         {
             throw new InvalidOperationException(
                 $"Excel process {identity.ProcessId} did not exit or its exit could not be confirmed. " +
-                "Its exact PID/start-time identity remains tracked for later pipe-scoped cleanup.");
+                "Its exact process number and start time remain recorded. Inspect that Excel copy before deciding how to proceed.");
         }
 
         SessionManager.UntrackExcelProcess(identity);

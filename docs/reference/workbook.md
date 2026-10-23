@@ -302,6 +302,22 @@ Simultaneous shutdown requests cannot bypass a refusal: handover and the decisio
 to stop the service are serialized across all service shutdown entry points.
 This does not protect against externally killing the service or Excel.
 
+If the service has already exited, `excelcli service stop` does not terminate
+Excel left behind. Both stop and `excelcli service status` report
+`retainedExcelProcessCount` and `retainedExcelProcesses`. Each entry includes
+`processId`, UTC `startTime`, and `workbookState: "unknown"`. A zero session count
+describes the current service, not every open workbook. Process identity alone
+does not establish that a workbook is empty, saved, or safe to close.
+
+A new service can start while these older Excel copies remain open. Their
+records survive repeated service restarts, but the new service does not attach
+to their workbooks automatically. Run `excelcli session discover`, check
+`complete` and `errors`, then use `excelcli session attach --workbook-id <ID>`
+for the intended workbook. Inspect its current contents before deciding what
+to do. Discovery can be incomplete or unavailable; that is not evidence of an
+empty Excel copy. Ending Excel can lose unsaved work. There is no forced
+cleanup step in this recovery path.
+
 Development builds use a separate force-stop policy: they stop only this
 worktree's CLI background services without requesting graceful shutdown or
 saving workbooks. Unsaved development-session work may be lost. They do not
@@ -323,7 +339,7 @@ session and unsaved workbook and requests visibility for its owned Excel window.
 It does not save, close, terminate, or roll back the operation. Session listing
 checks window ownership and reads available dialog labels without queuing Excel COM work.
 The operation may still be running. CLI `session list` and MCP `file_read`
-action `list` include `operation` with `state`, `command`, `elapsedSeconds`,
+action `list` include `operation` with `state`, `command`, `startedAtUtc`, `elapsedSeconds`,
 `waitExpired`, `executionPending`, `errorMessage`, and `windowReveal`.
 Reveal outcomes distinguish `alreadyVisible`, `shown`, `showRequested`, and
 `unavailable`; a request is not confirmation that Excel became visible.
@@ -332,6 +348,24 @@ saving, and closing are refused while execution or readiness remains unresolved.
 Once the original callback and cleanup have returned and Excel is ready, the
 same session can be reused. These rules also apply to startup waits; an expired
 open, create, or test wait reports the retained session ID.
+
+`startedAtUtc` identifies the reported operation's start time. Status reads do
+not wait for workbook-location bookkeeping or remove dead sessions. A status
+read may report the last recorded path until a later workbook operation
+reconciles a completed Save As. Concurrent readiness checks can return an
+unknown state rather than waiting for each other.
+
+After a waiting limit expires, check this same session instead of automatically
+repeating the command. `activeOperations` counts requests still being handled;
+it can be zero while `operation.executionPending` is true because Excel is
+still completing the earlier request. `busy` is not proof of a refresh or a
+permanent failure. A confirmed `refreshing` state means wait for the refresh.
+An unknown state means readiness has not been established. Once the operation
+ends, inspect its recorded outcome and the actual workbook data before
+continuing; the operation status does not contain the original result.
+If status itself cannot answer, do not assume Excel has stopped or discard its
+work. CLI service status still reports recorded older Excel copies when they
+can be checked, and reports a separate `retainedExcelError` if they cannot.
 
 Save the current workbook in place with `excelcli session save -s <sessionId>`
 or MCP `file(action: 'save', workbook_session_id: sessionId)`. Saving after an

@@ -226,9 +226,10 @@ npx -y @sbroenne/excelcli@latest -q service stop
 ```
 
 For standalone or global installations, use `excelcli -q service stop`.
-Stopping the service may terminate its tracked Excel processes; do not use it
-as an update shortcut while workbooks have unsaved changes. The next workbook
-command starts the service using the selected CLI executable.
+Normal shutdown closes workbooks opened by ExcelMcp only when they have no
+unsaved changes. Unsaved or attached workbooks stay open. Excel copies left by
+an earlier service are reported, not closed. The next workbook command starts
+the service using the selected CLI executable.
 
 **npm:**
 

@@ -4,6 +4,17 @@ Make targeted edits to the intended cells, preserving unrelated data and layout.
 Use CLI help or MCP tool descriptions for current command syntax and inputs.
 This guide explains choices that affect the workbook, not the command catalogue.
 
+## Finding matching cells
+
+CLI `range get-special-cells` and MCP `range_read` action `get-special-cells`
+find errors, formulas, constants, blanks, or visible cells within the requested
+range. Error scans distinguish actual Excel errors from ordinary numbers and
+text that resemble error values. When Excel cannot select matching cells, the
+command verifies their absence with a whole-range check rather than reading
+each cell separately. An unexpected selection or verification failure remains
+an error, not an empty result. These checks do not edit cells or request a
+refresh.
+
 ## Reusable cell styles
 
 Use an existing style when it expresses the requested meaning. A custom cell

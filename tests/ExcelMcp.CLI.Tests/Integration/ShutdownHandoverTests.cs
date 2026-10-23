@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Service;
@@ -13,10 +14,12 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Feature", "ServiceDaemon")]
 [Trait("RequiresExcel", "true")]
 [Trait("Speed", "Slow")]
-public sealed class ShutdownHandoverTests
+public sealed class ShutdownHandoverTests(Xunit.Abstractions.ITestOutputHelper output)
 {
-    [Fact]
-    public async Task ServiceStop_HandsOverWorkbookAcrossDaemonExitAndRestart()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ServiceStop_PreservesWorkbookAcrossDaemonExitAndRestart(bool retainedOwnership)
     {
         var path = Path.Join(Path.GetTempPath(), $"shutdown-handover-{Guid.NewGuid():N}.xlsx");
         var environment = new Dictionary<string, string>
@@ -44,10 +47,38 @@ public sealed class ShutdownHandoverTests
             _ = ownedProcess.Handle;
             await RunAsync(["range", "set-values", "--session", sessionId, "--sheet-name", "Sheet1",
                 "--range-address", "A1", "--values", """[["left open"]]"""]);
+            var pipeName = environment["EXCELMCP_CLI_PIPE"];
+            var recorded = DaemonProcessTracker.ReadProcessSnapshot(pipeName).Snapshot!;
             await RunAsync(["service", "stop"]);
+            if (retainedOwnership)
+            {
+                // Recreate the durable state of an earlier owner without killing Excel's automation host.
+                DaemonProcessTracker.Clear(pipeName);
+                var earlierService = DaemonProcessTracker.RegisterProcess(pipeName,
+                    recorded.DaemonProcess.ProcessId, recorded.DaemonProcess.StartedAtUtcFileTime);
+                DaemonProcessTracker.RecordExcelProcesses(pipeName, earlierService, recorded.ExcelProcesses.ToArray());
+            }
+            var stopped = await RunAsync(["service", "stop"]);
+            Assert.Equal(retainedOwnership ? 1 : 0, stopped.GetProperty("retainedExcelProcessCount").GetInt32());
+            Assert.False(ownedProcess.HasExited);
             sessionId = null;
 
+            await RunAsync(["service", "start"]);
+            var status = await RunAsync(["service", "status"]);
+            Assert.Equal(retainedOwnership ? 1 : 0, status.GetProperty("retainedExcelProcessCount").GetInt32());
+            if (retainedOwnership)
+            {
+                var remaining = Assert.Single(status.GetProperty("retainedExcelProcesses").EnumerateArray());
+                Assert.Equal(ownedIdentity.Value.ProcessId, remaining.GetProperty("processId").GetInt32());
+                Assert.Equal("unknown", remaining.GetProperty("workbookState").GetString());
+                Assert.Equal(DateTime.FromFileTimeUtc(ownedIdentity.Value.StartedAtUtcFileTime),
+                    remaining.GetProperty("startTime").GetDateTime());
+            }
+            var empty = await RunAsync(["session", "list"]);
+            Assert.Empty(empty.GetProperty("sessions").EnumerateArray());
             var discovery = await RunAsync(["session", "discover"]);
+            Assert.True(discovery.GetProperty("complete").GetBoolean());
+            Assert.Empty(discovery.GetProperty("errors").EnumerateArray());
             var book = Assert.Single(discovery.GetProperty("workbooks").EnumerateArray(),
                 book => book.GetProperty("location").GetString() == path);
             Assert.False(book.GetProperty("saved").GetBoolean());
@@ -138,7 +169,9 @@ public sealed class ShutdownHandoverTests
 
         async Task<JsonElement> RunAsync(string[] arguments)
         {
+            output.WriteLine($"Starting: {string.Join(' ', arguments)}");
             var result = await CliProcessHelper.RunAsync(arguments, timeoutMs: 120000, environmentVariables: environment);
+            output.WriteLine($"Finished: {result.Stdout}");
             Assert.True(result.ExitCode == 0, $"{result.Stdout}\n{result.Stderr}");
             using var document = JsonDocument.Parse(result.Stdout);
             Assert.True(document.RootElement.GetProperty("success").GetBoolean(), result.Stdout);

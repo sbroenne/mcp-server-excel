@@ -137,7 +137,7 @@ internal sealed class Program
                 branch.AddCommand<ServiceStartCommand>("start")
                     .WithDescription("Start the ExcelMCP Service if needed and wait up to 30 seconds for readiness.");
                 branch.AddCommand<ServiceStopCommand>("stop")
-                    .WithDescription("Stop the CLI service and its pipe-owned Excel processes.");
+                    .WithDescription("Stop the CLI service normally; preserve unsaved workbooks and Excel left by earlier services.");
                 branch.AddCommand<ServiceStatusCommand>("status")
                     .WithDescription("Show stopped, starting, running, or unresponsive daemon state; readiness checks wait up to 10 seconds.");
             });
