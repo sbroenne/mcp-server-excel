@@ -66,7 +66,10 @@ Newly attached workbooks remain open on service shutdown. If a workbook is
 already connected to a session, attachment returns that existing session and
 its established shutdown behavior applies. The CLI tray's Exit prompt applies
 only to workbooks opened or created by ExcelMcp; Yes explicitly saves and closes
-them, No uses normal shutdown and leaves unsaved workbooks open and visible.
+them (if saving fails, the error is shown and the service keeps running), No
+closes saved workbooks and leaves unsaved ones open and visible without saving.
+Workbooks you already closed in Excel are released first, so Exit does not
+report them as errors.
 Attached workbooks stay open without saving them. Explicit Close Session and Close
 All Sessions still close the selected sessions, including attachments.
 Attachment preserves the existing
@@ -285,21 +288,25 @@ Readiness inspection waits at most 200 milliseconds, even when its Excel scan
 has started. An unfinished scan remains owned and reports an unconfirmed state;
 later listings reuse its result. This does not save or close the workbook.
 
-Service shutdown refuses an unsafe handover when Excel readiness is unconfirmed.
 Normal close checks readiness again on Excel's STA at the shutdown transition.
 If a refresh starts after the initial check, close reports `Busy` without
 cancelling the work queue or retiring the session, so it can be used and retried.
 When `save=true`, saving may already have completed before this late refusal;
 that save is not rolled back.
-The blocked workbook stays in its session and the service stays running so you
-can respond to Excel's prompt or wait for the refresh, then retry
-`excelcli service stop`. Other ready sessions may already have been handed over or
-closed before a refusal; shutdown does not save them. Product `excelcli service stop`
-waits for the shutdown reply while ready sessions are released one at a time. You can cancel this
-wait; Excel's own save and shutdown time limits still apply. It does not force-stop Excel
-after any failed shutdown response or an expired shutdown wait.
-Simultaneous shutdown requests cannot bypass a refusal: handover and the decision
-to stop the service are serialized across all service shutdown entry points.
+
+Service shutdown always stops the service. It closes saved workbooks that
+ExcelMcp opened and leaves unsaved ones open and visible without saving. When a
+workbook is busy, waiting for a prompt, or its state cannot be confirmed within
+the shutdown wait (the session's operation timeout, at most 30 seconds),
+shutdown leaves that Excel copy exactly as it is, makes it visible when
+possible, and reports it. The MCP Server writes this report to its log;
+`excelcli service stop` returns it as `shutdownWarning`, and the CLI tray shows
+it after Exit. The report names each Excel copy by process number and start
+time and says that nothing was saved, discarded, or terminated. Once shutdown
+has started, the service accepts only `service` commands. Simultaneous shutdown
+requests wait for the first one and do not repeat it. Shutdown never force-stops
+Excel. Use `excelcli session discover` and `excelcli session attach` from a new
+service to continue with a reported workbook, or close that Excel copy yourself.
 This does not protect against externally killing the service or Excel.
 
 If the service has already exited, `excelcli service stop` does not terminate

@@ -1110,11 +1110,13 @@ public sealed partial class ServiceWorkbookLifecycleTests
         }
         finally
         {
-            foreach (var sessionId in sessions.Keys)
+            var remaining = service.SessionManager.ActiveSessionIds.ToHashSet(StringComparer.Ordinal);
+            foreach (var sessionId in sessions.Keys.Where(remaining.Contains))
             {
                 try
                 {
-                    await CloseSessionAsync(service, sessionId, save: false);
+                    // Directly, because a service that has shut down accepts no requests.
+                    service.SessionManager.CloseSession(sessionId, save: false);
                 }
                 catch (Exception ex)
                 {
@@ -1125,6 +1127,8 @@ public sealed partial class ServiceWorkbookLifecycleTests
             try
             {
                 service.Dispose();
+                // A stopped service leaves what it could not close; release that here.
+                service.SessionManager.Dispose();
             }
             catch (Exception ex)
             {
@@ -1286,6 +1290,27 @@ public sealed partial class ServiceWorkbookLifecycleTests
         using var result = JsonDocument.Parse(response.Result!);
         return result.RootElement.GetProperty("values")[0][0].GetString();
     }
+
+    /// <summary>Reads Sheet1!A1 straight from Excel, for sessions left after the service stopped.</summary>
+    private static string? ReadMarker(AttachedWorkbookBatch batch) => batch.Execute((context, _) =>
+    {
+        Excel.Sheets? sheets = null;
+        Excel.Worksheet? sheet = null;
+        Excel.Range? cell = null;
+        try
+        {
+            sheets = context.Book.Worksheets;
+            sheet = (Excel.Worksheet)sheets["Sheet1"];
+            cell = sheet.Range["A1"];
+            return cell.Value2 as string;
+        }
+        finally
+        {
+            ComUtilities.Release(ref cell);
+            ComUtilities.Release(ref sheet);
+            ComUtilities.Release(ref sheets);
+        }
+    });
 
     private static async Task CloseSessionAsync(
         ExcelMcpService service,

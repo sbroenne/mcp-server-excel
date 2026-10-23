@@ -1685,6 +1685,43 @@ public sealed class SessionManager : IDisposable
 
     internal Action? BeforeCloseSessionHookForTests { get; set; }
 
+    /// <summary>
+    /// Releases owned sessions whose workbooks were all closed in Excel, without saving.
+    /// Sessions whose state cannot be confirmed stay open.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "The read-only check only decides whether a session can be released; when it fails, the session stays open and listed so the user still decides. Close failures propagate.")]
+    internal void CloseSessionsClosedInExcel()
+    {
+        foreach (var (sessionId, session) in _activeSessions.ToArray())
+        {
+            if (session is not ExcelBatch owned || GetActiveOperationCount(sessionId) > 0)
+                continue;
+            bool allClosed;
+            try
+            {
+                allClosed = owned.AreAllWorkbooksClosedInExcel(ClosedInExcelCheckTimeout);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not check whether session {SessionId} was closed in Excel; it stays open", sessionId);
+                continue;
+            }
+            if (allClosed)
+                CloseSession(sessionId);
+        }
+    }
+
+    private static readonly TimeSpan ClosedInExcelCheckTimeout = TimeSpan.FromSeconds(5);
+
+    private static string DescribeExcelProcess(IExcelBatch session) =>
+        GetExecutionOwner(session)?.ProcessIdentity is { } identity
+            ? DescribeExcelProcess(identity)
+            : "an Excel process with unknown identity";
+
+    private static string DescribeExcelProcess(ExcelProcessIdentity identity) =>
+        $"Excel process {identity.ProcessId} (started {DateTime.FromFileTimeUtc(identity.StartedAtUtcFileTime):u})";
+
     private void ReleaseDiscoveryConnectionBeforeOwnedClose(string sessionId, IExcelBatch batch)
     {
         if (batch is not ExcelBatch owned || owned.ProcessIdentity is not { } identity)
@@ -2182,12 +2219,14 @@ public sealed class SessionManager : IDisposable
                     throw new ExcelBusyException(
                         "Cannot disconnect while a workbook operation is active. Its session remains connected.");
                 }
-                ReleaseDiscoveryConnection(identity, application, quitIfEmpty: true);
+                ReleaseDiscoveryConnection(identity, application,
+                    quitIfEmpty: !sessions.Any(entry => entry.Value is ExcelBatch owned
+                        && owned.ProcessIdentity == identity));
             }
             catch (Exception ex)
             {
                 failures.Add(new InvalidOperationException(
-                    $"Could not release the connection to Excel process {application.ExcelProcessId}; its workbooks were not closed.",
+                    $"Could not release the connection to {DescribeExcelProcess(identity)}; its workbooks were not closed.",
                     ex));
             }
         }
@@ -2231,7 +2270,7 @@ public sealed class SessionManager : IDisposable
             {
                 RevealForRecovery(sessionId);
                 failures.Add(new InvalidOperationException(
-                    $"Shutdown refused for session '{sessionId}': {ex.Message}", ex));
+                    $"Shutdown refused for session '{sessionId}' in {DescribeExcelProcess(session)}: {ex.Message}", ex));
                 _logger.LogWarning(ex,
                     "Shutdown refused for session {SessionId}; workbook and session remain open", sessionId);
                 continue;
@@ -2239,7 +2278,7 @@ public sealed class SessionManager : IDisposable
             catch (Exception ex)
             {
                 var failure = new InvalidOperationException(
-                    $"Failed to dispose session '{sessionId}': {ex.Message}", ex);
+                    $"Failed to dispose session '{sessionId}' in {DescribeExcelProcess(session)}: {ex.Message}", ex);
                 failures.Add(failure);
                 if (session is not IExcelBatchCloseState { ShutdownCommitted: false })
                     _teardownFailures[sessionId] = ExceptionDispatchInfo.Capture(failure);

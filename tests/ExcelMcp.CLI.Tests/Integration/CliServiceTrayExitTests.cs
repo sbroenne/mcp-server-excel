@@ -15,6 +15,69 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Speed", "Medium")]
 public sealed class CliServiceTrayExitTests
 {
+    [Fact]
+    public void Exit_AfterWorkbookWasClosedInExcel_DoesNotReportFailure()
+    {
+        var directory = Path.Join(Path.GetTempPath(), $"CliServiceTrayExitTests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var path = Path.Join(directory, "already-closed.xlsx");
+        var manager = new SessionManager();
+        IExcelBatch? batch = null;
+        Exception? failure = null;
+        try
+        {
+            var sessionId = manager.CreateSessionForNewFile(path);
+            batch = Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(sessionId));
+            batch.Execute((context, _) => context.Book.Close(SaveChanges: false));
+            Assert.True(batch.IsExcelProcessAlive());
+
+            var errors = new List<string>();
+            var shutdown = false;
+            CliServiceTray.ExitService(manager, () =>
+            {
+                manager.Dispose();
+                shutdown = true;
+                return null;
+            }, (message, _, _, _) =>
+            {
+                errors.Add(message);
+                return DialogResult.Cancel;
+            }, (_, message, icon) =>
+            {
+                if (icon != ToolTipIcon.Info)
+                    errors.Add(message);
+            });
+
+            Assert.True(shutdown, string.Join(Environment.NewLine, errors));
+            Assert.Empty(errors);
+            Assert.Empty(manager.ActiveSessionIds);
+            Assert.False(batch.IsExcelProcessAlive());
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
+        }
+        finally
+        {
+            Capture(manager.Dispose);
+            Capture(() => Directory.Delete(directory, recursive: true));
+        }
+        if (failure is not null)
+            ExceptionDispatchInfo.Capture(failure).Throw();
+
+        void Capture(Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                failure = failure is null ? ex : new AggregateException(failure, ex);
+            }
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -66,7 +129,11 @@ public sealed class CliServiceTrayExitTests
             var warnings = new List<string>();
             var shutdown = false;
 
-            CliServiceTray.ExitService(manager, () => shutdown = true, (message, _, _, _) =>
+            CliServiceTray.ExitService(manager, () =>
+            {
+                shutdown = true;
+                return null;
+            }, (message, _, _, _) =>
             {
                 prompts.Add(message);
                 return save ? DialogResult.Yes : DialogResult.No;

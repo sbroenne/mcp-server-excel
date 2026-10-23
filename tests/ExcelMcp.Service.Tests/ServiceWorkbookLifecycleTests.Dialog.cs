@@ -75,8 +75,16 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 else
                 {
                     var response = await service.ProcessAsync(new ServiceRequest { Command = command, SessionId = session });
-                    Assert.False(response.Success);
-                    Assert.Equal("Busy", response.ErrorCategory);
+                    if (command == "service.shutdown")
+                    {
+                        Assert.True(response.Success, response.ErrorMessage);
+                        Assert.Contains("dialog", response.PartialState, StringComparison.OrdinalIgnoreCase);
+                    }
+                    else
+                    {
+                        Assert.False(response.Success);
+                        Assert.Equal("Busy", response.ErrorCategory);
+                    }
                 }
                 Assert.Equal(0, queued);
                 Assert.False(File.Exists(target));
@@ -90,7 +98,8 @@ public sealed partial class ServiceWorkbookLifecycleTests
             var failures = new[] { failure, dismissalFailure, promptFailure }.OfType<Exception>().ToArray();
             if (failures.Length > 0)
                 throw new AggregateException("Native persistence preflight or prompt cleanup failed.", failures);
-            Assert.Equal("Unsaved native prompt marker", await ReadMarkerAsync(service, session));
+            if (command != "service.shutdown")
+                Assert.Equal("Unsaved native prompt marker", await ReadMarkerAsync(service, session));
             Assert.False(batch.Execute((context, _) => context.Book.Saved));
         });
     }
@@ -246,36 +255,34 @@ public sealed partial class ServiceWorkbookLifecycleTests
     }
 
     [Fact]
-    public async Task Shutdown_WithOwnedDialog_RetainsUnsavedWorkbookUntilSafeRetry()
+    public async Task Shutdown_WithOwnedDialog_StopsAndLeavesUnsavedWorkbookAsIs()
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
             var path = Path.Join(directory, "shutdown-dialog.xlsx");
             var session = await CreateSessionAsync(service, path);
             sessions[session] = 0;
-            await WriteMarkerAsync(service, session, "Retained through shutdown refusal");
+            await WriteMarkerAsync(service, session, "Left through shutdown");
             var batch = Assert.IsAssignableFrom<IExcelBatch>(service.SessionManager.GetSession(session));
             var owner = batch.Execute((context, _) => new nint(context.App.Hwnd));
             using (var dialog = new OwnedTestDialog(owner))
             {
-                var refusal = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
-                Assert.False(refusal.Success);
-                Assert.Equal("Busy", refusal.ErrorCategory);
+                var stopped = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
+                Assert.True(stopped.Success, stopped.ErrorMessage);
+                Assert.Contains($"Excel process {batch.ExcelProcessId}", stopped.PartialState, StringComparison.Ordinal);
                 Assert.Same(batch, service.SessionManager.GetSession(session));
-                Assert.True((await service.ProcessAsync(new ServiceRequest { Command = "service.ping" })).Success);
                 Assert.False(batch.HasTimedOutOperation);
+                Assert.True(IsWindowVisible(owner));
             }
-            Assert.Equal("Retained through shutdown refusal", await ReadMarkerAsync(service, session));
             Assert.False(batch.Execute((context, _) => context.Book.Saved));
-            var retry = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
-            RequireSuccess(retry);
+            service.SessionManager.Dispose();
             sessions.TryRemove(session, out _);
             Assert.Equal(0, service.SessionManager.ActiveSessionCount);
             using var reopenedService = new ExcelMcpService();
             var reopened = await AttachHandoverAsync(reopenedService, path, batch.ExcelProcessId);
             try
             {
-                Assert.Equal("Retained through shutdown refusal", await ReadMarkerAsync(reopenedService, reopened));
+                Assert.Equal("Left through shutdown", await ReadMarkerAsync(reopenedService, reopened));
                 Assert.False(reopenedService.SessionManager.GetSession(reopened)!.Execute((context, _) => context.Book.Saved));
             }
             finally

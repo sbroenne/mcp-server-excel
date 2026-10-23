@@ -1656,7 +1656,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
     [InlineData(false, true)]
     [InlineData(true, true)]
     [InlineData(false, false)]
-    public async Task Shutdown_RunningAttachedCallback_RetainsConnectionUntilCallbackCompletes(
+    public async Task Shutdown_RunningAttachedCallback_StopsWithoutDisturbingCallback(
         bool tracked, bool retainSession)
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
@@ -1697,12 +1697,14 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
                 var before = attached.Owner.OperationStatus;
                 Assert.True(before.ExecutionPending);
-                Assert.Throws<AggregateException>(service.Dispose);
+                service.Dispose();
                 if (retainSession)
                     Assert.Same(attached, service.SessionManager.GetSession(attachedId));
                 Assert.True(service.SessionManager.HasActiveConnections);
                 Assert.True(attached.Owner.OperationStatus.ExecutionPending);
                 Assert.Equal(before.State, attached.Owner.OperationStatus.State);
+                Assert.Equal("SessionUnavailable",
+                    (await service.ProcessAsync(new ServiceRequest { Command = "session.list" })).ErrorCategory);
             }
             finally
             {
@@ -1719,11 +1721,10 @@ public sealed partial class ServiceWorkbookLifecycleTests
             }
             if (retainSession)
             {
-                Assert.Equal("pending unsaved", await ReadMarkerAsync(service, attachedId));
+                Assert.Equal("pending unsaved", ReadMarker(attached));
             }
             else
             {
-                RequireSuccess(await service.ProcessAsync(new ServiceRequest { Command = "session.list" }));
                 Assert.Equal(0, service.SessionManager.ActiveSessionCount);
                 var discovery = attached.Owner.DiscoverAttachedWorkbooks();
                 Assert.Empty(discovery.Errors);

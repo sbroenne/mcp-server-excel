@@ -468,7 +468,7 @@ public static class ExcelShutdownService
         }
     }
 
-    private static bool IsWorkbookOpen(Excel.Application excel, Excel.Workbook target)
+    internal static bool IsWorkbookOpen(Excel.Application excel, Excel.Workbook target)
     {
         Excel.Workbooks? workbooks = null;
         try

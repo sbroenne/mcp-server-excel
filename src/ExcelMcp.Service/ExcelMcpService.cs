@@ -41,6 +41,7 @@ public sealed class ExcelMcpService : IDisposable
     private readonly Lock _shutdownLock = new();
     private readonly DateTime _startTime = DateTime.UtcNow;
     private bool _disposed;
+    private volatile bool _shuttingDown;
 
     // Core command instances - use concrete types per CA1859
     private readonly RangeCommands _rangeCommands = new();
@@ -130,12 +131,39 @@ public sealed class ExcelMcpService : IDisposable
     public Task RunAsync(string pipeName) =>
         _daemonHost.RunAsync(pipeName);
 
-    public void RequestShutdown()
+    /// <summary>
+    /// Shuts down Excel sessions and stops the service, even when an Excel process cannot be
+    /// confirmed. Returns null, or a report of each Excel process left as it is.
+    /// </summary>
+    public string? RequestShutdown()
     {
         lock (_shutdownLock)
         {
-            _sessionManager.Dispose();
+            var report = ShutDownSessions();
             _daemonHost.RequestShutdown();
+            return report;
+        }
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "Shutdown is a failure-transport boundary: each session failure, with its Excel process, is returned to the caller as a report while the service still stops. Excel is left as it is.")]
+    private string? ShutDownSessions()
+    {
+        if (_shuttingDown)
+            return null;
+        _shuttingDown = true;
+        try
+        {
+            _sessionManager.Dispose();
+            return null;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Trace.TraceWarning("Excel shutdown was not confirmed: {0}", ex);
+            IEnumerable<Exception> failures = ex is AggregateException aggregate ? aggregate.InnerExceptions : [ex];
+            return "The service stopped, but some Excel processes were left as they are; nothing was saved, " +
+                "discarded, or terminated. " +
+                string.Join(" ", failures.Select(failure => failure.Message));
         }
     }
 
@@ -156,6 +184,16 @@ public sealed class ExcelMcpService : IDisposable
             var action = parts.Length > 1 ? parts[1] : "";
 
             ServiceRegistry.ValidateCommandArguments(request.Command, request.Args);
+
+            if (_shuttingDown && category != "service")
+            {
+                return AttachRequestContext(request, new ServiceResponse
+                {
+                    Success = false,
+                    ErrorCategory = "SessionUnavailable",
+                    ErrorMessage = "The service is shutting down and accepts no new work. Nothing was changed."
+                });
+            }
 
             ServiceResponse response = category switch
             {
@@ -269,9 +307,9 @@ public sealed class ExcelMcpService : IDisposable
     {
         lock (_shutdownLock)
         {
-            _sessionManager.Dispose();
+            var report = ShutDownSessions();
             _daemonHost.RequestShutdownAfterResponse();
-            return new ServiceResponse { Success = true };
+            return new ServiceResponse { Success = true, PartialState = report };
         }
     }
 
@@ -1293,18 +1331,15 @@ public sealed class ExcelMcpService : IDisposable
         lock (_shutdownLock)
         {
             if (_disposed) return;
+            _disposed = true;
             try
             {
-                _sessionManager.Dispose();
+                ShutDownSessions();
             }
             finally
             {
-                if (!_sessionManager.HasActiveConnections)
-                {
-                    _disposed = true;
-                    _daemonHost.RequestShutdown();
-                    _daemonHost.Dispose();
-                }
+                _daemonHost.RequestShutdown();
+                _daemonHost.Dispose();
             }
         }
     }

@@ -427,8 +427,9 @@ internal sealed class Program
             // Run WinForms message loop with tray icon on main thread
             using var tray = new CliServiceTray(service.SessionManager, () =>
             {
-                service.RequestShutdown();
+                var report = service.RequestShutdown();
                 Application.ExitThread();
+                return report;
             });
 
             uiContext = SynchronizationContext.Current;

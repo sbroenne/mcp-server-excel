@@ -24,10 +24,32 @@ operation context at the failure-transport boundary.
 
 Normal host shutdown does not authorize saving or discarding pending edits.
 Saved workbooks opened by the host close; unsaved workbooks are handed back open
-and visible with automation settings restored and their process protected from
-cleanup. Attached workbooks stay untouched. Opening and attaching preserve Excel
-AutoSave; an explicit per-workbook operation controls it. AutoSave can persist
-edits independently, including before shutdown.
+and visible with automation settings restored. Attached workbooks stay untouched.
+Opening and attaching preserve Excel AutoSave; an explicit per-workbook operation
+controls it. AutoSave can persist edits independently, including before shutdown.
+
+Shutdown follows these rules:
+
+- `SessionManager` decides what happens to each Excel process. Discovery
+  connections and the tray never quit Excel themselves; a discovery connection
+  quits Excel only when the host owns no session in that process.
+- A workbook belongs to the host only as the exact COM object the host opened.
+  A workbook the user closed in Excel is forgotten without saving; a file the
+  user reopens is the user's workbook. Saving a workbook the user already closed
+  fails and reports that nothing was saved.
+- Checks never change workbook state, and a timed-out check means unknown, not
+  closed. The saved-state check and close run in the same Excel step with Excel
+  prompts enabled, so edits made after the check are protected by Excel itself.
+- Excel quits only when the host started it and no workbook remains open.
+- Each Excel process has its own bounded shutdown wait. New requests are refused
+  once shutdown starts. MCP shutdown never prompts; a tray answer applies only
+  to the workbooks it listed.
+- When shutdown cannot confirm a process's state (busy, not responding, or
+  failed), the host still exits. That Excel is left exactly as it is, revealed
+  when possible, and reported by process number and start time. "Service stopped"
+  never implies that Excel exited.
+- Ownership ends at shutdown. Records of Excel processes left running are for
+  reporting only; nothing terminates them.
 
 ## Reasons and tradeoffs
 
@@ -85,7 +107,12 @@ Implicit saving at disconnect commits changes without a separate request;
 implicit discard loses the user's choices. A visible handover preserves those
 choices at the cost of leaving Excel running. Unattended callers must explicitly
 save and close their completed work. Handover must survive host exit and allow
-later discovery/attachment, not remain an orphan eligible for process cleanup.
+later discovery/attachment.
+
+Refusing to stop while Excel is busy would keep a service running that the user
+asked to stop, with no way forward when Excel never responds. Exiting and
+reporting the exact Excel process leaves the decision with the user or calling
+agent, which may close that Excel itself.
 
 ## Implementation and guidance
 

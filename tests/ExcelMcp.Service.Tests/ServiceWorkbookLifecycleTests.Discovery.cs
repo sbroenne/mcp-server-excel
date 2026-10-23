@@ -11,6 +11,88 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class ServiceWorkbookLifecycleTests
 {
     [Theory]
+    [InlineData(0, false)]
+    [InlineData(1, false)]
+    [InlineData(2, false)]
+    [InlineData(0, true)]
+    [InlineData(1, true)]
+    [InlineData(2, true)]
+    public async Task CloseOrShutdown_AfterWorkbookClosedInExcel_PreservesOnlyNeighbor(
+        int exitMode, bool keepNeighbor)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            ExcelBatch? owned = null;
+            await RunWithCleanupAsync(async (observer, observerDirectory, observedSessions) =>
+            {
+                var path = Path.Join(directory, "closed-in-excel.xlsx");
+                var ownedId = await CreateSessionAsync(service, path);
+                sessions[ownedId] = 0;
+                owned = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(ownedId));
+                var neighborName = keepNeighbor
+                    ? owned.Execute((context, _) => AddReviewWorkbook(context.App, "keep neighboring edits"))
+                    : null;
+                await DiscoverReviewWorkbookAsync(service, Path.GetFileName(path));
+                owned.Execute((context, _) => context.Book.Close(SaveChanges: false));
+                Assert.True(owned.IsExcelProcessAlive());
+
+                if (exitMode == 2)
+                {
+                    service.SessionManager.Dispose();
+                }
+                else
+                {
+                    if (exitMode == 1)
+                    {
+                        var saveAttempt = await service.ProcessAsync(new ServiceRequest
+                        {
+                            Command = "session.close",
+                            SessionId = ownedId,
+                            Args = JsonSerializer.Serialize(new { save = true }, ServiceProtocol.JsonOptions)
+                        });
+                        Assert.False(saveAttempt.Success);
+                        Assert.Contains("Nothing was saved", saveAttempt.ErrorMessage, StringComparison.Ordinal);
+                        Assert.Equal(ownedId, Assert.Single(service.SessionManager.ActiveSessionIds));
+                    }
+                    await CloseSessionAsync(service, ownedId, save: false);
+                }
+                sessions.TryRemove(ownedId, out _);
+
+                Assert.Empty(service.SessionManager.ActiveSessionIds);
+                Assert.Equal(keepNeighbor, owned.IsExcelProcessAlive());
+                if (neighborName is null)
+                    return;
+
+                var neighborId = await AttachReviewWorkbookAsync(observer,
+                    await DiscoverReviewWorkbookAsync(observer, neighborName));
+                observedSessions[neighborId] = 0;
+                var neighbor = Assert.IsType<AttachedWorkbookBatch>(
+                    observer.SessionManager.GetSession(neighborId));
+                Assert.Equal(owned.ExcelProcessId, neighbor.ExcelProcessId);
+                Assert.Equal("keep neighboring edits", await ReadMarkerAsync(observer, neighborId));
+                neighbor.Execute((context, _) =>
+                {
+                    Excel.Workbooks? workbooks = null;
+                    try
+                    {
+                        workbooks = context.App.Workbooks;
+                        Assert.Equal(1, workbooks.Count);
+                        Assert.True(context.App.DisplayAlerts);
+                        Assert.False(context.Book.Saved);
+                        Assert.Equal(string.Empty, context.Book.Path);
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref workbooks);
+                    }
+                });
+            });
+            Assert.NotNull(owned);
+            Assert.False(owned.IsExcelProcessAlive());
+        });
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Open_AfterStatusHidesExitedExcel_ReclaimsPath(bool validateFirst)

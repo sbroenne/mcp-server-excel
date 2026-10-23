@@ -74,7 +74,9 @@ Query workers untouched. Tests never stop Excel processes, including ones they
 started: they close their own sessions through the product, and Excel still
 running afterwards fails the test or run. Test compilation rejects machine-wide
 process search and the product's process-stop functions. A timeout or failed
-test is not permission to stop Excel.
+test is not permission for test code to stop Excel. The coding agent running
+the tests may close or stop any Excel copy afterwards and must report each one
+by process number and start time.
 
 Use `-ListTests` with `scripts\Invoke-ExcelTests.ps1` or `--list-tests` with
 `build.ps1 test --plan <path> --no-build` to discover without executing tests.

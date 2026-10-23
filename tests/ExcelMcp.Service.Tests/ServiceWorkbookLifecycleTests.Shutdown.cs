@@ -9,7 +9,7 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class ServiceWorkbookLifecycleTests
 {
     [Fact]
-    public async Task Shutdown_EditDuringSavedWorkbookClose_RetainsChangesWhenCloseIsCancelled()
+    public async Task Shutdown_EditDuringSavedWorkbookClose_StopsAndLeavesChanges()
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
@@ -56,43 +56,42 @@ public sealed partial class ServiceWorkbookLifecycleTests
             });
 
             var shutdown = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
-            Assert.False(shutdown.Success);
-            Assert.Contains("did not close", shutdown.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.True(shutdown.Success, shutdown.ErrorMessage);
+            Assert.Contains("did not close", shutdown.PartialState, StringComparison.OrdinalIgnoreCase);
             Assert.True(alertsEnabled);
             Assert.Same(batch, service.SessionManager.GetSession(id));
-            Assert.Equal("edit made during close", await ReadMarkerAsync(service, id));
-            batch.Execute((context, _) =>
+            Assert.Equal("SessionUnavailable", (await service.ProcessAsync(new ServiceRequest
             {
-                Assert.False(context.Book.Saved);
-                Assert.False(context.App.DisplayAlerts);
-            });
-            RequireSuccess(await service.ProcessAsync(new ServiceRequest
-            {
-                Command = "sheet.delete",
+                Command = "range.get-values",
                 SessionId = id,
-                Args = """{"sheetName":"DeleteAfterRefusal"}"""
-            }));
+                Args = """{"sheetName":"Sheet1","rangeAddress":"A1"}"""
+            })).ErrorCategory);
             batch.Execute((context, _) =>
             {
                 Excel.Sheets? sheets = null;
+                Excel.Worksheet? sheet = null;
+                Excel.Range? cell = null;
                 try
                 {
+                    Assert.False(context.Book.Saved);
                     sheets = context.Book.Worksheets;
-                    Assert.Equal(1, sheets.Count);
-                    Assert.False(context.App.DisplayAlerts);
+                    Assert.Equal(2, sheets.Count);
+                    sheet = (Excel.Worksheet)sheets["Sheet1"];
+                    cell = sheet.Range["A1"];
+                    Assert.Equal("edit made during close", cell.Value2);
                 }
                 finally
                 {
+                    ComUtilities.Release(ref cell);
+                    ComUtilities.Release(ref sheet);
                     ComUtilities.Release(ref sheets);
                 }
             });
-            await CloseSessionAsync(service, id, save: false);
-            sessions.TryRemove(id, out _);
         });
     }
 
     [Fact]
-    public async Task Shutdown_CallbackCompletesAfterWaitExpires_RetryConfirmsHandover()
+    public async Task Shutdown_CallbackCompletesAfterWaitExpires_StopsAndReportsThenHandsOver()
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
@@ -118,8 +117,9 @@ public sealed partial class ServiceWorkbookLifecycleTests
             {
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(15));
                 var expired = await shutdown.WaitAsync(TimeSpan.FromSeconds(20));
-                Assert.False(expired.Success);
-                Assert.Contains("timed out", expired.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+                Assert.True(expired.Success, expired.ErrorMessage);
+                Assert.Contains("wait expired", expired.PartialState, StringComparison.OrdinalIgnoreCase);
+                Assert.Contains($"Excel process {identity.ProcessId}", expired.PartialState, StringComparison.Ordinal);
                 Assert.False(((IExcelBatchCloseState)batch).ShutdownCommitted);
                 Assert.Same(batch, service.SessionManager.GetSession(id));
                 Assert.False(SessionManager.IsExcelProcessPreserved(identity));
@@ -130,7 +130,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
                     () => ((IExcelBatchCloseState)batch).ShutdownCommitted
                         && !batch.OperationStatus.ExecutionPending,
                     TimeSpan.FromSeconds(15)));
-                RequireSuccess(await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" }));
+                service.SessionManager.Dispose();
                 sessions.TryRemove(id, out _);
                 Assert.Equal(0, service.SessionManager.ActiveSessionCount);
                 Assert.False(service.SessionManager.HasActiveConnections);
