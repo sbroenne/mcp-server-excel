@@ -16,6 +16,7 @@ updates:
       - "dependencies"
       - "nuget"
       - "automated"
+      - "skip-changelog"
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
@@ -48,6 +49,7 @@ updates:
       - "dependencies"
       - "github-actions"
       - "automated"
+      - "skip-changelog"
     commit-message:
       prefix: "chore(actions)"
       include: "scope"
@@ -69,6 +71,7 @@ updates:
       - "dependencies"
       - "documentation"
       - "automated"
+      - "skip-changelog"
     commit-message:
       prefix: "chore(docs-deps)"
     groups:
@@ -89,6 +92,7 @@ updates:
       - "dependencies"
       - "npm"
       - "automated"
+      - "skip-changelog"
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
@@ -110,6 +114,7 @@ updates:
       - "dependencies"
       - "npm"
       - "automated"
+      - "skip-changelog"
     commit-message:
       prefix: "chore(vscode-deps)"
       include: "scope"
@@ -126,7 +131,7 @@ updates:
       time: "09:00"
       timezone: "America/New_York"
     open-pull-requests-limit: 5
-    labels: ["dependencies", "npm", "automated"]
+    labels: ["dependencies", "npm", "automated", "skip-changelog"]
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
@@ -142,7 +147,7 @@ updates:
       time: "09:00"
       timezone: "America/New_York"
     open-pull-requests-limit: 5
-    labels: ["dependencies", "automated"]
+    labels: ["dependencies", "automated", "skip-changelog"]
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
@@ -155,6 +160,6 @@ updates:
       time: "09:00"
       timezone: "America/New_York"
     open-pull-requests-limit: 5
-    labels: ["dependencies", "automated"]
+    labels: ["dependencies", "automated", "skip-changelog"]
     commit-message:
       prefix: "chore(sdk)"
