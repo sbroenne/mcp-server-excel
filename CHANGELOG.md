@@ -11,6 +11,30 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.5.1] - 2026-10-23
+
+### Minor Changes
+
+- [#1226](https://github.com/sbroenne/mcp-server-excel/pull/1226) [`ec6d5ef`](https://github.com/sbroenne/mcp-server-excel/commit/ec6d5efcfe273fade777c8838cd3b69bf2e07372) Thanks [@sbroenne](https://github.com/sbroenne)! - Opening workbooks now preserves Excel AutoSave and reports its status. Use the new workbook `set-auto-save` action in MCP or excelcli to change it explicitly; enabling it can save pending edits.
+
+  Stopping ExcelMcp no longer saves pending edits automatically. Saved workbooks it opened close, while unsaved ones stay open and visible for you to review. Attached workbooks remain untouched. Save and close explicitly when a completed job should leave no workbook open.
+
+### Patch Changes
+
+- [#1217](https://github.com/sbroenne/mcp-server-excel/pull/1217) [`b9de64e`](https://github.com/sbroenne/mcp-server-excel/commit/b9de64ec4bf2c0e8e2661bc14108c4f80c492f4f) Thanks [@sbroenne](https://github.com/sbroenne)! - Add actions to find and attach to workbooks already open in Excel without reopening them. Discovery includes workbooks in Excel processes already managed by this host and identifies workbooks with existing sessions. Newly attached workbooks keep their AutoSave setting, report it to the user, and remain open when the service shuts down. Shutdown closes only workbooks ExcelMcp opened; it leaves Excel running when other workbooks remain and never automatically terminates Excel when the host exits.
+
+- [#1223](https://github.com/sbroenne/mcp-server-excel/pull/1223) [`f99b5f8`](https://github.com/sbroenne/mcp-server-excel/commit/f99b5f8ffc68eb2932270dbdea3325afbe09c1d4) Thanks [@sbroenne](https://github.com/sbroenne)! - The excelcli banner now says "Automate Microsoft Excel from the command line" instead of naming an internal component.
+
+- [#1221](https://github.com/sbroenne/mcp-server-excel/pull/1221) [`b56d370`](https://github.com/sbroenne/mcp-server-excel/commit/b56d37033fbdaa51cf61a27848b2cc0f5dd5c546) Thanks [@sbroenne](https://github.com/sbroenne)! - Range search options are optional. CLI users can request help for a single action, and range-format and filter guidance now clarifies input formats.
+
+- [#1221](https://github.com/sbroenne/mcp-server-excel/pull/1221) [`b56d370`](https://github.com/sbroenne/mcp-server-excel/commit/b56d37033fbdaa51cf61a27848b2cc0f5dd5c546) Thanks [@sbroenne](https://github.com/sbroenne)! - PivotTable creation from ranges and the Data Model waits up to five minutes for Excel; a timeout does not cancel Excel work or roll back workbook changes. Duplicate names on the destination sheet are reported before creation. DAX evaluation includes engine details when Excel provides them, and measure listings explain where measures are stored.
+
+- [#1216](https://github.com/sbroenne/mcp-server-excel/pull/1216) [`4a223c3`](https://github.com/sbroenne/mcp-server-excel/commit/4a223c3e29587ff6921290e7b250a49add2d5327) Thanks [@sbroenne](https://github.com/sbroenne)! - Keep batch commands that do not use an existing workbook session independent of that workbook. Opening or creating another workbook no longer blocks, or is blocked by, work on the batch's current workbook.
+
+- [#1215](https://github.com/sbroenne/mcp-server-excel/pull/1215) [`a9718a9`](https://github.com/sbroenne/mcp-server-excel/commit/a9718a9e61f0ffd366815bdff6844a7be424af67) Thanks [@sbroenne](https://github.com/sbroenne)! - Keep the CLI service available when requests pile up behind a busy workbook. Repeated requests to the same busy session are rejected promptly, while health checks and work on other sessions remain available. The service no longer shuts down automatically when idle; use `service stop` to stop it.
+
+- [#1214](https://github.com/sbroenne/mcp-server-excel/pull/1214) [`0b1688a`](https://github.com/sbroenne/mcp-server-excel/commit/0b1688ae9748c130bbdc02e45eefd57007fa4619) Thanks [@sbroenne](https://github.com/sbroenne)! - Creating, updating, and deleting Data Model relationships now releases temporary Excel objects even when inspection fails. Threaded-comment operations also release the selected cell if validation fails. These fixes reduce the risk of Excel remaining open after a workbook is closed.
+
 ## [2.5.0] - 2026-10-19
 
 ### Minor Changes
