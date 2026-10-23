@@ -78,6 +78,82 @@ public sealed class CliServiceTrayExitTests
         }
     }
 
+    [Fact]
+    public void Exit_WhileSessionCloseIsInProgress_AsksWithoutWaitingForIt()
+    {
+        var directory = Path.Join(Path.GetTempPath(), $"CliServiceTrayExitTests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var manager = new SessionManager();
+        using var lockHeld = new ManualResetEventSlim();
+        using var releaseLock = new ManualResetEventSlim();
+        Thread? holder = null;
+        Exception? failure = null;
+        try
+        {
+            var sessionId = manager.CreateSessionForNewFile(Path.Join(directory, "closing.xlsx"));
+            var batch = Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(sessionId));
+            batch.Execute((context, _) => context.Book.Close(SaveChanges: false));
+            var disposeLock = (Lock)batch.GetType()
+                .GetField("_disposeLock", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .GetValue(batch)!;
+            holder = new Thread(() =>
+            {
+                disposeLock.Enter();
+                try
+                {
+                    lockHeld.Set();
+                    releaseLock.Wait(TimeSpan.FromSeconds(30));
+                }
+                finally
+                {
+                    disposeLock.Exit();
+                }
+            });
+            holder.Start();
+            Assert.True(lockHeld.Wait(TimeSpan.FromSeconds(10)));
+
+            var prompts = new List<string>();
+            var elapsed = System.Diagnostics.Stopwatch.StartNew();
+            var report = CliServiceTray.ExitService(manager, () => throw new InvalidOperationException("Shutdown must not start."),
+                (message, _, _, _) =>
+                {
+                    prompts.Add(message);
+                    return DialogResult.Cancel;
+                }, (_, _, _) => { });
+            elapsed.Stop();
+
+            Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(3), $"Exit waited {elapsed.Elapsed} for the close in progress.");
+            Assert.Null(report);
+            Assert.Contains("1 active session(s)", Assert.Single(prompts), StringComparison.Ordinal);
+            Assert.Contains(sessionId, manager.ActiveSessionIds);
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
+        }
+        finally
+        {
+            releaseLock.Set();
+            holder?.Join(TimeSpan.FromSeconds(10));
+            Capture(manager.Dispose);
+            Capture(() => Directory.Delete(directory, recursive: true));
+        }
+        if (failure is not null)
+            ExceptionDispatchInfo.Capture(failure).Throw();
+
+        void Capture(Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                failure = failure is null ? ex : new AggregateException(failure, ex);
+            }
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

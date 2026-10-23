@@ -2044,10 +2044,15 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         }
     }
 
-    /// <summary>Read-only check: true when every workbook this session opened was closed in Excel.</summary>
+    /// <summary>
+    /// Read-only check: true when every workbook this session opened was closed in Excel.
+    /// Returns false at once when another thread is closing or shutting down this session.
+    /// </summary>
     internal bool AreAllWorkbooksClosedInExcel(TimeSpan timeout)
     {
-        lock (_disposeLock)
+        if (!_disposeLock.TryEnter())
+            return false;
+        try
         {
             if (_disposed != 0 || _attachedApplication is not null
                 || GetExecutionPreflightState() != WorkbookRefreshState.Ready)
@@ -2055,6 +2060,10 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             return ExcelBatchWait.Execute(this, timeout, (_, _) =>
                 _excel is not null && _workbooks is { Count: > 0 }
                 && _workbooks.Values.All(workbook => !ExcelShutdownService.IsWorkbookOpen(_excel, workbook)));
+        }
+        finally
+        {
+            _disposeLock.Exit();
         }
     }
 

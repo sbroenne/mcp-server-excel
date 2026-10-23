@@ -1697,7 +1697,10 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
                 var before = attached.Owner.OperationStatus;
                 Assert.True(before.ExecutionPending);
+                Assert.False(IsExcelWindowVisible(identity, attached.Owner.Logger));
                 service.Dispose();
+                Assert.True(SpinWait.SpinUntil(() => IsExcelWindowVisible(identity, attached.Owner.Logger),
+                    TimeSpan.FromSeconds(5)), "Shutdown must reveal the Excel copy it leaves as it is.");
                 if (retainSession)
                     Assert.Same(attached, service.SessionManager.GetSession(attachedId));
                 Assert.True(service.SessionManager.HasActiveConnections);
@@ -1732,6 +1735,10 @@ public sealed partial class ServiceWorkbookLifecycleTests
             }
         });
     }
+
+    private static bool IsExcelWindowVisible(ExcelProcessIdentity identity, Microsoft.Extensions.Logging.ILogger logger) =>
+        ExcelDialogProbe.Inspect(identity, logger).Windows.Any(window =>
+            window.ProcessId == identity.ProcessId && window.ClassName == "XLMAIN" && window.Visible);
 
     [Theory]
     [InlineData(false)]
