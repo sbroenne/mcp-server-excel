@@ -11,6 +11,12 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.5.3] - 2026-10-23
+
+### Patch Changes
+
+- [#1233](https://github.com/sbroenne/mcp-server-excel/pull/1233) [`ed138e3`](https://github.com/sbroenne/mcp-server-excel/commit/ed138e31f6fb092abfbdb173166cf4e51aa45010) Thanks [@sbroenne](https://github.com/sbroenne)! - Stopping the service no longer fails or gets stuck. Exiting the CLI tray after you closed a workbook in Excel no longer shows an error. `excelcli service stop`, the tray's Exit, and MCP Server shutdown now always stop the service. Saved workbooks are closed, and unsaved ones stay open and visible without saving. If a workbook is busy, waiting for a prompt, or does not answer the shutdown request within the shutdown wait (at most 30 seconds), that Excel copy is left exactly as it is, made visible, and reported by process number: `service stop` returns it as `shutdownWarning`, the tray shows it, and the MCP Server writes it to its log. Nothing is saved, discarded, or force-stopped. Saving a workbook that was closed in Excel now fails with a clear message instead of an unclear Excel error.
+
 ## [2.5.2] - 2026-10-23
 
 ### Patch Changes
