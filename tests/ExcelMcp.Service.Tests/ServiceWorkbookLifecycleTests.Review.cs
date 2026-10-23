@@ -1656,7 +1656,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
     [InlineData(false, true)]
     [InlineData(true, true)]
     [InlineData(false, false)]
-    public async Task Shutdown_RunningAttachedCallback_RetainsConnectionUntilCallbackCompletes(
+    public async Task Shutdown_RunningAttachedCallback_StopsWithoutDisturbingCallback(
         bool tracked, bool retainSession)
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
@@ -1671,6 +1671,9 @@ public sealed partial class ServiceWorkbookLifecycleTests
             var attached = Assert.IsType<AttachedWorkbookBatch>(service.SessionManager.GetSession(attachedId));
             await CloseSessionAsync(service, ownedId, save: false);
             sessions.TryRemove(ownedId, out _);
+            // Closing the owned session leaves Excel visible for the remaining workbook; hide it so the
+            // test proves that shutdown itself reveals the copy it leaves open.
+            attached.Owner.Execute((context, _) => context.App.Visible = false);
             var identity = Assert.IsType<ExcelProcessIdentity>(attached.Owner.ProcessIdentity);
             if (!tracked)
                 SessionManager.UntrackExcelProcess(identity);
@@ -1681,6 +1684,15 @@ public sealed partial class ServiceWorkbookLifecycleTests
             }
             using var entered = new ManualResetEventSlim();
             using var release = new ManualResetEventSlim();
+            using var createPaused = new ManualResetEventSlim();
+            using var resumeCreate = new ManualResetEventSlim();
+            service.SessionManager.BeforeNewFileSessionPublishHookForTests = () =>
+            {
+                createPaused.Set();
+                Assert.True(resumeCreate.Wait(TimeSpan.FromSeconds(60)));
+            };
+            var create = Task.Run(() => service.SessionManager.CreateSessionForNewFile(
+                Path.Join(directory, "paused-create.xlsx")));
             var operation = Task.Run(() => attached.Owner.Execute((_, _) =>
             {
                 entered.Set();
@@ -1695,18 +1707,34 @@ public sealed partial class ServiceWorkbookLifecycleTests
             try
             {
                 Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
+                Assert.True(createPaused.Wait(TimeSpan.FromSeconds(10)));
                 var before = attached.Owner.OperationStatus;
                 Assert.True(before.ExecutionPending);
-                Assert.Throws<AggregateException>(service.Dispose);
+                Assert.False(IsExcelWindowVisible(identity, attached.Owner.Logger));
+                var report = service.RequestShutdown();
+                Assert.NotNull(report);
+                Assert.Contains("its workbooks were not closed: Cannot disconnect: Excel work is still pending",
+                    report, StringComparison.Ordinal);
+                var sessionCount = service.SessionManager.ActiveSessionCount;
+                resumeCreate.Set();
+                var createFailure = await Assert.ThrowsAsync<InvalidOperationException>(() => create);
+                Assert.IsType<ObjectDisposedException>(createFailure.InnerException);
+                Assert.Equal(sessionCount, service.SessionManager.ActiveSessionCount);
+                Assert.True(SpinWait.SpinUntil(() => IsExcelWindowVisible(identity, attached.Owner.Logger),
+                    TimeSpan.FromSeconds(5)), "Shutdown must reveal the Excel copy it leaves as it is.");
                 if (retainSession)
                     Assert.Same(attached, service.SessionManager.GetSession(attachedId));
                 Assert.True(service.SessionManager.HasActiveConnections);
                 Assert.True(attached.Owner.OperationStatus.ExecutionPending);
                 Assert.Equal(before.State, attached.Owner.OperationStatus.State);
+                Assert.Equal("SessionUnavailable",
+                    (await service.ProcessAsync(new ServiceRequest { Command = "session.list" })).ErrorCategory);
             }
             finally
             {
                 release.Set();
+                resumeCreate.Set();
+                service.SessionManager.BeforeNewFileSessionPublishHookForTests = null;
                 try
                 {
                     await operation;
@@ -1719,11 +1747,10 @@ public sealed partial class ServiceWorkbookLifecycleTests
             }
             if (retainSession)
             {
-                Assert.Equal("pending unsaved", await ReadMarkerAsync(service, attachedId));
+                Assert.Equal("pending unsaved", ReadMarker(attached));
             }
             else
             {
-                RequireSuccess(await service.ProcessAsync(new ServiceRequest { Command = "session.list" }));
                 Assert.Equal(0, service.SessionManager.ActiveSessionCount);
                 var discovery = attached.Owner.DiscoverAttachedWorkbooks();
                 Assert.Empty(discovery.Errors);
@@ -1731,6 +1758,10 @@ public sealed partial class ServiceWorkbookLifecycleTests
             }
         });
     }
+
+    private static bool IsExcelWindowVisible(ExcelProcessIdentity identity, Microsoft.Extensions.Logging.ILogger logger) =>
+        ExcelDialogProbe.Inspect(identity, logger).Windows.Any(window =>
+            window.ProcessId == identity.ProcessId && window.ClassName == "XLMAIN" && window.Visible);
 
     [Theory]
     [InlineData(false)]

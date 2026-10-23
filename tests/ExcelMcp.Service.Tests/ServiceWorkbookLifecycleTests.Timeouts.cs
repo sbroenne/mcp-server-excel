@@ -213,18 +213,23 @@ public sealed partial class ServiceWorkbookLifecycleTests
                         System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
                         .GetValue(service.SessionManager));
                 Assert.Empty(paths);
-                Assert.True(OwnedProcessGuard.TryConfirmExited(identity));
-                Assert.DoesNotContain(identity, SessionManager.GetTrackedExcelProcesses());
                 Assert.Equal(savedBytes, await File.ReadAllBytesAsync(path));
                 if (saveAs)
                 {
+                    // Unsaved edits after Save As: Excel is left open and visible, nothing saved.
+                    Assert.True(OwnedProcessGuard.MatchesLiveProcess(identity));
                     await RunWithCleanupAsync(async (verification, _, reopenedSessions) =>
                     {
-                        var reopened = await OpenSessionAsync(verification, target);
+                        var reopened = await AttachHandoverAsync(verification, target, identity.ProcessId);
                         reopenedSessions[reopened] = 0;
                         Assert.Equal("Edits after validation Save As", await ReadMarkerAsync(verification, reopened));
+                        await CloseSessionAsync(verification, reopened, save: false);
+                        reopenedSessions.TryRemove(reopened, out var released);
                     });
+                    return;
                 }
+                Assert.True(OwnedProcessGuard.TryConfirmExited(identity));
+                Assert.DoesNotContain(identity, SessionManager.GetTrackedExcelProcesses());
                 return;
             }
 
@@ -516,8 +521,9 @@ public sealed partial class ServiceWorkbookLifecycleTests
                     candidate => candidate.ProcessId == batch.ExcelProcessId);
                 Assert.Contains("cannot open", response.InnerError, StringComparison.OrdinalIgnoreCase);
 
-                var shutdown = Assert.Throws<AggregateException>(service.Dispose);
-                Assert.Contains(shutdown.InnerExceptions, ex => ex.InnerException is ExcelBusyException);
+                var report = service.RequestShutdown();
+                Assert.Contains($"Excel process {batch.ExcelProcessId}", report, StringComparison.Ordinal);
+                service.Dispose();
                 Assert.Same(batch, service.SessionManager.GetSession(session));
                 Assert.True(batch.OperationStatus.ExecutionPending);
                 Assert.True(OwnedProcessGuard.MatchesLiveProcess(identity.Value));

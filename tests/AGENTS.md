@@ -79,6 +79,10 @@ Commands and prerequisites: [tests/README.md](README.md#quick-start).
   process; do not add code that stops it. Never close every listed session to
   establish a "clean" starting state. The compiler bans machine-wide process
   search and the product's process-stop functions in test code; do not bypass it.
+- The coding agent itself, outside test code, may close or stop any Excel copy
+  on the machine, for example one left by a test run or stuck behind a dialog.
+  Report each one it closed by process number and start time. Closing an Excel
+  copy loses its unsaved edits, and a left-over copy still fails the test run.
   Fixture COM
   access follows [COM safety](../src/ExcelMcp.ComInterop/AGENTS.md).
 
@@ -92,9 +96,9 @@ windows yourself with the available computer-use tools before guessing at the
 cause or asking the user for screenshots. Read the window list and
 accessibility text first; capture an image only when the text is not
 available. Look for modal prompts such as Printer Setup or a security notice.
-Do not click, close, or answer them, and do not stop Excel: report the dialog
-text to the user. Keep dialog text out
-of public artifacts.
+Do not click or answer them: report the dialog text to the user. After
+reporting, you may close or stop that Excel copy as described above. Keep
+dialog text out of public artifacts.
 
 PDF/XPS export tests first check that Windows can open the default printer and
 fail with a plain message if it cannot, because Excel would otherwise show

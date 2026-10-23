@@ -282,7 +282,13 @@ public sealed class SessionManager : IDisposable
     private readonly object _filePathReservationLock = new();
     private readonly ILogger<SessionManager> _logger;
     private volatile bool _disposed;
+    // Set once shutdown starts and never cleared, even when shutdown leaves sessions open for cleanup.
+    private volatile bool _closedToNewSessions;
     internal Action? BeforeStaleOwnedSessionLockHookForTests { get; set; }
+    internal Action? BeforeNewFileSessionPublishHookForTests { get; set; }
+
+    private void ThrowIfClosedToNewSessions() =>
+        ObjectDisposedException.ThrowIf(_disposed || _closedToNewSessions, this);
 
     private object GetSessionLock(string sessionId) =>
         _sessionLocks.GetOrAdd(sessionId, static _ => new object());
@@ -302,7 +308,7 @@ public sealed class SessionManager : IDisposable
     {
         lock (_filePathReservationLock)
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ThrowIfClosedToNewSessions();
             if (_activeSessions.Any(entry =>
                 !string.Equals(entry.Key, sessionId, StringComparison.Ordinal)
                 && string.Equals(
@@ -342,7 +348,7 @@ public sealed class SessionManager : IDisposable
         // Publication and shutdown share a short lock; Excel startup and teardown stay outside it.
         lock (_filePathReservationLock)
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ThrowIfClosedToNewSessions();
             if (!_activeSessions.TryAdd(sessionId, batch))
                 throw new InvalidOperationException($"Session ID collision: {sessionId}");
             if (!_sessionFilePaths.TryAdd(sessionId, normalizedPath))
@@ -375,7 +381,7 @@ public sealed class SessionManager : IDisposable
         Justification = "Discovery returns partial results and the exact per-application inspection errors instead of treating failed reads as missing workbooks.")]
     public async Task<WorkbookDiscoveryResult> DiscoverOpenWorkbooksAsync()
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ThrowIfClosedToNewSessions();
         var nativeDiscovery = RunningExcelWindows.Find();
         var workbooks = new ConcurrentBag<OpenWorkbookInfo>();
         var errors = new ConcurrentBag<WorkbookDiscoveryError>(nativeDiscovery.Errors);
@@ -411,7 +417,7 @@ public sealed class SessionManager : IDisposable
                     KeyValuePair<string, (ExcelBatch Owner, OpenWorkbookInfo Workbook)>[] selectionCandidates;
                     lock (_filePathReservationLock)
                     {
-                        ObjectDisposedException.ThrowIf(_disposed, this);
+                        ThrowIfClosedToNewSessions();
                         if (_detachingApplications.Contains(window.Process))
                         {
                             throw new InvalidOperationException(
@@ -446,7 +452,7 @@ public sealed class SessionManager : IDisposable
                         };
                         lock (_filePathReservationLock)
                         {
-                            ObjectDisposedException.ThrowIf(_disposed, this);
+                            ThrowIfClosedToNewSessions();
                             ValidateOwnedWorkbookLocations(ownedCandidates);
                             if (_detachingApplications.Contains(window.Process)
                                 || !_attachedApplications.TryGetValue(window.Process, out var current)
@@ -797,7 +803,7 @@ public sealed class SessionManager : IDisposable
     /// <summary>Connects to a previously discovered open workbook without reopening it.</summary>
     public AttachedWorkbookSession AttachWorkbook(string workbookId)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ThrowIfClosedToNewSessions();
         ArgumentException.ThrowIfNullOrWhiteSpace(workbookId);
         if (!_openWorkbookSelections.TryGetValue(workbookId, out var selection))
             throw new ArgumentException(
@@ -823,7 +829,7 @@ public sealed class SessionManager : IDisposable
         var path = current.Location ?? current.Name;
         lock (_filePathReservationLock)
         {
-            ObjectDisposedException.ThrowIf(_disposed, this);
+            ThrowIfClosedToNewSessions();
             ValidateOwnedWorkbookLocations(ownedCandidates);
             if (selection.Owner.ProcessIdentity is { } process
                 && _detachingApplications.Contains(process))
@@ -950,7 +956,7 @@ public sealed class SessionManager : IDisposable
         TimeSpan? startupTimeout,
         SessionOrigin origin)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ThrowIfClosedToNewSessions();
 
         string normalizedPath = WorkbookLocation.Normalize(filePath);
         bool isRemote = WorkbookLocation.IsRemote(normalizedPath);
@@ -987,7 +993,7 @@ public sealed class SessionManager : IDisposable
             // (e.g., CO_E_SERVER_EXEC_FAILURE when system resources are constrained)
             lock (_filePathReservationLock)
             {
-                ObjectDisposedException.ThrowIf(_disposed, this);
+                ThrowIfClosedToNewSessions();
                 batch = ExcelSession.BeginOwnedBatch(show, operationTimeout, startupTimeout, normalizedPath);
                 PublishSession(sessionId, normalizedPath, batch, show, origin);
             }
@@ -1012,7 +1018,7 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     public void ValidateWorkbookOpen(string filePath, TimeSpan? operationTimeout = null)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ThrowIfClosedToNewSessions();
 
         var normalizedPath = WorkbookLocation.Normalize(filePath);
         var reservationId = Guid.NewGuid().ToString("N");
@@ -1031,7 +1037,7 @@ public sealed class SessionManager : IDisposable
                 FileAccessValidator.ValidateFileNotLocked(normalizedPath);
             lock (_filePathReservationLock)
             {
-                ObjectDisposedException.ThrowIf(_disposed, this);
+                ThrowIfClosedToNewSessions();
                 batch = ExcelSession.BeginReadOnlyValidation(normalizedPath, operationTimeout, deferStartup: true);
                 PublishSession(reservationId, normalizedPath, batch,
                     show: WorkbookLocation.IsRemote(normalizedPath),
@@ -1087,7 +1093,7 @@ public sealed class SessionManager : IDisposable
     /// </remarks>
     public string CreateSessionForNewFile(string filePath, bool show = false, TimeSpan? operationTimeout = null, SessionOrigin origin = SessionOrigin.Unknown)
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
+        ThrowIfClosedToNewSessions();
 
         string normalizedPath = Path.GetFullPath(filePath);
 
@@ -1124,10 +1130,11 @@ public sealed class SessionManager : IDisposable
         ExcelBatch? batch = null;
         try
         {
+            BeforeNewFileSessionPublishHookForTests?.Invoke();
             // Create new workbook and keep session open with retry for transient COM failures
             lock (_filePathReservationLock)
             {
-                ObjectDisposedException.ThrowIf(_disposed, this);
+                ThrowIfClosedToNewSessions();
                 batch = ExcelBatch.CreateNewWorkbook(normalizedPath, isMacroEnabled,
                     logger: null, show: show, operationTimeout: operationTimeout, deferStartup: true);
                 PublishSession(sessionId, normalizedPath, batch, show, origin);
@@ -1685,6 +1692,43 @@ public sealed class SessionManager : IDisposable
 
     internal Action? BeforeCloseSessionHookForTests { get; set; }
 
+    /// <summary>
+    /// Releases owned sessions whose workbooks were all closed in Excel, without saving.
+    /// Sessions whose state cannot be confirmed stay open.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
+        Justification = "The read-only check only decides whether a session can be released; when it fails, the session stays open and listed so the user still decides. Close failures propagate.")]
+    internal void CloseSessionsClosedInExcel()
+    {
+        foreach (var (sessionId, session) in _activeSessions.ToArray())
+        {
+            if (session is not ExcelBatch owned || GetActiveOperationCount(sessionId) > 0)
+                continue;
+            bool allClosed;
+            try
+            {
+                allClosed = owned.AreAllWorkbooksClosedInExcel(ClosedInExcelCheckTimeout);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not check whether session {SessionId} was closed in Excel; it stays open", sessionId);
+                continue;
+            }
+            if (allClosed)
+                CloseSession(sessionId);
+        }
+    }
+
+    private static readonly TimeSpan ClosedInExcelCheckTimeout = TimeSpan.FromSeconds(5);
+
+    private static string DescribeExcelProcess(IExcelBatch session) =>
+        GetExecutionOwner(session)?.ProcessIdentity is { } identity
+            ? DescribeExcelProcess(identity)
+            : "an Excel process with unknown identity";
+
+    private static string DescribeExcelProcess(ExcelProcessIdentity identity) =>
+        $"Excel process {identity.ProcessId} (started {DateTime.FromFileTimeUtc(identity.StartedAtUtcFileTime):u})";
+
     private void ReleaseDiscoveryConnectionBeforeOwnedClose(string sessionId, IExcelBatch batch)
     {
         if (batch is not ExcelBatch owned || owned.ProcessIdentity is not { } identity)
@@ -2166,6 +2210,7 @@ public sealed class SessionManager : IDisposable
             if (_disposed)
                 return;
             _disposed = true;
+            _closedToNewSessions = true;
             sessions = _activeSessions.ToArray();
             attachedApplications = _attachedApplications.ToArray();
         }
@@ -2182,12 +2227,16 @@ public sealed class SessionManager : IDisposable
                     throw new ExcelBusyException(
                         "Cannot disconnect while a workbook operation is active. Its session remains connected.");
                 }
-                ReleaseDiscoveryConnection(identity, application, quitIfEmpty: true);
+                ReleaseDiscoveryConnection(identity, application,
+                    quitIfEmpty: !sessions.Any(entry => entry.Value is ExcelBatch owned
+                        && owned.ProcessIdentity == identity));
             }
             catch (Exception ex)
             {
+                // Excel stays open as it is; show its window so the user can find it.
+                application.RevealForRecovery();
                 failures.Add(new InvalidOperationException(
-                    $"Could not release the connection to Excel process {application.ExcelProcessId}; its workbooks were not closed.",
+                    $"Could not release the connection to {DescribeExcelProcess(identity)}; its workbooks were not closed: {ex.Message}",
                     ex));
             }
         }
@@ -2231,7 +2280,7 @@ public sealed class SessionManager : IDisposable
             {
                 RevealForRecovery(sessionId);
                 failures.Add(new InvalidOperationException(
-                    $"Shutdown refused for session '{sessionId}': {ex.Message}", ex));
+                    $"Shutdown refused for session '{sessionId}' in {DescribeExcelProcess(session)}: {ex.Message}", ex));
                 _logger.LogWarning(ex,
                     "Shutdown refused for session {SessionId}; workbook and session remain open", sessionId);
                 continue;
@@ -2239,7 +2288,7 @@ public sealed class SessionManager : IDisposable
             catch (Exception ex)
             {
                 var failure = new InvalidOperationException(
-                    $"Failed to dispose session '{sessionId}': {ex.Message}", ex);
+                    $"Failed to dispose session '{sessionId}' in {DescribeExcelProcess(session)}: {ex.Message}", ex);
                 failures.Add(failure);
                 if (session is not IExcelBatchCloseState { ShutdownCommitted: false })
                     _teardownFailures[sessionId] = ExceptionDispatchInfo.Capture(failure);

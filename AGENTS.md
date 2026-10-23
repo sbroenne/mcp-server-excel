@@ -151,6 +151,9 @@ dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore
 Build with zero warnings. Use targeted tests; see the
 [testing strategy](tests/AGENTS.md). Run every Excel-dependent test command
 sequentially; never overlap Excel test fixtures, test hosts, or E2E runs.
+You may close or stop any Excel copy on the machine, for example one left by a
+test run; test code still must not. Report each copy you closed by process
+number and start time.
 The commit hook builds selected inputs and runs selected `Fast` unit tests from
 CLI, MCP Server, Core, and Service (`Commit` group), excluding
 `AdapterTestKind=System` and `Speed=Slow`. ComInterop-specific, process, tooling,

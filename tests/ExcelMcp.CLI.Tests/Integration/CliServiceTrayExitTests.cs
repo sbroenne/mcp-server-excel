@@ -15,6 +15,238 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 [Trait("Speed", "Medium")]
 public sealed class CliServiceTrayExitTests
 {
+    [Fact]
+    public void Exit_AfterWorkbookWasClosedInExcel_DoesNotReportFailure()
+    {
+        var directory = Path.Join(Path.GetTempPath(), $"CliServiceTrayExitTests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var path = Path.Join(directory, "already-closed.xlsx");
+        var manager = new SessionManager();
+        IExcelBatch? batch = null;
+        Exception? failure = null;
+        try
+        {
+            var sessionId = manager.CreateSessionForNewFile(path);
+            batch = Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(sessionId));
+            batch.Execute((context, _) => context.Book.Close(SaveChanges: false));
+            Assert.True(batch.IsExcelProcessAlive());
+
+            var errors = new List<string>();
+            var shutdown = false;
+            CliServiceTray.ExitService(manager, () =>
+            {
+                manager.Dispose();
+                shutdown = true;
+                return null;
+            }, (message, _, _, _) =>
+            {
+                errors.Add(message);
+                return DialogResult.Cancel;
+            }, (_, message, icon) =>
+            {
+                if (icon != ToolTipIcon.Info)
+                    errors.Add(message);
+            });
+
+            Assert.True(shutdown, string.Join(Environment.NewLine, errors));
+            Assert.Empty(errors);
+            Assert.Empty(manager.ActiveSessionIds);
+            Assert.False(batch.IsExcelProcessAlive());
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
+        }
+        finally
+        {
+            Capture(manager.Dispose);
+            Capture(() => Directory.Delete(directory, recursive: true));
+        }
+        if (failure is not null)
+            ExceptionDispatchInfo.Capture(failure).Throw();
+
+        void Capture(Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                failure = failure is null ? ex : new AggregateException(failure, ex);
+            }
+        }
+    }
+
+    [Fact]
+    public void Exit_AfterWorkbookWasClosedInExcel_ShowsExcelLeftOpenWithAnotherWorkbook()
+    {
+        var directory = Path.Join(Path.GetTempPath(), $"CliServiceTrayExitTests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var manager = new SessionManager();
+        var observer = new SessionManager();
+        IExcelBatch? batch = null;
+        string? neighborName = null;
+        Exception? failure = null;
+        try
+        {
+            var sessionId = manager.CreateSessionForNewFile(Path.Join(directory, "closed-by-user.xlsx"));
+            batch = Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(sessionId));
+            neighborName = batch.Execute((context, _) =>
+            {
+                Excel.Workbooks? books = null;
+                Excel.Workbook? book = null;
+                try
+                {
+                    books = context.App.Workbooks;
+                    book = books.Add();
+                    return book.Name;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref book);
+                    ComUtilities.Release(ref books);
+                }
+            });
+            batch.Execute((context, _) => context.Book.Close(SaveChanges: false));
+            using var excel = System.Diagnostics.Process.GetProcessById(batch.ExcelProcessId!.Value);
+            Assert.Equal(IntPtr.Zero, excel.MainWindowHandle);
+
+            var errors = new List<string>();
+            CliServiceTray.ExitService(manager, () =>
+            {
+                manager.Dispose();
+                return null;
+            }, (message, _, _, _) =>
+            {
+                errors.Add(message);
+                return DialogResult.Cancel;
+            }, (_, message, icon) =>
+            {
+                if (icon != ToolTipIcon.Info)
+                    errors.Add(message);
+            });
+
+            Assert.Empty(errors);
+            Assert.True(batch.IsExcelProcessAlive());
+            Assert.True(SpinWait.SpinUntil(() =>
+            {
+                excel.Refresh();
+                return excel.MainWindowHandle != IntPtr.Zero;
+            }, TimeSpan.FromSeconds(5)), "Excel left open with another workbook must be visible.");
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
+        }
+        finally
+        {
+            Capture(manager.Dispose);
+            Capture(() =>
+            {
+                if (batch?.IsExcelProcessAlive() != true || neighborName is null)
+                    return;
+                var discovery = observer.DiscoverOpenWorkbooksAsync().GetAwaiter().GetResult();
+                var selection = Assert.Single(discovery.Workbooks, book =>
+                    book.Name == neighborName && book.ProcessId == batch.ExcelProcessId);
+                var attached = observer.AttachWorkbook(selection.WorkbookId);
+                observer.CloseSession(attached.SessionId, save: false);
+            });
+            Capture(observer.Dispose);
+            Capture(() => Directory.Delete(directory, recursive: true));
+        }
+        if (failure is not null)
+            ExceptionDispatchInfo.Capture(failure).Throw();
+
+        void Capture(Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                failure = failure is null ? ex : new AggregateException(failure, ex);
+            }
+        }
+    }
+
+    [Fact]
+    public void Exit_WhileSessionCloseIsInProgress_AsksWithoutWaitingForIt()
+    {
+        var directory = Path.Join(Path.GetTempPath(), $"CliServiceTrayExitTests_{Guid.NewGuid():N}");
+        Directory.CreateDirectory(directory);
+        var manager = new SessionManager();
+        using var lockHeld = new ManualResetEventSlim();
+        using var releaseLock = new ManualResetEventSlim();
+        Thread? holder = null;
+        Exception? failure = null;
+        try
+        {
+            var sessionId = manager.CreateSessionForNewFile(Path.Join(directory, "closing.xlsx"));
+            var batch = Assert.IsAssignableFrom<IExcelBatch>(manager.GetSession(sessionId));
+            batch.Execute((context, _) => context.Book.Close(SaveChanges: false));
+            var disposeLock = (Lock)batch.GetType()
+                .GetField("_disposeLock", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .GetValue(batch)!;
+            holder = new Thread(() =>
+            {
+                disposeLock.Enter();
+                try
+                {
+                    lockHeld.Set();
+                    releaseLock.Wait(TimeSpan.FromSeconds(30));
+                }
+                finally
+                {
+                    disposeLock.Exit();
+                }
+            });
+            holder.Start();
+            Assert.True(lockHeld.Wait(TimeSpan.FromSeconds(10)));
+
+            var prompts = new List<string>();
+            var elapsed = System.Diagnostics.Stopwatch.StartNew();
+            var report = CliServiceTray.ExitService(manager, () => throw new InvalidOperationException("Shutdown must not start."),
+                (message, _, _, _) =>
+                {
+                    prompts.Add(message);
+                    return DialogResult.Cancel;
+                }, (_, _, _) => { });
+            elapsed.Stop();
+
+            Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(3), $"Exit waited {elapsed.Elapsed} for the close in progress.");
+            Assert.Null(report);
+            Assert.Contains("1 active session(s)", Assert.Single(prompts), StringComparison.Ordinal);
+            Assert.Contains(sessionId, manager.ActiveSessionIds);
+        }
+        catch (Exception ex)
+        {
+            failure = ex;
+        }
+        finally
+        {
+            releaseLock.Set();
+            holder?.Join(TimeSpan.FromSeconds(10));
+            Capture(manager.Dispose);
+            Capture(() => Directory.Delete(directory, recursive: true));
+        }
+        if (failure is not null)
+            ExceptionDispatchInfo.Capture(failure).Throw();
+
+        void Capture(Action action)
+        {
+            try
+            {
+                action();
+            }
+            catch (Exception ex)
+            {
+                failure = failure is null ? ex : new AggregateException(failure, ex);
+            }
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -66,7 +298,11 @@ public sealed class CliServiceTrayExitTests
             var warnings = new List<string>();
             var shutdown = false;
 
-            CliServiceTray.ExitService(manager, () => shutdown = true, (message, _, _, _) =>
+            CliServiceTray.ExitService(manager, () =>
+            {
+                shutdown = true;
+                return null;
+            }, (message, _, _, _) =>
             {
                 prompts.Add(message);
                 return save ? DialogResult.Yes : DialogResult.No;

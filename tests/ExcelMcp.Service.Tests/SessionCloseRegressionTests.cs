@@ -35,7 +35,7 @@ public sealed class SessionCloseRegressionTests
     }
 
     [Fact]
-    public async Task StartupMetadata_ActiveRead_PreventsConcurrentShutdown()
+    public async Task StartupMetadata_ActiveRead_ShutdownLeavesSessionAndReports()
     {
         using var service = new ExcelMcpService();
         var batch = new FakeBatch
@@ -53,8 +53,8 @@ public sealed class SessionCloseRegressionTests
         {
             Assert.True(batch.OperationEntered.Wait(TimeSpan.FromSeconds(10)));
             var shutdown = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
-            Assert.False(shutdown.Success);
-            Assert.Equal("Busy", shutdown.ErrorCategory);
+            Assert.True(shutdown.Success, shutdown.ErrorMessage);
+            Assert.Contains("left as they are", shutdown.PartialState, StringComparison.Ordinal);
             Assert.Equal(0, batch.DisposeCalls);
             Assert.Same(batch, service.SessionManager.GetSession(sessionId));
         }
@@ -117,8 +117,8 @@ public sealed class SessionCloseRegressionTests
             });
             Assert.False(close.Success);
             var shutdown = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
-            Assert.False(shutdown.Success);
-            Assert.Contains("Unconfirmed native teardown", shutdown.ErrorMessage, StringComparison.Ordinal);
+            Assert.True(shutdown.Success, shutdown.ErrorMessage);
+            Assert.Contains("Unconfirmed native teardown", shutdown.PartialState, StringComparison.Ordinal);
             Assert.Equal(0, saveCalls);
             Assert.Same(batch, service.SessionManager.GetSession("partial-close"));
             Assert.True(service.SessionManager.TryGetFilePath("partial-close", out var retainedPath));
@@ -157,7 +157,7 @@ public sealed class SessionCloseRegressionTests
     [InlineData("rpc")]
     [InlineData("direct")]
     [InlineData("dispose")]
-    public async Task Shutdown_BusyTeardownHResult_RetainsSessionAndAllowsRetry(string caller)
+    public async Task Shutdown_BusyTeardownHResult_StopsAndReportsExcelLeftAsIs(string caller)
     {
         using var service = new ExcelMcpService();
         var comFailure = Assert.IsType<COMException>(Marshal.GetExceptionForHR(unchecked((int)0x800AC472)));
@@ -170,142 +170,80 @@ public sealed class SessionCloseRegressionTests
         RegisterSession(service, session, batch, addKnownSessionId: true);
         var host = GetPrivateField<Sbroenne.ExcelMcp.Service.Rpc.DaemonHost>(service, "_daemonHost");
         var shutdown = GetPrivateField<CancellationTokenSource>(host, "_shutdownCts");
-        batch.BeforeDispose = () => Assert.True(service.SessionManager.IsSessionRetained(session));
-        try
+        string? report = null;
+        if (caller == "rpc")
         {
-            if (caller == "rpc")
-            {
-                var response = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
-                Assert.False(response.Success);
-                Assert.Equal("Busy", response.ErrorCategory);
-                Assert.Equal("0x800AC472", response.HResult);
-            }
-            else
-            {
-                var failure = Assert.Throws<AggregateException>(
-                    caller == "direct" ? service.RequestShutdown : service.Dispose);
-                var busy = Assert.IsType<ExcelBusyException>(Assert.Single(failure.InnerExceptions).InnerException);
-                Assert.Same(comFailure, busy.InnerException);
-            }
-            Assert.Equal(1, batch.DisposeCalls);
-            Assert.Same(batch, service.SessionManager.GetSession(session));
-            Assert.True(service.SessionManager.TryGetFilePath(session, out var retainedPath));
-            Assert.Equal(batch.WorkbookPath, retainedPath);
-            Assert.False(shutdown.IsCancellationRequested);
-            Assert.True((await service.ProcessAsync(new ServiceRequest { Command = "service.ping" })).Success);
+            var response = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
+            Assert.True(response.Success, response.ErrorMessage);
+            report = response.PartialState;
+            var deadline = DateTime.UtcNow.AddSeconds(10);
+            while (!shutdown.IsCancellationRequested && DateTime.UtcNow < deadline)
+                await Task.Delay(25);
         }
-        finally { batch.DisposeException = null; }
+        else if (caller == "direct")
+        {
+            report = service.RequestShutdown();
+        }
+        else
+        {
+            service.Dispose();
+        }
 
-        var retry = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
-        Assert.True(retry.Success, retry.ErrorMessage);
-        Assert.Equal(2, batch.DisposeCalls);
-        Assert.Equal(0, service.SessionManager.ActiveSessionCount);
+        if (caller != "dispose")
+        {
+            Assert.NotNull(report);
+            Assert.Contains("left as they are", report, StringComparison.Ordinal);
+            Assert.Contains("Excel is busy during shutdown.", report, StringComparison.Ordinal);
+        }
+        Assert.Equal(1, batch.DisposeCalls);
+        Assert.True(shutdown.IsCancellationRequested);
+        var refused = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
+        Assert.False(refused.Success);
+        Assert.Equal("SessionUnavailable", refused.ErrorCategory);
+        Assert.Contains("Nothing was changed", refused.ErrorMessage, StringComparison.Ordinal);
+        batch.DisposeException = null;
     }
 
     [Fact]
-    public void SessionRetention_RemovesDeadSessionsWithoutProbingLiveExcelReadiness()
-    {
-        using var service = new ExcelMcpService();
-        var dead = new FakeBatch { WorkbookPath = CreateFakeWorkbookPath() };
-        var live = new FakeBatch
-        {
-            WorkbookPath = CreateFakeWorkbookPath(),
-            RefreshState = WorkbookRefreshState.Unknown
-        };
-        RegisterSession(service, "dead-retained", dead, addKnownSessionId: true);
-        RegisterSession(service, "live-retained", live, addKnownSessionId: true);
-        try
-        {
-            Assert.True(service.SessionManager.IsSessionRetained("dead-retained"));
-            Assert.True(service.SessionManager.IsSessionRetained("live-retained"));
-            dead.IsAlive = false;
-            Assert.False(service.SessionManager.IsSessionRetained("dead-retained"));
-            Assert.Equal(1, dead.DisposeCalls);
-            Assert.False(service.SessionManager.TryGetFilePath("dead-retained", out _));
-            Assert.Same(live, service.SessionManager.GetSession("live-retained"));
-            Assert.Equal(0, live.RefreshProbeCalls);
-            live.IsAlive = false;
-            Assert.False(service.SessionManager.IsSessionRetained("live-retained"));
-            Assert.Equal(1, live.DisposeCalls);
-            Assert.Equal(0, service.SessionManager.ActiveSessionCount);
-        }
-        finally { live.RefreshState = WorkbookRefreshState.Ready; }
-    }
-
-    [Theory]
-    [InlineData("rpc")]
-    [InlineData("direct")]
-    [InlineData("dispose")]
-    public async Task Shutdown_ConcurrentCaller_CannotBypassBusyRefusal(string caller)
+    public async Task Shutdown_ConcurrentCaller_WaitsForFirstShutdownAndReceivesItsReport()
     {
         using var service = new ExcelMcpService();
         using var teardownEntered = new ManualResetEventSlim();
         using var releaseTeardown = new ManualResetEventSlim();
-        using var secondStarted = new ManualResetEventSlim();
-        var teardownAttempts = 0;
         var batch = new FakeBatch
         {
             WorkbookPath = CreateFakeWorkbookPath(),
-            RefreshState = WorkbookRefreshState.Refreshing,
-            BeforeRefreshProbe = () =>
+            BeforeDispose = () =>
             {
-                if (Interlocked.Increment(ref teardownAttempts) != 1) return;
                 teardownEntered.Set();
                 Assert.True(releaseTeardown.Wait(TimeSpan.FromSeconds(10)));
-            }
+            },
+            DisposeException = new TimeoutException("Excel did not confirm shutdown.")
         };
-        const string session = "concurrent-shutdown-busy";
-        RegisterSession(service, session, batch, addKnownSessionId: true);
-        var host = GetPrivateField<Sbroenne.ExcelMcp.Service.Rpc.DaemonHost>(service, "_daemonHost");
-        var shutdown = GetPrivateField<CancellationTokenSource>(host, "_shutdownCts");
+        RegisterSession(service, "concurrent-shutdown", batch, addKnownSessionId: true);
         var first = Task.Run(() => service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" }));
-        Task<(ServiceResponse? Response, Exception? Error)>? second = null;
+        Task<ServiceResponse>? second = null;
         try
         {
             Assert.True(teardownEntered.Wait(TimeSpan.FromSeconds(10)));
-            second = Task.Run(async () =>
-            {
-                secondStarted.Set();
-                if (caller == "rpc")
-                    return (await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" }), (Exception?)null);
-                return ((ServiceResponse?)null,
-                    Record.Exception(caller == "direct" ? service.RequestShutdown : service.Dispose));
-            });
-            Assert.True(secondStarted.Wait(TimeSpan.FromSeconds(10)));
+            second = Task.Run(() => service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" }));
             await Task.WhenAny(second, Task.Delay(250));
-            releaseTeardown.Set();
-
-            var refused = await first.WaitAsync(TimeSpan.FromSeconds(10));
-            Assert.False(refused.Success);
-            Assert.Equal("Busy", refused.ErrorCategory);
-            var concurrent = await second.WaitAsync(TimeSpan.FromSeconds(10));
-            if (caller == "rpc")
-            {
-                Assert.NotNull(concurrent.Response);
-                Assert.False(concurrent.Response.Success);
-                Assert.Equal("Busy", concurrent.Response.ErrorCategory);
-            }
-            else
-            {
-                Assert.IsType<AggregateException>(concurrent.Error);
-            }
-            Assert.False(shutdown.IsCancellationRequested);
-            Assert.Equal(0, batch.DisposeCalls);
-            Assert.Same(batch, service.SessionManager.GetSession(session));
-            Assert.True((await service.ProcessAsync(new ServiceRequest { Command = "service.ping" })).Success);
+            Assert.False(second.IsCompleted);
         }
         finally
         {
             releaseTeardown.Set();
-            await first.WaitAsync(TimeSpan.FromSeconds(10));
-            if (second != null) await second.WaitAsync(TimeSpan.FromSeconds(10));
-            batch.RefreshState = WorkbookRefreshState.Ready;
-            batch.DisposeException = null;
         }
-        var retry = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
-        Assert.True(retry.Success, retry.ErrorMessage);
+
+        var firstResponse = await first.WaitAsync(TimeSpan.FromSeconds(10));
+        var secondResponse = await second!.WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.True(firstResponse.Success, firstResponse.ErrorMessage);
+        Assert.True(secondResponse.Success, secondResponse.ErrorMessage);
+        Assert.Contains("Excel did not confirm shutdown.", firstResponse.PartialState, StringComparison.Ordinal);
+        Assert.Equal(firstResponse.PartialState, secondResponse.PartialState);
+        Assert.Equal(firstResponse.PartialState, service.RequestShutdown());
         Assert.Equal(1, batch.DisposeCalls);
-        Assert.Equal(0, service.SessionManager.ActiveSessionCount);
+        batch.DisposeException = null;
     }
 
     [Theory]
@@ -346,7 +284,7 @@ public sealed class SessionCloseRegressionTests
     [InlineData(2)]
     [InlineData(3)]
     [InlineData(4)]
-    public async Task Shutdown_NonReadySession_RefusesAndRetainsServiceForRetry(int state)
+    public async Task Shutdown_NonReadySession_StopsAndLeavesSessionAsIs(int state)
     {
         using var service = new ExcelMcpService();
         var batch = new FakeBatch
@@ -359,20 +297,15 @@ public sealed class SessionCloseRegressionTests
         try
         {
             var response = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
-            Assert.False(response.Success);
-            Assert.Equal("Busy", response.ErrorCategory);
+            Assert.True(response.Success, response.ErrorMessage);
+            Assert.Contains("left as they are", response.PartialState, StringComparison.Ordinal);
             Assert.Equal(0, batch.DisposeCalls);
-            Assert.Same(batch, service.SessionManager.GetSession(session));
-            Assert.True((await service.ProcessAsync(new ServiceRequest { Command = "service.ping" })).Success);
+            Assert.False((await service.ProcessAsync(new ServiceRequest { Command = "session.list" })).Success);
         }
         finally
         {
             batch.RefreshState = WorkbookRefreshState.Ready;
         }
-        var retry = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
-        Assert.True(retry.Success, retry.ErrorMessage);
-        Assert.Equal(1, batch.DisposeCalls);
-        Assert.Equal(0, service.SessionManager.ActiveSessionCount);
     }
 
     [Theory]
@@ -693,12 +626,12 @@ public sealed class SessionCloseRegressionTests
 
         try
         {
-            var shutdownFailure = Assert.Throws<AggregateException>(service.Dispose);
-            var sessionFailure = Assert.Single(shutdownFailure.InnerExceptions);
-            Assert.Contains(sessionId, sessionFailure.Message, StringComparison.Ordinal);
-            Assert.Same(batch.DisposeException, sessionFailure.InnerException);
+            var report = service.RequestShutdown();
+            Assert.NotNull(report);
+            Assert.Contains(sessionId, report, StringComparison.Ordinal);
+            Assert.Contains("remains tracked", report, StringComparison.Ordinal);
             Assert.Same(batch, service.SessionManager.GetSession(sessionId));
-            Assert.Throws<AggregateException>(service.RequestShutdown);
+            service.Dispose();
         }
         finally
         {

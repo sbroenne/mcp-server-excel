@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using Sbroenne.ExcelMcp.McpServer.ServiceBridge;
 using Sbroenne.ExcelMcp.Service;
 using Xunit;
@@ -32,6 +33,23 @@ public sealed class BridgeOwnershipRegressionTests
         Assert.True(backend.Disposed);
         bridge.Dispose();
         Assert.Equal(2, backend.DisposeCalls);
+    }
+
+    [Fact]
+    public async Task Dispose_LogsShutdownReportBeforeDisposingBackend()
+    {
+        var backend = new PendingCreationBackend { ShutdownReport = "Excel process 42 was left as it is." };
+        backend.Response.SetResult(new ServiceResponse { Success = true });
+        var logger = new CapturingLogger();
+        var bridge = new ServiceBridge.ServiceBridge(() => backend, logger);
+        await bridge.SendAsync("session.list");
+
+        bridge.Dispose();
+
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal(LogLevel.Warning, entry.Level);
+        Assert.Contains("Excel process 42 was left as it is.", entry.Message, StringComparison.Ordinal);
+        Assert.True(backend.Disposed);
     }
 
     [Fact]
@@ -89,6 +107,9 @@ public sealed class BridgeOwnershipRegressionTests
         internal bool Disposed { get; private set; }
         internal Exception? DisposeFailure { get; set; }
         internal int DisposeCalls { get; private set; }
+        internal string? ShutdownReport { get; init; }
+
+        public string? RequestShutdown() => ShutdownReport;
 
         public Task<ServiceResponse> ProcessAsync(ServiceRequest request)
         {
@@ -108,5 +129,16 @@ public sealed class BridgeOwnershipRegressionTests
                 throw failure;
             Disposed = true;
         }
+    }
+
+    private sealed class CapturingLogger : ILogger<ServiceBridge.ServiceBridge>
+    {
+        internal List<(LogLevel Level, string Message)> Entries { get; } = [];
+
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter) => Entries.Add((logLevel, formatter(state, exception)));
     }
 }

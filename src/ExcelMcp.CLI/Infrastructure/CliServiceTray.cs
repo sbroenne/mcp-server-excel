@@ -15,13 +15,13 @@ internal sealed class CliServiceTray : IDisposable
     private readonly ContextMenuStrip _contextMenu;
     private readonly ToolStripMenuItem _sessionsMenu;
     private readonly SessionManager _sessionManager;
-    private readonly Action _requestShutdown;
+    private readonly Func<string?> _requestShutdown;
     private readonly System.Windows.Forms.Timer _refreshTimer;
     private readonly TaskbarNotificationWindow _taskbarWindow;
     private bool _disposed;
     private DateTime _lastBalloonShown = DateTime.MinValue;
 
-    public CliServiceTray(SessionManager sessionManager, Action requestShutdown)
+    public CliServiceTray(SessionManager sessionManager, Func<string?> requestShutdown)
     {
         _sessionManager = sessionManager;
         _requestShutdown = requestShutdown;
@@ -453,31 +453,70 @@ internal sealed class CliServiceTray : IDisposable
         return informational?.Split('+')[0] ?? assembly.GetName().Version?.ToString() ?? "0.0.0";
     }
 
-    private void ExitService() =>
-        ExitService(_sessionManager, _requestShutdown, MessageBox.Show, ShowBalloon);
+    private void ExitService()
+    {
+        var report = ExitService(_sessionManager, _requestShutdown, MessageBox.Show, ShowBalloon);
+        if (report is not null)
+            ShowReportAfterExit(report);
+    }
 
+    // Shutdown ends this thread's message loop, which would close a box shown here at once.
+    // The report gets its own thread, which the tray does not wait for: the tray can finish,
+    // so the service lock is released and a new service can start while the report is open.
+    // A foreground thread keeps this process running until the user closes the report. Until
+    // then this process still holds its claim on the reported Excel copies, so the report says
+    // to close it before attaching to them from a new service.
+    private static void ShowReportAfterExit(string report)
+    {
+        var text = report + "\n\nClose this message before attaching to these Excel copies from a new ExcelMCP service.";
+        var thread = new Thread(() =>
+            MessageBox.Show(text, "ExcelMCP CLI stopped", MessageBoxButtons.OK, MessageBoxIcon.Warning))
+        {
+            IsBackground = false
+        };
+        thread.SetApartmentState(ApartmentState.STA);
+        thread.Start();
+    }
+
+    /// <summary>
+    /// Asks what to do with open sessions, then stops the service. Returns the shutdown report,
+    /// or null when nothing was left; the caller shows the report.
+    /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
-        Justification = "Tray exit boundary reports exact save/close failures and leaves the service running; shutdown failures remain visible in a warning balloon rather than being treated as successful shutdown.")]
-    internal static void ExitService(
+        Justification = "Tray exit boundary shows exact release/save/close failures to the user. A failed requested save leaves the service running so the user can decide again; shutdown itself always completes and its report is returned.")]
+    internal static string? ExitService(
         SessionManager sessionManager,
-        Action requestShutdown,
+        Func<string?> requestShutdown,
         Func<string, string, MessageBoxButtons, MessageBoxIcon, DialogResult> showMessage,
         Action<string, string, ToolTipIcon> showBalloon)
     {
+        try
+        {
+            sessionManager.CloseSessionsClosedInExcel();
+        }
+        catch (Exception ex)
+        {
+            showMessage(
+                $"A workbook closed in Excel could not be released: {ex.Message}\n\nIts session is listed below.",
+                "Error",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Error);
+        }
+
         var sessions = sessionManager.GetActiveSessions().Where(session => !session.IsAttached).ToList();
         if (sessions.Count > 0)
         {
             var result = showMessage(
                 $"There are {sessions.Count} active session(s) opened by ExcelMCP.\n\n" +
                 "Save and close those sessions before exiting?\n\n" +
-                "Yes: save and close. No: leave unsaved workbooks open and visible without saving.\n\n" +
+                "Yes: save and close. No: close saved workbooks and leave unsaved ones open and visible without saving.\n\n" +
                 "Attached workbooks will remain open.",
                 "Exit ExcelMCP CLI",
                 MessageBoxButtons.YesNoCancel,
                 MessageBoxIcon.Question);
 
             if (result == System.Windows.Forms.DialogResult.Cancel)
-                return;
+                return null;
 
             if (result == System.Windows.Forms.DialogResult.Yes)
             {
@@ -497,19 +536,12 @@ internal sealed class CliServiceTray : IDisposable
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Error);
 
-                    return;
+                    return null;
                 }
             }
         }
 
-        try
-        {
-            requestShutdown();
-        }
-        catch (Exception ex)
-        {
-            showBalloon("Shutdown Refused", ex.Message, ToolTipIcon.Warning);
-        }
+        return requestShutdown();
     }
 
     /// <summary>

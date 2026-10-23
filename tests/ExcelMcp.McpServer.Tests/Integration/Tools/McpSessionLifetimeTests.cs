@@ -21,7 +21,7 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
 {
     [Fact]
-    public async Task CancelledStartup_DisposalRetainsOriginalExecutionAndUnsavedChanges()
+    public async Task CancelledStartup_ShutdownLeavesPendingWorkbookAndReportsIt()
     {
         var path = Path.Join(Path.GetTempPath(), $"mcp-pending-startup-{Guid.NewGuid():N}.xlsx");
         using var cancellation = new CancellationTokenSource();
@@ -62,8 +62,8 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
                 candidate => candidate.ProcessId == batch.ExcelProcessId);
             cancellation.Cancel();
             await Assert.ThrowsAnyAsync<OperationCanceledException>(() => creation);
-            var refusal = Assert.Throws<AggregateException>(bridge.Dispose);
-            Assert.IsType<ExcelBusyException>(Assert.Single(refusal.InnerExceptions).InnerException);
+            bridge.Dispose();
+            Assert.Contains($"Excel process {batch.ExcelProcessId}", backend.ShutdownReport, StringComparison.Ordinal);
             Assert.Same(batch, backend.SessionManager.GetSession(pending.SessionId));
             Assert.True(OwnedProcessGuard.MatchesLiveProcess(identity.Value));
             Assert.Equal(path, Assert.Single(backend.SessionManager.GetActiveSessions()).FilePath);
@@ -75,13 +75,9 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
             Assert.True(SpinWait.SpinUntil(
                 () => batch.GetRefreshState() == WorkbookRefreshState.Ready,
                 TimeSpan.FromSeconds(10)));
-            var saved = await backend.ProcessAsync(new ServiceRequest
-            {
-                Command = "session.save",
-                SessionId = pending.SessionId
-            });
-            Assert.True(saved.Success, saved.ErrorMessage);
-            bridge.Dispose();
+            // The stopped service refuses requests; the agent saves the handed-over workbook in Excel itself.
+            batch.Execute((context, _) => context.Book.Save());
+            backend.SessionManager.Dispose();
             Assert.Equal(0, backend.SessionManager.ActiveSessionCount);
             Assert.True(OwnedProcessGuard.TryConfirmExited(identity.Value));
 
@@ -324,6 +320,9 @@ public sealed class McpSessionLifetimeTests(ITestOutputHelper output)
         internal bool ObserveCreation { get; set; }
         internal TaskCompletionSource<ServiceResponse> Finished { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource<string> Revealed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal string? ShutdownReport { get; private set; }
+
+        public string? RequestShutdown() => ShutdownReport = _service.RequestShutdown();
 
         public async Task<ServiceResponse> ProcessAsync(ServiceRequest request)
         {

@@ -9,12 +9,16 @@ internal interface IServiceBridgeBackend : IDisposable
 {
     Task<ServiceResponse> ProcessAsync(ServiceRequest request);
     void RevealSession(string sessionId);
+
+    /// <summary>Stops accepting work and returns a report of any Excel processes left as they are.</summary>
+    string? RequestShutdown() => null;
 }
 
 internal sealed class ExcelMcpServiceBackend(Service.ExcelMcpService service) : IServiceBridgeBackend
 {
     public Task<ServiceResponse> ProcessAsync(ServiceRequest request) => service.ProcessAsync(request);
     public void RevealSession(string sessionId) => service.SessionManager.RevealForRecovery(sessionId, waitExpired: true);
+    public string? RequestShutdown() => service.RequestShutdown();
     public void Dispose() => service.Dispose();
 }
 
@@ -213,6 +217,8 @@ public sealed class ServiceBridge : IDisposable
                 _disposed = true;
                 instance = _current;
             }
+            if (instance?.RequestShutdown() is { } report)
+                _logger.LogWarning("{ShutdownReport}", report);
             instance?.Dispose();
             lock (_stateLock)
             {

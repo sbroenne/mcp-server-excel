@@ -1652,6 +1652,12 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         ExcelBusyException.ThrowIfNotReady(GetExecutionPreflightState(), "save");
         Execute((ctx, ct) =>
         {
+            if (!ExcelShutdownService.IsWorkbookOpen(_excel!, _workbook!))
+            {
+                throw new InvalidOperationException(
+                    $"'{Path.GetFileName(_workbookPath)}' was closed in Excel. Nothing was saved. " +
+                    "Close the session without saving to release it.");
+            }
             ExcelBusyException.ThrowIfNotReady(
                 ReadRefreshState(), "save");
             ExcelShutdownService.SaveWorkbookWithTimeout(
@@ -1809,6 +1815,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
             Execute((_, _) =>
             {
+                ForgetWorkbooksClosedInExcel();
                 ExcelBusyException.ThrowIfNotReady(ReadRefreshState(), "close");
                 CloseOwnedWorkbooksBeforeShutdown();
                 Interlocked.Exchange(ref _disposed, 1);
@@ -1831,8 +1838,12 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             }
             ExcelBusyException.ThrowIfNotReady(GetExecutionPreflightState(), "shutdown");
             RecoverTimedOutOperation();
-            Execute((_, _) =>
+            var shutdownWait = _operationTimeout < ComInteropConstants.ExcelQuitTimeout
+                ? _operationTimeout
+                : ComInteropConstants.ExcelQuitTimeout;
+            ExcelBatchWait.Execute(this, shutdownWait, (_, _) =>
             {
+                ForgetWorkbooksClosedInExcel();
                 ExcelBusyException.ThrowIfNotReady(ReadRefreshState(), "shutdown");
                 var alertsBeforeShutdown = _excel!.DisplayAlerts;
                 try
@@ -1872,6 +1883,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 Interlocked.Exchange(ref _disposed, 1);
                 _shutdownCts.Cancel();
                 _workQueue.Writer.TryComplete();
+                return 0;
             });
             CompleteDispose();
         }
@@ -2010,27 +2022,72 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
             _workbooks.Remove(entry.Key);
             _closedWorkbookPathsDuringShutdown.Add(entry.Key);
+            ForgetTrackedWorkbook(entry.Value, capabilities);
+        }
+    }
 
-            if (ReferenceEquals(_workbook, entry.Value))
+    /// <summary>Releases tracked workbooks the user closed in Excel, without saving anything.</summary>
+    private void ForgetWorkbooksClosedInExcel()
+    {
+        if (_excel is null || _workbooks is null)
+            return;
+
+        var capabilities = _context?.Capabilities;
+        foreach (var entry in _workbooks.ToArray())
+        {
+            if (ExcelShutdownService.IsWorkbookOpen(_excel, entry.Value))
+                continue;
+            _logger.LogInformation("Workbook {FileName} was closed in Excel; releasing it without saving",
+                Path.GetFileName(entry.Key));
+            _workbooks.Remove(entry.Key);
+            ForgetTrackedWorkbook(entry.Value, capabilities);
+        }
+    }
+
+    /// <summary>
+    /// Read-only check: true when every workbook this session opened was closed in Excel.
+    /// Returns false at once when another thread is closing or shutting down this session.
+    /// </summary>
+    internal bool AreAllWorkbooksClosedInExcel(TimeSpan timeout)
+    {
+        if (!_disposeLock.TryEnter())
+            return false;
+        try
+        {
+            if (_disposed != 0 || _attachedApplication is not null
+                || GetExecutionPreflightState() != WorkbookRefreshState.Ready)
+                return false;
+            return ExcelBatchWait.Execute(this, timeout, (_, _) =>
+                _excel is not null && _workbooks is { Count: > 0 }
+                && _workbooks.Values.All(workbook => !ExcelShutdownService.IsWorkbookOpen(_excel, workbook)));
+        }
+        finally
+        {
+            _disposeLock.Exit();
+        }
+    }
+
+    private void ForgetTrackedWorkbook(Excel.Workbook workbook, ExcelCapabilities? capabilities)
+    {
+        if (ReferenceEquals(_workbook, workbook))
+        {
+            _workbook = null;
+            _context = null;
+        }
+
+        Excel.Workbook? released = workbook;
+        ComUtilities.Release(ref released);
+
+        if (_workbook is null && _workbooks!.Count > 0)
+        {
+            var next = _workbooks.First();
+            _workbookPath = next.Key;
+            _allWorkbookPaths[0] = next.Key;
+            _workbook = next.Value;
+            _context = new ExcelContext(next.Key, _excel!, next.Value, capabilities)
             {
-                _workbook = null;
-                _context = null;
-            }
-
-            var closedWorkbook = entry.Value;
-            ComUtilities.Release(ref closedWorkbook);
-
-            if (_workbook is null && _workbooks.Count > 0)
-            {
-                var next = _workbooks.First();
-                _workbookPath = next.Key;
-                _allWorkbookPaths[0] = next.Key;
-                _workbook = next.Value;
-                _context = new ExcelContext(next.Key, _excel, next.Value, capabilities)
-                {
-                    ProcessIdentity = _excelProcessIdentity
-                };
-            }
+                ProcessIdentity = _excelProcessIdentity
+            };
         }
     }
 

@@ -185,6 +185,10 @@ or attaching to them. `service status` and `service stop` include
 `retainedExcelProcessCount` and `retainedExcelProcesses`, with each copy's
 `processId`, UTC `startTime`, and `workbookState: "unknown"`. Stopping an
 already-stopped service leaves these Excel copies open.
+`service stop` always stops the service. If a workbook was busy, waiting for a
+prompt, or its state could not be confirmed, that Excel copy is left exactly as
+it is, made visible, and reported in `shutdownWarning`; nothing is saved,
+discarded, or terminated.
 Use `session discover`, check `complete` and `errors`, then explicitly attach
 with `session attach --workbook-id <ID>` to inspect the intended workbook.
 Do not infer that an unknown workbook is empty or safe to terminate.

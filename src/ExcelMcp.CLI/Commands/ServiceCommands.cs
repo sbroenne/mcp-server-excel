@@ -88,7 +88,8 @@ internal sealed class ServiceStopCommand : AsyncCommand
                         pipeName,
                         preShutdownSnapshot,
                         cancellationToken,
-                        "Service stopped.");
+                        "Service stopped.",
+                        response.PartialState);
                 }
 
                 CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(
@@ -152,7 +153,8 @@ internal sealed class ServiceStopCommand : AsyncCommand
         string pipeName,
         OwnedProcessCleanup.ProcessSnapshot preShutdownSnapshot,
         CancellationToken cancellationToken,
-        string successMessage)
+        string successMessage,
+        string? shutdownWarning = null)
     {
         var cleanupResult = await OwnedProcessCleanup.CleanupAsync(
             pipeName,
@@ -177,6 +179,7 @@ internal sealed class ServiceStopCommand : AsyncCommand
             {
                 success = true,
                 message = successMessage,
+                shutdownWarning,
                 retainedExcelProcessCount = retained.Count,
                 retainedExcelProcesses = retained,
                 recoveryMessage = retained.Count > 0 ? OwnedProcessCleanup.RecoveryMessage : null

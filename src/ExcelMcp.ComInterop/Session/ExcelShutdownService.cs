@@ -240,8 +240,7 @@ public static class ExcelShutdownService
                     logger.LogInformation(
                         "Leaving Excel open with {WorkbookCount} workbook(s) after closing {FileName}",
                         remainingWorkbooks, fileName);
-                    if (originalDisplayAlerts is { } displayAlerts)
-                        excel.DisplayAlerts = displayAlerts;
+                    LeaveOpenAndVisible(excel, originalDisplayAlerts);
                     ComUtilities.Release(ref excel);
                     return false;
                 }
@@ -270,8 +269,7 @@ public static class ExcelShutdownService
                                 logger.LogInformation(
                                     "Leaving Excel open with {WorkbookCount} workbook(s) before Quit attempt {Attempt} for {FileName}",
                                     workbookCount, attemptNumber, fileName);
-                                if (originalDisplayAlerts is { } displayAlerts)
-                                    excel.DisplayAlerts = displayAlerts;
+                                LeaveOpenAndVisible(excel, originalDisplayAlerts);
                                 return false;
                             }
                             excel.Quit();
@@ -375,6 +373,20 @@ public static class ExcelShutdownService
         }
     }
 
+    /// <summary>
+    /// Excel still holds workbooks this session did not close. Leave them as they are, but
+    /// show Excel so the user can find them.
+    /// </summary>
+    private static void LeaveOpenAndVisible(Excel.Application excel, bool? originalDisplayAlerts)
+    {
+        if (originalDisplayAlerts is { } displayAlerts)
+            excel.DisplayAlerts = displayAlerts;
+        excel.Visible = true;
+        if (!excel.Visible)
+            throw new InvalidOperationException(
+                "Excel was left open with other workbooks, but its window could not be shown. Nothing was saved or closed.");
+    }
+
     private static int GetOpenWorkbookCount(Excel.Application excel)
     {
         Excel.Workbooks? workbooks = null;
@@ -468,7 +480,7 @@ public static class ExcelShutdownService
         }
     }
 
-    private static bool IsWorkbookOpen(Excel.Application excel, Excel.Workbook target)
+    internal static bool IsWorkbookOpen(Excel.Application excel, Excel.Workbook target)
     {
         Excel.Workbooks? workbooks = null;
         try

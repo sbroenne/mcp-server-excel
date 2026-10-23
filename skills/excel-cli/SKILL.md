@@ -44,7 +44,9 @@ work, and eventual outcome; do not automatically repeat it. Zero active requests
 does not mean Excel has finished. Inspect the workbook after completion.
 `service status` and `service stop` report recorded Excel copies from earlier
 services. Stopping an already-stopped service leaves those copies open, and
-they do not block a new service. Use discovery and explicit attachment to inspect
+they do not block a new service. `service stop` always stops the service; if a
+workbook was busy or its state could not be confirmed, that Excel copy is left
+as it is and reported in `shutdownWarning`. Use discovery and explicit attachment to inspect
 them; unknown or incomplete information is not permission to end Excel.
 For JSON errors, read `errorMessage` as the single error-text field; use
 `errorCategory` when present to guide recovery.
