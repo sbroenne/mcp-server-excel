@@ -11,7 +11,6 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 public partial class TableCommands
 {
     // Excel constants for sorting
-    private const int xlYes = 1;
     private const int xlAscending = 1;
     private const int xlDescending = 2;
 
@@ -28,11 +27,11 @@ public partial class TableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
-            dynamic? columns = null;
-            dynamic? column = null;
-            dynamic? sortRange = null;
-            dynamic? columnRange = null;
+            Excel.ListObject? table = null;
+            Excel.ListColumns? columns = null;
+            Excel.ListColumn? column = null;
+            Excel.Range? sortRange = null;
+            Excel.Range? columnRange = null;
 
             try
             {
@@ -40,7 +39,7 @@ public partial class TableCommands
 
                 // Find column
                 columns = table.ListColumns;
-                column = columns.Item(columnName);
+                column = columns[columnName];
                 if (column == null)
                 {
                     throw new InvalidOperationException($"Column '{columnName}' not found in table '{tableName}'");
@@ -91,16 +90,16 @@ public partial class TableCommands
                 throw new ArgumentException("Excel supports a maximum of 3 sort levels", nameof(sortColumns));
             }
 
-            dynamic? table = null;
-            dynamic? sortRange = null;
-            dynamic? key1 = null, key2 = null, key3 = null;
+            Excel.ListObject? table = null;
+            Excel.Range? sortRange = null;
+            Excel.Range? key1 = null, key2 = null, key3 = null;
 
             try
             {
                 table = FindTable(ctx.Book, tableName);
 
                 sortRange = table.Range;
-                dynamic? columns = null;
+                Excel.ListColumns? columns = null;
                 try
                 {
                     columns = table.ListColumns;
@@ -108,10 +107,10 @@ public partial class TableCommands
                     // Get column ranges
                     for (int i = 0; i < sortColumns.Count; i++)
                     {
-                        dynamic? col = null;
+                        Excel.ListColumn? col = null;
                         try
                         {
-                            col = columns.Item(sortColumns[i].ColumnName);
+                            col = columns[sortColumns[i].ColumnName];
                             if (col == null)
                             {
                                 throw new InvalidOperationException($"Column '{sortColumns[i].ColumnName}' not found in table '{tableName}'");
@@ -183,4 +182,3 @@ public partial class TableCommands
         });
     }
 }
-

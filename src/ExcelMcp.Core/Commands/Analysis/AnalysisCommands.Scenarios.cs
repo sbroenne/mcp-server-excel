@@ -43,7 +43,7 @@ public sealed partial class AnalysisCommands
                         {
                             Name = scenario.Name,
                             ChangingCells = changingCells.Address[true, true],
-                            Values = ConvertScenarioValues(scenario.get_Values(Type.Missing)),
+                            Values = ConvertScenarioValues((object)scenario.get_Values(Type.Missing)),
                             Comment = scenario.Comment,
                             Locked = scenario.Locked,
                             Hidden = scenario.Hidden
@@ -282,7 +282,7 @@ public sealed partial class AnalysisCommands
 
     private static void ValidateScenarioValueCount(Excel.Range changingRange, List<object?> values)
     {
-        var changingCellCount = Convert.ToInt32(changingRange.CountLarge);
+        var changingCellCount = Convert.ToInt32((object)changingRange.CountLarge, System.Globalization.CultureInfo.CurrentCulture);
         if (changingCellCount != values.Count)
         {
             throw new ArgumentException(

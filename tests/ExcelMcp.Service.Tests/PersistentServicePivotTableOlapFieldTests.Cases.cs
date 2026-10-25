@@ -1067,7 +1067,7 @@ public partial class PersistentServicePivotTableOlapFieldTests
 
                 cells = dataRange.Cells;
                 firstCell = (Excel.Range)cells[1, 1];
-                string? text = firstCell.Text?.ToString();
+                string? text = ((object)firstCell.Text)?.ToString();
                 return (numberFormat, text);
             }
             finally

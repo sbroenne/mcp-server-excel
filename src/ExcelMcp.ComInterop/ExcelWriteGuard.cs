@@ -6,11 +6,10 @@ using Excel = Microsoft.Office.Interop.Excel;
 namespace Sbroenne.ExcelMcp.ComInterop;
 
 /// <summary>
-/// Suppresses screen updating during Excel operations and restores it on disposal.
+/// Suppresses screen updating unless an open workbook has a Data Model, and restores changes on disposal.
 /// Events and calculation are unchanged; individual commands own any suppression.
 ///
-/// This guard is integrated into <see cref="Session.ExcelBatch.Execute{T}"/> so ALL operations
-/// get protection automatically — no manual suppression needed in command implementations.
+/// This guard is integrated into <see cref="Session.ExcelBatch.Execute{T}"/>.
 ///
 /// Reentrant-safe: nested guards are no-ops (ref-counted via thread-static counter).
 /// </summary>
@@ -25,13 +24,12 @@ public sealed class ExcelWriteGuard : IDisposable
     private readonly ILogger _logger;
     private readonly bool _isOutermost;
 
-    // Captured state (only set for outermost guard)
-    private bool _originalScreenUpdating;
+    private bool _screenUpdatingSuppressed;
 
     private bool _disposed;
 
     /// <summary>
-    /// Creates a new write guard that suppresses screen updating.
+    /// Creates a guard that suppresses screen updating unless an open workbook has a Data Model.
     /// Only the outermost guard in a nested chain captures and restores state.
     /// </summary>
     /// <param name="app">Excel Application COM object</param>
@@ -51,20 +49,12 @@ public sealed class ExcelWriteGuard : IDisposable
 
         try
         {
-            // Capture current state
-            _originalScreenUpdating = _app.ScreenUpdating;
-
-            // Suppress screen updating universally — safe for ALL operations.
-            // Prevents Excel from repainting during every COM call.
-            //
-            // NOTE: EnableEvents and Calculation are NOT suppressed here.
-            // Suppressing events breaks Data Model operations (AddToDataModel, CreateRelationship,
-            // CreateMeasure) which rely on internal Excel events for model synchronization.
-            // Suppressing calculation breaks PivotTable refresh and Power Query refresh.
-            // Commands that need these suppressions handle them individually.
-            if (_originalScreenUpdating)
+            // Toggling this flag can dirty a saved Data Model without any workbook edits.
+            // It affects every open workbook in the application, not just the selected one.
+            if (_app.ScreenUpdating && !HasDataModel(_app))
             {
                 _app.ScreenUpdating = false;
+                _screenUpdatingSuppressed = true;
             }
         }
         catch
@@ -72,6 +62,51 @@ public sealed class ExcelWriteGuard : IDisposable
             // Construction failed, so Dispose cannot balance the nesting count.
             _nestingDepth--;
             throw;
+        }
+    }
+
+    private static bool HasDataModel(Excel.Application app)
+    {
+        Excel.Workbooks? books = null;
+        try
+        {
+            books = app.Workbooks;
+            int bookCount = books.Count;
+            for (int bookIndex = 1; bookIndex <= bookCount; bookIndex++)
+            {
+                Excel.Workbook? book = null;
+                Excel.Connections? connections = null;
+                try
+                {
+                    book = books[bookIndex];
+                    connections = book.Connections;
+                    int connectionCount = connections.Count;
+                    for (int connectionIndex = 1; connectionIndex <= connectionCount; connectionIndex++)
+                    {
+                        Excel.WorkbookConnection? connection = null;
+                        try
+                        {
+                            connection = connections.Item(connectionIndex);
+                            if (connection.Type == Excel.XlConnectionType.xlConnectionTypeMODEL)
+                                return true;
+                        }
+                        finally
+                        {
+                            ComUtilities.Release(ref connection);
+                        }
+                    }
+                }
+                finally
+                {
+                    ComUtilities.Release(ref connections);
+                    ComUtilities.Release(ref book);
+                }
+            }
+            return false;
+        }
+        finally
+        {
+            ComUtilities.Release(ref books);
         }
     }
 
@@ -98,7 +133,7 @@ public sealed class ExcelWriteGuard : IDisposable
 
         try
         {
-            if (_originalScreenUpdating)
+            if (_screenUpdatingSuppressed)
             {
                 _app.ScreenUpdating = true;
             }

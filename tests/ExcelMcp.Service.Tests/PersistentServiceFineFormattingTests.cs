@@ -92,10 +92,10 @@ public sealed class PersistentServiceFineFormattingTests(PersistentServiceWorkbo
                     range = sheet!.Range[address];
                     borders = range.Borders;
                     border = borders[edge];
-                    Assert.Equal(style, Convert.ToInt32(border.LineStyle, CultureInfo.InvariantCulture));
-                    Assert.Equal(weight, Convert.ToInt32(border.Weight, CultureInfo.InvariantCulture));
-                    Assert.Equal(theme, Convert.ToInt32(border.ThemeColor, CultureInfo.InvariantCulture));
-                    Assert.Equal(tint, border.TintAndShade, 3);
+                    Assert.Equal(style, Convert.ToInt32(((object)border.LineStyle), CultureInfo.InvariantCulture));
+                    Assert.Equal(weight, Convert.ToInt32(((object)border.Weight), CultureInfo.InvariantCulture));
+                    Assert.Equal(theme, Convert.ToInt32(((object)border.ThemeColor), CultureInfo.InvariantCulture));
+                    Assert.Equal(tint, Convert.ToDouble((object)border.TintAndShade, CultureInfo.InvariantCulture), 3);
                     ComUtilities.Release(ref border);
                     ComUtilities.Release(ref borders);
                     ComUtilities.Release(ref range);

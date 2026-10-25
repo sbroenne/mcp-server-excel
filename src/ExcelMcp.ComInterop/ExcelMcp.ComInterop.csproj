@@ -79,9 +79,9 @@
          assembly. <ExcludeAssets>runtime</ExcludeAssets> keeps the PIA compile-only: the dll is never
          copied to output/publish and never appears in deps.json.
 
-         Net effect: the used Excel interop types are embedded, and there is NO runtime dependency on
-         office.dll (Microsoft.Office.Core) or Microsoft.Vbe.Interop.dll. No assembly-resolve shim is
-         needed in prod or tests. See docs/PIA-COVERAGE.md. -->
+         The same target embeds Office Core and VBA editor definitions from the pinned
+         ExcelDna.Interop PackageDownload. None of these interop DLLs is a runtime dependency.
+         No assembly resolver is needed in production or tests. See docs/PIA-COVERAGE.md. -->
     <PackageReference Include="Microsoft.Office.Interop.Excel">
       <!-- EmbedInteropTypes is intentionally NOT set here: the SDK ignores it on a <PackageReference>.
            Embedding is applied to the resolved reference by ForceEmbedExcelInteropTypes in Directory.Build.targets. -->

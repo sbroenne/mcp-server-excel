@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -89,7 +90,13 @@ public sealed class PivotTableOlapAllMemberTests
         {
             "get_CommandText" => "TestCube",
             "get_WorkbookConnection" => workbookConnection,
-            "get_ADOConnection" => adoFailure is null ? connection : throw adoFailure,
+            "get_ADOConnection" => adoFailure is null
+                ? ExcelInterfaceProxy.Create<ADODB._Connection>((member, args) =>
+                    member.Name == "OpenSchema"
+                        ? connection.OpenSchema(Convert.ToInt32(args![0], System.Globalization.CultureInfo.InvariantCulture),
+                            Assert.IsType<object[]>(args[1]))
+                        : throw new NotSupportedException(member.Name))
+                : throw adoFailure,
             _ => throw new NotSupportedException(name)
         });
         var pivot = FakeExcelObject.Create<Excel.PivotTable>(name => name switch

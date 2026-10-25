@@ -17,8 +17,8 @@ public partial class SheetCommands
         {
             Excel.Worksheet? sheet = null;
             Excel.Range? cell = null;
-            dynamic? pictures = null;
-            dynamic? picture = null;
+            Excel.Pictures? pictures = null;
+            Excel.Picture? picture = null;
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
@@ -33,10 +33,10 @@ public partial class SheetCommands
                     throw new InvalidOperationException($"Cell '{cellAddress}' could not be resolved.");
                 }
 
-                pictures = sheet.Pictures(Type.Missing);
+                pictures = (Excel.Pictures)sheet.Pictures(Type.Missing);
                 picture = pictures.Insert(imagePath);
-                picture.Left = cell.Left;
-                picture.Top = cell.Top;
+                picture.Left = (double)(object)cell.Left;
+                picture.Top = (double)(object)cell.Top;
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
@@ -58,7 +58,7 @@ public partial class SheetCommands
         return batch.Execute((ctx, ct) =>
         {
             Excel.Worksheet? sheet = null;
-            dynamic? pictures = null;
+            Excel.Pictures? pictures = null;
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
@@ -67,7 +67,7 @@ public partial class SheetCommands
                     throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 }
 
-                pictures = sheet.Pictures(Type.Missing);
+                pictures = (Excel.Pictures)sheet.Pictures(Type.Missing);
                 result.ImageCount = pictures.Count;
                 result.Success = true;
                 return result;

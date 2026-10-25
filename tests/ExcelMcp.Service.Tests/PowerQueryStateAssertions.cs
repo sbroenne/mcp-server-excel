@@ -147,7 +147,7 @@ internal static class PowerQueryStateAssertions
                         connection = connections.Item(index);
                         if (connection.Type != Excel.XlConnectionType.xlConnectionTypeOLEDB) { continue; }
                         oledb = connection.OLEDBConnection;
-                        string text = Convert.ToString(oledb.Connection, CultureInfo.InvariantCulture) ?? "";
+                        string text = Convert.ToString(((object)oledb.Connection), CultureInfo.InvariantCulture) ?? "";
                         if (text.StartsWith("OLEDB;", StringComparison.OrdinalIgnoreCase)) { text = text[6..]; }
                         var properties = new DbConnectionStringBuilder { ConnectionString = text };
                         if (!properties.TryGetValue("Location", out var location) ||

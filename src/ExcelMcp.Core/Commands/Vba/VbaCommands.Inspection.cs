@@ -3,6 +3,7 @@ using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Vbe = Microsoft.Vbe.Interop;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -18,11 +19,10 @@ public partial class VbaCommands
             Justification = "VBA status transports a verified Trust Center denial as ProjectAccess=false and AccessMessage; generic native failures still throw.")]
         VbaProjectStatusResult ReadStatus(ExcelContext ctx, CancellationToken ct)
         {
-            dynamic? project = null;
+            Vbe.VBProject? project = null;
             try
             {
-                // PIA gap: the VBA editor object model is not available through the supported Excel PIA.
-                project = ((dynamic)ctx.Book).VBProject;
+                project = ctx.Book.VBProject;
                 return new VbaProjectStatusResult
                 {
                     Success = true,
@@ -60,24 +60,23 @@ public partial class VbaCommands
         EnsureVbaFile(batch.WorkbookPath);
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? project = null;
-            dynamic? references = null;
+            Vbe.VBProject? project = null;
+            Vbe.References? references = null;
             try
             {
-                // PIA gap: the VBA editor object model is not available through the supported Excel PIA.
-                project = ((dynamic)ctx.Book).VBProject;
-                EnsureProjectUnlocked((object)project);
+                project = ctx.Book.VBProject;
+                EnsureProjectUnlocked(project);
                 references = project.References;
                 int count = Convert.ToInt32(references.Count, CultureInfo.InvariantCulture);
                 var result = new VbaReferencesResult { Success = true, FilePath = batch.WorkbookPath };
                 for (int index = 1; index <= count; index++)
                 {
                     ct.ThrowIfCancellationRequested();
-                    dynamic? reference = null;
+                    Vbe.Reference? reference = null;
                     try
                     {
                         reference = references.Item(index);
-                        VbaReferenceInfo info = ReadReferenceInfo((object)reference, index);
+                        VbaReferenceInfo info = ReadReferenceInfo(reference, index);
                         result.References.Add(info);
                         result.HasBrokenReferences |= info.IsBroken;
                     }
@@ -130,13 +129,12 @@ public partial class VbaCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? project = null;
-            dynamic? components = null;
+            Vbe.VBProject? project = null;
+            Vbe.VBComponents? components = null;
             try
             {
-                // PIA gap: the VBA editor object model is not available through the supported Excel PIA.
-                project = ((dynamic)ctx.Book).VBProject;
-                EnsureProjectUnlocked((object)project);
+                project = ctx.Book.VBProject;
+                EnsureProjectUnlocked(project);
                 components = project.VBComponents;
                 int count = Convert.ToInt32(components.Count, CultureInfo.InvariantCulture);
                 bool foundModule = moduleName is null;
@@ -144,8 +142,8 @@ public partial class VbaCommands
                 for (int index = 1; index <= count; index++)
                 {
                     ct.ThrowIfCancellationRequested();
-                    dynamic? component = null;
-                    dynamic? codeModule = null;
+                    Vbe.VBComponent? component = null;
+                    Vbe.CodeModule? codeModule = null;
                     try
                     {
                         component = components.Item(index);
@@ -232,9 +230,8 @@ public partial class VbaCommands
         });
     }
 
-    internal static VbaReferenceInfo ReadReferenceInfo(object referenceObject, int index)
+    internal static VbaReferenceInfo ReadReferenceInfo(Vbe.Reference reference, int index)
     {
-        dynamic reference = referenceObject;
         bool broken = Convert.ToBoolean(reference.IsBroken, CultureInfo.InvariantCulture);
         var info = new VbaReferenceInfo { Index = index, IsBroken = broken };
         // Broken references can throw when any identifying metadata is requested.
@@ -265,9 +262,8 @@ public partial class VbaCommands
         _ => throw new InvalidOperationException($"Excel returned unknown VBA project mode value {mode}.")
     };
 
-    private static void EnsureProjectUnlocked(object projectObject)
+    private static void EnsureProjectUnlocked(Vbe.VBProject project)
     {
-        dynamic project = projectObject;
         if (GetProjectProtection(Convert.ToInt32(project.Protection, CultureInfo.InvariantCulture)) == "Locked")
         {
             throw new OperationFailureException(OperationFailureCategory.Permissions,

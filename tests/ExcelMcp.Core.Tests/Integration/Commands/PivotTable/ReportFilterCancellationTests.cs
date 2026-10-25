@@ -117,9 +117,14 @@ public sealed class ReportFilterCancellationTests(TempDirectoryFixture fixture) 
             if (ExcelType == typeof(Excel.PivotTables) && targetMethod?.Name == "Item")
                 return Create<Excel.PivotTable>(Owner);
             if (ExcelType == typeof(Excel.PivotTable) && targetMethod?.Name == "PivotCache")
+            {
+                Owner.CacheReadCount++;
+                if (Owner.FailCacheRead)
+                    throw Owner.Failure;
                 return Create<Excel.PivotCache>(Owner);
+            }
             if (ExcelType == typeof(Excel.PivotCache) && targetMethod?.Name == "get_OLAP")
-                return true;
+                return Owner.Olap;
             if (ExcelType == typeof(Excel.PivotTable) && targetMethod?.Name == "get_CubeFields")
                 return CubeFields;
             throw new NotSupportedException($"Unexpected {ExcelType.Name} member: {targetMethod?.Name}");
@@ -133,6 +138,9 @@ public sealed class ReportFilterCancellationTests(TempDirectoryFixture fixture) 
         public bool WorkbookReadAttempted { get; set; }
         public bool DisconnectAtCubeFields { get; set; }
         public bool CubeFieldsReadAttempted { get; set; }
+        public bool Olap { get; set; } = true;
+        public bool FailCacheRead { get; set; }
+        public int CacheReadCount { get; set; }
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {

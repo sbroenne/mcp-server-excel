@@ -95,10 +95,10 @@ public sealed partial class PersistentServiceChartFormattingTests
                 sheets = ctx.Book.Worksheets;
                 sheet = (Excel.Worksheet)sheets[sheetName];
                 range = sheet.Range[rangeAddress];
-                return (Left: Convert.ToDouble(range.Left, CultureInfo.InvariantCulture),
-                    Top: Convert.ToDouble(range.Top, CultureInfo.InvariantCulture),
-                    Width: Convert.ToDouble(range.Width, CultureInfo.InvariantCulture),
-                    Height: Convert.ToDouble(range.Height, CultureInfo.InvariantCulture));
+                return (Left: Convert.ToDouble(((object)range.Left), CultureInfo.InvariantCulture),
+                    Top: Convert.ToDouble(((object)range.Top), CultureInfo.InvariantCulture),
+                    Width: Convert.ToDouble(((object)range.Width), CultureInfo.InvariantCulture),
+                    Height: Convert.ToDouble(((object)range.Height), CultureInfo.InvariantCulture));
             }
             finally
             {

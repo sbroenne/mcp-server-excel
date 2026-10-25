@@ -221,7 +221,7 @@ public sealed partial class PersistentServiceConnectionTests
                     table = tables.Item(pivot);
                     cache = table.PivotCache();
                     cache.CommandText = command;
-                    Assert.Equal(command, cache.CommandText);
+                    Assert.Equal(command, ((object)cache.CommandText));
                 }
                 finally
                 {

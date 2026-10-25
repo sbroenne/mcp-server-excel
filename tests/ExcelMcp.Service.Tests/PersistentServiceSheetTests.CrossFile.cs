@@ -555,14 +555,14 @@ public sealed partial class PersistentServiceSheetTests
         {
             sheet = (Excel.Worksheet)sheets[sheetName];
             values = sheet.Range["A1:C1"];
-            var cells = Assert.IsType<object[,]>(values.Value2);
+            var cells = Assert.IsType<object[,]>(((object)values.Value2));
             Assert.Equal(1, cells.GetLength(0));
             Assert.Equal(3, cells.GetLength(1));
             Assert.Equal(marker, cells[1, 1]);
             Assert.Equal(input, Convert.ToDouble(cells[1, 2], System.Globalization.CultureInfo.InvariantCulture));
             Assert.Equal(calculated, Convert.ToDouble(cells[1, 3], System.Globalization.CultureInfo.InvariantCulture));
             formula = sheet.Range["C1"];
-            Assert.Equal(expectedFormula, formula.Formula);
+            Assert.Equal(expectedFormula, ((object)formula.Formula));
         }
         finally
         {

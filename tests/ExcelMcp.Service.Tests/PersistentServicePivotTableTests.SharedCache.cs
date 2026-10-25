@@ -237,7 +237,7 @@ public sealed partial class PersistentServicePivotTableTests
             try
             {
                 cache = pivot.PivotCache();
-                Assert.Equal(table ? "SharedSales" : $"'{quotedSheet}'!R1C1:R6C4", cache.SourceData);
+                Assert.Equal(table ? "SharedSales" : $"'{quotedSheet}'!R1C1:R6C4", ((object)cache.SourceData));
                 if (table && qualified)
                     cache.SourceData = $"'{quotedSheet}'!SharedSales";
                 if (!table && qualified)
@@ -322,7 +322,7 @@ public sealed partial class PersistentServicePivotTableTests
                 wholeAxisSource = sourceSheet.Range[wholeAxisAddress];
                 ambiguousCellSource = sourceSheet.Range[nativeAddress];
                 Assert.Equal(wholeAxisAddress, Convert.ToString(
-                    context.App.ConvertFormula(nativeAddress, Excel.XlReferenceStyle.xlR1C1,
+                    (object)context.App.ConvertFormula(nativeAddress, Excel.XlReferenceStyle.xlR1C1,
                         Excel.XlReferenceStyle.xlA1, Excel.XlReferenceType.xlAbsolute),
                     CultureInfo.InvariantCulture));
                 Assert.Equal(wholeAxisAddress,
@@ -361,7 +361,7 @@ public sealed partial class PersistentServicePivotTableTests
             try
             {
                 cache = pivot.PivotCache();
-                return Assert.IsType<string>(cache.SourceData);
+                return Assert.IsType<string>(((object)cache.SourceData));
             }
             finally
             {

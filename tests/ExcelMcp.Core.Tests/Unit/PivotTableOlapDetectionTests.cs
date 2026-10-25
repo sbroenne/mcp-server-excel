@@ -28,10 +28,7 @@ public sealed class PivotTableOlapDetectionTests
     [Fact]
     public void DisconnectProxy_ReachesCubeFieldsThroughTypedExcelLookup()
     {
-        var owner = new ReportFilterCancellationTests.DisconnectedBatch
-        {
-            Failure = new FailingPivot(ResiliencePipelines.RPC_E_DISCONNECTED).Failure
-        };
+        var (_, owner) = CreatePivot(ResiliencePipelines.RPC_E_DISCONNECTED);
         var sheets = ReportFilterCancellationTests.DisconnectedPivotObjects.Create<Excel.Sheets>(owner);
         var sheet = (Excel.Worksheet)sheets["Sheet"];
         var pivots = (Excel.PivotTables)sheet.PivotTables();
@@ -48,101 +45,78 @@ public sealed class PivotTableOlapDetectionTests
     [InlineData(ResiliencePipelines.RPC_E_DISCONNECTED)]
     public void IsOlapPivotTable_DisconnectedCubeFields_PropagatesOriginalFailure(int hresult)
     {
-        var pivot = new FailingPivot(hresult);
+        var (pivot, owner) = CreatePivot(hresult);
 
         var error = Assert.Throws<COMException>(() => PivotTableHelpers.IsOlapPivotTable(pivot));
 
-        Assert.Same(pivot.Failure, error);
-        Assert.True(pivot.CubeFieldsReadAttempted);
+        Assert.Same(owner.Failure, error);
+        Assert.True(owner.CubeFieldsReadAttempted);
     }
 
     [Fact]
     public void IsOlapPivotTable_AmbiguousNativeFailure_PropagatesOriginalError()
     {
-        var pivot = new FailingPivot(unchecked((int)0x800A03EC));
+        var (pivot, owner) = CreatePivot(unchecked((int)0x800A03EC));
 
-        Assert.Same(pivot.Failure, Assert.Throws<COMException>(() => PivotTableHelpers.IsOlapPivotTable(pivot)));
-        Assert.True(pivot.CubeFieldsReadAttempted);
+        Assert.Same(owner.Failure, Assert.Throws<COMException>(() => PivotTableHelpers.IsOlapPivotTable(pivot)));
+        Assert.True(owner.CubeFieldsReadAttempted);
     }
 
     [Fact]
     public void RegularPivot_DoesNotProbeOlapOnlyCubeFields()
     {
-        var pivot = new FailingPivot(unchecked((int)0x800A03EC), false);
+        var (pivot, owner) = CreatePivot(unchecked((int)0x800A03EC), olap: false);
 
         Assert.False(PivotTableHelpers.IsOlapPivotTable(pivot));
-        Assert.Equal(1, pivot.CacheReadCount);
-        Assert.False(pivot.CubeFieldsReadAttempted);
+        Assert.Equal(1, owner.CacheReadCount);
+        Assert.False(owner.CubeFieldsReadAttempted);
     }
 
     [Fact]
     public void TryGetCubeFields_RegularCache_DoesNotProbeOlapOnlyMembers()
     {
-        var pivot = new FailingPivot(unchecked((int)0x800A03EC), false);
+        var (pivot, owner) = CreatePivot(unchecked((int)0x800A03EC), olap: false);
 
-        Assert.False(PivotTableHelpers.TryGetCubeFields(pivot, out dynamic? fields));
+        Assert.False(PivotTableHelpers.TryGetCubeFields(pivot, out Excel.CubeFields? fields));
 
-        Assert.Null((object?)fields);
-        Assert.Equal(1, pivot.CacheReadCount);
-        Assert.False(pivot.CubeFieldsReadAttempted);
+        Assert.Null(fields);
+        Assert.Equal(1, owner.CacheReadCount);
+        Assert.False(owner.CubeFieldsReadAttempted);
     }
 
     [Fact]
     public void TryGetCubeFields_AmbiguousNativeFailure_PropagatesOriginalError()
     {
-        var pivot = new FailingPivot(unchecked((int)0x800A03EC));
+        var (pivot, owner) = CreatePivot(unchecked((int)0x800A03EC));
 
         var error = Assert.Throws<COMException>(() => PivotTableHelpers.TryGetCubeFields(pivot, out _));
 
-        Assert.Same(pivot.Failure, error);
-        Assert.Equal(1, pivot.CacheReadCount);
-        Assert.True(pivot.CubeFieldsReadAttempted);
+        Assert.Same(owner.Failure, error);
+        Assert.Equal(1, owner.CacheReadCount);
+        Assert.True(owner.CubeFieldsReadAttempted);
     }
 
     [Fact]
     public void IsOlapPivotTable_CacheMethodFailure_PropagatesOriginalError()
     {
-        var pivot = new FailingCachePivot();
+        var (pivot, owner) = CreatePivot(unchecked((int)0x800A03EC), failCacheRead: true);
 
-        Assert.Same(pivot.Failure, Assert.Throws<COMException>(() => PivotTableHelpers.IsOlapPivotTable(pivot)));
+        Assert.Same(owner.Failure, Assert.Throws<COMException>(() => PivotTableHelpers.IsOlapPivotTable(pivot)));
+        Assert.Equal(1, owner.CacheReadCount);
+        Assert.False(owner.CubeFieldsReadAttempted);
     }
 
-    public sealed class FailingPivot(int hresult, bool olap = true)
+    private static (Excel.PivotTable Pivot, ReportFilterCancellationTests.DisconnectedBatch Owner) CreatePivot(
+        int hresult, bool olap = true, bool failCacheRead = false)
     {
-        private readonly CacheState _cache = new(olap);
-        public int CacheReadCount { get; private set; }
-
-        public CacheState PivotCache()
+        var owner = new ReportFilterCancellationTests.DisconnectedBatch
         {
-            CacheReadCount++;
-            return _cache;
-        }
-
-#pragma warning disable CA2201 // Simulate Excel's CubeFields failure without starting Excel.
-        public COMException Failure { get; } = new("Injected CubeFields failure.", hresult);
+#pragma warning disable CA2201 // Inject a native PivotTable failure without starting Excel.
+            Failure = new COMException("Injected PivotTable failure.", hresult),
 #pragma warning restore CA2201
-        public bool CubeFieldsReadAttempted { get; private set; }
-
-        public object CubeFields
-        {
-            get
-            {
-                CubeFieldsReadAttempted = true;
-                throw Failure;
-            }
-        }
-    }
-
-    public sealed class FailingCachePivot
-    {
-#pragma warning disable CA2201 // Simulate a native PivotCache() acquisition failure without starting Excel.
-        public COMException Failure { get; } = new("Injected PivotCache failure.", unchecked((int)0x800A03EC));
-#pragma warning restore CA2201
-        public CacheState PivotCache() => throw Failure;
-    }
-
-    public sealed class CacheState(bool olap)
-    {
-        public bool OLAP { get; } = olap;
+            Olap = olap,
+            FailCacheRead = failCacheRead
+        };
+        return (ReportFilterCancellationTests.DisconnectedPivotObjects.Create<Excel.PivotTable>(owner), owner);
     }
 }

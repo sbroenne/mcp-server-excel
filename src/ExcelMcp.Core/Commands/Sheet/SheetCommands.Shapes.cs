@@ -1,8 +1,8 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
-using Sbroenne.ExcelMcp.Core.Commands.Drawing;
 using Sbroenne.ExcelMcp.Core.Models;
 using Excel = Microsoft.Office.Interop.Excel;
+using Office = Microsoft.Office.Core;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -18,10 +18,10 @@ public partial class SheetCommands
         {
             Excel.Worksheet? sheet = null;
             Excel.Range? cell = null;
-            dynamic? shapes = null;
-            dynamic? shape = null;
-            dynamic? textFrame = null;
-            dynamic? characters = null;
+            Excel.Shapes? shapes = null;
+            Excel.Shape? shape = null;
+            Excel.TextFrame? textFrame = null;
+            Excel.Characters? characters = null;
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
@@ -38,16 +38,14 @@ public partial class SheetCommands
 
                 shapes = sheet.Shapes;
 
-                // PIA gap: AddShape requires Office.Core.MsoAutoShapeType, while this project intentionally has no office.dll reference.
-                dynamic lateBoundShapes = (dynamic)(object)shapes;
-                shape = lateBoundShapes.AddShape(
-                    (int)DrawingShapeType.Rectangle,
-                    Convert.ToSingle(cell.Left),
-                    Convert.ToSingle(cell.Top),
+                shape = shapes.AddShape(
+                    Office.MsoAutoShapeType.msoShapeRectangle,
+                    Convert.ToSingle((object)cell.Left, System.Globalization.CultureInfo.CurrentCulture),
+                    Convert.ToSingle((object)cell.Top, System.Globalization.CultureInfo.CurrentCulture),
                     144f,
                     72f);
                 textFrame = shape.TextFrame;
-                characters = textFrame.Characters;
+                characters = textFrame.Characters();
                 characters.Text = "Shape";
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
@@ -72,7 +70,7 @@ public partial class SheetCommands
         return batch.Execute((ctx, ct) =>
         {
             Excel.Worksheet? sheet = null;
-            dynamic? shapes = null;
+            Excel.Shapes? shapes = null;
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);

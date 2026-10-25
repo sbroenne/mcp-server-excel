@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 
 namespace Sbroenne.ExcelMcp.Core.Models;
 
@@ -27,7 +28,8 @@ public class DataModelColumnInfo
     public string DataTypeName { get; init; } = "";
 
     /// <summary>
-    /// Whether this is a calculated column (has DAX formula)
+    /// Whether this is a calculated column, or null when Excel cannot expose that information.
     /// </summary>
-    public bool IsCalculated { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.Never)]
+    public bool? IsCalculated { get; init; }
 }

@@ -54,19 +54,19 @@ public sealed class PersistentServiceFormatTranslationTests(
                     // Excel's built-in month/year format substitutes regional punctuation.
                     // Render each date component independently to check the requested hyphen.
                     native.NumberFormat = "mmm";
-                    var month = Assert.IsType<string>(native.Text);
+                    var month = Assert.IsType<string>(((object)native.Text));
                     native.NumberFormat = "yy";
-                    var year = Assert.IsType<string>(native.Text);
-                    Assert.Equal($"{month}-{year}", actual.Text);
+                    var year = Assert.IsType<string>(((object)native.Text));
+                    Assert.Equal($"{month}-{year}", ((object)actual.Text));
                 }
                 else
                 {
-                    Assert.Equal(native.Text, actual.Text);
-                    Assert.Equal(native.NumberFormat, actual.NumberFormat);
+                    Assert.Equal(((object)native.Text), ((object)actual.Text));
+                    Assert.Equal(((object)native.NumberFormat), ((object)actual.NumberFormat));
                 }
-                Assert.Equal(format, actual.NumberFormat);
-                Assert.Equal(45000.75, Assert.IsType<double>(actual.Value2));
-                Assert.Equal(45000.75, Assert.IsType<double>(native.Value2));
+                Assert.Equal(format, ((object)actual.NumberFormat));
+                Assert.Equal(45000.75, Assert.IsType<double>(((object)actual.Value2)));
+                Assert.Equal(45000.75, Assert.IsType<double>(((object)native.Value2)));
             }
             finally
             {
@@ -107,8 +107,8 @@ public sealed class PersistentServiceFormatTranslationTests(
                 Assert.Equal(expectedText
                     .Replace("{decimal}", ctx.FormatTranslator.DecimalSeparator, StringComparison.Ordinal)
                     .Replace("{group}", ctx.FormatTranslator.ThousandsSeparator, StringComparison.Ordinal),
-                    cell.Text);
-                Assert.Equal(value, Assert.IsType<double>(cell.Value2));
+                    (object)cell.Text);
+                Assert.Equal(value, Assert.IsType<double>(((object)cell.Value2)));
             }
             finally
             {
@@ -143,16 +143,16 @@ public sealed class PersistentServiceFormatTranslationTests(
                 sheet = (Microsoft.Office.Interop.Excel.Worksheet)sheets[sheetName];
                 writtenCell = sheet.Range["A1"];
                 nativeCell = sheet.Range["B1"];
-                Assert.Equal(returnedFormat, writtenCell.NumberFormat);
+                Assert.Equal(returnedFormat, ((object)writtenCell.NumberFormat));
                 nativeCell.NumberFormat = "$#,##0.00";
                 var digits = $"1{ctx.FormatTranslator.ThousandsSeparator}234{ctx.FormatTranslator.DecimalSeparator}56";
                 var nativeCurrency = Convert.ToString(
-                    ctx.App.International[Microsoft.Office.Interop.Excel.XlApplicationInternational.xlCurrencyCode],
+                    (object)ctx.App.International[Microsoft.Office.Interop.Excel.XlApplicationInternational.xlCurrencyCode],
                     CultureInfo.InvariantCulture);
-                Assert.Equal("$" + digits, writtenCell.Text);
-                Assert.Equal(nativeCurrency + digits, nativeCell.Text);
-                Assert.Equal(1234.56, Assert.IsType<double>(writtenCell.Value2));
-                Assert.Equal(1234.56, Assert.IsType<double>(nativeCell.Value2));
+                Assert.Equal("$" + digits, ((object)writtenCell.Text));
+                Assert.Equal(nativeCurrency + digits, ((object)nativeCell.Text));
+                Assert.Equal(1234.56, Assert.IsType<double>(((object)writtenCell.Value2)));
+                Assert.Equal(1234.56, Assert.IsType<double>(((object)nativeCell.Value2)));
             }
             finally
             {
@@ -235,8 +235,8 @@ public sealed class PersistentServiceFormatTranslationTests(
                             Assert.Equal(formats[index], read.Formats[row][col]);
                             Assert.Equal(expected[index]
                                 .Replace("{decimal}", ctx.FormatTranslator.DecimalSeparator, StringComparison.Ordinal)
-                                .Replace("{group}", ctx.FormatTranslator.ThousandsSeparator, StringComparison.Ordinal), cell.Text);
-                            Assert.Equal(values[index], Assert.IsType<double>(cell.Value2));
+                                .Replace("{group}", ctx.FormatTranslator.ThousandsSeparator, StringComparison.Ordinal), ((object)cell.Text));
+                            Assert.Equal(values[index], Assert.IsType<double>(((object)cell.Value2)));
                         }
                         finally
                         {
@@ -280,8 +280,8 @@ public sealed class PersistentServiceFormatTranslationTests(
                     sheets = ctx.Book.Worksheets;
                     sheet = (Microsoft.Office.Interop.Excel.Worksheet)sheets[sheetName];
                     cell = sheet.Range["A1"];
-                    Assert.Equal(0.125, Assert.IsType<double>(cell.Value2));
-                    Assert.Equal($"12{ctx.FormatTranslator.DecimalSeparator}50%", cell.Text);
+                    Assert.Equal(0.125, Assert.IsType<double>(((object)cell.Value2)));
+                    Assert.Equal($"12{ctx.FormatTranslator.DecimalSeparator}50%", ((object)cell.Text));
                 }
                 finally
                 {
@@ -317,10 +317,10 @@ public sealed class PersistentServiceFormatTranslationTests(
                 sheet = (Microsoft.Office.Interop.Excel.Worksheet)sheets[sheetName];
                 below = sheet.Range["A1"];
                 above = sheet.Range["A2"];
-                Assert.Equal("low", below.Text);
-                Assert.Equal("high", above.Text);
-                Assert.Equal(1.25, Assert.IsType<double>(below.Value2));
-                Assert.Equal(1.75, Assert.IsType<double>(above.Value2));
+                Assert.Equal("low", ((object)below.Text));
+                Assert.Equal("high", ((object)above.Text));
+                Assert.Equal(1.25, Assert.IsType<double>(((object)below.Value2)));
+                Assert.Equal(1.75, Assert.IsType<double>(((object)above.Value2)));
             }
             finally
             {
@@ -465,8 +465,8 @@ public sealed class PersistentServiceFormatTranslationTests(
                     {
                         cell = sheet.Range[address];
                         cell.ColumnWidth = 50;
-                        return new FormattedCell(Assert.IsType<string>(cell.NumberFormat),
-                            Assert.IsType<string>(cell.Text), Assert.IsType<double>(cell.Value2));
+                        return new FormattedCell(Assert.IsType<string>(((object)cell.NumberFormat)),
+                            Assert.IsType<string>(((object)cell.Text)), Assert.IsType<double>(((object)cell.Value2)));
                     }
                     finally { ComUtilities.Release(ref cell); }
                 }).ToArray();

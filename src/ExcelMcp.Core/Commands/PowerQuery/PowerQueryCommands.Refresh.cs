@@ -627,7 +627,8 @@ public partial class PowerQueryCommands
                                 continue;
                             queryTable = table.QueryTable;
 
-                            string? connectionString = queryTable.Connection?.ToString();
+                            object? connectionValue = queryTable.Connection;
+                            string? connectionString = connectionValue?.ToString();
                             if (queryNames.Any(queryName =>
                                 PowerQuery.PowerQueryHelpers.MatchesMashupLocation(
                                     connectionString,

@@ -140,6 +140,10 @@ public interface IConnectionCommands
     /// <summary>
     /// Loads connection data to a worksheet, replacing only QueryTables owned by
     /// the exact WorkbookConnection.
+    /// Existing text/web imports retain their extraction, formatting and refresh settings.
+    /// Moving one requires exactly one linked import; loading again at its existing A1 refreshes it.
+    /// A failure after copying reports both import locations and the copied connection.
+    /// Changes are not rolled back; inspect the reported imports before retrying.
     /// </summary>
     /// <param name="batch">Excel batch session</param>
     /// <param name="connectionName">Name of the connection</param>

@@ -93,8 +93,8 @@ public partial class RangeCommands
         try
         {
             destination = target.Resize[rows, columns];
-            if (RangeMergeDiscovery.GetMergeCellsState(source.MergeCells) != false ||
-                RangeMergeDiscovery.GetMergeCellsState(destination.MergeCells) != false)
+            if (RangeMergeDiscovery.GetMergeCellsState((object)source.MergeCells) != false ||
+                RangeMergeDiscovery.GetMergeCellsState((object)destination.MergeCells) != false)
             {
                 throw new OperationFailureException(
                     OperationFailureCategory.Conflict,

@@ -78,7 +78,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
                     Assert.Equal(2, sheets.Count);
                     sheet = (Excel.Worksheet)sheets["Sheet1"];
                     cell = sheet.Range["A1"];
-                    Assert.Equal("edit made during close", cell.Value2);
+                    Assert.Equal("edit made during close", ((object)cell.Value2));
                 }
                 finally
                 {

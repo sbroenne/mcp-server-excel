@@ -3,6 +3,7 @@ using System.IO.Compression;
 using System.Xml.Linq;
 using Sbroenne.ExcelMcp.ComInterop;
 using Excel = Microsoft.Office.Interop.Excel;
+using Office = Microsoft.Office.Core;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -20,22 +21,27 @@ public sealed class PersistentServiceWorkbookThemeTests(PersistentServiceWorkboo
     {
         _fixture.ExecuteRawVerification((context, _) =>
         {
-            dynamic? nativeTheme = null;
-            dynamic? fontScheme = null;
+            Office.OfficeTheme? nativeTheme = null;
+            Office.ThemeFontScheme? fontScheme = null;
+            Office.ThemeFonts? majorFonts = null;
+            Office.ThemeFonts? minorFonts = null;
             try
             {
-                nativeTheme = ((dynamic)context.Book).Theme;
+                nativeTheme = context.Book.Theme;
                 fontScheme = nativeTheme.ThemeFontScheme;
+                majorFonts = fontScheme.MajorFont;
+                minorFonts = fontScheme.MinorFont;
                 string[] majorNames = ["Cambria", "Tahoma", "Yu Mincho"];
                 string[] minorNames = ["Calibri", "Arial", "Yu Gothic"];
                 for (int index = 1; index <= majorNames.Length; index++)
                 {
-                    dynamic? majorFont = null;
-                    dynamic? minorFont = null;
+                    Office.ThemeFont? majorFont = null;
+                    Office.ThemeFont? minorFont = null;
                     try
                     {
-                        majorFont = fontScheme.MajorFont(index);
-                        minorFont = fontScheme.MinorFont(index);
+                        var language = (Office.MsoFontLanguageIndex)index;
+                        majorFont = majorFonts.Item(language);
+                        minorFont = minorFonts.Item(language);
                         majorFont.Name = majorNames[index - 1];
                         minorFont.Name = minorNames[index - 1];
                     }
@@ -48,6 +54,8 @@ public sealed class PersistentServiceWorkbookThemeTests(PersistentServiceWorkboo
             }
             finally
             {
+                ComUtilities.Release(ref minorFonts);
+                ComUtilities.Release(ref majorFonts);
                 ComUtilities.Release(ref fontScheme);
                 ComUtilities.Release(ref nativeTheme);
             }
@@ -112,14 +120,14 @@ public sealed class PersistentServiceWorkbookThemeTests(PersistentServiceWorkboo
         RequireSuccess(prepared);
         _fixture.ExecuteRawVerification((ctx, _) =>
         {
-            dynamic? nativeTheme = null;
-            dynamic? colors = null;
-            dynamic? accent = null;
+            Office.OfficeTheme? nativeTheme = null;
+            Office.ThemeColorScheme? colors = null;
+            Office.ThemeColor? accent = null;
             try
             {
-                nativeTheme = ((dynamic)ctx.Book).Theme;
+                nativeTheme = ctx.Book.Theme;
                 colors = nativeTheme.ThemeColorScheme;
-                accent = colors.Colors(5);
+                accent = colors.Colors(Office.MsoThemeColorSchemeIndex.msoThemeAccent1);
                 accent.RGB = Convert.ToInt32(accent.RGB) ^ 0xFFFFFF;
             }
             finally
@@ -197,14 +205,14 @@ public sealed class PersistentServiceWorkbookThemeTests(PersistentServiceWorkboo
             Excel.Interior? themedFill = null;
             Excel.Range? fixedCell = null;
             Excel.Interior? fixedFill = null;
-            dynamic? nativeTheme = null;
-            dynamic? themeColors = null;
-            dynamic? accent = null;
+            Office.OfficeTheme? nativeTheme = null;
+            Office.ThemeColorScheme? themeColors = null;
+            Office.ThemeColor? accent = null;
             try
             {
-                nativeTheme = ((dynamic)ctx.Book).Theme;
+                nativeTheme = ctx.Book.Theme;
                 themeColors = nativeTheme.ThemeColorScheme;
-                accent = themeColors.Colors(5);
+                accent = themeColors.Colors(Office.MsoThemeColorSchemeIndex.msoThemeAccent1);
                 accent.RGB = Convert.ToInt32(accent.RGB) ^ 0xFFFFFF;
                 sheets = ctx.Book.Worksheets;
                 sheet = (Excel.Worksheet)sheets[sheetName];

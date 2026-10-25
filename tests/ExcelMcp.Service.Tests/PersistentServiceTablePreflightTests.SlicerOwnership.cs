@@ -32,9 +32,34 @@ public sealed partial class PersistentServiceTablePreflightTests
                     BindingFlags.Static | BindingFlags.NonPublic);
                 Assert.NotNull(lookup);
                 probe = new DeletedNativeSlicerProbe(slicers);
+                var probeSlicers = SlicerOwnershipProxy.Create<Excel.Slicers>((member, args) =>
+                    member.Name switch
+                    {
+                        "get_Count" => probe.Count,
+                        "get_Item" or "get__Default" or "Item" => probe.Item(Assert.IsType<int>(args![0])),
+                        _ => throw new NotSupportedException(member.Name)
+                    });
+                var probeCache = SlicerOwnershipProxy.Create<Excel.SlicerCache>((member, _) =>
+                    member.Name switch
+                    {
+                        "get_List" => true,
+                        "get_Slicers" => probeSlicers,
+                        _ => throw new NotSupportedException(member.Name)
+                    });
+                var probeCaches = SlicerOwnershipProxy.Create<Excel.SlicerCaches>((member, args) =>
+                {
+                    if (member.Name == "get_Count")
+                        return 1;
+                    if (member.Name is "get_Item" or "get__Default" or "Item")
+                    {
+                        Assert.Equal(1, Assert.IsType<int>(args![0]));
+                        return probeCache;
+                    }
+                    throw new NotSupportedException(member.Name);
+                });
 
                 var wrapper = Assert.Throws<TargetInvocationException>(() =>
-                    lookup.Invoke(null, [new SlicerOwnershipCaches(probe), "OwnershipSlicer"]));
+                    lookup.Invoke(null, [probeCaches, "OwnershipSlicer"]));
                 Assert.False(ComErrors.IsMemberUnavailable(Assert.IsType<COMException>(wrapper.InnerException)));
                 Assert.True(probe.Deleted);
 
@@ -55,20 +80,20 @@ public sealed partial class PersistentServiceTablePreflightTests
         AssertVisibleRegions(["North", "South", "East", "West"]);
     }
 
-    public sealed class SlicerOwnershipCaches(DeletedNativeSlicerProbe slicers)
+    public class SlicerOwnershipProxy : DispatchProxy
     {
-        public int Count { get; } = 1;
-        public SlicerOwnershipCache Item(int index)
-        {
-            Assert.Equal(1, index);
-            return new SlicerOwnershipCache(slicers);
-        }
-    }
+        public Func<MethodInfo, object?[]?, object?> Read { get; set; } = null!;
 
-    public sealed class SlicerOwnershipCache(DeletedNativeSlicerProbe slicers)
-    {
-        public bool List { get; } = true;
-        public DeletedNativeSlicerProbe Slicers => slicers;
+        public static T Create<T>(Func<MethodInfo, object?[]?, object?> read) where T : class
+        {
+            var interfaceType = typeof(TableCommands).Assembly.GetType(typeof(T).FullName!, throwOnError: true)!;
+            var value = (T)Create(interfaceType, typeof(SlicerOwnershipProxy));
+            ((SlicerOwnershipProxy)(object)value).Read = read;
+            return value;
+        }
+
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) =>
+            Read(targetMethod ?? throw new InvalidOperationException("No intercepted slicer interface member."), args);
     }
 
     public sealed class DeletedNativeSlicerProbe(Excel.Slicers slicers)

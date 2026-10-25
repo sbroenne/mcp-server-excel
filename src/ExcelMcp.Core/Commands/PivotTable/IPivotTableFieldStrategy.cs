@@ -1,3 +1,4 @@
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.Core.Models;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
@@ -9,70 +10,59 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 public interface IPivotTableFieldStrategy
 {
     /// <summary>
-    /// Determines if this strategy can handle the given PivotTable
-    /// </summary>
-    bool CanHandle(dynamic pivot);
-
-    /// <summary>
-    /// Gets a field for manipulation from the PivotTable.
-    /// Returns CubeField for OLAP, PivotField for regular.
-    /// </summary>
-    dynamic GetFieldForManipulation(dynamic pivot, string fieldName);
-
-    /// <summary>
     /// Lists all fields in the PivotTable
     /// </summary>
-    PivotFieldListResult ListFields(dynamic pivot, string workbookPath);
+    PivotFieldListResult ListFields(Excel.PivotTable pivot, string workbookPath);
 
     /// <summary>
     /// Adds a field to the Row area
     /// </summary>
-    PivotFieldResult AddRowField(dynamic pivot, string fieldName, int? position, string workbookPath);
+    PivotFieldResult AddRowField(Excel.PivotTable pivot, string fieldName, int? position, string workbookPath);
 
     /// <summary>
     /// Adds a field to the Column area
     /// </summary>
-    PivotFieldResult AddColumnField(dynamic pivot, string fieldName, int? position, string workbookPath);
+    PivotFieldResult AddColumnField(Excel.PivotTable pivot, string fieldName, int? position, string workbookPath);
 
     /// <summary>
     /// Adds a field to the Values area with aggregation
     /// </summary>
-    PivotFieldResult AddValueField(dynamic pivot, string fieldName, AggregationFunction aggregationFunction, string? customName, string workbookPath);
+    PivotFieldResult AddValueField(Excel.PivotTable pivot, string fieldName, AggregationFunction aggregationFunction, string? customName, string workbookPath);
 
     /// <summary>
     /// Adds a field to the Filter area
     /// </summary>
-    PivotFieldResult AddFilterField(dynamic pivot, string fieldName, string workbookPath);
+    PivotFieldResult AddFilterField(Excel.PivotTable pivot, string fieldName, string workbookPath);
 
     /// <summary>
     /// Removes a field from any area
     /// </summary>
-    PivotFieldResult RemoveField(dynamic pivot, string fieldName, string workbookPath);
+    PivotFieldResult RemoveField(Excel.PivotTable pivot, string fieldName, string workbookPath);
 
     /// <summary>
     /// Sets custom name for a field
     /// </summary>
-    PivotFieldResult SetFieldName(dynamic pivot, string fieldName, string customName, string workbookPath);
+    PivotFieldResult SetFieldName(Excel.PivotTable pivot, string fieldName, string customName, string workbookPath);
 
     /// <summary>
     /// Sets aggregation function for a value field
     /// </summary>
-    PivotFieldResult SetFieldFunction(dynamic pivot, string fieldName, AggregationFunction aggregationFunction, string workbookPath);
+    PivotFieldResult SetFieldFunction(Excel.PivotTable pivot, string fieldName, AggregationFunction aggregationFunction, string workbookPath);
 
     /// <summary>
     /// Sets format for a value field
     /// </summary>
-    PivotFieldResult SetFieldFormat(dynamic pivot, string fieldName, string numberFormat, string workbookPath);
+    PivotFieldResult SetFieldFormat(Excel.PivotTable pivot, string fieldName, string numberFormat, string workbookPath);
 
     /// <summary>
     /// Sets filter for a field
     /// </summary>
-    PivotFieldFilterResult SetFieldFilter(dynamic pivot, string fieldName, List<string> filterValues, string workbookPath);
+    PivotFieldFilterResult SetFieldFilter(Excel.PivotTable pivot, string fieldName, List<string> filterValues, string workbookPath);
 
     /// <summary>
     /// Sorts a field
     /// </summary>
-    PivotFieldResult SortField(dynamic pivot, string fieldName, SortDirection direction, string workbookPath);
+    PivotFieldResult SortField(Excel.PivotTable pivot, string fieldName, SortDirection direction, string workbookPath);
 
     /// <summary>
     /// Groups a date/time field by specified interval (Days, Months, Quarters, Years).
@@ -88,7 +78,7 @@ public interface IPivotTableFieldStrategy
     /// sheet.Range["D2:D6"].NumberFormat = "m/d/yyyy";
     /// </code>
     /// </remarks>
-    PivotFieldResult GroupByDate(dynamic pivot, string fieldName, DateGroupingInterval interval, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
+    PivotFieldResult GroupByDate(Excel.PivotTable pivot, string fieldName, DateGroupingInterval interval, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
 
     /// <summary>
     /// Groups a numeric field by specified interval (e.g., 0-10, 10-20, 20-30).
@@ -106,7 +96,7 @@ public interface IPivotTableFieldStrategy
     /// Source data should be formatted with numeric NumberFormat for reliable grouping.
     /// If start/end are null, Excel automatically uses the field's minimum/maximum values.
     /// </remarks>
-    PivotFieldResult GroupByNumeric(dynamic pivot, string fieldName, double? start, double? endValue, double intervalSize, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
+    PivotFieldResult GroupByNumeric(Excel.PivotTable pivot, string fieldName, double? start, double? endValue, double intervalSize, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
 
     /// <summary>
     /// Creates a calculated field with a custom formula.
@@ -135,7 +125,7 @@ public interface IPivotTableFieldStrategy
     /// - Variance: Actual - Budget, (Actual-Budget)/Budget
     /// - Ratios: Cost/Unit, Revenue/Customer
     /// </remarks>
-    PivotFieldResult CreateCalculatedField(dynamic pivot, string fieldName, string formula, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
+    PivotFieldResult CreateCalculatedField(Excel.PivotTable pivot, string fieldName, string formula, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
 
     /// <summary>
     /// Sets the row layout form for the PivotTable.
@@ -155,7 +145,7 @@ public interface IPivotTableFieldStrategy
     /// - Regular PivotTables: Full support for all three forms
     /// - OLAP PivotTables: Full support for all three forms
     /// </remarks>
-    OperationResult SetLayout(dynamic pivot, int rowLayout, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
+    OperationResult SetLayout(Excel.PivotTable pivot, int rowLayout, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
 
     /// <summary>
     /// Shows or hides subtotals for a specific row field.
@@ -175,7 +165,7 @@ public interface IPivotTableFieldStrategy
     /// - OLAP PivotTables only support Automatic subtotals
     /// - Regular PivotTables can choose Sum, Count, Average, etc. (future enhancement)
     /// </remarks>
-    PivotFieldResult SetSubtotals(dynamic pivot, string fieldName, bool showSubtotals, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
+    PivotFieldResult SetSubtotals(Excel.PivotTable pivot, string fieldName, bool showSubtotals, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
 
     /// <summary>
     /// Shows or hides grand totals for rows and/or columns in the PivotTable.
@@ -196,7 +186,6 @@ public interface IPivotTableFieldStrategy
     /// - Regular PivotTables: Full support
     /// - OLAP PivotTables: Full support
     /// </remarks>
-    OperationResult SetGrandTotals(dynamic pivot, bool showRowGrandTotals, bool showColumnGrandTotals, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
+    OperationResult SetGrandTotals(Excel.PivotTable pivot, bool showRowGrandTotals, bool showColumnGrandTotals, string workbookPath, Microsoft.Extensions.Logging.ILogger? logger = null);
 }
-
 

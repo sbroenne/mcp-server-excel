@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Runtime.InteropServices;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -10,6 +9,42 @@ namespace Sbroenne.ExcelMcp.ComInterop;
 /// </summary>
 public static class ComUtilities
 {
+    internal static ADODB._Connection? ReadAdoConnection(Excel.ModelConnection connection) =>
+        TakeAdoConnection((object?)connection.ADOConnection);
+
+    internal static ADODB._Connection? ReadAdoConnection(Excel.OLEDBConnection connection) =>
+        TakeAdoConnection((object?)connection.ADOConnection);
+
+    private static ADODB._Connection? TakeAdoConnection(object? ownedConnection)
+    {
+        try
+        {
+            var connection = (ADODB._Connection?)ownedConnection;
+            ownedConnection = null;
+            return connection;
+        }
+        finally
+        {
+            Release(ref ownedConnection);
+        }
+    }
+
+    internal static int? ReadStyleIndentLevel(Excel.Style style) =>
+        ReadStyleIndentLevel(() => style.IndentLevel);
+
+    internal static int? ReadStyleIndentLevel(Func<int> readIndentLevel)
+    {
+        try
+        {
+            return readIndentLevel();
+        }
+        catch (InvalidCastException ex) when (ex.HResult == unchecked((int)0x80004002))
+        {
+            // Only this getter: a new style's unset/initial zero is VT_NULL, but the PIA requires int.
+            return null;
+        }
+    }
+
     /// <summary>
     /// Safely releases a COM object and sets the reference to null
     /// </summary>
@@ -21,7 +56,7 @@ public static class ComUtilities
     /// </remarks>
     /// <example>
     /// <code>
-    /// dynamic? queries = null;
+    /// Excel.Queries? queries = null;
     /// try
     /// {
     ///     queries = workbook.Queries;
@@ -316,54 +351,6 @@ public static class ComUtilities
         {
             Release(ref columns);
         }
-    }
-
-    /// <summary>
-    /// Reads a string property, preserving getter failures. A null property value becomes empty.
-    /// </summary>
-    /// <param name="obj">COM object</param>
-    /// <param name="propertyName">Property name</param>
-    /// <returns>Property value or empty string</returns>
-    public static string SafeGetString(dynamic? obj, string propertyName)
-    {
-        ArgumentNullException.ThrowIfNull((object?)obj, nameof(obj));
-        if (obj is string name && propertyName == "Name")
-        {
-            return name;
-        }
-
-        var value = propertyName switch
-        {
-            "Name" => obj.Name,
-            "NameLocal" => obj.NameLocal,
-            "Formula" => obj.Formula,
-            "Description" => obj.Description,
-            "SourceName" => obj.SourceName,
-            _ => throw new ArgumentOutOfRangeException(nameof(propertyName), propertyName, "Unsupported string property.")
-        };
-        return value?.ToString() ?? string.Empty;
-    }
-
-    /// <summary>
-    /// Reads an integer property, preserving getter and conversion failures.
-    /// </summary>
-    /// <param name="obj">COM object</param>
-    /// <param name="propertyName">Property name</param>
-    /// <returns>Property value; zero only when Excel reports zero</returns>
-    public static int SafeGetInt(dynamic? obj, string propertyName)
-    {
-        ArgumentNullException.ThrowIfNull((object?)obj, nameof(obj));
-        var value = propertyName switch
-        {
-            "RecordCount" => obj.RecordCount,
-            "Count" => obj.Count,
-            _ => throw new ArgumentOutOfRangeException(nameof(propertyName), propertyName, "Unsupported integer property.")
-        };
-        if (value is null)
-        {
-            throw new InvalidOperationException($"Excel returned no value for required integer property '{propertyName}'.");
-        }
-        return Convert.ToInt32(value, CultureInfo.InvariantCulture);
     }
 
     [DllImport("kernel32.dll")]

@@ -1,3 +1,5 @@
+using Excel = Microsoft.Office.Interop.Excel;
+
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
 /// <summary>
@@ -18,7 +20,7 @@ public partial class TableCommands : ITableCommands, ITableColumnCommands
     /// <param name="tableName">Name of the table to find</param>
     /// <returns>The table object (caller must release)</returns>
     /// <exception cref="InvalidOperationException">Thrown if table is not found</exception>
-    private static dynamic FindTable(dynamic workbook, string tableName)
+    private static Excel.ListObject FindTable(Excel.Workbook workbook, string tableName)
         => CoreLookupHelpers.FindTable(workbook, tableName);
 
     /// <summary>
@@ -27,7 +29,7 @@ public partial class TableCommands : ITableCommands, ITableColumnCommands
     /// <param name="workbook">The workbook to search</param>
     /// <param name="tableName">Name of the table to check</param>
     /// <returns>True if table exists, false otherwise</returns>
-    private static bool TableExists(dynamic workbook, string tableName)
+    private static bool TableExists(Excel.Workbook workbook, string tableName)
         => CoreLookupHelpers.TableExists(workbook, tableName);
 
     #endregion

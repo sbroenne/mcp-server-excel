@@ -124,7 +124,7 @@ public interface IVbaCommands
     /// </summary>
     /// <param name="procedureName">Name of the procedure to run (for example "Module1.MySub")</param>
     /// <param name="timeout">Optional public timeout in whole seconds from 1 through 2147483; converted to TimeSpan at shared dispatch</param>
-    /// <param name="parameters">Optional parameters to pass to the procedure</param>
+    /// <param name="parameters">Up to 30 optional parameters to pass to the procedure</param>
     [ServiceAction("run")]
     OperationResult Run(IExcelBatch batch, [RequiredParameter] string procedureName, TimeSpan? timeout, params string[] parameters);
 

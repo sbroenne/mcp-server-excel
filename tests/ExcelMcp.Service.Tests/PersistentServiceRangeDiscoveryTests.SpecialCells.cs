@@ -312,7 +312,7 @@ public sealed partial class PersistentServiceRangeDiscoveryTests
                 cell.Formula = "=NA()";
                 cell.Copy();
                 cell.PasteSpecial(Excel.XlPasteType.xlPasteValues);
-                Assert.False(Convert.ToBoolean(cell.HasFormula, CultureInfo.InvariantCulture));
+                Assert.False(Convert.ToBoolean(((object)cell.HasFormula), CultureInfo.InvariantCulture));
             }
             finally
             {

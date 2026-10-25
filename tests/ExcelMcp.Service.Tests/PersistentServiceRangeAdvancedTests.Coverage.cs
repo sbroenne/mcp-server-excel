@@ -138,10 +138,10 @@ public sealed partial class PersistentServiceRangeAdvancedTests
         RequireSuccess(_commands.SetValues(batch, sheet, "D1", [["neighbor"]]));
         WithNativeRange(sheet, "A1:B2", range => range.Merge());
         WithNativeRange(sheet, "D1:E1", range => range.Merge());
-        WithNativeRange(sheet, "A1:B2", range => Assert.True(Convert.ToBoolean(range.MergeCells, CultureInfo.InvariantCulture)));
+        WithNativeRange(sheet, "A1:B2", range => Assert.True(Convert.ToBoolean(((object)range.MergeCells), CultureInfo.InvariantCulture)));
         RequireSuccess(_commands.UnmergeCells(batch, sheet, "A1:B2"));
-        WithNativeRange(sheet, "A1:B2", range => Assert.False(Convert.ToBoolean(range.MergeCells, CultureInfo.InvariantCulture)));
-        WithNativeRange(sheet, "D1:E1", range => Assert.True(Convert.ToBoolean(range.MergeCells, CultureInfo.InvariantCulture)));
+        WithNativeRange(sheet, "A1:B2", range => Assert.False(Convert.ToBoolean(((object)range.MergeCells), CultureInfo.InvariantCulture)));
+        WithNativeRange(sheet, "D1:E1", range => Assert.True(Convert.ToBoolean(((object)range.MergeCells), CultureInfo.InvariantCulture)));
         var values = RequireSuccess(_commands.GetValues(batch, sheet, "A1:B2")).Values;
         Assert.Equal("payload", values[0][0]?.ToString());
         Assert.Null(values[0][1]);

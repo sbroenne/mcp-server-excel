@@ -3,10 +3,12 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+    <OfficeInteropDefinitionsVersion>16.0.0</OfficeInteropDefinitionsVersion>
   </PropertyGroup>
   <ItemGroup>
     <!-- Excel COM Interop PIA -->
     <PackageVersion Include="Microsoft.Office.Interop.Excel" Version="16.0.18925.20022" />
+    <PackageDownload Include="ExcelDna.Interop" Version="[$(OfficeInteropDefinitionsVersion)]" />
     <!-- UI Framework -->
     <PackageVersion Include="Dax.Formatter" Version="1.2.2" />
     <PackageVersion Include="Spectre.Console" Version="0.57.2" />

@@ -75,7 +75,7 @@ public sealed partial class PersistentServicePivotTableTests
                 {
                     range = pivot.TableRange1;
                     Assert.Equal("$A$3", range.Address);
-                    Assert.Equal(-2146826243, Convert.ToInt32(range.Value2));
+                    Assert.Equal(-2146826243, Convert.ToInt32((object)range.Value2, System.Globalization.CultureInfo.InvariantCulture));
                     return 0;
                 }
                 finally
@@ -223,7 +223,7 @@ public sealed partial class PersistentServicePivotTableTests
             try
             {
                 cache = pivot.PivotCache();
-                Assert.Contains(sourceSheet, Convert.ToString(cache.SourceData),
+                Assert.Contains(sourceSheet, Convert.ToString((object)cache.SourceData, System.Globalization.CultureInfo.InvariantCulture),
                     StringComparison.Ordinal);
                 Assert.Equal(before.Values.Count - 1, cache.RecordCount);
                 range = pivot.TableRange2;

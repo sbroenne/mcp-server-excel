@@ -37,9 +37,9 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? validation = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            Excel.Validation? validation = null;
 
             try
             {
@@ -57,7 +57,7 @@ public partial class RangeCommands
 
                 // Add validation
                 validation.Add(
-                    Type: xlType,
+                    Type: (Excel.XlDVType)xlType,
                     AlertStyle: xlAlertStyle,
                     Operator: xlOperator,
                     Formula1: formula1 ?? "",
@@ -149,9 +149,9 @@ public partial class RangeCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? validation = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            Excel.Validation? validation = null;
 
             try
             {
@@ -164,10 +164,8 @@ public partial class RangeCommands
                 // Try to get validation
                 validation = range.Validation;
 
-                Excel.Range nativeRange = (Excel.Range)range;
-                Excel.Validation nativeValidation = (Excel.Validation)validation;
-                int? nativeType = ReadValidationType(() => nativeValidation.Type,
-                    () => HasValidationInScope(ctx.App, nativeRange));
+                int? nativeType = ReadValidationType(() => validation.Type,
+                    () => HasValidationInScope(ctx.App, range));
                 if (!nativeType.HasValue)
                 {
                     return new RangeValidationResult
@@ -186,11 +184,11 @@ public partial class RangeCommands
                 var validationOperator = GetValidationOperatorName(validation.Operator);
                 var formula1 = validation.Formula1?.ToString() ?? string.Empty;
                 var formula2 = validation.Formula2?.ToString() ?? string.Empty;
-                var ignoreBlank = validation.IgnoreBlank ?? true;
-                var showInputMessage = validation.ShowInput ?? false;
+                var ignoreBlank = validation.IgnoreBlank;
+                var showInputMessage = validation.ShowInput;
                 var inputTitle = validation.InputTitle?.ToString() ?? string.Empty;
                 var inputMessage = validation.InputMessage?.ToString() ?? string.Empty;
-                var showErrorAlert = validation.ShowError ?? true;
+                var showErrorAlert = validation.ShowError;
                 var errorStyle = GetErrorStyleName(validation.AlertStyle);
                 var errorTitle = validation.ErrorTitle?.ToString() ?? string.Empty;
                 var validationErrorMessage = validation.ErrorMessage?.ToString() ?? string.Empty;
@@ -276,9 +274,9 @@ public partial class RangeCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? validation = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            Excel.Validation? validation = null;
 
             try
             {

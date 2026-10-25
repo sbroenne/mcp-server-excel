@@ -88,8 +88,19 @@ public class SheetTestsFixture : IAsyncLifetime
 
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets.Add();
-            sheet.Name = sheetName;
+            Microsoft.Office.Interop.Excel.Sheets? sheets = null;
+            Microsoft.Office.Interop.Excel.Worksheet? sheet = null;
+            try
+            {
+                sheets = ctx.Book.Worksheets;
+                sheet = (Microsoft.Office.Interop.Excel.Worksheet)sheets.Add();
+                sheet.Name = sheetName;
+            }
+            finally
+            {
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref sheet);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref sheets);
+            }
         });
 
         return sheetName;
@@ -117,5 +128,4 @@ public class SheetTestsFixture : IAsyncLifetime
         return SavedWorkbookTemplates.CopyBlankTo(filePath);
     }
 }
-
 

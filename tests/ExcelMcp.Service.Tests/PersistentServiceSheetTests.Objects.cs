@@ -31,12 +31,10 @@ public sealed partial class PersistentServiceSheetTests
                 shapes = sheet.Shapes;
                 Assert.Equal(1, shapes.Count);
                 shape = (Excel.Shape)shapes.Item(1);
-                // PIA gap: AutoShapeType returns an unavailable Office-core enum.
-                Assert.Equal(1, Convert.ToInt32(((dynamic)shape).AutoShapeType,
-                    System.Globalization.CultureInfo.InvariantCulture));
+                Assert.Equal(Microsoft.Office.Core.MsoAutoShapeType.msoShapeRectangle, shape.AutoShapeType);
                 anchor = sheet.Range["B2"];
-                Assert.Equal(anchor.Left, shape.Left);
-                Assert.Equal(anchor.Top, shape.Top);
+                Assert.Equal(Convert.ToDouble((object)anchor.Left, System.Globalization.CultureInfo.InvariantCulture), shape.Left);
+                Assert.Equal(Convert.ToDouble((object)anchor.Top, System.Globalization.CultureInfo.InvariantCulture), shape.Top);
                 Assert.Equal(144d, shape.Width);
                 Assert.Equal(72d, shape.Height);
             }
@@ -101,8 +99,8 @@ public sealed partial class PersistentServiceSheetTests
                 Assert.Equal(1, pictures.Count);
                 picture = (Excel.Picture)pictures.Item(1);
                 anchor = sheet.Range["B2"];
-                Assert.Equal(anchor.Left, picture.Left);
-                Assert.Equal(anchor.Top, picture.Top);
+                Assert.Equal(Convert.ToDouble((object)anchor.Left, System.Globalization.CultureInfo.InvariantCulture), picture.Left);
+                Assert.Equal(Convert.ToDouble((object)anchor.Top, System.Globalization.CultureInfo.InvariantCulture), picture.Top);
                 Assert.True(picture.Width > 0);
                 Assert.True(picture.Height > 0);
             }

@@ -534,6 +534,44 @@ public sealed partial class PersistentServiceChartFormattingTests
         Assert.Equal(1.0, listResult.Trendlines[0].Backward);
     }
 
+    [Theory]
+    [InlineData(false, 0.5, 0)]
+    [InlineData(false, 1.5, 2)]
+    [InlineData(false, 2.5, 2)]
+    [InlineData(true, 0.5, 0)]
+    [InlineData(true, 1.5, 2)]
+    [InlineData(true, 2.5, 2)]
+    public void TrendlineForecasts_PreserveNativeWholePeriodRounding(bool update, double forecast, int expected)
+    {
+        var batch = _fixture.BatchToken;
+        RequireSuccess(_commands.SetValues(batch, _sheetName, "E1:F4",
+        [
+            ["X", "Measured"],
+            [10, 17],
+            [20, 29],
+            [30, 43]
+        ]));
+        var created = RequireSuccess(_chartCommands.CreateFromRange(
+            batch, _sheetName, "E1:F4", ChartType.XYScatter));
+        var initial = update ? 4d : forecast;
+        RequireSuccess(_chartCommands.AddTrendline(
+            batch, created.ChartName, 1, TrendlineType.Linear, forward: initial, backward: initial));
+        var before = Assert.Single(RequireSuccess(
+            _chartCommands.ListTrendlines(batch, created.ChartName, 1)).Trendlines);
+        Assert.Equal(update ? 4d : expected, before.Forward);
+        Assert.Equal(update ? 4d : expected, before.Backward);
+        if (update)
+        {
+            RequireSuccess(_chartCommands.SetTrendline(
+                batch, created.ChartName, 1, 1, forward: forecast, backward: forecast));
+        }
+        var actual = Assert.Single(RequireSuccess(
+            _chartCommands.ListTrendlines(batch, created.ChartName, 1)).Trendlines);
+        Assert.Equal(expected, actual.Forward);
+        Assert.Equal(expected, actual.Backward);
+        AssertSeriesData(created.ChartName, 1, "Measured", [10, 20, 30], [17, 29, 43]);
+    }
+
     [Fact]
     [Trait("Feature", "Charts")]
     public void DeleteTrendline_InvalidIndex_ThrowsException()

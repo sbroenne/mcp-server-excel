@@ -6,7 +6,7 @@ namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
 
 public partial class PivotTableCommands
 {
-    private static Excel.PivotTable FindPivotTable(dynamic workbook, string sheetName, string pivotTableName)
+    private static Excel.PivotTable FindPivotTable(Excel.Workbook workbook, string sheetName, string pivotTableName)
     {
         Excel.Sheets? sheets = null;
         Excel.Worksheet? sheet = null;
@@ -140,9 +140,8 @@ public partial class PivotTableCommands
         CancellationToken cancellationToken,
         int maxSelectedMembers)
     {
-        // PIA gap: typed SourceName is a string, but Excel's multi-value "Values" placeholder returns an error value (#N/A).
-        var rawSourceName = PivotTableSnapshotHelpers.TryReadSnapshotProperty(() => (object?)((dynamic)field).SourceName);
-        if (PivotTableHelpers.IsValuesPlaceholderSourceName(rawSourceName.Value))
+        var rawSourceName = PivotTableSnapshotHelpers.TryReadSnapshotProperty(() => (object?)field.SourceName);
+        if (rawSourceName.Available && PivotTableHelpers.IsValuesPlaceholderField(field, rawSourceName.Value))
             return null;
 
         var sourceName = new PivotSnapshotProperty<string>(
@@ -191,7 +190,7 @@ public partial class PivotTableCommands
             return result;
 
         var position = PivotTableSnapshotHelpers.TryReadSnapshotProperty(() => Convert.ToInt32(
-            field.Position, System.Globalization.CultureInfo.InvariantCulture));
+            (object)field.Position, System.Globalization.CultureInfo.InvariantCulture));
         if (!position.Available)
         {
             result.LayoutError = position.ErrorMessage;
@@ -449,14 +448,11 @@ public partial class PivotTableCommands
         int maxMembers,
         CancellationToken cancellationToken)
     {
-        object? visibleItems = null;
+        Excel.PivotItems? visibleItems = null;
         try
         {
-            // PIA gap: typed PivotField.VisibleItems() fails without an index; late binding returns
-            // the visible-item collection so only visible members are read.
-            visibleItems = ((dynamic)field).VisibleItems;
-            // PIA gap: the late-bound visible-item collection exposes Count only through IDispatch.
-            int visibleCount = Convert.ToInt32(((dynamic)visibleItems!).Count, System.Globalization.CultureInfo.InvariantCulture);
+            visibleItems = (Excel.PivotItems)field.VisibleItems[Type.Missing];
+            int visibleCount = visibleItems.Count;
             if (visibleCount == 0)
                 throw new NotSupportedException("Excel returned no visible items, so the field's selection state is unknown.");
 
@@ -467,7 +463,7 @@ public partial class PivotTableCommands
                 Excel.PivotItem? item = null;
                 try
                 {
-                    item = (Excel.PivotItem)field.VisibleItems(index);
+                    item = (Excel.PivotItem)field.VisibleItems[index];
                     names.Add(item.Name);
                 }
                 finally

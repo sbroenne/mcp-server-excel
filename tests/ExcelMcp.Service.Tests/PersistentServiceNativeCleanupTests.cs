@@ -631,7 +631,7 @@ public sealed class PersistentServiceNativeCleanupTests(PersistentServiceWorkboo
                 object[] columns = [1];
                 records.RemoveDuplicates(columns, Excel.XlYesNoGuess.xlNo);
                 labels = sheet.Range["B1:B3"];
-                var values = Assert.IsType<object[,]>(labels.Value2);
+                var values = Assert.IsType<object[,]>(((object)labels.Value2));
                 for (int index = 0; index < expectedLabels.Length; index++)
                     Assert.Equal(expectedLabels[index], values[index + 1, 1]);
             }

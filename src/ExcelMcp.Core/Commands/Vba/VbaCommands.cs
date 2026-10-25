@@ -18,9 +18,6 @@ public partial class VbaCommands : IVbaCommands
         @"Software\Microsoft\Office\14.0\Excel\Security"   // Office 2010
     ];
 
-    // CA1861: Use static readonly for constant array arguments to avoid repeated allocations
-    private static readonly char[] ProcedureSeparators = [' ', '('];
-
     /// <summary>
     /// Check if VBA trust is enabled by reading registry
     /// </summary>
@@ -120,19 +117,6 @@ public partial class VbaCommands : IVbaCommands
                 OperationFailureCategory.InvalidInput,
                 $"VBA operations require macro-enabled workbooks (.xlsm). Current file has extension: {extension}");
         }
-    }
-
-    private static string ExtractProcedureName(string codeLine)
-    {
-        var parts = codeLine.Trim().Split(ProcedureSeparators, StringSplitOptions.RemoveEmptyEntries);
-        for (int i = 0; i < parts.Length; i++)
-        {
-            if ((parts[i] is "Sub" or "Function") && i + 1 < parts.Length)
-            {
-                return parts[i + 1];
-            }
-        }
-        return string.Empty;
     }
 
     /// <summary>

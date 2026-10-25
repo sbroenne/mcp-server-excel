@@ -147,6 +147,9 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       # Separate checkouts keep rebuild/process regressions from racing packaging.
+      - name: Install Microsoft ADO build tools
+        shell: pwsh
+        run: ./scripts/Install-AdoBuildTools.ps1
       - name: Restore and build selected inputs
         shell: pwsh
         run: |
@@ -195,6 +198,9 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
+      - name: Install Microsoft ADO build tools
+        shell: pwsh
+        run: ./scripts/Install-AdoBuildTools.ps1
       - name: Restore and build selected inputs
         shell: pwsh
         run: ./build.ps1 build --plan artifacts/ci-plan.json
@@ -219,6 +225,10 @@ jobs:
         with:
           path: ~/.nuget/packages
           key: nuget-${{ runner.os }}-${{ hashFiles('global.json', 'Directory.*', 'NuGet.Config', '**/*.csproj', '**/*.props', '**/*.targets') }}
+      - name: Install Microsoft ADO build tools
+        if: needs.changes.outputs.package_dotnet == 'true'
+        shell: pwsh
+        run: ./scripts/Install-AdoBuildTools.ps1
       - name: Setup Node.js
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:

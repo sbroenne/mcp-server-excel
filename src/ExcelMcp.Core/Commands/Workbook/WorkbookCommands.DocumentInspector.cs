@@ -1,6 +1,7 @@
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Office = Microsoft.Office.Core;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Workbook;
 
@@ -10,21 +11,20 @@ public partial class WorkbookCommands
     public DocumentInspectionResult InspectDocument(IExcelBatch batch) =>
         batch.Execute((ctx, ct) =>
         {
-            dynamic? inspectors = null;
+            Office.DocumentInspectors? inspectors = null;
             List<DocumentInspectorFinding> findings = [];
             bool savedBefore = ctx.Book.Saved;
             try
             {
-                // PIA gap: DocumentInspectors and its modules belong to Office-core, which is not referenced.
-                inspectors = ((dynamic)ctx.Book).DocumentInspectors;
+                inspectors = ctx.Book.DocumentInspectors;
                 int count = Convert.ToInt32(inspectors.Count);
                 for (int index = 1; index <= count; index++)
                 {
                     ct.ThrowIfCancellationRequested();
-                    dynamic? inspector = null;
+                    Office.DocumentInspector? inspector = null;
                     try
                     {
-                        inspector = inspectors.Item(index);
+                        inspector = inspectors[index];
                         string name = inspector.Name;
                         var outcome = InvokeDocumentInspector(inspector, fix: false);
                         findings.Add(new DocumentInspectorFinding(index, name, outcome.StatusCode, outcome.Results));
@@ -61,17 +61,16 @@ public partial class WorkbookCommands
             if (ctx.Book.ProtectStructure || ctx.Book.ProtectWindows)
                 throw new InvalidOperationException(
                     "Cannot fix a document inspector on a structure/window-protected workbook. The workbook has not been changed.");
-            dynamic? inspectors = null;
-            dynamic? inspector = null;
+            Office.DocumentInspectors? inspectors = null;
+            Office.DocumentInspector? inspector = null;
             try
             {
-                // PIA gap: DocumentInspectors belongs to Office-core, which is not referenced.
-                inspectors = ((dynamic)ctx.Book).DocumentInspectors;
+                inspectors = ctx.Book.DocumentInspectors;
                 int count = Convert.ToInt32(inspectors.Count);
                 if (inspectorIndex > count)
                     throw new ArgumentOutOfRangeException(nameof(inspectorIndex),
                         $"inspectorIndex must select an available module, 1 through {count}. The workbook has not been changed.");
-                inspector = inspectors.Item(inspectorIndex);
+                inspector = inspectors[inspectorIndex];
                 string actualName = inspector.Name;
                 if (!string.Equals(actualName, inspectorName, StringComparison.Ordinal))
                     throw new ArgumentException(
@@ -106,15 +105,15 @@ public partial class WorkbookCommands
         });
     }
 
-    private static DocumentInspectorOutcome InvokeDocumentInspector(dynamic inspector, bool fix)
+    private static DocumentInspectorOutcome InvokeDocumentInspector(Office.DocumentInspector inspector, bool fix)
     {
-        int status = -1;
-        string results = string.Empty;
+        Office.MsoDocInspectorStatus status;
+        string results;
         if (fix)
             inspector.Fix(out status, out results);
         else
             inspector.Inspect(out status, out results);
-        return new DocumentInspectorOutcome(status, results);
+        return new DocumentInspectorOutcome((int)status, results);
     }
 
     internal static DocumentInspectionResult CreateDocumentInspectionResult(List<DocumentInspectorFinding> findings)

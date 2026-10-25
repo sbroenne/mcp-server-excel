@@ -171,7 +171,7 @@ internal static class NativeFilterHelpers
     private static object? ReadValue(object? value)
     {
         if (value is Excel.Interior interior)
-            return Convert.ToInt32(interior.Color, CultureInfo.InvariantCulture);
+            return Convert.ToInt32((object)interior.Color, CultureInfo.InvariantCulture);
         if (value is Excel.Icon icon)
         {
             Excel.IconSet? parent = null;

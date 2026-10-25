@@ -227,7 +227,7 @@ public sealed class PersistentServiceTableColumnCoverageTests(PersistentServiceW
                 table = tables[tableName];
                 rows = table.ListRows;
                 headers = table.HeaderRowRange;
-                var values = (object[,])(headers ??
+                var values = (object[,])(object)(headers ??
                     throw new InvalidOperationException("Excel did not return the table header range.")).Value2;
                 string[] names = Enumerable.Range(1, values.GetLength(1))
                     .Select(index => Convert.ToString(values[1, index], CultureInfo.InvariantCulture)!).ToArray();
@@ -244,12 +244,12 @@ public sealed class PersistentServiceTableColumnCoverageTests(PersistentServiceW
                         try
                         {
                             cell = (Excel.Range)cells[index, 1];
-                            formats[index - 1] = Convert.ToString(cell.NumberFormat, CultureInfo.InvariantCulture)!;
+                            formats[index - 1] = Convert.ToString((object?)cell.NumberFormat, CultureInfo.InvariantCulture)!;
                         }
                         finally { ComUtilities.Release(ref cell); }
                     }
                 }
-                style = (Excel.TableStyle)table.TableStyle;
+                style = (Excel.TableStyle)(object)table.TableStyle;
                 range = table.Range;
                 return (names, formats, style.Name, rows.Count, table.Name, range.Address);
             }

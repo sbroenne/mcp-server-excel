@@ -1,3 +1,4 @@
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -9,8 +10,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 /// </summary>
 internal sealed class ChartFindResult
 {
-    public dynamic? Chart;
-    public dynamic? Shape;
+    public Excel.Chart? Chart;
+    public Excel.Shape? Shape;
     public string SheetName = string.Empty;
 }
 
@@ -35,9 +36,7 @@ public partial class ChartCommands
             {
                 // Determine strategy and delegate
                 IChartStrategy strategy = _pivotStrategy.CanHandle(findResult.Chart) ? _pivotStrategy : _regularStrategy;
-#pragma warning disable CS8604 // CodeQL false positive: Both strategies implement IChartStrategy.SetSourceRange with dynamic parameter
                 strategy.SetSourceRange(findResult.Chart, sourceRange, ct);
-#pragma warning restore CS8604
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
             }
@@ -70,9 +69,7 @@ public partial class ChartCommands
             {
                 // Determine strategy and delegate
                 IChartStrategy strategy = _pivotStrategy.CanHandle(findResult.Chart) ? _pivotStrategy : _regularStrategy;
-#pragma warning disable CS8604 // CodeQL false positive: Both strategies implement IChartStrategy.AddSeries with dynamic parameter
                 var result = strategy.AddSeries(findResult.Chart, seriesName, valuesRange, categoryRange);
-#pragma warning restore CS8604
 
                 return result;
             }
@@ -100,9 +97,7 @@ public partial class ChartCommands
             {
                 // Determine strategy and delegate
                 IChartStrategy strategy = _pivotStrategy.CanHandle(findResult.Chart) ? _pivotStrategy : _regularStrategy;
-#pragma warning disable CS8604 // CodeQL false positive: Both strategies implement IChartStrategy.RemoveSeries with dynamic parameter
                 strategy.RemoveSeries(findResult.Chart, seriesIndex);
-#pragma warning restore CS8604
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath }; // Void operation completed
             }
@@ -118,9 +113,9 @@ public partial class ChartCommands
     /// Finds a chart by name across all worksheets.
     /// Returns result with chart, shape, sheetName properties. Caller must release chart and shape.
     /// </summary>
-    private static ChartFindResult FindChart(dynamic workbook, string chartName)
+    private static ChartFindResult FindChart(Excel.Workbook workbook, string chartName)
     {
-        dynamic? worksheets = null;
+        Excel.Sheets? worksheets = null;
         try
         {
             worksheets = workbook.Worksheets;
@@ -128,26 +123,26 @@ public partial class ChartCommands
 
             for (int i = 1; i <= wsCount; i++)
             {
-                dynamic? worksheet = null;
-                dynamic? shapes = null;
+                Excel.Worksheet? worksheet = null;
+                Excel.Shapes? shapes = null;
 
                 try
                 {
-                    worksheet = worksheets.Item(i);
+                    worksheet = (Excel.Worksheet)worksheets.Item[i];
                     string sheetName = worksheet.Name?.ToString() ?? $"Sheet{i}";
                     shapes = worksheet.Shapes;
                     int shapeCount = Convert.ToInt32(shapes.Count);
 
                     for (int j = 1; j <= shapeCount; j++)
                     {
-                        dynamic? shape = null;
-                        dynamic? chart = null;
+                        Excel.Shape? shape = null;
+                        Excel.Chart? chart = null;
 
                         try
                         {
                             shape = shapes.Item(j);
 
-                            if (Convert.ToInt32(shape.Type) != 3)
+                            if ((int)shape.Type != 3)
                             {
                                 continue;
                             }

@@ -64,18 +64,31 @@ public class ChartTestsFixture : IAsyncLifetime
         using var batch = ExcelSession.BeginBatch(SharedTestFile);
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheet = ctx.Book.Worksheets[1];
-            // 4 columns × 5 data rows — covers A1:B3, A1:B4, A1:B5, A1:C4, A1:D4 patterns
-            sheet.Range["A1:D6"].Value2 = new object[,]
+            Microsoft.Office.Interop.Excel.Sheets? sheets = null;
+            Microsoft.Office.Interop.Excel.Worksheet? sheet = null;
+            Microsoft.Office.Interop.Excel.Range? range = null;
+            try
             {
-                { "X", "Y", "Series2", "Series3" },
-                { 1, 100, 15, 50 },
-                { 2, 150, 25, 75 },
-                { 3, 200, 35, 100 },
-                { 4, 250, 45, 125 },
-                { 5, 300, 55, 150 }
-            };
-            return 0;
+                sheets = ctx.Book.Worksheets;
+                sheet = (Microsoft.Office.Interop.Excel.Worksheet)sheets[1];
+                range = sheet.Range["A1:D6"];
+                range.Value2 = new object[,]
+                {
+                    { "X", "Y", "Series2", "Series3" },
+                    { 1, 100, 15, 50 },
+                    { 2, 150, 25, 75 },
+                    { 3, 200, 35, 100 },
+                    { 4, 250, 45, 125 },
+                    { 5, 300, 55, 150 }
+                };
+                return 0;
+            }
+            finally
+            {
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref range);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref sheet);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref sheets);
+            }
         });
         batch.Save();
 
@@ -101,7 +114,6 @@ public class ChartTestsFixture : IAsyncLifetime
         return Task.CompletedTask;
     }
 }
-
 
 
 

@@ -1,4 +1,5 @@
 using Excel = Microsoft.Office.Interop.Excel;
+using Office = Microsoft.Office.Core;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -180,7 +181,7 @@ public partial class ChartCommands
             Excel.Chart? chart = null;
             Excel.ChartArea? chartArea = null;
             Excel.PlotArea? plotArea = null;
-            dynamic? format = null;
+            Excel.ChartFormat? format = null;
             try
             {
                 chart = findResult.Chart;
@@ -188,13 +189,11 @@ public partial class ChartCommands
                 if (area == ChartAreaTarget.Chart)
                 {
                     chartArea = chart.ChartArea;
-                    // Excel PIA exposes Office chart formatting objects without typed Office.Core references.
                     format = chartArea.Format;
                 }
                 else
                 {
                     plotArea = chart.PlotArea;
-                    // Excel PIA exposes Office chart formatting objects without typed Office.Core references.
                     format = plotArea.Format;
                 }
 
@@ -219,7 +218,7 @@ public partial class ChartCommands
     }
 
     private static void ApplyMaterialFormat(
-        dynamic format,
+        Excel.ChartFormat format,
         string? fillColor,
         double? fillTransparency,
         string? lineColor,
@@ -227,10 +226,10 @@ public partial class ChartCommands
     {
         ValidateMaterialFormat(fillTransparency, lineWeight);
 
-        dynamic? fill = null;
-        dynamic? line = null;
-        dynamic? fillForeColor = null;
-        dynamic? lineForeColor = null;
+        Excel.FillFormat? fill = null;
+        Excel.LineFormat? line = null;
+        Excel.ColorFormat? fillForeColor = null;
+        Excel.ColorFormat? lineForeColor = null;
         try
         {
             if (fillColor != null || fillTransparency.HasValue)
@@ -252,7 +251,7 @@ public partial class ChartCommands
             if (lineColor != null || lineWeight.HasValue)
             {
                 line = format.Line;
-                line.Visible = -1;
+                line.Visible = Office.MsoTriState.msoTrue;
                 if (lineColor != null)
                 {
                     lineForeColor = line.ForeColor;

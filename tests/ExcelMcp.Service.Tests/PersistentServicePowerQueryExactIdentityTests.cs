@@ -61,7 +61,7 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
                 Assert.Equal("Connection", connection.Name);
                 Assert.Equal(Excel.XlConnectionType.xlConnectionTypeODBC, connection.Type);
                 odbc = connection.ODBCConnection;
-                string text = Convert.ToString(odbc.Connection, CultureInfo.InvariantCulture) ?? "";
+                string text = Convert.ToString(((object)odbc.Connection), CultureInfo.InvariantCulture) ?? "";
                 if (text.StartsWith("ODBC;", StringComparison.OrdinalIgnoreCase)) { text = text[5..]; }
                 var properties = new DbConnectionStringBuilder { ConnectionString = text };
                 Assert.Equal("PreservedGenericConnection", properties["DSN"]);
@@ -393,7 +393,7 @@ public sealed class PersistentServicePowerQueryExactIdentityTests(
 
                         oleDbConnection = connection.OLEDBConnection;
                         var connectionString =
-                            Convert.ToString(oleDbConnection.Connection)
+                            Convert.ToString((object)oleDbConnection.Connection, System.Globalization.CultureInfo.InvariantCulture)
                             ?? string.Empty;
                         if (connectionString.Contains(
                                 "Location=__pq_eval_",

@@ -329,9 +329,9 @@ public sealed partial class PersistentServiceSheetTests
                         try
                         {
                             cell = sheet.Range[$"{column}{row}"];
-                            cells.Add(cell.Value2);
-                            cells.Add(cell.Formula);
-                            cells.Add(cell.NumberFormat);
+                            cells.Add(((object)cell.Value2));
+                            cells.Add(((object)cell.Formula));
+                            cells.Add(((object)cell.NumberFormat));
                         }
                         finally { ComUtilities.Release(ref cell); }
                     }

@@ -29,9 +29,10 @@ dependency installation, or edits unless requested.
   transport boundaries may convert failures, not erase them. Preserve original
   cause, cancellation, timeout, session recovery, and exact partial state.
   Cancellation is not rollback; reject unrequested workbook cleanup.
-- Review COM ownership across every exit, including dynamic intermediates and
-  failure paths. Acquired references need `finally` release, not session-owned
-  objects. Process cleanup needs PID/start-time identity and retained handles.
+- Review COM ownership across every exit and failure path. Acquired references
+  need `finally` release, not session-owned objects. Process cleanup needs
+  PID/start-time identity and retained handles. EXL011 and EXL005 reject dynamic
+  declarations and late-bound calls in production and test builds.
 - Follow changed source contracts through generated Service, CLI options/batch
   JSON, MCP schemas, and manual exceptions. Names, defaults, validation, results,
   and timeouts must agree. Adapters must not acquire Core/session ownership.
@@ -87,9 +88,20 @@ Paths are relative to the repository root.
 
 ## Implementation
 
-The build enforces supported COM, contract, result, and test patterns. Fix
-diagnostics at their source; a suppression needs a reason, not an assumption
-that passing compilation proves runtime correctness.
+The build enforces supported COM, contract, result, dynamic-access, and test
+patterns. Fix diagnostics at their source; a suppression needs a reason, not an
+assumption that passing compilation proves runtime correctness.
+
+- Use typed Excel interop in production and tests. EXL011 rejects dynamic
+  declarations and late-bound operations; EXL005 rejects casts to `dynamic`.
+  Comments do not exempt them. The compiler checks whether the referenced PIA
+  exposes a member; runtime availability still needs real-Excel validation.
+- The user-approved document-property exception is confined to
+  `ExcelDocumentProperties` in ComInterop. Its private native COM calls cover
+  only workbook property collections/items, resolve member identifiers from
+  Excel, and validate item identities. Do not reuse it for other features or
+  add a general member-name, reflection, or dynamic fallback. Compiler checks
+  remain enabled everywhere.
 
 - Core `[ServiceCategory]` interfaces drive generated Service, CLI, and MCP
   routing. Change contracts/generators, not emitted code. Follow a changed

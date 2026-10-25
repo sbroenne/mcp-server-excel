@@ -49,7 +49,8 @@ public interface IDataModelCommands
     DataModelTableListResult ListTables(IExcelBatch batch);
 
     /// <summary>
-    /// Lists all columns in a Data Model table
+    /// Lists all columns in a Data Model table.
+    /// The isCalculated field is null (unknown): Excel does not expose a supported column-calculation flag.
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Name of the table to list columns from</param>
@@ -58,7 +59,8 @@ public interface IDataModelCommands
     DataModelTableColumnsResult ListColumns(IExcelBatch batch, [RequiredParameter] string tableName);
 
     /// <summary>
-    /// Gets complete table details including columns and measures
+    /// Gets complete table details including columns and measures.
+    /// Each column's isCalculated field is null (unknown), not false.
     /// </summary>
     /// <param name="batch">Excel batch context for accessing workbook</param>
     /// <param name="tableName">Name of the table to get</param>

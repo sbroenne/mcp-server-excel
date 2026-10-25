@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Excel = Microsoft.Office.Interop.Excel;
+using Office = Microsoft.Office.Core;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Drawing;
 
@@ -75,9 +76,7 @@ public sealed partial class DrawingCommands
         if (!Enum.IsDefined(alignment)) throw new ArgumentOutOfRangeException(nameof(alignment));
         return WithSelection(batch, sheetName, objectNames, (_, selection, ct) =>
         {
-            // PIA gap: Align takes Office.Core enums; this project intentionally has no office.dll reference.
-            dynamic lateBoundSelection = (dynamic)(object)selection;
-            lateBoundSelection.Align((int)alignment, 0);
+            selection.Align((Office.MsoAlignCmd)alignment, Office.MsoTriState.msoFalse);
             return ReadLayoutRange(batch, selection, sheetName, ct);
         });
     }
@@ -89,9 +88,7 @@ public sealed partial class DrawingCommands
         if (!Enum.IsDefined(distribution)) throw new ArgumentOutOfRangeException(nameof(distribution));
         return WithSelection(batch, sheetName, objectNames, (_, selection, ct) =>
         {
-            // PIA gap: Distribute takes Office.Core enums without an office.dll reference.
-            dynamic lateBoundSelection = (dynamic)(object)selection;
-            lateBoundSelection.Distribute((int)distribution, 0);
+            selection.Distribute((Office.MsoDistributeCmd)distribution, Office.MsoTriState.msoFalse);
             return ReadLayoutRange(batch, selection, sheetName, ct);
         });
     }
@@ -158,9 +155,7 @@ public sealed partial class DrawingCommands
         if (!Enum.IsDefined(zOrder)) throw new ArgumentOutOfRangeException(nameof(zOrder));
         return WithSelection(batch, sheetName, [objectName], (_, selection, ct) =>
         {
-            // PIA gap: ZOrder takes an Office.Core enum without an office.dll reference.
-            dynamic lateBoundSelection = (dynamic)(object)selection;
-            lateBoundSelection.ZOrder((int)zOrder);
+            selection.ZOrder((Office.MsoZOrderCmd)zOrder);
             return ReadLayoutRange(batch, selection, sheetName, ct);
         });
     }

@@ -76,7 +76,7 @@ public partial class PivotTableCommands
         for (int slot = 1; slot <= 12; slot++)
         {
             ct.ThrowIfCancellationRequested();
-            if (Convert.ToBoolean(field.Subtotals[slot]))
+            if (Convert.ToBoolean((object)field.Subtotals[slot], System.Globalization.CultureInfo.InvariantCulture))
                 result.Functions.Add((PivotSubtotalFunction)slot);
         }
         return result;

@@ -8,6 +8,7 @@ using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Commands.Table;
 using Sbroenne.ExcelMcp.Core.Models;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
@@ -507,17 +508,23 @@ public class DataModelPivotTableFixture : IAsyncLifetime
 
         batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
+            Excel.Sheets? sheets = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
             try
             {
-                sheet = ctx.Book.Worksheets["Sheet1"];
+                sheets = ctx.Book.Worksheets;
+                sheet = (Excel.Worksheet)sheets["Sheet1"];
                 sheet.Name = "SalesData";
-                sheet.Range["D2:D6"].NumberFormat = "m/d/yyyy";
+                range = sheet.Range["D2:D6"];
+                range.NumberFormat = "m/d/yyyy";
                 return 0;
             }
             finally
             {
+                ComUtilities.Release(ref range);
                 ComUtilities.Release(ref sheet);
+                ComUtilities.Release(ref sheets);
             }
         });
 
@@ -557,6 +564,4 @@ public class DataModelPivotTableCreationResult
     public long CreationTimeMs { get; set; }
     public string? ErrorMessage { get; set; }
 }
-
-
 

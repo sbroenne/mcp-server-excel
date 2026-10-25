@@ -1,3 +1,4 @@
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
@@ -19,7 +20,7 @@ internal static class ChartPositionHelpers
     /// <param name="excludeChartName">Chart name to exclude from collision checks (for move/resize operations on an existing chart)</param>
     /// <returns>List of collision warning messages, empty if no collisions</returns>
     internal static List<string> DetectCollisions(
-        dynamic worksheet,
+        Excel.Worksheet worksheet,
         double left,
         double top,
         double width,
@@ -47,7 +48,7 @@ internal static class ChartPositionHelpers
     /// <param name="padding">Padding in points between content and chart (default: 10pt)</param>
     /// <returns>Tuple of (left, top) position in points for the chart</returns>
     internal static (double Left, double Top) FindAvailablePosition(
-        dynamic worksheet,
+        Excel.Worksheet worksheet,
         double width = 400,
         double height = 300,
         double padding = 10.0)
@@ -56,14 +57,14 @@ internal static class ChartPositionHelpers
         double maxRight = 0;
 
         // Get used range boundary
-        dynamic? usedRange = null;
+        Excel.Range? usedRange = null;
         try
         {
             usedRange = worksheet.UsedRange;
-            double urLeft = Convert.ToDouble(usedRange.Left);
-            double urTop = Convert.ToDouble(usedRange.Top);
-            double urWidth = Convert.ToDouble(usedRange.Width);
-            double urHeight = Convert.ToDouble(usedRange.Height);
+            double urLeft = Convert.ToDouble((object)usedRange.Left, System.Globalization.CultureInfo.InvariantCulture);
+            double urTop = Convert.ToDouble((object)usedRange.Top, System.Globalization.CultureInfo.InvariantCulture);
+            double urWidth = Convert.ToDouble((object)usedRange.Width, System.Globalization.CultureInfo.InvariantCulture);
+            double urHeight = Convert.ToDouble((object)usedRange.Height, System.Globalization.CultureInfo.InvariantCulture);
 
             maxBottom = Math.Max(maxBottom, urTop + urHeight);
             maxRight = Math.Max(maxRight, urLeft + urWidth);
@@ -74,7 +75,7 @@ internal static class ChartPositionHelpers
         }
 
         // Get chart boundaries
-        dynamic? shapes = null;
+        Excel.Shapes? shapes = null;
         try
         {
             shapes = worksheet.Shapes;
@@ -82,13 +83,13 @@ internal static class ChartPositionHelpers
 
             for (int j = 1; j <= shapeCount; j++)
             {
-                dynamic? shape = null;
+                Excel.Shape? shape = null;
                 try
                 {
                     shape = shapes.Item(j);
 
                     // Only consider chart shapes (msoChart = 3)
-                    if (Convert.ToInt32(shape.Type) != 3)
+                    if ((int)shape.Type != 3)
                     {
                         continue;
                     }
@@ -125,10 +126,10 @@ internal static class ChartPositionHelpers
     /// <summary>
     /// Counts the number of chart shapes on a worksheet.
     /// </summary>
-    internal static int CountCharts(dynamic worksheet)
+    internal static int CountCharts(Excel.Worksheet worksheet)
     {
         int count = 0;
-        dynamic? shapes = null;
+        Excel.Shapes? shapes = null;
         try
         {
             shapes = worksheet.Shapes;
@@ -136,11 +137,11 @@ internal static class ChartPositionHelpers
 
             for (int j = 1; j <= shapeCount; j++)
             {
-                dynamic? shape = null;
+                Excel.Shape? shape = null;
                 try
                 {
                     shape = shapes.Item(j);
-                    if (Convert.ToInt32(shape.Type) == 3) // msoChart
+                    if ((int)shape.Type == 3) // msoChart
                     {
                         count++;
                     }
@@ -182,22 +183,22 @@ internal static class ChartPositionHelpers
     }
 
     private static void CheckUsedRangeCollision(
-        dynamic worksheet,
+        Excel.Worksheet worksheet,
         double left,
         double top,
         double width,
         double height,
         List<string> warnings)
     {
-        dynamic? usedRange = null;
+        Excel.Range? usedRange = null;
         try
         {
             usedRange = worksheet.UsedRange;
 
-            double urLeft = Convert.ToDouble(usedRange.Left);
-            double urTop = Convert.ToDouble(usedRange.Top);
-            double urWidth = Convert.ToDouble(usedRange.Width);
-            double urHeight = Convert.ToDouble(usedRange.Height);
+            double urLeft = Convert.ToDouble((object)usedRange.Left, System.Globalization.CultureInfo.InvariantCulture);
+            double urTop = Convert.ToDouble((object)usedRange.Top, System.Globalization.CultureInfo.InvariantCulture);
+            double urWidth = Convert.ToDouble((object)usedRange.Width, System.Globalization.CultureInfo.InvariantCulture);
+            double urHeight = Convert.ToDouble((object)usedRange.Height, System.Globalization.CultureInfo.InvariantCulture);
 
             string? urAddress = usedRange.Address?.ToString();
 
@@ -213,7 +214,7 @@ internal static class ChartPositionHelpers
     }
 
     private static void CheckChartCollisions(
-        dynamic worksheet,
+        Excel.Worksheet worksheet,
         double left,
         double top,
         double width,
@@ -221,7 +222,7 @@ internal static class ChartPositionHelpers
         string? excludeChartName,
         List<string> warnings)
     {
-        dynamic? shapes = null;
+        Excel.Shapes? shapes = null;
         try
         {
             shapes = worksheet.Shapes;
@@ -229,13 +230,13 @@ internal static class ChartPositionHelpers
 
             for (int j = 1; j <= shapeCount; j++)
             {
-                dynamic? shape = null;
+                Excel.Shape? shape = null;
                 try
                 {
                     shape = shapes.Item(j);
 
                     // Only check chart shapes (msoChart = 3)
-                    if (Convert.ToInt32(shape.Type) != 3)
+                    if ((int)shape.Type != 3)
                     {
                         continue;
                     }

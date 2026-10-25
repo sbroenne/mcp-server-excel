@@ -36,9 +36,9 @@ public partial class DataModelCommands
             Excel.Model? model = null;
             Excel.WorkbookConnection? dataModelConn = null;
             Excel.ModelConnection? modelConn = null;
-            dynamic? adoConnection = null;
-            dynamic? recordset = null;
-            dynamic? fields = null;
+            ADODB._Connection? adoConnection = null;
+            ADODB._Recordset? recordset = null;
+            ADODB.Fields? fields = null;
             Exception? operationFailure = null;
 
             try
@@ -68,7 +68,7 @@ public partial class DataModelCommands
                 }
 
                 // Get the ADO connection - this is a live MSOLAP connection to the embedded AS engine
-                adoConnection = modelConn.ADOConnection;
+                adoConnection = ComUtilities.ReadAdoConnection(modelConn);
                 if (adoConnection == null)
                 {
                     throw new InvalidOperationException("No ADOConnection available - cannot execute DAX query");
@@ -80,7 +80,7 @@ public partial class DataModelCommands
                 // Wrap in try-catch to provide helpful error message when MSOLAP is missing
                 try
                 {
-                    recordset = adoConnection.Execute(daxQuery);
+                    recordset = adoConnection.Execute(daxQuery, out _, (int)ADODB.ExecuteOptionEnum.adOptionUnspecified);
                 }
                 catch (COMException ex) when (ex.HResult == unchecked((int)0x80040154))
                 {
@@ -108,10 +108,10 @@ public partial class DataModelCommands
                 for (int i = 0; i < fieldCount; i++)
                 {
                     ct.ThrowIfCancellationRequested();
-                    dynamic? field = null;
+                    ADODB.Field? field = null;
                     try
                     {
-                        field = fields.Item(i);
+                        field = fields[i];
                         string fieldName = field.Name?.ToString() ?? $"Column{i}";
                         result.Columns.Add(fieldName);
                     }
@@ -131,10 +131,10 @@ public partial class DataModelCommands
                     for (int i = 0; i < fieldCount; i++)
                     {
                         ct.ThrowIfCancellationRequested();
-                        dynamic? field = null;
+                        ADODB.Field? field = null;
                         try
                         {
-                            field = fields.Item(i);
+                            field = fields[i];
                             object? value = field.Value;
 
                             // Convert DBNull to null
@@ -189,24 +189,24 @@ public partial class DataModelCommands
 
     [SuppressMessage("ErrorHandling", "EXL002",
         Justification = "Provider diagnostics are secondary to the original DAX COM failure; any diagnostic-read exception is included in the returned message while the original COM exception remains the inner exception.")]
-    private static string GetDaxEvaluationFailureMessage(dynamic adoConnection, COMException failure)
+    private static string GetDaxEvaluationFailureMessage(ADODB._Connection adoConnection, COMException failure)
     {
-        dynamic? errors = null;
+        ADODB.Errors? errors = null;
         var details = new List<string>();
         int? errorCount = null;
         try
         {
             errors = adoConnection.Errors;
-            errorCount = Convert.ToInt32(errors.Count);
+            errorCount = errors.Count;
             for (int index = 0; index < errorCount; index++)
             {
-                dynamic? error = null;
+                ADODB.Error? error = null;
                 try
                 {
-                    error = errors.Item(index);
+                    error = errors[index];
                     string description = error.Description?.ToString() ?? string.Empty;
                     string source = error.Source?.ToString() ?? string.Empty;
-                    string number = Convert.ToInt32(error.Number).ToString("X8",
+                    string number = error.Number.ToString("X8",
                         System.Globalization.CultureInfo.InvariantCulture);
                     if (!string.IsNullOrWhiteSpace(description) ||
                         !string.IsNullOrWhiteSpace(source) ||

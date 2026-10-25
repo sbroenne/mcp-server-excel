@@ -199,15 +199,22 @@ public sealed class PersistentServiceChartDepthTests(PersistentServiceWorkbookFi
         Assert.Equal(before, _fixture.Send("chartconfig.get-point-format", new { chartName, seriesIndex = 2, pointIndex = 1 }).Result);
     }
 
-    [Fact]
-    public void ColumnPointTransparency_ReadReportsNativeGetterLimit()
+    [Theory]
+    [InlineData(0.0)]
+    [InlineData(0.25)]
+    [InlineData(1.0)]
+    public void ColumnPointTransparency_ReadReturnsWrittenValue(double transparency)
     {
         var (_, chartName) = CreateChart();
-        _fixture.Send("chartconfig.set-point-format", new { chartName, seriesIndex = 1, pointIndex = 1, pointOptions = new { fillColor = "#70AD47", fillTransparency = 0.25 } });
+        var neighbor = _fixture.Send("chartconfig.get-point-format", new { chartName, seriesIndex = 1, pointIndex = 2 }).Result;
+        _fixture.Send("chartconfig.set-point-format", new { chartName, seriesIndex = 1, pointIndex = 1, pointOptions = new { fillColor = "#70AD47", fillTransparency = transparency } });
         var response = _fixture.Send("chartconfig.get-point-format", new { chartName, seriesIndex = 1, pointIndex = 1 });
         using var state = JsonDocument.Parse(response.Result!);
-        Assert.False(state.RootElement.GetProperty("fillTransparencyAvailable").GetBoolean());
-        Assert.Contains("cannot be inspected", state.RootElement.GetProperty("fillTransparencyReadError").GetString(), StringComparison.Ordinal);
+        Assert.True(state.RootElement.GetProperty("fillTransparencyAvailable").GetBoolean());
+        Assert.Equal(transparency, state.RootElement.GetProperty("fillTransparency").GetDouble(), precision: 6);
+        Assert.Equal("#70AD47", state.RootElement.GetProperty("fillColor").GetString());
+        Assert.False(state.RootElement.TryGetProperty("fillTransparencyReadError", out _));
+        Assert.Equal(neighbor, _fixture.Send("chartconfig.get-point-format", new { chartName, seriesIndex = 1, pointIndex = 2 }).Result);
     }
 
     [Fact]

@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
@@ -12,19 +13,41 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 [Trait("RequiresExcel", "false")]
 public class ComUtilitiesTests
 {
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void RequiredMetadata_WithNullObject_ThrowsArgumentNullException(bool readCount)
+    [Fact]
+    public void ReadStyleIndentLevel_NativeNullConversion_ReturnsNull()
     {
-        var exception = Assert.Throws<ArgumentNullException>(() =>
+        Assert.Null(ComUtilities.ReadStyleIndentLevel(
+            () => throw new InvalidCastException("Native style indentation is null.", unchecked((int)0x80004002))));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    public void ReadStyleIndentLevel_ExplicitValue_PreservesValue(int value)
+    {
+        Assert.Equal(value, ComUtilities.ReadStyleIndentLevel(() => value));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    [InlineData(4)]
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "CA2201",
+        Justification = "Injects exact native error types and codes to prove the single style getter does not hide unrelated failures.")]
+    public void ReadStyleIndentLevel_UnrelatedFailure_PropagatesOriginal(int failureKind)
+    {
+        Exception expected = failureKind switch
         {
-            if (readCount)
-                ComUtilities.SafeGetInt(null, "Count");
-            else
-                ComUtilities.SafeGetString(null, "Name");
-        });
-        Assert.Equal("obj", exception.ParamName);
+            0 => new COMException("Interface failure, not a null conversion.", unchecked((int)0x80004002)),
+            1 => new COMException("Excel operation failed.", unchecked((int)0x800A03EC)),
+            2 => new InvalidCastException("Different conversion failure.", unchecked((int)0x80070057)),
+            3 => new OperationCanceledException("Cancelled."),
+            _ => new InvalidOperationException("Invalid state.")
+        };
+        Assert.Same(expected, Record.Exception(() =>
+            ComUtilities.ReadStyleIndentLevel(() => throw expected)));
     }
 
     [Fact]
@@ -65,4 +88,3 @@ public class ComUtilitiesTests
         Assert.Null(obj);
     }
 }
-

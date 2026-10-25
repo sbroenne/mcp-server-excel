@@ -35,13 +35,13 @@ public sealed partial class PersistentServicePivotTableTests
                 cache = caches.Item[1];
                 slicers = cache.Slicers;
                 slicer = slicers.Item["PositionControlSlicer"];
-                slicer.Left = Convert.ToDouble(target.Left);
-                slicer.Top = Convert.ToDouble(target.Top);
+                slicer.Left = Convert.ToDouble((object)target.Left, System.Globalization.CultureInfo.InvariantCulture);
+                slicer.Top = Convert.ToDouble((object)target.Top, System.Globalization.CultureInfo.InvariantCulture);
                 shape = slicer.Shape;
                 anchor = shape.TopLeftCell;
-                Assert.Equal(Convert.ToDouble(target.Left), shape.Left, precision: 3);
-                Assert.Equal(Convert.ToDouble(target.Top), shape.Top, precision: 3);
-                Assert.Equal(result.Position, anchor.Address[false, false]);
+                Assert.Equal(Convert.ToDouble((object)target.Left, System.Globalization.CultureInfo.InvariantCulture), shape.Left, precision: 3);
+                Assert.Equal(Convert.ToDouble((object)target.Top, System.Globalization.CultureInfo.InvariantCulture), shape.Top, precision: 3);
+                Assert.Equal(((object)result.Position), anchor.Address[false, false]);
             }
             finally
             {
@@ -756,9 +756,9 @@ public sealed partial class PersistentServicePivotTableTests
                                 sheet = (Microsoft.Office.Interop.Excel.Worksheet)native.Parent;
                                 expectedAnchor = sheet.Range[position];
                                 // Excel quantizes points; a boundary can be reported in the preceding cell.
-                                Assert.Equal(Convert.ToDouble(expectedAnchor.Left), shape.Left, precision: 3);
-                                Assert.Equal(Convert.ToDouble(expectedAnchor.Top), shape.Top, precision: 3);
-                                Assert.Equal(slicer.Position, anchor.Address[false, false]);
+                                Assert.Equal(Convert.ToDouble((object)expectedAnchor.Left, System.Globalization.CultureInfo.InvariantCulture), shape.Left, precision: 3);
+                                Assert.Equal(Convert.ToDouble((object)expectedAnchor.Top, System.Globalization.CultureInfo.InvariantCulture), shape.Top, precision: 3);
+                                Assert.Equal(((object)slicer.Position), anchor.Address[false, false]);
                                 Assert.Equal(_salesSheetName, sheet.Name);
                                 items = cache.SlicerItems;
                                 var selectedNative = new List<string>();

@@ -15,6 +15,8 @@ public sealed partial class PersistentServiceConnectionTests(
 {
     private readonly IConnectionCommands _connections =
         ServiceCommandProxy.Create<IConnectionCommands>(fixture);
+    private readonly IQueryTableCommands _queryTables =
+        ServiceCommandProxy.Create<IQueryTableCommands>(fixture);
 
     [Fact]
     public void Create_TextConnection_ThrowsNotSupportedException()

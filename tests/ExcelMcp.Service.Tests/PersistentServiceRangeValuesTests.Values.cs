@@ -497,7 +497,7 @@ public sealed partial class PersistentServiceRangeValuesTests
                     try
                     {
                         cell = (Excel.Range)cells.Cells[1, column];
-                        flags.Add(Convert.ToBoolean(cell.HasFormula, CultureInfo.InvariantCulture));
+                        flags.Add(Convert.ToBoolean(((object)cell.HasFormula), CultureInfo.InvariantCulture));
                     }
                     finally
                     {

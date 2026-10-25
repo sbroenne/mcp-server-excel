@@ -1,3 +1,4 @@
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 
@@ -18,7 +19,7 @@ public partial class PivotTableCommands : IPivotTableCommands, IPivotTableFieldC
     /// <param name="pivotTableName">Name of the PivotTable to find</param>
     /// <returns>The PivotTable object if found</returns>
     /// <exception cref="InvalidOperationException">Thrown if PivotTable is not found</exception>
-    private static dynamic FindPivotTable(dynamic workbook, string pivotTableName)
+    private static Excel.PivotTable FindPivotTable(Excel.Workbook workbook, string pivotTableName)
         => CoreLookupHelpers.FindPivotTable(workbook, pivotTableName);
 
     /// <summary>
@@ -33,11 +34,11 @@ public partial class PivotTableCommands : IPivotTableCommands, IPivotTableFieldC
     private static TResult ExecuteWithStrategy<TResult>(
         IExcelBatch batch,
         string pivotTableName,
-        Func<IPivotTableFieldStrategy, dynamic, TResult> operation)
+        Func<IPivotTableFieldStrategy, Excel.PivotTable, TResult> operation)
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? pivot = null;
+            Excel.PivotTable? pivot = null;
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
@@ -49,151 +50,6 @@ public partial class PivotTableCommands : IPivotTableCommands, IPivotTableFieldC
                 ComUtilities.Release(ref pivot);
             }
         });
-    }
-
-    /// <summary>
-    /// Gets all field names from a PivotTable
-    /// </summary>
-    private static List<string> GetFieldNames(dynamic pivotTable)
-    {
-        var fieldNames = new List<string>();
-        dynamic? pivotFields = null;
-        try
-        {
-            pivotFields = pivotTable.PivotFields;
-            for (int i = 1; i <= pivotFields.Count; i++)
-            {
-                dynamic? field = null;
-                try
-                {
-                    field = pivotFields.Item(i);
-                    fieldNames.Add(field.SourceName?.ToString() ?? field.Name?.ToString() ?? $"Field{i}");
-                }
-                finally
-                {
-                    ComUtilities.Release(ref field);
-                }
-            }
-        }
-        finally
-        {
-            ComUtilities.Release(ref pivotFields);
-        }
-        return fieldNames;
-    }
-
-    /// <summary>
-    /// Gets a field for manipulation, handling both OLAP and regular PivotTables.
-    /// For OLAP PivotTables, accesses via CubeFields and returns the corresponding PivotField.
-    /// For regular PivotTables, accesses via PivotFields directly.
-    /// </summary>
-    /// <param name="pivot">The PivotTable object</param>
-    /// <param name="fieldName">Name of the field to retrieve</param>
-    /// <param name="isOlap">Output parameter indicating if this is an OLAP PivotTable</param>
-    /// <returns>The field object that can be manipulated (PivotField)</returns>
-    /// <exception cref="InvalidOperationException">Thrown if field is not found</exception>
-    /// <remarks>
-    /// Microsoft docs: "In OLAP PivotTables, PivotFields do not exist until the corresponding
-    /// CubeField is added to the PivotTable." This method handles both architectures.
-    /// </remarks>
-    private static dynamic GetFieldForManipulation(dynamic pivot, string fieldName, out bool isOlap)
-    {
-        isOlap = false;
-        dynamic? cubeFields = null;
-
-        try
-        {
-            // Check if this is an OLAP/Data Model PivotTable
-            isOlap = PivotTableHelpers.TryGetCubeFields(pivot, out cubeFields);
-
-            if (isOlap && cubeFields is not null)
-            {
-                // OLAP PivotTable - access via CubeFields
-                // CubeField names are hierarchical like "[TableName].[FieldName]" or "[Measures].[MeasureName]"
-                // EXACT MATCH ONLY - no partial matching to avoid disambiguation bugs
-                dynamic? cubeField = null;
-                try
-                {
-                    // Exact match only - the LLM knows the exact field names
-                    try
-                    {
-                        cubeField = cubeFields.Item(fieldName);
-                    }
-                    catch (System.Runtime.InteropServices.COMException ex) when (ComErrors.IsMemberUnavailable(ex))
-                    {
-                        // Field not found by exact name
-                        cubeField = null;
-                    }
-
-                    if (cubeField == null)
-                    {
-                        throw new InvalidOperationException($"CubeField '{fieldName}' not found in Data Model PivotTable. Use the exact CubeField name (e.g., '[Measures].[ACR]' or '[TableName].[ColumnName]').");
-                    }
-
-                    // Get or create the PivotField from the CubeField
-                    // Per Microsoft docs: CubeField.PivotFields returns collection of PivotFields for this CubeField
-                    dynamic? pivotFields = cubeField.PivotFields;
-                    if (pivotFields is null || pivotFields.Count == 0)
-                    {
-                        // No PivotField exists yet - field hasn't been added to PivotTable
-                        // Call CreatePivotFields() to create the PivotFields collection
-                        // Per Microsoft docs: "In OLAP PivotTables, PivotFields do not exist until
-                        // the corresponding CubeField is added to the PivotTable. The CreatePivotFields()
-                        // method enables users to create all PivotFields of a CubeField."
-                        ComUtilities.Release(ref pivotFields);
-                        cubeField.CreatePivotFields(); // Create PivotFields before manipulation
-
-                        // Now get the newly created PivotFields collection
-                        pivotFields = cubeField.PivotFields;
-                        if (pivotFields is null || pivotFields.Count == 0)
-                        {
-                            // Still no PivotFields - this shouldn't happen after CreatePivotFields()
-                            ComUtilities.Release(ref pivotFields);
-                            throw new InvalidOperationException($"Failed to create PivotFields for CubeField '{fieldName}'");
-                        }
-                    }
-
-                    // Release PivotFields collection - we don't need it
-                    ComUtilities.Release(ref pivotFields);
-
-                    // CRITICAL: Return the CubeField, not the PivotField!
-                    // For OLAP, we must set Orientation on the CubeField, not on the PivotField.
-                    // Microsoft docs: "CubeField.Orientation returns or sets... the location of the field"
-                    // Setting PivotField.Orientation fails with "Unable to set the Orientation property"
-                    // DON'T release cubeField - caller needs it!
-                    return cubeField;
-                }
-                finally
-                {
-                    // Only release cubeField if we didn't return it or a child object
-                    // Since we return cubeField, we should NOT release it here
-                    // if (cubeField != null)
-                    //     ComUtilities.Release(ref cubeField);
-                }
-            }
-            else
-            {
-                // Regular PivotTable - access via PivotFields directly
-                dynamic? pivotFields = null;
-                try
-                {
-                    pivotFields = pivot.PivotFields;
-                    return pivotFields.Item(fieldName); // COM will throw if not found
-                }
-                catch (Exception ex)
-                {
-                    throw new InvalidOperationException($"Field '{fieldName}' not found in PivotTable", ex);
-                }
-                finally
-                {
-                    ComUtilities.Release(ref pivotFields);
-                }
-            }
-        }
-        finally
-        {
-            ComUtilities.Release(ref cubeFields);
-        }
     }
 
     #endregion

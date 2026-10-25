@@ -22,10 +22,10 @@ internal static class PersistentServiceRangeVerification
                 Assert.NotNull(sheet);
                 range = sheet.Range[address];
                 return new Geometry(
-                    Convert.ToDouble(range.Left, CultureInfo.InvariantCulture),
-                    Convert.ToDouble(range.Top, CultureInfo.InvariantCulture),
-                    Convert.ToDouble(range.Width, CultureInfo.InvariantCulture),
-                    Convert.ToDouble(range.Height, CultureInfo.InvariantCulture));
+                    Convert.ToDouble(((object)range.Left), CultureInfo.InvariantCulture),
+                    Convert.ToDouble(((object)range.Top), CultureInfo.InvariantCulture),
+                    Convert.ToDouble(((object)range.Width), CultureInfo.InvariantCulture),
+                    Convert.ToDouble(((object)range.Height), CultureInfo.InvariantCulture));
             }
             finally
             {
@@ -51,9 +51,9 @@ internal static class PersistentServiceRangeVerification
                 font = range.Font;
                 interior = range.Interior;
                 return new CellFormat(
-                    Convert.ToBoolean(font.Bold, CultureInfo.InvariantCulture),
-                    Convert.ToInt32(interior.ColorIndex, CultureInfo.InvariantCulture),
-                    Convert.ToString(range.NumberFormat, CultureInfo.InvariantCulture));
+                    Convert.ToBoolean(((object)font.Bold), CultureInfo.InvariantCulture),
+                    Convert.ToInt32(((object)interior.ColorIndex), CultureInfo.InvariantCulture),
+                    Convert.ToString(((object)range.NumberFormat), CultureInfo.InvariantCulture));
             }
             finally
             {

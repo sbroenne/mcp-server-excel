@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.ComInterop;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -20,53 +21,46 @@ public static class CoreLookupHelpers
     /// <remarks>
     /// Caller is responsible for releasing the returned COM object using ComUtilities.Release().
     /// </remarks>
-    public static bool TryFindPivotTable(dynamic workbook, string pivotTableName, out dynamic? pivotTable)
+    public static bool TryFindPivotTable(Excel.Workbook workbook, string pivotTableName, out Excel.PivotTable? pivotTable)
     {
         pivotTable = null;
-        dynamic? sheets = null;
+        Excel.Sheets? sheets = null;
 
         try
         {
             sheets = workbook.Worksheets;
-            int sheetCount = Convert.ToInt32(sheets.Count);
+            int sheetCount = sheets.Count;
 
             for (int i = 1; i <= sheetCount; i++)
             {
-                dynamic? sheet = null;
-                dynamic? pivotTables = null;
+                Excel.Worksheet? sheet = null;
+                Excel.PivotTables? pivotTables = null;
 
                 try
                 {
-                    sheet = sheets.Item(i);
-                    pivotTables = sheet.PivotTables();
-                    int ptCount = Convert.ToInt32(pivotTables.Count);
+                    sheet = (Excel.Worksheet)sheets[i];
+                    pivotTables = (Excel.PivotTables)sheet.PivotTables();
+                    int ptCount = pivotTables.Count;
 
                     for (int j = 1; j <= ptCount; j++)
                     {
-                        dynamic? pt = null;
+                        Excel.PivotTable? pt = null;
 
                         try
                         {
                             pt = pivotTables.Item(j);
-                            string ptName = pt.Name?.ToString() ?? string.Empty;
+                            string ptName = pt.Name;
 
                             if (ptName.Equals(pivotTableName, StringComparison.OrdinalIgnoreCase))
                             {
-                                // Found - release intermediate objects but NOT the found PivotTable
-                                ComUtilities.Release(ref pivotTables!);
-                                ComUtilities.Release(ref sheet!);
-                                ComUtilities.Release(ref sheets!);
                                 pivotTable = pt;
+                                pt = null;
                                 return true;
                             }
                         }
                         finally
                         {
-                            // Only release if not the found item
-                            if (pt != null && pivotTable == null)
-                            {
-                                ComUtilities.Release(ref pt!);
-                            }
+                            ComUtilities.Release(ref pt);
                         }
                     }
                 }
@@ -95,9 +89,9 @@ public static class CoreLookupHelpers
     /// <remarks>
     /// Caller is responsible for releasing the returned COM object using ComUtilities.Release().
     /// </remarks>
-    public static dynamic FindPivotTable(dynamic workbook, string pivotTableName)
+    public static Excel.PivotTable FindPivotTable(Excel.Workbook workbook, string pivotTableName)
     {
-        if (!TryFindPivotTable(workbook, pivotTableName, out dynamic? pivotTable) || pivotTable == null)
+        if (!TryFindPivotTable(workbook, pivotTableName, out Excel.PivotTable? pivotTable) || pivotTable == null)
         {
             throw new InvalidOperationException($"PivotTable '{pivotTableName}' not found.");
         }
@@ -119,53 +113,46 @@ public static class CoreLookupHelpers
     /// <remarks>
     /// Caller is responsible for releasing the returned COM object using ComUtilities.Release().
     /// </remarks>
-    public static bool TryFindTable(dynamic workbook, string tableName, out dynamic? table)
+    public static bool TryFindTable(Excel.Workbook workbook, string tableName, out Excel.ListObject? table)
     {
         table = null;
-        dynamic? sheets = null;
+        Excel.Sheets? sheets = null;
 
         try
         {
             sheets = workbook.Worksheets;
-            int sheetCount = Convert.ToInt32(sheets.Count);
+            int sheetCount = sheets.Count;
 
             for (int i = 1; i <= sheetCount; i++)
             {
-                dynamic? sheet = null;
-                dynamic? listObjects = null;
+                Excel.Worksheet? sheet = null;
+                Excel.ListObjects? listObjects = null;
 
                 try
                 {
-                    sheet = sheets.Item(i);
+                    sheet = (Excel.Worksheet)sheets[i];
                     listObjects = sheet.ListObjects;
-                    int tableCount = Convert.ToInt32(listObjects.Count);
+                    int tableCount = listObjects.Count;
 
                     for (int j = 1; j <= tableCount; j++)
                     {
-                        dynamic? tbl = null;
+                        Excel.ListObject? tbl = null;
 
                         try
                         {
-                            tbl = listObjects.Item(j);
-                            string tblName = tbl.Name?.ToString() ?? string.Empty;
+                            tbl = listObjects[j];
+                            string tblName = tbl.Name;
 
                             if (tblName.Equals(tableName, StringComparison.OrdinalIgnoreCase))
                             {
-                                // Found - release intermediate objects but NOT the found table
-                                ComUtilities.Release(ref listObjects!);
-                                ComUtilities.Release(ref sheet!);
-                                ComUtilities.Release(ref sheets!);
                                 table = tbl;
+                                tbl = null;
                                 return true;
                             }
                         }
                         finally
                         {
-                            // Only release if not the found item
-                            if (tbl != null && table == null)
-                            {
-                                ComUtilities.Release(ref tbl!);
-                            }
+                            ComUtilities.Release(ref tbl);
                         }
                     }
                 }
@@ -194,9 +181,9 @@ public static class CoreLookupHelpers
     /// <remarks>
     /// Caller is responsible for releasing the returned COM object using ComUtilities.Release().
     /// </remarks>
-    public static dynamic FindTable(dynamic workbook, string tableName)
+    public static Excel.ListObject FindTable(Excel.Workbook workbook, string tableName)
     {
-        if (!TryFindTable(workbook, tableName, out dynamic? table) || table == null)
+        if (!TryFindTable(workbook, tableName, out Excel.ListObject? table) || table == null)
         {
             throw new InvalidOperationException($"Table '{tableName}' not found.");
         }
@@ -210,9 +197,9 @@ public static class CoreLookupHelpers
     /// <param name="workbook">The workbook to search</param>
     /// <param name="tableName">Name of the table to check</param>
     /// <returns>True if table exists, false otherwise</returns>
-    public static bool TableExists(dynamic workbook, string tableName)
+    public static bool TableExists(Excel.Workbook workbook, string tableName)
     {
-        if (TryFindTable(workbook, tableName, out dynamic? table))
+        if (TryFindTable(workbook, tableName, out Excel.ListObject? table))
         {
             ComUtilities.Release(ref table);
             return true;
@@ -223,5 +210,4 @@ public static class CoreLookupHelpers
 
     #endregion
 }
-
 

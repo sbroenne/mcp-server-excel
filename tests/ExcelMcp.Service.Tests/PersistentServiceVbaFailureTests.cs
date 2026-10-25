@@ -81,6 +81,7 @@ public sealed class PersistentServiceVbaFailureTests :
     public async Task Run_MissingProcedure_RemainsComInteropFailure()
     {
         SeedGuard();
+        var security = _fixture.ExecuteRawVerification((ctx, _) => ctx.App.AutomationSecurity);
         var response = await _fixture.SendForFailureAsync(
             "vba.run",
             new
@@ -95,6 +96,25 @@ public sealed class PersistentServiceVbaFailureTests :
             "nonexistent",
             response.ErrorMessage,
             StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(security, _fixture.ExecuteRawVerification((ctx, _) => ctx.App.AutomationSecurity));
+        AssertGuardPreserved();
+    }
+
+    [Fact]
+    public async Task Run_TooManyParameters_HasInvalidInputCategoryAndPreservesWorkbook()
+    {
+        SeedGuard();
+        var response = await _fixture.SendForFailureAsync(
+            "vba.run",
+            new
+            {
+                procedureName = "RetainedModule.RetainedProcedure",
+                timeout = (int?)null,
+                parameters = Enumerable.Repeat("unused", 31).ToArray()
+            });
+
+        Assert.Equal(OperationFailureCategory.InvalidInput.ToString(), response.ErrorCategory);
+        Assert.Contains("at most 30", response.ErrorMessage);
         AssertGuardPreserved();
     }
 

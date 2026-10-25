@@ -93,6 +93,11 @@ jobs:
         build-mode: ${{ matrix.build-mode }}
         config-file: ./.github/codeql/codeql-config.yml
 
+    - name: Install Microsoft ADO build tools
+      if: matrix.build-mode == 'manual'
+      shell: pwsh
+      run: ./scripts/Install-AdoBuildTools.ps1
+
     - name: Restore dependencies
       if: matrix.build-mode == 'manual'
       run: dotnet restore Sbroenne.ExcelMcp.sln

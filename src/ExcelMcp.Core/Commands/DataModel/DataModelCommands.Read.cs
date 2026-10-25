@@ -41,9 +41,9 @@ public partial class DataModelCommands
                 {
                     var tableInfo = new DataModelTableInfo
                     {
-                        Name = ComUtilities.SafeGetString(table, "Name"),
-                        SourceName = ComUtilities.SafeGetString(table, "SourceName"),
-                        RecordCount = ComUtilities.SafeGetInt(table, "RecordCount")
+                        Name = table.Name ?? string.Empty,
+                        SourceName = table.SourceName ?? string.Empty,
+                        RecordCount = table.RecordCount
                     };
 
                     result.Tables.Add(tableInfo);
@@ -107,17 +107,17 @@ public partial class DataModelCommands
                         return;
                     }
 
-                    string measureName = ComUtilities.SafeGetString(measure, "Name");
+                    string measureName = measure.Name ?? string.Empty;
                     string formula = engineFormulas != null && engineFormulas.TryGetValue(measureName, out var stored)
                         ? stored
-                        : ComUtilities.SafeGetString(measure, "Formula");
+                        : measure.Formula ?? string.Empty;
 
                     var measureInfo = new DataModelMeasureInfo
                     {
                         Name = measureName,
                         Table = measureTableName,
                         FormulaPreview = formula, // Will be formatted after retrieval
-                        Description = ComUtilities.SafeGetString(measure, "Description")
+                        Description = measure.Description ?? string.Empty
                     };
 
                     result.Measures.Add(measureInfo);
@@ -192,12 +192,12 @@ public partial class DataModelCommands
                 }
 
                 // Get measure details using safe helpers
-                string storedName = ComUtilities.SafeGetString(measure, "Name");
+                string storedName = measure.Name ?? string.Empty;
                 var engineFormulas = TryReadStoredMeasureFormulas(model!);
                 result.DaxFormula = engineFormulas != null && engineFormulas.TryGetValue(storedName, out var stored)
                     ? stored
-                    : ComUtilities.SafeGetString(measure, "Formula");
-                result.Description = ComUtilities.SafeGetString(measure, "Description");
+                    : measure.Formula ?? string.Empty;
+                result.Description = measure.Description ?? string.Empty;
                 result.CharacterCount = result.DaxFormula.Length;
                 result.TableName = GetMeasureTableName(model!, measureName) ?? "";
 
@@ -429,8 +429,8 @@ public partial class DataModelCommands
                 }
 
                 // Get table properties
-                result.SourceName = ComUtilities.SafeGetString(table, "SourceName");
-                result.RecordCount = ComUtilities.SafeGetInt(table, "RecordCount");
+                result.SourceName = table.SourceName ?? string.Empty;
+                result.RecordCount = table.RecordCount;
 
                 Excel.WorkbookConnection? sourceConnection = null;
                 try
@@ -461,7 +461,7 @@ public partial class DataModelCommands
                     try
                     {
                         associatedTable = measure.AssociatedTable;
-                        string measureTableName = ComUtilities.SafeGetString(associatedTable, "Name");
+                        string measureTableName = associatedTable.Name ?? string.Empty;
                         if (string.Equals(measureTableName, tableName, StringComparison.OrdinalIgnoreCase))
                         {
                             result.MeasureCount++;
@@ -510,8 +510,8 @@ public partial class DataModelCommands
                 ForEachTable(model!, (table, index) =>
                 {
                     result.TableCount++;
-                    totalRows += ComUtilities.SafeGetInt(table, "RecordCount");
-                    result.TableNames.Add(ComUtilities.SafeGetString(table, "Name"));
+                    totalRows += table.RecordCount;
+                    result.TableNames.Add(table.Name ?? string.Empty);
                 });
                 result.TotalRows = totalRows;
 

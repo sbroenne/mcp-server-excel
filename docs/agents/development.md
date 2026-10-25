@@ -67,7 +67,26 @@ link as automatic discovery or import.
 Install PowerShell 7.4 or later (`pwsh`), the .NET SDK selected by `global.json`,
 and Node.js 24 LTS. Windows PowerShell 5.1 is not supported; scripts enforce the
 minimum version, not a particular patch release.
-Website work also needs Python 3.13. Use the checked-in lockfiles:
+Website work also needs Python 3.13.
+
+Building Excel automation code additionally requires Microsoft's
+[.NET Framework 4.8.1 Developer Pack](https://go.microsoft.com/fwlink/?linkid=2203306),
+which supplies `TlbImp.exe` 4.8.9037.0. This is a build-machine prerequisite,
+not an application runtime dependency. Install it through Microsoft's installer,
+or explicitly run `scripts\Install-AdoBuildTools.ps1` on a machine you are
+authorized to provision. The script checks the reviewed installer hash and
+Microsoft signature, never requests a restart, and fails if installation
+requires further action. Ordinary builds never install software.
+
+`scripts\Import-AdoDefinitions.ps1 -ValidateOnly` verifies the installed tool
+and signed Windows ADO 2.8 definitions. Normal `dotnet build` imports those
+definitions into each project's `obj` directory and embeds only the used types.
+No Visual Studio IDE, full-framework MSBuild, `COMReference`, committed binary,
+or additional runtime interop DLL is required. See
+[the definition boundary](../PIA-COVERAGE.md#ado-compiler-definitions) for input
+identity and repeatability limits.
+
+Use the checked-in lockfiles:
 
 ```powershell
 $ErrorActionPreference = 'Stop'
@@ -100,7 +119,8 @@ Do not run them as an incidental setup check.
 ## Cloud and code-review setup
 
 `.github/workflows/copilot-setup-steps.yml` prepares a Windows environment from
-the SDK and dependency lockfiles. GitHub-hosted runners do not have Excel.
+the SDK and dependency lockfiles, including the approved Microsoft ADO build
+tool prerequisite. GitHub-hosted runners do not have Excel.
 Only setup on the default branch is adopted by the cloud agent.
 If a setup step fails, GitHub may still start the agent after skipping remaining
 steps. Diagnose and report missing prerequisites before claiming validation.

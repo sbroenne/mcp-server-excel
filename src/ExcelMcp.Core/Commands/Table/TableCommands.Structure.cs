@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
@@ -16,14 +17,14 @@ public partial class TableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
-            dynamic? sheet = null;
-            dynamic? newRangeObj = null;
+            Excel.ListObject? table = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? newRangeObj = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
 
-                sheet = table.Parent;
+                sheet = (Excel.Worksheet)table.Parent;
                 newRangeObj = sheet.Range[newRange];
 
                 // Resize the table
@@ -47,7 +48,7 @@ public partial class TableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
+            Excel.ListObject? table = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
@@ -70,9 +71,9 @@ public partial class TableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
-            dynamic? listColumns = null;
-            dynamic? column = null;
+            Excel.ListObject? table = null;
+            Excel.ListColumns? listColumns = null;
+            Excel.ListColumn? column = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
@@ -88,22 +89,20 @@ public partial class TableCommands
                 column = null;
                 for (int i = 1; i <= listColumns.Count; i++)
                 {
-                    dynamic? col = null;
+                    Excel.ListColumn? col = null;
                     try
                     {
-                        col = listColumns.Item(i);
+                        col = listColumns[i];
                         if (col.Name == columnName)
                         {
                             column = col;
+                            col = null;
                             break;
                         }
                     }
                     finally
                     {
-                        if (col is not null && col.Name != columnName)
-                        {
-                            ComUtilities.Release(ref col);
-                        }
+                        ComUtilities.Release(ref col);
                     }
                 }
 
@@ -130,7 +129,7 @@ public partial class TableCommands
                     _ => throw new ArgumentException($"Unknown total function '{totalFunction}'. Valid: sum, average, count, countnums, max, min, stddev, var, none")
                 };
 
-                column.TotalsCalculation = xlFunction;
+                column.TotalsCalculation = (Excel.XlTotalsCalculation)xlFunction;
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
@@ -150,7 +149,7 @@ public partial class TableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
+            Excel.ListObject? table = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
@@ -166,4 +165,3 @@ public partial class TableCommands
         });
     }
 }
-

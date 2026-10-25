@@ -66,8 +66,8 @@ public partial class PersistentServiceDataModelCommandsTests
             Excel.ModelRelationship? relationship = null;
             Excel.ModelTableColumn? foreignColumn = null;
             Excel.ModelTableColumn? primaryColumn = null;
-            object? foreignTable = null;
-            object? primaryTable = null;
+            Excel.ModelTable? foreignTable = null;
+            Excel.ModelTable? primaryTable = null;
             var result = new List<(string, string, string, string, bool)>();
             try
             {
@@ -80,10 +80,10 @@ public partial class PersistentServiceDataModelCommandsTests
                         relationship = relationships.Item(index);
                         foreignColumn = relationship.ForeignKeyColumn;
                         primaryColumn = relationship.PrimaryKeyColumn;
-                        foreignTable = foreignColumn.Parent;
-                        primaryTable = primaryColumn.Parent;
-                        result.Add((ComUtilities.SafeGetString(foreignTable, "Name"), foreignColumn.Name,
-                            ComUtilities.SafeGetString(primaryTable, "Name"), primaryColumn.Name, relationship.Active));
+                        foreignTable = (Excel.ModelTable)foreignColumn.Parent;
+                        primaryTable = (Excel.ModelTable)primaryColumn.Parent;
+                        result.Add((foreignTable.Name, foreignColumn.Name,
+                            primaryTable.Name, primaryColumn.Name, relationship.Active));
                     }
                     finally
                     {

@@ -28,16 +28,16 @@ public sealed partial class PersistentServiceConnectionTests
                 {
                     odbc = connection.ODBCConnection;
                     return new NativeConnection(connection.Name, connection.Description, connection.Type,
-                        Convert.ToString(odbc.Connection, CultureInfo.InvariantCulture)!,
-                        ConnectionCommandText(odbc.CommandText),
+                        Convert.ToString(((object)odbc.Connection), CultureInfo.InvariantCulture)!,
+                        ConnectionCommandText(((object)odbc.CommandText)),
                         odbc.BackgroundQuery, odbc.RefreshOnFileOpen, odbc.Refreshing,
                         odbc.SavePassword, odbc.RefreshPeriod);
                 }
                 Assert.Equal(Excel.XlConnectionType.xlConnectionTypeOLEDB, connection.Type);
                 oledb = connection.OLEDBConnection;
                 return new NativeConnection(connection.Name, connection.Description, connection.Type,
-                    Convert.ToString(oledb.Connection, CultureInfo.InvariantCulture)!,
-                    ConnectionCommandText(oledb.CommandText),
+                    Convert.ToString(((object)oledb.Connection), CultureInfo.InvariantCulture)!,
+                    ConnectionCommandText(((object)oledb.CommandText)),
                     oledb.BackgroundQuery, oledb.RefreshOnFileOpen, oledb.Refreshing,
                     oledb.SavePassword, oledb.RefreshPeriod);
             }

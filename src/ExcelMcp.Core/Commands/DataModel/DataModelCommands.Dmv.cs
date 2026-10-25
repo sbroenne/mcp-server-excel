@@ -35,9 +35,9 @@ public partial class DataModelCommands
             Excel.Model? model = null;
             Excel.WorkbookConnection? dataModelConn = null;
             Excel.ModelConnection? modelConn = null;
-            dynamic? adoConnection = null;
-            dynamic? recordset = null;
-            dynamic? fields = null;
+            ADODB._Connection? adoConnection = null;
+            ADODB._Recordset? recordset = null;
+            ADODB.Fields? fields = null;
             Exception? operationFailure = null;
 
             try
@@ -64,7 +64,7 @@ public partial class DataModelCommands
                 }
 
                 // Get the ADO connection - this is a live MSOLAP connection to the embedded AS engine
-                adoConnection = modelConn.ADOConnection;
+                adoConnection = ComUtilities.ReadAdoConnection(modelConn);
                 if (adoConnection == null)
                 {
                     throw new InvalidOperationException("No ADOConnection available - cannot execute DMV query");
@@ -77,7 +77,7 @@ public partial class DataModelCommands
                 // Wrap in try-catch to provide helpful error message when MSOLAP is missing
                 try
                 {
-                    recordset = adoConnection.Execute(dmvQuery);
+                    recordset = adoConnection.Execute(dmvQuery, out _, (int)ADODB.ExecuteOptionEnum.adOptionUnspecified);
                 }
                 catch (COMException ex) when (ex.HResult == unchecked((int)0x80040154))
                 {
@@ -94,10 +94,10 @@ public partial class DataModelCommands
                 // Extract column names
                 for (int i = 0; i < fieldCount; i++)
                 {
-                    dynamic? field = null;
+                    ADODB.Field? field = null;
                     try
                     {
-                        field = fields.Item(i);
+                        field = fields[i];
                         string fieldName = field.Name?.ToString() ?? $"Column{i}";
                         result.Columns.Add(fieldName);
                     }
@@ -114,10 +114,10 @@ public partial class DataModelCommands
 
                     for (int i = 0; i < fieldCount; i++)
                     {
-                        dynamic? field = null;
+                        ADODB.Field? field = null;
                         try
                         {
-                            field = fields.Item(i);
+                            field = fields[i];
                             object? value = field.Value;
 
                             // Convert DBNull to null

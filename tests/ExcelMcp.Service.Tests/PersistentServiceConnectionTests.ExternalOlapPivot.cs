@@ -348,7 +348,7 @@ public sealed partial class PersistentServiceConnectionTests
                     try
                     {
                         field = fields.Item(index);
-                        Assert.Equal(expected, Convert.ToBoolean(field.Subtotals[1], System.Globalization.CultureInfo.InvariantCulture));
+                        Assert.Equal(expected, Convert.ToBoolean(((object)field.Subtotals[1]), System.Globalization.CultureInfo.InvariantCulture));
                     }
                     finally { ComUtilities.Release(ref field); }
                 }

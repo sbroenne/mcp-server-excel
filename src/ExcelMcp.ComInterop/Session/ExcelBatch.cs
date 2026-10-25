@@ -1,5 +1,3 @@
-using System.Globalization;
-using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
@@ -689,19 +687,11 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     // msoAutomationSecurityLow = 1
                     // msoAutomationSecurityForceDisable = 3
                     // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity
-                    // AutomationSecurity is typed as Office.MsoAutomationSecurity, an enum that lives in
-                    // office.dll (Microsoft.Office.Core). We do NOT reference or embed the Office.Core PIA,
-                    // so dispatch a plain integer without loading an Office.Core type.
                     int automationSecurity = SelectAutomationSecurity(
                         _isMacroEnabled,
                         _openReadOnly,
                         _allWorkbookPaths);
-                    // Reflection dispatch avoids the dynamic binder's retained ITypeInfo RCW,
-                    // which can block STA termination after Excel.Quit has already returned.
-                    tempExcel.GetType().InvokeMember(
-                        "AutomationSecurity", BindingFlags.SetProperty | BindingFlags.DoNotWrapExceptions, binder: null,
-                        target: tempExcel, args: [automationSecurity],
-                        culture: CultureInfo.InvariantCulture);
+                    tempExcel.AutomationSecurity = (Microsoft.Office.Core.MsoAutomationSecurity)automationSecurity;
 
                     // Open or create workbooks in the same Excel instance
                     var tempWorkbooks = new Dictionary<string, Excel.Workbook>(StringComparer.OrdinalIgnoreCase);
@@ -775,9 +765,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                                 BeforeWorkbookOpenHook?.Invoke(normalizedPath, _shutdownCts.Token);
                                 _shutdownCts.Token.ThrowIfCancellationRequested();
                                 workbooks = tempExcel.Workbooks;
-                                // PIA gap: Open adds an LCID that can rewrite locale-specific table formats.
-                                dynamic dispatch = (dynamic)(object)workbooks;
-                                wb = (Excel.Workbook)dispatch.Open(
+                                wb = workbooks.Open(
                                     normalizedPath, UpdateLinks: 0, ReadOnly: _openReadOnly,
                                     IgnoreReadOnlyRecommended: true, Notify: false, AddToMru: false);
                             }

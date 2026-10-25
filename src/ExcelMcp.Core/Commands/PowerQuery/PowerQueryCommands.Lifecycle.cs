@@ -119,7 +119,7 @@ public partial class PowerQueryCommands
         return batch.Execute((ctx, ct) =>
         {
             Excel.WorkbookQuery? query = null;
-            dynamic? worksheets = null;
+            Excel.Sheets? worksheets = null;
 
             try
             {
@@ -137,27 +137,27 @@ public partial class PowerQueryCommands
 
                 for (int i = 1; i <= worksheetCount; i++)
                 {
-                    dynamic? sheet = null;
-                    dynamic? listObjects = null;
+                    Excel.Worksheet? sheet = null;
+                    Excel.ListObjects? listObjects = null;
 
                     try
                     {
-                        sheet = worksheets.Item(i);
+                        sheet = (Excel.Worksheet)worksheets[i];
                         listObjects = sheet.ListObjects;
                         int tableCount = listObjects.Count;
 
                         // Iterate backwards to safely delete while iterating
                         for (int j = tableCount; j >= 1; j--)
                         {
-                            dynamic? table = null;
-                            dynamic? queryTable = null;
-                            dynamic? workbookConnection = null;
-                            dynamic? oleDbConnection = null;
+                            Excel.ListObject? table = null;
+                            Excel.QueryTable? queryTable = null;
+                            Excel.WorkbookConnection? workbookConnection = null;
+                            Excel.OLEDBConnection? oleDbConnection = null;
 
                             try
                             {
-                                table = listObjects.Item(j);
-                                int sourceType = Convert.ToInt32((object)table.SourceType, System.Globalization.CultureInfo.InvariantCulture);
+                                table = listObjects[j];
+                                int sourceType = (int)table.SourceType;
                                 if (sourceType is not (0 or 3))
                                     continue;
 
@@ -167,12 +167,13 @@ public partial class PowerQueryCommands
                                 {
                                     workbookConnection = queryTable.WorkbookConnection;
                                     if (workbookConnection is null ||
-                                        Convert.ToInt32((object)workbookConnection.Type, System.Globalization.CultureInfo.InvariantCulture) != 1)
+                                        workbookConnection.Type != Excel.XlConnectionType.xlConnectionTypeOLEDB)
                                         continue;
                                     oleDbConnection = workbookConnection.OLEDBConnection;
                                     if (oleDbConnection != null)
                                     {
-                                        string? connString = oleDbConnection.Connection?.ToString() ?? "";
+                                        object? connectionValue = oleDbConnection.Connection;
+                                        string? connString = connectionValue?.ToString() ?? "";
                                         if (PowerQuery.PowerQueryHelpers.MatchesMashupLocation(
                                             connString,
                                             queryName))
@@ -266,9 +267,9 @@ public partial class PowerQueryCommands
     /// Shared logic used by both <see cref="Unload"/> and <see cref="LoadTo"/> ConnectionOnly mode.
     /// The query definition itself is preserved.
     /// </summary>
-    private static void UnloadFromDestinations(dynamic workbook, string queryName)
+    private static void UnloadFromDestinations(Excel.Workbook workbook, string queryName)
     {
-        dynamic? worksheets = null;
+        Excel.Sheets? worksheets = null;
 
         try
         {
@@ -278,27 +279,27 @@ public partial class PowerQueryCommands
 
             for (int i = 1; i <= worksheetCount; i++)
             {
-                dynamic? sheet = null;
-                dynamic? listObjects = null;
+                Excel.Worksheet? sheet = null;
+                Excel.ListObjects? listObjects = null;
 
                 try
                 {
-                    sheet = worksheets.Item(i);
+                    sheet = (Excel.Worksheet)worksheets[i];
                     listObjects = sheet.ListObjects;
                     int tableCount = listObjects.Count;
 
                     // Iterate backwards to safely delete while iterating
                     for (int j = tableCount; j >= 1; j--)
                     {
-                        dynamic? table = null;
-                        dynamic? queryTable = null;
-                        dynamic? workbookConnection = null;
-                        dynamic? oleDbConnection = null;
+                        Excel.ListObject? table = null;
+                        Excel.QueryTable? queryTable = null;
+                        Excel.WorkbookConnection? workbookConnection = null;
+                        Excel.OLEDBConnection? oleDbConnection = null;
 
                         try
                         {
-                            table = listObjects.Item(j);
-                            int sourceType = Convert.ToInt32((object)table.SourceType, System.Globalization.CultureInfo.InvariantCulture);
+                            table = listObjects[j];
+                            int sourceType = (int)table.SourceType;
                             if (sourceType is not (0 or 3))
                                 continue;
 
@@ -308,12 +309,13 @@ public partial class PowerQueryCommands
                             {
                                 workbookConnection = queryTable.WorkbookConnection;
                                 if (workbookConnection is null ||
-                                    Convert.ToInt32((object)workbookConnection.Type, System.Globalization.CultureInfo.InvariantCulture) != 1)
+                                    workbookConnection.Type != Excel.XlConnectionType.xlConnectionTypeOLEDB)
                                     continue;
                                 oleDbConnection = workbookConnection.OLEDBConnection;
                                 if (oleDbConnection != null)
                                 {
-                                    string? connString = oleDbConnection.Connection?.ToString() ?? "";
+                                    object? connectionValue = oleDbConnection.Connection;
+                                    string? connString = connectionValue?.ToString() ?? "";
                                     if (PowerQuery.PowerQueryHelpers.MatchesMashupLocation(
                                         connString,
                                         queryName))
@@ -341,7 +343,7 @@ public partial class PowerQueryCommands
             }
 
             PowerQuery.PowerQueryHelpers.RemoveConnectionsByMashupLocation(
-                (Excel.Workbook)workbook,
+                workbook,
                 queryName);
         }
         finally

@@ -3,6 +3,7 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Excel = Microsoft.Office.Interop.Excel;
+using Office = Microsoft.Office.Core;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Drawing;
 
@@ -104,12 +105,10 @@ public sealed partial class DrawingCommands
                 sheet = GetSheet(ctx.Book, sheetName);
                 shapes = sheet.Shapes;
 
-                // PIA gap: AddPicture requires Office.Core.MsoTriState, while this project intentionally has no office.dll reference.
-                dynamic lateBoundShapes = (dynamic)(object)shapes;
-                shape = (Excel.Shape)lateBoundShapes.AddPicture(
+                shape = shapes.AddPicture(
                     Path.GetFullPath(imagePath),
-                    0,
-                    -1,
+                    Office.MsoTriState.msoFalse,
+                    Office.MsoTriState.msoTrue,
                     Convert.ToSingle(left),
                     Convert.ToSingle(top),
                     Convert.ToSingle(width),
@@ -157,10 +156,8 @@ public sealed partial class DrawingCommands
                 sheet = GetSheet(ctx.Book, sheetName);
                 shapes = sheet.Shapes;
 
-                // PIA gap: AddShape requires Office.Core.MsoAutoShapeType, while this project intentionally has no office.dll reference.
-                dynamic lateBoundShapes = (dynamic)(object)shapes;
-                shape = (Excel.Shape)lateBoundShapes.AddShape(
-                    (int)shapeType,
+                shape = shapes.AddShape(
+                    (Office.MsoAutoShapeType)shapeType,
                     Convert.ToSingle(left),
                     Convert.ToSingle(top),
                     Convert.ToSingle(width),
@@ -207,10 +204,8 @@ public sealed partial class DrawingCommands
                 sheet = GetSheet(ctx.Book, sheetName);
                 shapes = sheet.Shapes;
 
-                // PIA gap: AddTextbox requires Office.Core.MsoTextOrientation, while this project intentionally has no office.dll reference.
-                dynamic lateBoundShapes = (dynamic)(object)shapes;
-                shape = (Excel.Shape)lateBoundShapes.AddTextbox(
-                    1,
+                shape = shapes.AddTextbox(
+                    Office.MsoTextOrientation.msoTextOrientationHorizontal,
                     Convert.ToSingle(left),
                     Convert.ToSingle(top),
                     Convert.ToSingle(width),
@@ -255,10 +250,8 @@ public sealed partial class DrawingCommands
                 sheet = GetSheet(ctx.Book, sheetName);
                 shapes = sheet.Shapes;
 
-                // PIA gap: AddConnector requires Office.Core.MsoConnectorType, while this project intentionally has no office.dll reference.
-                dynamic lateBoundShapes = (dynamic)(object)shapes;
-                shape = (Excel.Shape)lateBoundShapes.AddConnector(
-                    (int)connectorType,
+                shape = shapes.AddConnector(
+                    (Office.MsoConnectorType)connectorType,
                     Convert.ToSingle(beginX),
                     Convert.ToSingle(beginY),
                     Convert.ToSingle(endX),
@@ -565,14 +558,12 @@ public sealed partial class DrawingCommands
 
     private static DrawingObjectKind ReadKind(Excel.Shape shape)
     {
-        // PIA gap: Shape.Type and Shape.Connector return Office.Core enum types, while this project intentionally has no office.dll reference.
-        dynamic lateBoundShape = (dynamic)(object)shape;
-        if (Convert.ToInt32(lateBoundShape.Connector) != 0)
+        if (shape.Connector != Office.MsoTriState.msoFalse)
         {
             return DrawingObjectKind.Connector;
         }
 
-        var shapeType = Convert.ToInt32(lateBoundShape.Type);
+        var shapeType = (int)shape.Type;
         return shapeType switch
         {
             1 => DrawingObjectKind.AutoShape,
@@ -586,21 +577,17 @@ public sealed partial class DrawingCommands
 
     private static DrawingShapeType? ReadShapeType(Excel.Shape shape)
     {
-        // PIA gap: Shape.AutoShapeType returns Office.Core.MsoAutoShapeType.
-        dynamic lateBoundShape = (dynamic)(object)shape;
-        int value = Convert.ToInt32((object)lateBoundShape.AutoShapeType, System.Globalization.CultureInfo.InvariantCulture);
+        int value = (int)shape.AutoShapeType;
         return Enum.IsDefined(typeof(DrawingShapeType), value) ? (DrawingShapeType)value : null;
     }
 
     private static DrawingConnectorType? ReadConnectorType(Excel.Shape shape)
     {
-        dynamic? connectorFormat = null;
+        Excel.ConnectorFormat? connectorFormat = null;
         try
         {
-            // PIA gap: Shape.ConnectorFormat returns an Office.Core object.
-            dynamic lateBoundShape = (dynamic)(object)shape;
-            connectorFormat = lateBoundShape.ConnectorFormat;
-            int value = Convert.ToInt32((object)connectorFormat.Type, System.Globalization.CultureInfo.InvariantCulture);
+            connectorFormat = shape.ConnectorFormat;
+            int value = (int)connectorFormat.Type;
             return Enum.IsDefined(typeof(DrawingConnectorType), value) ? (DrawingConnectorType)value : null;
         }
         finally
@@ -825,15 +812,13 @@ public sealed partial class DrawingCommands
 
     private static void SetFillColor(Excel.Shape shape, string color)
     {
-        dynamic? fill = null;
-        dynamic? colorFormat = null;
+        Excel.FillFormat? fill = null;
+        Excel.ColorFormat? colorFormat = null;
         try
         {
-            // PIA gap: Shape.Fill and ColorFormat are Office.Core types.
-            dynamic lateBoundShape = (dynamic)(object)shape;
-            fill = lateBoundShape.Fill;
+            fill = shape.Fill;
             colorFormat = fill.ForeColor;
-            fill.Visible = -1;
+            fill.Visible = Office.MsoTriState.msoTrue;
             colorFormat.RGB = ParseColor(color);
         }
         finally
@@ -845,20 +830,18 @@ public sealed partial class DrawingCommands
 
     private static string? ReadFillColor(Excel.Shape shape)
     {
-        dynamic? fill = null;
-        dynamic? colorFormat = null;
+        Excel.FillFormat? fill = null;
+        Excel.ColorFormat? colorFormat = null;
         try
         {
-            // PIA gap: Shape.Fill and ColorFormat are Office.Core types.
-            dynamic lateBoundShape = (dynamic)(object)shape;
-            fill = lateBoundShape.Fill;
-            if (Convert.ToInt32(fill.Visible) == 0)
+            fill = shape.Fill;
+            if (fill.Visible == Office.MsoTriState.msoFalse)
             {
                 return null;
             }
 
             colorFormat = fill.ForeColor;
-            return FormatColor(Convert.ToInt32(colorFormat.RGB));
+            return FormatColor(colorFormat.RGB);
         }
         catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
@@ -878,14 +861,12 @@ public sealed partial class DrawingCommands
             return;
         }
 
-        dynamic? line = null;
-        dynamic? colorFormat = null;
+        Excel.LineFormat? line = null;
+        Excel.ColorFormat? colorFormat = null;
         try
         {
-            // PIA gap: Shape.Line and ColorFormat are Office.Core types.
-            dynamic lateBoundShape = (dynamic)(object)shape;
-            line = lateBoundShape.Line;
-            line.Visible = -1;
+            line = shape.Line;
+            line.Visible = Office.MsoTriState.msoTrue;
             if (lineColor != null)
             {
                 colorFormat = line.ForeColor;
@@ -905,20 +886,18 @@ public sealed partial class DrawingCommands
 
     private static string? ReadLineColor(Excel.Shape shape)
     {
-        dynamic? line = null;
-        dynamic? colorFormat = null;
+        Excel.LineFormat? line = null;
+        Excel.ColorFormat? colorFormat = null;
         try
         {
-            // PIA gap: Shape.Line and ColorFormat are Office.Core types.
-            dynamic lateBoundShape = (dynamic)(object)shape;
-            line = lateBoundShape.Line;
-            if (Convert.ToInt32(line.Visible) == 0)
+            line = shape.Line;
+            if (line.Visible == Office.MsoTriState.msoFalse)
             {
                 return null;
             }
 
             colorFormat = line.ForeColor;
-            return FormatColor(Convert.ToInt32(colorFormat.RGB));
+            return FormatColor(colorFormat.RGB);
         }
         catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
@@ -933,12 +912,10 @@ public sealed partial class DrawingCommands
 
     private static double? ReadLineWeight(Excel.Shape shape)
     {
-        dynamic? line = null;
+        Excel.LineFormat? line = null;
         try
         {
-            // PIA gap: Shape.Line returns an Office.Core.LineFormat object.
-            dynamic lateBoundShape = (dynamic)(object)shape;
-            line = lateBoundShape.Line;
+            line = shape.Line;
             return Convert.ToDouble(line.Weight);
         }
         catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
@@ -953,23 +930,17 @@ public sealed partial class DrawingCommands
 
     private static void SetVisible(Excel.Shape shape, bool visible)
     {
-        // PIA gap: Shape.Visible uses Office.Core.MsoTriState.
-        dynamic lateBoundShape = (dynamic)(object)shape;
-        lateBoundShape.Visible = visible ? -1 : 0;
+        shape.Visible = visible ? Office.MsoTriState.msoTrue : Office.MsoTriState.msoFalse;
     }
 
     private static bool ReadVisible(Excel.Shape shape)
     {
-        // PIA gap: Shape.Visible uses Office.Core.MsoTriState.
-        dynamic lateBoundShape = (dynamic)(object)shape;
-        return Convert.ToInt32(lateBoundShape.Visible) != 0;
+        return shape.Visible != Office.MsoTriState.msoFalse;
     }
 
     private static void SetLockAspectRatio(Excel.Shape shape, bool lockAspectRatio)
     {
-        // PIA gap: Shape.LockAspectRatio uses Office.Core.MsoTriState.
-        dynamic lateBoundShape = (dynamic)(object)shape;
-        lateBoundShape.LockAspectRatio = lockAspectRatio ? -1 : 0;
+        shape.LockAspectRatio = lockAspectRatio ? Office.MsoTriState.msoTrue : Office.MsoTriState.msoFalse;
     }
 
     private static int ParseColor(string color)

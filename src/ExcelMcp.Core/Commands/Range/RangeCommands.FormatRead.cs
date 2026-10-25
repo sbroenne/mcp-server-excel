@@ -121,12 +121,6 @@ public partial class RangeCommands
                 return null;
             }
         }
-        object? ReadThemeFont()
-        {
-            if (!tableStyleDefinition) return font.ThemeFont;
-            // PIA gap: differential Font.ThemeFont can be native null, unlike the declared value-type enum.
-            return ((dynamic)font).ThemeFont;
-        }
         var fontFormat = new CellFontFormat(
             ReadFormatText(Read(() => font.Name, "font.name"), "font.name", mixed),
             ReadFormatValue<double>(Read(() => font.Size, "font.size"), "font.size", mixed),
@@ -136,7 +130,7 @@ public partial class RangeCommands
             ReadFormatValue<bool>((object)font.Strikethrough, "font.strikethrough", mixed),
             ReadFormatValue<bool>(Read(() => font.Subscript, "font.subscript"), "font.subscript", mixed),
             ReadFormatValue<bool>(Read(() => font.Superscript, "font.superscript"), "font.superscript", mixed),
-            ReadFormatValue<int>(Read(ReadThemeFont, "font.themeFont"), "font.themeFont", mixed),
+            ReadFormatValue<int>(Read(() => font.ThemeFont, "font.themeFont"), "font.themeFont", mixed),
             ReadFormatColor(Read(() => font.Color, "font.color.rgb"), Read(() => font.ColorIndex, "font.color.colorIndex"), Read(() => font.TintAndShade, "font.color.tintAndShade"),
                 () => font.ThemeColor, "font.color", mixed));
         var fillFormat = new CellFillFormat(
@@ -235,11 +229,11 @@ public partial class RangeCommands
                 try
                 {
                     stop = stops[index];
-                    int color = Convert.ToInt32(stop.Color, CultureInfo.InvariantCulture);
-                    result.Add(new CellGradientStop(stop.Position,
+                    int color = Convert.ToInt32((object)stop.Color, CultureInfo.InvariantCulture);
+                    result.Add(new CellGradientStop((double)(object)stop.Position,
                         new CellColorFormat(FormattingHelpers.ColorToHex(color), null,
-                            ReadFormatTheme(() => stop.ThemeColor, $"fill.gradient.stops[{index}].themeColor", mixed),
-                            stop.TintAndShade)));
+                            ReadFormatTheme(() => (object)stop.ThemeColor, $"fill.gradient.stops[{index}].themeColor", mixed),
+                            (double)(object)stop.TintAndShade)));
                 }
                 finally
                 {

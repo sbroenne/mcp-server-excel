@@ -293,7 +293,7 @@ public sealed partial class PersistentServicePivotTableTests
                     try
                     {
                         cell = (Excel.Range)cells[index];
-                        result.Add(Convert.ToString(cell.Text, CultureInfo.InvariantCulture) ?? string.Empty);
+                        result.Add(Convert.ToString(((object)cell.Text), CultureInfo.InvariantCulture) ?? string.Empty);
                     }
                     finally
                     {

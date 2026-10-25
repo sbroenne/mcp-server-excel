@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
-using Microsoft.CSharp.RuntimeBinder;
 using Microsoft.Extensions.Logging;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -48,7 +47,7 @@ public partial class ConnectionCommands
         {
             Excel.WorkbookConnection? connection = null;
             Excel.OLEDBConnection? oledbConnection = null;
-            dynamic? adoConnection = null;
+            ADODB._Connection? adoConnection = null;
             try
             {
                 connection = GetExternalOlapConnection(ctx.Book, connectionName, out oledbConnection);
@@ -127,7 +126,7 @@ public partial class ConnectionCommands
         {
             Excel.WorkbookConnection? connection = null;
             Excel.OLEDBConnection? oledbConnection = null;
-            dynamic? adoConnection = null;
+            ADODB._Connection? adoConnection = null;
             try
             {
                 connection = GetExternalOlapConnection(ctx.Book, connectionName, out oledbConnection);
@@ -250,13 +249,14 @@ public partial class ConnectionCommands
         }
     }
 
-    private static dynamic GetAdoConnection(
+    private static ADODB._Connection GetAdoConnection(
         string connectionName,
         Excel.OLEDBConnection? oledbConnection)
     {
         try
         {
-            dynamic? adoConnection = oledbConnection?.ADOConnection;
+            ADODB._Connection? adoConnection = oledbConnection is null
+                ? null : ComUtilities.ReadAdoConnection(oledbConnection);
             if (adoConnection is null)
             {
                 throw new InvalidOperationException(GetAdoConnectionUnavailableMessage(connectionName));
@@ -271,11 +271,6 @@ public partial class ConnectionCommands
                 $"{GetAdoConnectionUnavailableMessage(connectionName)} (HRESULT 0x{ex.HResult:X8}).",
                 new COMException("Excel could not expose the OLAP ADO session.", ex.HResult));
 #pragma warning restore CA2201
-        }
-        catch (RuntimeBinderException)
-        {
-            throw new NotSupportedException(
-                GetAdoConnectionUnavailableMessage(connectionName));
         }
     }
 
@@ -310,17 +305,16 @@ public partial class ConnectionCommands
         return cubeName;
     }
 
-    // ADO schema rowsets have no referenced PIA; late binding works with installed OLAP providers.
     internal static List<IReadOnlyDictionary<string, object?>> OpenSchemaRowset(
-        dynamic adoConnection,
+        ADODB._Connection adoConnection,
         OlapSchemaRequest request,
         string connectionName,
         CancellationToken cancellationToken,
         int? maximumRows = null,
         ILogger? logger = null)
     {
-        dynamic? recordset = null;
-        dynamic? fields = null;
+        ADODB._Recordset? recordset = null;
+        ADODB.Fields? fields = null;
         Exception? operationFailure = null;
         var rows = new List<IReadOnlyDictionary<string, object?>>();
         try
@@ -328,7 +322,7 @@ public partial class ConnectionCommands
             try
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                recordset = adoConnection.OpenSchema(request.Schema, request.Restrictions);
+                recordset = adoConnection.OpenSchema((ADODB.SchemaEnum)request.Schema, request.Restrictions, Type.Missing);
                 if (recordset is null)
                 {
                     throw new InvalidOperationException(
@@ -336,14 +330,14 @@ public partial class ConnectionCommands
                 }
 
                 fields = recordset.Fields;
-                int fieldCount = Convert.ToInt32(fields.Count, CultureInfo.InvariantCulture);
+                int fieldCount = fields.Count;
                 var columnNames = new string[fieldCount];
                 for (int i = 0; i < fieldCount; i++)
                 {
-                    dynamic? field = null;
+                    ADODB.Field? field = null;
                     try
                     {
-                        field = fields.Item(i);
+                        field = fields[i];
                         columnNames[i] = Convert.ToString(field.Name, CultureInfo.InvariantCulture)
                             ?? $"Column{i.ToString(CultureInfo.InvariantCulture)}";
                     }
@@ -354,7 +348,7 @@ public partial class ConnectionCommands
                 }
 
                 while ((maximumRows is null || rows.Count < maximumRows)
-                    && !Convert.ToBoolean(recordset.EOF, CultureInfo.InvariantCulture))
+                    && !recordset.EOF)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     var row = new Dictionary<string, object?>(StringComparer.OrdinalIgnoreCase);
@@ -367,10 +361,10 @@ public partial class ConnectionCommands
                             continue;
                         }
 
-                        dynamic? field = null;
+                        ADODB.Field? field = null;
                         try
                         {
-                            field = fields.Item(i);
+                            field = fields[i];
                             object? value = field.Value;
                             row[columnNames[i]] = value is DBNull ? null : value;
                         }
@@ -388,11 +382,6 @@ public partial class ConnectionCommands
             catch (COMException ex)
             {
                 throw CreateOlapQueryError(connectionName, ex.HResult, ex.Message);
-            }
-            catch (RuntimeBinderException)
-            {
-                throw new NotSupportedException(
-                    $"The OLAP provider for connection '{connectionName}' does not expose the required schema rowset.");
             }
         }
         catch (Exception ex)
@@ -421,17 +410,13 @@ public partial class ConnectionCommands
                 return;
             try
             {
-                if ((Convert.ToInt32(recordset.State, CultureInfo.InvariantCulture) & 1) != 0)
+                if ((recordset.State & (int)ADODB.ObjectStateEnum.adStateOpen) != 0)
                     recordset.Close();
             }
             catch (COMException ex)
             {
                 logger?.LogWarning("OLAP schema rowset cleanup failed (HRESULT 0x{HResult:X8}).", ex.HResult);
                 throw CreateOlapQueryError(connectionName, ex.HResult, ex.Message);
-            }
-            catch (RuntimeBinderException ex)
-            {
-                throw new NotSupportedException("The OLAP provider could not close its schema rowset.", ex);
             }
         }
     }

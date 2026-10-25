@@ -302,10 +302,10 @@ public sealed partial class PersistentServiceRangeNumberFormatTests
                     try
                     {
                         cell = (Excel.Range)cells[index + 1];
-                        Assert.Equal(serials[index], Convert.ToDouble(cell.Value2,
+                        Assert.Equal(serials[index], Convert.ToDouble(((object)cell.Value2),
                             System.Globalization.CultureInfo.InvariantCulture));
                         Assert.Equal(DateTime.FromOADate(serials[index]).ToString(
-                            "M/d/yyyy", System.Globalization.CultureInfo.InvariantCulture), cell.Text);
+                            "M/d/yyyy", System.Globalization.CultureInfo.InvariantCulture), ((object)cell.Text));
                     }
                     finally
                     {

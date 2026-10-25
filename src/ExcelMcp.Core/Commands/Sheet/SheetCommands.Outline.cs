@@ -53,8 +53,8 @@ public partial class SheetCommands
                 target = axis == OutlineAxis.Rows ? range.EntireRow : range.EntireColumn;
                 outline = sheet.Outline;
 
-                result.OutlineLevel = Convert.ToInt32(target.OutlineLevel, System.Globalization.CultureInfo.InvariantCulture);
-                result.Hidden = Convert.ToBoolean(target.Hidden, System.Globalization.CultureInfo.InvariantCulture);
+                result.OutlineLevel = Convert.ToInt32((object)target.OutlineLevel, System.Globalization.CultureInfo.InvariantCulture);
+                result.Hidden = Convert.ToBoolean((object)target.Hidden, System.Globalization.CultureInfo.InvariantCulture);
                 result.SummaryRow = outline.SummaryRow == Excel.XlSummaryRow.xlSummaryAbove ? "above" : "below";
                 result.SummaryColumn = outline.SummaryColumn == Excel.XlSummaryColumn.xlSummaryOnLeft ? "left" : "right";
                 result.AutomaticStyles = outline.AutomaticStyles;

@@ -332,7 +332,7 @@ public sealed class CliServiceTrayExitTests
                     sheets = book.Worksheets;
                     sheet = (Excel.Worksheet)sheets[1];
                     cell = sheet.Range["A1"];
-                    Assert.Equal("keep attached edits", cell.Value2);
+                    Assert.Equal("keep attached edits", (object)cell.Value2);
                 }
                 finally
                 {

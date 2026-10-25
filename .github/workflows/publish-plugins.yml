@@ -131,6 +131,7 @@ jobs:
             Expand-Archive -LiteralPath $payload -DestinationPath built-plugins
           } else {
             # Older releases predate the prepared payload. Build their exact tag.
+            .\automation\scripts\Install-AdoBuildTools.ps1
             Set-Location source
             dotnet build Sbroenne.ExcelMcp.sln -c Release "-p:Version=$env:VERSION"
             $generator = Get-Command .\scripts\Build-AgentSkills.ps1

@@ -34,8 +34,8 @@ internal static class ChartSeriesReader
                 try
                 {
                     series = collection.Item(index);
-                    var values = series.Values;
-                    var categories = series.XValues;
+                    object? values = series.Values;
+                    object? categories = series.XValues;
                     result.Add(new SeriesInfo
                     {
                         ChartType = (ChartType)Convert.ToInt32(series.ChartType, CultureInfo.InvariantCulture),

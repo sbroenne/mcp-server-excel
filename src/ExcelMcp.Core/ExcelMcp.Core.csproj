@@ -80,8 +80,9 @@
     <!-- Excel COM Interop PIA. Embedding is forced by the ForceEmbedExcelInteropTypes target in
          Directory.Build.targets (the SDK ignores <EmbedInteropTypes> metadata on a <PackageReference>).
          <ExcludeAssets>runtime</ExcludeAssets> keeps the PIA compile-only so it is never copied to
-         output/publish or listed in deps.json. Result: the used Excel interop types are embedded and
-         there is NO runtime dependency on office.dll (Microsoft.Office.Core). See docs/PIA-COVERAGE.md. -->
+         output/publish or listed in deps.json. The same target embeds Office Core and VBA editor
+         definitions from the pinned ExcelDna.Interop PackageDownload, without adding runtime
+         interop DLLs. See docs/PIA-COVERAGE.md. -->
     <PackageReference Include="Microsoft.Office.Interop.Excel">
       <!-- EmbedInteropTypes is intentionally NOT set here: the SDK ignores it on a <PackageReference>.
            Embedding is applied to the resolved reference by ForceEmbedExcelInteropTypes in Directory.Build.targets. -->

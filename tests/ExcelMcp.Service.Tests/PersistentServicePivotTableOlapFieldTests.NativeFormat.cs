@@ -40,8 +40,8 @@ public partial class PersistentServicePivotTableOlapFieldTests
                 dataField = dataFields.Item(1);
                 Assert.Equal("0%", dataField.NumberFormat);
                 range = dataField.DataRange;
-                Assert.Equal("0%", range.NumberFormat);
-                Assert.Equal(49000d, Convert.ToDouble(range.Value2, System.Globalization.CultureInfo.InvariantCulture));
+                Assert.Equal("0%", ((object)range.NumberFormat));
+                Assert.Equal(49000d, Convert.ToDouble(((object)range.Value2), System.Globalization.CultureInfo.InvariantCulture));
             }
             finally
             {

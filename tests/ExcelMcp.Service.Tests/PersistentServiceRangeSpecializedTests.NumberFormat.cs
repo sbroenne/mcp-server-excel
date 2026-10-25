@@ -12,12 +12,8 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class PersistentServiceRangeSpecializedTests
 {
     // Standard format codes - raw strings, no helper class needed
-    private const string FormatCurrency = "$#,##0.00";
     private const string FormatPercentage = "0.00%";
-    private const string FormatPercentageOneDecimal = "0.0%";
     private const string FormatNumber = "#,##0.00";
-    private const string FormatDateShort = "m/d/yyyy";
-    private const string FormatText = "@";
 
     // LCID-based currency format (proper Excel category recognition)
     private const string FormatCurrencyLCID = "[$$-409]#,##0.00"; // US Dollar with LCID
@@ -171,10 +167,10 @@ public sealed partial class PersistentServiceRangeSpecializedTests
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 Assert.NotNull(sheet);
                 cell = sheet.Range["A1"];
-                string text = Convert.ToString(cell.Text, CultureInfo.InvariantCulture) ?? string.Empty;
-                string format = Convert.ToString(cell.NumberFormat, CultureInfo.InvariantCulture) ?? string.Empty;
-                string localFormat = Convert.ToString(cell.NumberFormatLocal, CultureInfo.InvariantCulture) ?? string.Empty;
-                double value = Convert.ToDouble(cell.Value2, CultureInfo.InvariantCulture);
+                string text = Convert.ToString(((object)cell.Text), CultureInfo.InvariantCulture) ?? string.Empty;
+                string format = Convert.ToString(((object)cell.NumberFormat), CultureInfo.InvariantCulture) ?? string.Empty;
+                string localFormat = Convert.ToString(((object)cell.NumberFormatLocal), CultureInfo.InvariantCulture) ?? string.Empty;
+                double value = Convert.ToDouble(((object)cell.Value2), CultureInfo.InvariantCulture);
                 return (text, format, localFormat, value);
             }
             finally

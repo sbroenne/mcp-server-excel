@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
@@ -24,9 +25,9 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? columns = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            Excel.Range? columns = null;
 
             try
             {
@@ -65,9 +66,9 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? rows = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            Excel.Range? rows = null;
 
             try
             {

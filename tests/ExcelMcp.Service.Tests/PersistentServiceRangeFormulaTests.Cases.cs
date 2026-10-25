@@ -571,7 +571,7 @@ public sealed partial class PersistentServiceRangeFormulaTests
                     var number = values[index].ToString("R", System.Globalization.CultureInfo.InvariantCulture);
                     var quotedFormat = format.Replace("\"", "\"\"", StringComparison.Ordinal);
                     cell.Formula2 = $"=TEXT({number},\"{quotedFormat}\")";
-                    results[index] = Assert.IsType<string>(cell.Value2);
+                    results[index] = Assert.IsType<string>(((object)cell.Value2));
                 }
                 return results;
             }

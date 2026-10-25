@@ -1,4 +1,5 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Xunit;
 
@@ -21,7 +22,9 @@ public sealed class ChartAxisMappingTests
     {
         var method = typeof(ChartCommands).GetMethod("MapAxisType", BindingFlags.NonPublic | BindingFlags.Static);
         Assert.NotNull(method);
-        var actual = Assert.IsType<(int, int)>(method.Invoke(null, [axis]));
-        Assert.Equal((type, group), actual);
+        var actual = Assert.IsAssignableFrom<ITuple>(method.Invoke(null, [axis]));
+        Assert.Equal(2, actual.Length);
+        Assert.Equal(type, Convert.ToInt32(actual[0], System.Globalization.CultureInfo.InvariantCulture));
+        Assert.Equal(group, Convert.ToInt32(actual[1], System.Globalization.CultureInfo.InvariantCulture));
     }
 }

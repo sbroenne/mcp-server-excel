@@ -172,7 +172,7 @@ public partial class ConnectionCommands
         try
         {
             actual = ParseAccountSettingsConnectionString(
-                Convert.ToString(oledb.Connection, CultureInfo.InvariantCulture) ?? "");
+                Convert.ToString((object?)oledb.Connection, CultureInfo.InvariantCulture) ?? "");
         }
         catch (Exception ex) when (ex is COMException or ArgumentException or NotSupportedException)
         {
@@ -201,7 +201,7 @@ public partial class ConnectionCommands
     private static DbConnectionStringBuilder ReadAccountSettingsConnectionString(Excel.OLEDBConnection oledb)
     {
         ValidateAccountSettingsConnectionReadiness(oledb.Refreshing);
-        string text = Convert.ToString(oledb.Connection, CultureInfo.InvariantCulture) ?? "";
+        string text = Convert.ToString((object?)oledb.Connection, CultureInfo.InvariantCulture) ?? "";
         return ParseAccountSettingsConnectionString(text);
     }
 

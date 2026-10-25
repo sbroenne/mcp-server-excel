@@ -94,10 +94,10 @@ public sealed partial class PersistentServiceRangeSetStyleTests
         RequireSuccess(_commands.SetStyle(batch, sheetName, "A1", "Good"));
         var before = RequireSuccess(_commands.GetStyle(batch, sheetName, "A1"));
         var beforeCells = CaptureStyleGuard(batch, sheetName);
-        var exception = Assert.Throws<System.Reflection.TargetParameterCountException>(
+        var exception = Assert.Throws<InvalidOperationException>(
             () => _commands.SetStyle(batch, sheetName, "A1", "NonExistentStyle"));
 
-        Assert.Contains("Style", exception.Message);
+        Assert.Contains("Style 'NonExistentStyle' not found.", exception.Message, StringComparison.Ordinal);
         AssertAppliedStyle(sheetName, "A1", before.StyleName);
         AssertAppliedStyle(sheetName, "B1", "Normal");
         Assert.Equal(beforeCells, CaptureStyleGuard(batch, sheetName));
@@ -151,8 +151,8 @@ public sealed partial class PersistentServiceRangeSetStyleTests
                 range = sheet.Range["A1:C3"];
                 neighbor = sheet.Range["D1"];
                 return (
-                    Target: Convert.ToInt32(range.VerticalAlignment, CultureInfo.InvariantCulture),
-                    Neighbor: Convert.ToInt32(neighbor.VerticalAlignment, CultureInfo.InvariantCulture));
+                    Target: Convert.ToInt32(((object)range.VerticalAlignment), CultureInfo.InvariantCulture),
+                    Neighbor: Convert.ToInt32(((object)neighbor.VerticalAlignment), CultureInfo.InvariantCulture));
             }
             finally
             {

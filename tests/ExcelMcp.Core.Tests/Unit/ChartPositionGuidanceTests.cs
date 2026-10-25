@@ -37,7 +37,7 @@ public sealed class ChartPositionGuidanceTests
     public void PivotChartAddSeries_IdentifiesFieldTool()
     {
         var error = Assert.Throws<NotSupportedException>(() =>
-            new PivotChartStrategy().AddSeries(new object(), "Sales", "A1:B2", null));
+            new PivotChartStrategy().AddSeries(null!, "Sales", "A1:B2", null));
 
         Assert.Contains("pivottable_field", error.Message);
         Assert.Contains("add-value-field", error.Message);
@@ -47,7 +47,7 @@ public sealed class ChartPositionGuidanceTests
     public void PivotChartRemoveSeries_IdentifiesFieldTool()
     {
         var error = Assert.Throws<NotSupportedException>(() =>
-            new PivotChartStrategy().RemoveSeries(new object(), 1));
+            new PivotChartStrategy().RemoveSeries(null!, 1));
 
         Assert.Contains("pivottable_field", error.Message);
         Assert.Contains("remove-field", error.Message);

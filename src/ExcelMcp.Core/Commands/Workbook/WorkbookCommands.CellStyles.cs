@@ -82,7 +82,7 @@ public partial class WorkbookCommands
                     throw new ArgumentException($"Cell style '{styleName}' already exists.", nameof(styleName));
                 source = RangeHelpers.ResolveRange(ctx.Book, sourceSheetName, sourceCellAddress)
                     ?? throw new InvalidOperationException("Excel returned no source range for the requested cell style.");
-                if (Convert.ToDouble(source.CountLarge) != 1)
+                if (Convert.ToDouble((object)source.CountLarge, System.Globalization.CultureInfo.InvariantCulture) != 1)
                     throw new ArgumentException("sourceCellAddress must select exactly one cell.", nameof(sourceCellAddress));
                 ct.ThrowIfCancellationRequested();
                 style = AddCellStyleFromSource(ctx.App, styles, styleName, source);

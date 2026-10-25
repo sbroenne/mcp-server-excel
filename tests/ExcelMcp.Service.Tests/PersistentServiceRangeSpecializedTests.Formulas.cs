@@ -152,7 +152,7 @@ public sealed partial class PersistentServiceRangeSpecializedTests
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
                 Assert.NotNull(sheet);
                 range = sheet.Range[address];
-                return Assert.IsType<object[,]>(range.Formula);
+                return Assert.IsType<object[,]>(((object)range.Formula));
             }
             finally
             {

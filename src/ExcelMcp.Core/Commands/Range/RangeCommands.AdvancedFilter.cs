@@ -84,7 +84,7 @@ public partial class RangeCommands
                     if (!string.Equals(outputSheet.Name, sheet.Name, StringComparison.Ordinal))
                         throw new ArgumentException("Advanced-filter copy output must be on the source worksheet.");
                     destination = copyHeader.Resize[size.Rows, columns];
-                    if (RangeMergeDiscovery.GetMergeCellsState(destination.MergeCells) != false)
+                    if (RangeMergeDiscovery.GetMergeCellsState((object)destination.MergeCells) != false)
                         throw new ArgumentException("The maximum advanced-filter output intersects merged cells.");
                     sourceOverlap = ctx.App.Intersect(destination, source);
                     criteriaSheet = criteria.Worksheet;

@@ -1,3 +1,4 @@
+using Excel = Microsoft.Office.Interop.Excel;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -17,8 +18,8 @@ public partial class PivotTableCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? pivot = null;
-            dynamic? calculatedMembers = null;
+            Excel.PivotTable? pivot = null;
+            Excel.CalculatedMembers? calculatedMembers = null;
 
             try
             {
@@ -39,15 +40,15 @@ public partial class PivotTableCommands
 
                 for (int i = 1; i <= calculatedMembers.Count; i++)
                 {
-                    dynamic? member = null;
+                    Excel.CalculatedMember? member = null;
                     try
                     {
-                        member = calculatedMembers.Item(i);
+                        member = calculatedMembers.Item[i];
                         var memberInfo = new CalculatedMemberInfo
                         {
                             Name = member.Name?.ToString() ?? string.Empty,
                             Formula = member.Formula?.ToString() ?? string.Empty,
-                            Type = GetCalculatedMemberType(Convert.ToInt32(member.Type)),
+                            Type = GetCalculatedMemberType((int)member.Type),
                             SolveOrder = Convert.ToInt32(member.SolveOrder),
                             IsValid = member.IsValid
                         };
@@ -56,7 +57,7 @@ public partial class PivotTableCommands
                         if (memberInfo.Type == CalculatedMemberType.Measure)
                         {
                             memberInfo.DisplayFolder = member.DisplayFolder?.ToString();
-                            memberInfo.NumberFormat = member.NumberFormat?.ToString();
+                            memberInfo.NumberFormat = ((int)member.NumberFormat).ToString(System.Globalization.CultureInfo.InvariantCulture);
                         }
 
                         result.CalculatedMembers.Add(memberInfo);
@@ -89,9 +90,9 @@ public partial class PivotTableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? pivot = null;
-            dynamic? calculatedMembers = null;
-            dynamic? newMember = null;
+            Excel.PivotTable? pivot = null;
+            Excel.CalculatedMembers? calculatedMembers = null;
+            Excel.CalculatedMember? newMember = null;
 
             try
             {
@@ -145,7 +146,7 @@ public partial class PivotTableCommands
                     Success = true,
                     Name = newMember.Name?.ToString() ?? memberName,
                     Formula = newMember.Formula?.ToString() ?? formula,
-                    Type = GetCalculatedMemberType(Convert.ToInt32(newMember.Type)),
+                    Type = GetCalculatedMemberType((int)newMember.Type),
                     SolveOrder = Convert.ToInt32(newMember.SolveOrder),
                     IsValid = newMember.IsValid,
                     WorkflowHint = GetCalculatedMemberWorkflowHint(memberName, type)
@@ -155,7 +156,7 @@ public partial class PivotTableCommands
                 if (result.Type == CalculatedMemberType.Measure)
                 {
                     result.DisplayFolder = newMember.DisplayFolder?.ToString();
-                    result.NumberFormat = newMember.NumberFormat?.ToString();
+                    result.NumberFormat = ((int)newMember.NumberFormat).ToString(System.Globalization.CultureInfo.InvariantCulture);
                 }
 
                 return result;
@@ -174,9 +175,9 @@ public partial class PivotTableCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? pivot = null;
-            dynamic? calculatedMembers = null;
-            dynamic? member = null;
+            Excel.PivotTable? pivot = null;
+            Excel.CalculatedMembers? calculatedMembers = null;
+            Excel.CalculatedMember? member = null;
 
             try
             {
@@ -198,7 +199,7 @@ public partial class PivotTableCommands
                 for (int index = 1; index <= Convert.ToInt32(calculatedMembers.Count); index++)
                 {
                     ct.ThrowIfCancellationRequested();
-                    member = calculatedMembers.Item(index);
+                    member = calculatedMembers.Item[index];
                     if (string.Equals(Convert.ToString(member.Name), memberName, StringComparison.OrdinalIgnoreCase))
                         break;
                     ComUtilities.Release(ref member);
