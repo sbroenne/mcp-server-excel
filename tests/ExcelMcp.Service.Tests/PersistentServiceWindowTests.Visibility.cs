@@ -131,7 +131,11 @@ public sealed partial class PersistentServiceWindowTests
             var exception = Assert.Throws<InvalidOperationException>(
                 () => _commands.BringToFront(batch));
 
-            Assert.Contains("Windows could not bring the Excel window to the foreground", exception.Message, StringComparison.Ordinal);
+            Assert.Contains(
+                "Windows could not bring the Excel window to the foreground. " +
+                "Select Excel on the Windows taskbar, or press Alt+Tab to switch to Excel.",
+                exception.Message,
+                StringComparison.Ordinal);
             Assert.True(RequireSuccess(_commands.GetInfo(batch)).IsVisible);
         }
         finally
