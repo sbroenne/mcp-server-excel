@@ -95,7 +95,7 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         {
             foreach (var validationError in validationErrors.OrderBy(error => error.Key))
             {
-                WriteValidationError(validationError.Key, commands[validationError.Key].Command, validationError.Value);
+                WriteValidationError(validationError.Key, commands[validationError.Key], validationError.Value);
                 if (settings.StopOnError)
                 {
                     break;
@@ -116,7 +116,7 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
             var sessionId = cmd.SessionId ?? activeSession;
             if (validationErrors.TryGetValue(i, out var validationError))
             {
-                WriteValidationError(i, cmd.Command, validationError);
+                WriteValidationError(i, cmd, validationError);
 
                 hasErrors = true;
                 if (settings.StopOnError)
@@ -178,6 +178,7 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
             {
                 Index = i,
                 Command = cmd.Command,
+                CommandSummary = BatchCommandSummary.Create(cmd.Command, cmd.Args),
                 Success = itemSucceeded,
                 Result = response.Success ? TryParseJsonElement(response.Result) : null,
                 ErrorMessage = response.ErrorMessage ?? resultErrorMessage ??
@@ -203,12 +204,13 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
         return hasErrors ? 1 : 0;
     }
 
-    private static void WriteValidationError(int index, string command, string error)
+    private static void WriteValidationError(int index, BatchEntry entry, string error)
     {
         CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(new BatchResult
         {
             Index = index,
-            Command = command,
+            Command = entry.Command,
+            CommandSummary = BatchCommandSummary.Create(entry.Command, entry.Args),
             Success = false,
             ErrorMessage = error
         }, BatchJsonOptions));
@@ -347,6 +349,9 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
 
         [JsonPropertyName("command")]
         public string Command { get; init; } = string.Empty;
+
+        [JsonPropertyName("commandSummary")]
+        public required string CommandSummary { get; init; }
 
         [JsonPropertyName("success")]
         public bool Success { get; init; }

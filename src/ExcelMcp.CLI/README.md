@@ -216,6 +216,22 @@ example, a `powerquery refresh-all` where one query failed), so scripts can
 check `$LASTEXITCODE`. In `batch` output, such a line has `success: false`, and
 `--stop-on-error` stops there.
 
+Each per-command batch result also includes `commandSummary`, a single-line
+description of at most 160 characters. It identifies selected worksheet/range,
+table, query, PivotTable, or chart targets and includes inline range-write
+dimensions when available. For example:
+`range.set-values: Sales!A2:D21 (20 rows x 4 columns)`.
+Summaries appear on failed entries too; they describe the request, not proof
+that it completed. Existing `index`, `command`, results, errors, and exit codes
+are unchanged. Both JSON-array and one-command-per-line input produce one JSON
+result per output line.
+
+Summaries do not copy cell contents, formulas, code, credentials, connection
+strings, or file paths from input arguments. Target names are returned to the
+requesting user, not added to usage reporting; they are not redacted for public
+sharing. See [CLI batch jobs](../../docs/reference/workflows.md#cli-batch-jobs)
+for the supported details, shortening rules, and examples.
+
 ### CI/CD Integration
 
 Excel COM requires a self-hosted Windows runner with desktop Excel installed; GitHub-hosted runners do not include Excel.

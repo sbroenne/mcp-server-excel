@@ -128,6 +128,12 @@ assumption that passing compilation proves runtime correctness.
   external consumers when neither entry point uses them.
 - Keep customer/workbook data, credentials, connection strings, and private
   paths out of public artifacts. Keep temporary notes outside the repository.
+- ExcelMcp acts for the current user. Task-relevant workbook contents, names,
+  formulas, VBA/Power Query code, and file paths may be read and returned to
+  that user through supported operations; do not hide them merely because
+  they are private. This is not public disclosure or permission to access
+  unrelated workbooks. Credential protections still apply; do not put private
+  information in public artifacts or usage reporting.
 - Returning an owned Excel dialog's visible text to its user for troubleshooting
   is allowed; this is not public disclosure. Do not copy it into public artifacts
   or telemetry, read password/input values, or answer the dialog automatically.
