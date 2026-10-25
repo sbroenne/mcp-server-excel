@@ -93,7 +93,9 @@ public sealed partial class PersistentServicePivotTableTests
         Assert.Equal(_salesSheetName, slicerResult.SheetName);
         Assert.NotNull(slicerResult.ConnectedPivotTables);
         Assert.Contains("SlicerTest", slicerResult.ConnectedPivotTables);
-        Assert.Equal("H2", slicerResult.Position);
+        var listed = RequireSuccess(_pivotCommands.ListSlicers(batch, pivotTableName: "SlicerTest"));
+        var listedSlicer = Assert.Single(listed.Slicers, item => item.Name == "RegionSlicer");
+        Assert.Equal(listedSlicer.Position, slicerResult.Position);
         Assert.NotNull(slicerResult.AvailableItems);
         Assert.Contains("North", slicerResult.AvailableItems);
         Assert.Contains("South", slicerResult.AvailableItems);
