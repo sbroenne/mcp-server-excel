@@ -87,7 +87,9 @@ public partial class WindowCommands : IWindowCommands
 
             if (!TryBringWindowToFront(ctx.App))
             {
-                throw new InvalidOperationException("Windows could not bring the Excel window to the foreground.");
+                throw new InvalidOperationException(
+                    "Windows could not bring the Excel window to the foreground. " +
+                    "Select Excel on the Windows taskbar, or press Alt+Tab to switch to Excel.");
             }
 
             return new OperationResult
