@@ -10,17 +10,26 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public partial class RangeCommands
 {
     /// <inheritdoc />
-    public RangeFormulaTraceResult TracePrecedents(IExcelBatch batch, string sheetName, string rangeAddress) =>
-        TraceRelationships(batch, sheetName, rangeAddress, precedents: true);
+    public RangeFormulaTraceResult TracePrecedents(IExcelBatch batch, string sheetName, string rangeAddress,
+        int maxDepth = 3, int maxNodes = 50, int maxPreviewCharacters = 256) =>
+        TraceRelationships(batch, sheetName, rangeAddress, true, maxDepth, maxNodes, maxPreviewCharacters);
 
     /// <inheritdoc />
-    public RangeFormulaTraceResult TraceDependents(IExcelBatch batch, string sheetName, string rangeAddress) =>
-        TraceRelationships(batch, sheetName, rangeAddress, precedents: false);
+    public RangeFormulaTraceResult TraceDependents(IExcelBatch batch, string sheetName, string rangeAddress,
+        int maxDepth = 3, int maxNodes = 50, int maxPreviewCharacters = 256) =>
+        TraceRelationships(batch, sheetName, rangeAddress, false, maxDepth, maxNodes, maxPreviewCharacters);
 
     private static RangeFormulaTraceResult TraceRelationships(
-        IExcelBatch batch, string sheetName, string rangeAddress, bool precedents)
+        IExcelBatch batch, string sheetName, string rangeAddress, bool precedents,
+        int maxDepth, int maxNodes, int maxPreviewCharacters)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(rangeAddress);
+        if (maxDepth is < 0 or > 20)
+            throw new ArgumentOutOfRangeException(nameof(maxDepth), "maxDepth must be between 0 and 20.");
+        if (maxNodes is < 1 or > 1000)
+            throw new ArgumentOutOfRangeException(nameof(maxNodes), "maxNodes must be between 1 and 1000.");
+        if (maxPreviewCharacters is < 1 or > 4096)
+            throw new ArgumentOutOfRangeException(nameof(maxPreviewCharacters), "maxPreviewCharacters must be between 1 and 4096.");
         return batch.Execute(ReadTrace);
 
         [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
@@ -42,12 +51,26 @@ public partial class RangeCommands
                     SheetName = sheet.Name,
                     RangeAddress = roots.Address,
                     Direction = precedents ? "precedents" : "dependents",
-                    Action = precedents ? "trace-precedents" : "trace-dependents"
+                    Action = precedents ? "trace-precedents" : "trace-dependents",
+                    Limits = new FormulaTraceLimits(maxDepth, maxNodes, maxPreviewCharacters)
                 };
                 Dictionary<string, FormulaTraceNode> nodes = new(StringComparer.Ordinal);
                 Queue<string> pending = new();
                 HashSet<(string From, string To)> edges = [];
-                RangeHelpers.VisitCells(roots, ct, cell => AddNode(cell, isRoot: true));
+                RangeHelpers.VisitCellsWhile(roots, ct, cell =>
+                {
+                    if (nodes.ContainsKey(cell.Address))
+                        return true;
+                    if (nodes.Count == maxNodes)
+                    {
+                        result.Truncation.StartingCellsOmitted = true;
+                        result.Truncation.NodeLimitReached = true;
+                        result.Boundaries.Add(new FormulaTraceBoundary(result.RangeAddress, "max-nodes"));
+                        return false;
+                    }
+                    AddNode(cell, isRoot: true, depth: 0);
+                    return true;
+                });
                 while (pending.TryDequeue(out string? address))
                 {
                     ct.ThrowIfCancellationRequested();
@@ -77,11 +100,31 @@ public partial class RangeCommands
                         if (!string.Equals(relatedSheet.Name, result.SheetName, StringComparison.Ordinal))
                             throw new InvalidOperationException(
                                 "Excel returned a relationship outside the proven native worksheet boundary.");
-                        RangeHelpers.VisitCells(related, ct, target =>
+                        RangeHelpers.VisitCellsWhile(related, ct, target =>
                         {
                             string targetAddress = target.Address;
+                            if (!nodes.ContainsKey(targetAddress))
+                            {
+                                bool depthExceeded = nodes[address].Depth == maxDepth;
+                                bool nodesExceeded = nodes.Count == maxNodes;
+                                if (depthExceeded || nodesExceeded)
+                                {
+                                    if (depthExceeded)
+                                    {
+                                        result.Truncation.DepthLimitReached = true;
+                                        result.Boundaries.Add(new FormulaTraceBoundary(address, "max-depth"));
+                                    }
+                                    if (nodesExceeded)
+                                    {
+                                        result.Truncation.NodeLimitReached = true;
+                                        result.Boundaries.Add(new FormulaTraceBoundary(address, "max-nodes"));
+                                    }
+                                    return false;
+                                }
+                                AddNode(target, isRoot: false, depth: nodes[address].Depth + 1);
+                            }
                             edges.Add((address, targetAddress));
-                            AddNode(target, isRoot: false);
+                            return true;
                         });
                     }
                     finally
@@ -96,11 +139,12 @@ public partial class RangeCommands
                     .ThenBy(edge => edge.To, StringComparer.Ordinal)
                     .Select(edge => new FormulaTraceEdge(edge.From, edge.To)).ToList();
                 result.Cycles = FindTraceCycles(nodes.Keys, edges, ct);
-                result.Coverage.NativeTraversalComplete = result.Unresolved.Count == 0;
+                result.Coverage.NativeTraversalComplete = result.Unresolved.Count == 0 &&
+                    !result.Truncation.DepthLimitReached && !result.Truncation.NodeLimitReached;
                 result.Success = true;
                 return result;
 
-                void AddNode(Excel.Range cell, bool isRoot)
+                void AddNode(Excel.Range cell, bool isRoot, int depth)
                 {
                     ct.ThrowIfCancellationRequested();
                     string address = cell.Address;
@@ -115,7 +159,13 @@ public partial class RangeCommands
                     object? value = cell.Value2;
                     if (ExcelErrorMapper.TryGet(value, out _, out var mapped))
                         value = mapped.Name;
-                    nodes.Add(address, new FormulaTraceNode(address, cell.Row, cell.Column, formula, value, isRoot));
+                    string? formulaPreview = LimitTraceText(formula, maxPreviewCharacters);
+                    object? valuePreview = value is string text ? LimitTraceText(text, maxPreviewCharacters) : value;
+                    bool formulaTruncated = formulaPreview != formula;
+                    bool valueTruncated = !Equals(valuePreview, value);
+                    result.Truncation.PreviewTextTruncated |= formulaTruncated || valueTruncated;
+                    nodes.Add(address, new FormulaTraceNode(address, cell.Row, cell.Column, formulaPreview,
+                        valuePreview, isRoot, depth, formulaTruncated, valueTruncated));
                     pending.Enqueue(address);
                 }
             }
@@ -125,6 +175,15 @@ public partial class RangeCommands
                 ComUtilities.Release(ref roots);
             }
         }
+    }
+
+    private static string? LimitTraceText(string? text, int limit)
+    {
+        if (text is null || text.Length <= limit)
+            return text;
+        if (char.IsHighSurrogate(text[limit - 1]) && char.IsLowSurrogate(text[limit]))
+            limit--;
+        return text[..limit];
     }
 
     private static List<List<string>> FindTraceCycles(IEnumerable<string> addresses,

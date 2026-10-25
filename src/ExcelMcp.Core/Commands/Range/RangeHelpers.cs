@@ -33,10 +33,20 @@ public static class RangeHelpers
     }
 
     /// <summary>
-    /// Visits every unique cell in an already-resolved native range.
+    /// Visits cells in native area/row/column order in an already-resolved range.
     /// The callback borrows the cell; this method owns and releases its reference.
     /// </summary>
     internal static void VisitCells(Excel.Range range, CancellationToken ct, Action<Excel.Range> visit)
+    {
+        VisitCellsWhile(range, ct, cell =>
+        {
+            visit(cell);
+            return true;
+        });
+    }
+
+    /// <summary>Visits cells until the borrowed-cell callback returns false, releasing all acquired references.</summary>
+    internal static void VisitCellsWhile(Excel.Range range, CancellationToken ct, Func<Excel.Range, bool> visit)
     {
         Excel.Areas? areas = null;
         try
@@ -65,7 +75,8 @@ public static class RangeHelpers
                             try
                             {
                                 cell = cells[row, column];
-                                visit(cell);
+                                if (!visit(cell))
+                                    return;
                             }
                             finally
                             {
