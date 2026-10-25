@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
@@ -15,6 +16,41 @@ namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
 public sealed class WorksheetCopyToFileProtocolTests(
     RecordingProgramTransportFixture fixture)
 {
+    [Theory]
+    [InlineData("worksheet", "create", """{"sheet_name":"New","file_path":"book.xlsx"}""", """{"sheetName":"New","filePath":"book.xlsx"}""")]
+    [InlineData("worksheet", "rename", """{"old_name":"Old","new_name":"New"}""", """{"oldName":"Old","newName":"New"}""")]
+    [InlineData("worksheet", "copy", """{"source_name":"Old","target_name":"New"}""", """{"sourceName":"Old","targetName":"New"}""")]
+    [InlineData("worksheet", "delete", """{"sheet_name":"Old"}""", """{"sheetName":"Old"}""")]
+    [InlineData("worksheet", "move", """{"sheet_name":"Old","after_sheet":"Summary"}""", """{"sheetName":"Old","afterSheet":"Summary"}""")]
+    [InlineData("worksheet_read", "list", """{"file_path":"book.xlsx"}""", """{"filePath":"book.xlsx"}""")]
+    public async Task SessionActions_PreserveExistingCommandAndArguments(
+        string tool, string action, string inputs, string expected)
+    {
+        var arguments = JsonSerializer.Deserialize<Dictionary<string, object?>>(inputs)!;
+        arguments["action"] = action;
+        arguments["workbook_session_id"] = "session-1";
+        var call = await fixture.CallToolAsync(tool, arguments,
+            RecordingToolTest.Success("""{"success":true}"""), $"sheet.{action}", expected);
+        Assert.False(call.Result.IsError);
+    }
+
+    [Theory]
+    [InlineData("copy-to-file")]
+    [InlineData("move-to-file")]
+    public async Task CrossFileActions_PreservePlacementWithoutSession(string action)
+    {
+        var call = await fixture.CallToolAsync("worksheet", new()
+        {
+            ["action"] = action,
+            ["source_file"] = "source.xlsx",
+            ["source_sheet"] = "Data",
+            ["target_file"] = "target.xlsx",
+            ["before_sheet"] = "Summary"
+        }, RecordingToolTest.Success("""{"success":true}"""), $"sheet.{action}", string.Empty,
+            """{"sourceFile":"source.xlsx","sourceSheet":"Data","targetFile":"target.xlsx","beforeSheet":"Summary"}""");
+        Assert.False(call.Result.IsError);
+    }
+
     [Fact]
     public async Task WorksheetCopyToFile_WithoutSessionId_DispatchesWithoutSession()
     {

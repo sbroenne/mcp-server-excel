@@ -73,7 +73,9 @@ public class CliSettingsGenerator : IIncrementalGenerator
                 var noSession = type.GetAttributes().Any(a =>
                     a.AttributeClass?.Name == "NoSessionAttribute");
 
-                var cliName = ServiceInfoExtractor.GetCommandGroupName(mcpToolName, categoryPascal);
+                var commandName = attr.NamedArguments.FirstOrDefault(argument => argument.Key == "CommandName")
+                    .Value.Value as string;
+                var cliName = ServiceInfoExtractor.GetCommandGroupName(mcpToolName, categoryPascal, commandName);
                 result.Add((cliName, categoryPascal, !noSession));
             }
         }

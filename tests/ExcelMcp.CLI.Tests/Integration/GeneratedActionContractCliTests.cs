@@ -40,6 +40,26 @@ public sealed class GeneratedActionContractCliTests : IDisposable
     }
 
     [Fact]
+    public async Task SheetRename_PreservesCommandNameAfterMcpGeneration()
+    {
+        ServiceRequest? dispatched = null;
+        var result = await InProcessCliHelper.RunAsync(
+            ["sheet", "rename", "--session", "session-1", "--old-name", "Old", "--new-name", "New"],
+            request =>
+            {
+                dispatched = request;
+                return new ServiceResponse { Success = true, Result = """{"success":true}""" };
+            });
+        Assert.Equal(0, result.ExitCode);
+        Assert.NotNull(dispatched);
+        Assert.Equal("sheet.rename", dispatched.Command);
+        Assert.Equal("session-1", dispatched.SessionId);
+        using var args = JsonDocument.Parse(dispatched.Args!);
+        Assert.Equal("Old", args.RootElement.GetProperty("oldName").GetString());
+        Assert.Equal("New", args.RootElement.GetProperty("newName").GetString());
+    }
+
+    [Fact]
     public async Task DataModelRefresh_ForwardsNumericTimeoutInProcess()
     {
         ServiceRequest? dispatched = null;

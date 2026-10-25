@@ -48,7 +48,7 @@ public class McpToolSurfaceTests(ITestOutputHelper output)
             .Where(type => type.GetCustomAttribute<McpReadOnlyActionsAttribute>() is not null &&
                 type.GetCustomAttribute<McpToolAttribute>() is not null)
             .Select(type => $"{type.GetCustomAttribute<McpToolAttribute>()!.ToolName}_read")
-            .Concat(new[] { typeof(ExcelFileTool), typeof(ExcelWorksheetTool) }
+            .Concat(new[] { typeof(ExcelFileTool) }
                 .SelectMany(type => type.GetMethods(BindingFlags.Public | BindingFlags.Static))
                 .Select(method => method.GetCustomAttribute<McpServerToolAttribute>())
                 .Where(attribute => attribute?.Name?.EndsWith("_read", StringComparison.Ordinal) == true)

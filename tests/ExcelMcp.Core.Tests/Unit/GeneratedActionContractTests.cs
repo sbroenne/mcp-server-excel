@@ -9,6 +9,7 @@ using Sbroenne.ExcelMcp.Core.Commands.Analysis;
 using Sbroenne.ExcelMcp.Core.Commands.Calculation;
 using Sbroenne.ExcelMcp.Core.Commands.Chart;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
+using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 using Sbroenne.ExcelMcp.Core.Commands.Workbook;
 using Sbroenne.ExcelMcp.Core.Commands.XmlMap;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -25,6 +26,19 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 [Trait("RequiresExcel", "false")]
 public sealed class GeneratedActionContractTests
 {
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("""{"sheetName":null,"rangeAddress":null,"quality":null}""")]
+    public void ScreenshotDispatch_OmittedInputsUseCoreDefaults(string argsJson)
+    {
+        var (commands, proxy) = CreateProxy<IScreenshotCommands>();
+        ServiceRegistry.Screenshot.DispatchToCore(commands, ScreenshotAction.CaptureRange, null!, argsJson);
+        Assert.Equal(1, proxy.CallCount);
+        Assert.Null(proxy.LastArguments![1]);
+        Assert.Equal("A1:Z30", proxy.LastArguments[2]);
+        Assert.Equal(ScreenshotQuality.Medium, proxy.LastArguments[3]);
+    }
+
     [Theory]
     [InlineData("{}")]
     [InlineData("""{"inspectorIndex":3}""")]

@@ -286,7 +286,8 @@ public sealed class ExcelToolsBaseTelemetryTests
     public async Task WorksheetMissingSession_ReturnsCategorizedRecoveryGuidance()
     {
         using var bridge = new ServiceBridge.ServiceBridge(() => throw new InvalidOperationException("Unexpected dispatch."));
-        var result = await ExcelWorksheetTool.ExcelWorksheet(WorksheetWriteAction.Create, bridge);
+        var result = await ExcelSheet_worksheetTool.ExcelSheet_worksheet(
+            ExcelSheet_worksheetTool.McpSheet_worksheetAction.Create, bridge);
         var response = Assert.Single(result.Content.OfType<ModelContextProtocol.Protocol.TextContentBlock>()).Text;
 
         using var json = JsonDocument.Parse(response);
