@@ -65,9 +65,17 @@ excelcli -q session close --session $session --save
 The sharing pair also works with `create-from-range`. Omit both options for
 independent caches. Identical data alone is not sufficient: sharing requires the
 same source identity, and Table-versus-fixed-range semantics stay distinct.
-Existing reports are not moved onto another cache. See the
+Creation options do not move existing reports onto another cache. See the
 [PivotTable reference](../reference/pivottable.md#create-another-report-sharing-a-worksheet-cache)
 for matching MCP examples, validation and shared-cache consequences.
+
+For an already-built `ByProduct` report with an independent cache, use
+`excelcli -q pivottable share-cache --session $session --sheet Analysis --pivot-table-name ByProduct --share-cache-with ByRegion --share-cache-with-sheet Analysis`
+instead of recreating it. The reports must have matching worksheet sources and
+compatible settings. Disconnect controls from the moved report first, then
+connect a shared slicer explicitly afterward. See
+[existing report sharing](../reference/pivottable.md#move-an-existing-report-onto-a-shared-cache)
+for preservation limits and failure recovery.
 
 ## Calculations, refresh and presentation
 

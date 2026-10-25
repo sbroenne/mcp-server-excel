@@ -187,6 +187,8 @@ public partial class PivotTableCommands
             try
             {
                 field = rows.Item(index);
+                if (PivotTableHelpers.IsValuesPlaceholderField(field, field.SourceName))
+                    continue;
                 result.Add(new PivotRowLayoutInfo
                 {
                     FieldName = field.Name,
