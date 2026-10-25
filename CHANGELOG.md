@@ -11,6 +11,16 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.5.5] - 2026-10-25
+
+### Patch Changes
+
+- [#1236](https://github.com/sbroenne/mcp-server-excel/pull/1236) [`b825594`](https://github.com/sbroenne/mcp-server-excel/commit/b825594a7a856de6894a169ab9b4115335c26a68) Thanks [@sbroenne](https://github.com/sbroenne)! - CLI batch results now include a short `commandSummary` showing selected target names, ranges, and inline write dimensions, including on failed entries. Existing results, errors, and exit behavior are unchanged.
+
+- [#1235](https://github.com/sbroenne/mcp-server-excel/pull/1235) [`148a4d9`](https://github.com/sbroenne/mcp-server-excel/commit/148a4d98f4bbeea54949b18fbae587ff9c7942fd) Thanks [@sbroenne](https://github.com/sbroenne)! - When Windows cannot bring Excel to the front, the error now explains how to select Excel using the Windows taskbar or Alt+Tab. The command still reports an error when Excel cannot come forward.
+
+- [#1238](https://github.com/sbroenne/mcp-server-excel/pull/1238) [`ce3c3a0`](https://github.com/sbroenne/mcp-server-excel/commit/ce3c3a0da768112ea0d946618ea5b22e2390ab9a) Thanks [@sbroenne](https://github.com/sbroenne)! - Freezing panes now replaces an existing split with the requested rows and columns, including on scrolled worksheets, without changing the selected cells. In Page Layout view, it explains how to switch to Normal view instead of returning a generic Excel error, and leaves pane settings unchanged.
+
 ## [2.5.4] - 2026-10-25
 
 ### Patch Changes
