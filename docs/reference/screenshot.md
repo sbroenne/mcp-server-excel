@@ -4,6 +4,10 @@ Use screenshots when appearance matters and an interactive desktop is available.
 They are optional for data-only tasks and are not a prerequisite for successful
 unattended work.
 
+Appearance is one part of the shared
+[finishing checklist](workflows.md#finishing-the-requested-work), not proof of
+correct calculations or saved changes.
+
 Current capture commands, quality choices, and output options come from CLI
 help or MCP tool descriptions.
 

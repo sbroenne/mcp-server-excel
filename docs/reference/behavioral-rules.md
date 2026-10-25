@@ -46,6 +46,10 @@ See [window management](window.md#visibility-and-placement).
 
 - Use the returned session ID on every follow-up. CLI and MCP sessions are
   separate; their IDs cannot be transferred.
+- Before editing, inspect and report the intended workbook's `readOnly` and live
+  `autoSaveOn` state with MCP `workbook_read` action `get-info` or CLI
+  `excelcli workbook get-info`. Unavailable AutoSave metadata is not off.
+  Preserve the existing setting; see [workbook guidance](workbook.md).
 - Before opening a workbook, use MCP `file_read` action `discover` or CLI
   `excelcli session discover` to find any already-open copy. Select the intended
   `workbookId` and attach with MCP `file` action `attach` and
@@ -71,6 +75,9 @@ See [window management](window.md#visibility-and-placement).
   for a single job. Do not automatically discard earlier unsaved work.
 - Report what actually succeeded, the saved file when relevant, and any remaining
   failure. Do not present an attempted action as a completed result.
+
+Use the shared [finishing checklist](workflows.md#finishing-the-requested-work)
+for task-sized outcome checks, not a separate full-workbook audit.
 
 Use MCP `file_read` with action `test` (CLI: `excelcli session test`) when access
 or protection is uncertain.

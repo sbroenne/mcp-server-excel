@@ -112,6 +112,9 @@ the template already follows it, not for ordinary trackers or exports:
 
 ## Check the result before delivery
 
+Follow the shared [finishing checklist](workflows.md#finishing-the-requested-work),
+with these additional checks for the requested report:
+
 If the task creates or changes formulas, calculate in Excel and read back the
 affected outputs with range value/formula reads. For a new formula-based report,
 check every populated formula range, in manageable blocks if needed. Inspect
@@ -124,11 +127,8 @@ instead of silently rewriting unrelated formulas. Do not hide errors with
 blanket `IFERROR` formulas or claim the entire workbook is error-free after
 checking only a subset.
 
-Check number formats and widths for truncated content or `#####`. Screenshots
-are optional and require an interactive desktop; do not make them a gate for
-unattended jobs. Save only the intended successful result using the existing
-[session and saving rules](behavioral-rules.md). Report what was checked and any
-remaining limitations.
+Check number formats and widths for truncated content or `#####`, and inspect
+the rendered result when available; see [screenshots](screenshot.md).
 
 ## Dashboard layout
 

@@ -23,7 +23,9 @@ Use Table styles for Tables and the owning chart/PivotTable controls for those
 objects; plain-cell formatting is not interchangeable with their style systems.
 
 Inspect the affected formats and calculated outputs before saving the authorized
-result. Financial-model colours and dashboard visuals are optional, not a
+result. Use the shared [finishing checklist](https://excelmcpserver.dev/reference/workflows/#finishing-the-requested-work)
+for task-sized checks and honest delivery, not a full-workbook audit.
+Financial-model colours and dashboard visuals are optional, not a
 requirement for every report. Screenshots are optional and need a desktop.
 
 General workflow and recovery documentation is available on the

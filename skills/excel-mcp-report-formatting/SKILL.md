@@ -25,7 +25,9 @@ for PivotTable number formats; do not apply `range_format` to Table or PivotTabl
 cells instead of their owning controls.
 
 Inspect the affected formats and calculated outputs before saving the authorized
-result. Financial-model colours and dashboard visuals are optional, not a
+result. Use the shared [finishing checklist](https://excelmcpserver.dev/reference/workflows/#finishing-the-requested-work)
+for task-sized checks and honest delivery, not a full-workbook audit.
+Financial-model colours and dashboard visuals are optional, not a
 requirement for every report. Screenshots are optional and need a desktop.
 
 General workflow and recovery documentation is available on the

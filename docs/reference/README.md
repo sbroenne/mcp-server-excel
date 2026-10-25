@@ -12,6 +12,7 @@ can accomplish, see [features](../../FEATURES.md).
 ## Working with agents
 
 - [Workflows](workflows.md) - tool selection and sequencing
+- [Finishing the requested work](workflows.md#finishing-the-requested-work) - task-sized checks and delivery limits
 - [Working safely](behavioral-rules.md) - intent, permissions, sessions, and failures
 
 ## Workbooks, sheets and cells
