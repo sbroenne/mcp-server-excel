@@ -10,53 +10,6 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class PersistentServiceConnectionTests
 {
     [Fact]
-    public void Create_AceOleDbConnection_ReturnsSuccess()
-    {
-        var (sourceWorkbook, connectionName) = CreateAceConnection();
-
-        try
-        {
-            var listResult = _connections.List(_fixture.BatchToken);
-            Assert.True(listResult.Success);
-            Assert.Contains(
-                listResult.Connections,
-                connection => connection.Name == connectionName);
-            RequireSuccess(listResult);
-            Assert.False(ReadNativeConnection(connectionName).Refreshing);
-        }
-        finally
-        {
-            File.Delete(sourceWorkbook);
-        }
-    }
-
-    [Fact]
-    public void Refresh_AceOleDbConnectionAfterDataUpdate_ReturnsSuccess()
-    {
-        var (sourceWorkbook, connectionName) = CreateAceConnection();
-        var sheetName = UniqueSheetName("ProductsData");
-        try
-        {
-            RequireSuccess(_connections.LoadTo(_fixture.BatchToken, connectionName, sheetName));
-            _fixture.RegisterSheetForCleanup(sheetName);
-            StageAceDataUpdate(sourceWorkbook, sheetName);
-
-            var result = _connections.Refresh(
-                _fixture.BatchToken,
-                connectionName);
-
-            Assert.True(result.Success, result.ErrorMessage);
-            RequireSuccess(result);
-            Assert.False(ReadNativeConnection(connectionName).Refreshing);
-            AssertAceData(sheetName, 49.99);
-        }
-        finally
-        {
-            File.Delete(sourceWorkbook);
-        }
-    }
-
-    [Fact]
     public void Refresh_BackgroundQueryTrue_RestoredAfterRefresh()
     {
         var (sourceWorkbook, connectionName) = CreateAceConnection();
@@ -143,6 +96,9 @@ public sealed partial class PersistentServiceConnectionTests
         var sheetName = UniqueSheetName("ProductsData");
         try
         {
+            var listResult = RequireSuccess(_connections.List(_fixture.BatchToken));
+            Assert.Contains(listResult.Connections, connection => connection.Name == connectionName);
+            Assert.False(ReadNativeConnection(connectionName).Refreshing);
             var stopwatch = Stopwatch.StartNew();
 
             RequireSuccess(_connections.LoadTo(_fixture.BatchToken, connectionName, sheetName));
@@ -174,13 +130,14 @@ public sealed partial class PersistentServiceConnectionTests
             StageAceDataUpdate(sourceWorkbook, sheetName);
             var stopwatch = Stopwatch.StartNew();
 
-            RequireSuccess(_connections.Refresh(_fixture.BatchToken, connectionName));
+            var result = _connections.Refresh(_fixture.BatchToken, connectionName);
 
             stopwatch.Stop();
             Assert.True(
                 stopwatch.Elapsed < TimeSpan.FromSeconds(60),
                 $"Refresh took {stopwatch.Elapsed.TotalSeconds:F1}s - suspiciously slow. " +
                 "Possible deadlock regression in the connection refresh path.");
+            Assert.True(result.Success, result.ErrorMessage);
             AssertAceData(sheetName, 49.99);
             Assert.False(ReadNativeConnection(connectionName).Refreshing);
         }

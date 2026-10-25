@@ -60,23 +60,4 @@ public sealed partial class PersistentServiceWindowTests
         // Cleanup
         RequireSuccess(_commands.Hide(batch));
     }
-
-    [Fact]
-    public void GetInfo_WhenMaximized_ReportsMaximizedState()
-    {
-        // Arrange
-        var batch = _fixture.BatchToken;
-        Assert.True(_commands.Show(batch).Success);
-        Assert.True(_commands.SetState(batch, "maximized").Success);
-
-        // Act
-        var info = _commands.GetInfo(batch);
-
-        // Assert
-        Assert.True(info.Success);
-        Assert.Equal("maximized", info.WindowState);
-
-        // Cleanup
-        RequireSuccess(_commands.Hide(batch));
-    }
 }

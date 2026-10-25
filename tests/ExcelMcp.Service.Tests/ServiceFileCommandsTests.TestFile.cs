@@ -25,6 +25,7 @@ public sealed partial class ServiceFileCommandsTests
         Assert.True(info.IsValid);
         Assert.True(info.Success);
         Assert.True(info.CanOpen);
+        Assert.False(info.IsIrmProtected);
         Assert.False(info.WillOpenReadOnly);
         Assert.False(info.RequiresVisibleSession);
         Assert.Equal(".xlsx", info.Extension);

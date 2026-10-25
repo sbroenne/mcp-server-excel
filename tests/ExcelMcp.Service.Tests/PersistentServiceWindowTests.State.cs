@@ -23,6 +23,9 @@ public sealed partial class PersistentServiceWindowTests
         RequireSuccess(_commands.SetState(batch, baseline));
         Assert.Equal(baseline, RequireSuccess(_commands.GetInfo(batch)).WindowState);
         RequireSuccess(_commands.Hide(batch));
+        var beforeInfo = _commands.GetInfo(batch);
+        Assert.True(beforeInfo.Success, beforeInfo.ErrorMessage);
+        Assert.False(beforeInfo.IsVisible);
 
         // Act
         var result = _commands.SetState(batch, state);
@@ -124,34 +127,6 @@ public sealed partial class PersistentServiceWindowTests
         Assert.Equal(beforeInfo.Top, afterInfo.Top, 1d);
         Assert.Equal(beforeInfo.Width, afterInfo.Width, 1d);
         Assert.Equal(beforeInfo.Height, afterInfo.Height, 1d);
-
-        // Cleanup
-        RequireSuccess(_commands.Hide(batch));
-    }
-
-    [Fact]
-    public void SetState_MakesHiddenWindowVisible()
-    {
-        // Arrange
-        var batch = _fixture.BatchToken;
-        RequireSuccess(_commands.SetState(batch, "maximized"));
-        Assert.Equal("maximized", RequireSuccess(_commands.GetInfo(batch)).WindowState);
-        RequireSuccess(_commands.Hide(batch));
-
-        // Verify hidden
-        var beforeInfo = _commands.GetInfo(batch);
-        Assert.True(beforeInfo.Success, beforeInfo.ErrorMessage);
-        Assert.False(beforeInfo.IsVisible);
-
-        // Act
-        var result = _commands.SetState(batch, "normal");
-
-        // Assert - should auto-show
-        Assert.True(result.Success);
-        var afterInfo = _commands.GetInfo(batch);
-        Assert.True(afterInfo.Success, afterInfo.ErrorMessage);
-        Assert.True(afterInfo.IsVisible);
-        Assert.Equal("normal", afterInfo.WindowState);
 
         // Cleanup
         RequireSuccess(_commands.Hide(batch));

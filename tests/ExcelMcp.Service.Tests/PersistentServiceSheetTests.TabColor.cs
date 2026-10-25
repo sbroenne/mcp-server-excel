@@ -10,30 +10,6 @@ public sealed partial class PersistentServiceSheetTests
     /// <inheritdoc/>
 
     [Fact]
-    public void SetTabColor_WithValidRGB_SetsColorCorrectly()
-    {
-        // Arrange
-        var batch = _fixture.BatchToken;
-        var sheetName = $"Color_{Guid.NewGuid():N}"[..31];
-        _fixture.CreateNamedTestSheet(batch, sheetName);
-
-        // Act - Set red color
-        _sheetCommands.SetTabColor(batch, sheetName, 255, 0, 0);  // SetTabColor throws on error
-
-        // Assert - reaching here means set succeeded
-
-        // Verify color was actually set by reading it back
-        var getResult = _sheetCommands.GetTabColor(batch, sheetName);
-        RequireSuccess(getResult);
-        Assert.True(getResult.HasColor);
-        Assert.Equal(255, getResult.Red);
-        Assert.Equal(0, getResult.Green);
-        Assert.Equal(0, getResult.Blue);
-        Assert.Equal("#FF0000", getResult.HexColor);
-    }
-    /// <inheritdoc/>
-
-    [Fact]
     public void SetTabColor_WithDifferentColors_AllSetCorrectly()
     {
         // Arrange
@@ -60,6 +36,7 @@ public sealed partial class PersistentServiceSheetTests
         Assert.Equal(255, redColor.Red);
         Assert.Equal(0, redColor.Green);
         Assert.Equal(0, redColor.Blue);
+        Assert.Equal("#FF0000", redColor.HexColor);
 
         var greenColor = _sheetCommands.GetTabColor(batch, greenSheet);
         RequireSuccess(greenColor);
@@ -67,6 +44,7 @@ public sealed partial class PersistentServiceSheetTests
         Assert.Equal(0, greenColor.Red);
         Assert.Equal(255, greenColor.Green);
         Assert.Equal(0, greenColor.Blue);
+        Assert.Equal("#00FF00", greenColor.HexColor);
 
         var blueColor = _sheetCommands.GetTabColor(batch, blueSheet);
         RequireSuccess(blueColor);
@@ -74,6 +52,7 @@ public sealed partial class PersistentServiceSheetTests
         Assert.Equal(0, blueColor.Red);
         Assert.Equal(0, blueColor.Green);
         Assert.Equal(255, blueColor.Blue);
+        Assert.Equal("#0000FF", blueColor.HexColor);
     }
     /// <inheritdoc/>
 
@@ -208,6 +187,5 @@ public sealed partial class PersistentServiceSheetTests
         Assert.Equal("#800080", result.HexColor);
     }
 }
-
 
 

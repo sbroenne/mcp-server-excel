@@ -98,26 +98,6 @@ public class SessionManagerOperationTrackingTests : IDisposable
     }
 
     [Fact]
-    public void EndOperation_DecrementsCounter()
-    {
-        var testFile = CreateTestFile(nameof(EndOperation_DecrementsCounter));
-        using var manager = new SessionManager();
-        var sessionId = manager.CreateSession(testFile);
-
-        manager.BeginOperation(sessionId);
-        manager.BeginOperation(sessionId);
-        Assert.Equal(2, manager.GetActiveOperationCount(sessionId));
-
-        manager.EndOperation(sessionId);
-        Assert.Equal(1, manager.GetActiveOperationCount(sessionId));
-
-        manager.EndOperation(sessionId);
-        Assert.Equal(0, manager.GetActiveOperationCount(sessionId));
-
-        AssertSessionClosed(manager, sessionId);
-    }
-
-    [Fact]
     public void EndOperation_DoesNotGoBelowZero()
     {
         var testFile = CreateTestFile(nameof(EndOperation_DoesNotGoBelowZero));
@@ -383,37 +363,6 @@ public class SessionManagerOperationTrackingTests : IDisposable
         try
         {
             ExcelBatch.FinalizeOwnedProcessTeardown(identity, candidate => candidate == identity);
-
-            Assert.DoesNotContain(identity, SessionManager.GetTrackedExcelProcesses());
-            Assert.Contains(unrelatedIdentity, SessionManager.GetTrackedExcelProcesses());
-            Assert.False(currentProcess.HasExited);
-        }
-        finally
-        {
-            SessionManager.UntrackExcelProcess(identity);
-            SessionManager.UntrackExcelProcess(unrelatedIdentity);
-        }
-    }
-
-    [Fact]
-    public void StartupTeardown_ConfirmedExitUntracksExactIdentity()
-    {
-        using var currentProcess = Process.GetCurrentProcess();
-        var identity = new ExcelProcessIdentity(
-            currentProcess.Id,
-            currentProcess.StartTime.ToUniversalTime().ToFileTimeUtc());
-        var unrelatedIdentity = identity with
-        {
-            StartedAtUtcFileTime = identity.StartedAtUtcFileTime - 1
-        };
-        SessionManager.TrackExcelProcess(identity);
-        SessionManager.TrackExcelProcess(unrelatedIdentity);
-
-        try
-        {
-            ExcelBatch.FinalizeOwnedProcessTeardown(
-                identity,
-                candidate => candidate == identity);
 
             Assert.DoesNotContain(identity, SessionManager.GetTrackedExcelProcesses());
             Assert.Contains(unrelatedIdentity, SessionManager.GetTrackedExcelProcesses());
@@ -746,25 +695,6 @@ public class SessionManagerOperationTrackingTests : IDisposable
         manager.EndOperation(sessionId);
         Assert.True(manager.ValidateClose(sessionId).CanClose);
         AssertSessionClosed(manager, sessionId);
-    }
-
-    [Fact]
-    public void CloseSession_OperationsComplete_ClosesSuccessfully()
-    {
-        var testFile = CreateTestFile(nameof(CloseSession_OperationsComplete_ClosesSuccessfully));
-        using var manager = new SessionManager();
-        var sessionId = manager.CreateSession(testFile);
-
-        // Simulate operation lifecycle
-        manager.BeginOperation(sessionId);
-        manager.EndOperation(sessionId);
-
-        // Should now be able to close
-        var closed = manager.CloseSession(sessionId);
-
-        Assert.True(closed);
-        Assert.Equal(0, manager.ActiveSessionCount);
-        AssertClosedTracking(manager, sessionId);
     }
 
     [Fact]

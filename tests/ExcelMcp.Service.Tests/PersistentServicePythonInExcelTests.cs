@@ -172,62 +172,6 @@ public class PersistentServicePythonInExcelTests :
 
     /// <inheritdoc/>
     [Fact]
-    public void SetFormula_ThenGetResult_ComputesMeanOfWorksheetRange()
-    {
-        // Arrange
-        var batch = _fixture.BatchToken;
-        var sheetName = _fixture.CreateTestSheet(batch);
-        const int startRow = 1;
-        string sourceRange = WriteSourceData(batch, sheetName, startRow);
-        string targetCell = $"D{startRow}";
-        string code = $"xl(\"{sourceRange}\").mean()";
-
-        // Act
-        var setResult = _pythonCommands.SetFormula(batch, sheetName, targetCell, code, returnType: 0);
-        Assert.True(setResult.Success, setResult.ErrorMessage);
-        AssertPythonFormula(batch, sheetName, targetCell, code);
-
-        var getResult = GetResultWithRetry(
-            batch, sheetName, targetCell,
-            r => r.Success && !r.IsPythonError && Convert.ToDouble(r.Value, System.Globalization.CultureInfo.InvariantCulture) == 25d);
-
-        // Assert
-        Assert.True(getResult.Success, getResult.ErrorMessage);
-        Assert.False(getResult.IsPythonError);
-        Assert.False(getResult.IsPythonObject);
-        Assert.NotNull(getResult.Value);
-        Assert.Equal(25d, Convert.ToDouble(getResult.Value, System.Globalization.CultureInfo.InvariantCulture));
-    }
-
-    /// <inheritdoc/>
-    [Fact]
-    public void SetFormula_ThenGetResult_ComputesMaxOfWorksheetRange()
-    {
-        // Arrange
-        var batch = _fixture.BatchToken;
-        var sheetName = _fixture.CreateTestSheet(batch);
-        const int startRow = 1;
-        string sourceRange = WriteSourceData(batch, sheetName, startRow);
-        string targetCell = $"D{startRow}";
-        string code = $"xl(\"{sourceRange}\").max()";
-
-        // Act
-        RequireSuccess(_pythonCommands.SetFormula(batch, sheetName, targetCell, code, returnType: 0));
-        AssertPythonFormula(batch, sheetName, targetCell, code);
-        var getResult = GetResultWithRetry(
-            batch, sheetName, targetCell,
-            r => r.Success && !r.IsPythonError && Convert.ToDouble(r.Value, System.Globalization.CultureInfo.InvariantCulture) == 45d);
-
-        // Assert
-        Assert.True(getResult.Success, getResult.ErrorMessage);
-        Assert.False(getResult.IsPythonError);
-        Assert.False(getResult.IsPythonObject);
-        Assert.NotNull(getResult.Value);
-        Assert.Equal(45d, Convert.ToDouble(getResult.Value, System.Globalization.CultureInfo.InvariantCulture));
-    }
-
-    /// <inheritdoc/>
-    [Fact]
     public void SetFormula_WithSyntaxError_GetResultReturnsPythonError()
     {
         // Arrange

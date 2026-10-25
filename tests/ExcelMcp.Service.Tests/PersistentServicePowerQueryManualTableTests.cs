@@ -99,46 +99,17 @@ public sealed class PersistentServicePowerQueryManualTableTests(
     }
 
     [Fact]
-    public void List_WorkbookWithManualTable_ReturnsOnlyQueries()
+    public void Update_WorkbookWithManualTable_UpdatesQuerySuccessfully()
     {
         var state = ArrangeManualTableAndQuery();
-
-        var result = RequireSuccess(_queries.List(_fixture.BatchToken));
-
-        Assert.True(result.Success, $"List failed: {result.ErrorMessage}");
-        Assert.NotNull(result.Queries);
-        var query = Assert.Single(result.Queries);
-        Assert.DoesNotContain(
-            result.Queries,
-            candidate => candidate.Name.StartsWith(
-                "Error Query",
-                StringComparison.Ordinal));
+        var listed = RequireSuccess(_queries.List(_fixture.BatchToken));
+        var query = Assert.Single(listed.Queries);
+        Assert.DoesNotContain(listed.Queries,
+            candidate => candidate.Name.StartsWith("Error Query", StringComparison.Ordinal));
         Assert.Equal(state.QueryName, query.Name);
         Assert.NotEmpty(query.FormulaPreview);
         Assert.DoesNotContain("Error:", query.FormulaPreview);
         Assert.True(query.IsConnectionOnly);
-        AssertPreserved(state, OriginalMCode, ["Column1", "Column2"], [["A", "B"], ["C", "D"]]);
-    }
-
-    [Fact]
-    public void View_WorkbookWithManualTable_ReturnsQueryDetails()
-    {
-        var state = ArrangeManualTableAndQuery();
-
-        var result = RequireSuccess(_queries.View(_fixture.BatchToken, state.QueryName));
-
-        Assert.True(result.Success, $"View failed: {result.ErrorMessage}");
-        Assert.Equal(state.QueryName, result.QueryName);
-        Assert.NotEmpty(result.MCode);
-        Assert.Contains("Source = #table", result.MCode);
-        Assert.True(result.IsConnectionOnly);
-        AssertPreserved(state, OriginalMCode, ["Column1", "Column2"], [["A", "B"], ["C", "D"]]);
-    }
-
-    [Fact]
-    public void Update_WorkbookWithManualTable_UpdatesQuerySuccessfully()
-    {
-        var state = ArrangeManualTableAndQuery();
         const string updatedMCode = """
             let
                 Source = #table(

@@ -418,23 +418,5 @@ public partial class PersistentServiceDataModelCommandsTests
         Assert.Equal(ExpectedStoredFormula(daxFormula, decimalCommaFormula), readResult.DaxFormula);
     }
 
-    /// <summary>
-    /// Tests simple DAX formula without function separators - should work unchanged.
-    /// LLM use case: "create a simple SUM measure"
-    /// </summary>
-    [Fact]
-    public void CreateMeasure_SimpleFormula_CreatesSuccessfully()
-    {
-        var measureName = $"Test_Simple_{Guid.NewGuid():N}";
-        var daxFormula = "SUM(SalesTable[Amount])";
-
-        var batch = _fixture.BatchToken;
-        RequireSuccess(CreateMeasure("SalesTable", measureName, daxFormula));
-
-        var readResult = _dataModelCommands.Read(batch, measureName);
-        RequireSuccess(readResult);
-        Assert.Equal(daxFormula, readResult.DaxFormula);
-    }
-
     #endregion
 }

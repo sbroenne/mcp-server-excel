@@ -25,10 +25,6 @@ public sealed partial class PersistentServicePowerQueryEvaluateTests
         AssertEvaluationGuard(guard);
     }
 
-    [Fact]
-    public void Evaluate_AfterExecution_CleansUpTempObjects() =>
-        EvaluateChecked("let Source = #table({\"X\"}, {{1}}) in Source", ["X"], [[1]]);
-
     private string SnapshotNativeArtifacts() =>
         _fixture.ExecuteRawVerification((context, _) =>
         {

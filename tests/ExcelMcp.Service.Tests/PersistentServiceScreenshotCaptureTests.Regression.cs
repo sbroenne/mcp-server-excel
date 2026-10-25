@@ -16,24 +16,6 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class IsolatedServiceScreenshotTests
 {
     [Fact]
-    public void CaptureRange_NonActiveOffscreenStyledRange_ProducesVisibleContent()
-    {
-        var batch = _fixture.BatchToken;
-        var sheetName = CreateScreenshotSheetName();
-
-        PopulateHighContrastOffscreenSheet(sheetName, topLeftCell: "AA120");
-        _fixture.RegisterSheetForCleanup(sheetName);
-        var before = ReadScreenshotState(sheetName, "AA120:AD126");
-
-        var result = _screenshotCommands.CaptureRange(batch, sheetName, "AA120:AD126", ScreenshotQuality.High);
-
-        Assert.Equal(sheetName, result.SheetName);
-        Assert.Equal("$AA$120:$AD$126", result.RangeAddress);
-        AssertImageLooksPopulated(result);
-        Assert.Equal(before, ReadScreenshotState(sheetName, "AA120:AD126"));
-    }
-
-    [Fact]
     public void CaptureSheet_NonActiveStyledSheet_ProducesVisibleContent()
     {
         var batch = _fixture.BatchToken;
@@ -63,6 +45,8 @@ public sealed partial class IsolatedServiceScreenshotTests
         for (int attempt = 0; attempt < 3; attempt++)
         {
             var result = _screenshotCommands.CaptureRange(batch, sheetName, "AA120:AD126", ScreenshotQuality.High);
+            Assert.Equal(sheetName, result.SheetName);
+            Assert.Equal("$AA$120:$AD$126", result.RangeAddress);
             AssertImageLooksPopulated(result);
             Assert.Equal(before, ReadScreenshotState(sheetName, "AA120:AD126"));
         }

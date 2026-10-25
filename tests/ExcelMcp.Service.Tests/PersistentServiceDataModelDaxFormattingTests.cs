@@ -48,7 +48,9 @@ public class PersistentServiceDataModelDaxFormattingTests(
     {
         var result = AssertStoredFormula("Total Sales", "SUM(SalesTable[Amount])");
         Assert.Equal("Total sales amount", result.Description);
-        Assert.Equal("Decimal", Assert.IsType<MeasureFormatInfo>(result.FormatInfo).Type);
+        var format = Assert.IsType<MeasureFormatInfo>(result.FormatInfo);
+        Assert.Equal("Decimal", format.Type);
+        Assert.Equal(0, format.DecimalPlaces);
         AssertMeasureValue("Total Sales", 2455);
     }
 

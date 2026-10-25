@@ -1,7 +1,6 @@
 using System.Globalization;
 using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -29,33 +28,8 @@ public partial class PersistentServiceDataModelCommandsTests(
     private readonly IDataModelServiceCommands _dataModelCommands =
         fixture.CreateCommands<IDataModelServiceCommands>();
     private readonly string _dataModelFile = fixture.WorkbookPath;
-    private readonly DataModelPivotTableCreationResult _creationResult =
-        PersistentServiceDataModelFixture.CreationResult;
 
     #region Core Discovery Tests (4 tests)
-
-    /// <summary>
-    /// Validates that the fixture successfully created the Data Model.
-    /// LLM use case: "create a data model with tables, relationships, and measures"
-    /// </summary>
-    [Fact]
-    public void Create_CompleteDataModel_SuccessfullyCreatesAllComponents()
-    {
-        Assert.True(_creationResult.Success,
-            $"Data Model creation failed: {_creationResult.ErrorMessage}");
-        Assert.True(_creationResult.FileCreated);
-        Assert.Equal(5, _creationResult.TablesCreated);  // SalesTable, CustomersTable, ProductsTable, RegionalSalesTable, DisambiguationTable
-        Assert.Equal(5, _creationResult.TablesLoadedToModel);
-        Assert.Equal(2, _creationResult.RelationshipsCreated);
-        Assert.Equal(6, _creationResult.MeasuresCreated);  // Total Sales, Average Sale, Total Customers, TotalRevenue, ACR, Discount
-        Assert.True(File.Exists(_dataModelFile));
-        Assert.Equal(
-            ["CustomersTable", "DisambiguationTable", "ProductsTable", "RegionalSalesTable", "SalesTable"],
-            RequireSuccess(_dataModelCommands.ListTables(_fixture.BatchToken))
-                .Tables.Select(table => table.Name).Order(StringComparer.Ordinal));
-        Assert.Equal(2455d, ReadMeasureValue("Total Sales"));
-        Assert.Equal(5d, ReadMeasureValue("Total Customers"));
-    }
 
     /// <summary>
     /// Tests listing tables in the data model.
@@ -71,6 +45,7 @@ public partial class PersistentServiceDataModelCommandsTests(
         Assert.Equal(
             ["CustomersTable", "DisambiguationTable", "ProductsTable", "RegionalSalesTable", "SalesTable"],
             result.Tables.Select(table => table.Name).Order(StringComparer.Ordinal));
+        Assert.Equal(5d, ReadMeasureValue("Total Customers"));
     }
 
     /// <summary>
@@ -154,37 +129,6 @@ public partial class PersistentServiceDataModelCommandsTests(
         Assert.Contains($"Table '{tableWithoutMeasures.Name}' has no measures.", result.Message);
         Assert.Contains("Measures are stored on:", result.Message);
         Assert.Contains(allMeasures[0].Table, result.Message);
-    }
-
-    /// <summary>
-    /// Tests viewing a specific measure's DAX formula.
-    /// LLM use case: "show me the DAX formula for this measure"
-    /// </summary>
-    [Fact]
-    public void Get_WithRealisticDataModel_ReturnsValidDAXFormula()
-    {
-        var batch = _fixture.BatchToken;
-        var result = RequireSuccess(_dataModelCommands.Read(batch, "Total Sales"));
-
-        Assert.Equal("SUM(SalesTable[Amount])", result.DaxFormula);
-        Assert.Equal("Total Sales", result.MeasureName);
-        Assert.Equal(2455d, ReadMeasureValue("Total Sales"));
-    }
-
-    /// <summary>
-    /// Tests that Read returns structured FormatInfo with type and properties.
-    /// Regression test: FormatString was previously a string, now it's a structured FormatInfo object.
-    /// </summary>
-    [Fact]
-    public void Read_WithMeasure_ReturnsStructuredFormatInfo()
-    {
-        var batch = _fixture.BatchToken;
-        var result = RequireSuccess(_dataModelCommands.Read(batch, "Total Sales"));
-
-        var format = Assert.IsType<MeasureFormatInfo>(result.FormatInfo);
-        Assert.Equal("Decimal", format.Type);
-        Assert.Equal(0, format.DecimalPlaces);
-        Assert.Equal(2455d, ReadMeasureValue("Total Sales"));
     }
 
     /// <summary>

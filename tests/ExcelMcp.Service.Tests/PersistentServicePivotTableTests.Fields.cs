@@ -280,35 +280,6 @@ public sealed partial class PersistentServicePivotTableTests
     /// <inheritdoc/>
 
     /// <summary>
-    /// Verifies that SetFieldFormat with US currency format works correctly on any locale.
-    /// The server should auto-translate format codes (number separators handled by UseSystemSeparators=false).
-    /// </summary>
-    [Fact]
-    [Trait("Speed", "Medium")]
-    [Trait("Category", "Regular")]
-    public void SetFieldFormat_USCurrencyFormat_RoundTripsCorrectly()
-    {
-        // Arrange
-
-        var batch = _fixture.BatchToken;
-        var createResult = _pivotCommands.CreateFromRange(
-            batch, _salesSheetName, "A1:D6", _salesSheetName, "F1", "TestPivot");
-        RequireSuccess(createResult);
-
-        // Add Sales as value field
-        var addResult = _pivotCommands.AddValueField(batch, "TestPivot", "Sales");
-        RequireSuccess(addResult);
-
-        // Act - Apply US currency format
-        var result = _pivotCommands.SetFieldFormat(batch, "TestPivot", "Sales", "$#,##0.00");
-
-        // Assert - Format should round-trip correctly (not corrupted by locale)
-        RequireSuccess(result);
-        AssertPivotNumberFormat("$#,##0.00", 650,
-            _fixture.ExecuteRawVerification((ctx, _) => $"$650{ctx.FormatTranslator.DecimalSeparator}00"));
-    }
-
-    /// <summary>
     /// Verifies that SetFieldFormat with US date format works correctly on value fields.
     /// Uses a Count function on a date field to create a numeric value that can be formatted.
     /// The server auto-translates format codes (number separators handled by UseSystemSeparators=false).

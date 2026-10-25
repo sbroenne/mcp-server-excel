@@ -24,10 +24,6 @@ public class PersistentServicePowerQueryWorksheetCleanupTests(
         fixture.CreateCommands<ITableCommands>();
 
     [Fact]
-    public void Create_LoadToTable_CreatesProperlyNamedConnection() =>
-        AssertLoaded(CreateQuery(PowerQueryLoadMode.LoadToTable, [11, 23, 37]));
-
-    [Fact]
     public void Create_MultipleLoadToTable_NoOrphanedConnections()
     {
         var first = CreateQuery(PowerQueryLoadMode.LoadToTable, [11, 12]);

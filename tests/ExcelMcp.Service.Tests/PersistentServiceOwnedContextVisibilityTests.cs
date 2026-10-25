@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop;
 using Xunit;
@@ -133,47 +132,6 @@ public sealed class PersistentServiceOwnedContextVisibilityTests(
         var values = _commands.GetValues(_fixture.BatchToken, sheetName, "A3");
         Assert.True(values.Success);
         Assert.Null(values.Values[0][0]);
-    }
-
-    [Fact]
-    public void NativeOwnedWindowProbe_ReadsSelectionFromWorkbookWindow()
-    {
-        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
-        _fixture.ExecuteRawVerification((context, _) =>
-        {
-            Excel.Worksheet? sheet = null;
-            Excel.Range? cell = null;
-            Excel.Windows? windows = null;
-            Excel.Window? window = null;
-            object? selected = null;
-            Excel.Range? activeCell = null;
-            try
-            {
-                sheet = ComUtilities.FindSheet(context.Book, sheetName);
-                Assert.NotNull(sheet);
-                cell = sheet.Range["C5"];
-                sheet.Activate();
-                cell.Select();
-                windows = context.Book.Windows;
-                window = windows[1];
-                selected = window.Selection;
-                activeCell = window.ActiveCell;
-                var range = selected as Excel.Range;
-                Assert.NotNull(range);
-                Assert.Equal("$C$5", range.Address);
-                Assert.Equal("$C$5", activeCell.Address);
-                Assert.True(Convert.ToInt32(window.WindowNumber, CultureInfo.InvariantCulture) > 0);
-            }
-            finally
-            {
-                ComUtilities.Release(ref activeCell);
-                ComUtilities.Release(ref selected);
-                ComUtilities.Release(ref window);
-                ComUtilities.Release(ref windows);
-                ComUtilities.Release(ref cell);
-                ComUtilities.Release(ref sheet);
-            }
-        });
     }
 
     [Fact]

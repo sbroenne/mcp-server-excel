@@ -34,6 +34,12 @@ public sealed partial class PersistentServiceTablePreflightTests
 
         // Assert
         RequireSuccess(slicerResult);
+        var listed = Assert.Single(RequireSuccess(_tableCommands.ListTableSlicers(batch)).Slicers);
+        Assert.Equal("RegionSlicer", listed.Name);
+        Assert.Equal("Region", listed.FieldName);
+        Assert.Equal("SalesTable", listed.ConnectedTable);
+        Assert.Equal("Table", listed.SourceType);
+        Assert.Equal("F2", listed.Position);
         Assert.Equal("RegionSlicer", slicerResult.Name);
         Assert.Equal("Region", slicerResult.FieldName);
         Assert.Equal("Sales", slicerResult.SheetName);
@@ -185,9 +191,11 @@ public sealed partial class PersistentServiceTablePreflightTests
         AssertTableSlicerState(unfiltered, 800, "North", "South", "East", "West");
         var filtered = _tableCommands.SetTableSlicerSelection(batch, "AddSelectionSlicer", ["North"]);
         AssertTableSlicerState(filtered, 100, "North");
+        AssertVisibleRegions(["North"]);
         var added = _tableCommands.SetTableSlicerSelection(
             batch, "AddSelectionSlicer", ["South"], clearFirst: false);
         AssertTableSlicerState(added, 350, "North", "South");
+        AssertVisibleRegions(["North", "South"]);
         var replaced = _tableCommands.SetTableSlicerSelection(
             batch, "AddSelectionSlicer", ["South"], clearFirst: true);
         AssertTableSlicerState(replaced, 250, "South");
@@ -332,25 +340,6 @@ public sealed partial class PersistentServiceTablePreflightTests
         Assert.Equal(["South"], Assert.Single(listed.Slicers).SelectedItems);
     }
 
-    [Fact]
-    public void SetTableSlicerSelection_AddToSelection_PreservesPreviouslyVisibleRows()
-    {
-        var batch = _fixture.BatchToken;
-        var created = _tableCommands.CreateTableSlicer(batch, "SalesTable", "Region", "AdditiveSlicer", "Sales", "F2");
-        RequireSuccess(created);
-        var first = _tableCommands.SetTableSlicerSelection(batch, "AdditiveSlicer", ["North"]);
-        RequireSuccess(first);
-        AssertVisibleRegions(["North"]);
-
-        var added = _tableCommands.SetTableSlicerSelection(batch, "AdditiveSlicer", ["South"], clearFirst: false);
-
-        RequireSuccess(added);
-        AssertVisibleRegions(["North", "South"]);
-        var listed = _tableCommands.ListTableSlicers(batch);
-        RequireSuccess(listed);
-        Assert.Equal(["North", "South"], Assert.Single(listed.Slicers).SelectedItems.Order());
-    }
-
     /// <summary>
     /// Tests listing Table slicers when workbook has no slicers.
     /// </summary>
@@ -415,53 +404,6 @@ public sealed partial class PersistentServiceTablePreflightTests
     }
 
     /// <summary>
-    /// Tests that Table slicer shows connected Table info.
-    /// </summary>
-    [Fact]
-    public void CreateTableSlicer_ShowsConnectedTable()
-    {
-        // Arrange
-        var batch = _fixture.BatchToken;
-
-        // Act - Create slicer
-        var slicerResult = _tableCommands.CreateTableSlicer(
-            batch, "SalesTable", "Region", "ConnectedSlicer", "Sales", "F2");
-
-        // Assert
-        RequireSuccess(slicerResult);
-        Assert.NotNull(slicerResult.ConnectedTable);
-        Assert.Equal("SalesTable", slicerResult.ConnectedTable);
-        Assert.Equal("Table", slicerResult.SourceType);
-        Assert.Equal("ConnectedSlicer", Assert.Single(RequireSuccess(_tableCommands.ListTableSlicers(batch)).Slicers).Name);
-        AssertVisibleRegions(["North", "South", "East", "West"]);
-        AssertNativeSingleSlicer("ConnectedSlicer", "Region", "SalesTable", "Sales", "F2");
-    }
-
-    /// <summary>
-    /// Tests that slicer Position is returned as a valid cell reference.
-    /// This test catches bugs where Position is empty due to incorrect COM API usage.
-    /// Bug context: TopLeftCell is on Slicer.Shape, not Slicer directly.
-    /// </summary>
-    [Fact]
-    public void CreateTableSlicer_ReturnsValidPosition()
-    {
-        // Arrange
-        var batch = _fixture.BatchToken;
-
-        // Act - Create slicer at F2
-        var slicerResult = _tableCommands.CreateTableSlicer(
-            batch, "SalesTable", "Region", "PositionTestSlicer", "Sales", "F2");
-
-        // Assert - Position must be a valid cell reference, not empty
-        RequireSuccess(slicerResult);
-        Assert.False(string.IsNullOrEmpty(slicerResult.Position),
-            "Slicer Position should not be empty - verify Shape.TopLeftCell API is used correctly");
-        Assert.Matches(@"^[A-Z]+\d+$", slicerResult.Position); // e.g., "F2", "AA10"
-        Assert.Equal("F2", slicerResult.Position);
-        AssertNativeSingleSlicer("PositionTestSlicer", "Region", "SalesTable", "Sales", "F2");
-    }
-
-    /// <summary>
     /// Tests that ListTableSlicers returns valid Position for each slicer.
     /// </summary>
     [Fact]
@@ -487,82 +429,6 @@ public sealed partial class PersistentServiceTablePreflightTests
             Assert.False(string.IsNullOrEmpty(slicer.Position),
                 $"Slicer '{slicer.Name}' has empty Position - verify Shape.TopLeftCell API");
         }
-    }
-
-    /// <summary>
-    /// Tests that FieldName is returned correctly (not "Unknown").
-    /// This test catches bugs where SourceName property access fails silently.
-    /// </summary>
-    [Fact]
-    public void CreateTableSlicer_ReturnsCorrectFieldName()
-    {
-        // Arrange
-        var batch = _fixture.BatchToken;
-
-        // Act - Create slicer for "Region" column
-        var slicerResult = _tableCommands.CreateTableSlicer(
-            batch, "SalesTable", "Region", "FieldNameTestSlicer", "Sales", "F2");
-
-        // Assert - FieldName must match the column name, not be "Unknown"
-        RequireSuccess(slicerResult);
-        Assert.NotEqual("Unknown", slicerResult.FieldName);
-        Assert.Equal("Region", slicerResult.FieldName);
-        AssertNativeSingleSlicer("FieldNameTestSlicer", "Region", "SalesTable", "Sales", "F2");
-    }
-
-    /// <summary>
-    /// Tests that ConnectedTable is returned correctly (not "Unknown" or empty).
-    /// This test catches bugs where ListObject property access fails silently.
-    /// </summary>
-    [Fact]
-    public void ListTableSlicers_ReturnsCorrectConnectedTable()
-    {
-        // Arrange
-        var batch = _fixture.BatchToken;
-
-        RequireSuccess(_tableCommands.CreateTableSlicer(batch, "SalesTable", "Region", "ConnTableTestSlicer", "Sales", "F2"));
-
-        // Act
-        var listResult = _tableCommands.ListTableSlicers(batch);
-
-        // Assert - ConnectedTable must be the actual table name
-        RequireSuccess(listResult);
-        var slicer = Assert.Single(listResult.Slicers);
-        Assert.Equal("ConnTableTestSlicer", slicer.Name);
-        Assert.NotEqual("Unknown", slicer.ConnectedTable);
-        Assert.NotEqual(string.Empty, slicer.ConnectedTable);
-        Assert.Equal("SalesTable", slicer.ConnectedTable);
-    }
-
-    /// <summary>
-    /// Tests rapid sequential operations: create slicer, then immediately list slicers.
-    /// This mimics MCP/LLM patterns where operations are called in rapid succession.
-    /// Tests for timing issues and COM object availability.
-    /// </summary>
-    [Fact]
-    public void RapidSequentialOperations_CreateThenList_ReturnsValidPosition()
-    {
-        // Arrange
-        var batch = _fixture.BatchToken;
-
-        // Act - Create slicer then IMMEDIATELY list (mimics MCP agent pattern)
-        var createResult = _tableCommands.CreateTableSlicer(
-            batch, "SalesTable", "Region", "RapidTestSlicer", "Sales", "F2");
-        RequireSuccess(createResult);
-
-        // Immediately call list - no delay (this is how MCP agents work)
-        var listResult = _tableCommands.ListTableSlicers(batch);
-
-        // Assert - Both operations must succeed with valid data
-        RequireSuccess(listResult);
-        var slicer = Assert.Single(listResult.Slicers);
-        Assert.Equal("RapidTestSlicer", slicer.Name);
-        Assert.False(string.IsNullOrEmpty(slicer.Position),
-            "Slicer Position empty after rapid create+list - possible COM timing issue");
-        Assert.Equal("F2", slicer.Position);
-        Assert.Equal("Region", slicer.FieldName);
-        Assert.Equal("SalesTable", slicer.ConnectedTable);
-        AssertVisibleRegions(["North", "South", "East", "West"]);
     }
 
     /// <summary>

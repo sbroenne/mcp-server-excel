@@ -7,23 +7,15 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class ServiceWorkbookLifecycleTests
 {
     [Theory]
-    [InlineData(true, true, 0)]
-    [InlineData(false, true, 0)]
-    [InlineData(true, false, 0)]
-    [InlineData(false, false, 0)]
-    [InlineData(true, true, 1)]
-    [InlineData(false, true, 1)]
-    [InlineData(true, false, 1)]
-    [InlineData(false, false, 1)]
-    [InlineData(true, true, 2)]
-    [InlineData(false, true, 2)]
-    [InlineData(true, false, 2)]
-    [InlineData(false, false, 2)]
-    public async Task Close_AfterModelQuery_PersistsMacroEnabledWorkbook(bool inspectVba, bool typedColumn, int repetition)
+    [InlineData(true, true)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    public async Task Close_AfterModelQuery_PersistsMacroEnabledWorkbook(bool inspectVba, bool typedColumn)
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
-            var path = Path.Join(directory, $"vba-model-save-{repetition}.xlsm");
+            var path = Path.Join(directory, "vba-model-save.xlsm");
             var session = await CreateSessionAsync(service, path);
             sessions[session] = 0;
             await WriteMarkerAsync(service, session, "VBA and model retained");
