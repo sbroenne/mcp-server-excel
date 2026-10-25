@@ -188,6 +188,52 @@ public sealed class BatchCommandSummaryTests
     }
 
     [Theory]
+    [InlineData(@"\uD800", true, false)]
+    [InlineData(@"\uDC00", true, false)]
+    [InlineData(@"\uD800x", true, false)]
+    [InlineData(@"\uD800", false, false)]
+    [InlineData(@"\uD800", false, true)]
+    [InlineData(@"\uD800", true, true)]
+    public async Task Batch_UndecodableSummary_PreservesValidationErrorAndContinuation(
+        string escapedName, bool includeFollowingCommand, bool stopOnError)
+    {
+        var original = await InProcessCliHelper.RunAsync(["batch"], input: """{"command":"nonexistent.action"}""");
+        using var originalJson = JsonDocument.Parse(original.Stdout);
+        var first = $$$"""{"command":"nonexistent.action","args":{"sheetName":"{{{escapedName}}}"}}""";
+        var requests = new List<ServiceRequest>();
+        var result = await InProcessCliHelper.RunAsync(
+            stopOnError ? ["batch", "--stop-on-error"] : ["batch"],
+            request =>
+            {
+                requests.Add(request);
+                return new ServiceResponse { Success = true, Result = """{"success":true}""" };
+            },
+            includeFollowingCommand ? first + "\n" + """{"command":"diag.ping"}""" : first);
+
+        Assert.Equal(1, result.ExitCode);
+        Assert.Empty(result.Stderr);
+        var continued = includeFollowingCommand && !stopOnError;
+        var lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        Assert.Equal(continued ? 2 : 1, lines.Length);
+        using var failed = JsonDocument.Parse(lines[0]);
+        Assert.Equal(0, failed.RootElement.GetProperty("index").GetInt32());
+        Assert.Equal("nonexistent.action", failed.RootElement.GetProperty("command").GetString());
+        Assert.Equal("nonexistent.action", failed.RootElement.GetProperty("commandSummary").GetString());
+        Assert.False(failed.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal(originalJson.RootElement.GetProperty("errorMessage").GetString(),
+            failed.RootElement.GetProperty("errorMessage").GetString());
+        Assert.Equal(continued ? 1 : 0, requests.Count);
+        if (continued)
+        {
+            Assert.Equal("diag.ping", requests[0].Command);
+            using var next = JsonDocument.Parse(lines[1]);
+            Assert.Equal(1, next.RootElement.GetProperty("index").GetInt32());
+            Assert.Equal("diag.ping", next.RootElement.GetProperty("commandSummary").GetString());
+            Assert.True(next.RootElement.GetProperty("success").GetBoolean());
+        }
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Batch_LaterValidationFailure_KeepsPriorResultsAndSummary(bool stopOnError)

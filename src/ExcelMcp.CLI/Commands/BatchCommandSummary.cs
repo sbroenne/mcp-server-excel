@@ -62,9 +62,23 @@ internal static class BatchCommandSummary
         }
     }
 
-    private static string? ReadString(JsonElement args, string name) =>
-        args.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String &&
-        value.GetString() is { Length: > 0 } text ? text : null;
+    private static string? ReadString(JsonElement args, string name)
+    {
+        if (!args.TryGetProperty(name, out var value) || value.ValueKind != JsonValueKind.String)
+        {
+            return null;
+        }
+        try
+        {
+            return value.GetString() is { Length: > 0 } text ? text : null;
+        }
+        catch (InvalidOperationException)
+        {
+            // Parsed JSON can contain unmatched surrogate escapes. Omit only the
+            // unreadable display detail, preserving command validation and errors.
+            return null;
+        }
+    }
 
     private static string? ReadDimensions(JsonElement args, string name)
     {

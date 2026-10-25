@@ -139,6 +139,23 @@ public sealed class BatchCommandSummaryTests
     }
 
     [Fact]
+    public void Create_UndecodableDetail_OmitsOnlyThatDetailAndPreservesArguments()
+    {
+        const string args = """{"sheetName":"\uD800","rangeAddress":"A1"}""";
+        using var json = JsonDocument.Parse(args);
+        Assert.Equal("range.get-values: rangeAddress=A1", BatchCommandSummary.Create("range.get-values", json.RootElement));
+        Assert.Equal(args, json.RootElement.GetRawText());
+    }
+
+    [Fact]
+    public void Create_ValidUnicodeEscape_RemainsVisible()
+    {
+        using var json = JsonDocument.Parse("""{"queryName":"Sales\uD83D\uDE00"}""");
+        Assert.Equal("powerquery.refresh: queryName=Sales" + char.ConvertFromUtf32(0x1F600),
+            BatchCommandSummary.Create("powerquery.refresh", json.RootElement));
+    }
+
+    [Fact]
     public void Create_LongCommandWithoutDetails_IsBounded()
     {
         Assert.Equal(new string('x', 157) + "...", BatchCommandSummary.Create(new string('x', 161), null));

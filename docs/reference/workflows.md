@@ -56,8 +56,9 @@ details, in this fixed order:
 
 When only a sheet or range is supplied, it appears as `key=value`. An empty
 sheet name is not replaced with a guessed active sheet. Unsupported details,
-empty strings, and wrong-type details are omitted; normal command validation
-still applies. With no supported details, the summary is just the command.
+empty strings, wrong-type details, and text that cannot be decoded are omitted;
+normal command validation still applies. With no supported details, the summary
+is just the command.
 File-based writes show available target details but do not read files to
 calculate dimensions.
 
