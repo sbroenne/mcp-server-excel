@@ -20,26 +20,6 @@ public sealed partial class PersistentServiceRangeGetStyleTests
     }
 
     [Fact]
-    public void GetStyle_AfterSetStyle_ReturnsAppliedStyle()
-    {
-        // Arrange & Act
-        var batch = _fixture.BatchToken;
-        var sheetName = _fixture.CreateTestSheet(batch);
-
-        // Set a style first
-        RequireSuccess(_commands.SetStyle(batch, sheetName, "A1", "Heading 1"));
-
-        // Now get the style
-        var getResult = _commands.GetStyle(batch, sheetName, "A1");
-
-        // Assert
-        Assert.True(getResult.Success, $"GetStyle failed: {getResult.ErrorMessage}");
-        Assert.Equal("Heading 1", getResult.StyleName);
-        Assert.True(getResult.IsBuiltInStyle);
-        // Note: StyleDescription may be null for some styles
-    }
-
-    [Fact]
     public void GetStyle_MultipleStyles_ReturnsCorrectStyles()
     {
         // Arrange & Act
@@ -108,6 +88,5 @@ public sealed partial class PersistentServiceRangeGetStyleTests
             RequireSuccess(_commands.GetValues(batch, sheetName, "A1")).Values)));
     }
 }
-
 
 

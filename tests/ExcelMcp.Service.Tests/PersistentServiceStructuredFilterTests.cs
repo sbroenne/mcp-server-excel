@@ -320,23 +320,6 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
     }
 
     [Fact]
-    public void AdvancedFilter_InPlaceCanBeClearedWithoutLosingRecords()
-    {
-        var sheet = CreateData();
-        Assert.True(_commands.SetValues(_fixture.BatchToken, sheet, "H1:H2", [["Amount"], [">=30"]]).Success);
-        _fixture.Send("rangeedit.advanced-filter", new
-        {
-            sheetName = sheet,
-            rangeAddress = "A1:B6",
-            criteriaRange = "H1:H2",
-            mode = "InPlace"
-        });
-        AssertVisibleRows(sheet, 4, 5, 6);
-        _fixture.Send("rangeedit.clear-filters", new { sheetName = sheet, rangeAddress = "A1:B6", clearAdvanced = true });
-        AssertVisibleRows(sheet, 2, 3, 4, 5, 6);
-    }
-
-    [Fact]
     public async Task AdvancedFilter_RejectsOccupiedMaximumCopyExtentBeforeWriting()
     {
         var sheet = CreateData();

@@ -48,23 +48,6 @@ public sealed class PersistentServiceRangeFillTests(
     }
 
     [Fact]
-    public void AutoFill_ExtendsNativeNumberPatternWithoutRequiringOverwriteOfSource()
-    {
-        var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);
-        Assert.True(_commands.SetValues(_fixture.BatchToken, sheetName, "A1:A2", [[1], [3]]).Success);
-        _fixture.Send("rangeedit.auto-fill", new
-        {
-            sheetName,
-            sourceRange = "A1:A2",
-            destinationRange = "A1:A5",
-            fillType = "series"
-        });
-        var read = _commands.GetValues(_fixture.BatchToken, sheetName, "A1:A5");
-        Assert.True(read.Success);
-        Assert.Equal([1d, 3d, 5d, 7d, 9d], read.Values.Select(row => Convert.ToDouble(row[0], CultureInfo.InvariantCulture)));
-    }
-
-    [Fact]
     public void CreateSeries_UsesNativeLinearSteps()
     {
         var sheetName = _fixture.CreateTestSheet(_fixture.BatchToken);

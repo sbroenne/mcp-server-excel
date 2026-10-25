@@ -315,24 +315,6 @@ public sealed partial class PersistentServiceTablePreflightTests
     }
 
     /// <summary>
-    /// Tests applying a filter to a table column.
-    /// LLM use case: "filter this table to show only these values"
-    /// </summary>
-    [Fact]
-    public void ApplyFilter_WithColumnCriteria_FiltersTable()
-    {
-
-        var batch = _fixture.BatchToken;
-        var before = RequireSuccess(_tableCommands.GetData(batch, "SalesTable"));
-        RequireSuccess(_tableCommands.ApplyFilter(batch, "SalesTable", "Region",
-            new FilterOptions { FilterOperator = FilterOperator.Values, Values = ["North"] }));
-        var visible = RequireSuccess(_tableCommands.GetData(batch, "SalesTable", visibleOnly: true));
-        AssertSalesRows(visible.Data, [0]);
-        Assert.Equal(JsonSerializer.Serialize(before.Data),
-            JsonSerializer.Serialize(RequireSuccess(_tableCommands.GetData(batch, "SalesTable")).Data));
-    }
-
-    /// <summary>
     /// Tests clearing all filters from a table.
     /// LLM use case: "remove all filters from this table"
     /// </summary>

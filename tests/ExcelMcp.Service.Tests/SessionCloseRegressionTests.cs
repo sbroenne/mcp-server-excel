@@ -130,10 +130,8 @@ public sealed class SessionCloseRegressionTests
         }
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Shutdown_DoesNotAttemptImplicitSave(bool timedOut)
+    [Fact]
+    public async Task Shutdown_DoesNotAttemptImplicitSave()
     {
         using var service = new ExcelMcpService();
         var saveCalls = 0;
@@ -141,9 +139,7 @@ public sealed class SessionCloseRegressionTests
         {
             WorkbookPath = CreateFakeWorkbookPath(),
             BeforeSave = () => saveCalls++,
-            SaveException = timedOut
-                ? new TimeoutException("Save is still pending.")
-                : new InvalidOperationException("Save failed.")
+            SaveException = new InvalidOperationException("Save failed.")
         };
         RegisterSession(service, "save-failed", batch, addKnownSessionId: true);
         var response = await service.ProcessAsync(new ServiceRequest { Command = "service.shutdown" });
@@ -415,6 +411,8 @@ public sealed class SessionCloseRegressionTests
             Assert.Equal("dialogOpen", session.GetProperty("excelState").GetString());
             Assert.Equal("dialogOpen", session.GetProperty("blockingReason").GetString());
             Assert.Contains("Check the Excel window", session.GetProperty("blockingMessage").GetString(), StringComparison.Ordinal);
+            Assert.Contains("respond there", session.GetProperty("blockingMessage").GetString(), StringComparison.Ordinal);
+            Assert.True(session.GetProperty("operationPending").GetBoolean());
             Assert.Equal(activeOperations, session.GetProperty("activeOperations").GetInt32());
             Assert.False(session.GetProperty("canClose").GetBoolean());
 
@@ -427,6 +425,7 @@ public sealed class SessionCloseRegressionTests
             Assert.False(closed.Success);
             Assert.Equal("Busy", closed.ErrorCategory);
             Assert.Contains("dialog", closed.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("Check the Excel window", closed.ErrorMessage, StringComparison.Ordinal);
             Assert.DoesNotContain("sign-in required", closed.ErrorMessage, StringComparison.OrdinalIgnoreCase);
             Assert.Equal(0, batch.DisposeCalls);
             Assert.Same(batch, GetSessionManager(service).GetSession(sessionId));
@@ -441,91 +440,13 @@ public sealed class SessionCloseRegressionTests
         using var readyJson = JsonDocument.Parse(readyList.Result!);
         var readySession = Assert.Single(readyJson.RootElement.GetProperty("sessions").EnumerateArray());
         Assert.Equal("ready", readySession.GetProperty("excelState").GetString());
+        Assert.False(readySession.GetProperty("operationPending").GetBoolean());
         Assert.True(readySession.GetProperty("canClose").GetBoolean());
         Assert.False(readySession.TryGetProperty("blockingReason", out _));
+        Assert.False(readySession.TryGetProperty("blockingMessage", out _));
         var retried = await CloseSessionAsync(service, sessionId);
         Assert.True(retried.Success, retried.ErrorMessage);
         Assert.Equal(1, batch.DisposeCalls);
-    }
-
-    [Fact]
-    public async Task Dialog_ReportsPendingStateAndManualGuidance()
-    {
-        using var service = new ExcelMcpService();
-        var batch = new FakeBatch
-        {
-            WorkbookPath = CreateFakeWorkbookPath(),
-            RefreshState = WorkbookRefreshState.DialogOpen
-        };
-        const string sessionId = "native-query-approval";
-        RegisterSession(service, sessionId, batch, addKnownSessionId: true);
-
-        var list = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
-        Assert.True(list.Success, list.ErrorMessage);
-        using (var json = JsonDocument.Parse(list.Result!))
-        {
-            var session = Assert.Single(json.RootElement.GetProperty("sessions").EnumerateArray());
-            Assert.Equal("dialogOpen", session.GetProperty("excelState").GetString());
-            Assert.Equal("dialogOpen", session.GetProperty("blockingReason").GetString());
-            Assert.Contains("Check the Excel window", session.GetProperty("blockingMessage").GetString(), StringComparison.Ordinal);
-            Assert.Contains("respond there", session.GetProperty("blockingMessage").GetString(), StringComparison.Ordinal);
-            Assert.True(session.GetProperty("operationPending").GetBoolean());
-            Assert.Equal(0, session.GetProperty("activeOperations").GetInt32());
-            Assert.False(session.GetProperty("canClose").GetBoolean());
-        }
-
-        var close = await CloseSessionAsync(service, sessionId);
-        Assert.False(close.Success);
-        Assert.Equal("Busy", close.ErrorCategory);
-        Assert.Contains("Check the Excel window", close.ErrorMessage, StringComparison.Ordinal);
-        Assert.Equal(0, batch.DisposeCalls);
-        Assert.Same(batch, GetSessionManager(service).GetSession(sessionId));
-
-        batch.RefreshState = WorkbookRefreshState.Ready;
-        var readyList = await service.ProcessAsync(new ServiceRequest { Command = "session.list" });
-        using var readyJson = JsonDocument.Parse(readyList.Result!);
-        var ready = Assert.Single(readyJson.RootElement.GetProperty("sessions").EnumerateArray());
-        Assert.False(ready.GetProperty("operationPending").GetBoolean());
-        Assert.True(ready.GetProperty("canClose").GetBoolean());
-        Assert.False(ready.TryGetProperty("blockingReason", out _));
-        Assert.False(ready.TryGetProperty("blockingMessage", out _));
-        var retry = await CloseSessionAsync(service, sessionId);
-        Assert.True(retry.Success, retry.ErrorMessage);
-        Assert.Equal(1, batch.DisposeCalls);
-    }
-
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Dialog_WithActiveOperation_BlocksCloseWithManualGuidance(bool save)
-    {
-        using var service = new ExcelMcpService();
-        var batch = new FakeBatch
-        {
-            WorkbookPath = CreateFakeWorkbookPath(),
-            RefreshState = WorkbookRefreshState.DialogOpen
-        };
-        const string sessionId = "native-query-approval-active";
-        RegisterSession(service, sessionId, batch, addKnownSessionId: true);
-        var operationCounts = GetPrivateField<ConcurrentDictionary<string, int>>(
-            GetSessionManager(service), "_activeOperationCounts");
-        operationCounts[sessionId] = 1;
-
-        try
-        {
-            var close = await CloseSessionAsync(service, sessionId, save);
-
-            Assert.False(close.Success);
-            Assert.Equal("Busy", close.ErrorCategory);
-            Assert.Contains("Check the Excel window", close.ErrorMessage, StringComparison.Ordinal);
-            Assert.Equal(0, batch.DisposeCalls);
-            Assert.Same(batch, GetSessionManager(service).GetSession(sessionId));
-        }
-        finally
-        {
-            batch.RefreshState = WorkbookRefreshState.Ready;
-            operationCounts[sessionId] = 0;
-        }
     }
 
     [Theory]

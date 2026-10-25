@@ -1118,16 +1118,6 @@ public partial class ExcelBatchTests : IAsyncLifetime, IDisposable
     }
 
     [Fact]
-    public void WorkbookPath_ReturnsCorrectPath()
-    {
-        // Arrange & Act
-        using var batch = ExcelSession.BeginBatch(_testFileCopy!);
-
-        // Assert
-        SessionWorkbookAssertions.AssertIdentity(batch, _testFileCopy!);
-    }
-
-    [Fact]
     public void Execute_DependentOperations_RetainCreatedWorksheetAndNamedRange()
     {
         const string sheetName = "TestData";

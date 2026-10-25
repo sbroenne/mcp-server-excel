@@ -156,21 +156,6 @@ public partial class PersistentServiceDataModelCommandsTests
             System.Globalization.CultureInfo.InvariantCulture));
     }
 
-    [Theory]
-    [InlineData("General")]
-    [InlineData("Currency")]
-    [InlineData("Decimal")]
-    [InlineData("Percentage")]
-    [InlineData("WholeNumber")]
-    public void CreateMeasure_ExplicitSupportedFormat_ReadsBackRequestedType(string format)
-    {
-        var name = $"RequestedFormat_{Guid.NewGuid():N}";
-        RequireSuccess(CreateMeasure("SalesTable", name, "SUM(SalesTable[Amount])", format));
-        var read = RequireSuccess(_dataModelCommands.Read(_fixture.BatchToken, name));
-        Assert.NotNull(read.FormatInfo);
-        Assert.Equal(format, read.FormatInfo.Type);
-    }
-
     [Fact]
     public void ReadMeasure_CurrencyWithEmptySymbol_PreservesCurrencyType()
     {

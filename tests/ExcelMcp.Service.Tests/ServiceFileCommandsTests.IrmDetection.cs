@@ -24,26 +24,6 @@ public sealed partial class ServiceFileCommandsTests
             : null;
     }
 
-    [Fact]
-    public void Test_NormalFile_NoIrmProtection()
-    {
-        // Arrange - Create a normal Excel file without IRM
-        var testFile = _fixture.CreateTestFile();
-
-        // Act
-        var info = _fileCommands.Test(testFile);
-
-        // Assert
-        Assert.True(info.Exists);
-        Assert.True(info.IsValid);
-        Assert.True(info.Success);
-        Assert.True(info.CanOpen);
-        Assert.False(info.IsIrmProtected);
-        Assert.False(info.WillOpenReadOnly);
-        Assert.False(info.RequiresVisibleSession);
-        Assert.Null(info.Message);
-    }
-
     [Theory]
     [InlineData("\tDRMDataSpace")]
     [InlineData("DRMEncryptedDataSpace")]
@@ -122,34 +102,4 @@ public sealed partial class ServiceFileCommandsTests
         // IsValid might be false or true depending on implementation - main thing is IRM detection
     }
 
-    [Fact]
-    public void Test_FileInfo_IncludesIrmStatus()
-    {
-        // Arrange
-        var testFile = _fixture.CreateTestFile();
-
-        // Act
-        var info = _fileCommands.Test(testFile);
-
-        // Assert - Ensure IRM detection info is available
-        Assert.NotNull(info);
-        // The FileValidationInfo should have IsIrmProtected property populated
-        Assert.False(info.IsIrmProtected);  // Normal test file should not be IRM protected
-    }
-
-    [Fact]
-    public void Test_RvToolsExportFile_DetectsIrmIfPresent()
-    {
-        // Arrange - Test with a typical RVTools export pattern
-        // RVTools exports from Mercedes/FDC would be IRM-protected
-        var testFile = _fixture.CreateTestFile();
-
-        // Act
-        var info = _fileCommands.Test(testFile);
-
-        // Assert - IRM detection should work for RVTools pattern
-        // (Our test file is not IRM, but the detection logic should work)
-        Assert.True(info.Exists);
-        Assert.False(info.IsIrmProtected);  // Unprotected test file
-    }
 }

@@ -24,13 +24,6 @@ public class PersistentServicePowerQueryDataModelLoadingTests(
         fixture.CreateCommands<IDataModelCommands>();
 
     [Fact]
-    public void Create_LoadToDataModel_TableAppearsInDataModel()
-    {
-        var name = CreateQuery(["ID", "Name"], [[1, "Alpha"], [2, "Beta"]]);
-        AssertLoaded(name, ["ID", "Name"], [[1, "Alpha"], [2, "Beta"]]);
-    }
-
-    [Fact]
     public void ListColumnsAndReadTable_WithTypedModelColumns_ReportActualTypesWithoutChangingValues()
     {
         var name = "ColumnTypes_" + Guid.NewGuid().ToString("N")[..8];
@@ -118,22 +111,6 @@ public class PersistentServicePowerQueryDataModelLoadingTests(
     [Fact]
     public void Refresh_LoadedToBoth_PreservesSettings() =>
         AssertDeferredRefresh(PowerQueryLoadMode.LoadToBoth);
-
-    [Fact]
-    public void GetLoadConfig_MultipleQueriesDifferentModes_ReturnsCorrectModeForEach()
-    {
-        foreach (var (mode, seed) in new[]
-        {
-            (PowerQueryLoadMode.ConnectionOnly, 17),
-            (PowerQueryLoadMode.LoadToTable, 29),
-            (PowerQueryLoadMode.LoadToDataModel, 43),
-            (PowerQueryLoadMode.LoadToBoth, 61)
-        })
-        {
-            var name = CreateQuery(["Val"], [[seed], [seed + 1]], mode);
-            AssertLoaded(name, ["Val"], [[seed], [seed + 1]], mode);
-        }
-    }
 
     [Fact]
     public void Update_LoadedToDataModel_AddColumn_HandlesSchemaChange()

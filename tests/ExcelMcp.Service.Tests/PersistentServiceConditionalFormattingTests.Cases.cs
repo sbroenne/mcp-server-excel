@@ -177,26 +177,6 @@ public sealed partial class PersistentServiceConditionalFormattingTests
     }
 
     [Fact]
-    public void AddRule_WithBorderStyleAndColor_Succeeds()
-    {
-        // Regression test for #737: FormatCondition.Borders is a 4-item
-        // collection indexed 1-4, not the xlEdgeLeft(7)/Top(8)/Bottom(9)/Right(10)
-        // constants used for Range.Borders. Writing via those constants throws
-        // COMException: "Unable to set the LineStyle property of the Border class".
-        var batch = _fixture.BatchToken;
-
-        var result = _conditionalFormattingCommands.AddRule(batch, "", "A1:A10", "cellValue", "greater", "100", null,
-            borderStyle: "continuous", borderColor: "#FF0000");
-
-        Assert.True(result.Success);
-        var listed = RequireSuccess(_conditionalFormattingCommands.ListRules(batch, "", "A1:A10"));
-        var rule = Assert.Single(listed.Rules);
-        Assert.Equal("continuous", rule.BorderStyle);
-        Assert.Equal("#FF0000", rule.BorderColor);
-        AssertRuleBorders();
-    }
-
-    [Fact]
     public void AddRule_CellValueWithoutOperator_ThrowsHelpfulError()
     {
         var batch = _fixture.BatchToken;
@@ -298,7 +278,7 @@ public sealed partial class PersistentServiceConditionalFormattingTests
 
         var result = _conditionalFormattingCommands.ListRules(batch, "", "A1:A10");
 
-        Assert.True(result.Success);
+        RequireSuccess(result);
         var rule = Assert.Single(result.Rules);
         Assert.Equal("continuous", rule.BorderStyle);
         Assert.Equal("#FF0000", rule.BorderColor);

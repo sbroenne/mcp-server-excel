@@ -180,39 +180,22 @@ public sealed partial class PersistentServiceConnectionTests
     }
 
     [Fact]
-    public void Delete_ExistingTextConnection_ReturnsSuccess()
-    {
-        var connectionName = UniqueConnectionName("DeleteTestConnection");
-        CreateTrackedConnection(
-            connectionName,
-            @"ODBC;DSN=TestDSN;DBQ=C:\temp\test.xlsx");
-
-        var before = _connections.List(_fixture.BatchToken);
-        Assert.True(before.Success);
-        Assert.Contains(before.Connections, connection => connection.Name == connectionName);
-        RequireSuccess(before);
-
-        DeleteTrackedConnection(connectionName);
-
-        var after = _connections.List(_fixture.BatchToken);
-        Assert.True(after.Success);
-        Assert.DoesNotContain(
-            after.Connections,
-            connection => connection.Name == connectionName);
-        RequireSuccess(after);
-    }
-
-    [Fact]
     public void Delete_AfterCreatingMultiple_RemovesOnlySpecified()
     {
         var first = UniqueConnectionName("Connection1");
         var second = UniqueConnectionName("Connection2");
         var third = UniqueConnectionName("Connection3");
         CreateTrackedConnection(first, @"ODBC;DSN=TestDSN1;DBQ=C:\temp\test1.xlsx");
-        CreateTrackedConnection(second, @"ODBC;DSN=TestDSN2;DBQ=C:\temp\test2.xlsx");
+        const string description = "Test connection with description";
+        CreateTrackedConnection(second, @"ODBC;DSN=TestDSN2;DBQ=C:\temp\test2.xlsx", description);
         CreateTrackedConnection(third, @"ODBC;DSN=TestDSN3;DBQ=C:\temp\test3.xlsx");
         var firstBefore = ReadNativeConnection(first);
         var thirdBefore = ReadNativeConnection(third);
+        Assert.Contains(RequireSuccess(_connections.List(_fixture.BatchToken)).Connections,
+            connection => connection.Name == second);
+        var view = RequireSuccess(_connections.View(_fixture.BatchToken, second));
+        Assert.Equal(second, view.ConnectionName);
+        Assert.Equal(description, ReadNativeConnection(second).Description);
 
         DeleteTrackedConnection(second);
 
@@ -225,65 +208,6 @@ public sealed partial class PersistentServiceConnectionTests
         Assert.Equal(2, result.Connections.Count);
         Assert.Equal(firstBefore, ReadNativeConnection(first));
         Assert.Equal(thirdBefore, ReadNativeConnection(third));
-    }
-
-    [Fact]
-    public void Delete_ConnectionWithDescription_RemovesSuccessfully()
-    {
-        var connectionName = UniqueConnectionName("DescribedConnection");
-        RequireSuccess(_connections.Create(
-            _fixture.BatchToken,
-            connectionName,
-            @"ODBC;DSN=DescribedDSN;DBQ=C:\temp\described.xlsx",
-            description: "Test connection with description"));
-        _fixture.RegisterConnectionForCleanup(connectionName);
-
-        DeleteTrackedConnection(connectionName);
-
-        var result = _connections.List(_fixture.BatchToken);
-        RequireSuccess(result);
-        Assert.DoesNotContain(
-            result.Connections,
-            connection => connection.Name == connectionName);
-    }
-
-    [Fact]
-    public void Delete_ImmediatelyAfterCreate_WorksCorrectly()
-    {
-        var connectionName = UniqueConnectionName("ImmediateDeleteTest");
-        CreateTrackedConnection(
-            connectionName,
-            @"ODBC;DSN=ImmediateDSN;DBQ=C:\temp\immediate.xlsx");
-
-        DeleteTrackedConnection(connectionName);
-
-        var result = _connections.List(_fixture.BatchToken);
-        RequireSuccess(result);
-        Assert.DoesNotContain(
-            result.Connections,
-            connection => connection.Name == connectionName);
-    }
-
-    [Fact]
-    public void Delete_ConnectionAfterViewOperation_RemovesSuccessfully()
-    {
-        var connectionName = UniqueConnectionName("ViewThenDelete");
-        CreateTrackedConnection(
-            connectionName,
-            @"ODBC;DSN=ViewDeleteDSN;DBQ=C:\temp\viewdelete.xlsx");
-
-        var view = _connections.View(_fixture.BatchToken, connectionName);
-        Assert.True(view.Success);
-        Assert.Equal(connectionName, view.ConnectionName);
-        RequireSuccess(view);
-
-        DeleteTrackedConnection(connectionName);
-
-        var result = _connections.List(_fixture.BatchToken);
-        RequireSuccess(result);
-        Assert.DoesNotContain(
-            result.Connections,
-            connection => connection.Name == connectionName);
     }
 
     [Fact]
@@ -305,12 +229,14 @@ public sealed partial class PersistentServiceConnectionTests
 
     private void CreateTrackedConnection(
         string connectionName,
-        string connectionString)
+        string connectionString,
+        string? description = null)
     {
         RequireSuccess(_connections.Create(
             _fixture.BatchToken,
             connectionName,
-            connectionString));
+            connectionString,
+            description: description));
         _fixture.RegisterConnectionForCleanup(connectionName);
         var native = ReadNativeConnection(connectionName);
         Assert.Equal(Microsoft.Office.Interop.Excel.XlConnectionType.xlConnectionTypeODBC, native.Type);

@@ -91,6 +91,11 @@ public sealed partial class PersistentServicePivotTableTests
         Assert.Equal("RegionSlicer", slicerResult.Name);
         Assert.Equal("Region", slicerResult.FieldName);
         Assert.Equal(_salesSheetName, slicerResult.SheetName);
+        Assert.NotNull(slicerResult.ConnectedPivotTables);
+        Assert.Contains("SlicerTest", slicerResult.ConnectedPivotTables);
+        var listed = RequireSuccess(_pivotCommands.ListSlicers(batch, pivotTableName: "SlicerTest"));
+        var listedSlicer = Assert.Single(listed.Slicers, item => item.Name == "RegionSlicer");
+        Assert.Equal(listedSlicer.Position, slicerResult.Position);
         Assert.NotNull(slicerResult.AvailableItems);
         Assert.Contains("North", slicerResult.AvailableItems);
         Assert.Contains("South", slicerResult.AvailableItems);
@@ -488,65 +493,6 @@ public sealed partial class PersistentServicePivotTableTests
     }
 
     /// <summary>
-    /// Tests that slicer shows connected PivotTables.
-    /// </summary>
-    [Fact]
-    [Trait("Speed", "Medium")]
-    public void CreateSlicer_ShowsConnectedPivotTable()
-    {
-        // Arrange
-        var batch = _fixture.BatchToken;
-
-        // Create PivotTable
-        var createResult = _pivotCommands.CreateFromRange(
-            batch, _salesSheetName, "A1:D6", _salesSheetName, "F2", "ConnectedPivot");
-        RequireSuccess(createResult);
-
-        RequireSuccess(_pivotCommands.AddRowField(batch, "ConnectedPivot", "Region"));
-
-        // Act - Create slicer
-        var slicerResult = _pivotCommands.CreateSlicer(
-            batch, "ConnectedPivot", "Region", "ConnectedSlicer", _salesSheetName, "I2");
-
-        // Assert
-        RequireSuccess(slicerResult);
-        Assert.NotNull(slicerResult.ConnectedPivotTables);
-        Assert.Contains("ConnectedPivot", slicerResult.ConnectedPivotTables);
-        AssertPivotSlicer("ConnectedSlicer", "ConnectedPivot", "Region", "I2", ["North", "South"]);
-    }
-
-    /// <summary>
-    /// Tests that slicer Position is returned as a valid cell reference.
-    /// This test catches bugs where Position is empty due to incorrect COM API usage.
-    /// Bug context: TopLeftCell is on Slicer.Shape, not Slicer directly.
-    /// </summary>
-    [Fact]
-    [Trait("Speed", "Medium")]
-    public void CreateSlicer_ReturnsValidPosition()
-    {
-        // Arrange
-        var batch = _fixture.BatchToken;
-
-        // Create PivotTable
-        var createResult = _pivotCommands.CreateFromRange(
-            batch, _salesSheetName, "A1:D6", _salesSheetName, "F2", "PositionTestPivot");
-        RequireSuccess(createResult);
-        RequireSuccess(_pivotCommands.AddRowField(batch, "PositionTestPivot", "Region"));
-
-        // Act - Create slicer at I2
-        var slicerResult = _pivotCommands.CreateSlicer(
-            batch, "PositionTestPivot", "Region", "PositionTestSlicer", _salesSheetName, "I2");
-
-        // Assert - Position must be a valid cell reference, not empty
-        RequireSuccess(slicerResult);
-        Assert.False(string.IsNullOrEmpty(slicerResult.Position),
-            "Slicer Position should not be empty - verify Shape.TopLeftCell API is used correctly");
-        RequireSuccess(slicerResult);
-        Assert.Equal("PivotTable", slicerResult.SourceType);
-        AssertPivotSlicer("PositionTestSlicer", "PositionTestPivot", "Region", "I2", ["North", "South"]);
-    }
-
-    /// <summary>
     /// Tests that ListSlicers returns valid Position for each slicer.
     /// </summary>
     [Fact]
@@ -579,34 +525,6 @@ public sealed partial class PersistentServicePivotTableTests
         Assert.Equal(2, listResult.Slicers.Count);
         AssertPivotSlicer("ListPosSlicer1", "ListPosTestPivot", "Region", "I2", ["North", "South"]);
         AssertPivotSlicer("ListPosSlicer2", "ListPosTestPivot", "Product", "K2", ["Gadget", "Widget"]);
-    }
-
-    /// <summary>
-    /// Tests that FieldName is returned correctly (not "Unknown").
-    /// This test catches bugs where SourceName property access fails silently.
-    /// </summary>
-    [Fact]
-    [Trait("Speed", "Medium")]
-    public void CreateSlicer_ReturnsCorrectFieldName()
-    {
-        // Arrange
-        var batch = _fixture.BatchToken;
-
-        // Create PivotTable
-        var createResult = _pivotCommands.CreateFromRange(
-            batch, _salesSheetName, "A1:D6", _salesSheetName, "F2", "FieldNameTestPivot");
-        RequireSuccess(createResult);
-        RequireSuccess(_pivotCommands.AddRowField(batch, "FieldNameTestPivot", "Region"));
-
-        // Act - Create slicer for "Region" field
-        var slicerResult = _pivotCommands.CreateSlicer(
-            batch, "FieldNameTestPivot", "Region", "FieldNameTestSlicer", _salesSheetName, "I2");
-
-        // Assert - FieldName must match the field name, not be "Unknown"
-        RequireSuccess(slicerResult);
-        Assert.NotEqual("Unknown", slicerResult.FieldName);
-        Assert.Equal("Region", slicerResult.FieldName);
-        AssertPivotSlicer("FieldNameTestSlicer", "FieldNameTestPivot", "Region", "I2", ["North", "South"]);
     }
 
     /// <summary>

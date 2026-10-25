@@ -5,15 +5,8 @@ using Xunit.Abstractions;
 namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration;
 
 /// <summary>
-/// Integration tests for ExcelSession - verifies public API and COM cleanup.
-/// Tests BeginBatch() functionality.
-///
-/// LAYER RESPONSIBILITY:
-/// - ✅ Test ExcelSession.BeginBatch() validation and batch creation
-/// - ✅ Verify Excel.exe process termination (no leaks)
-///
-/// NOTE: ExcelSession methods use ExcelShutdownService for resilient cleanup.
-/// Tests check the callable workbook and exact owned-process exit after disposal.
+/// Integration tests for ExcelSession.BeginBatch input validation.
+/// ExcelBatchTests covers native batch creation and owned-process cleanup.
 /// </summary>
 [Trait("Category", "Integration")]
 [Trait("Speed", "Slow")]
@@ -38,36 +31,6 @@ public class ExcelSessionTests : IDisposable
     {
         // Nothing to dispose
         GC.SuppressFinalize(this);
-    }
-
-    [Fact]
-    public void BeginBatch_WithValidFile_CreatesBatch()
-    {
-        // Arrange
-        string testFile = Path.Join(Path.GetTempPath(), $"session-test-{Guid.NewGuid():N}.xlsx");
-        CreateTempTestFile(testFile);
-
-        try
-        {
-            using var owned = new OwnedExcelProcessScope();
-            // Act
-            using var batch = ExcelSession.BeginBatch(testFile);
-
-            // Assert
-            Assert.NotNull(batch);
-            Assert.Equal(testFile, batch.WorkbookPath);
-            Assert.Equal(testFile, batch.Execute((context, _) => context.Book.FullName));
-            Assert.True(batch.IsExcelProcessAlive());
-            Assert.NotNull(batch.ExcelProcessId);
-            batch.Dispose();
-            owned.AssertAllExited();
-
-            _output.WriteLine($"✓ Batch created successfully for: {Path.GetFileName(testFile)}");
-        }
-        finally
-        {
-            if (File.Exists(testFile)) File.Delete(testFile);
-        }
     }
 
     [Fact]
@@ -109,23 +72,5 @@ public class ExcelSessionTests : IDisposable
         {
             if (File.Exists(invalidFile)) File.Delete(invalidFile);
         }
-    }
-
-    // Helper method
-
-    /// <summary>
-    /// Path to the template xlsx file used for fast test file creation.
-    /// Copying a template is ~1000x faster than spawning Excel to create a new workbook.
-    /// </summary>
-    private static readonly string TemplateFilePath = Path.Combine(
-        Path.GetDirectoryName(typeof(ExcelSessionTests).Assembly.Location)!,
-        "Integration", "Session", "TestFiles", "batch-test-static.xlsx");
-
-    private static void CreateTempTestFile(string filePath)
-    {
-        // PERFORMANCE OPTIMIZATION: Copy from template instead of spawning Excel.
-        // For tests that only need a valid Excel file to exist (not testing creation),
-        // this reduces setup time from ~7-14 seconds to <10ms.
-        File.Copy(TemplateFilePath, filePath);
     }
 }

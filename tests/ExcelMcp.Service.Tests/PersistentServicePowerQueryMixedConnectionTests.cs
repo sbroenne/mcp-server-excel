@@ -27,6 +27,9 @@ public sealed class PersistentServicePowerQueryMixedConnectionTests(
     {
         var guard = CreateModelGuard();
         var name = CreateQuery(PowerQueryLoadMode.ConnectionOnly);
+        var listed = RequireSuccess(_queries.List(_fixture.BatchToken));
+        Assert.Equal(new[] { guard, name }.Order(StringComparer.Ordinal),
+            listed.Queries.Select(query => query.Name).Order(StringComparer.Ordinal));
         RequireSuccess(_queries.Update(_fixture.BatchToken, name, UpdatedCode));
         AssertStored(name, UpdatedCode, PowerQueryLoadMode.ConnectionOnly);
         var result = RequireSuccess(_queries.Evaluate(_fixture.BatchToken, UpdatedCode));
@@ -36,27 +39,6 @@ public sealed class PersistentServicePowerQueryMixedConnectionTests(
         PowerQueryStateAssertions.AssertRows([[7, 11], [23, 31]], result.Rows);
         AssertModelGuard(guard);
         AssertStored(name, UpdatedCode, PowerQueryLoadMode.ConnectionOnly);
-    }
-
-    [Fact]
-    public void View_WithDataModelConnection_DoesNotThrowCOMException()
-    {
-        var guard = CreateModelGuard();
-        var name = CreateQuery(PowerQueryLoadMode.ConnectionOnly);
-        AssertStored(name, OriginalCode, PowerQueryLoadMode.ConnectionOnly);
-        AssertModelGuard(guard);
-    }
-
-    [Fact]
-    public void List_WithDataModelConnection_Succeeds()
-    {
-        var guard = CreateModelGuard();
-        var name = CreateQuery(PowerQueryLoadMode.ConnectionOnly);
-        var result = RequireSuccess(_queries.List(_fixture.BatchToken));
-        Assert.Equal(new[] { guard, name }.Order(StringComparer.Ordinal),
-            result.Queries.Select(query => query.Name).Order(StringComparer.Ordinal));
-        AssertStored(name, OriginalCode, PowerQueryLoadMode.ConnectionOnly);
-        AssertModelGuard(guard);
     }
 
     [Fact]

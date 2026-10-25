@@ -131,29 +131,6 @@ in
     }
 
     /// <summary>
-    /// Tests that View returns M code as stored.
-    /// Verifies that read operations don't re-format.
-    /// </summary>
-    [Fact]
-    public void View_AfterCreate_ReturnsMCodeAsStored()
-    {
-        var queryName = $"Test_ViewStored_{Guid.NewGuid():N}"[..30];
-
-        // Simple M code
-        var mCode = "let x=1 in x";
-
-        var batch = _fixture.BatchToken;
-
-        // Create query
-        RequireSuccess(_queries.Create(batch, queryName, mCode, PowerQueryLoadMode.ConnectionOnly));
-        _fixture.RegisterPowerQueryForCleanup(queryName);
-
-        // View twice - should return same result each time
-        AssertStoredM(queryName, mCode);
-        AssertStoredM(queryName, mCode);
-    }
-
-    /// <summary>
     /// Tests that complex M code with multiple steps is properly handled.
     /// Verifies that multi-step queries maintain their structure.
     /// </summary>
@@ -175,35 +152,6 @@ in
         AssertStoredM(queryName, complexMCode);
         AssertEvaluatedM(complexMCode, ["A", "B", "C", "Sum"], [[4, 5, 6, 15], [7, 8, 9, 24]]);
         AssertStoredM(queryName, complexMCode);
-    }
-
-    /// <summary>
-    /// Tests that sequential Create and Update operations both preserve content.
-    /// Verifies that formatting is consistent across operations.
-    /// </summary>
-    [Fact]
-    public void CreateThenUpdate_BothOperationsPreserveContent()
-    {
-        var queryName = $"Test_Sequential_{Guid.NewGuid():N}"[..30];
-
-        // First unformatted M code
-        var createMCode = "let x=1,y=2 in x+y";
-
-        // Second unformatted M code
-        var updateMCode = "let a=10,b=20,c=30 in a+b+c";
-
-        var batch = _fixture.BatchToken;
-
-        // Create query
-        RequireSuccess(_queries.Create(batch, queryName, createMCode, PowerQueryLoadMode.ConnectionOnly));
-        _fixture.RegisterPowerQueryForCleanup(queryName);
-
-        AssertStoredM(queryName, createMCode);
-
-        // Update query
-        RequireSuccess(_queries.Update(batch, queryName, updateMCode, refresh: false));
-
-        AssertStoredM(queryName, updateMCode);
     }
 
     [Theory]

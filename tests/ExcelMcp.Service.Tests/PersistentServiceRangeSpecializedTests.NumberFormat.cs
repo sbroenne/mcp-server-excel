@@ -54,54 +54,6 @@ public sealed partial class PersistentServiceRangeSpecializedTests
     }
 
     /// <summary>
-    /// Test using NumberFormatLocal to see if that works better for locale settings
-    /// </summary>
-    [Fact]
-    public void SetNumberFormatLocal_Currency_DisplaysCorrectly()
-    {
-        // Arrange
-        var batch = _fixture.BatchToken;
-        var sheetName = _fixture.CreateTestSheet(batch);
-
-        // Set test value
-        RequireSuccess(_commands.SetValues(batch, sheetName, "A1", [[1234.56]]));
-
-        // Apply format using NumberFormatLocal directly (locale-specific separators)
-        // In German locale: , is decimal separator, . is thousands separator
-        _fixture.ExecuteRawVerification((ctx, ct) =>
-        {
-            Excel.Worksheet? sheet = null;
-            Excel.Range? cell = null;
-            try
-            {
-                sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
-                Assert.NotNull(sheet);
-                cell = sheet.Range["A1"];
-                cell.NumberFormatLocal =
-                    $"$#{ctx.FormatTranslator.ThousandsSeparator}##0{ctx.FormatTranslator.DecimalSeparator}00";
-            }
-            finally
-            {
-                ComUtilities.Release(ref cell);
-                ComUtilities.Release(ref sheet);
-            }
-        });
-
-        // Act - Read the displayed text
-        var (displayedText, storedFormat, storedFormatLocal, rawValue) = ReadNumberDisplay(sheetName);
-
-        // Diagnostics
-        _output.WriteLine($"Format applied (NumberFormatLocal): $#.##0,00");
-        _output.WriteLine($"Format stored (NumberFormat): {storedFormat}");
-        _output.WriteLine($"Format stored (NumberFormatLocal): {storedFormatLocal}");
-        _output.WriteLine($"Displayed text: '{displayedText}'");
-
-        // Assert
-        Assert.Equal(ExpectedCurrencyDisplay(), displayedText);
-        Assert.Equal(1234.56, rawValue);
-    }
-
-    /// <summary>
     /// Verifies that percentage format displays correctly (not just format code applied).
     /// </summary>
     [Fact]

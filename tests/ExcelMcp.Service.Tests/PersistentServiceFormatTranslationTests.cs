@@ -126,6 +126,7 @@ public sealed class PersistentServiceFormatTranslationTests(
         var sheetName = _fixture.CreateTestSheet(batch);
         RequireSuccess(_rangeCommands.SetValues(batch, sheetName, "A1:B1", [[1234.56, 1234.56]]));
         RequireSuccess(_rangeCommands.SetNumberFormat(batch, sheetName, "A1", "$#,##0.00"));
+        AssertFormattedCells(sheetName, ["A1"], ["$1{group}234{decimal}56"], [1234.56]);
         var read = RequireSuccess(_rangeCommands.GetNumberFormats(batch, sheetName, "A1"));
         var returnedFormat = Assert.Single(Assert.Single(read.Formats));
         RequireSuccess(_rangeCommands.SetNumberFormat(batch, sheetName, "A1", returnedFormat));
@@ -365,16 +366,6 @@ public sealed class PersistentServiceFormatTranslationTests(
             [["m/d/yyyy"], ["mm/dd/yyyy"], ["d-mmm-yyyy"]]));
         AssertFormattedCells(sheetName, ["A1", "A2", "A3"],
             ["3/15/2023", "03/16/2023", $"17-{month}-2023"], [45000, 45001, 45002]);
-    }
-
-    [Fact]
-    public void SetNumberFormat_CurrencyFormat_NotAffected()
-    {
-        var batch = _fixture.BatchToken;
-        var sheetName = _fixture.CreateTestSheet(batch);
-        RequireSuccess(_rangeCommands.SetValues(batch, sheetName, "A1", [[1234.56]]));
-        RequireSuccess(_rangeCommands.SetNumberFormat(batch, sheetName, "A1", "$#,##0.00"));
-        AssertFormattedCells(sheetName, ["A1"], ["$1{group}234{decimal}56"], [1234.56]);
     }
 
     [Fact]

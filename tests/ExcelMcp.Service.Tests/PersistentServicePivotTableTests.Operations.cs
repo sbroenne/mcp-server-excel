@@ -52,6 +52,7 @@ public sealed partial class PersistentServicePivotTableTests
 
         var refreshed = RequireSuccess(_pivotCommands.Refresh(batch, "TestPivot"));
         Assert.Equal("TestPivot", refreshed.PivotTableName);
+        Assert.True(refreshed.RefreshTime <= DateTime.Now);
         Assert.Equal(5, refreshed.SourceRecordCount);
         AssertPivotSales(625, 325);
     }
@@ -212,36 +213,6 @@ public sealed partial class PersistentServicePivotTableTests
         Assert.Equal(before, SnapshotPivot());
         Assert.Equal("TestPivot", Assert.Single(RequireSuccess(_pivotCommands.List(batch)).PivotTables).Name);
         AssertOriginalSales();
-    }
-    /// <inheritdoc/>
-
-    [Fact]
-    [Trait("Speed", "Medium")]
-    public void Refresh_ExistingPivotTable_UpdatesData()
-    {
-        // Arrange
-
-        var batch = _fixture.BatchToken;
-        var createResult = _pivotCommands.CreateFromRange(
-            batch, _salesSheetName, "A1:D6", _salesSheetName, "F1", "TestPivot");
-        RequireSuccess(createResult);
-
-        RequireSuccess(_pivotCommands.AddRowField(batch, "TestPivot", "Region"));
-        RequireSuccess(_pivotCommands.AddValueField(batch, "TestPivot", "Sales", AggregationFunction.Sum, "Total Sales"));
-        RequireSuccess(_pivotCommands.Refresh(batch, "TestPivot"));
-        AssertPivotSales(325, 325);
-        var changed = _commands.SetValues(batch, _salesSheetName, "C2", [[400]], overwritePolicy: OverwritePolicy.Allow);
-        RequireSuccess(changed);
-        AssertPivotSales(325, 325);
-
-        var result = _pivotCommands.Refresh(batch, "TestPivot");
-
-        // Assert
-        RequireSuccess(result);
-        Assert.Equal("TestPivot", result.PivotTableName);
-        Assert.True(result.RefreshTime <= DateTime.Now);
-        Assert.Equal(5, result.SourceRecordCount);
-        AssertPivotSales(625, 325);
     }
     /// <inheritdoc/>
 
