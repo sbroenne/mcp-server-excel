@@ -71,10 +71,10 @@ public partial class TableCommands
         try
         {
             requestedRange = sheet.Range[rangeAddress];
-            if (Convert.ToInt64(requestedRange.CountLarge, CultureInfo.InvariantCulture) == 1)
+            if (Convert.ToInt64((object)requestedRange.CountLarge, CultureInfo.InvariantCulture) == 1)
             {
                 currentRegion = requestedRange.CurrentRegion;
-                if (Convert.ToInt64(currentRegion.CountLarge, CultureInfo.InvariantCulture) > 1)
+                if (Convert.ToInt64((object)currentRegion.CountLarge, CultureInfo.InvariantCulture) > 1)
                 {
                     ComUtilities.Release(ref requestedRange);
                     requestedRange = currentRegion;
@@ -124,7 +124,7 @@ public partial class TableCommands
             });
         }
 
-        bool? isMerged = RangeMergeDiscovery.GetMergeCellsState(effectiveRange.MergeCells);
+        bool? isMerged = RangeMergeDiscovery.GetMergeCellsState((object)effectiveRange.MergeCells);
         List<string> mergedRanges = isMerged == false
             ? []
             : RangeMergeDiscovery.CollectMergedRanges(effectiveRange, isMerged, cancellationToken);
@@ -319,7 +319,7 @@ public partial class TableCommands
                 return;
             }
 
-            long cellCount = Convert.ToInt64(effectiveRange.CountLarge, CultureInfo.InvariantCulture);
+            long cellCount = Convert.ToInt64((object)effectiveRange.CountLarge, CultureInfo.InvariantCulture);
             if (cellCount > MaxSortSensitiveFormulaScanCells)
             {
                 result.Findings.Add(new TablePreflightFinding

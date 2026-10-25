@@ -26,8 +26,8 @@ internal static class Rules
 
     public static readonly DiagnosticDescriptor UnjustifiedDynamicCast = new(
         "EXL005",
-        "Cast to dynamic needs a reason",
-        "Casting to dynamic bypasses the typed Excel interop. Use the typed member, or put a '// PIA gap: ...' or '// Reason: ...' comment on the line above.",
+        "Casting to dynamic is not allowed",
+        "Casting to dynamic bypasses compile-time API checks. Use the typed member; comments do not exempt late binding.",
         ComSafety, DiagnosticSeverity.Error, isEnabledByDefault: true);
 
     public static readonly DiagnosticDescriptor UnjustifiedSuppression = new(
@@ -40,6 +40,12 @@ internal static class Rules
         "EXL010",
         "Use Convert for values read from dynamic COM",
         "Excel may return this value as a different numeric type (often double). Use Convert.To{0}(value, CultureInfo.InvariantCulture) instead of a direct cast to {1}.",
+        ComSafety, DiagnosticSeverity.Error, isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor DynamicAccess = new(
+        "EXL011",
+        "Dynamic access is not allowed",
+        "Dynamic declarations and late-bound calls bypass compile-time API checks. Use typed interop; do not bypass a missing PIA member with dynamic access.",
         ComSafety, DiagnosticSeverity.Error, isEnabledByDefault: true);
 
     public static readonly DiagnosticDescriptor ChainedComAccess = new(

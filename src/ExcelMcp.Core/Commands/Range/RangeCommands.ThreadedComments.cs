@@ -167,7 +167,7 @@ public partial class RangeCommands
                 CellAddress = cellAddress,
                 Text = comment.Text(),
                 AuthorName = author?.Name ?? string.Empty,
-                Date = ConvertCommentDate(comment.Date)
+                Date = ConvertCommentDate((object)comment.Date)
             };
 
             replies = comment.Replies;
@@ -183,7 +183,7 @@ public partial class RangeCommands
                     {
                         Text = reply.Text(),
                         AuthorName = replyAuthor?.Name ?? string.Empty,
-                        Date = ConvertCommentDate(reply.Date)
+                        Date = ConvertCommentDate((object)reply.Date)
                     });
                 }
                 finally

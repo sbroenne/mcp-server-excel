@@ -1,5 +1,4 @@
 using Sbroenne.ExcelMcp.ComInterop;
-using Sbroenne.ExcelMcp.Core.Commands;
 using Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -16,14 +15,12 @@ public sealed partial class PersistentServiceScreenshotCaptureTests :
     IClassFixture<PersistentServiceScreenshotFixture>
 {
     private readonly IScreenshotCommands _screenshotCommands;
-    private readonly ISheetStyleCommands _sheetCommands;
 
     public PersistentServiceScreenshotCaptureTests(
         PersistentServiceScreenshotFixture fixture) :
         base(fixture)
     {
         _screenshotCommands = fixture.CreateCommands<IScreenshotCommands>();
-        _sheetCommands = fixture.CreateCommands<ISheetStyleCommands>();
     }
 
     [Fact]
@@ -277,8 +274,8 @@ public sealed partial class PersistentServiceScreenshotCaptureTests :
                 chartObjects = (Excel.ChartObjects)sheet.ChartObjects();
                 chartObject = (Excel.ChartObject)chartObjects.Item(1);
                 targetCell = sheet.Range["BA1"];
-                chartObject.Left = Convert.ToDouble(targetCell.Left, System.Globalization.CultureInfo.InvariantCulture);
-                chartObject.Top = Convert.ToDouble(targetCell.Top, System.Globalization.CultureInfo.InvariantCulture);
+                chartObject.Left = Convert.ToDouble(((object)targetCell.Left), System.Globalization.CultureInfo.InvariantCulture);
+                chartObject.Top = Convert.ToDouble(((object)targetCell.Top), System.Globalization.CultureInfo.InvariantCulture);
                 chart = chartObject.Chart;
                 chartArea = chart.ChartArea;
                 chartInterior = chartArea.Interior;

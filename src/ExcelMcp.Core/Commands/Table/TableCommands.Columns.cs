@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
@@ -16,9 +17,9 @@ public partial class TableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
-            dynamic? listColumns = null;
-            dynamic? newColumn = null;
+            Excel.ListObject? table = null;
+            Excel.ListColumns? listColumns = null;
+            Excel.ListColumn? newColumn = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
@@ -27,10 +28,10 @@ public partial class TableCommands
                 listColumns = table.ListColumns;
                 for (int i = 1; i <= listColumns.Count; i++)
                 {
-                    dynamic? column = null;
+                    Excel.ListColumn? column = null;
                     try
                     {
-                        column = listColumns.Item(i);
+                        column = listColumns[i];
                         if (column.Name == columnName)
                         {
                             throw new InvalidOperationException($"Column '{columnName}' already exists in table '{tableName}'");
@@ -72,9 +73,9 @@ public partial class TableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
-            dynamic? listColumns = null;
-            dynamic? column = null;
+            Excel.ListObject? table = null;
+            Excel.ListColumns? listColumns = null;
+            Excel.ListColumn? column = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
@@ -83,22 +84,20 @@ public partial class TableCommands
                 listColumns = table.ListColumns;
                 for (int i = 1; i <= listColumns.Count; i++)
                 {
-                    dynamic? col = null;
+                    Excel.ListColumn? col = null;
                     try
                     {
-                        col = listColumns.Item(i);
+                        col = listColumns[i];
                         if (col.Name == columnName)
                         {
                             column = col;
+                            col = null;
                             break;
                         }
                     }
                     finally
                     {
-                        if (col is not null && col.Name != columnName)
-                        {
-                            ComUtilities.Release(ref col);
-                        }
+                        ComUtilities.Release(ref col);
                     }
                 }
 
@@ -128,9 +127,9 @@ public partial class TableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
-            dynamic? listColumns = null;
-            dynamic? column = null;
+            Excel.ListObject? table = null;
+            Excel.ListColumns? listColumns = null;
+            Excel.ListColumn? column = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
@@ -139,22 +138,20 @@ public partial class TableCommands
                 listColumns = table.ListColumns;
                 for (int i = 1; i <= listColumns.Count; i++)
                 {
-                    dynamic? col = null;
+                    Excel.ListColumn? col = null;
                     try
                     {
-                        col = listColumns.Item(i);
+                        col = listColumns[i];
                         if (col.Name == oldName)
                         {
                             column = col;
+                            col = null;
                             break;
                         }
                     }
                     finally
                     {
-                        if (col is not null && col.Name != oldName)
-                        {
-                            ComUtilities.Release(ref col);
-                        }
+                        ComUtilities.Release(ref col);
                     }
                 }
 
@@ -166,10 +163,10 @@ public partial class TableCommands
                 // Check if new name already exists
                 for (int i = 1; i <= listColumns.Count; i++)
                 {
-                    dynamic? col = null;
+                    Excel.ListColumn? col = null;
                     try
                     {
-                        col = listColumns.Item(i);
+                        col = listColumns[i];
                         if (col.Name == newName)
                         {
                             throw new InvalidOperationException($"Column '{newName}' already exists in table '{tableName}'");
@@ -195,4 +192,3 @@ public partial class TableCommands
         });
     }
 }
-

@@ -22,7 +22,7 @@ public partial class SheetCommands
         return batch.Execute((ctx, ct) =>
         {
             Excel.Worksheet? sheet = null;
-            dynamic? tab = null;
+            Excel.Tab? tab = null;
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
@@ -56,7 +56,7 @@ public partial class SheetCommands
         return batch.Execute((ctx, ct) =>
         {
             Excel.Worksheet? sheet = null;
-            dynamic? tab = null;
+            Excel.Tab? tab = null;
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
@@ -66,12 +66,12 @@ public partial class SheetCommands
                 }
 
                 tab = sheet.Tab;
-                dynamic colorValue = tab.Color;
+                object? colorValue = tab.Color;
 
                 // Excel's ColorIndex.xlColorIndexAutomatic = -4105
                 // When no custom color is set, Excel might return various values
                 // Check ColorIndex property instead for more reliable detection
-                dynamic colorIndex = tab.ColorIndex;
+                object? colorIndex = tab.ColorIndex;
 
                 // xlColorIndexNone = -4142, xlColorIndexAutomatic = -4105
                 // If ColorIndex is negative or color value indicates no custom color
@@ -83,7 +83,7 @@ public partial class SheetCommands
                 }
 
                 // Also check if color value itself indicates no custom color
-                if (colorValue is null || Convert.ToInt32((object)colorValue, System.Globalization.CultureInfo.InvariantCulture) == 0)
+                if (colorValue is null || Convert.ToInt32(colorValue, System.Globalization.CultureInfo.InvariantCulture) == 0)
                 {
                     result.Success = true;
                     result.HasColor = false;
@@ -91,7 +91,7 @@ public partial class SheetCommands
                 }
 
                 // Convert BGR to RGB
-                int bgrColor = Convert.ToInt32(colorValue);
+                int bgrColor = Convert.ToInt32(colorValue, System.Globalization.CultureInfo.CurrentCulture);
                 int red = bgrColor & 0xFF;
                 int green = (bgrColor >> 8) & 0xFF;
                 int blue = (bgrColor >> 16) & 0xFF;
@@ -119,7 +119,7 @@ public partial class SheetCommands
         return batch.Execute((ctx, ct) =>
         {
             Excel.Worksheet? sheet = null;
-            dynamic? tab = null;
+            Excel.Tab? tab = null;
             try
             {
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName);
@@ -130,7 +130,7 @@ public partial class SheetCommands
 
                 tab = sheet.Tab;
                 // Set ColorIndex to xlColorIndexNone (-4142) to clear color
-                tab.ColorIndex = -4142; // xlColorIndexNone
+                tab.ColorIndex = Excel.XlColorIndex.xlColorIndexNone;
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
             finally
@@ -141,5 +141,3 @@ public partial class SheetCommands
         });
     }
 }
-
-

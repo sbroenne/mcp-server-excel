@@ -2,12 +2,30 @@
 // Licensed under the MIT License.
 
 using System.Globalization;
+using System.Text.Json;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
 public partial class PersistentServiceDataModelCommandsTests
 {
+    [Theory]
+    [InlineData("datamodel.list-columns")]
+    [InlineData("datamodel.read-table")]
+    public void ColumnMetadata_UnavailableCalculationFlag_IsExplicitlyUnknown(string command)
+    {
+        var response = _fixture.Send(command, new { tableName = "SalesTable" });
+        Assert.True(response.Success, response.ErrorMessage);
+        using var result = JsonDocument.Parse(response.Result!);
+        var columns = result.RootElement.GetProperty("columns").EnumerateArray().ToArray();
+        Assert.Equal(
+            ["Amount", "CustomerID", "Date", "ProductID", "Quantity", "SalesID"],
+            columns.Select(column => column.GetProperty("name").GetString()).Order(StringComparer.Ordinal));
+        Assert.All(columns, column =>
+            Assert.Equal(JsonValueKind.Null, column.GetProperty("isCalculated").ValueKind));
+        Assert.Equal(2455d, ReadMeasureValue("Total Sales"));
+    }
+
     [Fact]
     public void ReadConnection_WithDataModel_ReturnsModelConnectionMetadata()
     {

@@ -30,15 +30,17 @@ public sealed partial class PersistentServiceConditionalFormattingTests
                 conditions = range.FormatConditions;
                 condition = (Excel.FormatCondition)conditions.Item(1);
                 font = condition.Font;
+                object? nativeBold = font.Bold;
+                object? nativeItalic = font.Italic;
                 if (bold.HasValue)
                 {
-                    Assert.Equal(bold.Value, font.Bold);
-                    Assert.Equal(false, font.Italic);
+                    Assert.Equal(bold.Value, Assert.IsType<bool>(nativeBold));
+                    Assert.False(Assert.IsType<bool>(nativeItalic));
                 }
                 else
                 {
-                    Assert.IsType<DBNull>(font.Bold);
-                    Assert.IsType<DBNull>(font.Italic);
+                    Assert.IsType<DBNull>(nativeBold);
+                    Assert.IsType<DBNull>(nativeItalic);
                 }
             }
             finally

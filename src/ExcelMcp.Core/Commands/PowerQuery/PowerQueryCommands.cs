@@ -14,7 +14,6 @@ public partial class PowerQueryCommands : IPowerQueryCommands
         "To allow this combination, use powerquery set-privacy-settings --ignore-privacy-levels true " +
         "(MCP action set-privacy-settings with ignore_privacy_levels=true). This can allow data to be shared between sources.";
 
-    private readonly IDataModelCommands _dataModelCommands;
     private readonly PowerQueryTraceReader _traceReader;
 
     /// <summary>
@@ -23,7 +22,7 @@ public partial class PowerQueryCommands : IPowerQueryCommands
     /// <param name="dataModelCommands">Data Model commands for atomic refresh operations in SetLoadToDataModelAsync</param>
     public PowerQueryCommands(IDataModelCommands dataModelCommands, IPowerQueryTraceSettings? traceSettings = null)
     {
-        _dataModelCommands = dataModelCommands ?? throw new ArgumentNullException(nameof(dataModelCommands));
+        ArgumentNullException.ThrowIfNull(dataModelCommands);
         var settings = traceSettings ?? new RegistryPowerQueryTraceSettings();
         _traceReader = new PowerQueryTraceReader(settings.TraceFolder);
     }
@@ -149,21 +148,6 @@ public partial class PowerQueryCommands : IPowerQueryCommands
             mCode.Contains("AnalysisServices.Database", StringComparison.OrdinalIgnoreCase);
 
         return usesWorkbookParameter && usesExternalSource;
-    }
-
-    /// <summary>
-    /// Extracts file path from File.Contents() in M code
-    /// </summary>
-    private static string? ExtractFileContentsPath(string mCode)
-    {
-        // Parse: File.Contents("D:\path\to\file.xlsx")
-        // Also handles: File.Contents( "path" ) with optional whitespace
-        var match = System.Text.RegularExpressions.Regex.Match(
-            mCode,
-            @"File\.Contents\s*\(\s*""([^""]+)""\s*\)",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-        return match.Success ? match.Groups[1].Value : null;
     }
 
     private static PowerQueryLoadState DetectLoadState(

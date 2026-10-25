@@ -477,7 +477,7 @@ public sealed class PersistentServiceStructuredFilterTests(PersistentServiceWork
                 for (int number = 2; number <= 6; number++)
                 {
                     row = (Excel.Range)rows[number];
-                    if (!Convert.ToBoolean(row.Hidden, System.Globalization.CultureInfo.InvariantCulture))
+                    if (!Convert.ToBoolean(((object)row.Hidden), System.Globalization.CultureInfo.InvariantCulture))
                         visibleRows.Add(number);
                     ComUtilities.Release(ref row);
                 }

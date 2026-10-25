@@ -69,6 +69,11 @@ before choosing recovery; refreshing individual tables is not a universal fix.
 
 Model metadata reads fail when a required property cannot be read. A reported
 row count of zero means Excel returned zero, not that its property getter failed.
+For `list-columns` and `read-table`, each column's `isCalculated` field is
+explicitly `null` (unknown). Excel's supported column API does not expose that
+flag. An unknown value does not mean the column is not calculated; an empty
+metadata query is not evidence of that either. Both MCP and CLI return the same
+field and value.
 
 ## Relationships and unsupported features
 

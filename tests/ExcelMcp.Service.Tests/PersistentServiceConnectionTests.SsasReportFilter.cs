@@ -108,10 +108,10 @@ public sealed partial class PersistentServiceConnectionTests
                 Excel.PivotFields? fields = null;
                 Excel.PivotField? field = null;
                 Excel.PivotCache? cache = null;
-                dynamic? ado = null;
-                dynamic? rows = null;
-                dynamic? columns = null;
-                dynamic? all = null;
+                ADODB._Connection? ado = null;
+                ADODB._Recordset? rows = null;
+                ADODB.Fields? columns = null;
+                ADODB.Field? all = null;
                 try
                 {
                     worksheet = ComUtilities.FindSheet(context.Book, sheet);
@@ -123,14 +123,13 @@ public sealed partial class PersistentServiceConnectionTests
                     fields = cube.PivotFields;
                     field = fields.Item(1);
                     cache = table.PivotCache();
-                    // ADO schema rowsets have no referenced PIA.
-                    ado = cache.ADOConnection;
-                    rows = ado.OpenSchema(34, new object?[]
-                        { null, null, "Adventure Works", null, null, hierarchy });
+                    ado = (ADODB._Connection)cache.ADOConnection;
+                    rows = ado.OpenSchema((ADODB.SchemaEnum)34, new object?[]
+                        { null, null, "Adventure Works", null, null, hierarchy }, Type.Missing);
                     Assert.False(Convert.ToBoolean(rows.EOF, CultureInfo.InvariantCulture));
                     columns = rows.Fields;
-                    all = columns.Item("ALL_MEMBER");
-                    string nativeAll = Convert.ToString(all.Value, CultureInfo.InvariantCulture)!;
+                    all = columns["ALL_MEMBER"];
+                    string nativeAll = Convert.ToString((object)all.Value, CultureInfo.InvariantCulture)!;
                     Assert.False(string.IsNullOrWhiteSpace(nativeAll));
                     cube.EnableMultiplePageItems = false;
                     field.CurrentPageName = selectedMember ?? nativeAll;

@@ -1,8 +1,9 @@
-using System.Dynamic;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 
@@ -20,7 +21,7 @@ public class RangeHelpersExceptionTests
 
         var actual = Assert.Throws<InvalidOperationException>(() =>
             RangeHelpers.ResolveRange(
-                new ThrowingWorkbook(expected),
+                ExcelInterfaceProxy.Create<Excel.Workbook>((_, _) => throw expected),
                 string.Empty,
                 "TestRange",
                 out _));
@@ -37,7 +38,7 @@ public class RangeHelpersExceptionTests
 
         var actual = Assert.Throws<OperationFailureException>(() =>
             RangeHelpers.ResolveRange(
-                new Workbook(new MissingNames(comError)),
+                CreateWorkbook(comError),
                 string.Empty,
                 "MissingRange",
                 out _));
@@ -55,7 +56,7 @@ public class RangeHelpersExceptionTests
 
         var actual = Assert.Throws<OperationFailureException>(() =>
             RangeHelpers.ResolveRange(
-                new Workbook(new NamesWithLocalCollision(comError)),
+                CreateWorkbook(comError, resolvedName: "Sheet1!MissingRange"),
                 string.Empty,
                 "MissingRange",
                 out _));
@@ -73,7 +74,7 @@ public class RangeHelpersExceptionTests
 
         var actual = Assert.Throws<COMException>(() =>
             RangeHelpers.ResolveRange(
-                new Workbook(new NamesWithFormulaName(expected)),
+                CreateWorkbook(null, resolvedName: "FormulaName", rangeFailure: expected),
                 string.Empty,
                 "FormulaName",
                 out _));
@@ -91,7 +92,7 @@ public class RangeHelpersExceptionTests
 
         var actual = Assert.Throws<COMException>(() =>
             RangeHelpers.ResolveRange(
-                new Workbook(new NamesWithFailingEnumeration(lookupException, expected)),
+                CreateWorkbook(lookupException, enumerationFailure: expected),
                 string.Empty,
                 "MissingRange",
                 out _));
@@ -99,151 +100,31 @@ public class RangeHelpersExceptionTests
         Assert.Same(expected, actual);
     }
 
-    private sealed class ThrowingWorkbook(Exception exception) : DynamicObject
+    private static Excel.Workbook CreateWorkbook(
+        Exception? lookupFailure, string? resolvedName = null,
+        Exception? rangeFailure = null, Exception? enumerationFailure = null)
     {
-        public override bool TryGetMember(GetMemberBinder binder, out object? result)
+        var name = ExcelInterfaceProxy.Create<Excel.Name>((member, _) => member.Name switch
         {
-            throw exception;
-        }
-    }
-
-    private sealed class Workbook(object names) : DynamicObject
-    {
-        public override bool TryGetMember(GetMemberBinder binder, out object? result)
+            "get_Name" => resolvedName,
+            "get_RefersToRange" => throw rangeFailure!,
+            _ => throw new InvalidOperationException($"Unexpected name read: {member.Name}")
+        });
+        var names = ExcelInterfaceProxy.Create<Excel.Names>((member, args) =>
         {
-            result = binder.Name == "Names" ? names : null;
-            return binder.Name == "Names";
-        }
-    }
-
-    private sealed class MissingNames(COMException exception) : DynamicObject
-    {
-        public override bool TryGetMember(GetMemberBinder binder, out object? result)
-        {
-            result = binder.Name == "Count" ? 0 : null;
-            return binder.Name == "Count";
-        }
-
-        public override bool TryInvokeMember(InvokeMemberBinder binder, object?[]? args, out object? result)
-        {
-            if (binder.Name == "Item")
+            if (member.Name == "get_Count")
+                return resolvedName is not null || enumerationFailure is not null ? 1 : 0;
+            if (member.Name == "Item")
             {
-                throw exception;
+                if (args![0] is string && lookupFailure is not null)
+                    throw lookupFailure;
+                if (args[0] is int && enumerationFailure is not null)
+                    throw enumerationFailure;
+                return name;
             }
-
-            result = null;
-            return false;
-        }
-    }
-
-    private sealed class NamesWithFormulaName(COMException exception) : DynamicObject
-    {
-        private readonly FormulaName _name = new(exception);
-
-        public override bool TryGetMember(GetMemberBinder binder, out object? result)
-        {
-            result = binder.Name == "Count" ? 1 : null;
-            return binder.Name == "Count";
-        }
-
-        public override bool TryInvokeMember(InvokeMemberBinder binder, object?[]? args, out object? result)
-        {
-            if (binder.Name == "Item" && args is [string])
-            {
-                result = _name;
-                return true;
-            }
-
-            if (binder.Name == "Item" && args is [int])
-            {
-                result = _name;
-                return true;
-            }
-
-            result = null;
-            return false;
-        }
-    }
-
-    private sealed class NamesWithLocalCollision(COMException exception) : DynamicObject
-    {
-        private readonly NamedItem _name = new("Sheet1!MissingRange");
-
-        public override bool TryGetMember(GetMemberBinder binder, out object? result)
-        {
-            result = binder.Name == "Count" ? 1 : null;
-            return binder.Name == "Count";
-        }
-
-        public override bool TryInvokeMember(InvokeMemberBinder binder, object?[]? args, out object? result)
-        {
-            if (binder.Name == "Item" && args is [string])
-            {
-                throw exception;
-            }
-
-            if (binder.Name == "Item" && args is [int])
-            {
-                result = _name;
-                return true;
-            }
-
-            result = null;
-            return false;
-        }
-    }
-
-    private sealed class NamesWithFailingEnumeration(COMException lookupException, COMException enumerationException) : DynamicObject
-    {
-        public override bool TryGetMember(GetMemberBinder binder, out object? result)
-        {
-            result = binder.Name == "Count" ? 1 : null;
-            return binder.Name == "Count";
-        }
-
-        public override bool TryInvokeMember(InvokeMemberBinder binder, object?[]? args, out object? result)
-        {
-            if (binder.Name == "Item" && args is [string])
-            {
-                throw lookupException;
-            }
-
-            if (binder.Name == "Item" && args is [int])
-            {
-                throw enumerationException;
-            }
-
-            result = null;
-            return false;
-        }
-    }
-
-    private sealed class FormulaName(COMException exception) : DynamicObject
-    {
-        public override bool TryGetMember(GetMemberBinder binder, out object? result)
-        {
-            if (binder.Name == "Name")
-            {
-                result = "FormulaName";
-                return true;
-            }
-
-            if (binder.Name == "RefersToRange")
-            {
-                throw exception;
-            }
-
-            result = null;
-            return false;
-        }
-    }
-
-    private sealed class NamedItem(string name) : DynamicObject
-    {
-        public override bool TryGetMember(GetMemberBinder binder, out object? result)
-        {
-            result = binder.Name == "Name" ? name : null;
-            return binder.Name == "Name";
-        }
+            throw new InvalidOperationException($"Unexpected names read: {member.Name}");
+        });
+        return ExcelInterfaceProxy.Create<Excel.Workbook>((member, _) => member.Name == "get_Names"
+            ? names : throw new InvalidOperationException($"Unexpected workbook read: {member.Name}"));
     }
 }

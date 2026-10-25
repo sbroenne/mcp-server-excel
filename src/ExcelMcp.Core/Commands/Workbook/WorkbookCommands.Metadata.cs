@@ -4,12 +4,12 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
 using Excel = Microsoft.Office.Interop.Excel;
+using Office = Microsoft.Office.Core;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Workbook;
 
 public partial class WorkbookCommands
 {
-    private const int MsoPropertyTypeString = 4;
     private const int BuiltInPropertyValueFailure = unchecked((int)0x80004005);
 
     /// <inheritdoc />
@@ -97,7 +97,7 @@ public partial class WorkbookCommands
         ValidatePropertyName(propertyName);
         return batch.Execute((context, _) =>
         {
-            dynamic? property = null;
+            ExcelDocumentProperties.Property? property = null;
             try
             {
                 property = GetRequiredProperty(context.Book, propertyName, scope);
@@ -109,7 +109,7 @@ public partial class WorkbookCommands
             }
             finally
             {
-                ComUtilities.Release(ref property!);
+                property?.Dispose();
             }
         });
     }
@@ -124,8 +124,8 @@ public partial class WorkbookCommands
         ValidatePropertyName(propertyName);
         return batch.Execute((context, _) =>
         {
-            dynamic? properties = null;
-            dynamic? property = null;
+            ExcelDocumentProperties? properties = null;
+            ExcelDocumentProperties.Property? property = null;
             try
             {
                 properties = GetPropertyCollection(context.Book, scope);
@@ -137,11 +137,11 @@ public partial class WorkbookCommands
                         throw new InvalidOperationException($"Built-in document property '{propertyName}' was not found.");
                     }
 
-                    property = properties.Add(propertyName, false, MsoPropertyTypeString, value);
+                    property = properties.Add(propertyName, Office.MsoDocProperties.msoPropertyTypeString, value);
                 }
                 else
                 {
-                    property.Value = value;
+                    property.SetValue(value);
                 }
 
                 return new OperationResult
@@ -153,8 +153,8 @@ public partial class WorkbookCommands
             }
             finally
             {
-                ComUtilities.Release(ref property!);
-                ComUtilities.Release(ref properties!);
+                property?.Dispose();
+                properties?.Dispose();
             }
         });
     }
@@ -165,7 +165,7 @@ public partial class WorkbookCommands
         ValidatePropertyName(propertyName);
         return batch.Execute((context, _) =>
         {
-            dynamic? property = null;
+            ExcelDocumentProperties.Property? property = null;
             try
             {
                 property = GetRequiredProperty(context.Book, propertyName, DocumentPropertyScope.Custom);
@@ -179,7 +179,7 @@ public partial class WorkbookCommands
             }
             finally
             {
-                ComUtilities.Release(ref property!);
+                property?.Dispose();
             }
         });
     }
@@ -189,14 +189,14 @@ public partial class WorkbookCommands
         DocumentPropertyScope scope,
         List<DocumentPropertyInfo> target)
     {
-        dynamic? properties = null;
+        ExcelDocumentProperties? properties = null;
         try
         {
             properties = GetPropertyCollection(workbook, scope);
-            var count = Convert.ToInt32(properties.Count, CultureInfo.InvariantCulture);
+            int count = properties.Count;
             for (var index = 1; index <= count; index++)
             {
-                dynamic? property = null;
+                ExcelDocumentProperties.Property? property = null;
                 try
                 {
                     property = properties.Item(index);
@@ -204,30 +204,27 @@ public partial class WorkbookCommands
                 }
                 finally
                 {
-                    ComUtilities.Release(ref property!);
+                    property?.Dispose();
                 }
             }
         }
         finally
         {
-            ComUtilities.Release(ref properties!);
+            properties?.Dispose();
         }
     }
 
-    private static dynamic GetPropertyCollection(Excel.Workbook workbook, DocumentPropertyScope scope)
+    private static ExcelDocumentProperties GetPropertyCollection(Excel.Workbook workbook, DocumentPropertyScope scope)
     {
-        // PIA gap: Built-in and custom document properties are Office.DocumentProperties from office.dll.
-        return scope == DocumentPropertyScope.BuiltIn
-            ? workbook.BuiltinDocumentProperties
-            : workbook.CustomDocumentProperties;
+        return ExcelDocumentProperties.Open(workbook, scope == DocumentPropertyScope.BuiltIn);
     }
 
-    private static dynamic GetRequiredProperty(
+    private static ExcelDocumentProperties.Property GetRequiredProperty(
         Excel.Workbook workbook,
         string propertyName,
         DocumentPropertyScope scope)
     {
-        dynamic? properties = null;
+        ExcelDocumentProperties? properties = null;
         try
         {
             properties = GetPropertyCollection(workbook, scope);
@@ -237,20 +234,20 @@ public partial class WorkbookCommands
         }
         finally
         {
-            ComUtilities.Release(ref properties!);
+            properties?.Dispose();
         }
     }
 
-    private static dynamic? TryGetProperty(dynamic properties, string propertyName)
+    private static ExcelDocumentProperties.Property? TryGetProperty(ExcelDocumentProperties properties, string propertyName)
     {
-        var count = Convert.ToInt32(properties.Count, CultureInfo.InvariantCulture);
+        int count = properties.Count;
         for (var index = 1; index <= count; index++)
         {
-            dynamic? property = null;
+            ExcelDocumentProperties.Property? property = null;
             try
             {
                 property = properties.Item(index);
-                var currentName = Convert.ToString(property.Name, CultureInfo.InvariantCulture);
+                string currentName = property.Name;
                 if (string.Equals(currentName, propertyName, StringComparison.OrdinalIgnoreCase))
                 {
                     var result = property;
@@ -260,19 +257,23 @@ public partial class WorkbookCommands
             }
             finally
             {
-                ComUtilities.Release(ref property!);
+                property?.Dispose();
             }
         }
 
         return null;
     }
 
-    private static DocumentPropertyInfo ReadProperty(dynamic property, DocumentPropertyScope scope)
+    private static DocumentPropertyInfo ReadProperty(ExcelDocumentProperties.Property property, DocumentPropertyScope scope) =>
+        ReadDocumentProperty(() => property.Name, () => (int)property.Type, () => property.Value, scope);
+
+    internal static DocumentPropertyInfo ReadDocumentProperty(
+        Func<string> readName, Func<int> readType, Func<object?> readValue, DocumentPropertyScope scope)
     {
-        var typeCode = Convert.ToInt32(property.Type, CultureInfo.InvariantCulture);
+        int typeCode = readType();
         var result = new DocumentPropertyInfo
         {
-            Name = Convert.ToString(property.Name, CultureInfo.InvariantCulture) ?? string.Empty,
+            Name = readName(),
             ValueType = typeCode switch
             {
                 1 => "number",
@@ -287,7 +288,7 @@ public partial class WorkbookCommands
         object? value;
         try
         {
-            value = property.Value;
+            value = readValue();
         }
         catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex) ||
             (scope == DocumentPropertyScope.BuiltIn && ex.HResult == BuiltInPropertyValueFailure))

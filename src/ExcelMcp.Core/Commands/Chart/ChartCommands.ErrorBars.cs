@@ -114,9 +114,10 @@ public partial class ChartCommands
             areas = range.Areas;
             rows = range.Rows;
             columns = range.Columns;
-            if (areas.Count != 1 || (rows.Count != 1 && columns.Count != 1) || Convert.ToDouble(range.CountLarge) != count)
+            if (areas.Count != 1 || (rows.Count != 1 && columns.Count != 1) ||
+                Convert.ToDouble((object)range.CountLarge, System.Globalization.CultureInfo.InvariantCulture) != count)
                 throw new ArgumentException("Each custom error range must be one contiguous row or column with one value per series point.");
-            var values = range.Value2;
+            object? values = range.Value2;
             var items = values is object[,] matrix ? matrix.Cast<object?>() : [values];
             foreach (var item in items)
             {

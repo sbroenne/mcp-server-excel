@@ -1,8 +1,8 @@
-using System.Dynamic;
 using System.Reflection;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.PivotTable;
+using Sbroenne.ExcelMcp.Core.Commands.Slicer;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -26,13 +26,14 @@ public sealed class SlicerCancellationTests(TempDirectoryFixture fixture) :
     {
         using var innerBatch = ExcelSession.BeginBatch(fixture.CreateTestFile());
         var commands = new PivotTableCommands();
+        var slicers = new SlicerCommands();
         PreparePivot(innerBatch, commands);
         if (existingCache)
         {
-            var existing = commands.CreateSlicer(innerBatch, "CancellationPivot", "Region",
+            var existing = slicers.CreateSlicer(innerBatch, "CancellationPivot", "Region",
                 "ExistingSlicer", "SlicerData", "E1");
             Assert.True(existing.Success, existing.ErrorMessage);
-            var filtered = commands.SetSlicerSelection(innerBatch, "ExistingSlicer", ["North"]);
+            var filtered = slicers.SetSlicerSelection(innerBatch, "ExistingSlicer", ["North"]);
             Assert.True(filtered.Success, filtered.ErrorMessage);
             Assert.Equal(["North"], filtered.SelectedItems);
         }
@@ -45,28 +46,28 @@ public sealed class SlicerCancellationTests(TempDirectoryFixture fixture) :
         using var batch = new InjectedCancellationBatch(innerBatch, cancellation.Token);
 
         Assert.ThrowsAny<OperationCanceledException>(() =>
-            commands.CreateSlicer(batch, "CancellationPivot", "Region",
+            slicers.CreateSlicer(batch, "CancellationPivot", "Region",
                 "CancelledSlicer", "SlicerData", "E1"));
         Assert.Equal(initialCounts, GetSlicerCounts(innerBatch));
         AssertPivot(innerBatch, existingCache ? 10 : 30,
             existingCache ? ["North"] : ["North", "South"]);
 
-        var followUp = commands.CreateSlicer(innerBatch, "CancellationPivot", "Region",
+        var followUp = slicers.CreateSlicer(innerBatch, "CancellationPivot", "Region",
             "FollowUpSlicer", "SlicerData", "E1");
         Assert.True(followUp.Success, followUp.ErrorMessage);
         Assert.True(string.IsNullOrEmpty(followUp.ErrorMessage));
         Assert.Equal(["North", "South"], followUp.AvailableItems.Order());
         Assert.Equal(existingCache ? ["North"] : ["North", "South"], followUp.SelectedItems.Order());
         Assert.Equal(existingCache ? (1, 2) : (1, 1), GetSlicerCounts(innerBatch));
-        var replaced = commands.SetSlicerSelection(innerBatch, "FollowUpSlicer", ["South"]);
+        var replaced = slicers.SetSlicerSelection(innerBatch, "FollowUpSlicer", ["South"]);
         Assert.True(replaced.Success, replaced.ErrorMessage);
         Assert.Equal(["South"], replaced.SelectedItems);
         AssertPivot(innerBatch, 20, "South");
-        var added = commands.SetSlicerSelection(innerBatch, "FollowUpSlicer", ["North"], false);
+        var added = slicers.SetSlicerSelection(innerBatch, "FollowUpSlicer", ["North"], false);
         Assert.True(added.Success, added.ErrorMessage);
         Assert.Equal(["North", "South"], added.SelectedItems.Order());
         AssertPivot(innerBatch, 30, "North", "South");
-        var cleared = commands.SetSlicerSelection(innerBatch, "FollowUpSlicer", []);
+        var cleared = slicers.SetSlicerSelection(innerBatch, "FollowUpSlicer", []);
         Assert.True(cleared.Success, cleared.ErrorMessage);
         Assert.Equal(["North", "South"], cleared.SelectedItems.Order());
         AssertPivot(innerBatch, 30, "North", "South");
@@ -79,12 +80,13 @@ public sealed class SlicerCancellationTests(TempDirectoryFixture fixture) :
     {
         using var batch = ExcelSession.BeginBatch(fixture.CreateTestFile());
         var commands = new PivotTableCommands();
+        var slicers = new SlicerCommands();
         PreparePivot(batch, commands);
-        var created = commands.CreateSlicer(batch, "CancellationPivot", "Region",
+        var created = slicers.CreateSlicer(batch, "CancellationPivot", "Region",
             "ConnectedSlicer", "SlicerData", "E1");
         Assert.True(created.Success, created.ErrorMessage);
         Assert.Equal(["CancellationPivot"], created.ConnectedPivotTables);
-        var filtered = commands.SetSlicerSelection(batch, "ConnectedSlicer", ["North"]);
+        var filtered = slicers.SetSlicerSelection(batch, "ConnectedSlicer", ["North"]);
         Assert.True(filtered.Success, filtered.ErrorMessage);
         Assert.Equal(["North"], filtered.SelectedItems);
         AssertPivot(batch, 10, "North");
@@ -107,14 +109,29 @@ public sealed class SlicerCancellationTests(TempDirectoryFixture fixture) :
                 pivots = cache.PivotTables;
                 Assert.Equal(1, pivots.Count);
                 pivot = pivots.Item[1];
-                var probe = new CancelOnConnectedCollectionRead(cache, cancellation);
+                bool connectedCollectionRead = false;
+                var probe = ExcelInterfaceProxy.Create<Excel.SlicerCache>((member, _) =>
+                {
+                    switch (member.Name)
+                    {
+                        case "get_List":
+                            return cache.List;
+                        case "get_PivotTables":
+                            var connected = cache.PivotTables;
+                            connectedCollectionRead = true;
+                            cancellation.Cancel();
+                            return connected;
+                        default:
+                            throw new NotSupportedException(member.Name);
+                    }
+                });
                 object?[] arguments = helperName == "IsSlicerCacheConnectedToPivot"
                     ? [probe, pivot, cancellation.Token]
                     : [probe, cancellation.Token];
                 var error = Assert.Throws<TargetInvocationException>(() => helper.Invoke(null, arguments));
                 var cancelled = Assert.IsType<OperationCanceledException>(error.InnerException);
                 Assert.Equal(cancellation.Token, cancelled.CancellationToken);
-                Assert.True(probe.ConnectedCollectionRead);
+                Assert.True(connectedCollectionRead);
                 Assert.True(cancellation.IsCancellationRequested);
             }
             finally
@@ -126,46 +143,20 @@ public sealed class SlicerCancellationTests(TempDirectoryFixture fixture) :
             }
         });
         Assert.Equal((1, 1), GetSlicerCounts(batch));
-        var listed = commands.ListSlicers(batch, "CancellationPivot");
+        var listed = slicers.ListSlicers(batch, "CancellationPivot");
         Assert.True(listed.Success, listed.ErrorMessage);
         var slicer = Assert.Single(listed.Slicers);
         Assert.Equal(["CancellationPivot"], slicer.ConnectedPivotTables);
         Assert.Equal(["North"], slicer.SelectedItems);
         AssertPivot(batch, 10, "North");
-        var replaced = commands.SetSlicerSelection(batch, "ConnectedSlicer", ["South"]);
+        var replaced = slicers.SetSlicerSelection(batch, "ConnectedSlicer", ["South"]);
         Assert.True(replaced.Success, replaced.ErrorMessage);
         Assert.Equal(["South"], replaced.SelectedItems);
         AssertPivot(batch, 20, "South");
-        var followUp = commands.SetSlicerSelection(batch, "ConnectedSlicer", ["North"], false);
+        var followUp = slicers.SetSlicerSelection(batch, "ConnectedSlicer", ["North"], false);
         Assert.True(followUp.Success, followUp.ErrorMessage);
         Assert.Equal(["North", "South"], followUp.SelectedItems.Order());
         AssertPivot(batch, 30, "North", "South");
-    }
-
-    // Forward real COM reads and inject cancellation only after the helper has started.
-    private sealed class CancelOnConnectedCollectionRead(
-        Excel.SlicerCache cache,
-        CancellationTokenSource cancellation) : DynamicObject
-    {
-        public bool ConnectedCollectionRead { get; private set; }
-
-        public override bool TryGetMember(GetMemberBinder binder, out object? result)
-        {
-            switch (binder.Name)
-            {
-                case "List":
-                    result = cache.List;
-                    return true;
-                case "PivotTables":
-                    result = cache.PivotTables;
-                    ConnectedCollectionRead = true;
-                    cancellation.Cancel();
-                    return true;
-                default:
-                    result = null;
-                    return false;
-            }
-        }
     }
 
     private static void PreparePivot(IExcelBatch batch, PivotTableCommands commands)

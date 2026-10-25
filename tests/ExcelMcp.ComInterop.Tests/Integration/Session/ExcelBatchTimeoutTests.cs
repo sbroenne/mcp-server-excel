@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.ComInterop.Tests.Integration.Session;
 
@@ -306,11 +307,13 @@ public sealed class ExcelBatchTimeoutTests : IAsyncLifetime
 
     private static void WriteCell(ExcelContext context, string value)
     {
-        dynamic? sheet = null;
-        dynamic? cell = null;
+        Excel.Sheets? sheets = null;
+        Excel.Worksheet? sheet = null;
+        Excel.Range? cell = null;
         try
         {
-            sheet = context.Book.Worksheets[1];
+            sheets = context.Book.Worksheets;
+            sheet = (Excel.Worksheet)sheets[1];
             cell = sheet.Range["A1"];
             cell.Value2 = value;
         }
@@ -318,23 +321,27 @@ public sealed class ExcelBatchTimeoutTests : IAsyncLifetime
         {
             ComUtilities.Release(ref cell);
             ComUtilities.Release(ref sheet);
+            ComUtilities.Release(ref sheets);
         }
     }
 
     private static string ReadCell(ExcelContext context)
     {
-        dynamic? sheet = null;
-        dynamic? cell = null;
+        Excel.Sheets? sheets = null;
+        Excel.Worksheet? sheet = null;
+        Excel.Range? cell = null;
         try
         {
-            sheet = context.Book.Worksheets[1];
+            sheets = context.Book.Worksheets;
+            sheet = (Excel.Worksheet)sheets[1];
             cell = sheet.Range["A1"];
-            return (string)cell.Value2;
+            return Assert.IsType<string>((object?)cell.Value2);
         }
         finally
         {
             ComUtilities.Release(ref cell);
             ComUtilities.Release(ref sheet);
+            ComUtilities.Release(ref sheets);
         }
     }
 

@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.Core.Commands;
 using Xunit;
+using Vbe = Microsoft.Vbe.Interop;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 
@@ -48,7 +49,7 @@ public sealed class VbaInspectionTests
         Assert.Throws<InvalidOperationException>(() => VbaCommands.GetProjectProtection(99));
     }
 
-    public sealed class BrokenReference
+    public sealed class BrokenReference : Vbe.Reference
     {
         private readonly InvalidOperationException _metadataError = new("Broken metadata cannot be read.");
         public bool IsBroken { get; } = true;
@@ -57,5 +58,10 @@ public sealed class VbaInspectionTests
         public int Major => throw _metadataError;
         public int Minor => throw _metadataError;
         public bool BuiltIn => throw _metadataError;
+        public Vbe.VBE VBE => throw _metadataError;
+        public Vbe.References Collection => throw _metadataError;
+        string Vbe.Reference.Guid => throw _metadataError;
+        public string FullPath => throw _metadataError;
+        public Vbe.vbext_RefKind Type => throw _metadataError;
     }
 }

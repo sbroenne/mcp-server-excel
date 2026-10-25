@@ -283,7 +283,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
                     sheets = workbook.Worksheets;
                     sheet = (Excel.Worksheet)sheets[1];
                     cell = sheet.Range["A1"];
-                    Assert.Equal("keep this edit", cell.Value2);
+                    Assert.Equal("keep this edit", ((object)cell.Value2));
                 }
                 finally
                 {
@@ -356,8 +356,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
 
                         target.Close(SaveChanges: false);
                         ComUtilities.Release(ref target);
-                        dynamic workbookDispatch = workbooks;
-                        target = (Excel.Workbook)workbookDispatch.Open(
+                        target = workbooks.Open(
                             path, UpdateLinks: 0, ReadOnly: false,
                             IgnoreReadOnlyRecommended: true, Notify: false, AddToMru: false);
                         reopenedName = target.Name;
@@ -421,7 +420,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
                         sheets = neighbor.Worksheets;
                         sheet = (Excel.Worksheet)sheets[1];
                         cell = sheet.Range["A1"];
-                        Assert.Equal("neighbor remains unsaved", cell.Value2);
+                        Assert.Equal("neighbor remains unsaved", ((object)cell.Value2));
                     }
                     finally
                     {
@@ -702,8 +701,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
                         workbook = workbooks["selection-renamed.xlsx"];
                         workbook.Close(SaveChanges: false);
                         ComUtilities.Release(ref workbook);
-                        dynamic workbookDispatch = workbooks;
-                        workbook = (Excel.Workbook)workbookDispatch.Open(
+                        workbook = workbooks.Open(
                             renamedPath, UpdateLinks: 0, ReadOnly: false,
                             IgnoreReadOnlyRecommended: true, Notify: false, AddToMru: false);
                     }
@@ -1107,7 +1105,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
                             sheets = selected.Worksheets;
                             sheet = (Excel.Worksheet)sheets[1];
                             cell = sheet.Range["A1"];
-                            Assert.Equal("selected unsaved", cell.Value2);
+                            Assert.Equal("selected unsaved", ((object)cell.Value2));
                         }
                         finally
                         {
@@ -1201,7 +1199,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
                         sheets = neighbor.Worksheets;
                         sheet = (Excel.Worksheet)sheets[1];
                         cell = sheet.Range["A1"];
-                        Assert.Equal("neighbor unsaved", cell.Value2);
+                        Assert.Equal("neighbor unsaved", ((object)cell.Value2));
                         Assert.False(neighbor.Saved);
                         return workbooks.Count;
                     }
@@ -1291,7 +1289,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
                         sheets = shutdownTargetBook.Worksheets;
                         sheet = (Excel.Worksheet)sheets[1];
                         cell = sheet.Range["A1"];
-                        Assert.Equal("shutdown unsaved", cell.Value2);
+                        Assert.Equal("shutdown unsaved", ((object)cell.Value2));
                         return workbooks.Count;
                     }
                     finally

@@ -101,6 +101,36 @@ public sealed class PersistentServiceCellStyleTests(PersistentServiceWorkbookFix
         Assert.False(result.RootElement.GetProperty("isBuiltInStyle").GetBoolean());
     }
 
+    [Fact]
+    public void GetCellStyle_UnsetIndentation_PreservesNullInsteadOfZero()
+    {
+        string styleName = $"UnsetIndent_{Guid.NewGuid():N}";
+        _fixture.ExecuteRawVerification((ctx, _) =>
+        {
+            Excel.Styles? styles = null;
+            Excel.Style? style = null;
+            try
+            {
+                styles = ctx.Book.Styles;
+                style = styles.Add(styleName);
+                style.IncludeAlignment = false;
+            }
+            finally
+            {
+                ComUtilities.Release(ref style);
+                ComUtilities.Release(ref styles);
+            }
+        });
+
+        var response = _fixture.Send("workbook.get-cell-style", new { styleName });
+        Assert.True(response.Success, response.ErrorMessage);
+        using var result = JsonDocument.Parse(response.Result!);
+        var format = result.RootElement.GetProperty("style").GetProperty("format");
+        Assert.False(format.TryGetProperty("indentLevel", out _));
+        Assert.Contains(format.GetProperty("mixedFields").EnumerateArray(),
+            field => field.GetString() == "indentLevel");
+    }
+
     private JsonDocument ReadFormat(string sheetName, string rangeAddress)
     {
         var response = _fixture.Send("rangeformat.get-format", new { sheetName, rangeAddress });

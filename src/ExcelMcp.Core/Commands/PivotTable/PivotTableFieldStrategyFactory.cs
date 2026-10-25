@@ -1,3 +1,4 @@
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.PivotTable;
@@ -19,7 +20,7 @@ public static class PivotTableFieldStrategyFactory
     /// <param name="pivot">The PivotTable object</param>
     /// <returns>Strategy that can handle this PivotTable type</returns>
     /// <exception cref="InvalidOperationException">If no strategy can handle the PivotTable</exception>
-    public static IPivotTableFieldStrategy GetStrategy(dynamic pivot)
+    public static IPivotTableFieldStrategy GetStrategy(Excel.PivotTable pivot)
     {
         if (pivot == null)
             throw new InvalidOperationException("PivotTable object is null");
@@ -33,7 +34,7 @@ public static class PivotTableFieldStrategyFactory
         // Fall back to Regular
         try
         {
-            dynamic? pivotFields = pivot.PivotFields;
+            Excel.PivotFields? pivotFields = (Excel.PivotFields)pivot.PivotFields();
             if (pivotFields != null)
             {
                 ComUtilities.Release(ref pivotFields);

@@ -298,7 +298,7 @@ public class PersistentServicePivotTableDataModelTests(
                 cache = pivot.PivotCache();
                 Assert.True(cache.OLAP);
                 data = pivot.DataBodyRange;
-                Assert.Equal(expected, Convert.ToDouble(data.Value2,
+                Assert.Equal(expected, Convert.ToDouble(((object)data.Value2),
                     System.Globalization.CultureInfo.InvariantCulture), 8);
             }
             finally

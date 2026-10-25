@@ -27,7 +27,7 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? range = null;
+            Excel.Range? range = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -42,7 +42,7 @@ public partial class RangeCommands
                 int startColumn = Convert.ToInt32(range.Column);
 
                 // Preserve dynamic arrays where supported; older Excel uses legacy semantics.
-                object formulaOrArray = ReadFormulas(ctx, (Excel.Range)range, referenceStyle);
+                object formulaOrArray = ReadFormulas(ctx, range, referenceStyle);
                 object valueOrArray = range.Value2;
 
                 if (formulaOrArray is object[,] formulas && valueOrArray is object[,] values)
@@ -60,7 +60,7 @@ public partial class RangeCommands
                         {
                             string formula = formulas[r, c]?.ToString() ?? string.Empty;
                             object? cellValue = values[r, c];
-                            string returnedFormula = IsReturnedFormula((Excel.Range)range, r, c, formula, cellValue) ? formula : string.Empty;
+                            string returnedFormula = IsReturnedFormula(range, r, c, formula, cellValue) ? formula : string.Empty;
 
                             // Only return actual formulas (starting with =), not values
                             formulaRow.Add(returnedFormula);
@@ -85,7 +85,7 @@ public partial class RangeCommands
                     object? cellValue = valueOrArray;
 
                     // Only return actual formulas, not text constants that start with "="
-                    string returnedFormula = IsReturnedFormula((Excel.Range)range, 1, 1, formula, cellValue) ? formula : string.Empty;
+                    string returnedFormula = IsReturnedFormula(range, 1, 1, formula, cellValue) ? formula : string.Empty;
                     result.Formulas.Add([returnedFormula]);
                     result.Values.Add([
                         ConvertErrorForRead(
@@ -129,7 +129,7 @@ public partial class RangeCommands
         {
             cells = range.Cells;
             cell = (Excel.Range)cells[row, column];
-            return Convert.ToBoolean(cell.HasFormula, CultureInfo.InvariantCulture);
+            return Convert.ToBoolean((object)cell.HasFormula, CultureInfo.InvariantCulture);
         }
         finally
         {
@@ -208,7 +208,7 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? range = null;
+            Excel.Range? range = null;
             int originalCalculation = -1;
             bool calculationChanged = false;
             Exception? operationFailure = null;
@@ -221,9 +221,9 @@ public partial class RangeCommands
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
-                ValidateMergedCellsForWrite((Excel.Range)range, rangeAddress, ct);
-                ValidateContentWriteDimensions((Excel.Range)range, resolvedFormulas, nameof(formulas), "Formula");
-                EnsureDestinationWritable(ctx, (Excel.Range)range, overwritePolicy, ct);
+                ValidateMergedCellsForWrite(range, rangeAddress, ct);
+                ValidateContentWriteDimensions(range, resolvedFormulas, nameof(formulas), "Formula");
+                EnsureDestinationWritable(ctx, range, overwritePolicy, ct);
 
                 // Calculation suppressed here (not in ExcelWriteGuard) because Data Model ops need it enabled
                 originalCalculation = (int)ctx.App.Calculation;
@@ -258,16 +258,16 @@ public partial class RangeCommands
                     if (ctx.Capabilities.SupportsFormula2)
                     {
                         if (referenceStyle == FormulaReferenceStyle.R1C1)
-                            ((Excel.Range)range).Formula2R1C1 = arrayFormulas;
+                            range.Formula2R1C1 = arrayFormulas;
                         else
-                            ((Excel.Range)range).Formula2 = arrayFormulas;
+                            range.Formula2 = arrayFormulas;
                     }
                     else
                     {
                         if (referenceStyle == FormulaReferenceStyle.R1C1)
-                            ((Excel.Range)range).FormulaR1C1 = arrayFormulas;
+                            range.FormulaR1C1 = arrayFormulas;
                         else
-                            ((Excel.Range)range).Formula = arrayFormulas;
+                            range.Formula = arrayFormulas;
                     }
                 }
 

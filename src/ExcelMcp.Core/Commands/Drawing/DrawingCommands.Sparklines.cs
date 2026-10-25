@@ -248,7 +248,7 @@ public sealed partial class DrawingCommands
                 LocationRange = GetRangeAddress(location),
                 SourceRange = NormalizeRange(group.SourceData),
                 SparklineType = (DrawingSparklineType)group.Type,
-                LineColor = FormatColor(Convert.ToInt32(seriesColor.Color)),
+                LineColor = FormatColor(Convert.ToInt32((object)seriesColor.Color, System.Globalization.CultureInfo.InvariantCulture)),
                 ShowMarkers = markers.Visible
             };
         }

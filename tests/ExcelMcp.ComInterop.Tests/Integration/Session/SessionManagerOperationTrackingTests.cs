@@ -967,9 +967,9 @@ public class SessionManagerOperationTrackingTests : IDisposable
                 sheet = (Excel.Worksheet)sheets[1];
                 input = sheet.Range["A1"];
                 formula = sheet.Range["B1"];
-                Assert.Equal(expected, Convert.ToInt32(input.Value2, System.Globalization.CultureInfo.InvariantCulture));
-                Assert.Equal("=A1*2", formula.Formula);
-                Assert.Equal(expected * 2, Convert.ToInt32(formula.Value2, System.Globalization.CultureInfo.InvariantCulture));
+                Assert.Equal(expected, Convert.ToInt32((object?)input.Value2, System.Globalization.CultureInfo.InvariantCulture));
+                Assert.Equal("=A1*2", (object?)formula.Formula);
+                Assert.Equal(expected * 2, Convert.ToInt32((object?)formula.Value2, System.Globalization.CultureInfo.InvariantCulture));
             }
             finally
             {

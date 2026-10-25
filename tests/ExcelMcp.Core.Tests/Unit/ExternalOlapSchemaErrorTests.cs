@@ -1,6 +1,7 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Sbroenne.ExcelMcp.Core.Utilities;
 using Xunit;
 
@@ -47,7 +48,7 @@ public sealed class ExternalOlapSchemaErrorTests
         var connection = new MemberSchemaConnection();
 
         var rows = Assert.IsType<List<IReadOnlyDictionary<string, object?>>>(method.Invoke(
-            null, [connection, ExternalOlapSchemaMapper.BuildMembersRequest("Cube", "[Hierarchy]", "[Level]"),
+            null, [connection.Typed, ExternalOlapSchemaMapper.BuildMembersRequest("Cube", "[Hierarchy]", "[Level]"),
                 "Cube", CancellationToken.None, 10001, null]));
 
         var row = Assert.Single(rows);
@@ -66,7 +67,7 @@ public sealed class ExternalOlapSchemaErrorTests
         var connection = new MemberSchemaConnection(rowCount: 10002);
 
         var rows = Assert.IsType<List<IReadOnlyDictionary<string, object?>>>(method.Invoke(
-            null, [connection, ExternalOlapSchemaMapper.BuildMembersRequest("Cube", "[Hierarchy]", "[Level]"),
+            null, [connection.Typed, ExternalOlapSchemaMapper.BuildMembersRequest("Cube", "[Hierarchy]", "[Level]"),
                 "Cube", CancellationToken.None, 10001, null]));
 
         Assert.Equal(10001, rows.Count);
@@ -84,7 +85,7 @@ public sealed class ExternalOlapSchemaErrorTests
         var connection = new MemberSchemaConnection();
 
         var invocation = Assert.Throws<TargetInvocationException>(() => method.Invoke(
-            null, [connection, ExternalOlapSchemaMapper.BuildMembersRequest("Cube", "[Hierarchy]", "[Level]"),
+            null, [connection.Typed, ExternalOlapSchemaMapper.BuildMembersRequest("Cube", "[Hierarchy]", "[Level]"),
                 "Cube", new CancellationToken(canceled: true), 10001, null]));
 
         Assert.IsType<OperationCanceledException>(invocation.InnerException);
@@ -93,6 +94,7 @@ public sealed class ExternalOlapSchemaErrorTests
 
     public sealed class MemberSchemaConnection(int rowCount = 1)
     {
+        public ADODB._Connection Typed => CreateConnectionProxy(OpenSchema);
         public MemberSchemaRecordset Recordset { get; } = new(rowCount);
         public bool Opened { get; private set; }
         public object OpenSchema(int schema, object?[] restrictions)
@@ -100,12 +102,24 @@ public sealed class ExternalOlapSchemaErrorTests
             Assert.Equal(38, schema);
             Assert.Equal("[Level]", restrictions[5]);
             Opened = true;
-            return Recordset;
+            return Recordset.Typed;
         }
     }
 
     public sealed class MemberSchemaRecordset(int rowCount)
     {
+        public ADODB.Recordset Typed => ExcelInterfaceProxy.Create<ADODB.Recordset>((member, _) =>
+        {
+            switch (member.Name)
+            {
+                case "get_Fields": return Fields.Typed;
+                case "get_EOF": return EOF;
+                case "get_State": return State;
+                case "MoveNext": MoveNext(); return null;
+                case "Close": Close(); return null;
+                default: throw new NotSupportedException(member.Name);
+            }
+        });
         public MemberSchemaFields Fields { get; } = new();
         public bool EOF => RowsConsumed == rowCount;
         public int RowsConsumed { get; private set; }
@@ -117,6 +131,13 @@ public sealed class ExternalOlapSchemaErrorTests
 
     public sealed class MemberSchemaFields
     {
+        public ADODB.Fields Typed => ExcelInterfaceProxy.Create<ADODB.Fields>((member, args) =>
+            member.Name switch
+            {
+                "get_Count" => Count,
+                "get_Item" => Item(Assert.IsType<int>(args![0])).Typed,
+                _ => throw new NotSupportedException(member.Name)
+            });
         private readonly MemberSchemaField[] _fields =
         [
             new("member_unique_name", "[Member]"),
@@ -129,6 +150,13 @@ public sealed class ExternalOlapSchemaErrorTests
 
     public sealed class MemberSchemaField(string name, string? value)
     {
+        public ADODB.Field Typed => ExcelInterfaceProxy.Create<ADODB.Field>((member, _) =>
+            member.Name switch
+            {
+                "get_Name" => Name,
+                "get_Value" => Value,
+                _ => throw new NotSupportedException(member.Name)
+            });
         public string Name => name;
         public object Value => value ?? throw new InvalidOperationException("Unused provider property must not be read.");
     }
@@ -144,7 +172,7 @@ public sealed class ExternalOlapSchemaErrorTests
         Assert.NotNull(method);
 
         var invocation = Assert.Throws<TargetInvocationException>(() => method.Invoke(
-            null, [new ErrorSchemaConnection(hresult),
+            null, [new ErrorSchemaConnection(hresult).Typed,
                 ExternalOlapSchemaMapper.BuildDimensionRequest("Cube"), "Cube", CancellationToken.None, null, null]));
         var error = Assert.IsType<InvalidOperationException>(invocation.InnerException);
 
@@ -160,6 +188,7 @@ public sealed class ExternalOlapSchemaErrorTests
 
     public sealed class ErrorSchemaConnection(int hresult)
     {
+        public ADODB._Connection Typed => CreateConnectionProxy(OpenSchema);
 #pragma warning disable CA2201 // Simulated provider error at the schema COM-call boundary.
         public object OpenSchema(int schema, object?[] restrictions) =>
             throw new COMException($"Provider failure: Password={Sentinel};Data Source=private-host", hresult);
@@ -176,7 +205,7 @@ public sealed class ExternalOlapSchemaErrorTests
         Assert.NotNull(method);
 
         var invocation = Assert.Throws<TargetInvocationException>(() => method.Invoke(
-            null, [new CloseErrorSchemaConnection(state: state), ExternalOlapSchemaMapper.BuildDimensionRequest("Cube"),
+            null, [new CloseErrorSchemaConnection(state: state).Typed, ExternalOlapSchemaMapper.BuildDimensionRequest("Cube"),
                 "Cube", CancellationToken.None, null, null]));
         var error = Assert.IsType<InvalidOperationException>(invocation.InnerException);
 
@@ -195,7 +224,7 @@ public sealed class ExternalOlapSchemaErrorTests
         Assert.NotNull(method);
 
         var invocation = Assert.Throws<TargetInvocationException>(() => method.Invoke(
-            null, [new CloseErrorSchemaConnection(cancelRead: true),
+            null, [new CloseErrorSchemaConnection(cancelRead: true).Typed,
                 ExternalOlapSchemaMapper.BuildDimensionRequest("Cube"),
                 "Cube", CancellationToken.None, null, null]));
 
@@ -210,18 +239,30 @@ public sealed class ExternalOlapSchemaErrorTests
 
     public sealed class CloseErrorSchemaConnection(bool cancelRead = false, int state = 1)
     {
+        public ADODB._Connection Typed => CreateConnectionProxy(OpenSchema);
         public EmptySchemaRecordset Recordset { get; } = new(unchecked((int)0x80004005), cancelRead, state);
 
         public object OpenSchema(int schema, object?[] restrictions)
         {
             Assert.Equal(33, schema);
             Assert.Equal("Cube", restrictions[2]);
-            return Recordset;
+            return Recordset.Typed;
         }
     }
 
     public sealed class EmptySchemaRecordset(int hresult, bool cancelRead, int state)
     {
+        public ADODB.Recordset Typed => ExcelInterfaceProxy.Create<ADODB.Recordset>((member, _) =>
+        {
+            switch (member.Name)
+            {
+                case "get_Fields": return Fields.Typed;
+                case "get_EOF": return EOF;
+                case "get_State": return State;
+                case "Close": Close(); return null;
+                default: throw new NotSupportedException(member.Name);
+            }
+        });
         public EmptySchemaFields Fields { get; } = new();
         public bool EOF => cancelRead ? throw new OperationCanceledException("Query canceled.") : true;
         public int State { get; } = state;
@@ -233,6 +274,15 @@ public sealed class ExternalOlapSchemaErrorTests
 
     public sealed class EmptySchemaFields
     {
+        public ADODB.Fields Typed => ExcelInterfaceProxy.Create<ADODB.Fields>((member, _) =>
+            member.Name == "get_Count" ? Count : throw new NotSupportedException(member.Name));
         public int Count { get; }
     }
+
+    private static ADODB._Connection CreateConnectionProxy(Func<int, object?[], object> openSchema) =>
+        ExcelInterfaceProxy.Create<ADODB._Connection>((member, args) =>
+            member.Name == "OpenSchema"
+                ? openSchema(Convert.ToInt32(args![0], System.Globalization.CultureInfo.InvariantCulture),
+                    Assert.IsType<object[]>(args[1]))
+                : throw new NotSupportedException(member.Name));
 }

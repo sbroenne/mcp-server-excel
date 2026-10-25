@@ -34,7 +34,7 @@ public sealed class FailurePropagationTests
     {
         var error = new COMException("Cannot read locale", unchecked((int)0x80070005));
         var application = DispatchProxy.Create<Excel.Application, ApplicationProxy>();
-        Assert.Equal("General", application.International[Excel.XlApplicationInternational.xlGeneralFormatName]);
+        Assert.Equal("General", (object?)application.International[Excel.XlApplicationInternational.xlGeneralFormatName]);
         ((ApplicationProxy)(object)application).Error = error;
 
         Assert.Same(error, Assert.Throws<COMException>(() => new NumberFormatTranslator(application)));
@@ -62,6 +62,8 @@ public sealed class FailurePropagationTests
 
         Assert.Same(error, Assert.Throws<COMException>(() => new ExcelWriteGuard(application)));
         proxy.Error = null;
+        proxy.Workbooks = DispatchProxy.Create<Excel.Workbooks, EmptyWorkbooksProxy>();
+        Assert.Equal(0, proxy.Workbooks.Count);
         using (var guard = new ExcelWriteGuard(application))
             Assert.False(proxy.ScreenUpdating);
         Assert.True(proxy.ScreenUpdating);
@@ -71,6 +73,7 @@ public sealed class FailurePropagationTests
     {
         public Exception? Error { get; set; }
         public bool ScreenUpdating { get; private set; } = true;
+        public Excel.Workbooks? Workbooks { get; set; }
 
         protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
         {
@@ -81,6 +84,7 @@ public sealed class FailurePropagationTests
                 "get_ScreenUpdating" => ScreenUpdating,
                 "get_Ready" => true,
                 "get_International" => "General",
+                "get_Workbooks" => Workbooks,
                 "set_ScreenUpdating" => SetScreenUpdating((bool)args![0]!),
                 _ => throw new NotSupportedException(targetMethod?.Name)
             };
@@ -91,5 +95,11 @@ public sealed class FailurePropagationTests
             ScreenUpdating = value;
             return null;
         }
+    }
+
+    public class EmptyWorkbooksProxy : DispatchProxy
+    {
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args) =>
+            targetMethod?.Name == "get_Count" ? 0 : throw new NotSupportedException(targetMethod?.Name);
     }
 }

@@ -82,7 +82,7 @@ public sealed partial class IsolatedServiceScreenshotTests :
                 range.Value2 = "Screenshot";
                 interior = range.Interior;
                 interior.Color = fillColor;
-                Assert.Equal(fillColor, Convert.ToInt32(interior.Color, System.Globalization.CultureInfo.InvariantCulture));
+                Assert.Equal(fillColor, Convert.ToInt32((object)interior.Color, System.Globalization.CultureInfo.InvariantCulture));
                 Assert.All(Assert.IsType<object[,]>((object?)range.Value2).Cast<object>(),
                     value => Assert.Equal("Screenshot", value));
             }
@@ -138,7 +138,7 @@ public sealed partial class IsolatedServiceScreenshotTests :
                 range = sheet.Range[rangeAddress];
                 interior = range.Interior;
                 Assert.Equal(protectedSheet, sheet.ProtectContents);
-                Assert.Equal(fillColor, Convert.ToInt32(interior.Color, System.Globalization.CultureInfo.InvariantCulture));
+                Assert.Equal(fillColor, Convert.ToInt32((object)interior.Color, System.Globalization.CultureInfo.InvariantCulture));
                 Assert.All(Assert.IsType<object[,]>((object?)range.Value2).Cast<object>(),
                     value => Assert.Equal("Screenshot", value));
             }

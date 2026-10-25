@@ -2,6 +2,7 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Range;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
@@ -55,7 +56,7 @@ public partial class TableCommands
     /// <summary>
     /// Gets the full column range (including header) for a table column
     /// </summary>
-    private TableColumnRangeResult GetColumnRange(IExcelBatch batch, string tableName, string columnName)
+    private static TableColumnRangeResult GetColumnRange(IExcelBatch batch, string tableName, string columnName)
     {
         var result = new TableColumnRangeResult
         {
@@ -64,9 +65,10 @@ public partial class TableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
-            dynamic? column = null;
-            dynamic? columnRange = null;
+            Excel.ListObject? table = null;
+            Excel.ListColumn? column = null;
+            Excel.Range? columnRange = null;
+            Excel.Worksheet? sheet = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
@@ -81,7 +83,8 @@ public partial class TableCommands
                 // Get the entire column range (including header)
                 columnRange = column.Range;
 
-                result.SheetName = columnRange.Worksheet.Name;
+                sheet = columnRange.Worksheet;
+                result.SheetName = sheet.Name;
                 result.RangeAddress = columnRange.Address;
                 result.Success = true;
 
@@ -89,6 +92,7 @@ public partial class TableCommands
             }
             finally
             {
+                ComUtilities.Release(ref sheet);
                 ComUtilities.Release(ref columnRange);
                 ComUtilities.Release(ref column);
                 ComUtilities.Release(ref table);
@@ -99,7 +103,7 @@ public partial class TableCommands
     /// <summary>
     /// Gets the data range (excluding header) for a table column
     /// </summary>
-    private TableColumnRangeResult GetColumnDataRange(IExcelBatch batch, string tableName, string columnName)
+    private static TableColumnRangeResult GetColumnDataRange(IExcelBatch batch, string tableName, string columnName)
     {
         var result = new TableColumnRangeResult
         {
@@ -108,9 +112,10 @@ public partial class TableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
-            dynamic? column = null;
-            dynamic? dataBodyRange = null;
+            Excel.ListObject? table = null;
+            Excel.ListColumn? column = null;
+            Excel.Range? dataBodyRange = null;
+            Excel.Worksheet? sheet = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
@@ -130,7 +135,8 @@ public partial class TableCommands
                     throw new InvalidOperationException($"Table '{tableName}' has no data rows");
                 }
 
-                result.SheetName = dataBodyRange.Worksheet.Name;
+                sheet = dataBodyRange.Worksheet;
+                result.SheetName = sheet.Name;
                 result.RangeAddress = dataBodyRange.Address;
                 result.Success = true;
 
@@ -138,6 +144,7 @@ public partial class TableCommands
             }
             finally
             {
+                ComUtilities.Release(ref sheet);
                 ComUtilities.Release(ref dataBodyRange);
                 ComUtilities.Release(ref column);
                 ComUtilities.Release(ref table);
@@ -148,9 +155,9 @@ public partial class TableCommands
     /// <summary>
     /// Finds a column in a table by name
     /// </summary>
-    private static dynamic? FindColumn(dynamic table, string columnName)
+    private static Excel.ListColumn? FindColumn(Excel.ListObject table, string columnName)
     {
-        dynamic? columns = null;
+        Excel.ListColumns? columns = null;
         try
         {
             columns = table.ListColumns;
@@ -158,10 +165,10 @@ public partial class TableCommands
 
             for (int i = 1; i <= count; i++)
             {
-                dynamic? col = null;
+                Excel.ListColumn? col = null;
                 try
                 {
-                    col = columns.Item(i);
+                    col = columns[i];
                     string name = col.Name?.ToString() ?? "";
 
                     if (name.Equals(columnName, StringComparison.OrdinalIgnoreCase))
@@ -195,6 +202,4 @@ internal sealed class TableColumnRangeResult : ResultBase
     public string SheetName { get; set; } = string.Empty;
     public string RangeAddress { get; set; } = string.Empty;
 }
-
-
 

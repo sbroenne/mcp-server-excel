@@ -6,7 +6,9 @@
 // =============================================================================
 
 using System.Runtime.InteropServices;
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
@@ -28,8 +30,8 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 {
     private readonly string _tempDir;
     private readonly ITestOutputHelper _output;
-    private dynamic? _excel;
-    private dynamic? _workbook;
+    private Excel.Application? _excel;
+    private Excel.Workbook? _workbook;
     private readonly string _testFile;
 
     // Simple M code that creates inline data
@@ -63,40 +65,36 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
         // Create Excel instance directly via COM
         var excelType = Type.GetTypeFromProgID("Excel.Application");
         Assert.NotNull(excelType);
-        _excel = Activator.CreateInstance(excelType);
-        Assert.NotNull((object?)_excel);
-        _excel.Visible = false;
-        _excel.DisplayAlerts = false;
-
-        // Create new workbook
-        _workbook = _excel.Workbooks.Add();
-        _workbook.SaveAs(_testFile);
-
-        _output.WriteLine($"Test file: {_testFile}");
+        try
+        {
+            _excel = (Excel.Application?)Activator.CreateInstance(excelType);
+            Assert.NotNull(_excel);
+            _excel.Visible = false;
+            _excel.DisplayAlerts = false;
+            _workbook = DiagnosticExcelObjects.AddWorkbook(_excel);
+            _workbook.SaveAs(_testFile);
+            _output.WriteLine($"Test file: {_testFile}");
+        }
+        catch (Exception failure)
+        {
+            try
+            {
+                Dispose();
+            }
+            catch (Exception cleanup)
+            {
+                throw new AggregateException(failure, cleanup);
+            }
+            throw;
+        }
     }
 
     public void Dispose()
     {
-        try
-        {
-            if (_workbook != null)
-            {
-                _workbook.Close(false);
-                ComUtilities.Release(ref _workbook);
-            }
-            if (_excel != null)
-            {
-                _excel.Quit();
-                ComUtilities.Release(ref _excel);
-            }
-        }
-        catch (Exception ex)
-        {
-            _output.WriteLine($"Cleanup error: {ex.Message}");
-        }
         GC.SuppressFinalize(this);
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
+        ExcelShutdownService.CloseAndQuit(_workbook, _excel, save: false);
+        _workbook = null;
+        _excel = null;
     }
 
     // =========================================================================
@@ -106,15 +104,15 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario1_CreateQuery_LoadToTable()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 1: Create Query → Load to Table ===");
 
         // Step 1: Add query to Queries collection
-        dynamic? queries = null;
-        dynamic? query = null;
-        dynamic? sheets = null;
-        dynamic? sheet = null;
-        dynamic? listObjects = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query = null;
+        Excel.Sheets? sheets = null;
+        Excel.Worksheet? sheet = null;
+        Excel.ListObjects? listObjects = null;
 
         try
         {
@@ -129,7 +127,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             // Check: Does adding a query automatically create a table? NO
             sheets = _workbook.Worksheets;
-            sheet = sheets[1];
+            sheet = (Excel.Worksheet)sheets[1];
             listObjects = sheet.ListObjects;
             _output.WriteLine($"ListObjects count after query add: {listObjects.Count}");
 
@@ -139,9 +137,9 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             // Step 2: To load to table, we need to create a QueryTable
             _output.WriteLine("\n--- Creating QueryTable to load data ---");
 
-            dynamic? range = null;
-            dynamic? queryTables = null;
-            dynamic? qt = null;
+            Excel.Range? range = null;
+            Excel.QueryTables? queryTables = null;
+            Excel.QueryTable? qt = null;
 
             try
             {
@@ -150,7 +148,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
                 string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location=TestQuery";
                 qt = queryTables.Add(connectionString, range);
-                qt.CommandType = 2; // xlCmdSql
+                qt.CommandType = Excel.XlCmdType.xlCmdSql; // xlCmdSql
                 qt.CommandText = "SELECT * FROM [TestQuery]";
 
                 _output.WriteLine("QueryTable created. Refreshing...");
@@ -165,7 +163,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 // Document behavior
                 if (listObjectCount > 0)
                 {
-                    dynamic? lo = listObjects[1];
+                    Excel.ListObject? lo = listObjects[1];
                     _output.WriteLine($"ListObject name: {lo?.Name}");
                     ComUtilities.Release(ref lo);
                 }
@@ -196,11 +194,11 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario2_UpdateQuery_AddColumn()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 2: Update Query → Add Column ===");
 
-        dynamic? queries = null;
-        dynamic? query = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query = null;
 
         try
         {
@@ -251,11 +249,11 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario3_UpdateQuery_RemoveColumn()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 3: Update Query → Remove Column ===");
 
-        dynamic? queries = null;
-        dynamic? query = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query = null;
 
         try
         {
@@ -295,13 +293,13 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario4_DeleteQuery_TableBehavior()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 4: Delete Query → What Happens to Table? ===");
 
-        dynamic? queries = null;
-        dynamic? query = null;
-        dynamic? sheet = null;
-        dynamic? listObjects = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query = null;
+        Excel.Worksheet? sheet = null;
+        Excel.ListObjects? listObjects = null;
 
         try
         {
@@ -309,7 +307,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             query = queries.Add("DeleteTest", SimpleQuery);
             LoadQueryToTable("DeleteTest", "A1");
 
-            sheet = _workbook.Worksheets[1];
+            sheet = DiagnosticExcelObjects.GetWorksheet(_workbook, 1);
             listObjects = sheet.ListObjects;
 
             int tableCountBefore = listObjects.Count;
@@ -319,7 +317,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             string? tableName = null;
             if (tableCountBefore > 0)
             {
-                dynamic? lo = listObjects[1];
+                Excel.ListObject? lo = listObjects[1];
                 tableName = lo.Name;
                 _output.WriteLine($"Table name: {tableName}");
                 ComUtilities.Release(ref lo);
@@ -342,11 +340,11 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             if (tableCountAfter > 0)
             {
                 _output.WriteLine("TABLE SURVIVES! Query deletion does NOT delete the table.");
-                dynamic? lo = listObjects[1];
+                Excel.ListObject? lo = listObjects[1];
                 _output.WriteLine($"Orphaned table name: {lo.Name}");
 
                 // Can we still access the data?
-                dynamic? dataRange = lo.DataBodyRange;
+                Excel.Range? dataRange = lo.DataBodyRange;
                 if (dataRange != null)
                 {
                     _output.WriteLine($"Data rows: {dataRange.Rows.Count}");
@@ -377,11 +375,11 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario5_RecreateQueryAfterDelete()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 5: Re-create Query After Delete ===");
 
-        dynamic? queries = null;
-        dynamic? query = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query = null;
 
         try
         {
@@ -427,14 +425,14 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario6_ChangeToConnectionOnly()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 6: Change Query to Connection Only ===");
 
-        dynamic? queries = null;
-        dynamic? query = null;
-        dynamic? sheet = null;
-        dynamic? listObjects = null;
-        dynamic? connections = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query = null;
+        Excel.Worksheet? sheet = null;
+        Excel.ListObjects? listObjects = null;
+        Excel.Connections? connections = null;
 
         try
         {
@@ -444,7 +442,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             // First load to table
             LoadQueryToTable("ConnOnlyTest", "A1");
 
-            sheet = _workbook.Worksheets[1];
+            sheet = DiagnosticExcelObjects.GetWorksheet(_workbook, 1);
             listObjects = sheet.ListObjects;
             _output.WriteLine($"Tables after initial load: {listObjects.Count}");
 
@@ -455,7 +453,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             // Option 1: Delete the ListObject but keep the query
             if (listObjects.Count > 0)
             {
-                dynamic? lo = listObjects[1];
+                Excel.ListObject? lo = listObjects[1];
                 string loName = lo.Name;
                 _output.WriteLine($"Deleting ListObject: {loName}");
 
@@ -478,7 +476,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic? conn = connections[i];
+                Excel.WorkbookConnection? conn = connections.Item(i);
                 _output.WriteLine($"Connection {i}: {conn.Name}, Type: {conn.Type}");
                 ComUtilities.Release(ref conn);
             }
@@ -502,7 +500,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario7_QueryWithError()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 7: Query With Error ===");
 
         const string errorQuery = """
@@ -512,8 +510,8 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 Source
             """;
 
-        dynamic? queries = null;
-        dynamic? query = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query = null;
 
         try
         {
@@ -556,12 +554,12 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario8_RefreshBehavior()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 8: Refresh Behavior ===");
 
-        dynamic? queries = null;
-        dynamic? query = null;
-        dynamic? connections = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query = null;
+        Excel.Connections? connections = null;
 
         try
         {
@@ -573,10 +571,10 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             _output.WriteLine($"Connections: {connections.Count}");
 
             // Find the connection for this query
-            dynamic? pqConnection = null;
+            Excel.WorkbookConnection? pqConnection = null;
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic? conn = connections[i];
+                Excel.WorkbookConnection? conn = connections.Item(i);
                 string connName = conn.Name;
                 if (connName.Contains("RefreshTest"))
                 {
@@ -633,13 +631,13 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario9_MultipleQueries()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 9: Multiple Queries ===");
 
-        dynamic? queries = null;
-        dynamic? query1 = null;
-        dynamic? query2 = null;
-        dynamic? query3 = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query1 = null;
+        Excel.WorkbookQuery? query2 = null;
+        Excel.WorkbookQuery? query3 = null;
 
         try
         {
@@ -690,10 +688,10 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario10_SpecialCharactersInName()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 10: Special Characters in Query Name ===");
 
-        dynamic? queries = null;
+        Excel.Queries? queries = null;
 
         try
         {
@@ -714,7 +712,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             {
                 try
                 {
-                    dynamic? q = queries.Add(name, SimpleQuery);
+                    Excel.WorkbookQuery? q = queries.Add(name, SimpleQuery);
                     _output.WriteLine($"✓ Created: '{name}'");
                     ComUtilities.Release(ref q);
                 }
@@ -741,13 +739,13 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario11_LoadToDataModel()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 11: Load to Data Model ===");
 
-        dynamic? queries = null;
-        dynamic? query = null;
-        dynamic? connections = null;
-        dynamic? model = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query = null;
+        Excel.Connections? connections = null;
+        Excel.Model? model = null;
 
         try
         {
@@ -767,7 +765,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             try
             {
                 model = _workbook.Model;
-                dynamic? modelTables = model.ModelTables;
+                Excel.ModelTables? modelTables = model.ModelTables;
                 _output.WriteLine($"Model tables before load: {modelTables.Count}");
 
                 // To load to Data Model, we typically need to:
@@ -780,7 +778,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 // Add connection with model flag
                 try
                 {
-                    dynamic? newConn = connections.Add2(
+                    Excel.WorkbookConnection? newConn = connections.Add2(
                         "Query - DataModelTest",           // Name
                         "Power Query - DataModelTest",     // Description
                         connString,                        // ConnectionString
@@ -832,14 +830,14 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario12_UnloadDataModelQuery_ConnectionNotRemoved()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 12: Unload Query Loaded to Data Model Only ===");
         _output.WriteLine("PURPOSE: Verify if Unload (removing worksheet tables) handles Data Model connections\n");
 
-        dynamic? queries = null;
-        dynamic? query = null;
-        dynamic? connections = null;
-        dynamic? model = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query = null;
+        Excel.Connections? connections = null;
+        Excel.Model? model = null;
 
         try
         {
@@ -856,7 +854,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             try
             {
-                dynamic? modelConn = connections.Add2(
+                Excel.WorkbookConnection? modelConn = connections.Add2(
                     "Query - DataModelUnloadTest",
                     "Power Query - DataModelUnloadTest",
                     connString,
@@ -877,20 +875,20 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             // Verify Data Model has the table
             model = _workbook.Model;
-            dynamic? modelTables = model.ModelTables;
+            Excel.ModelTables? modelTables = model.ModelTables;
             _output.WriteLine($"Model tables after load: {modelTables.Count}");
             ComUtilities.Release(ref modelTables);
 
             // Verify no ListObjects (worksheet tables)
-            dynamic? sheet = _workbook.Worksheets[1];
-            dynamic? listObjects = sheet.ListObjects;
+            Excel.Worksheet? sheet = DiagnosticExcelObjects.GetWorksheet(_workbook, 1);
+            Excel.ListObjects? listObjects = sheet.ListObjects;
             _output.WriteLine($"Worksheet tables (ListObjects): {listObjects.Count}");
             ComUtilities.Release(ref listObjects);
             ComUtilities.Release(ref sheet);
 
             // Now simulate what our Unload method does: iterate ListObjects and delete them
             _output.WriteLine("\n--- Simulating Unload (only checks ListObjects) ---");
-            sheet = _workbook.Worksheets[1];
+            sheet = DiagnosticExcelObjects.GetWorksheet(_workbook, 1);
             listObjects = sheet.ListObjects;
             int tablesToDelete = 0;
 
@@ -914,7 +912,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             bool modelConnectionExists = false;
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic? conn = connections[i];
+                Excel.WorkbookConnection? conn = connections.Item(i);
                 string connName = conn.Name;
                 if (connName.Contains("DataModelUnloadTest"))
                 {
@@ -955,16 +953,16 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario13_UnloadBothDestinations_OnlyTableRemoved()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 13: Unload Query Loaded to BOTH Worksheet AND Data Model ===");
         _output.WriteLine("PURPOSE: Verify Unload behavior when query is loaded to both destinations\n");
 
-        dynamic? queries = null;
-        dynamic? query = null;
-        dynamic? connections = null;
-        dynamic? model = null;
-        dynamic? sheet = null;
-        dynamic? listObjects = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query = null;
+        Excel.Connections? connections = null;
+        Excel.Model? model = null;
+        Excel.Worksheet? sheet = null;
+        Excel.ListObjects? listObjects = null;
 
         try
         {
@@ -976,7 +974,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             _output.WriteLine("\n--- Step 1: Load to worksheet ---");
             LoadQueryToTable("BothDestTest", "A1");
 
-            sheet = _workbook.Worksheets[1];
+            sheet = DiagnosticExcelObjects.GetWorksheet(_workbook, 1);
             listObjects = sheet.ListObjects;
             _output.WriteLine($"Worksheet tables after load: {listObjects.Count}");
             ComUtilities.Release(ref listObjects);
@@ -989,7 +987,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             try
             {
-                dynamic? modelConn = connections.Add2(
+                Excel.WorkbookConnection? modelConn = connections.Add2(
                     "Query - BothDestTest - Model",  // Different name to avoid conflict
                     "Power Query Model Connection",
                     connString,
@@ -1008,18 +1006,18 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             }
 
             model = _workbook.Model;
-            dynamic? modelTables = model.ModelTables;
+            Excel.ModelTables? modelTables = model.ModelTables;
             _output.WriteLine($"Model tables: {modelTables.Count}");
             ComUtilities.Release(ref modelTables);
 
             // Step 3: Simulate Unload - remove worksheet table
             _output.WriteLine("\n--- Step 3: Simulating Unload (removing worksheet table) ---");
-            sheet = _workbook.Worksheets[1];
+            sheet = DiagnosticExcelObjects.GetWorksheet(_workbook, 1);
             listObjects = sheet.ListObjects;
 
             if (listObjects.Count > 0)
             {
-                dynamic? lo = listObjects[1];
+                Excel.ListObject? lo = listObjects[1];
                 string tableName = lo.Name;
                 _output.WriteLine($"Unlisting table: {tableName}");
                 lo.Unlist();
@@ -1040,7 +1038,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             int modelConnectionCount = 0;
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic? conn = connections[i];
+                Excel.WorkbookConnection? conn = connections.Item(i);
                 string connName = conn.Name;
                 if (connName.Contains("BothDestTest"))
                 {
@@ -1090,17 +1088,17 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario14_ProperConnectionOnlyImplementation()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 14: How to Properly Make a Query Connection-Only ===");
         _output.WriteLine("PURPOSE: Document the CORRECT way to make a query connection-only\n");
 
-        dynamic? queries = null;
-        dynamic? query = null;
-        dynamic? connections = null;
-        dynamic? model = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query = null;
+        Excel.Connections? connections = null;
+        Excel.Model? model = null;
 #pragma warning disable IDE0059 // Unnecessary assignment - required for COM object lifecycle management
-        dynamic? sheet = null;
-        dynamic? listObjects = null;
+        Excel.Worksheet? sheet = null;
+        Excel.ListObjects? listObjects = null;
 #pragma warning restore IDE0059
 
         try
@@ -1117,7 +1115,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             try
             {
-                dynamic? modelConn = connections.Add2(
+                Excel.WorkbookConnection? modelConn = connections.Add2(
                     "Query - FullUnloadTest - Model",
                     "Power Query Model Connection",
                     connString,
@@ -1132,10 +1130,10 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 _output.WriteLine($"Model connection creation failed: {ex.Message}");
             }
 
-            sheet = _workbook.Worksheets[1];
+            sheet = DiagnosticExcelObjects.GetWorksheet(_workbook, 1);
             listObjects = sheet.ListObjects;
             model = _workbook.Model;
-            dynamic? modelTables = model.ModelTables;
+            Excel.ModelTables? modelTables = model.ModelTables;
 
             _output.WriteLine($"Initial state - Worksheet tables: {listObjects.Count}, Model tables: {modelTables.Count}");
             ComUtilities.Release(ref modelTables);
@@ -1147,16 +1145,16 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             // Step 1: Remove worksheet tables (ListObjects)
             _output.WriteLine("Step 1: Remove worksheet tables");
-            sheet = _workbook.Worksheets[1];
+            sheet = DiagnosticExcelObjects.GetWorksheet(_workbook, 1);
             listObjects = sheet.ListObjects;
             for (int i = listObjects.Count; i >= 1; i--)
             {
-                dynamic? lo = listObjects[i];
-                dynamic? qt = lo.QueryTable;
+                Excel.ListObject? lo = listObjects[i];
+                Excel.QueryTable? qt = lo.QueryTable;
                 if (qt != null)
                 {
                     string? connName = null;
-                    try { connName = qt.Connection?.ToString(); } catch (COMException) { /* Connection property may not exist */ }
+                    try { connName = ((object?)qt.Connection)?.ToString(); } catch (COMException) { /* Connection property may not exist */ }
                     if (connName?.Contains("FullUnloadTest") == true)
                     {
                         _output.WriteLine($"  Unlisting table: {lo.Name}");
@@ -1178,7 +1176,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             var connectionsToDelete = new List<string>();
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic? conn = connections[i];
+                Excel.WorkbookConnection? conn = connections.Item(i);
                 string connName = conn.Name;
                 if (connName.Contains("FullUnloadTest"))
                 {
@@ -1191,7 +1189,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             {
                 try
                 {
-                    dynamic? conn = connections[connName];
+                    Excel.WorkbookConnection? conn = connections.Item(connName);
                     _output.WriteLine($"  Deleting connection: {connName}");
                     conn.Delete();
                     ComUtilities.Release(ref conn);
@@ -1204,7 +1202,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             // Verify final state
             _output.WriteLine("\n--- Final State (should be connection-only) ---");
-            sheet = _workbook.Worksheets[1];
+            sheet = DiagnosticExcelObjects.GetWorksheet(_workbook, 1);
             listObjects = sheet.ListObjects;
             _output.WriteLine($"Worksheet tables: {listObjects.Count}");
 
@@ -1213,7 +1211,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             int remainingPQConnections = 0;
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic? conn = connections[i];
+                Excel.WorkbookConnection? conn = connections.Item(i);
                 if (((string)conn.Name).Contains("FullUnloadTest"))
                 {
                     remainingPQConnections++;
@@ -1261,14 +1259,14 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario15_UpdateDataModelOnlyQuery()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 15: Update Query Loaded ONLY to Data Model ===");
         _output.WriteLine("PURPOSE: Test if Update works for Data Model-only queries (no worksheet table)\n");
 
-        dynamic? queries = null;
-        dynamic? query = null;
-        dynamic? connections = null;
-        dynamic? model = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query = null;
+        Excel.Connections? connections = null;
+        Excel.Model? model = null;
 
         try
         {
@@ -1281,7 +1279,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             connections = _workbook.Connections;
             string connString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location=DataModelUpdateTest";
 
-            dynamic? modelConn = null;
+            Excel.WorkbookConnection? modelConn = null;
             try
             {
                 modelConn = connections.Add2(
@@ -1304,14 +1302,14 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             // Verify initial state - Data Model has data
             model = _workbook.Model;
-            dynamic? modelTables = model.ModelTables;
+            Excel.ModelTables? modelTables = model.ModelTables;
             int initialModelTableCount = modelTables.Count;
             _output.WriteLine($"Model tables after initial load: {initialModelTableCount}");
             ComUtilities.Release(ref modelTables);
 
             // Verify NO worksheet tables
-            dynamic? sheet = _workbook.Worksheets[1];
-            dynamic? listObjects = sheet.ListObjects;
+            Excel.Worksheet? sheet = DiagnosticExcelObjects.GetWorksheet(_workbook, 1);
+            Excel.ListObjects? listObjects = sheet.ListObjects;
             _output.WriteLine($"Worksheet tables (should be 0): {listObjects.Count}");
             Assert.Equal(0, (int)listObjects.Count);
             ComUtilities.Release(ref listObjects);
@@ -1344,7 +1342,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             connections = _workbook.Connections;
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic? conn = connections[i];
+                Excel.WorkbookConnection? conn = connections.Item(i);
                 if (((string)conn.Name).Contains("DataModelUpdateTest"))
                 {
                     connectionExists = true;
@@ -1364,7 +1362,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 bool refreshed = false;
                 for (int i = 1; i <= connections.Count; i++)
                 {
-                    dynamic? conn = connections[i];
+                    Excel.WorkbookConnection? conn = connections.Item(i);
                     string connName = conn.Name;
                     if (connName.Contains("DataModelUpdateTest"))
                     {
@@ -1398,11 +1396,11 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             bool foundExtraColumn = false;
             for (int i = 1; i <= modelTables.Count; i++)
             {
-                dynamic? mt = null;
-                dynamic? cols = null;
+                Excel.ModelTable? mt = null;
+                Excel.ModelTableColumns? cols = null;
                 try
                 {
-                    mt = modelTables[i];
+                    mt = modelTables.Item(i);
                     string tableName = mt.Name;
                     _output.WriteLine($"Model table {i}: '{tableName}'");
 
@@ -1412,7 +1410,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                     // List ALL column names
                     for (int c = 1; c <= cols.Count; c++)
                     {
-                        dynamic? col = cols[c];
+                        Excel.ModelTableColumn? col = cols.Item(c);
                         string colName = col.Name?.ToString() ?? "(null)";
                         _output.WriteLine($"    Column {c}: {colName}");
                         if (colName == "Extra")
@@ -1464,13 +1462,13 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario16_RenameQuery()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 12: Rename Query ===");
 
-        dynamic? queries = null;
-        dynamic? query = null;
-        dynamic? sheet = null;
-        dynamic? listObjects = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query = null;
+        Excel.Worksheet? sheet = null;
+        Excel.ListObjects? listObjects = null;
 
         try
         {
@@ -1478,13 +1476,13 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             query = queries.Add("OriginalName", SimpleQuery);
             LoadQueryToTable("OriginalName", "A1");
 
-            sheet = _workbook.Worksheets[1];
+            sheet = DiagnosticExcelObjects.GetWorksheet(_workbook, 1);
             listObjects = sheet.ListObjects;
 
             string? tableNameBefore = null;
             if (listObjects.Count > 0)
             {
-                dynamic? lo = listObjects[1];
+                Excel.ListObject? lo = listObjects[1];
                 tableNameBefore = lo.Name;
                 _output.WriteLine($"Table name before rename: {tableNameBefore}");
                 ComUtilities.Release(ref lo);
@@ -1500,7 +1498,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             listObjects = sheet.ListObjects;
             if (listObjects.Count > 0)
             {
-                dynamic? lo = listObjects[1];
+                Excel.ListObject? lo = listObjects[1];
                 string tableNameAfter = lo.Name;
                 _output.WriteLine($"Table name after rename: {tableNameAfter}");
 
@@ -1544,16 +1542,16 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
     private void LoadQueryToTable(string queryName, string startCell)
     {
-        Assert.NotNull((object?)_workbook);
-        dynamic? sheet = null;
-        dynamic? range = null;
-        dynamic? listObjects = null;
-        dynamic? listObject = null;
-        dynamic? queryTable = null;
+        Assert.NotNull(_workbook);
+        Excel.Worksheet? sheet = null;
+        Excel.Range? range = null;
+        Excel.ListObjects? listObjects = null;
+        Excel.ListObject? listObject = null;
+        Excel.QueryTable? queryTable = null;
 
         try
         {
-            sheet = _workbook.Worksheets[1];
+            sheet = DiagnosticExcelObjects.GetWorksheet(_workbook, 1);
             range = sheet.Range[startCell];
             listObjects = sheet.ListObjects;
 
@@ -1563,13 +1561,13 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 0,                  // SourceType: 0 = xlSrcExternal
                 connectionString,   // Source: connection string
                 Type.Missing,       // LinkSource
-                1,                  // XlListObjectHasHeaders: xlYes
+                Excel.XlYesNoGuess.xlYes,                  // XlListObjectHasHeaders: xlYes
                 range               // Destination: starting cell
             );
 
             // Configure the QueryTable behind the ListObject
             queryTable = listObject.QueryTable;
-            queryTable.CommandType = 2; // xlCmdSql
+            queryTable.CommandType = Excel.XlCmdType.xlCmdSql; // xlCmdSql
             queryTable.CommandText = $"SELECT * FROM [{queryName}]";
             queryTable.BackgroundQuery = false; // Synchronous
             queryTable.Refresh(false); // Synchronous
@@ -1590,15 +1588,15 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     /// </summary>
     private void RefreshFirstTable()
     {
-        Assert.NotNull((object?)_workbook);
-        dynamic? sheet = null;
-        dynamic? listObjects = null;
-        dynamic? listObject = null;
-        dynamic? queryTable = null;
+        Assert.NotNull(_workbook);
+        Excel.Worksheet? sheet = null;
+        Excel.ListObjects? listObjects = null;
+        Excel.ListObject? listObject = null;
+        Excel.QueryTable? queryTable = null;
 
         try
         {
-            sheet = _workbook.Worksheets[1];
+            sheet = DiagnosticExcelObjects.GetWorksheet(_workbook, 1);
             listObjects = sheet.ListObjects;
 
             if (listObjects.Count == 0)
@@ -1628,20 +1626,20 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario17_UseAdd2ForWorksheetLoading()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 17: Use Add2 for Worksheet Loading ===");
         _output.WriteLine("PURPOSE: Test if we can use Connections.Add2 with CreateModelConnection=false");
         _output.WriteLine("         and then create a ListObject that uses that named connection\n");
 
-        dynamic? queries = null;
-        dynamic? query = null;
-        dynamic? connections = null;
-        dynamic? connection = null;
-        dynamic? sheet = null;
-        dynamic? listObjects = null;
-        dynamic? listObject = null;
-        dynamic? queryTable = null;
-        dynamic? range = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query = null;
+        Excel.Connections? connections = null;
+        Excel.WorkbookConnection? connection = null;
+        Excel.Worksheet? sheet = null;
+        Excel.ListObjects? listObjects = null;
+        Excel.ListObject? listObject = null;
+        Excel.QueryTable? queryTable = null;
+        Excel.Range? range = null;
 
         try
         {
@@ -1668,7 +1666,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             // Step 3: Try to create ListObject using this connection
             _output.WriteLine("\n--- Step 3: Create ListObject using the named connection ---");
-            sheet = _workbook.Worksheets[1];
+            sheet = DiagnosticExcelObjects.GetWorksheet(_workbook, 1);
             range = sheet.Range["A1"];
             listObjects = sheet.ListObjects;
 
@@ -1680,7 +1678,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                     0,                              // SourceType: 0 = xlSrcExternal
                     connection,                     // Source: try passing connection object
                     Type.Missing,                   // LinkSource
-                    1,                              // XlListObjectHasHeaders: xlYes
+                    Excel.XlYesNoGuess.xlYes,                              // XlListObjectHasHeaders: xlYes
                     range                           // Destination
                 );
                 _output.WriteLine("ListObjects.Add with connection object SUCCEEDED!");
@@ -1699,7 +1697,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                         0,                          // SourceType: 0 = xlSrcExternal
                         fullConnString,             // Source: connection string
                         Type.Missing,               // LinkSource
-                        1,                          // XlListObjectHasHeaders: xlYes
+                        Excel.XlYesNoGuess.xlYes,                          // XlListObjectHasHeaders: xlYes
                         range                       // Destination
                     );
                     _output.WriteLine("ListObjects.Add with connection string SUCCEEDED!");
@@ -1714,7 +1712,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             {
                 // Configure and refresh
                 queryTable = listObject.QueryTable;
-                queryTable.CommandType = 2;
+                queryTable.CommandType = Excel.XlCmdType.xlCmdSql;
                 queryTable.CommandText = "SELECT * FROM [Add2WorksheetTest]";
                 queryTable.BackgroundQuery = false;
 
@@ -1728,7 +1726,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 _output.WriteLine($"\nConnections after ListObjects.Add:");
                 for (int i = 1; i <= connections.Count; i++)
                 {
-                    dynamic? conn = connections[i];
+                    Excel.WorkbookConnection? conn = connections.Item(i);
                     _output.WriteLine($"  Connection {i}: '{conn.Name}' (Type: {conn.Type})");
                     ComUtilities.Release(ref conn);
                 }
@@ -1774,7 +1772,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario18_ListVsView_ConnectionOnlyQuery()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 18: List vs View on Connection-Only Query ===");
         _output.WriteLine("PURPOSE: Investigate why List works but View fails with 0x800A03EC\n");
 
@@ -1793,9 +1791,9 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 AddColumn
             """;
 
-        dynamic? queries = null;
-        dynamic? query = null;
-        dynamic? worksheets = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query = null;
+        Excel.Sheets? worksheets = null;
 
         try
         {
@@ -1813,14 +1811,14 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             for (int i = 1; i <= queries.Count; i++)
             {
-                dynamic? q = null;
+                Excel.WorkbookQuery? q = null;
                 try
                 {
                     _output.WriteLine($"Query {i}:");
 
-                    // Test accessing queries[i] - like List does
+                    // Test accessing queries.Item(i) - like List does
                     _output.WriteLine($"  Calling queries.Item({i})...");
-                    q = queries[i];
+                    q = queries.Item(i);
                     _output.WriteLine($"  SUCCESS: queries.Item({i}) worked");
 
                     // Test accessing Name property
@@ -1857,17 +1855,17 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             _output.WriteLine("Simulating View() operations...\n");
 
             // View does the same query lookup, but then also iterates worksheets
-            dynamic? foundQuery = null;
+            Excel.WorkbookQuery? foundQuery = null;
             try
             {
                 // Find query by name (same as View)
                 _output.WriteLine("Finding query by name 'ComplexConnectionOnly'...");
                 for (int i = 1; i <= queries.Count; i++)
                 {
-                    dynamic? q = null;
+                    Excel.WorkbookQuery? q = null;
                     try
                     {
-                        q = queries[i];
+                        q = queries.Item(i);
                         string qName = q.Name?.ToString() ?? "";
                         if (qName.Equals("ComplexConnectionOnly", StringComparison.OrdinalIgnoreCase))
                         {
@@ -1908,14 +1906,14 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
                     for (int ws = 1; ws <= worksheets.Count; ws++)
                     {
-                        dynamic? worksheet = null;
-                        dynamic? queryTables = null;
-                        dynamic? listObjects = null;
+                        Excel.Worksheet? worksheet = null;
+                        Excel.QueryTables? queryTables = null;
+                        Excel.ListObjects? listObjects = null;
 
                         try
                         {
                             _output.WriteLine($"\n  Worksheet {ws}:");
-                            worksheet = worksheets[ws];
+                            worksheet = (Excel.Worksheet)worksheets[ws];
                             _output.WriteLine($"    Name: {worksheet.Name}");
 
                             // Check QueryTables
@@ -1927,9 +1925,9 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
                                 for (int qt = 1; qt <= queryTables.Count; qt++)
                                 {
-                                    dynamic? qTable = null;
-                                    dynamic? wbConn = null;
-                                    dynamic? oledbConn = null;
+                                    Excel.QueryTable? qTable = null;
+                                    Excel.WorkbookConnection? wbConn = null;
+                                    Excel.OLEDBConnection? oledbConn = null;
                                     try
                                     {
                                         _output.WriteLine($"      QueryTable {qt}:");
@@ -1954,7 +1952,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                                         _output.WriteLine($"        SUCCESS: OLEDBConnection accessed");
 
                                         _output.WriteLine($"        Accessing Connection string...");
-                                        string connString = oledbConn.Connection?.ToString() ?? "";
+                                        string connString = ((object?)oledbConn.Connection)?.ToString() ?? "";
                                         _output.WriteLine($"        SUCCESS: Connection string length = {connString.Length}");
                                     }
                                     catch (COMException ex)
@@ -1983,8 +1981,8 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
                                 for (int lo = 1; lo <= listObjects.Count; lo++)
                                 {
-                                    dynamic? listObj = null;
-                                    dynamic? loQueryTable = null;
+                                    Excel.ListObject? listObj = null;
+                                    Excel.QueryTable? loQueryTable = null;
 
                                     try
                                     {
@@ -2063,7 +2061,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario19_QueryWithDependencies()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 19: Query with Dependencies ===");
         _output.WriteLine("PURPOSE: Test View/Update on queries that reference other queries\n");
 
@@ -2084,9 +2082,9 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
                 AddValue
             """;
 
-        dynamic? queries = null;
-        dynamic? baseQ = null;
-        dynamic? depQ = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? baseQ = null;
+        Excel.WorkbookQuery? depQ = null;
 
         try
         {
@@ -2110,10 +2108,10 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
 
             for (int i = 1; i <= queries.Count; i++)
             {
-                dynamic? q = null;
+                Excel.WorkbookQuery? q = null;
                 try
                 {
-                    q = queries[i];
+                    q = queries.Item(i);
                     string name = q.Name?.ToString() ?? "";
                     _output.WriteLine($"\nQuery: {name}");
 
@@ -2167,15 +2165,15 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     [Fact]
     public void Scenario20_ListObjectQueryTableAccess_OnRegularTable()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 20: ListObject.QueryTable Access on Regular Tables ===");
         _output.WriteLine("PURPOSE: Determine if accessing QueryTable on a non-query ListObject throws\n");
 
-        dynamic? sheets = null;
-        dynamic? sheet = null;
-        dynamic? range = null;
-        dynamic? listObjects = null;
-        dynamic? listObject = null;
+        Excel.Sheets? sheets = null;
+        Excel.Worksheet? sheet = null;
+        Excel.Range? range = null;
+        Excel.ListObjects? listObjects = null;
+        Excel.ListObject? listObject = null;
 
         try
         {
@@ -2187,17 +2185,19 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             _output.WriteLine($"Created test sheet: {sheetName}");
 
             // Add some data
-            sheet.Range["A1"].Value2 = "Header1";
-            sheet.Range["B1"].Value2 = "Header2";
-            sheet.Range["A2"].Value2 = "Value1";
-            sheet.Range["B2"].Value2 = "Value2";
+            range = sheet.Range["A1:B2"];
+            range.Value2 = new object[,]
+            {
+                { "Header1", "Header2" },
+                { "Value1", "Value2" }
+            };
 
             // Create a ListObject from range (regular table, NOT from external data)
-            range = sheet.Range["A1:B2"];
             listObjects = sheet.ListObjects;
 
             // xlSrcRange = 1 (create from range data)
-            listObject = listObjects.Add(1, range, Type.Missing, 1, Type.Missing);
+            listObject = listObjects.Add(Excel.XlListObjectSourceType.xlSrcRange, range,
+                Type.Missing, Excel.XlYesNoGuess.xlYes, Type.Missing);
             string tableName = listObject.Name;
             _output.WriteLine($"Created regular table: {tableName}");
 
@@ -2205,7 +2205,7 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
             _output.WriteLine("\n--- Testing ListObject.QueryTable access ---");
             _output.WriteLine("Attempting to access listObject.QueryTable on regular table...");
 
-            dynamic? queryTable = null;
+            Excel.QueryTable? queryTable = null;
             try
             {
                 queryTable = listObject.QueryTable;
@@ -2253,15 +2253,15 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
     /// </summary>
     private int GetFirstTableColumnCount()
     {
-        Assert.NotNull((object?)_workbook);
-        dynamic? sheet = null;
-        dynamic? listObjects = null;
-        dynamic? listObject = null;
-        dynamic? columns = null;
+        Assert.NotNull(_workbook);
+        Excel.Worksheet? sheet = null;
+        Excel.ListObjects? listObjects = null;
+        Excel.ListObject? listObject = null;
+        Excel.ListColumns? columns = null;
 
         try
         {
-            sheet = _workbook.Worksheets[1];
+            sheet = DiagnosticExcelObjects.GetWorksheet(_workbook, 1);
             listObjects = sheet.ListObjects;
 
             if (listObjects.Count == 0)
@@ -2282,6 +2282,4 @@ public class PowerQueryComApiBehaviorTests : IClassFixture<TempDirectoryFixture>
         }
     }
 }
-
-
 

@@ -35,7 +35,7 @@ public partial class ChartCommands
         {
             Excel.Points? points = null;
             Excel.Point? point = null;
-            dynamic? format = null;
+            Excel.ChartFormat? format = null;
             try
             {
                 points = (Excel.Points)series.Points();
@@ -51,7 +51,6 @@ public partial class ChartCommands
                 if (markers && options?.LineWeight != null)
                     throw new NotSupportedException("Per-point marker outline weight is not supported. Omit lineWeight for line/scatter/radar points.");
                 point = points.Item(pointIndex);
-                // PIA gap: chart material fill/line objects require unavailable Office.Core types.
                 format = point.Format;
                 if (options != null)
                 {
@@ -79,15 +78,14 @@ public partial class ChartCommands
     }
 
     private static ChartPointFormatResult ReadPointMaterial(
-        IExcelBatch batch, string name, int seriesIndex, int pointIndex, Excel.Point point, dynamic format, bool markers)
+        IExcelBatch batch, string name, int seriesIndex, int pointIndex, Excel.Point point, Excel.ChartFormat format, bool markers)
     {
-        dynamic? fill = null;
-        dynamic? fillColor = null;
-        dynamic? line = null;
-        dynamic? lineColor = null;
+        Excel.FillFormat? fill = null;
+        Excel.ColorFormat? fillColor = null;
+        Excel.LineFormat? line = null;
+        Excel.ColorFormat? lineColor = null;
         try
         {
-            // PIA gap: Office.Core fill/line/color getters need late binding.
             fill = format.Fill;
             fillColor = fill.ForeColor;
             line = format.Line;

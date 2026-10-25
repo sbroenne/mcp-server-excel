@@ -1,7 +1,9 @@
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.Core.Commands;
+using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
 
@@ -13,10 +15,12 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Commands.Connection;
 public sealed class ConnectionRefreshWaitTests
 {
     [Fact]
-    public void OlapCapability_DynamicNumericConnectionType_IsConverted()
+    public void OlapCapability_OdbcConnection_DoesNotReadOleDbMetadata()
     {
-        dynamic connection = new System.Dynamic.ExpandoObject();
-        connection.Type = 2d;
+        var connection = ExcelInterfaceProxy.Create<Excel.WorkbookConnection>((member, _) =>
+            member.Name == "get_Type"
+                ? Enum.ToObject(member.ReturnType, (int)Excel.XlConnectionType.xlConnectionTypeODBC)
+                : throw new InvalidOperationException($"Unexpected connection read: {member.Name}"));
         var method = typeof(ConnectionCommands).GetMethod("IsOlapConnection", BindingFlags.NonPublic | BindingFlags.Static);
         Assert.NotNull(method);
         Assert.False(Assert.IsType<bool>(method.Invoke(null, [(object)connection])));

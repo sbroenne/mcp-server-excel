@@ -26,7 +26,7 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? range = null;
+            Excel.Range? range = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -42,10 +42,10 @@ public partial class RangeCommands
                 // - Single cell: returns string
                 // - Multiple cells, all same format: returns string
                 // - Multiple cells, mixed formats: returns DBNull (must read cell-by-cell)
-                object numberFormats = ((Excel.Range)range).NumberFormat;
+                object numberFormats = range.NumberFormat;
 
                 // Get dimensions
-                (int rowCount, int columnCount) = RangeHelpers.GetDimensions((Excel.Range)range);
+                (int rowCount, int columnCount) = RangeHelpers.GetDimensions(range);
 
                 result.RowCount = rowCount;
                 result.ColumnCount = columnCount;
@@ -54,7 +54,7 @@ public partial class RangeCommands
                 if (numberFormats is null or DBNull)
                 {
                     // Mixed formats - must read cell-by-cell
-                    dynamic? cells = null;
+                    Excel.Range? cells = null;
                     try
                     {
                         cells = range.Cells;
@@ -63,11 +63,12 @@ public partial class RangeCommands
                             var rowList = new List<string>();
                             for (int col = 1; col <= columnCount; col++)
                             {
-                                dynamic? cell = null;
+                                Excel.Range? cell = null;
                                 try
                                 {
-                                    cell = cells[row, col];
-                                    var format = ((Excel.Range)cell).NumberFormat?.ToString() ?? "General";
+                                    cell = (Excel.Range)cells[row, col];
+                                    object? numberFormat = cell.NumberFormat;
+                                    string format = numberFormat?.ToString() ?? "General";
                                     rowList.Add(format);
                                 }
                                 finally
@@ -133,7 +134,7 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? range = null;
+            Excel.Range? range = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -142,7 +143,7 @@ public partial class RangeCommands
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
-                ((Excel.Range)range).NumberFormatLocal = ctx.FormatTranslator.TranslateToLocale(formatCode);
+                range.NumberFormatLocal = ctx.FormatTranslator.TranslateToLocale(formatCode);
 
                 result.Success = true;
                 return result;
@@ -168,7 +169,8 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? range = null;
+            Excel.Range? range = null;
+            Excel.Range? cells = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -177,7 +179,7 @@ public partial class RangeCommands
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
-                (int rowCount, int columnCount) = RangeHelpers.GetDimensions((Excel.Range)range);
+                (int rowCount, int columnCount) = RangeHelpers.GetDimensions(range);
 
                 // Validate dimensions match
                 if (resolvedFormats.Count != rowCount)
@@ -196,15 +198,16 @@ public partial class RangeCommands
                 // If single row or column, can't use 2D array - must set cell by cell
                 if (rowCount == 1 || columnCount == 1)
                 {
+                    cells = range.Cells;
                     for (int row = 1; row <= rowCount; row++)
                     {
                         for (int col = 1; col <= columnCount; col++)
                         {
-                            dynamic? cell = null;
+                            Excel.Range? cell = null;
                             try
                             {
-                                cell = range.Cells[row, col];
-                                ((Excel.Range)cell).NumberFormatLocal = ctx.FormatTranslator.TranslateToLocale(resolvedFormats[row - 1][col - 1]);
+                                cell = (Excel.Range)cells[row, col];
+                                cell.NumberFormatLocal = ctx.FormatTranslator.TranslateToLocale(resolvedFormats[row - 1][col - 1]);
                             }
                             finally
                             {
@@ -226,7 +229,7 @@ public partial class RangeCommands
                     }
 
                     // Set number formats via 2D array
-                    ((Excel.Range)range).NumberFormatLocal = formatArray;
+                    range.NumberFormatLocal = formatArray;
                 }
 
                 result.Success = true;
@@ -234,6 +237,7 @@ public partial class RangeCommands
             }
             finally
             {
+                ComUtilities.Release(ref cells);
                 ComUtilities.Release(ref range);
             }
         });

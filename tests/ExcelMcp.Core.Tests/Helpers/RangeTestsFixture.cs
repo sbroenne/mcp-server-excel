@@ -68,10 +68,23 @@ public class RangeTestsFixture : IAsyncLifetime
 
         batch.Execute((ctx, ct) =>
         {
-            dynamic sheets = ctx.Book.Worksheets;
-            dynamic newSheet = sheets.Add(After: sheets.Item(sheets.Count));
-            newSheet.Name = sheetName;
-            return 0;
+            Microsoft.Office.Interop.Excel.Sheets? sheets = null;
+            Microsoft.Office.Interop.Excel.Worksheet? last = null;
+            Microsoft.Office.Interop.Excel.Worksheet? newSheet = null;
+            try
+            {
+                sheets = ctx.Book.Worksheets;
+                last = (Microsoft.Office.Interop.Excel.Worksheet)sheets[sheets.Count];
+                newSheet = (Microsoft.Office.Interop.Excel.Worksheet)sheets.Add(After: last);
+                newSheet.Name = sheetName;
+                return 0;
+            }
+            finally
+            {
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref newSheet);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref last);
+                Sbroenne.ExcelMcp.ComInterop.ComUtilities.Release(ref sheets);
+            }
         });
 
         return sheetName;
@@ -159,5 +172,4 @@ public class FixtureCreationResult
     /// <summary>Error message if creation failed</summary>
     public string? ErrorMessage { get; set; }
 }
-
 

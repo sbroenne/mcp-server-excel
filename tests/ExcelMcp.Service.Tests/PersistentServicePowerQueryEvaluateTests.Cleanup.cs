@@ -108,7 +108,7 @@ public sealed partial class PersistentServicePowerQueryEvaluateTests
                         if (connection.Type == Excel.XlConnectionType.xlConnectionTypeOLEDB)
                         {
                             oledb = connection.OLEDBConnection;
-                            source = Convert.ToString(oledb.Connection, CultureInfo.InvariantCulture) ?? "";
+                            source = Convert.ToString(((object)oledb.Connection), CultureInfo.InvariantCulture) ?? "";
                             Assert.False(oledb.Refreshing);
                         }
                         artifacts.Add(["connection", connection.Name, connection.Type.ToString(),

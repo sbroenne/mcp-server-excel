@@ -181,6 +181,8 @@ public sealed class ExcelBatchFailurePreservationTests : IDisposable
                     throw Failure ?? new InvalidOperationException("The visibility failure was not configured.");
                 case "get_ScreenUpdating":
                     return Application!.ScreenUpdating;
+                case "get_Workbooks":
+                    return Application!.Workbooks;
                 case "set_ScreenUpdating":
                     Application!.ScreenUpdating = (bool)args![0]!;
                     return null;

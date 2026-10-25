@@ -26,7 +26,7 @@ public sealed class ExcelFormulaCapabilitiesTests : IClassFixture<TempDirectoryF
         var batch = manager.GetSession(sessionId);
         Assert.NotNull(batch);
 
-        batch.Execute((ctx, ct) =>
+        var failure = Record.Exception(() => batch.Execute((ctx, ct) =>
         {
             Excel.Sheets? sheets = null;
             Excel.Worksheet? sheet = null;
@@ -46,8 +46,8 @@ public sealed class ExcelFormulaCapabilitiesTests : IClassFixture<TempDirectoryF
                 bool supported = capabilities.SupportsFormula2;
                 Assert.Equal(supported, capabilities.SupportsFormula2);
 
-                Assert.Equal("=1+2", cell.Formula);
-                Assert.Equal(3.0, Convert.ToDouble(cell.Value2));
+                Assert.Equal("=1+2", (object?)cell.Formula);
+                Assert.Equal(3.0, Convert.ToDouble((object?)cell.Value2, System.Globalization.CultureInfo.InvariantCulture));
                 Assert.True(sheet.ProtectContents);
                 Assert.Equal(saved, ctx.Book.Saved);
                 Assert.Equal(calculation, ctx.App.Calculation);
@@ -59,7 +59,8 @@ public sealed class ExcelFormulaCapabilitiesTests : IClassFixture<TempDirectoryF
                 ComUtilities.Release(ref sheet);
                 ComUtilities.Release(ref sheets);
             }
-        });
+        }));
+        CloseSessionAndThrowFailure(manager, sessionId, failure);
     }
 
     [Fact]
@@ -69,21 +70,36 @@ public sealed class ExcelFormulaCapabilitiesTests : IClassFixture<TempDirectoryF
         var sessionId = manager.CreateSessionForNewFile(_fixture.CreateFilePath(), show: false);
         var batch = manager.GetSession(sessionId);
         Assert.NotNull(batch);
-        var capabilities = batch.Execute((ctx, ct) =>
+        var failure = Record.Exception(() =>
         {
-            _ = ctx.Capabilities.SupportsFormula2;
-            return ctx.Capabilities;
-        });
+            var capabilities = batch.Execute((ctx, ct) =>
+            {
+                _ = ctx.Capabilities.SupportsFormula2;
+                return ctx.Capabilities;
+            });
 
-        string targetPath = _fixture.CreateFilePath();
-        batch.Execute((ctx, ct) => ctx.Book.SaveAs(targetPath));
-        batch.UpdateWorkbookPath(targetPath);
+            string targetPath = _fixture.CreateFilePath();
+            batch.Execute((ctx, ct) => ctx.Book.SaveAs(targetPath));
+            batch.UpdateWorkbookPath(targetPath);
 
-        batch.Execute((ctx, ct) =>
-        {
-            Assert.Equal(targetPath, ctx.WorkbookPath);
-            Assert.Same(capabilities, ctx.Capabilities);
-            Assert.Equal(capabilities.SupportsFormula2, ctx.Capabilities.SupportsFormula2);
+            batch.Execute((ctx, ct) =>
+            {
+                Assert.Equal(targetPath, ctx.WorkbookPath);
+                Assert.Same(capabilities, ctx.Capabilities);
+                Assert.Equal(capabilities.SupportsFormula2, ctx.Capabilities.SupportsFormula2);
+            });
         });
+        CloseSessionAndThrowFailure(manager, sessionId, failure);
+    }
+
+    private static void CloseSessionAndThrowFailure(SessionManager manager, string sessionId, Exception? failure)
+    {
+        var cleanup = Record.Exception(() => manager.CloseSession(sessionId, save: false));
+        if (failure is not null && cleanup is not null)
+            throw new AggregateException("Formula capability verification and session close failed.", failure, cleanup);
+        if (failure is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failure).Throw();
+        if (cleanup is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(cleanup).Throw();
     }
 }

@@ -12,32 +12,27 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 public sealed class ChartPropertyFailureTests
 {
 #pragma warning disable CA2201 // Inject exact native getter failures without starting Excel.
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void ChartDetectionDoesNotMisclassifyUnexpectedNativeFailure(bool pivot)
+    [Fact]
+    public void ChartDetectionDoesNotMisclassifyUnexpectedNativeFailure()
     {
         var failure = new COMException("Excel rejected the read.", unchecked((int)0x800A03EC));
-        var chart = new FailingChart(failure);
-        IChartStrategy strategy = pivot ? new PivotChartStrategy() : new RegularChartStrategy();
 
-        Assert.Same(failure, Assert.Throws<COMException>(() => strategy.CanHandle(chart)));
+        Assert.Same(failure, Assert.Throws<COMException>(() =>
+            PivotChartStrategy.HasPivotLayout(() => throw failure)));
     }
 
-    [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void ChartDetectionToleratesOnlyKnownMissingMember(bool pivot)
+    [Fact]
+    public void ChartDetectionToleratesOnlyKnownMissingMember()
     {
-        var chart = new FailingChart(new COMException("No member.", unchecked((int)0x80020003)));
-        IChartStrategy strategy = pivot ? new PivotChartStrategy() : new RegularChartStrategy();
+        var failure = new COMException("No member.", unchecked((int)0x80020003));
 
-        Assert.Equal(!pivot, strategy.CanHandle(chart));
+        Assert.False(PivotChartStrategy.HasPivotLayout(() => throw failure));
     }
 
-    public sealed class FailingChart(COMException failure)
+    [Fact]
+    public void ChartDetectionWithoutPivotLayoutReturnsFalse()
     {
-        public object PivotLayout => throw failure;
+        Assert.False(PivotChartStrategy.HasPivotLayout(() => null));
     }
 #pragma warning restore CA2201
 }

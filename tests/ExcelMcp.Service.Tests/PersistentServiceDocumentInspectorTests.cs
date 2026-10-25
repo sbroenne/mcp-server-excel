@@ -2,6 +2,7 @@ using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
+using Office = Microsoft.Office.Core;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -31,17 +32,17 @@ public sealed class PersistentServiceDocumentInspectorTests : IAsyncLifetime, ID
         var selected = Assert.Single(ReadNativeInspectors(), item => item.Status == 1);
         var fixedStatus = _fixture.ExecuteRawVerification((ctx, _) =>
         {
-            dynamic? inspectors = null;
-            dynamic? inspector = null;
+            Office.DocumentInspectors? inspectors = null;
+            Office.DocumentInspector? inspector = null;
             try
             {
-                inspectors = ((dynamic)ctx.Book).DocumentInspectors;
-                inspector = inspectors.Item(selected.Index);
-                int status = -1;
-                string text = string.Empty;
+                inspectors = ctx.Book.DocumentInspectors;
+                inspector = inspectors[selected.Index];
+                Office.MsoDocInspectorStatus status;
+                string text;
                 inspector.Fix(out status, out text);
                 Assert.NotEmpty(text);
-                return status;
+                return (int)status;
             }
             finally
             {
@@ -226,22 +227,22 @@ public sealed class PersistentServiceDocumentInspectorTests : IAsyncLifetime, ID
 
     private List<NativeInspector> ReadNativeInspectors() => _fixture.ExecuteRawVerification((ctx, _) =>
     {
-        dynamic? inspectors = null;
+        Office.DocumentInspectors? inspectors = null;
         List<NativeInspector> result = [];
         try
         {
-            inspectors = ((dynamic)ctx.Book).DocumentInspectors;
+            inspectors = ctx.Book.DocumentInspectors;
             int count = Convert.ToInt32(inspectors.Count);
             for (int index = 1; index <= count; index++)
             {
-                dynamic? inspector = null;
+                Office.DocumentInspector? inspector = null;
                 try
                 {
-                    inspector = inspectors.Item(index);
-                    int status = -1;
-                    string text = string.Empty;
+                    inspector = inspectors[index];
+                    Office.MsoDocInspectorStatus status;
+                    string text;
                     inspector.Inspect(out status, out text);
-                    result.Add(new NativeInspector(index, inspector.Name, status, text));
+                    result.Add(new NativeInspector(index, inspector.Name, (int)status, text));
                 }
                 finally
                 {
@@ -274,7 +275,7 @@ public sealed class PersistentServiceDocumentInspectorTests : IAsyncLifetime, ID
             if (hidden is not null)
                 cell = hidden.Range["A1"];
             return new WorkbookState(ctx.Book.Saved, hidden is not null,
-                hidden?.Visible, cell?.Value2?.ToString(), setup.CenterHeader, formula.Formula?.ToString());
+                hidden?.Visible, ((object?)cell?.Value2)?.ToString(), setup.CenterHeader, ((object?)formula.Formula)?.ToString());
         }
         finally
         {

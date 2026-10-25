@@ -38,7 +38,7 @@ public partial class WindowCommands
                 result.FreezePanes = window.FreezePanes;
                 result.SplitRow = window.SplitRow;
                 result.SplitColumn = window.SplitColumn;
-                result.Zoom = Convert.ToInt32(window.Zoom, System.Globalization.CultureInfo.InvariantCulture);
+                result.Zoom = Convert.ToInt32((object)window.Zoom, System.Globalization.CultureInfo.InvariantCulture);
                 result.DisplayGridlines = window.DisplayGridlines;
                 result.DisplayHeadings = window.DisplayHeadings;
                 result.DisplayOutlineSymbols = window.DisplayOutline;

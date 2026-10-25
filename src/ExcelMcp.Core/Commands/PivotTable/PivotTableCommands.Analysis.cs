@@ -18,15 +18,15 @@ public partial class PivotTableCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? pivot = null;
-            dynamic? tableRange = null;
+            Excel.PivotTable? pivot = null;
+            Excel.Range? tableRange = null;
 
             try
             {
                 pivot = FindPivotTable(ctx.Book, pivotTableName);
                 tableRange = pivot.TableRange2;
 
-                var values = ExcelValueNormalizer.Normalize(tableRange.Value2);
+                var values = ExcelValueNormalizer.Normalize((object?)tableRange.Value2);
 
                 return new PivotTableDataResult
                 {
@@ -399,7 +399,7 @@ public partial class PivotTableCommands
             return;
         }
 
-        var visibleItems = pivotField.VisibleItemsList;
+        object? visibleItems = pivotField.VisibleItemsList;
         result.SelectedItems = visibleItems is Array items
             ? items.Cast<object>().Select(item => item.ToString() ?? string.Empty).ToList()
             : [];

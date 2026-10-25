@@ -19,14 +19,14 @@ public sealed partial class PersistentServiceWindowTests
         _fixture.ExecuteRawVerification((context, _) =>
         {
             context.App.StatusBar = "Native reset control";
-            Assert.Equal("Native reset control", context.App.StatusBar);
+            Assert.Equal("Native reset control", ((object)context.App.StatusBar));
             context.App.StatusBar = reset switch
             {
                 "null" => null!,
                 "missing" => Type.Missing,
                 _ => throw new ArgumentOutOfRangeException(nameof(reset))
             };
-            Assert.False(Assert.IsType<bool>(context.App.StatusBar));
+            Assert.False(Assert.IsType<bool>(((object)context.App.StatusBar)));
         });
     }
 

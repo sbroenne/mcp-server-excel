@@ -3,6 +3,7 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.Commands.Drawing;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
+using Office = Microsoft.Office.Core;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -27,7 +28,7 @@ public sealed partial class PersistentServiceDrawingTests
                 sheet = ComUtilities.FindSheet(context.Book, _sheetName);
                 Assert.NotNull(sheet);
                 shapes = sheet.Shapes;
-                shape = ((dynamic)shapes).AddConnector((int)type, 30f, 40f, 130f, 90f);
+                shape = shapes.AddConnector((Office.MsoConnectorType)type, 30f, 40f, 130f, 90f);
                 shape.Name = name;
                 var error = Assert.Throws<COMException>(() =>
                 {

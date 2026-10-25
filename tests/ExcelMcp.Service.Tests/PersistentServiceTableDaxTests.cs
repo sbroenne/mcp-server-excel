@@ -279,7 +279,7 @@ public class PersistentServiceTableDaxTests(
                 modelConnection = connection.ModelConnection;
                 Assert.Equal(dax.ModelConnectionName, connection.Name);
                 Assert.Equal(Excel.XlCmdType.xlCmdDAX, modelConnection.CommandType);
-                Assert.Equal(query, Convert.ToString(modelConnection.CommandText, CultureInfo.InvariantCulture));
+                Assert.Equal(query, Convert.ToString((object?)modelConnection.CommandText, CultureInfo.InvariantCulture));
             }
             finally
             {

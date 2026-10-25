@@ -737,11 +737,11 @@ public sealed partial class ServiceWorkbookLifecycleTests
             Assert.True(service.SessionManager.HasActiveConnections);
             if (rediscover)
             {
-                var discovery = await service.SessionManager.DiscoverOpenWorkbooksAsync();
-                Assert.DoesNotContain(discovery.Errors, error => error.ProcessId == identity.ProcessId);
+                await Assert.ThrowsAsync<ObjectDisposedException>(
+                    () => service.SessionManager.DiscoverOpenWorkbooksAsync());
+                Assert.True(service.SessionManager.HasActiveConnections);
             }
-            else
-                service.SessionManager.Dispose();
+            service.SessionManager.Dispose();
             Assert.False(service.SessionManager.HasActiveConnections);
             Assert.Equal(!retainOtherLease, await CanOtherHostAcquireReviewLeaseAsync(identity));
             otherLease?.Dispose();

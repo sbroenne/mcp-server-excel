@@ -1,5 +1,6 @@
 using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
 
@@ -21,7 +22,7 @@ public partial class ConditionalFormattingCommands
     // === colorScale ===
 
     private static object AddColorScaleRule(
-        dynamic formatConditions,
+        Excel.FormatConditions formatConditions,
         string? minType, string? minValue, string? minColor,
         string? midType, string? midValue, string? midColor,
         string? maxType, string? maxValue, string? maxColor)
@@ -30,8 +31,8 @@ public partial class ConditionalFormattingCommands
             || !string.IsNullOrEmpty(midValue)
             || !string.IsNullOrEmpty(midColor);
 
-        dynamic? colorScale = null;
-        dynamic? criteria = null;
+        Excel.ColorScale? colorScale = null;
+        Excel.ColorScaleCriteria? criteria = null;
         try
         {
             colorScale = formatConditions.AddColorScale(ColorScaleType: threeColor ? 3 : 2);
@@ -62,18 +63,18 @@ public partial class ConditionalFormattingCommands
     }
 
     private static void SetColorScaleCriterion(
-        dynamic criteria, int index,
+        Excel.ColorScaleCriteria criteria, int index,
         string? type, string? value, string? color,
         int defaultType, string? defaultValue = null)
     {
-        dynamic? criterion = null;
-        dynamic? formatColor = null;
+        Excel.ColorScaleCriterion? criterion = null;
+        Excel.FormatColor? formatColor = null;
         try
         {
-            criterion = criteria.Item(index);
+            criterion = criteria[index];
 
             int t = string.IsNullOrEmpty(type) ? defaultType : ParseConditionValueType(type);
-            criterion.Type = t;
+            criterion.Type = (Excel.XlConditionValueTypes)t;
 
             string? v = value ?? (string.IsNullOrEmpty(type) ? defaultValue : null);
             if (ConditionValueTypeUsesValue(t) && !string.IsNullOrEmpty(v))
@@ -97,18 +98,18 @@ public partial class ConditionalFormattingCommands
     // === dataBar ===
 
     private static object AddDataBarRule(
-        dynamic formatConditions,
+        Excel.FormatConditions formatConditions,
         string? fillColor, string? negativeColor, string? direction, bool? showValue,
         string? minType, string? minValue, string? maxType, string? maxValue)
     {
-        dynamic? dataBar = null;
+        Excel.Databar? dataBar = null;
         try
         {
             dataBar = formatConditions.AddDatabar();
 
             if (!string.IsNullOrEmpty(fillColor))
             {
-                dynamic? barColor = null;
+                Excel.FormatColor? barColor = null;
                 try
                 {
                     barColor = dataBar.BarColor;
@@ -119,12 +120,12 @@ public partial class ConditionalFormattingCommands
 
             if (!string.IsNullOrEmpty(negativeColor))
             {
-                dynamic? negativeFormat = null;
-                dynamic? negColor = null;
+                Excel.NegativeBarFormat? negativeFormat = null;
+                Excel.FormatColor? negColor = null;
                 try
                 {
                     negativeFormat = dataBar.NegativeBarFormat;
-                    negativeFormat.ColorType = 0; // xlDataBarColor
+                    negativeFormat.ColorType = Excel.XlDataBarNegativeColorType.xlDataBarColor;
                     negColor = negativeFormat.Color;
                     negColor.Color = FormattingHelpers.ParseColor(negativeColor);
                 }
@@ -142,10 +143,10 @@ public partial class ConditionalFormattingCommands
                 dataBar.ShowValue = showValue.Value;
 
             if (!string.IsNullOrEmpty(minType) || !string.IsNullOrEmpty(minValue))
-                ModifyConditionValue(dataBar, "MinPoint", minType, minValue);
+                ModifyConditionValue(dataBar, true, minType, minValue);
 
             if (!string.IsNullOrEmpty(maxType) || !string.IsNullOrEmpty(maxValue))
-                ModifyConditionValue(dataBar, "MaxPoint", maxType, maxValue);
+                ModifyConditionValue(dataBar, false, maxType, maxValue);
             object created = dataBar;
             dataBar = null;
             return created;
@@ -156,20 +157,20 @@ public partial class ConditionalFormattingCommands
         }
     }
 
-    private static void ModifyConditionValue(dynamic owner, string pointName, string? type, string? value)
+    private static void ModifyConditionValue(Excel.Databar owner, bool isMin, string? type, string? value)
     {
-        dynamic? point = null;
+        Excel.ConditionValue? point = null;
         try
         {
-            point = pointName == "MinPoint" ? owner.MinPoint : owner.MaxPoint;
+            point = isMin ? owner.MinPoint : owner.MaxPoint;
             int t = string.IsNullOrEmpty(type)
-                ? (pointName == "MinPoint" ? 1 /* lowest */ : 2 /* highest */)
+                ? (isMin ? 1 /* lowest */ : 2 /* highest */)
                 : ParseConditionValueType(type);
 
             if (ConditionValueTypeUsesValue(t) && !string.IsNullOrEmpty(value))
-                point.Modify(t, ParseCriterionValue(value));
+                point.Modify((Excel.XlConditionValueTypes)t, ParseCriterionValue(value));
             else
-                point.Modify(t);
+                point.Modify((Excel.XlConditionValueTypes)t);
         }
         finally
         {
@@ -180,17 +181,17 @@ public partial class ConditionalFormattingCommands
     // === iconSet ===
 
     private static object AddIconSetRule(
-        dynamic workbook,
-        dynamic formatConditions,
+        Excel.Workbook workbook,
+        Excel.FormatConditions formatConditions,
         string? iconSetId,
         bool? reverse,
         bool? showIconOnly,
         (string? Type, string? Value)[] thresholds)
     {
-        dynamic? iconSetCondition = null;
-        dynamic? iconSets = null;
-        dynamic? iconSet = null;
-        dynamic? iconCriteria = null;
+        Excel.IconSetCondition? iconSetCondition = null;
+        Excel.IconSets? iconSets = null;
+        Excel.IconSet? iconSet = null;
+        Excel.IconCriteria? iconCriteria = null;
         try
         {
             iconSetCondition = formatConditions.AddIconSetCondition();
@@ -222,12 +223,12 @@ public partial class ConditionalFormattingCommands
                 if (itemIndex > criteriaCount)
                     break;
 
-                dynamic? criterion = null;
+                Excel.IconCriterion? criterion = null;
                 try
                 {
-                    criterion = iconCriteria.Item(itemIndex);
+                    criterion = iconCriteria[itemIndex];
                     if (!string.IsNullOrEmpty(tType))
-                        criterion.Type = ParseConditionValueType(tType);
+                        criterion.Type = (Excel.XlConditionValueTypes)ParseConditionValueType(tType);
                     if (!string.IsNullOrEmpty(tValue))
                         criterion.Value = ParseCriterionValue(tValue);
                 }
@@ -252,12 +253,12 @@ public partial class ConditionalFormattingCommands
     // === top10 ===
 
     private static object AddTop10Rule(
-        dynamic formatConditions,
+        Excel.FormatConditions formatConditions,
         int? rank, bool? percent, string? topBottom,
         string? interiorColor, string? interiorPattern, string? fontColor,
         bool? fontBold, bool? fontItalic, string? borderStyle, string? borderColor)
     {
-        dynamic? fc = null;
+        Excel.Top10? fc = null;
         try
         {
             fc = formatConditions.AddTop10();
@@ -266,7 +267,7 @@ public partial class ConditionalFormattingCommands
             if (percent.HasValue)
                 fc.Percent = percent.Value;
             if (!string.IsNullOrEmpty(topBottom))
-                fc.TopBottom = ParseTopBottom(topBottom);
+                fc.TopBottom = (Excel.XlTopBottom)ParseTopBottom(topBottom);
 
             ApplyRuleFormatting(fc, interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
             object created = fc;
@@ -282,17 +283,17 @@ public partial class ConditionalFormattingCommands
     // === aboveAverage ===
 
     private static object AddAboveAverageRule(
-        dynamic formatConditions,
+        Excel.FormatConditions formatConditions,
         string? aboveBelow,
         string? interiorColor, string? interiorPattern, string? fontColor,
         bool? fontBold, bool? fontItalic, string? borderStyle, string? borderColor)
     {
-        dynamic? fc = null;
+        Excel.AboveAverage? fc = null;
         try
         {
             fc = formatConditions.AddAboveAverage();
             if (!string.IsNullOrEmpty(aboveBelow))
-                fc.AboveBelow = ParseAboveBelow(aboveBelow);
+                fc.AboveBelow = (Excel.XlAboveBelow)ParseAboveBelow(aboveBelow);
 
             ApplyRuleFormatting(fc, interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
             object created = fc;
@@ -308,16 +309,16 @@ public partial class ConditionalFormattingCommands
     // === uniqueValues ===
 
     private static object AddUniqueValuesRule(
-        dynamic formatConditions,
+        Excel.FormatConditions formatConditions,
         bool duplicate,
         string? interiorColor, string? interiorPattern, string? fontColor,
         bool? fontBold, bool? fontItalic, string? borderStyle, string? borderColor)
     {
-        dynamic? fc = null;
+        Excel.UniqueValues? fc = null;
         try
         {
             fc = formatConditions.AddUniqueValues();
-            fc.DupeUnique = duplicate ? 1 /* xlDuplicate */ : 0 /* xlUnique */;
+            fc.DupeUnique = duplicate ? Excel.XlDupeUnique.xlDuplicate : Excel.XlDupeUnique.xlUnique;
 
             ApplyRuleFormatting(fc, interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
             object created = fc;
@@ -333,7 +334,7 @@ public partial class ConditionalFormattingCommands
     // === timePeriod ===
 
     private static object AddTimePeriodRule(
-        dynamic formatConditions,
+        Excel.FormatConditions formatConditions,
         string? datePeriod,
         string? interiorColor, string? interiorPattern, string? fontColor,
         bool? fontBold, bool? fontItalic, string? borderStyle, string? borderColor)
@@ -341,10 +342,10 @@ public partial class ConditionalFormattingCommands
         if (string.IsNullOrEmpty(datePeriod))
             throw new ArgumentException("datePeriod is required for timePeriod rules (e.g. today, last7Days, thisMonth).");
 
-        dynamic? fc = null;
+        Excel.FormatCondition? fc = null;
         try
         {
-            fc = formatConditions.Add(Type: 11 /* xlTimePeriod */, DateOperator: ParseTimePeriod(datePeriod));
+            fc = formatConditions.Add(Type: Excel.XlFormatConditionType.xlTimePeriod, DateOperator: ParseTimePeriod(datePeriod));
             ApplyRuleFormatting(fc, interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
             object created = fc;
             fc = null;
@@ -359,15 +360,15 @@ public partial class ConditionalFormattingCommands
     // === blanksCondition and other simple type-only rules ===
 
     private static object AddSimpleRule(
-        dynamic formatConditions,
+        Excel.FormatConditions formatConditions,
         int xlType,
         string? interiorColor, string? interiorPattern, string? fontColor,
         bool? fontBold, bool? fontItalic, string? borderStyle, string? borderColor)
     {
-        dynamic? fc = null;
+        Excel.FormatCondition? fc = null;
         try
         {
-            fc = formatConditions.Add(Type: xlType);
+            fc = formatConditions.Add(Type: (Excel.XlFormatConditionType)xlType);
             ApplyRuleFormatting(fc, interiorColor, interiorPattern, fontColor, fontBold, fontItalic, borderStyle, borderColor);
             object created = fc;
             fc = null;

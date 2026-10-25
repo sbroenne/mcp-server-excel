@@ -227,6 +227,12 @@ function Get-ValidationPlan {
             '^(Directory\.|global\.json$|NuGet\.Config$|Sbroenne\.ExcelMcp\.sln$|tests/Directory\.)' {
                 Add-Shared $allOwners; break
             }
+            '^scripts/(Import-AdoDefinitions|Install-AdoBuildTools)\.ps1$' {
+                Add-Shared @('ComInterop', 'ScriptSafety')
+                $plan.FullSolutionBuild = $true
+                $plan.PackageComponents += @('Cli', 'Mcp')
+                break
+            }
             '^src/ExcelMcp\.(Core|ComInterop|Service|Cleanup)/' { Add-Shared $runtime; break }
             '^(src/ExcelMcp\.Analyzers/|BannedSymbols[^/]*\.txt$|scripts/check-(com-leaks|success-flag|dynamic-casts|workbook-package-access)\.ps1$)' {
                 Add-Filter Tooling ScriptSafety 'FullyQualifiedName~AnalyzerTests|Feature=PreCommit'

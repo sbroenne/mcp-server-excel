@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Excel = Microsoft.Office.Interop.Excel;
+using Office = Microsoft.Office.Core;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Workbook;
 
@@ -31,13 +32,12 @@ public partial class WorkbookCommands
 
     private static WorkbookThemeResult ReadWorkbookTheme(Excel.Workbook book, string filePath, CancellationToken ct)
     {
-        dynamic? theme = null;
-        dynamic? colors = null;
-        dynamic? fonts = null;
+        Office.OfficeTheme? theme = null;
+        Office.ThemeColorScheme? colors = null;
+        Office.ThemeFontScheme? fonts = null;
         try
         {
-            // PIA gap: Office-core Theme/ThemeColorScheme/ThemeFontScheme types are not referenced by this project.
-            theme = ((dynamic)book).Theme;
+            theme = book.Theme;
             colors = theme.ThemeColorScheme;
             fonts = theme.ThemeFontScheme;
             var result = new WorkbookThemeResult
@@ -48,10 +48,10 @@ public partial class WorkbookCommands
             for (int index = 1; index <= 12; index++)
             {
                 ct.ThrowIfCancellationRequested();
-                dynamic? color = null;
+                Office.ThemeColor? color = null;
                 try
                 {
-                    color = colors.Colors(index);
+                    color = colors.Colors((Office.MsoThemeColorSchemeIndex)index);
                     result.Colors.Add(new WorkbookThemeColor(index,
                         ((Excel.XlThemeColor)index).ToString(),
                         FormattingHelpers.ColorToHex(Convert.ToInt32(color.RGB))));
@@ -73,24 +73,33 @@ public partial class WorkbookCommands
         }
     }
 
-    private static List<WorkbookThemeFont> ReadThemeFonts(dynamic fontScheme, bool major, CancellationToken ct)
+    private static List<WorkbookThemeFont> ReadThemeFonts(Office.ThemeFontScheme fontScheme, bool major, CancellationToken ct)
     {
         List<WorkbookThemeFont> result = [];
         string[] scripts = ["Latin", "ComplexScript", "EastAsian"];
-        for (int index = 1; index <= scripts.Length; index++)
+        Office.ThemeFonts? languageFonts = null;
+        try
         {
-            ct.ThrowIfCancellationRequested();
-            dynamic? font = null;
-            try
+            languageFonts = major ? fontScheme.MajorFont : fontScheme.MinorFont;
+            for (int index = 1; index <= scripts.Length; index++)
             {
-                font = major ? fontScheme.MajorFont(index) : fontScheme.MinorFont(index);
-                result.Add(new WorkbookThemeFont(scripts[index - 1], font.Name));
+                ct.ThrowIfCancellationRequested();
+                Office.ThemeFont? font = null;
+                try
+                {
+                    font = languageFonts.Item((Office.MsoFontLanguageIndex)index);
+                    result.Add(new WorkbookThemeFont(scripts[index - 1], font.Name));
+                }
+                finally
+                {
+                    ComUtilities.Release(ref font);
+                }
             }
-            finally
-            {
-                ComUtilities.Release(ref font);
-            }
+            return result;
         }
-        return result;
+        finally
+        {
+            ComUtilities.Release(ref languageFonts);
+        }
     }
 }

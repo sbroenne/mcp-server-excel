@@ -93,7 +93,7 @@ public sealed partial class PersistentServicePivotTableTests
                 field = (Microsoft.Office.Interop.Excel.PivotField)pivot.PivotFields("Region");
                 for (var index = 1; index <= 12; index++)
                 {
-                    Assert.Equal(index == 1 && show, Convert.ToBoolean(field.Subtotals[index]));
+                    Assert.Equal(index == 1 && show, Convert.ToBoolean((object)field.Subtotals[index], System.Globalization.CultureInfo.InvariantCulture));
                 }
                 return 0;
             }

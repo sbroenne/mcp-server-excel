@@ -178,7 +178,7 @@ public sealed partial class PersistentServiceTablePreflightTests
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName)
                     ?? throw new InvalidOperationException($"{sheetName} not found.");
                 range = sheet.Range[address];
-                var formulas = (object[,])range.Formula;
+                var formulas = (object[,])(object)range.Formula;
                 var formats = new List<string>();
                 for (int row = 1; row <= formulas.GetLength(0); row++)
                 {
@@ -193,7 +193,7 @@ public sealed partial class PersistentServiceTablePreflightTests
                             interior = cell.Interior;
                             font = cell.Font;
                             formats.Add(string.Format(CultureInfo.InvariantCulture,
-                                "{0}|{1}|{2}", cell.NumberFormat, interior.Color, font.Bold));
+                                "{0}|{1}|{2}", (object?)cell.NumberFormat, (object?)interior.Color, (object?)font.Bold));
                         }
                         finally
                         {
@@ -293,7 +293,7 @@ public sealed partial class PersistentServiceTablePreflightTests
                 names = ctx.Book.Names;
                 name = names.Item("Sales");
                 Assert.Equal("Sales", name.Name);
-                Assert.Equal(hasHeaders ? "=Data!$A$1" : "=Data!$A$2", name.RefersTo);
+                Assert.Equal(hasHeaders ? "=Data!$A$1" : "=Data!$A$2", ((object)name.RefersTo));
             }
             finally
             {
@@ -397,7 +397,7 @@ public sealed partial class PersistentServiceTablePreflightTests
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName)
                     ?? throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 range = sheet.Range[rangeAddress];
-                return (object[,])range.Value2;
+                return (object[,])(object)range.Value2;
             }
             finally
             {

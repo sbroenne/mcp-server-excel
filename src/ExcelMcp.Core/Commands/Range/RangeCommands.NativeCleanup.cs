@@ -85,7 +85,7 @@ public partial class RangeCommands
                 if (!string.Equals(sourceSheet.Name, destinationSheet.Name, StringComparison.Ordinal))
                     throw new ArgumentException("TextToColumns source and destination must be on the same worksheet.");
                 // TextToColumns parses formula text, not calculated formula results.
-                var sourceValues = source.Formula;
+                object? sourceValues = source.Formula;
                 string decimalSeparator = options.DecimalSeparator ?? ctx.App.DecimalSeparator;
                 string thousandsSeparator = options.ThousandsSeparator ?? ctx.App.ThousandsSeparator;
                 if (decimalSeparator == thousandsSeparator)
@@ -96,7 +96,7 @@ public partial class RangeCommands
                 if ((long)anchor.Row + size.Rows - 1 > 1_048_576 || (long)anchor.Column + width - 1 > 16_384)
                     throw new ArgumentException("The complete parsed output exceeds worksheet boundaries.");
                 destination = anchor.Resize[size.Rows, width];
-                if (RangeMergeDiscovery.GetMergeCellsState(destination.MergeCells) != false)
+                if (RangeMergeDiscovery.GetMergeCellsState((object)destination.MergeCells) != false)
                     throw new ArgumentException("The complete parsed output must not intersect merged cells.");
                 int sourceRow = source.Row;
                 int sourceColumn = source.Column;
@@ -255,7 +255,7 @@ public partial class RangeCommands
         int rows, CancellationToken token)
     {
         target.NumberFormat = "@";
-        target.Value2 = PreserveNativeTextValues(source.Value2, rows, token);
+        target.Value2 = PreserveNativeTextValues((object)source.Value2, rows, token);
         object? numberFormat = source.NumberFormat;
         if (numberFormat is string uniform)
         {

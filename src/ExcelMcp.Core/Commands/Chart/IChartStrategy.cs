@@ -1,3 +1,4 @@
+using Excel = Microsoft.Office.Interop.Excel;
 namespace Sbroenne.ExcelMcp.Core.Commands.Chart;
 
 /// <summary>
@@ -11,7 +12,7 @@ public interface IChartStrategy
     /// </summary>
     /// <param name="chart">Excel Chart COM object</param>
     /// <returns>True if this strategy handles this chart type</returns>
-    bool CanHandle(dynamic chart);
+    bool CanHandle(Excel.Chart chart);
 
     /// <summary>
     /// Gets chart information (type, position, series, etc.).
@@ -19,9 +20,9 @@ public interface IChartStrategy
     /// <param name="chart">Excel Chart COM object</param>
     /// <param name="chartName">Name of the chart</param>
     /// <param name="sheetName">Name of the worksheet</param>
-    /// <param name="shape">Shape or ChartObject containing the chart</param>
+    /// <param name="shape">Shape containing the chart</param>
     /// <returns>Chart information</returns>
-    ChartInfo GetInfo(dynamic chart, string chartName, string sheetName, dynamic shape);
+    ChartInfo GetInfo(Excel.Chart chart, string chartName, string sheetName, Excel.Shape shape);
 
     /// <summary>
     /// Sets the data source range.
@@ -30,7 +31,7 @@ public interface IChartStrategy
     /// </summary>
     /// <param name="chart">Excel Chart COM object</param>
     /// <param name="sourceRange">New source range</param>
-    void SetSourceRange(dynamic chart, string sourceRange, CancellationToken ct);
+    void SetSourceRange(Excel.Chart chart, string sourceRange, CancellationToken ct);
 
     /// <summary>
     /// Adds a data series.
@@ -42,7 +43,7 @@ public interface IChartStrategy
     /// <param name="valuesRange">Range containing Y values</param>
     /// <param name="categoryRange">Optional range for X values/categories</param>
     /// <returns>Series information</returns>
-    SeriesInfo AddSeries(dynamic chart, string seriesName, string valuesRange, string? categoryRange);
+    SeriesInfo AddSeries(Excel.Chart chart, string seriesName, string valuesRange, string? categoryRange);
 
     /// <summary>
     /// Removes a data series.
@@ -51,7 +52,7 @@ public interface IChartStrategy
     /// </summary>
     /// <param name="chart">Excel Chart COM object</param>
     /// <param name="seriesIndex">1-based series index</param>
-    void RemoveSeries(dynamic chart, int seriesIndex);
+    void RemoveSeries(Excel.Chart chart, int seriesIndex);
 
     /// <summary>
     /// Gets detailed chart information including series.
@@ -59,8 +60,7 @@ public interface IChartStrategy
     /// <param name="chart">Excel Chart COM object</param>
     /// <param name="chartName">Name of the chart</param>
     /// <param name="sheetName">Name of the worksheet</param>
-    /// <param name="shape">Shape or ChartObject containing the chart</param>
+    /// <param name="shape">Shape containing the chart</param>
     /// <returns>Detailed chart information</returns>
-    ChartInfoResult GetDetailedInfo(dynamic chart, string chartName, string sheetName, dynamic shape);
+    ChartInfoResult GetDetailedInfo(Excel.Chart chart, string chartName, string sheetName, Excel.Shape shape);
 }
-

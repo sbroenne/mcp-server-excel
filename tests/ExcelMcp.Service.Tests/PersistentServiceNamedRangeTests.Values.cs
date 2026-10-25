@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
@@ -7,6 +8,49 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 /// </summary>
 public sealed partial class PersistentServiceNamedRangeTests
 {
+    [Fact]
+    public void ReadAndList_MatrixNamedRange_PreserveValuesAndDimensions()
+    {
+        var batch = _fixture.BatchToken;
+        var sheetName = _fixture.CreateNamedTestSheet(batch, $"Matrix values {Guid.NewGuid():N}"[..27]);
+        var name = CreateUniqueNamedRangeName();
+        var reference = $"'{sheetName}'!$B$2:$D$3";
+        Assert.True(_commands.SetValues(batch, sheetName, "B2:D3",
+            [["Header", 12.5, true], ["Second", null, -7d]]).Success);
+        Assert.True(_parameterCommands.Create(batch, name, reference).Success);
+        _fixture.RegisterNamedRangeForCleanup(name);
+
+        var read = _parameterCommands.Read(batch, name.ToLowerInvariant());
+        Assert.Equal(name.ToLowerInvariant(), read.Name);
+        Assert.Equal($"={reference}", read.RefersTo);
+        Assert.Equal("Array", read.ValueType);
+        AssertMatrix(read.Value);
+
+        var listed = _parameterCommands.List(batch);
+        Assert.True(listed.Success, listed.ErrorMessage);
+        var entry = Assert.Single(listed.NamedRanges, item => item.Name == name);
+        Assert.Equal($"={reference}", entry.RefersTo);
+        Assert.Equal("Array", entry.ValueType);
+        Assert.Equal(6, entry.CellCount);
+        Assert.Null(entry.ValueOmittedReason);
+        AssertMatrix(entry.Value);
+
+        static void AssertMatrix(object? value)
+        {
+            var rows = Assert.IsType<JsonElement>(value);
+            Assert.Equal(JsonValueKind.Array, rows.ValueKind);
+            Assert.Equal(2, rows.GetArrayLength());
+            Assert.Equal(3, rows[0].GetArrayLength());
+            Assert.Equal(3, rows[1].GetArrayLength());
+            Assert.Equal("Header", rows[0][0].GetString());
+            Assert.Equal(12.5, rows[0][1].GetDouble());
+            Assert.True(rows[0][2].GetBoolean());
+            Assert.Equal("Second", rows[1][0].GetString());
+            Assert.Equal(JsonValueKind.Null, rows[1][1].ValueKind);
+            Assert.Equal(-7d, rows[1][2].GetDouble());
+        }
+    }
+
     /// <inheritdoc/>
     [Fact]
     public void Set_ExistingParameter_UpdatesValue()

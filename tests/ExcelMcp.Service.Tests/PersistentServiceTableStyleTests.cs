@@ -107,9 +107,9 @@ public sealed class PersistentServiceTableStyleTests(PersistentServiceWorkbookFi
                 elements = style.TableStyleElements;
                 element = elements.Item(Enum.Parse<Excel.XlTableStyleElementType>(elementType));
                 font = element.Font;
-                Assert.Equal(5, Convert.ToInt32(font.ThemeColor, System.Globalization.CultureInfo.InvariantCulture));
-                Assert.False(Convert.ToBoolean(font.Bold, System.Globalization.CultureInfo.InvariantCulture));
-                Assert.True(Convert.ToBoolean(font.Italic, System.Globalization.CultureInfo.InvariantCulture));
+                Assert.Equal(5, Convert.ToInt32(((object)font.ThemeColor), System.Globalization.CultureInfo.InvariantCulture));
+                Assert.False(Convert.ToBoolean(((object)font.Bold), System.Globalization.CultureInfo.InvariantCulture));
+                Assert.True(Convert.ToBoolean(((object)font.Italic), System.Globalization.CultureInfo.InvariantCulture));
             }
             finally
             {

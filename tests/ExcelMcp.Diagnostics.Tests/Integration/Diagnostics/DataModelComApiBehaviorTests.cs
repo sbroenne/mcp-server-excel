@@ -5,13 +5,10 @@
 // These tests document the REAL behavior of Excel's Data Model/Power Pivot COM API
 // =============================================================================
 
-// Suppress invalid-dynamic-call warnings - this diagnostic test file intentionally uses
-// dynamic COM interop patterns to explore Excel's behavior. The Range[cell] pattern is
-// standard COM interop for Excel and cannot be statically analyzed.
-#pragma warning disable CS1061 // Member access on dynamic type - expected for COM interop exploration
-
 using System.Runtime.InteropServices;
+using Excel = Microsoft.Office.Interop.Excel;
 using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Tests.Helpers;
 using Xunit;
 using Xunit.Abstractions;
@@ -33,8 +30,8 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 {
     private readonly string _tempDir;
     private readonly ITestOutputHelper _output;
-    private dynamic? _excel;
-    private dynamic? _workbook;
+    private Excel.Application? _excel;
+    private Excel.Workbook? _workbook;
     private readonly string _testFile;
 
     // Simple M code for creating Data Model tables
@@ -67,40 +64,36 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
         // Create Excel instance directly via COM
         var excelType = Type.GetTypeFromProgID("Excel.Application");
         Assert.NotNull(excelType);
-        _excel = Activator.CreateInstance(excelType);
-        Assert.NotNull((object?)_excel);
-        _excel.Visible = false;
-        _excel.DisplayAlerts = false;
-
-        // Create new workbook
-        _workbook = _excel.Workbooks.Add();
-        _workbook.SaveAs(_testFile);
-
-        _output.WriteLine($"Test file: {_testFile}");
+        try
+        {
+            _excel = (Excel.Application?)Activator.CreateInstance(excelType);
+            Assert.NotNull(_excel);
+            _excel.Visible = false;
+            _excel.DisplayAlerts = false;
+            _workbook = DiagnosticExcelObjects.AddWorkbook(_excel);
+            _workbook.SaveAs(_testFile);
+            _output.WriteLine($"Test file: {_testFile}");
+        }
+        catch (Exception failure)
+        {
+            try
+            {
+                Dispose();
+            }
+            catch (Exception cleanup)
+            {
+                throw new AggregateException(failure, cleanup);
+            }
+            throw;
+        }
     }
 
     public void Dispose()
     {
-        try
-        {
-            if (_workbook != null)
-            {
-                _workbook.Close(false);
-                ComUtilities.Release(ref _workbook);
-            }
-            if (_excel != null)
-            {
-                _excel.Quit();
-                ComUtilities.Release(ref _excel);
-            }
-        }
-        catch (Exception ex)
-        {
-            _output.WriteLine($"Cleanup error: {ex.Message}");
-        }
         GC.SuppressFinalize(this);
-        GC.Collect();
-        GC.WaitForPendingFinalizers();
+        ExcelShutdownService.CloseAndQuit(_workbook, _excel, save: false);
+        _workbook = null;
+        _excel = null;
     }
 
     // =========================================================================
@@ -112,17 +105,17 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     {
         _output.WriteLine("=== SCENARIO 1: Access Data Model ===");
 
-        dynamic? model = null;
-        dynamic? modelTables = null;
-        dynamic? modelRelationships = null;
+        Excel.Model? model = null;
+        Excel.ModelTables? modelTables = null;
+        Excel.ModelRelationships? modelRelationships = null;
 
         try
         {
-            Assert.NotNull((object?)_workbook);
+            Assert.NotNull(_workbook);
             model = _workbook.Model;
             _output.WriteLine($"Model object obtained: {model != null}");
 
-            Assert.NotNull((object?)model);
+            Assert.NotNull(model);
             modelTables = model.ModelTables;
             _output.WriteLine($"Initial ModelTables count: {modelTables.Count}");
 
@@ -157,14 +150,14 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario2_CreateTableInDataModel()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 2: Create Table in Data Model ===");
 
-        dynamic? queries = null;
-        dynamic? query = null;
-        dynamic? connections = null;
-        dynamic? model = null;
-        dynamic? modelTables = null;
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query = null;
+        Excel.Connections? connections = null;
+        Excel.Model? model = null;
+        Excel.ModelTables? modelTables = null;
 
         try
         {
@@ -179,7 +172,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             string connString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location=Sales";
 
             _output.WriteLine("\n--- Adding connection with CreateModelConnection=true ---");
-            dynamic? conn = null;
+            Excel.WorkbookConnection? conn = null;
             try
             {
                 conn = connections.Add2(
@@ -212,15 +205,15 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             for (int i = 1; i <= modelTables.Count; i++)
             {
-                dynamic? table = modelTables[i];
+                Excel.ModelTable? table = modelTables.Item(i);
                 _output.WriteLine($"  Table {i}: {table.Name}");
 
                 // List columns
-                dynamic? columns = table.ModelTableColumns;
+                Excel.ModelTableColumns? columns = table.ModelTableColumns;
                 _output.WriteLine($"    Columns: {columns.Count}");
                 for (int j = 1; j <= columns.Count; j++)
                 {
-                    dynamic? col = columns[j];
+                    Excel.ModelTableColumn? col = columns.Item(j);
                     _output.WriteLine($"      - {col.Name} ({col.DataType})");
                     ComUtilities.Release(ref col);
                 }
@@ -247,12 +240,12 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario3_AddDaxMeasure()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 3: Add DAX Measure ===");
 
-        dynamic? model = null;
-        dynamic? modelTables = null;
-        dynamic? measures = null;
+        Excel.Model? model = null;
+        Excel.ModelTables? modelTables = null;
+        Excel.ModelMeasures? measures = null;
 
         try
         {
@@ -268,7 +261,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 return;
             }
 
-            dynamic? table = modelTables[1];
+            Excel.ModelTable? table = modelTables.Item(1);
             string tableName = table.Name;
             _output.WriteLine($"Adding measure to table: {tableName}");
 
@@ -279,13 +272,13 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             // Add a measure
             _output.WriteLine("\n--- Adding DAX measure ---");
-            dynamic? formatInfo = null;
+            Excel.ModelFormatGeneral? formatInfo = null;
             try
             {
                 // ModelMeasures.Add signature: (MeasureName, AssociatedTable, Formula, FormatInformation, [Description])
                 // FormatInformation is REQUIRED - get from Model.ModelFormatGeneral property
                 formatInfo = model.ModelFormatGeneral;
-                dynamic? measure = measures.Add(
+                Excel.ModelMeasure? measure = measures.Add(
                     "TotalAmount",                           // MeasureName
                     table,                                   // AssociatedTable
                     "SUM(Query[Amount])",                    // Formula (use table name "Query" from M code)
@@ -332,11 +325,11 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario4_UpdateDaxMeasure()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 4: Update DAX Measure ===");
 
-        dynamic? model = null;
-        dynamic? measures = null;
+        Excel.Model? model = null;
+        Excel.ModelMeasures? measures = null;
 
         try
         {
@@ -354,10 +347,10 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             }
 
             // Find and update the measure
-            dynamic? measure = null;
+            Excel.ModelMeasure? measure = null;
             for (int i = 1; i <= measures.Count; i++)
             {
-                dynamic? m = measures[i];
+                Excel.ModelMeasure? m = measures.Item(i);
                 if (m.Name == "TotalAmount")
                 {
                     measure = m;
@@ -415,11 +408,11 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario5_DeleteDaxMeasure()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 5: Delete DAX Measure ===");
 
-        dynamic? model = null;
-        dynamic? measures = null;
+        Excel.Model? model = null;
+        Excel.ModelMeasures? measures = null;
 
         try
         {
@@ -436,7 +429,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             // Find and delete the measure
             for (int i = 1; i <= measures.Count; i++)
             {
-                dynamic? m = measures[i];
+                Excel.ModelMeasure? m = measures.Item(i);
                 if (m.Name == "ToDelete")
                 {
                     _output.WriteLine("\n--- Deleting measure 'ToDelete' ---");
@@ -471,12 +464,12 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario6_CreateRelationship()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 6: Create Relationship ===");
 
-        dynamic? model = null;
-        dynamic? modelTables = null;
-        dynamic? relationships = null;
+        Excel.Model? model = null;
+        Excel.ModelTables? modelTables = null;
+        Excel.ModelRelationships? relationships = null;
 
         try
         {
@@ -498,14 +491,14 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             }
 
             // Find the tables and columns
-            dynamic? salesTable = null;
-            dynamic? productsTable = null;
-            dynamic? salesProductCol = null;
-            dynamic? productsNameCol = null;
+            Excel.ModelTable? salesTable = null;
+            Excel.ModelTable? productsTable = null;
+            Excel.ModelTableColumn? salesProductCol = null;
+            Excel.ModelTableColumn? productsNameCol = null;
 
             for (int i = 1; i <= modelTables.Count; i++)
             {
-                dynamic? t = modelTables[i];
+                Excel.ModelTable? t = modelTables.Item(i);
                 string name = t.Name;
                 if (name == "Sales")
                     salesTable = t;
@@ -517,13 +510,13 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             if (salesTable != null && productsTable != null)
             {
-                Assert.NotNull((object?)salesTable);
-                Assert.NotNull((object?)productsTable);
+                Assert.NotNull(salesTable);
+                Assert.NotNull(productsTable);
                 // Get the columns
-                dynamic? salesCols = salesTable.ModelTableColumns;
+                Excel.ModelTableColumns? salesCols = salesTable.ModelTableColumns;
                 for (int i = 1; i <= salesCols.Count; i++)
                 {
-                    dynamic? col = salesCols[i];
+                    Excel.ModelTableColumn? col = salesCols.Item(i);
                     if (col.Name == "Product")
                     {
                         salesProductCol = col;
@@ -533,10 +526,10 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 }
                 ComUtilities.Release(ref salesCols);
 
-                dynamic? prodCols = productsTable.ModelTableColumns;
+                Excel.ModelTableColumns? prodCols = productsTable.ModelTableColumns;
                 for (int i = 1; i <= prodCols.Count; i++)
                 {
-                    dynamic? col = prodCols[i];
+                    Excel.ModelTableColumn? col = prodCols.Item(i);
                     if (col.Name == "ProductName")
                     {
                         productsNameCol = col;
@@ -551,7 +544,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                     _output.WriteLine("\n--- Creating relationship ---");
                     try
                     {
-                        dynamic? rel = relationships.Add(
+                        Excel.ModelRelationship? rel = relationships.Add(
                             salesProductCol,     // ForeignKeyColumn (many side)
                             productsNameCol      // PrimaryKeyColumn (one side)
                         );
@@ -603,11 +596,11 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario7_DeleteRelationship()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 7: Delete Relationship ===");
 
-        dynamic? model = null;
-        dynamic? relationships = null;
+        Excel.Model? model = null;
+        Excel.ModelRelationships? relationships = null;
 
         try
         {
@@ -629,7 +622,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             }
 
             // Delete first relationship
-            dynamic? rel = relationships[1];
+            Excel.ModelRelationship? rel = relationships.Item(1);
             _output.WriteLine($"\n--- Deleting relationship ---");
             rel.Delete();
             _output.WriteLine("Relationship deleted");
@@ -656,12 +649,12 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario8_DeleteQueryWithDataModelTable()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 8: Delete Query That Loaded to Data Model ===");
 
-        dynamic? queries = null;
-        dynamic? model = null;
-        dynamic? modelTables = null;
+        Excel.Queries? queries = null;
+        Excel.Model? model = null;
+        Excel.ModelTables? modelTables = null;
 
         try
         {
@@ -679,10 +672,10 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             _output.WriteLine($"Model tables before delete: {tableCountBefore}");
 
             // Find and delete the query
-            dynamic? query = null;
+            Excel.WorkbookQuery? query = null;
             for (int i = 1; i <= queries.Count; i++)
             {
-                dynamic? q = queries[i];
+                Excel.WorkbookQuery? q = queries.Item(i);
                 if (q.Name == "OrphanTest")
                 {
                     query = q;
@@ -713,7 +706,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 // List remaining tables
                 for (int i = 1; i <= modelTables.Count; i++)
                 {
-                    dynamic? t = modelTables[i];
+                    Excel.ModelTable? t = modelTables.Item(i);
                     _output.WriteLine($"  Orphaned table: {t.Name}");
                     ComUtilities.Release(ref t);
                 }
@@ -740,12 +733,12 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario9_MeasureWithDeletedTable()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 9: Measure Referencing Deleted Table ===");
 
-        dynamic? queries = null;
-        dynamic? model = null;
-        dynamic? measures = null;
+        Excel.Queries? queries = null;
+        Excel.Model? model = null;
+        Excel.ModelMeasures? measures = null;
 
         try
         {
@@ -763,7 +756,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             _output.WriteLine("\n--- Deleting source query ---");
             for (int i = 1; i <= queries.Count; i++)
             {
-                dynamic? q = queries[i];
+                Excel.WorkbookQuery? q = queries.Item(i);
                 if (q.Name == "ToDelete")
                 {
                     q.Delete();
@@ -782,7 +775,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             // Try to access the measure
             for (int i = 1; i <= measures.Count; i++)
             {
-                dynamic? m = measures[i];
+                Excel.ModelMeasure? m = measures.Item(i);
                 try
                 {
                     _output.WriteLine($"Measure: {m.Name}");
@@ -813,11 +806,11 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario10_MultipleMeasures()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 10: Multiple Measures on Same Table ===");
 
-        dynamic? model = null;
-        dynamic? measures = null;
+        Excel.Model? model = null;
+        Excel.ModelMeasures? measures = null;
 
         try
         {
@@ -835,7 +828,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             for (int i = 1; i <= measures.Count; i++)
             {
-                dynamic? m = measures[i];
+                Excel.ModelMeasure? m = measures.Item(i);
                 _output.WriteLine($"  {m.Name}: {m.Formula}");
                 ComUtilities.Release(ref m);
             }
@@ -856,10 +849,10 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario11_ModelRefresh()
     {
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 11: Model Refresh ===");
 
-        dynamic? model = null;
+        Excel.Model? model = null;
 
         try
         {
@@ -881,10 +874,10 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             // Alternative: Refresh via connection
             _output.WriteLine("\n--- Attempting connection refresh ---");
-            dynamic? connections = _workbook.Connections;
+            Excel.Connections? connections = _workbook.Connections;
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic? conn = connections[i];
+                Excel.WorkbookConnection? conn = connections.Item(i);
                 try
                 {
                     conn.Refresh();
@@ -914,14 +907,14 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
     [Fact]
     public void Scenario12_CubeValueRecalculationAfterRefresh()
     {
-        Assert.NotNull((object?)_excel);
-        Assert.NotNull((object?)_workbook);
+        Assert.NotNull(_excel);
+        Assert.NotNull(_workbook);
         _output.WriteLine("=== SCENARIO 12: CUBEVALUE Recalculation After Refresh ===");
         _output.WriteLine("This test verifies if CUBEVALUE formulas automatically recalculate after Data Model refresh.");
 
-        dynamic? model = null;
-        dynamic? sheet = null;
-        dynamic? range = null;
+        Excel.Model? model = null;
+        Excel.Worksheet? sheet = null;
+        Excel.Range? range = null;
 
         try
         {
@@ -935,21 +928,21 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             // Step 3: Check current calculation mode
             _output.WriteLine("\n--- Step 3: Check calculation mode ---");
-            int calcMode = _excel.Calculation;
+            int calcMode = (int)_excel.Calculation;
             _output.WriteLine($"Current calculation mode: {calcMode} (xlCalculationAutomatic=-4105, xlCalculationManual=-4135)");
 
             // Step 4: Add CUBEVALUE formula to worksheet
             _output.WriteLine("\n--- Step 4: Add CUBEVALUE formula ---");
-            sheet = _workbook.Worksheets[1];
+            sheet = DiagnosticExcelObjects.GetWorksheet(_workbook, 1);
 
             // First, let's check what cube connections exist
             _output.WriteLine("Checking available cube connections...");
             try
             {
-                dynamic? connections = _workbook.Connections;
+                Excel.Connections? connections = _workbook.Connections;
                 for (int i = 1; i <= connections.Count; i++)
                 {
-                    dynamic? conn = connections[i];
+                    Excel.WorkbookConnection? conn = connections.Item(i);
                     _output.WriteLine($"  Connection {i}: '{conn.Name}' Type={conn.Type}");
                     ComUtilities.Release(ref conn);
                 }
@@ -981,25 +974,25 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             _output.WriteLine($"Set formula in A1: {cubeFormula}");
 
             // Also try the alternative connection format in A2
-            dynamic? rangeA2 = sheet.Range["A2"];
+            Excel.Range? rangeA2 = sheet.Range["A2"];
             string cubeFormula2 = "=CUBEVALUE(\"Query - Sales\",\"[Measures].[TotalAmount]\")";
             rangeA2.Formula = cubeFormula2;
             _output.WriteLine($"Set formula in A2: {cubeFormula2}");
             ComUtilities.Release(ref rangeA2);
 
             // Try different measure formats in A3-A5
-            dynamic? rangeA3 = sheet.Range["A3"];
+            Excel.Range? rangeA3 = sheet.Range["A3"];
             rangeA3.Formula = "=CUBEVALUE(\"ThisWorkbookDataModel\",\"TotalAmount\")";
             _output.WriteLine($"Set formula in A3: =CUBEVALUE(\"ThisWorkbookDataModel\",\"TotalAmount\")");
             ComUtilities.Release(ref rangeA3);
 
-            dynamic? rangeA4 = sheet.Range["A4"];
+            Excel.Range? rangeA4 = sheet.Range["A4"];
             rangeA4.Formula = "=CUBEVALUE(\"ThisWorkbookDataModel\",\"[Sales].[TotalAmount]\")";
             _output.WriteLine($"Set formula in A4: =CUBEVALUE(\"ThisWorkbookDataModel\",\"[Sales].[TotalAmount]\")");
             ComUtilities.Release(ref rangeA4);
 
             // Try a CUBEMEMBER first approach
-            dynamic? rangeA5 = sheet.Range["A5"];
+            Excel.Range? rangeA5 = sheet.Range["A5"];
             rangeA5.Formula = "=CUBEMEMBER(\"ThisWorkbookDataModel\",\"[Measures].[TotalAmount]\")";
             _output.WriteLine($"Set formula in A5: =CUBEMEMBER(\"ThisWorkbookDataModel\",\"[Measures].[TotalAmount]\")");
             ComUtilities.Release(ref rangeA5);
@@ -1109,10 +1102,10 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             // Step 10: Also check A2 (Query - Sales connection)
             _output.WriteLine("\n--- Step 10: Check A2-A5 (different formula formats) ---");
-            dynamic? rangeA2Check = sheet.Range["A2"];
-            dynamic? rangeA3Check = sheet.Range["A3"];
-            dynamic? rangeA4Check = sheet.Range["A4"];
-            dynamic? rangeA5Check = sheet.Range["A5"];
+            Excel.Range? rangeA2Check = sheet.Range["A2"];
+            Excel.Range? rangeA3Check = sheet.Range["A3"];
+            Excel.Range? rangeA4Check = sheet.Range["A4"];
+            Excel.Range? rangeA5Check = sheet.Range["A5"];
 
             object a2Value = rangeA2Check.Value2;
             object a3Value = rangeA3Check.Value2;
@@ -1265,14 +1258,14 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
     private void RefreshAllConnections()
     {
-        Assert.NotNull((object?)_workbook);
-        dynamic? connections = null;
+        Assert.NotNull(_workbook);
+        Excel.Connections? connections = null;
         try
         {
             connections = _workbook.Connections;
             for (int i = 1; i <= connections.Count; i++)
             {
-                dynamic? conn = connections[i];
+                Excel.WorkbookConnection? conn = connections.Item(i);
                 try
                 {
                     conn.Refresh();
@@ -1300,11 +1293,11 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
     private void CreateDataModelTable(string queryName, string mCode)
     {
-        Assert.NotNull((object?)_workbook);
-        dynamic? queries = null;
-        dynamic? query = null;
-        dynamic? connections = null;
-        dynamic? conn = null;
+        Assert.NotNull(_workbook);
+        Excel.Queries? queries = null;
+        Excel.WorkbookQuery? query = null;
+        Excel.Connections? connections = null;
+        Excel.WorkbookConnection? conn = null;
 
         try
         {
@@ -1313,7 +1306,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             // Check if query already exists
             for (int i = 1; i <= queries.Count; i++)
             {
-                dynamic? q = queries[i];
+                Excel.WorkbookQuery? q = queries.Item(i);
                 if (q.Name == queryName)
                 {
                     ComUtilities.Release(ref q);
@@ -1355,12 +1348,12 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
     private void CreateMeasure(string name, string formula)
     {
-        Assert.NotNull((object?)_workbook);
-        dynamic? model = null;
-        dynamic? modelTables = null;
-        dynamic? measures = null;
-        dynamic? table = null;
-        dynamic? formatInfo = null;
+        Assert.NotNull(_workbook);
+        Excel.Model? model = null;
+        Excel.ModelTables? modelTables = null;
+        Excel.ModelMeasures? measures = null;
+        Excel.ModelTable? table = null;
+        Excel.ModelFormatGeneral? formatInfo = null;
 
         try
         {
@@ -1373,13 +1366,13 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                 return;
             }
 
-            table = modelTables[1];
+            table = modelTables.Item(1);
             measures = model.ModelMeasures;
 
             // ModelMeasures.Add signature: (MeasureName, AssociatedTable, Formula, FormatInformation, [Description])
             // FormatInformation is REQUIRED - get from Model.ModelFormatGeneral property
             formatInfo = model.ModelFormatGeneral;
-            dynamic? measure = measures.Add(name, table, formula, formatInfo);
+            Excel.ModelMeasure? measure = measures.Add(name, table, formula, formatInfo);
             _output.WriteLine($"Created measure '{name}'");
             ComUtilities.Release(ref measure);
         }
@@ -1399,10 +1392,10 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
     private void CreateRelationshipBetweenTables()
     {
-        Assert.NotNull((object?)_workbook);
-        dynamic? model = null;
-        dynamic? modelTables = null;
-        dynamic? relationships = null;
+        Assert.NotNull(_workbook);
+        Excel.Model? model = null;
+        Excel.ModelTables? modelTables = null;
+        Excel.ModelRelationships? relationships = null;
 
         try
         {
@@ -1410,12 +1403,12 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             modelTables = model.ModelTables;
             relationships = model.ModelRelationships;
 
-            dynamic? salesTable = null;
-            dynamic? productsTable = null;
+            Excel.ModelTable? salesTable = null;
+            Excel.ModelTable? productsTable = null;
 
             for (int i = 1; i <= modelTables.Count; i++)
             {
-                dynamic? t = modelTables[i];
+                Excel.ModelTable? t = modelTables.Item(i);
                 string name = t.Name;
                 if (name == "Sales")
                     salesTable = t;
@@ -1434,15 +1427,15 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             }
 
             // Find columns
-            Assert.NotNull((object?)salesTable);
-            Assert.NotNull((object?)productsTable);
-            dynamic? salesProductCol = null;
-            dynamic? productsNameCol = null;
+            Assert.NotNull(salesTable);
+            Assert.NotNull(productsTable);
+            Excel.ModelTableColumn? salesProductCol = null;
+            Excel.ModelTableColumn? productsNameCol = null;
 
-            dynamic? salesCols = salesTable.ModelTableColumns;
+            Excel.ModelTableColumns? salesCols = salesTable.ModelTableColumns;
             for (int i = 1; i <= salesCols.Count; i++)
             {
-                dynamic? col = salesCols[i];
+                Excel.ModelTableColumn? col = salesCols.Item(i);
                 if (col.Name == "Product")
                 {
                     salesProductCol = col;
@@ -1452,10 +1445,10 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             }
             ComUtilities.Release(ref salesCols);
 
-            dynamic? prodCols = productsTable.ModelTableColumns;
+            Excel.ModelTableColumns? prodCols = productsTable.ModelTableColumns;
             for (int i = 1; i <= prodCols.Count; i++)
             {
-                dynamic? col = prodCols[i];
+                Excel.ModelTableColumn? col = prodCols.Item(i);
                 if (col.Name == "ProductName")
                 {
                     productsNameCol = col;
@@ -1467,7 +1460,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             if (salesProductCol != null && productsNameCol != null)
             {
-                dynamic? rel = relationships.Add(salesProductCol, productsNameCol);
+                Excel.ModelRelationship? rel = relationships.Add(salesProductCol, productsNameCol);
                 _output.WriteLine("Created relationship Sales[Product] -> Products[ProductName]");
                 ComUtilities.Release(ref rel);
             }
@@ -1503,11 +1496,11 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
         _output.WriteLine($"Excel.Visible = {excelVisible}");
         _output.WriteLine("");
 
-        dynamic? excel = null;
-        dynamic? workbook = null;
-        dynamic? model = null;
-        dynamic? sheet = null;
-        dynamic? range = null;
+        Excel.Application? excel = null;
+        Excel.Workbook? workbook = null;
+        Excel.Model? model = null;
+        Excel.Worksheet? sheet = null;
+        Excel.Range? range = null;
         string testFile = Path.Combine(_tempDir, $"CubeValue_{visibilityLabel}_{Guid.NewGuid():N}.xlsx");
 
         try
@@ -1516,8 +1509,8 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             _output.WriteLine("--- Step 1: Create fresh Excel instance ---");
             var excelType = Type.GetTypeFromProgID("Excel.Application");
             Assert.NotNull(excelType);
-            excel = Activator.CreateInstance(excelType);
-            Assert.NotNull((object?)excel);
+            excel = (Excel.Application?)Activator.CreateInstance(excelType);
+            Assert.NotNull(excel);
             excel.Visible = excelVisible;
             excel.DisplayAlerts = false;
             _output.WriteLine($"Excel instance created. Visible={excel.Visible}");
@@ -1530,7 +1523,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             // Step 2: Create workbook
             _output.WriteLine("\n--- Step 2: Create workbook ---");
-            workbook = excel.Workbooks.Add();
+            workbook = DiagnosticExcelObjects.AddWorkbook(excel);
             workbook.SaveAs(testFile);
             _output.WriteLine($"Workbook created: {testFile}");
 
@@ -1547,16 +1540,16 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
                     Source
                 """;
 
-            dynamic? queries = workbook.Queries;
-            dynamic? query = queries.Add(queryName, mCode);
+            Excel.Queries? queries = workbook.Queries;
+            Excel.WorkbookQuery? query = queries.Add(queryName, mCode);
             _output.WriteLine($"Query '{queryName}' created");
 
             // Create connection and load to Data Model
             string connectionString = $"OLEDB;Provider=Microsoft.Mashup.OleDb.1;Data Source=$Workbook$;Location={queryName}";
             string commandText = $"SELECT * FROM [{queryName}]";
 
-            dynamic? connections = workbook.Connections;
-            dynamic? conn = connections.Add2(
+            Excel.Connections? connections = workbook.Connections;
+            Excel.WorkbookConnection? conn = connections.Add2(
                 $"Query - {queryName}",
                 $"Power Query - {queryName}",
                 connectionString,
@@ -1583,14 +1576,14 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             // Step 4: Create DAX measure
             _output.WriteLine("\n--- Step 4: Create DAX measure ---");
             model = workbook.Model;
-            dynamic? modelTables = model.ModelTables;
+            Excel.ModelTables? modelTables = model.ModelTables;
             _output.WriteLine($"ModelTables.Count: {modelTables.Count}");
-            dynamic? targetTable = null;
+            Excel.ModelTable? targetTable = null;
             string targetTableName = "";
 
             for (int i = 1; i <= modelTables.Count; i++)
             {
-                dynamic? t = modelTables[i];
+                Excel.ModelTable? t = modelTables.Item(i);
                 string tName = t.Name?.ToString() ?? "(null)";
                 _output.WriteLine($"  Table[{i}]: {tName}");
                 if (targetTable == null)
@@ -1607,13 +1600,13 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             if (targetTable != null)
             {
-                dynamic? measures = model.ModelMeasures;
-                dynamic? formatInfo = model.ModelFormatGeneral;  // REQUIRED
+                Excel.ModelMeasures? measures = model.ModelMeasures;
+                Excel.ModelFormatGeneral? formatInfo = model.ModelFormatGeneral;  // REQUIRED
                 try
                 {
                     // Use the actual table name in the DAX formula
                     string daxFormula = $"SUM({targetTableName}[Amount])";
-                    dynamic? measure = measures.Add(
+                    Excel.ModelMeasure? measure = measures.Add(
                         "TotalAmount",
                         targetTable,
                         daxFormula,
@@ -1640,7 +1633,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             // Step 5: Discover Data Model connection name
             _output.WriteLine("\n--- Step 5: Discover Data Model connection name ---");
-            dynamic? dataModelConn = null;
+            Excel.WorkbookConnection? dataModelConn = null;
             string dataModelConnName = "ThisWorkbookDataModel";
             try
             {
@@ -1661,14 +1654,14 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             // Also list all connections
             _output.WriteLine("All connections in workbook:");
-            dynamic? conns = workbook.Connections;
+            Excel.Connections? conns = workbook.Connections;
             for (int i = 1; i <= conns.Count; i++)
             {
-                dynamic? c = conns[i];
+                Excel.WorkbookConnection? c = conns.Item(i);
                 string cName = c?.Name?.ToString() ?? "(null)";
-                int cType = Convert.ToInt32(c?.Type ?? 0);
+                int cType = (int)(c?.Type ?? 0);
                 bool inModel = false;
-                Assert.NotNull((object?)c);
+                Assert.NotNull(c);
                 try { inModel = c.InModel; } catch (COMException) { /* InModel property may not exist on all connection types */ }
                 _output.WriteLine($"  [{i}] Name: '{cName}', Type: {cType}, InModel: {inModel}");
                 ComUtilities.Release(ref c);
@@ -1677,12 +1670,12 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             // Step 5b: Try to create a proper Model Workbook Connection (per MS docs)
             _output.WriteLine("\n--- Step 5b: Try Model.CreateModelWorkbookConnection ---");
-            dynamic? modelWorkbookConn = null;
+            Excel.WorkbookConnection? modelWorkbookConn = null;
             try
             {
                 // Get the first table from the model to use as parameter
-                dynamic? modelTables2 = model.ModelTables;
-                dynamic? firstTable = modelTables2[1];
+                Excel.ModelTables? modelTables2 = model.ModelTables;
+                Excel.ModelTable? firstTable = modelTables2.Item(1);
                 modelWorkbookConn = model.CreateModelWorkbookConnection(firstTable);
                 string connName = modelWorkbookConn?.Name?.ToString() ?? "(null)";
                 _output.WriteLine($"Created Model Workbook Connection: '{connName}'");
@@ -1703,9 +1696,9 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             conns = workbook.Connections;
             for (int i = 1; i <= conns.Count; i++)
             {
-                dynamic? c = conns[i];
+                Excel.WorkbookConnection? c = conns.Item(i);
                 string cName = c?.Name?.ToString() ?? "(null)";
-                int cType = Convert.ToInt32(c?.Type ?? 0);
+                int cType = (int)(c?.Type ?? 0);
                 _output.WriteLine($"  [{i}] Name: '{cName}', Type: {cType}");
                 ComUtilities.Release(ref c);
             }
@@ -1713,7 +1706,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             // Step 6: Add CUBEVALUE formula
             _output.WriteLine("\n--- Step 6: Add CUBEVALUE formulas (testing different syntax) ---");
-            sheet = workbook.Worksheets[1];
+            sheet = DiagnosticExcelObjects.GetWorksheet(workbook, 1);
 
             // Build formulas with discovered names
             // Important: DAX measures are referenced as [Measures].[MeasureName]
@@ -1750,7 +1743,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
 
             // Also test CUBEMEMBER to see if that works
             _output.WriteLine("\n--- Also testing CUBEMEMBER function ---");
-            dynamic? memberRange = sheet.Range["B1"];
+            Excel.Range? memberRange = sheet.Range["B1"];
             string cubeMemberFormula = $"=CUBEMEMBER(\"{dataModelConnName}\",\"[Measures].[TotalAmount]\")";
             memberRange.Formula = cubeMemberFormula;
             _output.WriteLine($"B1: CUBEMEMBER formula: {cubeMemberFormula}");
@@ -1763,14 +1756,14 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             for (int i = 0; i < formulas.Length; i++)
             {
                 string cell = $"A{i + 1}";
-                dynamic? r = sheet.Range[cell];
+                Excel.Range? r = sheet.Range[cell];
                 object val = r.Value2;
                 _output.WriteLine($"{cell}: {FormatValue(val)} - {formulaDescriptions[i]}");
                 ComUtilities.Release(ref r);
             }
 
             // Check CUBEMEMBER
-            dynamic? memberRangeCheck = sheet.Range["B1"];
+            Excel.Range? memberRangeCheck = sheet.Range["B1"];
             object memberVal = memberRangeCheck.Value2;
             _output.WriteLine($"B1 (CUBEMEMBER): {FormatValue(memberVal)}");
             ComUtilities.Release(ref memberRangeCheck);
@@ -1796,7 +1789,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             for (int i = 0; i < formulas.Length; i++)
             {
                 string cell = $"A{i + 1}";
-                dynamic? r = sheet.Range[cell];
+                Excel.Range? r = sheet.Range[cell];
                 object val = r.Value2;
                 _output.WriteLine($"  {cell}: {FormatValue(val)}");
                 ComUtilities.Release(ref r);
@@ -1823,7 +1816,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             for (int i = 0; i < formulas.Length; i++)
             {
                 string cell = $"A{i + 1}";
-                dynamic? r = sheet.Range[cell];
+                Excel.Range? r = sheet.Range[cell];
                 object val = r.Value2;
                 _output.WriteLine($"  {cell}: {FormatValue(val)}");
                 ComUtilities.Release(ref r);
@@ -1850,7 +1843,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             for (int i = 0; i < formulas.Length; i++)
             {
                 string cell = $"A{i + 1}";
-                dynamic? r = sheet.Range[cell];
+                Excel.Range? r = sheet.Range[cell];
                 object val = r.Value2;
                 _output.WriteLine($"  {cell}: {FormatValue(val)}");
                 ComUtilities.Release(ref r);
@@ -1878,7 +1871,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             for (int i = 0; i < formulas.Length; i++)
             {
                 string cell = $"A{i + 1}";
-                dynamic? r = sheet.Range[cell];
+                Excel.Range? r = sheet.Range[cell];
                 object val = r.Value2;
                 _output.WriteLine($"  {cell}: {FormatValue(val)} - {formulaDescriptions[i]}");
                 if (val is int or double && bestValue == null)
@@ -1889,7 +1882,7 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             }
 
             // Also check CUBEMEMBER
-            dynamic? memberRangeFinal = sheet.Range["B1"];
+            Excel.Range? memberRangeFinal = sheet.Range["B1"];
             object memberValFinal = memberRangeFinal.Value2;
             _output.WriteLine($"  B1 (CUBEMEMBER): {FormatValue(memberValFinal)}");
             ComUtilities.Release(ref memberRangeFinal);
@@ -1917,39 +1910,9 @@ public class DataModelComApiBehaviorTests : IClassFixture<TempDirectoryFixture>,
             ComUtilities.Release(ref sheet);
             ComUtilities.Release(ref model);
 
-            if (workbook != null)
-            {
-                try
-                {
-                    workbook.Close(false);
-                }
-#pragma warning disable CA1031 // Intentional: cleanup code must not throw
-                catch (Exception) { /* Ignore cleanup errors */ }
-#pragma warning restore CA1031
-                ComUtilities.Release(ref workbook);
-            }
-
-            if (excel != null)
-            {
-                try
-                {
-                    excel.Quit();
-                }
-#pragma warning disable CA1031 // Intentional: cleanup code must not throw
-                catch (Exception) { /* Ignore cleanup errors */ }
-#pragma warning restore CA1031
-                ComUtilities.Release(ref excel);
-            }
-
-            // Clean up test file
-            try
-            {
-                if (File.Exists(testFile))
-                    File.Delete(testFile);
-            }
-#pragma warning disable CA1031 // Intentional: cleanup code must not throw
-            catch (Exception) { /* Ignore file cleanup errors */ }
-#pragma warning restore CA1031
+            ExcelShutdownService.CloseAndQuit(workbook, excel, save: false);
+            if (File.Exists(testFile))
+                File.Delete(testFile);
         }
 
         _output.WriteLine($"=== SCENARIO 13 ({visibilityLabel}) COMPLETE ===\n");

@@ -88,11 +88,11 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? formatConditions = null;
-            dynamic? cells = null;
-            dynamic? worksheetConditions = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            Excel.FormatConditions? formatConditions = null;
+            Excel.Range? cells = null;
+            Excel.FormatConditions? worksheetConditions = null;
             object? createdRule = null;
 
             try
@@ -215,7 +215,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
     /// Adds a basic (cellValue/expression) rule and applies interior/font/border formatting.
     /// </summary>
     private static object AddBasicRule(
-        dynamic formatConditions,
+        Excel.FormatConditions formatConditions,
         string normalizedType,
         string? operatorType,
         string? formula1,
@@ -228,11 +228,13 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         string? borderStyle,
         string? borderColor)
     {
-        dynamic? formatCondition = null;
+        Excel.FormatCondition? formatCondition = null;
 
         try
         {
-            var xlType = normalizedType == "expression" ? 2 : 1;
+            var xlType = normalizedType == "expression"
+                ? Excel.XlFormatConditionType.xlExpression
+                : Excel.XlFormatConditionType.xlCellValue;
             var xlOperator = ValidateAndParseBasicRuleArguments(
                 normalizedType,
                 operatorType,
@@ -262,7 +264,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
     /// that support cell formatting (cellValue, expression, top10, aboveAverage, timePeriod, etc.).
     /// </summary>
     private static void ApplyRuleFormatting(
-        dynamic formatCondition,
+        object formatCondition,
         string? interiorColor,
         string? interiorPattern,
         string? fontColor,
@@ -271,16 +273,16 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         string? borderStyle,
         string? borderColor)
     {
-        dynamic? interior = null;
-        dynamic? font = null;
-        dynamic? borders = null;
+        Excel.Interior? interior = null;
+        Excel.Font? font = null;
+        Excel.Borders? borders = null;
 
         try
         {
             // Apply Interior formatting
             if (!string.IsNullOrEmpty(interiorColor) || !string.IsNullOrEmpty(interiorPattern))
             {
-                interior = formatCondition.Interior;
+                interior = GetNativeRuleInterior(formatCondition);
                 if (!string.IsNullOrEmpty(interiorColor))
                     interior.Color = FormattingHelpers.ParseColor(interiorColor);
                 if (!string.IsNullOrEmpty(interiorPattern))
@@ -290,7 +292,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
             // Apply Font formatting
             if (!string.IsNullOrEmpty(fontColor) || fontBold.HasValue || fontItalic.HasValue)
             {
-                font = formatCondition.Font;
+                font = GetNativeRuleFont(formatCondition);
                 if (!string.IsNullOrEmpty(fontColor))
                     font.Color = FormattingHelpers.ParseColor(fontColor);
                 if (fontBold.HasValue)
@@ -302,7 +304,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
             // Apply Border formatting
             if (!string.IsNullOrEmpty(borderStyle) || !string.IsNullOrEmpty(borderColor))
             {
-                borders = formatCondition.Borders;
+                borders = GetNativeRuleBorders(formatCondition);
                 // NOTE: FormatCondition.Borders is a 4-item collection indexed 1-4
                 // (left/top/bottom/right), unlike Range.Borders which uses the
                 // xlEdgeLeft(7)/xlEdgeTop(8)/xlEdgeBottom(9)/xlEdgeRight(10) constants.
@@ -317,10 +319,10 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
 
                 for (var borderIndex = 1; borderIndex <= 4; borderIndex++)
                 {
-                    dynamic? border = null;
+                    Excel.Border? border = null;
                     try
                     {
-                        border = borders.Item(borderIndex);
+                        border = borders[(Excel.XlBordersIndex)borderIndex];
                         if (xlBorderStyle.HasValue)
                             border.LineStyle = xlBorderStyle.Value;
                         if (color.HasValue)
@@ -349,9 +351,9 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? formatConditions = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            Excel.FormatConditions? formatConditions = null;
 
             try
             {
@@ -391,9 +393,9 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
-            dynamic? formatConditions = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
+            Excel.FormatConditions? formatConditions = null;
 
             try
             {
@@ -431,9 +433,9 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? cells = null;
-            dynamic? formatConditions = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? cells = null;
+            Excel.FormatConditions? formatConditions = null;
 
             try
             {
@@ -463,7 +465,7 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
     /// Reads a FormatConditions collection into a list of rule descriptors.
     /// Each optional COM property read is guarded so unsupported rule types degrade gracefully.
     /// </summary>
-    private static List<ConditionalFormatRuleInfo> ReadFormatConditions(dynamic formatConditions, CancellationToken cancellationToken)
+    private static List<ConditionalFormatRuleInfo> ReadFormatConditions(Excel.FormatConditions formatConditions, CancellationToken cancellationToken)
     {
         var rules = new List<ConditionalFormatRuleInfo>();
 
@@ -471,16 +473,16 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         for (int i = 1; i <= count; i++)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            dynamic? fc = null;
-            dynamic? appliesTo = null;
-            dynamic? interior = null;
+            object? fc = null;
+            Excel.Range? appliesTo = null;
+            Excel.Interior? interior = null;
             Excel.Font? font = null;
-            dynamic? borders = null;
-            dynamic? edgeBorder = null;
+            Excel.Borders? borders = null;
+            Excel.Border? edgeBorder = null;
 
             try
             {
-                fc = formatConditions.Item(i);
+                fc = formatConditions[i];
 
                 int typeNum = ReadRuleTypeInt(fc);
                 var rule = new ConditionalFormatRuleInfo
@@ -490,21 +492,21 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
 
                 if (typeNum is 1 or 2)
                 {
-                    rule.Formula1 = ReadRuleString(fc, "Formula1");
+                    rule.Formula1 = ReadRuleFormula((Excel.FormatCondition)fc, false);
                     if (typeNum == 1)
                     {
-                        rule.Operator = ReadRuleOperator(fc);
+                        rule.Operator = ReadRuleOperator((Excel.FormatCondition)fc);
                         if (rule.Operator is "between" or "notBetween")
-                            rule.Formula2 = ReadRuleString(fc, "Formula2");
+                            rule.Formula2 = ReadRuleFormula((Excel.FormatCondition)fc, true);
                     }
                 }
-                rule.Priority = ReadRuleInt(fc, "Priority");
+                rule.Priority = ReadRulePriority(fc);
                 if (typeNum is not (3 or 4 or 6))
-                    rule.StopIfTrue = ReadRuleBool(fc, "StopIfTrue");
+                    rule.StopIfTrue = ReadRuleStopIfTrue(fc);
 
                 try
                 {
-                    appliesTo = fc.AppliesTo;
+                    appliesTo = GetNativeRuleAppliesTo(fc);
                     rule.AppliesTo = appliesTo?.Address;
                 }
                 catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
@@ -515,13 +517,13 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                     // Interior (fill)
                     try
                     {
-                        interior = fc.Interior;
-                        int? colorIndex = ReadOptionalFormattingInt(interior.ColorIndex);
+                        interior = GetNativeRuleInterior(fc);
+                        int? colorIndex = ReadOptionalFormattingInt((object)interior.ColorIndex);
                         if (colorIndex.HasValue && colorIndex != -4142 && colorIndex != -4105) // not None/Automatic
                         {
-                            int? color = ReadOptionalFormattingInt(interior.Color);
+                            int? color = ReadOptionalFormattingInt((object)interior.Color);
                             rule.InteriorColor = color.HasValue ? FormattingHelpers.ColorToHex(color.Value) : null;
-                            try { rule.InteriorPattern = ReadOptionalFormattingInt(interior.Pattern); }
+                            try { rule.InteriorPattern = ReadOptionalFormattingInt((object)interior.Pattern); }
                             catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
                         }
                     }
@@ -530,17 +532,17 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                     // Font
                     try
                     {
-                        font = fc.Font;
+                        font = GetNativeRuleFont(fc);
                         object? bold = font.Bold;
                         object? italic = font.Italic;
                         rule.FontBold = ReadOptionalFormattingBool(bold);
                         rule.FontItalic = ReadOptionalFormattingBool(italic);
                         try
                         {
-                            int? fontColorIndex = ReadOptionalFormattingInt(font.ColorIndex);
+                            int? fontColorIndex = ReadOptionalFormattingInt((object)font.ColorIndex);
                             if (fontColorIndex.HasValue && fontColorIndex != -4105 && fontColorIndex != -4142) // not Automatic/None
                             {
-                                int? color = ReadOptionalFormattingInt(font.Color);
+                                int? color = ReadOptionalFormattingInt((object)font.Color);
                                 rule.FontColor = color.HasValue ? FormattingHelpers.ColorToHex(color.Value) : null;
                             }
                         }
@@ -553,19 +555,19 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                     // rules may set only some edges).
                     try
                     {
-                        borders = fc.Borders;
+                        borders = GetNativeRuleBorders(fc);
                         // NOTE: FormatCondition.Borders is a 4-item collection indexed 1-4
                         // (left/top/bottom/right) - see write-side note in AddRule above.
                         foreach (int edgeIndex in new[] { 1, 2, 3, 4 }) // left, top, bottom, right
                         {
-                            edgeBorder = borders.Item(edgeIndex);
-                            int? lineStyle = ReadOptionalFormattingInt(edgeBorder.LineStyle);
+                            edgeBorder = borders[(Excel.XlBordersIndex)edgeIndex];
+                            int? lineStyle = ReadOptionalFormattingInt((object)edgeBorder.LineStyle);
                             if (lineStyle.HasValue && lineStyle != -4142) // xlLineStyleNone
                             {
                                 rule.BorderStyle = BorderStyleToString(lineStyle.Value) ?? lineStyle.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
                                 try
                                 {
-                                    int? color = ReadOptionalFormattingInt(edgeBorder.Color);
+                                    int? color = ReadOptionalFormattingInt((object)edgeBorder.Color);
                                     rule.BorderColor = color.HasValue ? FormattingHelpers.ColorToHex(color.Value) : null;
                                 }
                                 catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { }
@@ -581,18 +583,18 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
                 // Type-specific configuration (visual rule types).
                 switch (typeNum)
                 {
-                    case 3: rule.ColorScaleCriteria = ReadColorScale(fc); break;   // xlColorScale
-                    case 4: rule.DataBar = ReadDataBar(fc); break;                 // xlDatabar
-                    case 5: rule.Top10 = ReadTop10(fc); break;                     // xlTop10
-                    case 6: rule.IconSet = ReadIconSet(fc); break;                 // xlIconSet
-                    case 11: rule.DatePeriod = ReadTimePeriod(fc); break;          // xlTimePeriod
-                    case 12: rule.AboveBelow = ReadAboveBelow(fc); break;          // xlAboveAverageCondition
+                    case 3: rule.ColorScaleCriteria = ReadColorScale((Excel.ColorScale)fc); break;   // xlColorScale
+                    case 4: rule.DataBar = ReadDataBar((Excel.Databar)fc); break;                 // xlDatabar
+                    case 5: rule.Top10 = ReadTop10((Excel.Top10)fc); break;                     // xlTop10
+                    case 6: rule.IconSet = ReadIconSet((Excel.IconSetCondition)fc); break;                 // xlIconSet
+                    case 11: rule.DatePeriod = ReadTimePeriod((Excel.FormatCondition)fc); break;          // xlTimePeriod
+                    case 12: rule.AboveBelow = ReadAboveBelow((Excel.AboveAverage)fc); break;          // xlAboveAverageCondition
                 }
 
                 if (typeNum == 8)
-                    rule.DuplicateValues = Convert.ToInt32(fc.DupeUnique, System.Globalization.CultureInfo.InvariantCulture) == 1;
+                    rule.DuplicateValues = ((Excel.UniqueValues)fc).DupeUnique == Excel.XlDupeUnique.xlDuplicate;
                 if (typeNum == 12)
-                    rule.StandardDeviations = Convert.ToInt32(fc.NumStdDev, System.Globalization.CultureInfo.InvariantCulture);
+                    rule.StandardDeviations = ((Excel.AboveAverage)fc).NumStdDev;
                 rule.Fingerprint = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(
                     System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(rule)));
                 rules.Add(rule);
@@ -611,9 +613,22 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         return rules;
     }
 
-    private static int ReadRuleTypeInt(dynamic fc)
+    private static int ReadRuleTypeInt(object fc)
     {
-        try { return Convert.ToInt32(fc.Type, System.Globalization.CultureInfo.InvariantCulture); }
+        try
+        {
+            return fc switch
+            {
+                Excel.FormatCondition item => item.Type,
+                Excel.ColorScale item => item.Type,
+                Excel.Databar item => item.Type,
+                Excel.IconSetCondition item => item.Type,
+                Excel.Top10 item => item.Type,
+                Excel.AboveAverage item => item.Type,
+                Excel.UniqueValues item => item.Type,
+                _ => throw new NotSupportedException("This native conditional-rule type is not supported for reading.")
+            };
+        }
         catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { return -1; }
     }
 
@@ -623,22 +638,17 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
     private static bool? ReadOptionalFormattingBool(object? value) =>
         value is null or DBNull ? null : Convert.ToBoolean(value, System.Globalization.CultureInfo.InvariantCulture);
 
-    private static string? ReadRuleOperator(dynamic fc)
+    private static string? ReadRuleOperator(Excel.FormatCondition fc)
     {
         try { return ConditionalFormattingOperatorToString(Convert.ToInt32(fc.Operator, System.Globalization.CultureInfo.InvariantCulture)); }
         catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex)) { return null; }
     }
 
-    private static string? ReadRuleString(dynamic fc, string property)
+    private static string? ReadRuleFormula(Excel.FormatCondition fc, bool secondFormula)
     {
         try
         {
-            string? value = property switch
-            {
-                "Formula1" => fc.Formula1,
-                "Formula2" => fc.Formula2,
-                _ => null
-            };
+            string? value = secondFormula ? fc.Formula2 : fc.Formula1;
             return string.IsNullOrEmpty(value) ? null : value;
         }
         catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
@@ -647,16 +657,11 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         }
     }
 
-    private static int? ReadRuleInt(dynamic fc, string property)
+    private static int? ReadRulePriority(object fc)
     {
         try
         {
-            var value = property switch
-            {
-                "Priority" => (object)fc.Priority,
-                _ => null
-            };
-            return ReadOptionalFormattingInt(value);
+            return GetNativePriority(fc);
         }
         catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
@@ -664,24 +669,63 @@ public partial class ConditionalFormattingCommands : IConditionalFormattingComma
         }
     }
 
-    private static bool? ReadRuleBool(dynamic obj, string property)
+    private static bool? ReadRuleStopIfTrue(object rule)
     {
         try
         {
-            var value = property switch
+            return rule switch
             {
-                "StopIfTrue" => (object?)obj.StopIfTrue,
-                "Bold" => obj.Bold,
-                "Italic" => obj.Italic,
-                _ => null
+                Excel.FormatCondition item => item.StopIfTrue,
+                Excel.Top10 item => item.StopIfTrue,
+                Excel.AboveAverage item => item.StopIfTrue,
+                Excel.UniqueValues item => item.StopIfTrue,
+                _ => throw new NotSupportedException("StopIfTrue is not available for this native conditional-rule type.")
             };
-            return ReadOptionalFormattingBool(value);
         }
         catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
             return null;
         }
     }
+
+    private static Excel.Range GetNativeRuleAppliesTo(object rule) => rule switch
+    {
+        Excel.FormatCondition item => item.AppliesTo,
+        Excel.ColorScale item => item.AppliesTo,
+        Excel.Databar item => item.AppliesTo,
+        Excel.IconSetCondition item => item.AppliesTo,
+        Excel.Top10 item => item.AppliesTo,
+        Excel.AboveAverage item => item.AppliesTo,
+        Excel.UniqueValues item => item.AppliesTo,
+        _ => throw new NotSupportedException("This native conditional-rule type is not supported for reading.")
+    };
+
+    private static Excel.Interior GetNativeRuleInterior(object rule) => rule switch
+    {
+        Excel.FormatCondition item => item.Interior,
+        Excel.Top10 item => item.Interior,
+        Excel.AboveAverage item => item.Interior,
+        Excel.UniqueValues item => item.Interior,
+        _ => throw new NotSupportedException("Cell formatting is not available for this native conditional-rule type.")
+    };
+
+    private static Excel.Font GetNativeRuleFont(object rule) => rule switch
+    {
+        Excel.FormatCondition item => item.Font,
+        Excel.Top10 item => item.Font,
+        Excel.AboveAverage item => item.Font,
+        Excel.UniqueValues item => item.Font,
+        _ => throw new NotSupportedException("Cell formatting is not available for this native conditional-rule type.")
+    };
+
+    private static Excel.Borders GetNativeRuleBorders(object rule) => rule switch
+    {
+        Excel.FormatCondition item => item.Borders,
+        Excel.Top10 item => item.Borders,
+        Excel.AboveAverage item => item.Borders,
+        Excel.UniqueValues item => item.Borders,
+        _ => throw new NotSupportedException("Cell formatting is not available for this native conditional-rule type.")
+    };
 
     private static int ValidateAndParseBasicRuleArguments(
         string normalizedType,

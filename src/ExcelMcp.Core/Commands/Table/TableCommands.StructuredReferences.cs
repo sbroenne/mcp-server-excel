@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
@@ -23,7 +24,7 @@ public partial class TableCommands
         var result = new TableStructuredReferenceResult { FilePath = batch.WorkbookPath };
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
+            Excel.ListObject? table = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
@@ -33,8 +34,8 @@ public partial class TableCommands
                 result.ColumnName = columnName;
 
                 // Get sheet name
-                dynamic? range = null;
-                dynamic? sheet = null;
+                Excel.Range? range = null;
+                Excel.Worksheet? sheet = null;
                 try
                 {
                     range = table.Range;
@@ -51,9 +52,9 @@ public partial class TableCommands
                 result.StructuredReference = BuildStructuredReference(tableName, region, columnName);
 
                 // Get region range
-                dynamic? regionRange = null;
-                dynamic? rows = null;
-                dynamic? columns = null;
+                Excel.Range? regionRange = null;
+                Excel.Range? rows = null;
+                Excel.Range? columns = null;
                 try
                 {
                     regionRange = GetRegionRange(table, region, columnName);
@@ -117,9 +118,9 @@ public partial class TableCommands
     /// <summary>
     /// Gets the Excel Range object for a specific table region
     /// </summary>
-    private static dynamic GetRegionRange(dynamic table, TableRegion region, string? columnName)
+    private static Excel.Range GetRegionRange(Excel.ListObject table, TableRegion region, string? columnName)
     {
-        dynamic? regionRange = region switch
+        Excel.Range? regionRange = region switch
         {
             TableRegion.All => table.Range,
             TableRegion.Data => table.DataBodyRange,
@@ -132,23 +133,23 @@ public partial class TableCommands
         // If column specified, get intersection with column
         if (!string.IsNullOrEmpty(columnName))
         {
-            dynamic? columns = null;
-            dynamic? column = null;
-            dynamic? columnRange = null;
-            dynamic? intersection = null;
+            Excel.ListColumns? columns = null;
+            Excel.ListColumn? column = null;
+            Excel.Range? columnRange = null;
+            Excel.Range? intersection = null;
             try
             {
                 columns = table.ListColumns;
-                column = columns.Item(columnName);
+                column = columns[columnName];
                 columnRange = column.Range;
 
                 // Intersect with region range
-                dynamic? app = null;
+                Excel.Application? app = null;
                 try
                 {
                     app = table.Application;
                     intersection = app.Intersect(regionRange, columnRange);
-                    dynamic result = intersection;
+                    Excel.Range result = intersection;
                     intersection = null;
                     return result;
                 }
@@ -167,7 +168,7 @@ public partial class TableCommands
             }
         }
 
-        dynamic transferredRange = regionRange!;
+        Excel.Range transferredRange = regionRange!;
         regionRange = null;
         return transferredRange;
     }

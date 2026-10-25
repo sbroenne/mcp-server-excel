@@ -33,7 +33,7 @@ public sealed partial class SlicerCommands
                 slicers = cache.Slicers;
                 try
                 {
-                    slicer = slicers.Add(sheet, Type.Missing, slicerName, slicerName, anchor.Top, anchor.Left);
+                    slicer = slicers.Add(sheet, Type.Missing, slicerName, slicerName, (object)anchor.Top, (object)anchor.Left);
                 }
                 catch (Exception ex) when (CreatedObjectFailure.CanReport(ex))
                 {
@@ -359,8 +359,8 @@ public sealed partial class SlicerCommands
             if (!cache.FilterCleared)
             {
                 state = cache.TimelineState;
-                details.StartDate = Convert.ToDateTime(state.StartDate, CultureInfo.InvariantCulture);
-                details.EndDate = Convert.ToDateTime(state.EndDate, CultureInfo.InvariantCulture);
+                details.StartDate = Convert.ToDateTime((object)state.StartDate, CultureInfo.InvariantCulture);
+                details.EndDate = Convert.ToDateTime((object)state.EndDate, CultureInfo.InvariantCulture);
                 details.FilterType = state.FilterType.ToString();
                 details.SingleRangeFilterState = state.SingleRangeFilterState;
             }

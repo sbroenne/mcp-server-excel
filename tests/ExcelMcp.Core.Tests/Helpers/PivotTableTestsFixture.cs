@@ -1,8 +1,10 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Tests.Infrastructure;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
@@ -67,42 +69,32 @@ public class PivotTableTestsFixture : IAsyncLifetime
             using var batch = ExcelSession.BeginBatch(TestFilePath);
             batch.Execute((ctx, ct) =>
             {
-                dynamic sheet = ctx.Book.Worksheets[1];
-                sheet.Name = "SalesData";
-
-                // Headers
-                sheet.Range["A1"].Value2 = "Region";
-                sheet.Range["B1"].Value2 = "Product";
-                sheet.Range["C1"].Value2 = "Sales";
-                sheet.Range["D1"].Value2 = "Date";
-
-                // Sample data (5 rows)
-                sheet.Range["A2"].Value2 = "North";
-                sheet.Range["B2"].Value2 = "Widget";
-                sheet.Range["C2"].Value2 = 100;
-                sheet.Range["D2"].Value2 = new DateTime(2025, 1, 15);
-
-                sheet.Range["A3"].Value2 = "North";
-                sheet.Range["B3"].Value2 = "Widget";
-                sheet.Range["C3"].Value2 = 150;
-                sheet.Range["D3"].Value2 = new DateTime(2025, 1, 20);
-
-                sheet.Range["A4"].Value2 = "South";
-                sheet.Range["B4"].Value2 = "Gadget";
-                sheet.Range["C4"].Value2 = 200;
-                sheet.Range["D4"].Value2 = new DateTime(2025, 2, 10);
-
-                sheet.Range["A5"].Value2 = "North";
-                sheet.Range["B5"].Value2 = "Gadget";
-                sheet.Range["C5"].Value2 = 75;
-                sheet.Range["D5"].Value2 = new DateTime(2025, 2, 15);
-
-                sheet.Range["A6"].Value2 = "South";
-                sheet.Range["B6"].Value2 = "Widget";
-                sheet.Range["C6"].Value2 = 125;
-                sheet.Range["D6"].Value2 = new DateTime(2025, 3, 5);
-
-                return 0;
+                Excel.Sheets? sheets = null;
+                Excel.Worksheet? sheet = null;
+                Excel.Range? range = null;
+                try
+                {
+                    sheets = ctx.Book.Worksheets;
+                    sheet = (Excel.Worksheet)sheets[1];
+                    sheet.Name = "SalesData";
+                    range = sheet.Range["A1:D6"];
+                    range.Value2 = new object[,]
+                    {
+                        { "Region", "Product", "Sales", "Date" },
+                        { "North", "Widget", 100, new DateTime(2025, 1, 15) },
+                        { "North", "Widget", 150, new DateTime(2025, 1, 20) },
+                        { "South", "Gadget", 200, new DateTime(2025, 2, 10) },
+                        { "North", "Gadget", 75, new DateTime(2025, 2, 15) },
+                        { "South", "Widget", 125, new DateTime(2025, 3, 5) }
+                    };
+                    return 0;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref range);
+                    ComUtilities.Release(ref sheet);
+                    ComUtilities.Release(ref sheets);
+                }
             });
 
             CreationResult.DataRowsCreated = 5;
@@ -174,5 +166,4 @@ public class PivotTableCreationResult
     /// <inheritdoc/>
     public string? ErrorMessage { get; set; }
 }
-
 

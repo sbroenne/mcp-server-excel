@@ -61,10 +61,10 @@ public sealed partial class PersistentServiceChartFormattingTests
                 cell = sheet.Range["Z1"];
                 cell.Value2 = 1.25;
                 cell.NumberFormat = context.FormatTranslator.TranslateFromLocale(local);
-                Assert.Equal($"1{context.FormatTranslator.DecimalSeparator}25", cell.Text);
+                Assert.Equal($"1{context.FormatTranslator.DecimalSeparator}25", ((object)cell.Text));
                 display = cell.DisplayFormat;
                 font = display.Font;
-                Assert.Equal(255, Convert.ToInt32(font.Color, System.Globalization.CultureInfo.InvariantCulture));
+                Assert.Equal(255, Convert.ToInt32(((object)font.Color), System.Globalization.CultureInfo.InvariantCulture));
             }
             finally
             {
@@ -118,8 +118,8 @@ public sealed partial class PersistentServiceChartFormattingTests
                 cell = sheet.Range["Z1"];
                 cell.Value2 = 1.25;
                 cell.NumberFormat = "[Red]\\$0.00";
-                Assert.Equal($"$1{context.FormatTranslator.DecimalSeparator}25", cell.Text);
-                Assert.Equal(1.25, Assert.IsType<double>(cell.Value2));
+                Assert.Equal($"$1{context.FormatTranslator.DecimalSeparator}25", ((object)cell.Text));
+                Assert.Equal(1.25, Assert.IsType<double>(((object)cell.Value2)));
             }
             finally
             {
@@ -166,7 +166,7 @@ public sealed partial class PersistentServiceChartFormattingTests
                 chart = chartObject.Chart;
                 axis = (Microsoft.Office.Interop.Excel.Axis)chart.Axes(Microsoft.Office.Interop.Excel.XlAxisType.xlValue);
                 labels = axis.TickLabels;
-                Assert.Equal(format, ctx.FormatTranslator.TranslateFromLocale(labels.NumberFormatLocal));
+                Assert.Equal(format, ctx.FormatTranslator.TranslateFromLocale(Assert.IsType<string>((object)labels.NumberFormatLocal)));
                 // Excel's own cell renderer checks the meaning of the actual local axis code.
                 cell = sheet.Range["Z1"];
                 cell.ColumnWidth = 40;
@@ -175,8 +175,8 @@ public sealed partial class PersistentServiceChartFormattingTests
                 Assert.Equal(expectedText
                     .Replace("{decimal}", ctx.FormatTranslator.DecimalSeparator, StringComparison.Ordinal)
                     .Replace("{group}", ctx.FormatTranslator.ThousandsSeparator, StringComparison.Ordinal),
-                    cell.Text);
-                Assert.Equal(value, Assert.IsType<double>(cell.Value2));
+                    (object)cell.Text);
+                Assert.Equal(value, Assert.IsType<double>(((object)cell.Value2)));
             }
             finally
             {
@@ -385,7 +385,7 @@ public sealed partial class PersistentServiceChartFormattingTests
 
         RequireSuccess(_chartCommands.SetStyle(batch, createResult.ChartName, 10));
         Assert.Equal(10, InspectChart(createResult.ChartName,
-            chart => Convert.ToInt32(chart.ChartStyle, System.Globalization.CultureInfo.InvariantCulture)));
+            chart => Convert.ToInt32(((object)chart.ChartStyle), System.Globalization.CultureInfo.InvariantCulture)));
     }
 
     [Fact]
@@ -396,14 +396,14 @@ public sealed partial class PersistentServiceChartFormattingTests
 
         var createResult = RequireSuccess(_chartCommands.CreateFromRange(batch, _sheetName, "A1:B3", ChartType.Pie, 50, 50));
         var before = InspectChart(createResult.ChartName,
-            chart => Convert.ToInt32(chart.ChartStyle, System.Globalization.CultureInfo.InvariantCulture));
+            chart => Convert.ToInt32(((object)chart.ChartStyle), System.Globalization.CultureInfo.InvariantCulture));
 
         // Act & Assert - Invalid style ID should throw exception
         var exception = Assert.Throws<ArgumentException>(() =>
             _chartCommands.SetStyle(batch, createResult.ChartName, 999));
         Assert.Contains("between 1 and 48", exception.Message, StringComparison.OrdinalIgnoreCase);
         Assert.Equal(before, InspectChart(createResult.ChartName,
-            chart => Convert.ToInt32(chart.ChartStyle, System.Globalization.CultureInfo.InvariantCulture)));
+            chart => Convert.ToInt32(((object)chart.ChartStyle), System.Globalization.CultureInfo.InvariantCulture)));
     }
 
     [Fact]

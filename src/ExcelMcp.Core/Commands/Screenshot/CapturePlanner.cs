@@ -1,6 +1,8 @@
+using System.Globalization;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Sbroenne.ExcelMcp.ComInterop;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 
@@ -67,13 +69,13 @@ internal static class CapturePlanner
     /// to their leading edge yields an area that is close to the real grid; a further safety margin
     /// covers Excel over-reporting that trailing item.
     /// </summary>
-    internal static UsablePane MeasureUsablePane(dynamic window)
+    internal static UsablePane MeasureUsablePane(Excel.Window window)
     {
         double workspaceWidth = Convert.ToDouble(window.UsableWidth);
         double workspaceHeight = Convert.ToDouble(window.UsableHeight);
-        double zoomFactor = Convert.ToDouble(window.Zoom) / 100.0;
+        double zoomFactor = Convert.ToDouble((object)window.Zoom, CultureInfo.InvariantCulture) / 100.0;
 
-        dynamic? visible = null;
+        Excel.Range? visible = null;
         try
         {
             visible = window.VisibleRange;
@@ -114,11 +116,11 @@ internal static class CapturePlanner
     /// (partially visible) row or column. Falls back to the trimmed workspace extent when the axis
     /// holds a single row or column, which is too large to measure this way.
     /// </summary>
-    private static double MeasureAxis(dynamic visible, bool rows, double workspaceExtent, double zoomFactor)
+    private static double MeasureAxis(Excel.Range visible, bool rows, double workspaceExtent, double zoomFactor)
     {
-        dynamic? items = null;
-        dynamic? first = null;
-        dynamic? last = null;
+        Excel.Range? items = null;
+        Excel.Range? first = null;
+        Excel.Range? last = null;
 
         try
         {
@@ -130,11 +132,11 @@ internal static class CapturePlanner
                 return FallbackExtent(workspaceExtent);
             }
 
-            first = items[1];
-            last = items[count];
+            first = (Excel.Range)items[1];
+            last = (Excel.Range)items[count];
 
-            double leading = rows ? Convert.ToDouble(first.Top) : Convert.ToDouble(first.Left);
-            double trailing = rows ? Convert.ToDouble(last.Top) : Convert.ToDouble(last.Left);
+            double leading = rows ? Convert.ToDouble((object)first.Top, CultureInfo.InvariantCulture) : Convert.ToDouble((object)first.Left, CultureInfo.InvariantCulture);
+            double trailing = rows ? Convert.ToDouble((object)last.Top, CultureInfo.InvariantCulture) : Convert.ToDouble((object)last.Left, CultureInfo.InvariantCulture);
             double extent = (trailing - leading) * zoomFactor - GridSafetyPoints;
 
             return extent > 0 ? Math.Min(FallbackExtent(workspaceExtent), extent) : FallbackExtent(workspaceExtent);
@@ -152,11 +154,11 @@ internal static class CapturePlanner
     /// </summary>
     /// <param name="window">Excel window that will perform the capture.</param>
     /// <param name="range">Range to capture.</param>
-    public static CapturePlan Plan(dynamic window, dynamic range)
+    public static CapturePlan Plan(Excel.Window window, Excel.Range range)
     {
         UsablePane usable = MeasureUsablePane(window);
-        double rangeWidth = Convert.ToDouble(range.Width);
-        double rangeHeight = Convert.ToDouble(range.Height);
+        double rangeWidth = Convert.ToDouble((object)range.Width, CultureInfo.InvariantCulture);
+        double rangeHeight = Convert.ToDouble((object)range.Height, CultureInfo.InvariantCulture);
 
         int fitZoom = CalculateFitZoom(usable.Width, usable.Height, rangeWidth, rangeHeight);
         int zoom = Math.Clamp(fitZoom, Math.Min(MinReadableZoom, 100), 100);
@@ -176,7 +178,7 @@ internal static class CapturePlanner
     /// <param name="range">Range to capture.</param>
     /// <param name="zoom">Zoom percentage the window is currently set to.</param>
     /// <param name="usable">Grid area measured at that zoom.</param>
-    public static CapturePlan Replan(dynamic range, int zoom, UsablePane usable)
+    public static CapturePlan Replan(Excel.Range range, int zoom, UsablePane usable)
     {
         return BuildPlan(range, usable, zoom, zoom);
     }
@@ -185,11 +187,11 @@ internal static class CapturePlanner
     /// Splits the range into tiles for a given pane size, stepping the zoom down while the tile
     /// count exceeds <see cref="PreferredMaxTiles"/> and the fit zoom allows it.
     /// </summary>
-    private static CapturePlan BuildPlan(dynamic range, UsablePane usable, int zoom, int fitZoom)
+    private static CapturePlan BuildPlan(Excel.Range range, UsablePane usable, int zoom, int fitZoom)
     {
         double usableWidth = usable.Width;
         double usableHeight = usable.Height;
-        var (rowCount, columnCount) = Range.RangeHelpers.GetDimensions((Microsoft.Office.Interop.Excel.Range)range);
+        var (rowCount, columnCount) = Range.RangeHelpers.GetDimensions(range);
 
         List<Segment> rowSegments;
         List<Segment> columnSegments;
@@ -246,7 +248,7 @@ internal static class CapturePlanner
     /// <param name="rows">True to segment rows, false to segment columns.</param>
     /// <param name="count">Number of rows or columns in the range.</param>
     /// <param name="tilePoints">Viewport size in worksheet points at the planned zoom.</param>
-    private static List<Segment> BuildSegments(dynamic range, bool rows, int count, double tilePoints)
+    private static List<Segment> BuildSegments(Excel.Range range, bool rows, int count, double tilePoints)
     {
         var segments = new List<Segment>();
 
@@ -276,7 +278,7 @@ internal static class CapturePlanner
     /// the monotonically increasing cell offsets. Always returns at least the starting index, so a
     /// single cell larger than the viewport still makes progress.
     /// </summary>
-    private static int FindSegmentEnd(dynamic range, bool rows, int start, int count, double startOffset, double tilePoints)
+    private static int FindSegmentEnd(Excel.Range range, bool rows, int start, int count, double startOffset, double tilePoints)
     {
         int low = start;
         int high = count;
@@ -302,32 +304,38 @@ internal static class CapturePlanner
     }
 
     /// <summary>Gets the offset in points of a row/column within the sheet.</summary>
-    private static double GetOffset(dynamic range, bool rows, int index)
+    private static double GetOffset(Excel.Range range, bool rows, int index)
     {
-        dynamic? item = null;
+        Excel.Range? items = null;
+        Excel.Range? item = null;
         try
         {
-            item = rows ? range.Rows[index] : range.Columns[index];
-            return rows ? Convert.ToDouble(item.Top) : Convert.ToDouble(item.Left);
+            items = rows ? range.Rows : range.Columns;
+            item = (Excel.Range)items[index];
+            return rows ? Convert.ToDouble((object)item.Top, CultureInfo.InvariantCulture) : Convert.ToDouble((object)item.Left, CultureInfo.InvariantCulture);
         }
         finally
         {
             ComUtilities.Release(ref item);
+            ComUtilities.Release(ref items);
         }
     }
 
     /// <summary>Gets the height/width in points of a row/column.</summary>
-    private static double GetExtent(dynamic range, bool rows, int index)
+    private static double GetExtent(Excel.Range range, bool rows, int index)
     {
-        dynamic? item = null;
+        Excel.Range? items = null;
+        Excel.Range? item = null;
         try
         {
-            item = rows ? range.Rows[index] : range.Columns[index];
-            return rows ? Convert.ToDouble(item.Height) : Convert.ToDouble(item.Width);
+            items = rows ? range.Rows : range.Columns;
+            item = (Excel.Range)items[index];
+            return rows ? Convert.ToDouble((object)item.Height, CultureInfo.InvariantCulture) : Convert.ToDouble((object)item.Width, CultureInfo.InvariantCulture);
         }
         finally
         {
             ComUtilities.Release(ref item);
+            ComUtilities.Release(ref items);
         }
     }
 }

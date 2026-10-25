@@ -296,7 +296,7 @@ public class PersistentServicePivotTableOlapDisambiguationTests :
                 Assert.Equal(Excel.XlPivotFieldOrientation.xlDataField, field.Orientation);
                 data = pivot.DataBodyRange;
                 Assert.NotNull(data);
-                Assert.Equal(expectedValue, Convert.ToDouble(data.Value2,
+                Assert.Equal(expectedValue, Convert.ToDouble(((object)data.Value2),
                     System.Globalization.CultureInfo.InvariantCulture), 8);
             }
             finally

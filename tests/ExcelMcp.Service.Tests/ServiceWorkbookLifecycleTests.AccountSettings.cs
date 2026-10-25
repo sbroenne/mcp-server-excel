@@ -377,8 +377,8 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 connection = connections.Item(name);
                 oledb = connection.OLEDBConnection;
                 return new AccountSettingsSnapshot(
-                    Convert.ToString(oledb.Connection, System.Globalization.CultureInfo.InvariantCulture)!.Replace("OLEDB;", "", StringComparison.OrdinalIgnoreCase),
-                    connection.Description, Convert.ToString(oledb.CommandText, System.Globalization.CultureInfo.InvariantCulture),
+                    Convert.ToString(((object)oledb.Connection), System.Globalization.CultureInfo.InvariantCulture)!.Replace("OLEDB;", "", StringComparison.OrdinalIgnoreCase),
+                    connection.Description, Convert.ToString(((object)oledb.CommandText), System.Globalization.CultureInfo.InvariantCulture),
                     oledb.SavePassword, connection.RefreshWithRefreshAll, oledb.RefreshOnFileOpen);
             }
             finally

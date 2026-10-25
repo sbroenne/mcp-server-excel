@@ -188,7 +188,7 @@ public partial class RangeCommands
             if (range is null)
                 throw new InvalidOperationException(error ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
             GetContentDimensions(range);
-            if (RangeMergeDiscovery.GetMergeCellsState(range.MergeCells) != false)
+            if (RangeMergeDiscovery.GetMergeCellsState((object)range.MergeCells) != false)
                 throw new OperationFailureException(OperationFailureCategory.Conflict,
                     "Native filling requires an unmerged rectangle. No write was attempted.");
             var resolved = range;

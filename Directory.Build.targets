@@ -48,7 +48,7 @@
   </ItemGroup>
 
   <!--
-    Force genuine embedding of the Excel Primary Interop Assembly (PIA).
+    Embed the Excel, Office, VBA editor, and generated ADO type definitions.
 
     WHY THIS EXISTS:
     The .NET SDK does NOT honor <EmbedInteropTypes>true</EmbedInteropTypes> metadata when the interop
@@ -62,24 +62,60 @@
     WHAT THIS DOES:
     After ResolveAssemblyReferences computes the reference set, this target flips the Excel PIA reference to
     EmbedInteropTypes=true so the compiler links (/link) the used interop types directly into THIS assembly.
-    The compiler embeds only the Excel interop types actually used (and any Office.Core types they require —
-    in practice zero, because AutomationSecurity is reached only via late-bound IDispatch). This removes the
-    runtime dependency on office.dll entirely, so no assembly-resolve shim is needed in prod or tests.
+    Office and VBA editor definitions come from a pinned PackageDownload, not runtime package assets.
+    Add only their compiler references and embed the used types too. This keeps typed automation
+    available without shipping or loading separate Office/VBE interop DLLs.
+    The Microsoft importer supplies ADO definitions under obj with the same build-only boundary.
 
     This applies uniformly to every project that resolves the Excel PIA (directly or transitively), keeping
     embedding consistent across ComInterop, Core, McpServer, CLI, and the test projects.
 
     See docs/PIA-COVERAGE.md.
   -->
-  <Target Name="ForceEmbedExcelInteropTypes" AfterTargets="ResolveAssemblyReferences">
+  <Target Name="ResolveAdoInteropInputs">
     <ItemGroup>
+      <_ExcelPiaReference Include="@(ReferencePath)"
+                          Condition="'%(FileName)' == 'Microsoft.Office.Interop.Excel'" />
+    </ItemGroup>
+    <PropertyGroup Condition="'@(_ExcelPiaReference)' != ''">
+      <AdoTypeLibraryImporterPath Condition="'$(AdoTypeLibraryImporterPath)' == ''">$(MSBuildProgramFiles32)\Microsoft SDKs\Windows\v10.0A\bin\NETFX 4.8.1 Tools\TlbImp.exe</AdoTypeLibraryImporterPath>
+      <AdoTypeLibraryPath Condition="'$(AdoTypeLibraryPath)' == ''">$(CommonProgramFiles)\System\ado\msado28.tlb</AdoTypeLibraryPath>
+      <_AdoInteropOutput>$(IntermediateOutputPath)InteropDefinitions\ADODB.dll</_AdoInteropOutput>
+    </PropertyGroup>
+    <Error Condition="'@(_ExcelPiaReference)' != '' AND !Exists('$(AdoTypeLibraryImporterPath)')"
+           Text="Microsoft TlbImp.exe 4.8.9037.0 is required. Install the .NET Framework 4.8.1 Developer Pack (https://go.microsoft.com/fwlink/?linkid=2203306). See docs/agents/development.md#windows-setup." />
+    <Error Condition="'@(_ExcelPiaReference)' != '' AND !Exists('$(AdoTypeLibraryPath)')"
+           Text="Windows ADO 2.8 definitions are missing: $(AdoTypeLibraryPath)." />
+  </Target>
+
+  <Target Name="GenerateAdoInteropDefinitions"
+          Condition="'@(_ExcelPiaReference)' != ''"
+          Inputs="$(AdoTypeLibraryImporterPath);$(AdoTypeLibraryPath);$(MSBuildThisFileDirectory)scripts\Import-AdoDefinitions.ps1;$(MSBuildThisFileFullPath)"
+          Outputs="$(_AdoInteropOutput)">
+    <Exec Command="pwsh -NoProfile -NonInteractive -File &quot;$(MSBuildThisFileDirectory)scripts\Import-AdoDefinitions.ps1&quot; -ImporterPath &quot;$(AdoTypeLibraryImporterPath)&quot; -TypeLibraryPath &quot;$(AdoTypeLibraryPath)&quot; -OutputPath &quot;$(_AdoInteropOutput)&quot;" />
+  </Target>
+
+  <Target Name="ForceEmbedExcelInteropTypes" AfterTargets="ResolveAssemblyReferences"
+          DependsOnTargets="ResolveAdoInteropInputs;GenerateAdoInteropDefinitions">
+    <ItemGroup>
+      <ReferencePath Include="$(NuGetPackageRoot)exceldna.interop\$(OfficeInteropDefinitionsVersion)\lib\net6.0-windows7.0\office.dll;
+                              $(NuGetPackageRoot)exceldna.interop\$(OfficeInteropDefinitionsVersion)\lib\net6.0-windows7.0\Microsoft.Vbe.Interop.dll"
+                     Condition="'@(_ExcelPiaReference)' != ''">
+        <EmbedInteropTypes>true</EmbedInteropTypes>
+        <Private>false</Private>
+      </ReferencePath>
       <ReferencePath Condition="'%(FileName)' == 'Microsoft.Office.Interop.Excel'">
         <EmbedInteropTypes>true</EmbedInteropTypes>
         <Private>false</Private>
       </ReferencePath>
+      <ReferencePath Include="$(_AdoInteropOutput)" Condition="'@(_ExcelPiaReference)' != ''">
+        <EmbedInteropTypes>true</EmbedInteropTypes>
+        <Private>false</Private>
+      </ReferencePath>
+      <FileWrites Include="$(_AdoInteropOutput)" Condition="'@(_ExcelPiaReference)' != ''" />
       <!-- Embedded interop types are baked into this assembly; the PIA must NOT be copied to output. -->
       <ReferenceCopyLocalPaths Remove="@(ReferenceCopyLocalPaths)"
-                               Condition="'%(FileName)' == 'Microsoft.Office.Interop.Excel'" />
+                               Condition="'%(FileName)' == 'Microsoft.Office.Interop.Excel' OR '%(FileName)' == 'office' OR '%(FileName)' == 'Microsoft.Vbe.Interop' OR '%(FileName)' == 'ADODB'" />
     </ItemGroup>
   </Target>
 

@@ -28,7 +28,7 @@ public sealed partial class PersistentServicePivotTableTests
                 cache = pivot.PivotCache();
                 Assert.False(cache.OLAP);
                 Assert.Equal(5, cache.RecordCount);
-                return (pivot.CacheIndex, SourceData: cache.SourceData.ToString());
+                return (pivot.CacheIndex, SourceData: ((object)cache.SourceData).ToString());
             }
             finally
             {

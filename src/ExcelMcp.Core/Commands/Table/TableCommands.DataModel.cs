@@ -1,6 +1,7 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Table;
 
@@ -16,9 +17,9 @@ public partial class TableCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? table = null;
-            dynamic? model = null;
-            dynamic? modelTables = null;
+            Excel.ListObject? table = null;
+            Excel.Model? model = null;
+            Excel.ModelTables? modelTables = null;
             try
             {
                 table = FindTable(ctx.Book, tableName);
@@ -30,7 +31,7 @@ public partial class TableCommands
                 // Check if table is already in the Data Model via ModelTables
                 for (int i = 1; i <= modelTables.Count; i++)
                 {
-                    dynamic? modelTable = null;
+                    Excel.ModelTable? modelTable = null;
                     try
                     {
                         modelTable = modelTables.Item(i);
@@ -74,8 +75,8 @@ public partial class TableCommands
                 string connectionName = $"WorkbookConnection_{ctx.Book.Name}!{tableName}";
 
                 // Add table to Data Model using sigma_coding VBA pattern
-                dynamic? workbookConnections = null;
-                dynamic? newConnection = null;
+                Excel.Connections? workbookConnections = null;
+                Excel.WorkbookConnection? newConnection = null;
                 try
                 {
                     workbookConnections = ctx.Book.Connections;
@@ -83,10 +84,10 @@ public partial class TableCommands
                     // Double-check: Connection name shouldn't exist
                     for (int i = 1; i <= workbookConnections.Count; i++)
                     {
-                        dynamic? conn = null;
+                        Excel.WorkbookConnection? conn = null;
                         try
                         {
-                            conn = workbookConnections.Item(i);
+                            conn = workbookConnections[i];
                             if (conn.Name == connectionName)
                             {
                                 throw new InvalidOperationException($"Table '{tableName}' is already in the Data Model");
@@ -139,20 +140,20 @@ public partial class TableCommands
     /// Finds column names in the Excel Table that contain literal bracket characters.
     /// Such columns cannot be referenced in DAX formulas after being added to the Data Model.
     /// </summary>
-    private static List<string> FindBracketColumnNames(dynamic table)
+    private static List<string> FindBracketColumnNames(Excel.ListObject table)
     {
         var bracketColumns = new List<string>();
-        dynamic? listColumns = null;
+        Excel.ListColumns? listColumns = null;
         try
         {
             listColumns = table.ListColumns;
             int count = listColumns.Count;
             for (int i = 1; i <= count; i++)
             {
-                dynamic? col = null;
+                Excel.ListColumn? col = null;
                 try
                 {
-                    col = listColumns.Item(i);
+                    col = listColumns[i];
                     string name = col.Name?.ToString() ?? string.Empty;
                     if (name.Contains('[') || name.Contains(']'))
                     {
@@ -176,19 +177,19 @@ public partial class TableCommands
     /// Strips literal bracket characters from the names of columns in the source Excel Table.
     /// Modifies the worksheet table column headers in place.
     /// </summary>
-    private static void StripBracketColumnNames(dynamic table, List<string> bracketColumnNames)
+    private static void StripBracketColumnNames(Excel.ListObject table, List<string> bracketColumnNames)
     {
-        dynamic? listColumns = null;
+        Excel.ListColumns? listColumns = null;
         try
         {
             listColumns = table.ListColumns;
             int count = listColumns.Count;
             for (int i = 1; i <= count; i++)
             {
-                dynamic? col = null;
+                Excel.ListColumn? col = null;
                 try
                 {
-                    col = listColumns.Item(i);
+                    col = listColumns[i];
                     string name = col.Name?.ToString() ?? string.Empty;
                     if (bracketColumnNames.Contains(name))
                     {
@@ -211,5 +212,4 @@ public partial class TableCommands
         }
     }
 }
-
 

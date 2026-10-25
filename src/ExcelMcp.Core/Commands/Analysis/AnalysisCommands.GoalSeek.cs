@@ -39,8 +39,8 @@ public sealed partial class AnalysisCommands
                 {
                     Success = true,
                     Converged = converged,
-                    FormulaValue = Convert.ToDouble(formulaRange.Value2),
-                    ChangingValue = Convert.ToDouble(changingRange.Value2),
+                    FormulaValue = Convert.ToDouble((object)formulaRange.Value2, System.Globalization.CultureInfo.CurrentCulture),
+                    ChangingValue = Convert.ToDouble((object)changingRange.Value2, System.Globalization.CultureInfo.CurrentCulture),
                     Message = converged
                         ? $"Goal Seek reached {goal.Value} in '{formulaCell}'."
                         : $"Goal Seek completed without converging on {goal.Value} in '{formulaCell}'."

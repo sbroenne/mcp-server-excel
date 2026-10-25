@@ -29,30 +29,29 @@ public sealed class PersistentServiceDocumentPropertyMetadataTests(
 
         var native = _fixture.ExecuteRawVerification((context, _) =>
         {
-            // PIA gap: these collections and properties belong to office.dll.
-            dynamic? properties = null;
-            dynamic? printDate = null;
-            dynamic? titleProperty = null;
+            ExcelDocumentProperties? properties = null;
+            ExcelDocumentProperties.Property? printDate = null;
+            ExcelDocumentProperties.Property? titleProperty = null;
             try
             {
-                properties = context.Book.BuiltinDocumentProperties;
+                properties = ExcelDocumentProperties.Open(context.Book, true);
                 printDate = properties.Item("Last Print Date");
                 titleProperty = properties.Item("Title");
-                var failure = Assert.Throws<COMException>(() => { object? value = printDate.Value; });
-                Assert.Equal(title, (string)titleProperty.Value);
+                var failure = Assert.ThrowsAny<COMException>(() => { object? value = printDate.Value; });
+                Assert.Equal(title, Assert.IsType<string>(titleProperty.Value));
                 return (
-                    Count: Convert.ToInt32(properties.Count),
-                    Name: (string)printDate.Name,
-                    Type: Convert.ToInt32(printDate.Type),
-                    Linked: Convert.ToBoolean(printDate.LinkToContent),
+                    Count: properties.Count,
+                    Name: printDate.Name,
+                    Type: (int)printDate.Type,
+                    Linked: printDate.LinkToContent,
                     failure.HResult,
                     failure.Message);
             }
             finally
             {
-                ComUtilities.Release(ref titleProperty);
-                ComUtilities.Release(ref printDate);
-                ComUtilities.Release(ref properties);
+                titleProperty?.Dispose();
+                printDate?.Dispose();
+                properties?.Dispose();
             }
         });
         output.WriteLine(

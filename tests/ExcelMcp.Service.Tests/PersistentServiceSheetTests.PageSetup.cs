@@ -93,15 +93,15 @@ public sealed partial class PersistentServiceSheetTests
                 sheet = ComUtilities.FindSheet(ctx.Book, sheetName)
                     ?? throw new InvalidOperationException($"Sheet '{sheetName}' not found.");
                 pageSetup = sheet.PageSetup;
-                var zoomEnabled = pageSetup.Zoom is bool zoom
+                var zoomEnabled = ((object)pageSetup.Zoom) is bool zoom
                     ? zoom
-                    : Convert.ToDouble(pageSetup.Zoom, System.Globalization.CultureInfo.InvariantCulture) != 0;
+                    : Convert.ToDouble(((object)pageSetup.Zoom), System.Globalization.CultureInfo.InvariantCulture) != 0;
                 int? fitToPagesWide = zoomEnabled
                     ? null
-                    : Convert.ToInt32(pageSetup.FitToPagesWide, System.Globalization.CultureInfo.InvariantCulture);
+                    : Convert.ToInt32(((object)pageSetup.FitToPagesWide), System.Globalization.CultureInfo.InvariantCulture);
                 int? fitToPagesTall = zoomEnabled
                     ? null
-                    : Convert.ToInt32(pageSetup.FitToPagesTall, System.Globalization.CultureInfo.InvariantCulture);
+                    : Convert.ToInt32(((object)pageSetup.FitToPagesTall), System.Globalization.CultureInfo.InvariantCulture);
                 return new NativePageSetupState(
                     pageSetup.Orientation == Excel.XlPageOrientation.xlLandscape ? "landscape" : "portrait",
                     zoomEnabled,

@@ -58,7 +58,7 @@ public partial class DataModelCommands
                 ForEachTable(model, (candidate, _) =>
                 {
                     ct.ThrowIfCancellationRequested();
-                    existingNames.Add(ComUtilities.SafeGetString(candidate, "Name"));
+                    existingNames.Add(candidate.Name ?? string.Empty);
                 });
                 if (RenameNameRules.HasConflict(existingNames, result.NormalizedNewName, result.NormalizedOldName))
                 {

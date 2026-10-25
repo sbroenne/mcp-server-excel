@@ -126,7 +126,7 @@ public static class PowerQueryHelpers
             string? connectionString = oleDbConnection == null
                 ? null
                 : Convert.ToString(
-                    oleDbConnection.Connection,
+                    (object)oleDbConnection.Connection,
                     CultureInfo.InvariantCulture);
             if (oleDbConnection != null &&
                 TryParseMashupIdentity(
@@ -393,7 +393,7 @@ public static class PowerQueryHelpers
         {
             oleDbConnection = connection.OLEDBConnection;
             return TryParseMashupIdentity(
-                Convert.ToString(oleDbConnection.Connection, CultureInfo.InvariantCulture),
+                Convert.ToString((object)oleDbConnection.Connection, CultureInfo.InvariantCulture),
                 out identity);
         }
         catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))

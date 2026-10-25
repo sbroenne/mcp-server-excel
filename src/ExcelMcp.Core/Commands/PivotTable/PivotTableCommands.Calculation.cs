@@ -267,7 +267,7 @@ public partial class PivotTableCommands
             FilePath = path,
             FieldName = field.Name,
             SourceName = field.SourceName,
-            Position = Convert.ToInt32(field.Position, CultureInfo.InvariantCulture),
+            Position = Convert.ToInt32((object)field.Position, CultureInfo.InvariantCulture),
             Function = isOlap ? null : PivotTableHelpers.GetAggregationFunctionFromCom((int)field.Function),
             Calculation = calculation,
             IsOlap = isOlap,

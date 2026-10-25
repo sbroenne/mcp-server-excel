@@ -24,7 +24,7 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? range = null;
+            Excel.Range? range = null;
             try
             {
                 range = RangeHelpers.ResolveRange(ctx.Book, sheetName, rangeAddress, out string? specificError);
@@ -62,7 +62,7 @@ public partial class RangeCommands
 
                             if (!formulasRead)
                             {
-                                formulaOrArray = ReadFormulas(ctx, (Excel.Range)range);
+                                formulaOrArray = ReadFormulas(ctx, range);
                                 formulasRead = true;
                             }
 
@@ -88,7 +88,7 @@ public partial class RangeCommands
                     result.ColumnCount = 1;
                     if (ExcelErrorMapper.TryGet(valueOrArray, out int errorCode, out var error))
                     {
-                        formulaOrArray = ReadFormulas(ctx, (Excel.Range)range);
+                        formulaOrArray = ReadFormulas(ctx, range);
                         result.Values.Add([
                             ConvertMappedErrorForRead(
                                 valueOrArray,
@@ -138,7 +138,7 @@ public partial class RangeCommands
 
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? range = null;
+            Excel.Range? range = null;
             int originalCalculation = -1;
             bool calculationChanged = false;
             Exception? operationFailure = null;
@@ -151,9 +151,9 @@ public partial class RangeCommands
                     throw new InvalidOperationException(specificError ?? RangeHelpers.GetResolveError(sheetName, rangeAddress));
                 }
 
-                ValidateMergedCellsForWrite((Excel.Range)range, rangeAddress, ct);
-                ValidateContentWriteDimensions((Excel.Range)range, resolvedValues, nameof(values), "Value");
-                EnsureDestinationWritable(ctx, (Excel.Range)range, overwritePolicy, ct);
+                ValidateMergedCellsForWrite(range, rangeAddress, ct);
+                ValidateContentWriteDimensions(range, resolvedValues, nameof(values), "Value");
+                EnsureDestinationWritable(ctx, range, overwritePolicy, ct);
 
                 // Calculation suppressed here (not in ExcelWriteGuard) because Data Model ops need it enabled
                 originalCalculation = (int)ctx.App.Calculation;
@@ -195,9 +195,9 @@ public partial class RangeCommands
                         // Formula/Formula2 store constants exactly like Value2, so one mixed array
                         // writes the formulas without blanking the other cells (issue #1065).
                         if (ctx.Capabilities.SupportsFormula2)
-                            ((Excel.Range)range).Formula2 = arrayValues;
+                            range.Formula2 = arrayValues;
                         else
-                            ((Excel.Range)range).Formula = arrayValues;
+                            range.Formula = arrayValues;
 
                         setResult.Message = $"Wrote {formulaCount} formula(s); other cells kept as values";
                     }
@@ -251,7 +251,7 @@ public partial class RangeCommands
             return;
         }
 
-        if (isMergedState == true && Convert.ToInt64(range.CountLarge) == 1)
+        if (isMergedState == true && Convert.ToInt64((object)range.CountLarge, System.Globalization.CultureInfo.InvariantCulture) == 1)
         {
             Excel.Range? mergeArea = null;
             try

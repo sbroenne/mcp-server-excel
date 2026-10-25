@@ -1,5 +1,6 @@
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Tests.Helpers;
 
@@ -33,9 +34,9 @@ public static class ConnectionTestHelper
         using var batch = ExcelSession.BeginBatch(filePath);
         batch.Execute((ctx, ct) =>
         {
-            dynamic? connections = null;
-            dynamic? newConnection = null;
-            dynamic? oledb = null;
+            Excel.Connections? connections = null;
+            Excel.WorkbookConnection? newConnection = null;
+            Excel.OLEDBConnection? oledb = null;
             try
             {
                 // Get connections collection
@@ -54,7 +55,7 @@ public static class ConnectionTestHelper
                 );
 
                 // Configure OLEDB connection properties
-                if (newConnection.Type == 1) // OLEDB
+                if (newConnection.Type == Excel.XlConnectionType.xlConnectionTypeOLEDB)
                 {
                     oledb = newConnection.OLEDBConnection;
                     if (oledb != null)
@@ -89,13 +90,14 @@ public static class ConnectionTestHelper
         using var batch = ExcelSession.BeginBatch(filePath);
         batch.Execute((ctx, ct) =>
         {
-            dynamic? connections = null;
+            Excel.Connections? connections = null;
+            Excel.WorkbookConnection? connection = null;
             try
             {
                 connections = ctx.Book.Connections;
 
                 // Create ODBC connection using NAMED parameters (Excel COM requires this)
-                connections.Add(
+                connection = connections.Add(
                     Name: connectionName,
                     Description: $"Test ODBC connection created by {nameof(CreateOdbcConnection)}",
                     ConnectionString: connectionString,
@@ -111,12 +113,12 @@ public static class ConnectionTestHelper
             }
             finally
             {
+                ComUtilities.Release(ref connection);
                 ComUtilities.Release(ref connections);
             }
         });
     }
 }
-
 
 
 

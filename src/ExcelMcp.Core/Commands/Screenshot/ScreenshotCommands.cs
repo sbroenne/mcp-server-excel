@@ -5,6 +5,8 @@ using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Utilities;
+using Excel = Microsoft.Office.Interop.Excel;
+using Office = Microsoft.Office.Core;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 
@@ -18,8 +20,8 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Screenshot;
 public class ScreenshotCommands : IScreenshotCommands
 {
     // Excel WindowState constants
-    private const int XlNormal = -4143;
-    private const int XlMinimized = -4140;
+    private const Excel.XlWindowState XlNormal = Excel.XlWindowState.xlNormal;
+    private const Excel.XlWindowState XlMinimized = Excel.XlWindowState.xlMinimized;
     private const int SwRestore = 9;
 
     // Excel needs a moment to render after the window becomes visible or the view changes.
@@ -34,8 +36,8 @@ public class ScreenshotCommands : IScreenshotCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? range = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? range = null;
             try
             {
                 sheet = Utilities.WorksheetLookup.Get(ctx.Book,
@@ -64,9 +66,9 @@ public class ScreenshotCommands : IScreenshotCommands
     {
         return batch.Execute((ctx, ct) =>
         {
-            dynamic? sheet = null;
-            dynamic? usedRange = null;
-            dynamic? captureRange = null;
+            Excel.Worksheet? sheet = null;
+            Excel.Range? usedRange = null;
+            Excel.Range? captureRange = null;
             try
             {
                 sheet = Utilities.WorksheetLookup.Get(ctx.Book,
@@ -95,14 +97,14 @@ public class ScreenshotCommands : IScreenshotCommands
     /// Chart objects do not expand Excel's UsedRange, but their anchor cells describe the area that
     /// must be visible for a window screenshot to include them.
     /// </summary>
-    private static dynamic GetCaptureRangeIncludingCharts(dynamic sheet, dynamic usedRange, CancellationToken ct)
+    private static Excel.Range GetCaptureRangeIncludingCharts(Excel.Worksheet sheet, Excel.Range usedRange, CancellationToken ct)
     {
-        dynamic? usedRows = null;
-        dynamic? usedColumns = null;
-        dynamic? shapes = null;
-        dynamic? shape = null;
-        dynamic? topLeftCell = null;
-        dynamic? bottomRightCell = null;
+        Excel.Range? usedRows = null;
+        Excel.Range? usedColumns = null;
+        Excel.Shapes? shapes = null;
+        Excel.Shape? shape = null;
+        Excel.Range? topLeftCell = null;
+        Excel.Range? bottomRightCell = null;
 
         try
         {
@@ -125,13 +127,13 @@ public class ScreenshotCommands : IScreenshotCommands
                     shape = shapes.Item(index);
 
                     // msoChart
-                    if (Convert.ToInt32(shape.Type) != 3)
+                    if (shape.Type != Office.MsoShapeType.msoChart)
                     {
                         continue;
                     }
 
                     // msoFalse: hidden charts are not rendered, so they must not expand the capture area
-                    if (Convert.ToInt32(shape.Visible) == 0)
+                    if (shape.Visible == Office.MsoTriState.msoFalse)
                     {
                         continue;
                     }
@@ -163,17 +165,17 @@ public class ScreenshotCommands : IScreenshotCommands
     }
 
     /// <summary>Gets a worksheet range by its inclusive cell boundaries.</summary>
-    private static dynamic GetRange(dynamic sheet, int firstRow, int firstColumn, int lastRow, int lastColumn)
+    private static Excel.Range GetRange(Excel.Worksheet sheet, int firstRow, int firstColumn, int lastRow, int lastColumn)
     {
-        dynamic? cells = null;
-        dynamic? topLeft = null;
-        dynamic? bottomRight = null;
+        Excel.Range? cells = null;
+        Excel.Range? topLeft = null;
+        Excel.Range? bottomRight = null;
 
         try
         {
             cells = sheet.Cells;
-            topLeft = cells[firstRow, firstColumn];
-            bottomRight = cells[lastRow, lastColumn];
+            topLeft = (Excel.Range)cells[firstRow, firstColumn];
+            bottomRight = (Excel.Range)cells[lastRow, lastColumn];
 
             return sheet.Range[topLeft, bottomRight];
         }
@@ -192,22 +194,22 @@ public class ScreenshotCommands : IScreenshotCommands
     /// temporarily shown. Zoom and scroll position are adjusted to bring the range into view and
     /// are restored afterwards.
     /// </summary>
-    private static ScreenshotResult ExportRangeAsImage(dynamic app, dynamic sheet, dynamic range, string sheetName, string rangeAddress, ScreenshotQuality quality)
+    private static ScreenshotResult ExportRangeAsImage(Excel.Application app, Excel.Worksheet sheet, Excel.Range range, string sheetName, string rangeAddress, ScreenshotQuality quality)
     {
         return DpiAwareness.Execute<ScreenshotResult>(() => CaptureRangeImage(app, sheet, range, sheetName, rangeAddress, quality));
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "Retains a capture failure until every view restoration has run, then rethrows it or all restoration failures; no failed capture is returned as success.")]
-    private static ScreenshotResult CaptureRangeImage(dynamic app, dynamic sheet, dynamic range, string sheetName, string rangeAddress, ScreenshotQuality quality)
+    private static ScreenshotResult CaptureRangeImage(Excel.Application app, Excel.Worksheet sheet, Excel.Range range, string sheetName, string rangeAddress, ScreenshotQuality quality)
     {
-        dynamic? window = null;
-        dynamic? previousSheet = null;
+        Excel.Window? window = null;
+        object? previousSheet = null;
         Bitmap? composed = null;
 
         bool visibilityChanged = false;
         bool screenUpdatingChanged = false;
-        int originalWindowState = XlNormal;
+        Excel.XlWindowState originalWindowState = XlNormal;
         bool windowStateChanged = false;
         int originalZoom = 100;
         bool zoomChanged = false;
@@ -237,7 +239,7 @@ public class ScreenshotCommands : IScreenshotCommands
                 screenUpdatingChanged = true;
             }
 
-            originalWindowState = Convert.ToInt32(app.WindowState);
+            originalWindowState = app.WindowState;
             if (originalWindowState == XlMinimized)
             {
                 app.WindowState = XlNormal;
@@ -257,7 +259,7 @@ public class ScreenshotCommands : IScreenshotCommands
 
             BringExcelToForeground(app);
 
-            originalZoom = Convert.ToInt32(window.Zoom);
+            originalZoom = Convert.ToInt32((object)window.Zoom, CultureInfo.InvariantCulture);
             originalScrollRow = Convert.ToInt32(window.ScrollRow);
             originalScrollColumn = Convert.ToInt32(window.ScrollColumn);
 
@@ -331,7 +333,7 @@ public class ScreenshotCommands : IScreenshotCommands
 
             if (previousSheet != null)
             {
-                Restore(() => previousSheet.Activate());
+                Restore(() => ActivateSheet(previousSheet));
             }
 
             if (windowStateChanged)
@@ -370,7 +372,7 @@ public class ScreenshotCommands : IScreenshotCommands
     /// <summary>
     /// Captures each planned tile and stitches them into a single bitmap.
     /// </summary>
-    private static Bitmap CaptureTiles(dynamic app, dynamic window, dynamic range, ref CapturePlanner.CapturePlan plan)
+    private static Bitmap CaptureTiles(Excel.Application app, Excel.Window window, Excel.Range range, ref CapturePlanner.CapturePlan plan)
     {
         IntPtr hwnd = GetExcelWindowHandle(app);
         int dpi = WindowCapture.GetWindowDpi(hwnd);
@@ -394,10 +396,11 @@ public class ScreenshotCommands : IScreenshotCommands
         int totalHeight = Math.Max(1, rowOffsets[^1]);
 
         var canvas = new Bitmap(totalWidth, totalHeight, PixelFormat.Format32bppArgb);
-        dynamic? sheet = range.Worksheet;
+        Excel.Worksheet? sheet = null;
 
         try
         {
+            sheet = range.Worksheet;
             using var graphics = Graphics.FromImage(canvas);
             graphics.Clear(Color.White);
 
@@ -410,7 +413,7 @@ public class ScreenshotCommands : IScreenshotCommands
                     CapturePlanner.Segment rowSegment = plan.RowSegments[rowIndex];
                     CapturePlanner.Segment columnSegment = plan.ColumnSegments[columnIndex];
 
-                    dynamic? tileRange = null;
+                    Excel.Range? tileRange = null;
                     Bitmap? shot = null;
 
                     try
@@ -430,8 +433,8 @@ public class ScreenshotCommands : IScreenshotCommands
 
                         // Excel clamps scrolling near the sheet edges, so measure how far the tile
                         // actually sits from the pane corner rather than assuming it landed there.
-                        int offsetX = (int)Math.Round((Convert.ToDouble((object)tileRange.Left, CultureInfo.InvariantCulture) - GetColumnLeft((object)sheet, Convert.ToInt32((object)window.ScrollColumn, CultureInfo.InvariantCulture))) * pixelsPerPoint);
-                        int offsetY = (int)Math.Round((Convert.ToDouble((object)tileRange.Top, CultureInfo.InvariantCulture) - GetRowTop((object)sheet, Convert.ToInt32((object)window.ScrollRow, CultureInfo.InvariantCulture))) * pixelsPerPoint);
+                        int offsetX = (int)Math.Round((Convert.ToDouble((object)tileRange.Left, CultureInfo.InvariantCulture) - GetColumnLeft(sheet, window.ScrollColumn)) * pixelsPerPoint);
+                        int offsetY = (int)Math.Round((Convert.ToDouble((object)tileRange.Top, CultureInfo.InvariantCulture) - GetRowTop(sheet, window.ScrollRow)) * pixelsPerPoint);
 
                         int originX = (int)Math.Round(paneOrigin.X) + offsetX;
                         int originY = (int)Math.Round(paneOrigin.Y) + offsetY;
@@ -487,7 +490,7 @@ public class ScreenshotCommands : IScreenshotCommands
     /// survive a zoom change, so it is only trustworthy at an unscrolled position. Row and column
     /// headers scale with zoom, so this must be measured after the capture zoom is applied.
     /// </summary>
-    private static PaneOrigin MeasurePaneOrigin(dynamic window)
+    private static PaneOrigin MeasurePaneOrigin(Excel.Window window)
     {
         window.ScrollRow = 1;
         window.ScrollColumn = 1;
@@ -500,13 +503,13 @@ public class ScreenshotCommands : IScreenshotCommands
     }
 
     /// <summary>Gets the worksheet point offset of a row's top edge.</summary>
-    private static double GetRowTop(dynamic sheet, int row)
+    private static double GetRowTop(Excel.Worksheet sheet, int row)
     {
-        dynamic? cell = null;
+        Excel.Range? cell = null;
         try
         {
-            cell = sheet.Cells[row, 1];
-            return Convert.ToDouble(cell.Top);
+            cell = GetRange(sheet, row, 1, row, 1);
+            return Convert.ToDouble((object)cell.Top, CultureInfo.InvariantCulture);
         }
         finally
         {
@@ -515,13 +518,13 @@ public class ScreenshotCommands : IScreenshotCommands
     }
 
     /// <summary>Gets the worksheet point offset of a column's left edge.</summary>
-    private static double GetColumnLeft(dynamic sheet, int column)
+    private static double GetColumnLeft(Excel.Worksheet sheet, int column)
     {
-        dynamic? cell = null;
+        Excel.Range? cell = null;
         try
         {
-            cell = sheet.Cells[1, column];
-            return Convert.ToDouble(cell.Left);
+            cell = GetRange(sheet, 1, column, 1, column);
+            return Convert.ToDouble((object)cell.Left, CultureInfo.InvariantCulture);
         }
         finally
         {
@@ -555,11 +558,11 @@ public class ScreenshotCommands : IScreenshotCommands
     /// Converts segment sizes in points to cumulative pixel offsets, so adjacent tiles meet without
     /// gaps or overlaps after rounding.
     /// </summary>
-    private static int[] BuildPixelOffsets(dynamic range, bool rows, IReadOnlyList<CapturePlanner.Segment> segments, double pixelsPerPoint, int paneMax)
+    private static int[] BuildPixelOffsets(Excel.Range range, bool rows, IReadOnlyList<CapturePlanner.Segment> segments, double pixelsPerPoint, int paneMax)
     {
         var offsets = new int[segments.Count + 1];
         int cursor = 0;
-        dynamic? items = null;
+        Excel.Range? items = null;
         try
         {
             items = rows ? range.Rows : range.Columns;
@@ -570,11 +573,11 @@ public class ScreenshotCommands : IScreenshotCommands
                 var segment = segments[i];
                 for (int index = segment.Start; index < segment.Start + segment.Count; index++)
                 {
-                    dynamic? item = null;
+                    Excel.Range? item = null;
                     try
                     {
-                        item = items[index];
-                        double extent = rows ? Convert.ToDouble(item.Height) : Convert.ToDouble(item.Width);
+                        item = (Excel.Range)items[index];
+                        double extent = rows ? Convert.ToDouble((object)item.Height, CultureInfo.InvariantCulture) : Convert.ToDouble((object)item.Width, CultureInfo.InvariantCulture);
                         // Excel rounds each rendered cell to whole pixels, not the summed range height.
                         renderedSize += (int)Math.Round(extent * pixelsPerPoint, MidpointRounding.AwayFromZero);
                     }
@@ -598,15 +601,17 @@ public class ScreenshotCommands : IScreenshotCommands
     }
 
     /// <summary>Gets the sub-range covered by one tile.</summary>
-    private static dynamic GetTileRange(dynamic sheet, dynamic range, CapturePlanner.Segment rowSegment, CapturePlanner.Segment columnSegment)
+    private static Excel.Range GetTileRange(Excel.Worksheet sheet, Excel.Range range, CapturePlanner.Segment rowSegment, CapturePlanner.Segment columnSegment)
     {
-        dynamic? topLeft = null;
-        dynamic? bottomRight = null;
+        Excel.Range? cells = null;
+        Excel.Range? topLeft = null;
+        Excel.Range? bottomRight = null;
 
         try
         {
-            topLeft = range.Cells[rowSegment.Start, columnSegment.Start];
-            bottomRight = range.Cells[rowSegment.Start + rowSegment.Count - 1, columnSegment.Start + columnSegment.Count - 1];
+            cells = range.Cells;
+            topLeft = (Excel.Range)cells[rowSegment.Start, columnSegment.Start];
+            bottomRight = (Excel.Range)cells[rowSegment.Start + rowSegment.Count - 1, columnSegment.Start + columnSegment.Count - 1];
 
             return sheet.Range[topLeft, bottomRight];
         }
@@ -614,6 +619,7 @@ public class ScreenshotCommands : IScreenshotCommands
         {
             ComUtilities.Release(ref bottomRight);
             ComUtilities.Release(ref topLeft);
+            ComUtilities.Release(ref cells);
         }
     }
 
@@ -621,7 +627,7 @@ public class ScreenshotCommands : IScreenshotCommands
     /// Scrolls the tile's top-left cell to the top-left of the pane. Scrolling rather than selecting
     /// keeps the user's selection intact and avoids drawing a selection border into the capture.
     /// </summary>
-    private static void ScrollIntoView(dynamic window, dynamic tileRange)
+    private static void ScrollIntoView(Excel.Window window, Excel.Range tileRange)
     {
         window.ScrollRow = Convert.ToInt32(tileRange.Row);
         window.ScrollColumn = Convert.ToInt32(tileRange.Column);
@@ -657,12 +663,30 @@ public class ScreenshotCommands : IScreenshotCommands
             "Reconnect to an interactive desktop session and retry the screenshot.");
     }
 
-    private static dynamic? GetActiveSheet(dynamic app)
+    private static object? GetActiveSheet(Excel.Application app)
     {
         return app.ActiveSheet;
     }
 
-    private static IntPtr GetExcelWindowHandle(dynamic app)
+    private static void ActivateSheet(object sheet)
+    {
+        switch (sheet)
+        {
+            case Excel.Worksheet worksheet:
+                worksheet.Activate();
+                break;
+            case Excel.Chart chart:
+                chart.Activate();
+                break;
+            case Excel.DialogSheet dialogSheet:
+                dialogSheet.Activate();
+                break;
+            default:
+                throw new InvalidOperationException("Excel returned an unsupported active sheet type during screenshot restoration.");
+        }
+    }
+
+    private static IntPtr GetExcelWindowHandle(Excel.Application app)
     {
         IntPtr hwnd = new(Convert.ToInt64(app.Hwnd));
 
@@ -676,7 +700,7 @@ public class ScreenshotCommands : IScreenshotCommands
         return hwnd;
     }
 
-    private static void BringExcelToForeground(dynamic app)
+    private static void BringExcelToForeground(Excel.Application app)
     {
         IntPtr hwnd = new(Convert.ToInt64(app.Hwnd));
         if (hwnd != IntPtr.Zero)

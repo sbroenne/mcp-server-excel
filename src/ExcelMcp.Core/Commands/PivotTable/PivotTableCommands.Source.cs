@@ -95,7 +95,7 @@ public partial class PivotTableCommands
                 if (rows.Count < 2)
                     throw new ArgumentException("The source requires headers and at least one record.");
                 header = (Excel.Range)rows[1];
-                var values = ExcelValueNormalizer.Normalize(header.Value2).Values[0];
+                var values = ExcelValueNormalizer.Normalize((object?)header.Value2).Values[0];
                 var headers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var value in values)
                 {
@@ -207,7 +207,7 @@ public partial class PivotTableCommands
             FilePath = filePath,
             PivotTableName = pivot.Name,
             CacheIndex = pivot.CacheIndex,
-            SourceData = Convert.ToString(cache.SourceData, CultureInfo.InvariantCulture) ?? string.Empty,
+            SourceData = Convert.ToString((object?)cache.SourceData, CultureInfo.InvariantCulture) ?? string.Empty,
             RecordCount = cache.RecordCount,
             SharedPivotTables = ReadSharedPivotTables(book, pivot.CacheIndex, ct),
             ConnectedSlicerCaches = ConnectedPivotSlicerCaches(book, pivot.Name, ct)

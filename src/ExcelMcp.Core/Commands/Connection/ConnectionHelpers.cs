@@ -17,9 +17,9 @@ public static class ConnectionHelpers
         {
             1 => "OLEDB",
             2 => "ODBC",
-            3 => "TEXT",      // xlConnectionTypeTEXT (was incorrectly "XML")
-            4 => "WEB",       // xlConnectionTypeWEB (was incorrectly "Text")
-            5 => "XMLMAP",    // xlConnectionTypeXMLMAP
+            3 => "XMLMAP",
+            4 => "TEXT",
+            5 => "WEB",
             6 => "DATAFEED",  // xlConnectionTypeDATAFEED
             7 => "MODEL",     // xlConnectionTypeMODEL
             8 => "WORKSHEET", // xlConnectionTypeWORKSHEET
@@ -28,5 +28,4 @@ public static class ConnectionHelpers
         };
     }
 }
-
 

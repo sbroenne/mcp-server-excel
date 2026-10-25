@@ -7,6 +7,62 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class PersistentServiceNamedRangeTests
 {
     [Fact]
+    public void List_MultiAreaNamedRange_ReportsOmittedPreviewWithoutChangingCells()
+    {
+        var batch = _fixture.BatchToken;
+        var sheetName = _fixture.CreateTestSheet(batch);
+        var name = CreateUniqueNamedRangeName();
+        Assert.True(_commands.SetValues(batch, sheetName, "A1:C1",
+            [["First", "Untouched", "Last"]]).Success);
+        _fixture.ExecuteRawVerification((context, _) =>
+        {
+            Excel.Worksheet? sheet = null;
+            Excel.Range? first = null;
+            Excel.Range? last = null;
+            Excel.Range? union = null;
+            Excel.Areas? areas = null;
+            Excel.Names? names = null;
+            Excel.Name? created = null;
+            try
+            {
+                sheet = ComUtilities.FindSheet(context.Book, sheetName);
+                Assert.NotNull(sheet);
+                first = sheet.Range["A1"];
+                last = sheet.Range["C1"];
+                union = context.App.Union(first, last);
+                areas = union.Areas;
+                Assert.Equal(2, areas.Count);
+                names = context.Book.Names;
+                created = names.Add(Name: name, RefersTo: union);
+                Assert.Equal(name, created.Name);
+                return 0;
+            }
+            finally
+            {
+                ComUtilities.Release(ref created);
+                ComUtilities.Release(ref names);
+                ComUtilities.Release(ref areas);
+                ComUtilities.Release(ref union);
+                ComUtilities.Release(ref last);
+                ComUtilities.Release(ref first);
+                ComUtilities.Release(ref sheet);
+            }
+        });
+        _fixture.RegisterNamedRangeForCleanup(name);
+
+        var listed = _parameterCommands.List(batch);
+
+        Assert.True(listed.Success, listed.ErrorMessage);
+        var entry = Assert.Single(listed.NamedRanges, item => item.Name == name);
+        Assert.Equal("MultiAreaRange", entry.ValueType);
+        Assert.Null(entry.Value);
+        Assert.Contains("multiple areas", entry.ValueOmittedReason, StringComparison.Ordinal);
+        var cells = _commands.GetValues(batch, sheetName, "A1:C1");
+        Assert.True(cells.Success, cells.ErrorMessage);
+        Assert.Equal(["First", "Untouched", "Last"], Assert.Single(cells.Values));
+    }
+
+    [Fact]
     public void List_HiddenUserDefinedName_DoesNotExposeHiddenNameByDefault()
     {
         var batch = _fixture.BatchToken;

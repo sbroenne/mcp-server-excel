@@ -169,12 +169,11 @@ public sealed partial class PersistentServiceChartFormattingTests
         InspectChart(chartName, chart =>
         {
             Excel.ChartArea? chartArea = null;
-            // Office-core formatting objects are deliberately late-bound.
-            dynamic? chartFormat = null;
-            dynamic? fill = null;
-            dynamic? line = null;
-            dynamic? fillColor = null;
-            dynamic? lineColor = null;
+            Excel.ChartFormat? chartFormat = null;
+            Excel.FillFormat? fill = null;
+            Excel.LineFormat? line = null;
+            Excel.ColorFormat? fillColor = null;
+            Excel.ColorFormat? lineColor = null;
             try
             {
                 chartArea = chart.ChartArea;
@@ -206,12 +205,11 @@ public sealed partial class PersistentServiceChartFormattingTests
         {
             Excel.SeriesCollection? seriesCollection = null;
             Excel.Series? series = null;
-            // Office-core formatting objects are deliberately late-bound.
-            dynamic? chartFormat = null;
-            dynamic? fill = null;
-            dynamic? line = null;
-            dynamic? fillColor = null;
-            dynamic? lineColor = null;
+            Excel.ChartFormat? chartFormat = null;
+            Excel.FillFormat? fill = null;
+            Excel.LineFormat? line = null;
+            Excel.ColorFormat? fillColor = null;
+            Excel.ColorFormat? lineColor = null;
             try
             {
                 seriesCollection = (Excel.SeriesCollection)chart.SeriesCollection();

@@ -1,6 +1,5 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
-using Microsoft.CSharp.RuntimeBinder;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.Core.DataModel;
 using Sbroenne.ExcelMcp.Core.Models;
@@ -34,20 +33,6 @@ public partial class DataModelCommands
     private static DataModelColumnInfo CreateColumnInfo(object column)
     {
         var typedColumn = (Excel.ModelTableColumn)column;
-        bool isCalculated;
-        try
-        {
-            // PIA gap: ModelTableColumn.IsCalculatedColumn does not compile against Excel PIA 16.0.18925.20022.
-            isCalculated = ((dynamic)typedColumn).IsCalculatedColumn ?? false;
-        }
-        catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
-        {
-            isCalculated = false;
-        }
-        catch (RuntimeBinderException)
-        {
-            isCalculated = false;
-        }
 
         int dataTypeValue = typedColumn.DataType;
         return new DataModelColumnInfo
@@ -56,7 +41,7 @@ public partial class DataModelCommands
             DataType = dataTypeValue.ToString(CultureInfo.InvariantCulture),
             DataTypeValue = dataTypeValue,
             DataTypeName = GetModelColumnDataTypeName(dataTypeValue),
-            IsCalculated = isCalculated
+            IsCalculated = null
         };
     }
 
@@ -72,7 +57,7 @@ public partial class DataModelCommands
             _ => $"Unknown ({dataTypeValue.ToString(CultureInfo.InvariantCulture)})"
         };
 
-    private static DataModelAdoDiagnostics CollectAdoDiagnostics(dynamic? adoConnection)
+    private static DataModelAdoDiagnostics CollectAdoDiagnostics(ADODB._Connection? adoConnection)
     {
         if (adoConnection == null)
         {
@@ -87,11 +72,11 @@ public partial class DataModelCommands
         };
     }
 
-    private static string? TryGetAdoConnectionString(dynamic adoConnection)
+    private static string? TryGetAdoConnectionString(ADODB._Connection adoConnection)
     {
         try
         {
-            return adoConnection.ConnectionString?.ToString();
+            return adoConnection.ConnectionString;
         }
         catch (COMException ex) when (ComErrors.IsMemberUnavailable(ex))
         {
@@ -112,31 +97,31 @@ public partial class DataModelCommands
     {
         Excel.WorkbookConnection? dataModelConn = null;
         Excel.ModelConnection? modelConn = null;
-        dynamic? adoConnection = null;
-        dynamic? recordset = null;
-        dynamic? fields = null;
-        dynamic? nameField = null;
-        dynamic? expressionField = null;
+        ADODB._Connection? adoConnection = null;
+        ADODB._Recordset? recordset = null;
+        ADODB.Fields? fields = null;
+        ADODB.Field? nameField = null;
+        ADODB.Field? expressionField = null;
         Exception? operationFailure = null;
         try
         {
             dataModelConn = model.DataModelConnection;
             modelConn = dataModelConn?.ModelConnection;
-            // ADO has no referenced PIA; the existing evaluate path also uses late binding.
-            adoConnection = modelConn?.ADOConnection;
+            adoConnection = modelConn is null ? null : ComUtilities.ReadAdoConnection(modelConn);
             if (adoConnection == null)
             {
                 return null;
             }
 
             recordset = adoConnection.Execute(
-                "SELECT [MEASURE_NAME], [EXPRESSION] FROM $SYSTEM.MDSCHEMA_MEASURES");
+                "SELECT [MEASURE_NAME], [EXPRESSION] FROM $SYSTEM.MDSCHEMA_MEASURES",
+                out _, (int)ADODB.ExecuteOptionEnum.adOptionUnspecified);
             fields = recordset.Fields;
-            nameField = fields.Item(0);
-            expressionField = fields.Item(1);
+            nameField = fields[0];
+            expressionField = fields[1];
 
             var formulas = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            while (!Convert.ToBoolean(recordset.EOF, CultureInfo.InvariantCulture))
+            while (!recordset.EOF)
             {
                 object? nameValue = nameField.Value;
                 object? expressionValue = expressionField.Value;
@@ -180,57 +165,24 @@ public partial class DataModelCommands
         }
     }
 
-    private static void CloseRecordset(dynamic? recordset, Exception? operationFailure)
+    private static void CloseRecordset(ADODB._Recordset? recordset, Exception? operationFailure)
     {
         try
         {
             if (recordset is not null &&
-                Convert.ToInt32((object)recordset.State, CultureInfo.InvariantCulture) == 1)
+                (recordset.State & (int)ADODB.ObjectStateEnum.adStateOpen) != 0)
             {
                 recordset.Close();
             }
         }
         catch (Exception cleanupFailure) when (operationFailure is not null)
         {
-            throw new AggregateException("Data Model operation and closing its recordset both failed.",
+            var failures = new AggregateException("Data Model operation and closing its recordset both failed.",
                 operationFailure, cleanupFailure);
+            if (operationFailure is OperationCanceledException canceled)
+                throw new OperationCanceledException(canceled.Message, failures, canceled.CancellationToken);
+            throw failures;
         }
-    }
-
-    /// <summary>
-    /// Gets all measure names from the Data Model
-    /// </summary>
-    /// <param name="model">Model COM object</param>
-    /// <returns>List of measure names</returns>
-    private static List<string> GetModelMeasureNames(Excel.Model model)
-    {
-        var names = new List<string>();
-        Excel.ModelMeasures? measures = null;
-        try
-        {
-            // Get measures collection from MODEL (not from tables!)
-            // Reference: https://learn.microsoft.com/en-us/office/vba/api/excel.model.modelmeasures
-            measures = model.ModelMeasures;
-
-            for (int m = 1; m <= measures.Count; m++)
-            {
-                Excel.ModelMeasure? measure = null;
-                try
-                {
-                    measure = measures.Item(m);
-                    names.Add(measure.Name?.ToString() ?? "");
-                }
-                finally
-                {
-                    ComUtilities.Release(ref measure);
-                }
-            }
-        }
-        finally
-        {
-            ComUtilities.Release(ref measures);
-        }
-        return names;
     }
 
     /// <summary>

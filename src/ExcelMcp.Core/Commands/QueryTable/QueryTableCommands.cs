@@ -90,7 +90,7 @@ public sealed class QueryTableCommands : IQueryTableCommands
                     Destination = destination.Address[false, false],
                     SourceType = sourceType,
                     Connection = ConnectionStringSanitizer.Sanitize(
-                        Convert.ToString(queryTable.Connection)) ?? string.Empty,
+                        Convert.ToString((object)queryTable.Connection, System.Globalization.CultureInfo.CurrentCulture)) ?? string.Empty,
                     BackgroundQuery = queryTable.BackgroundQuery,
                     RefreshOnFileOpen = queryTable.RefreshOnFileOpen,
                     RefreshPeriod = queryTable.RefreshPeriod,

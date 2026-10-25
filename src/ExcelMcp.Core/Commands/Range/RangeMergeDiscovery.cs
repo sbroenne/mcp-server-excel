@@ -1,5 +1,6 @@
 using System.Globalization;
 using Sbroenne.ExcelMcp.ComInterop;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 
@@ -22,7 +23,7 @@ internal static class RangeMergeDiscovery
     }
 
     internal static List<string> CollectMergedRanges(
-        dynamic range,
+        Excel.Range range,
         bool? mergeCellsState,
         CancellationToken cancellationToken)
     {
@@ -34,13 +35,13 @@ internal static class RangeMergeDiscovery
             }
         }
 
-        dynamic? cells = null;
+        Excel.Range? cells = null;
         var mergedRanges = new List<string>();
         var seenRanges = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         try
         {
-            long cellCount = Convert.ToInt64(range.CountLarge, CultureInfo.InvariantCulture);
+            long cellCount = Convert.ToInt64((object)range.CountLarge, CultureInfo.InvariantCulture);
             if (cellCount > MaxMergedRangeScanCells)
             {
                 string rangeAddress = Convert.ToString(range.Address, CultureInfo.InvariantCulture)
@@ -59,11 +60,11 @@ internal static class RangeMergeDiscovery
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                dynamic? cell = null;
-                dynamic? mergeArea = null;
+                Excel.Range? cell = null;
+                Excel.Range? mergeArea = null;
                 try
                 {
-                    cell = cells.Item[i];
+                    cell = (Excel.Range)cells.Item[i];
                     object? cellMergeCells = cell.MergeCells;
 
                     if (GetMergeCellsState(cellMergeCells) != true)
@@ -93,15 +94,15 @@ internal static class RangeMergeDiscovery
         return mergedRanges;
     }
 
-    private static bool TryGetSingleMergedArea(dynamic range, out string mergedAreaAddress)
+    private static bool TryGetSingleMergedArea(Excel.Range range, out string mergedAreaAddress)
     {
-        dynamic? cells = null;
-        dynamic? firstCell = null;
-        dynamic? mergeArea = null;
+        Excel.Range? cells = null;
+        Excel.Range? firstCell = null;
+        Excel.Range? mergeArea = null;
         try
         {
             cells = range.Cells;
-            firstCell = cells.Item[1];
+            firstCell = (Excel.Range)cells.Item[1];
             mergeArea = firstCell.MergeArea;
 
             string rangeAddress = Convert.ToString(range.Address, CultureInfo.InvariantCulture)

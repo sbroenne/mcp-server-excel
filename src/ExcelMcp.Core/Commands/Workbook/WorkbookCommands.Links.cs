@@ -59,7 +59,7 @@ public partial class WorkbookCommands
 
     private static List<string> GetExternalLinkSources(Excel.Workbook workbook)
     {
-        var rawSources = workbook.LinkSources(Excel.XlLink.xlExcelLinks);
+        object? rawSources = workbook.LinkSources(Excel.XlLink.xlExcelLinks);
         if (rawSources is not Array sources)
         {
             return [];

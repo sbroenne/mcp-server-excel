@@ -59,7 +59,7 @@ public partial class PivotTableCommands
 
         // Native whole-axis references such as C1:C4 and R1:R6 also look like A1 cells.
         if (IsNativeR1C1SourceAddress(address))
-            address = Convert.ToString(app.ConvertFormula(address, Excel.XlReferenceStyle.xlR1C1,
+            address = Convert.ToString((object)app.ConvertFormula(address, Excel.XlReferenceStyle.xlR1C1,
                 Excel.XlReferenceStyle.xlA1, Excel.XlReferenceType.xlAbsolute),
                 System.Globalization.CultureInfo.InvariantCulture)!;
         else if (!IsFixedA1SourceAddress(address))

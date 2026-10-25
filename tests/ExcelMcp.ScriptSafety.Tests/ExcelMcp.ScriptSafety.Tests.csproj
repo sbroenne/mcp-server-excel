@@ -7,9 +7,23 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\ExcelMcp.Analyzers\ExcelMcp.Analyzers.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="true" />
+    <ProjectReference Include="..\..\src\ExcelMcp.ComInterop\ExcelMcp.ComInterop.csproj" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
+    <None Include="$(NuGetPackageRoot)exceldna.interop\$(OfficeInteropDefinitionsVersion)\lib\net6.0-windows7.0\office.dll"
+          Link="AnalyzerFixtures\office.dll" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="$(NuGetPackageRoot)exceldna.interop\$(OfficeInteropDefinitionsVersion)\lib\net6.0-windows7.0\Microsoft.Vbe.Interop.dll"
+          Link="AnalyzerFixtures\Microsoft.Vbe.Interop.dll" CopyToOutputDirectory="PreserveNewest" />
     <Compile Include="..\Shared\TestClassificationArchitectureTests.cs" Link="Helpers\TestClassificationArchitectureTests.cs" />
+    <Compile Include="..\..\src\ExcelMcp.Core\Models\DataModelColumnInfo.cs" Link="ContractFixtures\DataModelColumnInfo.cs" />
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+
+  <Target Name="CopyInteropAnalyzerFixtures" AfterTargets="ForceEmbedExcelInteropTypes">
+    <ItemGroup>
+      <None Include="@(ReferencePath)" Condition="'%(ReferencePath.FileName)' == 'Microsoft.Office.Interop.Excel'"
+            Link="AnalyzerFixtures\Microsoft.Office.Interop.Excel.dll" CopyToOutputDirectory="PreserveNewest" />
+      <None Include="$(_AdoInteropOutput)" Link="AnalyzerFixtures\ADODB.dll" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
 
 </Project>

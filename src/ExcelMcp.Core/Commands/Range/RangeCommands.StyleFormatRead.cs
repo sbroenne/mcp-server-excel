@@ -17,24 +17,22 @@ public partial class RangeCommands
             borders = style.Borders;
             List<string> mixed = [];
             var (fontFormat, fillFormat, borderFormats) = ReadVisualFormat(font, fill, borders, mixed, ct, styleDefinition: true);
-            // PIA gap: Style value-type getters can return native null for excluded/unset components.
-            dynamic native = style;
             return new CellFormatSnapshot
             {
                 Font = fontFormat,
                 Fill = fillFormat,
                 Borders = borderFormats,
                 NumberFormat = style.NumberFormat,
-                HorizontalAlignment = ReadFormatValue<int>((object)native.HorizontalAlignment, "horizontalAlignment", mixed),
-                VerticalAlignment = ReadFormatValue<int>((object)native.VerticalAlignment, "verticalAlignment", mixed),
-                WrapText = ReadFormatValue<bool>((object)native.WrapText, "wrapText", mixed),
-                ShrinkToFit = ReadFormatValue<bool>((object)native.ShrinkToFit, "shrinkToFit", mixed),
-                AddIndent = ReadFormatValue<bool>((object)native.AddIndent, "addIndent", mixed),
-                IndentLevel = ReadFormatValue<int>((object)native.IndentLevel, "indentLevel", mixed),
-                Orientation = ReadFormatValue<int>((object)native.Orientation, "orientation", mixed),
-                ReadingOrder = ReadFormatValue<int>((object)native.ReadingOrder, "readingOrder", mixed),
-                Locked = ReadFormatValue<bool>((object)native.Locked, "locked", mixed),
-                FormulaHidden = ReadFormatValue<bool>((object)native.FormulaHidden, "formulaHidden", mixed),
+                HorizontalAlignment = ReadFormatValue<int>(style.HorizontalAlignment, "horizontalAlignment", mixed),
+                VerticalAlignment = ReadFormatValue<int>(style.VerticalAlignment, "verticalAlignment", mixed),
+                WrapText = ReadFormatValue<bool>(style.WrapText, "wrapText", mixed),
+                ShrinkToFit = ReadFormatValue<bool>(style.ShrinkToFit, "shrinkToFit", mixed),
+                AddIndent = ReadFormatValue<bool>(style.AddIndent, "addIndent", mixed),
+                IndentLevel = ReadFormatValue<int>(ComUtilities.ReadStyleIndentLevel(style), "indentLevel", mixed),
+                Orientation = ReadFormatValue<int>(style.Orientation, "orientation", mixed),
+                ReadingOrder = ReadFormatValue<int>(style.ReadingOrder, "readingOrder", mixed),
+                Locked = ReadFormatValue<bool>(style.Locked, "locked", mixed),
+                FormulaHidden = ReadFormatValue<bool>(style.FormulaHidden, "formulaHidden", mixed),
                 StyleName = style.Name,
                 MixedFields = mixed
             };

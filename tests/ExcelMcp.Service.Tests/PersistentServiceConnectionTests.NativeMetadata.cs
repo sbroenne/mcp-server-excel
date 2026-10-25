@@ -43,7 +43,8 @@ public sealed partial class PersistentServiceConnectionTests
             Excel.Connections? connections = null;
             Excel.WorkbookConnection? connection = null;
             Excel.Ranges? ranges = null;
-            dynamic? child = null;
+            Excel.ODBCConnection? odbc = null;
+            Excel.OLEDBConnection? oledb = null;
             try
             {
                 connections = context.Book.Connections;
@@ -61,8 +62,10 @@ public sealed partial class PersistentServiceConnectionTests
                 else
                     connection = connections.Item(name);
                 Assert.NotNull(connection);
-                child = connection.Type == Excel.XlConnectionType.xlConnectionTypeODBC
-                    ? connection.ODBCConnection : connection.OLEDBConnection;
+                if (connection.Type == Excel.XlConnectionType.xlConnectionTypeODBC)
+                    odbc = connection.ODBCConnection;
+                else
+                    oledb = connection.OLEDBConnection;
                 static string Read(Func<object?> read)
                 {
                     try
@@ -79,18 +82,19 @@ public sealed partial class PersistentServiceConnectionTests
                 var states = new[]
                 {
                     $"Ranges={ranges.Count}",
-                    $"BackgroundQuery={Read(() => child.BackgroundQuery)}",
-                    $"RefreshOnFileOpen={Read(() => child.RefreshOnFileOpen)}",
-                    $"SavePassword={Read(() => child.SavePassword)}",
-                    $"RefreshPeriod={Read(() => child.RefreshPeriod)}",
-                    $"RefreshDate={Read(() => child.RefreshDate)}",
-                    $"IsConnected={(kind == "ODBC" ? "<not an OLE DB property>" : Read(() => child.IsConnected))}"
+                    $"BackgroundQuery={Read(() => odbc is not null ? odbc.BackgroundQuery : oledb!.BackgroundQuery)}",
+                    $"RefreshOnFileOpen={Read(() => odbc is not null ? odbc.RefreshOnFileOpen : oledb!.RefreshOnFileOpen)}",
+                    $"SavePassword={Read(() => odbc is not null ? odbc.SavePassword : oledb!.SavePassword)}",
+                    $"RefreshPeriod={Read(() => odbc is not null ? odbc.RefreshPeriod : oledb!.RefreshPeriod)}",
+                    $"RefreshDate={Read(() => odbc is not null ? odbc.RefreshDate : oledb!.RefreshDate)}",
+                    $"IsConnected={(kind == "ODBC" ? "<not an OLE DB property>" : Read(() => oledb!.IsConnected))}"
                 };
                 return (connection.Name, Detail: string.Join("; ", states));
             }
             finally
             {
-                ComUtilities.Release(ref child);
+                ComUtilities.Release(ref oledb);
+                ComUtilities.Release(ref odbc);
                 ComUtilities.Release(ref ranges);
                 ComUtilities.Release(ref connection);
                 ComUtilities.Release(ref connections);

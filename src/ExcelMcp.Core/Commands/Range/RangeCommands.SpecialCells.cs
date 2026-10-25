@@ -56,7 +56,7 @@ public partial class RangeCommands
                     {
                         area = areas[index];
                         // SpecialCells expands a one-cell input to UsedRange.
-                        if (Convert.ToInt64(area.CountLarge, CultureInfo.InvariantCulture) == 1)
+                        if (Convert.ToInt64((object)area.CountLarge, CultureInfo.InvariantCulture) == 1)
                         {
                             if (MatchesCell(area, cellKind))
                             {
@@ -134,7 +134,7 @@ public partial class RangeCommands
                 return;
             }
 
-            if (Convert.ToInt64(inside.CountLarge, CultureInfo.InvariantCulture) == 1)
+            if (Convert.ToInt64((object)inside.CountLarge, CultureInfo.InvariantCulture) == 1)
             {
                 if (MatchesCell(inside, SpecialCellKind.Blanks))
                 {
@@ -289,7 +289,7 @@ public partial class RangeCommands
                     {
                         cell = cells[row, column];
                         if (formulaErrors.HasValue
-                            && Convert.ToBoolean(cell.HasFormula, CultureInfo.InvariantCulture) != formulaErrors.Value)
+                            && Convert.ToBoolean((object)cell.HasFormula, CultureInfo.InvariantCulture) != formulaErrors.Value)
                         {
                             continue;
                         }
@@ -358,8 +358,8 @@ public partial class RangeCommands
             {
                 row = cell.EntireRow;
                 column = cell.EntireColumn;
-                return !Convert.ToBoolean(row.Hidden, CultureInfo.InvariantCulture)
-                    && !Convert.ToBoolean(column.Hidden, CultureInfo.InvariantCulture);
+                return !Convert.ToBoolean((object)row.Hidden, CultureInfo.InvariantCulture)
+                    && !Convert.ToBoolean((object)column.Hidden, CultureInfo.InvariantCulture);
             }
             finally
             {
@@ -372,7 +372,7 @@ public partial class RangeCommands
             return ContainsMatchingCellInBulk(cell, cellKind, CancellationToken.None);
         }
 
-        bool hasFormula = Convert.ToBoolean(cell.HasFormula, CultureInfo.InvariantCulture);
+        bool hasFormula = Convert.ToBoolean((object)cell.HasFormula, CultureInfo.InvariantCulture);
         return cellKind switch
         {
             SpecialCellKind.Formulas => hasFormula,
@@ -384,7 +384,7 @@ public partial class RangeCommands
 
     private static void AddSpecialCellArea(Excel.Range area, List<SpecialCellArea> matches) =>
         matches.Add(new SpecialCellArea(area.Address, area.Row, area.Column,
-            Convert.ToInt64(area.CountLarge, CultureInfo.InvariantCulture)));
+            Convert.ToInt64((object)area.CountLarge, CultureInfo.InvariantCulture)));
 
     private sealed record SpecialCellArea(string Address, int Row, int Column, long CellCount);
 }

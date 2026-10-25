@@ -142,6 +142,7 @@ jobs:
           APPINSIGHTS_CONNECTION_STRING: ${{ secrets.APPINSIGHTS_CONNECTION_STRING }}
         run: |
           $PSNativeCommandUseErrorActionPreference = $true
+          .\scripts\Install-AdoBuildTools.ps1
           dotnet restore Sbroenne.ExcelMcp.sln
           dotnet build Sbroenne.ExcelMcp.sln -c Release --no-restore
           .\scripts\Build-ReleasePackages.ps1 -Version $env:VERSION -OutputDirectory artifacts\release -SkillsDirectory artifacts\generated-skills

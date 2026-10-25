@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.Core.Commands.Workbook;
 using Xunit;
@@ -12,9 +11,8 @@ namespace Sbroenne.ExcelMcp.Core.Tests.Unit;
 [Trait("Speed", "Fast")]
 public sealed class DocumentPropertyReadFailureTests
 {
-    private static readonly Func<object, DocumentPropertyScope, DocumentPropertyInfo> ReadProperty =
-        typeof(WorkbookCommands).GetMethod("ReadProperty", BindingFlags.Static | BindingFlags.NonPublic)!
-            .CreateDelegate<Func<object, DocumentPropertyScope, DocumentPropertyInfo>>();
+    private static DocumentPropertyInfo ReadProperty(NativeProperty property, DocumentPropertyScope scope) =>
+        WorkbookCommands.ReadDocumentProperty(property.ReadName, property.ReadType, property.ReadValue, scope);
 
     [Theory]
     [InlineData(DocumentPropertyScope.BuiltIn, unchecked((int)0x800A03EC))]
@@ -109,14 +107,10 @@ public sealed class DocumentPropertyReadFailureTests
     private static COMException NativeFailure(int hresult) => new("Native Value getter failed.", hresult);
 #pragma warning restore CA2201
 
-    // Public for Core's late-bound Office document-property access.
-    public sealed class NativeProperty
+    private sealed class NativeProperty
     {
         public Func<string> ReadName { get; init; } = () => "Last print date";
         public Func<int> ReadType { get; init; } = () => 3;
         public Func<object?> ReadValue { get; init; } = () => null;
-        public string Name => ReadName();
-        public int Type => ReadType();
-        public object? Value => ReadValue();
     }
 }

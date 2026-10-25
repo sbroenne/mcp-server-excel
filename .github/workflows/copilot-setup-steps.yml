@@ -6,6 +6,8 @@ on:
     paths:
       - .github/workflows/copilot-setup-steps.yml
       - scripts/Install-CopilotPonytailReview.ps1
+      - scripts/Install-AdoBuildTools.ps1
+      - scripts/Import-AdoDefinitions.ps1
       - global.json
       - Directory.Packages.props
       - '**/*.csproj'
@@ -15,6 +17,8 @@ on:
     paths:
       - .github/workflows/copilot-setup-steps.yml
       - scripts/Install-CopilotPonytailReview.ps1
+      - scripts/Install-AdoBuildTools.ps1
+      - scripts/Import-AdoDefinitions.ps1
       - global.json
       - Directory.Packages.props
       - '**/*.csproj'
@@ -63,6 +67,10 @@ jobs:
 
       - name: Restore .NET dependencies
         run: dotnet restore Sbroenne.ExcelMcp.sln
+
+      - name: Install Microsoft ADO build tools
+        shell: pwsh
+        run: .\scripts\Install-AdoBuildTools.ps1
 
       - name: Install repository tooling
         shell: pwsh

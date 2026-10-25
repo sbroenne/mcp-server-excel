@@ -14,11 +14,10 @@ namespace Sbroenne.ExcelMcp.Analyzers;
 [DiagnosticAnalyzer(LanguageNames.CSharp)]
 public sealed class SafetyAnalyzer : DiagnosticAnalyzer
 {
-    private static readonly string[] DynamicReasons = ["// PIA gap:", "// Reason:", "// REASON:"];
     /// <inheritdoc />
     public override ImmutableArray<DiagnosticDescriptor> SupportedDiagnostics =>
         [Rules.EmptyCatch, Rules.BroadCatch, Rules.UnjustifiedDynamicCast,
-            Rules.UnjustifiedSuppression, Rules.DirectDynamicCast];
+            Rules.UnjustifiedSuppression, Rules.DirectDynamicCast, Rules.DynamicAccess];
 
     /// <inheritdoc />
     public override void Initialize(AnalysisContext context)
@@ -27,13 +26,53 @@ public sealed class SafetyAnalyzer : DiagnosticAnalyzer
         context.EnableConcurrentExecution();
         context.RegisterCompilationStartAction(start =>
         {
+            start.RegisterSyntaxNodeAction(AnalyzeDynamicType, SyntaxKind.IdentifierName);
+            start.RegisterOperationAction(AnalyzeDynamicOperation,
+                OperationKind.DynamicInvocation,
+                OperationKind.DynamicMemberReference,
+                OperationKind.DynamicIndexerAccess,
+                OperationKind.DynamicObjectCreation);
+            start.RegisterSyntaxNodeAction(AnalyzeInferredDynamicLocal,
+                SyntaxKind.VariableDeclarator,
+                SyntaxKind.ForEachStatement);
+            start.RegisterSyntaxNodeAction(AnalyzeCast, SyntaxKind.CastExpression);
             if (start.Compilation.AssemblyName?.EndsWith(".Tests", StringComparison.Ordinal) == true) { return; }
             start.RegisterSyntaxNodeAction(AnalyzeCatch, SyntaxKind.CatchClause);
-            start.RegisterSyntaxNodeAction(AnalyzeCast, SyntaxKind.CastExpression);
             start.RegisterSyntaxTreeAction(AnalyzePragmas);
             start.RegisterSymbolAction(AnalyzeSuppressions, SymbolKind.Method, SymbolKind.NamedType, SymbolKind.Field,
                 SymbolKind.Property, SymbolKind.Event);
         });
+    }
+
+    private static void AnalyzeDynamicType(SyntaxNodeAnalysisContext context)
+    {
+        if (context.Node is not TypeSyntax type ||
+            type.Parent is CastExpressionSyntax ||
+            context.SemanticModel.GetSymbolInfo(type, context.CancellationToken).Symbol is not ITypeSymbol { TypeKind: TypeKind.Dynamic })
+        {
+            return;
+        }
+        context.ReportDiagnostic(Diagnostic.Create(Rules.DynamicAccess, type.GetLocation()));
+    }
+
+    private static void AnalyzeDynamicOperation(OperationAnalysisContext context) =>
+        context.ReportDiagnostic(Diagnostic.Create(Rules.DynamicAccess, context.Operation.Syntax.GetLocation()));
+
+    private static void AnalyzeInferredDynamicLocal(SyntaxNodeAnalysisContext context)
+    {
+        var inferred = context.Node switch
+        {
+            VariableDeclaratorSyntax variable when variable.Parent is VariableDeclarationSyntax
+            { Type: IdentifierNameSyntax { Identifier.ValueText: "var" } } =>
+                context.SemanticModel.GetDeclaredSymbol(variable, context.CancellationToken),
+            ForEachStatementSyntax { Type: IdentifierNameSyntax { Identifier.ValueText: "var" } } forEach =>
+                context.SemanticModel.GetDeclaredSymbol(forEach, context.CancellationToken),
+            _ => null
+        };
+        if (inferred is ILocalSymbol { Type.TypeKind: TypeKind.Dynamic })
+        {
+            context.ReportDiagnostic(Diagnostic.Create(Rules.DynamicAccess, context.Node.GetLocation()));
+        }
     }
 
     private static void AnalyzeCatch(SyntaxNodeAnalysisContext context)
@@ -178,19 +217,6 @@ public sealed class SafetyAnalyzer : DiagnosticAnalyzer
         var source = context.SemanticModel.GetTypeInfo(cast.Expression).Type;
         if (target?.TypeKind == TypeKind.Dynamic)
         {
-            var text = cast.SyntaxTree.GetText(context.CancellationToken);
-            var line = text.Lines.GetLineFromPosition(cast.SpanStart).LineNumber;
-            for (var previous = line - 1; previous >= 0 && previous >= line - 5; previous--)
-            {
-                var comment = text.Lines[previous].ToString().Trim();
-                if (comment.Length == 0) { continue; }
-                if (!comment.StartsWith("//", StringComparison.Ordinal)) { break; }
-                if (DynamicReasons.Any(prefix =>
-                    comment.StartsWith(prefix, StringComparison.Ordinal) && comment.Length > prefix.Length))
-                {
-                    return;
-                }
-            }
             context.ReportDiagnostic(Diagnostic.Create(Rules.UnjustifiedDynamicCast, cast.Type.GetLocation()));
         }
         if (source?.TypeKind != TypeKind.Dynamic || target == null) { return; }

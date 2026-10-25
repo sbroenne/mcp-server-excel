@@ -233,7 +233,7 @@ public partial class WorkbookCommands
                         int previewColumnCount = Math.Min(scopeColumns.Count, maxPreviewColumns);
                         previewRange = scope.Resize[previewRowCount, previewColumnCount];
 
-                        var previewValues = ExcelValueNormalizer.Normalize(previewRange.Value2);
+                        var previewValues = ExcelValueNormalizer.Normalize((object?)previewRange.Value2);
                         object formulaValues = ctx.Capabilities.SupportsFormula2
                             ? previewRange.Formula2
                             : previewRange.Formula;
@@ -363,7 +363,7 @@ public partial class WorkbookCommands
                     {
                         cells = sourceRange.Cells;
                         cell = (Excel.Range)cells[row + 1, column + 1];
-                        if (!string.Equals(cell.Text?.ToString(), error.Name, StringComparison.Ordinal))
+                        if (!string.Equals(((object?)cell.Text)?.ToString(), error.Name, StringComparison.Ordinal))
                             continue;
                     }
                     finally

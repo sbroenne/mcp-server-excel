@@ -472,16 +472,6 @@ public partial class DataModelCommands
     }
 
     /// <summary>
-    /// Executes an action with resilient retry logic for intermittent Data Model errors.
-    /// Handles 0x800AC472 and other transient COM errors with exponential backoff.
-    /// </summary>
-    /// <param name="action">The action to execute with retry</param>
-    private static void ExecuteWithRetry(Action action)
-    {
-        _dataModelPipeline.Execute(action);
-    }
-
-    /// <summary>
     /// Executes a function with resilient retry logic for intermittent Data Model errors.
     /// Returns the result of the function.
     /// </summary>

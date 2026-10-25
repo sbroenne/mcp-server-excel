@@ -27,7 +27,7 @@ internal static class SessionWorkbookAssertions
                 sheet = (Excel.Worksheet)sheets[1];
                 cell = sheet.Range["A1"];
                 cell.Value2 = marker;
-                Assert.Equal(marker, Assert.IsType<string>(cell.Value2));
+                Assert.Equal(marker, Assert.IsType<string>((object?)cell.Value2));
             }
             finally
             {

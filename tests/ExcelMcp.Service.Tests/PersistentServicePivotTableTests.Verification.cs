@@ -98,7 +98,7 @@ public sealed partial class PersistentServicePivotTableTests
                 Assert.Equal((int)area, (int)field.Orientation);
                 if (area != PivotFieldArea.Hidden)
                 {
-                    Assert.Equal(1, field.Position);
+                    Assert.Equal(1d, Convert.ToDouble((object)field.Position, CultureInfo.InvariantCulture));
                 }
                 if (caption is not null)
                 {
@@ -165,10 +165,10 @@ public sealed partial class PersistentServicePivotTableTests
                 Assert.NotNull(body);
                 cells = body.Cells;
                 cell = (Excel.Range)cells[1, 1];
-                string format = Convert.ToString(cell.NumberFormat, CultureInfo.InvariantCulture) ?? string.Empty;
+                string format = Convert.ToString(((object)cell.NumberFormat), CultureInfo.InvariantCulture) ?? string.Empty;
                 Assert.Equal(expectedFormat, format.Replace("\\$", "$", StringComparison.Ordinal));
-                Assert.Equal(expectedValue, Convert.ToDouble(cell.Value2, CultureInfo.InvariantCulture));
-                Assert.Equal(expectedText, Convert.ToString(cell.Text, CultureInfo.InvariantCulture));
+                Assert.Equal(expectedValue, Convert.ToDouble(((object)cell.Value2), CultureInfo.InvariantCulture));
+                Assert.Equal(expectedText, Convert.ToString(((object)cell.Text), CultureInfo.InvariantCulture));
                 return 0;
             }
             finally

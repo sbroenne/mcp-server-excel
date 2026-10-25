@@ -94,8 +94,7 @@ public static class ExcelShutdownService
                         ComUtilities.Release(ref application);
                     }
                     BeforeSaveHookForTests?.Invoke();
-                    // PIA gap: Save adds an LCID that rewrites locale-specific table formats; IDispatch preserves them.
-                    ((dynamic)(object)workbook).Save();
+                    workbook.Save();
                     if (!workbook.Saved)
                     {
                         throw new InvalidOperationException(

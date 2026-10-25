@@ -182,7 +182,7 @@ context. Do not replace that context with a second generic error result.
 
 ### Excel COM Best Practices
 
-- **Typed Excel PIAs first** - use late binding only for documented PIA/runtime dependency gaps
+- **Typed Excel PIAs only** - the build rejects dynamic declarations and late-bound calls in production and test code. Let the compiler establish whether the referenced PIA exposes an API; do not bypass a missing member with late binding.
 - **Proper error handling** - Catch `COMException` where specific handling is needed; otherwise let exceptions propagate
 - **Resource cleanup** - the batch owns its application and workbook; release every COM reference acquired by a command in reverse order in `finally`, including intermediate collections
 - **Input validation** - Check file existence and argument validity early
@@ -238,7 +238,7 @@ Excel, and not weaken Office security or block on interactive prompts.
 | Mail and collaboration | Exclude mail APIs requiring Outlook profiles or security prompts, and cloud collaboration not exposed through local Excel COM. |
 | Executable controls and add-ins | Do not add ActiveX creation or code injection, assume optional add-ins are installed, or enable them by changing macro security. Solver remains excluded. |
 | Office security | Never enable VBA trust, lower macro security, bypass Protected View, or change Trust Center settings. |
-| Version-specific APIs | Detect availability and return a clear failure when unavailable. Prove a PIA gap with a compile probe and runtime behavior in Excel before using late binding. |
+| Version-specific APIs | Use the typed PIA surface and handle unavailable runtime capabilities with a clear failure. The compiler checks PIA member availability; verify runtime behavior in Excel separately. Do not use late binding to bypass an unavailable typed member. |
 
 PIA member presence alone does not prove reliable behavior or persistence.
 Advanced Data Model structural changes need separate real Excel feasibility

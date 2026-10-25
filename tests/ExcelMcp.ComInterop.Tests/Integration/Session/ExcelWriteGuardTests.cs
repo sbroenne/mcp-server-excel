@@ -242,7 +242,7 @@ public class ExcelWriteGuardTests : IAsyncLifetime
                 // 4. Excel waits for callback → our thread waits for Excel → DEADLOCK
                 SetCellValue(sheet, "A1", 300);
                 SetCellValue(sheet, "A2", 50);
-                var values = Assert.IsType<object[,]>(range.Value2);
+                var values = Assert.IsType<object[,]>((object?)range.Value2);
                 Assert.Equal(300d, values[1, 1]);
                 Assert.Equal(50d, values[2, 1]);
                 Assert.Equal(1, formatConditions.Count);
@@ -299,7 +299,7 @@ public class ExcelWriteGuardTests : IAsyncLifetime
                 SetCellValue(sheet, "B2", 200);
                 ctx.App.Calculate();
                 formulas = sheet.Range["C1:C3"];
-                var values = Assert.IsType<object[,]>(formulas.Value2);
+                var values = Assert.IsType<object[,]>((object?)formulas.Value2);
                 Assert.Equal(200d, values[1, 1]);
                 Assert.Equal(230d, values[2, 1]);
                 Assert.Equal(330d, values[3, 1]);
@@ -343,7 +343,7 @@ public class ExcelWriteGuardTests : IAsyncLifetime
                     SetCellValue(sheet, $"D{i}", i * 1.5);
                 }
                 written = sheet.Range["D1:D100"];
-                var values = Assert.IsType<object[,]>(written.Value2);
+                var values = Assert.IsType<object[,]>((object?)written.Value2);
                 for (int row = 1; row <= 100; row++)
                     Assert.Equal(row * 1.5, values[row, 1]);
             }

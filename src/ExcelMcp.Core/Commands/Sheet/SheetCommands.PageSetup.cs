@@ -111,11 +111,11 @@ public partial class SheetCommands
 
                 result.Orientation = GetOrientationName(pageSetup.Orientation);
                 var fitToPagesEnabled = pageSetup.Zoom is bool zoom && !zoom;
-                result.FitToPagesWide = fitToPagesEnabled ? GetFitToPagesValue(pageSetup.FitToPagesWide) : null;
-                result.FitToPagesTall = fitToPagesEnabled ? GetFitToPagesValue(pageSetup.FitToPagesTall) : null;
+                result.FitToPagesWide = fitToPagesEnabled ? GetFitToPagesValue((object)pageSetup.FitToPagesWide) : null;
+                result.FitToPagesTall = fitToPagesEnabled ? GetFitToPagesValue((object)pageSetup.FitToPagesTall) : null;
                 result.CenterHorizontally = pageSetup.CenterHorizontally;
                 result.CenterVertically = pageSetup.CenterVertically;
-                result.ZoomPercent = fitToPagesEnabled ? null : Convert.ToInt32(pageSetup.Zoom, CultureInfo.InvariantCulture);
+                result.ZoomPercent = fitToPagesEnabled ? null : Convert.ToInt32((object)pageSetup.Zoom, CultureInfo.InvariantCulture);
                 result.PrintArea = pageSetup.PrintArea ?? string.Empty;
                 result.PrintTitleRows = pageSetup.PrintTitleRows ?? string.Empty;
                 result.PrintTitleColumns = pageSetup.PrintTitleColumns ?? string.Empty;

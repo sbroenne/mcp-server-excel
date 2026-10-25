@@ -386,9 +386,9 @@ public partial class PivotTableCommands
                     object? value2 = null;
                     try
                     {
-                        value1 = criterion ? NormalizePivotCriterion(filter.Value1) : null;
+                        value1 = criterion ? NormalizePivotCriterion((object?)filter.Value1) : null;
                         if (type.Contains("Between", StringComparison.Ordinal))
-                            value2 = NormalizePivotCriterion(filter.Value2);
+                            value2 = NormalizePivotCriterion((object?)filter.Value2);
                     }
                     catch (System.Runtime.InteropServices.COMException ex) when (isOlap && CreatedObjectFailure.CanReport(ex))
                     {
