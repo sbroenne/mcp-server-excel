@@ -105,7 +105,11 @@ not rebuild or reconnect controls. Afterward, explicitly use `slicer`
 `connect-pivottable` to connect the reports to a shared slicer.
 
 The moved report adopts the chosen cache's records, calculations, refresh, and
-retention settings. Other reports using its old cache remain there. There is no
+retention settings. Totals, visible rows, and automatically sorted item order can
+change when those records differ. Preservation checks compare the report's
+starting cell and configured filters, manual selections, and sorting, not its
+previous output size or computed visibility. Other reports using its old cache
+remain there. There is no
 extra refresh, save, or guaranteed removal of an unused cache.
 `previousCacheIndex`, `cacheIndex`, and `targetCacheIndex` report observed native
 indexes; `sharedPivotTables` and `previousCacheUsers` identify reports by

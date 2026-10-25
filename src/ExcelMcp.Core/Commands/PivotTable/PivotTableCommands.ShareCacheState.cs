@@ -33,14 +33,16 @@ public partial class PivotTableCommands
                     if (field.Orientation == Excel.XlPivotFieldOrientation.xlHidden ||
                         PivotTableHelpers.IsValuesPlaceholderField(field, field.SourceName))
                         continue;
-                    var selection = ReadRegularFieldSelection(field, pivot.Name, filePath, ct, int.MaxValue);
+                    var selection = ReadRegularFieldSelection(field, pivot.Name, filePath, ct, int.MaxValue,
+                        manualSelectionOnly: true);
                     if (selection is not null && (!selection.FieldIdentityAvailable || !selection.LayoutAvailable ||
                         !selection.SelectionStateAvailable || !selection.FiltersAvailable || selection.MembersTruncated))
                         throw new NotSupportedException(
                             $"Cannot verify field '{field.Name}' before sharing: {selection.IdentityError ?? selection.LayoutError ?? selection.SelectionError ?? selection.FiltersError}");
                     List<string> itemOrder = [];
                     bool axis = field.Orientation is Excel.XlPivotFieldOrientation.xlRowField or Excel.XlPivotFieldOrientation.xlColumnField;
-                    if (axis)
+                    int? sortOrder = axis ? field.AutoSortOrder : null;
+                    if (sortOrder == (int)Excel.Constants.xlManual)
                     {
                         items = (Excel.PivotItems)field.PivotItems();
                         for (int j = 1; j <= items.Count; j++)
@@ -59,7 +61,7 @@ public partial class PivotTableCommands
                         field.Orientation,
                         Position = Convert.ToInt32((object)field.Position, CultureInfo.InvariantCulture),
                         Selection = selection,
-                        SortOrder = axis ? field.AutoSortOrder : (int?)null,
+                        SortOrder = sortOrder,
                         SortField = axis ? field.AutoSortField : null,
                         ItemOrder = itemOrder,
                         Subtotals = axis ? ReadSubtotalFunctions(field, pivot.Name, filePath, ct) : null,
@@ -82,7 +84,8 @@ public partial class PivotTableCommands
             return JsonSerializer.Serialize(new
             {
                 pivot.Name,
-                Address = extent.Address,
+                extent.Row,
+                extent.Column,
                 Fields = settings,
                 Values = values,
                 ValuesPlacement = valuesPlacement is null ? null : new

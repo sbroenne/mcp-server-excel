@@ -97,6 +97,112 @@ public sealed partial class PersistentServicePivotTableTests
         RequireSuccess(_pivotCommands.ShareCache(_fixture.BatchToken, moved, "Second", "First", target));
 
     [Theory]
+    [InlineData("value-filter")]
+    [InlineData("value-sort")]
+    [InlineData("manual-filter")]
+    [InlineData("manual-sort")]
+    [InlineData("manual-and-value-filter")]
+    public void ShareExistingCache_AdoptsDifferentAggregatesWithoutChangingSettings(string setting)
+    {
+        var (target, moved) = CreateSharingPair();
+        var batch = _fixture.BatchToken;
+        if (setting == "manual-and-value-filter")
+        {
+            RequireSuccess(_pivotCommands.SetLayoutOptions(batch, "Second",
+                new PivotLayoutOptions { AllowMultipleFilters = true }));
+            RequireSuccess(_pivotCommands.SetFieldFilter(batch, "Second", "Region", ["South"]));
+            RequireSuccess(_pivotCommands.AddFieldFilter(batch, "Second", "Region",
+                new PivotFilterOptions { Type = PivotFilterType.ValueIsGreaterThan, Number1 = 400, DataFieldName = "Sum of Sales" }));
+        }
+        else if (setting == "value-filter")
+            RequireSuccess(_pivotCommands.AddFieldFilter(batch, "Second", "Region",
+                new PivotFilterOptions { Type = PivotFilterType.ValueIsGreaterThan, Number1 = 300, DataFieldName = "Sum of Sales" }));
+        else if (setting == "value-sort")
+            RequireSuccess(_pivotCommands.SortField(batch, "Second", "Region", SortDirection.Descending, "Sum of Sales"));
+        else if (setting == "manual-filter")
+            RequireSuccess(_pivotCommands.SetFieldFilter(batch, "Second", "Region", ["North"]));
+        else
+            ReadNativePivot(moved, "Second", pivot =>
+            {
+                Excel.PivotField? field = null;
+                Excel.PivotItem? item = null;
+                try
+                {
+                    field = (Excel.PivotField)pivot.PivotFields("Region");
+                    item = (Excel.PivotItem)field.PivotItems("South");
+                    item.Position = 1;
+                    return 0;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref item);
+                    ComUtilities.Release(ref field);
+                }
+            });
+        var before = RequireSuccess(_pivotCommands.Read(batch, "Second"));
+        RequireSuccess(_commands.SetValues(batch, _salesSheetName, "A2:A6",
+            [["North"], ["South"], ["South"], ["South"], ["North"]], overwritePolicy: OverwritePolicy.Allow));
+        RequireSuccess(_pivotCommands.Refresh(batch, "First"));
+        AssertPivotSales(225, 425, "First");
+        if (setting == "manual-filter")
+            AssertFilteredPivot("Second", "North", 325);
+        else if (setting == "manual-and-value-filter")
+            Assert.DoesNotContain(RequireSuccess(_pivotCommands.GetData(batch, "Second")).Values,
+                row => row[0]?.ToString() is "North" or "South");
+        else
+            AssertPivotSales(325, 325, "Second");
+        var originalIndex = ReadNativePivot(moved, "Second", pivot => pivot.CacheIndex);
+        Assert.NotEqual(ReadNativePivot(target, "First", pivot => pivot.CacheIndex), originalIndex);
+
+        var result = ShareExisting(target, moved);
+
+        Assert.True(result.Changed);
+        Assert.Equal(originalIndex, result.PreviousCacheIndex);
+        Assert.Equal(ReadNativePivot(target, "First", pivot => pivot.CacheIndex),
+            ReadNativePivot(moved, "Second", pivot => pivot.CacheIndex));
+        AssertPivotSales(225, 425, "First");
+        var after = RequireSuccess(_pivotCommands.Read(batch, "Second"));
+        Assert.Equal(JsonSerializer.Serialize(before.ValueFields), JsonSerializer.Serialize(after.ValueFields));
+        var region = Assert.Single(after.FieldSelections, field => field.FieldName == "Region");
+        Assert.True(region.FiltersAvailable);
+        Assert.Equal(JsonSerializer.Serialize(Assert.Single(before.FieldSelections, field => field.FieldName == "Region").Filters),
+            JsonSerializer.Serialize(region.Filters));
+        if (setting is "value-filter" or "manual-and-value-filter")
+        {
+            AssertFilteredPivot("Second", "South", 425);
+            if (setting == "manual-and-value-filter")
+                Assert.False(ReadNativePivot(moved, "Second", pivot =>
+                {
+                    Excel.PivotField? field = null;
+                    Excel.PivotItem? item = null;
+                    try
+                    {
+                        field = (Excel.PivotField)pivot.PivotFields("Region");
+                        item = (Excel.PivotItem)field.PivotItems("North");
+                        return item.Visible;
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref item);
+                        ComUtilities.Release(ref field);
+                    }
+                }));
+        }
+        else if (setting == "manual-filter")
+        {
+            AssertFilteredPivot("Second", "North", 225);
+            Assert.Equal(["North"], region.SelectedMemberUniqueNames);
+        }
+        else
+        {
+            AssertPivotSales(225, 425, "Second");
+            Assert.Equal(["South", "North"],
+                RequireSuccess(_pivotCommands.GetData(batch, "Second")).Values
+                    .Select(row => row[0]?.ToString()).Where(label => label is "North" or "South"));
+        }
+    }
+
+    [Theory]
     [InlineData("manual-filter")]
     [InlineData("page-filter")]
     [InlineData("label-filter")]
