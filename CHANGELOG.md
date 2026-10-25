@@ -11,6 +11,22 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.5.4] - 2026-10-25
+
+### Patch Changes
+
+- [#1165](https://github.com/sbroenne/mcp-server-excel/pull/1165) [`0b929d7`](https://github.com/sbroenne/mcp-server-excel/commit/0b929d713b4f9f27227035b7a648fcb5ef0410c7) Thanks [@sbroenne](https://github.com/sbroenne)! - Read the exact transparency of individual column-chart points, including fully opaque and fully transparent fills, without changing neighboring points. Marker transparency limits remain unchanged.
+
+- [#1165](https://github.com/sbroenne/mcp-server-excel/pull/1165) [`0b929d7`](https://github.com/sbroenne/mcp-server-excel/commit/0b929d713b4f9f27227035b7a648fcb5ef0410c7) Thanks [@sbroenne](https://github.com/sbroenne)! - Correct the text, web, and XML connection type names. Reading or changing a legacy text or web import's refresh settings now uses its worksheet query and retains its source and import settings.
+
+  Fix moving an existing text or web import to another worksheet. Keep its extraction, formatting and refresh settings, its connection name and description after saving and reopening, and the original source cells. Loading again at the existing A1 refreshes that import without shifting nearby cells. If refreshing a copied import fails, report the original and copied imports and connection so the remaining changes can be inspected before retrying.
+
+- [#1165](https://github.com/sbroenne/mcp-server-excel/pull/1165) [`0b929d7`](https://github.com/sbroenne/mcp-server-excel/commit/0b929d713b4f9f27227035b7a648fcb5ef0410c7) Thanks [@sbroenne](https://github.com/sbroenne)! - Fix saving and closing workbooks after Data Model queries. ExcelMcp now avoids a screen-update change that could make Excel mark a saved workbook as changed again. Save failures still leave the session open and report the error.
+
+- [#1165](https://github.com/sbroenne/mcp-server-excel/pull/1165) [`0b929d7`](https://github.com/sbroenne/mcp-server-excel/commit/0b929d713b4f9f27227035b7a648fcb5ef0410c7) Thanks [@sbroenne](https://github.com/sbroenne)! - VBA runs now reject more than 30 arguments with a clear input error before running the macro.
+
+- [#1165](https://github.com/sbroenne/mcp-server-excel/pull/1165) [`0b929d7`](https://github.com/sbroenne/mcp-server-excel/commit/0b929d713b4f9f27227035b7a648fcb5ef0410c7) Thanks [@sbroenne](https://github.com/sbroenne)! - Data Model column results now return `"isCalculated": null` when Excel cannot say whether a column is calculated, rather than incorrectly claiming `false`. Both the MCP server and command-line tool report this as unknown.
+
 ## [2.5.3] - 2026-10-23
 
 ### Patch Changes
