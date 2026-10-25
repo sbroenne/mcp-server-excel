@@ -30,6 +30,35 @@ public class PersistentServicePivotTableDataModelTests(
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public void ShareExistingCache_DataModelOnEitherSide_IsRejectedBeforeWrites(bool modelIsMoved)
+    {
+        var batch = _fixture.BatchToken;
+        var sheet = _fixture.CreateTestSheet(batch);
+        RequireSuccess(_commands.SetValues(batch, sheet, "A1:B3",
+            [["Region", "Sales"], ["North", 100], ["South", 200]]));
+        RequireSuccess(_pivotCommands.CreateFromRange(batch, sheet, "A1:B3", sheet, "D1", "WorksheetPivot"));
+        RequireSuccess(_pivotCommands.AddValueField(batch, "WorksheetPivot", "Sales"));
+        RequireSuccess(_pivotCommands.CreateFromDataModel(batch, "SalesTable", sheet, "H1", "ModelPivot"));
+        RequireSuccess(_pivotCommands.AddValueField(batch, "ModelPivot", "[Measures].[Total Sales]"));
+        RequireSuccess(_pivotCommands.Refresh(batch, "ModelPivot"));
+        var before = RequireSuccess(_pivotCommands.List(batch)).PivotTables
+            .Select(pivot => (pivot.SheetName, pivot.Name, pivot.CacheIndex)).ToArray();
+
+        var error = Assert.Throws<NotSupportedException>(() => _pivotCommands.ShareCache(batch,
+            sheet, modelIsMoved ? "ModelPivot" : "WorksheetPivot",
+            modelIsMoved ? "WorksheetPivot" : "ModelPivot", sheet));
+
+        Assert.Contains("worksheet-backed", error.Message, StringComparison.Ordinal);
+        Assert.Equal(before, RequireSuccess(_pivotCommands.List(batch)).PivotTables
+            .Select(pivot => (pivot.SheetName, pivot.Name, pivot.CacheIndex)).ToArray());
+        AssertNativeData(sheet, "ModelPivot", 2455);
+        var values = RequireSuccess(_pivotCommands.GetData(batch, "WorksheetPivot")).Values;
+        Assert.Equal(300d, Convert.ToDouble(values[^1][0], System.Globalization.CultureInfo.InvariantCulture));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void SharedCache_DataModelTarget_IsRejectedBeforeCreatingReportOrCache(bool table)
     {
         var batch = _fixture.BatchToken;

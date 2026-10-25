@@ -67,8 +67,55 @@ workbook Data Model connection. Selection filters every connected report. See th
 These are actual native indexes, local to this workbook, and can change when
 Excel reorganizes caches; they are not permanent IDs. Sharing creates no
 additional cache and does not move existing reports or consolidate caches.
+To move an already-built report deliberately, use `share-cache` below.
 Once report creation starts, a later Excel failure does not promise rollback;
 inspect the named partial report before deciding what to do.
+
+## Move an existing report onto a shared cache
+
+Use `pivottable share-cache` to move an existing worksheet-backed report onto
+another report's existing cache. Unlike creation-time sharing, this keeps both
+reports in place. Unlike `set-source`, it does not create a replacement cache.
+
+```cli
+excelcli -q pivottable share-cache --session $sessionId --sheet Summary --pivot-table-name ByProduct --share-cache-with ByRegion --share-cache-with-sheet Overview
+```
+
+```mcp
+pivottable(action: 'share-cache', workbook_session_id: sessionId, sheet_name: 'Summary', pivot_table_name: 'ByProduct', share_cache_with: 'ByRegion', share_cache_with_sheet: 'Overview')
+```
+
+Both reports must have the same worksheet Table or fixed-range source, compatible
+fields, and matching cached items. Identical headers or values from different
+sources do not qualify. Table and fixed-range definitions remain distinct.
+External, OLAP, Data Model, grouped fields, and calculated items are unsupported.
+Every calculated field from the moved report's original cache must already exist
+with the same formula in the chosen cache. Extra calculations in the chosen cache
+become available; calculations are not merged or copied.
+
+Ordinary row, column, filter, and Values placement, member selections, native
+label/value filters, label/value/manual sorting, aggregation and Show Values As,
+subtotals, grand totals, report layout, number formats, and native styles remain
+on the moved report. The operation reads report settings before changing the
+cache and checks them afterward. If required settings cannot be read, the move
+is rejected before reassignment.
+
+Disconnect any slicer or timeline from the moved report first. The operation does
+not rebuild or reconnect controls. Afterward, explicitly use `slicer`
+`connect-pivottable` to connect the reports to a shared slicer.
+
+The moved report adopts the chosen cache's records, calculations, refresh, and
+retention settings. Other reports using its old cache remain there. There is no
+extra refresh, save, or guaranteed removal of an unused cache.
+`previousCacheIndex`, `cacheIndex`, and `targetCacheIndex` report observed native
+indexes; `sharedPivotTables` and `previousCacheUsers` identify reports by
+`sheetName` and `pivotTableName`. `changed: false` means the reports already
+shared their cache and no change was made. Indexes are workbook-local, not
+permanent identifiers.
+
+If Excel fails after reassignment starts, the error includes the actual readable
+partial cache state, or explains why that state could not be read. Changes are
+not undone automatically; inspect both reports before deciding what to do.
 
 ## Read a bounded configuration snapshot
 

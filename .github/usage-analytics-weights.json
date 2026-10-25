@@ -285,7 +285,8 @@
         "refresh": "heavy",
         "set-cache-options": "medium",
         "set-connection": "medium",
-        "set-source": "heavy"
+        "set-source": "heavy",
+        "share-cache": "heavy"
       }
     },
     "pivottable_calc": {
