@@ -27,7 +27,9 @@ or maximized state before bringing it forward. `bring-to-front` leaves a hidden
 session hidden and returns guidance to use `show` first. If Windows refuses
 foreground activation, `show` still reports the verified visibility and
 `isForeground: false`, with guidance to select Excel. `bring-to-front` reports
-an error; any visibility or window restoration already applied remains in effect.
+an error with instructions to select Excel on the Windows taskbar or press
+Alt+Tab to switch to Excel. Any visibility or window restoration already applied
+remains in effect.
 `arrange` verifies that Excel applied the requested preset and returns
 `isForeground`. If Windows refuses foreground activation, the verified
 placement still succeeds and the result explains how to select Excel. If Excel
