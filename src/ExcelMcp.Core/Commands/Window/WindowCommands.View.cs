@@ -58,15 +58,13 @@ public partial class WindowCommands
     /// <inheritdoc />
     public OperationResult FreezePanes(IExcelBatch batch, string sheetName, int frozenRows = 0, int frozenColumns = 0)
     {
+        ValidatePaneCounts(frozenRows, frozenColumns, requireBoundary: true);
+
         return batch.Execute((ctx, ct) =>
         {
-            ValidatePaneCounts(frozenRows, frozenColumns, requireBoundary: true);
-
             Excel.Worksheet? sheet = null;
             Excel.Windows? windows = null;
             Excel.Window? window = null;
-            Excel.Range? boundaryCell = null;
-            Excel.Range? cells = null;
             try
             {
                 sheet = FindRequiredSheet(ctx.Book, sheetName);
@@ -74,18 +72,39 @@ public partial class WindowCommands
                 window = windows[1];
                 ActivateWorksheetView(window, sheet);
 
+                if (window.View == Excel.XlWindowView.xlPageLayoutView)
+                {
+                    throw new InvalidOperationException(
+                        $"Cannot freeze panes on worksheet '{sheetName}' in Page Layout view. " +
+                        "Switch the worksheet to Normal view in Excel, then retry. " +
+                        "Pane settings and selection were not changed.");
+                }
+
                 window.FreezePanes = false;
-                cells = sheet.Cells;
-                boundaryCell = cells[frozenRows + 1, frozenColumns + 1];
-                boundaryCell.Select();
+                if (frozenRows > 0)
+                    window.ScrollRow = 1;
+                if (frozenColumns > 0)
+                    window.ScrollColumn = 1;
+                window.SplitRow = frozenRows;
+                window.SplitColumn = frozenColumns;
                 window.FreezePanes = true;
+
+                var actualFrozen = window.FreezePanes;
+                var actualRows = window.SplitRow;
+                var actualColumns = window.SplitColumn;
+                if (!actualFrozen || actualRows != frozenRows || actualColumns != frozenColumns)
+                {
+                    throw new InvalidOperationException(
+                        $"Excel did not apply the requested frozen panes on worksheet '{sheetName}'. " +
+                        $"Requested rows={frozenRows}, columns={frozenColumns}; " +
+                        $"actual freezePanes={actualFrozen}, splitRow={actualRows}, splitColumn={actualColumns}. " +
+                        "Changes were not rolled back. Inspect the worksheet with window get-view before retrying.");
+                }
 
                 return ViewOperationResult(batch, "freeze-panes", sheetName);
             }
             finally
             {
-                ComUtilities.Release(ref boundaryCell);
-                ComUtilities.Release(ref cells);
                 ComUtilities.Release(ref window);
                 ComUtilities.Release(ref windows);
                 ComUtilities.Release(ref sheet);
