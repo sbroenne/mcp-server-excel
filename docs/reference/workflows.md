@@ -27,6 +27,61 @@ camel-case names, not CLI flags; for example, `--timeout-seconds` becomes
 flag, the exit status, and expected command count. Use `--stop-on-error`;
 otherwise errors do not stop later commands. Keep save/close outside the batch.
 
+### Identifying batch results
+
+Both JSON-array input and one-command-per-line input return one JSON object per
+output line. Each per-command object includes `commandSummary` alongside the
+existing `index`, `command`, `success`, result, and error fields. For repeated
+commands, summaries can distinguish their targets without repeating all input:
+
+```text
+range.set-values: Sales!A2:D21 (20 rows x 4 columns)
+range.set-values: Forecast!B5:C8 (4 rows x 2 columns)
+powerquery.refresh: queryName=SalesImport
+chart.read: chartName=RevenueChart
+diag.ping
+```
+
+Summaries always start with the command and use only these top-level input
+details, in this fixed order:
+
+| Input details | Summary |
+|---|---|
+| `sheetName`, `rangeAddress` | `Sales!A1:B2`; sheet names with spaces or punctuation are quoted |
+| `sourceSheet`, `sourceRange` | `source=Sales!A1:B2` |
+| `targetSheet`, `targetRange` | `target=Archive!C1:D2` |
+| `tableName`, `queryName`, `pivotTableName`, `chartName` | Each supplied name as `key=value` |
+| `oldName`, `newName` | Worksheet rename targets as `oldName=Before, newName=After` |
+| `values` for `range.set-values`, `formulas` for `range.set-formulas` | Row/column counts for a nonempty rectangular inline array; never the cells themselves |
+
+When only a sheet or range is supplied, it appears as `key=value`. An empty
+sheet name is not replaced with a guessed active sheet. Unsupported details,
+empty strings, and wrong-type details are omitted; normal command validation
+still applies. With no supported details, the summary is just the command.
+File-based writes show available target details but do not read files to
+calculate dimensions.
+
+Each summary is at most 160 characters, including a trailing `...` if shortened.
+Whitespace, control characters, and invisible formatting controls are replaced
+with spaces; shortening keeps Unicode characters intact. Summaries are
+display text, not unique identifiers or executable commands. Use `index` to
+match a result to its original input.
+
+The same summary rules apply to successful entries, validation errors, command
+errors, and communication errors returned as per-command results.
+`--stop-on-error` still stops after the first failed entry. A summary describes
+the requested operation, not confirmation of completion or actual workbook
+state. Batch-wide errors without per-command results remain unchanged.
+
+Cell contents, formula text, VBA/M code, credentials, connection strings, free-form
+messages, nested arguments, and file-path arguments are not copied into summaries.
+Selected target names remain visible to the requesting user; summaries do not
+scan or redact those names for secrets and are not safe to publish automatically.
+Summaries are not sent to usage reporting. This field is CLI-only because MCP
+has no batch tool.
+
+### Running a batch job
+
 This example assumes authorized edits and save/close of a workbook opened
 exclusively for the job. `$path` is the supplied path, `Sales` already exists,
 and target cells have been inspected. `commands.json` is a job-owned file.
