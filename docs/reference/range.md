@@ -191,6 +191,34 @@ Use the reported coverage and unresolved lookups. Inspection does not parse
 formulas to invent missing links, recalculate, open external workbooks, select
 cells, or create tracing arrows.
 
+Both `trace-precedents` and `trace-dependents` start with a short report:
+3 relationship steps, 50 distinct cells including starting cells, and 256
+characters per formula or text value. Starting cells have depth 0. Oversized
+starting ranges return only the cells that fit, in native area/row/column
+order, with omitted starting cells explicitly flagged.
+
+For a larger report, use MCP `range_read` inputs `max_depth`, `max_nodes`,
+and `max_preview_characters`, or CLI `range` flags `--max-depth`,
+`--max-nodes`, and `--max-preview-characters`. Allowed ranges are 0-20 steps,
+1-1,000 cells, and 1-4,096 characters respectively; there is no unlimited
+setting. Depth 0 returns only starting cells. Text limits apply separately to
+each formula and string value; numbers and booleans keep their original types.
+
+Check `limits`, `truncation.any`, and `boundaries` before using the report.
+`truncation` distinguishes depth, cell-count, starting-cell, and text omissions.
+Node fields `formulaTruncated` and `valueTruncated` identify shortened previews;
+these are not full formulas or values. Edges refer only to included cells.
+Cycles describe the returned edges, so a shortened graph can hide other cycles.
+Boundary checks may read native relationships at the selected depth, but do
+not add cells beyond it. Once a lookup encounters a cell that cannot fit,
+its enumeration stops; later relationships in that lookup may also be absent.
+The report does not count all omitted cells or edges.
+
+`coverage.nativeTraversalComplete` is false when graph traversal is cut short
+or a native lookup remains unresolved. Shortened text alone does not change
+that field. `coverage.workbookComplete` remains false even if no configured
+limit is reached: native Excel coverage is still limited.
+
 ## Calculation and merged cells
 
 Calculate and read back results when the task depends on newly written formulas.

@@ -52,8 +52,10 @@ namespace Sbroenne.ExcelMcp.Core.Commands.Range;
 public interface IRangeCommands
 {
     /// <summary>
-    /// Traverses all native direct precedents reachable from every cell in the exact starting scope.
-    /// Returns formulas/values, edges, cycles, and unresolved lookups, without a depth/output cap.
+    /// Traverses native direct precedents within the requested depth and cell limits.
+    /// Returns bounded formula/value previews, edges, observed cycles, unresolved lookups, and explicit truncation.
+    /// Starting cells have depth 0 and count toward maxNodes; excess starting cells are omitted and flagged.
+    /// Check truncation.any and boundaries before treating the returned report as unshortened.
     /// Native getters return same-worksheet references only and do not fully resolve dynamic references.
     /// Ambiguous native absence is unresolved, not an empty successful lookup. Workbook coverage is
     /// never claimed complete. Does not activate/select cells, recalculate, or open external workbooks.
@@ -62,13 +64,18 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Worksheet name; empty for a named range</param>
     /// <param name="rangeAddress">Exact starting cells, rectangle, disjoint areas, or named range</param>
+    /// <param name="maxDepth">Maximum relationship steps from included starting cells, 0-20; default 3. Zero returns only starting cells.</param>
+    /// <param name="maxNodes">Maximum distinct returned cells including starting cells, 1-1000; default 50.</param>
+    /// <param name="maxPreviewCharacters">Maximum characters per formula or text value, 1-4096; default 256. Shortened fields are flagged; numbers and booleans are unchanged.</param>
     [ServiceAction("trace-precedents")]
     RangeFormulaTraceResult TracePrecedents(IExcelBatch batch, [AllowEmptyString] string sheetName,
-        [RequiredParameter] string rangeAddress);
+        [RequiredParameter] string rangeAddress, int maxDepth = 3, int maxNodes = 50, int maxPreviewCharacters = 256);
 
     /// <summary>
-    /// Traverses all native direct dependents reachable from every cell in the exact starting scope.
-    /// Returns formulas/values, edges, cycles, and unresolved lookups, without a depth/output cap.
+    /// Traverses native direct dependents within the requested depth and cell limits.
+    /// Returns bounded formula/value previews, edges, observed cycles, unresolved lookups, and explicit truncation.
+    /// Starting cells have depth 0 and count toward maxNodes; excess starting cells are omitted and flagged.
+    /// Check truncation.any and boundaries before treating the returned report as unshortened.
     /// Coverage is native same-worksheet-only, never a complete workbook dependency graph.
     /// A missing native range is explicitly unresolved. No formula-text parsing, view changes,
     /// recalculation, or external workbook opening is performed.
@@ -76,9 +83,12 @@ public interface IRangeCommands
     /// <param name="batch">Excel batch session</param>
     /// <param name="sheetName">Worksheet name; empty for a named range</param>
     /// <param name="rangeAddress">Exact starting cells, rectangle, disjoint areas, or named range</param>
+    /// <param name="maxDepth">Maximum relationship steps from included starting cells, 0-20; default 3. Zero returns only starting cells.</param>
+    /// <param name="maxNodes">Maximum distinct returned cells including starting cells, 1-1000; default 50.</param>
+    /// <param name="maxPreviewCharacters">Maximum characters per formula or text value, 1-4096; default 256. Shortened fields are flagged; numbers and booleans are unchanged.</param>
     [ServiceAction("trace-dependents")]
     RangeFormulaTraceResult TraceDependents(IExcelBatch batch, [AllowEmptyString] string sheetName,
-        [RequiredParameter] string rangeAddress);
+        [RequiredParameter] string rangeAddress, int maxDepth = 3, int maxNodes = 50, int maxPreviewCharacters = 256);
 
     // === VALUE OPERATIONS ===
 
