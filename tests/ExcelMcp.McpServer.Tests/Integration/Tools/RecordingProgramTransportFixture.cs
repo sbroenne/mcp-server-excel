@@ -75,14 +75,18 @@ public sealed class RecordingProgramTransportFixture :
                 .FirstOrDefault()?.Text
                 ?? throw new InvalidOperationException(
                     $"Unexpected response from MCP tool '{toolName}'.");
-            AssertSerializedResult(text, response);
+            var jsonResult = result.Content.Any(content => content is ImageContentBlock)
+                ? result.StructuredContent?.GetRawText()
+                    ?? throw new InvalidOperationException("Image result has no structured metadata.")
+                : text;
+            AssertSerializedResult(jsonResult, response);
             var request = _backend.TakeRequest();
             RecordingToolTest.AssertRequest(
                 request,
                 expectedCommand,
                 expectedSessionId,
                 expectedArgsJson);
-            return new CapturedToolCall(text, request, result);
+            return new CapturedToolCall(jsonResult, request, result);
         }
         finally
         {

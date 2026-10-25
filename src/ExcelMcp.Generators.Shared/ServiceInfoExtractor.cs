@@ -15,13 +15,15 @@ public static class ServiceInfoExtractor
     /// <summary>
     /// Derives the command group name shared by MCP routing, CLI commands, and batch files:
     /// the MCP tool name without underscores, or the lowercased PascalName when there is no MCP tool.
+    /// An explicit command name preserves existing names when the MCP tool name differs.
     /// </summary>
-    public static string GetCommandGroupName(string? mcpToolName, string pascalName) =>
-        mcpToolName is not null ? mcpToolName.Replace("_", "") : pascalName.ToLowerInvariant();
+    public static string GetCommandGroupName(string? mcpToolName, string pascalName, string? commandName = null) =>
+        commandName ?? (mcpToolName is not null ? mcpToolName.Replace("_", "") : pascalName.ToLowerInvariant());
 
     public static ServiceInfo? ExtractServiceInfo(INamedTypeSymbol interfaceSymbol)
     {
         string? pascalName = null;
+        string? commandName = null;
         string? mcpTool = null;
         bool noSession = false;
         string? mcpToolTitle = null;
@@ -41,6 +43,8 @@ public static class ServiceInfoExtractor
                 {
                     pascalName = attr.ConstructorArguments[0].Value?.ToString();
                 }
+                commandName = attr.NamedArguments.FirstOrDefault(argument => argument.Key == "CommandName")
+                    .Value.Value as string;
             }
             else if (attrName == "McpToolAttribute")
             {
@@ -93,7 +97,7 @@ public static class ServiceInfoExtractor
             return null;
 
         // One group name for MCP routing, CLI commands, and batch files.
-        var category = GetCommandGroupName(mcpTool, pascalName!);
+        var category = GetCommandGroupName(mcpTool, pascalName!, commandName);
 
         // Extract interface-level XML documentation
         var interfaceSummary = ExtractInterfaceSummary(interfaceSymbol);

@@ -423,7 +423,7 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
     [InlineData("range_read", "values")]
     [InlineData("range_read", "rowCount")]
     [InlineData("table_read", "tables")]
-    [InlineData("worksheet", "worksheets")]
+    [InlineData("worksheet_read", "worksheets")]
     [InlineData("file_read", "workbook_session_id")]
     [InlineData("file_read", "complete")]
     [InlineData("file_read", "workbooks")]

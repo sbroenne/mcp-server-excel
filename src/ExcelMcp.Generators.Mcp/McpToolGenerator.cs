@@ -146,7 +146,7 @@ public class McpToolGenerator : IIncrementalGenerator
         {
             var methods = group.ToList();
             var readOnly = methods.All(method => method.McpToolReadOnly);
-            var description = readOnly
+            var description = readOnly && !(info.McpToolReadOnly && group.Key == info.McpToolName)
                 ? "Read-only actions: " + string.Join(" ", methods.Select(method =>
                     string.IsNullOrWhiteSpace(method.XmlDocSummary)
                         ? $"{method.ActionName}."
@@ -159,7 +159,7 @@ public class McpToolGenerator : IIncrementalGenerator
                 info.NoSession,
                 methods,
                 readOnly ? $"Read-only {info.CategoryPascal} actions." : info.XmlDocSummary,
-                readOnly ? $"Read-only {info.CategoryPascal} Operations" : info.McpToolTitle,
+                readOnly && group.Key != info.McpToolName ? $"Read-only {info.CategoryPascal} Operations" : info.McpToolTitle,
                 readOnly ? false : info.McpToolDestructive,
                 readOnly,
                 info.McpToolCategory,
@@ -240,6 +240,13 @@ public class McpToolGenerator : IIncrementalGenerator
     private static void GenerateToolMethod(StringBuilder sb, ServiceInfo info, bool hasProgress)
     {
         var enumTypeName = GetActionTypeName(info);
+        var hasSession = !info.NoSession && info.Methods.Any(method => method.HasBatchParameter);
+        var requiresSession = hasSession && info.Methods.All(method => method.HasBatchParameter);
+        var sessionDescription = requiresSession
+            ? "Session ID from file 'open' action"
+            : "Session ID required for: " + string.Join(", ", info.Methods
+                .Where(method => method.HasBatchParameter).Select(method => method.ActionName)) +
+              ". Not used by actions that open and close files automatically.";
 
         // Get all exposed parameters (aggregated across methods)
         var exposedParams = ServiceInfoExtractor.GetAllExposedParameters(info);
@@ -262,7 +269,7 @@ public class McpToolGenerator : IIncrementalGenerator
 
         // XML doc: parameter descriptions
         sb.AppendLine($"    /// <param name=\"action\">The action to perform</param>");
-        if (!info.NoSession)
+        if (hasSession)
         {
             sb.AppendLine($"    /// <param name=\"workbook_session_id\">Session ID from file 'open' action</param>");
         }
@@ -283,7 +290,7 @@ public class McpToolGenerator : IIncrementalGenerator
 
         var category = info.McpToolCategory ?? "data";
         sb.AppendLine($"    [McpMeta(\"category\", \"{category}\")]");
-        sb.AppendLine($"    [McpMeta(\"requiresSession\", {(!info.NoSession).ToString().ToLower()})]");
+        sb.AppendLine($"    [McpMeta(\"requiresSession\", {requiresSession.ToString().ToLowerInvariant()})]");
 
         // Tool prose stays concise; parameter details come from Core XML documentation.
         if (!string.IsNullOrEmpty(info.McpToolDescription))
@@ -303,9 +310,10 @@ public class McpToolGenerator : IIncrementalGenerator
         sb.AppendLine("        Sbroenne.ExcelMcp.McpServer.ServiceBridge.ServiceBridge bridge,");
 
         // Session parameter (if required)
-        if (!info.NoSession)
+        if (hasSession)
         {
-            sb.Append("        [Description(\"Session ID from file 'open' action\")] string workbook_session_id");
+            sb.Append($"        [Description(\"{EscapeStringLiteral(sessionDescription)}\")] ");
+            sb.Append(requiresSession ? "string workbook_session_id" : "string? workbook_session_id = null");
             sb.Append(",");
             sb.AppendLine();
         }
@@ -396,6 +404,8 @@ public class McpToolGenerator : IIncrementalGenerator
                     if (property.IsStatic || property.IsIndexer ||
                         property.DeclaredAccessibility != Accessibility.Public || property.GetMethod is null)
                         continue;
+                    if (HasImageResult(info) && property.Name == "ImageBase64")
+                        continue;
 
                     var typeName = GetOptionalSchemaTypeName(property.Type);
                     if (properties.TryGetValue(property.Name, out var existing) && existing.TypeName != typeName)
@@ -439,6 +449,10 @@ public class McpToolGenerator : IIncrementalGenerator
         return false;
     }
 
+    private static bool HasImageResult(ServiceInfo info) =>
+        info.Methods.All(method => method.ReturnTypeSymbol.ToDisplayString() ==
+            "Sbroenne.ExcelMcp.Core.Commands.Screenshot.ScreenshotResult");
+
     private sealed class OutputSchemaProperty(string name, string typeName)
     {
         public string Name { get; } = name;
@@ -478,6 +492,17 @@ public class McpToolGenerator : IIncrementalGenerator
         sb.AppendLine($"{indent}    ServiceRegistry.{registryName}.ToActionString({serviceAction}),");
         sb.AppendLine($"{indent}    () =>");
         sb.AppendLine($"{indent}    {{");
+        var sessionlessMethods = info.Methods.Where(method => !method.HasBatchParameter).ToArray();
+        var hasSession = !info.NoSession && info.Methods.Any(method => method.HasBatchParameter);
+        var mixedSession = hasSession && sessionlessMethods.Length > 0;
+        if (mixedSession)
+        {
+            var sessionlessActions = string.Join(" or ", sessionlessMethods.Select(method =>
+                $"{registryName}Action.{method.MethodName}"));
+            sb.AppendLine($"{indent}        if (serviceAction is not ({sessionlessActions}) && string.IsNullOrWhiteSpace(workbook_session_id))");
+            sb.AppendLine($"{indent}            throw new ArgumentException(\"workbook_session_id is required for this action. Use file 'open' action to start a session.\");");
+            sb.AppendLine($"{indent}        var sessionId = serviceAction is {sessionlessActions} ? \"\" : workbook_session_id!;");
+        }
         foreach (var parameter in mcpParams.Where(parameter => parameter.PreProcessingCode != null))
         {
             sb.AppendLine($"{indent}        {parameter.PreProcessingCode}");
@@ -489,9 +514,9 @@ public class McpToolGenerator : IIncrementalGenerator
         sb.AppendLine($"{indent}        return ServiceRegistry.{registryName}.RouteAction(");
         sb.AppendLine($"{indent}            {serviceAction},");
 
-        if (!info.NoSession)
+        if (hasSession)
         {
-            sb.AppendLine($"{indent}            workbook_session_id,");
+            sb.AppendLine($"{indent}            {(mixedSession ? "sessionId" : "workbook_session_id")},");
         }
         else
         {
@@ -512,7 +537,8 @@ public class McpToolGenerator : IIncrementalGenerator
         }
 
         sb.AppendLine($"{indent}        );");
-        sb.AppendLine($"{indent}    }}, cancellationToken);");
+        var resultFactory = HasImageResult(info) ? ", ScreenshotImageResult.CreateToolResult" : "";
+        sb.AppendLine($"{indent}    }}, cancellationToken{resultFactory});");
 
         // Close progress try/finally block
         if (hasProgress)

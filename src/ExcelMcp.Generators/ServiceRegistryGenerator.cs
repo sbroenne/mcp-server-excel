@@ -142,8 +142,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine($"        public const string McpToolName = \"{info.McpToolName}\";");
         sb.AppendLine($"        public const bool RequiresSession = {(info.NoSession ? "false" : "true")};");
 
-        // CLI command name: remove underscores from tool name
-        var cliCommandName = info.McpToolName.Replace("_", "");
+        var cliCommandName = info.Category;
         sb.AppendLine($"        public const string CliCommandName = \"{cliCommandName}\";");
         sb.AppendLine();
 
@@ -1303,7 +1302,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine();
         sb.AppendLine("public static partial class ServiceRegistry");
         sb.AppendLine("{");
-        sb.AppendLine("    /// <summary>Action input contracts, including specialized worksheet and screenshot handlers.</summary>");
+        sb.AppendLine("    /// <summary>Action input contracts shared by generated MCP tools.</summary>");
         sb.AppendLine("    public static (string Name, bool Required, bool AllowsEmpty, string? Alternative)[] GetMcpActionParameters(string tool, string action)");
         sb.AppendLine("    {");
         sb.AppendLine("        return (tool, action) switch");
@@ -1327,9 +1326,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
                 parameters.Insert(0, "(\"action\", true, false, null)");
                 if (!category.NoSession && method.HasBatchParameter)
                     parameters.Insert(1, "(\"workbook_session_id\", true, false, null)");
-                var toolName = category.CategoryPascal == "Sheet"
-                    ? method.ActionName == "list" ? "worksheet_read" : "worksheet"
-                    : method.McpTool;
+                var toolName = method.McpTool;
                 sb.AppendLine($"            (\"{toolName}\", \"{method.ActionName}\") => new (string, bool, bool, string?)[] {{ {string.Join(", ", parameters)} }},");
             }
         }
@@ -1440,7 +1437,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
 
         foreach (var cat in categories.OrderBy(c => c.CategoryPascal))
         {
-            var cliCommandName = cat.McpToolName.Replace("_", "");
+            var cliCommandName = cat.Category;
             sb.AppendLine($"        (\"{cliCommandName}\", \"ServiceRegistry.{cat.CategoryPascal}\", {(cat.NoSession ? "false" : "true")}),");
         }
 
@@ -1452,7 +1449,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
 
         foreach (var cat in categories.OrderBy(c => c.CategoryPascal))
         {
-            var cliCommandName = cat.McpToolName.Replace("_", "");
+            var cliCommandName = cat.Category;
             sb.AppendLine($"        [\"{cliCommandName}\"] = ServiceRegistry.{cat.CategoryPascal}.ValidActions,");
         }
 
@@ -1463,7 +1460,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         sb.AppendLine("    {");
         foreach (var cat in categories.OrderBy(c => c.CategoryPascal))
         {
-            var cliCommandName = cat.McpToolName.Replace("_", "");
+            var cliCommandName = cat.Category;
             sb.AppendLine($"        [\"{cliCommandName}\"] = new(System.StringComparer.OrdinalIgnoreCase)");
             sb.AppendLine("        {");
             foreach (var method in cat.Methods)
@@ -1508,7 +1505,7 @@ public class ServiceRegistryGenerator : IIncrementalGenerator
         for (int i = 0; i < orderedCategories.Count; i++)
         {
             var cat = orderedCategories[i];
-            var cliCommandName = cat.McpToolName.Replace("_", "");
+            var cliCommandName = cat.Category;
 
             sb.AppendLine("    {");
             sb.AppendLine($"      \"\"name\"\": \"\"{cliCommandName}\"\",");

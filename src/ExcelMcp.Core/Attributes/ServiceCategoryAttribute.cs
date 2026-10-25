@@ -6,6 +6,7 @@ namespace Sbroenne.ExcelMcp.Core.Attributes;
 /// from the <see cref="McpToolAttribute"/> name with underscores removed
 /// (e.g., "calculation_mode" → "calculationmode"). Interfaces without an MCP tool use
 /// the lowercased <see cref="PascalName"/> (e.g., "Sheet" → "sheet").
+/// An explicit <see cref="CommandName"/> takes precedence over those defaults.
 /// </summary>
 [AttributeUsage(AttributeTargets.Interface, AllowMultiple = false, Inherited = false)]
 public sealed class ServiceCategoryAttribute : Attribute
@@ -14,6 +15,11 @@ public sealed class ServiceCategoryAttribute : Attribute
     /// PascalCase name used for generated types (e.g., "PowerQuery" → PowerQueryAction).
     /// </summary>
     public string PascalName { get; }
+
+    /// <summary>
+    /// Explicit CLI, batch, and Service command group when it differs from the MCP tool name.
+    /// </summary>
+    public string? CommandName { get; set; }
 
     /// <summary>
     /// Creates a new ServiceCategoryAttribute.

@@ -14,7 +14,9 @@ namespace Sbroenne.ExcelMcp.Core.Commands;
 /// POSITIONING: For 'move', 'copy-to-file', 'move-to-file' - use 'before' OR 'after'
 /// (not both) to position the sheet relative to another. If neither specified, moves to end.
 /// </summary>
-[ServiceCategory("Sheet")]
+[ServiceCategory("Sheet", CommandName = "sheet")]
+[McpTool("worksheet", Title = "Worksheet Operations", Destructive = true, Category = "structure",
+    Description = "Worksheet changes: create, rename, copy, delete, move. DELETE HAS NO TOOL-LEVEL UNDO: removes all sheet contents and may break dependent references; check the intended sheet and its dependencies. MOVE-TO-FILE HAS NO TOOL-LEVEL UNDO: removes the source sheet and saves both files. Closing another session without saving cannot reverse that transfer. Rename uses oldName and newName. Cross-file copy-to-file and move-to-file open, save, and close automatically without a session. Position with beforeSheet or afterSheet, not both. Use worksheet_style for tab colors, visibility, and protection.")]
 [McpReadOnlyActions("list")]
 public interface ISheetCommands
 {

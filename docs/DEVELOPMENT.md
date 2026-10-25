@@ -361,33 +361,22 @@ When adding a new service category to Core:
 
 ## MCP tool implementation
 
-Most MCP tools come from the Core contract and source generator. Add manual
-routing only when a tool owns additional metadata or atomic operations that do
-not require a session. MCP calls the shared service in-process; it does not
-connect to the CLI daemon.
+Feature MCP tools come from the Core contract and source generator. This includes
+worksheet actions with and without an open session, and screenshot image results.
+Only file/session tools retain handwritten routing. MCP calls the shared service
+in-process; it does not connect to the CLI daemon.
 
 The official SDK registers tools with `WithToolsFromAssembly` and supplies
-dependencies and cancellation tokens. For a manual tool, enter the shared async
-execution boundary and delegate to the generated route. For example, this helper lists
-worksheets through the existing Sheet route:
+dependencies and cancellation tokens. Generated tools use the shared async
+execution boundary and generated Service routes. Session requirements come from
+each Core action's batch parameter; a tool containing both kinds of action has
+an optional session input, checked for each requested action. An explicit
+`ServiceCategory.CommandName` preserves an existing CLI/batch name when it differs
+from the MCP tool name.
 
-```csharp
-public static Task<CallToolResult> ListWorksheets(
-    ServiceBridge.ServiceBridge bridge,
-    string workbook_session_id,
-    CancellationToken cancellationToken = default)
-{
-    return ExcelToolsBase.ExecuteToolActionAsync(
-        "worksheet",
-        ServiceRegistry.Sheet.ToActionString(SheetAction.List),
-        () => ServiceRegistry.Sheet.RouteAction(
-            SheetAction.List,
-            workbook_session_id,
-            (command, id, args) =>
-                ExcelToolsBase.ForwardToServiceAsync(bridge, command, id, args, cancellationToken)),
-        cancellationToken);
-}
-```
+The generated screenshot tool selects the MCP image converter from its declared
+`ScreenshotResult` return type. The converter packages image content and metadata
+only; it owns no tool definition, input checks, or Excel access.
 
 `ExecuteToolActionAsync` supplies common telemetry and result conversion. Use shared
 `JsonOptions` for additional payloads. Tool failures set the actual SDK

@@ -8,10 +8,11 @@ Annotated Core interfaces are the source for generated Service dispatch, CLI
 commands, MCP tools, and operation metadata. Shared extraction connects those
 outputs to the same definitions.
 
-The MCP Server also keeps a hand-written tool layer where the adapter owns
-behavior the generated tools do not express: file and session lifecycle,
-no-session operations, cancellation, worksheet read/write shaping, declared
-output schemas, and image output. Those tools still call the shared Service.
+The MCP Server keeps a hand-written tool layer for file and session lifecycle.
+Worksheet tools, including transfers that do not require a session, and the
+screenshot tool are generated from their Core definitions. A small MCP helper
+packages screenshot results as image content; it does not declare or route tools.
+All tools call the shared Service.
 
 ## Reasons and tradeoffs
 
@@ -31,6 +32,7 @@ responsibilities.
 - [Service generator](../src/ExcelMcp.Generators/ServiceRegistryGenerator.cs)
 - [CLI generator](../src/ExcelMcp.Generators.Cli/CliSettingsGenerator.cs)
 - [MCP generator](../src/ExcelMcp.Generators.Mcp/McpToolGenerator.cs)
-- Hand-written MCP tools: [file](../src/ExcelMcp.McpServer/Tools/ExcelFileTool.cs), [worksheet](../src/ExcelMcp.McpServer/Tools/ExcelWorksheetTool.cs), and [screenshot](../src/ExcelMcp.McpServer/Tools/ExcelScreenshotTool.cs)
+- Hand-written MCP tool: [file](../src/ExcelMcp.McpServer/Tools/ExcelFileTool.cs)
+- [Screenshot image conversion](../src/ExcelMcp.McpServer/Tools/ScreenshotImageResult.cs)
 - [Contract checks](../src/ExcelMcp.Core/AGENTS.md)
 - [Agent-facing metadata sources](../skills/AGENTS.md)
