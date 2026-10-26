@@ -306,6 +306,13 @@ those reviewed totals rather than independently deriving headline values.
 Compiler count validation does not replace compiled tool-surface behavior,
 prepared-skill identity tests, or release package validation.
 
+The GitHub repository description is a manually maintained repository setting,
+not generated release metadata. Keep it free of version numbers and operation
+counts so it cannot advertise an outdated release or total. Use the latest
+GitHub Release for the published version and `doc-counts.json` at that release's
+tag for its operation count. The website follows `main` and can therefore
+advertise a higher count before the next release.
+
 Root `package.json` and `.changeset/config.json` (using `@changesets/changelog-github` for PR-linked entries) exist solely to drive this tooling — they have no bearing on the actual MCP Server / CLI / VS Code Extension / MCPB version, which remains fully controlled by the `version_bump` / `custom_version` workflow inputs as described above.
 
 ```markdown
