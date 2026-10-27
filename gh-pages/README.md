@@ -166,6 +166,13 @@ Both workflows that build the site check out with `fetch-depth: 0`, because the
 sitemap dates come from `git log`. On a shallow clone every page would claim the
 tip commit's date; `audit_site.py` fails the build when it sees that.
 
+The Pages workflow also rebuilds after a successful weekly usage analytics
+workflow on `main` (scheduled or manual, not pull request checks). It restores the
+report from `analytics-data` before building. This avoids publishing last week's
+report when the daily Pages schedule runs before the weekly collection finishes.
+Manual analytics runs publish a new report only when `publish` is enabled;
+otherwise the rebuild keeps the last published report.
+
 Two further checks run on a schedule rather than per pull request:
 
 | Workflow | When | What |
