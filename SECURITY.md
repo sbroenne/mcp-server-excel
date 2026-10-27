@@ -208,7 +208,8 @@ We follow responsible disclosure practices:
 - **Local Only**: ExcelMcp only supports local Excel automation
 - **Windows Only**: Requires Windows with Excel installed
 - **Excel Process**: Creates Excel.Application COM objects
-- **Macro Security**: VBA operations require the user to manually enable "Trust access to the VBA project object model" in Excel Trust Center settings
+- **Macro Security**: Normal opening disables VBA macros, including in `.xlsm` files. Enabling them requires separate approval to reopen a saved workbook; opening event code can run. Listing or editing VBA requires manually enabling "Trust access to the VBA project object model"; running an existing macro does not require that project-access setting.
+- **Opening Notices**: Inspection never enables content and cannot read every notification bar. Enabling editing or data connections requires approval for the selected workbook and separate approval that Excel may remember trust for that file. Company restrictions and global Trust Center settings remain unchanged. See [workbook opening notices](docs/reference/behavioral-rules.md#opening-notices-and-blocked-content).
 
 ### File System Access
 

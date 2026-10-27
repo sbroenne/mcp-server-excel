@@ -44,8 +44,8 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         Assert.All(readTools, tool => Assert.True(
             tool.ProtocolTool.Annotations?.ReadOnlyHint == true,
             $"{tool.Name} must advertise readOnlyHint=true."));
-        Assert.Equal("attach,close,create,open,save", ActionNames("file"));
-        Assert.Equal("discover,list,test", ActionNames("file_read"));
+        Assert.Equal("attach,close,create,enable-connections,enable-editing,enable-macros,open,save", ActionNames("file"));
+        Assert.Equal("discover,list,notices,test", ActionNames("file_read"));
         Assert.Equal("list", ActionNames("worksheet_read"));
         Assert.Equal("get-settings", ActionNames("calculation_mode_read"));
         Assert.DoesNotContain(
@@ -65,6 +65,24 @@ public sealed class StandardToolRegistrationTests(ITestOutputHelper output)
         Assert.Contains("execute-dmv", ActionNames("datamodel_read"));
         Assert.Contains("find", ActionNames("range_edit_read"));
         Assert.Contains("preflight", ActionNames("table_read"));
+    }
+
+    [Fact]
+    public async Task Discovery_WorkbookSecurityKeepsApprovalDefaultsFalseAndExplainsLimits()
+    {
+        var tools = (await Client!.ListToolsAsync(cancellationToken: TestCancellationToken))
+            .ToDictionary(tool => tool.Name, StringComparer.Ordinal);
+        var properties = tools["file"].JsonSchema.GetProperty("properties");
+        foreach (var approval in new[] { "approved", "allow_remembered_trust", "allow_reopen" })
+        {
+            var schema = properties.GetProperty(approval);
+            Assert.Equal("boolean", schema.GetProperty("type").GetString());
+            Assert.False(schema.GetProperty("default").GetBoolean());
+        }
+        Assert.True(tools["file_read"].JsonSchema.GetProperty("properties").TryGetProperty("workbook_session_id", out _));
+        Assert.Contains("not every notification bar", tools["file_read"].Description, StringComparison.Ordinal);
+        Assert.Contains("not a built-in user confirmation dialog", tools["file"].Description, StringComparison.Ordinal);
+        Assert.Contains("Normal file opens disable VBA macros", Client.ServerInstructions, StringComparison.Ordinal);
     }
 
     [Fact]

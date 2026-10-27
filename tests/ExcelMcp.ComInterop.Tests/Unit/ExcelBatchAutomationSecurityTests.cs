@@ -7,25 +7,11 @@ namespace Sbroenne.ExcelMcp.ComInterop.Tests.Unit;
 [Trait("RequiresExcel", "false")]
 public sealed class ExcelBatchAutomationSecurityTests
 {
-    [Fact]
-    public void SelectAutomationSecurity_ReadOnlyMacroWorkbook_ForcesMacrosDisabled()
+    [Theory]
+    [InlineData(false, 3)]
+    [InlineData(true, 1)]
+    public void SelectAutomationSecurity_RequiresExplicitApproval(bool approved, int expected)
     {
-        var security = ExcelBatch.SelectAutomationSecurity(
-            createsMacroEnabledWorkbook: false,
-            openReadOnly: true,
-            workbookPaths: [@"C:\Workbooks\Untrusted.xlsm"]);
-
-        Assert.Equal(3, security);
-    }
-
-    [Fact]
-    public void SelectAutomationSecurity_RegularMacroWorkbook_PreservesMacroOperations()
-    {
-        var security = ExcelBatch.SelectAutomationSecurity(
-            createsMacroEnabledWorkbook: false,
-            openReadOnly: false,
-            workbookPaths: [@"C:\Workbooks\Trusted.xlsm"]);
-
-        Assert.Equal(1, security);
+        Assert.Equal(expected, ExcelBatch.SelectAutomationSecurity(approved));
     }
 }

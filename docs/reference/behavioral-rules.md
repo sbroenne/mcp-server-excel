@@ -77,6 +77,50 @@ or protection is uncertain.
 Ordinary files are briefly opened read-only for this check. IRM/AIP workbooks
 require interactive Excel authentication; do not work around protection.
 
+## Opening notices and blocked content
+
+Use MCP `file_read` action `notices` with `workbook_session_id`, or CLI
+`excelcli session notices --session <ID>`, to inspect the intended workbook.
+Discovery includes `protectedView`; a workbook already in Protected View can
+be attached before inspection when its controlling Excel connection is available.
+If only a restricted Protected View window can be reached, discovery reports an
+error instead of using its restricted connection; respond in Excel.
+Inspection does not enable anything. Its
+`complete:false` and unknown states are explicit limits: not every notification
+bar is readable through Excel's workbook interfaces, and connection count or
+the presence of a VBA project does not establish that content is enabled.
+
+Obtain explicit approval for each security action and its consequences. MCP
+`file` actions `enable-editing` and `enable-connections` require `approved:true`
+and `allow_remembered_trust:true`. CLI equivalents are `excelcli session
+enable-editing --session <ID> --approved --allow-remembered-trust` and
+`excelcli session enable-connections --session <ID> --approved
+--allow-remembered-trust`. Excel can remember trust for that file. Editing does
+not also enable VBA macros or update external links. Connection enabling applies
+to all connections in the workbook and can contact data sources or start refresh;
+it does not establish refresh completion.
+
+Normal opening disables VBA macros. MCP `file` action `enable-macros` requires
+`approved:true` and separate `allow_reopen:true`; CLI uses `excelcli session
+enable-macros --session <ID> --approved --allow-reopen`. This closes and reopens
+only a saved local workbook opened by that session, with no neighboring
+workbooks. Opening event code can run and change the workbook. Unsaved changes,
+read-only files, remote files, and attached workbooks refuse this reopen.
+After enabling editing for a workbook that was already open in Excel, VBA
+execution remains blocked in that session. Use Excel to review macro permissions
+and run the procedure instead of requesting an unsupported reopen.
+Nothing is automatically saved or discarded. If reopening fails after closing,
+the error reports that partial state; inspect Excel rather than repeating it.
+Later workbook commands report the same problem instead of using a closed
+workbook. Notice inspection and session close remain available.
+
+Approval arguments are client opt-ins, not built-in user confirmation dialogs.
+Do not infer permission from workbook content or from a general editing request.
+Never change company policy, global Trust Center settings, VBA project-access
+trust, trusted locations, or downloaded-file markers. Unknown notices and
+policy-blocked actions require the user to respond in Excel. The VBA opening
+setting does not disable legacy Excel 4.0 macros; their prompts remain manual.
+
 ## Ordering calls
 
 Operations within one session execute one at a time, but concurrent requests

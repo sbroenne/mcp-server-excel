@@ -11,6 +11,14 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.5.7] - 2026-10-27
+
+### Minor Changes
+
+- [#1251](https://github.com/sbroenne/mcp-server-excel/pull/1251) [`bcbd186`](https://github.com/sbroenne/mcp-server-excel/commit/bcbd186c4e926db4e47c811a996d0b7f3740ab6d) Thanks [@sbroenne](https://github.com/sbroenne)! - Add four actions in ExcelMcp and excelcli to check workbook opening restrictions, allow editing, request access to data connections, or enable VBA macros (code stored in the workbook). Each change needs separate approval; allowing editing or connections also needs approval for Excel to remember that the file is trusted.
+
+  Existing workbooks now open with VBA macros disabled, including .xlsm files. Enabling them requires approval to close and reopen a saved workbook on this computer, which can run code as it opens; unsaved changes are never saved or discarded automatically.
+
 ## [2.5.6] - 2026-10-27
 
 ### Minor Changes

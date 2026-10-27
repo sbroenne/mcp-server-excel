@@ -158,7 +158,15 @@ internal sealed class Program
                 branch.AddCommand<SessionCreateCommand>("create")
                     .WithDescription("Create a new Excel file, open it, and create a session. Add --show for visible Excel.");
                 branch.AddCommand<SessionOpenCommand>("open")
-                    .WithDescription("Open an Excel file and create a session. Add --show for visible Excel.");
+                    .WithDescription("Open an Excel file with VBA macros disabled and create a session. Add --show for visible Excel.");
+                branch.AddCommand<SessionNoticesCommand>("notices")
+                    .WithDescription("Inspect workbook restrictions without enabling content. Reports Protected View, read-only access, known VBA opening state, and inspection gaps.");
+                branch.AddCommand<SessionSecurityCommand>("enable-editing")
+                    .WithDescription("Leave Protected View only with --approved and --allow-remembered-trust. Excel can remember trust for this file. Does not enable VBA macros.");
+                branch.AddCommand<SessionSecurityCommand>("enable-connections")
+                    .WithDescription("Enable all workbook data connections with --approved and --allow-remembered-trust. Can contact data sources or start refresh; completion is not established.");
+                branch.AddCommand<SessionSecurityCommand>("enable-macros")
+                    .WithDescription("Enable VBA by reopening a saved local workbook with --approved and --allow-reopen. Only for a session-owned workbook without neighbors; opening macros can run.");
                 branch.AddCommand<SessionCloseCommand>("close")
                     .WithDescription("Close a session. Use --save to persist changes.");
                 branch.AddCommand<SessionSaveCommand>("save")

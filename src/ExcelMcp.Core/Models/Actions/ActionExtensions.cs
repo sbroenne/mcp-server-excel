@@ -16,6 +16,10 @@ public static class ActionExtensions
         FileAction.Save => "save",
         FileAction.Discover => "discover",
         FileAction.Attach => "attach",
+        FileAction.Notices => "notices",
+        FileAction.EnableEditing => "enable-editing",
+        FileAction.EnableConnections => "enable-connections",
+        FileAction.EnableMacros => "enable-macros",
         _ => throw new ArgumentException($"Unknown FileAction: {action}")
     };
 

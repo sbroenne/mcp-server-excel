@@ -16,6 +16,53 @@ public sealed class FileToolRecordingContractTests(
     private readonly RecordingProgramTransportFixture _fixture = fixture;
 
     [Theory]
+    [InlineData("enable-editing", false)]
+    [InlineData("enable-connections", false)]
+    [InlineData("enable-macros", false)]
+    [InlineData("enable-editing", true)]
+    [InlineData("enable-connections", true)]
+    [InlineData("enable-macros", true)]
+    public async Task SecurityAction_MapsApprovalsWithoutGrantingDefaults(string action, bool approve)
+    {
+        var arguments = new Dictionary<string, object?>
+        {
+            ["action"] = action,
+            ["workbook_session_id"] = "target"
+        };
+        if (approve)
+        {
+            arguments["approved"] = true;
+            arguments[action == "enable-macros" ? "allow_reopen" : "allow_remembered_trust"] = true;
+        }
+        object expectedArgs = action == "enable-macros"
+            ? new { approved = approve, allowReopen = approve }
+            : new { approved = approve, allowRememberedTrust = approve };
+        const string response = """{"success":true,"security":{"action":"fixture","changed":false,"trustMayBeRemembered":false,"reopened":false,"message":"No change."}}""";
+        var call = await _fixture.CallToolAsync("file", arguments,
+            new ServiceResponse { Success = true, Result = response }, "session." + action,
+            expectedSessionId: "target", expectedArgsJson: JsonSerializer.Serialize(expectedArgs));
+        using var result = JsonDocument.Parse(call.JsonResult);
+        Assert.False(result.RootElement.GetProperty("security").GetProperty("changed").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Notices_MapsSelectedSessionAndPreservesIncompleteInspection()
+    {
+        const string response = """{"success":true,"notices":{"protectedView":true,"vbaState":"unknown","connectionsState":"unknown","complete":false,"messages":["Check Excel."]}}""";
+        var call = await _fixture.CallToolAsync("file_read", new Dictionary<string, object?>
+        {
+            ["action"] = "notices",
+            ["workbook_session_id"] = "target"
+        }, new ServiceResponse { Success = true, Result = response }, "session.notices",
+            expectedSessionId: "target", expectedArgsJson: null);
+        using var result = JsonDocument.Parse(call.JsonResult);
+        var notices = result.RootElement.GetProperty("notices");
+        Assert.True(notices.GetProperty("protectedView").GetBoolean());
+        Assert.False(notices.GetProperty("complete").GetBoolean());
+        Assert.Equal("unknown", notices.GetProperty("vbaState").GetString());
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public async Task WorkbookAutoSave_MapsExplicitSettingAndPreservesStatus(bool enabled)

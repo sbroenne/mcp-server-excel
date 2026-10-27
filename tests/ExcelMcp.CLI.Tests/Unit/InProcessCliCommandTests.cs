@@ -18,6 +18,62 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 public sealed class InProcessCliCommandTests
 {
     [Theory]
+    [InlineData("enable-editing", "--allow-reopen")]
+    [InlineData("enable-connections", "--allow-reopen")]
+    [InlineData("enable-macros", "--allow-remembered-trust")]
+    public async Task SessionSecurity_RejectsApprovalForADifferentAction(string action, string flag)
+    {
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var exit = await Program.RunAsync(
+            ["--quiet", "session", action, "--session", "target", "--approved", flag],
+            CreateRuntime(factory, output, error));
+        Assert.NotEqual(0, exit);
+        Assert.Empty(factory.Requests);
+        using var result = JsonDocument.Parse(output.ToString());
+        Assert.False(result.RootElement.GetProperty("success").GetBoolean());
+        Assert.Contains("only for", result.RootElement.GetProperty("errorMessage").GetString(), StringComparison.Ordinal);
+        Assert.Empty(error.ToString());
+    }
+
+    [Theory]
+    [InlineData("notices", false)]
+    [InlineData("enable-editing", false)]
+    [InlineData("enable-connections", false)]
+    [InlineData("enable-macros", false)]
+    [InlineData("enable-editing", true)]
+    [InlineData("enable-connections", true)]
+    [InlineData("enable-macros", true)]
+    public async Task SessionSecurity_MapsExactActionAndExplicitApprovals(string action, bool approve)
+    {
+        const string result = """{"success":true,"security":{"changed":false}}""";
+        var factory = new RecordingClientFactory(new ServiceResponse { Success = true, Result = result });
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var arguments = new List<string> { "--quiet", "session", action, "--session", "target" };
+        if (approve)
+            arguments.AddRange(["--approved", action == "enable-macros" ? "--allow-reopen" : "--allow-remembered-trust"]);
+        var exit = await Program.RunAsync(arguments.ToArray(), CreateRuntime(factory, output, error));
+        Assert.Equal(0, exit);
+        var request = Assert.Single(factory.Requests);
+        Assert.Equal("session." + action, request.Command);
+        Assert.Equal("target", request.SessionId);
+        if (action == "notices")
+            Assert.Null(request.Args);
+        else
+        {
+            using var args = JsonDocument.Parse(request.Args!);
+            Assert.Equal(approve, args.RootElement.GetProperty("approved").GetBoolean());
+            Assert.Equal(approve, args.RootElement.GetProperty(
+                action == "enable-macros" ? "allowReopen" : "allowRememberedTrust").GetBoolean());
+            Assert.Equal(2, args.RootElement.EnumerateObject().Count());
+        }
+        Assert.Equal(result, output.ToString().Trim());
+        Assert.Empty(error.ToString());
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public async Task WorkbookAutoSave_MapsExplicitSettingAndReturnsStatus(bool enabled)

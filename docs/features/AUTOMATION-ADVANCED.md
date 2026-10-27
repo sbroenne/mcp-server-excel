@@ -23,6 +23,8 @@ Listing or editing the VBA project requires Excel's manually configured trust
 setting. Running an existing macro does not require project-inspection trust,
 but Excel's macro security still applies. ExcelMcp does not enable trust or
 bypass security automatically. Retain a macro-enabled file format when saving code.
+Normal opens disable VBA macros, including `.xlsm` files. Enabling execution
+requires separately approving a saved-only reopen; opening event code can run.
 Replacing procedure source confirms only that Excel stored the text; it does not
 confirm that the code compiles or runs correctly.
 Procedure replacement preserves introductory comments and surrounding blank lines.

@@ -28,18 +28,27 @@ public sealed class CliTelemetryTests
     }
 
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public void CreateCommandInvocationTelemetry_SessionSaveUsesCanonicalLabels(bool succeeded)
+    [InlineData("save", true)]
+    [InlineData("save", false)]
+    [InlineData("notices", true)]
+    [InlineData("notices", false)]
+    [InlineData("enable-editing", true)]
+    [InlineData("enable-editing", false)]
+    [InlineData("enable-connections", true)]
+    [InlineData("enable-connections", false)]
+    [InlineData("enable-macros", true)]
+    [InlineData("enable-macros", false)]
+    public void CreateCommandInvocationTelemetry_SessionUsesCanonicalLabels(string action, bool succeeded)
     {
         var (eventTelemetry, requestTelemetry) = CliTelemetry.CreateCommandInvocationTelemetry(
-            "session.save", 25, succeeded, succeeded ? null : "Busy");
+            $"session.{action}", 25, succeeded, succeeded ? null : "Busy");
 
-        Assert.Equal("session/save", eventTelemetry.Name);
+        Assert.Equal($"session/{action}", eventTelemetry.Name);
         Assert.Equal("session", eventTelemetry.Properties["Tool"]);
-        Assert.Equal("save", eventTelemetry.Properties["Action"]);
+        Assert.Equal(action, eventTelemetry.Properties["Action"]);
+        Assert.Equal($"session/{action}", requestTelemetry.Name);
         Assert.Equal("session", requestTelemetry.Properties["Tool"]);
-        Assert.Equal("save", requestTelemetry.Properties["Action"]);
+        Assert.Equal(action, requestTelemetry.Properties["Action"]);
         Assert.Equal(succeeded, requestTelemetry.Success);
     }
 

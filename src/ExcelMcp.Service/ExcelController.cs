@@ -175,7 +175,7 @@ internal sealed class ExcelController : IDisposable
                 worker = await _utility.WaitAsync(request.CallerCancellation);
             }
 
-            if (request.Command is "session.open" or "session.create" && reservedPath is not null)
+            if (reservedPath is not null)
             {
                 var associated = reservation with { Token = worker.Registration.PipeName };
                 if (_paths.TryUpdate(reservedPath, associated, reservation))
@@ -199,6 +199,8 @@ internal sealed class ExcelController : IDisposable
                     }
                 }
             }
+            if (!worker.Registration.Worker.IsAlive())
+                throw new IOException("The Excel worker exited before this request was sent. Discover open workbooks to reconnect; no work was started.");
             sent = true;
             return await CompleteWorkerRequestAsync(request, worker, reservedPath, reservation)
                 .WaitAsync(request.CallerCancellation);
@@ -228,6 +230,8 @@ internal sealed class ExcelController : IDisposable
             await RefreshWorkerAsync(worker, CancellationToken.None);
             lock (_shutdownLock)
             {
+                if (!_workers.TryGetValue(worker.Registration.PipeName, out var current) || current != worker)
+                    return response;
                 if (response.SessionId is { } created && worker.Snapshot?.Sessions.Any(session => session.SessionId == created) == true)
                 {
                     _sessions[created] = worker;
@@ -370,7 +374,8 @@ internal sealed class ExcelController : IDisposable
             PublishProcessIdentity(snapshot.Registration);
             lock (_shutdownLock)
             {
-                if (!ReferenceEquals(snapshot, worker.Snapshot))
+                if (!_workers.TryGetValue(worker.Registration.PipeName, out var current) || current != worker
+                    || !ReferenceEquals(snapshot, worker.Snapshot))
                     return;
                 foreach (var session in snapshot.Sessions)
                 {
@@ -458,7 +463,8 @@ internal sealed class ExcelController : IDisposable
         try
         {
             var native = RunningExcelWindows.Find();
-            var retained = _registry.Read();
+            var retained = _registry.Read().Concat(_workers.Values.Select(worker => worker.Registration))
+                .DistinctBy(record => record.PipeName).ToArray();
             var workbooks = new List<OpenWorkbookInfo>();
             var errors = new List<WorkbookDiscoveryError>(native.Errors);
             foreach (var window in native.Windows.DistinctBy(window => window.Process))
@@ -478,6 +484,8 @@ internal sealed class ExcelController : IDisposable
                             {
                                 errors.Add(new(window.Process.ProcessId,
                                     "The previous Excel worker exited without confirming its outcome. Its last work may have completed. This explicit discovery reconnects for inspection only; no edit was repeated."));
+                                foreach (var exited in retained.Where(item => item.Excel == window.Process && !item.Worker.IsAlive()))
+                                    RetireExitedWorker(exited);
                                 worker = await StartWorkerAsync(window.Process, cancellationToken);
                             }
                             else if (record.Build != WorkerRegistry.Build)
@@ -547,6 +555,27 @@ internal sealed class ExcelController : IDisposable
         finally
         {
             _discovery.Release();
+        }
+    }
+
+    private void RetireExitedWorker(WorkerRegistration registration)
+    {
+        lock (_shutdownLock)
+        {
+            if (!_workers.TryGetValue(registration.PipeName, out var worker)
+                || worker.Registration.Worker != registration.Worker || registration.Worker.IsAlive())
+                return;
+            _workers.TryRemove(registration.PipeName, out _);
+            _newWorkers.TryRemove(registration.PipeName, out _);
+            _abandonedWorkers.TryRemove(registration.PipeName, out _);
+            var sessions = _sessions.Where(entry => entry.Value == worker).Select(entry => entry.Key).ToHashSet(StringComparer.Ordinal);
+            foreach (var session in sessions)
+                _sessions.TryRemove(session, out _);
+            foreach (var path in _paths.Where(entry => entry.Value.Token == registration.PipeName
+                || entry.Value.SessionId is { } session && sessions.Contains(session)))
+                _paths.TryRemove(path);
+            foreach (var selection in _selections.Where(entry => entry.Value.Worker == worker))
+                _selections.TryRemove(selection);
         }
     }
 

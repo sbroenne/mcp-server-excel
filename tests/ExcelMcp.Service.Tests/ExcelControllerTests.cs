@@ -1,8 +1,11 @@
 using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Service.Rpc;
 using Sbroenne.ExcelMcp.Service.Workers;
 using StreamJsonRpc;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
@@ -158,6 +161,179 @@ public sealed class ExcelControllerTests
 public sealed class ExcelControllerWorkbookTests
 {
     [Fact(Timeout = 90000)]
+    public async Task Controller_ExitedWorkerAllowsExplicitReattachmentWithoutLosingUnsavedValues()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"excelmcp-worker-recovery-{Guid.NewGuid():N}.xlsx");
+        var launcher = new ProductProcessLauncher(Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory, @"..\..\..\..\..\src\ExcelMcp.CLI\bin\Release\net10.0-windows\excelcli.exe")), []);
+        using var controller = new ExcelController(launcher: launcher);
+        System.Diagnostics.Process? excelProcess = null;
+        ExcelProcessIdentity? identity = null;
+        string? session = null;
+        var workerExited = false;
+        var failure = await Record.ExceptionAsync(async () =>
+        {
+            var created = await controller.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.create",
+                Args = JsonSerializer.Serialize(new { filePath = path, show = true })
+            });
+            Assert.True(created.Success, created.ErrorMessage);
+            session = Assert.IsType<string>(created.SessionId);
+            var currentIdentity = Assert.Single(controller.ExcelProcesses);
+            identity = currentIdentity;
+            excelProcess = System.Diagnostics.Process.GetProcessById(currentIdentity.ProcessId);
+            _ = excelProcess.Handle;
+            for (var index = 0; index < 2; index++)
+            {
+                var marker = index == 0 ? "saved-before-worker-exit" : "unsaved-after-worker-exit";
+                var written = await controller.ProcessAsync(new ServiceRequest
+                {
+                    Command = "range.set-values",
+                    SessionId = session,
+                    Args = JsonSerializer.Serialize(new
+                    {
+                        sheetName = "Sheet1",
+                        rangeAddress = "A1",
+                        values = new[] { new[] { marker } },
+                        overwritePolicy = "allow"
+                    })
+                });
+                Assert.True(written.Success, written.ErrorMessage);
+                if (marker == "saved-before-worker-exit")
+                    Assert.True((await controller.ProcessAsync(new ServiceRequest { Command = "session.save", SessionId = session })).Success);
+            }
+            var registration = Assert.Single(new WorkerRegistry().Read(),
+                record => record.Controller == WorkerProcess.Current && record.Excel == identity && record.Worker.IsAlive());
+            using (var worker = System.Diagnostics.Process.GetProcessById(registration.Worker.ProcessId))
+            {
+                _ = worker.Handle;
+                Assert.Equal(registration.Worker.StartedAtUtcFileTime, worker.StartTime.ToUniversalTime().ToFileTimeUtc());
+                var client = new ExcelWorkerClient(registration, WorkerProcess.Current, registration.Generation);
+                var released = await client.ReleaseAsync(CancellationToken.None);
+                Assert.True(released.Success, released.ErrorMessage);
+                await worker.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+                workerExited = true;
+            }
+            Assert.True(OwnedProcessGuard.MatchesLiveProcess(currentIdentity));
+            var discovered = await controller.ProcessAsync(new ServiceRequest { Command = "session.discover" });
+            Assert.True(discovered.Success, discovered.ErrorMessage);
+            using var discovery = JsonDocument.Parse(discovered.Result!);
+            Assert.False(discovery.RootElement.GetProperty("complete").GetBoolean());
+            Assert.Contains(discovery.RootElement.GetProperty("errors").EnumerateArray(),
+                error => error.GetProperty("processId").GetInt32() == currentIdentity.ProcessId
+                    && error.GetProperty("message").GetString()!.Contains("no edit was repeated", StringComparison.Ordinal));
+            var selected = Assert.Single(discovery.RootElement.GetProperty("workbooks").EnumerateArray(),
+                item => item.GetProperty("location").GetString() == path);
+            Assert.False(selected.GetProperty("saved").GetBoolean());
+            var attached = await controller.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.attach",
+                Args = JsonSerializer.Serialize(new { workbookId = selected.GetProperty("workbookId").GetString() })
+            });
+            Assert.True(attached.Success, attached.ErrorMessage);
+            Assert.NotEqual(session, attached.SessionId);
+            Assert.Equal(attached.SessionId, Assert.Single(controller.Sessions).SessionId);
+            var read = await controller.ProcessAsync(new ServiceRequest
+            {
+                Command = "range.get-values",
+                SessionId = attached.SessionId,
+                Args = """{"sheetName":"Sheet1","rangeAddress":"A1"}"""
+            });
+            Assert.True(read.Success, read.ErrorMessage);
+            using var result = JsonDocument.Parse(read.Result!);
+            Assert.Equal("unsaved-after-worker-exit", result.RootElement.GetProperty("values")[0][0].GetString());
+        });
+        var cleanupFailure = await Record.ExceptionAsync(async () =>
+        {
+            var remaining = new WorkerRegistry().Read().SingleOrDefault(record =>
+                record.Controller == WorkerProcess.Current && record.Excel == identity && record.Worker.IsAlive());
+            using var remainingWorker = remaining is null ? null
+                : System.Diagnostics.Process.GetProcessById(remaining.Worker.ProcessId);
+            if (remainingWorker is not null)
+            {
+                _ = remainingWorker.Handle;
+                Assert.Equal(remaining!.Worker.StartedAtUtcFileTime, remainingWorker.StartTime.ToUniversalTime().ToFileTimeUtc());
+            }
+            if (!workerExited && session is not null)
+                Assert.True((await controller.ProcessAsync(new ServiceRequest { Command = "session.close", SessionId = session })).Success);
+            await controller.RequestShutdownAsync();
+            controller.Dispose();
+            if (remainingWorker is not null)
+                await remainingWorker.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
+            if (workerExited && identity is { } cleanupIdentity)
+            {
+                var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                var cleanup = new Thread(() =>
+                {
+                    try
+                    {
+                        CloseTestWorkbook(cleanupIdentity, path);
+                        completed.SetResult();
+                    }
+                    catch (Exception ex) { completed.SetException(ex); }
+                })
+                { IsBackground = true };
+                cleanup.SetApartmentState(ApartmentState.STA);
+                cleanup.Start();
+                await completed.Task.WaitAsync(TimeSpan.FromSeconds(15));
+            }
+            if (excelProcess is not null)
+                await excelProcess.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
+            using var verification = new ExcelMcpService();
+            var opened = await verification.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.open",
+                Args = JsonSerializer.Serialize(new { filePath = path })
+            });
+            Assert.True(opened.Success, opened.ErrorMessage);
+            var read = await verification.ProcessAsync(new ServiceRequest
+            {
+                Command = "range.get-values",
+                SessionId = opened.SessionId,
+                Args = """{"sheetName":"Sheet1","rangeAddress":"A1"}"""
+            });
+            Assert.True(read.Success, read.ErrorMessage);
+            using var result = JsonDocument.Parse(read.Result!);
+            Assert.Equal("saved-before-worker-exit", result.RootElement.GetProperty("values")[0][0].GetString());
+            Assert.True((await verification.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.close",
+                SessionId = opened.SessionId
+            })).Success);
+        });
+        excelProcess?.Dispose();
+        File.Delete(path);
+        var failures = new[] { failure, cleanupFailure }.OfType<Exception>().ToArray();
+        if (failures.Length > 0) throw new AggregateException("Worker recovery or test cleanup failed.", failures);
+    }
+
+    private static void CloseTestWorkbook(ExcelProcessIdentity identity, string path)
+    {
+        Excel.Application? application = null;
+        Excel.Workbooks? books = null;
+        Excel.Workbook? workbook = null;
+        try
+        {
+            application = RunningExcelWindows.Connect(RunningExcelWindows.Find().Windows
+                .Where(window => window.Process == identity).DistinctBy(window => window.Process).Single());
+            books = application.Workbooks;
+            Assert.Equal(1, books.Count);
+            workbook = books.Item[Path.GetFileName(path)];
+            Assert.Equal(path, workbook.FullName, ignoreCase: true);
+            ComUtilities.Release(ref books);
+            Assert.True(ExcelShutdownService.CloseAndQuitAndReport(workbook, application, save: false, releaseWorkbook: false));
+            application = null;
+        }
+        finally
+        {
+            ComUtilities.Release(ref workbook);
+            ComUtilities.Release(ref books);
+            ComUtilities.Release(ref application);
+        }
+    }
+
+    [Fact(Timeout = 90000)]
     public async Task Controller_WorkerPreservesValuesAndReleasesClosedSessions()
     {
         var path = Path.Combine(Path.GetTempPath(), $"excelmcp-controller-{Guid.NewGuid():N}.xlsx");
@@ -191,6 +367,29 @@ public sealed class ExcelControllerWorkbookTests
                 Args = """{"sheetName":"WorkerMarker","rangeAddress":"A1","values":[["worker-owned-marker"]]}"""
             });
             Assert.True(written.Success, written.ErrorMessage);
+            var inspected = await controller.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.notices",
+                SessionId = sessionId
+            });
+            Assert.True(inspected.Success, inspected.ErrorMessage);
+            using var inspection = JsonDocument.Parse(inspected.Result!);
+            var notices = inspection.RootElement.GetProperty("notices");
+            Assert.False(notices.GetProperty("protectedView").GetBoolean());
+            Assert.False(notices.GetProperty("readOnly").GetBoolean());
+            Assert.False(notices.GetProperty("hasVbaProject").GetBoolean());
+            Assert.Equal(0, notices.GetProperty("connectionCount").GetInt32());
+            Assert.False(notices.GetProperty("complete").GetBoolean());
+            foreach (var action in new[] { "enable-editing", "enable-connections", "enable-macros" })
+            {
+                var refused = await controller.ProcessAsync(new ServiceRequest
+                {
+                    Command = $"session.{action}",
+                    SessionId = sessionId
+                });
+                Assert.False(refused.Success);
+                Assert.Contains("approval", refused.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            }
             var read = await controller.ProcessAsync(new ServiceRequest
             {
                 Command = "range.get-values",

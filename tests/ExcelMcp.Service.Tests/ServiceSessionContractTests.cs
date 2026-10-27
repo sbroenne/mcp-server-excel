@@ -11,6 +11,28 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 [Trait("Speed", "Fast")]
 public sealed class ServiceSessionContractTests
 {
+    [Theory]
+    [InlineData("enable-editing", """{"approved":"true","allowRememberedTrust":true}""", "approved")]
+    [InlineData("enable-connections", """{"approved":true,"allowRememberedTrust":1}""", "allowRememberedTrust")]
+    [InlineData("enable-macros", """{"approved":true,"allowReopen":null}""", "allowReopen")]
+    [InlineData("notices", """{"approved":true}""", "approved")]
+    [InlineData("enable-macros", """{"approved":true,"allowRememberedTrust":true}""", "allowRememberedTrust")]
+    public async Task SecurityAction_InvalidApprovalIsRejectedBeforeSelectingAWorkbook(
+        string action, string args, string invalidParameter)
+    {
+        using var service = new ExcelMcpService();
+        var response = await service.ProcessAsync(new ServiceRequest
+        {
+            Command = "session." + action,
+            SessionId = "missing-session",
+            Args = args
+        });
+        Assert.False(response.Success);
+        Assert.Equal("InvalidInput", response.ErrorCategory);
+        Assert.Contains(invalidParameter, response.ErrorMessage, StringComparison.Ordinal);
+        Assert.Equal(0, service.SessionCount);
+    }
+
     [Fact]
     public async Task Save_MissingSession_ReturnsSessionNotFound()
     {
