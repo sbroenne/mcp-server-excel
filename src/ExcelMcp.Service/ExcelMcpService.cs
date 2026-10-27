@@ -1086,6 +1086,9 @@ public sealed class ExcelMcpService : IDisposable
         try
         {
             _sessionManager.SetOperationContext(sessionId, request.Command, request.CallerCancellation);
+            var owner = batch is AttachedWorkbookBatch attached ? attached.Owner : batch as ExcelBatch;
+            if (!string.Equals(request.Command, "session.notices", StringComparison.OrdinalIgnoreCase))
+                owner?.ThrowIfWorkbookUnavailable();
             if (string.Equals(request.Command, ServiceRegistry.Connection.GetRefreshStatusCommand, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(request.Command, ServiceRegistry.Connection.CancelRefreshCommand, StringComparison.OrdinalIgnoreCase))
             {

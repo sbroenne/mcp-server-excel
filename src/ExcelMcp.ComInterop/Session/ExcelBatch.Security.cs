@@ -11,6 +11,12 @@ internal sealed partial class ExcelBatch
     private readonly HashSet<Excel.Workbook> _disabledMacroWorkbooks = new(ReferenceEqualityComparer.Instance);
     private string? _securityReopenFailure;
 
+    internal void ThrowIfWorkbookUnavailable()
+    {
+        if (_securityReopenFailure is { } partialState)
+            throw new InvalidOperationException(partialState);
+    }
+
     internal WorkbookNoticeStatus ReadWorkbookNotices(string? workbookId = null)
     {
         var state = GetExecutionPreflightState();

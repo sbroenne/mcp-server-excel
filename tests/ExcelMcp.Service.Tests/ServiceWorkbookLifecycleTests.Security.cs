@@ -4,6 +4,7 @@ using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Tests.Infrastructure;
 using Xunit;
+using Office = Microsoft.Office.Core;
 using Excel = Microsoft.Office.Interop.Excel;
 using Vbe = Microsoft.Vbe.Interop;
 
@@ -134,14 +135,25 @@ public sealed partial class ServiceWorkbookLifecycleTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task SecurityEditing_ProtectedViewDiscoveryAndApprovedTransitionPreserveNeighbor(bool enableEditing)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task SecurityEditing_ProtectedViewDiscoveryAndApprovedTransitionPreserveNeighbor(bool enableEditing, bool hasMacros)
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
-            var protectedPath = Path.Join(directory, "protected-view.xlsx");
-            SavedWorkbookTemplates.CopyBlankTo(protectedPath);
+            var protectedPath = Path.Join(directory, hasMacros ? "protected-view.xlsm" : "protected-view.xlsx");
+            if (hasMacros)
+            {
+                var created = await CreateSessionAsync(service, protectedPath);
+                sessions[created] = 0;
+                await WriteMarkerAsync(service, created, "not-run");
+                service.SessionManager.GetSession(created)!.Execute((ctx, _) => InstallSecurityProbeMacros(ctx));
+                await CloseSessionAsync(service, created, save: true);
+                sessions.TryRemove(created, out _);
+            }
+            else
+                SavedWorkbookTemplates.CopyBlankTo(protectedPath);
             const string trustKey = @"Software\Microsoft\Office\16.0\Excel\Security\Trusted Documents\TrustRecords";
             using (var before = Registry.CurrentUser.OpenSubKey(trustKey))
                 Assert.Empty(SyntheticTrustNames(before, protectedPath));
@@ -208,27 +220,44 @@ public sealed partial class ServiceWorkbookLifecycleTests
                     sessions.TryRemove(attachedId, out _);
                     return;
                 }
-                var enabled = await SendSecurityAsync(service, attachedId, "enable-editing",
-                    new { approved = true, allowRememberedTrust = true });
-                RequireSuccess(enabled);
-                using (var json = JsonDocument.Parse(enabled.Result!))
+                var originalSecurity = batch.Execute((ctx, _) => ctx.App.AutomationSecurity);
+                try
                 {
-                    var security = json.RootElement.GetProperty("security");
-                    Assert.True(security.GetProperty("changed").GetBoolean());
-                    Assert.True(security.GetProperty("trustMayBeRemembered").GetBoolean());
-                    Assert.False(security.GetProperty("reopened").GetBoolean());
+                    batch.Execute((ctx, _) => ctx.App.AutomationSecurity = Office.MsoAutomationSecurity.msoAutomationSecurityLow);
+                    var enabled = await SendSecurityAsync(service, attachedId, "enable-editing",
+                        new { approved = true, allowRememberedTrust = true });
+                    RequireSuccess(enabled);
+                    using (var json = JsonDocument.Parse(enabled.Result!))
+                    {
+                        var security = json.RootElement.GetProperty("security");
+                        Assert.True(security.GetProperty("changed").GetBoolean());
+                        Assert.True(security.GetProperty("trustMayBeRemembered").GetBoolean());
+                        Assert.False(security.GetProperty("reopened").GetBoolean());
+                    }
+                    var after = await SendSecurityAsync(service, attachedId, "notices");
+                    RequireSuccess(after);
+                    using (var json = JsonDocument.Parse(after.Result!))
+                    {
+                        var notices = json.RootElement.GetProperty("notices");
+                        Assert.False(notices.GetProperty("protectedView").GetBoolean());
+                        Assert.False(notices.GetProperty("readOnly").GetBoolean());
+                        Assert.Equal("disabledAtOpen", notices.GetProperty("vbaState").GetString());
+                    }
+                    if (hasMacros)
+                    {
+                        Assert.Equal("not-run", await ReadMarkerAsync(service, attachedId));
+                        await WriteMarkerAsync(service, attachedId, "editing allowed");
+                        Assert.Equal("editing allowed", await ReadMarkerAsync(service, attachedId));
+                    }
+                    Assert.Equal("preserve neighbor", await ReadMarkerAsync(service, id));
+                    Assert.False(batch.Execute((ctx, _) => ctx.Book.Saved));
+                    Assert.Equal(Office.MsoAutomationSecurity.msoAutomationSecurityLow,
+                        batch.Execute((ctx, _) => ctx.App.AutomationSecurity));
                 }
-                var after = await SendSecurityAsync(service, attachedId, "notices");
-                RequireSuccess(after);
-                using (var json = JsonDocument.Parse(after.Result!))
+                finally
                 {
-                    var notices = json.RootElement.GetProperty("notices");
-                    Assert.False(notices.GetProperty("protectedView").GetBoolean());
-                    Assert.False(notices.GetProperty("readOnly").GetBoolean());
-                    Assert.Equal("disabledAtOpen", notices.GetProperty("vbaState").GetString());
+                    batch.Execute((ctx, _) => ctx.App.AutomationSecurity = originalSecurity);
                 }
-                Assert.Equal("preserve neighbor", await ReadMarkerAsync(service, id));
-                Assert.False(batch.Execute((ctx, _) => ctx.Book.Saved));
                 await CloseSessionAsync(service, attachedId, save: false);
                 sessions.TryRemove(attachedId, out _);
             }
@@ -409,8 +438,10 @@ public sealed partial class ServiceWorkbookLifecycleTests
         });
     }
 
-    [Fact]
-    public async Task SecurityMacros_OpeningCodeClosesWorkbook_ReportsPartialStateAndRestoresSettings()
+    [Theory]
+    [InlineData("range.get-values")]
+    [InlineData("session.save")]
+    public async Task SecurityMacros_OpeningCodeClosesWorkbook_ReportsPartialStateAndRestoresSettings(string subsequentCommand)
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
@@ -445,6 +476,15 @@ public sealed partial class ServiceWorkbookLifecycleTests
             var notices = await SendSecurityAsync(service, id, "notices");
             Assert.False(notices.Success);
             Assert.Contains("original saved workbook closed", notices.ErrorMessage!, StringComparison.OrdinalIgnoreCase);
+            var subsequent = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = subsequentCommand,
+                SessionId = id,
+                Args = subsequentCommand == "range.get-values" ? """{"sheetName":"Sheet1","rangeAddress":"A1"}""" : null
+            });
+            Assert.False(subsequent.Success);
+            Assert.Contains("original saved workbook closed", subsequent.ErrorMessage!, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(nameof(InvalidOperationException), subsequent.ExceptionType);
             await CloseSessionAsync(service, id, save: false);
             sessions.TryRemove(id, out _);
             var recovered = await OpenSessionAsync(service, path);

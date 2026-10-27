@@ -108,6 +108,8 @@ workbooks. Opening event code can run and change the workbook. Unsaved changes,
 read-only files, remote files, and attached workbooks refuse this reopen.
 Nothing is automatically saved or discarded. If reopening fails after closing,
 the error reports that partial state; inspect Excel rather than repeating it.
+Later workbook commands report the same problem instead of using a closed
+workbook. Notice inspection and session close remain available.
 
 Approval arguments are client opt-ins, not built-in user confirmation dialogs.
 Do not infer permission from workbook content or from a general editing request.
