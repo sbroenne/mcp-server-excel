@@ -216,7 +216,8 @@ public partial class PivotTableCommands
                             pivotTableName,
                             batch.WorkbookPath,
                             maxSelectedMembers,
-                            ct);
+                            ct,
+                            batch as IExcelBatchWindowControl);
                         return (Fields: fields, Selections: selections);
                     })
                     : new PivotSnapshotProperty<(List<PivotFieldInfo> Fields, List<PivotFieldSelectionSnapshot> Selections)>(

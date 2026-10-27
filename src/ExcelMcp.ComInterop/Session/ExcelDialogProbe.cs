@@ -19,8 +19,11 @@ internal static class ExcelDialogProbe
         ExcelProcessIdentity? identity, ILogger logger, bool includeEnabledOwnerOfficeDialog = false)
     {
         var inspection = Inspect(identity, logger, includeEnabledOwnerOfficeDialog);
-        if (inspection.State != WorkbookRefreshState.DialogOpen ||
-            GetWindowThreadProcessId(inspection.Dialog, out var dialogProcessId) == 0)
+        if (inspection.State == WorkbookRefreshState.Ready)
+            return "No blocking Excel dialog was detected.";
+        if (inspection.State == WorkbookRefreshState.Unknown)
+            return "Excel dialog inspection could not confirm the session's window ownership.";
+        if (GetWindowThreadProcessId(inspection.Dialog, out var dialogProcessId) == 0)
             return "Dialog text could not be read because the owned blocking window is no longer confirmed.";
 
         var text = new StringBuilder();

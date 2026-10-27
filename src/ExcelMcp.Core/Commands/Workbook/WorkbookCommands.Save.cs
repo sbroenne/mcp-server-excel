@@ -20,13 +20,19 @@ public partial class WorkbookCommands
         var resolvedFormat = ResolveSaveFormat(normalizedPath, format);
         ValidateSaveExtension(normalizedPath, resolvedFormat);
 
-        if (batch is ExcelBatch owned)
-            ExcelBusyException.ThrowIfNotReady(owned.GetExecutionPreflightState(), "save-as");
+        var owner = batch switch
+        {
+            ExcelBatch owned => owned,
+            AttachedWorkbookBatch attached => attached.Owner,
+            _ => null
+        };
+        if (owner is not null)
+            ExcelBusyException.ThrowIfNotReady(owner.GetExecutionPreflightState(), "save-as", batch as IExcelBatchWindowControl);
 
         return batch.Execute((context, _) =>
         {
             ExcelBusyException.ThrowIfNotReady(
-                ExcelDialogProbe.Read(context.ProcessIdentity, batch.Logger), "save-as");
+                ExcelDialogProbe.Read(context.ProcessIdentity, batch.Logger), "save-as", batch as IExcelBatchWindowControl);
             ExcelBusyException.ThrowIfNotReady(
                 WorkbookRefreshProbe.Read(context.App, context.Book), "save-as");
             var originalFullName = context.Book.FullName;

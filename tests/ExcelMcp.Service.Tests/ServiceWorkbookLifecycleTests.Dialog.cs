@@ -1,19 +1,113 @@
 using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Text.Json;
+using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Workbook;
 using Xunit;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Sbroenne.ExcelMcp.Service.Tests;
 
 public sealed partial class ServiceWorkbookLifecycleTests
 {
     [Theory]
-    [InlineData("workbook.save-as")]
-    [InlineData("session.save")]
-    [InlineData("service.shutdown")]
-    public async Task NativeModalPrompt_RefusesPersistenceBeforeQueuingComWork(string command)
+    [InlineData("connection.discover-olap-schema")]
+    [InlineData("connection.search-olap-members")]
+    public async Task UnavailableOlapSession_ReturnsAutomaticDialogCheckWithoutChangingWorkbook(string command)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var session = await CreateSessionAsync(service, Path.Join(directory, "olap-dialog-check.xlsx"));
+            sessions[session] = 0;
+            await WriteMarkerAsync(service, session, "Retained after discovery failure");
+            var batch = Assert.IsAssignableFrom<IExcelBatch>(service.SessionManager.GetSession(session));
+            const string connectionName = "UnrefreshedOlap";
+            batch.Execute((context, _) =>
+            {
+                Excel.Connections? connections = null;
+                Excel.WorkbookConnection? connection = null;
+                Excel.OLEDBConnection? oledb = null;
+                try
+                {
+                    connections = context.Book.Connections;
+                    connection = connections.Add2(connectionName, "Unrefreshed metadata",
+                        "OLEDB;Provider=MSOLAP.8;Data Source=UnconfiguredRegressionSource;Initial Catalog=RegressionCube",
+                        "Model", Excel.XlCmdType.xlCmdCube, false, false);
+                    oledb = connection.OLEDBConnection;
+                    Assert.True(oledb.OLAP);
+                    Assert.False(oledb.Refreshing);
+                    Assert.False(oledb.RefreshOnFileOpen);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref oledb);
+                    ComUtilities.Release(ref connection);
+                    ComUtilities.Release(ref connections);
+                }
+            });
+
+            var response = await service.ProcessAsync(new ServiceRequest
+            {
+                Command = command,
+                SessionId = session,
+                Args = JsonSerializer.Serialize(new
+                {
+                    connectionName,
+                    hierarchyUniqueName = "[Test]",
+                    levelUniqueName = "[Test].[Level]"
+                }, ServiceProtocol.JsonOptions)
+            });
+
+            Assert.False(response.Success);
+            Assert.Equal(session, response.SessionId);
+            Assert.Equal(command, response.Command);
+            Assert.Equal(nameof(InvalidOperationException), response.ExceptionType);
+            Assert.Contains("active ADO session", response.ErrorMessage, StringComparison.Ordinal);
+            Assert.Contains("No blocking Excel dialog was detected.", response.ErrorMessage, StringComparison.Ordinal);
+            Assert.DoesNotContain("First, inspect this session", response.ErrorMessage, StringComparison.Ordinal);
+            Assert.False(batch.HasTimedOutOperation);
+            Assert.Equal("Retained after discovery failure", await ReadMarkerAsync(service, session));
+            batch.Execute((context, _) =>
+            {
+                Excel.Connections? connections = null;
+                Excel.WorkbookConnection? connection = null;
+                Excel.OLEDBConnection? oledb = null;
+                try
+                {
+                    connections = context.Book.Connections;
+                    Assert.Equal(1, connections.Count);
+                    connection = connections.Item(connectionName);
+                    Assert.Equal(connectionName, connection.Name);
+                    oledb = connection.OLEDBConnection;
+                    Assert.Equal("Model", Assert.IsType<string>((object?)oledb.CommandText));
+                    Assert.False(oledb.RefreshOnFileOpen);
+                    Assert.False(oledb.Refreshing);
+                    Assert.False(context.Book.Saved);
+                }
+                finally
+                {
+                    ComUtilities.Release(ref oledb);
+                    ComUtilities.Release(ref connection);
+                    ComUtilities.Release(ref connections);
+                }
+            });
+        });
+    }
+
+    [Theory]
+    [InlineData("workbook.save-as", false)]
+    [InlineData("session.save", false)]
+    [InlineData("service.shutdown", false)]
+    [InlineData("session.close", false)]
+    [InlineData("connection.get-refresh-status", false)]
+    [InlineData("connection.cancel-refresh", false)]
+    [InlineData("connection.get-account-settings", false)]
+    [InlineData("connection.set-account-settings", false)]
+    [InlineData("connection.clear-account-hint", false)]
+    [InlineData("session.save", true)]
+    [InlineData("workbook.save-as", true)]
+    public async Task NativeModalPrompt_RefusesPersistenceBeforeQueuingComWork(string command, bool throughAttachment)
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
@@ -23,6 +117,17 @@ public sealed partial class ServiceWorkbookLifecycleTests
             sessions[session] = 0;
             await WriteMarkerAsync(service, session, "Unsaved native prompt marker");
             var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(session));
+            var ownerSession = session;
+            var marker = "Unsaved native prompt marker";
+            if (throughAttachment)
+            {
+                marker = "Unsaved attached prompt marker";
+                var name = batch.Execute((context, _) => AddReviewWorkbook(context.App, marker));
+                session = await AttachReviewWorkbookAsync(service, await DiscoverReviewWorkbookAsync(service, name));
+                sessions[session] = 0;
+            }
+            var selectedBatch = Assert.IsAssignableFrom<IExcelBatch>(service.SessionManager.GetSession(session));
+            var selectedPath = selectedBatch.WorkbookPath;
             var identity = Assert.Single(SessionManager.GetTrackedExcelProcesses(),
                 item => item.ProcessId == batch.ExcelProcessId);
             var app = batch.Execute((context, _) => context.App);
@@ -69,26 +174,40 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 ExcelBatch.WorkItemQueuedHookForTests = () => Interlocked.Increment(ref queued);
                 if (command == "workbook.save-as")
                 {
-                    var busy = Assert.Throws<ExcelBusyException>(() => new WorkbookCommands().SaveAs(batch, target));
+                    var busy = Assert.Throws<ExcelBusyException>(() => new WorkbookCommands().SaveAs(selectedBatch, target));
                     Assert.Contains("dialog", busy.Message, StringComparison.OrdinalIgnoreCase);
+                    Assert.Contains(title, busy.Message, StringComparison.Ordinal);
                 }
                 else
                 {
-                    var response = await service.ProcessAsync(new ServiceRequest { Command = command, SessionId = session });
+                    var args = command == "connection.set-account-settings"
+                        ? JsonSerializer.Serialize(new { connectionName = "DialogProbe", interactiveLogin = "Enabled" },
+                            ServiceProtocol.JsonOptions)
+                        : command.StartsWith("connection.", StringComparison.Ordinal)
+                            ? JsonSerializer.Serialize(new { connectionName = "DialogProbe" }, ServiceProtocol.JsonOptions)
+                            : null;
+                    var response = await service.ProcessAsync(new ServiceRequest
+                    {
+                        Command = command,
+                        SessionId = session,
+                        Args = args
+                    });
                     if (command == "service.shutdown")
                     {
                         Assert.True(response.Success, response.ErrorMessage);
                         Assert.Contains("dialog", response.PartialState, StringComparison.OrdinalIgnoreCase);
+                        Assert.Contains(title, response.PartialState, StringComparison.Ordinal);
                     }
                     else
                     {
                         Assert.False(response.Success);
                         Assert.Equal("Busy", response.ErrorCategory);
+                        Assert.Contains(title, response.ErrorMessage, StringComparison.Ordinal);
                     }
                 }
                 Assert.Equal(0, queued);
                 Assert.False(File.Exists(target));
-                Assert.Equal(path, batch.WorkbookPath);
+                Assert.Equal(selectedPath, selectedBatch.WorkbookPath);
                 Assert.False(batch.HasTimedOutOperation);
             });
             ExcelBatch.WorkItemQueuedHookForTests = null;
@@ -99,8 +218,13 @@ public sealed partial class ServiceWorkbookLifecycleTests
             if (failures.Length > 0)
                 throw new AggregateException("Native persistence preflight or prompt cleanup failed.", failures);
             if (command != "service.shutdown")
-                Assert.Equal("Unsaved native prompt marker", await ReadMarkerAsync(service, session));
-            Assert.False(batch.Execute((context, _) => context.Book.Saved));
+                Assert.Equal(marker, await ReadMarkerAsync(service, session));
+            Assert.False(selectedBatch.Execute((context, _) => context.Book.Saved));
+            if (throughAttachment)
+            {
+                Assert.Equal("Unsaved native prompt marker", await ReadMarkerAsync(service, ownerSession));
+                Assert.False(batch.Execute((context, _) => context.Book.Saved));
+            }
         });
     }
 
@@ -324,6 +448,9 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 Assert.DoesNotContain("sign-in required", response.Result, StringComparison.OrdinalIgnoreCase);
                 var saveFailure = Assert.Throws<ExcelBusyException>(() => batch.Save());
                 Assert.Contains("dialog", saveFailure.Message, StringComparison.Ordinal);
+                Assert.Contains("Connection test message", saveFailure.Message, StringComparison.Ordinal);
+                Assert.Contains("The database is unavailable.", saveFailure.Message, StringComparison.Ordinal);
+                Assert.DoesNotContain("test-entered-password", saveFailure.Message, StringComparison.Ordinal);
 
                 var saveAs = await service.ProcessAsync(new ServiceRequest
                 {
@@ -333,6 +460,9 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 });
                 Assert.False(saveAs.Success);
                 Assert.Equal("Busy", saveAs.ErrorCategory);
+                Assert.Contains("Connection test message", saveAs.ErrorMessage, StringComparison.Ordinal);
+                Assert.Contains("The database is unavailable.", saveAs.ErrorMessage, StringComparison.Ordinal);
+                Assert.DoesNotContain("test-entered-password", saveAs.ErrorMessage, StringComparison.Ordinal);
                 Assert.False(File.Exists(Path.Join(directory, "blocked.xlsx")));
                 foreach (var save in CloseSaveModes)
                 {
@@ -345,6 +475,9 @@ public sealed partial class ServiceWorkbookLifecycleTests
                     Assert.False(close.Success);
                     Assert.Equal("Busy", close.ErrorCategory);
                     Assert.Contains("dialog", close.ErrorMessage, StringComparison.Ordinal);
+                    Assert.Contains("Connection test message", close.ErrorMessage, StringComparison.Ordinal);
+                    Assert.Contains("The database is unavailable.", close.ErrorMessage, StringComparison.Ordinal);
+                    Assert.DoesNotContain("test-entered-password", close.ErrorMessage, StringComparison.Ordinal);
                     Assert.Same(batch, service.SessionManager.GetSession(session));
                 }
                 Assert.False(batch.HasTimedOutOperation);

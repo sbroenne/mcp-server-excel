@@ -119,7 +119,7 @@ public partial class PivotTableCommands
                 pivotField = pivotFields.Item(1);
 
                 failurePhase = "read-filter-state";
-                ReadReportFilterSelection(cubeField, pivotField, result, ct);
+                ReadReportFilterSelection(cubeField, pivotField, result, ct, batch as IExcelBatchWindowControl);
                 result.Success = true;
             }
             catch (Exception ex) when (CreatedObjectFailure.CanReport(ex))
@@ -271,7 +271,7 @@ public partial class PivotTableCommands
                 }
 
                 failurePhase = "read-filter-state";
-                ReadReportFilterSelection(cubeField, pivotField, result, ct);
+                ReadReportFilterSelection(cubeField, pivotField, result, ct, batch as IExcelBatchWindowControl);
                 result.Success = true;
             }
             catch (Exception ex) when (CreatedObjectFailure.CanReport(ex))
@@ -287,7 +287,7 @@ public partial class PivotTableCommands
                     failurePhase = "read-filter-state-after-failure";
                     try
                     {
-                        ReadReportFilterSelection(cubeField, pivotField, result, ct);
+                        ReadReportFilterSelection(cubeField, pivotField, result, ct, batch as IExcelBatchWindowControl);
                     }
                     catch (Exception readException) when (CreatedObjectFailure.CanReport(readException))
                     {
@@ -377,7 +377,8 @@ public partial class PivotTableCommands
 
     private static void ReadReportFilterSelection(
         Excel.CubeField cubeField, Excel.PivotField pivotField,
-        PivotReportFilterResult result, CancellationToken cancellationToken)
+        PivotReportFilterResult result, CancellationToken cancellationToken,
+        IExcelBatchWindowControl? windowControl)
     {
         result.FieldArea = PivotFieldArea.Filter;
         result.MultipleSelectionEnabled = cubeField.EnableMultiplePageItems;
@@ -385,7 +386,7 @@ public partial class PivotTableCommands
         {
             string currentPageName = pivotField.CurrentPageName;
             result.ShowAll = PivotTableHelpers.IsAllOlapReportFilterMember(
-                cubeField, currentPageName, cancellationToken);
+                cubeField, currentPageName, cancellationToken, windowControl);
             result.SelectedItems = result.ShowAll ? [] : [currentPageName];
             result.SelectionStateAvailable = true;
             return;

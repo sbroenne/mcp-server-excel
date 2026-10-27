@@ -1532,9 +1532,7 @@ public sealed class SessionManager : IDisposable
             return new CloseValidationResult(true, isVisible, activeOps, "dialogOpen")
             {
                 RefreshState = refreshState,
-                BlockingMessage = ExcelBusyException.DialogGuidance +
-                    (batch is IExcelBatchWindowControl { DialogDetails: { } details } ? $" {details}" : "") +
-                    (batch is IExcelBatchWindowControl { DialogVisibilityError: { } error } ? $" {error}" : "")
+                BlockingMessage = ExcelBusyException.GetDialogGuidance(batch as IExcelBatchWindowControl)
             };
         }
 
@@ -1549,7 +1547,7 @@ public sealed class SessionManager : IDisposable
 
         try
         {
-            ExcelBusyException.ThrowIfNotReady(refreshState, "close");
+            ExcelBusyException.ThrowIfNotReady(refreshState, "close", batch as IExcelBatchWindowControl);
             return new CloseValidationResult(true, isVisible, activeOps, null) { RefreshState = refreshState };
         }
         catch (ExcelBusyException ex)
@@ -1626,7 +1624,7 @@ public sealed class SessionManager : IDisposable
                 : WorkbookRefreshState.Ready;
             if (refreshState == WorkbookRefreshState.DialogOpen)
             {
-                ExcelBusyException.ThrowIfNotReady(refreshState, "close");
+                ExcelBusyException.ThrowIfNotReady(refreshState, "close", batch as IExcelBatchWindowControl);
             }
 
             // Check for running operations (unless force is true)
@@ -1643,7 +1641,7 @@ public sealed class SessionManager : IDisposable
 
             if (!resolvedFailedTeardown && !force)
             {
-                ExcelBusyException.ThrowIfNotReady(refreshState, "close");
+                ExcelBusyException.ThrowIfNotReady(refreshState, "close", batch as IExcelBatchWindowControl);
             }
 
             if (!resolvedFailedTeardown)
@@ -2269,7 +2267,8 @@ public sealed class SessionManager : IDisposable
                     if (GetActiveOperationCount(sessionId) > 0)
                         throw new ExcelBusyException(
                             "Cannot shut down while a workbook operation is active. Its session remains connected.");
-                    ExcelBusyException.ThrowIfNotReady(GetClosePreflightState(session), "shutdown");
+                    ExcelBusyException.ThrowIfNotReady(
+                        GetClosePreflightState(session), "shutdown", session as IExcelBatchWindowControl);
                     if (session is ExcelBatch owned)
                         owned.Shutdown();
                     else

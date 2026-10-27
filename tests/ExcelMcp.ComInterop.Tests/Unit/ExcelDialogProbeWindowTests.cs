@@ -250,7 +250,7 @@ public sealed class ExcelDialogProbeWindowTests
     }
 
     [Fact]
-    public void OwnedModalWindow_IsDetectedBeforeAnOccupiedExcelThread()
+    public async Task OwnedModalWindow_IsDetectedBeforeAnOccupiedExcelThread()
     {
         var windowClass = new WindowClass
         {
@@ -271,6 +271,8 @@ public sealed class ExcelDialogProbeWindowTests
             var identity = new ExcelProcessIdentity(
                 process.Id, process.StartTime.ToUniversalTime().ToFileTimeUtc());
             Assert.Equal(WorkbookRefreshState.Ready, ExcelDialogProbe.Read(identity, NullLogger.Instance));
+            Assert.Equal("No blocking Excel dialog was detected.",
+                ExcelDialogProbe.ReadDetails(identity, NullLogger.Instance));
 
             dialog = CreateWindowEx(0x08000000, "STATIC", "private connection details", 0x90000000, -10000, -10000, 1, 1, root, 0, 0, 0);
             Assert.NotEqual(nint.Zero, dialog);
@@ -293,6 +295,19 @@ public sealed class ExcelDialogProbeWindowTests
             SetField(batch, "_startupCompletion", Task.CompletedTask);
             SetField(batch, "_statusLock", new Lock());
             SetField(batch, "_operationState", "running");
+            var detailRead = Task.Run(() => batch.DialogDetails);
+            while (!detailRead.IsCompleted && Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(5))
+            {
+                if (PeekMessage(out var pendingMessage, 0, 0, 0, 1))
+                    _ = DispatchMessage(ref pendingMessage);
+                else
+                    Thread.Sleep(1);
+            }
+            var details = await detailRead.WaitAsync(TimeSpan.FromSeconds(1));
+            Assert.Contains("private connection details", details, StringComparison.Ordinal);
+            Assert.Contains("The database is unavailable.", details, StringComparison.Ordinal);
+            Assert.DoesNotContain("test-entered-password", details, StringComparison.Ordinal);
+            Assert.True(IsWindowVisible(root), batch.DialogVisibilityError);
             Assert.Equal(WorkbookRefreshState.DialogOpen, batch.GetRefreshState());
             Assert.True(Stopwatch.GetElapsedTime(started) < TimeSpan.FromSeconds(2));
 
@@ -329,11 +344,14 @@ public sealed class ExcelDialogProbeWindowTests
 
             EnableWindow(root, true);
             Assert.Equal(WorkbookRefreshState.Ready, ExcelDialogProbe.Read(identity, NullLogger.Instance));
+            Assert.Equal("No blocking Excel dialog was detected.",
+                ExcelDialogProbe.ReadDetails(identity, NullLogger.Instance));
             Assert.Equal(WorkbookRefreshState.Busy, batch.GetRefreshState());
             Assert.Contains("Inspect session status",
                 batch.CreateOperationTimeoutException(expiredWhileQueued: false).Message, StringComparison.Ordinal);
             SetField(batch, "_excelProcessIdentity",
                 new ExcelProcessIdentity(process.Id, identity.StartedAtUtcFileTime - 1));
+            Assert.Contains("could not confirm", batch.DialogDetails, StringComparison.Ordinal);
             var unknown = batch.CreateOperationTimeoutException(expiredWhileQueued: false);
             Assert.DoesNotContain("dialog open", unknown.Message, StringComparison.Ordinal);
             Assert.Contains("Inspect session status", unknown.Message, StringComparison.Ordinal);
