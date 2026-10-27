@@ -2,6 +2,6 @@
 "excelmcp": patch
 ---
 
-When Excel cannot provide the connection needed for OLAP discovery or PivotTable selection reads, ExcelMcp now checks for blocking Excel dialogs automatically and includes readable dialog text or an explicit check result in the error. Recovery suggests completing any needed sign-in in desktop Excel and retrying before considering a refresh, which still requires separate permission and may change workbook data.
+ExcelMcp now includes readable text from open Excel prompts in some data connection and PivotTable errors, and when a prompt blocks saving, closing, refresh checks, or account settings; if the text cannot be read, the error says so. It suggests finishing any needed sign-in and retrying before refreshing data, which still needs separate permission because it can change workbook data.
 
-Errors caused by a confirmed Excel dialog now include its readable text immediately for Save, Save As, closing, shutdown, refresh controls, and connection account settings; Save As also checks for blocking dialogs before waiting on an attached workbook, without answering dialogs or saving or discarding edits.
+Save As also checks for prompts when working with a workbook that was already open, without answering prompts, reading passwords, or saving or discarding edits.
