@@ -71,7 +71,7 @@ public partial class ConnectionCommands
             : WorkbookRefreshState.Unknown;
         if (state is not (WorkbookRefreshState.Ready or WorkbookRefreshState.Refreshing))
         {
-            ExcelBusyException.ThrowIfNotReady(state, "inspect or cancel refresh");
+            ExcelBusyException.ThrowIfNotReady(state, "inspect or cancel refresh", batch as IExcelBatchWindowControl);
         }
     }
 

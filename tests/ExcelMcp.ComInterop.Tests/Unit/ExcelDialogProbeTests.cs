@@ -182,4 +182,79 @@ public sealed class ExcelDialogProbeTests
         Assert.Contains("not been saved or discarded", exception.Message, StringComparison.Ordinal);
         Assert.DoesNotContain("sign-in required", exception.Message, StringComparison.OrdinalIgnoreCase);
     }
+
+    [Theory]
+    [InlineData("Dialog title: Test approval. Dialog text: Review this request.", null)]
+    [InlineData("Dialog text is incomplete because one control did not respond.", "Excel could not be revealed.")]
+    [InlineData("Excel dialog inspection could not confirm the session's window ownership.", null)]
+    [InlineData(null, "Excel could not be revealed.")]
+    [InlineData("", null)]
+    public void DialogOpen_IncludesAvailableDetailsAndVisibilityFailure(string? details, string? visibilityError)
+    {
+        var window = new DialogWindowControl(details, visibilityError);
+        var exception = Assert.Throws<ExcelBusyException>(() =>
+            ExcelBusyException.ThrowIfNotReady(WorkbookRefreshState.DialogOpen, "save", window));
+
+        Assert.Contains(string.IsNullOrWhiteSpace(details) ? "Readable dialog text is unavailable." : details,
+            exception.Message, StringComparison.Ordinal);
+        if (visibilityError is not null)
+            Assert.Contains(visibilityError, exception.Message, StringComparison.Ordinal);
+        Assert.Contains("not been saved or discarded", exception.Message, StringComparison.Ordinal);
+        Assert.Equal(1, window.DetailReads);
+        Assert.Equal(1, window.VisibilityErrorReads);
+    }
+
+    [Fact]
+    public void OtherStates_DoNotReadDialogDetailsOrVisibilityErrors()
+    {
+        foreach (var state in Enum.GetValues<WorkbookRefreshState>().Where(state => state != WorkbookRefreshState.DialogOpen))
+        {
+            var window = new DialogWindowControl("Unrelated dialog text", "Unrelated visibility error");
+            if (state == WorkbookRefreshState.Ready)
+                ExcelBusyException.ThrowIfNotReady(state, "save", window);
+            else
+            {
+                var exception = Assert.Throws<ExcelBusyException>(() =>
+                    ExcelBusyException.ThrowIfNotReady(state, "save", window));
+                Assert.DoesNotContain("Unrelated", exception.Message, StringComparison.Ordinal);
+            }
+            Assert.Equal(0, window.DetailReads);
+            Assert.Equal(0, window.VisibilityErrorReads);
+        }
+    }
+
+    [Fact]
+    public void DialogOpen_WithoutWindowControl_ExplainsUnavailableText()
+    {
+        var exception = Assert.Throws<ExcelBusyException>(() =>
+            ExcelBusyException.ThrowIfNotReady(WorkbookRefreshState.DialogOpen, "save"));
+        Assert.Contains("Readable dialog text is unavailable.", exception.Message, StringComparison.Ordinal);
+    }
+
+    private sealed class DialogWindowControl(string? details, string? visibilityError) : IExcelBatchWindowControl
+    {
+        internal int DetailReads { get; private set; }
+        internal int VisibilityErrorReads { get; private set; }
+
+        public string? DialogDetails
+        {
+            get
+            {
+                DetailReads++;
+                return details;
+            }
+        }
+
+        public string? DialogVisibilityError
+        {
+            get
+            {
+                VisibilityErrorReads++;
+                return visibilityError;
+            }
+        }
+
+        public ExcelVisibilityResult SetVisibility(bool visible) =>
+            throw new InvalidOperationException("The error builder must not change visibility itself.");
+    }
 }

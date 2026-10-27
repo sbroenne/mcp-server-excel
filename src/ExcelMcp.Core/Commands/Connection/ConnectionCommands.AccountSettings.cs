@@ -130,7 +130,8 @@ public partial class ConnectionCommands
         var state = batch is IExcelBatchRefreshState refreshState
             ? refreshState.GetRefreshState()
             : WorkbookRefreshState.Unknown;
-        ExcelBusyException.ThrowIfNotReady(state, "inspect or change connection account settings");
+        ExcelBusyException.ThrowIfNotReady(
+            state, "inspect or change connection account settings", batch as IExcelBatchWindowControl);
     }
 
     internal static void ValidateAccountSettingsUpdate(

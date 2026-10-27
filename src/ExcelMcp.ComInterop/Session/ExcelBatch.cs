@@ -79,7 +79,14 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
     private readonly Lock _windowControlLock = new();
     private nint _revealedDialog;
     public string? DialogVisibilityError { get; private set; }
-    public string? DialogDetails => ExcelDialogProbe.ReadDetails(_excelProcessIdentity, _logger);
+    public string? DialogDetails
+    {
+        get
+        {
+            _ = ReadDialogState();
+            return ExcelDialogProbe.ReadDetails(_excelProcessIdentity, _logger);
+        }
+    }
     private bool _startupDetectedIrmProtectedWorkbook;
 
     /// <summary>
@@ -1637,7 +1644,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
         if (OperationStatus.ExecutionPending)
             throw new ExcelBusyException("Cannot save: Excel work is still pending. The workbook remains open.");
-        ExcelBusyException.ThrowIfNotReady(GetExecutionPreflightState(), "save");
+        ExcelBusyException.ThrowIfNotReady(GetExecutionPreflightState(), "save", this);
         Execute((ctx, ct) =>
         {
             if (!ExcelShutdownService.IsWorkbookOpen(_excel!, _workbook!))
@@ -1647,7 +1654,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     "Close the session without saving to release it.");
             }
             ExcelBusyException.ThrowIfNotReady(
-                ReadRefreshState(), "save");
+                ReadRefreshState(), "save", this);
             ExcelShutdownService.SaveWorkbookWithTimeout(
                 _workbook!,
                 Path.GetFileName(_workbookPath),
@@ -1804,7 +1811,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             Execute((_, _) =>
             {
                 ForgetWorkbooksClosedInExcel();
-                ExcelBusyException.ThrowIfNotReady(ReadRefreshState(), "close");
+                ExcelBusyException.ThrowIfNotReady(ReadRefreshState(), "close", this);
                 CloseOwnedWorkbooksBeforeShutdown();
                 Interlocked.Exchange(ref _disposed, 1);
                 _shutdownCts.Cancel();
@@ -1824,7 +1831,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     CompleteDispose();
                 return;
             }
-            ExcelBusyException.ThrowIfNotReady(GetExecutionPreflightState(), "shutdown");
+            ExcelBusyException.ThrowIfNotReady(GetExecutionPreflightState(), "shutdown", this);
             RecoverTimedOutOperation();
             var shutdownWait = _operationTimeout < ComInteropConstants.ExcelQuitTimeout
                 ? _operationTimeout
@@ -1832,7 +1839,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             ExcelBatchWait.Execute(this, shutdownWait, (_, _) =>
             {
                 ForgetWorkbooksClosedInExcel();
-                ExcelBusyException.ThrowIfNotReady(ReadRefreshState(), "shutdown");
+                ExcelBusyException.ThrowIfNotReady(ReadRefreshState(), "shutdown", this);
                 var alertsBeforeShutdown = _excel!.DisplayAlerts;
                 try
                 {

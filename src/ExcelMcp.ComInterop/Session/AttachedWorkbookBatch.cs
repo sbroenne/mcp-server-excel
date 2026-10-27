@@ -101,7 +101,7 @@ internal sealed class AttachedWorkbookBatch(ExcelBatch owner, OpenWorkbookInfo w
     {
         cancellationToken.ThrowIfCancellationRequested();
         ObjectDisposedException.ThrowIf(_detached, this);
-        ExcelBusyException.ThrowIfNotReady(owner.GetExecutionPreflightState(), "save");
+        ExcelBusyException.ThrowIfNotReady(owner.GetExecutionPreflightState(), "save", this);
         Execute((context, token) =>
         {
             ExcelBusyException.ThrowIfNotReady(

@@ -1,4 +1,5 @@
 using Sbroenne.ExcelMcp.Core.Models;
+using Sbroenne.ExcelMcp.ComInterop.Session;
 using ComUtilities = Sbroenne.ExcelMcp.ComInterop.ComUtilities;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -33,7 +34,8 @@ public partial class PivotTableCommands
         string pivotTableName,
         string workbookPath,
         int maxSelectedMembers,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IExcelBatchWindowControl? windowControl)
     {
         var selections = new List<PivotFieldSelectionSnapshot>();
         var returnedMembers = new SortedSet<SnapshotMember>(SnapshotMemberComparer.Instance);
@@ -51,7 +53,7 @@ public partial class PivotTableCommands
                 {
                     cubeField = cubeFields[index];
                     var selection = ReadOlapFieldSelection(
-                        cubeField, pivotTableName, workbookPath, cancellationToken, maxSelectedMembers);
+                        cubeField, pivotTableName, workbookPath, cancellationToken, maxSelectedMembers, windowControl);
                     if (selection is null)
                         continue;
 
@@ -243,7 +245,8 @@ public partial class PivotTableCommands
         string pivotTableName,
         string workbookPath,
         CancellationToken cancellationToken,
-        int maxSelectedMembers)
+        int maxSelectedMembers,
+        IExcelBatchWindowControl? windowControl)
     {
         var name = PivotTableSnapshotHelpers.TryReadSnapshotProperty(() => cubeField.Name);
         var caption = PivotTableSnapshotHelpers.TryReadSnapshotProperty(() => cubeField.Caption);
@@ -334,7 +337,7 @@ public partial class PivotTableCommands
             }
 
             var memberState = PivotTableSnapshotHelpers.TryReadSnapshotProperty(
-                () => ReadOlapMemberState(cubeField, levelFields, result, maxSelectedMembers, cancellationToken));
+                () => ReadOlapMemberState(cubeField, levelFields, result, maxSelectedMembers, cancellationToken, windowControl));
             if (!memberState.Available || memberState.Value is null)
             {
                 result.SelectionError = memberState.ErrorMessage;
@@ -536,7 +539,8 @@ public partial class PivotTableCommands
         List<Excel.PivotField> levelFields,
         PivotFieldSelectionSnapshot selection,
         int maxMembers,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IExcelBatchWindowControl? windowControl)
     {
         if (selection.Area == PivotFieldArea.Filter)
         {
@@ -546,7 +550,7 @@ public partial class PivotTableCommands
                 Excel.PivotField levelField = levelFields[0];
                 string currentPage = levelField.CurrentPageName ?? string.Empty;
                 bool showAll = PivotTableHelpers.IsAllOlapReportFilterMember(
-                    cubeField, currentPage, cancellationToken);
+                    cubeField, currentPage, cancellationToken, windowControl);
                 var names = new BoundedMemberNames(maxMembers);
                 if (!showAll)
                     names.Add(currentPage);

@@ -52,7 +52,7 @@ public sealed class PivotTableSnapshotFieldFailureTests
         var cube = CreateOlapHierarchy(filter);
 
         var result = PivotTableCommands.ReadOlapFieldSelection(
-            cube, "Pivot1", "book.xlsx", CancellationToken.None, 10);
+            cube, "Pivot1", "book.xlsx", CancellationToken.None, 10, null);
 
         Assert.NotNull(result);
         Assert.True(result.SelectionStateAvailable);
@@ -112,13 +112,13 @@ public sealed class PivotTableSnapshotFieldFailureTests
         if (hresult != unchecked((int)0x800A03EC))
         {
             var thrown = Assert.Throws<COMException>(() => PivotTableCommands.ReadOlapFieldSelection(
-                cube, "Pivot1", "book.xlsx", CancellationToken.None, 10));
+                cube, "Pivot1", "book.xlsx", CancellationToken.None, 10, null));
             Assert.Same(failure, thrown);
         }
         else
         {
             var result = PivotTableCommands.ReadOlapFieldSelection(
-                cube, "Pivot1", "book.xlsx", CancellationToken.None, 10);
+                cube, "Pivot1", "book.xlsx", CancellationToken.None, 10, null);
             Assert.NotNull(result);
             Assert.True(result.SelectionStateAvailable);
             Assert.False(result.FiltersAvailable);
@@ -167,7 +167,7 @@ public sealed class PivotTableSnapshotFieldFailureTests
         var cubeField = FakeField.Create<Excel.CubeField>();
 
         var result = PivotTableCommands.ReadOlapFieldSelection(
-            cubeField, "Pivot1", "book.xlsx", CancellationToken.None, 10);
+            cubeField, "Pivot1", "book.xlsx", CancellationToken.None, 10, null);
 
         Assert.NotNull(result);
         Assert.Equal("Region", result.FieldName);
