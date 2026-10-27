@@ -18,6 +18,16 @@ public static class ExcelShutdownService
     internal static Action? BeforeQuitHookForTests { get; set; }
     internal static Action? BeforeSaveHookForTests { get; set; }
 
+    internal static void CloseSavedWorkbookForReopen(Excel.Workbook workbook)
+    {
+        if (!workbook.Saved)
+            throw new InvalidOperationException("The workbook has unsaved changes. Nothing was closed.");
+        // Keep Excel's save prompt if a user edit races the saved-state check.
+        workbook.Close();
+    }
+
+    internal static void CloseProtectedViewWindow(Excel.ProtectedViewWindow window) => window.Close();
+
     /// <summary>
     /// Closes an internally owned, unsaved calculation workbook on the calling STA.
     /// Unlike application shutdown, failure to close is an operation failure.
@@ -389,13 +399,16 @@ public static class ExcelShutdownService
     private static int GetOpenWorkbookCount(Excel.Application excel)
     {
         Excel.Workbooks? workbooks = null;
+        Excel.ProtectedViewWindows? protectedWindows = null;
         try
         {
             workbooks = excel.Workbooks;
-            return workbooks.Count;
+            protectedWindows = excel.ProtectedViewWindows;
+            return checked(workbooks.Count + protectedWindows.Count);
         }
         finally
         {
+            ComUtilities.Release(ref protectedWindows);
             ComUtilities.Release(ref workbooks);
         }
     }
@@ -482,6 +495,7 @@ public static class ExcelShutdownService
     internal static bool IsWorkbookOpen(Excel.Application excel, Excel.Workbook target)
     {
         Excel.Workbooks? workbooks = null;
+        Excel.ProtectedViewWindows? protectedWindows = null;
         try
         {
             workbooks = excel.Workbooks;
@@ -500,10 +514,29 @@ public static class ExcelShutdownService
                     ComUtilities.Release(ref workbook);
                 }
             }
+            protectedWindows = excel.ProtectedViewWindows;
+            for (var index = 1; index <= protectedWindows.Count; index++)
+            {
+                Excel.ProtectedViewWindow? window = null;
+                Excel.Workbook? workbook = null;
+                try
+                {
+                    window = protectedWindows[index];
+                    workbook = window.Workbook;
+                    if (ReferenceEquals(workbook, target))
+                        return true;
+                }
+                finally
+                {
+                    ComUtilities.Release(ref workbook);
+                    ComUtilities.Release(ref window);
+                }
+            }
             return false;
         }
         finally
         {
+            ComUtilities.Release(ref protectedWindows);
             ComUtilities.Release(ref workbooks);
         }
     }

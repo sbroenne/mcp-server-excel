@@ -9,7 +9,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
 internal static class RunningExcelWindows
 {
-    internal sealed record ApplicationWindow(nint Handle, ExcelProcessIdentity Process);
+    internal sealed record ApplicationWindow(nint Handle, ExcelProcessIdentity Process, IReadOnlyList<nint>? AlternateHandles = null);
     internal sealed record Discovery(IReadOnlyList<ApplicationWindow> Windows, IReadOnlyList<WorkbookDiscoveryError> Errors);
     internal static Func<Discovery>? FindHookForTests { get; set; }
 
@@ -48,7 +48,7 @@ internal static class RunningExcelWindows
                     windowProcessId = (int)processId;
                     currentProcessId = windowProcessId;
                     using var process = Process.GetProcessById(windowProcessId.Value);
-                    if (process.SessionId != current.SessionId || windows.ContainsKey(process.Id))
+                    if (process.SessionId != current.SessionId)
                         return true;
 
                     if (!OpenProcessToken(process.SafeHandle, 0x0008, out var token))
@@ -105,10 +105,16 @@ internal static class RunningExcelWindows
 
                     if (workbookWindow != nint.Zero)
                     {
-                        windows.Add(process.Id, new ApplicationWindow(
-                            workbookWindow,
-                            new ExcelProcessIdentity(
-                                process.Id, process.StartTime.ToUniversalTime().ToFileTimeUtc())));
+                        if (windows.TryGetValue(process.Id, out var existing))
+                            windows[process.Id] = existing with
+                            {
+                                AlternateHandles = [.. existing.AlternateHandles ?? [], workbookWindow]
+                            };
+                        else
+                            windows.Add(process.Id, new ApplicationWindow(
+                                workbookWindow,
+                                new ExcelProcessIdentity(
+                                    process.Id, process.StartTime.ToUniversalTime().ToFileTimeUtc())));
                     }
                     return true;
                 }
@@ -142,27 +148,35 @@ internal static class RunningExcelWindows
     {
         if (!OwnedProcessGuard.MatchesLiveProcess(window.Process))
             throw new InvalidOperationException("The selected Excel process is no longer running.");
-        _ = GetWindowThreadProcessId(window.Handle, out var processId);
-        if (processId != window.Process.ProcessId)
-            throw new InvalidOperationException("The selected Excel window no longer belongs to the expected process.");
-
         var dispatchId = new Guid("00020400-0000-0000-C000-000000000046");
-        object? accessible = null;
-        Excel.Application? application = null;
-        try
+        foreach (var handle in new[] { window.Handle }.Concat(window.AlternateHandles ?? []))
         {
-            Marshal.ThrowExceptionForHR(AccessibleObjectFromWindow(
-                window.Handle, 0xFFFFFFF0, ref dispatchId, out accessible));
-            application = ((Excel.Window)accessible!).Application;
-            var result = application;
-            application = null;
-            return result;
+            _ = GetWindowThreadProcessId(handle, out var processId);
+            if (processId != window.Process.ProcessId)
+                throw new InvalidOperationException("The selected Excel window no longer belongs to the expected process.");
+            object? accessible = null;
+            Excel.Application? application = null;
+            try
+            {
+                Marshal.ThrowExceptionForHR(AccessibleObjectFromWindow(
+                    handle, 0xFFFFFFF0, ref dispatchId, out accessible));
+                if (accessible is Excel.ProtectedViewWindow)
+                    continue;
+                application = accessible is Excel.Window workbookWindow
+                    ? workbookWindow.Application
+                    : throw new InvalidOperationException("The selected Excel window exposes no supported workbook interface.");
+                var result = application;
+                application = null;
+                return result;
+            }
+            finally
+            {
+                ComUtilities.Release(ref application);
+                ComUtilities.Release(ref accessible);
+            }
         }
-        finally
-        {
-            ComUtilities.Release(ref application);
-            ComUtilities.Release(ref accessible);
-        }
+        throw new InvalidOperationException(
+            "Only a restricted Protected View window could be reached. Respond in Excel, or use an already connected normal Excel window; no trust was changed.");
     }
 
     private static string Describe(Exception exception) =>

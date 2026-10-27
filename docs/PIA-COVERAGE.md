@@ -103,7 +103,7 @@ not permission to bypass the compiler with dynamic access.
 ### AutomationSecurity
 
 - **Definition**: `Microsoft.Office.Core.MsoAutomationSecurity` from the embedded Office Core definitions.
-- **Implementation**: `ExcelBatch.cs` assigns the checked `AutomationSecurity` property, without reflection. Its normal force-disable setting is checked in real Excel. `VbaCommands.Run` also uses the typed property and restores the prior setting and cultures while preserving execution/cleanup failures.
+- **Implementation**: `ExcelBatch.cs` assigns the checked `AutomationSecurity` property, without reflection. Its normal force-disable setting is checked in real Excel. An explicitly approved macro reopen temporarily changes and restores that setting. `VbaCommands.Run` does not lower it and restores the prior cultures.
 - **Deployment rule**: No separate `office.dll`, Excel PIA, or VBE interop DLL may be copied into published product output or listed as a runtime dependency. No assembly resolver or machine-specific hint path is allowed.
 
 ### Drawing shapes — Office.Core enum and formatting signatures

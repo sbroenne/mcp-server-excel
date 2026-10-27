@@ -330,13 +330,14 @@ public sealed class ExcelMcpService : IDisposable
 
     private async Task<ServiceResponse> HandleSessionCommandAsync(string action, ServiceRequest request)
     {
-        if (action is not ("create" or "open" or "close" or "save" or "list" or "test" or "discover" or "attach"))
+        if (action is not ("create" or "open" or "close" or "save" or "list" or "test" or "discover" or "attach"
+            or "notices" or "enable-editing" or "enable-connections" or "enable-macros"))
         {
             return new ServiceResponse
             {
                 Success = false,
                 ErrorCategory = "InvalidInput",
-                ErrorMessage = $"Unknown action '{action}' for command group 'session'. Valid actions: create, open, close, save, list, test, discover, attach."
+                ErrorMessage = $"Unknown action '{action}' for command group 'session'. Valid actions: create, open, close, save, list, test, discover, attach, notices, enable-editing, enable-connections, enable-macros."
             };
         }
 
@@ -351,9 +352,28 @@ public sealed class ExcelMcpService : IDisposable
             "test" => HandleSessionTest(request),
             "discover" => await HandleSessionDiscoverAsync(),
             "attach" => HandleSessionAttach(request),
+            "notices" or "enable-editing" or "enable-connections" or "enable-macros" =>
+                await HandleSessionSecurityAsync(action, request),
             _ => throw new InvalidOperationException($"Unhandled session action: {action}")
         };
     }
+
+    private Task<ServiceResponse> HandleSessionSecurityAsync(string action, ServiceRequest request) =>
+        WithSessionAsync(request, batch =>
+        {
+            var owner = batch is AttachedWorkbookBatch attached ? attached.Owner
+                : batch as ExcelBatch ?? throw new InvalidOperationException("Workbook inspection is unavailable for this session.");
+            var workbookId = (batch as AttachedWorkbookBatch)?.WorkbookId;
+            if (action == "notices")
+                return WrapResult(JsonSerializer.Serialize(
+                    new { success = true, notices = owner.ReadWorkbookNotices(workbookId) }, ServiceProtocol.JsonOptions));
+            using var args = JsonDocument.Parse(request.Args ?? "{}");
+            bool ReadApproval(string name) =>
+                args.RootElement.TryGetProperty(name, out var value) && value.GetBoolean();
+            var result = owner.ApplyWorkbookSecurity(action, ReadApproval("approved"),
+                ReadApproval("allowRememberedTrust"), ReadApproval("allowReopen"), workbookId);
+            return WrapResult(JsonSerializer.Serialize(new { success = true, security = result }, ServiceProtocol.JsonOptions));
+        });
 
     private async Task<ServiceResponse> HandleSessionDiscoverAsync()
     {
@@ -419,6 +439,9 @@ public sealed class ExcelMcpService : IDisposable
         ["timeoutSeconds"] = "whole seconds from 10 through 3600 (default 120)",
         ["save"] = "true to save the workbook before closing",
         ["workbookId"] = "an open-workbook identifier returned by session discover",
+        ["approved"] = "true only after explicit approval of this action on the selected workbook",
+        ["allowRememberedTrust"] = "true only after approval that Excel can remember this file as trusted",
+        ["allowReopen"] = "true only after separate approval to close and reopen the saved workbook; opening macros can run",
     };
 
     private static void ValidateSessionActionArguments(string action, string? argsJson)
@@ -429,6 +452,8 @@ public sealed class ExcelMcpService : IDisposable
             "close" => ["save"],
             "test" => ["filePath", "timeoutSeconds"],
             "attach" => ["workbookId"],
+            "enable-editing" or "enable-connections" => ["approved", "allowRememberedTrust"],
+            "enable-macros" => ["approved", "allowReopen"],
             _ => []
         };
         var unknownParameters = ServiceRegistry.GetJsonPropertyNames(argsJson, includeNullValues: true)
@@ -441,6 +466,13 @@ public sealed class ExcelMcpService : IDisposable
                 : string.Join("; ", allowedParameters.Select(parameter => $"{parameter} ({SessionParameterDescriptions[parameter]})"));
             throw new ArgumentException(
                 $"Unknown parameter(s) for session.{action}: {string.Join(", ", unknownParameters)}. Valid parameters: {validParameters}.");
+        }
+        if (action is "enable-editing" or "enable-connections" or "enable-macros")
+        {
+            using var args = JsonDocument.Parse(argsJson ?? "{}");
+            foreach (var parameter in args.RootElement.EnumerateObject())
+                if (parameter.Value.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                    throw new ArgumentException($"{parameter.Name} must be true or false for session.{action}.");
         }
     }
 
@@ -1054,6 +1086,9 @@ public sealed class ExcelMcpService : IDisposable
         try
         {
             _sessionManager.SetOperationContext(sessionId, request.Command, request.CallerCancellation);
+            var owner = batch is AttachedWorkbookBatch attached ? attached.Owner : batch as ExcelBatch;
+            if (!string.Equals(request.Command, "session.notices", StringComparison.OrdinalIgnoreCase))
+                owner?.ThrowIfWorkbookUnavailable();
             if (string.Equals(request.Command, ServiceRegistry.Connection.GetRefreshStatusCommand, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(request.Command, ServiceRegistry.Connection.CancelRefreshCommand, StringComparison.OrdinalIgnoreCase))
             {

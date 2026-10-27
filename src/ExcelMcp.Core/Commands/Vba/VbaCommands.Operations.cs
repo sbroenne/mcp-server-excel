@@ -3,8 +3,6 @@ using System.Runtime.InteropServices;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Models;
-using Sbroenne.ExcelMcp.Core.Utilities;
-using Office = Microsoft.Office.Core;
 using Vbe = Microsoft.Vbe.Interop;
 
 namespace Sbroenne.ExcelMcp.Core.Commands;
@@ -38,21 +36,23 @@ public partial class VbaCommands
 
         Func<OperationResult> execute = () => batch.Execute((ctx, ct) =>
         {
+            var owner = batch is AttachedWorkbookBatch attached ? attached.Owner : batch as ExcelBatch;
+            if (owner?.RequiresVbaApproval(ctx.Book) == true)
+                throw new InvalidOperationException(
+                    batch is AttachedWorkbookBatch
+                    ? "VBA macros were disabled when this workbook opened. Use Excel to review macro permissions " +
+                    "and run the procedure. This workbook was already open in Excel, so this session cannot reopen it " +
+                    "to enable macros. No procedure was run."
+                    : "VBA macros were disabled when this workbook opened. Obtain approval for file enable-macros " +
+                    "with approved:true and allow_reopen:true (CLI: session enable-macros --approved --allow-reopen) " +
+                    "before running a procedure. The saved workbook must be reopened; unsaved changes are not discarded.");
             var originalCulture = CultureInfo.CurrentCulture;
             var originalUiCulture = CultureInfo.CurrentUICulture;
-            Office.MsoAutomationSecurity? originalAutomationSecurity = null;
-            Exception? operationFailure = null;
             try
             {
                 var excelCulture = CultureInfo.GetCultureInfo("en-US");
                 CultureInfo.CurrentCulture = excelCulture;
                 CultureInfo.CurrentUICulture = excelCulture;
-
-                // Explicit macro execution is an opt-in operation. Temporarily switch automation
-                // security to low so Application.Run can execute on workbooks reopened by the
-                // automation host, then restore the previous setting after the call.
-                originalAutomationSecurity = ctx.App.AutomationSecurity;
-                ctx.App.AutomationSecurity = Office.MsoAutomationSecurity.msoAutomationSecurityLow;
 
                 string qualifiedName = $"'{ctx.Book.Name.Replace("'", "''", StringComparison.Ordinal)}'!{procedureName}";
                 var args = new object[30];
@@ -69,28 +69,10 @@ public partial class VbaCommands
 
                 return new OperationResult { Success = true, FilePath = batch.WorkbookPath };
             }
-            catch (Exception ex)
-            {
-                operationFailure = ex;
-                throw;
-            }
             finally
             {
-                try
-                {
-                    if (originalAutomationSecurity != null)
-                    {
-                        OperationCleanup.Run(() =>
-                        {
-                            ctx.App.AutomationSecurity = originalAutomationSecurity.Value;
-                        }, operationFailure);
-                    }
-                }
-                finally
-                {
-                    CultureInfo.CurrentCulture = originalCulture;
-                    CultureInfo.CurrentUICulture = originalUiCulture;
-                }
+                CultureInfo.CurrentCulture = originalCulture;
+                CultureInfo.CurrentUICulture = originalUiCulture;
             }
         }, timeoutCts?.Token ?? default);
 

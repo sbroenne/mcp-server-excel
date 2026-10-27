@@ -21,7 +21,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// </list>
 /// <para><b>Resource Cost:</b> Each ExcelBatch = one Excel.Application process (~50-100MB+ memory)</para>
 /// </remarks>
-internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcelBatchRefreshState, IExcelBatchCloseState, IExcelBatchWindowControl
+internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcelBatchRefreshState, IExcelBatchCloseState, IExcelBatchWindowControl
 {
     // P/Invoke for getting process ID from window handle
     [DllImport("user32.dll")]
@@ -276,7 +276,30 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         var result = new List<OpenWorkbookInfo>();
         var errors = new List<WorkbookDiscoveryError>();
         Excel.Workbooks? workbooks = null;
+        Excel.ProtectedViewWindows? protectedWindows = null;
         var enumerationComplete = false;
+
+        void RecordWorkbook(ref Excel.Workbook? workbook, bool protectedView)
+        {
+            var observed = workbook;
+            var key = retainedWorkbooks.FirstOrDefault(entry =>
+                ReferenceEquals(entry.Value, observed)).Key;
+            if (key is null)
+            {
+                key = Guid.NewGuid().ToString("N");
+                retainedWorkbooks.Add(key, workbook!);
+                workbook = null;
+            }
+            if (!found.Add(key))
+                return;
+            var retained = retainedWorkbooks[key];
+            result.Add(new OpenWorkbookInfo(
+                key, retained.Name, GetWorkbookLocation(retained.FullName),
+                _excelProcessId!.Value, retained.Saved,
+                protectedView ? null : ExcelCapabilities.ReadAutoSaveStatus(() => retained.AutoSaveOn),
+                ProtectedView: protectedView));
+        }
+
         try
         {
             workbooks = _excel!.Workbooks;
@@ -288,23 +311,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 try
                 {
                     workbook = workbooks[index];
-                    var key = retainedWorkbooks.FirstOrDefault(entry =>
-                        ReferenceEquals(entry.Value, workbook)).Key;
-                    if (key is null)
-                    {
-                        key = Guid.NewGuid().ToString("N");
-                        retainedWorkbooks.Add(key, workbook);
-                        workbook = null;
-                    }
-
-                    var retained = retainedWorkbooks[key];
-                    found.Add(key);
-                    var name = retained.Name;
-                    var location = GetWorkbookLocation(retained.FullName);
-                    var saved = retained.Saved;
-                    var autoSaveOn = ExcelCapabilities.ReadAutoSaveStatus(() => retained.AutoSaveOn);
-                    result.Add(new OpenWorkbookInfo(
-                        key, name, location, _excelProcessId!.Value, saved, autoSaveOn));
+                    RecordWorkbook(ref workbook, protectedView: false);
                 }
                 catch (Exception ex)
                 {
@@ -316,6 +323,30 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                 finally
                 {
                     ComUtilities.Release(ref workbook);
+                }
+            }
+
+            protectedWindows = _excel.ProtectedViewWindows;
+            for (var index = 1; index <= protectedWindows.Count; index++)
+            {
+                Excel.ProtectedViewWindow? view = null;
+                Excel.Workbook? workbook = null;
+                try
+                {
+                    view = protectedWindows[index];
+                    workbook = view.Workbook;
+                    RecordWorkbook(ref workbook, protectedView: true);
+                }
+                catch (Exception ex)
+                {
+                    enumerationComplete = false;
+                    errors.Add(new WorkbookDiscoveryError(_excelProcessId,
+                        $"Could not inspect Protected View workbook {index}: {ex.GetType().Name}: {ex.Message}"));
+                }
+                finally
+                {
+                    ComUtilities.Release(ref workbook);
+                    ComUtilities.Release(ref view);
                 }
             }
 
@@ -339,6 +370,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         }
         finally
         {
+            ComUtilities.Release(ref protectedWindows);
             ComUtilities.Release(ref workbooks);
         }
 
@@ -422,9 +454,20 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
 
         var context = GetAttachedWorkbookContext(workbookId);
         if (!force)
-            ExcelBusyException.ThrowIfNotReady(WorkbookRefreshProbe.Read(context.App, context.Book), "close");
-        ExcelShutdownService.CloseAndQuit(
-            context.Book, null, false, context.WorkbookPath, _logger, releaseWorkbook: false);
+            ExcelBusyException.ThrowIfNotReady(ReadSelectedWorkbookRefreshState(context.Book), "close");
+        var protectedView = FindProtectedView(context.Book);
+        try
+        {
+            if (protectedView is null)
+                ExcelShutdownService.CloseAndQuit(
+                    context.Book, null, false, context.WorkbookPath, _logger, releaseWorkbook: false);
+            else
+                ExcelShutdownService.CloseProtectedViewWindow(protectedView);
+        }
+        finally
+        {
+            ComUtilities.Release(ref protectedView);
+        }
         var closeDiscovery = RefreshAttachedWorkbooks();
         if (closeDiscovery.Workbooks.Any(workbook =>
                 string.Equals(workbook.WorkbookId, workbookId, StringComparison.Ordinal)))
@@ -489,13 +532,16 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         var empty = ExcelBatchWait.Execute(this, TimeSpan.FromSeconds(2), (_, _) =>
         {
             Excel.Workbooks? workbooks = null;
+            Excel.ProtectedViewWindows? protectedWindows = null;
             try
             {
                 workbooks = _excel!.Workbooks;
-                return workbooks.Count == 0;
+                protectedWindows = _excel.ProtectedViewWindows;
+                return workbooks.Count == 0 && protectedWindows.Count == 0;
             }
             finally
             {
+                ComUtilities.Release(ref protectedWindows);
                 ComUtilities.Release(ref workbooks);
             }
         });
@@ -687,17 +733,8 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
                     _applicationLease = new ExcelApplicationLease(_excelProcessIdentity.Value);
                     using var startupExecution = _applicationLease.EnterExecution();
 
-                    // Workbook macro execution must remain available for explicit VBA operations on
-                    // reopened .xlsm sessions. Force-disabling macros at open makes vba.run impossible
-                    // later in the same batch. Validation opens are different: they inspect untrusted
-                    // workbooks and must always disable macros, even for .xlsm files.
-                    // msoAutomationSecurityLow = 1
-                    // msoAutomationSecurityForceDisable = 3
-                    // See: https://learn.microsoft.com/en-us/office/vba/api/word.application.automationsecurity
-                    int automationSecurity = SelectAutomationSecurity(
-                        _isMacroEnabled,
-                        _openReadOnly,
-                        _allWorkbookPaths);
+                    // Enabling VBA in an already opened workbook requires a separately approved reopen.
+                    int automationSecurity = SelectAutomationSecurity(macrosApproved: false);
                     tempExcel.AutomationSecurity = (Microsoft.Office.Core.MsoAutomationSecurity)automationSecurity;
 
                     // Open or create workbooks in the same Excel instance
@@ -1130,24 +1167,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             $"Excel window: {_windowReveal}. Inspect session status for the eventual result.{protectedWorkbookHint}";
     }
 
-    internal static int SelectAutomationSecurity(
-        bool createsMacroEnabledWorkbook,
-        bool openReadOnly,
-        IReadOnlyCollection<string> workbookPaths)
-    {
-        if (openReadOnly)
-        {
-            return 3;
-        }
-
-        bool opensMacroEnabledWorkbook = createsMacroEnabledWorkbook ||
-            workbookPaths.Any(path =>
-                string.Equals(
-                    Path.GetExtension(path),
-                    ".xlsm",
-                    StringComparison.OrdinalIgnoreCase));
-        return opensMacroEnabledWorkbook ? 1 : 3;
-    }
+    internal static int SelectAutomationSecurity(bool macrosApproved) => macrosApproved ? 1 : 3;
 
     private static string CreateIrmRequiresVisibleSessionMessage(string workbookPath)
     {
@@ -1772,7 +1792,7 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
         }
         foreach (var workbook in _workbooks!.Values)
         {
-            var state = WorkbookRefreshProbe.Read(_excel!, workbook);
+            var state = ReadSelectedWorkbookRefreshState(workbook);
             if (state != WorkbookRefreshState.Ready) return state;
         }
         if (_revealRequested)
@@ -1794,7 +1814,17 @@ internal sealed class ExcelBatch : IExcelBatch, IExcelBatchTeardownState, IExcel
             return discovery.Errors.Count == 0
                 ? WorkbookRefreshState.Ready
                 : WorkbookRefreshState.Unknown;
-        return WorkbookRefreshProbe.Read(_excel!, _workbooks![workbookId]);
+        return ReadSelectedWorkbookRefreshState(_workbooks![workbookId]);
+    }
+
+    private WorkbookRefreshState ReadSelectedWorkbookRefreshState(Excel.Workbook workbook)
+    {
+        // Protected View blocks active content and can reject connection inspection.
+        if (FindProtectedViewAndRelease(workbook))
+            return !_excel!.Ready || _excel.CalculationState == Excel.XlCalculationState.xlCalculating
+                ? WorkbookRefreshState.Busy
+                : WorkbookRefreshState.Ready;
+        return WorkbookRefreshProbe.Read(_excel!, workbook);
     }
 
     public void Close()

@@ -34,7 +34,19 @@ public enum FileAction
     Discover,
 
     [System.Text.Json.Serialization.JsonStringEnumMemberName("attach")]
-    Attach
+    Attach,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("notices")]
+    Notices,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("enable-editing")]
+    EnableEditing,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("enable-connections")]
+    EnableConnections,
+
+    [System.Text.Json.Serialization.JsonStringEnumMemberName("enable-macros")]
+    EnableMacros
 }
 
 // NOTE: PowerQueryAction is now generated from IPowerQueryCommands interface

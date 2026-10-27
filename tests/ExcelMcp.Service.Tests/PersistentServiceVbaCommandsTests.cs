@@ -80,6 +80,7 @@ End Sub";
         var batch = _fixture.BatchToken;
         Import(batch, "ReopenTestModule", vbaCode);
         await _fixture.SaveAndReopenAsync();
+        _fixture.Send("session.enable-macros", new { approved = true, allowReopen = true });
 
         // Act - reopen the existing .xlsm, prove VBA project access still works, then run
         var reopenedBatch = _fixture.BatchToken;
@@ -113,6 +114,7 @@ End Sub";
         var batch = _fixture.BatchToken;
         Import(batch, moduleName, initialCode);
         await _fixture.SaveAndReopenAsync();
+        _fixture.Send("session.enable-macros", new { approved = true, allowReopen = true });
 
         // Act
         var reopenedBatch = _fixture.BatchToken;
@@ -149,6 +151,7 @@ End Sub";
         var batch = _fixture.BatchToken;
         Import(batch, moduleName, originalCode);
         await _fixture.SaveAndReopenAsync();
+        _fixture.Send("session.enable-macros", new { approved = true, allowReopen = true });
 
         // Act
         var reopenedBatch = _fixture.BatchToken;

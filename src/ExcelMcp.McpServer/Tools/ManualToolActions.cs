@@ -14,7 +14,13 @@ public enum FileWriteAction
     [JsonStringEnumMemberName("save")]
     Save,
     [JsonStringEnumMemberName("attach")]
-    Attach
+    Attach,
+    [JsonStringEnumMemberName("enable-editing")]
+    EnableEditing,
+    [JsonStringEnumMemberName("enable-connections")]
+    EnableConnections,
+    [JsonStringEnumMemberName("enable-macros")]
+    EnableMacros
 }
 
 [JsonConverter(typeof(JsonStringEnumConverter<FileReadAction>))]
@@ -25,5 +31,7 @@ public enum FileReadAction
     [JsonStringEnumMemberName("test")]
     Test,
     [JsonStringEnumMemberName("discover")]
-    Discover
+    Discover,
+    [JsonStringEnumMemberName("notices")]
+    Notices
 }
