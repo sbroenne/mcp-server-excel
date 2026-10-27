@@ -14,15 +14,15 @@ internal interface IServiceBridgeBackend : IDisposable
     string? RequestShutdown() => null;
 }
 
-internal sealed class ExcelMcpServiceBackend(Service.ExcelMcpService service) : IServiceBridgeBackend
+internal sealed class ExcelControllerBackend(Service.ExcelController controller) : IServiceBridgeBackend
 {
-    public Task<ServiceResponse> ProcessAsync(ServiceRequest request) => service.ProcessAsync(request);
-    public void RevealSession(string sessionId) => service.SessionManager.RevealForRecovery(sessionId, waitExpired: true);
-    public string? RequestShutdown() => service.RequestShutdown();
-    public void Dispose() => service.Dispose();
+    public Task<ServiceResponse> ProcessAsync(ServiceRequest request) => controller.ProcessAsync(request);
+    public void RevealSession(string sessionId) => controller.RevealSession(sessionId);
+    public string? RequestShutdown() => controller.RequestShutdownAsync().GetAwaiter().GetResult();
+    public void Dispose() => controller.Dispose();
 }
 
-/// <summary>Host-owned access to the in-process Excel service.</summary>
+/// <summary>Host-owned access to the Excel controller.</summary>
 public sealed class ServiceBridge : IDisposable
 {
     private readonly SemaphoreSlim _initLock = new(1, 1);
@@ -94,14 +94,14 @@ public sealed class ServiceBridge : IDisposable
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not ObjectDisposedException)
         {
-            _logger.LogError(ex, "Failed to start the in-process Excel service.");
+            _logger.LogError(ex, "Failed to start ExcelMcp.");
             return new ServiceResponse
             {
                 Success = false,
                 Command = command,
                 SessionId = sessionId,
                 ErrorCategory = "ServiceStartup",
-                ErrorMessage = "Failed to start ExcelMCP Service in-process. See server logs for details.",
+                ErrorMessage = "Failed to start ExcelMcp. See server logs for details.",
                 ExceptionType = ex.GetType().Name
             };
         }

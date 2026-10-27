@@ -20,6 +20,13 @@ MCP has no equivalent batch tool: await dependent calls. CLI batch avoids
 repeated process startup for a known sequence. It is not a transaction.
 Use individual commands when the next step needs inspection.
 
+Commands still run one at a time through the same execution path as individual
+CLI calls. Standard output contains only the JSON result lines and is flushed
+after each command. Standard error shows when each command starts, completes,
+or fails, including in quiet mode. A started line is not proof of completion.
+If a wait expires, inspect the session's eventual state rather than
+automatically repeating writes or assuming earlier changes were undone.
+
 Batch commands use the same group and action names as the CLI
 (`group.action`, for example `worksheetstyle.set-tab-color`). Arguments use
 camel-case names, not CLI flags; for example, `--timeout-seconds` becomes

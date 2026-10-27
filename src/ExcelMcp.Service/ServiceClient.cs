@@ -16,6 +16,7 @@ public sealed class ServiceClient : IDisposable
     private readonly TimeSpan _requestTimeout;
     private readonly TimeProvider _timeProvider;
     private bool _disposed;
+    private readonly bool _useControlEndpoint;
 
     public static readonly TimeSpan DefaultConnectTimeout = TimeSpan.FromSeconds(5);
     public static readonly TimeSpan DefaultRequestTimeout =
@@ -24,12 +25,14 @@ public sealed class ServiceClient : IDisposable
     /// <summary>Whether this client has established a connection to the service.</summary>
     public bool HasConnected { get; private set; }
 
-    public ServiceClient(string pipeName, TimeSpan? connectTimeout = null, TimeSpan? requestTimeout = null)
+    public ServiceClient(string pipeName, TimeSpan? connectTimeout = null, TimeSpan? requestTimeout = null,
+        bool useControlEndpoint = false)
         : this(
             pipeName,
             connectTimeout,
             requestTimeout,
-            TimeProvider.System)
+            TimeProvider.System,
+            useControlEndpoint)
     {
     }
 
@@ -37,14 +40,22 @@ public sealed class ServiceClient : IDisposable
         string pipeName,
         TimeSpan? connectTimeout,
         TimeSpan? requestTimeout,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        bool useControlEndpoint = false)
     {
         ArgumentNullException.ThrowIfNull(timeProvider);
         _pipeName = pipeName;
         _connectTimeout = connectTimeout ?? DefaultConnectTimeout;
         _requestTimeout = requestTimeout ?? DefaultRequestTimeout;
         _timeProvider = timeProvider;
+        _useControlEndpoint = useControlEndpoint;
     }
+
+    internal static bool IsControlCommand(string command) =>
+        command is "service.ping" or "service.status" or "service.shutdown" or "session.list"
+            or "window.show" or "window.hide";
+
+    internal static string GetControlPipeName(string pipeName) => pipeName + "-control";
 
     /// <summary>
     /// Sends a request to the service and waits for response via StreamJsonRpc.
@@ -74,7 +85,8 @@ public sealed class ServiceClient : IDisposable
         ObjectDisposedException.ThrowIf(_disposed, this);
 
         var startedAt = _timeProvider.GetTimestamp();
-        using var pipe = ServiceSecurity.CreateClient(_pipeName);
+        using var pipe = ServiceSecurity.CreateClient(
+            _useControlEndpoint && IsControlCommand(request.Command) ? GetControlPipeName(_pipeName) : _pipeName);
         var connected = false;
 
         try

@@ -1169,6 +1169,47 @@ public sealed class InProcessCliCommandTests
         Assert.True(success.RootElement.GetProperty("success").GetBoolean());
     }
 
+    [Fact]
+    public async Task Batch_ReportsCurrentCommandAndDeliversEarlierResultWhileWaiting()
+    {
+        var waiting = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<ServiceResponse>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var calls = 0;
+        var factory = new RecordingClientFactory
+        {
+            Responder = _ =>
+            {
+                if (Interlocked.Increment(ref calls) == 1)
+                    return Task.FromResult(new ServiceResponse { Success = true, Result = """{"message":"first"}""" });
+                waiting.SetResult();
+                return release.Task;
+            }
+        };
+        var output = new StringWriter();
+        var error = new StringWriter();
+        var runtime = CreateRuntime(factory, output, error, """
+            {"command":"diag.echo","args":{"message":"first"}}
+            {"command":"diag.echo","args":{"message":"second"}}
+            """);
+        var run = Program.RunAsync(["--quiet", "batch"], runtime);
+        try
+        {
+            await waiting.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(run.IsCompleted);
+            using var first = JsonDocument.Parse(Assert.Single(
+                output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries)));
+            Assert.Equal(0, first.RootElement.GetProperty("index").GetInt32());
+            Assert.Equal("first", first.RootElement.GetProperty("result").GetProperty("message").GetString());
+            Assert.Contains("Batch 2/2: diag.echo", error.ToString());
+        }
+        finally
+        {
+            release.TrySetResult(new ServiceResponse { Success = true, Result = """{"message":"second"}""" });
+            Assert.Equal(0, await run.WaitAsync(TimeSpan.FromSeconds(5)));
+        }
+        Assert.Equal(2, output.ToString().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).Length);
+    }
+
     private static CliCommandRuntime CreateRuntime(
         RecordingClientFactory factory,
         StringWriter output,
@@ -1220,6 +1261,7 @@ public sealed class InProcessCliCommandTests
 
         internal List<ServiceRequest> Requests { get; } = [];
         internal Task<ServiceResponse>? PendingResponse { get; init; }
+        internal Func<ServiceRequest, Task<ServiceResponse>>? Responder { get; init; }
         internal TaskCompletionSource RequestSent { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public Task<ICliRequestClient> ConnectAsync(CancellationToken cancellationToken)
@@ -1235,7 +1277,8 @@ public sealed class InProcessCliCommandTests
             {
                 owner.Requests.Add(request);
                 owner.RequestSent.TrySetResult();
-                return owner.PendingResponse ?? Task.FromResult(owner._responses.Dequeue());
+                return owner.Responder?.Invoke(request)
+                    ?? owner.PendingResponse ?? Task.FromResult(owner._responses.Dequeue());
             }
 
             public void Dispose()

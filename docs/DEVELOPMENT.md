@@ -363,8 +363,9 @@ When adding a new service category to Core:
 
 Feature MCP tools come from the Core contract and source generator. This includes
 worksheet actions with and without an open session, and screenshot image results.
-Only file/session tools retain handwritten routing. MCP calls the shared service
-in-process; it does not connect to the CLI daemon.
+Only file/session tools retain handwritten routing. MCP calls its own controller
+through the Service bridge. The controller routes Excel work to private workers
+hosting the shared Service; MCP does not connect to the CLI daemon.
 
 The official SDK registers tools with `WithToolsFromAssembly` and supplies
 dependencies and cancellation tokens. Generated tools use the shared async

@@ -27,6 +27,8 @@ public class Program
         CancellationToken runToken = default,
         Func<ServiceBridge.IServiceBridgeBackend>? serviceFactory = null)
     {
+        if (Service.ExcelController.IsWorkerMode(args))
+            return await Service.ExcelController.RunWorkerAsync(args);
         // Handle --help and --version flags for easy verification
         if (args.Length > 0)
         {
@@ -76,7 +78,7 @@ public class Program
         ConfigureStdioLogging(builder.Logging);
 
         builder.Services.AddSingleton(services => new ServiceBridge.ServiceBridge(
-            serviceFactory ?? (() => new ServiceBridge.ExcelMcpServiceBackend(new Service.ExcelMcpService())),
+            serviceFactory ?? (() => new ServiceBridge.ExcelControllerBackend(new Service.ExcelController())),
             services.GetRequiredService<ILogger<ServiceBridge.ServiceBridge>>()));
 
         // Configure MCP Server - use test transport if configured, otherwise stdio

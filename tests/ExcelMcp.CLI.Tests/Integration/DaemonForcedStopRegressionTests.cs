@@ -140,7 +140,7 @@ public sealed class DaemonForcedStopRegressionTests
     public async Task ServiceStop_WithoutDaemonMutex_SendsShutdownAndPreservesResponse(bool succeeds)
     {
         var pipeName = $"excelmcp-mutexless-stop-{Guid.NewGuid():N}";
-        using var server = ServiceSecurity.CreateSecureServer(pipeName);
+        using var server = ServiceSecurity.CreateSecureServer(ServiceClient.GetControlPipeName(pipeName));
         var target = new MutexlessShutdownRpcTarget(succeeds);
         var connection = server.WaitForConnectionAsync();
         var stop = RunServiceStopAsync(pipeName);
@@ -184,23 +184,25 @@ public sealed class DaemonForcedStopRegressionTests
 
     [Fact]
     [Trait("Speed", "Slow")]
-    public async Task ServiceStop_DelayedShutdownBeyondOneMinute_ReturnsConfirmedSuccess()
+    public async Task ServiceStop_DelayedShutdownBeyondResponseBudget_ReportsUnconfirmedState()
     {
         var pipeName = $"excelmcp-delayed-stop-{Guid.NewGuid():N}";
-        using var server = ServiceSecurity.CreateSecureServer(pipeName);
+        using var server = ServiceSecurity.CreateSecureServer(ServiceClient.GetControlPipeName(pipeName));
+        var elapsed = Stopwatch.StartNew();
         var stop = CliProcessHelper.RunAsync(
             "service stop",
-            timeoutMs: 90000,
+            timeoutMs: 15000,
             environmentVariables: new() { ["EXCELMCP_CLI_PIPE"] = pipeName });
         await server.WaitForConnectionAsync().WaitAsync(TimeSpan.FromSeconds(10));
         using var rpc = JsonRpc.Attach(server, new DelayedShutdownRpcTarget(TimeSpan.FromSeconds(65)));
 
         var result = await stop;
 
-        Assert.Equal(0, result.ExitCode);
+        Assert.Equal(1, result.ExitCode);
         using var response = JsonDocument.Parse(result.Stdout);
-        Assert.True(response.RootElement.GetProperty("success").GetBoolean());
-        Assert.Equal("Service stopped.", response.RootElement.GetProperty("message").GetString());
+        Assert.False(response.RootElement.GetProperty("success").GetBoolean());
+        Assert.Equal("Timeout", response.RootElement.GetProperty("errorCategory").GetString());
+        Assert.InRange(elapsed.Elapsed, TimeSpan.FromSeconds(9), TimeSpan.FromSeconds(15));
     }
 
     private sealed class DelayedShutdownRpcTarget(TimeSpan delay)
@@ -301,7 +303,7 @@ public sealed class DaemonForcedStopRegressionTests
         var pipeName = $"excelmcp-unconfirmed-stop-{Guid.NewGuid():N}";
         using var daemon = StartSleepingProcess();
         using var excel = StartSleepingProcess();
-        using var server = ServiceSecurity.CreateSecureServer(pipeName);
+        using var server = ServiceSecurity.CreateSecureServer(ServiceClient.GetControlPipeName(pipeName));
         try
         {
             RegisterTrackedProcesses(pipeName, daemon, excel);
@@ -347,7 +349,7 @@ public sealed class DaemonForcedStopRegressionTests
         var pipeName = $"excelmcp-shutdown-refused-{Guid.NewGuid():N}";
         using var daemon = StartSleepingProcess();
         using var excel = StartSleepingProcess();
-        using var server = ServiceSecurity.CreateSecureServer(pipeName);
+        using var server = ServiceSecurity.CreateSecureServer(ServiceClient.GetControlPipeName(pipeName));
         try
         {
             RegisterTrackedProcesses(pipeName, daemon, excel);

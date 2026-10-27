@@ -41,7 +41,7 @@ internal sealed class ServiceStartCommand : AsyncCommand
 internal sealed class ServiceStopCommand : AsyncCommand
 {
     private static readonly TimeSpan CommandTimeout = TimeSpan.FromSeconds(2);
-    private static readonly TimeSpan ShutdownRequestTimeout = Timeout.InfiniteTimeSpan;
+    internal static readonly TimeSpan ShutdownRequestTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan ShutdownWaitTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan ShutdownPollInterval = TimeSpan.FromMilliseconds(250);
 
@@ -63,11 +63,12 @@ internal sealed class ServiceStopCommand : AsyncCommand
         var preShutdownSnapshot = OwnedProcessCleanup.CaptureTrackedProcesses(pipeName);
         try
         {
-            using var client = new ServiceClient(pipeName, connectTimeout: CommandTimeout, requestTimeout: ShutdownRequestTimeout);
+            using var client = new ServiceClient(pipeName, connectTimeout: CommandTimeout,
+                requestTimeout: ShutdownRequestTimeout, useControlEndpoint: true);
             var request = new ServiceRequest { Command = "service.shutdown" };
             var response = await CliTelemetry.TrackCommandAsync(
                 request,
-                () => client.SendAsync(request, cancellationToken));
+                () => client.SendAsync(request, ShutdownRequestTimeout, cancellationToken));
             if (!response.Success
                 && !client.HasConnected
                 && DaemonConnectionPolicy.IsTransportFailure(response)

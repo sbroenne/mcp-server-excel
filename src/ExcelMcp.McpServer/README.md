@@ -17,7 +17,7 @@ mcp-name: io.github.sbroenne/mcp-server-excel
 
 Unlike file-parser libraries that rewrite `.xlsx` files directly, ExcelMcp drives the **actual Excel application** through its official COM API. That means it can run live operations file-based tools can't — refresh Power Query, recalculate, refresh PivotTables and the Data Model, evaluate DAX, run VBA and Python `=PY()` — and edit your existing workbooks with formulas, PivotTables, charts, macros and formatting left intact. Watch it happen in real time.
 
-**🔗 In-Process Service Architecture** - The MCP Server hosts the ExcelMcp Service in-process and calls it directly (no pipe), for low-latency Excel automation. The CLI is an equal entry point that runs the same service as a background daemon.
+**Shared Excel execution** - MCP and CLI each own a controller and private Excel workers running the same Service. Excel calls do not run in the controller, and MCP does not depend on the CLI background service.
 
 **CLI also available:** `mcp-excel.exe` (MCP Server) and `excelcli.exe` (CLI) are distributed as standalone self-contained executables — no .NET runtime required.
 

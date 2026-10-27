@@ -4,10 +4,12 @@
 
 ## Context and decision
 
-A session owns an Excel process and its workbook context. Its operations run
-in order on one dedicated Excel-compatible thread; independent sessions may
-run independently. ComInterop owns the execution queue and cleanup, while
-the Service supplies shared session routing and structured failure responses.
+A session owns its workbook context. A private worker owns execution for the
+Excel application containing that workbook, including attached neighbors.
+Independent applications may run independently; workbooks sharing an application
+must not execute concurrently. ComInterop owns the execution queue and cleanup,
+while the worker's Service supplies routing and structured failure responses.
+The host controller owns recorded session routing, not Excel COM objects.
 
 An expired wait is not proof that Excel stopped or failed. The owning session,
 workbook, path reservations, and exact process identity remain retained. The
@@ -48,8 +50,16 @@ Shutdown follows these rules:
   failed), the host still exits. That Excel is left exactly as it is, revealed
   when possible, and reported by process number and start time. "Service stopped"
   never implies that Excel exited.
-- Ownership ends at shutdown. Records of Excel processes left running are for
-  reporting only; nothing terminates them.
+- A stopped controller can leave a worker holding pending Excel execution.
+  Its ownership does not end merely because the controller stopped waiting.
+  A replacement controller may claim that same worker only after the previous
+  controller's exact process is gone and the build matches. Discovery and
+  attachment are explicit. If the worker exited, discovery reports the unknown
+  prior outcome before reconnecting to Excel for inspection. Nothing repeats
+  the old edit or terminates the retained application.
+  A surviving worker reveals retained workbooks after controller loss. A new
+  build cannot claim an older worker; those workbooks remain available for
+  direct inspection in Excel without saving or closing them automatically.
 
 ## Reasons and tradeoffs
 
@@ -77,9 +87,11 @@ readiness scan finishes. Normal save and close verify workbook readiness on the
 Excel thread within the operation's budget; a slow scan is not itself a failed
 operation. An expired operation still requires a completed recovery scan before
 new work is accepted. Status visibility reflects any reveal applied by that scan.
-Save and Save As check for native dialogs before batch execution, because its
-write guard already accesses Excel COM. They check again inside the callback
-for races.
+Session operations check for confirmed native dialogs before workbook write
+validation, because the write guard already accesses Excel COM. Window show/hide
+remain available. Save and Save As check again inside their callback for races.
+This does not treat an information-protection banner as a modal dialog or
+grant permission to answer either.
 Validation that opens a workbook but refuses close before shutdown commits
 retains a usable session, not a failed-teardown quarantine. After readiness
 returns, the caller can inspect and explicitly close that session.

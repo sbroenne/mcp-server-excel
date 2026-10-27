@@ -105,6 +105,8 @@ public sealed partial class ServiceWorkbookLifecycleTests
     [InlineData("connection.get-account-settings", false)]
     [InlineData("connection.set-account-settings", false)]
     [InlineData("connection.clear-account-hint", false)]
+    [InlineData("range.set-values", false)]
+    [InlineData("range.set-formulas", true)]
     [InlineData("session.save", true)]
     [InlineData("workbook.save-as", true)]
     public async Task NativeModalPrompt_RefusesPersistenceBeforeQueuingComWork(string command, bool throughAttachment)
@@ -180,7 +182,11 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 }
                 else
                 {
-                    var args = command == "connection.set-account-settings"
+                    var args = command == "range.set-values"
+                        ? """{"sheetName":"Sheet1","rangeAddress":"A1","values":[["must-not-write"]]}"""
+                        : command == "range.set-formulas"
+                        ? """{"sheetName":"Sheet1","rangeAddress":"A1","formulas":[["=1+2"]]}"""
+                        : command == "connection.set-account-settings"
                         ? JsonSerializer.Serialize(new { connectionName = "DialogProbe", interactiveLogin = "Enabled" },
                             ServiceProtocol.JsonOptions)
                         : command.StartsWith("connection.", StringComparison.Ordinal)

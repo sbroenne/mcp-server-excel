@@ -377,9 +377,11 @@ public sealed class SessionManager : IDisposable
     internal Action? AfterOwnedWorkbookMatchHookForTests { get; set; }
 
     /// <summary>Discovers already-open workbooks in the current user's Windows session.</summary>
+    public Task<WorkbookDiscoveryResult> DiscoverOpenWorkbooksAsync() => DiscoverOpenWorkbooksAsync(null);
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "Discovery returns partial results and the exact per-application inspection errors instead of treating failed reads as missing workbooks.")]
-    public async Task<WorkbookDiscoveryResult> DiscoverOpenWorkbooksAsync()
+    internal async Task<WorkbookDiscoveryResult> DiscoverOpenWorkbooksAsync(ExcelProcessIdentity? selectedApplication)
     {
         ThrowIfClosedToNewSessions();
         var nativeDiscovery = RunningExcelWindows.Find();
@@ -405,6 +407,7 @@ public sealed class SessionManager : IDisposable
         }
 
         await Task.WhenAll(nativeDiscovery.Windows
+            .Where(window => selectedApplication is null || window.Process == selectedApplication)
             .GroupBy(window => window.Process)
             .Select(group => group.First())
             .Select(window => Task.Run(() =>

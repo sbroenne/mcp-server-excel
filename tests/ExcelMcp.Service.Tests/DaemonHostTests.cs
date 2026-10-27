@@ -17,7 +17,7 @@ public sealed class DaemonHostTests
 
     public static TheoryData<string> SessionlessWorkCommands => new()
     {
-        "session.open", "session.create", "session.test", "service.shutdown",
+        "session.open", "session.create", "session.test",
         "diag.validate-params", "settings.get-pq-tracing", "settings.set-pq-tracing",
         "settings.get-native-query-approval", "settings.set-native-query-approval",
         "powerquerytrace.list", "powerquerytrace.summarize",
@@ -127,7 +127,7 @@ public sealed class DaemonHostTests
                 Assert.True(await entered.WaitAsync(TimeSpan.FromSeconds(5)),
                     $"Work request {index} did not reach the handler.");
             }
-            foreach (var command in PressureProbeCommands.Take(3))
+            foreach (var command in PressureProbeCommands.Take(3).Append("service.shutdown"))
             {
                 using var client = new ServiceClient(pipeName);
                 Assert.True((await client.SendAsync(new ServiceRequest { Command = command },
@@ -459,7 +459,7 @@ public sealed class DaemonHostTests
     }
 
     [Fact(Timeout = 15000)]
-    public async Task Shutdown_ResponseArrivesBeforeHostDrainsOpenConnection()
+    public async Task Shutdown_ResponseArrivesAndHostExitsWithClientStillConnected()
     {
         var pipeName = $"excelmcp-daemon-host-{Guid.NewGuid():N}";
         using var delays = new ControlledDelay();
@@ -488,9 +488,7 @@ public sealed class DaemonHostTests
                 Assert.Equal(TimeSpan.FromMilliseconds(100), shutdownDelay.Duration);
                 shutdownDelay.Complete();
                 await host.WaitForAcceptLoopStoppedAsync().WaitAsync(TimeSpan.FromSeconds(5));
-                Assert.False(
-                    runTask.IsCompleted,
-                    "The host must drain the retained client connection after sending the shutdown response.");
+                await runTask.WaitAsync(TimeSpan.FromSeconds(3));
             }
             finally
             {

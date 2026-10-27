@@ -94,7 +94,7 @@ public sealed class ExcelMcpService : IDisposable
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "A caller-abandonment notification only reveals retained ownership. Failures are diagnosed without replacing cancellation or closing a workbook whose execution is still owned.")]
-    private void RevealAbandonedRequest(ServiceRequest request, ServiceResponse? response)
+    internal void RevealAbandonedRequest(ServiceRequest request, ServiceResponse? response)
     {
         try
         {
@@ -170,7 +170,7 @@ public sealed class ExcelMcpService : IDisposable
 
     /// <summary>
     /// Processes a service request directly (in-process, no pipe).
-    /// Used by the MCP Server for direct in-process communication.
+    /// Product controllers use this engine inside their private Excel workers.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "Service request failure-transport boundary returns CreateErrorResponse with Success=false, original exception category/message/HResult, and request/session context.")]
@@ -421,7 +421,7 @@ public sealed class ExcelMcpService : IDisposable
         ["workbookId"] = "an open-workbook identifier returned by session discover",
     };
 
-    private static void ValidateSessionActionArguments(string action, string? argsJson)
+    internal static void ValidateSessionActionArguments(string action, string? argsJson)
     {
         string[] allowedParameters = action switch
         {
@@ -1054,6 +1054,18 @@ public sealed class ExcelMcpService : IDisposable
         try
         {
             _sessionManager.SetOperationContext(sessionId, request.Command, request.CallerCancellation);
+            if (!allowTimedOutOperation)
+            {
+                var owner = batch switch
+                {
+                    ExcelBatch owned => owned,
+                    AttachedWorkbookBatch attached => attached.Owner,
+                    _ => null
+                };
+                if (owner?.GetExecutionPreflightState() == WorkbookRefreshState.DialogOpen)
+                    ExcelBusyException.ThrowIfNotReady(WorkbookRefreshState.DialogOpen, request.Command,
+                        batch as IExcelBatchWindowControl);
+            }
             if (string.Equals(request.Command, ServiceRegistry.Connection.GetRefreshStatusCommand, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(request.Command, ServiceRegistry.Connection.CancelRefreshCommand, StringComparison.OrdinalIgnoreCase))
             {
@@ -1191,7 +1203,7 @@ public sealed class ExcelMcpService : IDisposable
         hresult == ResiliencePipelines.RPC_E_CALL_FAILED ||
         hresult == ResiliencePipelines.RPC_E_DISCONNECTED;
 
-    private static ServiceResponse AttachRequestContext(ServiceRequest request, ServiceResponse response)
+    internal static ServiceResponse AttachRequestContext(ServiceRequest request, ServiceResponse response)
     {
         if (response.Success)
         {

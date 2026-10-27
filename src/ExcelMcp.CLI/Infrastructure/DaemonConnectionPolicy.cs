@@ -25,7 +25,8 @@ internal static class DaemonConnectionPolicy
         using var client = new ServiceClient(
             pipeName,
             connectTimeout: connectTimeout ?? effectiveTimeout,
-            requestTimeout: effectiveTimeout);
+            requestTimeout: effectiveTimeout,
+            useControlEndpoint: true);
         return await client.SendAsync(
             request,
             effectiveTimeout,

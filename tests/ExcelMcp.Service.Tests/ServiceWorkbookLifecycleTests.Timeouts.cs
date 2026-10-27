@@ -5,6 +5,7 @@ using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Core.Commands.Workbook;
+using Sbroenne.ExcelMcp.Service.Workers;
 using Xunit;
 using Excel = Microsoft.Office.Interop.Excel;
 
@@ -295,6 +296,90 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 var disk = await OpenSessionAsync(verification, path);
                 reopenedSessions[disk] = 0;
                 Assert.Equal("Saved baseline", await ReadMarkerAsync(verification, disk));
+            });
+        });
+    }
+
+    [Fact]
+    public async Task PrivateWorker_CancelledRunningSave_RevealsExcelBeforeCompletion()
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var registration = new WorkerRegistration($"excelmcp-worker-{Guid.NewGuid():N}",
+                WorkerProcess.Current, WorkerProcess.Current, Guid.NewGuid().ToString("N"),
+                WorkerRegistry.Build, null);
+            using var host = new ExcelWorkerHost(registration, service);
+            var run = host.RunAsync();
+            var worker = new ExcelWorkerClient(registration, WorkerProcess.Current, registration.Generation);
+            using var release = new ManualResetEventSlim();
+            using var cancellation = new CancellationTokenSource();
+            Task<ServiceResponse>? save = null;
+            var path = Path.Join(directory, "private-worker-cancelled-save.xlsx");
+            var failure = await Record.ExceptionAsync(async () =>
+            {
+                await worker.InitializeAsync();
+                var session = await CreateSessionAsync(service, path);
+                sessions[session] = 0;
+                await WriteMarkerAsync(service, session, "Saved only by the requested running save");
+                var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(session));
+                Assert.False(batch.IsExcelVisible);
+                using var excel = Process.GetProcessById(batch.ExcelProcessId!.Value);
+                Assert.Equal(batch.ProcessIdentity,
+                    new ExcelProcessIdentity(excel.Id, excel.StartTime.ToUniversalTime().ToFileTimeUtc()));
+                Assert.Equal(IntPtr.Zero, excel.MainWindowHandle);
+                var saving = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                ExcelShutdownService.BeforeSaveHookForTests = () =>
+                {
+                    saving.TrySetResult();
+                    Assert.True(release.Wait(TimeSpan.FromSeconds(30)));
+                };
+                save = worker.ExecuteAsync(new ServiceRequest
+                {
+                    Command = "session.save",
+                    SessionId = session
+                }, cancellation.Token);
+                await saving.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                cancellation.Cancel();
+                Assert.True(SpinWait.SpinUntil(() =>
+                {
+                    excel.Refresh();
+                    return batch.OperationStatus.WaitExpired && excel.MainWindowHandle != IntPtr.Zero;
+                }, TimeSpan.FromSeconds(3)),
+                    $"Wait expired: {batch.OperationStatus.WaitExpired}; window: {batch.OperationStatus.WindowReveal}.");
+                Assert.True(batch.OperationStatus.ExecutionPending);
+                Assert.False(save.IsCompleted);
+                ExcelShutdownService.BeforeSaveHookForTests = null;
+                release.Set();
+                RequireSuccess(await save.WaitAsync(TimeSpan.FromSeconds(10)));
+                Assert.Equal("Saved only by the requested running save", await ReadMarkerAsync(service, session));
+                await CloseSessionAsync(service, session, save: false);
+                sessions.TryRemove(session, out _);
+            });
+            ExcelShutdownService.BeforeSaveHookForTests = null;
+            release.Set();
+            var completion = await Record.ExceptionAsync(async () =>
+            {
+                if (save is not null)
+                    RequireSuccess(await save.WaitAsync(TimeSpan.FromSeconds(10)));
+                foreach (var session in sessions.Keys)
+                {
+                    service.SessionManager.CloseSession(session, save: false);
+                    sessions.TryRemove(session, out _);
+                }
+            });
+            var shutdown = await Record.ExceptionAsync(async () =>
+            {
+                RequireSuccess(await worker.ReleaseAsync(CancellationToken.None));
+                await run.WaitAsync(TimeSpan.FromSeconds(10));
+            });
+            var failures = new[] { failure, completion, shutdown }.OfType<Exception>().ToArray();
+            if (failures.Length > 0)
+                throw new AggregateException("Private-worker cancellation, completion, or cleanup failed.", failures);
+            await RunWithCleanupAsync(async (verification, _, reopenedSessions) =>
+            {
+                var reopened = await OpenSessionAsync(verification, path);
+                reopenedSessions[reopened] = 0;
+                Assert.Equal("Saved only by the requested running save", await ReadMarkerAsync(verification, reopened));
             });
         });
     }

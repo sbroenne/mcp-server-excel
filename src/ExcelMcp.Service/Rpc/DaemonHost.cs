@@ -1,14 +1,18 @@
 using System.Collections.Concurrent;
 using System.IO.Pipes;
+using Microsoft.Extensions.Hosting;
+using Nerdbank.Streams;
 using StreamJsonRpc;
 
 namespace Sbroenne.ExcelMcp.Service.Rpc;
 
-internal sealed class DaemonHost : IDisposable
+internal sealed class DaemonHost : BackgroundService
 {
     internal static readonly TimeSpan InitialBackoff = TimeSpan.FromMilliseconds(100);
     internal static readonly TimeSpan MaxBackoff = TimeSpan.FromSeconds(5);
     internal const int MaximumConnections = 64;
+    internal const int MaximumConnectionInputBytes = 64 * 1024 * 1024;
+    internal static readonly TimeSpan ConnectionDrainTimeout = TimeSpan.FromSeconds(1);
 
     private readonly ConcurrentDictionary<Task, byte> _activeConnectionTasks = new();
     private readonly ConcurrentDictionary<string, byte> _busySessions = new(StringComparer.Ordinal);
@@ -17,6 +21,9 @@ internal sealed class DaemonHost : IDisposable
     private readonly Action<ServiceRequest, ServiceResponse?>? _requestAbandoned;
     private readonly Func<TimeSpan, CancellationToken, Task> _delay;
     private readonly Func<string, NamedPipeServerStream> _serverFactory;
+    private readonly Func<NamedPipeServerStream, JsonRpc> _createRpc;
+    private readonly int _maximumConnections;
+    private string? _pipeName;
     private readonly TaskCompletionSource _acceptLoopStopped =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int _activeRequests;
@@ -34,13 +41,36 @@ internal sealed class DaemonHost : IDisposable
         _delay = delay
             ?? Task.Delay;
         _serverFactory = serverFactory ?? ServiceSecurity.CreateSecureServer;
+        _maximumConnections = MaximumConnections;
+        _createRpc = pipe => new JsonRpc(pipe, pipe.ReadSlice(MaximumConnectionInputBytes),
+            new DaemonRpcTarget(DispatchRequestAsync, _requestAbandoned))
+        {
+            CancelLocallyInvokedMethodsWhenConnectionIsClosed = true
+        };
+    }
+
+    internal DaemonHost(string pipeName, Func<NamedPipeServerStream, JsonRpc> createRpc, int maximumConnections)
+        : this(static _ => throw new InvalidOperationException("This listener uses a typed RPC target."))
+    {
+        _pipeName = pipeName;
+        _createRpc = createRpc;
+        _maximumConnections = maximumConnections;
+    }
+
+    internal async Task RunAsync(string pipeName)
+    {
+        _pipeName = pipeName;
+        await StartAsync(CancellationToken.None);
+        await ExecuteTask!;
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "The pipe accept-loop retries listener failures with bounded backoff so the daemon remains available; this boundary never converts a workbook operation failure into success.")]
-    internal async Task RunAsync(string pipeName)
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var pipeName = _pipeName;
         ArgumentException.ThrowIfNullOrWhiteSpace(pipeName);
+        using var stopping = stoppingToken.Register(RequestShutdown);
         var currentBackoff = InitialBackoff;
         while (!_shutdownCts.IsCancellationRequested)
         {
@@ -50,7 +80,7 @@ internal sealed class DaemonHost : IDisposable
                 server = _serverFactory(pipeName);
                 await server.WaitForConnectionAsync(_shutdownCts.Token);
                 currentBackoff = InitialBackoff;
-                if (_activeConnectionTasks.Count >= MaximumConnections)
+                if (_activeConnectionTasks.Count >= _maximumConnections)
                 {
                     System.Diagnostics.Trace.TraceWarning("Daemon connection capacity reached; refusing a new connection.");
                     continue;
@@ -129,14 +159,18 @@ internal sealed class DaemonHost : IDisposable
     {
         try
         {
-            var rpcTarget = new DaemonRpcTarget(
-                DispatchRequestAsync, _requestAbandoned);
-            using var rpc = new JsonRpc(clientServer, clientServer, rpcTarget)
-            {
-                CancelLocallyInvokedMethodsWhenConnectionIsClosed = true
-            };
+            using var rpc = _createRpc(clientServer);
             rpc.StartListening();
-            await rpc.Completion;
+            try
+            {
+                await rpc.Completion.WaitAsync(_shutdownCts.Token);
+            }
+            catch (OperationCanceledException) when (_shutdownCts.IsCancellationRequested)
+            {
+                await Task.WhenAny(rpc.Completion, Task.Delay(ConnectionDrainTimeout));
+                rpc.Dispose();
+                await rpc.Completion;
+            }
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
@@ -174,7 +208,7 @@ internal sealed class DaemonHost : IDisposable
     private async Task<ServiceResponse> DispatchRequestAsync(ServiceRequest request)
     {
         var sessionId = request.SessionId;
-        var control = request.Command is "service.ping" or "service.status" or "session.list"
+        var control = request.Command is "service.ping" or "service.status" or "service.shutdown" or "session.list"
             or "window.show" or "window.hide";
         var category = request.Command.Split('.', 2)[0];
         var sessionless = category is "service" or "diag" or "settings" or "powerquerytrace"
@@ -249,7 +283,7 @@ internal sealed class DaemonHost : IDisposable
         }
     }
 
-    public void Dispose()
+    public override void Dispose()
     {
         if (_disposed)
         {
@@ -258,6 +292,7 @@ internal sealed class DaemonHost : IDisposable
 
         _disposed = true;
         _shutdownCts.Cancel();
+        base.Dispose();
         _shutdownCts.Dispose();
     }
 }
