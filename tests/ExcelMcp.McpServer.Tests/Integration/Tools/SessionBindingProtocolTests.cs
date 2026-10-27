@@ -77,6 +77,7 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
     [InlineData("calculation_mode_read", "get-settings", true)]
     [InlineData("powerquery_read", "list", true)]
     [InlineData("file", "close", false)]
+    [InlineData("file_read", "notices", false)]
     [InlineData("worksheet_read", "list", true)]
     public async Task WorkbookSessionId_SchemaAndWireNameAgree(string toolName, string action, bool required)
     {
@@ -109,6 +110,7 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
     [Theory]
     [InlineData("range_read", "get-used-range")]
     [InlineData("file", "close")]
+    [InlineData("file_read", "notices")]
     [InlineData("worksheet_read", "list")]
     public async Task OldSessionIdInput_IsRejectedAsUnknownParameter(string toolName, string action)
     {
@@ -342,7 +344,7 @@ public sealed class SessionBindingProtocolTests : IAsyncLifetime, IAsyncDisposab
             (!tool.JsonSchema.TryGetProperty("required", out var required) ||
              !required.EnumerateArray().Any(value => value.GetString() == "workbook_session_id")))
             .Select(tool => tool.Name).Order().ToArray();
-        Assert.Equal(["file", "powerquery_trace_read", "worksheet"], optional);
+        Assert.Equal(["file", "file_read", "powerquery_trace_read", "worksheet"], optional);
     }
 
     [Theory]

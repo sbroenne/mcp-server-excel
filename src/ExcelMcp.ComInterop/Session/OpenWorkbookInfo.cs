@@ -2,6 +2,7 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 
 /// <summary>An already-open workbook selection valid within the discovering host.</summary>
 /// <param name="SessionId">Existing session identifier when the workbook is already connected to this host.</param>
+/// <param name="ProtectedView">Whether Excel is displaying the workbook in Protected View.</param>
 public sealed record OpenWorkbookInfo(
     string WorkbookId,
     string Name,
@@ -9,7 +10,8 @@ public sealed record OpenWorkbookInfo(
     int ProcessId,
     bool Saved,
     bool? AutoSaveOn,
-    string? SessionId = null);
+    string? SessionId = null,
+    bool ProtectedView = false);
 
 /// <summary>Details for a workbook attached to an active session.</summary>
 /// <param name="SessionId">The session identifier for subsequent workbook operations.</param>

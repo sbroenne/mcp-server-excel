@@ -237,7 +237,7 @@ Excel, and not weaken Office security or block on interactive prompts.
 | Host UI customization | Exclude deprecated command bars and Ribbon customization unrelated to workbook automation. |
 | Mail and collaboration | Exclude mail APIs requiring Outlook profiles or security prompts, and cloud collaboration not exposed through local Excel COM. |
 | Executable controls and add-ins | Do not add ActiveX creation or code injection, assume optional add-ins are installed, or enable them by changing macro security. Solver remains excluded. |
-| Office security | Never enable VBA trust, lower macro security, bypass Protected View, or change Trust Center settings. |
+| Office security | Never change global Trust Center settings, VBA project-access trust, trusted locations, or company policy. Workbook security actions require explicit approval; editing and connection enabling must also disclose and require approval of remembered trust for that file. Macro enabling requires a separately approved saved-only reopen, with temporary opening settings restored. |
 | Version-specific APIs | Use the typed PIA surface and handle unavailable runtime capabilities with a clear failure. The compiler checks PIA member availability; verify runtime behavior in Excel separately. Do not use late binding to bypass an unavailable typed member. |
 
 PIA member presence alone does not prove reliable behavior or persistence.

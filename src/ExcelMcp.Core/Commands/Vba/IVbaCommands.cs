@@ -120,7 +120,10 @@ public interface IVbaCommands
         [RequiredParameter][FileOrValue] string vbaCode);
 
     /// <summary>
-    /// Runs a VBA procedure with optional parameters
+    /// Runs a VBA procedure with optional parameters. Normal file opens disable VBA macros.
+    /// Running does not enable them or reopen the file: obtain separate approval for
+    /// file enable-macros with approved:true and allow_reopen:true
+    /// (CLI: session enable-macros --approved --allow-reopen) on a saved owned workbook first.
     /// </summary>
     /// <param name="procedureName">Name of the procedure to run (for example "Module1.MySub")</param>
     /// <param name="timeout">Optional public timeout in whole seconds from 1 through 2147483; converted to TimeSpan at shared dispatch</param>

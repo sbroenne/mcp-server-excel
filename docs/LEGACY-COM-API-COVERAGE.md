@@ -36,7 +36,7 @@ local-file schema resolution during automatic mapping.
 | Smart tags and smart-tag actions | Excluded | Deprecated/removed from modern Office workflows and not reliably available across supported Excel versions. |
 | DDE, `ExecuteExcel4Macro`, XLM registration APIs | Excluded | Security-sensitive legacy code execution and process communication surfaces are not appropriate for a general automation server. |
 | `XmlMap.Import` / `XmlMap.Export` URL and file variants | Excluded | In-memory import/export provides the same automation capability without implicit network access, overwrite ambiguity, or server-side path side effects. |
-| Protected View trust bypass, macro-security changes, add-in installation | Excluded | Security-policy changes must remain user/admin controlled and cannot be safely automated as workbook operations. |
+| Global Trust Center changes, company-policy bypass, add-in installation | Excluded | Workbook actions do not authorize changes to wider security policy. Explicit workbook-specific editing and connection enabling require approval of remembered trust; enabling VBA requires a separately approved saved-only reopen. |
 
 ## Assessed for Future Work
 
