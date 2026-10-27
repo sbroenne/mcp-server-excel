@@ -242,9 +242,27 @@ public sealed partial class ServiceWorkbookLifecycleTests
                         Assert.False(notices.GetProperty("protectedView").GetBoolean());
                         Assert.False(notices.GetProperty("readOnly").GetBoolean());
                         Assert.Equal("disabledAtOpen", notices.GetProperty("vbaState").GetString());
+                        if (hasMacros)
+                        {
+                            var messages = notices.GetProperty("messages").EnumerateArray()
+                                .Select(message => message.GetString()!).ToArray();
+                            Assert.Contains(messages, message => message.Contains("Use Excel", StringComparison.Ordinal));
+                            Assert.DoesNotContain(messages, message => message.Contains("requires a separately approved reopen", StringComparison.Ordinal));
+                        }
                     }
                     if (hasMacros)
                     {
+                        Assert.Equal("not-run", await ReadMarkerAsync(service, attachedId));
+                        var blockedRun = await service.ProcessAsync(new ServiceRequest
+                        {
+                            Command = "vba.run",
+                            SessionId = attachedId,
+                            Args = """{"procedureName":"ThisWorkbook.SecurityMarker"}"""
+                        });
+                        Assert.False(blockedRun.Success);
+                        Assert.Contains("Use Excel", blockedRun.ErrorMessage!, StringComparison.Ordinal);
+                        Assert.Contains("already open", blockedRun.ErrorMessage!, StringComparison.Ordinal);
+                        Assert.DoesNotContain("allow_reopen", blockedRun.ErrorMessage!, StringComparison.Ordinal);
                         Assert.Equal("not-run", await ReadMarkerAsync(service, attachedId));
                         await WriteMarkerAsync(service, attachedId, "editing allowed");
                         Assert.Equal("editing allowed", await ReadMarkerAsync(service, attachedId));

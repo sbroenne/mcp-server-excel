@@ -39,7 +39,11 @@ public partial class VbaCommands
             var owner = batch is AttachedWorkbookBatch attached ? attached.Owner : batch as ExcelBatch;
             if (owner?.RequiresVbaApproval(ctx.Book) == true)
                 throw new InvalidOperationException(
-                    "VBA macros were disabled when this workbook opened. Obtain approval for file enable-macros " +
+                    batch is AttachedWorkbookBatch
+                    ? "VBA macros were disabled when this workbook opened. Use Excel to review macro permissions " +
+                    "and run the procedure. This workbook was already open in Excel, so this session cannot reopen it " +
+                    "to enable macros. No procedure was run."
+                    : "VBA macros were disabled when this workbook opened. Obtain approval for file enable-macros " +
                     "with approved:true and allow_reopen:true (CLI: session enable-macros --approved --allow-reopen) " +
                     "before running a procedure. The saved workbook must be reopened; unsaved changes are not discarded.");
             var originalCulture = CultureInfo.CurrentCulture;

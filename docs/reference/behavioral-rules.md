@@ -106,6 +106,9 @@ enable-macros --session <ID> --approved --allow-reopen`. This closes and reopens
 only a saved local workbook opened by that session, with no neighboring
 workbooks. Opening event code can run and change the workbook. Unsaved changes,
 read-only files, remote files, and attached workbooks refuse this reopen.
+After enabling editing for a workbook that was already open in Excel, VBA
+execution remains blocked in that session. Use Excel to review macro permissions
+and run the procedure instead of requesting an unsupported reopen.
 Nothing is automatically saved or discarded. If reopening fails after closing,
 the error reports that partial state; inspect Excel rather than repeating it.
 Later workbook commands report the same problem instead of using a closed

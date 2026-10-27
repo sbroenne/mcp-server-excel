@@ -46,7 +46,9 @@ internal sealed partial class ExcelBatch
                 if (readOnly && !protectedView)
                     messages.Add("Excel reports read-only access. This alone does not identify a security notice; check file permissions, locks, or Excel's visible message.");
                 if (macroState == "disabledAtOpen")
-                    messages.Add("VBA macros were disabled when this workbook opened. Enabling them requires a separately approved reopen of a saved workbook; opening event code can then run.");
+                    messages.Add(workbookId is not null
+                        ? "VBA macros were disabled when this workbook opened. Use Excel to review macro permissions and run procedures; this session cannot reopen a workbook that was already open in Excel."
+                        : "VBA macros were disabled when this workbook opened. Enabling them requires a separately approved reopen of a saved workbook; opening event code can then run.");
                 int? connectionCount = null;
                 bool? hasVba = null;
                 if (!protectedView)
