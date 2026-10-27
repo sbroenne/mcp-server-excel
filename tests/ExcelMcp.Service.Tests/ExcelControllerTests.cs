@@ -63,6 +63,83 @@ public sealed class ExcelControllerTests
     }
 
     [Fact(Timeout = 30000)]
+    public async Task Controller_FailedInitializationReleasesItsLateEmptyWorker()
+    {
+        ExcelWorkerClient? launched = null;
+        using var controller = new ExcelController(launcher: Launcher, initializeWorker: worker =>
+        {
+            launched = worker;
+            throw new TimeoutException("The startup reply was not confirmed.");
+        });
+        var response = await controller.ProcessAsync(new ServiceRequest
+        {
+            Command = "diag.echo",
+            Args = """{"message":"startup-failure"}"""
+        });
+        Assert.False(response.Success);
+        Assert.Equal("Timeout", response.ErrorCategory);
+        Assert.NotNull(launched);
+        using var process = System.Diagnostics.Process.GetProcessById(launched.Registration.Worker.ProcessId);
+        _ = process.Handle;
+        Assert.Equal(launched.Registration.Worker, WorkerProcess.From(process));
+        await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Empty(controller.Sessions);
+        Assert.Empty(controller.ExcelProcesses);
+    }
+
+    [Fact(Timeout = 60000)]
+    [Trait("Speed", "Slow")]
+    public async Task Controller_ExitedStartupWorkersDoNotExhaustCapacity()
+    {
+        var launcher = new ProductProcessLauncher("dotnet", ["--list-sdks"]);
+        using var controller = new ExcelController(launcher: launcher);
+        for (var index = 0; index < 33; index++)
+        {
+            var response = await controller.ProcessAsync(new ServiceRequest
+            {
+                Command = "diag.echo",
+                Args = """{"message":"exited-startup"}"""
+            });
+            Assert.False(response.Success);
+            Assert.DoesNotContain("worker limit", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("exited", response.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact(Timeout = 15000)]
+    public async Task ControlEndpoint_TracksAcceptedControlsButNotRejectedWorkbookWork()
+    {
+        var tracked = new System.Collections.Concurrent.ConcurrentBag<string>();
+        var pipeName = $"excelmcp-controller-test-{Guid.NewGuid():N}";
+        using var controller = new ExcelController(trackRequest: (request, next) =>
+        {
+            tracked.Add(request.Command);
+            return next();
+        }, launcher: Launcher);
+        var run = controller.RunAsync(pipeName);
+        try
+        {
+            using var control = new ServiceClient(pipeName, useControlEndpoint: true);
+            string[] commands = ["service.status", "session.list"];
+            foreach (var command in commands)
+                Assert.True((await control.SendAsync(new ServiceRequest { Command = command }, TimeSpan.FromSeconds(2))).Success);
+            await using var pipe = ServiceSecurity.CreateClient(ServiceClient.GetControlPipeName(pipeName));
+            await pipe.ConnectAsync(2000);
+            var proxy = JsonRpc.Attach<IExcelDaemonRpc>(pipe);
+            using var connection = (IDisposable)proxy;
+            var rejected = await proxy.ProcessCommandAsync(new ServiceRequest { Command = "diag.echo" });
+            Assert.False(rejected.Success);
+            Assert.Equal("InvalidInput", rejected.ErrorCategory);
+            Assert.Equal(commands.Order(), tracked.Order());
+        }
+        finally
+        {
+            await controller.RequestShutdownAsync();
+            await run.WaitAsync(TimeSpan.FromSeconds(4));
+        }
+    }
+
+    [Fact(Timeout = 30000)]
     public async Task Controller_CancelledStartupReleasesItsEmptyWorkerAndAllowsRetry()
     {
         var path = Path.Combine(Path.GetTempPath(), $"excelmcp-missing-{Guid.NewGuid():N}.xlsx");
@@ -160,6 +237,60 @@ public sealed class ExcelControllerTests
 [Trait("RequiresExcel", "true")]
 public sealed class ExcelControllerWorkbookTests
 {
+    [Fact(Timeout = 60000)]
+    public async Task Controller_ReleasesItsWorkerAfterExcelClosesOutsideController()
+    {
+        var path = Path.Combine(Path.GetTempPath(), $"excelmcp-external-close-{Guid.NewGuid():N}.xlsx");
+        var launcher = new ProductProcessLauncher(Path.GetFullPath(Path.Combine(
+            AppContext.BaseDirectory, @"..\..\..\..\..\src\ExcelMcp.CLI\bin\Release\net10.0-windows\excelcli.exe")), []);
+        using var controller = new ExcelController(launcher: launcher);
+        System.Diagnostics.Process? worker = null;
+        System.Diagnostics.Process? excel = null;
+        var failure = await Record.ExceptionAsync(async () =>
+        {
+            var created = await controller.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.create",
+                Args = JsonSerializer.Serialize(new { filePath = path, show = true })
+            });
+            Assert.True(created.Success, created.ErrorMessage);
+            var identity = Assert.Single(controller.ExcelProcesses);
+            excel = System.Diagnostics.Process.GetProcessById(identity.ProcessId);
+            _ = excel.Handle;
+            Assert.Equal(identity.StartedAtUtcFileTime, excel.StartTime.ToUniversalTime().ToFileTimeUtc());
+            var registration = Assert.Single(new WorkerRegistry().Read(),
+                record => record.Controller == WorkerProcess.Current && record.Excel == identity && record.Worker.IsAlive());
+            worker = System.Diagnostics.Process.GetProcessById(registration.Worker.ProcessId);
+            _ = worker.Handle;
+            Assert.Equal(registration.Worker, WorkerProcess.From(worker));
+            var client = new ExcelWorkerClient(registration, WorkerProcess.Current, registration.Generation);
+            var closed = await client.ExecuteAsync(new ServiceRequest
+            {
+                Command = "session.close",
+                SessionId = created.SessionId
+            }, CancellationToken.None);
+            Assert.True(closed.Success, closed.ErrorMessage);
+            await excel.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            await worker.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(8));
+            Assert.Empty(controller.Sessions);
+            Assert.Empty(controller.ExcelProcesses);
+        });
+        var cleanupFailure = await Record.ExceptionAsync(async () =>
+        {
+            await controller.RequestShutdownAsync();
+            controller.Dispose();
+            if (worker is not null)
+                await worker.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            if (excel is not null)
+                await excel.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            File.Delete(path);
+        });
+        worker?.Dispose();
+        excel?.Dispose();
+        var failures = new[] { failure, cleanupFailure }.OfType<Exception>().ToArray();
+        if (failures.Length > 0) throw new AggregateException("External Excel closure or cleanup failed.", failures);
+    }
+
     [Fact(Timeout = 90000)]
     public async Task Controller_ExitedWorkerAllowsExplicitReattachmentWithoutLosingUnsavedValues()
     {
@@ -262,22 +393,7 @@ public sealed class ExcelControllerWorkbookTests
             if (remainingWorker is not null)
                 await remainingWorker.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
             if (workerExited && identity is { } cleanupIdentity)
-            {
-                var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                var cleanup = new Thread(() =>
-                {
-                    try
-                    {
-                        CloseTestWorkbook(cleanupIdentity, path);
-                        completed.SetResult();
-                    }
-                    catch (Exception ex) { completed.SetException(ex); }
-                })
-                { IsBackground = true };
-                cleanup.SetApartmentState(ApartmentState.STA);
-                cleanup.Start();
-                await completed.Task.WaitAsync(TimeSpan.FromSeconds(15));
-            }
+                await CloseTestWorkbookAsync(cleanupIdentity, path);
             if (excelProcess is not null)
                 await excelProcess.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
             using var verification = new ExcelMcpService();
@@ -306,6 +422,24 @@ public sealed class ExcelControllerWorkbookTests
         File.Delete(path);
         var failures = new[] { failure, cleanupFailure }.OfType<Exception>().ToArray();
         if (failures.Length > 0) throw new AggregateException("Worker recovery or test cleanup failed.", failures);
+    }
+
+    private static Task CloseTestWorkbookAsync(ExcelProcessIdentity identity, string path)
+    {
+        var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cleanup = new Thread(() =>
+        {
+            try
+            {
+                CloseTestWorkbook(identity, path);
+                completed.SetResult();
+            }
+            catch (Exception ex) { completed.SetException(ex); }
+        })
+        { IsBackground = true };
+        cleanup.SetApartmentState(ApartmentState.STA);
+        cleanup.Start();
+        return completed.Task.WaitAsync(TimeSpan.FromSeconds(15));
     }
 
     private static void CloseTestWorkbook(ExcelProcessIdentity identity, string path)

@@ -13,12 +13,14 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Unit;
 public sealed class CliServiceTrayResponsivenessTests
 {
     [Fact(Timeout = 15000)]
-    public async Task Tray_RefreshAndPostedMessagesContinueWhileCloseIsBlocked()
+    public async Task Tray_RefreshAndExitContinueWhileCloseIsBlocked()
     {
         using var release = new ManualResetEventSlim();
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var responsive = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var shutdown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var finished = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var closeCalls = 0;
         var thread = new Thread(() =>
         {
             try
@@ -29,11 +31,16 @@ public sealed class CliServiceTrayResponsivenessTests
                     () => { refreshes++; return []; },
                     (_, _) =>
                     {
+                        Interlocked.Increment(ref closeCalls);
                         entered.TrySetResult();
                         release.Wait();
                         return Task.FromResult(new ServiceResponse { Success = true });
                     },
-                    () => Task.FromResult<string?>(null));
+                    () =>
+                    {
+                        shutdown.TrySetResult();
+                        return Task.FromResult<string?>(null);
+                    });
                 using var timer = new System.Windows.Forms.Timer { Interval = 50 };
                 Task? close = null;
                 timer.Tick += async (_, _) =>
@@ -48,6 +55,7 @@ public sealed class CliServiceTrayResponsivenessTests
                     {
                         timer.Stop();
                         responsive.TrySetResult();
+                        await tray.ExitServiceAsync();
                         await close;
                         form.Close();
                     }
@@ -72,6 +80,8 @@ public sealed class CliServiceTrayResponsivenessTests
         {
             await entered.Task.WaitAsync(TimeSpan.FromSeconds(3));
             await responsive.Task.WaitAsync(TimeSpan.FromSeconds(4));
+            await shutdown.Task.WaitAsync(TimeSpan.FromSeconds(3));
+            Assert.Equal(1, closeCalls);
         }
         finally
         {

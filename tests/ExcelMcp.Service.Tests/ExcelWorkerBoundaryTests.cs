@@ -168,6 +168,30 @@ public sealed class ExcelWorkerBoundaryTests
     }
 
     [Fact]
+    public void Registry_RecordRemovedAfterEnumerationDoesNotFailDiscovery()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"excelmcp-workers-{Guid.NewGuid():N}");
+        var registry = new WorkerRegistry(directory);
+        var current = WorkerProcess.Current;
+        var record = new WorkerRegistration($"excelmcp-worker-{Guid.NewGuid():N}",
+            current, current, "generation", WorkerRegistry.Build, null);
+        try
+        {
+            registry.Write(record);
+            registry.BeforeRecordReadForTests = File.Delete;
+            Assert.Empty(registry.Read());
+            registry.BeforeRecordReadForTests = null;
+            File.WriteAllText(Path.Combine(directory, record.PipeName + ".json"), "{");
+            Assert.Throws<System.Text.Json.JsonException>(() => registry.Read());
+        }
+        finally
+        {
+            registry.Remove(record.PipeName);
+            Directory.Delete(directory);
+        }
+    }
+
+    [Fact]
     public void Registry_DeadWorkerRetainsLiveApplicationIdentity()
     {
         var directory = Path.Combine(Path.GetTempPath(), $"excelmcp-workers-{Guid.NewGuid():N}");

@@ -14,6 +14,7 @@ internal sealed class ExcelController : IDisposable
 {
     private readonly ProductProcessLauncher _launcher;
     private readonly WorkerRegistry _registry;
+    private readonly Func<ExcelWorkerClient, Task> _initializeWorker;
     private readonly WorkerProcess _identity = WorkerProcess.Current;
     private readonly string _generation = Guid.NewGuid().ToString("N");
     private readonly DateTime _startTime = DateTime.UtcNow;
@@ -40,14 +41,17 @@ internal sealed class ExcelController : IDisposable
 
     internal ExcelController(
         Func<ServiceRequest, Func<Task<ServiceResponse>>, Task<ServiceResponse>>? trackRequest = null,
-        ProductProcessLauncher? launcher = null, WorkerRegistry? registry = null)
+        ProductProcessLauncher? launcher = null, WorkerRegistry? registry = null,
+        Func<ExcelWorkerClient, Task>? initializeWorker = null)
     {
         _launcher = launcher ?? ProductProcessLauncher.Current();
         _registry = registry ?? new WorkerRegistry();
-        _host = new DaemonHost(request => trackRequest is null
-            ? ProcessAsync(request) : trackRequest(request, () => ProcessAsync(request)));
+        _initializeWorker = initializeWorker ?? (worker => worker.InitializeAsync());
+        Task<ServiceResponse> ProcessTrackedAsync(ServiceRequest request) => trackRequest is null
+            ? ProcessAsync(request) : trackRequest(request, () => ProcessAsync(request));
+        _host = new DaemonHost(ProcessTrackedAsync);
         _controlHost = new DaemonHost(request => ServiceClient.IsControlCommand(request.Command)
-            ? ProcessAsync(request)
+            ? ProcessTrackedAsync(request)
             : Task.FromResult(ExcelWorkerHost.Failure(request, "InvalidInput", "This connection accepts service controls only.")));
         _poll = PollAsync();
     }
@@ -326,7 +330,17 @@ internal sealed class ExcelController : IDisposable
             _workers[worker.Registration.PipeName] = worker;
             _newWorkers[worker.Registration.PipeName] = 0;
         }
-        await worker.InitializeAsync();
+        try
+        {
+            await _initializeWorker(worker);
+        }
+        catch
+        {
+            _abandonedWorkers[worker.Registration.PipeName] = 0;
+            if (!worker.Registration.Worker.IsAlive())
+                RetireExitedWorker(worker.Registration);
+            throw;
+        }
         return worker;
     }
 
@@ -632,6 +646,14 @@ internal sealed class ExcelController : IDisposable
                 {
                     await RefreshWorkerAsync(worker, _stop.Token);
                     if (_abandonedWorkers.ContainsKey(worker.Registration.PipeName))
+                    {
+                        if (!worker.Registration.Worker.IsAlive())
+                            RetireExitedWorker(worker.Registration);
+                        else
+                            await ReleaseEmptyWorkerAsync(worker);
+                    }
+                    else if (worker.Registration is { OwnsExcel: true, Excel: { } excel }
+                        && OwnedProcessGuard.TryConfirmExited(excel))
                         await ReleaseEmptyWorkerAsync(worker);
                 }));
             }

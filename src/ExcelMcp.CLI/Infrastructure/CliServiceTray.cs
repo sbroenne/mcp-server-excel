@@ -23,6 +23,7 @@ internal sealed class CliServiceTray : IDisposable
     private bool _disposed;
     private DateTime _lastBalloonShown = DateTime.MinValue;
     private bool _actionPending;
+    private bool _exitPending;
 
     public CliServiceTray(
         Func<IReadOnlyList<SessionDescriptor>> getSessions,
@@ -54,7 +55,7 @@ internal sealed class CliServiceTray : IDisposable
         // Exit (Alt+X mnemonic)
         var exitItem = new ToolStripMenuItem("E&xit");
         exitItem.AccessibleDescription = "Stop the ExcelMCP CLI service and exit";
-        exitItem.Click += (_, _) => ExitService();
+        exitItem.Click += (_, _) => _ = ExitServiceAsync();
         _contextMenu.Items.Add(exitItem);
 
         // Load icon
@@ -206,7 +207,7 @@ internal sealed class CliServiceTray : IDisposable
         Justification = "Tray action boundary presents the exact failed close/save message in an Error balloon rather than terminating the UI thread or claiming the session closed.")]
     internal async Task CloseSessionAsync(string sessionId, bool save)
     {
-        if (_actionPending) return;
+        if (_actionPending || _exitPending) return;
         _actionPending = true;
         try
         {
@@ -233,7 +234,7 @@ internal sealed class CliServiceTray : IDisposable
         Justification = "Tray action boundary presents the original close failure in an Error balloon; the success balloon is not shown when any session close fails.")]
     private async void CloseAllSessions()
     {
-        if (_actionPending) return;
+        if (_actionPending || _exitPending) return;
         _actionPending = true;
         try
         {
@@ -478,13 +479,13 @@ internal sealed class CliServiceTray : IDisposable
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "The asynchronous tray exit boundary reports failed requested saves and leaves the controller running for the user's next decision.")]
-    private async void ExitService()
+    internal async Task ExitServiceAsync()
     {
-        if (_actionPending) return;
-        _actionPending = true;
+        if (_exitPending || _disposed) return;
+        _exitPending = true;
         try
         {
-            var owned = _getSessions().Where(session => !session.IsAttached).ToArray();
+            var owned = _actionPending ? [] : _getSessions().Where(session => !session.IsAttached).ToArray();
             var choice = owned.Length == 0 ? DialogResult.No : MessageBox.Show(
                 $"There are {owned.Length} sessions opened by ExcelMCP.\n\nSave and close before exiting?\n\n" +
                 "Yes: save and close. No: close saved workbooks and leave unsaved ones open and visible.\n" +
@@ -511,7 +512,7 @@ internal sealed class CliServiceTray : IDisposable
         }
         finally
         {
-            _actionPending = false;
+            _exitPending = false;
         }
     }
 

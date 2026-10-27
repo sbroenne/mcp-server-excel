@@ -9,6 +9,7 @@ internal sealed class WorkerRegistry
 {
     internal static string Build => typeof(WorkerRegistry).Assembly.ManifestModule.ModuleVersionId.ToString("N");
     private readonly string _directory;
+    internal Action<string>? BeforeRecordReadForTests { get; set; }
 
     internal WorkerRegistry(string? directory = null)
     {
@@ -38,11 +39,21 @@ internal sealed class WorkerRegistry
         var registrations = new List<WorkerRegistration>();
         foreach (var path in Directory.EnumerateFiles(_directory, "*.json"))
         {
-            if (new FileInfo(path).Length > 65536)
-                throw new InvalidDataException("An Excel worker record exceeds its size limit.");
-            var registration = JsonSerializer.Deserialize<WorkerRegistration>(
-                File.ReadAllText(path), ServiceProtocol.JsonOptions)
-                ?? throw new InvalidDataException("An Excel worker record is empty.");
+            BeforeRecordReadForTests?.Invoke(path);
+            WorkerRegistration registration;
+            try
+            {
+                if (new FileInfo(path).Length > 65536)
+                    throw new InvalidDataException("An Excel worker record exceeds its size limit.");
+                registration = JsonSerializer.Deserialize<WorkerRegistration>(
+                    File.ReadAllText(path), ServiceProtocol.JsonOptions)
+                    ?? throw new InvalidDataException("An Excel worker record is empty.");
+            }
+            catch (FileNotFoundException)
+            {
+                // A worker can remove its record after directory enumeration.
+                continue;
+            }
             _ = GetPath(registration.PipeName);
             if (registration.Worker.IsAlive()
                 || registration.Excel is { } excel && !OwnedProcessGuard.TryConfirmExited(excel))
