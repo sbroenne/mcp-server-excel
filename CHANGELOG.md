@@ -11,6 +11,22 @@ This changelog covers all components:
 
 Entries are short and end-user-facing. Format follows [Keep a Changelog](https://keepachangelog.com/); this project uses [Semantic Versioning](https://semver.org/). Starting with this file, entries are compiled automatically from [changesets](.changeset/README.md) at release time — see [Release Strategy](docs/RELEASE-STRATEGY.md#changelog-generation) for how to add one.
 
+## [2.5.6] - 2026-10-27
+
+### Minor Changes
+
+- [#1239](https://github.com/sbroenne/mcp-server-excel/pull/1239) [`36f6079`](https://github.com/sbroenne/mcp-server-excel/commit/36f607913babffc285e8b5f0c3a05e7777295c34) Thanks [@sbroenne](https://github.com/sbroenne)! - Move an existing worksheet-backed PivotTable onto another report's existing cache with `pivottable share-cache` in CLI and MCP, without recreating either report. The operation checks source and report compatibility first and leaves slicer connections explicit.
+
+### Patch Changes
+
+- [#1241](https://github.com/sbroenne/mcp-server-excel/pull/1241) [`c7cdb18`](https://github.com/sbroenne/mcp-server-excel/commit/c7cdb18330b3e86be23795daf43ecc8dd079822d) Thanks [@sbroenne](https://github.com/sbroenne)! - Formula tracing now defaults to short reports with adjustable limits on relationship steps, returned cells, and formula or text-value previews in both CLI and MCP. Reports clearly flag omitted cells and shortened text while retaining Excel's existing same-worksheet coverage limits and leaving the workbook unchanged.
+
+- [#1248](https://github.com/sbroenne/mcp-server-excel/pull/1248) [`ce533e0`](https://github.com/sbroenne/mcp-server-excel/commit/ce533e055286bbb928861d927a3b6c8fad47bd1f) Thanks [@sbroenne](https://github.com/sbroenne)! - ExcelMcp now includes readable text from open Excel prompts in some data connection and PivotTable errors, and when a prompt blocks saving, closing, refresh checks, or account settings; if the text cannot be read, the error says so. It suggests finishing any needed sign-in and retrying before refreshing data, which still needs separate permission because it can change workbook data.
+
+  Save As also checks for prompts when working with a workbook that was already open, without answering prompts, reading passwords, or saving or discarding edits.
+
+- [#1242](https://github.com/sbroenne/mcp-server-excel/pull/1242) [`d15084b`](https://github.com/sbroenne/mcp-server-excel/commit/d15084b45585870397be15325eca940c3d4f196d) Thanks [@sbroenne](https://github.com/sbroenne)! - Worksheet and screenshot MCP tools now use the same command definitions as the CLI and batch commands. Existing command names, screenshot defaults, image results, and worksheet transfers without an open session are preserved.
+
 ## [2.5.5] - 2026-10-25
 
 ### Patch Changes
