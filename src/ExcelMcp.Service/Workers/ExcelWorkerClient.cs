@@ -23,16 +23,6 @@ internal sealed class ExcelWorkerClient
         _generation = generation;
     }
 
-    internal static async Task<ExcelWorkerClient> StartAsync(
-        ProductProcessLauncher launcher, WorkerProcess controller, string generation,
-        ExcelProcessIdentity? excel, CancellationToken cancellationToken)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var client = Launch(launcher, controller, generation, excel);
-        await client.InitializeAsync();
-        return client;
-    }
-
     internal static ExcelWorkerClient Launch(
         ProductProcessLauncher launcher, WorkerProcess controller, string generation, ExcelProcessIdentity? excel)
     {
@@ -82,7 +72,10 @@ internal sealed class ExcelWorkerClient
         }
     }
 
-    internal Task<ServiceResponse> ExecuteAsync(ServiceRequest request, CancellationToken cancellationToken) =>
+    internal async Task<ServiceResponse> ExecuteAsync(ServiceRequest request, CancellationToken cancellationToken) =>
+        (await ExecuteWithAdmissionAsync(request, cancellationToken)).Response;
+
+    internal Task<WorkerExecution> ExecuteWithAdmissionAsync(ServiceRequest request, CancellationToken cancellationToken) =>
         CallAsync(rpc => rpc.ExecuteAsync(new(Guid.NewGuid().ToString("N"), _generation, request), cancellationToken),
             CancellationToken.None, ServiceClient.DefaultRequestTimeout);
 

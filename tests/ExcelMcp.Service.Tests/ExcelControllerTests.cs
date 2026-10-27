@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
@@ -19,6 +20,311 @@ public sealed class ExcelControllerTests
 {
     private static ProductProcessLauncher Launcher => new(Path.GetFullPath(Path.Combine(
         AppContext.BaseDirectory, @"..\..\..\..\..\src\ExcelMcp.CLI\bin\Release\net10.0-windows\excelcli.exe")), []);
+
+    [Fact(Timeout = 30000)]
+    public async Task Controller_TracksEveryReportedWorkbookPathAcrossCompletionAndRename()
+    {
+        ExcelWorkerClient? started = null;
+        using var controller = new ExcelController(launcher: Launcher, initializeWorker: async worker =>
+        {
+            await worker.InitializeAsync();
+            started = worker;
+        });
+        Assert.True((await controller.ProcessAsync(new ServiceRequest
+        {
+            Command = "diag.echo",
+            Args = """{"message":"initialize-status-owner"}"""
+        })).Success);
+        var worker = Assert.IsType<ExcelWorkerClient>(started);
+        var session = Guid.NewGuid().ToString("N");
+        var source = Path.Join(Path.GetTempPath(), $"source-{Guid.NewGuid():N}.xlsx");
+        var target = Path.Join(Path.GetTempPath(), $"target-{Guid.NewGuid():N}.xlsx");
+        var renamed = Path.Join(Path.GetTempPath(), $"renamed-{Guid.NewGuid():N}.xlsx");
+        Publish(source, long.MaxValue - 1);
+        await WaitForPathAsync(source);
+        await AssertReservedAsync(source);
+        await AssertReservedAsync(target);
+        var control = new ServiceRequest
+        {
+            Command = "diag.echo",
+            SessionId = session,
+            Args = """{"message":"retain-both-paths"}"""
+        };
+        var listed = await controller.ProcessAsync(control);
+        Assert.True(listed.Success, listed.ErrorMessage);
+        await AssertReservedAsync(target);
+        Publish(renamed, long.MaxValue);
+        Assert.True((await controller.ProcessAsync(control)).Success);
+        await WaitForPathAsync(renamed);
+        await AssertReservedAsync(renamed);
+        await AssertReservedAsync(target);
+        var available = await controller.ProcessAsync(new ServiceRequest
+        {
+            Command = "session.open",
+            Args = JsonSerializer.Serialize(new { filePath = source })
+        });
+        Assert.False(available.Success);
+        Assert.Equal("FileNotFoundException", available.ExceptionType);
+
+        void Publish(string primary, long revision) =>
+            worker.RecordSnapshot(new WorkerSnapshot(worker.Registration,
+                [new SessionDescriptor(session, primary)],
+                new ServiceResponse
+                {
+                    Success = true,
+                    Result = JsonSerializer.Serialize(new
+                    {
+                        sessions = new[] { new { sessionId = session, filePath = primary,
+                            filePaths = new[] { primary, target }, operationPending = false } }
+                    })
+                }, null, null, Revision: revision));
+
+        async Task WaitForPathAsync(string expected)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            while (controller.Sessions.SingleOrDefault()?.FilePath != expected)
+                await Task.Delay(50, timeout.Token);
+        }
+
+        async Task AssertReservedAsync(string path)
+        {
+            foreach (var command in new[] { "session.open", "session.test", "sheet.copy-to-file", "sheet.move-to-file" })
+            {
+                var other = Path.Join(Path.GetTempPath(), $"other-{Guid.NewGuid():N}.xlsx");
+                var response = await controller.ProcessAsync(new ServiceRequest
+                {
+                    Command = command,
+                    Args = command.StartsWith("sheet.", StringComparison.Ordinal)
+                        ? JsonSerializer.Serialize(new
+                        {
+                            sourceFile = command == "sheet.copy-to-file" ? path : other,
+                            targetFile = command == "sheet.move-to-file" ? path : other,
+                            sourceSheet = "Sheet1"
+                        })
+                        : JsonSerializer.Serialize(new { filePath = path })
+                });
+                Assert.False(response.Success);
+                Assert.Equal("Conflict", response.ErrorCategory);
+                Assert.Equal("This workbook is already reserved by another session or pending request.", response.ErrorMessage);
+                if (command == "sheet.move-to-file")
+                {
+                    var retry = await controller.ProcessAsync(new ServiceRequest
+                    {
+                        Command = "session.open",
+                        Args = JsonSerializer.Serialize(new { filePath = other })
+                    });
+                    Assert.False(retry.Success);
+                    Assert.Equal("FileNotFoundException", retry.ExceptionType);
+                }
+            }
+        }
+    }
+
+    [Fact(Timeout = 30000)]
+    public async Task Controller_ValidationReleasesItsReservationWhenNoWorkbookRemainsOpen()
+    {
+        using var controller = new ExcelController(launcher: Launcher);
+        var path = Path.Join(Path.GetTempPath(), $"validation-{Guid.NewGuid():N}.xlsx");
+        var validated = await controller.ProcessAsync(new ServiceRequest
+        {
+            Command = "session.test",
+            Args = JsonSerializer.Serialize(new { filePath = path })
+        });
+        Assert.True(validated.Success, validated.ErrorMessage);
+        using var result = JsonDocument.Parse(validated.Result!);
+        Assert.False(result.RootElement.GetProperty("isValid").GetBoolean());
+        var opened = await controller.ProcessAsync(new ServiceRequest
+        {
+            Command = "session.open",
+            Args = JsonSerializer.Serialize(new { filePath = path })
+        });
+        Assert.False(opened.Success);
+        Assert.Equal("FileNotFoundException", opened.ExceptionType);
+    }
+
+    [Theory(Timeout = 30000)]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Controller_AbandonedExitedWorkerKeepsReservationsForSurvivingExcel(bool snapshotHasExcel)
+    {
+        ExcelWorkerClient? abandoned = null;
+        var session = Guid.NewGuid().ToString("N");
+        var path = Path.Join(Path.GetTempPath(), $"surviving-{Guid.NewGuid():N}.xlsx");
+        var surviving = WorkerProcess.Current;
+        using var controller = new ExcelController(launcher: Launcher, initializeWorker: async worker =>
+        {
+            await worker.InitializeAsync();
+            worker.RecordSnapshot(new WorkerSnapshot(
+                worker.Registration with
+                {
+                    Excel = snapshotHasExcel ? new ExcelProcessIdentity(surviving.ProcessId, surviving.StartedAtUtcFileTime) : null
+                },
+                [new SessionDescriptor(session, path)],
+                new ServiceResponse
+                {
+                    Success = true,
+                    Result = JsonSerializer.Serialize(new
+                    {
+                        sessions = new[] { new { sessionId = session, filePath = path, filePaths = new[] { path }, operationPending = false } }
+                    })
+                }, null, null, Revision: long.MaxValue));
+            abandoned = worker;
+            throw new TimeoutException("The startup reply was not confirmed.");
+        });
+        var started = await controller.ProcessAsync(new ServiceRequest
+        {
+            Command = "session.open",
+            Args = JsonSerializer.Serialize(new { filePath = path })
+        });
+        Assert.False(started.Success);
+        Assert.Equal("Timeout", started.ErrorCategory);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        while (controller.Sessions.Count == 0)
+            await Task.Delay(50, timeout.Token);
+        var worker = Assert.IsType<ExcelWorkerClient>(abandoned);
+        using var process = System.Diagnostics.Process.GetProcessById(worker.Registration.Worker.ProcessId);
+        _ = process.Handle;
+        Assert.Equal(worker.Registration.Worker, WorkerProcess.From(process));
+        Assert.True((await worker.ReleaseAsync(CancellationToken.None)).Success);
+        await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        for (var index = 0; index < 25; index++)
+        {
+            Assert.Equal(session, Assert.Single(controller.Sessions).SessionId);
+            var retry = await controller.ProcessAsync(new ServiceRequest
+            {
+                Command = "session.open",
+                Args = JsonSerializer.Serialize(new { filePath = path })
+            });
+            Assert.False(retry.Success);
+            Assert.Equal("Conflict", retry.ErrorCategory);
+            await Task.Delay(100, timeout.Token);
+        }
+    }
+
+    [Fact(Timeout = 30000)]
+    public async Task Controller_ExitedWorkerWithoutSnapshotKeepsDispatchedRequestPath()
+    {
+        System.Diagnostics.Process? process = null;
+        var initialized = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var controller = new ExcelController(launcher: Launcher, initializeWorker: async worker =>
+        {
+            await worker.InitializeAsync();
+            if (process is null)
+            {
+                Assert.Null(worker.Registration.Excel);
+                Assert.Empty(worker.Snapshot!.Sessions);
+                process = System.Diagnostics.Process.GetProcessById(worker.Registration.Worker.ProcessId);
+                _ = process.Handle;
+                Assert.Equal(worker.Registration.Worker, WorkerProcess.From(process));
+                Assert.Equal(0, NtSuspendProcess(process.Handle));
+                initialized.SetResult();
+            }
+        });
+        using var cancellation = new CancellationTokenSource();
+        var path = Path.Join(Path.GetTempPath(), $"unconfirmed-{Guid.NewGuid():N}.xlsx");
+        var opening = controller.ProcessAsync(new ServiceRequest
+        {
+            Command = "session.open",
+            Args = JsonSerializer.Serialize(new { filePath = path }),
+            CallerCancellation = cancellation.Token
+        });
+        var failure = await Record.ExceptionAsync(async () =>
+        {
+            await initialized.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            await Task.Delay(100);
+            cancellation.Cancel();
+            var response = await opening.WaitAsync(TimeSpan.FromSeconds(5));
+            Assert.False(response.Success);
+            using var partial = JsonDocument.Parse(response.PartialState!);
+            Assert.Equal("unknown", partial.RootElement.GetProperty("outcome").GetString());
+            Assert.Empty(controller.Sessions);
+            Assert.NotNull(process);
+            process.Kill();
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            for (var index = 0; index < 25; index++)
+            {
+                var retry = await controller.ProcessAsync(new ServiceRequest
+                {
+                    Command = "session.open",
+                    Args = JsonSerializer.Serialize(new { filePath = path })
+                });
+                Assert.False(retry.Success);
+                Assert.Equal("Conflict", retry.ErrorCategory);
+                await Task.Delay(100);
+            }
+        });
+        var cleanup = await Record.ExceptionAsync(async () =>
+        {
+            cancellation.Cancel();
+            if (process is { HasExited: false })
+            {
+                process.Kill();
+                await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+            }
+            await opening.WaitAsync(TimeSpan.FromSeconds(5));
+            process?.Dispose();
+        });
+        if (failure is not null && cleanup is not null)
+            throw new AggregateException(failure, cleanup);
+        if (failure is not null || cleanup is not null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture((failure ?? cleanup)!).Throw();
+    }
+
+    [DllImport("ntdll.dll")]
+    private static extern int NtSuspendProcess(IntPtr processHandle);
+
+    [Fact(Timeout = 30000)]
+    public async Task Controller_ExitedWorkerAndExcelReleasePathsWithoutClaimingConfirmedClosure()
+    {
+        using var exited = new ProductProcessLauncher("dotnet", ["--list-sdks"]).Start([]);
+        _ = exited.Handle;
+        var identity = WorkerProcess.From(exited);
+        await exited.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        using var controller = new ExcelController(launcher: Launcher);
+        var worker = await controller.StartWorkerAsync(null, CancellationToken.None);
+        var session = Guid.NewGuid().ToString("N");
+        var path = Path.Join(Path.GetTempPath(), $"exited-{Guid.NewGuid():N}.xlsx");
+        worker.RecordSnapshot(new WorkerSnapshot(
+            worker.Registration with { Excel = new ExcelProcessIdentity(identity.ProcessId, identity.StartedAtUtcFileTime) },
+            [new SessionDescriptor(session, path)],
+            new ServiceResponse
+            {
+                Success = true,
+                Result = JsonSerializer.Serialize(new
+                {
+                    sessions = new[] { new { sessionId = session, filePath = path, filePaths = new[] { path }, operationPending = false } }
+                })
+            }, null, null, Revision: long.MaxValue));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        while (controller.Sessions.Count == 0)
+            await Task.Delay(50, timeout.Token);
+        var reserved = await controller.ProcessAsync(new ServiceRequest
+        {
+            Command = "session.open",
+            Args = JsonSerializer.Serialize(new { filePath = path })
+        });
+        Assert.False(reserved.Success);
+        Assert.Equal("Conflict", reserved.ErrorCategory);
+        using var process = System.Diagnostics.Process.GetProcessById(worker.Registration.Worker.ProcessId);
+        _ = process.Handle;
+        Assert.Equal(worker.Registration.Worker, WorkerProcess.From(process));
+        Assert.True((await worker.ReleaseAsync(CancellationToken.None)).Success);
+        await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        while (controller.Sessions.Count != 0)
+            await Task.Delay(50, timeout.Token);
+        var closed = await controller.ProcessAsync(new ServiceRequest { Command = "session.close", SessionId = session });
+        Assert.False(closed.Success);
+        Assert.Equal("ServiceUnavailable", closed.ErrorCategory);
+        using var partial = JsonDocument.Parse(closed.PartialState!);
+        Assert.Equal("unknown", partial.RootElement.GetProperty("outcome").GetString());
+        var reopened = await controller.ProcessAsync(new ServiceRequest
+        {
+            Command = "session.open",
+            Args = JsonSerializer.Serialize(new { filePath = path })
+        });
+        Assert.False(reopened.Success);
+        Assert.Equal("FileNotFoundException", reopened.ExceptionType);
+    }
 
     [Theory(Timeout = 30000)]
     [InlineData("session.save", null, "InvalidInput")]
@@ -157,8 +463,13 @@ public sealed class ExcelControllerTests
         }
     }
 
-    [Fact(Timeout = 30000)]
-    public async Task Controller_CancelledStartupReleasesItsEmptyWorkerAndAllowsRetry()
+    [Theory(Timeout = 30000)]
+    [InlineData("session.open")]
+    [InlineData("session.create")]
+    [InlineData("session.test")]
+    [InlineData("sheet.copy-to-file")]
+    [InlineData("sheet.move-to-file")]
+    public async Task Controller_CancelledStartupReleasesItsEmptyWorkerAndAllowsRetry(string command)
     {
         var path = Path.Combine(Path.GetTempPath(), $"excelmcp-missing-{Guid.NewGuid():N}.xlsx");
         var registry = new WorkerRegistry();
@@ -167,8 +478,10 @@ public sealed class ExcelControllerTests
         using var cancellation = new CancellationTokenSource();
         var opening = controller.ProcessAsync(new ServiceRequest
         {
-            Command = "session.open",
-            Args = JsonSerializer.Serialize(new { filePath = path }),
+            Command = command,
+            Args = command.StartsWith("sheet.", StringComparison.Ordinal)
+                ? JsonSerializer.Serialize(new { sourceFile = path, targetFile = path + ".target.xlsx", sourceSheet = "Sheet1" })
+                : JsonSerializer.Serialize(new { filePath = path }),
             CallerCancellation = cancellation.Token
         });
         Assert.False(opening.IsCompleted);
@@ -331,7 +644,7 @@ public sealed class ExcelControllerWorkbookTests
         using var startupCancellation = new CancellationTokenSource();
         var blockStartup = false;
         Task<ServiceResponse>? opening = null;
-        using var controller = new ExcelController(launcher: launcher, initializeWorker: async worker =>
+        async Task InitializeWorkerAsync(ExcelWorkerClient worker)
         {
             await worker.InitializeAsync();
             if (blockStartup)
@@ -339,7 +652,9 @@ public sealed class ExcelControllerWorkbookTests
                 startupEntered.TrySetResult();
                 await releaseStartup.Task.WaitAsync(startupCancellation.Token);
             }
-        });
+        }
+        using var controller = new ExcelController(launcher: launcher, initializeWorker: InitializeWorkerAsync);
+        using var recoveryController = new ExcelController(launcher: launcher, initializeWorker: InitializeWorkerAsync);
         System.Diagnostics.Process? excelProcess = null;
         ExcelProcessIdentity? identity = null;
         string? session = null;
@@ -389,6 +704,15 @@ public sealed class ExcelControllerWorkbookTests
                 workerExited = true;
             }
             Assert.True(OwnedProcessGuard.MatchesLiveProcess(currentIdentity));
+            var registry = new WorkerRegistry();
+            registry.Write(registration);
+            var earlierControllerRecord = registration with
+            {
+                PipeName = $"excelmcp-worker-{Guid.NewGuid():N}",
+                Controller = registration.Worker,
+                Generation = Guid.NewGuid().ToString("N")
+            };
+            registry.Write(earlierControllerRecord);
             var discovered = await controller.ProcessAsync(new ServiceRequest { Command = "session.discover" });
             Assert.True(discovered.Success, discovered.ErrorMessage);
             using var discovery = JsonDocument.Parse(discovered.Result!);
@@ -396,7 +720,24 @@ public sealed class ExcelControllerWorkbookTests
             Assert.Contains(discovery.RootElement.GetProperty("errors").EnumerateArray(),
                 error => error.GetProperty("processId").GetInt32() == currentIdentity.ProcessId
                     && error.GetProperty("message").GetString()!.Contains("no edit was repeated", StringComparison.Ordinal));
-            var selected = Assert.Single(discovery.RootElement.GetProperty("workbooks").EnumerateArray(),
+            Assert.DoesNotContain(registry.Read(),
+                record => record.PipeName == registration.PipeName || record.PipeName == earlierControllerRecord.PipeName);
+            var replacement = Assert.Single(registry.Read(), record =>
+                record.Excel == currentIdentity && record.Worker.IsAlive());
+            using (var replacementProcess = System.Diagnostics.Process.GetProcessById(replacement.Worker.ProcessId))
+            {
+                _ = replacementProcess.Handle;
+                Assert.Equal(replacement.Worker.StartedAtUtcFileTime,
+                    replacementProcess.StartTime.ToUniversalTime().ToFileTimeUtc());
+                await controller.RequestShutdownAsync();
+                await replacementProcess.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(10));
+            }
+            discovered = await recoveryController.ProcessAsync(new ServiceRequest { Command = "session.discover" });
+            Assert.True(discovered.Success, discovered.ErrorMessage);
+            using var rediscovery = JsonDocument.Parse(discovered.Result!);
+            Assert.DoesNotContain(rediscovery.RootElement.GetProperty("errors").EnumerateArray(),
+                error => error.GetProperty("message").GetString()!.Contains("no edit was repeated", StringComparison.Ordinal));
+            var selected = Assert.Single(rediscovery.RootElement.GetProperty("workbooks").EnumerateArray(),
                 item => item.GetProperty("location").GetString() == path);
             Assert.False(selected.GetProperty("saved").GetBoolean());
             var attachRequest = new ServiceRequest
@@ -407,14 +748,14 @@ public sealed class ExcelControllerWorkbookTests
             if (pendingOpen)
             {
                 blockStartup = true;
-                opening = controller.ProcessAsync(new ServiceRequest
+                opening = recoveryController.ProcessAsync(new ServiceRequest
                 {
                     Command = "session.open",
                     Args = JsonSerializer.Serialize(new { filePath = path }),
                     CallerCancellation = startupCancellation.Token
                 });
                 await startupEntered.Task.WaitAsync(TimeSpan.FromSeconds(5));
-                var refused = await controller.ProcessAsync(attachRequest);
+                var refused = await recoveryController.ProcessAsync(attachRequest);
                 Assert.False(refused.Success);
                 Assert.Equal("Conflict", refused.ErrorCategory);
                 blockStartup = false;
@@ -424,15 +765,15 @@ public sealed class ExcelControllerWorkbookTests
                 Assert.False(cancelled.Success);
                 Assert.Equal("Cancelled", cancelled.ErrorCategory);
             }
-            var attached = await controller.ProcessAsync(attachRequest);
+            var attached = await recoveryController.ProcessAsync(attachRequest);
             Assert.True(attached.Success, attached.ErrorMessage);
             Assert.NotEqual(session, attached.SessionId);
-            Assert.Equal(attached.SessionId, Assert.Single(controller.Sessions).SessionId);
-            var again = await controller.ProcessAsync(attachRequest);
+            Assert.Equal(attached.SessionId, Assert.Single(recoveryController.Sessions).SessionId);
+            var again = await recoveryController.ProcessAsync(attachRequest);
             Assert.True(again.Success, again.ErrorMessage);
             Assert.Equal(attached.SessionId, again.SessionId);
-            Assert.Equal(attached.SessionId, Assert.Single(controller.Sessions).SessionId);
-            var read = await controller.ProcessAsync(new ServiceRequest
+            Assert.Equal(attached.SessionId, Assert.Single(recoveryController.Sessions).SessionId);
+            var read = await recoveryController.ProcessAsync(new ServiceRequest
             {
                 Command = "range.get-values",
                 SessionId = attached.SessionId,
@@ -462,6 +803,8 @@ public sealed class ExcelControllerWorkbookTests
                 Assert.True((await controller.ProcessAsync(new ServiceRequest { Command = "session.close", SessionId = session })).Success);
             await controller.RequestShutdownAsync();
             controller.Dispose();
+            await recoveryController.RequestShutdownAsync();
+            recoveryController.Dispose();
             if (remainingWorker is not null)
                 await remainingWorker.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(15));
             if (workerExited && identity is { } cleanupIdentity)

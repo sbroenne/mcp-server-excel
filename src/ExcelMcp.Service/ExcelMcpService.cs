@@ -711,6 +711,7 @@ public sealed class ExcelMcpService : IDisposable
                 {
                     sessionId = s.SessionId,
                     filePath = s.FilePath,
+                    filePaths = _sessionManager.GetOwnedFilePaths(s.SessionId),
                     workbookName = s.WorkbookName,
                     isAttached = s.IsAttached,
                     isExcelVisible = validation.IsExcelVisible,
@@ -845,22 +846,35 @@ public sealed class ExcelMcpService : IDisposable
             if (sheetAction is SheetAction.CopyToFile or SheetAction.MoveToFile)
 
             {
+                using var temporary = _sessionManager.OwnTemporaryBatches(request.Command, request.CallerCancellation);
 
                 try
 
                 {
 
-                    return WrapResult(ServiceRegistry.Sheet.DispatchToCore(
-
-                        _sheetCommands, sheetAction, null!, request.Args));
+                    var result = ServiceRegistry.Sheet.DispatchToCore(
+                        _sheetCommands, sheetAction, null!, request.Args);
+                    temporary.Complete();
+                    return WrapResult(result);
 
                 }
 
                 catch (Exception ex)
 
                 {
-
-                    return CreateErrorResponse(ex);
+                    Exception? recoveryFailure = null;
+                    try
+                    {
+                        temporary.RetainFailure();
+                    }
+                    catch (Exception recoveryError)
+                    {
+                        recoveryFailure = recoveryError;
+                    }
+                    if (temporary.SessionId is { } sessionId)
+                        _knownSessionIds.TryAdd(sessionId, 0);
+                    return CreateErrorResponse(ex, request.Command, temporary.SessionId,
+                        temporary.SessionId is not null ? temporary.FilePaths : null, recoveryFailure);
 
                 }
 
@@ -1273,7 +1287,9 @@ public sealed class ExcelMcpService : IDisposable
         };
     }
 
-    private ServiceResponse CreateErrorResponse(Exception ex, string? command = null, string? sessionId = null)
+    private ServiceResponse CreateErrorResponse(
+        Exception ex, string? command = null, string? sessionId = null,
+        IReadOnlyList<string>? retainedFiles = null, Exception? recoveryFailure = null)
     {
         if (ex is SessionStartupPendingException pending)
         {
@@ -1298,6 +1314,11 @@ public sealed class ExcelMcpService : IDisposable
                 innerError += $" [COM: 0x{innerComEx.HResult:X8}]";
             }
         }
+        if (recoveryFailure is not null)
+        {
+            innerError = $"{innerError}{(innerError is null ? "" : Environment.NewLine)}" +
+                $"Recovery reveal also failed: {recoveryFailure.GetType().Name}: {recoveryFailure.Message}";
+        }
 
         return ex switch
         {
@@ -1312,7 +1333,8 @@ public sealed class ExcelMcpService : IDisposable
                 HResult = hresult,
                 InnerError = innerError,
                 PartialState = SerializePartialState(pqEx.PartialState,
-                    sessionId is not null ? _sessionManager.GetOperationStatus(sessionId) : null)
+                    sessionId is not null ? _sessionManager.GetOperationStatus(sessionId) : null,
+                    sessionId, retainedFiles)
             },
             _ => new ServiceResponse
             {
@@ -1325,17 +1347,27 @@ public sealed class ExcelMcpService : IDisposable
                 HResult = hresult,
                 InnerError = innerError,
                 PartialState = SerializePartialState(null,
-                    sessionId is not null ? _sessionManager.GetOperationStatus(sessionId) : null)
+                    sessionId is not null ? _sessionManager.GetOperationStatus(sessionId) : null,
+                    sessionId, retainedFiles)
             }
         };
     }
 
-    private static string? SerializePartialState(PowerQueryPartialState? query, ExcelOperationStatus? operation)
+    private static string? SerializePartialState(
+        PowerQueryPartialState? query, ExcelOperationStatus? operation,
+        string? sessionId = null, IReadOnlyList<string>? retainedFiles = null)
     {
         var state = query is null
             ? null
             : JsonSerializer.SerializeToNode(query, ServiceProtocol.JsonOptions)!.AsObject();
-        if (operation is { WaitExpired: true })
+        if (retainedFiles is not null)
+        {
+            state ??= new System.Text.Json.Nodes.JsonObject();
+            state["sessionId"] = sessionId;
+            state["filePaths"] = JsonSerializer.SerializeToNode(retainedFiles, ServiceProtocol.JsonOptions);
+            state["retained"] = true;
+        }
+        if (operation is { WaitExpired: true } || operation is not null && retainedFiles is not null)
         {
             state ??= new System.Text.Json.Nodes.JsonObject();
             state["operation"] = JsonSerializer.SerializeToNode(operation, ServiceProtocol.JsonOptions);

@@ -1675,6 +1675,16 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
             }
             ExcelBusyException.ThrowIfNotReady(
                 ReadRefreshState(), "save", this);
+            if (IsManagedTemporaryBatch)
+            {
+                foreach (var (path, workbook) in _workbooks!)
+                {
+                    if (!workbook.Saved)
+                        ExcelShutdownService.SaveWorkbookWithTimeout(
+                            workbook, Path.GetFileName(path), _logger, ct);
+                }
+                return 0;
+            }
             ExcelShutdownService.SaveWorkbookWithTimeout(
                 _workbook!,
                 Path.GetFileName(_workbookPath),
@@ -2123,8 +2133,15 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
         return paths;
     }
 
+    internal bool IsManagedTemporaryBatch { get; set; }
+
     public void Dispose()
     {
+        // The Service scope owns success cleanup and retains failures. Core's using
+        // must neither discard partial edits nor replace the original exception.
+        if (IsManagedTemporaryBatch && ExcelSession.HasTemporaryBatchOwner)
+            return;
+
         lock (_disposeLock)
         {
             if (_disposed == 0 && IsExcelProcessAlive() &&

@@ -8,6 +8,27 @@ namespace Sbroenne.ExcelMcp.ComInterop.Session;
 /// </summary>
 public static class ExcelSession
 {
+    internal static TimeSpan? TemporaryBatchTimeoutForTests { get; set; }
+    internal static TimeSpan? TemporaryBatchStartupTimeoutForTests { get; set; }
+    internal static Action<ExcelBatch>? TemporaryBatchCreatedForTests { get; set; }
+    private static readonly AsyncLocal<Func<string[], bool, TimeSpan?, TimeSpan?, ExcelBatch>?> TemporaryBatchOwner = new();
+
+    internal static bool HasTemporaryBatchOwner => TemporaryBatchOwner.Value is not null;
+
+    internal static IDisposable OwnTemporaryBatches(
+        Func<string[], bool, TimeSpan?, TimeSpan?, ExcelBatch> create)
+    {
+        var previous = TemporaryBatchOwner.Value;
+        TemporaryBatchOwner.Value = create;
+        return new TemporaryBatchOwnerScope(previous);
+    }
+
+    private sealed class TemporaryBatchOwnerScope(
+        Func<string[], bool, TimeSpan?, TimeSpan?, ExcelBatch>? previous) : IDisposable
+    {
+        public void Dispose() => TemporaryBatchOwner.Value = previous;
+    }
+
     /// <summary>
     /// Begins a batch of Excel operations against one or more workbook instances.
     /// The Excel instance remains open until the batch is disposed, enabling multiple operations
@@ -103,14 +124,24 @@ public static class ExcelSession
             fullPaths[i] = fullPath;
         }
 
+        if (!deferStartup && TemporaryBatchOwner.Value is { } owner)
+            return owner(fullPaths, show, operationTimeout, startupTimeout);
+
         // Create batch - it will create Excel/workbook on its own STA thread
-        return new ExcelBatch(
+        var batch = new ExcelBatch(
             fullPaths,
             logger: null,
             show: show,
-            operationTimeout: operationTimeout,
-            startupTimeout: startupTimeout,
-            deferStartup: deferStartup);
+            operationTimeout: operationTimeout ?? (!deferStartup ? TemporaryBatchTimeoutForTests : null),
+            startupTimeout: startupTimeout ?? (!deferStartup ? TemporaryBatchStartupTimeoutForTests : null) ?? (!deferStartup && TemporaryBatchTimeoutForTests is not null
+                ? ComInteropConstants.DefaultOperationTimeout : null),
+            deferStartup: true);
+        if (!deferStartup)
+        {
+            TemporaryBatchCreatedForTests?.Invoke(batch);
+            batch.WaitForStartup();
+        }
+        return batch;
     }
 
     /// <summary>

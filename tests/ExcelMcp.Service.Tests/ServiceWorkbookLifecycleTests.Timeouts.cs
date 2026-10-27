@@ -1014,25 +1014,51 @@ public sealed partial class ServiceWorkbookLifecycleTests
     }
 
     [Theory]
-    [InlineData(false, false, false)]
-    [InlineData(true, false, false)]
-    [InlineData(false, true, false)]
-    [InlineData(false, false, true)]
+    [InlineData(false, false, false, null)]
+    [InlineData(true, false, false, null)]
+    [InlineData(false, true, false, null)]
+    [InlineData(false, false, true, null)]
+    [InlineData(false, false, false, "session.attach")]
+    [InlineData(false, false, false, "workbook.save-as")]
     public async Task Controller_LateSaveAsPublishesFinalPathAndPreservesReservations(
-        bool cancel, bool completeDuringCapture, bool checkSessionlessRouting)
+        bool cancel, bool completeDuringCapture, bool checkSessionlessRouting, string? rejectedCommand)
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
             var path = Path.Join(directory, "controller-late-save.xlsx");
             var target = Path.Join(directory, "controller-late-save-as.xlsx");
+            var unusedTarget = Path.Join(directory, "rejected-save-as.xlsx");
+            var neighborPath = Path.Join(directory, "rejected-attachment.xlsx");
             var session = await CreateSessionAsync(service, path);
             await WriteMarkerAsync(service, session, "Saved baseline");
             await CloseSessionAsync(service, session, save: true);
             session = service.SessionManager.CreateSessionWithTimeouts(
-                path, true, TimeSpan.FromSeconds(checkSessionlessRouting ? 10 : 2), ComInteropConstants.DefaultOperationTimeout);
+                path, true, TimeSpan.FromSeconds(checkSessionlessRouting || rejectedCommand is not null ? 10 : 2),
+                ComInteropConstants.DefaultOperationTimeout);
             sessions[session] = 0;
             await WriteMarkerAsync(service, session, "Saved after timeout");
             var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(session));
+            string? neighborName = null;
+            string? neighborSession = null;
+            if (rejectedCommand == "session.attach")
+                neighborName = batch.Execute((context, _) =>
+                {
+                    var name = AddReviewWorkbook(context.App, "Neighbor retained after Busy");
+                    Excel.Workbooks? books = null;
+                    Excel.Workbook? workbook = null;
+                    try
+                    {
+                        books = context.App.Workbooks;
+                        workbook = books[name];
+                        workbook.SaveAs(neighborPath, ComInteropConstants.XlOpenXmlWorkbook);
+                        return workbook.Name;
+                    }
+                    finally
+                    {
+                        ComUtilities.Release(ref workbook);
+                        ComUtilities.Release(ref books);
+                    }
+                });
             var identity = Assert.IsType<ExcelProcessIdentity>(batch.ProcessIdentity);
             var executable = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
                 @"..\..\..\..\..\src\ExcelMcp.CLI\bin\Release\net10.0-windows\excelcli.exe"));
@@ -1066,6 +1092,10 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 Assert.True(discovery.RootElement.GetProperty("complete").GetBoolean(), discovered.Result);
                 var selected = Assert.Single(discovery.RootElement.GetProperty("workbooks").EnumerateArray(),
                     item => item.GetProperty("location").GetString() == path);
+                var neighborSelection = neighborName is null ? null
+                    : Assert.Single(discovery.RootElement.GetProperty("workbooks").EnumerateArray(),
+                        item => item.GetProperty("location").GetString() == neighborPath)
+                        .GetProperty("workbookId").GetString();
                 claimed = true;
                 var attached = await controller.ProcessAsync(new ServiceRequest
                 {
@@ -1081,6 +1111,21 @@ public sealed partial class ServiceWorkbookLifecycleTests
                     Args = JsonSerializer.Serialize(new { targetPath = target, overwrite = true })
                 });
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                var rejectedRequest = rejectedCommand is null ? null : new ServiceRequest
+                {
+                    Command = rejectedCommand,
+                    SessionId = rejectedCommand == "workbook.save-as" ? session : null,
+                    Args = rejectedCommand == "session.attach"
+                        ? JsonSerializer.Serialize(new { workbookId = neighborSelection })
+                        : JsonSerializer.Serialize(new { targetPath = unusedTarget })
+                };
+                if (rejectedRequest is not null)
+                {
+                    var rejected = await controller.ProcessAsync(rejectedRequest).WaitAsync(TimeSpan.FromSeconds(5));
+                    Assert.False(rejected.Success);
+                    Assert.Equal("Busy", rejected.ErrorCategory);
+                    Assert.True(batch.OperationStatus.ExecutionPending);
+                }
                 if (checkSessionlessRouting)
                 {
                     var echo = await controller.ProcessAsync(new ServiceRequest
@@ -1108,6 +1153,13 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 var timedOut = await saving.WaitAsync(TimeSpan.FromSeconds(15));
                 Assert.False(timedOut.Success);
                 Assert.Equal("Timeout", timedOut.ErrorCategory);
+                if (rejectedRequest is not null)
+                {
+                    var rejected = await controller.ProcessAsync(rejectedRequest).WaitAsync(TimeSpan.FromSeconds(5));
+                    Assert.False(rejected.Success);
+                    Assert.Equal("Busy", rejected.ErrorCategory);
+                    Assert.True(batch.OperationStatus.ExecutionPending);
+                }
                 await Task.Delay(1500);
                 RequireSuccess(await controller.ProcessAsync(new ServiceRequest
                 {
@@ -1181,6 +1233,29 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 using var list = JsonDocument.Parse(listed.Result!);
                 Assert.Equal(expectedPath, Assert.Single(list.RootElement.GetProperty("sessions").EnumerateArray())
                     .GetProperty("filePath").GetString());
+                if (rejectedCommand is not null)
+                {
+                    var retried = await controller.ProcessAsync(new ServiceRequest
+                    {
+                        Command = rejectedCommand == "session.attach" ? "session.attach" : "session.create",
+                        Args = rejectedCommand == "session.attach"
+                            ? JsonSerializer.Serialize(new { workbookId = neighborSelection })
+                            : JsonSerializer.Serialize(new { filePath = unusedTarget })
+                    });
+                    RequireSuccess(retried);
+                    if (rejectedCommand == "session.attach")
+                    {
+                        neighborSession = retried.SessionId;
+                        Assert.Equal("Neighbor retained after Busy", await ReadMarkerAsync(service, neighborSession!));
+                    }
+                    RequireSuccess(await controller.ProcessAsync(new ServiceRequest
+                    {
+                        Command = "session.close",
+                        SessionId = retried.SessionId
+                    }));
+                    if (rejectedCommand == "session.attach")
+                        neighborName = null;
+                }
                 var availablePath = cancel ? target : path;
                 var available = await controller.ProcessAsync(new ServiceRequest
                 {
@@ -1203,10 +1278,38 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 if (saving is not null)
                     _ = await saving.WaitAsync(TimeSpan.FromSeconds(15));
                 var timer = Stopwatch.StartNew();
+                while (batch.OperationStatus.ExecutionPending)
+                {
+                    Assert.True(timer.Elapsed < TimeSpan.FromSeconds(15));
+                    await Task.Delay(100);
+                }
+                timer.Restart();
                 while (batch.GetRefreshState() != WorkbookRefreshState.Ready)
                 {
                     Assert.True(timer.Elapsed < TimeSpan.FromSeconds(15));
                     await Task.Delay(100);
+                }
+                if (neighborName is not null)
+                {
+                    if (neighborSession is not null)
+                        await CloseSessionAsync(service, neighborSession, save: false);
+                    else
+                        batch.Execute((context, _) =>
+                        {
+                            Excel.Workbooks? books = null;
+                            Excel.Workbook? workbook = null;
+                            try
+                            {
+                                books = context.App.Workbooks;
+                                workbook = books[neighborName];
+                                workbook.Close(SaveChanges: false);
+                            }
+                            finally
+                            {
+                                ComUtilities.Release(ref workbook);
+                                ComUtilities.Release(ref books);
+                            }
+                        });
                 }
                 batch.Execute((ctx, _) => ctx.App.WorkbookBeforeSave -= beforeSave);
                 await CloseSessionAsync(service, session, save: false);

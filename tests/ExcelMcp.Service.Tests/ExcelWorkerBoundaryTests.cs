@@ -100,8 +100,9 @@ public sealed class ExcelWorkerBoundaryTests
     {
         var executable = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
             @"..\..\..\..\..\src\ExcelMcp.CLI\bin\Release\net10.0-windows\excelcli.exe"));
-        var worker = await ExcelWorkerClient.StartAsync(new ProductProcessLauncher(executable, []),
-            WorkerProcess.Current, Guid.NewGuid().ToString("N"), null, CancellationToken.None);
+        var worker = ExcelWorkerClient.Launch(new ProductProcessLauncher(executable, []),
+            WorkerProcess.Current, Guid.NewGuid().ToString("N"), null);
+        await worker.InitializeAsync();
         using var process = Process.GetProcessById(worker.Registration.Worker.ProcessId);
         Assert.Equal(worker.Registration.Worker, WorkerProcess.From(process));
         Assert.Null(worker.Snapshot!.Registration.Excel);
@@ -302,18 +303,18 @@ public sealed class ExcelWorkerBoundaryTests
         internal TaskCompletionSource Finish { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal int Calls { get; private set; }
 
-        public async Task<ServiceResponse> ExecuteAsync(WorkerCall call, CancellationToken cancellationToken = default)
+        public async Task<WorkerExecution> ExecuteAsync(WorkerCall call, CancellationToken cancellationToken = default)
         {
             Calls++;
             using var registration = cancellationToken.Register(() => Cancelled.TrySetResult());
             Started.TrySetResult();
             await Finish.Task;
-            return new ServiceResponse
+            return new(new ServiceResponse
             {
                 Success = false,
                 ExceptionType = "FileNotFoundException",
                 ErrorMessage = "The requested workbook does not exist."
-            };
+            }, Accepted: true);
         }
 
         public Task<WorkerSnapshot> ClaimAsync(WorkerClaim claim, CancellationToken cancellationToken = default) =>

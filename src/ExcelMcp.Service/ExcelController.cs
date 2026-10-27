@@ -26,7 +26,8 @@ internal sealed class ExcelController : IDisposable
     private readonly SemaphoreSlim _discovery = new(1, 1);
     private readonly ConcurrentDictionary<string, byte> _newWorkers = new(StringComparer.Ordinal);
     private readonly ConcurrentDictionary<string, byte> _abandonedWorkers = new(StringComparer.Ordinal);
-    private readonly ConcurrentDictionary<string, byte> _closedSessions = new(StringComparer.Ordinal);
+    private enum SessionEnd { Closed, WorkerExited }
+    private readonly ConcurrentDictionary<string, SessionEnd> _closedSessions = new(StringComparer.Ordinal);
     private readonly CancellationTokenSource _stop = new();
     private readonly DaemonHost _host;
     private readonly DaemonHost _controlHost;
@@ -72,11 +73,14 @@ internal sealed class ExcelController : IDisposable
     internal async Task<ServiceResponse> ProcessAsync(ServiceRequest request) =>
         ExcelMcpService.AttachRequestContext(request, await ProcessCoreAsync(request).ConfigureAwait(false));
 
+    private static bool StartsWorkbookWorker(string command) =>
+        command is "session.open" or "session.create" or "session.test" or "sheet.copy-to-file" or "sheet.move-to-file";
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "The controller is a failure-transport boundary. It reports the exact worker/transport cause and uncertain workbook outcome without replaying, saving, or discarding work.")]
     private async Task<ServiceResponse> ProcessCoreAsync(ServiceRequest request)
     {
-        string? reservedPath = null;
+        List<string> reservedPaths = [];
         var reservation = new PathReservation(Guid.NewGuid().ToString("N"),
             request.Command == "workbook.save-as" ? request.SessionId : null);
         ExcelWorkerClient? worker = null;
@@ -115,15 +119,23 @@ internal sealed class ExcelController : IDisposable
             if (request.Command == "session.discover")
                 return await DiscoverAsync(request.CallerCancellation);
 
-            if (request.Command is "session.open" or "session.create")
+            if (StartsWorkbookWorker(request.Command))
             {
                 using var arguments = JsonDocument.Parse(request.Args ?? "{}");
-                var path = arguments.RootElement.TryGetProperty("filePath", out var value) ? value.GetString() : null;
-                if (string.IsNullOrWhiteSpace(path))
-                    return ExcelWorkerHost.Failure(request, "InvalidInput", "filePath is required");
-                reservedPath = FilePathValidation.NormalizeWorkbookLocation(path);
-                if (!_paths.TryAdd(reservedPath, reservation))
-                    return ExcelWorkerHost.Failure(request, "Conflict", "This workbook is already reserved by another session or pending request.");
+                string[] operands = request.Command.StartsWith("sheet.", StringComparison.Ordinal)
+                    ? ["sourceFile", "targetFile"] : ["filePath"];
+                foreach (var operand in operands)
+                {
+                    var path = arguments.RootElement.TryGetProperty(operand, out var value) ? value.GetString() : null;
+                    if (string.IsNullOrWhiteSpace(path))
+                        return ExcelWorkerHost.Failure(request, "InvalidInput", $"{operand} is required");
+                    var normalized = FilePathValidation.NormalizeWorkbookLocation(path);
+                    if (reservedPaths.Contains(normalized, StringComparer.OrdinalIgnoreCase))
+                        continue;
+                    if (!_paths.TryAdd(normalized, reservation))
+                        return ExcelWorkerHost.Failure(request, "Conflict", "This workbook is already reserved by another session or pending request.");
+                    reservedPaths.Add(normalized);
+                }
                 worker = await StartWorkerAsync(null, request.CallerCancellation);
             }
             else if (request.Command == "session.attach")
@@ -142,14 +154,12 @@ internal sealed class ExcelController : IDisposable
                     if (!_paths.TryGetValue(normalized, out var existing)
                         || existing.SessionId is null || existing.SessionId != selectedWorkbook.Workbook.SessionId)
                     {
-                        reservedPath = normalized;
-                        if (!_paths.TryAdd(reservedPath, reservation))
+                        if (!_paths.TryAdd(normalized, reservation))
                             return ExcelWorkerHost.Failure(request, "Conflict", "This workbook is reserved by another session or pending request.");
+                        reservedPaths.Add(normalized);
                     }
                 }
             }
-            else if (request.Command is "session.test" or "sheet.copy-to-file" or "sheet.move-to-file")
-                worker = await StartWorkerAsync(null, request.CallerCancellation);
             else if (request.Command.StartsWith("powerquerytrace.", StringComparison.Ordinal)
                 && JsonNode.Parse(request.Args ?? "{}")?["workbookSessionId"] is JsonValue workbookFilter
                 && workbookFilter.TryGetValue<string>(out var filteredSession)
@@ -159,7 +169,7 @@ internal sealed class ExcelController : IDisposable
                 && request.SessionId is { } sessionId && _sessions.TryGetValue(sessionId, out var owner))
                 worker = owner;
             else if (request.Command == "session.close" && request.SessionId is { } closedId
-                && _closedSessions.ContainsKey(closedId))
+                && _closedSessions.TryGetValue(closedId, out var end) && end == SessionEnd.Closed)
                 return new ServiceResponse
                 {
                     Success = true,
@@ -168,6 +178,11 @@ internal sealed class ExcelController : IDisposable
                     Result = JsonSerializer.Serialize(new { success = true, sessionId = closedId, message = "Session already closed." },
                         ServiceProtocol.JsonOptions)
                 };
+            else if (!ExcelMcpService.IsSessionlessCommand(request.Command) && request.SessionId is { } lostId
+                && _closedSessions.TryGetValue(lostId, out var lostEnd) && lostEnd == SessionEnd.WorkerExited)
+                return CreateWorkerError(request,
+                    new IOException("The workbook's Excel helper exited. Its last outcome could not be confirmed; no work was repeated."),
+                    sent: true);
             else
             {
                 lock (_utilityLock)
@@ -180,11 +195,12 @@ internal sealed class ExcelController : IDisposable
                 worker = await _utility.WaitAsync(request.CallerCancellation);
             }
 
-            if (reservedPath is not null)
+            if (reservedPaths.Count > 0)
             {
                 var associated = reservation with { Token = worker.Registration.PipeName };
-                if (_paths.TryUpdate(reservedPath, associated, reservation))
-                    reservation = associated;
+                foreach (var path in reservedPaths)
+                    _paths.TryUpdate(path, associated, reservation);
+                reservation = associated;
             }
             request.CallerCancellation.ThrowIfCancellationRequested();
             if (_shutdown is not null)
@@ -198,39 +214,44 @@ internal sealed class ExcelController : IDisposable
                     var normalized = FilePathValidation.NormalizeAbsoluteWindowsPath(targetPath);
                     if (!_paths.TryGetValue(normalized, out var existing) || existing.SessionId != request.SessionId)
                     {
-                        reservedPath = normalized;
-                        if (!_paths.TryAdd(reservedPath, reservation))
+                        if (!_paths.TryAdd(normalized, reservation))
                             return ExcelWorkerHost.Failure(request, "Conflict", "The Save As destination belongs to another session or pending request.");
+                        reservedPaths.Add(normalized);
                     }
                 }
             }
             if (!worker.Registration.Worker.IsAlive())
                 throw new IOException("The Excel worker exited before this request was sent. Discover open workbooks to reconnect; no work was started.");
             sent = true;
-            return await CompleteWorkerRequestAsync(request, worker, reservedPath, reservation)
+            return await CompleteWorkerRequestAsync(request, worker, reservedPaths, reservation)
                 .WaitAsync(request.CallerCancellation);
         }
         catch (Exception ex)
         {
-            if (worker is not null && request.Command is "session.open" or "session.create")
+            if (worker is not null && StartsWorkbookWorker(request.Command))
                 _abandonedWorkers[worker.Registration.PipeName] = 0;
             return CreateWorkerError(request, ex, sent);
         }
         finally
         {
-            if (!sent && reservedPath is not null)
-                _paths.TryRemove(new KeyValuePair<string, PathReservation>(reservedPath, reservation));
+            if (!sent)
+                foreach (var path in reservedPaths)
+                    _paths.TryRemove(new KeyValuePair<string, PathReservation>(path, reservation));
         }
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "The controller owns late worker completion after caller cancellation. It records exact results and confirmed state, and reports/logs transport failures rather than losing a faulted background task or retrying edits.")]
     private async Task<ServiceResponse> CompleteWorkerRequestAsync(
-        ServiceRequest request, ExcelWorkerClient worker, string? reservedPath, PathReservation reservation)
+        ServiceRequest request, ExcelWorkerClient worker, List<string> reservedPaths, PathReservation reservation)
     {
         try
         {
-            var response = await worker.ExecuteAsync(request, request.CallerCancellation);
+            var execution = await worker.ExecuteWithAdmissionAsync(request, request.CallerCancellation);
+            var response = execution.Response;
+            if (!execution.Accepted)
+                foreach (var path in reservedPaths)
+                    _paths.TryRemove(new KeyValuePair<string, PathReservation>(path, reservation));
             // A status failure must not replace the exact workbook operation result.
             await RefreshWorkerAsync(worker, CancellationToken.None);
             lock (_shutdownLock)
@@ -244,56 +265,62 @@ internal sealed class ExcelController : IDisposable
                         && JsonNode.Parse(request.Args!)?["workbookId"]?.GetValue<string>() is { } selectionId
                         && _selections.TryGetValue(selectionId, out var selection) && selection.Worker == worker)
                         _selections[selectionId] = (worker, selection.Workbook with { SessionId = created });
-                    if (reservedPath is not null && (response.Success || response.PartialState is not null
-                        || worker.Snapshot.Sessions.Any(session =>
-                            string.Equals(session.FilePath, reservedPath, StringComparison.OrdinalIgnoreCase))))
-                        _paths[reservedPath] = new PathReservation("recorded", created);
+                    var currentPaths = RecordedPaths(worker.Snapshot, created);
+                    foreach (var path in reservedPaths)
+                        if (currentPaths.Contains(path))
+                            _paths[path] = new PathReservation("recorded", created);
                 }
                 if (response.Success && request.SessionId is { } reconciled
                     && worker.StatusError is null && worker.Snapshot is { StatusError: null } settledSnapshot
                     && !HasPendingWork(settledSnapshot)
-                    && settledSnapshot.Sessions.FirstOrDefault(session => session.SessionId == reconciled)?.FilePath is { } currentPath)
+                    && settledSnapshot.Sessions.FirstOrDefault(session => session.SessionId == reconciled)?.FilePath is not null)
                 {
-                    currentPath = FilePathValidation.NormalizeWorkbookLocation(currentPath);
-                    _paths[currentPath] = new PathReservation("recorded", reconciled);
+                    var currentPaths = RecordedPaths(settledSnapshot, reconciled);
+                    foreach (var path in currentPaths)
+                        _paths[path] = new PathReservation("recorded", reconciled);
                     foreach (var old in _paths.Where(path => path.Value.Token == "recorded" && path.Value.SessionId == reconciled
-                        && !string.Equals(path.Key, currentPath, StringComparison.OrdinalIgnoreCase)))
+                        && !currentPaths.Contains(path.Key)))
                         _paths.TryRemove(old);
                 }
                 if (response.Success && request.Command == "session.close" && request.SessionId is { } closed)
                 {
-                    _closedSessions[closed] = 0;
+                    _closedSessions[closed] = SessionEnd.Closed;
                     _sessions.TryRemove(closed, out _);
                     foreach (var path in _paths.Where(path => path.Value.SessionId == closed))
                         _paths.TryRemove(path.Key, out _);
                 }
-                if (!response.Success && reservedPath is not null
-                    && worker.Snapshot is { StatusError: null } snapshot && !HasPendingWork(snapshot))
+                if (worker.StatusError is null && worker.Snapshot is { StatusError: null } snapshot
+                    && !HasPendingWork(snapshot) && (response.Success || response.PartialState is null))
                 {
-                    var targetRetained = worker.Snapshot.Sessions.Any(session =>
-                        string.Equals(session.FilePath, reservedPath, StringComparison.OrdinalIgnoreCase));
-                    if (!targetRetained && response.PartialState is null)
-                        _paths.TryRemove(new KeyValuePair<string, PathReservation>(reservedPath, reservation));
+                    var retainedPaths = snapshot.Sessions.SelectMany(session => RecordedPaths(snapshot, session.SessionId))
+                        .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                    foreach (var path in reservedPaths)
+                        if (!retainedPaths.Contains(path))
+                            _paths.TryRemove(new KeyValuePair<string, PathReservation>(path, reservation));
                 }
             }
             if (request.Command is "session.close" or "session.test" or "sheet.copy-to-file" or "sheet.move-to-file"
-                || !response.Success && reservedPath is not null)
+                || !response.Success && reservedPaths.Count > 0)
                 await ReleaseEmptyWorkerAsync(worker);
             return response;
         }
         catch (Exception ex)
         {
-            if (request.Command is "session.open" or "session.create")
+            if (StartsWorkbookWorker(request.Command))
                 _abandonedWorkers[worker.Registration.PipeName] = 0;
-            if (ex is OperationCanceledException && reservedPath is not null)
+            if (ex is OperationCanceledException && reservedPaths.Count > 0)
             {
                 await RefreshWorkerAsync(worker, CancellationToken.None);
                 lock (_shutdownLock)
                 {
-                    if (worker.Snapshot is { StatusError: null } snapshot && !HasPendingWork(snapshot)
-                        && !snapshot.Sessions.Any(session =>
-                            string.Equals(session.FilePath, reservedPath, StringComparison.OrdinalIgnoreCase)))
-                        _paths.TryRemove(new KeyValuePair<string, PathReservation>(reservedPath, reservation));
+                    if (worker.StatusError is null && worker.Snapshot is { StatusError: null } snapshot && !HasPendingWork(snapshot))
+                    {
+                        var retainedPaths = snapshot.Sessions.SelectMany(session => RecordedPaths(snapshot, session.SessionId))
+                            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                        foreach (var path in reservedPaths)
+                            if (!retainedPaths.Contains(path))
+                                _paths.TryRemove(new KeyValuePair<string, PathReservation>(path, reservation));
+                    }
                 }
             }
             System.Diagnostics.Trace.TraceError("Excel worker request failed: {0}", ex);
@@ -322,6 +349,16 @@ internal sealed class ExcelController : IDisposable
         snapshot.PendingOperation is not null
         || JsonNode.Parse(snapshot.SessionList.Result!)!["sessions"]!.AsArray()
             .Any(session => session?["operationPending"]?.GetValue<bool>() == true);
+
+    private static HashSet<string> RecordedPaths(WorkerSnapshot snapshot, string sessionId)
+    {
+        using var list = JsonDocument.Parse(snapshot.SessionList.Result!);
+        var session = list.RootElement.GetProperty("sessions").EnumerateArray()
+            .Single(entry => entry.GetProperty("sessionId").GetString() == sessionId);
+        return session.GetProperty("filePaths").EnumerateArray()
+            .Select(path => FilePathValidation.NormalizeWorkbookLocation(path.GetString()!))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+    }
 
     internal async Task<ExcelWorkerClient> StartWorkerAsync(ExcelProcessIdentity? excel, CancellationToken cancellationToken)
     {
@@ -407,15 +444,18 @@ internal sealed class ExcelController : IDisposable
                     if (!string.IsNullOrWhiteSpace(session.FilePath))
                     {
                         var path = FilePathValidation.NormalizeWorkbookLocation(session.FilePath);
-                        _paths[path] = new PathReservation("recorded", session.SessionId);
+                        var currentPaths = RecordedPaths(snapshot, session.SessionId);
+                        foreach (var ownedPath in currentPaths)
+                            _paths[ownedPath] = new PathReservation("recorded", session.SessionId);
                         if (!HasPendingWork(snapshot) && snapshot.StatusError is null)
                         {
                             foreach (var selection in _selections.Where(entry => entry.Value.Worker == worker
-                                && entry.Value.Workbook.SessionId == session.SessionId))
+                                && entry.Value.Workbook.SessionId == session.SessionId
+                                && !currentPaths.Contains(entry.Value.Workbook.Location ?? string.Empty)))
                                 _selections[selection.Key] = (worker, selection.Value.Workbook with { Location = path });
                             foreach (var old in _paths.Where(entry => entry.Value.Token == "recorded"
                                 && entry.Value.SessionId == session.SessionId
-                                && !string.Equals(entry.Key, path, StringComparison.OrdinalIgnoreCase)))
+                                && !currentPaths.Contains(entry.Key)))
                                 _paths.TryRemove(old);
                         }
                     }
@@ -424,7 +464,7 @@ internal sealed class ExcelController : IDisposable
                     foreach (var removed in _sessions.Where(entry => entry.Value == worker
                         && !snapshot.Sessions.Any(session => session.SessionId == entry.Key)))
                     {
-                        _closedSessions[removed.Key] = 0;
+                        _closedSessions[removed.Key] = SessionEnd.Closed;
                         _sessions.TryRemove(removed);
                         foreach (var path in _paths.Where(entry => entry.Value.SessionId == removed.Key))
                             _paths.TryRemove(path);
@@ -511,9 +551,13 @@ internal sealed class ExcelController : IDisposable
                             {
                                 errors.Add(new(window.Process.ProcessId,
                                     "The previous Excel worker exited without confirming its outcome. Its last work may have completed. This explicit discovery reconnects for inspection only; no edit was repeated."));
-                                foreach (var exited in retained.Where(item => item.Excel == window.Process && !item.Worker.IsAlive()))
-                                    RetireExitedWorker(exited);
+                                var exitedRecords = retained.Where(item =>
+                                    item.Excel == window.Process && !item.Worker.IsAlive()).ToArray();
+                                foreach (var exited in exitedRecords)
+                                    RetireExitedWorker(exited, explicitDiscovery: true);
                                 worker = await StartWorkerAsync(window.Process, cancellationToken);
+                                foreach (var exited in exitedRecords)
+                                    _registry.Remove(exited.PipeName);
                             }
                             else if (record.Build != WorkerRegistry.Build)
                             {
@@ -553,7 +597,7 @@ internal sealed class ExcelController : IDisposable
                     {
                         Command = "session.discover",
                         CallerCancellation = cancellationToken
-                    }, worker, null, new PathReservation("discovery")).WaitAsync(cancellationToken);
+                    }, worker, [], new PathReservation("discovery")).WaitAsync(cancellationToken);
                     if (!response.Success)
                     {
                         errors.Add(new(window.Process.ProcessId, response.ErrorMessage ?? "Excel inspection failed."));
@@ -585,19 +629,28 @@ internal sealed class ExcelController : IDisposable
         }
     }
 
-    private void RetireExitedWorker(WorkerRegistration registration)
+    private void RetireExitedWorker(WorkerRegistration registration, bool explicitDiscovery = false)
     {
         lock (_shutdownLock)
         {
             if (!_workers.TryGetValue(registration.PipeName, out var worker)
                 || worker.Registration.Worker != registration.Worker || registration.Worker.IsAlive())
                 return;
+            if (!explicitDiscovery && registration.Excel is { } excel && !OwnedProcessGuard.TryConfirmExited(excel))
+                return;
+            if (!explicitDiscovery && registration.Excel is null
+                && (worker.Snapshot?.Sessions.Count > 0 || _sessions.Values.Contains(worker)
+                    || _paths.Values.Any(path => path.Token == registration.PipeName)))
+                return;
             _workers.TryRemove(registration.PipeName, out _);
             _newWorkers.TryRemove(registration.PipeName, out _);
             _abandonedWorkers.TryRemove(registration.PipeName, out _);
             var sessions = _sessions.Where(entry => entry.Value == worker).Select(entry => entry.Key).ToHashSet(StringComparer.Ordinal);
             foreach (var session in sessions)
+            {
+                _closedSessions[session] = SessionEnd.WorkerExited;
                 _sessions.TryRemove(session, out _);
+            }
             foreach (var path in _paths.Where(entry => entry.Value.Token == registration.PipeName
                 || entry.Value.SessionId is { } session && sessions.Contains(session)))
                 _paths.TryRemove(path);
@@ -667,7 +720,15 @@ internal sealed class ExcelController : IDisposable
                     }
                     else if (worker.Registration.Excel is { } excel
                         && OwnedProcessGuard.TryConfirmExited(excel))
-                        await ReleaseEmptyWorkerAsync(worker);
+                    {
+                        if (!worker.Registration.Worker.IsAlive())
+                        {
+                            RetireExitedWorker(worker.Registration);
+                            _registry.Remove(worker.Registration.PipeName);
+                        }
+                        else
+                            await ReleaseEmptyWorkerAsync(worker);
+                    }
                 }));
             }
             catch (OperationCanceledException) when (_stop.IsCancellationRequested)

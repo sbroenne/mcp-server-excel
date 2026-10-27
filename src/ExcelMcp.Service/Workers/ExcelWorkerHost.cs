@@ -209,25 +209,30 @@ internal sealed class ExcelWorkerHost : IDisposable
         }
     }
 
-    private async Task<ServiceResponse> ExecuteAsync(WorkerCall call, int clientId, CancellationToken cancellationToken)
+    private async Task<WorkerExecution> ExecuteAsync(WorkerCall call, int clientId, CancellationToken cancellationToken)
     {
         Authorize(call.Generation, clientId);
         if (call.Request.Command is "window.show" or "window.hide"
             or "powerquerytrace.list" or "powerquerytrace.summarize")
         {
             call.Request.CallerCancellation = cancellationToken;
-            return await Task.Run(() => _service.ProcessAsync(call.Request), CancellationToken.None);
+            return new(await Task.Run(() => _service.ProcessAsync(call.Request), CancellationToken.None), Accepted: true);
         }
         if (!Guid.TryParseExact(call.OperationId, "N", out _))
             throw new ArgumentException("Invalid Excel operation identifier.");
         if (!await _execution.WaitAsync(0, cancellationToken))
-            return Failure(call.Request, "Busy", "Another request is still running in this Excel application. No new work was started.");
+            return new(Failure(call.Request, "Busy",
+                "Another request is still running in this Excel application. No new work was started."), Accepted: false);
         try
         {
             lock (_stateLock)
             {
                 if (_releasing)
-                    return Failure(call.Request, "SessionUnavailable", "The Excel worker is being released. No work was started.");
+                    return new(Failure(call.Request, "SessionUnavailable",
+                        "The Excel worker is being released. No work was started."), Accepted: false);
+                if (_service.SessionManager.HasPendingExecution)
+                    return new(Failure(call.Request, "Busy",
+                        "An earlier Excel operation is still pending. No new work was started."), Accepted: false);
                 _pendingOperation = call.OperationId;
                 _pendingCommand = call.Request.Command;
             }
@@ -237,7 +242,7 @@ internal sealed class ExcelWorkerHost : IDisposable
             if (cancellationToken.IsCancellationRequested)
                 _service.RevealAbandonedRequest(call.Request, response);
             TryRefreshSnapshot();
-            return response;
+            return new(response, Accepted: true);
         }
         finally
         {
@@ -414,7 +419,7 @@ internal sealed class ExcelWorkerHost : IDisposable
             }
         }
 
-        public Task<ServiceResponse> ExecuteAsync(WorkerCall call, CancellationToken cancellationToken = default) =>
+        public Task<WorkerExecution> ExecuteAsync(WorkerCall call, CancellationToken cancellationToken = default) =>
             host.ExecuteAsync(call, clientId, cancellationToken);
 
         public Task<WorkerRelease> ReleaseAsync(string generation, CancellationToken cancellationToken = default) =>

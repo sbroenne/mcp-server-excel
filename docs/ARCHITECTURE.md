@@ -64,6 +64,19 @@ An unreachable worker is reported separately from controller health.
 The controller continues observing a request after its caller stops waiting,
 so a late result still updates the recorded session and workbook path. It does
 not send the edit again.
+Validation and cross-file worksheet commands reserve each file before
+starting a worker, just as opening a workbook does. A rejected request releases
+only its own reservations. If both a worker and its recorded Excel process have
+exited, the controller releases unusable routes and paths but continues reporting
+the old session's last outcome as unknown.
+If a helper exits before reporting which Excel process it started, retained
+sessions and pending file requests stay protected until explicit recovery or
+controller restart. A missing process identity is not proof that Excel closed.
+Cross-file worksheet commands register their temporary Excel batch and both
+file paths with the existing session manager before waiting for startup.
+Success releases that session; failure retains it and reports both files and
+the original error. Worker release and controller-loss handling therefore see
+unfinished cross-file work as owned work, not an empty helper.
 Retained worker records include process start times, controller identity,
 generation, and build identity. A new controller requires explicit discovery
 and attachment; it never repeats an uncertain edit. A surviving worker reveals

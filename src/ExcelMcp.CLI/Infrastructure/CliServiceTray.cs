@@ -18,6 +18,8 @@ internal sealed class CliServiceTray : IDisposable
     private readonly Func<IReadOnlyList<SessionDescriptor>> _getSessions;
     private readonly Func<string, bool, Task<ServiceResponse>> _closeSession;
     private readonly Func<Task<string?>> _requestShutdown;
+    private readonly Func<string, string, MessageBoxButtons, MessageBoxIcon, DialogResult> _showExitPrompt;
+    private readonly Action<string, string, ToolTipIcon> _showExitNotification;
     private readonly System.Windows.Forms.Timer _refreshTimer;
     private readonly TaskbarNotificationWindow _taskbarWindow;
     private bool _disposed;
@@ -28,11 +30,16 @@ internal sealed class CliServiceTray : IDisposable
     public CliServiceTray(
         Func<IReadOnlyList<SessionDescriptor>> getSessions,
         Func<string, bool, Task<ServiceResponse>> closeSession,
-        Func<Task<string?>> requestShutdown)
+        Func<Task<string?>> requestShutdown,
+        Func<string, string, MessageBoxButtons, MessageBoxIcon, DialogResult>? showExitPrompt = null,
+        Action<string, string, ToolTipIcon>? showExitNotification = null)
     {
         _getSessions = getSessions;
         _closeSession = closeSession;
         _requestShutdown = requestShutdown;
+        _showExitPrompt = showExitPrompt ?? ((message, title, buttons, icon) =>
+            MessageBox.Show(message, title, buttons, icon));
+        _showExitNotification = showExitNotification ?? ShowBalloon;
 
         _contextMenu = new ContextMenuStrip();
 
@@ -486,7 +493,7 @@ internal sealed class CliServiceTray : IDisposable
         try
         {
             var owned = _actionPending ? [] : _getSessions().Where(session => !session.IsAttached).ToArray();
-            var choice = owned.Length == 0 ? DialogResult.No : MessageBox.Show(
+            var choice = owned.Length == 0 ? DialogResult.No : _showExitPrompt(
                 $"There are {owned.Length} sessions opened by ExcelMCP.\n\nSave and close before exiting?\n\n" +
                 "Yes: save and close. No: close saved workbooks and leave unsaved ones open and visible.\n" +
                 "Attached workbooks will remain open.",
@@ -503,83 +510,17 @@ internal sealed class CliServiceTray : IDisposable
             }
             var report = await Task.Run(_requestShutdown);
             if (report is not null && !_disposed)
-                ShowBalloon("Excel left open", report, ToolTipIcon.Warning);
+                _showExitNotification("Excel left open", report, ToolTipIcon.Warning);
         }
         catch (Exception ex)
         {
             if (!_disposed)
-                ShowBalloon("Error", $"Service exit did not finish: {ex.Message}", ToolTipIcon.Error);
+                _showExitNotification("Error", $"Service exit did not finish: {ex.Message}", ToolTipIcon.Error);
         }
         finally
         {
             _exitPending = false;
         }
-    }
-
-    /// <summary>
-    /// Asks what to do with open sessions, then stops the service. Returns the shutdown report,
-    /// or null when nothing was left; the caller shows the report.
-    /// </summary>
-    [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
-        Justification = "Tray exit boundary shows exact release/save/close failures to the user. A failed requested save leaves the service running so the user can decide again; shutdown itself always completes and its report is returned.")]
-    internal static string? ExitService(
-        SessionManager sessionManager,
-        Func<string?> requestShutdown,
-        Func<string, string, MessageBoxButtons, MessageBoxIcon, DialogResult> showMessage,
-        Action<string, string, ToolTipIcon> showBalloon)
-    {
-        try
-        {
-            sessionManager.CloseSessionsClosedInExcel();
-        }
-        catch (Exception ex)
-        {
-            showMessage(
-                $"A workbook closed in Excel could not be released: {ex.Message}\n\nIts session is listed below.",
-                "Error",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error);
-        }
-
-        var sessions = sessionManager.GetActiveSessions().Where(session => !session.IsAttached).ToList();
-        if (sessions.Count > 0)
-        {
-            var result = showMessage(
-                $"There are {sessions.Count} active session(s) opened by ExcelMCP.\n\n" +
-                "Save and close those sessions before exiting?\n\n" +
-                "Yes: save and close. No: close saved workbooks and leave unsaved ones open and visible without saving.\n\n" +
-                "Attached workbooks will remain open.",
-                "Exit ExcelMCP CLI",
-                MessageBoxButtons.YesNoCancel,
-                MessageBoxIcon.Question);
-
-            if (result == System.Windows.Forms.DialogResult.Cancel)
-                return null;
-
-            if (result == System.Windows.Forms.DialogResult.Yes)
-            {
-                try
-                {
-                    foreach (var session in sessions)
-                    {
-                        sessionManager.CloseSession(session.SessionId, save: true);
-                    }
-                    showBalloon("Sessions Saved", $"Saved and closed {sessions.Count} session(s).", ToolTipIcon.Info);
-                }
-                catch (Exception ex)
-                {
-                    showMessage(
-                        $"Error saving sessions: {ex.Message}\n\nThe service remains running. Inspect the remaining workbooks before retrying.",
-                        "Error",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Error);
-
-                    return null;
-                }
-            }
-        }
-
-        return requestShutdown();
     }
 
     /// <summary>
