@@ -140,7 +140,7 @@ internal sealed class ExcelController : IDisposable
                 {
                     var normalized = FilePathValidation.NormalizeWorkbookLocation(location);
                     if (!_paths.TryGetValue(normalized, out var existing)
-                        || existing.SessionId != selectedWorkbook.Workbook.SessionId)
+                        || existing.SessionId is null || existing.SessionId != selectedWorkbook.Workbook.SessionId)
                     {
                         reservedPath = normalized;
                         if (!_paths.TryAdd(reservedPath, reservation))
@@ -239,17 +239,23 @@ internal sealed class ExcelController : IDisposable
                 if (response.SessionId is { } created && worker.Snapshot?.Sessions.Any(session => session.SessionId == created) == true)
                 {
                     _sessions[created] = worker;
+                    if (response.Success && request.Command == "session.attach"
+                        && JsonNode.Parse(request.Args!)?["workbookId"]?.GetValue<string>() is { } selectionId
+                        && _selections.TryGetValue(selectionId, out var selection) && selection.Worker == worker)
+                        _selections[selectionId] = (worker, selection.Workbook with { SessionId = created });
                     if (reservedPath is not null && (response.Success || response.PartialState is not null
                         || worker.Snapshot.Sessions.Any(session =>
                             string.Equals(session.FilePath, reservedPath, StringComparison.OrdinalIgnoreCase))))
                         _paths[reservedPath] = new PathReservation("recorded", created);
                 }
                 if (response.Success && request.SessionId is { } reconciled
-                    && worker.Snapshot?.Sessions.FirstOrDefault(session => session.SessionId == reconciled)?.FilePath is { } currentPath)
+                    && worker.StatusError is null && worker.Snapshot is { StatusError: null } settledSnapshot
+                    && !HasPendingWork(settledSnapshot)
+                    && settledSnapshot.Sessions.FirstOrDefault(session => session.SessionId == reconciled)?.FilePath is { } currentPath)
                 {
                     currentPath = FilePathValidation.NormalizeWorkbookLocation(currentPath);
                     _paths[currentPath] = new PathReservation("recorded", reconciled);
-                    foreach (var old in _paths.Where(path => path.Value.SessionId == reconciled
+                    foreach (var old in _paths.Where(path => path.Value.Token == "recorded" && path.Value.SessionId == reconciled
                         && !string.Equals(path.Key, currentPath, StringComparison.OrdinalIgnoreCase)))
                         _paths.TryRemove(old);
                 }
@@ -316,7 +322,7 @@ internal sealed class ExcelController : IDisposable
         || JsonNode.Parse(snapshot.SessionList.Result!)!["sessions"]!.AsArray()
             .Any(session => session?["operationPending"]?.GetValue<bool>() == true);
 
-    private async Task<ExcelWorkerClient> StartWorkerAsync(ExcelProcessIdentity? excel, CancellationToken cancellationToken)
+    internal async Task<ExcelWorkerClient> StartWorkerAsync(ExcelProcessIdentity? excel, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
         ExcelWorkerClient worker;
@@ -401,17 +407,23 @@ internal sealed class ExcelController : IDisposable
                     {
                         var path = FilePathValidation.NormalizeWorkbookLocation(session.FilePath);
                         _paths[path] = new PathReservation("recorded", session.SessionId);
-                        if (snapshot.PendingOperation is null && snapshot.StatusError is null)
+                        if (!HasPendingWork(snapshot) && snapshot.StatusError is null)
+                        {
+                            foreach (var selection in _selections.Where(entry => entry.Value.Worker == worker
+                                && entry.Value.Workbook.SessionId == session.SessionId))
+                                _selections[selection.Key] = (worker, selection.Value.Workbook with { Location = path });
                             foreach (var old in _paths.Where(entry => entry.Value.Token == "recorded"
                                 && entry.Value.SessionId == session.SessionId
                                 && !string.Equals(entry.Key, path, StringComparison.OrdinalIgnoreCase)))
                                 _paths.TryRemove(old);
+                        }
                     }
                 }
-                if (snapshot.PendingOperation is null && snapshot.StatusError is null)
+                if (!HasPendingWork(snapshot) && snapshot.StatusError is null)
                     foreach (var removed in _sessions.Where(entry => entry.Value == worker
                         && !snapshot.Sessions.Any(session => session.SessionId == entry.Key)))
                     {
+                        _closedSessions[removed.Key] = 0;
                         _sessions.TryRemove(removed);
                         foreach (var path in _paths.Where(entry => entry.Value.SessionId == removed.Key))
                             _paths.TryRemove(path);
@@ -652,7 +664,7 @@ internal sealed class ExcelController : IDisposable
                         else
                             await ReleaseEmptyWorkerAsync(worker);
                     }
-                    else if (worker.Registration is { OwnsExcel: true, Excel: { } excel }
+                    else if (worker.Registration.Excel is { } excel
                         && OwnedProcessGuard.TryConfirmExited(excel))
                         await ReleaseEmptyWorkerAsync(worker);
                 }));

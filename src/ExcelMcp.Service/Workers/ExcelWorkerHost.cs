@@ -29,6 +29,8 @@ internal sealed class ExcelWorkerHost : IDisposable
     private Task? _refresh;
     private string? _statusError;
 
+    internal Action? AfterOperationStatusCaptureForTests { get; set; }
+
     internal ExcelWorkerHost(WorkerRegistration registration, ExcelMcpService? service = null)
     {
         _service = service ?? new ExcelMcpService();
@@ -161,14 +163,34 @@ internal sealed class ExcelWorkerHost : IDisposable
     {
         lock (_snapshotLock)
         {
-            var sessions = _service.SessionManager.GetActiveSessions(statusOnly: true);
-            var list = _service.ProcessAsync(new ServiceRequest { Command = "session.list" }).GetAwaiter().GetResult();
-            if (!list.Success)
-                throw new InvalidOperationException($"Could not record Excel worker status: {list.ErrorMessage}");
-            lock (_stateLock)
+            for (var attempt = 0; ; attempt++)
             {
-                _snapshot = new(_registration, sessions, list, _pendingOperation, _pendingCommand, _lastResponse);
-                _statusError = null;
+                // Reconcile completed Save As paths without COM work or session cleanup.
+                var operations = _service.SessionManager.GetActiveSessions(statusOnly: true)
+                    .Select(session => (session.SessionId, Status: _service.SessionManager.GetOperationStatus(session.SessionId)))
+                    .ToArray();
+                AfterOperationStatusCaptureForTests?.Invoke();
+                var sessions = _service.SessionManager.GetActiveSessions(statusOnly: true);
+                var list = _service.ProcessAsync(new ServiceRequest { Command = "session.list" }).GetAwaiter().GetResult();
+                if (!list.Success)
+                    throw new InvalidOperationException($"Could not record Excel worker status: {list.ErrorMessage}");
+                if (sessions.Count != operations.Length || operations.Any(observed =>
+                    {
+                        var current = _service.SessionManager.GetOperationStatus(observed.SessionId, reconcilePaths: false);
+                        return current?.StartedAtUtc != observed.Status?.StartedAtUtc
+                            || current?.ExecutionPending != observed.Status?.ExecutionPending;
+                    }))
+                {
+                    if (attempt == 1)
+                        throw new InvalidOperationException("Excel operations changed while status was being recorded.");
+                    continue;
+                }
+                lock (_stateLock)
+                {
+                    _snapshot = new(_registration, sessions, list, _pendingOperation, _pendingCommand, _lastResponse);
+                    _statusError = null;
+                }
+                return;
             }
         }
     }
@@ -192,7 +214,8 @@ internal sealed class ExcelWorkerHost : IDisposable
     private async Task<ServiceResponse> ExecuteAsync(WorkerCall call, int clientId, CancellationToken cancellationToken)
     {
         Authorize(call.Generation, clientId);
-        if (call.Request.Command is "window.show" or "window.hide")
+        if (call.Request.Command is "window.show" or "window.hide"
+            or "powerquerytrace.list" or "powerquerytrace.summarize")
         {
             call.Request.CallerCancellation = cancellationToken;
             return await Task.Run(() => _service.ProcessAsync(call.Request), CancellationToken.None);

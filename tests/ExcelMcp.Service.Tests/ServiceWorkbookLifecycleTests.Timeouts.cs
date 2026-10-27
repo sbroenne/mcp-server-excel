@@ -13,6 +13,8 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 
 public sealed partial class ServiceWorkbookLifecycleTests
 {
+    private static readonly string[] PrivateWorkerTraceReadCommands = ["powerquerytrace.list", "powerquerytrace.summarize"];
+
     private static readonly string[] StatusCommands = ["service.ping", "service.status", "session.list"];
 
     [Fact]
@@ -339,6 +341,19 @@ public sealed partial class ServiceWorkbookLifecycleTests
                     SessionId = session
                 }, cancellation.Token);
                 await saving.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                foreach (var command in PrivateWorkerTraceReadCommands)
+                {
+                    var traces = await worker.ExecuteAsync(new ServiceRequest
+                    {
+                        Command = command,
+                        Args = JsonSerializer.Serialize(new { workbookSessionId = session })
+                    }, CancellationToken.None).WaitAsync(TimeSpan.FromSeconds(2));
+                    RequireSuccess(traces);
+                    using var result = JsonDocument.Parse(traces.Result!);
+                    Assert.Equal(batch.ExcelProcessId, result.RootElement.GetProperty("processId").GetInt32());
+                    Assert.True(batch.OperationStatus.ExecutionPending);
+                    Assert.False(save.IsCompleted);
+                }
                 cancellation.Cancel();
                 Assert.True(SpinWait.SpinUntil(() =>
                 {
@@ -995,6 +1010,192 @@ public sealed partial class ServiceWorkbookLifecycleTests
             var reopened = await OpenSessionAsync(service, target);
             sessions[reopened] = 0;
             Assert.Equal("Persisted after readiness", await ReadMarkerAsync(service, reopened));
+        });
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task Controller_LateSaveAsPublishesFinalPathAndPreservesReservations(
+        bool cancel, bool completeDuringCapture)
+    {
+        await RunWithCleanupAsync(async (service, directory, sessions) =>
+        {
+            var path = Path.Join(directory, "controller-late-save.xlsx");
+            var target = Path.Join(directory, "controller-late-save-as.xlsx");
+            var session = await CreateSessionAsync(service, path);
+            await WriteMarkerAsync(service, session, "Saved baseline");
+            await CloseSessionAsync(service, session, save: true);
+            session = service.SessionManager.CreateSessionWithTimeouts(
+                path, true, TimeSpan.FromSeconds(2), ComInteropConstants.DefaultOperationTimeout);
+            sessions[session] = 0;
+            await WriteMarkerAsync(service, session, "Saved after timeout");
+            var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(session));
+            var identity = Assert.IsType<ExcelProcessIdentity>(batch.ProcessIdentity);
+            var executable = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
+                @"..\..\..\..\..\src\ExcelMcp.CLI\bin\Release\net10.0-windows\excelcli.exe"));
+            using var controller = new ExcelController(launcher: new ProductProcessLauncher(executable, []));
+            var bootstrap = await controller.StartWorkerAsync(null, CancellationToken.None);
+            var registration = new WorkerRegistration($"excelmcp-worker-{Guid.NewGuid():N}",
+                WorkerProcess.Current, WorkerProcess.Current, bootstrap.Registration.Generation,
+                WorkerRegistry.Build, identity, OwnsExcel: true);
+            using var host = new ExcelWorkerHost(registration, service);
+            var run = host.RunAsync();
+            var worker = new ExcelWorkerClient(registration, WorkerProcess.Current, registration.Generation);
+            using var release = new ManualResetEventSlim();
+            using var resumeCapture = new ManualResetEventSlim();
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            Excel.AppEvents_WorkbookBeforeSaveEventHandler beforeSave =
+                (Excel.Workbook _, bool _, ref bool cancelSave) =>
+                {
+                    entered.TrySetResult();
+                    Assert.True(release.Wait(TimeSpan.FromSeconds(30)));
+                    cancelSave = cancel;
+                };
+            batch.Execute((ctx, _) => ctx.App.WorkbookBeforeSave += beforeSave);
+            var claimed = false;
+            var failure = await Record.ExceptionAsync(async () =>
+            {
+                await worker.InitializeAsync();
+                var discovered = await controller.ProcessAsync(new ServiceRequest { Command = "session.discover" });
+                RequireSuccess(discovered);
+                using var discovery = JsonDocument.Parse(discovered.Result!);
+                Assert.True(discovery.RootElement.GetProperty("complete").GetBoolean(), discovered.Result);
+                var selected = Assert.Single(discovery.RootElement.GetProperty("workbooks").EnumerateArray(),
+                    item => item.GetProperty("location").GetString() == path);
+                claimed = true;
+                var attached = await controller.ProcessAsync(new ServiceRequest
+                {
+                    Command = "session.attach",
+                    Args = JsonSerializer.Serialize(new { workbookId = selected.GetProperty("workbookId").GetString() })
+                });
+                RequireSuccess(attached);
+                Assert.Equal(session, attached.SessionId);
+                var saving = controller.ProcessAsync(new ServiceRequest
+                {
+                    Command = "workbook.save-as",
+                    SessionId = session,
+                    Args = JsonSerializer.Serialize(new { targetPath = target, overwrite = true })
+                });
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                var timedOut = await saving.WaitAsync(TimeSpan.FromSeconds(10));
+                Assert.False(timedOut.Success);
+                Assert.Equal("Timeout", timedOut.ErrorCategory);
+                await Task.Delay(1500);
+                RequireSuccess(await controller.ProcessAsync(new ServiceRequest
+                {
+                    Command = "window.show",
+                    SessionId = session
+                }));
+                var pendingTarget = await controller.ProcessAsync(new ServiceRequest
+                {
+                    Command = "session.open",
+                    Args = JsonSerializer.Serialize(new { filePath = target })
+                });
+                Assert.False(pendingTarget.Success);
+                Assert.Equal("Conflict", pendingTarget.ErrorCategory);
+                if (completeDuringCapture)
+                {
+                    var captures = 0;
+                    var captureBlocked = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                    host.AfterOperationStatusCaptureForTests = () =>
+                    {
+                        if (Interlocked.Increment(ref captures) == 1)
+                        {
+                            release.Set();
+                            Assert.True(SpinWait.SpinUntil(
+                                () => !batch.OperationStatus.ExecutionPending, TimeSpan.FromSeconds(15)));
+                        }
+                        else
+                        {
+                            captureBlocked.TrySetResult();
+                            Assert.True(resumeCapture.Wait(TimeSpan.FromSeconds(15)));
+                        }
+                    };
+                    _ = await worker.ReadSnapshotAsync(CancellationToken.None);
+                    await captureBlocked.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                    await Task.Delay(1500);
+                    var settledTarget = await controller.ProcessAsync(new ServiceRequest
+                    {
+                        Command = "session.create",
+                        Args = JsonSerializer.Serialize(new { filePath = target })
+                    });
+                    Assert.False(settledTarget.Success);
+                    Assert.Equal("Conflict", settledTarget.ErrorCategory);
+                    Assert.Equal("This workbook is already reserved by another session or pending request.",
+                        settledTarget.ErrorMessage);
+                    host.AfterOperationStatusCaptureForTests = null;
+                    resumeCapture.Set();
+                }
+                release.Set();
+                var timer = Stopwatch.StartNew();
+                while (batch.GetRefreshState() != WorkbookRefreshState.Ready)
+                {
+                    Assert.True(timer.Elapsed < TimeSpan.FromSeconds(15));
+                    await Task.Delay(100);
+                }
+                var expectedPath = cancel ? path : target;
+                timer.Restart();
+                while (true)
+                {
+                    var status = await controller.ProcessAsync(new ServiceRequest { Command = "session.list" });
+                    RequireSuccess(status);
+                    using var statusList = JsonDocument.Parse(status.Result!);
+                    var statusEntry = Assert.Single(statusList.RootElement.GetProperty("sessions").EnumerateArray());
+                    if (Assert.Single(controller.Sessions).FilePath == expectedPath
+                        && statusEntry.GetProperty("filePath").GetString() == expectedPath
+                        && !statusEntry.GetProperty("operationPending").GetBoolean())
+                        break;
+                    Assert.True(timer.Elapsed < TimeSpan.FromSeconds(10), "The controller kept the old Save As path.");
+                    await Task.Delay(100);
+                }
+                var listed = await controller.ProcessAsync(new ServiceRequest { Command = "session.list" });
+                RequireSuccess(listed);
+                using var list = JsonDocument.Parse(listed.Result!);
+                Assert.Equal(expectedPath, Assert.Single(list.RootElement.GetProperty("sessions").EnumerateArray())
+                    .GetProperty("filePath").GetString());
+                var availablePath = cancel ? target : path;
+                var available = await controller.ProcessAsync(new ServiceRequest
+                {
+                    Command = cancel ? "session.create" : "session.open",
+                    Args = JsonSerializer.Serialize(new { filePath = availablePath })
+                });
+                RequireSuccess(available);
+                RequireSuccess(await controller.ProcessAsync(new ServiceRequest
+                {
+                    Command = "session.close",
+                    SessionId = available.SessionId
+                }));
+                Assert.Equal("Saved after timeout", await ReadMarkerAsync(service, session));
+            });
+            release.Set();
+            host.AfterOperationStatusCaptureForTests = null;
+            resumeCapture.Set();
+            var cleanup = await Record.ExceptionAsync(async () =>
+            {
+                var timer = Stopwatch.StartNew();
+                while (batch.GetRefreshState() != WorkbookRefreshState.Ready)
+                {
+                    Assert.True(timer.Elapsed < TimeSpan.FromSeconds(15));
+                    await Task.Delay(100);
+                }
+                batch.Execute((ctx, _) => ctx.App.WorkbookBeforeSave -= beforeSave);
+                await CloseSessionAsync(service, session, save: false);
+                sessions.TryRemove(session, out _);
+                if (!claimed)
+                    RequireSuccess(await worker.ReleaseAsync(CancellationToken.None));
+                await controller.RequestShutdownAsync();
+                await run.WaitAsync(TimeSpan.FromSeconds(10));
+            });
+            var failures = new[] { failure, cleanup }.OfType<Exception>().ToArray();
+            if (failures.Length > 0) throw new AggregateException("Late Save As or cleanup failed.", failures);
+            await RunWithCleanupAsync(async (verification, _, reopenedSessions) =>
+            {
+                var reopened = await OpenSessionAsync(verification, cancel ? path : target);
+                reopenedSessions[reopened] = 0;
+                Assert.Equal(cancel ? "Saved baseline" : "Saved after timeout", await ReadMarkerAsync(verification, reopened));
+            });
         });
     }
 
