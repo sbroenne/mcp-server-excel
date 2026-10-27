@@ -37,6 +37,10 @@ on:
   schedule:
     # After star-history.yml (02:17 UTC) so the site renders the same day's snapshot.
     - cron: "17 3 * * *"
+  workflow_run:
+    workflows: ['[Analytics] Weekly Usage']
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 # Allow only one concurrent deployment
@@ -46,6 +50,11 @@ concurrency:
 
 jobs:
   build:
+    # Scheduled workflows may be delayed; rebuild after analytics finishes, not just by clock time.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event != 'pull_request')
     # Read-only: persisting the star history now lives in star-history.yml, so
     # this job - which installs third-party Python packages - no longer needs
     # write access to the repository.
