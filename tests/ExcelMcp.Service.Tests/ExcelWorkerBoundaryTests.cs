@@ -51,19 +51,21 @@ public sealed class ExcelWorkerBoundaryTests
         try
         {
             await worker.InitializeAsync();
+            var message = new string('x', 1024 * 1024);
             var response = await worker.ExecuteAsync(new ServiceRequest
             {
                 Command = "diag.echo",
-                Args = """{"message":"worker-marker"}"""
+                Args = System.Text.Json.JsonSerializer.Serialize(new { message })
             }, CancellationToken.None);
             Assert.True(response.Success, response.ErrorMessage);
-            Assert.Contains("worker-marker", response.Result);
+            Assert.Equal(message, System.Text.Json.JsonDocument.Parse(
+                response.Result!).RootElement.GetProperty("message").GetString());
             var snapshot = await worker.ReadSnapshotAsync();
             Assert.Empty(snapshot.Sessions);
             Assert.Null(snapshot.Registration.Excel);
             Assert.Null(snapshot.PendingOperation);
-            Assert.Equal("worker-marker", System.Text.Json.JsonDocument.Parse(
-                snapshot.LastResponse!.Result!).RootElement.GetProperty("message").GetString());
+            Assert.True(System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(snapshot).Length < 65536,
+                "Status must not repeat the last command's large result.");
             Assert.NotEqual(Environment.ProcessId, snapshot.Registration.Worker.ProcessId);
             Assert.Equal(WorkerProcess.Current, snapshot.Registration.Controller);
         }
@@ -85,7 +87,7 @@ public sealed class ExcelWorkerBoundaryTests
         var worker = new ExcelWorkerClient(registration, WorkerProcess.Current, "generation");
         var newer = new WorkerSnapshot(registration, [],
             new ServiceResponse { Success = true, Result = """{"sessions":[]}""" },
-            "pending-operation", "range.set-values", null, Revision: 2);
+            "pending-operation", "range.set-values", Revision: 2);
         worker.RecordSnapshot(newer);
         var retained = worker.RecordSnapshot(newer with { PendingOperation = null, Revision = 1 });
         Assert.Same(newer, retained);
@@ -187,6 +189,30 @@ public sealed class ExcelWorkerBoundaryTests
         finally
         {
             registry.Remove(record.PipeName);
+            Directory.Delete(directory);
+        }
+    }
+
+    [Fact]
+    public void Registry_AtomicReplacementCanCompleteWhileRecordIsOpen()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), $"excelmcp-workers-{Guid.NewGuid():N}");
+        var registry = new WorkerRegistry(directory);
+        var record = new WorkerRegistration($"excelmcp-worker-{Guid.NewGuid():N}",
+            WorkerProcess.Current, WorkerProcess.Current, "original", WorkerRegistry.Build, null);
+        var replacement = record with { Generation = "replacement" };
+        try
+        {
+            registry.Write(record);
+            registry.AfterRecordOpenForTests = () => registry.Write(replacement);
+            Assert.Equal(record, Assert.Single(registry.Read()));
+            registry.AfterRecordOpenForTests = null;
+            Assert.Equal(replacement, Assert.Single(registry.Read()));
+        }
+        finally
+        {
+            registry.Remove(record.PipeName);
+            File.Delete(Path.Combine(directory, record.PipeName + ".json.tmp"));
             Directory.Delete(directory);
         }
     }

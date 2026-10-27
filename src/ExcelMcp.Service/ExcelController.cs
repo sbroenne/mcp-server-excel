@@ -155,7 +155,8 @@ internal sealed class ExcelController : IDisposable
                 && workbookFilter.TryGetValue<string>(out var filteredSession)
                 && _sessions.TryGetValue(filteredSession, out var traceWorker))
                 worker = traceWorker;
-            else if (request.SessionId is { } sessionId && _sessions.TryGetValue(sessionId, out var owner))
+            else if (!ExcelMcpService.IsSessionlessCommand(request.Command)
+                && request.SessionId is { } sessionId && _sessions.TryGetValue(sessionId, out var owner))
                 worker = owner;
             else if (request.Command == "session.close" && request.SessionId is { } closedId
                 && _closedSessions.ContainsKey(closedId))

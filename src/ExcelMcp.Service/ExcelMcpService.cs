@@ -122,6 +122,11 @@ public sealed class ExcelMcpService : IDisposable
 
     public DateTime StartTime => _startTime;
     public int SessionCount => _sessionManager.GetActiveSessions(statusOnly: true).Count;
+
+    internal static bool IsSessionlessCommand(string command) =>
+        command.Split('.', 2)[0] is "service" or "diag" or "settings" or "powerquerytrace"
+        || command is "session.open" or "session.create" or "session.test"
+            or "sheet.copy-to-file" or "sheet.move-to-file";
     public SessionManager SessionManager => _sessionManager;
 
     /// <summary>

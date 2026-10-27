@@ -24,7 +24,6 @@ internal sealed class ExcelWorkerHost : IDisposable
     private WorkerSnapshot _snapshot;
     private string? _pendingOperation;
     private string? _pendingCommand;
-    private ServiceResponse? _lastResponse;
     private bool _releasing;
     private Task? _refresh;
     private string? _statusError;
@@ -35,7 +34,7 @@ internal sealed class ExcelWorkerHost : IDisposable
     {
         _service = service ?? new ExcelMcpService();
         _registration = registration;
-        _snapshot = new(registration, [], EmptySessionList(), null, null, null);
+        _snapshot = new(registration, [], EmptySessionList(), null, null);
         _server = new DaemonHost(registration.PipeName, pipe =>
             new JsonRpc(pipe, pipe.ReadSlice(DaemonHost.MaximumConnectionInputBytes),
                 new Target(this, WorkerPipeIdentity.GetClient(pipe.SafePipeHandle)))
@@ -153,7 +152,6 @@ internal sealed class ExcelWorkerHost : IDisposable
         Registration = _registration,
         PendingOperation = _pendingOperation,
         PendingCommand = _pendingCommand,
-        LastResponse = _lastResponse,
         StatusError = _statusError,
         Releasing = _releasing,
         Revision = ++_snapshotRevision
@@ -187,7 +185,7 @@ internal sealed class ExcelWorkerHost : IDisposable
                 }
                 lock (_stateLock)
                 {
-                    _snapshot = new(_registration, sessions, list, _pendingOperation, _pendingCommand, _lastResponse);
+                    _snapshot = new(_registration, sessions, list, _pendingOperation, _pendingCommand);
                     _statusError = null;
                 }
                 return;
@@ -232,15 +230,12 @@ internal sealed class ExcelWorkerHost : IDisposable
                     return Failure(call.Request, "SessionUnavailable", "The Excel worker is being released. No work was started.");
                 _pendingOperation = call.OperationId;
                 _pendingCommand = call.Request.Command;
-                _lastResponse = null;
             }
             call.Request.CallerCancellation = cancellationToken;
             using var abandoned = cancellationToken.Register(() => _service.RevealAbandonedRequest(call.Request, null));
             var response = await Task.Run(() => ProcessAsync(call.Request), CancellationToken.None);
             if (cancellationToken.IsCancellationRequested)
                 _service.RevealAbandonedRequest(call.Request, response);
-            lock (_stateLock)
-                _lastResponse = response;
             TryRefreshSnapshot();
             return response;
         }

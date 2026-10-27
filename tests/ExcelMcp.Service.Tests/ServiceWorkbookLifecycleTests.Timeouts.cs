@@ -1014,11 +1014,12 @@ public sealed partial class ServiceWorkbookLifecycleTests
     }
 
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, true)]
     public async Task Controller_LateSaveAsPublishesFinalPathAndPreservesReservations(
-        bool cancel, bool completeDuringCapture)
+        bool cancel, bool completeDuringCapture, bool checkSessionlessRouting)
     {
         await RunWithCleanupAsync(async (service, directory, sessions) =>
         {
@@ -1028,7 +1029,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
             await WriteMarkerAsync(service, session, "Saved baseline");
             await CloseSessionAsync(service, session, save: true);
             session = service.SessionManager.CreateSessionWithTimeouts(
-                path, true, TimeSpan.FromSeconds(2), ComInteropConstants.DefaultOperationTimeout);
+                path, true, TimeSpan.FromSeconds(checkSessionlessRouting ? 10 : 2), ComInteropConstants.DefaultOperationTimeout);
             sessions[session] = 0;
             await WriteMarkerAsync(service, session, "Saved after timeout");
             var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(session));
@@ -1055,6 +1056,7 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 };
             batch.Execute((ctx, _) => ctx.App.WorkbookBeforeSave += beforeSave);
             var claimed = false;
+            Task<ServiceResponse>? saving = null;
             var failure = await Record.ExceptionAsync(async () =>
             {
                 await worker.InitializeAsync();
@@ -1072,14 +1074,38 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 });
                 RequireSuccess(attached);
                 Assert.Equal(session, attached.SessionId);
-                var saving = controller.ProcessAsync(new ServiceRequest
+                saving = controller.ProcessAsync(new ServiceRequest
                 {
                     Command = "workbook.save-as",
                     SessionId = session,
                     Args = JsonSerializer.Serialize(new { targetPath = target, overwrite = true })
                 });
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
-                var timedOut = await saving.WaitAsync(TimeSpan.FromSeconds(10));
+                if (checkSessionlessRouting)
+                {
+                    var echo = await controller.ProcessAsync(new ServiceRequest
+                    {
+                        Command = "diag.echo",
+                        SessionId = session,
+                        Args = """{"message":"during-save"}"""
+                    }).WaitAsync(TimeSpan.FromSeconds(5));
+                    RequireSuccess(echo);
+                    using var echoResult = JsonDocument.Parse(echo.Result!);
+                    Assert.Equal("during-save", echoResult.RootElement.GetProperty("message").GetString());
+                    var settingRequest = new ServiceRequest
+                    {
+                        Command = "settings.get-native-query-approval",
+                        SessionId = session
+                    };
+                    var expectedSetting = await service.ProcessAsync(settingRequest);
+                    RequireSuccess(expectedSetting);
+                    var actualSetting = await controller.ProcessAsync(settingRequest).WaitAsync(TimeSpan.FromSeconds(5));
+                    RequireSuccess(actualSetting);
+                    Assert.Equal(expectedSetting.Result, actualSetting.Result);
+                    Assert.False(saving.IsCompleted);
+                    Assert.True(batch.OperationStatus.ExecutionPending);
+                }
+                var timedOut = await saving.WaitAsync(TimeSpan.FromSeconds(15));
                 Assert.False(timedOut.Success);
                 Assert.Equal("Timeout", timedOut.ErrorCategory);
                 await Task.Delay(1500);
@@ -1174,6 +1200,8 @@ public sealed partial class ServiceWorkbookLifecycleTests
             resumeCapture.Set();
             var cleanup = await Record.ExceptionAsync(async () =>
             {
+                if (saving is not null)
+                    _ = await saving.WaitAsync(TimeSpan.FromSeconds(15));
                 var timer = Stopwatch.StartNew();
                 while (batch.GetRefreshState() != WorkbookRefreshState.Ready)
                 {

@@ -210,10 +210,7 @@ internal sealed class DaemonHost : BackgroundService
         var sessionId = request.SessionId;
         var control = request.Command is "service.ping" or "service.status" or "service.shutdown" or "session.list"
             or "window.show" or "window.hide";
-        var category = request.Command.Split('.', 2)[0];
-        var sessionless = category is "service" or "diag" or "settings" or "powerquerytrace"
-            || request.Command is "session.open" or "session.create" or "session.test"
-                or "sheet.copy-to-file" or "sheet.move-to-file";
+        var sessionless = ExcelMcpService.IsSessionlessCommand(request.Command);
         var claimSession = !control && !sessionless && !string.IsNullOrWhiteSpace(sessionId);
         if (claimSession && !_busySessions.TryAdd(sessionId!, 0))
         {

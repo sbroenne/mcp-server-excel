@@ -55,7 +55,6 @@ internal sealed record WorkerSnapshot(
     ServiceResponse SessionList,
     string? PendingOperation,
     string? PendingCommand,
-    ServiceResponse? LastResponse,
     string? StatusError = null,
     bool Releasing = false,
     long Revision = 0);

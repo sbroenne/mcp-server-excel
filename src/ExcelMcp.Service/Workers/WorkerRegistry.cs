@@ -10,6 +10,7 @@ internal sealed class WorkerRegistry
     internal static string Build => typeof(WorkerRegistry).Assembly.ManifestModule.ModuleVersionId.ToString("N");
     private readonly string _directory;
     internal Action<string>? BeforeRecordReadForTests { get; set; }
+    internal Action? AfterRecordOpenForTests { get; set; }
 
     internal WorkerRegistry(string? directory = null)
     {
@@ -31,7 +32,10 @@ internal sealed class WorkerRegistry
         var path = GetPath(registration.PipeName);
         var temporary = path + ".tmp";
         File.WriteAllText(temporary, JsonSerializer.Serialize(registration, ServiceProtocol.JsonOptions));
-        File.Move(temporary, path, overwrite: true);
+        if (File.Exists(path))
+            File.Replace(temporary, path, destinationBackupFileName: null);
+        else
+            File.Move(temporary, path);
     }
 
     internal IReadOnlyList<WorkerRegistration> Read()
@@ -43,10 +47,13 @@ internal sealed class WorkerRegistry
             WorkerRegistration registration;
             try
             {
-                if (new FileInfo(path).Length > 65536)
+                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
+                AfterRecordOpenForTests?.Invoke();
+                if (stream.Length > 65536)
                     throw new InvalidDataException("An Excel worker record exceeds its size limit.");
+                using var reader = new StreamReader(stream);
                 registration = JsonSerializer.Deserialize<WorkerRegistration>(
-                    File.ReadAllText(path), ServiceProtocol.JsonOptions)
+                    reader.ReadToEnd(), ServiceProtocol.JsonOptions)
                     ?? throw new InvalidDataException("An Excel worker record is empty.");
             }
             catch (FileNotFoundException)
