@@ -27,6 +27,16 @@ open in unrelated sessions.
 Copying keeps the source sheet. Moving removes it and saves both workbooks.
 Closing another session without saving cannot reverse a saved transfer.
 Failures do not promise rollback across files: inspect both before retrying.
+When an error reports a retained recovery session, that session owns both file
+paths. The error includes its session ID, `filePaths`, and whether the original
+work is still running. Do not repeat the transfer while that work is pending.
+
+The recovery session selects the source workbook; use its Excel window to
+inspect the opened workbooks. A later explicit session save writes remaining
+unsaved changes in both files; unchanged workbooks are not saved again.
+A close without saving discards remaining unsaved changes in both. Inspect their
+actual state before choosing either action. Discovering the destination does
+not change the recovery session's selected workbook or create another owner.
 
 ## Styling and outlines
 

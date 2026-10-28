@@ -105,6 +105,8 @@ public sealed partial class ServiceWorkbookLifecycleTests
     [InlineData("connection.get-account-settings", false)]
     [InlineData("connection.set-account-settings", false)]
     [InlineData("connection.clear-account-hint", false)]
+    [InlineData("range.set-values", false)]
+    [InlineData("range.set-formulas", true)]
     [InlineData("session.save", true)]
     [InlineData("workbook.save-as", true)]
     public async Task NativeModalPrompt_RefusesPersistenceBeforeQueuingComWork(string command, bool throughAttachment)
@@ -164,6 +166,24 @@ public sealed partial class ServiceWorkbookLifecycleTests
                         && pid == identity.ProcessId && IsWindowVisible(window) && IsWindowEnabled(window)
                         && batch.GetExecutionPreflightState() == WorkbookRefreshState.DialogOpen;
                 }, TimeSpan.FromSeconds(10)), "The owned native Excel prompt did not open.");
+                ExcelBatch.WorkItemQueuedHookForTests = () => Interlocked.Increment(ref queued);
+                var inspected = await service.ProcessAsync(new ServiceRequest
+                {
+                    Command = "session.notices",
+                    SessionId = session
+                });
+                RequireSuccess(inspected);
+                using var inspection = JsonDocument.Parse(inspected.Result!);
+                var notices = inspection.RootElement.GetProperty("notices");
+                Assert.False(notices.GetProperty("complete").GetBoolean());
+                Assert.Equal(JsonValueKind.Null, notices.GetProperty("protectedView").ValueKind);
+                Assert.Equal(JsonValueKind.Null, notices.GetProperty("readOnly").ValueKind);
+                Assert.Equal(JsonValueKind.Null, notices.GetProperty("hasVbaProject").ValueKind);
+                Assert.Equal(JsonValueKind.Null, notices.GetProperty("connectionCount").ValueKind);
+                Assert.Equal("unknown", notices.GetProperty("vbaState").GetString());
+                Assert.Equal("unknown", notices.GetProperty("connectionsState").GetString());
+                Assert.StartsWith("Dialog text",
+                    Assert.Single(notices.GetProperty("messages").EnumerateArray()).GetString());
                 dismiss.TrySetResult(true);
                 var rejected = Assert.Throws<COMException>(() => app.ScreenUpdating = false);
                 Assert.Contains(rejected.HResult, new[]
@@ -171,16 +191,20 @@ public sealed partial class ServiceWorkbookLifecycleTests
                     unchecked((int)0x80010001), unchecked((int)0x800AC472)
                 });
                 Assert.Equal(WorkbookRefreshState.DialogOpen, batch.GetExecutionPreflightState());
-                ExcelBatch.WorkItemQueuedHookForTests = () => Interlocked.Increment(ref queued);
                 if (command == "workbook.save-as")
                 {
                     var busy = Assert.Throws<ExcelBusyException>(() => new WorkbookCommands().SaveAs(selectedBatch, target));
                     Assert.Contains("dialog", busy.Message, StringComparison.OrdinalIgnoreCase);
-                    Assert.Contains(title, busy.Message, StringComparison.Ordinal);
+                    Assert.Contains(ExcelBusyException.DialogGuidance, busy.Message, StringComparison.Ordinal);
+                    Assert.Contains("Dialog text", busy.Message, StringComparison.Ordinal);
                 }
                 else
                 {
-                    var args = command == "connection.set-account-settings"
+                    var args = command == "range.set-values"
+                        ? """{"sheetName":"Sheet1","rangeAddress":"A1","values":[["must-not-write"]]}"""
+                        : command == "range.set-formulas"
+                        ? """{"sheetName":"Sheet1","rangeAddress":"A1","formulas":[["=1+2"]]}"""
+                        : command == "connection.set-account-settings"
                         ? JsonSerializer.Serialize(new { connectionName = "DialogProbe", interactiveLogin = "Enabled" },
                             ServiceProtocol.JsonOptions)
                         : command.StartsWith("connection.", StringComparison.Ordinal)
@@ -196,13 +220,14 @@ public sealed partial class ServiceWorkbookLifecycleTests
                     {
                         Assert.True(response.Success, response.ErrorMessage);
                         Assert.Contains("dialog", response.PartialState, StringComparison.OrdinalIgnoreCase);
-                        Assert.Contains(title, response.PartialState, StringComparison.Ordinal);
+                        Assert.Contains("Dialog text", response.PartialState, StringComparison.Ordinal);
                     }
                     else
                     {
                         Assert.False(response.Success);
                         Assert.Equal("Busy", response.ErrorCategory);
-                        Assert.Contains(title, response.ErrorMessage, StringComparison.Ordinal);
+                        Assert.Contains(ExcelBusyException.DialogGuidance, response.ErrorMessage, StringComparison.Ordinal);
+                        Assert.Contains("Dialog text", response.ErrorMessage, StringComparison.Ordinal);
                     }
                 }
                 Assert.Equal(0, queued);

@@ -3,7 +3,6 @@ using Sbroenne.ExcelMcp.CLI.Commands;
 using Sbroenne.ExcelMcp.CLI.Generated;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Telemetry;
-using Sbroenne.ExcelMcp.ComInterop.Session;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -27,6 +26,8 @@ internal sealed class Program
         string[] args,
         CliCommandRuntime? runtime = null)
     {
+        if (Service.ExcelController.IsWorkerMode(args))
+            return await Service.ExcelController.RunWorkerAsync(args);
         using var runtimeScope = CliCommandRuntime.Push(runtime ?? CliCommandRuntime.Current);
         try
         {
@@ -405,38 +406,44 @@ internal sealed class Program
         }
 
         var daemonIdentity = DaemonProcessTracker.RegisterCurrentProcess(pipeName);
-        Action<ExcelProcessIdentity> excelProcessTracker =
-            process => DaemonProcessTracker.RecordExcelProcesses(
-                pipeName,
-                daemonIdentity,
-                [
-                    new DaemonProcessTracker.ProcessIdentity(
-                        process.ProcessId,
-                        process.StartedAtUtcFileTime)
-                ]);
-        SessionManager.ExcelProcessIdentityTracked += excelProcessTracker;
-        Action<ExcelProcessIdentity> preserveExcelProcess = process =>
-            DaemonProcessTracker.PreserveExcelProcess(pipeName, daemonIdentity,
-                new DaemonProcessTracker.ProcessIdentity(process.ProcessId, process.StartedAtUtcFileTime));
-        SessionManager.ExcelProcessIdentityPreserved += preserveExcelProcess;
-        foreach (var process in SessionManager.GetTrackedExcelProcesses())
-        {
-            excelProcessTracker(process);
-        }
-
-        Service.ExcelMcpService? service = null;
+        Service.ExcelController? service = null;
         try
         {
-            service = new Service.ExcelMcpService(CliTelemetry.TrackDaemonRequestAsync);
+            service = new Service.ExcelController(CliTelemetry.TrackDaemonRequestAsync);
+            service.ExcelProcessObserved += process =>
+                DaemonProcessTracker.RecordExcelProcesses(pipeName, daemonIdentity,
+                    [new DaemonProcessTracker.ProcessIdentity(process.ProcessId, process.StartedAtUtcFileTime)]);
+            service.ExcelProcessPreserved += process =>
+                DaemonProcessTracker.PreserveExcelProcess(pipeName, daemonIdentity,
+                    new DaemonProcessTracker.ProcessIdentity(process.ProcessId, process.StartedAtUtcFileTime));
 
             // Capture the UI synchronization context after Application starts
             SynchronizationContext? uiContext = null;
 
             // Run WinForms message loop with tray icon on main thread
-            using var tray = new CliServiceTray(service.SessionManager, () =>
+            using var tray = new CliServiceTray(() => service.Sessions,
+                (sessionId, save) => service.ProcessAsync(new Service.ServiceRequest
+                {
+                    Command = "session.close",
+                    SessionId = sessionId,
+                    Args = System.Text.Json.JsonSerializer.Serialize(new { save })
+                }), async () =>
             {
-                var report = service.RequestShutdown();
-                Application.ExitThread();
+                var report = await service.ShutdownAsync();
+                try
+                {
+                    if (report is not null)
+                    {
+                        await Console.Error.WriteLineAsync(report);
+                        var reportPath = DaemonProcessTracker.GetTrackingFilePath(pipeName) + ".shutdown.txt";
+                        await File.WriteAllTextAsync(reportPath, report);
+                        await Console.Error.WriteLineAsync($"Excel was left open. Shutdown details: {reportPath}");
+                    }
+                }
+                finally
+                {
+                    await service.RequestShutdownAsync();
+                }
                 return report;
             });
 
@@ -475,7 +482,9 @@ internal sealed class Program
             }
             finally
             {
-                PersistCurrentExcelProcesses(pipeName, daemonIdentity);
+                DaemonProcessTracker.RecordExcelProcesses(pipeName, daemonIdentity,
+                    service.ExcelProcesses.Select(process => new DaemonProcessTracker.ProcessIdentity(
+                        process.ProcessId, process.StartedAtUtcFileTime)).ToArray());
                 service.Dispose();
                 service = null;
             }
@@ -484,11 +493,11 @@ internal sealed class Program
         {
             if (service != null)
             {
-                PersistCurrentExcelProcesses(pipeName, daemonIdentity);
+                DaemonProcessTracker.RecordExcelProcesses(pipeName, daemonIdentity,
+                    service.ExcelProcesses.Select(process => new DaemonProcessTracker.ProcessIdentity(
+                        process.ProcessId, process.StartedAtUtcFileTime)).ToArray());
                 service.Dispose();
             }
-            SessionManager.ExcelProcessIdentityTracked -= excelProcessTracker;
-            SessionManager.ExcelProcessIdentityPreserved -= preserveExcelProcess;
 
             // Release the daemon mutex so a new daemon can start if needed.
             if (ownsLegacyDaemonMutex)
@@ -500,17 +509,4 @@ internal sealed class Program
         }
     }
 
-    private static void PersistCurrentExcelProcesses(
-        string pipeName,
-        DaemonProcessTracker.ProcessIdentity daemonIdentity)
-    {
-        _ = DaemonProcessTracker.TryRecordExcelProcesses(
-                pipeName,
-                daemonIdentity,
-                SessionManager.GetTrackedExcelProcesses()
-                    .Select(process => new DaemonProcessTracker.ProcessIdentity(
-                        process.ProcessId,
-                        process.StartedAtUtcFileTime))
-                    .ToList());
-    }
 }

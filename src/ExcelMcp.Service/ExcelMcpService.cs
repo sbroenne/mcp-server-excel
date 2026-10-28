@@ -94,7 +94,7 @@ public sealed class ExcelMcpService : IDisposable
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "A caller-abandonment notification only reveals retained ownership. Failures are diagnosed without replacing cancellation or closing a workbook whose execution is still owned.")]
-    private void RevealAbandonedRequest(ServiceRequest request, ServiceResponse? response)
+    internal void RevealAbandonedRequest(ServiceRequest request, ServiceResponse? response)
     {
         try
         {
@@ -122,6 +122,11 @@ public sealed class ExcelMcpService : IDisposable
 
     public DateTime StartTime => _startTime;
     public int SessionCount => _sessionManager.GetActiveSessions(statusOnly: true).Count;
+
+    internal static bool IsSessionlessCommand(string command) =>
+        command.Split('.', 2)[0] is "service" or "diag" or "settings" or "powerquerytrace"
+        || command is "session.open" or "session.create" or "session.test"
+            or "sheet.copy-to-file" or "sheet.move-to-file";
     public SessionManager SessionManager => _sessionManager;
 
     /// <summary>
@@ -170,7 +175,7 @@ public sealed class ExcelMcpService : IDisposable
 
     /// <summary>
     /// Processes a service request directly (in-process, no pipe).
-    /// Used by the MCP Server for direct in-process communication.
+    /// Product controllers use this engine inside their private Excel workers.
     /// </summary>
     [System.Diagnostics.CodeAnalysis.SuppressMessage("ErrorHandling", "EXL002",
         Justification = "Service request failure-transport boundary returns CreateErrorResponse with Success=false, original exception category/message/HResult, and request/session context.")]
@@ -444,7 +449,7 @@ public sealed class ExcelMcpService : IDisposable
         ["allowReopen"] = "true only after separate approval to close and reopen the saved workbook; opening macros can run",
     };
 
-    private static void ValidateSessionActionArguments(string action, string? argsJson)
+    internal static void ValidateSessionActionArguments(string action, string? argsJson)
     {
         string[] allowedParameters = action switch
         {
@@ -706,6 +711,7 @@ public sealed class ExcelMcpService : IDisposable
                 {
                     sessionId = s.SessionId,
                     filePath = s.FilePath,
+                    filePaths = _sessionManager.GetOwnedFilePaths(s.SessionId),
                     workbookName = s.WorkbookName,
                     isAttached = s.IsAttached,
                     isExcelVisible = validation.IsExcelVisible,
@@ -840,22 +846,35 @@ public sealed class ExcelMcpService : IDisposable
             if (sheetAction is SheetAction.CopyToFile or SheetAction.MoveToFile)
 
             {
+                using var temporary = _sessionManager.OwnTemporaryBatches(request.Command, request.CallerCancellation);
 
                 try
 
                 {
 
-                    return WrapResult(ServiceRegistry.Sheet.DispatchToCore(
-
-                        _sheetCommands, sheetAction, null!, request.Args));
+                    var result = ServiceRegistry.Sheet.DispatchToCore(
+                        _sheetCommands, sheetAction, null!, request.Args);
+                    temporary.Complete();
+                    return WrapResult(result);
 
                 }
 
                 catch (Exception ex)
 
                 {
-
-                    return CreateErrorResponse(ex);
+                    Exception? recoveryFailure = null;
+                    try
+                    {
+                        temporary.RetainFailure();
+                    }
+                    catch (Exception recoveryError)
+                    {
+                        recoveryFailure = recoveryError;
+                    }
+                    if (temporary.SessionId is { } sessionId)
+                        _knownSessionIds.TryAdd(sessionId, 0);
+                    return CreateErrorResponse(ex, request.Command, temporary.SessionId,
+                        temporary.SessionId is not null ? temporary.FilePaths : null, recoveryFailure);
 
                 }
 
@@ -1088,7 +1107,13 @@ public sealed class ExcelMcpService : IDisposable
             _sessionManager.SetOperationContext(sessionId, request.Command, request.CallerCancellation);
             var owner = batch is AttachedWorkbookBatch attached ? attached.Owner : batch as ExcelBatch;
             if (!string.Equals(request.Command, "session.notices", StringComparison.OrdinalIgnoreCase))
+            {
                 owner?.ThrowIfWorkbookUnavailable();
+                if (!allowTimedOutOperation
+                    && owner?.GetExecutionPreflightState() == WorkbookRefreshState.DialogOpen)
+                    ExcelBusyException.ThrowIfNotReady(WorkbookRefreshState.DialogOpen, request.Command,
+                        batch as IExcelBatchWindowControl);
+            }
             if (string.Equals(request.Command, ServiceRegistry.Connection.GetRefreshStatusCommand, StringComparison.OrdinalIgnoreCase) ||
                 string.Equals(request.Command, ServiceRegistry.Connection.CancelRefreshCommand, StringComparison.OrdinalIgnoreCase))
             {
@@ -1226,7 +1251,7 @@ public sealed class ExcelMcpService : IDisposable
         hresult == ResiliencePipelines.RPC_E_CALL_FAILED ||
         hresult == ResiliencePipelines.RPC_E_DISCONNECTED;
 
-    private static ServiceResponse AttachRequestContext(ServiceRequest request, ServiceResponse response)
+    internal static ServiceResponse AttachRequestContext(ServiceRequest request, ServiceResponse response)
     {
         if (response.Success)
         {
@@ -1262,7 +1287,9 @@ public sealed class ExcelMcpService : IDisposable
         };
     }
 
-    private ServiceResponse CreateErrorResponse(Exception ex, string? command = null, string? sessionId = null)
+    private ServiceResponse CreateErrorResponse(
+        Exception ex, string? command = null, string? sessionId = null,
+        IReadOnlyList<string>? retainedFiles = null, Exception? recoveryFailure = null)
     {
         if (ex is SessionStartupPendingException pending)
         {
@@ -1287,6 +1314,11 @@ public sealed class ExcelMcpService : IDisposable
                 innerError += $" [COM: 0x{innerComEx.HResult:X8}]";
             }
         }
+        if (recoveryFailure is not null)
+        {
+            innerError = $"{innerError}{(innerError is null ? "" : Environment.NewLine)}" +
+                $"Recovery reveal also failed: {recoveryFailure.GetType().Name}: {recoveryFailure.Message}";
+        }
 
         return ex switch
         {
@@ -1301,7 +1333,8 @@ public sealed class ExcelMcpService : IDisposable
                 HResult = hresult,
                 InnerError = innerError,
                 PartialState = SerializePartialState(pqEx.PartialState,
-                    sessionId is not null ? _sessionManager.GetOperationStatus(sessionId) : null)
+                    sessionId is not null ? _sessionManager.GetOperationStatus(sessionId) : null,
+                    sessionId, retainedFiles)
             },
             _ => new ServiceResponse
             {
@@ -1314,17 +1347,27 @@ public sealed class ExcelMcpService : IDisposable
                 HResult = hresult,
                 InnerError = innerError,
                 PartialState = SerializePartialState(null,
-                    sessionId is not null ? _sessionManager.GetOperationStatus(sessionId) : null)
+                    sessionId is not null ? _sessionManager.GetOperationStatus(sessionId) : null,
+                    sessionId, retainedFiles)
             }
         };
     }
 
-    private static string? SerializePartialState(PowerQueryPartialState? query, ExcelOperationStatus? operation)
+    private static string? SerializePartialState(
+        PowerQueryPartialState? query, ExcelOperationStatus? operation,
+        string? sessionId = null, IReadOnlyList<string>? retainedFiles = null)
     {
         var state = query is null
             ? null
             : JsonSerializer.SerializeToNode(query, ServiceProtocol.JsonOptions)!.AsObject();
-        if (operation is { WaitExpired: true })
+        if (retainedFiles is not null)
+        {
+            state ??= new System.Text.Json.Nodes.JsonObject();
+            state["sessionId"] = sessionId;
+            state["filePaths"] = JsonSerializer.SerializeToNode(retainedFiles, ServiceProtocol.JsonOptions);
+            state["retained"] = true;
+        }
+        if (operation is { WaitExpired: true } || operation is not null && retainedFiles is not null)
         {
             state ??= new System.Text.Json.Nodes.JsonObject();
             state["operation"] = JsonSerializer.SerializeToNode(operation, ServiceProtocol.JsonOptions);

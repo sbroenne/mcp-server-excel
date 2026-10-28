@@ -139,6 +139,8 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
             };
 
             ServiceResponse response;
+            CliCommandRuntime.Current.Error.WriteLine($"Batch {i + 1}/{commands.Count}: {cmd.Command} started.");
+            await CliCommandRuntime.Current.Error.FlushAsync(cancellationToken);
             try
             {
                 response = await CliTelemetry.TrackCommandAsync(
@@ -193,6 +195,9 @@ internal sealed class BatchCommand : AsyncCommand<BatchCommand.Settings>
             };
 
             CliCommandRuntime.Current.Output.WriteLine(JsonSerializer.Serialize(output, BatchJsonOptions));
+            await CliCommandRuntime.Current.Output.FlushAsync(cancellationToken);
+            CliCommandRuntime.Current.Error.WriteLine(
+                $"Batch {i + 1}/{commands.Count}: {cmd.Command} {(itemSucceeded ? "completed" : "failed")}.");
 
             if (!itemSucceeded)
             {

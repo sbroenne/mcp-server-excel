@@ -42,7 +42,7 @@ public sealed class BatchCommandSummaryTests
                 fileInput ? "" : input);
 
             Assert.Equal(0, result.ExitCode);
-            Assert.Empty(result.Stderr);
+            AssertProgress(result.Stderr, 2, (1, "range.set-values", true), (2, "range.set-values", true));
             var lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             Assert.Equal(2, lines.Length);
             var summaries = new[]
@@ -123,7 +123,12 @@ public sealed class BatchCommandSummaryTests
             first + "\n" + """{"command":"diag.ping"}""");
 
         Assert.Equal(1, result.ExitCode);
-        Assert.Empty(result.Stderr);
+        var expectedProgress = new List<(int, string, bool)>();
+        if (failure != "validation")
+            expectedProgress.Add((1, "range.get-values", false));
+        if (!stopOnError)
+            expectedProgress.Add((2, "diag.ping", true));
+        AssertProgress(result.Stderr, 2, expectedProgress.ToArray());
         var lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         Assert.Equal(stopOnError ? 1 : 2, lines.Length);
         using var json = JsonDocument.Parse(lines[0]);
@@ -211,8 +216,9 @@ public sealed class BatchCommandSummaryTests
             includeFollowingCommand ? first + "\n" + """{"command":"diag.ping"}""" : first);
 
         Assert.Equal(1, result.ExitCode);
-        Assert.Empty(result.Stderr);
         var continued = includeFollowingCommand && !stopOnError;
+        AssertProgress(result.Stderr, includeFollowingCommand ? 2 : 1,
+            continued ? [(2, "diag.ping", true)] : []);
         var lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         Assert.Equal(continued ? 2 : 1, lines.Length);
         using var failed = JsonDocument.Parse(lines[0]);
@@ -253,7 +259,9 @@ public sealed class BatchCommandSummaryTests
             """);
 
         Assert.Equal(1, result.ExitCode);
-        Assert.Empty(result.Stderr);
+        AssertProgress(result.Stderr, 3, stopOnError
+            ? [(1, "diag.ping", true)]
+            : [(1, "diag.ping", true), (3, "diag.ping", true)]);
         Assert.Equal(stopOnError ? 1 : 2, requests.Count);
         Assert.All(requests, request => Assert.Equal("diag.ping", request.Command));
         var lines = result.Stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries);
@@ -274,5 +282,16 @@ public sealed class BatchCommandSummaryTests
             Assert.True(last.RootElement.GetProperty("success").GetBoolean());
             Assert.Equal("diag.ping", last.RootElement.GetProperty("commandSummary").GetString());
         }
+    }
+
+    private static void AssertProgress(string stderr, int total,
+        params (int Index, string Command, bool Success)[] items)
+    {
+        var expected = items.SelectMany(item => new[]
+        {
+            $"Batch {item.Index}/{total}: {item.Command} started.",
+            $"Batch {item.Index}/{total}: {item.Command} {(item.Success ? "completed" : "failed")}."
+        });
+        Assert.Equal(expected, stderr.Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries));
     }
 }

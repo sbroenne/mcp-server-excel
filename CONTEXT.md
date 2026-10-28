@@ -8,16 +8,18 @@ ExcelMcp is a Windows-only automation system that controls the installed Microso
 
 ```text
 CLI client process (one invocation)
-  -> named pipe -> CLI daemon process [daemon host -> ExcelMcpService -> Core] -> Excel COM
+  -> named pipe -> CLI controller -> private worker [ExcelMcpService -> Core] -> Excel COM
 
-MCP Server process [owned Service bridge -> in-process ExcelMcpService -> Core] -> Excel COM
+MCP Server [owned Service bridge -> controller]
+  -> private worker [ExcelMcpService -> Core] -> Excel COM
 ```
 
 The MCP Server and `excelcli` are equal user entry points. They expose the same
 operations and behavior, but the CLI client exits after its invocation while
-the daemon persists across invocations. The daemon and MCP Server each host the
-Service in their own process and own separate workbook sessions and operation
-telemetry. `ExcelMcpService` is not a standalone process. See
+the daemon persists across invocations. Each host owns its own controller,
+separate workbook sessions, and operation telemetry. Excel execution lives in
+private workers launched from that entry point, not in the controller or tray.
+`ExcelMcpService` is a library hosted inside each worker. See
 [process lifetimes](docs/ARCHITECTURE.md#process-lifetimes).
 
 ## Glossary
@@ -28,10 +30,13 @@ telemetry. `ExcelMcpService` is not a standalone process. See
 - **Batch (`IExcelBatch`):** The internal object that keeps Excel and its workbook open and runs COM work on Excel's required thread.
 - **Core command:** Transport-independent Excel behavior implemented under `src/ExcelMcp.Core`.
 - **Service:** The shared command router and session owner used by both entry points.
-- **Daemon host:** The CLI daemon component that owns named-pipe acceptance,
-  connection limits and connection draining around the Service. It stays running
-  until explicitly stopped or its process exits.
-- **Service bridge:** The MCP host component that owns one in-process Service
+- **Controller:** The host-owned router that tracks workers, workbook sessions,
+  and process identities. Basic status reads recorded state without waiting for Excel.
+- **Worker:** A private copy of the current product process that hosts the Service
+  and owns one Excel application's execution. It is not a third product entry point.
+- **Daemon host:** The shared named-pipe listener, with bounded connections and
+  shutdown draining. The CLI controller stays running until explicitly stopped.
+- **Service bridge:** The MCP host component that owns one controller
   generation and prevents stale requests from disposing a newer generation.
 - **COM reference:** A live Excel object such as a workbook, worksheet, range, chart, or model object. It belongs to the Excel process and requires controlled cleanup.
 - **Generated surface:** CLI commands, service routes, MCP schemas, or reference material produced from a source contract rather than maintained separately.
@@ -47,7 +52,9 @@ telemetry. `ExcelMcpService` is not a standalone process. See
 
 - One session operates on one workbook in an Excel application process. An owned session starts that process; an attached session leaves the user's application and neighboring workbooks open when detached.
 - Operations inside one session run in order on one Excel thread.
-- Different sessions can run independently, but the same workbook cannot be opened in multiple sessions.
+- Different Excel applications can run independently. Workbooks sharing an
+  application share one execution owner; the same workbook cannot be opened
+  in multiple sessions.
 - An expired wait can leave Excel working. Retain the session and workbook, reveal the affected Excel window when possible, and report status to the calling agent. New work is refused until the original callback has returned and Excel readiness is confirmed; then the same session can be reused.
 - Ordinary operations change the in-memory workbook; Excel AutoSave can persist edits independently. Opening and attaching preserve that setting. Explicit close defaults to discarding unsaved changes; request saving to keep them. Normal Service shutdown closes confirmed-saved workbooks it opened and hands unsaved ones back open and visible without saving or discarding. Attached workbooks stay untouched. An expired wait or caller cancellation does not authorize saving, discarding, rollback, or termination.
 - MCP uses the official SDK for registration, transport, argument binding, and protocol errors. The host owns its injected Service bridge; cancelled startup retains its eventual session. Session publication is coordinated with shutdown.

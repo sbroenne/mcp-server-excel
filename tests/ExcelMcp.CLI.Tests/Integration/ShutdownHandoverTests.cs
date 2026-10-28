@@ -1,9 +1,11 @@
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using Sbroenne.ExcelMcp.CLI.Infrastructure;
 using Sbroenne.ExcelMcp.CLI.Tests.Helpers;
 using Sbroenne.ExcelMcp.ComInterop.Session;
 using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.Service.Workers;
 using Xunit;
 
 namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
@@ -17,9 +19,12 @@ namespace Sbroenne.ExcelMcp.CLI.Tests.Integration;
 public sealed class ShutdownHandoverTests(Xunit.Abstractions.ITestOutputHelper output)
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ServiceStop_PreservesWorkbookAcrossDaemonExitAndRestart(bool retainedOwnership)
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, true)]
+    public async Task ServiceStop_PreservesWorkbookAcrossDaemonExitAndRestart(
+        bool retainedOwnership, bool blockedWorker, bool crashedController)
     {
         var path = Path.Join(Path.GetTempPath(), $"shutdown-handover-{Guid.NewGuid():N}.xlsx");
         var environment = new Dictionary<string, string>
@@ -49,7 +54,63 @@ public sealed class ShutdownHandoverTests(Xunit.Abstractions.ITestOutputHelper o
                 "--range-address", "A1", "--values", """[["left open"]]"""]);
             var pipeName = environment["EXCELMCP_CLI_PIPE"];
             var recorded = DaemonProcessTracker.ReadProcessSnapshot(pipeName).Snapshot!;
-            await RunAsync(["service", "stop"]);
+            var originalWorker = Assert.Single(new WorkerRegistry().Read(), record =>
+                record.Controller.ProcessId == recorded.DaemonProcess.ProcessId && record.Excel == ownedIdentity);
+            if (crashedController)
+            {
+                ownedProcess.Refresh();
+                Assert.Equal(IntPtr.Zero, ownedProcess.MainWindowHandle);
+                using var daemon = Process.GetProcessById(recorded.DaemonProcess.ProcessId);
+                Assert.Equal(recorded.DaemonProcess.StartedAtUtcFileTime,
+                    daemon.StartTime.ToUniversalTime().ToFileTimeUtc());
+                _ = daemon.Handle;
+                daemon.Kill();
+                await daemon.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                sessionId = null;
+                var revealWait = Stopwatch.StartNew();
+                while (revealWait.Elapsed < TimeSpan.FromSeconds(8))
+                {
+                    ownedProcess.Refresh();
+                    if (ownedProcess.MainWindowHandle != IntPtr.Zero)
+                        break;
+                    await Task.Delay(50);
+                }
+                Assert.NotEqual(IntPtr.Zero, ownedProcess.MainWindowHandle);
+            }
+            if (blockedWorker)
+            {
+                using var worker = Process.GetProcessById(originalWorker.Worker.ProcessId);
+                Assert.Equal(originalWorker.Worker, WorkerProcess.From(worker));
+                Assert.Equal(0, NtSuspendProcess(worker.Handle));
+                try
+                {
+                    var controlWait = Stopwatch.StartNew();
+                    var responsive = await RunAsync(["service", "status"]);
+                    Assert.True(responsive.GetProperty("running").GetBoolean());
+                    Assert.Equal(1, responsive.GetProperty("sessionCount").GetInt32());
+                    Assert.True(controlWait.Elapsed < TimeSpan.FromSeconds(5));
+                    var list = await RunAsync(["session", "list"]);
+                    Assert.Equal(sessionId, Assert.Single(list.GetProperty("sessions").EnumerateArray())
+                        .GetProperty("sessionId").GetString());
+                    var stopping = Stopwatch.StartNew();
+                    var stop = await RunAsync(["service", "stop"]);
+                    sessionId = null;
+                    Assert.True(stopping.Elapsed < TimeSpan.FromSeconds(12));
+                    Assert.Contains(originalWorker.Worker.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                        stop.GetProperty("shutdownWarning").GetString());
+                    Assert.False(worker.HasExited);
+                    Assert.False(ownedProcess.HasExited);
+                }
+                finally
+                {
+                    Assert.Equal(0, NtResumeProcess(worker.Handle));
+                }
+            }
+            else
+            {
+                await RunAsync(["service", "stop"]);
+                sessionId = null;
+            }
             if (retainedOwnership)
             {
                 // Recreate the durable state of an earlier owner without killing Excel's automation host.
@@ -59,14 +120,15 @@ public sealed class ShutdownHandoverTests(Xunit.Abstractions.ITestOutputHelper o
                 DaemonProcessTracker.RecordExcelProcesses(pipeName, earlierService, recorded.ExcelProcesses.ToArray());
             }
             var stopped = await RunAsync(["service", "stop"]);
-            Assert.Equal(retainedOwnership ? 1 : 0, stopped.GetProperty("retainedExcelProcessCount").GetInt32());
+            var retained = retainedOwnership || blockedWorker || crashedController;
+            Assert.Equal(retained ? 1 : 0, stopped.GetProperty("retainedExcelProcessCount").GetInt32());
             Assert.False(ownedProcess.HasExited);
             sessionId = null;
 
             await RunAsync(["service", "start"]);
             var status = await RunAsync(["service", "status"]);
-            Assert.Equal(retainedOwnership ? 1 : 0, status.GetProperty("retainedExcelProcessCount").GetInt32());
-            if (retainedOwnership)
+            Assert.Equal(retained ? 1 : 0, status.GetProperty("retainedExcelProcessCount").GetInt32());
+            if (retained)
             {
                 var remaining = Assert.Single(status.GetProperty("retainedExcelProcesses").EnumerateArray());
                 Assert.Equal(ownedIdentity.Value.ProcessId, remaining.GetProperty("processId").GetInt32());
@@ -85,6 +147,13 @@ public sealed class ShutdownHandoverTests(Xunit.Abstractions.ITestOutputHelper o
             Assert.Equal(ownedIdentity.Value.ProcessId, book.GetProperty("processId").GetInt32());
             var attached = await RunAsync(["session", "attach", "--workbook-id", book.GetProperty("workbookId").GetString()!]);
             sessionId = attached.GetProperty("sessionId").GetString()!;
+            if (blockedWorker || crashedController)
+            {
+                var reclaimed = Assert.Single(new WorkerRegistry().Read(), record =>
+                    record.Excel == ownedIdentity && record.Worker.IsAlive());
+                Assert.Equal(originalWorker.Worker, reclaimed.Worker);
+                Assert.NotEqual(originalWorker.Controller, reclaimed.Controller);
+            }
             var info = await RunAsync(["workbook", "get-info", "--session", sessionId]);
             Assert.False(info.GetProperty("saved").GetBoolean());
             var values = await RunAsync(["range", "get-values", "--session", sessionId,
@@ -178,4 +247,10 @@ public sealed class ShutdownHandoverTests(Xunit.Abstractions.ITestOutputHelper o
             return document.RootElement.Clone();
         }
     }
+
+    [DllImport("ntdll.dll")]
+    private static extern int NtSuspendProcess(IntPtr processHandle);
+
+    [DllImport("ntdll.dll")]
+    private static extern int NtResumeProcess(IntPtr processHandle);
 }

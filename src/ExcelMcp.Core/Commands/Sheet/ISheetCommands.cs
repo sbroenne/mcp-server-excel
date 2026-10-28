@@ -90,9 +90,10 @@ public interface ISheetCommands
     // These operations don't require a session - they create temporary Excel instances internally.
 
     /// <summary>
-    /// Copies a worksheet to another file (atomic operation - no session required).
+    /// Copies a worksheet to another file without requiring an existing session.
     /// Creates a temporary Excel instance, opens both files, performs the copy,
-    /// saves the target file, and closes both files.
+    /// saves the target file, and closes both files on success.
+    /// Failure can retain both workbooks in a reported recovery session; inspect before retrying.
     /// </summary>
     /// <param name="sourceFile">Full path to the source workbook</param>
     /// <param name="sourceSheet">Name of the sheet to copy</param>
@@ -110,9 +111,10 @@ public interface ISheetCommands
         string? afterSheet = null);
 
     /// <summary>
-    /// Moves a worksheet to another file (atomic operation - no session required).
+    /// Moves a worksheet to another file without requiring an existing session.
     /// Creates a temporary Excel instance, opens both files, performs the move,
-    /// saves both files, and closes them.
+    /// saves both files, and closes them on success.
+    /// Failure can retain both workbooks in a reported recovery session; inspect before retrying.
     /// Removes the sheet from the source and saves both workbooks. No tool-level undo;
     /// closing another session without saving cannot reverse this saved transfer.
     /// This is the RECOMMENDED way to move sheets between files.

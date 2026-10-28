@@ -193,6 +193,16 @@ Use `session discover`, check `complete` and `errors`, then explicitly attach
 with `session attach --workbook-id <ID>` to inspect the intended workbook.
 Do not infer that an unknown workbook is empty or safe to terminate.
 
+Excel work runs in separate private workers. Status and the tray read recorded
+information, so a responsive service does not prove that Excel is ready.
+Commands for workbooks in the same Excel application share one execution owner.
+If a stopped service retained a worker, explicit discovery can reconnect to it
+after the old service process exits; pending edits are not repeated. A different
+product build or another running owner is reported rather than replaced.
+Tray exit does not keep a report window's process alive. When Excel must remain
+open, its shutdown details are saved beside the private service tracking record
+under `%TEMP%\ExcelMcp\cli-daemon` as `<pipe-hash>.json.shutdown.txt`.
+
 ---
 
 ## 🛠️ Advanced Usage

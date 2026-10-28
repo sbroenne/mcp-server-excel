@@ -3,6 +3,8 @@ using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using Sbroenne.ExcelMcp.ComInterop;
 using Sbroenne.ExcelMcp.ComInterop.Session;
+using Sbroenne.ExcelMcp.Service;
+using Sbroenne.ExcelMcp.Service.Workers;
 using Xunit.Abstractions;
 
 namespace Sbroenne.ExcelMcp.McpServer.Tests.Integration.Tools;
@@ -12,7 +14,7 @@ internal static class ProgramTransportTestHost
     private static readonly TimeSpan ClientInitializationTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan ServerReadyTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan ServerReadyRetryDelay = TimeSpan.FromMilliseconds(50);
-    // Host disposal auto-saves before the close callback, STA shutdown, and natural process-exit wait.
+    // Include the bounded worker release and connection drain before host exit.
     private static readonly TimeSpan ServerShutdownTimeout =
         TimeSpan.FromSeconds(30)
         + ComInteropConstants.DefaultOperationTimeout
@@ -27,6 +29,9 @@ internal static class ProgramTransportTestHost
         string clientName,
         Func<ServiceBridge.IServiceBridgeBackend>? serviceFactory = null)
     {
+        serviceFactory ??= () => new ServiceBridge.ExcelControllerBackend(new ExcelController(
+            launcher: new ProductProcessLauncher(Path.GetFullPath(Path.Combine(AppContext.BaseDirectory,
+                @"..\..\..\..\..\src\ExcelMcp.McpServer\bin\Release\net10.0-windows\Sbroenne.ExcelMcp.McpServer.exe")), [])));
         var serverTask = Program.RunAsync([], clientToServerPipe, serverToClientPipe, cancellationToken, serviceFactory);
         var client = await ConnectClientWithRetryAsync(clientToServerPipe, serverToClientPipe, cancellationToken, clientName);
 

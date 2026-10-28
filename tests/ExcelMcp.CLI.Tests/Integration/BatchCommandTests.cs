@@ -67,7 +67,10 @@ public sealed class BatchCommandTests : IDisposable
             $$$"""{"command":"powerquery.{{{action}}}","args":{"queryName":"Query","mCode":"error \"Formula.Firewall\""}}""");
 
         Assert.Equal(1, result.ExitCode);
-        Assert.Empty(result.Stderr);
+        Assert.Equal(
+            $"Batch 1/1: powerquery.{action} started.{Environment.NewLine}" +
+            $"Batch 1/1: powerquery.{action} failed.{Environment.NewLine}",
+            result.Stderr);
         using var json = JsonDocument.Parse(result.Stdout);
         var root = json.RootElement;
         Assert.False(root.GetProperty("success").GetBoolean());
