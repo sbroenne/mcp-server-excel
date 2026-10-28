@@ -1069,42 +1069,25 @@ public sealed class SessionManager : IDisposable
         ThrowIfClosedToNewSessions();
 
         string normalizedPath = WorkbookLocation.Normalize(filePath);
-        bool isRemote = WorkbookLocation.IsRemote(normalizedPath);
-        if (isRemote && !show)
-            throw new ArgumentException("SharePoint workbooks require show=true so Excel authentication and permission prompts remain visible.", nameof(show));
-
-        if (!isRemote && !File.Exists(normalizedPath))
-        {
-            throw new FileNotFoundException($"Excel file not found: {filePath}. To create a new file, use the 'create' action instead of 'open'.", filePath);
-        }
-
         // Generate unique session ID
         string sessionId = Guid.NewGuid().ToString("N");
         CleanupDeadFilePathOwner(normalizedPath);
         if (!TryClaimFilePath(normalizedPath, sessionId))
         {
             throw new InvalidOperationException(
-                $"File '{filePath}' is already open in another session or reserved for one. " +
+                $"File '{normalizedPath}' is already open in another session or reserved for one. " +
                 "Excel cannot open the same file multiple times.");
         }
 
         ExcelBatch? batch = null;
         try
         {
-            // Reject external file-access failures after the in-process path claim,
-            // so a duplicate session reports its canonical ownership error instead
-            // of being mistaken for an unrelated OS-level file lock.
-            if (!isRemote && !FileAccessValidator.IsIrmProtected(normalizedPath))
-            {
-                FileAccessValidator.ValidateFileNotLocked(normalizedPath);
-            }
-
             // Create batch session using Core API with retry for transient COM failures
             // (e.g., CO_E_SERVER_EXEC_FAILURE when system resources are constrained)
             lock (_filePathReservationLock)
             {
                 ThrowIfClosedToNewSessions();
-                batch = ExcelSession.BeginOwnedBatch(show, operationTimeout, startupTimeout, normalizedPath);
+                batch = ExcelSession.BeginOwnedBatch(show, operationTimeout, startupTimeout, filePath);
                 PublishSession(sessionId, normalizedPath, batch, show, origin);
             }
             batch.WaitForStartup();
@@ -1118,7 +1101,7 @@ public sealed class SessionManager : IDisposable
         catch (Exception ex)
         {
             CleanupFailedStartup(sessionId, batch, ex);
-            throw new InvalidOperationException($"Failed to create session for '{filePath}': {ex.Message}", ex);
+            throw new InvalidOperationException($"Failed to create session for '{normalizedPath}': {ex.Message}", ex);
         }
     }
 
@@ -1143,8 +1126,6 @@ public sealed class SessionManager : IDisposable
         var retained = false;
         try
         {
-            if (!WorkbookLocation.IsRemote(normalizedPath))
-                FileAccessValidator.ValidateFileNotLocked(normalizedPath);
             lock (_filePathReservationLock)
             {
                 ThrowIfClosedToNewSessions();
@@ -2196,7 +2177,6 @@ public sealed class SessionManager : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var normalizedPath = WorkbookLocation.Normalize(filePath);
-
         lock (_filePathReservationLock)
         {
             if (!_activeSessions.TryGetValue(sessionId, out var session))
@@ -2261,7 +2241,7 @@ public sealed class SessionManager : IDisposable
     /// <param name="sessionId">Active session ID</param>
     /// <param name="filePath">New workbook path</param>
     public void UpdateSessionFilePath(string sessionId, string filePath) =>
-        UpdateSessionFilePath(sessionId, filePath, previousWorkbookPath: null);
+        UpdateSessionFilePath(sessionId, WorkbookLocation.Normalize(filePath), previousWorkbookPath: null);
 
     private void UpdateSessionFilePath(string sessionId, string filePath, string? previousWorkbookPath)
     {

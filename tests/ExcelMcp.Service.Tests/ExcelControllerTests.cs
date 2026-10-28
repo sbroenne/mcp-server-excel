@@ -22,6 +22,57 @@ public sealed class ExcelControllerTests
         AppContext.BaseDirectory, @"..\..\..\..\..\src\ExcelMcp.CLI\bin\Release\net10.0-windows\excelcli.exe")), []);
 
     [Fact(Timeout = 30000)]
+    public async Task Controller_TracksObservedPersonalOneDriveLocationAndPreservesItsReservation()
+    {
+        ExcelWorkerClient? started = null;
+        using var controller = new ExcelController(launcher: Launcher, initializeWorker: async worker =>
+        {
+            await worker.InitializeAsync();
+            started = worker;
+        });
+        Assert.True((await controller.ProcessAsync(new ServiceRequest
+        {
+            Command = "diag.echo",
+            Args = """{"message":"initialize-cloud-status-owner"}"""
+        })).Success);
+        var worker = Assert.IsType<ExcelWorkerClient>(started);
+        var session = Guid.NewGuid().ToString("N");
+        const string location = "https://d.docs.live.net/123/Documents/Test%20File.xlsx";
+        worker.RecordSnapshot(new WorkerSnapshot(worker.Registration,
+            [new SessionDescriptor(session, location)],
+            new ServiceResponse
+            {
+                Success = true,
+                Result = JsonSerializer.Serialize(new
+                {
+                    sessions = new[] { new { sessionId = session, filePath = location,
+                        filePaths = new[] { location }, operationPending = false } }
+                })
+            }, null, null, Revision: long.MaxValue));
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        while (controller.Sessions.SingleOrDefault()?.FilePath != location)
+            await Task.Delay(50, timeout.Token);
+
+        var response = await controller.ProcessAsync(new ServiceRequest
+        {
+            Command = "diag.echo",
+            SessionId = session,
+            Args = """{"message":"retain-observed-cloud-location"}"""
+        });
+        Assert.True(response.Success, response.ErrorMessage);
+        Assert.Null(worker.StatusError);
+        Assert.Equal(location, Assert.Single(controller.Sessions).FilePath);
+        var rejected = await controller.ProcessAsync(new ServiceRequest
+        {
+            Command = "session.open",
+            Args = JsonSerializer.Serialize(new { filePath = location })
+        });
+        Assert.False(rejected.Success);
+        Assert.Contains("already", rejected.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(session, Assert.Single(controller.Sessions).SessionId);
+    }
+
+    [Fact(Timeout = 30000)]
     public async Task Controller_TracksEveryReportedWorkbookPathAcrossCompletionAndRename()
     {
         ExcelWorkerClient? started = null;
@@ -61,10 +112,10 @@ public sealed class ExcelControllerTests
         var available = await controller.ProcessAsync(new ServiceRequest
         {
             Command = "session.open",
-            Args = JsonSerializer.Serialize(new { filePath = source })
+            Args = JsonSerializer.Serialize(new { filePath = source, timeoutSeconds = 1 })
         });
         Assert.False(available.Success);
-        Assert.Equal("FileNotFoundException", available.ExceptionType);
+        Assert.Equal("ArgumentOutOfRangeException", available.ExceptionType);
 
         void Publish(string primary, long revision) =>
             worker.RecordSnapshot(new WorkerSnapshot(worker.Registration,
@@ -111,10 +162,10 @@ public sealed class ExcelControllerTests
                     var retry = await controller.ProcessAsync(new ServiceRequest
                     {
                         Command = "session.open",
-                        Args = JsonSerializer.Serialize(new { filePath = other })
+                        Args = JsonSerializer.Serialize(new { filePath = other, timeoutSeconds = 1 })
                     });
                     Assert.False(retry.Success);
-                    Assert.Equal("FileNotFoundException", retry.ExceptionType);
+                    Assert.Equal("ArgumentOutOfRangeException", retry.ExceptionType);
                 }
             }
         }
@@ -136,10 +187,10 @@ public sealed class ExcelControllerTests
         var opened = await controller.ProcessAsync(new ServiceRequest
         {
             Command = "session.open",
-            Args = JsonSerializer.Serialize(new { filePath = path })
+            Args = JsonSerializer.Serialize(new { filePath = path, timeoutSeconds = 1 })
         });
         Assert.False(opened.Success);
-        Assert.Equal("FileNotFoundException", opened.ExceptionType);
+        Assert.Equal("ArgumentOutOfRangeException", opened.ExceptionType);
     }
 
     [Theory(Timeout = 30000)]
@@ -320,10 +371,10 @@ public sealed class ExcelControllerTests
         var reopened = await controller.ProcessAsync(new ServiceRequest
         {
             Command = "session.open",
-            Args = JsonSerializer.Serialize(new { filePath = path })
+            Args = JsonSerializer.Serialize(new { filePath = path, timeoutSeconds = 1 })
         });
         Assert.False(reopened.Success);
-        Assert.Equal("FileNotFoundException", reopened.ExceptionType);
+        Assert.Equal("ArgumentOutOfRangeException", reopened.ExceptionType);
     }
 
     [Theory(Timeout = 30000)]
@@ -500,10 +551,10 @@ public sealed class ExcelControllerTests
         var retried = await controller.ProcessAsync(new ServiceRequest
         {
             Command = "session.open",
-            Args = JsonSerializer.Serialize(new { filePath = path })
+            Args = JsonSerializer.Serialize(new { filePath = path, timeoutSeconds = 1 })
         });
         Assert.False(retried.Success);
-        Assert.Equal("FileNotFoundException", retried.ExceptionType);
+        Assert.Equal("ArgumentOutOfRangeException", retried.ExceptionType);
         Assert.Empty(controller.Sessions);
         Assert.False(File.Exists(path));
     }

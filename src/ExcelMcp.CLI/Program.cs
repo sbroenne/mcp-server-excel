@@ -80,7 +80,7 @@ internal sealed class Program
         if (filteredArgs.Length == 0)
         {
             if (showBanner) RenderHeader();
-            WriteDiagnosticMarkupLine("[dim]No command supplied. Use [green]--help[/] for usage examples.[/]");
+            WriteDiagnosticMarkupLine("[dim]No command supplied. Use [green]--help[/] for commands. For a known sequence in one call, use [green]batch --help[/].[/]");
             return 0;
         }
 
@@ -151,7 +151,7 @@ internal sealed class Program
 
             // Batch command — execute multiple commands in a single process launch
             config.AddCommand<BatchCommand>("batch")
-                .WithDescription("Execute multiple commands from a JSON file or stdin. Outputs NDJSON (one result per line).");
+                .WithDescription("Run a known sequence in one CLI call, avoiding repeated launches. See batch --help for input examples.");
 
             // Session commands
             config.AddBranch("session", branch =>
@@ -201,6 +201,12 @@ internal sealed class Program
                     () => app.RunAsync(filteredArgs),
                     telemetryObserver));
             ActionHelp.WriteManualResultFields(filteredArgs);
+            if (exitCode == 0 &&
+                string.Equals(filteredArgs[0], "batch", StringComparison.OrdinalIgnoreCase) &&
+                filteredArgs.Any(argument => argument is "--help" or "-h"))
+            {
+                BatchHelp.Write();
+            }
             return exitCode;
         }
         catch (CommandRuntimeException ex)
@@ -281,6 +287,7 @@ internal sealed class Program
         err.Write(new FigletText("Excel CLI").Color(Spectre.Console.Color.Blue));
         err.MarkupLine("[dim]Automate Microsoft Excel from the command line[/]");
         err.MarkupLine("[yellow]Workflow:[/] [green]session open <file>[/] → run commands with [green]--session <id>[/] → [green]session close --save[/].");
+        err.MarkupLine("[dim]For a known sequence in one call, use [green]batch --help[/].[/]");
         err.MarkupLine("[dim]A background service manages sessions for performance.[/]");
         err.WriteLine();
     }

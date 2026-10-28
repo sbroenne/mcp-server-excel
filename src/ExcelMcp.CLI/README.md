@@ -67,6 +67,14 @@ dotnet tool install --global Sbroenne.ExcelMcp.CLI
 
 > 🔁 **Session Workflow:** Always start with `excelcli session open <file>` (captures the session id), pass `--session <id>` to other commands, then `excelcli session close --session <id> --save` when finished. Add `--show` when Excel must stay visible for IRM/AIP sign-in or other authentication prompts.
 
+For a known sequence, use `excelcli batch` to avoid launching the CLI for every
+step. Start with `excelcli batch --help` for runnable PowerShell examples and
+input/result rules. Action help, such as `excelcli range set-values --help`,
+also shows the exact batch command and argument names; no skill is required.
+Use individual commands when you need to inspect a result before choosing the
+next step. See [CLI batch jobs](../../docs/reference/workflows.md#cli-batch-jobs)
+for the complete workflow.
+
 ---
 
 ## 📋 What You Can Do

@@ -150,13 +150,12 @@ internal sealed class ExcelController : IDisposable
                 worker = selectedWorkbook.Worker;
                 if (selectedWorkbook.Workbook.Location is { } location)
                 {
-                    var normalized = FilePathValidation.NormalizeWorkbookLocation(location);
-                    if (!_paths.TryGetValue(normalized, out var existing)
+                    if (!_paths.TryGetValue(location, out var existing)
                         || existing.SessionId is null || existing.SessionId != selectedWorkbook.Workbook.SessionId)
                     {
-                        if (!_paths.TryAdd(normalized, reservation))
+                        if (!_paths.TryAdd(location, reservation))
                             return ExcelWorkerHost.Failure(request, "Conflict", "This workbook is reserved by another session or pending request.");
-                        reservedPaths.Add(normalized);
+                        reservedPaths.Add(location);
                     }
                 }
             }
@@ -356,7 +355,7 @@ internal sealed class ExcelController : IDisposable
         var session = list.RootElement.GetProperty("sessions").EnumerateArray()
             .Single(entry => entry.GetProperty("sessionId").GetString() == sessionId);
         return session.GetProperty("filePaths").EnumerateArray()
-            .Select(path => FilePathValidation.NormalizeWorkbookLocation(path.GetString()!))
+            .Select(path => path.GetString()!)
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
@@ -443,7 +442,7 @@ internal sealed class ExcelController : IDisposable
                         _sessions[session.SessionId] = worker;
                     if (!string.IsNullOrWhiteSpace(session.FilePath))
                     {
-                        var path = FilePathValidation.NormalizeWorkbookLocation(session.FilePath);
+                        var path = session.FilePath;
                         var currentPaths = RecordedPaths(snapshot, session.SessionId);
                         foreach (var ownedPath in currentPaths)
                             _paths[ownedPath] = new PathReservation("recorded", session.SessionId);

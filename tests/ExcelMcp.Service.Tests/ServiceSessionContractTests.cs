@@ -107,7 +107,7 @@ public sealed class ServiceSessionContractTests
     }
 
     [Fact]
-    public async Task Test_SharePointUrl_ReportsInteractiveValidationWithoutLocalFileChecks()
+    public async Task Test_RemoteUrl_ReportsUnavailableLocalMetadataWithoutOpeningExcel()
     {
         using var service = new ExcelMcpService();
 
@@ -123,7 +123,7 @@ public sealed class ServiceSessionContractTests
         Assert.Equal("https://contoso.sharepoint.com/sites/Test/Shared%20Documents/Test.xlsx", info.FilePath);
         Assert.False(info.CanOpen);
         Assert.False(info.Exists);
-        Assert.True(info.RequiresVisibleSession);
+        Assert.False(info.RequiresVisibleSession);
         Assert.Equal(".xlsx", info.Extension);
         Assert.Contains("authentication", info.Message, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("not found", info.Message, StringComparison.OrdinalIgnoreCase);
@@ -131,31 +131,13 @@ public sealed class ServiceSessionContractTests
     }
 
     [Fact]
-    public async Task Open_SharePointUrlWithoutShow_RejectsBeforeStartingExcel()
+    public async Task Create_RemoteUrl_IsRejectedWithoutStartingExcel()
     {
         using var service = new ExcelMcpService();
         var response = await service.ProcessAsync(new ServiceRequest
         {
-            Command = "session.open",
-            Args = """{"filePath":"https://contoso.sharepoint.com/Documents/Test.xlsx"}"""
-        });
-        Assert.False(response.Success);
-        Assert.Equal("InvalidInput", response.ErrorCategory);
-        Assert.Contains("show=true", response.ErrorMessage, StringComparison.Ordinal);
-        Assert.Equal(0, service.SessionCount);
-    }
-
-    [Theory]
-    [InlineData("session.open", "https://example.com/Test.xlsx")]
-    [InlineData("session.open", "https://contoso.sharepoint.com/_layouts/15/Doc.aspx")]
-    [InlineData("session.create", "https://contoso.sharepoint.com/Documents/Test.xlsx")]
-    public async Task UnsupportedUrl_IsRejectedWithoutStartingExcel(string command, string url)
-    {
-        using var service = new ExcelMcpService();
-        var response = await service.ProcessAsync(new ServiceRequest
-        {
-            Command = command,
-            Args = JsonSerializer.Serialize(new { filePath = url, show = true }, ServiceProtocol.JsonOptions)
+            Command = "session.create",
+            Args = """{"filePath":"https://contoso.sharepoint.com/Documents/Test.xlsx","show":true}"""
         });
         Assert.False(response.Success);
         Assert.Equal("InvalidInput", response.ErrorCategory);

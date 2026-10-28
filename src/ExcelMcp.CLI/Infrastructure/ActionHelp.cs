@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Globalization;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using Sbroenne.ExcelMcp.Generated;
 
 namespace Sbroenne.ExcelMcp.CLI.Infrastructure;
@@ -32,6 +33,7 @@ internal static class ActionHelp
         parameterNames.Add("OutputPath");
 
         var output = new StringBuilder();
+        var batchMappings = new List<(string Option, string Parameter)>();
         output.AppendLine(CultureInfo.InvariantCulture, $"Usage: excelcli {arguments[0]} {arguments[1]} [OPTIONS]");
         output.AppendLine();
         output.AppendLine("Options:");
@@ -54,11 +56,37 @@ internal static class ActionHelp
                 .Replace("[[", "[", StringComparison.Ordinal)
                 .Replace("]]", "]", StringComparison.Ordinal);
             output.AppendLine(CultureInfo.InvariantCulture, $"  {option,-42} {description}");
+            if (actionParameters.Contains(parameterName, StringComparer.Ordinal))
+                batchMappings.Add((option, parameterName));
         }
         output.AppendLine(CultureInfo.InvariantCulture, $"  {"-h|--help",-42} Show this action-specific help.");
         if (ServiceRegistry.GetResultContract(arguments[0] + "." + arguments[1]) is { ReadOnly: true } resultContract)
         {
             AppendResultFields(output, resultContract);
+        }
+
+        var actionName = actions.Keys.Single(action =>
+            string.Equals(action, arguments[1], StringComparison.OrdinalIgnoreCase));
+        var batchCommand = $"{category.CliCommandName}.{actionName}";
+        output.AppendLine();
+        output.AppendLine("Batch input (fill in required args from the options above):");
+        output.AppendLine(JsonSerializer.Serialize(new
+        {
+            command = batchCommand,
+            args = new Dictionary<string, object?>()
+        }));
+        output.AppendLine("Batch arguments (case-sensitive):");
+        foreach (var (option, parameter) in batchMappings)
+            output.AppendLine(CultureInfo.InvariantCulture, $"  {option,-42} args.{parameter}");
+        if (batchMappings.Count == 0)
+            output.AppendLine("  This action takes no args.");
+        if (category.RequiresSession)
+            output.AppendLine("Select the workbook with batch --session <id> or an entry's top-level sessionId, not inside args.");
+        output.AppendLine("Use JSON arrays/objects directly, not strings containing JSON. See excelcli batch --help for execution examples.");
+        if (batchCommand == "range.set-values")
+        {
+            output.AppendLine("Example args (requires an existing Sales sheet and authorization to write inspected empty A1:B2 cells):");
+            output.AppendLine(BatchHelp.RangeWriteEntry);
         }
 
         CliCommandRuntime.Current.Output.Write(output.ToString());
