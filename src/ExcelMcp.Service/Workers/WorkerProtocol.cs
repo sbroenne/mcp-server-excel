@@ -8,6 +8,8 @@ namespace Sbroenne.ExcelMcp.Service.Workers;
 
 internal sealed record WorkerProcess(int ProcessId, long StartedAtUtcFileTime)
 {
+    internal static Action<Process>? BeforeIdentityReadForTests { get; set; }
+
     internal static WorkerProcess Current
     {
         get
@@ -22,16 +24,31 @@ internal sealed record WorkerProcess(int ProcessId, long StartedAtUtcFileTime)
 
     internal bool IsAlive()
     {
+        Process process;
         try
         {
-            using var process = Process.GetProcessById(ProcessId);
-            using var current = Process.GetCurrentProcess();
-            return !process.HasExited && process.SessionId == current.SessionId
-                && process.StartTime.ToUniversalTime().ToFileTimeUtc() == StartedAtUtcFileTime;
+            process = Process.GetProcessById(ProcessId);
         }
         catch (ArgumentException)
         {
             return false;
+        }
+        using (process)
+        {
+            try
+            {
+                _ = process.Handle;
+                if (process.HasExited)
+                    return false;
+                BeforeIdentityReadForTests?.Invoke(process);
+                using var current = Process.GetCurrentProcess();
+                return process.SessionId == current.SessionId
+                    && process.StartTime.ToUniversalTime().ToFileTimeUtc() == StartedAtUtcFileTime;
+            }
+            catch (InvalidOperationException) when (process.HasExited)
+            {
+                return false;
+            }
         }
     }
 }

@@ -12,13 +12,14 @@ namespace Sbroenne.ExcelMcp.Service.Tests;
 public sealed partial class ServiceWorkbookLifecycleTests
 {
     [Theory]
-    [InlineData(false, false, false)]
-    [InlineData(true, false, false)]
-    [InlineData(false, true, false)]
-    [InlineData(true, true, false)]
-    [InlineData(false, true, true)]
+    [InlineData(false, false, false, false)]
+    [InlineData(true, false, false, false)]
+    [InlineData(false, true, false, false)]
+    [InlineData(true, true, false, false)]
+    [InlineData(false, true, true, false)]
+    [InlineData(false, true, false, true)]
     public async Task TemporaryBatch_CompletedCrossFileCall_ClosesOnlyOnSuccess(
-        bool move, bool failSave, bool readOnlySource)
+        bool move, bool failSave, bool readOnlySource, bool renameTarget)
     {
         var directory = Path.GetFullPath(Path.Join(AppContext.BaseDirectory,
             "..", "..", "..", "..", "..", "artifacts", $"tb-{Guid.NewGuid():N}"));
@@ -69,6 +70,44 @@ public sealed partial class ServiceWorkbookLifecycleTests
                 Assert.True(partial.RootElement.GetProperty("retained").GetBoolean());
                 Assert.False(partial.RootElement.GetProperty("operation").GetProperty("executionPending").GetBoolean());
                 Assert.False(partial.RootElement.GetProperty("operation").GetProperty("waitExpired").GetBoolean());
+                if (renameTarget)
+                {
+                    var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(retained));
+                    var renamed = Path.Join(directory, "target-renamed.xlsx");
+                    batch.Execute((_, _) => batch.GetWorkbook(target).SaveAs(renamed));
+                    var discovery = await service.SessionManager.DiscoverOpenWorkbooksAsync(batch.ProcessIdentity);
+                    Assert.True(discovery.Complete, string.Join("; ", discovery.Errors.Select(error => error.Message)));
+                    Assert.Contains(discovery.Workbooks, workbook => workbook.Location == renamed);
+                    Assert.True(service.SessionManager.TryGetFilePath(retained, out var selected));
+                    Assert.Equal(source, selected);
+                    Assert.Equal(source, batch.WorkbookPath);
+                    batch.Execute((context, _) =>
+                    {
+                        Assert.Equal(source, context.Book.FullName);
+                        Assert.Equal(renamed, batch.GetWorkbook(renamed).FullName);
+                    });
+                    Assert.Equal(new[] { source, renamed }, service.SessionManager.GetOwnedFilePaths(retained));
+                    var listed = await service.ProcessAsync(new ServiceRequest
+                    {
+                        Command = "session.list"
+                    });
+                    RequireSuccess(listed);
+                    using var sessions = JsonDocument.Parse(listed.Result!);
+                    Assert.Equal(new[] { source, renamed }, Assert.Single(
+                        sessions.RootElement.GetProperty("sessions").EnumerateArray())
+                        .GetProperty("filePaths").EnumerateArray().Select(path => path.GetString()));
+                    var sheetResponse = await service.ProcessAsync(new ServiceRequest
+                    {
+                        Command = "sheet.list",
+                        SessionId = retained,
+                        Args = JsonSerializer.Serialize(new { filePath = renamed })
+                    });
+                    RequireSuccess(sheetResponse);
+                    using var worksheets = JsonDocument.Parse(sheetResponse.Result!);
+                    Assert.Equal(2, worksheets.RootElement.GetProperty("worksheets").GetArrayLength());
+                    Assert.Throws<KeyNotFoundException>(() => batch.Execute((_, _) => batch.GetWorkbook(target)));
+                    target = renamed;
+                }
                 if (readOnlySource)
                 {
                     var batch = Assert.IsType<ExcelBatch>(service.SessionManager.GetSession(retained));

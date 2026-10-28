@@ -71,9 +71,11 @@ public sealed class ExcelWorkerBoundaryTests
         }
         finally
         {
+            using var process = Process.GetProcessById(worker.Registration.Worker.ProcessId);
+            Assert.Equal(worker.Registration.Worker, WorkerProcess.From(process));
+            _ = process.Handle;
             var released = await worker.ReleaseAsync(CancellationToken.None);
             Assert.True(released.Success, released.ErrorMessage);
-            using var process = Process.GetProcessById(worker.Registration.Worker.ProcessId);
             await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
             Assert.Equal(0, process.ExitCode);
         }
@@ -161,6 +163,45 @@ public sealed class ExcelWorkerBoundaryTests
         var current = WorkerProcess.Current;
         Assert.True(current.IsAlive());
         Assert.False((current with { StartedAtUtcFileTime = current.StartedAtUtcFileTime - 1 }).IsAlive());
+    }
+
+    [Theory(Timeout = 15000)]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ProcessIdentity_ExitDuringReadDoesNotHideLiveProbeFailures(bool remainAlive)
+    {
+        using var process = Process.Start(new ProcessStartInfo("pwsh")
+        {
+            ArgumentList = { "-NoProfile", "-Command", "[Console]::ReadLine() | Out-Null" },
+            RedirectStandardInput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        })!;
+        var identity = WorkerProcess.From(process);
+        _ = process.Handle;
+        try
+        {
+            WorkerProcess.BeforeIdentityReadForTests = probe =>
+            {
+                if (remainAlive)
+                    throw new InvalidOperationException("Live process identity could not be read.");
+                process.StandardInput.Close();
+                Assert.True(process.WaitForExit(5000));
+                probe.Refresh();
+            };
+            if (remainAlive)
+                Assert.Equal("Live process identity could not be read.",
+                    Assert.Throws<InvalidOperationException>(() => identity.IsAlive()).Message);
+            else
+                Assert.False(identity.IsAlive());
+        }
+        finally
+        {
+            WorkerProcess.BeforeIdentityReadForTests = null;
+            process.StandardInput.Close();
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(5));
+        }
+        Assert.False(identity.IsAlive());
     }
 
     [Fact]

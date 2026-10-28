@@ -1178,9 +1178,12 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
 
     public string WorkbookPath => _workbookPath;
 
-    public void UpdateWorkbookPath(string workbookPath)
+    public void UpdateWorkbookPath(string workbookPath) => UpdateOwnedWorkbookPath(_workbookPath, workbookPath);
+
+    internal void UpdateOwnedWorkbookPath(string previousWorkbookPath, string workbookPath)
     {
         ObjectDisposedException.ThrowIf(_disposed != 0, nameof(ExcelBatch));
+        var previousPath = WorkbookLocation.Normalize(previousWorkbookPath);
         var normalizedPath = WorkbookLocation.Normalize(workbookPath);
 
         void UpdatePath()
@@ -1190,19 +1193,25 @@ internal sealed partial class ExcelBatch : IExcelBatch, IExcelBatchTeardownState
                 throw new InvalidOperationException("Workbooks not initialized");
             }
 
-            var previousPath = WorkbookLocation.Normalize(_workbookPath);
+            var index = Array.FindIndex(_allWorkbookPaths,
+                path => string.Equals(path, previousPath, StringComparison.OrdinalIgnoreCase));
+            if (index < 0)
+                throw new InvalidOperationException($"Tracked workbook path '{previousPath}' was not found.");
             if (!_workbooks.Remove(previousPath, out var workbook))
             {
                 throw new InvalidOperationException($"Tracked workbook '{previousPath}' was not found.");
             }
 
             _workbooks[normalizedPath] = workbook;
-            _workbookPath = normalizedPath;
-            _allWorkbookPaths[0] = normalizedPath;
-            _context = new ExcelContext(normalizedPath, _excel, _workbook, _context!.Capabilities)
+            _allWorkbookPaths[index] = normalizedPath;
+            if (index == 0)
             {
-                ProcessIdentity = _excelProcessIdentity
-            };
+                _workbookPath = normalizedPath;
+                _context = new ExcelContext(normalizedPath, _excel, _workbook, _context!.Capabilities)
+                {
+                    ProcessIdentity = _excelProcessIdentity
+                };
+            }
             InvalidateLocationSnapshot();
         }
 

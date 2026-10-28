@@ -780,17 +780,13 @@ public sealed class SessionManager : IDisposable
                     ValidateOwnedWorkbookLocations(ownedCandidates);
                 if (previousPath is null)
                     continue;
-                // A cross-file session selects its primary workbook. Another workbook
-                // owned by that same batch is not evidence that the primary did Save As.
-                if (owned.IsManagedTemporaryBatch
-                    && !string.Equals(previousPath, owned.WorkbookPath, StringComparison.OrdinalIgnoreCase))
-                    return ownedSessionId;
+                var primaryWorkbook = string.Equals(previousPath, owned.WorkbookPath, StringComparison.OrdinalIgnoreCase);
                 AfterOwnedWorkbookMatchHookForTests?.Invoke();
 
                 if (workbook.Location is { } currentPath
                     && (!string.Equals(previousPath, currentPath, StringComparison.OrdinalIgnoreCase)
-                        || !_sessionFilePaths.TryGetValue(ownedSessionId, out var trackedPath)
-                        || !string.Equals(trackedPath, currentPath, StringComparison.OrdinalIgnoreCase)))
+                        || primaryWorkbook && (!_sessionFilePaths.TryGetValue(ownedSessionId, out var trackedPath)
+                            || !string.Equals(trackedPath, currentPath, StringComparison.OrdinalIgnoreCase))))
                 {
                     string reserved;
                     lock (_filePathReservationLock)
@@ -808,10 +804,10 @@ public sealed class SessionManager : IDisposable
                                     throw new InvalidOperationException(
                                         "The owned workbook location changed during discovery. Discover open workbooks again.");
                                 }
-                                owned.UpdateWorkbookPath(currentPath);
+                                owned.UpdateOwnedWorkbookPath(previousPath, currentPath);
                                 return 0;
                             });
-                        UpdateSessionFilePath(ownedSessionId, currentPath);
+                        UpdateSessionFilePath(ownedSessionId, currentPath, previousPath);
                         ownedCandidates[index] = (ownedSessionId, owned, owned.LocationRevision);
                     }
                     finally
@@ -2264,7 +2260,10 @@ public sealed class SessionManager : IDisposable
     /// </summary>
     /// <param name="sessionId">Active session ID</param>
     /// <param name="filePath">New workbook path</param>
-    public void UpdateSessionFilePath(string sessionId, string filePath)
+    public void UpdateSessionFilePath(string sessionId, string filePath) =>
+        UpdateSessionFilePath(sessionId, filePath, previousWorkbookPath: null);
+
+    private void UpdateSessionFilePath(string sessionId, string filePath, string? previousWorkbookPath)
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         var normalizedPath = WorkbookLocation.Normalize(filePath);
@@ -2290,13 +2289,19 @@ public sealed class SessionManager : IDisposable
                     $"File '{normalizedPath}' is not reserved by session '{sessionId}'.");
             }
 
-            if (_sessionFilePaths.TryGetValue(sessionId, out var previousPath) &&
+            _sessionFilePaths.TryGetValue(sessionId, out var selectedPath);
+            var previousPath = previousWorkbookPath ?? selectedPath;
+            if (previousPath is not null &&
                 !string.Equals(previousPath, normalizedPath, StringComparison.OrdinalIgnoreCase))
             {
                 ReleaseFilePathClaim(previousPath, sessionId);
             }
 
-            _sessionFilePaths[sessionId] = normalizedPath;
+            if (previousWorkbookPath is null
+                || string.Equals(previousWorkbookPath, selectedPath, StringComparison.OrdinalIgnoreCase))
+                _sessionFilePaths[sessionId] = normalizedPath;
+            else
+                _sessionFilePathReservations.TryRemove(sessionId, out _);
             _readOnlyValidationSessions.TryRemove(sessionId, out _);
         }
     }
